@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1655013925;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -43206980;
 
 // Section: executor
 
@@ -7176,6 +7176,205 @@ fn wire__crate__api__transfer__transfer_dispatch_impl(
         },
     )
 }
+fn wire__crate__api__update_metadata__update_asset_suffix_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_asset_suffix",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_platform = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::update_metadata::update_asset_suffix(api_platform),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_build_cumulative_changelog",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_releases = <Vec<crate::api::update_metadata::DbChangelogRelease>>::sse_decode(
+                &mut deserializer,
+            );
+            let api_current_version = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::update_metadata::update_build_cumulative_changelog(
+                        api_releases,
+                        api_current_version,
+                    ),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__update_metadata__update_compare_versions_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_compare_versions",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_a = <String>::sse_decode(&mut deserializer);
+            let api_b = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::update_metadata::update_compare_versions(api_a, api_b),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_is_trusted_release_asset_uri",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_uri = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::update_metadata::update_is_trusted_release_asset_uri(api_uri),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__update_metadata__update_parse_asset_version_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_parse_asset_version",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_asset_name = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::update_metadata::update_parse_asset_version(api_asset_name),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_parse_sha256_manifest",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_content = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::update_metadata::update_parse_sha256_manifest(api_content),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__winbio__winbio_count_units_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -7798,6 +7997,18 @@ impl SseDecode for crate::api::archive::DbApplyResult {
     }
 }
 
+impl SseDecode for crate::api::update_metadata::DbChangelogRelease {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_tag = <String>::sse_decode(deserializer);
+        let mut var_body = <String>::sse_decode(deserializer);
+        return crate::api::update_metadata::DbChangelogRelease {
+            tag: var_tag,
+            body: var_body,
+        };
+    }
+}
+
 impl SseDecode for crate::api::deeplink::DbConnectLink {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8218,6 +8429,18 @@ impl SseDecode for crate::api::db::DbSftpBookmark {
     }
 }
 
+impl SseDecode for crate::api::update_metadata::DbSha256ManifestEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_hash = <String>::sse_decode(deserializer);
+        return crate::api::update_metadata::DbSha256ManifestEntry {
+            name: var_name,
+            hash: var_hash,
+        };
+    }
+}
+
 impl SseDecode for crate::api::db::DbSnippet {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8346,6 +8569,19 @@ impl SseDecode for crate::api::db::DbTag {
     }
 }
 
+impl SseDecode for crate::api::update_metadata::DbVersionOrder {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::update_metadata::DbVersionOrder::Less,
+            1 => crate::api::update_metadata::DbVersionOrder::Equal,
+            2 => crate::api::update_metadata::DbVersionOrder::Greater,
+            _ => unreachable!("Invalid variant for DbVersionOrder: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8381,6 +8617,18 @@ impl SseDecode for Vec<String> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::update_metadata::DbChangelogRelease> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::update_metadata::DbChangelogRelease>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -8485,6 +8733,20 @@ impl SseDecode for Vec<crate::api::db::DbSftpBookmark> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::db::DbSftpBookmark>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::update_metadata::DbSha256ManifestEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::update_metadata::DbSha256ManifestEntry>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -9251,7 +9513,13 @@ fn pde_ffi_dispatcher_sync_impl(
 130 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
 138 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
 139 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
-165 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+165 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+166 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+167 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+168 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+169 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+170 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+171 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -9786,6 +10054,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::archive::DbApplyResult>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_metadata::DbChangelogRelease {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.tag.into_into_dart().into_dart(),
+            self.body.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_metadata::DbChangelogRelease
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_metadata::DbChangelogRelease>
+    for crate::api::update_metadata::DbChangelogRelease
+{
+    fn into_into_dart(self) -> crate::api::update_metadata::DbChangelogRelease {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::deeplink::DbConnectLink {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10269,6 +10558,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::db::DbSftpBookmark>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_metadata::DbSha256ManifestEntry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.name.into_into_dart().into_dart(),
+            self.hash.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_metadata::DbSha256ManifestEntry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_metadata::DbSha256ManifestEntry>
+    for crate::api::update_metadata::DbSha256ManifestEntry
+{
+    fn into_into_dart(self) -> crate::api::update_metadata::DbSha256ManifestEntry {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::db::DbSnippet {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10404,6 +10714,28 @@ impl flutter_rust_bridge::IntoDart for crate::api::db::DbTag {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::db::DbTag {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::db::DbTag> for crate::api::db::DbTag {
     fn into_into_dart(self) -> crate::api::db::DbTag {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_metadata::DbVersionOrder {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Less => 0.into_dart(),
+            Self::Equal => 1.into_dart(),
+            Self::Greater => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_metadata::DbVersionOrder
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_metadata::DbVersionOrder>
+    for crate::api::update_metadata::DbVersionOrder
+{
+    fn into_into_dart(self) -> crate::api::update_metadata::DbVersionOrder {
         self
     }
 }
@@ -11010,6 +11342,14 @@ impl SseEncode for crate::api::archive::DbApplyResult {
     }
 }
 
+impl SseEncode for crate::api::update_metadata::DbChangelogRelease {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.tag, serializer);
+        <String>::sse_encode(self.body, serializer);
+    }
+}
+
 impl SseEncode for crate::api::deeplink::DbConnectLink {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11286,6 +11626,14 @@ impl SseEncode for crate::api::db::DbSftpBookmark {
     }
 }
 
+impl SseEncode for crate::api::update_metadata::DbSha256ManifestEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <String>::sse_encode(self.hash, serializer);
+    }
+}
+
 impl SseEncode for crate::api::db::DbSnippet {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11362,6 +11710,23 @@ impl SseEncode for crate::api::db::DbTag {
     }
 }
 
+impl SseEncode for crate::api::update_metadata::DbVersionOrder {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::update_metadata::DbVersionOrder::Less => 0,
+                crate::api::update_metadata::DbVersionOrder::Equal => 1,
+                crate::api::update_metadata::DbVersionOrder::Greater => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11391,6 +11756,16 @@ impl SseEncode for Vec<String> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::update_metadata::DbChangelogRelease> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::update_metadata::DbChangelogRelease>::sse_encode(item, serializer);
         }
     }
 }
@@ -11471,6 +11846,16 @@ impl SseEncode for Vec<crate::api::db::DbSftpBookmark> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::db::DbSftpBookmark>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::update_metadata::DbSha256ManifestEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::update_metadata::DbSha256ManifestEntry>::sse_encode(item, serializer);
         }
     }
 }

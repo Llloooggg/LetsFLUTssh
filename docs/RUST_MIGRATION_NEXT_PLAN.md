@@ -174,15 +174,18 @@ Migration tests must confirm round-trip equality.
 
 ### Step 6 — UpdateService → Rust
 
-**Status:** DEFERRED — separate arc. ~830 LOC of Dart that
-requires bringing in `reqwest` + `rustls` (transitively
-hyper / tokio-rustls), porting `cert_pinning.dart` SPKI
-extraction, `release_signing.dart` Ed25519 verifier (the crate
-exists, the integration doesn't), redirect-host allowlist,
-SHA-256 streaming verifier, progress streaming via the bus,
-and the OS file launcher coordination. Integration risk is
-high (replaces the entire update channel). Land on its own
-branch with explicit smoke-test on every platform.
+**Status:** PARTIAL — pure-function helpers ported to
+`lfs_core::update_metadata` with 17 unit tests:
+`compare_versions`, `is_trusted_release_asset_uri`,
+`asset_suffix`, `parse_asset_version`, `parse_sha256_manifest`,
+`build_cumulative_changelog`. Dart `UpdateService` routes
+through the FRB calls + retains tiny fallbacks (flutter_test
+constraint).
+
+The HTTP fetch + cert_pinning SPKI extraction + signed manifest
+download + Ed25519-via-rust_crypto orchestration stays Dart
+for now — needs a focused arc for `reqwest` + `rustls`
+integration plus per-platform smoke. Tracked separately.
 
 **Why sixth:** HTTP fetch + SHA-256 + Ed25519 verify all live in
 crypto already. ~500 LOC drops Dart-side. Keep the OS-specific

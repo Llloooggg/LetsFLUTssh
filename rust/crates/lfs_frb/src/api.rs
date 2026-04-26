@@ -19,6 +19,7 @@ pub mod sftp;
 pub mod ssh;
 pub mod ssh_config;
 pub mod transfer;
+pub mod update_metadata;
 pub mod winbio;
 
 /// FFI plumbing init — runs once when Dart loads the native blob.

@@ -41,6 +41,7 @@ pub mod ssh;
 pub mod ssh_config;
 pub mod threat_vocabulary;
 pub mod transfer;
+pub mod update_metadata;
 
 pub use error::Error;
 

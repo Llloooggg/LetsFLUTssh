@@ -21,6 +21,7 @@ import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
 import 'api/transfer.dart';
+import 'api/update_metadata.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
 import 'dart:async';
@@ -316,6 +317,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbApplyResult dco_decode_db_apply_result(dynamic raw);
 
   @protected
+  DbChangelogRelease dco_decode_db_changelog_release(dynamic raw);
+
+  @protected
   DbConnectLink dco_decode_db_connect_link(dynamic raw);
 
   @protected
@@ -373,6 +377,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSftpBookmark dco_decode_db_sftp_bookmark(dynamic raw);
 
   @protected
+  DbSha256ManifestEntry dco_decode_db_sha_256_manifest_entry(dynamic raw);
+
+  @protected
   DbSnippet dco_decode_db_snippet(dynamic raw);
 
   @protected
@@ -391,6 +398,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTag dco_decode_db_tag(dynamic raw);
 
   @protected
+  DbVersionOrder dco_decode_db_version_order(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -401,6 +411,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<DbChangelogRelease> dco_decode_list_db_changelog_release(dynamic raw);
 
   @protected
   List<DbFolder> dco_decode_list_db_folder(dynamic raw);
@@ -425,6 +438,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSftpBookmark> dco_decode_list_db_sftp_bookmark(dynamic raw);
+
+  @protected
+  List<DbSha256ManifestEntry> dco_decode_list_db_sha_256_manifest_entry(
+    dynamic raw,
+  );
 
   @protected
   List<DbSnippet> dco_decode_list_db_snippet(dynamic raw);
@@ -823,6 +841,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbApplyResult sse_decode_db_apply_result(SseDeserializer deserializer);
 
   @protected
+  DbChangelogRelease sse_decode_db_changelog_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbConnectLink sse_decode_db_connect_link(SseDeserializer deserializer);
 
   @protected
@@ -898,6 +921,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSftpBookmark sse_decode_db_sftp_bookmark(SseDeserializer deserializer);
 
   @protected
+  DbSha256ManifestEntry sse_decode_db_sha_256_manifest_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSnippet sse_decode_db_snippet(SseDeserializer deserializer);
 
   @protected
@@ -916,6 +944,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTag sse_decode_db_tag(SseDeserializer deserializer);
 
   @protected
+  DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -926,6 +957,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<DbChangelogRelease> sse_decode_list_db_changelog_release(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbFolder> sse_decode_list_db_folder(SseDeserializer deserializer);
@@ -958,6 +994,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSftpBookmark> sse_decode_list_db_sftp_bookmark(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbSha256ManifestEntry> sse_decode_list_db_sha_256_manifest_entry(
     SseDeserializer deserializer,
   );
 
@@ -1449,6 +1490,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_apply_result(DbApplyResult self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_changelog_release(
+    DbChangelogRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_connect_link(DbConnectLink self, SseSerializer serializer);
 
   @protected
@@ -1545,6 +1592,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_sha_256_manifest_entry(
+    DbSha256ManifestEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_snippet(DbSnippet self, SseSerializer serializer);
 
   @protected
@@ -1572,6 +1625,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_tag(DbTag self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_version_order(
+    DbVersionOrder self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -1582,6 +1641,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_db_changelog_release(
+    List<DbChangelogRelease> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_db_folder(List<DbFolder> self, SseSerializer serializer);
@@ -1625,6 +1690,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_sftp_bookmark(
     List<DbSftpBookmark> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_sha_256_manifest_entry(
+    List<DbSha256ManifestEntry> self,
     SseSerializer serializer,
   );
 

@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../src/rust/api/update_metadata.dart' as rust_update;
 import '../../utils/logger.dart';
 import 'cert_pinning.dart';
 import 'release_signing.dart';
@@ -75,7 +76,23 @@ class UpdateInfo {
   bool get hasUpdate => compareVersions(latestVersion, currentVersion) > 0;
 
   /// Compare two semver strings. Returns positive if [a] > [b].
+  /// Routes through `lfs_core::update_metadata::compare_versions`
+  /// — canonical implementation. Dart fallback fires only in
+  /// flutter_test contexts that don't load the FRB native lib.
   static int compareVersions(String a, String b) {
+    try {
+      final ord = rust_update.updateCompareVersions(a: a, b: b);
+      return switch (ord) {
+        rust_update.DbVersionOrder.less => -1,
+        rust_update.DbVersionOrder.equal => 0,
+        rust_update.DbVersionOrder.greater => 1,
+      };
+    } catch (_) {
+      return _compareVersionsDart(a, b);
+    }
+  }
+
+  static int _compareVersionsDart(String a, String b) {
     final pa = _parseVersion(a);
     final pb = _parseVersion(b);
     for (var i = 0; i < 3; i++) {
@@ -207,11 +224,16 @@ class UpdateService {
 
   /// True if [uri] uses HTTPS and a host GitHub uses for release assets
   /// (same-origin policy for [browser_download_url] and redirect targets).
+  /// Routes through `lfs_core::update_metadata::is_trusted_release_asset_uri`.
   static bool isTrustedReleaseAssetUri(Uri uri) {
-    if (uri.scheme != 'https') return false;
-    final host = uri.host;
-    if (host.isEmpty) return false;
-    return host == 'github.com' || host.endsWith('.githubusercontent.com');
+    try {
+      return rust_update.updateIsTrustedReleaseAssetUri(uri: uri.toString());
+    } catch (_) {
+      if (uri.scheme != 'https') return false;
+      final host = uri.host;
+      if (host.isEmpty) return false;
+      return host == 'github.com' || host.endsWith('.githubusercontent.com');
+    }
   }
 
   /// Query GitHub for the latest release and compare with [currentVersion].
@@ -279,21 +301,42 @@ class UpdateService {
   }
 
   /// Build changelog from all releases between current version and latest.
+  /// Routes through `lfs_core::update_metadata::build_cumulative_changelog`.
   static String? buildCumulativeChangelog(
     List<dynamic> releases,
     String currentVersion,
   ) {
-    final buf = StringBuffer();
+    final pairs = <rust_update.DbChangelogRelease>[];
     for (final release in releases) {
       if (release is! Map<String, dynamic>) continue;
       final tag = release['tag_name'] as String? ?? '';
+      final body = release['body'] as String? ?? '';
+      pairs.add(rust_update.DbChangelogRelease(tag: tag, body: body));
+    }
+    try {
+      return rust_update.updateBuildCumulativeChangelog(
+        releases: pairs,
+        currentVersion: currentVersion,
+      );
+    } catch (_) {
+      return _buildCumulativeChangelogDart(pairs, currentVersion);
+    }
+  }
+
+  static String? _buildCumulativeChangelogDart(
+    List<rust_update.DbChangelogRelease> releases,
+    String currentVersion,
+  ) {
+    final buf = StringBuffer();
+    for (final release in releases) {
+      final tag = release.tag;
       final ver = tag.startsWith('v') ? tag.substring(1) : tag;
       if (UpdateInfo.compareVersions(ver, currentVersion) <= 0) break;
-      final body = release['body'] as String?;
-      if (body != null && body.trim().isNotEmpty) {
+      final body = release.body.trim();
+      if (body.isNotEmpty) {
         if (buf.isNotEmpty) buf.writeln();
         buf.writeln('## $tag');
-        buf.writeln(body.trim());
+        buf.writeln(body);
       }
     }
     final result = buf.toString().trim();
@@ -522,15 +565,18 @@ class UpdateService {
 
   /// Extract the semver version from a release asset filename.
   ///
+  /// Routes through `lfs_core::update_metadata::parse_asset_version`.
   /// Returns the captured version (e.g. `5.9.0`) or null when the name
-  /// does not match the `letsflutssh-<version>-...` pattern. Exposed
-  /// to tests via [parseAssetVersion] without breaking the internal
-  /// naming convention.
+  /// does not match the `letsflutssh-<version>-...` pattern.
   static String? _parseAssetVersion(String assetName) {
-    final match = RegExp(
-      r'^letsflutssh-([0-9]+\.[0-9]+\.[0-9]+)-',
-    ).firstMatch(assetName);
-    return match?.group(1);
+    try {
+      return rust_update.updateParseAssetVersion(assetName: assetName);
+    } catch (_) {
+      final match = RegExp(
+        r'^letsflutssh-([0-9]+\.[0-9]+\.[0-9]+)-',
+      ).firstMatch(assetName);
+      return match?.group(1);
+    }
   }
 
   @visibleForTesting
@@ -548,13 +594,19 @@ class UpdateService {
   /// update-service plumbing.
   @visibleForTesting
   static Map<String, String> parseSha256Manifest(String content) {
+    try {
+      final entries = rust_update.updateParseSha256Manifest(content: content);
+      return {for (final e in entries) e.name: e.hash};
+    } catch (_) {
+      return _parseSha256ManifestDart(content);
+    }
+  }
+
+  static Map<String, String> _parseSha256ManifestDart(String content) {
     final result = <String, String>{};
     for (final rawLine in LineSplitter.split(content)) {
       final line = rawLine.trim();
       if (line.isEmpty || line.startsWith('#')) continue;
-      // Split on whitespace; first token is the hex hash, the rest is
-      // the filename (may carry a leading `*` in binary mode, stripped
-      // below).
       final spaceIdx = line.indexOf(RegExp(r'\s'));
       if (spaceIdx <= 0) continue;
       final hash = line.substring(0, spaceIdx);
@@ -628,19 +680,24 @@ class UpdateService {
     return _selfUpdatablePlatforms.contains(os) ? os : 'unknown';
   }
 
-  /// Map platform to expected asset filename suffix.
+  /// Map platform to expected asset filename suffix. Routes
+  /// through `lfs_core::update_metadata::asset_suffix`.
   static String? _assetSuffix(String platform) {
-    switch (platform) {
-      case 'linux':
-        return '-linux-x64.AppImage';
-      case 'windows':
-        return '-windows-x64-setup.exe';
-      case 'macos':
-        return '-macos-universal.dmg';
-      case 'android':
-        return '-android-arm64.apk';
-      default:
-        return null; // iOS — no self-update
+    try {
+      return rust_update.updateAssetSuffix(platform: platform);
+    } catch (_) {
+      switch (platform) {
+        case 'linux':
+          return '-linux-x64.AppImage';
+        case 'windows':
+          return '-windows-x64-setup.exe';
+        case 'macos':
+          return '-macos-universal.dmg';
+        case 'android':
+          return '-android-arm64.apk';
+        default:
+          return null; // iOS — no self-update
+      }
     }
   }
 

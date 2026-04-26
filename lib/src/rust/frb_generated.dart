@@ -21,6 +21,7 @@ import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
 import 'api/transfer.dart';
+import 'api/update_metadata.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
 import 'dart:async';
@@ -85,7 +86,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1655013925;
+  int get rustContentHash => -43206980;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -773,6 +774,30 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiTransferTransferCancel({required String taskId});
 
   Future<void> crateApiTransferTransferDispatch({required String taskId});
+
+  String? crateApiUpdateMetadataUpdateAssetSuffix({required String platform});
+
+  String? crateApiUpdateMetadataUpdateBuildCumulativeChangelog({
+    required List<DbChangelogRelease> releases,
+    required String currentVersion,
+  });
+
+  DbVersionOrder crateApiUpdateMetadataUpdateCompareVersions({
+    required String a,
+    required String b,
+  });
+
+  bool crateApiUpdateMetadataUpdateIsTrustedReleaseAssetUri({
+    required String uri,
+  });
+
+  String? crateApiUpdateMetadataUpdateParseAssetVersion({
+    required String assetName,
+  });
+
+  List<DbSha256ManifestEntry> crateApiUpdateMetadataUpdateParseSha256Manifest({
+    required String content,
+  });
 
   PlatformInt64 crateApiWinbioWinbioCountUnits();
 
@@ -6429,6 +6454,204 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'transfer_dispatch', argNames: ['taskId']);
 
   @override
+  String? crateApiUpdateMetadataUpdateAssetSuffix({required String platform}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(platform, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 165,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdateMetadataUpdateAssetSuffixConstMeta,
+        argValues: [platform],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateMetadataUpdateAssetSuffixConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_asset_suffix',
+        argNames: ['platform'],
+      );
+
+  @override
+  String? crateApiUpdateMetadataUpdateBuildCumulativeChangelog({
+    required List<DbChangelogRelease> releases,
+    required String currentVersion,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_db_changelog_release(releases, serializer);
+          sse_encode_String(currentVersion, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 166,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiUpdateMetadataUpdateBuildCumulativeChangelogConstMeta,
+        argValues: [releases, currentVersion],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiUpdateMetadataUpdateBuildCumulativeChangelogConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_build_cumulative_changelog',
+        argNames: ['releases', 'currentVersion'],
+      );
+
+  @override
+  DbVersionOrder crateApiUpdateMetadataUpdateCompareVersions({
+    required String a,
+    required String b,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(a, serializer);
+          sse_encode_String(b, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 167,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_version_order,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdateMetadataUpdateCompareVersionsConstMeta,
+        argValues: [a, b],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateMetadataUpdateCompareVersionsConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_compare_versions',
+        argNames: ['a', 'b'],
+      );
+
+  @override
+  bool crateApiUpdateMetadataUpdateIsTrustedReleaseAssetUri({
+    required String uri,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(uri, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 168,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiUpdateMetadataUpdateIsTrustedReleaseAssetUriConstMeta,
+        argValues: [uri],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiUpdateMetadataUpdateIsTrustedReleaseAssetUriConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_is_trusted_release_asset_uri',
+        argNames: ['uri'],
+      );
+
+  @override
+  String? crateApiUpdateMetadataUpdateParseAssetVersion({
+    required String assetName,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(assetName, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 169,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdateMetadataUpdateParseAssetVersionConstMeta,
+        argValues: [assetName],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateMetadataUpdateParseAssetVersionConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_parse_asset_version',
+        argNames: ['assetName'],
+      );
+
+  @override
+  List<DbSha256ManifestEntry> crateApiUpdateMetadataUpdateParseSha256Manifest({
+    required String content,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(content, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 170,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_db_sha_256_manifest_entry,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdateMetadataUpdateParseSha256ManifestConstMeta,
+        argValues: [content],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateMetadataUpdateParseSha256ManifestConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_parse_sha256_manifest',
+        argNames: ['content'],
+      );
+
+  @override
   PlatformInt64 crateApiWinbioWinbioCountUnits() {
     return handler.executeSync(
       SyncTask(
@@ -6437,7 +6660,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 165,
+            funcId: 171,
           )!;
         },
         codec: SseCodec(
@@ -7122,6 +7345,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbChangelogRelease dco_decode_db_changelog_release(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DbChangelogRelease(
+      tag: dco_decode_String(arr[0]),
+      body: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
   DbConnectLink dco_decode_db_connect_link(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -7426,6 +7661,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbSha256ManifestEntry dco_decode_db_sha_256_manifest_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DbSha256ManifestEntry(
+      name: dco_decode_String(arr[0]),
+      hash: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
   DbSnippet dco_decode_db_snippet(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -7526,6 +7773,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbVersionOrder dco_decode_db_version_order(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbVersionOrder.values[raw as int];
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -7554,6 +7807,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<DbChangelogRelease> dco_decode_list_db_changelog_release(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_db_changelog_release).toList();
   }
 
   @protected
@@ -7606,6 +7865,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbSftpBookmark> dco_decode_list_db_sftp_bookmark(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_db_sftp_bookmark).toList();
+  }
+
+  @protected
+  List<DbSha256ManifestEntry> dco_decode_list_db_sha_256_manifest_entry(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_db_sha_256_manifest_entry)
+        .toList();
   }
 
   @protected
@@ -8603,6 +8872,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbChangelogRelease sse_decode_db_changelog_release(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_tag = sse_decode_String(deserializer);
+    final var_body = sse_decode_String(deserializer);
+    return DbChangelogRelease(tag: var_tag, body: var_body);
+  }
+
+  @protected
   DbConnectLink sse_decode_db_connect_link(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final var_host = sse_decode_String(deserializer);
@@ -9001,6 +9280,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbSha256ManifestEntry sse_decode_db_sha_256_manifest_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_name = sse_decode_String(deserializer);
+    final var_hash = sse_decode_String(deserializer);
+    return DbSha256ManifestEntry(name: var_name, hash: var_hash);
+  }
+
+  @protected
   DbSnippet sse_decode_db_snippet(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final var_id = sse_decode_String(deserializer);
@@ -9125,6 +9414,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbVersionOrder.values[inner];
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -9157,6 +9453,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DbChangelogRelease> sse_decode_list_db_changelog_release(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    final len_ = sse_decode_i_32(deserializer);
+    final ans_ = <DbChangelogRelease>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_db_changelog_release(deserializer));
     }
     return ans_;
   }
@@ -9265,6 +9575,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final ans_ = <DbSftpBookmark>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_sftp_bookmark(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DbSha256ManifestEntry> sse_decode_list_db_sha_256_manifest_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    final len_ = sse_decode_i_32(deserializer);
+    final ans_ = <DbSha256ManifestEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_db_sha_256_manifest_entry(deserializer));
     }
     return ans_;
   }
@@ -10435,6 +10759,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_db_changelog_release(
+    DbChangelogRelease self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.tag, serializer);
+    sse_encode_String(self.body, serializer);
+  }
+
+  @protected
   void sse_encode_db_connect_link(
     DbConnectLink self,
     SseSerializer serializer,
@@ -10707,6 +11041,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_db_sha_256_manifest_entry(
+    DbSha256ManifestEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.hash, serializer);
+  }
+
+  @protected
   void sse_encode_db_snippet(DbSnippet self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -10786,6 +11130,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_db_version_order(
+    DbVersionOrder self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -10811,6 +11164,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_db_changelog_release(
+    List<DbChangelogRelease> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_db_changelog_release(item, serializer);
     }
   }
 
@@ -10907,6 +11272,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_db_sftp_bookmark(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_db_sha_256_manifest_entry(
+    List<DbSha256ManifestEntry> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_db_sha_256_manifest_entry(item, serializer);
     }
   }
 
