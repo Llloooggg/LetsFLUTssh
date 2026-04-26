@@ -217,129 +217,124 @@ lib/
 
 ## 3. Core Modules
 
-### 3.1 SSH (`core/ssh/`)
+### 3.1 SSH (`core/ssh/` + `rust/crates/lfs_core/src/ssh/`)
+
+The SSH engine lives entirely in Rust; the Dart side is a thin transport interface, a typed connect-request / shell-channel surface, plus a few Dart-only concerns (per-session port-forwarding lifecycle, ProxyJump orchestration, the OpenSSH config import path) that wrap russh primitives without speaking the protocol themselves. See [§3.14 Rust core](#314-rust-securitytransport-core-rust) for the workspace structure and the FRB boundary.
 
 #### Files and responsibilities
 
 | File | Class/Function | Purpose |
 |------|---------------|---------|
-| `ssh_client.dart` | `SSHConnection` | Wrapper over dartssh2: connect, auth, openShell, resize, keepalive, disconnect |
-| `ssh_config.dart` | `SSHConfig` | Config model (host, port, user, password, keyPath, keyData, passphrase, keepAliveSec, timeoutSec) |
-| `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH config importer |
-| `known_hosts.dart` | `KnownHostsManager` | TOFU: host key verification, fingerprint storage, callback on unknown/changed, CRUD management (remove/import/export/clear) |
-| `shell_helper.dart` | `openShellWithRetry()`, `ShellConnection` | Shared SSH shell open logic with retry; `ShellConnection` wraps shell + terminal callbacks, clears them on `close()` |
-| `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError` | Typed SSH error hierarchy with structured fields (host, port, user) for localization |
-| `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model + JSON codec for the per-session forwarding tabs |
-| `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); opens local listeners and bridges them to dartssh2 channels |
+| `transport/ssh_transport.dart` | `SshTransport` interface, `SshConnectRequest`, `SshAuthMethod` family, `SshShellChannel`, `SshDirectTcpipChannel`, `SshForwardedConnection`, typed errors (`SshAuthFailed`, `SshConnectError`, `SshHostKeyRejected`, …) | Engine-agnostic transport surface — connect, openShell, openSftp, direct-tcpip channel, request remote forward. The only impl shipping today is `RustTransport`; the abstraction stays so test mocks can swap in. |
+| `transport/rust_transport.dart` | `RustTransport` | The Rust-backed impl. Translates the typed `SshConnectRequest` (including `SshAuth*Ref` variants that point at SecretStore ids) to FRB calls into `lfs_core::ssh`, materialises shell + direct-tcpip channels as Dart streams, drains forwarded connections via `connectViaProxy`. |
+| `transport/transport_factory.dart` | `createSshTransport` | Single construction point — every connect path goes through here so tests can override one factory and stub the whole transport surface. |
+| `ssh_config.dart` | `SSHConfig`, `SshAuth`, `ServerAddress` | Config model carried across the connect path. `SshAuth` carries `password`, `keyPath`, `keyData`, `keyId`, `passphrase`; the connect path stages stored secrets via `db_sessions_stage_secrets` / `db_ssh_keys_stage_secret` so the bytes never round-trip through the Dart heap (see [§3.6 Security boundary](#36-security--encryption-coresecurity)). |
+| `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH-dir import path; never touched at connect time. |
+| `known_hosts.dart` | `KnownHostsManager` | TOFU host-key verification surface. Reads / writes the `known_hosts` table in `lfs_core.db` over FRB; serialises mutators against `verify` so an interactive prompt cannot interleave with a parallel `clearAll`. |
+| `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionManager._failureStep` maps those into the typed errors above. |
+| `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model for the per-session forwarding tab. |
+| `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); opens local listeners on connect and bridges them to russh `direct-tcpip` / `tcpip-forward` channels exposed through the [`SshTransport`](#ssh-transport-surface) interface. |
+| `shell_helper.dart` | `openShellWithRetry()` | Shared shell-open path with one retry on `SshConnectError("session disconnected")`. Used by the terminal pane + session recorder. |
+| `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`, host-key callback wired to the Dart `KnownHostsManager` over FRB. |
 
-#### SSHConnection — lifecycle
+#### SSH transport surface
+
+`RustTransport` is the only implementation of `SshTransport`. Lifecycle and contract:
 
 ```dart
-class SSHConnection {
-  SSHConnection({
-    required SSHConfig config,
-    required KnownHostsManager knownHosts,
-    SSHSocketFactory? socketFactory,   // DI hook for testing
-    SSHClientFactory? clientFactory,   // DI hook for testing
-  });
-
-  Future<void> connect({ConnectionProgressCallback? onProgress});
-  // 1. TCP socket (via socketFactory)
-  // 2. SSH handshake (via clientFactory)
-  // 3. Auth chain: keyFile → keyText → password → interactive
-  // 4. Host key verification (via knownHosts)
-  // 5. Keep-alive if keepAliveSec > 0
-
-  Future<SSHSession> openShell({int cols, int rows});
-  void resizeTerminal(int cols, int rows);
-  void disconnect();
-
-  SSHClient? get client;        // dartssh2 client
+abstract class SshTransport {
+  Future<void> connect(SshConnectRequest request);
+  Future<SshShellChannel> openShell({required int cols, required int rows});
+  Future<dynamic> openSftp();          // returns a Rust SFTP client; see §3.2
+  Future<SshDirectTcpipChannel> openDirectTcpip({...});
+  Future<int>  requestRemoteForward(String address, int port);
+  Future<void> cancelRemoteForward(String address, int port);
+  Stream<SshForwardedConnection> get forwardedConnections;
+  Future<void> disconnect();
   bool get isConnected;
-
-  PassphraseCallback? onPassphraseRequired;  // interactive passphrase prompt
-  static const maxPassphraseAttempts = 3;
 }
 ```
 
-#### Auth chain — attempt order
+`RustTransport.connect` resolves the auth method:
 
-```
-1. keyPath → read file, resolve passphrase → SSHKeyPair
-2. keyData → resolve passphrase, parse PEM → SSHKeyPair
-3. password → SSHPasswordAuth
-4. interactive → keyboard-interactive prompt (fallback)
-Each step is skipped if the parameter is empty.
-On failure of any step → AuthError.
+- `SshAuthPasswordRef(secretId)` / `SshAuthPubkeyRef(secretId, passphraseSecretId)` / `SshAuthPubkeyCertRef(...)` — the bytes already live in the [`SecretStore`](#36-security--encryption-coresecurity) under the named ids, so the FRB call passes only the ids; russh fetches the bytes inside Rust.
+- `SshAuthPassword(password)` / `SshAuthPubkey(pem, passphrase)` — quick-connect fallback for the no-session-id path; the Dart heap holds the bytes for the duration of the connect attempt and the matching transient SecretStore entry is dropped when the attempt completes.
+- `SshAuthAgent` — proxies through the OS ssh-agent socket; no key bytes cross the boundary.
 
-Passphrase resolution (for encrypted keys):
-  1. If config.passphrase is set → use it (stored or cached)
-  2. Try SSHKeyPair.fromPem(pem, null) → if unencrypted, succeed
-  3. If encrypted + no callback → AuthError
-  4. Invoke onPassphraseRequired(host, attempt) up to 3 times
-  5. User cancel (null) → AuthError; wrong passphrase → retry
-  6. Correct passphrase → use it; cached via Connection.cachedPassphrase
-```
+`SshSession` inside Rust is held under `Mutex<Option<Arc<lfs_core::ssh::Session>>>`. Every channel-opening call in `RustTransport` clones the `Arc` under a short-lived lock, drops the lock, then awaits — so a long-running `openShell` cannot deadlock against the forwarded-connection pump that subscribes to the same handle.
+
+#### Auth chain
+
+The transport receives **one** auth method per connect attempt. `ConnectionManager._authFromConfig` picks it before calling `connect`:
+
+1. `sessionId` set + `db_sessions_stage_secrets` returns `has_key_data` → `SshAuthPubkeyRef("sess.key.<id>", passphraseSecretId: "sess.passphrase.<id>" if staged)`.
+2. `sessionId` set + `has_password` → `SshAuthPasswordRef("sess.password.<id>")`.
+3. `auth.keyId` set + `db_ssh_keys_stage_secret` returns true → `SshAuthPubkeyRef("key.priv.<keyId>", passphraseSecretId: "key.passphrase.<keyId>" if user typed a passphrase for this attempt)`.
+4. Quick-connect: inline `auth.keyData` / `auth.password` → push into a transient SecretStore entry under `conn.<slot>.<uuid>` and emit the same Ref variants.
+5. Empty auth → `SshAuthPassword('')` so russh surfaces "no credentials" rather than auto-rejecting.
+
+If the user has an encrypted key and no stored / passed passphrase, `RustTransport.connect` raises `SshAuthFailed` with detail `passphrase required`; `ConnectionManager` catches it, runs the interactive `PassphrasePromptCallback` (up to `maxPassphraseAttempts = 3`), and retries with the new passphrase staged into the SecretStore.
 
 #### KnownHostsManager
 
 ```dart
 class KnownHostsManager {
-  KnownHostsManager(String knownHostsPath);
+  KnownHostsManager();             // no path — backed by lfs_core.db
+  Future<void> load();             // hydrates the in-memory cache from DAO
+  void invalidateCache();          // dropped on auto-lock unlock so stale rows don't survive a tier switch
 
-  Future<void> load();  // safe to call concurrently — first call does I/O, subsequent await same future
-  FutureOr<bool> verify(String host, int port, String type, Uint8List fingerprint);
-  // → true: key matches / user accepted
+  // Verification — called from the russh host-key callback over FRB.
+  // → true: key matches / user accepted (TOFU prompt)
   // → false: user rejected / key changed and rejected
+  Future<bool> verify(String host, int port, String type, Uint8List fingerprint);
 
-  // Callbacks (invoked via global navigatorKey):
-  // onUnknownHost → HostKeyDialog.showNewHost()
-  // onHostKeyChanged → HostKeyDialog.showKeyChanged()
+  // Interactive callbacks fire through the global navigatorKey because
+  // the russh callback arrives without a BuildContext.
+  Future<bool> Function(String, int, String, String)? onUnknownHost;
+  Future<bool> Function(String, int, String, String)? onHostKeyChanged;
 
-  // Public read access:
-  Map<String, String> get entries;  // unmodifiable {hostPort → "keyType base64Key"}
+  // Read access:
+  Map<String, String> get entries;           // {hostPort → "keyType base64Key"}
   int get count;
-  static String fingerprint(List<int> keyBytes);  // SHA256 fingerprint
+  static String fingerprint(List<int> keyBytes);
 
-  // CRUD operations (each persists to file via _saveAll):
+  // CRUD — every mutator persists through the FRB DAO and bumps the cache:
   Future<void> removeHost(String hostPort);
   Future<void> removeMultiple(Set<String> hostPorts);
   Future<void> clearAll();
-  Future<int> importFromFile(String path);  // merge entries, returns added count
-  String exportToString();                  // serialize to LetsFLUTssh wire format
-
-  // Concurrency: _loadFuture pattern (first call loads, later calls reuse).
-  // Write lock: _withWriteLock() serializes file writes via chained futures.
+  Future<int> importFromFile(String path);   // merge entries, returns added count
+  Future<int> importFromString(String content);
+  String exportToString();                   // serialise to the LetsFLUTssh wire format
 }
 ```
 
-**Why global `navigatorKey`:** dartssh2 callback arrives from async context without BuildContext. Global key allows showing a dialog from anywhere.
+**Concurrency invariant — `verify` serialised with mutators.** `verify` runs through the same `_serializeWrite` chain as `clearAll` / `removeMultiple` / `importFromString`. The reader path can call `onUnknownHost` (interactive TOFU prompt) and block on user input; without serialisation a Settings → "Clear Known Hosts" click could interleave and the sequence `verify(host) → await prompt → user accepts → clearAll() fires in parallel → table wiped → verify resumes → re-insert the row the user just asked to forget` was reachable. Full serialisation is cheap (TOFU events are sparse, user-driven) and trivial to reason about. Regression guard: `test/core/ssh/known_hosts_test.dart` "verify is serialised against clearAll — accepted TOFU survives".
 
-**Concurrency invariant — `verify` serialised with mutators.** `verify` runs through the same `_serializeWrite` chain as `clearAll` / `removeMultiple` / `importFromString`. Reason: the reader path can call `onUnknownHost` (interactive TOFU prompt) and block on user input, which opens an arbitrarily long window during which a Settings → "Clear Known Hosts" click could interleave. Before the fix, the sequence `verify(host) → await prompt → user accepts → clearAll() fires in parallel → _hosts/DB wiped → verify resumes → _addHost re-inserts the row the user just asked to forget` was reachable, leaving the user staring at a row they thought they deleted. Full serialisation is cheap (TOFU events are sparse, user-driven) and the invariant is trivial to reason about. Regression guard: `test/core/ssh/known_hosts_test.dart` "verify is serialised against clearAll — accepted TOFU survives".
+**Pre-unlock degradation.** Every entry point catches the synchronous `RustLib.instance` throw the FRB layer raises before the native lib is loaded (unit-test runner, first-launch wizard pre-unlock) and returns the in-memory cache only. The connect path tolerates an empty cache: russh's host-key callback runs through `onUnknownHost`, the user accepts in TOFU, and the next mutator persists once the DB is attached.
 
 #### Port forwarding
 
 Per-session rules — model + persistence + lifecycle — that open `ssh -L`-style local listeners on connect and tear them down on disconnect. The model lives in `port_forward_rule.dart` (`PortForwardRule { id, kind, bindHost, bindPort, remoteHost, remotePort, description, enabled, sortOrder, createdAt }`), the runtime in `port_forward_runtime.dart`.
 
-**Persistence.** `PortForwardRules` table (DB schema v3 — see [§11 Persistence Version log](#drift-sqlite-database)) joined to `Sessions` with `ON DELETE CASCADE`. `SessionStore.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the DAO never escapes the store.
+**Persistence.** `port_forward_rules` table in `lfs_core.db` joined to `sessions` with `ON DELETE CASCADE`. `SessionStore.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the FRB DAO never escapes the store.
 
-**Runtime — `PortForwardRuntime` implements `ConnectionExtension`.** Built by `_attachPortForwards` in `features/session_manager/session_connect.dart` only when the session has at least one saved rule (so a session with zero rules pays nothing). The runtime is registered on the [`Connection`](#connectionextension--lifecycle-add-ons) before [`ConnectionManager`](#connectionmanager) calls `connectAsync`'s underlying `_doConnect`, so when the transport reaches `state == connected` the standard fan-out fires `onConnected` and the runtime opens its listeners with no race against the new SSHClient assignment.
+**Runtime — `PortForwardRuntime` implements `ConnectionExtension`.** Built by `_attachPortForwards` in `features/session_manager/session_connect.dart` only when the session has at least one saved rule (so a session with zero rules pays nothing). The runtime is registered on the [`Connection`](#connectionextension--lifecycle-add-ons) before [`ConnectionManager`](#connectionmanager) calls `connectAsync`'s underlying `_doConnect`, so when the transport reaches `state == connected` the standard fan-out fires `onConnected` and the runtime opens its listeners with no race against the new transport assignment.
 
-**Listener model.** For every enabled rule, `onConnected` calls `ServerSocket.bind(bindHost, bindPort)`. Each accepted local socket triggers `client.forwardLocal(remoteHost, remotePort)` to open an `SSHForwardChannel`; the runtime then bridges the local socket and the channel byte-stream in both directions and tracks both subscriptions in `_activeTunnels` so `onDisconnecting` / `onReconnecting` can drain them without leaking handles. A `PortForwardStatus` event is emitted on the broadcast `statusStream` for every state transition (idle / listening / error) so a UI surface can colour-code rule rows.
-
-**Listener model — three kinds.** `_openListener` dispatches by [`PortForwardKind`](#3-modules):
+**Listener model — three kinds.** `_openListener` dispatches by [`PortForwardKind`](#3-modules) onto `RustTransport` primitives:
 
 | Kind | Listener | Per-connection bridge |
 |---|---|---|
-| `local` (-L) | `ServerSocket.bind(rule.bindHost, rule.bindPort)` on the user's machine. | Open `client.forwardLocal(remoteHost, remotePort)`; bridge local socket ↔ SSH channel. |
-| `remote` (-R) | `client.forwardRemote(host: rule.bindHost, port: rule.bindPort)` registers a `tcpip-forward` request with the SSH server. A `null` reply (server refused) emits a targeted error pointing at GatewayPorts / port permissions instead of swallowing the rejection. | For each `SSHForwardChannel` the server pushes through `remote.connections`, dial out locally to `remoteHost:remotePort` and bridge channel ↔ socket. |
-| `dynamic_` (-D) | `ServerSocket.bind(rule.bindHost, rule.bindPort)` then a hand-rolled SOCKS5 server on each accepted socket. | Run RFC 1928 greeting + `CONNECT` request, parse `(host, port)` out of the request (IPv4 / domain / IPv6 address types), open `client.forwardLocal(host, port)` for the resolved target, hand the live socket subscription over to the bridge sink (Socket is single-subscription — we cannot `.listen` again, so the SOCKS reader rebinds its `onData` / `onDone` instead of cancelling and relisten). |
+| `local` (-L) | `ServerSocket.bind(rule.bindHost, rule.bindPort)` on the user's machine. | `transport.openDirectTcpip(hostToConnect: remoteHost, portToConnect: remotePort, …)` — opens a russh `direct-tcpip` channel; bridge local socket ↔ channel byte streams in both directions. |
+| `remote` (-R) | `transport.requestRemoteForward(rule.bindHost, rule.bindPort)` registers a `tcpip-forward` request with the SSH server. A failure (server refused) emits a targeted error pointing at GatewayPorts / port permissions instead of swallowing the rejection. | For each `SshForwardedConnection` the server pushes through `transport.forwardedConnections`, dial out locally to `remoteHost:remotePort` and bridge channel ↔ socket. |
+| `dynamic_` (-D) | `ServerSocket.bind(rule.bindHost, rule.bindPort)` then a hand-rolled SOCKS5 server on each accepted socket. | Run RFC 1928 greeting + `CONNECT` request, parse `(host, port)` from the request (IPv4 / domain / IPv6 address types), call `transport.openDirectTcpip(...)` for the resolved target, hand the live socket subscription over to the bridge sink (Socket is single-subscription — the SOCKS reader rebinds its `onData` / `onDone` instead of cancelling and re-listening). |
 
-**SOCKS5 surface — CONNECT-only, NO_AUTH-only.** RFC 1928 specifies BIND, UDP ASSOCIATE, GSSAPI, and username/password auth too — none of those are wired. The trimmed surface keeps the implementation off any pub.dev SOCKS package (zero new dependency, zero supply-chain) and matches what `ssh -D` itself supports out of the box. Address types covered: `0x01` IPv4, `0x03` domain name, `0x04` IPv6. Anything else replies with `0x08 address type not supported` and closes the socket.
+Every state transition emits a `PortForwardStatus` event on the broadcast `statusStream` so the rule editor UI can colour-code rows (idle / listening / error).
+
+**SOCKS5 surface — CONNECT-only, NO_AUTH-only.** RFC 1928 specifies BIND, UDP ASSOCIATE, GSSAPI, and username/password auth too — none of those are wired. The trimmed surface keeps the implementation off any external SOCKS package (zero new dependency, zero supply-chain) and matches what `ssh -D` itself supports out of the box. Address types covered: `0x01` IPv4, `0x03` domain name, `0x04` IPv6. Anything else replies with `0x08 address type not supported` and closes the socket.
 
 **Failure isolation.** Listener bind failures (port already in use, permission denied) emit an `error` event but do not affect the rest of the rules — each rule's open is wrapped in its own `try/catch`. Channel-open failures on an accepted socket destroy that socket and continue listening; the next connection attempt gets a fresh channel. A `setRules` call replaces the in-memory list but does not reopen on the spot — listeners only refresh on the next reconnect, so the user does not get surprise port-bind ripples while editing rules in a dialog.
 
-**Teardown.** `_teardown` (called from `onDisconnecting` and `onReconnecting`) drains in three passes: cancel every entry in `_activeTunnels` (per-bridge socket↔channel subscriptions plus the `remote.connections` listener for each -R rule), close every local `ServerSocket` (-L and -D), then close every `SSHRemoteForward` (-R) which cancels the server-side `tcpip-forward` registration in addition to the local stream. Order matters: cancelling the bridge subscriptions first prevents a final stdout/stdin chunk from blocking on a now-closed socket.
+**Teardown.** `_teardown` (called from `onDisconnecting` and `onReconnecting`) drains in three passes: cancel every entry in `_activeTunnels` (per-bridge socket↔channel subscriptions plus the `forwardedConnections` listener for each -R rule), close every local `ServerSocket` (-L and -D), then call `transport.cancelRemoteForward(...)` for every -R rule which tears down the server-side `tcpip-forward` registration. Order matters: cancelling the bridge subscriptions first prevents a final stdout/stdin chunk from blocking on a now-closed socket.
 
 **UI — Forwarding tab.** `features/session_manager/session_forwards_tab.dart` is a 4th tab in the session edit dialog (Connection / Auth / Options / Forwarding). The tab owns no state — the parent dialog holds `_forwards: List<PortForwardRule>` and re-renders on `onChanged`. Edits land via the in-line `_ForwardRuleEditor` modal which validates port range / required target host before returning the rule. Persistence is deferred to the parent dialog's Save: `SaveResult.forwards` carries the in-memory list out, and `session_panel._syncForwards` diffs against the store (delete missing ids, upsert the rest) after the session row commits, so the FK constraint sees a real parent. Quick-connect / new-session paths that never touch the tab pass an empty list and skip the diff entirely.
 
@@ -347,25 +342,25 @@ Per-session rules — model + persistence + lifecycle — that open `ssh -L`-sty
 
 Per-session "bounce through a bastion before reaching the final host" model. Saved-session bastions (`Session.viaSessionId`) take precedence over one-off overrides (`Session.viaOverride`); the loader / mapper enforce the rule by zeroing the override columns whenever `viaSessionId` is non-null, so a stray partial override left over from a prior edit cannot resurrect after the user clears the saved-session reference.
 
-**Persistence.** Four columns on `Sessions` (DB schema v4 — see [§11 Persistence Version log](#drift-sqlite-database)):
+**Persistence.** Four columns on `sessions`:
 
 | Column | Type | Notes |
 |---|---|---|
-| `via_session_id` | `TEXT NULL` references `Sessions(id) ON DELETE SET NULL` | Saved-session bastion. `SET NULL` so deleting a bastion does not cascade-delete every session that referenced it; the UI can surface the orphan as "lost jump host". |
-| `via_host` / `via_port` / `via_user` | nullable text/int/text | One-off override; the runtime treats the trio as a unit (if any required field is empty the loader maps to `null`). |
+| `via_session_id` | `TEXT NULL` references `sessions(id) ON DELETE SET NULL` | Saved-session bastion. `SET NULL` so deleting a bastion does not cascade-delete every session that referenced it; the UI surfaces the orphan as "lost jump host". |
+| `via_host` / `via_port` / `via_user` | nullable text/int/text | One-off override; the loader treats the trio as a unit — if any required field is empty the loader maps to `null`. |
 
 **Runtime — recursive ensureBastion.** `features/session_manager/session_connect.dart::_ensureBastion` walks the chain bottom-up. For every hop:
 
-1. If `current.viaSessionId` is set, load the bastion's saved session (with credentials).
-2. Otherwise build an `SSHConfig` from `viaOverride` and inherit auth from the final session's credentials. Documented limitation: for a bastion with distinct auth, save it as its own session and link via `viaSessionId`.
-3. Recurse into the bastion's own bastion (if any) and chain a `socketProvider` that calls `upstream.client.forwardLocal(currentBastion.host, currentBastion.port)`.
+1. If `current.viaSessionId` is set, look up the cached bastion session (no `loadWithCredentials` round-trip — the staging layer pulls bytes from Rust).
+2. Otherwise build an `SSHConfig` from `viaOverride` and inherit auth from the final session's `SshAuth`. Documented limitation: for a bastion with distinct auth, save it as its own session and link via `viaSessionId`.
+3. Recurse into the bastion's own bastion (if any) so the chain is materialised root-first.
 4. Call `manager.connectAsync(...)` with `internal: true` and `bastion: upstream` so the manager owns the lifecycle.
 
 **Cycle / depth guards.** `_ensureBastion` carries a `Set<String> visited` (session ids already in the chain). A `viaSessionId` already in the set throws [`ProxyJumpCycleError`](#3-modules) carrying the offending id. Independently, `visited.length >= maxProxyJumpDepth` (8) throws [`ProxyJumpDepthError`](#3-modules) before the recursion goes deep. The 8 cap leaves room for realistic enterprise chains (corp gateway → region gateway → cluster gateway → service ≈ 4) doubled for safety, while still tripping accidental loops fast. Both errors localise through `errProxyJumpCycle` / `errProxyJumpDepth` so the user sees a concrete message rather than a stack trace.
 
-**Transport injection — SSHConnection.connect socketProvider.** `SSHConnection.connect` accepts an optional `Future<SSHSocket> Function()? socketProvider`. When non-null, the provider runs **per-connect-attempt** (so reconnect re-invokes it and gets a fresh `SSHForwardChannel` — the previous one died with the previous bastion transport). The provider does the work of waiting for the bastion's auth and calling `bastion.client.forwardLocal(finalHost, finalPort)`; the result implements `SSHSocket` and slots into the standard `_authenticateClient` flow. `_connectSocket` is skipped entirely when a provider is supplied, so the `effectivePort` of the final hop is meaningless once the channel is in place — the SSH server on the other end of the channel is the bastion's `forwardLocal` target, not a TCP socket on `host:port`.
+**Transport injection — `RustTransport.connectViaProxy`.** When `Connection.bastion` is non-null and connected, `ConnectionManager._doConnect` waits for the bastion to reach `connected` (`bastion.waitUntilReady()`), then routes the child handshake through `transport.connectViaProxy(parentTransport, request)`. Inside Rust, `connectViaProxy` opens a russh `direct-tcpip` channel on the parent session targeting the child's `host:port`, wraps it as the upstream socket for the child russh `Session::connect_to_socket`, and runs the standard auth dance over that channel. Reconnect on the parent re-runs the same path, so a bastion mid-handshake when the parent retries simply queues until the upstream's `Connected` state.
 
-**Hidden bastion lifecycle — Connection.internal.** Bastion connections are full `Connection` objects in [`ConnectionManager`](#connectionmanager) so the credential overlay, keepalive timer, and progress-stream machinery all "just work". They are flagged `internal: true`; the user-visible `connections` getter filters them out so the workspace UI never paints a phantom tab for a hop the user did not explicitly open. The `allConnections` getter returns the full set so the foreground-service active-count callback (Android) keeps the service alive while the bastion is running. The parent connection holds a `bastion: Connection?` reference; `disconnect(parent.id)` cascades into `disconnect(bastion.id)` so the chain is torn down as a unit. Reconnects on the parent re-run the same `socketProvider`, which awaits `bastion.waitUntilReady()` — so a bastion mid-handshake when the parent retries simply queues until auth completes instead of opening a forwardLocal channel on a half-connected client.
+**Hidden bastion lifecycle — Connection.internal.** Bastion connections are full `Connection` objects in [`ConnectionManager`](#connectionmanager) so the credential overlay, keep-alive timer, and progress-stream machinery all "just work". They are flagged `internal: true`; the user-visible `connections` getter filters them out so the workspace UI never paints a phantom tab for a hop the user did not explicitly open. The `allConnections` getter returns the full set so the foreground-service active-count callback (Android) keeps the service alive while the bastion is running. The parent connection holds a `bastion: Connection?` reference; `disconnect(parent.id)` cascades into `disconnect(bastion.id)` so the chain is torn down as a unit.
 
 **UI — ProxyJump section in Connection tab.** A three-chip selector (`None` / `Saved session` / `Custom`) sits below the user/host/port row in the Connection tab. The saved-session mode renders a dropdown of every **other** session (the dialog filters out the session being edited so it cannot reference itself — inline guard before the runtime cycle detector kicks in); the custom mode renders host/port/user fields with a note explaining the inherits-credentials limitation. Mode + values persist in dialog state independently so flipping between modes does not destroy partial input.
 
@@ -377,27 +372,42 @@ Per-session "bounce through a bastion before reaching the final host" model. Sav
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `sftp_client.dart` | `SFTPService` | Operations: list, stat, mkdir, remove, removeDir, upload, download, chmod |
-| `sftp_models.dart` | `FileEntry` | File/directory model (name, path, size, mode, modTime, isDir, owner) |
-| `file_system.dart` | `FileSystem`, `LocalFS`, `RemoteFS` | File system interface (local/remote abstraction) |
+| `sftp_fs.dart` | `RemoteSftpFs` (abstract), `RustSftpFs` (impl over the russh-sftp engine), `RemoteFS` (`FileSystem` adapter) | Public SFTP surface used by [`features/file_browser/`](#52-file-browser-featuresfile_browser) and [`features/transfer/`](#33-transfer-queue-coretransfer). The abstract base ships the recursive composites (`removeDirRecursive`, `dirSize`, `mkdirParents`); concrete leaf primitives (open/read/write/list/stat/mkdir/remove/rename/chmod) come from the Rust SFTP engine over FRB. |
+| `file_system.dart` | `FileSystem`, `LocalFS` | Engine-agnostic file-system interface used by `FilePaneController` so the same UI code drives local and remote panes. `LocalFS` wraps `dart:io`; `RemoteFS` (in `sftp_fs.dart`) wraps `RustSftpFs`. |
+| `sftp_models.dart` | `FileEntry`, `TransferProgress` | File/directory model (name, path, size, mode, modTime, isDir, owner) plus the progress event the transfer queue emits per chunk. |
+| `errors.dart` | `SFTPError` family | Typed errors layered over the russh-sftp status codes so the UI can localise "permission denied" / "no such file" / "disk full" without grepping strings. |
+| `rust/crates/lfs_core/src/sftp/mod.rs` | `lfs_core::sftp::Sftp` | russh-sftp client wrapper — open/read/write/list/stat/mkdir/remove/rename/chmod, including the streaming readdir loop and the chunked read/write loops the transfer queue feeds. |
 
-#### SFTPService API
+#### RemoteSftpFs API
 
 ```dart
-class SFTPService {
-  SFTPService(SftpClient client);
-
-  Future<List<FileEntry>> list(String path);       // sorted: dirs first
+abstract class RemoteSftpFs {
+  // Leaf primitives (filled by RustSftpFs from the Rust engine):
+  Future<List<FileEntry>> list(String path);
   Future<FileEntry> stat(String path);
   Future<void> mkdir(String path);
-  Future<void> remove(String path);                // files only
-  Future<void> removeDir(String path);             // recursive, depth limit 100
+  Future<void> remove(String path);          // files only
+  Future<void> removeDir(String path);       // empty dirs only
+  Future<void> rename(String oldPath, String newPath);
   Future<void> chmod(String path, int mode);
   Future<void> downloadFile(String remote, String local, ProgressCallback? cb);
   Future<void> uploadFile(String local, String remote, ProgressCallback? cb);
-  // upload: 64 KiB chunks via RandomAccessFile + try/finally
+
+  // Composites (provided by the abstract class):
+  Future<void> removeDirRecursive(String path, {int depthLimit = 100});
+  Future<void> mkdirParents(String path);
+  Future<int>  dirSize(String path, {int depthLimit = 64});
+}
+
+class RustSftpFs extends RemoteSftpFs {
+  static Future<RustSftpFs> create(SshTransport transport);
+  // Holds the Rust SFTP client returned by transport.openSftp(); every
+  // call routes one FRB hop. Disconnects when the parent transport
+  // disconnects.
 }
 ```
+
+**Chunked transfers.** `downloadFile` / `uploadFile` stream in 64 KiB chunks across the FRB boundary — the Rust side reads/writes from russh-sftp into a `Vec<u8>` of the requested size, returns it across the bridge, and Dart writes to the local `RandomAccessFile`. `try/finally` closes the local handle on every error path so a half-written download never leaks an open file descriptor. Progress events fire after each chunk via the `ProgressCallback`; the transfer queue (`features/transfer/`) translates them into `TransferProgress` rows for the UI.
 
 #### FileSystem interface
 
@@ -407,15 +417,15 @@ abstract class FileSystem {
   Future<void> mkdir(String path);
   Future<void> delete(String path, {bool recursive = false});
   Future<void> rename(String oldPath, String newPath);
-  Future<int> dirSize(String path);  // recursive size in bytes
+  Future<int>  dirSize(String path);   // recursive size in bytes
   String get separator;
 }
 
-class LocalFS implements FileSystem { ... }   // dart:io
-class RemoteFS implements FileSystem { ... }  // SFTPService wrapper, dirSize capped at 64 levels
+class LocalFS implements FileSystem { ... }    // wraps dart:io
+class RemoteFS implements FileSystem { ... }   // wraps RustSftpFs; dirSize capped at 64 levels
 ```
 
-**Why an interface:** Allows FilePaneController to work identically with local and remote panes. Simplifies testing — mocks can be substituted.
+**Why an interface.** `FilePaneController` works identically with local and remote panes; tests substitute fakes by injecting a different `FileSystem`. New backends (e.g. WebDAV) plug into the same surface without touching the file-browser UI.
 
 ---
 
@@ -759,22 +769,14 @@ class ForegroundServiceManager {
 
 #### Three-Tier + Paranoid Model
 
-All data lives in one drift (SQLite) database. Encryption runs at
-the database level through SQLite3MultipleCiphers. The user picks
-one of three **numbered tiers** plus one **alternative branch**
-("Paranoid") shown separately in the wizard for users who do not
-trust the OS at all. `SecurityTier` enum values are deliberately
-unordered — no `<` / `>` comparisons anywhere in the codebase;
-feature-gating goes through predicates on `SecurityConfig`
-(`usesKeychain`, `usesHardwareVault`, `hasUserSecret`, `isParanoid`,
-`isPlaintext`).
+All app data lives in one SQLite database (`lfs_core.db`) opened by `lfs_core::db` over rusqlite with the bundled SQLCipher cipher (AES-256-CBC). The user picks one of three **numbered tiers** plus one **alternative branch** ("Paranoid") shown separately in the wizard for users who do not trust the OS at all. `SecurityTier` enum values are deliberately unordered — no `<` / `>` comparisons anywhere in the codebase; feature-gating goes through predicates on `SecurityConfig` (`usesKeychain`, `usesHardwareVault`, `hasUserSecret`, `isParanoid`, `isPlaintext`).
 
 | Tier | Label | DB key location | Typical user-typed secret (when modifier is on) | Where the secret is stored |
 |---|---|---|---|---|
 | **T0** | Plaintext | — (bare DB file, 0600 perms) | — | — |
 | **T1** | Keychain | OS keychain (Keychain / Credential Manager / libsecret / EncryptedSharedPreferences) | Password (optional, via modifier) | Salted HMAC split across disk (`security_pass_hash.bin`) and keychain; biometric variant stores the password in a biometric-gated keychain alias (`letsflutssh_biometric_encryption_key`) |
 | **T2** | Hardware-bound | Hardware module (Secure Enclave / StrongBox / TPM 2.0); sealed blob in `hardware_vault_*.bin` | Password (optional, via modifier) | Same HMAC-split pattern as T1; biometric variant stores the password in a secondary hw-gated key (`letsflutssh_hw_password_overlay`) |
-| **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only in `SecretBuffer` during the unlocked window |
+| **Paranoid** | Master password | Derived fresh per unlock; never stored in the OS | Mandatory long master password | Argon2id salt + verifier in `credentials.kdf`; key material lives only inside `lfs_core::secrets::SecretStore` (`Zeroizing<Vec<u8>>`) during the unlocked window |
 
 See [`SECURITY.md §KEK provider hierarchy`](SECURITY.md#kek-provider-hierarchy)
 for the threat-model rationale behind offering both T1 (convenience,
@@ -804,10 +806,7 @@ bypasses the OS keychain layer).
 - `pinLength` — advisory only post-refactor. Retained so older
   pre-refactor configs still deserialise.
 
-Stores (`SessionStore`, `KeyStore`, `KnownHostsManager`,
-`SnippetStore`, `TagStore`) receive the opened `AppDatabase` via
-`setDatabase()` and delegate persistence to DAOs. They do not handle
-encryption — the active tier is opaque to them.
+Stores (`SessionStore`, `KeyStore`, `KnownHostsManager`, `SnippetStore`, `TagStore`, `AutoLockStore`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
 
 #### Tier resolution at startup (`main._initSecurity`)
 
@@ -886,13 +885,15 @@ All three surfaces converge on `ResignService.ensureIdentity()` + `resignBundle(
 
 ```mermaid
 flowchart LR
-    A[User password] --> B["Argon2id<br/>m=46 MiB, t=2, p=1<br/>+ 32-byte salt"]
-    B --> C["32-byte DB key<br/>(Uint8List)"]
-    C --> D["SecretBuffer<br/>(page-locked RAM)"]
-    D --> E[SQLite3MC<br/>PRAGMA key]
-    D -.-> F["Optional:<br/>BiometricKeyVault<br/>(OS keychain)"]
+    A[User password] --> B["Argon2id (Rust)<br/>m=46 MiB, t=2, p=1<br/>+ 32-byte salt"]
+    B --> C["32-byte DB key<br/>(Vec&lt;u8&gt; in Rust)"]
+    C --> D["SecretStore + Zeroizing<br/>(process-singleton, locked + zeroed on drop)"]
+    D --> E["lfs_core::db<br/>SQLCipher PRAGMA key"]
+    D -.-> F["Optional:<br/>BiometricKeyVault<br/>(OS keychain / hw-bound)"]
     F -.-> D
 ```
+
+Argon2id derivation runs inside `lfs_core::crypto` on a Tokio blocking task; the Dart side calls `dbInit(key)` / `dbRekey(newKey)` over FRB, hands a `Uint8List` of the derived 32 bytes once, and never sees the bytes again. The SecretStore is process-singleton, owns every cached secret as `Zeroizing<Vec<u8>>`, and runs `dbClose()` on auto-lock to zero SQLCipher's C-layer page-cipher state alongside the cached key.
 
 **KDF file format** (`credentials.kdf`, v1):
 
@@ -908,15 +909,19 @@ The algorithm id + params block is defined in [`KdfParams`](../lib/core/security
 
 **Sanity ceilings on decode.** `KdfParams.decode` validates each Argon2id field against an upper bound (1 GiB memory, 16 iterations, 8 lanes) before constructing the record — decode of a crafted `credentials.kdf` with absurd costs (4 GiB of RAM, a million iterations) throws `FormatException` rather than spinning up the derivation isolate and wedging unlock on an OOM. The ceilings give ~20× headroom over today's production profile, well past any plausible future tuning, while ruling out denial-of-service by file tamper.
 
-#### In-memory DB key (page-locked)
+#### Cached secrets — Rust SecretStore
 
-The live DB key lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) — native memory allocated with `calloc`, pinned to physical RAM with `mlock` on POSIX / `VirtualLock` on Windows, and zeroed + unlocked + freed on dispose. `SecurityStateNotifier` owns the buffer's lifecycle: every `set()` / `clearEncryption()` disposes the previous buffer before allocating a new one, and the provider's tear-down disposes the final one. Lock failures (RLIMIT_MEMLOCK exhausted, static-linked libc, missing `mlock` symbol) are logged once and swallowed — the buffer still works, just isn't pinned. The resolution result (real bindings or an unavailable-sentinel) is cached at the class level, so every subsequent allocation skips the dlopen cost and the noisy "Memory lock unavailable" log fires at most once per process. The libc handle itself is resolved through the shared [`openLibc()`](../lib/core/security/libc_loader.dart) helper, which tries `libc.so.6` (glibc, versioned) and falls back to `libc.so` (Android bionic, musl, ChromeOS/WSL edge cases) — without the fallback, Android builds would log the lock as unavailable on every allocation and the bionic `mlock` would never be called despite being a valid symbol. The same pattern is used for the Argon2id-derived key inside `ExportImport._encryptWithPassword/_decryptWithPassword` so `.lfs` archive keys don't linger on the Dart heap either.
+Cached plaintext credentials (DB key, session passwords, key passphrases, staged PEM bytes) live exclusively in `lfs_core::secrets::SecretStore` — a `Mutex<HashMap<String, Zeroizing<Vec<u8>>>>` owned by the process-singleton `AppState`. Every value is a `Zeroizing<Vec<u8>>`, so dropping the entry zeroes the bytes before deallocation. The Dart side fires `secrets_put` / `secrets_drop` / `secrets_clear` over FRB; the only cached-credential abstraction left in Dart (`SessionCredentialCache` in `core/security/session_credential_cache.dart`) is a thin namespace wrapper that translates `(sessionId, slot)` → canonical id (`sess.password.<id>` / `sess.key.<id>` / `sess.passphrase.<id>`) and forwards the call.
 
-**Finalizer safety-net (deterministic dispose still required).** Every `SecretBuffer` attaches a `NativeFinalizer(calloc.nativeFree)` on construction so that a dropped reference without an explicit `dispose()` still releases the native page on the next GC. The finalizer does NOT zero the bytes or `munlock` the page (it cannot run Dart code), so between the last reference drop and GC the plaintext still sits in a pinned page — forgot-to-dispose is a leak-then-GC, not a cleanup. `dispose()` detaches the finalizer *before* calling `calloc.free` to rule out a double-free on the next GC pass. The `Finalizable` marker that the class also implements is orthogonal: it tells the Dart compiler to keep `this` alive across FFI calls that take the raw pointer, so the GC cannot relocate / collect the buffer while a native routine is mid-read. Both mechanisms work together — `Finalizable` for call-time liveness, `NativeFinalizer` for leaked-object cleanup — but neither replaces explicit `dispose`.
+Two more secret-id namespaces ride on the same store: `key.priv.<keyId>` for staged manager-key PEM bytes (populated by `db_ssh_keys_stage_secret` on the connect path) and `conn.<slot>.<uuid>` for transient quick-connect bytes (lifetime bounded by the in-flight connect attempt). The connect path emits `SshAuthPasswordRef(secretId)` / `SshAuthPubkeyRef(secretId, passphraseSecretId)` so russh fetches the bytes inside Rust without ever crossing the FRB boundary.
+
+`SecurityStateNotifier` no longer owns the DB key directly — it hands the 32-byte derived key to `dbInit(key)` over FRB once per unlock, and the key lives inside Rust until `dbClose()` zeroes the cached SQLCipher state on auto-lock or a tier switch. The legacy Dart `SecretBuffer` (page-locked native memory with `mlock` / `VirtualLock`) was retired alongside drift — pinning the bytes in Dart became redundant once they stopped crossing the FRB boundary outbound.
+
+**Bytes-don't-cross invariant — current state.** Connect, edit, duplicate, and bulk listing paths no longer round-trip credential plaintext through the Dart heap. Two narrow paths still hold plaintext briefly during user-initiated rare operations and are tracked as accepted residual until the export orchestrator moves Rust-side: `.lfs` archive export reads each session row's `password` / `key_data` / `passphrase` plus every selected manager key's PEM into Dart memory long enough to compose the manifest before AES-GCM encryption (also Rust-side). See `docs/RUST_CORE_MIGRATION_PLAN.md` § 4.1c for the closure plan.
 
 #### Unlock-path single KDF
 
-Every master-password unlock must verify the password *and* produce the derived DB key. An earlier implementation called `verify()` then `deriveKey()` — two isolate spawns + two KDF runs, adding up to several seconds on mid-tier mobiles. [`MasterPasswordManager.verifyAndDerive(password)`](../lib/core/security/master_password.dart) runs one KDF inside a single isolate and returns the derived key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it. `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that do not need the key (e.g. the remove-master-password confirm). Argon2id is CPU + memory-heavy, so the single-call optimisation saves real wall-clock on every unlock.
+Every master-password unlock verifies the password *and* produces the derived DB key in one Argon2id pass. `MasterPasswordManager.verifyAndDerive(password)` calls into `lfs_core::crypto` over FRB, which runs Argon2id on a Tokio blocking task and returns the derived 32-byte key on success or `null` on wrong password. `UnlockDialog`, `LockScreen`, and the biometric-enable flow all use it; `verify()` stays available as the thin `verifyAndDerive(...) != null` wrapper for call sites that don't need the key (e.g. the remove-master-password confirm). Argon2id is CPU + memory-heavy, so a single-call shape saves real wall-clock on every unlock — and now the heavy work runs off the Dart UI isolate entirely.
 
 #### Switching tiers on the fly — always-rekey invariant
 
@@ -1061,27 +1066,23 @@ A `.2fa` / YubiKey flow was scoped as an optional unlock factor alongside the ma
 
 **Current status:** feature is **deferred**, not cancelled. Master-password + biometric unlock already covers the user-visible use cases; a YubiKey factor would be a nice-to-have, not a closing-the-gap-at-any-cost. Revisit when a multiplatform Dart library surfaces that works across all 5 desktops + Android + iOS without mandatory native-dep installs (a realistic candidate: a future `flutter_webauthn` that wraps each platform's native authenticator surface). Until then the table-stakes master-password path is the sole secret boundary and that is fine for the project's threat model (lost device, hostile same-UID process — **not** kernel-level attackers or advanced persistent threats).
 
-#### MC cipher choice — ChaCha20-Poly1305 (active) + retrospective rationale
+#### Cipher choice — SQLCipher 4.x (AES-256-CBC + HMAC-SHA512)
 
-The app's at-rest DB encryption runs on SQLite3MultipleCiphers' **ChaCha20-Poly1305** scheme. `database_opener.dart` sets `PRAGMA key` without an accompanying `PRAGMA cipher`, so MC falls back to its built-in `CODEC_TYPE_DEFAULT` = `CODEC_TYPE_CHACHA20` (defined in `src/cipher_common.h:21` of the MC submodule). Every existing user DB on disk is therefore encrypted under ChaCha20-Poly1305 with per-page 16-byte authentication tags.
+The app's at-rest DB encryption runs on **SQLCipher 4.x**, statically linked into `lfs_core` via `rusqlite`'s `bundled-sqlcipher` feature. The cipher contract: AES-256-CBC for confidentiality, HMAC-SHA512 for per-page integrity, 256 000 PBKDF2-SHA512 iterations for the page-cipher key derivation off the `PRAGMA key` value. The page-cipher key Rust hands SQLCipher is the 32-byte master DB key produced by Argon2id (Paranoid), pulled out of the OS keychain (T1), or unsealed from the hardware vault (T2); SQLCipher itself does not see Argon2id, only the final 32 bytes.
 
-**How we got here (honest version).** An earlier revision of this section named `sqlcipher` (AES-256-CBC + HMAC-SHA512) as the active scheme. That was wrong — the code never set `PRAGMA cipher = 'sqlcipher'`, only `PRAGMA key`, so MC's default won. The mistake landed on the right answer for the wrong reason: the reasoning below was written under the belief that switching *to* ChaCha20 was still a decision in front of us, concluded that ChaCha20 is the right target for this project's device mix, and recommended "stay on sqlcipher, migrate to ChaCha20 only if a signal appears." In reality ChaCha20 was already the live choice. Keeping the decision recorded here both as a retrospective rationale and a landmine-check for any future attempt to add an explicit `PRAGMA cipher`.
+**Why SQLCipher and not the previous SQLite3MultipleCiphers / ChaCha20 stack.** The pre-Rust era ran on `drift` + `sqlite3_flutter_libs` + SQLite3MultipleCiphers (MC), with MC's default cipher (ChaCha20-Poly1305 — `CODEC_TYPE_DEFAULT`) used implicitly because no `PRAGMA cipher` was ever set. The Rust migration's persistence move (Phase 4.2) had to pick a single cipher for `lfs_core::db`; the choices were MC (any of its schemes) and SQLCipher. Inputs:
 
-**Inputs to the original decision (now "why we leave it alone"):**
+- **Wire compatibility.** MC and SQLCipher are wire-incompatible — a database written under one cannot be opened under the other, regardless of cipher choice. The migration accepted that gap once: `migrateDriftToRustOnce` (now retired in §4.7 cleanup) read every drift row out under MC + ChaCha20 and wrote them back through `lfs_core::db` under SQLCipher in one atomic pass per startup until every install had migrated.
+- **Single source of truth.** SQLCipher is the older, more battle-tested implementation; rusqlite's `bundled-sqlcipher` feature ships the canonical 4.x build with no codec-flag matrix. MC's flexibility (six cipher schemes, three KDFs) is a build-surface cost we pay for nothing: only one cipher is ever selected, the choice is project-wide, and the matrix would only matter if individual users wanted to pick.
+- **Auditability.** SQLCipher's wire format is fixed and widely reviewed; the `cipher_test_recovery.sh` style toolchain works against any SQLCipher 4 file. MC's wire format depends on the codec/KDF combination at write time, which makes recovery scripts harder to share.
+- **Performance.** AES-256-CBC under bundled-sqlcipher is fast enough that DB I/O is never the bottleneck for an SSH-client workload — sessions, snippets, known_hosts, ssh_keys are sub-100-KiB tables with low page-churn. ChaCha20's edge on no-AES-NI Arm chips is real but moot for the project's I/O profile.
+- **Operational risk envelope.** SQLCipher's HMAC-SHA512 per-page MAC means a tampered page surfaces a load error rather than silently mis-decoding into UB. The cipher is constant-time on every supported platform.
 
-- *Security posture.* ChaCha20-Poly1305 is a native AEAD — confidentiality + integrity + authenticity in one construction, with a 16-byte authentication tag per 4 KiB page and a 12-byte nonce derived from the page number plus a database-wide random salt. Functionally equivalent to the `sqlcipher` scheme's AES-256-CBC + HMAC-SHA512 encrypt-then-MAC (the other candidate) on every at-rest-secrecy line in the threat model — no cryptanalytic signal has surfaced on either side.
-- *Performance.* ChaCha20 is 2-4× faster than AES-256-CBC on Arm without AES hardware extensions (still present on Android mid-tier devices). On AES-NI desktops the two are within a few percent of each other and neither is close to being the bottleneck for an SSH-client workload: logs, sessions, snippets, known_hosts are all sub-100-KiB tables with low page-churn, so the wall-clock difference in typical use is sub-millisecond.
-- *Footgun budget.* ChaCha20-Poly1305's constant-time implementation is the whole-expression default; AES-256-GCM needs careful nonce management (counter-reuse = catastrophic plaintext leak) and was vulnerable to cache-timing attacks on pre-AES-NI silicon. Favouring ChaCha20 shrinks the set of mistakes that can land on-disk.
-- *Binary size / build surface.* `pubspec.yaml` disables every non-ChaCha20 cipher scheme at compile time (`HAVE_CIPHER_AES_128_CBC=0`, `HAVE_CIPHER_AES_256_CBC=0`, `HAVE_CIPHER_SQLCIPHER=0`, `HAVE_CIPHER_RC4=0`, `HAVE_CIPHER_ASCON128=0`, `HAVE_CIPHER_AEGIS=0`). Knocking AES out of the build also drops `rijndael.c` (included only when any of the three AES-based schemes is enabled). Net saving ~100-200 KiB off `libsqlite3.so` versus the all-cipher build.
-- *Format compatibility.* Every DB on disk is already ChaCha20. Migrating to another scheme is not a free change: every page must be re-encrypted (`PRAGMA cipher_migrate`-style flow), and any existing `.lfs` export produced under the previous scheme decrypts *only* with the previous code path. The crash window during rekey would need a tmp-file + atomic-rename flow (mirroring `_applyAlwaysRekey` in settings).
-- *Blast radius of a mid-rekey crash.* Every page that was already re-encrypted is under the new cipher; every page that was not is under the old one. Without the atomic-rename flow a power-loss or OOM mid-migration leaves the DB unrecoverable.
+**If a future decision changes ciphers:**
 
-**Recommendation — stay on ChaCha20-Poly1305.** The performance mix favours it on the project's mobile target, the security posture is at least equal to every alternative, and migrating off would cost a user-visible re-encryption with a non-trivial crash window. Revisit only on a concrete signal — a cryptanalytic finding against ChaCha20-Poly1305 (none as of 2026) or a workload change that makes the DB I/O path user-visible.
-
-**If a future decision does switch ciphers:**
-1. Gate the new cipher behind a schema/version marker in the DB header, so `database_opener.dart` can pick the right `PRAGMA cipher` at open time and old DBs keep opening under ChaCha20 until they have been migrated;
-2. Reuse the `rekeyDatabase()` atomic-tmp flow already used for master-password rotation;
-3. Version-bump the `.lfs` archive format to mirror the new cipher header;
+1. Gate the new cipher behind a schema/version marker in `lfs_core::db`, so `Db::open` picks the right cipher at open time and old DBs keep opening under SQLCipher until they have been migrated.
+2. Use the same atomic-tmp flow `Db::rekey` already implements (write the new file, fsync, rename, drop the old).
+3. Version-bump the `.lfs` archive format to mirror the new cipher header.
 4. Migration UI must be opt-in — never run on app startup by surprise.
 
 #### Password strength meter
@@ -1094,27 +1095,25 @@ Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60
 
 **Backgrounding lock**: `AutoLockDetector.didChangeAppLifecycleState` locks on `paused` / `inactive` / `hidden` **only when the idle timer is greater than zero**. Locking unconditionally on every minimize was the #1 user complaint with an "Off" timer still triggering lockouts. Treating backgrounding as idle once the user has opted in matches their intent (protect against leaving the screen visible) without surprising users who have explicitly turned the feature off.
 
-**Always-wipe-on-lock policy.** The idle / lifecycle / session-lock triggers all funnel through `_triggerLock`, which unconditionally zeroes the `SecurityStateNotifier` SecretBuffer and closes the drift / MC handle via `SessionStore.closeDatabase`. Previously the wipe was gated on `activeSessions.isEmpty` — a UX concession so an auto-lock during an open SSH session did not kill the user's reconnect path. The consequence was that the DB key sat in app RAM as long as a single session was active, so RAM forensics of a locked app could still recover it; T1+password and T2+password landed on the same ✗ row for `liveRamForensicsLocked` and `osKernelOrKeychainBreach` in the threat matrix. The gate is now gone; live-session reconnect is satisfied by the [Session credential cache](#session-credential-cache), and T2+password now covers both RAM-forensics and kernel-breach rows.
+**Always-wipe-on-lock policy.** The idle / lifecycle / session-lock triggers all funnel through `_triggerLock`, which fires `dbClose()` over FRB. `dbClose` zeroes SQLCipher's C-layer page-cipher state inside Rust *and* drops the cached DB key from the SecretStore. Previously the wipe was gated on `activeSessions.isEmpty` — a UX concession so an auto-lock during an open SSH session did not kill the user's reconnect path. The consequence was that the DB key sat in app RAM as long as a single session was active, so RAM forensics of a locked app could still recover it. The gate is now gone; live-session reconnect is satisfied by the [Session credential cache](#session-credential-cache), and T2+password now covers both RAM-forensics and kernel-breach rows.
 
-**Unlock re-opens the DB.** Because `_triggerLock` closes the drift handle, every unlock has to re-open it. [`LockScreen._releaseLock`](../lib/widgets/lock_screen.dart) pushes the freshly-derived key back into `securityStateProvider` and flips `lockStateProvider` off; a `ref.listenManual` in `_LetsFLUTsshAppState.initState` observes the locked → unlocked transition and calls `_reopenDatabaseAfterUnlock`, which walks the usual `_injectDatabase` path so every store picks up the new AppDatabase reference. The per-session credential cache is Riverpod-scoped and is deliberately not touched in this path — its whole purpose is to survive the lock.
+**Unlock re-opens the DB.** Because `_triggerLock` closes the Rust DB handle, every unlock has to re-open it. [`LockScreen._releaseLock`](../lib/widgets/lock_screen.dart) pushes the freshly-derived key back into `securityStateProvider` and flips `lockStateProvider` off; a `ref.listenManual` in `_LetsFLUTsshAppState.initState` observes the locked → unlocked transition and calls `_reopenDatabaseAfterUnlock`, which calls `dbInit(key)` over FRB and invalidates every store's in-memory cache so the next read pulls fresh rows. The per-session credential cache is Riverpod-scoped and is deliberately not touched in this path — its whole purpose is to survive the lock.
 
 **Shortcut gate while locked.** Keyboard shortcuts registered on `MainScreen.CallbackShortcuts` sit in a sibling focus scope to `LockScreen`, so `Ctrl+N` / `Ctrl+,` can otherwise bubble through the overlay and hit `_newSession` / `SettingsDialog.show` against a closed DB. `MainScreen._buildKeyBindings` short-circuits every shortcut callback when `lockStateProvider` is true. Pointer hit-testing is already blocked by the `Positioned.fill(LockScreen)` overlay on the root `Stack`, so the gate is specifically a keyboard-path defense.
 
 #### Session credential cache
 
-[`SessionCredentialCache`](../lib/core/security/session_credential_cache.dart) (provided by [`sessionCredentialCacheProvider`](../lib/providers/session_credential_cache_provider.dart)) is the always-wipe-on-lock policy's reconnect escape hatch. It keys session id → [`CachedCredentials`](../lib/core/security/session_credential_cache.dart), each entry holding up to three `SecretBuffer` slots (password, key bytes, passphrase). The buffers are the same `mlock` / `VirtualLock`-pinned native memory used for the DB key, so the cached plaintext sits outside the drift encrypted store and survives closing that store on lock.
+[`SessionCredentialCache`](../lib/core/security/session_credential_cache.dart) (provided by [`sessionCredentialCacheProvider`](../lib/providers/session_credential_cache_provider.dart)) is the always-wipe-on-lock policy's reconnect escape hatch. It is a thin namespace adapter over the Rust [`SecretStore`](#cached-secrets--rust-secretstore): every read / write fires `secrets_get` / `secrets_put` / `secrets_drop` over FRB, keyed by `sess.password.<id>` / `sess.key.<id>` / `sess.passphrase.<id>`. The plaintext lives only inside Rust as `Zeroizing<Vec<u8>>`; the Dart side carries an empty stub class plus the namespaced ids. Closing the encrypted store on lock leaves the SecretStore intact, so the cached session envelopes survive; clearing the SecretStore (wipe / shutdown) drops every entry atomically.
 
 Lifetime:
 
-1. **Populate** — `ConnectionManager._cachePostAuthCredentials` stores the envelope immediately after a successful SSH auth, but only when the Connection has a stable `sessionId`. Quick-connect sessions have no key and are skipped.
-2. **Read on (re)connect** — `ConnectionManager._withCredentialOverlay` overlays the cache onto the outgoing `SSHConfig` before calling `SSHConnection.connect`, filling any empty `password` / `keyData` / `passphrase` slot. The primary source is still `conn.sshConfig` (the Connection holds its initial auth envelope alive through its own field); the cache is a defensive second layer so a future refactor that strips credentials from the `Connection` or a reload that reads `session.auth.hasStoredSecret=true` with empty plaintext does not break reconnect.
-3. **Evict on explicit close** — `ConnectionManager.disconnect(id)` and `disconnectAll` evict the entry. Transient drops (network blip, app suspend/resume) go through `SSHConnection.onDisconnect` which flips the Connection's state but does not call `disconnect` on the manager, so the cache is preserved across reconnect.
-4. **Evict on wipe / reset** — [`WipeAllService`](../lib/core/security/wipe_all_service.dart) accepts a `credentialCacheEvict: VoidCallback?` constructor param and invokes it before any file deletion runs. Every runtime reset path (Settings → Reset All Data, forgot-password, DB-corruption wipe-and-restart, T1 / T2 `onReset`) threads `() => ref.read(sessionCredentialCacheProvider).evictAll()` through. The startup-time pending-wipe resumption passes `null` because the provider graph is not yet wired at that point and the cache is provably empty.
-5. **App shutdown** — the provider's `ref.onDispose(cache.evictAll)` zeros every buffer when the Riverpod container tears down.
+1. **Populate** — `ConnectionManager._cachePostAuthCredentials` writes the envelope into the SecretStore immediately after a successful SSH auth, but only when the `Connection` has a stable `sessionId`. Quick-connect sessions have no key to namespace under and are skipped.
+2. **Read on (re)connect** — `ConnectionManager._withCredentialOverlay` overlays the cache onto the outgoing `SSHConfig` before calling `transport.connect`. Today the read accessors return null by design — the connect path resolves saved-session credentials through `db_sessions_stage_secrets` directly, so the overlay is a no-op for stored sessions; the layering point stays for future reconnect paths that need it.
+3. **Evict on explicit close** — `ConnectionManager.disconnect(id)` and `disconnectAll` evict the matching ids. Transient drops (network blip, app suspend/resume) flip the Connection's state without calling `disconnect`, so the SecretStore entries are preserved across reconnect.
+4. **Evict on wipe / reset** — [`WipeAllService`](../lib/core/security/wipe_all_service.dart) accepts a `credentialCacheEvict: VoidCallback?` constructor param and invokes `secrets_clear` over FRB before any file deletion runs. Every runtime reset path (Settings → Reset All Data, forgot-password, DB-corruption wipe-and-restart, T1 / T2 `onReset`) threads it through.
+5. **App shutdown** — the provider's `ref.onDispose` calls `secrets_clear`, dropping every cached secret as the Riverpod container tears down.
 
-Why not read `session.auth` directly every time? Two reasons: (a) `SessionStore`'s cached list strips plaintext on load and exposes `Session.auth.hasStoredSecret` only — a reconnect issued while the encrypted store is closed cannot ask the DB for plaintext, so without the cache the reconnect would fail; (b) putting the plaintext in `mlock`'d native memory (rather than on the Dart heap as immutable `String`s) removes the swap-file / heap-snapshot exposure window. The cache is the "page-locked side" of the session credentials; `conn.sshConfig` is the Dart-heap primary.
-
-Why the cache survives the lock while the DB key does not: the cache plaintext is per-session and per-install, and does not decrypt anything at rest. The only attacker it helps against is the user's own loss of reconnect UX when the encrypted store closes on lock. The DB key, by contrast, is the at-rest secret — leaving it warm during lock is what flattens the threat matrix between T1+pw and T2+pw. Wiping the DB key but retaining the session envelope is the honest trade.
+Why the cache survives the lock while the DB key does not: the cache plaintext is per-session and per-install, decrypts nothing at rest, and only helps the user's own reconnect UX when the encrypted store closes on lock. The DB key, by contrast, is the at-rest secret — leaving it warm during lock would flatten the threat matrix between T1+pw and T2+pw. Wiping the DB key but retaining the session envelope is the honest trade.
 
 **OS-level session-lock hook.** Idle-timer auto-lock covers "user stopped typing" and mobile lifecycle-paused covers "app went to background". Neither catches the case where the user locks the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock, power-button lock) *without* being idle-minutes-idle inside the app first. [`SessionLockListener`](../lib/core/security/session_lock_listener.dart) closes that gap by routing an OS workstation-lock signal straight into the auto-lock path via the `com.letsflutssh/session_lock` method channel.
 
@@ -1126,19 +1125,6 @@ Why the cache survives the lock while the DB key does not: the cache plaintext i
 | **iOS / Android** | No-op — lifecycle-paused already fires on OS lock, so a second channel would double-lock. |
 
 *Why this path vs. polling:* `loginctl show-session` / screensaver-state scraping worked in an earlier iteration and landed as a fallback on Linux, but polling burns a D-Bus round-trip on every tick, lags the real lock by up to the poll interval, and fires duplicate events across transitions. The signal-subscription path fires exactly once per transition, costs nothing when idle, and matches what every other desktop app on the system bus uses. The polling fallback was removed along with this change.
-
-**Encrypted log sink scaffolding (follow-on wiring).** Two classes are in tree ahead of the drift schema + DAO + UI rewire for moving the log target into the encrypted DB:
-
-* [`LogBatchQueue<T>`](../lib/core/db/log_batch_queue.dart) — bounded batching in front of the (future) `app_logs` DAO. Flushes on whichever of *size ≥ 100 events* or *time ≥ 500 ms since the first event* fires first. Flush failures preserve the batch for retry; `dispose()` flushes and blocks further adds.
-* [`BootstrapLogBuffer<T>`](../lib/core/db/bootstrap_log_buffer.dart) — ring buffer for the bootstrap window before the DB is unlocked. Capacity default is 512, oldest-first eviction on overflow (the last seconds before a crash matter more than the very first init line). Drains FIFO into the live sink when the DB-backed [`LogBatchQueue`](../lib/core/db/log_batch_queue.dart) comes online.
-
-Neither class is wired yet — `AppLogger` still writes to the file sink. The wiring commit will (a) add an `app_logs` table + schema bump in drift, (b) swap `AppLogger._sink` for a `LogBatchQueue` once `_injectDatabase` is called, (c) rewrite the Settings → Logging live-log viewer to stream via the DAO, and (d) drop the file target except during bootstrap. Landing the queue + buffer now keeps the scaffolding commit small and the schema-bump commit focused on migration mechanics.
-
-**Write-buffer scaffolding (follow-on wiring).** A dedicated [`DbWriteBuffer`](../lib/core/db/db_write_buffer.dart) is in tree ahead of the close-on-lock + drain-on-unlock wiring. The class is a bounded FIFO of `Future<void> Function(AppDatabase)` closures (cap: 5000 entries, FIFO eviction with a warning log on overflow) and exposes three methods: `append(op)`, `drain(db)` (runs every queued op inside a single drift `transaction`, preserves the queue on failure for retry), and `clear()`. The wiring that actually makes auto-lock close the DB handle and unlock replay the buffer is a follow-on commit — touching `main._injectDatabase`, every store's `setDatabase`, `UnlockDialog`, `LockScreen`, and the auto-lock trigger is large enough that it ships on its own. The buffer class landing now means the encrypted-log-sink work (its most likely first consumer) can be built against a stable interface without waiting for the close-on-lock wiring to finish.
-
-**Cap sizing.** Original cap was 500 entries, adequate for a buffer whose only consumer was per-session telemetry. The intended follow-on consumer is an encrypted log sink, which can burst past 500 entries/second on verbose SSH handshakes or stack traces; at 500 the FIFO eviction would silently eat most log lines under a flood, which is exactly the audit-trail outcome the sink exists to preserve. 5000 × ~100 bytes per captured closure ≈ 500 KB headroom — small next to the xterm ring buffers + SFTP queues that already live in the auto-lock RAM budget.
-
-**Drain invariant: pull-then-clear, not snapshot-then-clear.** `drain(db)` copies the pending list into a local variable *and* empties `_queue` **before** opening the drift transaction. Any `append` that fires at an `await` boundary inside a queued op (single-isolate Dart still interleaves microtasks between each `await op(db)`) therefore lands in the now-empty `_queue` and is picked up by the follow-on drain. An earlier version snapshotted the queue and called `_queue.clear()` *after* the commit, which silently dropped every mid-drain append. The snapshot-then-clear shape also mis-handled the cap-eviction path: a flood filling the queue past `_maxEntries` during the drain would have `clear()`-wiped the post-eviction survivors. On transaction failure the pulled batch is prepended back onto the queue so FIFO order is preserved for the retry.
 
 #### Process hardening
 
