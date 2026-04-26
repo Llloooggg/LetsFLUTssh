@@ -6,9 +6,12 @@
 /// Every threat has a single fixed string identifier that drives the
 /// l10n key (`threatColdDiskTheft`, `threatColdDiskTheftDescription`,
 /// …). The truth table in [evaluate] is the single source of truth
-/// for which tier/modifier combos defeat which threats. Changes here
-/// ripple through the UI automatically.
+/// for which tier/modifier combos defeat which threats — routes
+/// through `lfs_core::threat_eval` so the canonical implementation
+/// lives Rust-side. Changes here ripple through the UI automatically.
 library;
+
+import '../../src/rust/api/threat_eval.dart' as rust_threat;
 
 /// Discrete threat categories the app reasons about. Order is
 /// user-facing — every UI surface renders threats in this exact
@@ -200,6 +203,48 @@ class ThreatModel {
 /// Pure function — no I/O, no locale lookups, no platform probes.
 /// Every UI surface consumes this map and renders ✓ / ✗ per threat.
 Map<SecurityThreat, ThreatStatus> evaluate(ThreatModel model) {
+  try {
+    final rows = rust_threat.threatEvaluate(
+      tier: switch (model.tier) {
+        ThreatTier.plaintext => rust_threat.DbThreatTier.plaintext,
+        ThreatTier.keychain => rust_threat.DbThreatTier.keychain,
+        ThreatTier.hardware => rust_threat.DbThreatTier.hardware,
+        ThreatTier.paranoid => rust_threat.DbThreatTier.paranoid,
+      },
+      password: model.password,
+      biometric: model.biometric,
+    );
+    return {
+      for (final r in rows)
+        _threatFromRust(r.threat): _statusFromRust(r.status),
+    };
+  } catch (_) {
+    return _evaluateDart(model);
+  }
+}
+
+SecurityThreat _threatFromRust(rust_threat.DbSecurityThreat t) => switch (t) {
+  rust_threat.DbSecurityThreat.coldDiskTheft => SecurityThreat.coldDiskTheft,
+  rust_threat.DbSecurityThreat.keyringFileTheft =>
+    SecurityThreat.keyringFileTheft,
+  rust_threat.DbSecurityThreat.offlineBruteForce =>
+    SecurityThreat.offlineBruteForce,
+  rust_threat.DbSecurityThreat.bystanderUnlockedMachine =>
+    SecurityThreat.bystanderUnlockedMachine,
+  rust_threat.DbSecurityThreat.liveRamForensicsLocked =>
+    SecurityThreat.liveRamForensicsLocked,
+  rust_threat.DbSecurityThreat.osKernelOrKeychainBreach =>
+    SecurityThreat.osKernelOrKeychainBreach,
+};
+
+ThreatStatus _statusFromRust(rust_threat.DbThreatStatus s) => switch (s) {
+  rust_threat.DbThreatStatus.protects => ThreatStatus.protects,
+  rust_threat.DbThreatStatus.doesNotProtect => ThreatStatus.doesNotProtect,
+};
+
+/// Tiny Dart mirror for flutter_test contexts that don't load
+/// the FRB native lib. Production never reaches it.
+Map<SecurityThreat, ThreatStatus> _evaluateDart(ThreatModel model) {
   final hasUserSecret =
       model.tier == ThreatTier.paranoid ||
       (model.password &&

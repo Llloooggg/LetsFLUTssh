@@ -23,6 +23,7 @@ import 'api/recorder.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
+import 'api/threat_eval.dart';
 import 'api/transfer.dart';
 import 'api/update_metadata.dart';
 import 'api/winbio.dart';
@@ -370,6 +371,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbRecorderSnapshot dco_decode_db_recorder_snapshot(dynamic raw);
 
   @protected
+  DbSecurityThreat dco_decode_db_security_threat(dynamic raw);
+
+  @protected
   DbSession dco_decode_db_session(dynamic raw);
 
   @protected
@@ -398,6 +402,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTag dco_decode_db_tag(dynamic raw);
+
+  @protected
+  DbThreatRow dco_decode_db_threat_row(dynamic raw);
+
+  @protected
+  DbThreatStatus dco_decode_db_threat_status(dynamic raw);
+
+  @protected
+  DbThreatTier dco_decode_db_threat_tier(dynamic raw);
 
   @protected
   DbVersionOrder dco_decode_db_version_order(dynamic raw);
@@ -457,6 +470,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbTag> dco_decode_list_db_tag(dynamic raw);
+
+  @protected
+  List<DbThreatRow> dco_decode_list_db_threat_row(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -912,6 +928,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSecurityThreat sse_decode_db_security_threat(SseDeserializer deserializer);
+
+  @protected
   DbSession sse_decode_db_session(SseDeserializer deserializer);
 
   @protected
@@ -944,6 +963,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTag sse_decode_db_tag(SseDeserializer deserializer);
+
+  @protected
+  DbThreatRow sse_decode_db_threat_row(SseDeserializer deserializer);
+
+  @protected
+  DbThreatStatus sse_decode_db_threat_status(SseDeserializer deserializer);
+
+  @protected
+  DbThreatTier sse_decode_db_threat_tier(SseDeserializer deserializer);
 
   @protected
   DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer);
@@ -1017,6 +1045,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbTag> sse_decode_list_db_tag(SseDeserializer deserializer);
+
+  @protected
+  List<DbThreatRow> sse_decode_list_db_threat_row(SseDeserializer deserializer);
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -1579,6 +1610,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_security_threat(
+    DbSecurityThreat self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_session(DbSession self, SseSerializer serializer);
 
   @protected
@@ -1625,6 +1662,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_tag(DbTag self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_threat_row(DbThreatRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_threat_status(
+    DbThreatStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_threat_tier(DbThreatTier self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_version_order(
@@ -1721,6 +1770,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_db_tag(List<DbTag> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_db_threat_row(
+    List<DbThreatRow> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);

@@ -20,6 +20,7 @@ import 'api/recorder.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
+import 'api/threat_eval.dart';
 import 'api/transfer.dart';
 import 'api/update_metadata.dart';
 import 'api/winbio.dart';
@@ -86,7 +87,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -43206980;
+  int get rustContentHash => -1042260336;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -769,6 +770,12 @@ abstract class RustLibApi extends BaseApi {
     required String user,
     required List<int> privateKey,
     String? passphrase,
+  });
+
+  List<DbThreatRow> crateApiThreatEvalThreatEvaluate({
+    required DbThreatTier tier,
+    required bool password,
+    required bool biometric,
   });
 
   Future<bool> crateApiTransferTransferCancel({required String taskId});
@@ -6398,6 +6405,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  List<DbThreatRow> crateApiThreatEvalThreatEvaluate({
+    required DbThreatTier tier,
+    required bool password,
+    required bool biometric,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_db_threat_tier(tier, serializer);
+          sse_encode_bool(password, serializer);
+          sse_encode_bool(biometric, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 163,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_db_threat_row,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiThreatEvalThreatEvaluateConstMeta,
+        argValues: [tier, password, biometric],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiThreatEvalThreatEvaluateConstMeta =>
+      const TaskConstMeta(
+        debugName: 'threat_evaluate',
+        argNames: ['tier', 'password', 'biometric'],
+      );
+
+  @override
   Future<bool> crateApiTransferTransferCancel({required String taskId}) {
     return handler.executeNormal(
       NormalTask(
@@ -6407,7 +6450,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 163,
+            funcId: 164,
             port: port_,
           );
         },
@@ -6435,7 +6478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 164,
+            funcId: 165,
             port: port_,
           );
         },
@@ -6463,7 +6506,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 165,
+            funcId: 166,
           )!;
         },
         codec: SseCodec(
@@ -6497,7 +6540,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 166,
+            funcId: 167,
           )!;
         },
         codec: SseCodec(
@@ -6533,7 +6576,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 167,
+            funcId: 168,
           )!;
         },
         codec: SseCodec(
@@ -6565,7 +6608,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 168,
+            funcId: 169,
           )!;
         },
         codec: SseCodec(
@@ -6599,7 +6642,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 169,
+            funcId: 170,
           )!;
         },
         codec: SseCodec(
@@ -6631,7 +6674,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 170,
+            funcId: 171,
           )!;
         },
         codec: SseCodec(
@@ -6660,7 +6703,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 171,
+            funcId: 172,
           )!;
         },
         codec: SseCodec(
@@ -7587,6 +7630,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbSecurityThreat dco_decode_db_security_threat(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbSecurityThreat.values[raw as int];
+  }
+
+  @protected
   DbSession dco_decode_db_session(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -7773,6 +7822,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbThreatRow dco_decode_db_threat_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DbThreatRow(
+      threat: dco_decode_db_security_threat(arr[0]),
+      status: dco_decode_db_threat_status(arr[1]),
+    );
+  }
+
+  @protected
+  DbThreatStatus dco_decode_db_threat_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbThreatStatus.values[raw as int];
+  }
+
+  @protected
+  DbThreatTier dco_decode_db_threat_tier(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbThreatTier.values[raw as int];
+  }
+
+  @protected
   DbVersionOrder dco_decode_db_version_order(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DbVersionOrder.values[raw as int];
@@ -7899,6 +7972,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbTag> dco_decode_list_db_tag(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_db_tag).toList();
+  }
+
+  @protected
+  List<DbThreatRow> dco_decode_list_db_threat_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_db_threat_row).toList();
   }
 
   @protected
@@ -9169,6 +9248,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbSecurityThreat sse_decode_db_security_threat(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbSecurityThreat.values[inner];
+  }
+
+  @protected
   DbSession sse_decode_db_session(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final var_id = sse_decode_String(deserializer);
@@ -9414,6 +9500,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbThreatRow sse_decode_db_threat_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_threat = sse_decode_db_security_threat(deserializer);
+    final var_status = sse_decode_db_threat_status(deserializer);
+    return DbThreatRow(threat: var_threat, status: var_status);
+  }
+
+  @protected
+  DbThreatStatus sse_decode_db_threat_status(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbThreatStatus.values[inner];
+  }
+
+  @protected
+  DbThreatTier sse_decode_db_threat_tier(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbThreatTier.values[inner];
+  }
+
+  @protected
   DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final inner = sse_decode_i_32(deserializer);
@@ -9639,6 +9747,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final ans_ = <DbTag>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_tag(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DbThreatRow> sse_decode_list_db_threat_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    final len_ = sse_decode_i_32(deserializer);
+    final ans_ = <DbThreatRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_db_threat_row(deserializer));
     }
     return ans_;
   }
@@ -10976,6 +11098,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_db_security_threat(
+    DbSecurityThreat self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_db_session(DbSession self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -11127,6 +11258,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.name, serializer);
     sse_encode_opt_String(self.color, serializer);
     sse_encode_i_64(self.createdAtMs, serializer);
+  }
+
+  @protected
+  void sse_encode_db_threat_row(DbThreatRow self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_db_security_threat(self.threat, serializer);
+    sse_encode_db_threat_status(self.status, serializer);
+  }
+
+  @protected
+  void sse_encode_db_threat_status(
+    DbThreatStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_threat_tier(DbThreatTier self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -11329,6 +11482,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_db_tag(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_db_threat_row(
+    List<DbThreatRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_db_threat_row(item, serializer);
     }
   }
 

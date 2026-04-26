@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -43206980;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1042260336;
 
 // Section: executor
 
@@ -7103,6 +7103,42 @@ fn wire__crate__api__ssh__ssh_try_connect_pubkey_impl(
         },
     )
 }
+fn wire__crate__api__threat_eval__threat_evaluate_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "threat_evaluate",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_tier = <crate::api::threat_eval::DbThreatTier>::sse_decode(&mut deserializer);
+            let api_password = <bool>::sse_decode(&mut deserializer);
+            let api_biometric = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(crate::api::threat_eval::threat_evaluate(
+                    api_tier,
+                    api_password,
+                    api_biometric,
+                ))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__transfer__transfer_cancel_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -8317,6 +8353,22 @@ impl SseDecode for crate::api::recorder::DbRecorderSnapshot {
     }
 }
 
+impl SseDecode for crate::api::threat_eval::DbSecurityThreat {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::threat_eval::DbSecurityThreat::ColdDiskTheft,
+            1 => crate::api::threat_eval::DbSecurityThreat::KeyringFileTheft,
+            2 => crate::api::threat_eval::DbSecurityThreat::OfflineBruteForce,
+            3 => crate::api::threat_eval::DbSecurityThreat::BystanderUnlockedMachine,
+            4 => crate::api::threat_eval::DbSecurityThreat::LiveRamForensicsLocked,
+            5 => crate::api::threat_eval::DbSecurityThreat::OsKernelOrKeychainBreach,
+            _ => unreachable!("Invalid variant for DbSecurityThreat: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::db::DbSession {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8569,6 +8621,44 @@ impl SseDecode for crate::api::db::DbTag {
     }
 }
 
+impl SseDecode for crate::api::threat_eval::DbThreatRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_threat = <crate::api::threat_eval::DbSecurityThreat>::sse_decode(deserializer);
+        let mut var_status = <crate::api::threat_eval::DbThreatStatus>::sse_decode(deserializer);
+        return crate::api::threat_eval::DbThreatRow {
+            threat: var_threat,
+            status: var_status,
+        };
+    }
+}
+
+impl SseDecode for crate::api::threat_eval::DbThreatStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::threat_eval::DbThreatStatus::Protects,
+            1 => crate::api::threat_eval::DbThreatStatus::DoesNotProtect,
+            _ => unreachable!("Invalid variant for DbThreatStatus: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::threat_eval::DbThreatTier {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::threat_eval::DbThreatTier::Plaintext,
+            1 => crate::api::threat_eval::DbThreatTier::Keychain,
+            2 => crate::api::threat_eval::DbThreatTier::Hardware,
+            3 => crate::api::threat_eval::DbThreatTier::Paranoid,
+            _ => unreachable!("Invalid variant for DbThreatTier: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::update_metadata::DbVersionOrder {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8795,6 +8885,20 @@ impl SseDecode for Vec<crate::api::db::DbTag> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::db::DbTag>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::threat_eval::DbThreatRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::threat_eval::DbThreatRow>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -9479,8 +9583,8 @@ fn pde_ffi_dispatcher_primary_impl(
         162 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
-        163 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-        164 => {
+        164 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+        165 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -9513,13 +9617,14 @@ fn pde_ffi_dispatcher_sync_impl(
 130 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
 138 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
 139 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
-165 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-166 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-167 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-168 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-169 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-170 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-171 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+163 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
+166 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+167 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+168 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+169 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+170 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+171 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+172 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -10462,6 +10567,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::recorder::DbRecorderSnapshot>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::threat_eval::DbSecurityThreat {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::ColdDiskTheft => 0.into_dart(),
+            Self::KeyringFileTheft => 1.into_dart(),
+            Self::OfflineBruteForce => 2.into_dart(),
+            Self::BystanderUnlockedMachine => 3.into_dart(),
+            Self::LiveRamForensicsLocked => 4.into_dart(),
+            Self::OsKernelOrKeychainBreach => 5.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::threat_eval::DbSecurityThreat
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::threat_eval::DbSecurityThreat>
+    for crate::api::threat_eval::DbSecurityThreat
+{
+    fn into_into_dart(self) -> crate::api::threat_eval::DbSecurityThreat {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::db::DbSession {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -10714,6 +10844,71 @@ impl flutter_rust_bridge::IntoDart for crate::api::db::DbTag {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::db::DbTag {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::db::DbTag> for crate::api::db::DbTag {
     fn into_into_dart(self) -> crate::api::db::DbTag {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::threat_eval::DbThreatRow {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.threat.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::threat_eval::DbThreatRow
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::threat_eval::DbThreatRow>
+    for crate::api::threat_eval::DbThreatRow
+{
+    fn into_into_dart(self) -> crate::api::threat_eval::DbThreatRow {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::threat_eval::DbThreatStatus {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Protects => 0.into_dart(),
+            Self::DoesNotProtect => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::threat_eval::DbThreatStatus
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::threat_eval::DbThreatStatus>
+    for crate::api::threat_eval::DbThreatStatus
+{
+    fn into_into_dart(self) -> crate::api::threat_eval::DbThreatStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::threat_eval::DbThreatTier {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Plaintext => 0.into_dart(),
+            Self::Keychain => 1.into_dart(),
+            Self::Hardware => 2.into_dart(),
+            Self::Paranoid => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::threat_eval::DbThreatTier
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::threat_eval::DbThreatTier>
+    for crate::api::threat_eval::DbThreatTier
+{
+    fn into_into_dart(self) -> crate::api::threat_eval::DbThreatTier {
         self
     }
 }
@@ -11564,6 +11759,26 @@ impl SseEncode for crate::api::recorder::DbRecorderSnapshot {
     }
 }
 
+impl SseEncode for crate::api::threat_eval::DbSecurityThreat {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::threat_eval::DbSecurityThreat::ColdDiskTheft => 0,
+                crate::api::threat_eval::DbSecurityThreat::KeyringFileTheft => 1,
+                crate::api::threat_eval::DbSecurityThreat::OfflineBruteForce => 2,
+                crate::api::threat_eval::DbSecurityThreat::BystanderUnlockedMachine => 3,
+                crate::api::threat_eval::DbSecurityThreat::LiveRamForensicsLocked => 4,
+                crate::api::threat_eval::DbSecurityThreat::OsKernelOrKeychainBreach => 5,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::db::DbSession {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -11707,6 +11922,48 @@ impl SseEncode for crate::api::db::DbTag {
         <String>::sse_encode(self.name, serializer);
         <Option<String>>::sse_encode(self.color, serializer);
         <i64>::sse_encode(self.created_at_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::threat_eval::DbThreatRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::threat_eval::DbSecurityThreat>::sse_encode(self.threat, serializer);
+        <crate::api::threat_eval::DbThreatStatus>::sse_encode(self.status, serializer);
+    }
+}
+
+impl SseEncode for crate::api::threat_eval::DbThreatStatus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::threat_eval::DbThreatStatus::Protects => 0,
+                crate::api::threat_eval::DbThreatStatus::DoesNotProtect => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::threat_eval::DbThreatTier {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::threat_eval::DbThreatTier::Plaintext => 0,
+                crate::api::threat_eval::DbThreatTier::Keychain => 1,
+                crate::api::threat_eval::DbThreatTier::Hardware => 2,
+                crate::api::threat_eval::DbThreatTier::Paranoid => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -11896,6 +12153,16 @@ impl SseEncode for Vec<crate::api::db::DbTag> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::db::DbTag>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::threat_eval::DbThreatRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::threat_eval::DbThreatRow>::sse_encode(item, serializer);
         }
     }
 }
