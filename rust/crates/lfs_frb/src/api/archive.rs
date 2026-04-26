@@ -221,10 +221,66 @@ pub async fn db_import_open(
     .map_err(|e| format!("import open task: {e}"))?
 }
 
+/// Pre-parsed JSON entries staged directly in the import
+/// registry, bypassing the LFSE decrypt + zip parse path.
+/// Used by Dart consumers that already hold the JSON payloads
+/// in memory (QR import, OpenSSH import, the legacy Dart-side
+/// archive decrypt flow) so they can route the apply step
+/// through the Rust driver without round-tripping the bytes
+/// back through a temp file.
+///
+/// Every field is optional — missing entries no-op on the
+/// apply side, same as the LFSE path.
+#[derive(Debug, Clone)]
+pub struct DbStagedImport {
+    pub manifest_json: Option<String>,
+    pub sessions_json: Option<String>,
+    pub keys_json: Option<String>,
+    pub tags_json: Option<String>,
+    pub session_tags_json: Option<String>,
+    pub folder_tags_json: Option<String>,
+    pub snippets_json: Option<String>,
+    pub session_snippets_json: Option<String>,
+    pub empty_folders_json: Option<String>,
+    pub config_json: Option<String>,
+    pub known_hosts_text: Option<String>,
+}
+
+/// Stage a [`DbStagedImport`] into the registry under a
+/// freshly-minted handle id. Returns the handle so the caller
+/// can hand it back to [`db_import_apply`] / [`db_import_drop`].
+/// Skips the LFSE decrypt + zip parse — the caller's already
+/// done that work or has built the JSONs locally (QR import,
+/// OpenSSH parser).
+pub async fn db_import_stage(input: DbStagedImport) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let pending = lfs_core::archive::PendingImport {
+            manifest_json: input.manifest_json,
+            sessions_json: input.sessions_json,
+            keys_json: input.keys_json,
+            tags_json: input.tags_json,
+            session_tags_json: input.session_tags_json,
+            folder_tags_json: input.folder_tags_json,
+            snippets_json: input.snippets_json,
+            session_snippets_json: input.session_snippets_json,
+            empty_folders_json: input.empty_folders_json,
+            config_json: input.config_json,
+            known_hosts_text: input.known_hosts_text,
+        };
+        let app = lfs_core::app::instance();
+        let handle_id = random_handle_id();
+        app.imports.insert(handle_id.clone(), pending);
+        Ok(handle_id)
+    })
+    .await
+    .map_err(|e| format!("import stage task: {e}"))?
+}
+
 /// Drop the staged archive without applying it. Idempotent on a
-/// missing handle id. Pair with [`db_import_open`] from the Dart
-/// side: cancel button on the preview dialog calls this; OK
-/// button hands the id to [`db_import_apply`].
+/// missing handle id. Pair with [`db_import_open`] /
+/// [`db_import_stage`] from the Dart side: cancel button on the
+/// preview dialog calls this; OK button hands the id to
+/// [`db_import_apply`].
 pub async fn db_import_drop(handle_id: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         lfs_core::app::instance().imports.drop_handle(&handle_id);

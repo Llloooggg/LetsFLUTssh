@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `random_handle_id`, `require_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Compose and (optionally) encrypt the `.lfs` archive entirely
 /// inside Rust. Plaintext credentials never cross the FRB boundary
@@ -42,10 +42,20 @@ Future<DbImportOpenResult> dbImportOpen({
   password: password,
 );
 
+/// Stage a [`DbStagedImport`] into the registry under a
+/// freshly-minted handle id. Returns the handle so the caller
+/// can hand it back to [`db_import_apply`] / [`db_import_drop`].
+/// Skips the LFSE decrypt + zip parse — the caller's already
+/// done that work or has built the JSONs locally (QR import,
+/// OpenSSH parser).
+Future<String> dbImportStage({required DbStagedImport input}) =>
+    RustLib.instance.api.crateApiArchiveDbImportStage(input: input);
+
 /// Drop the staged archive without applying it. Idempotent on a
-/// missing handle id. Pair with [`db_import_open`] from the Dart
-/// side: cancel button on the preview dialog calls this; OK
-/// button hands the id to [`db_import_apply`].
+/// missing handle id. Pair with [`db_import_open`] /
+/// [`db_import_stage`] from the Dart side: cancel button on the
+/// preview dialog calls this; OK button hands the id to
+/// [`db_import_apply`].
 Future<void> dbImportDrop({required String handleId}) =>
     RustLib.instance.api.crateApiArchiveDbImportDrop(handleId: handleId);
 
@@ -432,4 +442,73 @@ class DbQrExportOptions {
           includeAllManagerKeys == other.includeAllManagerKeys &&
           includeTags == other.includeTags &&
           includeSnippets == other.includeSnippets;
+}
+
+/// Pre-parsed JSON entries staged directly in the import
+/// registry, bypassing the LFSE decrypt + zip parse path.
+/// Used by Dart consumers that already hold the JSON payloads
+/// in memory (QR import, OpenSSH import, the legacy Dart-side
+/// archive decrypt flow) so they can route the apply step
+/// through the Rust driver without round-tripping the bytes
+/// back through a temp file.
+///
+/// Every field is optional — missing entries no-op on the
+/// apply side, same as the LFSE path.
+class DbStagedImport {
+  final String? manifestJson;
+  final String? sessionsJson;
+  final String? keysJson;
+  final String? tagsJson;
+  final String? sessionTagsJson;
+  final String? folderTagsJson;
+  final String? snippetsJson;
+  final String? sessionSnippetsJson;
+  final String? emptyFoldersJson;
+  final String? configJson;
+  final String? knownHostsText;
+
+  const DbStagedImport({
+    this.manifestJson,
+    this.sessionsJson,
+    this.keysJson,
+    this.tagsJson,
+    this.sessionTagsJson,
+    this.folderTagsJson,
+    this.snippetsJson,
+    this.sessionSnippetsJson,
+    this.emptyFoldersJson,
+    this.configJson,
+    this.knownHostsText,
+  });
+
+  @override
+  int get hashCode =>
+      manifestJson.hashCode ^
+      sessionsJson.hashCode ^
+      keysJson.hashCode ^
+      tagsJson.hashCode ^
+      sessionTagsJson.hashCode ^
+      folderTagsJson.hashCode ^
+      snippetsJson.hashCode ^
+      sessionSnippetsJson.hashCode ^
+      emptyFoldersJson.hashCode ^
+      configJson.hashCode ^
+      knownHostsText.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbStagedImport &&
+          runtimeType == other.runtimeType &&
+          manifestJson == other.manifestJson &&
+          sessionsJson == other.sessionsJson &&
+          keysJson == other.keysJson &&
+          tagsJson == other.tagsJson &&
+          sessionTagsJson == other.sessionTagsJson &&
+          folderTagsJson == other.folderTagsJson &&
+          snippetsJson == other.snippetsJson &&
+          sessionSnippetsJson == other.sessionSnippetsJson &&
+          emptyFoldersJson == other.emptyFoldersJson &&
+          configJson == other.configJson &&
+          knownHostsText == other.knownHostsText;
 }

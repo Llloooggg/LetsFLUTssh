@@ -251,6 +251,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey dco_decode_box_autoadd_db_ssh_key(dynamic raw);
 
   @protected
+  DbStagedImport dco_decode_box_autoadd_db_staged_import(dynamic raw);
+
+  @protected
   DbStagedSecrets dco_decode_box_autoadd_db_staged_secrets(dynamic raw);
 
   @protected
@@ -366,6 +369,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKeyMetadata dco_decode_db_ssh_key_metadata(dynamic raw);
+
+  @protected
+  DbStagedImport dco_decode_db_staged_import(dynamic raw);
 
   @protected
   DbStagedSecrets dco_decode_db_staged_secrets(dynamic raw);
@@ -723,6 +729,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey sse_decode_box_autoadd_db_ssh_key(SseDeserializer deserializer);
 
   @protected
+  DbStagedImport sse_decode_box_autoadd_db_staged_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbStagedSecrets sse_decode_box_autoadd_db_staged_secrets(
     SseDeserializer deserializer,
   );
@@ -864,6 +875,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKeyMetadata sse_decode_db_ssh_key_metadata(SseDeserializer deserializer);
+
+  @protected
+  DbStagedImport sse_decode_db_staged_import(SseDeserializer deserializer);
 
   @protected
   DbStagedSecrets sse_decode_db_staged_secrets(SseDeserializer deserializer);
@@ -1299,6 +1313,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_staged_import(
+    DbStagedImport self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_staged_secrets(
     DbStagedSecrets self,
     SseSerializer serializer,
@@ -1478,6 +1498,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_ssh_key_metadata(
     DbSshKeyMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_staged_import(
+    DbStagedImport self,
     SseSerializer serializer,
   );
 
