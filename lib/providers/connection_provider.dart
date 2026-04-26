@@ -28,6 +28,11 @@ final connectionManagerProvider = Provider<ConnectionManager>((ref) {
     knownHosts: knownHosts,
     credentialCache: credentialCache,
     onActiveCountChanged: (count) => foreground.onConnectionCountChanged(count),
+    // Production routes connect through the Phase 5.1 Rust actor;
+    // unit tests construct `ConnectionManager` directly with
+    // `transportFactory:` and leave this off so the legacy in-Dart
+    // driver stays available without a live FRB native lib.
+    useRustActor: true,
   );
   ref.onDispose(() => manager.dispose());
   return manager;

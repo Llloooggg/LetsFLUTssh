@@ -26,6 +26,28 @@ class RustTransport implements SshTransport {
   Future<void>? _forwardPump;
   bool _disconnected = false;
 
+  /// True when this transport adopted a session from the Phase 5.1
+  /// connection actor (`connectionGetSession`). Lifecycle ownership
+  /// belongs to the actor; the local `disconnect` becomes a no-op
+  /// to avoid double-tearing the shared `Arc<Session>`.
+  bool _adopted = false;
+
+  RustTransport();
+
+  /// Adopt a Phase 5.1 actor-owned `SshSession`. The adopted
+  /// transport surfaces `isConnected = true` immediately so channel
+  /// ops (`openShell`, `openSftp`, `openDirectTcpip`,
+  /// `requestRemoteForward`) start working without a separate
+  /// `connect()` round-trip. Tear-down belongs to the actor —
+  /// dispatch `ConnectionDisconnect` over the bus.
+  factory RustTransport.adopt(rust_ssh.SshSession session) {
+    final t = RustTransport();
+    t._session = session;
+    t._adopted = true;
+    t._startForwardPump();
+    return t;
+  }
+
   @override
   bool get isConnected => _session != null && !_disconnected;
 
@@ -290,7 +312,14 @@ class RustTransport implements SshTransport {
     _disconnected = true;
     final session = _session;
     _session = null;
-    if (session != null) {
+    // Adopted sessions belong to the connection actor — calling
+    // `session.disconnect()` here would clear only this wrapper's
+    // slot (the actor still holds its own `Arc<Session>` clone),
+    // leaving the actor pointing at a half-torn russh handle.
+    // Tear-down for an adopted transport happens through the bus
+    // command (`ConnectionDisconnect`); the local Dart shutdown
+    // just stops the forward pump and closes the broadcast.
+    if (session != null && !_adopted) {
       try {
         await session.disconnect();
       } catch (_) {

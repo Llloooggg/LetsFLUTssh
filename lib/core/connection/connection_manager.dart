@@ -5,8 +5,10 @@ import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/app.dart' as rust_app;
+import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
+import '../bus/app_bus.dart';
 import '../security/session_credential_cache.dart';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_config.dart';
@@ -66,13 +68,23 @@ class ConnectionManager {
   /// In production stays null and `createSshTransport()` is used.
   final SshTransport Function(KnownHostsManager)? _transportFactory;
 
+  /// When true, [connectAsync] dispatches handshake work to the
+  /// Phase 5.1 Rust connection actor instead of the legacy
+  /// in-Dart driver. Production wires this on; tests that exercise
+  /// the manager without a live FRB native lib leave it off so
+  /// they keep the in-Dart driver semantics with their injected
+  /// `_transportFactory` mocks.
+  final bool _useRustActor;
+
   ConnectionManager({
     required this.knownHosts,
     SessionCredentialCache? credentialCache,
     this.onActiveCountChanged,
     SshTransport Function(KnownHostsManager)? transportFactory,
+    bool useRustActor = false,
   }) : _credentialCache = credentialCache,
-       _transportFactory = transportFactory;
+       _transportFactory = transportFactory,
+       _useRustActor = useRustActor;
 
   /// User-visible connections. Excludes internal bastion hops the
   /// manager opens to back ProxyJump chains; those rides are owned
@@ -122,10 +134,267 @@ class ConnectionManager {
       name: 'Connection',
     );
 
-    // Start connection in background
+    // Start connection in background. Production path (`_useRustActor`)
+    // goes through the Phase 5.1 Rust connection actor. Tests that
+    // exercise the manager without a live FRB native lib leave the
+    // flag off and keep the legacy in-Dart driver, where they can
+    // inject mock transports via `_transportFactory`.
     _connectGeneration[id] = 1;
-    _doConnect(conn, config, 1);
+    if (_useRustActor) {
+      unawaited(_doConnectViaActor(conn, config, 1));
+    } else {
+      unawaited(_doConnect(conn, config, 1));
+    }
     return conn;
+  }
+
+  /// Phase 5.1 connect path — dispatches the connect command to the
+  /// Rust connection actor and mirrors its bus events back onto the
+  /// Dart `Connection` so the existing UI can keep observing the
+  /// same `state` / `progressStream` / `connectionError` surface.
+  /// Once the actor reports `Connected`, the live `SshSession` is
+  /// fetched via `connection_get_session` and adopted into a
+  /// `RustTransport` for channel ops.
+  Future<void> _doConnectViaActor(
+    Connection conn,
+    SSHConfig config,
+    int generation,
+  ) async {
+    final effectiveConfig = await _withCredentialOverlay(conn, config);
+    final auth = await _authFromConfig(effectiveConfig.auth, conn.sessionId);
+
+    // The actor expects the parent to be in `Connected` state — if
+    // a Dart Connection is supplied as bastion, await its readiness
+    // first so the child dispatch sees a usable parent.
+    if (conn.bastion != null) {
+      await conn.bastion!.waitUntilReady();
+      if (_isStaleGeneration(conn.id, generation)) return;
+      if (!conn.bastion!.isConnected) {
+        if (!_isStaleGeneration(conn.id, generation)) {
+          conn.connectionError = StateError('bastion not connected');
+          conn.state = SSHConnectionState.disconnected;
+          conn.addProgressStep(
+            const ConnectionStep(
+              phase: ConnectionPhase.socketConnect,
+              status: StepStatus.failed,
+              detail: 'bastion not connected',
+            ),
+          );
+          conn.completeReady();
+          _notify();
+        }
+        return;
+      }
+    }
+
+    final rust_bus.BusConnectArgs args;
+    try {
+      args = _busConnectArgs(conn, effectiveConfig, auth);
+    } catch (e, st) {
+      AppLogger.instance.log(
+        'Bus connect args build failed: $e',
+        name: 'Connection',
+        error: e,
+        stackTrace: st,
+      );
+      if (!_isStaleGeneration(conn.id, generation)) {
+        conn.connectionError = e;
+        conn.state = SSHConnectionState.disconnected;
+        conn.addProgressStep(
+          ConnectionStep(
+            phase: ConnectionPhase.socketConnect,
+            status: StepStatus.failed,
+            detail: e.toString(),
+          ),
+        );
+        conn.completeReady();
+        _notify();
+      }
+      return;
+    }
+    final completer = Completer<void>();
+    final sub = AppBus.instance
+        .subscribeConnection(conn.id)
+        .listen(
+          (event) => _applyConnectionEvent(conn, generation, event, completer),
+        );
+
+    conn.addProgressStep(
+      const ConnectionStep(
+        phase: ConnectionPhase.socketConnect,
+        status: StepStatus.inProgress,
+      ),
+    );
+    _notify();
+
+    try {
+      // Note: `connectionConnect` only returns once the actor has
+      // settled into Connected or Disconnected — the bus events
+      // arrive concurrently so the UI sees state transitions in
+      // real time rather than at the resolve point.
+      await rust_bus.connectionConnect(id: conn.id, args: args);
+      // Belt: the actor *should* have published terminal-state
+      // events by now and the listener flipped Connection.state.
+      // If not (event lag, dropped subscription), force-resolve so
+      // `conn.ready` doesn't hang forever.
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    } catch (e, st) {
+      AppLogger.instance.log(
+        'connectionConnect failed: $e',
+        name: 'Connection',
+        error: e,
+        stackTrace: st,
+      );
+      if (!_isStaleGeneration(conn.id, generation)) {
+        conn.connectionError = e;
+        conn.state = SSHConnectionState.disconnected;
+      }
+    } finally {
+      await sub.cancel();
+      if (!_isStaleGeneration(conn.id, generation)) {
+        conn.completeReady();
+        // Cache post-auth credentials when the actor reached Connected.
+        if (conn.state == SSHConnectionState.connected) {
+          _cachePostAuthCredentials(conn, effectiveConfig);
+        }
+      }
+      _notify();
+    }
+  }
+
+  /// Translate a per-connection bus event into a Dart `Connection`
+  /// state mutation. Stale-generation events are dropped.
+  void _applyConnectionEvent(
+    Connection conn,
+    int generation,
+    rust_bus.BusEvent event,
+    Completer<void> completer,
+  ) {
+    if (_isStaleGeneration(conn.id, generation)) return;
+    switch (event) {
+      case rust_bus.BusEvent_ConnectionStateChanged(:final state):
+        switch (state) {
+          case rust_bus.BusConnectionState.connecting:
+            conn.state = SSHConnectionState.connecting;
+          case rust_bus.BusConnectionState.connected:
+            unawaited(_adoptConnectedSession(conn, generation, completer));
+          case rust_bus.BusConnectionState.disconnected:
+            conn.state = SSHConnectionState.disconnected;
+            if (!completer.isCompleted) completer.complete();
+        }
+      case rust_bus.BusEvent_ConnectionProgress(:final step):
+        conn.addProgressStep(
+          ConnectionStep(
+            phase: _mapPhase(step.phase),
+            status: _mapStatus(step.status),
+            detail: step.detail,
+          ),
+        );
+      case rust_bus.BusEvent_ConnectionError(:final detail):
+        conn.connectionError = detail;
+      case rust_bus.BusEvent_ConnectionRemoved():
+        // Actor torn down — leave Connection in its current state;
+        // the manager's own `disconnect(id)` already removed the
+        // Dart-side row.
+        if (!completer.isCompleted) completer.complete();
+      case _:
+        break;
+    }
+    _notify();
+  }
+
+  Future<void> _adoptConnectedSession(
+    Connection conn,
+    int generation,
+    Completer<void> completer,
+  ) async {
+    try {
+      final session = await rust_bus.connectionGetSession(id: conn.id);
+      if (_isStaleGeneration(conn.id, generation)) return;
+      if (session == null) {
+        AppLogger.instance.log(
+          'connection_get_session returned null for ${conn.id}',
+          name: 'Connection',
+          level: LogLevel.warn,
+        );
+        return;
+      }
+      conn.transport = RustTransport.adopt(session);
+      conn.state = SSHConnectionState.connected;
+      conn.notifyExtensionsConnected();
+      _notify();
+    } finally {
+      if (!completer.isCompleted) completer.complete();
+    }
+  }
+
+  rust_bus.BusConnectArgs _busConnectArgs(
+    Connection conn,
+    SSHConfig config,
+    SshAuthMethod auth,
+  ) {
+    return rust_bus.BusConnectArgs(
+      label: conn.label,
+      sessionId: conn.sessionId,
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      auth: _busAuthRef(auth),
+      bastionId: conn.bastion?.id,
+      internal: conn.internal,
+    );
+  }
+
+  rust_bus.BusConnectAuthRef _busAuthRef(SshAuthMethod auth) {
+    return switch (auth) {
+      SshAuthPasswordRef(:final passwordSecretId) =>
+        rust_bus.BusConnectAuthRef.password(secretId: passwordSecretId),
+      SshAuthPubkeyRef(:final keySecretId, :final passphraseSecretId) =>
+        rust_bus.BusConnectAuthRef.pubkey(
+          keySecretId: keySecretId,
+          passphraseSecretId: passphraseSecretId,
+        ),
+      SshAuthPubkeyCertRef(
+        :final keySecretId,
+        :final certSecretId,
+        :final passphraseSecretId,
+      ) =>
+        rust_bus.BusConnectAuthRef.pubkeyCert(
+          keySecretId: keySecretId,
+          certSecretId: certSecretId,
+          passphraseSecretId: passphraseSecretId,
+        ),
+      SshAuthAgent() => const rust_bus.BusConnectAuthRef.agent(),
+      // _authFromConfig stages plaintext into transient SecretStore
+      // entries so the production path always returns a Ref variant.
+      // Reaching this arm means a caller bypassed `_authFromConfig`;
+      // surface as an error rather than leaking plaintext through
+      // an alternate code path.
+      _ => throw StateError(
+        'Phase 5.1 actor path requires a Ref-shaped SshAuthMethod; got $auth',
+      ),
+    };
+  }
+
+  ConnectionPhase _mapPhase(rust_bus.BusConnectionPhase phase) {
+    return switch (phase) {
+      rust_bus.BusConnectionPhase.socketConnect =>
+        ConnectionPhase.socketConnect,
+      rust_bus.BusConnectionPhase.hostKeyVerify =>
+        ConnectionPhase.hostKeyVerify,
+      rust_bus.BusConnectionPhase.authenticate => ConnectionPhase.authenticate,
+      rust_bus.BusConnectionPhase.openChannel => ConnectionPhase.openChannel,
+    };
+  }
+
+  StepStatus _mapStatus(rust_bus.BusStepStatus status) {
+    return switch (status) {
+      rust_bus.BusStepStatus.inProgress => StepStatus.inProgress,
+      rust_bus.BusStepStatus.success => StepStatus.success,
+      rust_bus.BusStepStatus.failed => StepStatus.failed,
+    };
   }
 
   /// Connection timeout — applied at the transport level, not in UI.
@@ -552,6 +821,25 @@ class ConnectionManager {
             error: e,
           );
         }),
+      );
+    }
+    // Production path (`_useRustActor`) also dispatches the actor-
+    // side teardown so the russh handle is dropped and the
+    // registry row cleared. Adopted transports' `disconnect()` is
+    // a no-op (the `RustTransport.adopt` flag) — the actor is the
+    // lifecycle owner. Tests without the actor flag skip this
+    // dispatch entirely.
+    if (_useRustActor) {
+      unawaited(
+        AppBus.instance
+            .dispatch(rust_bus.BusCommand.connectionDisconnect(id: id))
+            .catchError((Object e) {
+              AppLogger.instance.log(
+                'Bus disconnect dispatch failed',
+                name: 'Connection',
+                error: e,
+              );
+            }),
       );
     }
     // Drop the cached passphrase BEFORE losing the Connection reference
