@@ -244,7 +244,8 @@ ImportService _buildImportService(WidgetRef ref) {
     importKnownHosts: (content) async {
       await knownHostsMgr.importFromString(content);
     },
-    existingManagerKeyIds: () async => (await keyStore.loadAll()).keys.toSet(),
+    existingManagerKeyIds: () async =>
+        (await keyStore.loadAllMetadata()).keys.toSet(),
     deleteManagerKey: keyStore.delete,
     // Stores write through FRB into `lfs_core.db`; the drift handle
     // a `runInTransaction` callback would have wrapped no longer

@@ -101,6 +101,44 @@ pub async fn db_ssh_keys_stage_secret(key_id: String) -> Result<bool, String> {
     run_db(move |c| lfs_core::db::ssh_keys::stage_secret_into_store(c, &key_id)).await
 }
 
+/// Listing-only view of `ssh_keys` for UIs that don't need the PEM
+/// bytes — key manager listing, import dedup, export-selection
+/// pickers. The SHA-256 fingerprints are computed inside Rust so
+/// callers can compare against scanned keys without pulling
+/// plaintext through the FRB boundary.
+#[derive(Debug, Clone)]
+pub struct DbSshKeyMetadata {
+    pub id: String,
+    pub label: String,
+    pub public_key: String,
+    pub key_type: String,
+    pub is_generated: bool,
+    pub created_at_ms: i64,
+    pub private_fingerprint: String,
+    pub public_fingerprint: String,
+}
+
+impl From<lfs_core::db::ssh_keys::SshKeyMetadata> for DbSshKeyMetadata {
+    fn from(m: lfs_core::db::ssh_keys::SshKeyMetadata) -> Self {
+        DbSshKeyMetadata {
+            id: m.id,
+            label: m.label,
+            public_key: m.public_key,
+            key_type: m.key_type,
+            is_generated: m.is_generated,
+            created_at_ms: m.created_at_ms,
+            private_fingerprint: m.private_fingerprint,
+            public_fingerprint: m.public_fingerprint,
+        }
+    }
+}
+
+pub async fn db_ssh_keys_list_metadata() -> Result<Vec<DbSshKeyMetadata>, String> {
+    run_db(lfs_core::db::ssh_keys::list_metadata)
+        .await
+        .map(|rows| rows.into_iter().map(DbSshKeyMetadata::from).collect())
+}
+
 // ---- folders -----------------------------------------------------------
 
 #[derive(Debug, Clone)]

@@ -252,6 +252,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey dco_decode_db_ssh_key(dynamic raw);
 
   @protected
+  DbSshKeyMetadata dco_decode_db_ssh_key_metadata(dynamic raw);
+
+  @protected
   DbStagedSecrets dco_decode_db_staged_secrets(dynamic raw);
 
   @protected
@@ -286,6 +289,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSshKey> dco_decode_list_db_ssh_key(dynamic raw);
+
+  @protected
+  List<DbSshKeyMetadata> dco_decode_list_db_ssh_key_metadata(dynamic raw);
 
   @protected
   List<DbTag> dco_decode_list_db_tag(dynamic raw);
@@ -578,6 +584,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey sse_decode_db_ssh_key(SseDeserializer deserializer);
 
   @protected
+  DbSshKeyMetadata sse_decode_db_ssh_key_metadata(SseDeserializer deserializer);
+
+  @protected
   DbStagedSecrets sse_decode_db_staged_secrets(SseDeserializer deserializer);
 
   @protected
@@ -616,6 +625,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSshKey> sse_decode_list_db_ssh_key(SseDeserializer deserializer);
+
+  @protected
+  List<DbSshKeyMetadata> sse_decode_list_db_ssh_key_metadata(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbTag> sse_decode_list_db_tag(SseDeserializer deserializer);
@@ -974,6 +988,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_ssh_key(DbSshKey self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_ssh_key_metadata(
+    DbSshKeyMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_staged_secrets(
     DbStagedSecrets self,
     SseSerializer serializer,
@@ -1027,6 +1047,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_ssh_key(
     List<DbSshKey> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_ssh_key_metadata(
+    List<DbSshKeyMetadata> self,
     SseSerializer serializer,
   );
 

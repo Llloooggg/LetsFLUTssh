@@ -263,9 +263,13 @@ class _ExportImportTile extends ConsumerWidget {
         }
       }
 
-      final existing = await keyStore.loadAll();
+      // Metadata-only listing — Rust pre-computes the SHA-256 of
+      // each row's private PEM so the dedup set can be built
+      // without ever pulling the bytes through the FRB boundary.
+      final existing = await keyStore.loadAllMetadata();
       final existingFingerprints = existing.values
-          .map((e) => KeyStore.privateKeyFingerprint(e.privateKey))
+          .map((e) => e.privateFingerprint)
+          .where((fp) => fp.isNotEmpty)
           .toSet();
       final existingSessionAddresses = ref
           .read(sessionProvider)
@@ -847,7 +851,7 @@ class _ExportImportTile extends ConsumerWidget {
           await knownHostsMgr.importFromString(content);
         },
         existingManagerKeyIds: () async =>
-            (await keyStore.loadAll()).keys.toSet(),
+            (await keyStore.loadAllMetadata()).keys.toSet(),
         deleteManagerKey: keyStore.delete,
         // Stores write through FRB into `lfs_core.db`; the drift
         // handle the wrapper used to span no longer owns these

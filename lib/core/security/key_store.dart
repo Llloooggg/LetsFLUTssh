@@ -81,6 +81,34 @@ class SshKeyEntry {
   int get hashCode => Object.hash(id, label, privateKey);
 }
 
+/// Listing-only view of an SSH key — carries the metadata needed
+/// by the key manager / import-dedup / export-selection UIs but
+/// **not** the private PEM bytes. Fingerprints are computed inside
+/// Rust (see `db_ssh_keys_list_metadata`) so dedup paths can
+/// compare against scanned key material without ever pulling the
+/// PEM through the FRB boundary.
+class SshKeyMetadata {
+  final String id;
+  final String label;
+  final String publicKey;
+  final String keyType;
+  final DateTime createdAt;
+  final bool isGenerated;
+  final String privateFingerprint;
+  final String publicFingerprint;
+
+  const SshKeyMetadata({
+    required this.id,
+    required this.label,
+    required this.publicKey,
+    required this.keyType,
+    required this.createdAt,
+    required this.isGenerated,
+    required this.privateFingerprint,
+    required this.publicFingerprint,
+  });
+}
+
 /// SSH key store backed by `lfs_core.db`. Row reads / writes route
 /// through the FRB DAO; the in-memory cache shape is unchanged.
 ///
@@ -130,6 +158,43 @@ class KeyStore {
     } catch (e) {
       AppLogger.instance.log('Failed to load keys', name: 'KeyStore', error: e);
       throw KeyStoreException('Failed to load keys.', cause: e);
+    }
+  }
+
+  /// List every stored key without pulling its PEM bytes. Returns
+  /// metadata only — id, label, public half, key type, timestamps,
+  /// `isGenerated` flag, plus SHA-256 fingerprints of the private
+  /// and public material computed inside Rust.
+  ///
+  /// Call this from any path that needs *which keys exist* but not
+  /// *what's in them* (key manager listing, import dedup,
+  /// existing-id checks). The PEM-bearing [loadAll] stays in place
+  /// for the rare paths that genuinely need the bytes (e.g. `.lfs`
+  /// archive export, before the export orchestrator moves Rust-
+  /// side).
+  Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
+    try {
+      final rows = await rust_db.dbSshKeysListMetadata();
+      return {
+        for (final r in rows)
+          r.id: SshKeyMetadata(
+            id: r.id,
+            label: r.label,
+            publicKey: r.publicKey,
+            keyType: r.keyType,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
+            isGenerated: r.isGenerated,
+            privateFingerprint: r.privateFingerprint,
+            publicFingerprint: r.publicFingerprint,
+          ),
+      };
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to load key metadata',
+        name: 'KeyStore',
+        error: e,
+      );
+      throw KeyStoreException('Failed to load key metadata.', cause: e);
     }
   }
 

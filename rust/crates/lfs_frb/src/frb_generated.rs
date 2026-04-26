@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1709491562;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -74535743;
 
 // Section: executor
 
@@ -4388,6 +4388,41 @@ fn wire__crate__api__db__db_ssh_keys_list_all_impl(
         },
     )
 }
+fn wire__crate__api__db__db_ssh_keys_list_metadata_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "db_ssh_keys_list_metadata",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::db::db_ssh_keys_list_metadata().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__db__db_ssh_keys_stage_secret_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -6506,6 +6541,30 @@ impl SseDecode for crate::api::db::DbSshKey {
     }
 }
 
+impl SseDecode for crate::api::db::DbSshKeyMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_publicKey = <String>::sse_decode(deserializer);
+        let mut var_keyType = <String>::sse_decode(deserializer);
+        let mut var_isGenerated = <bool>::sse_decode(deserializer);
+        let mut var_createdAtMs = <i64>::sse_decode(deserializer);
+        let mut var_privateFingerprint = <String>::sse_decode(deserializer);
+        let mut var_publicFingerprint = <String>::sse_decode(deserializer);
+        return crate::api::db::DbSshKeyMetadata {
+            id: var_id,
+            label: var_label,
+            public_key: var_publicKey,
+            key_type: var_keyType,
+            is_generated: var_isGenerated,
+            created_at_ms: var_createdAtMs,
+            private_fingerprint: var_privateFingerprint,
+            public_fingerprint: var_publicFingerprint,
+        };
+    }
+}
+
 impl SseDecode for crate::api::db::DbStagedSecrets {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6652,6 +6711,18 @@ impl SseDecode for Vec<crate::api::db::DbSshKey> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::db::DbSshKey>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::db::DbSshKeyMetadata> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::db::DbSshKeyMetadata>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -7143,100 +7214,103 @@ fn pde_ffi_dispatcher_primary_impl(
         96 => wire__crate__api__db__db_ssh_keys_get_impl(port, ptr, rust_vec_len, data_len),
         97 => wire__crate__api__db__db_ssh_keys_list_all_impl(port, ptr, rust_vec_len, data_len),
         98 => {
+            wire__crate__api__db__db_ssh_keys_list_metadata_impl(port, ptr, rust_vec_len, data_len)
+        }
+        99 => {
             wire__crate__api__db__db_ssh_keys_stage_secret_impl(port, ptr, rust_vec_len, data_len)
         }
-        99 => wire__crate__api__db__db_ssh_keys_upsert_impl(port, ptr, rust_vec_len, data_len),
-        100 => wire__crate__api__db__db_tags_delete_impl(port, ptr, rust_vec_len, data_len),
-        101 => wire__crate__api__db__db_tags_delete_all_impl(port, ptr, rust_vec_len, data_len),
-        102 => wire__crate__api__db__db_tags_list_all_impl(port, ptr, rust_vec_len, data_len),
-        103 => {
+        100 => wire__crate__api__db__db_ssh_keys_upsert_impl(port, ptr, rust_vec_len, data_len),
+        101 => wire__crate__api__db__db_tags_delete_impl(port, ptr, rust_vec_len, data_len),
+        102 => wire__crate__api__db__db_tags_delete_all_impl(port, ptr, rust_vec_len, data_len),
+        103 => wire__crate__api__db__db_tags_list_all_impl(port, ptr, rust_vec_len, data_len),
+        104 => {
             wire__crate__api__db__db_tags_list_for_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        104 => {
+        105 => {
             wire__crate__api__db__db_tags_list_for_session_impl(port, ptr, rust_vec_len, data_len)
         }
-        105 => wire__crate__api__db__db_tags_upsert_impl(port, ptr, rust_vec_len, data_len),
-        106 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        107 => {
+        106 => wire__crate__api__db__db_tags_upsert_impl(port, ptr, rust_vec_len, data_len),
+        107 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        108 => {
             wire__crate__api__keys__keys_generate_ed25519_impl(port, ptr, rust_vec_len, data_len)
         }
-        108 => wire__crate__api__keys__keys_generate_rsa_impl(port, ptr, rust_vec_len, data_len),
-        109 => wire__crate__api__keys__keys_import_openssh_impl(port, ptr, rust_vec_len, data_len),
-        110 => wire__crate__api__keys__keys_import_ppk_impl(port, ptr, rust_vec_len, data_len),
-        112 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
-        113 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
-        114 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
-        115 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
-        116 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
+        109 => wire__crate__api__keys__keys_generate_rsa_impl(port, ptr, rust_vec_len, data_len),
+        110 => wire__crate__api__keys__keys_import_openssh_impl(port, ptr, rust_vec_len, data_len),
+        111 => wire__crate__api__keys__keys_import_ppk_impl(port, ptr, rust_vec_len, data_len),
+        113 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
+        114 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
+        115 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
+        116 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
+        117 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
-        118 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
-        119 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
+        118 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
+        119 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
+        120 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        120 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
+        121 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        121 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
-        122 => {
+        122 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
+        123 => {
             wire__crate__api__ssh__ssh_connect_pubkey_cert_impl(port, ptr, rust_vec_len, data_len)
         }
-        123 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
+        124 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        124 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
+        125 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        125 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
+        126 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        126 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
+        127 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        127 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
+        128 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        128 => {
+        129 => {
             wire__crate__api__forward__ssh_open_direct_tcpip_impl(port, ptr, rust_vec_len, data_len)
         }
-        129 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
-        130 => wire__crate__api__forward__ssh_request_remote_forward_impl(
+        130 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
+        131 => wire__crate__api__forward__ssh_request_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        131 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
-        132 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
-        133 => {
+        132 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
+        133 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
+        134 => {
             wire__crate__api__ssh__ssh_try_connect_password_impl(port, ptr, rust_vec_len, data_len)
         }
-        134 => {
+        135 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -7259,7 +7333,7 @@ fn pde_ffi_dispatcher_sync_impl(
 9 => wire__crate__api__forward__SshForwardedConnection_auto_accessor_set_connected_port_impl(ptr, rust_vec_len, data_len),
 10 => wire__crate__api__forward__SshForwardedConnection_auto_accessor_set_originator_address_impl(ptr, rust_vec_len, data_len),
 11 => wire__crate__api__forward__SshForwardedConnection_auto_accessor_set_originator_port_impl(ptr, rust_vec_len, data_len),
-111 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
+112 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -7586,6 +7660,33 @@ impl flutter_rust_bridge::IntoDart for crate::api::db::DbSshKey {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::db::DbSshKey {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::db::DbSshKey> for crate::api::db::DbSshKey {
     fn into_into_dart(self) -> crate::api::db::DbSshKey {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::db::DbSshKeyMetadata {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.public_key.into_into_dart().into_dart(),
+            self.key_type.into_into_dart().into_dart(),
+            self.is_generated.into_into_dart().into_dart(),
+            self.created_at_ms.into_into_dart().into_dart(),
+            self.private_fingerprint.into_into_dart().into_dart(),
+            self.public_fingerprint.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::db::DbSshKeyMetadata
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::db::DbSshKeyMetadata>
+    for crate::api::db::DbSshKeyMetadata
+{
+    fn into_into_dart(self) -> crate::api::db::DbSshKeyMetadata {
         self
     }
 }
@@ -8013,6 +8114,20 @@ impl SseEncode for crate::api::db::DbSshKey {
     }
 }
 
+impl SseEncode for crate::api::db::DbSshKeyMetadata {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.public_key, serializer);
+        <String>::sse_encode(self.key_type, serializer);
+        <bool>::sse_encode(self.is_generated, serializer);
+        <i64>::sse_encode(self.created_at_ms, serializer);
+        <String>::sse_encode(self.private_fingerprint, serializer);
+        <String>::sse_encode(self.public_fingerprint, serializer);
+    }
+}
+
 impl SseEncode for crate::api::db::DbStagedSecrets {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8125,6 +8240,16 @@ impl SseEncode for Vec<crate::api::db::DbSshKey> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::db::DbSshKey>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::db::DbSshKeyMetadata> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::db::DbSshKeyMetadata>::sse_encode(item, serializer);
         }
     }
 }

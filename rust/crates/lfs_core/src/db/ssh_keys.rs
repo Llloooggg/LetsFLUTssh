@@ -7,6 +7,7 @@
 //! materialising the bytes on the Dart heap.
 
 use rusqlite::{params, Connection};
+use sha2::{Digest, Sha256};
 
 use crate::error::Error;
 
@@ -94,6 +95,83 @@ pub fn upsert(conn: &Connection, row: &SshKeyRow) -> Result<(), Error> {
     )
     .map_err(|e| Error::Io(format!("ssh_keys upsert: {e}")))?;
     Ok(())
+}
+
+/// Listing-only view of an `ssh_keys` row. Carries the metadata
+/// needed by the key manager / import-dedup / export-selection UIs
+/// **without** the `private_key` PEM bytes. `private_fingerprint`
+/// and `public_fingerprint` are pre-hashed inside Rust so that
+/// dedup paths (`SshDirImportDialog`, etc.) can compare against
+/// scanned key material without ever pulling the PEM through the
+/// FRB boundary.
+#[derive(Debug, Clone)]
+pub struct SshKeyMetadata {
+    pub id: String,
+    pub label: String,
+    pub public_key: String,
+    pub key_type: String,
+    pub is_generated: bool,
+    pub created_at_ms: i64,
+    /// SHA-256 hex of the normalized PEM (trimmed, CRLF→LF), or the
+    /// empty string if the row has no private key. Mirrors
+    /// `KeyStore.privateKeyFingerprint` exactly so existing dedup
+    /// sets continue to compare against scanned PEMs.
+    pub private_fingerprint: String,
+    /// SHA-256 hex of the normalized OpenSSH public key, or the
+    /// empty string if the row has no public half. Mirrors
+    /// `KeyStore.publicKeyFingerprint`.
+    pub public_fingerprint: String,
+}
+
+pub fn list_metadata(conn: &Connection) -> Result<Vec<SshKeyMetadata>, Error> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
+             FROM ssh_keys ORDER BY created_at DESC",
+        )
+        .map_err(|e| Error::Io(format!("ssh_keys list_metadata prepare: {e}")))?;
+    let rows = stmt
+        .query_map([], |row| {
+            let private_key: String = row.get("private_key")?;
+            let public_key: String = row.get("public_key")?;
+            Ok(SshKeyMetadata {
+                id: row.get("id")?,
+                label: row.get("label")?,
+                key_type: row.get("key_type")?,
+                is_generated: row.get::<_, i64>("is_generated")? != 0,
+                created_at_ms: row.get("created_at")?,
+                private_fingerprint: normalized_sha256_hex(&private_key),
+                public_fingerprint: normalized_sha256_hex(&public_key),
+                public_key,
+            })
+        })
+        .map_err(|e| Error::Io(format!("ssh_keys list_metadata query: {e}")))?;
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r.map_err(|e| Error::Io(format!("ssh_keys list_metadata row: {e}")))?);
+    }
+    Ok(out)
+}
+
+/// Mirrors `KeyStore.privateKeyFingerprint` /
+/// `KeyStore.publicKeyFingerprint`: trim, CRLF→LF, SHA-256 hex.
+/// Empty input returns an empty string so set-membership checks
+/// don't false-match on missing keys.
+fn normalized_sha256_hex(s: &str) -> String {
+    let normalized = s.replace("\r\n", "\n");
+    let trimmed = normalized.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(trimmed.as_bytes());
+    let digest = hasher.finalize();
+    let mut hex = String::with_capacity(digest.len() * 2);
+    for b in digest.iter() {
+        use std::fmt::Write as _;
+        let _ = write!(hex, "{b:02x}");
+    }
+    hex
 }
 
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {

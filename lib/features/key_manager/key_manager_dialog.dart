@@ -35,7 +35,11 @@ class KeyManagerPanel extends ConsumerStatefulWidget {
 }
 
 class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
-  List<SshKeyEntry> _keys = [];
+  // Listing carries metadata only — id, label, publicKey, keyType,
+  // createdAt, fingerprints. The PEM bytes never enter the dialog;
+  // `Copy public key`, `Delete`, and the search filter all work
+  // off [SshKeyMetadata].
+  List<SshKeyMetadata> _keys = [];
   bool _loading = true;
   String _filter = '';
 
@@ -47,13 +51,22 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
 
   Future<void> _loadKeys() async {
     final store = ref.read(keyStoreProvider);
-    final keys = await store.loadAllSafe();
-    if (mounted) {
-      setState(() {
-        _keys = keys.values.toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        _loading = false;
-      });
+    try {
+      final keys = await store.loadAllMetadata();
+      if (mounted) {
+        setState(() {
+          _keys = keys.values.toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _keys = [];
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -117,7 +130,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     );
   }
 
-  List<SshKeyEntry> _filtered() {
+  List<SshKeyMetadata> _filtered() {
     final q = _filter.trim().toLowerCase();
     if (q.isEmpty) return _keys;
     return _keys
@@ -147,7 +160,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     );
   }
 
-  Widget _buildKeyEntry(S s, SshKeyEntry entry) {
+  Widget _buildKeyEntry(S s, SshKeyMetadata entry) {
     return AppDataRow(
       icon: Icons.vpn_key,
       iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
@@ -174,7 +187,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     );
   }
 
-  void _copyPublicKey(SshKeyEntry entry) {
+  void _copyPublicKey(SshKeyMetadata entry) {
     Clipboard.setData(ClipboardData(text: entry.publicKey));
     Toast.show(
       context,
@@ -183,7 +196,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     );
   }
 
-  Future<void> _deleteKey(SshKeyEntry entry) async {
+  Future<void> _deleteKey(SshKeyMetadata entry) async {
     final s = S.of(context);
     final confirmed = await AppDialog.show<bool>(
       context,

@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -28,6 +28,9 @@ Future<int> dbSshKeysDelete({required String id}) =>
 /// boolean.
 Future<bool> dbSshKeysStageSecret({required String keyId}) =>
     RustLib.instance.api.crateApiDbDbSshKeysStageSecret(keyId: keyId);
+
+Future<List<DbSshKeyMetadata>> dbSshKeysListMetadata() =>
+    RustLib.instance.api.crateApiDbDbSshKeysListMetadata();
 
 Future<List<DbFolder>> dbFoldersListAll() =>
     RustLib.instance.api.crateApiDbDbFoldersListAll();
@@ -772,6 +775,58 @@ class DbSshKey {
           keyType == other.keyType &&
           isGenerated == other.isGenerated &&
           createdAtMs == other.createdAtMs;
+}
+
+/// Listing-only view of `ssh_keys` for UIs that don't need the PEM
+/// bytes — key manager listing, import dedup, export-selection
+/// pickers. The SHA-256 fingerprints are computed inside Rust so
+/// callers can compare against scanned keys without pulling
+/// plaintext through the FRB boundary.
+class DbSshKeyMetadata {
+  final String id;
+  final String label;
+  final String publicKey;
+  final String keyType;
+  final bool isGenerated;
+  final PlatformInt64 createdAtMs;
+  final String privateFingerprint;
+  final String publicFingerprint;
+
+  const DbSshKeyMetadata({
+    required this.id,
+    required this.label,
+    required this.publicKey,
+    required this.keyType,
+    required this.isGenerated,
+    required this.createdAtMs,
+    required this.privateFingerprint,
+    required this.publicFingerprint,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      label.hashCode ^
+      publicKey.hashCode ^
+      keyType.hashCode ^
+      isGenerated.hashCode ^
+      createdAtMs.hashCode ^
+      privateFingerprint.hashCode ^
+      publicFingerprint.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSshKeyMetadata &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          label == other.label &&
+          publicKey == other.publicKey &&
+          keyType == other.keyType &&
+          isGenerated == other.isGenerated &&
+          createdAtMs == other.createdAtMs &&
+          privateFingerprint == other.privateFingerprint &&
+          publicFingerprint == other.publicFingerprint;
 }
 
 /// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.
