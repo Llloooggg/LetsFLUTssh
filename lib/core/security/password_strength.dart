@@ -1,3 +1,5 @@
+import '../../src/rust/api/password_strength.dart' as rust_pw;
+
 /// Very coarse password-strength classifier, purely informational.
 ///
 /// The master-password dialogs flash a small coloured bar + label under
@@ -27,33 +29,56 @@ enum PasswordStrength {
   veryStrong,
 }
 
-/// Character-class regexes compiled once at load time. Previously the
-/// body of [assessPasswordStrength] allocated four fresh [RegExp] objects
-/// on every keystroke while the master-password meter re-ran live; on a
-/// long typed password that churn showed up in the paint budget next to
-/// the meter widget itself.
-final _hasLowerRegex = RegExp(r'[a-z]');
-final _hasUpperRegex = RegExp(r'[A-Z]');
-final _hasDigitRegex = RegExp(r'[0-9]');
-final _hasSymbolRegex = RegExp(r'[^A-Za-z0-9]');
-
-/// Classify [password] into a [PasswordStrength] tier. Pure function —
-/// unit-testable, no I/O, no allocations beyond the regex matches the
-/// caller already pays for.
+/// Classify [password] into a [PasswordStrength] tier. Routes
+/// through the Rust core — `lfs_core::password_strength::assess`
+/// — so the meter logic stays in lockstep with the canonical
+/// implementation. Falls back to a tiny Dart classifier when
+/// the FRB native lib isn't loaded (unit tests that don't
+/// initialise `RustLib`).
 PasswordStrength assessPasswordStrength(String password) {
-  if (password.isEmpty) return PasswordStrength.empty;
+  try {
+    final db = rust_pw.assessPasswordStrength(password: password);
+    return _fromRust(db);
+  } catch (_) {
+    return _dartFallback(password);
+  }
+}
 
-  final length = password.length;
-  final hasLower = password.contains(_hasLowerRegex);
-  final hasUpper = password.contains(_hasUpperRegex);
-  final hasDigit = password.contains(_hasDigitRegex);
-  final hasSymbol = password.contains(_hasSymbolRegex);
+PasswordStrength _fromRust(rust_pw.DbPasswordStrength s) => switch (s) {
+  rust_pw.DbPasswordStrength.empty => PasswordStrength.empty,
+  rust_pw.DbPasswordStrength.weak => PasswordStrength.weak,
+  rust_pw.DbPasswordStrength.moderate => PasswordStrength.moderate,
+  rust_pw.DbPasswordStrength.strong => PasswordStrength.strong,
+  rust_pw.DbPasswordStrength.veryStrong => PasswordStrength.veryStrong,
+};
+
+/// Tiny ASCII-only fallback for unit-test contexts without
+/// the FRB native lib loaded. Matches the production heuristic
+/// shape so tests that hit the fallback still observe the same
+/// thresholds.
+PasswordStrength _dartFallback(String password) {
+  if (password.isEmpty) return PasswordStrength.empty;
+  var hasLower = false;
+  var hasUpper = false;
+  var hasDigit = false;
+  var hasSymbol = false;
+  for (final c in password.codeUnits) {
+    if (c >= 0x61 && c <= 0x7A) {
+      hasLower = true;
+    } else if (c >= 0x41 && c <= 0x5A) {
+      hasUpper = true;
+    } else if (c >= 0x30 && c <= 0x39) {
+      hasDigit = true;
+    } else {
+      hasSymbol = true;
+    }
+  }
   final classes =
       (hasLower ? 1 : 0) +
       (hasUpper ? 1 : 0) +
       (hasDigit ? 1 : 0) +
       (hasSymbol ? 1 : 0);
-
+  final length = password.length;
   if (length < 8 || classes < 2) return PasswordStrength.weak;
   if (length < 12 || classes < 3) return PasswordStrength.moderate;
   if (length < 16) return PasswordStrength.strong;
