@@ -56,21 +56,6 @@ Future<BigInt> recorderRecordEvent({
   bytes: bytes,
 );
 
-/// Append a frame to an open recording. Encrypted recordings
-/// produce the `[len(4 LE)][nonce(12)][ct+tag]` framing
-/// internally; plaintext recordings write `plaintext` verbatim.
-/// Returns the running byte total. Prefer
-/// [`recorder_record_header`] / [`recorder_record_event`] when
-/// composing asciinema lines — those keep the spec encoder in
-/// one place.
-Future<BigInt> recorderRecordFrame({
-  required String id,
-  required List<int> plaintext,
-}) => RustLib.instance.api.crateApiRecorderRecorderRecordFrame(
-  id: id,
-  plaintext: plaintext,
-);
-
 /// Atomically rotate a recording to a fresh file under the same
 /// id. Closes the current file, opens [`new_path`] in append
 /// mode, writes the LFR1 magic + version when the recording is

@@ -120,24 +120,6 @@ pub async fn recorder_record_event(
     .map_err(|e| format!("recorder event task: {e}"))?
 }
 
-/// Append a frame to an open recording. Encrypted recordings
-/// produce the `[len(4 LE)][nonce(12)][ct+tag]` framing
-/// internally; plaintext recordings write `plaintext` verbatim.
-/// Returns the running byte total. Prefer
-/// [`recorder_record_header`] / [`recorder_record_event`] when
-/// composing asciinema lines — those keep the spec encoder in
-/// one place.
-pub async fn recorder_record_frame(id: String, plaintext: Vec<u8>) -> Result<u64, String> {
-    tokio::task::spawn_blocking(move || {
-        let app = lfs_core::app::instance();
-        app.recorders
-            .record_frame(&id, &plaintext, &app.bus)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| format!("recorder write task: {e}"))?
-}
-
 /// Atomically rotate a recording to a fresh file under the same
 /// id. Closes the current file, opens [`new_path`] in append
 /// mode, writes the LFR1 magic + version when the recording is

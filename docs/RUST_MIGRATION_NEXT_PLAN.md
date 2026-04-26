@@ -38,7 +38,7 @@ right now"*, the design is wrong.
 | 3. `session_store` → Rust | pending |
 | 4. `connection_manager` → Rust | pending |
 | 5. `transfer_manager` → Rust driver | pending — Rust queue+state+`SftpTaskExecutor` shipped Phase 5.3; needs FRB `transfer_enqueue` + Dart UI rewire (TransferManager retire + transfer_panel snapshot view) |
-| 6. `port_forward_runtime` → Rust driver | partial — `port_forward_start_local` + `_stop_local` shipped; needs `_start_remote` / `_start_dynamic` driver + Dart UI rewire (~691 LOC retire) |
+| 6. `port_forward_runtime` → Rust driver | partial — `port_forward_start_local` + `_stop_local` shipped; SOCKS5 `_start_dynamic` shipped in `52084df7`; `_start_remote` blocked on a session-level fanout dispatcher (single `forward_rx` mutex per session can't fan out to multiple `-R` rules); Dart UI rewire (~691 LOC retire) pending |
 | 7. `known_hosts` manager → Rust + prompt protocol | pending |
 | 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |
 | 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
