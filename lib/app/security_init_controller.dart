@@ -7,10 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/db/rust_db_init.dart';
 import '../src/rust/api/app.dart' as rust_app;
-import '../core/migration/artefacts/config_artefact.dart';
 import '../core/migration/migration_runner.dart';
-import '../core/migration/registry.dart';
-import '../core/migration/schema_versions.dart';
 import '../core/security/aes_gcm.dart';
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
@@ -84,10 +81,10 @@ typedef DbFileExistsProbe = Future<bool> Function();
 /// synthesising a SQLCipher cipher mismatch on disk.
 typedef DbReadableProbe = Future<bool> Function();
 
-/// Signature of `MigrationRunner.runOnStartup`. Injectable so tests can
-/// drive the error / recovery paths without having to synthesize a
-/// failing artefact on disk.
-typedef MigrationRunnerFn = Future<MigrationReport> Function();
+/// Signature of [runStartupMigrations]. Injectable so tests can drive
+/// the error / recovery paths without having to synthesize a failing
+/// artefact on disk.
+typedef MigrationRunnerFn = Future<DbMigrationReport> Function();
 
 class SecurityInitController {
   final WidgetRef ref;
@@ -112,9 +109,7 @@ class SecurityInitController {
   }) : _dbFileExists = dbFileExists ?? lfsCoreDbExists,
        _verifyReadable = verifyReadable ?? verifyRustDbReadable,
        _dialogs = dialogPrompter ?? const ProductionSecurityDialogPrompter(),
-       _migrationRunner =
-           migrationRunner ??
-           (() => MigrationRunner(buildAppMigrationRegistry()).runOnStartup());
+       _migrationRunner = migrationRunner ?? runStartupMigrations;
 
   // ── State fields ────────────────────────────────────────────
 
@@ -291,11 +286,11 @@ class SecurityInitController {
   // ── Migrations ─────────────────────────────────────────────
 
   /// Walk every framework-registered artefact and bring its on-disk
-  /// state up to the current build's [SchemaVersions]. Runs BEFORE
-  /// `_initSecurity` so the unlock path always reads the post-
-  /// migration shape.
+  /// state up to the current build's `lfs_core::migration::SchemaVersions`.
+  /// Runs BEFORE `_initSecurity` so the unlock path always reads the
+  /// post-migration shape.
   Future<bool> _runMigrations() async {
-    final MigrationReport report;
+    final DbMigrationReport report;
     try {
       report = await _migrationRunner();
     } catch (e, st) {
@@ -405,10 +400,9 @@ class SecurityInitController {
     WipeAllService wiper,
   ) async {
     final currentSecurity = ref.read(configProvider).security;
-    final configArtefact = ConfigArtefact();
-    final configVersion = await configArtefact.readVersion();
+    final configVersion = await readConfigSchemaVersion();
     final legacyConfig =
-        configVersion >= 0 && configVersion < SchemaVersions.config;
+        configVersion >= 0 && configVersion < kCurrentConfigSchemaVersion;
     final orphanArtefacts =
         currentSecurity == null && await wiper.hasAnyState();
     if (!legacyConfig && !orphanArtefacts) return false;

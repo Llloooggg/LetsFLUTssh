@@ -17,6 +17,7 @@ import 'api/forward.dart';
 import 'api/keys.dart';
 import 'api/known_hosts_parser.dart';
 import 'api/log_sanitize.dart';
+import 'api/migration.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
 import 'api/recorder.dart';
@@ -351,6 +352,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost dco_decode_db_known_host(dynamic raw);
 
   @protected
+  DbMigrationReport dco_decode_db_migration_report(dynamic raw);
+
+  @protected
+  DbMigrationStep dco_decode_db_migration_step(dynamic raw);
+
+  @protected
   DbOpenSshAuthType dco_decode_db_open_ssh_auth_type(dynamic raw);
 
   @protected
@@ -417,6 +424,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbThreatTier dco_decode_db_threat_tier(dynamic raw);
 
   @protected
+  DbUnsupportedFutureVersion dco_decode_db_unsupported_future_version(
+    dynamic raw,
+  );
+
+  @protected
   DbVersionOrder dco_decode_db_version_order(dynamic raw);
 
   @protected
@@ -439,6 +451,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbKnownHost> dco_decode_list_db_known_host(dynamic raw);
+
+  @protected
+  List<DbMigrationStep> dco_decode_list_db_migration_step(dynamic raw);
 
   @protected
   List<DbOpenSshAuthType> dco_decode_list_db_open_ssh_auth_type(dynamic raw);
@@ -477,6 +492,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbThreatRow> dco_decode_list_db_threat_row(dynamic raw);
+
+  @protected
+  List<DbUnsupportedFutureVersion>
+  dco_decode_list_db_unsupported_future_version(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -900,6 +919,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost sse_decode_db_known_host(SseDeserializer deserializer);
 
   @protected
+  DbMigrationReport sse_decode_db_migration_report(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbMigrationStep sse_decode_db_migration_step(SseDeserializer deserializer);
+
+  @protected
   DbOpenSshAuthType sse_decode_db_open_ssh_auth_type(
     SseDeserializer deserializer,
   );
@@ -984,6 +1011,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbThreatTier sse_decode_db_threat_tier(SseDeserializer deserializer);
 
   @protected
+  DbUnsupportedFutureVersion sse_decode_db_unsupported_future_version(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer);
 
   @protected
@@ -1008,6 +1040,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbKnownHost> sse_decode_list_db_known_host(SseDeserializer deserializer);
+
+  @protected
+  List<DbMigrationStep> sse_decode_list_db_migration_step(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbOpenSshAuthType> sse_decode_list_db_open_ssh_auth_type(
@@ -1058,6 +1095,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbThreatRow> sse_decode_list_db_threat_row(SseDeserializer deserializer);
+
+  @protected
+  List<DbUnsupportedFutureVersion>
+  sse_decode_list_db_unsupported_future_version(SseDeserializer deserializer);
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -1578,6 +1619,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_known_host(DbKnownHost self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_migration_report(
+    DbMigrationReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_migration_step(
+    DbMigrationStep self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_open_ssh_auth_type(
     DbOpenSshAuthType self,
     SseSerializer serializer,
@@ -1692,6 +1745,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_threat_tier(DbThreatTier self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_unsupported_future_version(
+    DbUnsupportedFutureVersion self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_version_order(
     DbVersionOrder self,
     SseSerializer serializer,
@@ -1721,6 +1780,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_known_host(
     List<DbKnownHost> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_migration_step(
+    List<DbMigrationStep> self,
     SseSerializer serializer,
   );
 
@@ -1790,6 +1855,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_threat_row(
     List<DbThreatRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_unsupported_future_version(
+    List<DbUnsupportedFutureVersion> self,
     SseSerializer serializer,
   );
 

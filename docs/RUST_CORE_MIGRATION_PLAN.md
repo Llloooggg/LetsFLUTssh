@@ -67,19 +67,30 @@ Phase 2 (optional, after Phase 1 ships):
 
 ### 2.2 Stays in Dart
 
+> **Superseded scope.** This section reflects the original Phase 1
+> framing ("Dart owns state + DB, Rust owns transport + crypto"). It
+> survived through Phase 4 and is preserved here as historical
+> narrative. The current scope under Phase 5 + the live tracker
+> [RUST_MIGRATION_NEXT_PLAN.md] is **Flutter renders, Rust thinks**
+> — Drift is gone, the migration framework moves, known hosts moves,
+> and every state machine moves. The bullets below describe what
+> was true *at the time of that phase*; the only items still
+> Dart-bound after Phase 5 closes are listed in NEXT_PLAN's
+> "stays Dart by design" carve-out.
+
 - All UI: every widget, dialog, route, `lib/features/**/*_screen.dart`, `lib/widgets/**`
 - Riverpod providers (slim wrappers over Rust calls — they hold reactive state, not transport)
 - Theme, localization (15 ARB files), navigation
-- Drift (SQLite ORM) — typed Dart codegen, schema definitions, migrations. **Not migrating; Drift earns its keep.**
-- Migration framework for `config.json` / `credentials.kdf` / `.lfs` / hardware-vault blobs (`lib/core/migration/`) — pure Dart logic, no win in moving
+- Drift (SQLite ORM) — typed Dart codegen, schema definitions, migrations. **Not migrating; Drift earns its keep.** *(Phase 4.2 retired Drift in favour of rusqlite + SQLCipher inside `lfs_core::db`.)*
+- Migration framework for `config.json` / `credentials.kdf` / `.lfs` / hardware-vault blobs (`lib/core/migration/`) — pure Dart logic, no win in moving *(Reopened in NEXT_PLAN step 1.)*
 - xterm.dart rendering — Flutter widget
 - Platform channels: biometric (`biometric_auth.dart`), fprintd probe, native plugins per OS — Kotlin/Swift/C, not Rust
 - App lifecycle, windowing, hotkeys
-- Tags, Snippets, Bookmarks, Sessions, Keys models — all drift-bound, stay Dart
-- Known hosts parser (`lib/core/ssh/known_hosts.dart`) — small, file-format-only, no transport concern, stays Dart unless we have a reason to move
+- Tags, Snippets, Bookmarks, Sessions, Keys models — all drift-bound, stay Dart *(Now FRB-DTO mirrors of `lfs_core::db` rows.)*
+- Known hosts parser (`lib/core/ssh/known_hosts.dart`) — small, file-format-only, no transport concern, stays Dart unless we have a reason to move *(Reopened in NEXT_PLAN step 7 — TOFU policy + cache + write serialisation move to a Rust actor.)*
 - Settings UI, Tools UI, recordings browser UI, file browser UI — pure Flutter
 
-After full migration: roughly **30% Rust (security/transport core) / 70% Dart (UI + state + DB + platform glue)**.
+After full migration of the *original Phase 1 scope*: roughly **30% Rust (security/transport core) / 70% Dart (UI + state + DB + platform glue)**. After Phase 5 + NEXT_PLAN close: closer to **75% Rust / 25% Dart**, with Dart bounded to widgets + Riverpod subscribers + MethodChannel glue.
 
 ### 2.3 Boundary contract
 
@@ -593,22 +604,25 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
     `setDatabase(AppDatabase)` is gone everywhere. Drift, drift_dev,
     drift-generated test schemas all dropped from the tree.
 
-- [x] **4.3 ConnectionManager — closed at boundary contract**
+- [x] **4.3 ConnectionManager — closed at *security* boundary contract**
   - Connect path resolves credentials Rust-side via
     `*_with_secret` variants — `SshAuthPasswordRef` /
     `SshAuthPubkeyRef` / `SshAuthPubkeyCertRef` carry SecretStore
     ids over FRB; russh fetches the bytes inside Rust. Saved
     sessions stage via `db_sessions_stage_secrets`; manager-key
     references stage via `db_ssh_keys_stage_secret`.
-  - Connection FSM (`Idle → Connecting → Connected →
-    Disconnected`), reconnect generation counter, credential
-    overlay, and ProxyJump cycle / depth guards remain Dart-side.
-    Moving the FSM into a Rust actor was scoped, evaluated, and
-    rejected as pure refactor — no security or correctness rung
-    sits on top of what shipped.
-  - Done: secret bytes do not leak through the connect path.
+  - **Reopened under Phase 5.1 (architecture rung).** Connection
+    FSM, reconnect generation counter, credential overlay,
+    ProxyJump cycle / depth guards remained Dart-side at the time
+    of this entry. The "Flutter renders, Rust thinks" principle
+    requires moving them too — see [RUST_MIGRATION_NEXT_PLAN.md]
+    step 4 for the live tracker.
+  - Done at this rung: secret bytes do not leak through the
+    connect path.
 
-- [x] **4.4 PortForward + Transfer + Recorder — closed at boundary contract**
+[RUST_MIGRATION_NEXT_PLAN.md]: ./RUST_MIGRATION_NEXT_PLAN.md
+
+- [x] **4.4 PortForward + Transfer + Recorder — closed at *security* boundary contract**
   - Port-forward rules live in `lfs_core.db`; runtime bridges
     `ServerSocket` ↔ russh `direct-tcpip` channels (already
     Rust-side). SOCKS5 (-D) reuses the same path. Remote (-R)
@@ -618,23 +632,33 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
     `lfs_core::sftp` already.
   - Recorder per-frame AES-GCM runs Rust-side; the ring buffer +
     file IO are post-encrypt and never see plaintext.
-  - Done: every byte that needs the master key passes through Rust.
+  - **Reopened under Phase 5.2 / 5.3 / 5.4 (architecture rung).**
+    Listener accept loops, queue scheduler, ring buffer + write
+    loop all stayed Dart-side at this rung. Moving them is
+    tracked in [RUST_MIGRATION_NEXT_PLAN.md] steps 5 / 6 / 10.
+  - Done at this rung: every byte that needs the master key
+    passes through Rust.
 
-- [x] **4.5 Auth flows + auto-lock — closed at boundary contract**
+- [x] **4.5 Auth flows + auto-lock — closed at *security* boundary contract**
   - Master-password Argon2id derivation in `lfs_core::crypto`;
     DB lifecycle on lock/unlock through `db_init` / `db_close`
     on AppState; auto-lock detector zeroes SQLCipher's C-layer
     state via `dbClose`.
   - Auto-lock timer reads Flutter lifecycle + pointer activity;
-    biometric prompts + tier dialogs are OS UI. Neither moves
-    Rust-side usefully — the timer would still need a Flutter →
-    Rust event bridge for lifecycle, and biometric APIs live in
-    each platform's native SDK. Dart stays as the lifecycle
-    listener; Rust owns every byte the lock path touches.
-  - Done: KDF + at-rest cipher state are Rust-owned; UI plumbing
-    stays where the platform exposes it.
+    biometric prompts + tier dialogs are OS UI. The lifecycle
+    listener + biometric prompt remain Dart-bound (OS surfaces);
+    everything else moves Rust-side.
+  - **Reopened under Phase 5.5 + 5.9 (architecture rung).** The
+    auto-lock state machine, master-password orchestration, rate
+    limiter, hardware-tier composer, keychain gate, biometric key
+    vault, security bootstrap, wipe-all all stayed Dart-side at
+    this rung. Moving them is tracked in
+    [RUST_MIGRATION_NEXT_PLAN.md] step 9. After that step Dart
+    keeps only the Flutter-lifecycle bridge + biometric prompt
+    surface.
+  - Done at this rung: KDF + at-rest cipher state are Rust-owned.
 
-- [x] **4.6 Settings + import / export — closed at boundary contract**
+- [x] **4.6 Settings + import / export — closed at *security* boundary contract**
   - `.lfs` archive composition: `lfs_core::archive::export_archive`
     reads sessions / ssh_keys / tags / snippets / known_hosts from
     `lfs_core.db`, builds the manifest + per-entry JSON, ZIPs in
@@ -644,16 +668,13 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
     compact JSON, deflates, base64url-encodes — all Rust-side.
     Only the encoded ASCII string returns to Dart.
   - `app_configs` table in `lfs_core.db`.
-  - **Accepted residual:** `.lfs` archive *import* still decrypts
-    + parses Dart-side because the merge / replace machinery in
-    `core/import/import_service.dart` (~1000 lines) walks
-    sessions / tags / snippets with conflict resolution, snapshot/
-    rollback for replace mode, and FK-aware ordering that depends
-    on per-entry feedback to the user. Plaintext window is bounded
-    by an explicit user action (file picker → password prompt → 
-    preview → confirm) and the bytes land in `lfs_core.db` over
-    FRB DAOs the moment apply commits. Porting the apply layer is
-    a follow-up rung, not a security boundary item.
+  - **Reopened under Phase 5.6 + step 11 of [RUST_MIGRATION_NEXT_PLAN.md].**
+    `.lfs` archive *import* apply driver, the `qr_codec.dart`
+    `ExportPayloadInput` build path, and `app_config.dart` schema
+    + validation all stayed Dart-side at this rung. Tracked as
+    steps 2 + 11 of the next-arc tracker.
+  - Done at this rung: every export path composes Rust-side; no
+    plaintext credentials cross FRB outbound.
 
 - [x] **4.7 Cleanup**
   - drift, drift_dev, sqlite3_flutter_libs removed from pubspec.
@@ -843,17 +864,22 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
 | Sub-phase | Status |
 |---|---|
 | 5.0 Foundation (Cmd/Evt bus) | `[x]` shipped |
-| 5.1 Connection lifecycle | `[x]` Rust actor + driver + ProxyJump + Dart `ConnectionManager` swap shipped |
-| 5.2 Port forward actor | `[-]` Rust registry + bus events shipped; Tokio listener-accept driver + Dart `PortForwardRuntime` retire pending |
-| 5.3 Transfer queue actor | `[-]` Rust queue + state machine + bus events shipped; Tokio worker-pool driver + Dart `TransferManager` retire pending |
-| 5.4 Recorder | `[-]` Rust registry + bus events shipped; frame-write driver + Dart `SessionRecorder` retire pending |
-| 5.5 Auto-lock state | `[-]` Rust state machine + ticker + bus events shipped; Dart `AutoLockDetector` lifecycle-bridge swap pending |
-| 5.6 `.lfs` import | `[-]` Rust handle registry + sanitized preview shape shipped; decrypt/parse/apply driver + Dart `ImportService` retire pending |
-| 5.7 Native plugin Rust ports | `[ ]` deferred — small ports (`TpmClient`, `FprintdClient`, `WinBioProbe`, macOS code-signing orchestrator) |
-| 5.8 Pure utility ports | `[ ]` deferred — OpenSSH config parser + KdfParams envelope + sanitization regexes + path tilde |
-| 5.9 Dart cleanup | `[ ]` waits on every preceding sub-phase's Dart-side retire |
+| 5.1 Connection lifecycle | `[-]` Rust actor + bus events + ProxyJump shipped; Dart `ConnectionManager` still owns registry / generation / bastion-await / credential overlay / active-count — see [RUST_MIGRATION_NEXT_PLAN.md] step 4 |
+| 5.2 Port forward actor | `[-]` Rust registry + bus events shipped; Tokio listener-accept driver + Dart `PortForwardRuntime` retire pending — NEXT_PLAN step 6 |
+| 5.3 Transfer queue actor | `[-]` Rust queue + state machine + bus events shipped; Tokio worker-pool driver + Dart `TransferManager` retire pending — NEXT_PLAN step 5 |
+| 5.4 Recorder | `[-]` Rust registry + bus events shipped; frame-write driver + Dart `SessionRecorder` retire pending — NEXT_PLAN step 10 |
+| 5.5 Auto-lock state | `[-]` Rust state machine + ticker + bus events shipped; Dart `AutoLockDetector` lifecycle-bridge swap + full security-tier orchestration retire pending — NEXT_PLAN step 9 |
+| 5.6 `.lfs` import | `[-]` Rust handle registry + sanitized preview shape shipped; decrypt/parse/apply driver + Dart `ImportService` retire pending — NEXT_PLAN step 11 |
+| 5.7 Native plugin Rust ports | `[x]` shipped — `TpmClient`, `FprintdClient`, `WinBioProbe`, macOS code-signing all routed through `lfs_core::platform::*` |
+| 5.8 Pure utility ports | `[x]` shipped — OpenSSH config parser + log sanitiser + path helpers all in `lfs_core` |
+| 5.9 Dart cleanup | `[ ]` waits on every preceding sub-phase's Dart-side retire — full inventory in [RUST_MIGRATION_NEXT_PLAN.md] |
 
-The Rust side of every state-bearing sub-phase (5.1-5.6) is in tree as scaffolding or full driver; the matching Dart-side bridges + driver loops land in dedicated follow-up commits. This shape — *Rust scaffolding first, driver next, Dart bridge last* — was already validated on Phase 5.1, so the remaining sub-phases follow the same pattern.
+Phase 5 currently sits at the *Rust side complete, Dart bridges
+pending* state for every state-bearing sub-phase. The matching
+Dart-side retires are sequenced in [RUST_MIGRATION_NEXT_PLAN.md]
+under the principle **Flutter renders, Rust thinks** — every
+state machine moves out of Dart, no exceptions for "boundary
+contract met" carve-outs.
 
 ### Effort estimate
 

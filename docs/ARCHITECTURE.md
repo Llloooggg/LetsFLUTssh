@@ -126,7 +126,7 @@ lib/
 │   ├── session/                      # Session model, persistence, tree, history
 │   ├── connection/                   # Connection lifecycle, progress tracking
 │   ├── security/                     # AES-256-GCM, master password, keychain, tier ladder
-│   ├── migration/                    # Versioned-artefact migration framework (runner, Artefact/Migration interfaces, VersionedBlob envelope, SchemaVersions). Full description: §3.6 → Migration framework
+│   ├── migration/                    # Dart shim over `lfs_core::migration` (FRB DTO re-exports + `runStartupMigrations()`). Runner, registry, artefacts all live Rust-side. Full description: §3.6 → Migration framework
 │   ├── config/                       # App configuration (file-based, loaded before DB)
 │   ├── snippets/                     # Snippet model + SnippetStore
 │   ├── tags/                         # Tag model + TagStore
@@ -817,9 +817,12 @@ Stores (`SessionStore`, `KeyStore`, `KnownHostsManager`, `SnippetStore`, `TagSto
 2. If a `.wipe-pending` marker from an interrupted
    `WipeAllService.wipeAll()` exists → resume the wipe idempotently
    before anything else touches the app-support dir.
-3. Read `ConfigArtefact.readVersion()` (the schema version stamped
-   into `config.json`). When the value is older than
-   `SchemaVersions.config`, or when `AppConfig.security == null`
+3. Read `readConfigSchemaVersion()` (FRB shim over
+   `migration_config_version_on_disk`, which delegates to the
+   Rust-side `ConfigArtefact::read_version`). When the value is
+   older than `kCurrentConfigSchemaVersion` (mirror of
+   `lfs_core::migration::SchemaVersions::CONFIG`), or when
+   `AppConfig.security == null`
    **and** any managed artefact exists on disk, show
    `TierResetDialog`. The dialog routes through
    `WipeAllService.wipeAll()` on user confirm; on cancel the app
@@ -1258,227 +1261,227 @@ enum SshKeyType { ed25519, rsa2048, rsa4096 }
 
 **Session integration:** `SessionAuth.keyId` references a key by ID. Resolved in `SessionConnect._resolveConfig()` — key's PEM injected into `SSHConfig.auth.keyData` before connecting. SSH layer receives plain PEM text, unchanged.
 
-#### Migration framework (`core/migration/`)
+#### Migration framework (`lfs_core::migration` + `core/migration/` shim)
 
 Versioned-artefact migration framework running on startup before
-`_initSecurity`. Replaces the ad-hoc "detect legacy files, wipe via
-`LegacyStateReset`" approach with a typed interface: every on-disk
-artefact the app persists registers an `Artefact` with a target
-version, and every breaking format change ships a `Migration` that
-walks one step. The framework owns the *file-format envelope* around
-the artefact; intra-DB column / table changes are owned by drift's own
-`MigrationStrategy` ([§11 Persistence](#11-persistence--storage)) and
-are out of scope here.
+`_initSecurity`. Every on-disk artefact the app persists registers
+an [`Artefact`](../rust/crates/lfs_core/src/migration/mod.rs) trait
+impl with a target version, and every breaking format change ships
+a [`Migration`](../rust/crates/lfs_core/src/migration/mod.rs) trait
+impl that walks one step. The framework owns the *file-format
+envelope* around the artefact; intra-DB column / table changes are
+owned by `lfs_core::db`'s own bootstrap path
+([§11 Persistence](#11-persistence--storage)) and are out of scope
+here.
+
+The framework is canonical Rust now — `lfs_core::migration::Runner`
++ `Artefact` + `Migration` + `SchemaVersions` all live there. Dart
+side carries only a thin shim (`lib/core/migration/migration_runner.dart`)
+that re-exports the FRB-generated DTOs and resolves
+`getApplicationSupportDirectory()` before calling
+`migrationRunOnStartup`. There is no Dart-side runner, registry,
+artefact, or migration class.
 
 ##### File layout
 
 ```
-lib/core/migration/
-  migration_runner.dart   — MigrationRunner, MigrationReport,
-                            MigrationStep, UnsupportedFutureVersionException
-  schema_versions.dart    — SchemaVersions + ArtefactIds constants
-                            (single source of truth for "current
-                            target version per artefact" + "stable
-                            1-byte id per artefact in the envelope")
-  artefact.dart           — Artefact abstract class (id + targetVersion
-                            + readVersion)
-  migration.dart          — Migration abstract class (artefactId +
-                            fromVersion + toVersion + apply + validate)
-  registry.dart           — MigrationRegistry + buildAppMigrationRegistry()
-                            — composition root, no service-locator scan
-  archive_registry.dart   — ArchiveMigrationRegistry + archiveMigrationRegistry
-                            singleton for .lfs format migrations (runs
-                            at import time, not startup)
-  versioned_blob.dart     — Standard envelope: magic 'LFS\x01' +
-                            artefactId byte + version byte + payload
-  artefacts/
-    config_artefact.dart  — reads config_schema_version from config.json
-    kdf_artefact.dart     — presence-only; KdfParams is self-versioned
-    db_artefact.dart      — presence-only; Drift owns its schema
+rust/crates/lfs_core/src/migration/
+  mod.rs              — Runner (run_on_startup), Artefact + Migration
+                        traits, SchemaVersions consts, Report / Step
+                        / UnsupportedFutureVersion structs, topo sort
+  registry.rs         — Registry + build_app_registry() (composition
+                        root — no service-locator scan)
+  artefacts.rs        — ConfigArtefact (parses config_schema_version
+                        from config.json), KdfArtefact (presence-only
+                        wrapper for credentials.kdf)
+
+rust/crates/lfs_frb/src/api/migration.rs
+                      — DbMigrationReport / DbMigrationStep /
+                        DbUnsupportedFutureVersion FRB mirrors,
+                        migration_run_on_startup(support_dir),
+                        migration_config_version_on_disk(support_dir)
+                        (legacy-state probe used by SecurityInitController)
+
+lib/core/migration/migration_runner.dart
+                      — Dart shim. Re-exports FRB DTOs, defines
+                        DbMigrationReportHelpers extension (no_op /
+                        has_failures / migrated_count) + the
+                        `runStartupMigrations()` async entry that
+                        resolves support dir and dispatches the FRB
+                        call. `kCurrentConfigSchemaVersion` mirrors
+                        SchemaVersions::CONFIG by literal until the
+                        config writer moves Rust-side.
 ```
 
-##### VersionedBlob envelope
+##### Envelope (future use — not registered today)
 
-Every framework-managed binary artefact uses a fixed 6-byte header so
-the runner can identify the artefact and its on-disk version without
+Framework-managed binary artefacts use a fixed 6-byte header so the
+runner can identify the artefact and its on-disk version without
 parsing the payload:
 
 ```
 offset  size  meaning
 0       4     magic = ASCII 'L','F','S',0x01
-4       1     artefact id  (see ArtefactIds — never reuse a value)
+4       1     artefact id  (stable, never reuse a value)
 5       1     payload format version
 6       N     payload bytes (artefact-specific)
 ```
 
-`VersionedBlob.write(path, artefactId, version, payload)` is the only
-sanctioned writer for envelope artefacts: it serialises the header,
-writes the bytes to a `.tmp<rand>` sibling via `writeBytesAtomic`,
-hardens the file permissions, then renames over the original. A crash
-mid-write leaves the previous file intact. Plain `File.writeAsBytes`
-for new binary state is a bug — it skips both the envelope header and
-the atomic-rename pattern.
+No artefact registers an envelope wrapper today — `config.json`
+carries its own `config_schema_version` field in the JSON object,
+`credentials.kdf` carries its own `'LFKD'` magic + version byte,
+and the SQLCipher DB owns its own `PRAGMA user_version`. The
+envelope shape stays documented because the next breaking format
+bump on a hardware-vault `.bin` will use it; when that lands, the
+writer ships in `lfs_core::migration::artefacts` alongside its
+`Artefact` impl.
 
-`VersionedBlob.read(path)` and `tryParse(bytes)` return `null` when
-the magic does not match — callers treat null as unrecognised state
-and let the runner surface the mismatch via the fatal-report path.
+##### Artefact contract — read_version conventions
 
-The header is intentionally absent for two artefacts: drift's DB file
-(drift owns its own schema and reads its own version via `PRAGMA
-user_version`) and `credentials.kdf` (carries its own `'LFKD'` magic
-+ `KdfParams` block). Both are wired in as **presence-only** artefacts
-— the framework knows they exist and routes future format changes
-through the same `runOnStartup` decision path, but does not parse them
-itself.
-
-##### Artefact contract — readVersion conventions
-
-`Artefact.readVersion()` is how the runner discovers what is on disk.
-The return value drives the runner's decision tree:
+`Artefact::read_version(support_dir)` is how the runner discovers
+what is on disk. The return value drives the runner's decision tree:
 
 | Return value | Meaning | Runner action |
 |---|---|---|
-| `-1` | Artefact does not exist on disk yet (clean install for this slot) | Skip — nothing to migrate |
-| `>= 1` | Artefact present, header-versioned at the returned value | Walk the Migration chain up to `targetVersion` |
+| `Ok(-1)` | Artefact does not exist on disk yet (clean install for this slot) | Skip — nothing to migrate |
+| `Ok(>= 1)` | Artefact present, header-versioned at the returned value | Walk the Migration chain up to `target_version` |
 
 v1 is the permanent floor for every artefact. Unrecognised headers,
-missing schema fields, malformed payloads must **throw** — the runner
-catches the throw and records it as a fatal `MigrationReport` entry so
-the caller can route the user through the reset dialog. Never return a
-made-up version for unrecognised state.
+missing schema fields, malformed payloads must return `Err(message)`
+— the runner records the failure as a fatal `Report::fatal_error`
+entry so the caller can route the user through the reset dialog.
+Never return a made-up version for unrecognised state.
 
-`targetVersion` must be read straight from a `SchemaVersions.<x>`
-constant — never inline a number. The constant is the single source of
-truth and the registry-completeness unit test greps for stale literals.
+`target_version` must be read straight from a
+`SchemaVersions::<X>` constant — never inline a number. The constant
+is the single source of truth and a registry unit test greps for
+stale literals.
 
-##### MigrationRunner lifecycle
+##### Runner lifecycle
 
-`main._runMigrations()` calls `MigrationRunner(registry).runOnStartup()`
+`SecurityInitController._runMigrations` calls `runStartupMigrations()`
+(Dart shim → FRB → `lfs_core::migration::run_on_startup`)
 **before** `_initSecurity`, so the unlock path always reads the
 post-migration shape. The runner is idempotent — calling twice in a
-row is a no-op on the second call once every artefact has been brought
-to its target.
+row is a no-op on the second call once every artefact has been
+brought to its target.
 
 For each artefact (in topologically-sorted order — see Topology
 below):
 
-1. Call `readVersion()`. If it returns `-1` (absent) or equals
-   `targetVersion` (already current), skip.
-2. If `onDisk > targetVersion` (newer-than-known state, usually the
+1. Call `read_version`. `Ok(-1)` (absent) or `Ok(target)` (already
+   current) → skip. `Err` → fatal.
+2. If `on_disk > target` (newer-than-known state, usually the
    result of a downgrade after a forward migration ran), record an
-   `UnsupportedFutureVersionException` in `report.futureVersions` and
-   move on. The artefact is left untouched on disk so a re-upgrade
-   recovers cleanly — never silently rewrite future-version data.
-3. If `onDisk < targetVersion`, walk the Migration chain step by
-   step. For each step:
-   - Look up the `Migration` whose `artefactId` matches and whose
-     `fromVersion == current`. **No registered migration = fatal
-     error**: the runner appends a failed `MigrationStep` and aborts
-     the whole run with `report.fatalError` set.
-   - Call `apply()`. If it throws, record the failure and abort.
-   - Otherwise advance `current` to `step.toVersion` and continue.
+   `UnsupportedFutureVersion` in `report.future_versions` and move
+   on. The artefact is left untouched so a re-upgrade recovers
+   cleanly — never silently rewrite future-version data.
+3. If `on_disk < target`, walk the Migration chain step by step.
+   For each step:
+   - Look up the `Migration` whose `artefact_id` matches and whose
+     `from_version == current`. **No registered migration = fatal
+     error**: the runner appends a failed `Step` and aborts the
+     whole run with `report.fatal_error` set.
+   - Call `apply`. If it returns `Err`, record the failure and
+     abort. Otherwise advance `current` to `step.to_version` and
+     continue.
 
-The runner returns a `MigrationReport`:
+The runner returns a `Report` (FRB-mirrored as
+`DbMigrationReport`):
 
 | Field | Meaning |
 |---|---|
 | `steps` | Per-step record (artefactId, fromVersion, toVersion, succeeded, error) |
-| `futureVersions` | List of `UnsupportedFutureVersionException` for artefacts ahead of the build |
-| `fatalError` | First fatal error (missing migration, apply throw, dependency cycle, corrupt header) |
-| `noOp` | True iff no migrations ran and no failures recorded |
-| `hasFailures` | True iff any step failed, any future version was seen, or fatal is set |
-| `migratedCount` | Successful step count — used in the post-run log line |
+| `futureVersions` | List of `DbUnsupportedFutureVersion` for artefacts ahead of the build |
+| `fatalError` | First fatal error (missing migration, apply error, dependency cycle, corrupt header) |
+| `noOp` (helper) | True iff no migrations ran and no failures recorded |
+| `hasFailures` (helper) | True iff any step failed, any future version was seen, or fatal is set |
+| `migratedCount` (helper) | Successful step count — used in the post-run log line |
 
-`main._runMigrations` inspects `report.hasFailures` (fatal error,
-future-version artefact, or any failed step) and routes the user
-through `DbCorruptDialog` on any non-clean run: *Reset & Setup Fresh*
-runs `_wipeAndRestartFromScratch` (same full-wipe + first-launch wizard
-path that the DB-corruption probe uses); *Quit* leaves the disk
-untouched so a newer build can re-read the same artefacts. An
-uncaught throw from the runner itself lands on the same dialog — a
-broken artefact reader is indistinguishable from a broken artefact
-from the user's point of view. `main` short-circuits the rest of
-startup (`_initSecurity` + `_handleDatabaseCorruption`) whenever
+`SecurityInitController._runMigrations` inspects `report.hasFailures`
+and routes the user through `DbCorruptDialog` on any non-clean run:
+*Reset & Setup Fresh* runs `_wipeAndRestartFromScratch` (same
+full-wipe + first-launch wizard path that the DB-corruption probe
+uses); *Quit* leaves the disk untouched so a newer build can re-read
+the same artefacts. An uncaught throw from the runner itself lands
+on the same dialog — a broken artefact reader is indistinguishable
+from a broken artefact from the user's point of view. The init
+controller short-circuits the rest of startup whenever
 `_runMigrations` returns `false`, because the failure handler has
-already taken over. The registry is empty today, so on a
-current-version install the report is always `noOp == true` and the
-app proceeds into `_initSecurity` normally; the failure surface is
-wired up ahead of time so the first real migration inherits a
-complete path.
+already taken over. The registry is empty today (no migrations,
+just two presence wrappers), so on a current-version install the
+report is always `noOp == true` and the app proceeds into
+`_initSecurity` normally; the failure surface is wired up ahead of
+time so the first real migration inherits a complete path.
 
 ##### Atomicity
 
-`Migration.apply()` is responsible for atomicity end-to-end. The
-standard recipe is `VersionedBlob.write(...)` (tmp + rename + chmod);
-custom payloads follow the same pattern via `writeBytesAtomic` in
-`utils/file_utils.dart`. If `apply` throws before the rename, the
-original file is untouched and the runner records the failure as a
-fatal `MigrationStep`.
+`Migration::apply` is responsible for atomicity end-to-end. The
+standard pattern is to write the new artefact bytes to a sibling
+temp file, fsync, then `rename` over the original. If `apply`
+returns `Err` before the rename, the original file is untouched and
+the runner records the failure as a fatal `Step`.
 
-There is no post-apply validate hook. A migration that needs to sanity-
-check its own output does so inside `apply` and throws on mismatch —
-the runner has no backup to swap to and no separate validate phase to
-couple rollback to. Migrations that want true rollback must hold their
-own `.bak` sibling inside `apply`.
+There is no post-apply validate hook. A migration that needs to
+sanity-check its own output does so inside `apply` and returns
+`Err` on mismatch — the runner has no backup to swap to and no
+separate validate phase to couple rollback to. Migrations that want
+true rollback must hold their own `.bak` sibling inside `apply`.
 
-##### Topology — declareDependency
+##### Topology — Registry::dependencies
 
 Some artefacts must be migrated only after others (the canonical
 example: every per-platform `hardware_vault_*.bin` depends on
 `config.json` because the vault layout reads its tier and modifier
-shape from the post-migration config). The registry exposes
-`declareDependency(artefactId, [otherIds...])` — and its bulk variant
-`declareDependencies([artefactIds...], [otherIds...])` — to encode
-this; the runner sorts via Kahn's algorithm and throws
-`StateError('Cycle in migration dependencies')` (captured as
-`report.fatalError`) on any cycle. Order between independent artefacts
-is not specified — do not rely on it; declare the dependency if order
-matters.
+shape from the post-migration config). `Registry::dependencies` is a
+`HashMap<String, Vec<String>>` — every entry in the value list must
+run BEFORE the key artefact runs its own migrations. The runner
+sorts via Kahn's algorithm and returns
+`fatal_error: Some("cycle in migration dependencies")` on any cycle.
+Order between independent artefacts is not specified — do not rely
+on it; declare the dependency if order matters.
 
-Dangling edges are tolerated on purpose. `buildAppMigrationRegistry()`
+Dangling edges are tolerated on purpose. `build_app_registry`
 declares vault dependencies ahead of the vault artefacts themselves
-(the vault wrappers land in a later change), so the runner skips any
-edge whose `artefactId` is not in the registered set — both endpoints
-must be known for the edge to contribute to `indegree`. Without this
-guard a fresh install hit `indegree[unregistered_id]!` during the
-Kahn sweep, the error surfaced as "dependency cycle: Null check
-operator used on a null value" in `report.fatalError`, and
-`_handleMigrationFailure` routed every first-launch user through
-`DbCorruptDialog`. The tolerance keeps forward-declared deps cheap:
-register the vault artefact later and the pre-declared edge starts
-taking effect automatically.
+(the vault wrappers land in a later change), so the runner skips
+any edge whose endpoint is not in the registered set. Without this
+guard a fresh install would deadlock on the indegree map. The
+tolerance keeps forward-declared deps cheap: register the vault
+artefact later and the pre-declared edge starts taking effect
+automatically.
 
 ##### Reset migrations are out of scope
 
-When the target state of an "upgrade" is "user runs the setup wizard
-again, nothing to salvage", the migration framework is the wrong
-place. Those route through `TierResetDialog` / `DbCorruptDialog` →
-`WipeAllService.wipeAll()` — user-consented destructive operations,
-not silent format bumps. The framework is for silent automated format
-bumps only; if there is no automatable transform, escalate to a reset
-dialog instead.
+When the target state of an "upgrade" is "user runs the setup
+wizard again, nothing to salvage", the migration framework is the
+wrong place. Those route through `TierResetDialog` /
+`DbCorruptDialog` → `WipeAllService.wipeAll()` — user-consented
+destructive operations, not silent format bumps. The framework is
+for silent automated format bumps only; if there is no automatable
+transform, escalate to a reset dialog instead.
 
 ##### Archive format migrations
 
-`ArchiveMigrationRegistry` + the `archiveMigrationRegistry` singleton
-mirror the on-disk registry but for `.lfs` archive contents. Different
-lifecycle (import-time, not startup) but same `Migration` interface.
-v1 is the permanent floor; archives whose `schema_version` does not
-match the current [`SchemaVersions.archive`](../lib/core/migration/schema_versions.dart)
-are rejected at import with `UnsupportedLfsVersionException` (see
-[§3.9 Import → .lfs format](#39-import-coreimport)). Future breaking
-format changes register a `Migration` here rather than growing a
-read-only back-compat path.
+`.lfs` archive format migrations live in `lfs_core::archive` (not
+in `lfs_core::migration`) because they run at import time, not
+startup. Archives whose `schema_version` does not match the current
+`SchemaVersions::ARCHIVE` are rejected by the Rust reader
+(`lfs_core::archive::read_archive_to_pending`) with the FRB-mapped
+`UnsupportedLfsVersionException`. Future breaking format changes
+ship a transform inside the archive read path rather than growing a
+read-only back-compat surface (see [§3.9 Import → .lfs
+format](#39-import-coreimport)).
 
 ##### Developer guide — how to ship a format change
 
-When you change the wire format of a framework-managed artefact, walk
-this checklist. There is no CI guard that rejects a partial bump
-today; the safety net is `MigrationRunner.runOnStartup` raising a
-fatal `MigrationStep` on first post-upgrade boot when a registered
-migration is missing. Catch the gap at PR time by adding a unit test
-that builds the registry and asserts every adjacent
-`(SchemaVersions.<x>, fromVersion → fromVersion + 1)` pair has a
+When you change the wire format of a framework-managed artefact,
+walk this checklist. There is no CI guard that rejects a partial
+bump today; the safety net is `run_on_startup` raising a fatal
+`Step` on first post-upgrade boot when a registered migration is
+missing. Catch the gap at PR time by adding a unit test under
+`rust/crates/lfs_core/src/migration/registry.rs` that builds the
+registry and asserts every adjacent
+`(SchemaVersions::<X>, from_version → from_version + 1)` pair has a
 Migration registered.
 
 ###### Adding a brand-new envelope artefact
@@ -1486,93 +1489,76 @@ Migration registered.
 You are persisting a new binary blob and want it to participate in
 the framework from day one.
 
-1. Pick a stable 1-byte id and add it to `ArtefactIds` in
-   `schema_versions.dart`. Never reuse a previous value — even for
-   ids that were once registered and removed.
-2. Add a `SchemaVersions.<name>` constant set to `1` (the permanent
-   floor — v1 is the lowest legal version in the framework).
-3. Implement `<name>_artefact.dart` under `core/migration/artefacts/`
-   extending `Artefact`. Override `id` (use the on-disk filename),
-   `targetVersion` (`SchemaVersions.<name>`), and `readVersion()` —
-   typically: file missing → `-1`, no envelope magic → `0`, otherwise
-   return `VersionedBlob.tryParse(bytes).version`.
-4. Register the artefact in `buildAppMigrationRegistry()` in
-   `registry.dart`. If your artefact's layout depends on another
-   (e.g. it reads tier from `config.json`), call `declareDependency`
-   in the same place.
-5. Persist the blob through `VersionedBlob.write(path, artefactId:
-   ArtefactIds.<name>, version: SchemaVersions.<name>, payload: ...)`
-   from the producing module. Never call `File.writeAsBytes`
-   directly for envelope artefacts.
-6. Add a unit test under `test/core/migration/artefacts/` exercising
-   each `readVersion()` path (missing file, malformed, current
-   version). Pass an injected `supportDir` so the test owns a temp
-   directory.
+1. Add a `SchemaVersions::<NAME>` constant in
+   `lfs_core::migration::SchemaVersions` set to `1` (the permanent
+   floor).
+2. Implement `<name>_artefact.rs` under
+   `lfs_core::migration::artefacts` with an `Artefact` impl. Set
+   `id` to the on-disk filename, `target_version` to
+   `SchemaVersions::<NAME>`, and `read_version` to file-missing →
+   `Ok(-1)`, present → `Ok(target_version())` (or parse the
+   embedded version byte from the envelope).
+3. Register the artefact in `build_app_registry`. If your
+   artefact's layout depends on another (e.g. it reads tier from
+   `config.json`), insert the dependency into
+   `registry.dependencies` in the same place.
+4. Persist the blob through an atomic writer (tmp + rename + chmod)
+   from the producing module. Never write straight to the live
+   path.
+5. Add a unit test inside the module exercising each
+   `read_version` path (missing file, malformed, current version).
+   Pass a `tempfile::TempDir` so the test owns its directory.
 
-No Migration is needed yet — the artefact ships at v1 from the start
-and the runner is a no-op on every install.
+No `Migration` impl is needed yet — the artefact ships at v1 from
+the start and the runner is a no-op on every install.
 
 ###### Bumping an existing artefact's format
 
 You are changing the on-disk shape (added a field, renamed a key,
 re-arranged a struct) of an artefact already in the registry.
 
-1. Bump the `SchemaVersions.<artefact>` constant by exactly one.
+1. Bump the `SchemaVersions::<ARTEFACT>` constant by exactly one.
    Skipping versions is forbidden; the runner walks the chain step
    by step and expects every intermediate migration to exist.
-2. Implement a `Migration` subclass under `core/migration/migrations/`
-   covering the single `(artefactId, fromVersion → toVersion)`
-   transition. Override `apply` to read the v(N-1) bytes, transform
-   them in memory, and write the v(N) bytes via `VersionedBlob.write`
-   (or another atomic writer if the artefact does not use the
-   envelope). Override `validate` if a round-trip read or schema
-   check is feasible.
-3. Register the migration with `reg.registerMigration(...)` in
-   `buildAppMigrationRegistry()`. Duplicate `(artefactId, fromVersion)`
-   pairs throw at registration — there is exactly one path between
-   adjacent versions.
-4. Update the writer in the producing module to stamp the new version
-   constant. Update any reader to handle the new payload shape.
-   Existing data on disk continues to read correctly because the
-   migration upgrades it on next startup.
-5. Add a unit test under `test/core/migration/migrations/` that
-   builds a v(N-1) file in a temp dir, runs the migration, and
-   asserts the resulting file matches the v(N) shape (and that
-   `validate()` returns true). Add a second test confirming the
-   migration is registered in `buildAppMigrationRegistry()`.
+2. Implement a struct under
+   `lfs_core::migration::artefacts::migrations` with a `Migration`
+   impl covering the single
+   `(artefact_id, from_version → to_version)` transition. Body:
+   read the v(N-1) bytes, transform in memory, write the v(N)
+   bytes atomically. Return `Err` on any failure.
+3. Register the migration in `build_app_registry` via
+   `registry.migrations.push(Box::new(<Type>))`. Duplicate
+   `(artefact_id, from_version)` pairs are rejected by a registry
+   unit test — there is exactly one path between adjacent versions.
+4. Update the writer in the producing module to stamp the new
+   version constant. Update any reader to handle the new payload
+   shape. Existing data on disk continues to read correctly
+   because the migration upgrades it on next startup.
+5. Add a unit test under
+   `rust/crates/lfs_core/src/migration/artefacts.rs` (or a sibling
+   migrations module) that builds a v(N-1) file in a `tempfile::TempDir`,
+   runs the migration, and asserts the resulting file matches the
+   v(N) shape. Add a second test confirming the migration is in
+   `build_app_registry`'s migrations list.
 6. Document the bump under `docs/ARCHITECTURE.md §11 Persistence`
    (if the artefact is a top-level data file) or in the relevant
-   `core/security/...` doc reference. Mention what the change is and
-   why so the next agent can read intent without grepping commits.
+   `core/security/...` doc reference. Mention what the change is
+   and why so the next agent can read intent without grepping
+   commits.
 
 The next install that boots will run the new migration once on
 startup, log the success step, and never run it again because
-`readVersion()` now returns `targetVersion`. A user who downgrades
+`read_version` now returns `target_version`. A user who downgrades
 to the prior build after the bump runs lands on the
-`UnsupportedFutureVersionException` path — the file is left intact
-so a re-upgrade recovers.
+`UnsupportedFutureVersion` path — the file is left intact so a
+re-upgrade recovers.
 
 ###### Adding a `.lfs` archive format migration
 
-You are bumping the archive `manifest.schema_version`.
-
-1. Bump `SchemaVersions.archive` by one. The constant is consulted by
-   `ExportImport.currentSchemaVersion`; see [§3.9 Import → .lfs
-   format](#39-import-coreimport) for how the manifest is written and
-   validated on import.
-2. Implement a `Migration` subclass under `core/migration/migrations/`
-   that rewrites the in-memory archive map (add a field, rename a
-   key, fold two collections together). Archive migrations transform
-   parsed maps, not raw bytes — the import path has already decoded
-   the ZIP and the manifest by the time migrations run.
-3. Register via `archiveMigrationRegistry.register(...)` (the
-   singleton in `archive_registry.dart`). Duplicates throw at
-   registration like the on-disk registry.
-4. The import path queries `archiveMigrationRegistry.chain(onDisk,
-   currentSchemaVersion)` and applies each step before parsing the
-   archive entries — see `ExportImport._applyArchiveMigrations`.
-5. Test under `test/core/migration/migrations/archive_v(N-1)_to_v(N)_test.dart`
-   with a synthetic input map and the expected output map.
+You are bumping the archive `manifest.schema_version`. Archive
+migrations are part of `lfs_core::archive`, not
+`lfs_core::migration`. See [§3.9 Import → .lfs
+format](#39-import-coreimport) for the import-path transform shape.
 
 ###### Deferred v1 improvements
 
@@ -1763,13 +1749,13 @@ parameters without having to break or re-encrypt existing files.
 
 Argon2id is the only supported KDF. Archives with a header version byte
 other than `0x02`, missing `LFSE` magic, or no manifest are rejected at
-import with `UnsupportedLfsVersionException` — users must re-export from
-the current app version. Future breaking format changes ship a
-`Migration` registered in `lib/core/migration/archive_registry.dart` —
-see [§3.6 → Migration framework](#migration-framework-coremigration)
-for the framework, which runs at import time (not startup) for archive
-artefacts but uses the same `Migration` interface as the on-disk
-artefacts.
+import with `UnsupportedLfsVersionException` — users must re-export
+from the current app version. Future breaking format changes ship a
+transform inside `lfs_core::archive::read_archive_to_pending` (the
+import path) — see [§3.6 → Migration framework](#migration-framework-lfs_coremigration--coremigration-shim)
+for the architectural shape; archive migrations live with the archive
+reader rather than the on-disk migration framework because they run
+at import time, not startup.
 
 | On-disk form | Version byte | KDF | Notes |
 |---|---|---|---|
@@ -1815,12 +1801,13 @@ password prompt:
 ```
 
 Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**,
-sourced from `SchemaVersions.archive`). The manifest is written on every
-export and validated on import — archives with any `schema_version` other
-than the current one, or no manifest at all, throw
-`UnsupportedLfsVersionException`. GCM's auth tag already protects archive
-integrity end-to-end, so no separate content hash is stored in the
-manifest.
+mirrors `lfs_core::migration::SchemaVersions::ARCHIVE` by literal until
+the export composer moves Rust-side). The manifest is written on every
+export and validated on import — archives with any `schema_version`
+other than the current one, or no manifest at all, throw
+`UnsupportedLfsVersionException`. GCM's auth tag already protects
+archive integrity end-to-end, so no separate content hash is stored
+in the manifest.
 
 #### Import modes
 

@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1474414102;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -684773329;
 
 // Section: executor
 
@@ -5411,6 +5411,75 @@ fn wire__crate__api__known_hosts_parser__known_hosts_parse_line_impl(
         },
     )
 }
+fn wire__crate__api__migration__migration_config_version_on_disk_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "migration_config_version_on_disk",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_support_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::migration::migration_config_version_on_disk(api_support_dir)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__migration__migration_run_on_startup_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "migration_run_on_startup",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_support_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::migration::migration_run_on_startup(api_support_dir),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__deeplink__parse_connect_uri_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -8325,6 +8394,39 @@ impl SseDecode for crate::api::db::DbKnownHost {
     }
 }
 
+impl SseDecode for crate::api::migration::DbMigrationReport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_steps = <Vec<crate::api::migration::DbMigrationStep>>::sse_decode(deserializer);
+        let mut var_futureVersions =
+            <Vec<crate::api::migration::DbUnsupportedFutureVersion>>::sse_decode(deserializer);
+        let mut var_fatalError = <Option<String>>::sse_decode(deserializer);
+        return crate::api::migration::DbMigrationReport {
+            steps: var_steps,
+            future_versions: var_futureVersions,
+            fatal_error: var_fatalError,
+        };
+    }
+}
+
+impl SseDecode for crate::api::migration::DbMigrationStep {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_artefactId = <String>::sse_decode(deserializer);
+        let mut var_fromVersion = <i32>::sse_decode(deserializer);
+        let mut var_toVersion = <i32>::sse_decode(deserializer);
+        let mut var_succeeded = <bool>::sse_decode(deserializer);
+        let mut var_error = <Option<String>>::sse_decode(deserializer);
+        return crate::api::migration::DbMigrationStep {
+            artefact_id: var_artefactId,
+            from_version: var_fromVersion,
+            to_version: var_toVersion,
+            succeeded: var_succeeded,
+            error: var_error,
+        };
+    }
+}
+
 impl SseDecode for crate::api::ssh_config::DbOpenSshAuthType {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8783,6 +8885,20 @@ impl SseDecode for crate::api::threat_eval::DbThreatTier {
     }
 }
 
+impl SseDecode for crate::api::migration::DbUnsupportedFutureVersion {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_artefactId = <String>::sse_decode(deserializer);
+        let mut var_onDiskVersion = <i32>::sse_decode(deserializer);
+        let mut var_knownTargetVersion = <i32>::sse_decode(deserializer);
+        return crate::api::migration::DbUnsupportedFutureVersion {
+            artefact_id: var_artefactId,
+            on_disk_version: var_onDiskVersion,
+            known_target_version: var_knownTargetVersion,
+        };
+    }
+}
+
 impl SseDecode for crate::api::update_metadata::DbVersionOrder {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8867,6 +8983,20 @@ impl SseDecode for Vec<crate::api::db::DbKnownHost> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::db::DbKnownHost>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::migration::DbMigrationStep> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::migration::DbMigrationStep>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -9023,6 +9153,20 @@ impl SseDecode for Vec<crate::api::threat_eval::DbThreatRow> {
             ans_.push(<crate::api::threat_eval::DbThreatRow>::sse_decode(
                 deserializer,
             ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::migration::DbUnsupportedFutureVersion> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(
+                <crate::api::migration::DbUnsupportedFutureVersion>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -9611,125 +9755,137 @@ fn pde_ffi_dispatcher_primary_impl(
         121 => wire__crate__api__keys__keys_generate_rsa_impl(port, ptr, rust_vec_len, data_len),
         122 => wire__crate__api__keys__keys_import_openssh_impl(port, ptr, rust_vec_len, data_len),
         123 => wire__crate__api__keys__keys_import_ppk_impl(port, ptr, rust_vec_len, data_len),
-        131 => wire__crate__api__forward__port_forward_start_local_impl(
+        126 => wire__crate__api__migration__migration_config_version_on_disk_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        132 => wire__crate__api__forward__port_forward_stop_local_impl(
+        127 => wire__crate__api__migration__migration_run_on_startup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        133 => wire__crate__api__archive__qr_import_open_impl(port, ptr, rust_vec_len, data_len),
-        134 => wire__crate__api__recorder__recorder_close_impl(port, ptr, rust_vec_len, data_len),
-        135 => wire__crate__api__recorder__recorder_max_file_bytes_impl(
+        133 => wire__crate__api__forward__port_forward_start_local_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        136 => wire__crate__api__recorder__recorder_record_frame_impl(
+        134 => wire__crate__api__forward__port_forward_stop_local_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        137 => {
+        135 => wire__crate__api__archive__qr_import_open_impl(port, ptr, rust_vec_len, data_len),
+        136 => wire__crate__api__recorder__recorder_close_impl(port, ptr, rust_vec_len, data_len),
+        137 => wire__crate__api__recorder__recorder_max_file_bytes_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        138 => wire__crate__api__recorder__recorder_record_frame_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        139 => {
             wire__crate__api__recorder__recorder_register_impl(port, ptr, rust_vec_len, data_len)
         }
-        138 => {
+        140 => {
             wire__crate__api__recorder__recorder_rotate_to_impl(port, ptr, rust_vec_len, data_len)
         }
-        141 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
-        142 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
-        143 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
-        144 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
-        145 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
+        143 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
+        144 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
+        145 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
+        146 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
+        147 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        146 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
-        147 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
-        148 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
+        148 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
+        149 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
+        150 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        149 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
+        151 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        150 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
-        151 => {
+        152 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
+        153 => {
             wire__crate__api__ssh__ssh_connect_pubkey_cert_impl(port, ptr, rust_vec_len, data_len)
         }
-        152 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
+        154 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        153 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
+        155 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        154 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
+        156 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        155 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
+        157 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        156 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
+        158 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        157 => {
+        159 => {
             wire__crate__api__forward__ssh_open_direct_tcpip_impl(port, ptr, rust_vec_len, data_len)
         }
-        158 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
-        159 => wire__crate__api__forward__ssh_request_remote_forward_impl(
+        160 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
+        161 => wire__crate__api__forward__ssh_request_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        160 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
-        161 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
-        162 => {
+        162 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
+        163 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
+        164 => {
             wire__crate__api__ssh__ssh_try_connect_password_impl(port, ptr, rust_vec_len, data_len)
         }
-        163 => {
+        165 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
-        165 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-        166 => {
+        167 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+        168 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        170 => wire__crate__api__update_http__update_download_to_file_impl(
+        172 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        171 => {
+        173 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -9755,21 +9911,21 @@ fn pde_ffi_dispatcher_sync_impl(
 38 => wire__crate__api__password_strength__assess_password_strength_impl(ptr, rust_vec_len, data_len),
 124 => wire__crate__api__known_hosts_parser__known_hosts_is_hashed_line_impl(ptr, rust_vec_len, data_len),
 125 => wire__crate__api__known_hosts_parser__known_hosts_parse_line_impl(ptr, rust_vec_len, data_len),
-126 => wire__crate__api__deeplink__parse_connect_uri_impl(ptr, rust_vec_len, data_len),
-127 => wire__crate__api__ssh_config__parse_openssh_config_impl(ptr, rust_vec_len, data_len),
-128 => wire__crate__api__ssh_config__parse_openssh_config_with_includes_impl(ptr, rust_vec_len, data_len),
-129 => wire__crate__api__path__path_expand_tilde_impl(ptr, rust_vec_len, data_len),
-130 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
-139 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
-140 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
-164 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
-167 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-168 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-169 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-172 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-173 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-174 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-175 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+128 => wire__crate__api__deeplink__parse_connect_uri_impl(ptr, rust_vec_len, data_len),
+129 => wire__crate__api__ssh_config__parse_openssh_config_impl(ptr, rust_vec_len, data_len),
+130 => wire__crate__api__ssh_config__parse_openssh_config_with_includes_impl(ptr, rust_vec_len, data_len),
+131 => wire__crate__api__path__path_expand_tilde_impl(ptr, rust_vec_len, data_len),
+132 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
+141 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
+142 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
+166 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
+169 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+170 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+171 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+174 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+175 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+176 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+177 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -10527,6 +10683,52 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::db::DbKnownHost>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::migration::DbMigrationReport {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.steps.into_into_dart().into_dart(),
+            self.future_versions.into_into_dart().into_dart(),
+            self.fatal_error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::migration::DbMigrationReport
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::migration::DbMigrationReport>
+    for crate::api::migration::DbMigrationReport
+{
+    fn into_into_dart(self) -> crate::api::migration::DbMigrationReport {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::migration::DbMigrationStep {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.artefact_id.into_into_dart().into_dart(),
+            self.from_version.into_into_dart().into_dart(),
+            self.to_version.into_into_dart().into_dart(),
+            self.succeeded.into_into_dart().into_dart(),
+            self.error.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::migration::DbMigrationStep
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::migration::DbMigrationStep>
+    for crate::api::migration::DbMigrationStep
+{
+    fn into_into_dart(self) -> crate::api::migration::DbMigrationStep {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::ssh_config::DbOpenSshAuthType {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -11066,6 +11268,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::threat_eval::DbThreatTier>
     for crate::api::threat_eval::DbThreatTier
 {
     fn into_into_dart(self) -> crate::api::threat_eval::DbThreatTier {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::migration::DbUnsupportedFutureVersion {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.artefact_id.into_into_dart().into_dart(),
+            self.on_disk_version.into_into_dart().into_dart(),
+            self.known_target_version.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::migration::DbUnsupportedFutureVersion
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::migration::DbUnsupportedFutureVersion>
+    for crate::api::migration::DbUnsupportedFutureVersion
+{
+    fn into_into_dart(self) -> crate::api::migration::DbUnsupportedFutureVersion {
         self
     }
 }
@@ -11815,6 +12039,29 @@ impl SseEncode for crate::api::db::DbKnownHost {
     }
 }
 
+impl SseEncode for crate::api::migration::DbMigrationReport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::migration::DbMigrationStep>>::sse_encode(self.steps, serializer);
+        <Vec<crate::api::migration::DbUnsupportedFutureVersion>>::sse_encode(
+            self.future_versions,
+            serializer,
+        );
+        <Option<String>>::sse_encode(self.fatal_error, serializer);
+    }
+}
+
+impl SseEncode for crate::api::migration::DbMigrationStep {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.artefact_id, serializer);
+        <i32>::sse_encode(self.from_version, serializer);
+        <i32>::sse_encode(self.to_version, serializer);
+        <bool>::sse_encode(self.succeeded, serializer);
+        <Option<String>>::sse_encode(self.error, serializer);
+    }
+}
+
 impl SseEncode for crate::api::ssh_config::DbOpenSshAuthType {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12135,6 +12382,15 @@ impl SseEncode for crate::api::threat_eval::DbThreatTier {
     }
 }
 
+impl SseEncode for crate::api::migration::DbUnsupportedFutureVersion {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.artefact_id, serializer);
+        <i32>::sse_encode(self.on_disk_version, serializer);
+        <i32>::sse_encode(self.known_target_version, serializer);
+    }
+}
+
 impl SseEncode for crate::api::update_metadata::DbVersionOrder {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12211,6 +12467,16 @@ impl SseEncode for Vec<crate::api::db::DbKnownHost> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::db::DbKnownHost>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::migration::DbMigrationStep> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::migration::DbMigrationStep>::sse_encode(item, serializer);
         }
     }
 }
@@ -12331,6 +12597,16 @@ impl SseEncode for Vec<crate::api::threat_eval::DbThreatRow> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::threat_eval::DbThreatRow>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::migration::DbUnsupportedFutureVersion> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::migration::DbUnsupportedFutureVersion>::sse_encode(item, serializer);
         }
     }
 }

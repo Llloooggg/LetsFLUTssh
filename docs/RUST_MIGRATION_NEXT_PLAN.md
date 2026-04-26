@@ -1,374 +1,417 @@
-# Rust migration — next pass
+# Rust migration — full state-machine port
 
-Live, internal-only tracker for the next migration arc. Each
-step is one commit. Order picks low-risk + high-test-leverage
-wins first so intermediate states stay shippable.
+Live tracker. Replaces the earlier 9-step draft, which was framed
+under "Dart owns state machines, Rust owns crypto/transport". The
+real principle is **Flutter renders, Rust thinks**: every state
+machine, every piece of business logic, every persisted derivation
+lives in `lfs_core`. Earlier "closed at boundary contract" framing
+of Phase 4.3 / 4.4 / 4.5 / 4.6 (see [RUST_CORE_MIGRATION_PLAN.md])
+covered the *security* perimeter (no plaintext on the Dart heap,
+KDF in Rust, DB in Rust); it left the orchestration in Dart. This
+arc finishes the move.
 
 This file is transient — delete once the arc closes.
 
-## Goal
+[RUST_CORE_MIGRATION_PLAN.md]: ./RUST_CORE_MIGRATION_PLAN.md
 
-Drop every Dart logic path that has a Rust counterpart already
-landed (or trivially portable). After this arc, the Dart layer
-contains only:
+## Architecture target
 
-1. UI (Flutter widgets, Riverpod providers, dialogs, navigation).
-2. Platform glue not movable to Rust (`dart:io` shells, system
-   `MethodChannel` plugins, `path_provider`, `local_auth` UI,
-   Android foreground service binding).
-3. Thin model classes the UI binds to (`Session`, `Tag`,
-   `Snippet`, `SshKeyEntry`).
-4. Riverpod state mirrors driven by bus events.
+Single-direction loop:
 
-## Sequencing
+- Dart → Rust: typed `Command` enum dispatched over FRB.
+- Rust → Dart: typed `Event` enum streamed over bus topics.
+- Rust owns every state machine, registry, cache, validator,
+  scheduler, debouncer, ring buffer, persisted derivation.
+- Dart subscribes per screen; widget unmount → subscription
+  cancels → no Dart-side state outlives the rebuild.
 
-### Step 1 — flutter_test FRB bootstrap
+Litmus test for any review: if the answer to *"what does Dart need
+to know about this?"* is anything beyond *"what to draw on screen
+right now"*, the design is wrong.
 
-**Status:** REJECTED — `RustLib.init`'s `executeRustInitializers`
-calls `crateApiInitApp` which spins up `AppState` + opens default
-DAO connections. Widget tests with Riverpod `overrideWith`
-mocks then fail because the FRB calls succeed against a half-
-initialized AppState instead of falling through into the test's
-mock store. ~50 widget-test regressions vs the ~10 currently-
-skipped suites this would un-skip.
+## Status today
 
-The right fix is `initMock` with a per-suite mock RustLibApi —
-that's a separate arc-sized port. Until then the skip-marked
-suites stay skipped and the Dart fallbacks in sanitize +
-password_strength stay live.
+`lfs_core` carries the load-bearing primitives: SSH transport,
+SFTP, port-forward driver, transfer queue, recorder driver,
+archive, db (rusqlite + SQLCipher), all crypto, all pure parsers
+(OpenSSH config, known-hosts, QR decode, deeplink), threat eval,
+password strength, log sanitiser, update HTTP, platform clients
+(TPM / fprintd / keychain / WinBio).
 
-**Why first:** unblocks dropping the sanitize + password_strength
-Dart fallbacks (Step 2). Also un-skips 6+ test files marked
-`skip:` in the previous arc. Highest test-coverage leverage per
-LOC.
+What still drives logic from Dart:
 
-**Touches:**
-- `test/flutter_test_config.dart` (new) — top-level test config
-  that runs `await RustLib.init(externalLibrary: ExternalLibrary.open(<path>))`
-  before every suite. Path resolves to the cargokit / cargo build
-  output for `liblfs_frb.{so,dylib,dll}` keyed off the platform.
-- `Makefile` — new `rust-build-test` target that runs
-  `cargo build --release -p lfs_frb` and prints the resulting
-  artefact path.
-- `test/utils/sanitize_test.dart` (already imports Dart fallback)
-  + `test/core/security/password_strength_test.dart` etc — un-skip
-  once init lands.
+| File | LOC | What it owns (Dart-side) |
+|---|---|---|
+| `core/connection/connection_manager.dart` | 768 | registry + generation counter + bastion-await coordination + credential overlay + reconnect cascade + active-count tracking |
+| `core/session/session_store.dart` | 712 | in-memory list + folder-map cache + collapsed-folders set + duplicate-naming + folder rename / move / delete cascade + snapshot restore |
+| `core/transfer/transfer_manager.dart` | 393 | queue scheduler + concurrency cap + history truncation + progress throttle + timeout tracker |
+| `core/update/update_service.dart` | 960 | check → fetch → verify → download → install state machine + signed manifest verify orchestration + cert pinning |
+| `core/ssh/port_forward_runtime.dart` | 691 | listener accept loops + per-rule lifecycle + reconnect re-arm |
+| `core/ssh/known_hosts.dart` | 584 | TOFU policy + add / remove / match + cache |
+| `core/migration/migration_runner.dart` | 365 | dependency graph + per-artefact transform + rollback |
+| `core/security/master_password.dart` | 396 | KDF verify orchestration + tier promotion |
+| `core/security/password_rate_limiter.dart` | 396 | exponential backoff state |
+| `core/security/hardware_tier_vault.dart` | 395 | TPM / Keychain / WinBio composer |
+| `core/security/wipe_all_service.dart` | 374 | catastrophic-reset orchestrator |
+| `core/security/security_bootstrap.dart` | 351 | startup tier resolution |
+| `core/security/keychain_password_gate.dart` | 262 | keychain unlock gate sequence |
+| `core/security/biometric_key_vault.dart` | 255 | biometric unlock sequence |
+| `core/security/security_tier.dart` | 257 | tier model + transitions |
+| `core/config/app_config.dart` | 605 | schema + defaults + validation + migrations |
+| `core/import/import_service.dart` | 300 | apply driver remnants |
+| `core/session/session_recorder.dart` | 334 | header build + ring buffer + write loop |
+| `core/session/qr_codec.dart` | 980 | encode payload marshalling (Rust pure encode shipped; Dart still owns the `ExportPayloadInput` build) |
+| `core/deeplink/deeplink_handler.dart` | 266 | `app_links` subscription dispatch |
+| `core/update/release_signing.dart` | 135 | verify orchestration |
+| `core/update/cert_pinning.dart` | 177 | SPKI extraction (Dart HTTP-client coupled) |
+| `core/transfer/conflict_resolver.dart` | 72 | pure logic |
+| `core/security/secret_buffer.dart` | 215 | RAII + zeroing |
+| `core/security/secure_ref.dart` | 122 | RAII handle |
+| `core/security/clipboard_secret.dart` | 99 | timed clipboard wipe |
+| `core/security/aes_gcm.dart` | 19 | random key fill |
 
-**Risk:** Path resolution per platform. Linux uses
-`rust/target/release/liblfs_frb.so`; macOS uses
-`liblfs_frb.dylib`; Windows uses `lfs_frb.dll`. The init call
-needs to pick the right one off `Platform.isLinux` etc.
+Total ≈ **10 000 LOC of Dart-side logic** to move. Hot path is
+already Rust; what remains is orchestration and state machinery.
 
-### Step 2 — drop sanitize + password_strength Dart fallbacks
+What stays Dart by design (rendering / OS-only surface):
 
-**Status:** BLOCKED ON STEP 1 — fallbacks fire today only because
-flutter_test does not load the FRB native lib. Until Step 1
-lands a working init+mock surface, dropping the fallbacks would
-break ~200 widget tests that pipe error strings through
-`sanitizeError` or render `PasswordStrengthMeter`.
+- `lib/widgets/**`, `lib/screens/**`, `lib/dialogs/**`
+- `lib/providers/**` — pure `StreamProvider` over bus topics
+- `core/connection/foreground_service.dart` — Android binding
+- `core/security/biometric_auth.dart` — `local_auth` UI prompt
+- `core/single_instance/single_instance.dart` — IPC socket
+- `app_links` listener (URI → one FRB call)
 
-**Why second:** Step 1 makes them dead weight. Fallbacks were
-retained earlier only because flutter_test would crash without
-them.
+## Sequence
 
-**Touches:**
-- `lib/utils/sanitize.dart` — drop `_redactSecretsDart` /
-  `_sanitizeErrorMessageDart`.
-- `lib/core/security/password_strength.dart` — drop
-  `_dartFallback`.
+Order picks dependencies first so each step lands on a stable
+base. Each step is one focused arc (1–3 commits depending on
+shape). Mark `[done]` next to checklist items as they ship.
 
-**Risk:** Catches anywhere in the codebase that depend on the
-fallback firing. Step 1 wires init globally so
-`PasswordStrengthMeter` widget builds and AppLogger sanitiser
-pipe both work.
+### 1 — `migration_runner` → Rust
 
-### Step 3 — DeepLinkHandler URI parser → Rust
+Startup-only; runs before UI mounts. Blocks the later
+`app_config` + master-password ports because they hit the
+migration registry on boot. Keeping the runner Dart while those
+swap creates a dual-runner window.
 
-**Status:** DONE — Dart fallback retained (same flutter_test
-constraint that kept sanitize/password_strength fallbacks alive
-after Step 1 was rejected).
+**Touches.**
+- `lfs_core::migration::Runner` + `Migration` trait + per-
+  artefact transforms (re-export of the existing artefact
+  registry; Dart-side artefact code becomes Rust modules under
+  `lfs_core::migration::artefacts::*`).
+- FRB: `migration_run_for_artifact(name, blob, target_version)`,
+  `migration_run_all_at_boot()`.
+- Dart: `core/migration/migration_runner.dart` +
+  `core/migration/artefacts/*.dart` retire; boot sequence in
+  `app_init` calls Rust runner per artefact.
 
-**Why third:** Pure parser. Zero side effects, no platform
-dependency. Small port (~230 LOC Dart → ~150 LOC Rust).
+**Risk.** Boot regression on existing installs. Mitigate with
+golden-file integration tests against representative artefact
+fixtures (`config.json` v1→v2, `credentials.kdf` v1→v3, `.lfs`
+v3→v4) before flipping.
 
-**Touches:**
-- `rust/crates/lfs_core/src/deeplink.rs` (new) — `parse_connect_uri`
-  + `parse_qr_payload` URL parser.
-- `rust/crates/lfs_frb/src/api/deeplink.rs` — FRB binding.
-- `lib/core/deeplink/deeplink_handler.dart` — replace the parsing
-  body with a single FRB call. Keeps the Dart class for the
-  app_links subscription + dispatch.
-- Tests: `test/core/deeplink/deeplink_handler_test.dart` already
-  has fuzz coverage; goes in step 1's fixed bootstrap.
+### 2 — `app_config` → Rust
 
-**Risk:** The fuzz test pumps 2k random URI inputs — must round-
-trip identically to the Dart pipeline.
+Read by every Rust actor + every Dart screen. Schema +
+defaults + validation must live one place.
 
-### Step 4 — recorder asciinema event composition → Rust
+**Touches.**
+- `lfs_core::config::AppConfig` + serde mirrors of every
+  sub-struct (theme, terminal, sftp, recording, security, …).
+- `lfs_core::config::Store` reads / persists via the
+  `app_configs` table (already in `lfs_core.db`).
+- FRB: `config_get` / `config_update` + bus `ConfigChanged`
+  event so screens auto-refresh.
+- Dart: `core/config/app_config.dart` shrinks to FRB-generated
+  DTOs + a `StreamProvider<AppConfig>` over the bus topic.
 
-**Status:** SKIPPED — `_enqueueEvent` is 6 lines that format an
-asciinema v2 event line per the published spec
-(`[delta, dir_code, str]`). The format is documented and
-canonical externally, not LetsFLUTssh-proprietary logic. Moving
-it Rust-side requires a typed write-queue carrier (header vs
-event variants), adds a new FRB endpoint with start-time
-tracking, and gains little — the surface area moved is
-arithmetic + JSON spec compliance, both trivially auditable in
-either language. Keep the Dart side as the spec adapter; the
-encryption / framing / file IO that actually require Rust are
-already there.
+**Risk.** Every config read crosses FRB. Mitigate by emitting
+`ConfigChanged` events on writes only; reads return cached
+snapshot.
 
-**Why fourth:** Last bit of recorder logic Dart-side. The
-`jsonEncode([delta, dir, str])` + UTF-8 sequence runs per frame;
-encoding it Rust-side keeps the asciinema interop format
-canonical in one place and lets us add a typed `event_type`
-discriminator without two parallel codecs.
+### 3 — `session_store` → Rust
 
-**Touches:**
-- `lfs_core::recorder` — extend with
-  `record_terminal_event(id, dir, bytes_at: ts, plaintext_bytes)`
-  that composes the JSON line + frame internally. `record_frame`
-  stays for the asciinema header (Dart still owns the header
-  shape because PTY size + shell label arrive at register time).
-- `lib/core/session/session_recorder.dart` — drop `_enqueueEvent`
-  + the inline jsonEncode; switch `recordOutput` / `recordInput`
-  to call the new endpoint. Header stays Dart-side.
+Connection manager + import / export depend on the session
+registry. All in-memory orchestration (folder cache, collapsed
+set, duplicate-naming, rename / move / delete cascade, snapshot
+restore) needs to live one place.
 
-**Risk:** Tests for plaintext recordings asserting on byte-exact
-asciinema output stay green only if the JSON serialisation is
-byte-identical to Dart's `jsonEncode`.
+**Touches.**
+- `lfs_core::sessions::Registry` actor — owns the in-memory
+  session list, folder map, collapsed-folder set; backed by
+  the existing `db_sessions_*` DAOs.
+- Operations: `add`, `update`, `delete`, `delete_multiple`,
+  `move`, `move_multiple`, `duplicate`, `rename_folder`,
+  `move_folder`, `delete_folder`, `restore_snapshot`,
+  `count_in_folder`, `add_empty_folder`, `remove_empty_folder`,
+  `toggle_folder_collapsed`.
+- Bus events: `SessionAdded`, `SessionUpdated`, `SessionDeleted`,
+  `FolderRenamed`, `FolderMoved`, `FolderDeleted`,
+  `FolderEmptyAdded`, `FolderEmptyRemoved`, `FolderCollapsed`,
+  `SnapshotRestored`.
+- FRB: typed Command enum + `session_registry_view_stream`.
+- Dart: `core/session/session_store.dart` retires; Riverpod
+  `sessionListProvider` becomes a `StreamProvider<List<Session>>`
+  over the bus topic.
 
-### Step 5 — KnownHostsManager → Rust
+**Risk.** Folder-cascade ordering bugs (rename + collapsed-set
+sync). Mitigate with property-based tests on the Rust side.
 
-**Status:** PARTIAL — text parser ports to Rust
-(`lfs_core::known_hosts_parser`); cache + write-serialisation +
-TOFU callback orchestration stay Dart-side because they bind
-directly to UI prompts (onUnknownHost, onHostKeyChanged) and the
-Riverpod-watched `entries` map. Storage already routed through
-`rust_db::dbKnownHosts*`; the remaining Dart-side surface is a
-thin wrapper over Rust for parsing + Rust for storage. Full
-class-port to a Rust actor would need a host-key prompt bus
-event protocol, which is more rewiring than it saves.
+### 4 — `connection_manager` → Rust
 
-**Why fifth:** TOFU host-key DB. Security-critical. ~573 LOC
-moves to Rust. Connect path's host-key callback would resolve
-inside the Rust actor without round-tripping fingerprints to
-Dart.
+Largest hot-path orchestrator after the actor shell. Today the
+Rust `ConnectionRegistry` exists but the Dart `ConnectionManager`
+still holds: connection map, generation counter, bastion-readiness
+await, credential overlay precedence, active-count tracking,
+reconnect cascade.
 
-**Touches:**
-- `rust/crates/lfs_core/src/known_hosts.rs` (new or extend) —
-  load / persist / match / add / remove host keys against the
-  same on-disk format the Dart side reads.
-- `rust/crates/lfs_frb/src/api/known_hosts.rs` — FRB binding.
-- `lib/core/ssh/known_hosts.dart` — slim into a Dart wrapper
-  around the FRB calls. Stream subscriber for the host-key
-  prompt UI stays Dart.
-- `core/connection/connection_manager.dart` — host-key prompt
-  handler reads off a bus event published by the actor.
-- Connect path: bus actor wires the host-key verifier so TOFU
-  decisions land Rust-side without crossing FRB.
+**Touches.**
+- Existing `lfs_core::connection::Registry` extended:
+  - bastion-readiness await moves into `connect_async`'s
+    pre-auth phase (today Dart does
+    `await conn.bastion!.waitUntilReady()`).
+  - credential overlay (`SessionCredentialCache` + cached
+    passphrase) becomes a Rust `CredentialOverlay` that
+    composes during `prepare_auth`.
+  - generation counter moves into `ConnectionActor`; stale-
+    event filtering is a no-op once the bus events themselves
+    carry generation tags.
+- New events: `ActiveCountChanged(count)` — the Android
+  foreground-service binding receives it directly via bus.
+- FRB: `connection_connect_async`, `connection_reconnect`,
+  `connection_disconnect`, `connection_disconnect_all`.
+- Dart: `core/connection/connection_manager.dart` deletes;
+  `Connection` Dart class shrinks to a FRB-DTO mirror with no
+  setters; `connectionListProvider` becomes a `StreamProvider`.
 
-**Risk:** On-disk format compatibility — current Dart
-`KnownHostsManager` uses a custom line-oriented format.
-Migration tests must confirm round-trip equality.
+**Risk.** Reconnect after auto-lock relies on the in-memory
+credential cache. Mitigate by routing `SessionCredentialCache`
+through `lfs_core::secrets::SecretStore` (already the canonical
+owner of cached plaintext); the Dart-side `_credentialCache`
+field disappears.
 
-### Step 6 — UpdateService → Rust
+### 5 — `transfer_manager` → Rust driver
 
-**Status:** PARTIAL — pure-function helpers + HTTP text fetch
-ported.
+Rust queue exists; the Dart-side scheduler + history truncation +
+per-second progress throttle is the only remaining orchestration.
 
-Pure-function pack (`lfs_core::update_metadata`, 17 tests):
-`compare_versions`, `is_trusted_release_asset_uri`,
-`asset_suffix`, `parse_asset_version`, `parse_sha256_manifest`,
-`build_cumulative_changelog`.
+**Touches.**
+- `lfs_core::transfer::Driver` extends the existing queue with
+  concurrency-bounded worker pool, history ring buffer (capped),
+  cancel-token plumbing.
+- Bus events: `TransferEnqueued`, `TransferProgress`,
+  `TransferCompleted`, `TransferFailed`, `TransferCancelled`,
+  `HistoryTruncated`.
+- FRB: `transfer_enqueue_*`, `transfer_cancel`,
+  `transfer_cancel_all`, `transfer_clear_history`.
+- Dart: `core/transfer/transfer_manager.dart` retires;
+  `transferProvider` becomes a `StreamProvider`.
 
-HTTP fetch (`lfs_core::update_http`, 3 tests):
-`fetch_text(url)` for the GitHub Releases API JSON +
-`download_to_file(url, path)` with streaming SHA-256.
-Built on `reqwest` + `rustls-tls` (pure-Rust dep tree, no
-openssl system link). Trusted-host allowlist gates both the
-initial URL and every redirect target — a 302 to evil.com
-fails closed even if reqwest followed it.
+**Risk.** Progress throttle UI behaviour — must coalesce events
+on the Rust side at ≤1 / 250 ms or Riverpod rebuilds storm.
 
-`UpdateService.defaultFetch` now routes through the Rust
-fetch with a Dart fallback for flutter_test. Posture matches:
-both use system-CA validation, both reject untrusted hosts,
-both cap redirects at 10. SPKI pin map was empty Dart-side
-already (falls back to system CA), so no security regression.
+### 6 — `port_forward_runtime` → Rust driver
 
-`defaultDownload` rewired through `update_download_to_file`.
-Per-chunk progress flows through a new `BusEvent::UpdateDownloadProgress`
-variant on a fresh `Update` topic; `UpdateService.defaultDownload`
-subscribes for the duration of the download and forwards ticks
-to the existing `onProgress` callback so the determinate
-progress bar keeps moving.
+Rust registry + bus events shipped; the Tokio listener-accept
+driver loop is the missing piece. Same shape as transfer queue.
 
-Pending follow-ups (separate arcs):
-  - SPKI cert pinning — needs a custom rustls
-    `ServerCertVerifier` if/when GitHub keys get pinned.
-    Pin map is empty Dart-side today, so no posture regression.
-  - Signed manifest fetch (`.sha256sums` + `.sha256sums.sig`) —
-    currently still uses the Dart `download` callback wired
-    through `_defaultVerifyArtifact`. Rewires trivially in a
-    follow-up since both endpoints are now Rust.
+**Touches.**
+- `lfs_core::portforward::Driver` per rule: tokio `TcpListener`
+  for `-L` / `-D`, `request_remote_forward` for `-R`, SOCKS5
+  CONNECT handshake (RFC 1928, NO_AUTH-only) for `-D`,
+  bidirectional `tokio::io::copy_bidirectional` bridge.
+- Bus events: `RuleStatus`, optional per-rule byte counters.
+- FRB: registry already exposes commands; only the driver loop
+  is added.
+- Dart: `core/ssh/port_forward_runtime.dart` retires;
+  `forwardRulesProvider` becomes a `StreamProvider`.
 
-**Why sixth:** HTTP fetch + SHA-256 + Ed25519 verify all live in
-crypto already. ~500 LOC drops Dart-side. Keep the OS-specific
-file launcher (`open` / `xdg-open` / `start`) Dart because it
-has to hand off to a privileged installer.
+**Risk.** Hot path on Android (ProxyJump bastion chains lean on
+this). Smoke on real Android device after landing.
 
-**Touches:**
-- `rust/crates/lfs_core/src/update.rs` (new) — Reqwest-based
-  fetch with redirect cap + trusted-host allowlist + cert
-  pinning. Verifies the `.sig` against pinned Ed25519 keys.
-  Streams progress through the bus.
-- `rust/crates/lfs_frb/src/api/update.rs` — FRB binding.
-- `lib/core/update/update_service.dart` — slim into Riverpod
-  state mirror that subscribes to the bus + dispatches a
-  `BusCommand::UpdateCheck` / `UpdateDownload`. File launcher
-  stays.
+### 7 — `known_hosts` manager → Rust
 
-**Risk:** Cert pinning logic. `cert_pinning.dart` has SPKI hash
-extraction that's tightly tied to Dart's HTTP client; Rust does
-the equivalent through `rustls` + the pinned-leaf list.
+Parser already Rust; the manager class + TOFU policy + cache is
+the only remaining orchestration.
 
-### Step 7 — migration_runner → Rust
+**Touches.**
+- `lfs_core::known_hosts::Manager` actor wraps the existing
+  parser + DAO. Owns: in-memory cache, file watch, write
+  serialisation.
+- TOFU prompt becomes a bus command/response pair:
+  `KnownHostPrompt(fingerprint, host)` ← Rust → Dart UI →
+  `KnownHostPromptResponse(accept, persist)` → Rust.
+- FRB: registry commands + view stream.
+- Dart: `core/ssh/known_hosts.dart` retires; the prompt UI
+  becomes a `StreamProvider<KnownHostPrompt?>` subscriber that
+  pushes the user's choice back as a `KnownHostPromptResponse`
+  command.
 
-**Status:** DEFERRED — separate arc. Startup-only and runs
-before UI mounts; a half-ported migrator that fails at boot
-on an existing install is the worst possible regression. The
-existing Dart runner walks artefacts (`config.json`,
-`credentials.kdf`, `.lfs` archive imports, hardware-vault
-sealed blobs) in a known order. Porting requires every
-artefact's format owner to have a Rust counterpart for the
-specific transform — currently only the `.lfs` archive does.
-Port format-by-format as the rest of the formats themselves
-move into Rust.
+**Risk.** Prompt protocol must serialize across reconnect storms
+(multiple connections waiting on the same host's prompt).
+Mitigate with per-host coalescing on the Rust side.
 
-**Why seventh:** config.json + credentials.kdf migration runs
-during startup before UI mounts. ~365 LOC. Logic is format-
-versioning + transform — canonically Rust now that the formats
-themselves live in Rust.
+### 8 — `update_service` → Rust state machine
 
-**Touches:**
-- `rust/crates/lfs_core/src/migration.rs` (new) — `Migration`
-  trait + `MigrationRegistry` + `run_for_artifact(name, blob)`.
-- `rust/crates/lfs_frb/src/api/migration.rs` — FRB binding.
-- `lib/core/migration/*.dart` — slim into glue that calls the
-  Rust runner per artefact at boot.
+HTTP fetch + download already Rust; the state machine + signed
+manifest verify orchestration + cert pinning still Dart.
 
-**Risk:** Migration ordering. The current Dart registry walks
-artefacts in a known order; the Rust runner must preserve that
-or boot can fail mid-migration on existing installs.
+**Touches.**
+- `lfs_core::update::StateMachine` actor: `Idle → Checking →
+  Available → Downloading → Verifying → Ready → Launching`.
+- Signed manifest verify (Ed25519 against pinned key) folds
+  into the verify state.
+- Cert pinning moves into a custom `rustls::ServerCertVerifier`
+  inside `update_http`; SPKI map (currently empty Dart-side)
+  becomes a Rust constant.
+- Bus events: `UpdateState`, `UpdateProgress`,
+  `UpdateError(detail)`.
+- FRB: `update_check`, `update_download`, `update_install`.
+- Dart: `core/update/update_service.dart` +
+  `core/update/release_signing.dart` +
+  `core/update/cert_pinning.dart` retire; `updateProvider`
+  becomes a `StreamProvider`. File launcher
+  (`xdg-open` / `open` / `start`) stays Dart — it hands off to a
+  privileged installer that the OS owns.
 
-### Step 8 — PortForwardRuntime → Rust actor
+**Risk.** Pinned SPKI behaviour is opt-in today (empty map). No
+regression possible from moving an empty allowlist.
 
-**Status:** DEFERRED — separate arc. ~691 LOC of hot-path
-listener + accept loop + forward lifecycle code. The
-`forward::driver` crate landed with a generic `ChannelFactory`
-already; the actor-shape wrapper that owns per-connection
-listener state needs a careful bus-event protocol
-(`ForwardOpened` / `ForwardBytes` / `ForwardClosed`) plus
-mobile smoke-tests (Android exercises this heavily for
-ProxyJump). Work warranted but blocks on a focused testing
-session.
+### 9 — Security tier stack → Rust
 
-**Why eighth:** Largest hot-path drop (~691 LOC). Plan in
-`RUST_CORE_MIGRATION_PLAN.md` already had a `forward::driver`
-crate with `ChannelFactory` + listener accept loops; the actor
-wraps it for connection-scoped lifecycle.
+Largest port. ~1700 LOC across master_password,
+password_rate_limiter, hardware_tier_vault, keychain_password_gate,
+biometric_key_vault, security_bootstrap, security_tier,
+wipe_all_service. Platform clients (TPM, fprintd, keychain,
+WinBio) already Rust; this composes them into the tier state
+machine.
 
-**Touches:**
-- `rust/crates/lfs_core/src/portforward/actor.rs` (new) —
-  per-connection actor that owns `-L` / `-R` / `-D` listeners,
-  publishes `ForwardOpened` / `ForwardBytes` / `ForwardClosed`
-  events.
-- `rust/crates/lfs_frb/src/api/portforward.rs` — FRB binding for
-  the actor commands.
-- `lib/core/ssh/port_forward_runtime.dart` — slim into a bus
-  subscriber + state mirror.
+**Touches.**
+- `lfs_core::security::tier::Machine` actor owns:
+  - tier state (`Plaintext | Keychain | Hardware | Paranoid`)
+  - master-password verify (KDF in Rust already; orchestration
+    moves)
+  - rate-limiter exponential backoff
+  - hardware-tier composer (Linux TPM / macOS Keychain / Windows
+    WinBio paths)
+  - keychain unlock gate sequence
+  - biometric unlock sequence
+  - wipe-all reset orchestrator
+  - startup tier resolution
+- Bus events: `TierState`, `UnlockRequested`, `UnlockSucceeded`,
+  `UnlockFailed(detail)`, `LockRequested`, `Wiped`.
+- FRB: typed Command enum + view stream.
+- Dart: every `core/security/*.dart` orchestrator retires.
+  `biometric_auth.dart` (local_auth UI), `secret_buffer.dart`,
+  `secure_ref.dart`, `clipboard_secret.dart`, `aes_gcm.dart`
+  remain Dart only because they own OS-prompt UI / RAII /
+  `Random.secure()` keygen — none are state machines.
 
-**Risk:** Hot path; mobile platforms exercise this heavily for
-ProxyJump bastion chains. Smoke-test on Android + Linux after
-landing.
+**Risk.** Highest of the arc. Land on a focused branch, smoke on
+every platform (Linux + macOS + Windows + Android + iOS) before
+merge.
 
-### Step 9 — Security tier orchestration → Rust
+### 10 — `session_recorder` → Rust driver
 
-**Status:** DEFERRED — separate arc. Largest port. ~1700 LOC
-across master_password + password_rate_limiter +
-hardware_tier_vault + keychain_password_gate +
-security_bootstrap + biometric_key_vault. Touches every
-platform's secure storage (Linux Secret Service / TPM, macOS
-Keychain, Windows DPAPI / WinBio) and the startup unlock flow.
-Platform clients already ported; the orchestration that
-composes them stays Dart for now.
+Per-frame AES already Rust; the header build + ring buffer +
+write loop is the missing driver. Same shape as transfer +
+port-forward drivers.
 
-**Why last:** ~1700 LOC across master_password +
-password_rate_limiter + hardware_tier_vault +
-keychain_password_gate + security_bootstrap +
-biometric_key_vault. Touches every platform's secure storage:
-Linux Secret Service / TPM, macOS Keychain, Windows DPAPI /
-WinBio. Rust ports of the platform clients already landed
-(`platform/linux/tpm.rs`, `platform/macos/keychain.rs`,
-`platform/winbio.rs`); this step composes them into the tier
-orchestration that today lives Dart-side.
+**Touches.**
+- `lfs_core::recorder::Driver` per recording: header build
+  (cols / rows / shell / start time), ring buffer, write loop.
+- Bus events: `RecordingStarted`, `RecordingStopped`,
+  `FrameWritten(byte_count)`.
+- FRB: `recorder_start`, `recorder_stop`, `recorder_toggle`.
+- Dart: `core/session/session_recorder.dart` retires; playback
+  browser stays (read-only file consumer, no state).
 
-**Touches:**
-- `rust/crates/lfs_core/src/security/tier.rs` (new) — tier
-  state machine.
-- `rust/crates/lfs_core/src/security/master_password.rs` (new)
-  — KDF + verify + tier promotion.
-- `rust/crates/lfs_core/src/security/rate_limit.rs` (new) —
-  exponential backoff against repeated wrong attempts.
-- `rust/crates/lfs_frb/src/api/security.rs` — FRB binding.
-- `lib/core/security/*.dart` — slim into Riverpod-bound mirror.
+### 11 — `qr_codec` finish + `import_service` close
 
-**Risk:** Highest of the arc. Startup flow + lock/unlock UX +
-TPM / biometric sealing all converge here. Land on a separate
-branch, smoke-test on every platform before merge.
+Encode `qr_export_payload` already Rust per Phase 4.6; the Dart
+side still owns `ExportPayloadInput` build + class hierarchy.
+Import apply driver also has a residual Dart layer (~1000 lines
+of conflict resolution + snapshot/rollback + FK ordering).
 
-### Step 10 — QR / paste-link decode → Rust
+**Touches.**
+- `lfs_core::archive::qr_export_input` builds the input from
+  `db_sessions_load_for_export(ids)` + filters; Dart only passes
+  session ids + options.
+- `lfs_core::archive::import_apply_driver` finishes the merge /
+  replace machinery.
+- FRB: `qr_export_input_only_ids`, `import_archive_apply_driver`.
+- Dart: `core/session/qr_codec.dart` shrinks to FRB-DTO mirrors
+  only. `core/import/import_service.dart` retires.
 
-**Status:** DONE — `lfs_core::qr_codec_decode` lands the
-canonical decoder (deflate + base64url + JSON parse → emits
-the same `PendingImport` shape `.lfs` import uses) with 12
-unit tests. FRB endpoint `qr_import_open(payload)` decodes +
-stages a handle in one call, mirroring `db_import_open` so the
-existing apply driver consumes both archive and QR imports
-through one pipeline.
+### 12 — `deeplink_handler` listener through bus
 
-Dart-side rewire shipped — unified `QrDecodedSource` sealed
-class wraps either the Rust-staged handle or the legacy
-`ExportPayloadData` (flutter_test fallback). Production
-deeplinks try Rust first via `tryDecodeQrPayloadViaRust`;
-fall back to Dart `decodeImportUri` only when the FRB native
-lib isn't loaded. `handleQrImport` dispatches: Rust source →
-`applyOpenedHandle` (bytes never crossed FRB outwards), Dart
-source → existing `applyResultViaRust(ImportResult)` path.
-`PasteImportLinkDialog` returns `QrDecodedSource`;
-`LinkImportPreviewDialog` reads counts off a unified
-`LfsPreview`. Five test files updated to the new shape.
+Parser already Rust; the `app_links` subscription + Dart-side
+dispatch is the residual.
 
-## Out of scope (feature work, not migration)
+**Touches.**
+- `lfs_core::deeplink::Dispatcher` actor receives raw URI
+  strings, parses, routes via bus commands.
+- Dart: `app_links` listener becomes a one-line FRB call —
+  `lfs_core` does the rest. `core/deeplink/deeplink_handler.dart`
+  retires.
 
-- #149 mobile pipelines (Android / iOS native plugins).
-- #121 / #122 / #159 WebDAV / S3 / WebDAV-browser features.
-- macOS / Windows hardware verification — needs target hardware
-  in CI.
+### 13 — Pure helpers cleanup
+
+No dependencies on other steps; lands last to keep diffs small.
+
+- `core/transfer/conflict_resolver.dart` — pure transform; fold
+  into `lfs_core::sftp::conflict_resolve`.
+- `core/security/secret_buffer.dart` + `secure_ref.dart` — RAII
+  helpers; the Dart wrappers retire once the security tier stack
+  moves (step 9). Already routes to `lfs_core::secrets::SecretStore`;
+  only the Dart class shells survive that step.
+- `core/security/clipboard_secret.dart` — timed clipboard wipe;
+  fold into `lfs_core::clipboard` (uses `arboard` for the OS
+  clipboard surface; Dart MethodChannel for Android sensitive-
+  flag stays for that one platform).
+- `core/security/aes_gcm.dart` — keygen helper; fold into
+  `lfs_core::crypto::aes_gcm_random_key`.
+
+After step 13: every load-bearing path runs in Rust. Dart layer
+is widgets + Riverpod subscribers + MethodChannel proxies.
+Approximately 10 000 LOC dropped from `lib/core/`.
 
 ## Order at a glance
 
 ```
-1. flutter_test FRB bootstrap         — small, unblocks tests
-2. drop sanitize + pw fallbacks       — trivial after 1
-3. DeepLinkHandler parser → Rust      — small isolated port
-4. Recorder asciinema → Rust          — small, last recorder bit
-5. KnownHostsManager → Rust           — medium, security-critical
-6. UpdateService → Rust               — medium, HTTP + sigs
-7. MigrationRunner → Rust             — medium, startup-only
-8. PortForwardRuntime → Rust actor    — large hot-path drop
-9. Security tier stack → Rust         — largest, defer
+1.  migration_runner          — startup; blocks 2, 9
+2.  app_config                — every screen reads it
+3.  session_store             — connection_manager depends
+4.  connection_manager        — registry / generation / overlay
+5.  transfer_manager          — scheduler driver
+6.  port_forward_runtime      — listener driver
+7.  known_hosts               — TOFU policy + prompt protocol
+8.  update_service            — full state machine
+9.  security tier stack       — largest port
+10. session_recorder          — driver loop
+11. qr_codec + import_service — finish encode side + apply
+12. deeplink_handler          — listener through bus
+13. pure helpers              — cleanup
 ```
 
-After Step 9: every load-bearing path runs Rust. Dart layer
-is widgets + Riverpod + platform glue + thin models.
+## Testing strategy
+
+- Each step lands with Rust unit tests + property-based tests
+  where state-machine ordering matters (folder cascade, tier
+  transitions, queue scheduler).
+- Dart-side: widget tests subscribe to a `FakeAppBus` test
+  harness that replays scripted events. No Dart-side state
+  mocking — there is no Dart-side state to mock.
+- Integration test per arc: real `lfs_frb` lib loaded, real
+  bus, real DAOs, scripted command sequence, asserted event
+  sequence.
+
+## Out of scope (not migration)
+
+- §149 mobile pipelines (Android / iOS native plugins).
+- §121 / §122 / §159 WebDAV / S3 / WebDAV-browser features.
+- macOS / Windows hardware verification — needs target hardware
+  in CI.
+- Tauri / CLI / web frontends — `lfs_core` is already
+  frontend-agnostic; adapter additions are not part of this arc.

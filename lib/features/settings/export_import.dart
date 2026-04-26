@@ -6,7 +6,6 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/config/app_config.dart';
-import '../../core/migration/schema_versions.dart';
 import '../../core/progress/progress_reporter.dart';
 import '../../core/security/kdf_params.dart';
 import '../../core/security/key_store.dart';
@@ -43,11 +42,13 @@ import '../../utils/logger.dart';
 /// half here only composes the export side and exposes `probeArchive`
 /// for the SAF file-picker classification step.
 class ExportImport {
-  /// Current .lfs schema version. Bump on format-breaking changes; every
-  /// bump ships a corresponding archive `Migration`. Sourced from
-  /// [SchemaVersions.archive] so the migration framework and the archive
-  /// share a single source of truth.
-  static const int currentSchemaVersion = SchemaVersions.archive;
+  /// Current .lfs schema version. Bump on format-breaking changes;
+  /// every bump ships a corresponding archive migration in
+  /// `lfs_core::migration`. Mirrors `SchemaVersions::ARCHIVE` from
+  /// `lfs_core::migration` by literal — the export composer moves
+  /// fully Rust-side in a follow-up arc, at which point the
+  /// duplication retires.
+  static const int currentSchemaVersion = 1;
 
   static const _saltLen = 32;
   static const _ivLen = 12;

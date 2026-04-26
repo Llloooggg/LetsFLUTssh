@@ -6,7 +6,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
-import '../migration/schema_versions.dart';
 import 'app_config.dart';
 
 /// Loads/saves AppConfig as JSON in the app support directory.
@@ -58,12 +57,15 @@ class ConfigStore {
   Future<void> save(AppConfig config) async {
     await init();
     _config = config;
-    // Stamp the current schema version on every write so the migration
-    // runner on the next launch can detect any version other than the
-    // current [SchemaVersions.config] and route the user through the
-    // reset path.
+    // Stamp the current schema version on every write so the Rust
+    // migration runner on the next launch can detect any version
+    // other than the current `SchemaVersions::CONFIG` (defined in
+    // `lfs_core::migration::SchemaVersions`) and route the user
+    // through the reset path. Mirrors the Rust constant by literal —
+    // this whole writer moves to `lfs_core::config` in a follow-up
+    // arc, at which point the duplication retires.
     final payload = <String, dynamic>{
-      'config_schema_version': SchemaVersions.config,
+      'config_schema_version': 1,
       ...config.toJson(),
     };
     final content = const JsonEncoder.withIndent('  ').convert(payload);
