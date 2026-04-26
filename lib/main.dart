@@ -313,10 +313,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     });
   }
 
-  /// Re-open the drift / MC handle after a lock → unlock
-  /// transition. `AutoLockDetector._triggerLock` now always closes
-  /// the DB (so the C-layer page cipher cache is zeroed alongside
-  /// the Dart-side `SecretBuffer`), so every unlock needs a fresh
+  /// Re-open the rusqlite handle after a lock → unlock transition.
+  /// `AutoLockDetector._triggerLock` now always closes the DB (so
+  /// SQLCipher's C-layer page-cipher state is zeroed alongside the
+  /// Dart-side `SecretBuffer`), so every unlock needs a fresh
   /// `_injectDatabase` under the key the lock-screen unlock flow
   /// just pushed back into `securityStateProvider`. Previous-state
   /// gate filters the initial false → false emission plus any

@@ -25,10 +25,6 @@ class SchemaVersions {
   /// framework can route future format bumps through itself.
   static const int kdf = 1;
 
-  /// Drift DB schema. Migrated intra-DB via drift's `MigrationStrategy`;
-  /// presence-only in the framework.
-  static const int db = 1;
-
   /// `security_pass_hash.bin` — keychain password gate.
   static const int passGate = 1;
 
@@ -56,6 +52,5 @@ class ArtefactIds {
   static const int hwSalt = 0x06;
   static const int config = 0x07;
   static const int kdf = 0x08;
-  static const int db = 0x09;
   static const int archive = 0x0A;
 }

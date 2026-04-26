@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'artefact.dart';
 import 'artefacts/config_artefact.dart';
-import 'artefacts/db_artefact.dart';
 import 'artefacts/kdf_artefact.dart';
 import 'migration.dart';
 
@@ -94,7 +93,6 @@ MigrationRegistry buildAppMigrationRegistry({
   final reg = MigrationRegistry();
   reg.registerArtefact(ConfigArtefact(supportDir: supportDir));
   reg.registerArtefact(KdfArtefact(supportDir: supportDir));
-  reg.registerArtefact(DbArtefact(supportDir: supportDir));
   // Vault + password-gate layouts depend on tier read from config —
   // keep config ahead of every future vault artefact in the dependency
   // graph. Declared up front so vault artefacts can be added later

@@ -11,14 +11,11 @@ import 'package:letsflutssh/core/migration/schema_versions.dart';
 /// "No migration registered for …" on first post-upgrade boot — this
 /// test catches the same gap at PR time.
 ///
-/// Two artefacts are exempt:
+/// One artefact is exempt:
 ///   - `credentials.kdf` — self-versioned via its `'LFKD'` magic +
 ///     version byte; a format bump lives inside the KdfParams decoder
 ///     rather than a `Migration` subclass.
-///   - `letsflutssh.db` — Drift owns the intra-DB `MigrationStrategy`;
-///     the framework registers a presence-only artefact and a schema
-///     mismatch is surfaced by drift itself, not by the runner.
-const _exemptArtefacts = <String>{'credentials.kdf', 'letsflutssh.db'};
+const _exemptArtefacts = <String>{'credentials.kdf'};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -59,13 +56,12 @@ void main() {
   test('registered artefact ids match SchemaVersions constants', () {
     final reg = buildAppMigrationRegistry(supportDir: () async => tempDir);
     final ids = reg.artefacts.map((a) => a.id).toSet();
-    // These three are the artefacts the framework actively parses /
+    // These two are the artefacts the framework actively parses /
     // tracks today. Bumping any of them without updating this list is a
     // signal the new artefact also needs a companion entry here and in
     // the registry.
     expect(ids, contains('config.json'));
     expect(ids, contains('credentials.kdf'));
-    expect(ids, contains('letsflutssh.db'));
   });
 
   test('no duplicate (artefactId, fromVersion) migrations', () {

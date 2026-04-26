@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/migration/artefacts/config_artefact.dart';
-import 'package:letsflutssh/core/migration/artefacts/db_artefact.dart';
 import 'package:letsflutssh/core/migration/artefacts/kdf_artefact.dart';
 import 'package:letsflutssh/core/migration/registry.dart';
 import 'package:letsflutssh/core/migration/schema_versions.dart';
@@ -78,27 +77,11 @@ void main() {
     });
   });
 
-  group('DbArtefact', () {
-    test('reports -1 when letsflutssh.db is absent', () async {
-      final a = DbArtefact(supportDir: dirFactory);
-      expect(await a.readVersion(), -1);
-    });
-
-    test('reports targetVersion when letsflutssh.db exists', () async {
-      File(p.join(tempDir.path, 'letsflutssh.db')).writeAsBytesSync([0]);
-      final a = DbArtefact(supportDir: dirFactory);
-      expect(await a.readVersion(), SchemaVersions.db);
-    });
-  });
-
   group('buildAppMigrationRegistry', () {
-    test('registers config + kdf + db artefacts (no migrations yet)', () {
+    test('registers config + kdf artefacts (no migrations yet)', () {
       final reg = buildAppMigrationRegistry(supportDir: dirFactory);
       final ids = reg.artefacts.map((a) => a.id).toSet();
-      expect(
-        ids,
-        containsAll(['config.json', 'credentials.kdf', 'letsflutssh.db']),
-      );
+      expect(ids, containsAll(['config.json', 'credentials.kdf']));
       expect(reg.migrations, isEmpty);
     });
 

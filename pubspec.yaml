@@ -73,16 +73,6 @@ dependencies:
   intl: ^0.20.2
   flutter_secure_storage: ^10.0.0
 
-  # Database (drift = typed SQLite ORM with codegen). The drift
-  # runtime is pulled directly — the usual `drift_flutter` convenience
-  # wrapper is intentionally not used: it transitively depends on
-  # `sqlite3_flutter_libs` and `sqlcipher_flutter_libs` (both EOL
-  # upstream), whose Flutter-plugin prebuilts would be bundled into
-  # every APK/IPA alongside the libsqlite3 we already compile in-tree
-  # from the SQLite3MultipleCiphers submodule. We skip the helper and
-  # go straight to `drift` + `package:sqlite3` native_assets hook.
-  drift: ^2.32.0
-
   # FFI helpers (calloc / free) for mlocked secret buffers
   ffi: ^2.1.3
 
@@ -97,7 +87,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  drift_dev: ^2.32.0
   build_runner: ^2.14.0
   mockito: ^5.6.4
   build_verify: ^3.1.0
@@ -105,10 +94,9 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.3
   integration_test:
     sdk: flutter
-  # Freezed sealed-class codegen — invoked by build_runner alongside
-  # drift_dev. flutter_rust_bridge generates Dart enum bindings as
-  # Freezed sealed classes, which need the codegen run after every
-  # FRB regen (`make rust-codegen` then `make gen`).
+  # Freezed sealed-class codegen — flutter_rust_bridge generates Dart
+  # enum bindings as Freezed sealed classes, which need the codegen
+  # run after every FRB regen (`make rust-codegen` then `make gen`).
   freezed: ^3.2.0
 
 flutter_launcher_icons:
