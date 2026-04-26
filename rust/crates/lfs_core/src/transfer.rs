@@ -181,6 +181,58 @@ impl TransferQueue {
         });
     }
 
+    /// Mark the task `Cancelled`. Idempotent — re-cancelling a
+    /// terminal task (already `Completed` / `Failed` / `Cancelled`)
+    /// is a no-op so a racing UI cancel during shutdown doesn't
+    /// over-write a real failure detail. Returns `true` when the
+    /// state actually changed.
+    pub fn cancel(&self, id: &str, bus: &EventBus) -> bool {
+        let changed = {
+            let mut g = self.lock();
+            let Some(actor) = g.by_id.get_mut(id) else {
+                return false;
+            };
+            // Cancelling something already in a terminal state is a
+            // no-op — we don't want to clobber a recorded
+            // `Completed` or `Failed` with `Cancelled`.
+            if matches!(
+                actor.state,
+                TaskState::Completed | TaskState::Failed | TaskState::Cancelled
+            ) {
+                return false;
+            }
+            actor.state = TaskState::Cancelled;
+            true
+        };
+        if changed {
+            bus.publish(Event::TransferTaskState {
+                id: id.to_string(),
+                state: TaskState::Cancelled,
+            });
+        }
+        changed
+    }
+
+    /// Drop a terminal task from the queue. Idempotent on a missing
+    /// or non-terminal id (running / queued tasks must be cancelled
+    /// first — clearing them mid-flight would leave the worker
+    /// driver writing into a vanished row).
+    pub fn drop_terminal(&self, id: &str) -> bool {
+        let mut g = self.lock();
+        let Some(actor) = g.by_id.get(id) else {
+            return false;
+        };
+        if !matches!(
+            actor.state,
+            TaskState::Completed | TaskState::Failed | TaskState::Cancelled
+        ) {
+            return false;
+        }
+        g.by_id.remove(id);
+        g.order.retain(|x| x != id);
+        true
+    }
+
     /// Record a terminal failure on the task — sets state to
     /// `Failed` + stores the message.
     pub fn fail(&self, id: &str, message: String, bus: &EventBus) {
@@ -265,5 +317,124 @@ mod tests {
         let snap = q.snapshot("t1").unwrap();
         assert_eq!(snap.state, TaskState::Failed);
         assert_eq!(snap.error.as_deref(), Some("permission denied"));
+    }
+
+    #[test]
+    fn cancel_running_task() {
+        let bus = EventBus::new();
+        let q = TransferQueue::new();
+        q.enqueue(
+            "t1".into(),
+            TaskKind::Download,
+            "s1".into(),
+            "/r".into(),
+            "/l".into(),
+            0,
+            &bus,
+        );
+        q.set_state("t1", TaskState::Running, &bus);
+        assert!(q.cancel("t1", &bus));
+        assert_eq!(q.snapshot("t1").unwrap().state, TaskState::Cancelled);
+    }
+
+    #[test]
+    fn cancel_completed_is_noop() {
+        let bus = EventBus::new();
+        let q = TransferQueue::new();
+        q.enqueue(
+            "t1".into(),
+            TaskKind::Download,
+            "s1".into(),
+            "/r".into(),
+            "/l".into(),
+            0,
+            &bus,
+        );
+        q.set_state("t1", TaskState::Completed, &bus);
+        assert!(!q.cancel("t1", &bus));
+        assert_eq!(q.snapshot("t1").unwrap().state, TaskState::Completed);
+    }
+
+    #[test]
+    fn cancel_failed_does_not_clobber_error() {
+        let bus = EventBus::new();
+        let q = TransferQueue::new();
+        q.enqueue(
+            "t1".into(),
+            TaskKind::Download,
+            "s1".into(),
+            "/r".into(),
+            "/l".into(),
+            0,
+            &bus,
+        );
+        q.fail("t1", "boom".into(), &bus);
+        assert!(!q.cancel("t1", &bus));
+        let snap = q.snapshot("t1").unwrap();
+        assert_eq!(snap.state, TaskState::Failed);
+        assert_eq!(snap.error.as_deref(), Some("boom"));
+    }
+
+    #[test]
+    fn cancel_missing_id_returns_false() {
+        let bus = EventBus::new();
+        let q = TransferQueue::new();
+        assert!(!q.cancel("ghost", &bus));
+    }
+
+    #[test]
+    fn drop_terminal_removes_completed_task() {
+        let bus = EventBus::new();
+        let q = TransferQueue::new();
+        q.enqueue(
+            "t1".into(),
+            TaskKind::Upload,
+            "s1".into(),
+            "/r".into(),
+            "/l".into(),
+            0,
+            &bus,
+        );
+        q.set_state("t1", TaskState::Completed, &bus);
+        assert!(q.drop_terminal("t1"));
+        assert!(q.snapshot("t1").is_none());
+        assert_eq!(q.count(), 0);
+    }
+
+    #[test]
+    fn drop_terminal_refuses_running_task() {
+        let bus = EventBus::new();
+        let q = TransferQueue::new();
+        q.enqueue(
+            "t1".into(),
+            TaskKind::Upload,
+            "s1".into(),
+            "/r".into(),
+            "/l".into(),
+            0,
+            &bus,
+        );
+        q.set_state("t1", TaskState::Running, &bus);
+        assert!(!q.drop_terminal("t1"));
+        assert_eq!(q.count(), 1);
+    }
+
+    #[test]
+    fn snapshot_all_preserves_insertion_order() {
+        let bus = EventBus::new();
+        let q = TransferQueue::new();
+        for n in 0..5 {
+            q.enqueue(
+                format!("t{n}"),
+                TaskKind::Download,
+                "s1".into(),
+                "/r".into(),
+                "/l".into(),
+                0,
+                &bus,
+            );
+        }
+        let ids: Vec<String> = q.snapshot_all().into_iter().map(|s| s.id).collect();
+        assert_eq!(ids, vec!["t0", "t1", "t2", "t3", "t4"]);
     }
 }
