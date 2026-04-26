@@ -125,10 +125,8 @@ pub enum Command {
     NoopEcho { payload: String },
 
     /// 5.1 — remove an actor from the registry. Idempotent on a
-    /// missing id. The full `ConnectAsync` / `Reconnect` family
-    /// lands in the next 5.1 commit alongside the connect driver
-    /// port; this scaffolding ships only the verb every actor
-    /// eventually needs.
+    /// missing id. Drops the held russh handle (which sends
+    /// `SSH_MSG_DISCONNECT` on Drop) before clearing the row.
     ConnectionDisconnect { id: crate::connection::ConnId },
 }
 
@@ -189,14 +187,7 @@ pub async fn dispatch(cmd: Command) -> Result<(), Error> {
             app.bus.publish(Event::Echoed { payload });
             Ok(())
         }
-        Command::ConnectionDisconnect { id } => {
-            // Idempotent: missing id is a no-op (the actor was
-            // already removed by a parallel teardown).
-            if app.connections.remove(&id).await.is_some() {
-                app.bus.publish(Event::ConnectionRemoved { id });
-            }
-            Ok(())
-        }
+        Command::ConnectionDisconnect { id } => crate::connection::disconnect(&id).await,
     }
 }
 
