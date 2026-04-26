@@ -697,7 +697,144 @@ If we want to start earlier, a useful first slice is **4.0 Foundation + 4.1 Secr
 ### Doc sweep (after dartssh2 removal)
 - [x] **ARCHITECTURE.md §3.14** — rewritten: migration complete, `lfs_core` is the only SSH engine, dartssh2 removed. The dep table at the bottom of the doc now points readers at the Rust workspace.
 - [x] **SECURITY.md** — "Upstream dependency vulnerabilities" + "Out of scope" entries updated: dartssh2 swapped for russh + RustCrypto stack.
-- [ ] **ARCHITECTURE.md §3.1 / §3.2 / §3.6** — these still describe the old Dart `SSHConnection` / `SFTPService` / migration-framework wrappers in dartssh2 terms. Major rewrite — defer to a follow-up commit (volume too large for the migration close-out).
+- [x] **ARCHITECTURE.md §3.1 / §3.2 / §3.6** — rewritten: §3.1 SSH describes the russh-backed `lfs_core::ssh::Session` + `RustTransport` shape with the typed auth chain; §3.2 SFTP describes `RemoteSftpFs` / `RustSftpFs` over the russh-sftp engine; §3.6 Security reflects the `lfs_core::secrets::SecretStore` (`Zeroizing<Vec<u8>>`) replacement of the legacy `SecretBuffer`, the SQLCipher 4.x cipher choice, and the `dbClose()` + `secrets_clear()` auto-lock contract. Dead `LogBatchQueue` / `BootstrapLogBuffer` / `DbWriteBuffer` scaffolding sections deleted alongside the §4.7 cleanup.
 - [x] **CONTRIBUTING.md** — Rust toolchain section reflects the steady state: cargokit is wired into `flutter run`, no opt-in step needed; codegen instructions now point at `lfs_frb/src/api/`. Stale `make gen # drift codegen` and `chore: upgrade dartssh2` examples gone.
 - [x] **AGENT_RULES.md** — navigation rows, persistence row, FRB-codegen row, external-libraries lookup order, API gotchas, and logging examples all reflect the russh / rusqlite / RustCrypto stack. dartssh2 / drift / pointycastle references retired.
 - [x] **README.md** — `grep -i 'dartssh2\|drift\|pointycastle\|pinenacl'` is empty; no further changes needed.
+
+---
+
+## Phase 5 — Full Rust backend port
+
+Phase 4 closed at "boundary contract met everywhere": every credential byte stays Rust-side, the DB lives in `lfs_core`, and the orchestration entrypoints that touch secrets (export, QR codec) compose Rust-side. What remained outside Rust was *coordination logic* — connection lifecycle, port-forward listeners, transfer queue, recorder ring buffer, auto-lock state machine, `.lfs` import apply layer, plus a handful of native-glue Dart wrappers (TpmClient, FprintdClient, WinBioProbe, macOS code-signing).
+
+Phase 5 is the architectural lift that turns Dart into a thin renderer subscribed to Rust state. Even where there is no security gain, the consistency win matters: production-ready means **one** place owns each piece of logic, and that place is `lfs_core`. UI surfaces stay Dart (widgets, dialogs, theme, l10n, file pickers, biometric prompts, foreground-service lifecycle); everything else moves.
+
+### Architectural shape
+
+```
+┌─────────────────────────────┐         ┌──────────────────────────────────┐
+│  Dart (UI)                  │         │  Rust (lfs_core)                 │
+│                             │         │                                  │
+│  Riverpod views ────────────┼──> Cmd ─┼──> AppState (singleton actor)    │
+│   (subscribe to streams)    │         │     ├── SessionRegistry          │
+│                             │<── Evt ─┤     ├── ConnectionRegistry       │
+│  Widgets observe views      │         │     ├── PortForwardRegistry     │
+│  Operations dispatch Cmds   │         │     ├── TransferQueue            │
+│                             │         │     ├── RecorderRegistry         │
+│                             │         │     ├── AutoLockMachine          │
+│                             │         │     └── ImportSession (per .lfs) │
+└─────────────────────────────┘         └──────────────────────────────────┘
+```
+
+Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscriptions return typed `Event` streams. Rust mutates state, debounces, emits one event per relevant change. Dart view-models translate events to Riverpod state. This is the Phase 4.0 "deferred" surface re-activated.
+
+### Sub-phases
+
+- [ ] **5.0 Foundation — Command / Event bus + view streams**
+  - `lfs_core::bus` — `Command` enum (operation envelope), `Event` enum (state change envelope), `View` trait (per-screen projection).
+  - `AppState` gains an event broker. Sub-actors append events; view streams filter by topic + subscriber id.
+  - FRB exposure: `dispatch(Command) -> Result<(), String>`, `subscribe_view::<View>(args) -> Stream<Event>`. Per-screen view types: `WorkspaceView`, `SessionDetail`, `TransferQueueView`, `LockState`.
+  - Dart: `CommandDispatcher` Riverpod base + `viewStreamProvider.family<TView>(args)` builder. `ref.onDispose` cancels Rust-side subscription.
+  - Smoke test: dispatch a no-op command, observe an echo event end-to-end.
+
+- [ ] **5.1 Connection lifecycle → Rust actor**
+  - Rust: `ConnectionRegistry` holds `HashMap<ConnId, ConnectionActor>`. Each actor owns: state (`Idle / Connecting / Connected / Disconnected`), generation counter, transport handle, bastion ref, error, progress steps, sshConfig, label, sessionId.
+  - Commands: `ConnectAsync`, `Disconnect`, `Reconnect`, `BindBastion`.
+  - Per-connection events: `StateChanged`, `ProgressStep`, `Connected`, `ErrorRaised`.
+  - ProxyJump bottom-up walk + cycle / depth guards move Rust-side. `_ensureBastion` becomes `ConnectionRegistry::ensure_bastion_chain`.
+  - Reconnect generation counter, credential overlay merge, `_failureStep` mapping — all Rust.
+  - Dart: `Connection` Dart class becomes a view subscriber (state read-only, ops dispatch). `ConnectionManager` shrinks to thin dispatcher + Riverpod glue; the Dart-side FSM is gone.
+  - Touches: every `Connection`-aware widget (`workspace_controller`, `terminal_pane`, `sftp_browser_pane`, `connections_provider`, etc).
+
+- [ ] **5.2 Port forward → Tokio actor**
+  - Rust: `PortForwardActor` per rule, owned by the parent `ConnectionActor` so disconnect cascades teardown. `tokio::net::TcpListener` for `-L` / `-D`; `requestRemoteForward` for `-R` reusing the existing transport surface.
+  - SOCKS5 (RFC 1928, CONNECT-only, NO_AUTH-only) handshake — Rust impl mirroring the existing Dart shape (`0x01` IPv4, `0x03` domain, `0x04` IPv6).
+  - Bridge: tokio `io::copy_bidirectional` between accepted socket and russh `direct-tcpip` channel.
+  - Events: `RuleStatus { rule_id, status: idle|listening|error, detail }`, optional per-tunnel byte counters (deferred — UI doesn't show them today).
+  - Dart `PortForwardRuntime` retired; `Connection.addExtension` registry hook becomes a registry call into Rust.
+
+- [ ] **5.3 Transfer queue → Tokio actor**
+  - Rust: `TransferQueue` with bounded worker pool (configurable, default = host-platform-aware), per-task state (`Queued / Running / Completed / Failed / Cancelled`), history ring buffer.
+  - Workers pull tasks from a tokio channel, drive `lfs_core::sftp::download_file` / `upload_file` with progress callbacks. Cancellation token per task.
+  - Commands: `EnqueueDownload`, `EnqueueUpload`, `CancelTask`, `ClearHistory`.
+  - Events: `TaskAdded`, `TaskProgress(bytes, total)`, `TaskCompleted`, `TaskFailed(err)`, `TaskCancelled`.
+  - Dart `TransferManager` + `TransferPanelController` retire to view subscribers.
+
+- [ ] **5.4 Recorder → Rust**
+  - Rust: `RecorderRegistry` per active recording. Owns ring buffer (capped backing store) and file handle. Per-frame AES-GCM already Rust; this phase moves the buffer + write loop alongside.
+  - Commands: `StartRecording(sessionId, path)`, `StopRecording(id)`, `ToggleRecording(id)`.
+  - Events: `RecordingStarted`, `RecordingStopped`, `FrameWritten(byte_count)`.
+  - Dart `SessionRecorder` retires.
+  - Playback browser stays Dart (read-only file consumer, no state).
+
+- [ ] **5.5 Auto-lock + lifecycle → Rust state machine**
+  - Rust: `AutoLockMachine` holds `last_activity_ms`, `lock_after_ms`, `lifecycle_state` (`Foreground | Background | Inactive`). Idle timer runs on tokio `time::interval`; expiry fires `dbClose` + `secrets_clear` + emits `Locked` event.
+  - Commands: `OnPointerActivity`, `OnLifecycleChange(Foreground|Background|Inactive)`, `SetTimeout(minutes)`, `RequestLock`, `Unlock(key)`.
+  - Events: `Locked`, `Unlocked`, `TimeoutChanged`.
+  - Dart: `AutoLockDetector` retires to a thin lifecycle bridge. Biometric prompt + tier dialog UI stays Dart (OS surface).
+  - Session-lock listener (Win32 `WTSSessionNotification`, macOS `screenIsLocked`, Linux `login1.Session.Lock`) keeps the native plugin glue but now dispatches into the Rust machine via `OnLifecycleChange(Inactive)`.
+
+- [ ] **5.6 `.lfs` import → Rust orchestrator**
+  - Rust: `lfs_core::archive::import_archive_decrypt(path, password) -> ImportPreview` reads file, decrypts with Argon2id + AES-GCM, parses ZIP entries, caches decoded blob in AppState slot under a handle id. Returns sanitized preview struct (counts + session labels — no PEM bytes).
+  - Rust: `import_archive_apply(handle_id, mode, options) -> ImportSummary` writes via DAOs with merge / replace semantics + snapshot/rollback for replace mode. Conflict resolution per entity type: session id collision → fresh UUID + `(copy)` suffix, tag/snippet name collision → same, manager-key dedup via fingerprint.
+  - Rust: `import_archive_drop(handle_id)` clears the cached blob.
+  - Dart: import preview dialog reads sanitized counts; commit is one FRB call. `core/import/import_service.dart` retires to test-only fixture or deletes outright.
+  - Closes the last 4.6 residual.
+
+- [ ] **5.7 Native plugin Dart wrappers → Rust where reachable**
+  - **`TpmClient`** — Dart shell-out → `lfs_core::platform::linux::tpm` shell-out via `std::process::Command`. tpm2-tools dependency remains rung-3 opt-in install; ownership only moves.
+  - **`FprintdClient`** — Dart `dbus` package → Rust `zbus`. Single tokio runtime check during dep add.
+  - **`WinBioProbe`** — Dart `dart:ffi` → Rust FFI to `winbio.dll` (or `windows-sys` crate's `WinBio*` bindings).
+  - **macOS code-signing orchestrator** (`/usr/bin/openssl` + `security` + `codesign`) — Dart `Process.run` → Rust `tokio::process::Command`. UI password prompts stay Dart-side; ResignService becomes thin Rust orchestrator.
+  - **Stay native** (no win moving): `HardwareVaultPlugin` (JNI/Swift/CNG must call platform APIs only reachable in native lang), `SessionLockPlugin` (OS event subscription bound to platform messaging loop), `BiometricAuth.local_auth` (OS UI), Android foreground service (lifecycle owned by `MainActivity`).
+
+- [ ] **5.8 Pure utility ports — consistency sweep**
+  - **OpenSSH config parser** (513 lines string parsing) → `lfs_core::config_parser::openssh`. Pure transform, fits Rust idioms cleanly. Dart caller becomes one FRB call.
+  - **KdfParams envelope encoding** — already used internally during export; expose as `lfs_core::archive::kdf_params` with a versioned encode/decode pair callable from any orchestrator.
+  - **Error sanitization regexes** → `lfs_core::log_sanitize`. Rust-side logs go through the same redaction stack as Dart-side `AppLogger.sanitize` — PEM scrub, IPv4/IPv6, `user@host`, `host:port`, home paths, `as <user>` shapes.
+  - **Path tilde expansion** → `lfs_core::platform::home::expand_tilde`.
+
+- [ ] **5.9 Dart cleanup + view models**
+  - Drop retired Dart classes: `ConnectionManager` body, `Connection` mutable state, `PortForwardRuntime`, `TransferManager`, `SessionRecorder` mutable state, `ImportService`, `AutoLockDetector` internals, `TpmClient`, `FprintdClient`, `WinBioProbe`, OpenSSH parser, log-sanitize regexes (Dart copy).
+  - Riverpod providers become thin view-stream subscribers — `StreamProvider` + view-model translation per screen.
+  - Test suite refactor: integration tests target the Rust app state via FRB; widget tests inject view-stream test doubles.
+  - Update `ARCHITECTURE.md` §3 across the board to reflect view-model + Rust-actor shape.
+
+### Effort estimate
+
+| Phase | Effort |
+|---|---|
+| 5.0 Foundation (Cmd/Evt bus) | 1-2 days |
+| 5.1 Connection lifecycle | 2-3 days |
+| 5.2 Port forward actor | 2 days |
+| 5.3 Transfer queue actor | 2 days |
+| 5.4 Recorder | 1 day |
+| 5.5 Auto-lock state | 1 day |
+| 5.6 .lfs import | 2-3 days |
+| 5.7 Native plugin Dart wrappers | 2 days |
+| 5.8 Utility ports | 1 day |
+| 5.9 Dart cleanup | 2 days |
+| **Total** | **16-19 days** |
+
+### Order
+
+5.0 first — without the bus, every later sub-phase is ad-hoc FRB plumbing that has to be retro-fitted later. Then by impact:
+
+1. **5.0** Foundation (blocks everything)
+2. **5.1** Connection lifecycle (centerpiece — touches every workspace surface)
+3. **5.5** Auto-lock state (hooks into every connection / DB lifecycle)
+4. **5.2** / **5.3** / **5.4** in parallel (independent actors)
+5. **5.6** `.lfs` import (last security residual)
+6. **5.7** Native plugin Dart wrappers (consistency, no security gain)
+7. **5.8** Utility ports (consistency sweep)
+8. **5.9** Dart cleanup (final retire of Dart state machines)
+
+### Risks
+
+1. **Cmd/Evt bus FRB stream lifecycle** — subscriptions must clean up on widget dispose, otherwise the Rust side accumulates dead listeners. Mitigation: Riverpod's `ref.onDispose` + per-view `Provider` shape; integration test that asserts subscriber count returns to zero after dispose.
+2. **Connection view-model regression** — every widget subscribed to `Connection.state` rebuilds becomes event-driven. Risk of UI jitter from event coalescing or missed transitions. Mitigation: debounce inside Rust actor (one event per frame budget), golden-test the state stream against a fixed connect-disconnect-reconnect script.
+3. **Test rewrite scale** — large parts of the test suite assume Dart-owned state. Mitigation: keep Dart abstractions during transition (view-class mirror), only retire after Rust path is stable; introduce a `FakeAppState` test harness that replays scripted events.
+4. **`.lfs` import merge / replace edge cases** — port must preserve behavioral parity (id collision → copy suffix, FK ordering, partial-rollback semantics). Mitigation: golden-file integration tests against representative archives, run pre/post.
+5. **D-Bus crate (zbus) runtime overlap** — zbus pulls async-std or tokio depending on feature flags. Mitigation: stick to tokio variant, verify single-runtime build.
+6. **Auto-lock timer + lifecycle event source** — Flutter app lifecycle is a Dart-side observable; Rust receives it via Command. Race with rapid foreground/background flips on mobile. Mitigation: dedupe at the Rust actor level (state machine ignores no-op transitions).
