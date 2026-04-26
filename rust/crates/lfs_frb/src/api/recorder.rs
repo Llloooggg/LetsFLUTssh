@@ -78,6 +78,35 @@ pub async fn recorder_record_frame(id: String, plaintext: Vec<u8>) -> Result<u64
     .map_err(|e| format!("recorder write task: {e}"))?
 }
 
+/// Atomically rotate a recording to a fresh file under the same
+/// id. Closes the current file, opens [`new_path`] in append
+/// mode, writes the LFR1 magic + version when the recording is
+/// encrypted, and resets the per-actor byte counter. Returns the
+/// updated snapshot. Idempotent error on a missing / counter-only
+/// actor.
+pub async fn recorder_rotate_to(
+    id: String,
+    new_path: String,
+) -> Result<DbRecorderSnapshot, String> {
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        app.recorders
+            .rotate_to(&id, new_path, &app.bus)
+            .map(DbRecorderSnapshot::from)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("recorder rotate task: {e}"))?
+}
+
+/// The hard upper bound, in bytes, on a single recording file
+/// before the driver rolls to a new file. Mirrored from
+/// `lfs_core::recorder::MAX_FILE_BYTES` so the Dart caller never
+/// keeps a stale duplicate.
+pub fn recorder_max_file_bytes() -> u64 {
+    lfs_core::recorder::MAX_FILE_BYTES
+}
+
 /// Flush + close an open recording. Idempotent on a missing id.
 pub async fn recorder_close(id: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {

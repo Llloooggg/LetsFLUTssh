@@ -163,7 +163,7 @@ hot-path code area. Goes after the safer Steps 1+2.
 
 ### Step 4 — move recorder rotation into Rust
 
-**Status:** TODO
+**Status:** DONE
 
 **Why fourth:** isolated change, no consumer rewire. Closes
 the last "dual-impl" gap on the recorder.

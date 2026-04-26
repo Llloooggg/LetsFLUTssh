@@ -41,6 +41,14 @@ const LFR_MAGIC: [u8; 4] = [0x4C, 0x46, 0x52, 0x31];
 const LFR_VERSION: u8 = 1;
 const NONCE_LEN: usize = 12;
 
+/// Hard upper bound on a single recording file size before the
+/// driver rolls to a new file under the same session. 100 MB is
+/// large enough for a multi-hour vim-heavy editing session, small
+/// enough that the asciinema export of a single recording stays
+/// trivially shareable. Reads from the FRB binding (`recorder_max_file_bytes`)
+/// so the Dart caller never holds a stale duplicate of the constant.
+pub const MAX_FILE_BYTES: u64 = 100 * 1024 * 1024;
+
 /// Stable identifier for an active recording. The Dart side
 /// allocates this off `Uuid().v4()` so the same string flows
 /// through Riverpod ownership before the Rust side has finished
@@ -301,6 +309,67 @@ impl RecorderRegistry {
         Ok(new_total)
     }
 
+    /// Atomically close the current file for [`id`], open a fresh
+    /// file at [`new_path`], write the magic + version byte when the
+    /// recording is encrypted, and reset the per-actor byte counter.
+    /// The actor's id stays stable so subscribers tracking the
+    /// recording across rotations don't have to re-bind. Returns the
+    /// new snapshot (with the new path + zero `bytes_written`).
+    ///
+    /// Errors when the actor was registered counter-only (no file
+    /// handle) or has already been closed.
+    pub fn rotate_to(
+        &self,
+        id: &str,
+        new_path: String,
+        bus: &EventBus,
+    ) -> Result<RecorderSnapshot, Error> {
+        // Hold the registry lock while we swap the file handle out
+        // so a concurrent record_frame either finishes against the
+        // old handle or sees the new handle — never half-rotated state.
+        let snap = {
+            let mut g = self.lock();
+            let Some(actor) = g.by_id.get_mut(id) else {
+                return Err(Error::Io(format!("recorder {id} not registered")));
+            };
+            let Some(old_file) = actor.file.take() else {
+                return Err(Error::Io(format!(
+                    "recorder {id} has no file handle (counter-only registration)"
+                )));
+            };
+            // Best-effort flush before we drop the old file. The
+            // append-mode write already calls write_all under the
+            // mutex, so a missed flush is a logging concern — the
+            // OS still flushes on drop.
+            if let Ok(mut handle) = old_file.lock() {
+                let _ = handle.flush();
+            }
+            drop(old_file);
+
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&new_path)
+                .map_err(|e| Error::Io(format!("recorder rotate open {new_path}: {e}")))?;
+            let mut bytes_written: u64 = 0;
+            if actor.encrypted {
+                file.write_all(&LFR_MAGIC)
+                    .and_then(|_| file.write_all(&[LFR_VERSION]))
+                    .map_err(|e| Error::Io(format!("recorder rotate magic: {e}")))?;
+                bytes_written = (LFR_MAGIC.len() + 1) as u64;
+            }
+            actor.file = Some(Arc::new(Mutex::new(file)));
+            actor.path = new_path.clone();
+            actor.bytes_written = bytes_written;
+            actor.snapshot()
+        };
+        bus.publish(Event::RecorderStarted {
+            id: id.to_string(),
+            path: new_path,
+        });
+        Ok(snap)
+    }
+
     /// Flush + close an IO-owned recording. Mirrors
     /// [`RecorderRegistry::close`] but ensures the file handle
     /// flushes pending writes before drop. Idempotent on a
@@ -475,5 +544,54 @@ mod tests {
         let reg = RecorderRegistry::new();
         let err = reg.record_frame("missing", b"x", &bus).unwrap_err();
         assert!(err.to_string().contains("not registered"));
+    }
+
+    #[test]
+    fn rotate_to_swaps_file_and_resets_counter() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path1 = tempfile_path("rot1");
+        let path2 = tempfile_path("rot2");
+        let key = [9u8; 32];
+        reg.register_with_io("r1".into(), "s1".into(), path1.clone(), Some(key), &bus)
+            .expect("register");
+        reg.record_frame("r1", b"first\n", &bus).expect("frame");
+        let pre = reg.snapshot("r1").unwrap();
+        assert!(pre.bytes_written > 0);
+
+        let rotated = reg.rotate_to("r1", path2.clone(), &bus).expect("rotate_to");
+        // After rotation the actor reports the new path and a fresh
+        // counter equal to the magic + version header.
+        assert_eq!(rotated.path, path2);
+        assert_eq!(rotated.bytes_written, (LFR_MAGIC.len() + 1) as u64);
+
+        reg.record_frame("r1", b"second\n", &bus).expect("frame2");
+        reg.close_with_io("r1", &bus).expect("close");
+
+        // Old file ends with the first frame; new file starts with magic.
+        let old_disk = std::fs::read(&path1).expect("read old");
+        assert_eq!(&old_disk[..4], b"LFR1");
+        let new_disk = std::fs::read(&path2).expect("read new");
+        assert_eq!(&new_disk[..4], b"LFR1");
+
+        let _ = std::fs::remove_file(&path1);
+        let _ = std::fs::remove_file(&path2);
+    }
+
+    #[test]
+    fn rotate_to_missing_actor_errors() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let err = reg.rotate_to("missing", "/tmp/x".into(), &bus).unwrap_err();
+        assert!(err.to_string().contains("not registered"));
+    }
+
+    #[test]
+    fn rotate_to_counter_only_errors() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        reg.register("r1".into(), "s1".into(), "/tmp/x".into(), false, &bus);
+        let err = reg.rotate_to("r1", "/tmp/y".into(), &bus).unwrap_err();
+        assert!(err.to_string().contains("no file handle"));
     }
 }

@@ -35,6 +35,27 @@ Future<BigInt> recorderRecordFrame({
   plaintext: plaintext,
 );
 
+/// Atomically rotate a recording to a fresh file under the same
+/// id. Closes the current file, opens [`new_path`] in append
+/// mode, writes the LFR1 magic + version when the recording is
+/// encrypted, and resets the per-actor byte counter. Returns the
+/// updated snapshot. Idempotent error on a missing / counter-only
+/// actor.
+Future<DbRecorderSnapshot> recorderRotateTo({
+  required String id,
+  required String newPath,
+}) => RustLib.instance.api.crateApiRecorderRecorderRotateTo(
+  id: id,
+  newPath: newPath,
+);
+
+/// The hard upper bound, in bytes, on a single recording file
+/// before the driver rolls to a new file. Mirrored from
+/// `lfs_core::recorder::MAX_FILE_BYTES` so the Dart caller never
+/// keeps a stale duplicate.
+Future<BigInt> recorderMaxFileBytes() =>
+    RustLib.instance.api.crateApiRecorderRecorderMaxFileBytes();
+
 /// Flush + close an open recording. Idempotent on a missing id.
 Future<void> recorderClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderClose(id: id);

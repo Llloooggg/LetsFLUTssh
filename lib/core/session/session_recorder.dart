@@ -62,15 +62,14 @@ enum RecordDirection {
 /// file extension differs (`.cast` vs `.lfsr`) so the loader can
 /// pick the right path without reading magic bytes first.
 class SessionRecorder {
-  /// Hard upper bound on file size before the recorder rolls to a
-  /// new file under the same session. 100 MB is large enough for a
-  /// multi-hour session of even a vim-heavy editing day; small
-  /// enough that the asciinema export of a single recording stays
-  /// trivially shareable.
-  static const int maxFileBytes = 100 * 1024 * 1024;
-
   /// HKDF-derived 32-byte AES-256 key. Null in plaintext mode.
   final Uint8List? _key;
+
+  /// Per-file byte cap, fetched from
+  /// `lfs_core::recorder::MAX_FILE_BYTES` once at open time.
+  /// The Rust side owns the cap so the Dart caller does not keep
+  /// a stale duplicate.
+  final int _maxFileBytes;
 
   /// Stable across the recorder's lifetime — used in asciinema
   /// timestamp deltas. Captured at construction so the first event's
@@ -107,7 +106,9 @@ class SessionRecorder {
     required Uint8List? key,
     required String handleId,
     required String path,
+    required int maxFileBytes,
   }) : _key = key,
+       _maxFileBytes = maxFileBytes,
        _handleId = handleId,
        _currentPath = path,
        _start = DateTime.now() {
@@ -162,6 +163,7 @@ class SessionRecorder {
         path: path,
         key: key ?? Uint8List(0),
       );
+      final cap = (await rust_recorder.recorderMaxFileBytes()).toInt();
       final recorder = SessionRecorder._(
         sessionId: sessionId,
         terminalShellLabel: shellLabel,
@@ -170,6 +172,7 @@ class SessionRecorder {
         key: key,
         handleId: handleId,
         path: path,
+        maxFileBytes: cap,
       );
       // Emit asciinema v2 header line so any plaintext export — and
       // the encrypted file once decrypted — starts with a valid
@@ -287,22 +290,22 @@ class SessionRecorder {
       );
       return;
     }
-    if (_currentBytes > maxFileBytes) {
+    if (_currentBytes > _maxFileBytes) {
       await _rotate();
     }
   }
 
+  /// Roll the active recording to a fresh timestamped file under
+  /// the same session directory. Path generation stays Dart-side
+  /// (`getApplicationSupportDirectory` + `hardenFilePerms` are
+  /// platform-aware); the Rust `recorderRotateTo` call closes the
+  /// current handle, opens the new file in append mode, writes
+  /// magic + version when encrypted, and resets the byte counter
+  /// in one atomic step under the registry mutex. The handle id
+  /// stays stable so bus subscribers tracking the recording across
+  /// rotations don't re-bind.
   Future<void> _rotate() async {
-    final oldHandle = _handleId;
-    _handleId = '';
-    if (oldHandle.isNotEmpty) {
-      try {
-        await rust_recorder.recorderClose(id: oldHandle);
-      } catch (_) {
-        // Best-effort tear-down — keep going to the new file
-        // even if the old handle's flush hiccuped.
-      }
-    }
+    if (_handleId.isEmpty) return;
     final dir = await _ensureDirectory(sessionId);
     final isoTs = DateTime.now()
         .toUtc()
@@ -315,16 +318,17 @@ class SessionRecorder {
     final file = File(path);
     await file.create();
     await hardenFilePerms(path);
-    final newHandle = const Uuid().v4();
-    await rust_recorder.recorderRegister(
-      id: newHandle,
-      sessionId: sessionId,
-      path: path,
-      key: _key ?? Uint8List(0),
-    );
-    _handleId = newHandle;
-    _currentPath = path;
-    _currentBytes = 0;
+    try {
+      final snap = await rust_recorder.recorderRotateTo(
+        id: _handleId,
+        newPath: path,
+      );
+      _currentPath = snap.path;
+      _currentBytes = snap.bytesWritten.toInt();
+    } catch (e) {
+      AppLogger.instance.log('recorderRotateTo failed: $e', name: 'Recorder');
+      return;
+    }
     _enqueueHeader();
   }
 }
