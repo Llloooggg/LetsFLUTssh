@@ -1295,6 +1295,7 @@ dependencies = [
  "anyhow",
  "flutter_rust_bridge",
  "lfs_core",
+ "rand 0.8.6",
  "tokio",
 ]
 

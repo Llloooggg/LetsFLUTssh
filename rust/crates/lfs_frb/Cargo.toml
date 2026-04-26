@@ -19,6 +19,11 @@ lfs_core = { path = "../lfs_core" }
 flutter_rust_bridge = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
+# Used to mint random handle ids for the import staging surface
+# (`db_import_open`). Same crate lfs_core already pulls; the
+# adapter just needs its own dep declaration so the FRB module
+# can call `OsRng` directly.
+rand = "0.8"
 
 # FRB's `cargo expand` step injects `--cfg frb_expand` to drive its
 # macro expansion. Whitelist that single cfg so `clippy -D warnings`

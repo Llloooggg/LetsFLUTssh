@@ -137,3 +137,99 @@ pub async fn db_export_qr_payload(input: DbQrExportInput) -> Result<String, Stri
     .await
     .map_err(|e| format!("qr export task: {e}"))?
 }
+
+/// FRB mirror of `lfs_core::archive::ImportPreview`. Sanitised
+/// counts + session labels — the apply side reads the full
+/// payload from the registry handle, so the preview is the only
+/// thing that crosses the boundary outwards.
+#[derive(Debug, Clone)]
+pub struct DbImportPreview {
+    pub schema_version: i64,
+    pub session_count: i64,
+    pub session_labels: Vec<String>,
+    pub manager_key_count: i64,
+    pub tag_count: i64,
+    pub snippet_count: i64,
+    pub empty_folder_count: i64,
+    pub has_config: bool,
+    pub has_known_hosts: bool,
+}
+
+impl From<lfs_core::archive::ImportPreview> for DbImportPreview {
+    fn from(p: lfs_core::archive::ImportPreview) -> Self {
+        DbImportPreview {
+            schema_version: p.schema_version,
+            session_count: p.session_count,
+            session_labels: p.session_labels,
+            manager_key_count: p.manager_key_count,
+            tag_count: p.tag_count,
+            snippet_count: p.snippet_count,
+            empty_folder_count: p.empty_folder_count,
+            has_config: p.has_config,
+            has_known_hosts: p.has_known_hosts,
+        }
+    }
+}
+
+/// Result of a successful preview — the registered handle id
+/// the Dart caller passes back to the apply / drop endpoints,
+/// plus the sanitised preview.
+#[derive(Debug, Clone)]
+pub struct DbImportOpenResult {
+    pub handle_id: String,
+    pub preview: DbImportPreview,
+}
+
+fn random_handle_id() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; 16];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    let mut hex = String::with_capacity(32);
+    for b in bytes {
+        use std::fmt::Write as _;
+        let _ = write!(hex, "{b:02x}");
+    }
+    hex
+}
+
+/// Open and decrypt a `.lfs` archive (or a raw ZIP for the
+/// no-password export shape). Stages the decoded entries inside
+/// `AppState::imports` under a freshly-generated handle id and
+/// returns the sanitised preview. Plaintext payload (sessions,
+/// keys, …) stays Rust-side; the Dart caller only sees counts
+/// + labels until it hands the handle back to the apply driver.
+///
+/// `password` empty → assumes a raw-ZIP archive (matches the
+/// "no encryption" export branch). Wrong password / malformed
+/// envelope surfaces as an error and no handle is registered.
+pub async fn db_import_open(
+    path: String,
+    password: String,
+) -> Result<DbImportOpenResult, String> {
+    tokio::task::spawn_blocking(move || {
+        let (pending, preview) = lfs_core::archive::read_archive_to_pending(&path, &password)
+            .map_err(|e| e.to_string())?;
+        let app = lfs_core::app::instance();
+        let handle_id = random_handle_id();
+        app.imports.insert(handle_id.clone(), pending);
+        Ok(DbImportOpenResult {
+            handle_id,
+            preview: preview.into(),
+        })
+    })
+    .await
+    .map_err(|e| format!("import open task: {e}"))?
+}
+
+/// Drop the staged archive without applying it. Idempotent on a
+/// missing handle id. Pair with [`db_import_open`] from the Dart
+/// side: cancel button on the preview dialog calls this; OK
+/// button hands the id to the apply driver (lands in a
+/// follow-up).
+pub async fn db_import_drop(handle_id: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_core::app::instance().imports.drop_handle(&handle_id);
+    })
+    .await
+    .map_err(|e| format!("import drop task: {e}"))
+}

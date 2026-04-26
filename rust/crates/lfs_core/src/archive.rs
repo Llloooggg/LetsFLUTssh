@@ -25,7 +25,7 @@
 //! archive bytes ready to write atomically.
 
 use std::collections::{HashMap, HashSet};
-use std::io::{Cursor, Write};
+use std::io::{Cursor, Read, Write};
 
 use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use flate2::write::DeflateEncoder;
@@ -36,8 +36,9 @@ use rusqlite::Connection;
 use serde_json::{json, Value};
 use zeroize::Zeroizing;
 use zip::write::SimpleFileOptions;
+use zip::ZipArchive;
 
-use crate::crypto::{aes_gcm_encrypt_raw, argon2id_derive};
+use crate::crypto::{aes_gcm_decrypt_raw, aes_gcm_encrypt_raw, argon2id_derive};
 use crate::db::{folders, known_hosts, sessions, snippets, ssh_keys, tags};
 use crate::error::Error;
 
@@ -707,6 +708,139 @@ fn encrypt_with_password(
     Ok(out)
 }
 
+/// Reverse of [`encrypt_with_password`]. Takes the LFSE envelope
+/// produced by export, returns the inner ZIP bytes. Errors on
+/// magic / version mismatch, malformed KdfParams, or AES-GCM tag
+/// failure (wrong password).
+pub fn decrypt_archive_with_password(envelope: &[u8], password: &str) -> Result<Vec<u8>, Error> {
+    if envelope.len() < 4 + 1 + 10 + SALT_LEN + IV_LEN {
+        return Err(Error::Crypto(
+            "archive envelope too short".to_string(),
+        ));
+    }
+    if envelope[..4] != ENC_HEADER_MAGIC {
+        return Err(Error::Crypto("not an LFSE archive".to_string()));
+    }
+    if envelope[4] != ENC_VERSION_ARGON2ID {
+        return Err(Error::Crypto(format!(
+            "unsupported envelope version 0x{:02x}",
+            envelope[4]
+        )));
+    }
+    let mut cursor = 5usize;
+    if envelope[cursor] != KDF_ALGO_ARGON2ID {
+        return Err(Error::Crypto(format!(
+            "unsupported kdf algorithm 0x{:02x}",
+            envelope[cursor]
+        )));
+    }
+    cursor += 1;
+    let memory_kib = u32::from_be_bytes(envelope[cursor..cursor + 4].try_into().unwrap());
+    cursor += 4;
+    let iterations = u32::from_be_bytes(envelope[cursor..cursor + 4].try_into().unwrap());
+    cursor += 4;
+    let parallelism = envelope[cursor] as u32;
+    cursor += 1;
+    let salt = &envelope[cursor..cursor + SALT_LEN];
+    cursor += SALT_LEN;
+    let iv = &envelope[cursor..cursor + IV_LEN];
+    cursor += IV_LEN;
+    let ct = &envelope[cursor..];
+
+    let derived = Zeroizing::new(argon2id_derive(
+        password.as_bytes(),
+        salt,
+        memory_kib,
+        iterations,
+        parallelism,
+        AES_KEY_LEN,
+    )?);
+    aes_gcm_decrypt_raw(&derived, iv, ct, &[])
+}
+
+/// Read every entry in the ZIP and pack the recognised JSON /
+/// text payloads into a [`PendingImport`]. Unknown entries are
+/// dropped — the apply driver is the source of truth for which
+/// entries actually move data, the preview just reports counts.
+pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Error> {
+    let cursor = Cursor::new(zip_bytes);
+    let mut zip = ZipArchive::new(cursor)
+        .map_err(|e| Error::Io(format!("import zip open: {e}")))?;
+
+    let mut pending = PendingImport {
+        manifest_json: None,
+        sessions_json: None,
+        keys_json: None,
+        tags_json: None,
+        session_tags_json: None,
+        folder_tags_json: None,
+        snippets_json: None,
+        session_snippets_json: None,
+        empty_folders_json: None,
+        config_json: None,
+        known_hosts_text: None,
+    };
+
+    for i in 0..zip.len() {
+        let mut entry = zip
+            .by_index(i)
+            .map_err(|e| Error::Io(format!("import zip entry {i}: {e}")))?;
+        let name = entry.name().to_string();
+        let mut buf = String::new();
+        entry
+            .read_to_string(&mut buf)
+            .map_err(|e| Error::Io(format!("import read {name}: {e}")))?;
+        match name.as_str() {
+            "manifest.json" => pending.manifest_json = Some(buf),
+            "sessions.json" => pending.sessions_json = Some(buf),
+            "keys.json" => pending.keys_json = Some(buf),
+            "tags.json" => pending.tags_json = Some(buf),
+            "session_tags.json" => pending.session_tags_json = Some(buf),
+            "folder_tags.json" => pending.folder_tags_json = Some(buf),
+            "snippets.json" => pending.snippets_json = Some(buf),
+            "session_snippets.json" => pending.session_snippets_json = Some(buf),
+            "empty_folders.json" => pending.empty_folders_json = Some(buf),
+            "config.json" => pending.config_json = Some(buf),
+            "known_hosts.txt" => pending.known_hosts_text = Some(buf),
+            _ => {}
+        }
+    }
+
+    let schema_version = pending
+        .manifest_json
+        .as_deref()
+        .and_then(|s| serde_json::from_str::<Value>(s).ok())
+        .and_then(|v| v.get("schema_version").and_then(|x| x.as_i64()))
+        .unwrap_or(0);
+    Ok((pending, schema_version))
+}
+
+/// Read the file at `path`, detect whether it's an LFSE envelope
+/// (4-byte magic) or a raw ZIP (`PK\x03\x04`), decrypt+parse, and
+/// return the preview the apply driver consumes. The decoded
+/// `PendingImport` is *not* registered here — the FRB layer
+/// stages it into [`crate::app::AppState::imports`] after the
+/// caller approves the preview.
+pub fn read_archive_to_pending(
+    path: &str,
+    password: &str,
+) -> Result<(PendingImport, ImportPreview), Error> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| Error::Io(format!("import read {path}: {e}")))?;
+    let zip_bytes = if bytes.len() >= 4 && bytes[..4] == ENC_HEADER_MAGIC {
+        decrypt_archive_with_password(&bytes, password)?
+    } else if bytes.len() >= 4 && &bytes[..4] == b"PK\x03\x04" {
+        bytes
+    } else {
+        return Err(Error::Io(format!(
+            "{path}: not an LFSE archive or ZIP file"
+        )));
+    };
+    let (pending, schema_version) = parse_pending_import(&zip_bytes)?;
+    let preview = pending.preview(schema_version);
+    Ok((pending, preview))
+}
+
 /// Format a unix-millis timestamp as `YYYY-MM-DDTHH:MM:SS.mmmZ`.
 /// Matches what `DateTime.fromMillisecondsSinceEpoch(ms, isUtc:
 /// true).toIso8601String()` would emit and parses cleanly through
@@ -1205,6 +1339,87 @@ mod tests {
         let preview = pending.preview(1);
         assert!(!preview.has_config);
         assert!(!preview.has_known_hosts);
+    }
+
+    fn build_test_zip(entries: &[(&str, &str)]) -> Vec<u8> {
+        let mut buf = Cursor::new(Vec::new());
+        let mut zw = zip::ZipWriter::new(&mut buf);
+        let opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        for (name, body) in entries {
+            zw.start_file(*name, opts).unwrap();
+            zw.write_all(body.as_bytes()).unwrap();
+        }
+        zw.finish().unwrap();
+        buf.into_inner()
+    }
+
+    #[test]
+    fn parse_pending_import_picks_known_entries() {
+        let zip = build_test_zip(&[
+            ("manifest.json", r#"{"schema_version":7}"#),
+            ("sessions.json", r#"[{"label":"x"}]"#),
+            ("config.json", r#"{"theme":"dark"}"#),
+            ("known_hosts.txt", "host ssh-ed25519 AAAA"),
+            ("ignored.bin", "garbage"),
+        ]);
+        let (pending, schema) = parse_pending_import(&zip).expect("parse");
+        assert_eq!(schema, 7);
+        assert_eq!(pending.sessions_json.as_deref(), Some(r#"[{"label":"x"}]"#));
+        assert_eq!(pending.config_json.as_deref(), Some(r#"{"theme":"dark"}"#));
+        assert_eq!(
+            pending.known_hosts_text.as_deref(),
+            Some("host ssh-ed25519 AAAA")
+        );
+        assert!(pending.keys_json.is_none());
+    }
+
+    #[test]
+    fn parse_pending_import_zero_schema_when_manifest_missing() {
+        let zip = build_test_zip(&[("sessions.json", "[]")]);
+        let (_pending, schema) = parse_pending_import(&zip).expect("parse");
+        assert_eq!(schema, 0);
+    }
+
+    #[test]
+    fn encrypt_decrypt_round_trip_with_correct_password() {
+        let zip = build_test_zip(&[("sessions.json", r#"[{"label":"prod"}]"#)]);
+        // Argon2id parameters tuned tiny so the test runs in a few ms.
+        let enc = encrypt_with_password(&zip, "hunter2", 16, 1, 1).expect("encrypt");
+        assert_eq!(&enc[..4], &ENC_HEADER_MAGIC);
+        let plaintext = decrypt_archive_with_password(&enc, "hunter2").expect("decrypt");
+        assert_eq!(plaintext, zip);
+    }
+
+    #[test]
+    fn decrypt_with_wrong_password_fails() {
+        let zip = build_test_zip(&[("sessions.json", "[]")]);
+        let enc = encrypt_with_password(&zip, "hunter2", 16, 1, 1).expect("encrypt");
+        let err = decrypt_archive_with_password(&enc, "wrong").unwrap_err();
+        assert!(matches!(err, Error::Crypto(_)));
+    }
+
+    #[test]
+    fn decrypt_rejects_wrong_magic() {
+        let mut bytes = encrypt_with_password(b"\x50\x4b\x03\x04", "p", 16, 1, 1).unwrap();
+        bytes[0] = 0xFF;
+        let err = decrypt_archive_with_password(&bytes, "p").unwrap_err();
+        let s = err.to_string();
+        assert!(s.contains("not an LFSE archive"), "got: {s}");
+    }
+
+    #[test]
+    fn decrypt_rejects_unknown_version() {
+        let zip = build_test_zip(&[("manifest.json", "{}")]);
+        let mut enc = encrypt_with_password(&zip, "p", 16, 1, 1).unwrap();
+        enc[4] = 0x99;
+        let err = decrypt_archive_with_password(&enc, "p").unwrap_err();
+        assert!(err.to_string().contains("unsupported envelope version"));
+    }
+
+    #[test]
+    fn decrypt_rejects_short_envelope() {
+        let err = decrypt_archive_with_password(&[0u8; 10], "p").unwrap_err();
+        assert!(err.to_string().contains("too short"));
     }
 
     #[test]

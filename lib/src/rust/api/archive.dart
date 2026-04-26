@@ -6,8 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `require_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `random_handle_id`, `require_db`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Compose and (optionally) encrypt the `.lfs` archive entirely
 /// inside Rust. Plaintext credentials never cross the FRB boundary
@@ -23,6 +23,32 @@ Future<Uint8List> dbExportArchive({required DbExportInput input}) =>
 /// inside Rust so the Dart heap only sees the encoded ASCII.
 Future<String> dbExportQrPayload({required DbQrExportInput input}) =>
     RustLib.instance.api.crateApiArchiveDbExportQrPayload(input: input);
+
+/// Open and decrypt a `.lfs` archive (or a raw ZIP for the
+/// no-password export shape). Stages the decoded entries inside
+/// `AppState::imports` under a freshly-generated handle id and
+/// returns the sanitised preview. Plaintext payload (sessions,
+/// keys, …) stays Rust-side; the Dart caller only sees counts
+/// + labels until it hands the handle back to the apply driver.
+///
+/// `password` empty → assumes a raw-ZIP archive (matches the
+/// "no encryption" export branch). Wrong password / malformed
+/// envelope surfaces as an error and no handle is registered.
+Future<DbImportOpenResult> dbImportOpen({
+  required String path,
+  required String password,
+}) => RustLib.instance.api.crateApiArchiveDbImportOpen(
+  path: path,
+  password: password,
+);
+
+/// Drop the staged archive without applying it. Idempotent on a
+/// missing handle id. Pair with [`db_import_open`] from the Dart
+/// side: cancel button on the preview dialog calls this; OK
+/// button hands the id to the apply driver (lands in a
+/// follow-up).
+Future<void> dbImportDrop({required String handleId}) =>
+    RustLib.instance.api.crateApiArchiveDbImportDrop(handleId: handleId);
 
 /// Mirror of `ExportInput`. Pulled verbatim across the FRB
 /// boundary; the orchestrator owns the actual archive composition.
@@ -131,6 +157,82 @@ class DbExportOptions {
           includeSnippets == other.includeSnippets &&
           includeAllManagerKeys == other.includeAllManagerKeys &&
           hasManagerKeys == other.hasManagerKeys;
+}
+
+/// Result of a successful preview — the registered handle id
+/// the Dart caller passes back to the apply / drop endpoints,
+/// plus the sanitised preview.
+class DbImportOpenResult {
+  final String handleId;
+  final DbImportPreview preview;
+
+  const DbImportOpenResult({required this.handleId, required this.preview});
+
+  @override
+  int get hashCode => handleId.hashCode ^ preview.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbImportOpenResult &&
+          runtimeType == other.runtimeType &&
+          handleId == other.handleId &&
+          preview == other.preview;
+}
+
+/// FRB mirror of `lfs_core::archive::ImportPreview`. Sanitised
+/// counts + session labels — the apply side reads the full
+/// payload from the registry handle, so the preview is the only
+/// thing that crosses the boundary outwards.
+class DbImportPreview {
+  final PlatformInt64 schemaVersion;
+  final PlatformInt64 sessionCount;
+  final List<String> sessionLabels;
+  final PlatformInt64 managerKeyCount;
+  final PlatformInt64 tagCount;
+  final PlatformInt64 snippetCount;
+  final PlatformInt64 emptyFolderCount;
+  final bool hasConfig;
+  final bool hasKnownHosts;
+
+  const DbImportPreview({
+    required this.schemaVersion,
+    required this.sessionCount,
+    required this.sessionLabels,
+    required this.managerKeyCount,
+    required this.tagCount,
+    required this.snippetCount,
+    required this.emptyFolderCount,
+    required this.hasConfig,
+    required this.hasKnownHosts,
+  });
+
+  @override
+  int get hashCode =>
+      schemaVersion.hashCode ^
+      sessionCount.hashCode ^
+      sessionLabels.hashCode ^
+      managerKeyCount.hashCode ^
+      tagCount.hashCode ^
+      snippetCount.hashCode ^
+      emptyFolderCount.hashCode ^
+      hasConfig.hashCode ^
+      hasKnownHosts.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbImportPreview &&
+          runtimeType == other.runtimeType &&
+          schemaVersion == other.schemaVersion &&
+          sessionCount == other.sessionCount &&
+          sessionLabels == other.sessionLabels &&
+          managerKeyCount == other.managerKeyCount &&
+          tagCount == other.tagCount &&
+          snippetCount == other.snippetCount &&
+          emptyFolderCount == other.emptyFolderCount &&
+          hasConfig == other.hasConfig &&
+          hasKnownHosts == other.hasKnownHosts;
 }
 
 class DbQrExportInput {
