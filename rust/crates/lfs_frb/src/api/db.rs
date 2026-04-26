@@ -318,6 +318,81 @@ pub async fn db_sessions_stage_secrets(
         .map(|opt| opt.map(DbStagedSecrets::from))
 }
 
+/// Mirror of [`lfs_core::db::sessions::SessionMetadata`] crossing
+/// FRB. Carries every column except the credential triplet so the
+/// edit dialog can save metadata without reading old secret bytes
+/// back onto the Dart heap.
+#[derive(Debug, Clone)]
+pub struct DbSessionMetadata {
+    pub id: String,
+    pub label: String,
+    pub folder_id: Option<String>,
+    pub host: String,
+    pub port: i64,
+    pub user: String,
+    pub auth_type: String,
+    pub key_path: String,
+    pub key_id: Option<String>,
+    pub sort_order: i64,
+    pub notes: String,
+    pub extras: String,
+    pub via_session_id: Option<String>,
+    pub via_host: Option<String>,
+    pub via_port: Option<i64>,
+    pub via_user: Option<String>,
+    pub updated_at_ms: i64,
+}
+
+impl From<DbSessionMetadata> for lfs_core::db::sessions::SessionMetadata {
+    fn from(m: DbSessionMetadata) -> Self {
+        Self {
+            id: m.id,
+            label: m.label,
+            folder_id: m.folder_id,
+            host: m.host,
+            port: m.port,
+            user: m.user,
+            auth_type: m.auth_type,
+            key_path: m.key_path,
+            key_id: m.key_id,
+            sort_order: m.sort_order,
+            notes: m.notes,
+            extras: m.extras,
+            via_session_id: m.via_session_id,
+            via_host: m.via_host,
+            via_port: m.via_port,
+            via_user: m.via_user,
+            updated_at_ms: m.updated_at_ms,
+        }
+    }
+}
+
+/// Update non-credential metadata on a session row without touching
+/// the `password` / `key_data` / `passphrase` columns. Lets the
+/// edit dialog save a label / host / proxy change without first
+/// reading the existing secret bytes back onto the Dart heap.
+pub async fn db_sessions_update_metadata(metadata: DbSessionMetadata) -> Result<u32, String> {
+    let m: lfs_core::db::sessions::SessionMetadata = metadata.into();
+    run_db(move |c| lfs_core::db::sessions::update_metadata(c, &m))
+        .await
+        .map(|n| n as u32)
+}
+
+/// Replace one credential column (`"password"` / `"key_data"` /
+/// `"passphrase"`) on a session. Crosses FRB plaintext one direction
+/// only (Dart → Rust → DB); pairs with `db_sessions_stage_secrets`
+/// for the read direction. Empty `value` clears the slot.
+pub async fn db_sessions_set_secret(
+    id: String,
+    slot: String,
+    value: String,
+    updated_at_ms: i64,
+) -> Result<u32, String> {
+    run_db(move |c| lfs_core::db::sessions::set_secret_column(c, &id, &slot, &value, updated_at_ms))
+        .await
+        .map(|n| n as u32)
+}
+
 /// Copy a saved session row to a new id + label, optionally
 /// re-parented under [`target_folder_id`]. Credentials flow column-
 /// to-column inside SQLite and never cross the FRB boundary, so the
