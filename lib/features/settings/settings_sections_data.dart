@@ -689,74 +689,37 @@ class _ExportImportTile extends ConsumerWidget {
     AppProgressBarDialog.show(context, reporter);
     var progressShown = true;
     try {
-      final store = ref.read(sessionStoreProvider);
-      final keyStore = ref.read(keyStoreProvider);
-      final tagStore = ref.read(tagStoreProvider);
-      final snippetStore = ref.read(snippetStoreProvider);
-      final knownHostsMgr = ref.read(knownHostsProvider);
-      final importService = ImportService(
-        addSession: (s) => ref.read(sessionProvider.notifier).add(s),
-        addEmptyFolder: (f) =>
-            ref.read(sessionProvider.notifier).addEmptyFolder(f),
-        deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
-        getSessions: () => ref.read(sessionProvider),
-        applyConfig: (importedConfig) => ref
+      // Apply the bulk of the archive (sessions, keys, tags,
+      // snippets, junctions, folders, known_hosts) through the
+      // Rust apply driver under a single sqlite transaction.
+      // Replace mode rolls back automatically on failure;
+      // merge mode upserts row-by-row.
+      final apply = await applyResultViaRust(
+        importResult,
+        refreshAfterImport: () async {
+          // Rust wrote through the DB directly; reload the
+          // Dart-side in-memory caches the UI binds to. Each
+          // store exposes a `load()` that re-reads the DB into
+          // its in-memory list.
+          await ref.read(sessionStoreProvider).load();
+          await ref.read(tagStoreProvider).loadAll();
+          await ref.read(snippetStoreProvider).loadAll();
+        },
+      );
+      // Config restore (file IO, not a DB write) stays
+      // Dart-side. Security tier setup is per-machine and
+      // never travels — keep the local value, merge the rest.
+      final cfg = importResult.config;
+      if (cfg != null) {
+        ref
             .read(configProvider.notifier)
             .update(
-              // `security` describes the per-machine setup: which
-              // keychain slot, which hw vault, which DB-key wrapper.
-              // It must NEVER travel across machines via the archive
-              // — importing on machine B should not try to unlock a
-              // hardware vault that belongs to machine A's TPM. Keep
-              // the local value, merge everything else.
-              (current) =>
-                  importedConfig.copyWithSecurity(security: current.security),
-            ),
-        saveManagerKey: (entry) => keyStore.importForMerge(entry),
-        saveTag: (tag) async {
-          await tagStore.add(tag);
-          return tag.id;
-        },
-        tagSession: tagStore.tagSession,
-        tagFolder: (folderId, tagId) => tagStore.tagFolder(folderId, tagId),
-        saveSnippet: (snippet) async {
-          await snippetStore.add(snippet);
-          return snippet.id;
-        },
-        linkSnippetToSession: snippetStore.linkToSession,
-        getEmptyFolders: () => store.emptyFolders,
-        restoreSnapshot: (sessions, folders) =>
-            store.restoreSnapshot(sessions, folders),
-        existingTagIds: () async =>
-            (await tagStore.loadAll()).map((t) => t.id).toSet(),
-        existingSnippetIds: () async =>
-            (await snippetStore.loadAll()).map((s) => s.id).toSet(),
-        getCurrentConfig: () => ref.read(configProvider),
-        loadAllTags: () => tagStore.loadAll(),
-        deleteAllTags: () => tagStore.deleteAll(),
-        loadAllSnippets: () => snippetStore.loadAll(),
-        deleteAllSnippets: () => snippetStore.deleteAll(),
-        exportKnownHosts: () => knownHostsMgr.exportToString(),
-        clearKnownHosts: () => knownHostsMgr.clearAll(),
-        importKnownHosts: (content) async {
-          await knownHostsMgr.importFromString(content);
-        },
-        existingManagerKeyIds: () async =>
-            (await keyStore.loadAllMetadata()).keys.toSet(),
-        deleteManagerKey: keyStore.delete,
-        // Stores write through FRB into `lfs_core.db`; the drift
-        // handle the wrapper used to span no longer owns these
-        // writes. Atomicity becomes a Rust-side concern; recovery
-        // for now is via re-import.
-        runInTransaction: null,
-      );
-      final summary = await importService.applyResult(
-        importResult,
-        progress: reporter,
-        l10n: l10n,
-      );
-      // Refresh cached FutureProviders so newly imported keys, tags and
-      // snippets appear in the UI without an app restart.
+              (current) => cfg.copyWithSecurity(security: current.security),
+            );
+      }
+      // Refresh cached FutureProviders so newly imported keys,
+      // tags and snippets appear in the UI without an app
+      // restart.
       ref.invalidate(sshKeysProvider);
       ref.invalidate(tagsProvider);
       ref.invalidate(snippetsProvider);
@@ -766,7 +729,20 @@ class _ExportImportTile extends ConsumerWidget {
         progressShown = false;
         Toast.show(
           context,
-          message: formatImportSummary(S.of(context), summary),
+          message: formatImportSummary(
+            S.of(context),
+            ImportSummary(
+              sessions: apply.sessionsApplied.toInt(),
+              folders: apply.foldersApplied.toInt(),
+              managerKeys: apply.keysApplied.toInt(),
+              tags: apply.tagsApplied.toInt(),
+              snippets: apply.snippetsApplied.toInt(),
+              configApplied: cfg != null,
+              knownHostsApplied: apply.knownHostsApplied > 0,
+              skippedSessions: importResult.skippedSessions,
+              skippedLinks: 0,
+            ),
+          ),
           level: ToastLevel.success,
         );
       }
