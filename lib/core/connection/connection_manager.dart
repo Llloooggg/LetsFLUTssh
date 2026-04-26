@@ -14,7 +14,6 @@ import '../ssh/known_hosts.dart';
 import '../ssh/ssh_config.dart';
 import '../ssh/transport/rust_transport.dart';
 import '../ssh/transport/ssh_transport.dart';
-import '../ssh/transport/transport_factory.dart';
 import 'connection.dart';
 import 'connection_step.dart';
 
@@ -63,28 +62,11 @@ class ConnectionManager {
   /// Stream that fires on any connection state change.
   Stream<void> get onChange => _controller.stream;
 
-  /// Optional override of the SSH transport factory — useful in tests
-  /// to inject a mock SshTransport without touching the global factory.
-  /// In production stays null and `createSshTransport()` is used.
-  final SshTransport Function(KnownHostsManager)? _transportFactory;
-
-  /// When true, [connectAsync] dispatches handshake work to the
-  /// Rust connection actor instead of the legacy
-  /// in-Dart driver. Production wires this on; tests that exercise
-  /// the manager without a live FRB native lib leave it off so
-  /// they keep the in-Dart driver semantics with their injected
-  /// `_transportFactory` mocks.
-  final bool _useRustActor;
-
   ConnectionManager({
     required this.knownHosts,
     SessionCredentialCache? credentialCache,
     this.onActiveCountChanged,
-    SshTransport Function(KnownHostsManager)? transportFactory,
-    bool useRustActor = false,
-  }) : _credentialCache = credentialCache,
-       _transportFactory = transportFactory,
-       _useRustActor = useRustActor;
+  }) : _credentialCache = credentialCache;
 
   /// User-visible connections. Excludes internal bastion hops the
   /// manager opens to back ProxyJump chains; those rides are owned
@@ -134,28 +116,21 @@ class ConnectionManager {
       name: 'Connection',
     );
 
-    // Start connection in background. Production path (`_useRustActor`)
-    // goes through the Rust connection actor. Tests that
-    // exercise the manager without a live FRB native lib leave the
-    // flag off and keep the legacy in-Dart driver, where they can
-    // inject mock transports via `_transportFactory`.
+    // Connect through the Rust actor. Bus events stream the
+    // handshake state changes back; once the actor reports
+    // Connected we adopt the session into a `RustTransport`.
     _connectGeneration[id] = 1;
-    if (_useRustActor) {
-      unawaited(_doConnectViaActor(conn, config, 1));
-    } else {
-      unawaited(_doConnect(conn, config, 1));
-    }
+    unawaited(_doConnect(conn, config, 1));
     return conn;
   }
 
-  /// Rust-actor connect path — dispatches the connect command to
-  /// the Rust connection actor and mirrors its bus events back onto the
-  /// Dart `Connection` so the existing UI can keep observing the
-  /// same `state` / `progressStream` / `connectionError` surface.
-  /// Once the actor reports `Connected`, the live `SshSession` is
-  /// fetched via `connection_get_session` and adopted into a
-  /// `RustTransport` for channel ops.
-  Future<void> _doConnectViaActor(
+  /// Dispatch the connect command to the Rust connection actor and
+  /// mirror its bus events back onto the Dart `Connection` so the
+  /// existing UI keeps observing the same `state` / `progressStream`
+  /// / `connectionError` surface. Once the actor reports `Connected`
+  /// the live `SshSession` is fetched via `connection_get_session`
+  /// and adopted into a `RustTransport` for channel ops.
+  Future<void> _doConnect(
     Connection conn,
     SSHConfig config,
     int generation,
@@ -397,136 +372,8 @@ class ConnectionManager {
     };
   }
 
-  /// Connection timeout — applied at the transport level, not in UI.
+  /// Connection timeout — applied inside the Rust actor.
   static const connectionTimeout = Duration(seconds: 30);
-
-  /// Background connection logic.
-  ///
-  /// [generation] is a per-connection counter that prevents stale results
-  /// from a previous reconnect attempt overwriting a newer one.
-  Future<void> _doConnect(
-    Connection conn,
-    SSHConfig config,
-    int generation,
-  ) async {
-    final effectiveConfig = await _withCredentialOverlay(conn, config);
-    final transport =
-        _transportFactory?.call(knownHosts) ??
-        createSshTransport(knownHosts: knownHosts);
-    final auth = await _authFromConfig(effectiveConfig.auth, conn.sessionId);
-    final request = SshConnectRequest(
-      host: effectiveConfig.host,
-      port: effectiveConfig.port,
-      user: effectiveConfig.user,
-      auth: auth,
-      inactivityTimeout: Duration(seconds: effectiveConfig.timeoutSec),
-    );
-    // Synthetic phase emission — russh hides the discrete handshake
-    // events so the UI gets one "in-progress" tick at start and a
-    // batched success / failure after `connect()` returns. Failure
-    // type maps to the most-likely phase that broke (auth / host
-    // key / TCP) so the user sees "wrong password" instead of a
-    // generic red cross on the socket-connect line.
-    conn.addProgressStep(
-      const ConnectionStep(
-        phase: ConnectionPhase.socketConnect,
-        status: StepStatus.inProgress,
-      ),
-    );
-    try {
-      // ProxyJump dispatch: if `conn.bastion` carries a live Rust
-      // transport, tunnel this hop's handshake through it via
-      // `connectViaProxy`. Waiting on `bastion.waitUntilReady()`
-      // closes the race where the parent's auth must finish before
-      // the child reaches for the channel primitive.
-      final parentTransport = await _resolveParentRustTransport(conn.bastion);
-      if (parentTransport != null && transport is RustTransport) {
-        await transport
-            .connectViaProxy(parentTransport, request)
-            .timeout(connectionTimeout);
-      } else {
-        await transport.connect(request).timeout(connectionTimeout);
-      }
-      if (_isStaleGeneration(conn.id, generation)) {
-        await transport.disconnect();
-        return;
-      }
-      conn.transport = transport;
-      conn.state = SSHConnectionState.connected;
-      _cachePostAuthCredentials(conn, effectiveConfig);
-      conn.notifyExtensionsConnected();
-      conn.addProgressStep(
-        const ConnectionStep(
-          phase: ConnectionPhase.socketConnect,
-          status: StepStatus.success,
-        ),
-      );
-      conn.addProgressStep(
-        const ConnectionStep(
-          phase: ConnectionPhase.hostKeyVerify,
-          status: StepStatus.success,
-        ),
-      );
-      conn.addProgressStep(
-        const ConnectionStep(
-          phase: ConnectionPhase.authenticate,
-          status: StepStatus.success,
-        ),
-      );
-      AppLogger.instance.log(
-        'Connected: <label> (id=${conn.id})',
-        name: 'Connection',
-      );
-    } on TimeoutException {
-      if (_isStaleGeneration(conn.id, generation)) {
-        await transport.disconnect();
-        return;
-      }
-      conn.connectionError = TimeoutException(
-        'Connection timed out',
-        connectionTimeout,
-      );
-      conn.state = SSHConnectionState.disconnected;
-      conn.addProgressStep(
-        const ConnectionStep(
-          phase: ConnectionPhase.socketConnect,
-          status: StepStatus.failed,
-          detail: 'timeout',
-        ),
-      );
-      AppLogger.instance.log('Connection failed: timeout', name: 'Connection');
-    } catch (e) {
-      if (_isStaleGeneration(conn.id, generation)) {
-        await transport.disconnect();
-        return;
-      }
-      conn.connectionError = e;
-      conn.state = SSHConnectionState.disconnected;
-      conn.addProgressStep(_failureStep(e));
-      AppLogger.instance.log(
-        'Connection failed: $e',
-        name: 'Connection',
-        error: e,
-      );
-    } finally {
-      if (!_isStaleGeneration(conn.id, generation)) {
-        conn.completeReady();
-      }
-      _notify();
-    }
-  }
-
-  /// Wait for [bastion] to finish auth and pull its `RustTransport`
-  /// out, ready to use as the parent of a `connectViaProxy` call.
-  Future<RustTransport?> _resolveParentRustTransport(
-    Connection? bastion,
-  ) async {
-    if (bastion == null) return null;
-    await bastion.waitUntilReady();
-    if (!bastion.isConnected) return null;
-    final t = bastion.transport;
-    return t is RustTransport ? t : null;
-  }
 
   /// Translate the legacy [SshAuth] config bag into the typed
   /// [SshAuthMethod] family that [SshConnectRequest] uses.
@@ -727,33 +574,6 @@ class ConnectionManager {
   bool _isStaleGeneration(String id, int generation) =>
       _connectGeneration[id] != generation;
 
-  /// Map a connect-time exception onto the most-likely
-  /// `ConnectionPhase` that broke. Lets `progress_writer` paint the
-  /// red cross next to the right line — "wrong password" against
-  /// authenticate, "host key changed" against hostKeyVerify, anything
-  /// else falls back to socketConnect.
-  static ConnectionStep _failureStep(Object e) {
-    if (e is SshAuthFailed) {
-      return ConnectionStep(
-        phase: ConnectionPhase.authenticate,
-        status: StepStatus.failed,
-        detail: e.toString(),
-      );
-    }
-    if (e is SshHostKeyRejected) {
-      return ConnectionStep(
-        phase: ConnectionPhase.hostKeyVerify,
-        status: StepStatus.failed,
-        detail: e.toString(),
-      );
-    }
-    return ConnectionStep(
-      phase: ConnectionPhase.socketConnect,
-      status: StepStatus.failed,
-      detail: e.toString(),
-    );
-  }
-
   /// Reconnect an existing connection.
   ///
   /// Resets progress stream, disconnects old transport, and runs a fresh
@@ -823,25 +643,21 @@ class ConnectionManager {
         }),
       );
     }
-    // Production path (`_useRustActor`) also dispatches the actor-
-    // side teardown so the russh handle is dropped and the
-    // registry row cleared. Adopted transports' `disconnect()` is
-    // a no-op (the `RustTransport.adopt` flag) — the actor is the
-    // lifecycle owner. Tests without the actor flag skip this
-    // dispatch entirely.
-    if (_useRustActor) {
-      unawaited(
-        AppBus.instance
-            .dispatch(rust_bus.BusCommand.connectionDisconnect(id: id))
-            .catchError((Object e) {
-              AppLogger.instance.log(
-                'Bus disconnect dispatch failed',
-                name: 'Connection',
-                error: e,
-              );
-            }),
-      );
-    }
+    // Dispatch the actor-side teardown so the russh handle is
+    // dropped and the registry row cleared. Adopted transports'
+    // `disconnect()` is a no-op (the `RustTransport.adopt` flag) —
+    // the actor is the lifecycle owner.
+    unawaited(
+      AppBus.instance
+          .dispatch(rust_bus.BusCommand.connectionDisconnect(id: id))
+          .catchError((Object e) {
+            AppLogger.instance.log(
+              'Bus disconnect dispatch failed',
+              name: 'Connection',
+              error: e,
+            );
+          }),
+    );
     // Drop the cached passphrase BEFORE losing the Connection reference
     // so the GC can reclaim the String once our map stops pinning it.
     conn.clearCachedCredentials();

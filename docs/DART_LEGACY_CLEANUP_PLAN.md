@@ -128,7 +128,7 @@ decrypt-side rewire is mechanical.
 
 ### Step 3 — drop Dart connection manager legacy driver
 
-**Status:** TODO
+**Status:** DONE
 
 **Why third:** lighter than archive rewire but exercises a
 hot-path code area. Goes after the safer Steps 1+2.
