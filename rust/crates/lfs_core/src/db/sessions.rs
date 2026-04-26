@@ -197,6 +197,70 @@ pub fn move_to_folder(
     .map_err(|e| Error::Io(format!("sessions move_to_folder: {e}")))
 }
 
+/// What got staged into the [`crate::secrets::SecretStore`] by
+/// [`stage_secrets_into_store`]. The bools tell the caller which
+/// `SshAuth*Ref` variant to construct without needing to read the
+/// columns themselves.
+#[derive(Debug, Clone, Default)]
+pub struct StagedSecrets {
+    pub auth_type: String,
+    pub has_password: bool,
+    pub has_key_data: bool,
+    pub has_passphrase: bool,
+}
+
+/// Read `password` / `key_data` / `passphrase` for a saved session
+/// and push every non-empty field into the process-singleton secret
+/// store under the canonical `sess.<slot>.<id>` ids. Plaintext bytes
+/// never cross the FRB boundary back to Dart — only the bool flags
+/// describing which slots were staged. The caller then dispatches
+/// to the matching `SshAuth*Ref` connect variant.
+///
+/// Returns `Ok(None)` when the session row is missing.
+pub fn stage_secrets_into_store(
+    conn: &Connection,
+    session_id: &str,
+) -> Result<Option<StagedSecrets>, Error> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT auth_type, password, key_data, passphrase \
+             FROM sessions WHERE id = ?1",
+        )
+        .map_err(|e| Error::Io(format!("sessions stage_secrets prepare: {e}")))?;
+    let row: Option<(String, String, String, String)> = stmt
+        .query_row(params![session_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
+        .ok();
+    let Some((auth_type, password, key_data, passphrase)) = row else {
+        return Ok(None);
+    };
+
+    let store = &crate::app::instance().secrets;
+    let has_password = !password.is_empty();
+    if has_password {
+        store.put(&format!("sess.password.{session_id}"), password.as_bytes());
+    }
+    let has_key_data = !key_data.is_empty();
+    if has_key_data {
+        store.put(&format!("sess.key.{session_id}"), key_data.as_bytes());
+    }
+    let has_passphrase = !passphrase.is_empty();
+    if has_passphrase {
+        store.put(
+            &format!("sess.passphrase.{session_id}"),
+            passphrase.as_bytes(),
+        );
+    }
+
+    Ok(Some(StagedSecrets {
+        auth_type,
+        has_password,
+        has_key_data,
+        has_passphrase,
+    }))
+}
+
 /// Bulk variant of [`move_to_folder`].
 pub fn move_multiple(
     conn: &Connection,

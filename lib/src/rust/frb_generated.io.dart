@@ -208,6 +208,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey dco_decode_box_autoadd_db_ssh_key(dynamic raw);
 
   @protected
+  DbStagedSecrets dco_decode_box_autoadd_db_staged_secrets(dynamic raw);
+
+  @protected
   DbTag dco_decode_box_autoadd_db_tag(dynamic raw);
 
   @protected
@@ -239,6 +242,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKey dco_decode_db_ssh_key(dynamic raw);
+
+  @protected
+  DbStagedSecrets dco_decode_db_staged_secrets(dynamic raw);
 
   @protected
   DbTag dco_decode_db_tag(dynamic raw);
@@ -305,6 +311,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKey? dco_decode_opt_box_autoadd_db_ssh_key(dynamic raw);
+
+  @protected
+  DbStagedSecrets? dco_decode_opt_box_autoadd_db_staged_secrets(dynamic raw);
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -509,6 +518,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey sse_decode_box_autoadd_db_ssh_key(SseDeserializer deserializer);
 
   @protected
+  DbStagedSecrets sse_decode_box_autoadd_db_staged_secrets(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbTag sse_decode_box_autoadd_db_tag(SseDeserializer deserializer);
 
   @protected
@@ -544,6 +558,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKey sse_decode_db_ssh_key(SseDeserializer deserializer);
+
+  @protected
+  DbStagedSecrets sse_decode_db_staged_secrets(SseDeserializer deserializer);
 
   @protected
   DbTag sse_decode_db_tag(SseDeserializer deserializer);
@@ -622,6 +639,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKey? sse_decode_opt_box_autoadd_db_ssh_key(SseDeserializer deserializer);
+
+  @protected
+  DbStagedSecrets? sse_decode_opt_box_autoadd_db_staged_secrets(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -871,6 +893,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_staged_secrets(
+    DbStagedSecrets self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_tag(DbTag self, SseSerializer serializer);
 
   @protected
@@ -914,6 +942,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_ssh_key(DbSshKey self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_staged_secrets(
+    DbStagedSecrets self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_tag(DbTag self, SseSerializer serializer);
@@ -1015,6 +1049,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_ssh_key(
     DbSshKey? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_staged_secrets(
+    DbStagedSecrets? self,
     SseSerializer serializer,
   );
 

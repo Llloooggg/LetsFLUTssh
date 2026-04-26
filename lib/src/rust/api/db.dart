@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -60,6 +60,15 @@ Future<void> dbSessionsUpsert({required DbSession row}) =>
 
 Future<int> dbSessionsDelete({required String id}) =>
     RustLib.instance.api.crateApiDbDbSessionsDelete(id: id);
+
+/// Read the credential columns for [`session_id`] and push every
+/// non-empty value straight into the process-singleton SecretStore
+/// under the canonical `sess.<slot>.<id>` ids — bytes never cross
+/// back to Dart. Returns metadata describing which slots were staged
+/// so the caller can dispatch to the matching connect variant. Null
+/// when the row no longer exists.
+Future<DbStagedSecrets?> dbSessionsStageSecrets({required String sessionId}) =>
+    RustLib.instance.api.crateApiDbDbSessionsStageSecrets(sessionId: sessionId);
 
 Future<int> dbSessionsDeleteMultiple({required List<String> ids}) =>
     RustLib.instance.api.crateApiDbDbSessionsDeleteMultiple(ids: ids);
@@ -627,6 +636,38 @@ class DbSshKey {
           keyType == other.keyType &&
           isGenerated == other.isGenerated &&
           createdAtMs == other.createdAtMs;
+}
+
+/// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.
+class DbStagedSecrets {
+  final String authType;
+  final bool hasPassword;
+  final bool hasKeyData;
+  final bool hasPassphrase;
+
+  const DbStagedSecrets({
+    required this.authType,
+    required this.hasPassword,
+    required this.hasKeyData,
+    required this.hasPassphrase,
+  });
+
+  @override
+  int get hashCode =>
+      authType.hashCode ^
+      hasPassword.hashCode ^
+      hasKeyData.hashCode ^
+      hasPassphrase.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbStagedSecrets &&
+          runtimeType == other.runtimeType &&
+          authType == other.authType &&
+          hasPassword == other.hasPassword &&
+          hasKeyData == other.hasKeyData &&
+          hasPassphrase == other.hasPassphrase;
 }
 
 class DbTag {
