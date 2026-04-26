@@ -101,6 +101,19 @@ pub enum Event {
     /// removed from the registry (manual disconnect, parent of a
     /// disconnected bastion chain).
     ConnectionRemoved { id: crate::connection::ConnId },
+
+    /// 5.5 auto-lock — fired when the idle timer expires, when
+    /// the app backgrounds with a non-zero timeout, or when the
+    /// user explicitly requests a lock. The payload is empty —
+    /// subscribers re-fetch any state they need from the
+    /// machine snapshot or the DB.
+    AutoLockLocked,
+    /// 5.5 auto-lock — fired after the Dart unlock dialog
+    /// supplies a fresh key + reopens the DB.
+    AutoLockUnlocked,
+    /// 5.5 auto-lock — fired when the configured idle timeout
+    /// changes. Carries the new value in minutes (0 = off).
+    AutoLockTimeoutChanged { minutes: i64 },
 }
 
 impl Event {
@@ -111,6 +124,9 @@ impl Event {
             | Event::ConnectionProgress { .. }
             | Event::ConnectionError { .. }
             | Event::ConnectionRemoved { .. } => EventTopic::Connection,
+            Event::AutoLockLocked
+            | Event::AutoLockUnlocked
+            | Event::AutoLockTimeoutChanged { .. } => EventTopic::AutoLock,
         }
     }
 }
@@ -128,6 +144,27 @@ pub enum Command {
     /// missing id. Drops the held russh handle (which sends
     /// `SSH_MSG_DISCONNECT` on Drop) before clearing the row.
     ConnectionDisconnect { id: crate::connection::ConnId },
+
+    /// 5.5 auto-lock — pointer activity ping. Resets the idle
+    /// timer; the Dart side fires this once per significant
+    /// pointer event so the lock doesn't trip mid-typing.
+    AutoLockOnPointerActivity,
+    /// 5.5 auto-lock — lifecycle change. `background = true` is
+    /// the Dart-era `paused / inactive / hidden` umbrella;
+    /// `background = false` is `resumed`.
+    AutoLockOnLifecycleChange { background: bool },
+    /// 5.5 auto-lock — configure the idle timeout in minutes
+    /// (0 disables the timer). Mirrors the Settings → Auto-lock
+    /// preset list.
+    AutoLockSetTimeout { minutes: i64 },
+    /// 5.5 auto-lock — explicit lock request (Settings →
+    /// "Lock now", deeplink, etc).
+    AutoLockRequestLock,
+    /// 5.5 auto-lock — unlock signal from the Dart-side unlock
+    /// dialog. The dialog has already supplied the master key +
+    /// reopened the DB; the machine just resets its activity
+    /// clock and emits the matching event.
+    AutoLockUnlock,
 }
 
 /// Broadcast-backed event broker. Owned by `AppState` (process
@@ -188,6 +225,33 @@ pub async fn dispatch(cmd: Command) -> Result<(), Error> {
             Ok(())
         }
         Command::ConnectionDisconnect { id } => crate::connection::disconnect(&id).await,
+        Command::AutoLockOnPointerActivity => {
+            app.autolock.on_pointer_activity();
+            Ok(())
+        }
+        Command::AutoLockOnLifecycleChange { background } => {
+            app.autolock.on_lifecycle_change(
+                if background {
+                    crate::autolock::LifecycleState::Background
+                } else {
+                    crate::autolock::LifecycleState::Foreground
+                },
+                &app.bus,
+            );
+            Ok(())
+        }
+        Command::AutoLockSetTimeout { minutes } => {
+            app.autolock.set_timeout_minutes(minutes, &app.bus);
+            Ok(())
+        }
+        Command::AutoLockRequestLock => {
+            app.autolock.request_lock(&app.bus);
+            Ok(())
+        }
+        Command::AutoLockUnlock => {
+            app.autolock.unlock(&app.bus);
+            Ok(())
+        }
     }
 }
 

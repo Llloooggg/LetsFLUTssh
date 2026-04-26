@@ -70,6 +70,27 @@ sealed class BusCommand with _$BusCommand {
   /// missing id.
   const factory BusCommand.connectionDisconnect({required String id}) =
       BusCommand_ConnectionDisconnect;
+
+  /// 5.5 auto-lock — pointer activity ping.
+  const factory BusCommand.autoLockOnPointerActivity() =
+      BusCommand_AutoLockOnPointerActivity;
+
+  /// 5.5 auto-lock — lifecycle change.
+  const factory BusCommand.autoLockOnLifecycleChange({
+    required bool background,
+  }) = BusCommand_AutoLockOnLifecycleChange;
+
+  /// 5.5 auto-lock — set the idle timeout in minutes (0 = off).
+  const factory BusCommand.autoLockSetTimeout({
+    required PlatformInt64 minutes,
+  }) = BusCommand_AutoLockSetTimeout;
+
+  /// 5.5 auto-lock — explicit lock request.
+  const factory BusCommand.autoLockRequestLock() =
+      BusCommand_AutoLockRequestLock;
+
+  /// 5.5 auto-lock — unlock signal from the Dart-side dialog.
+  const factory BusCommand.autoLockUnlock() = BusCommand_AutoLockUnlock;
 }
 
 /// Inputs to a connect command — FRB mirror of
@@ -182,6 +203,21 @@ sealed class BusEvent with _$BusEvent {
   /// parent of a disconnected bastion chain).
   const factory BusEvent.connectionRemoved({required String id}) =
       BusEvent_ConnectionRemoved;
+
+  /// 5.5 auto-lock — fired when the idle timer expires, the app
+  /// backgrounds with a non-zero timeout, or the user explicitly
+  /// requests a lock.
+  const factory BusEvent.autoLockLocked() = BusEvent_AutoLockLocked;
+
+  /// 5.5 auto-lock — fired after the Dart unlock dialog supplies
+  /// a fresh key + reopens the DB.
+  const factory BusEvent.autoLockUnlocked() = BusEvent_AutoLockUnlocked;
+
+  /// 5.5 auto-lock — fired when the configured idle timeout
+  /// changes. Carries the new value in minutes (0 = off).
+  const factory BusEvent.autoLockTimeoutChanged({
+    required PlatformInt64 minutes,
+  }) = BusEvent_AutoLockTimeoutChanged;
 }
 
 /// Connection progress step — FRB mirror of

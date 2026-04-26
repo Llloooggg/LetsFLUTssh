@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
+use crate::autolock::AutoLockMachine;
 use crate::bus::EventBus;
 use crate::connection::ConnectionRegistry;
 use crate::db::Db;
@@ -37,6 +38,10 @@ pub struct AppState {
     /// actor; commands look up actors by [`crate::connection::ConnId`]
     /// and run state-machine transitions under per-actor locks.
     pub connections: ConnectionRegistry,
+    /// Phase 5.5 auto-lock state machine. Owns the canonical idle
+    /// timer + lifecycle state; emits `AutoLockLocked` /
+    /// `AutoLockUnlocked` events when transitions fire.
+    pub autolock: Arc<AutoLockMachine>,
 }
 
 impl AppState {
@@ -46,6 +51,7 @@ impl AppState {
             db: Mutex::new(None),
             bus: EventBus::new(),
             connections: ConnectionRegistry::new(),
+            autolock: Arc::new(AutoLockMachine::new()),
         }
     }
 
@@ -78,9 +84,18 @@ impl AppState {
 }
 
 /// Build the singleton if it doesn't exist yet. Safe to call from
-/// any thread; `OnceLock` serialises the first call.
+/// any thread; `OnceLock` serialises the first call. Starts the
+/// auto-lock ticker on the first call so the idle timer runs for
+/// the life of the process.
 pub fn init() -> Arc<AppState> {
-    APP_STATE.get_or_init(|| Arc::new(AppState::new())).clone()
+    let state = APP_STATE
+        .get_or_init(|| {
+            let app = Arc::new(AppState::new());
+            app.autolock.clone().spawn_ticker();
+            app
+        })
+        .clone();
+    state
 }
 
 /// Fetch the running singleton. Panics if `init()` has not run —

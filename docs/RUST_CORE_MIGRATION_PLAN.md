@@ -805,7 +805,7 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
   - Dart `SessionRecorder` retires.
   - Playback browser stays Dart (read-only file consumer, no state).
 
-- [ ] **5.5 Auto-lock + lifecycle → Rust state machine**
+- [-] **5.5 Auto-lock + lifecycle → Rust state machine (Rust complete)**
   - Rust: `AutoLockMachine` holds `last_activity_ms`, `lock_after_ms`, `lifecycle_state` (`Foreground | Background | Inactive`). Idle timer runs on tokio `time::interval`; expiry fires `dbClose` + `secrets_clear` + emits `Locked` event.
   - Commands: `OnPointerActivity`, `OnLifecycleChange(Foreground|Background|Inactive)`, `SetTimeout(minutes)`, `RequestLock`, `Unlock(key)`.
   - Events: `Locked`, `Unlocked`, `TimeoutChanged`.

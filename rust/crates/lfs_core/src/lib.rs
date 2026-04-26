@@ -19,6 +19,7 @@
 
 pub mod app;
 pub mod archive;
+pub mod autolock;
 pub mod bus;
 pub mod connection;
 pub mod crypto;

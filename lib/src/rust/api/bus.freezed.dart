@@ -55,12 +55,17 @@ extension BusCommandPatterns on BusCommand {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusCommand_NoopEcho value)?  noopEcho,TResult Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusCommand_NoopEcho value)?  noopEcho,TResult Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
-return connectionDisconnect(_that);case _:
+return connectionDisconnect(_that);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
+return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChange() when autoLockOnLifecycleChange != null:
+return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
+return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
+return autoLockRequestLock(_that);case BusCommand_AutoLockUnlock() when autoLockUnlock != null:
+return autoLockUnlock(_that);case _:
   return orElse();
 
 }
@@ -78,12 +83,17 @@ return connectionDisconnect(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusCommand_NoopEcho value)  noopEcho,required TResult Function( BusCommand_ConnectionDisconnect value)  connectionDisconnect,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusCommand_NoopEcho value)  noopEcho,required TResult Function( BusCommand_ConnectionDisconnect value)  connectionDisconnect,required TResult Function( BusCommand_AutoLockOnPointerActivity value)  autoLockOnPointerActivity,required TResult Function( BusCommand_AutoLockOnLifecycleChange value)  autoLockOnLifecycleChange,required TResult Function( BusCommand_AutoLockSetTimeout value)  autoLockSetTimeout,required TResult Function( BusCommand_AutoLockRequestLock value)  autoLockRequestLock,required TResult Function( BusCommand_AutoLockUnlock value)  autoLockUnlock,}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho():
 return noopEcho(_that);case BusCommand_ConnectionDisconnect():
-return connectionDisconnect(_that);}
+return connectionDisconnect(_that);case BusCommand_AutoLockOnPointerActivity():
+return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChange():
+return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout():
+return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock():
+return autoLockRequestLock(_that);case BusCommand_AutoLockUnlock():
+return autoLockUnlock(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -97,12 +107,17 @@ return connectionDisconnect(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusCommand_NoopEcho value)?  noopEcho,TResult? Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusCommand_NoopEcho value)?  noopEcho,TResult? Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult? Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult? Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult? Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult? Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult? Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
-return connectionDisconnect(_that);case _:
+return connectionDisconnect(_that);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
+return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChange() when autoLockOnLifecycleChange != null:
+return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
+return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
+return autoLockRequestLock(_that);case BusCommand_AutoLockUnlock() when autoLockUnlock != null:
+return autoLockUnlock(_that);case _:
   return null;
 
 }
@@ -119,11 +134,16 @@ return connectionDisconnect(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  noopEcho,TResult Function( String id)?  connectionDisconnect,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  noopEcho,TResult Function( String id)?  connectionDisconnect,TResult Function()?  autoLockOnPointerActivity,TResult Function( bool background)?  autoLockOnLifecycleChange,TResult Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult Function()?  autoLockRequestLock,TResult Function()?  autoLockUnlock,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
-return connectionDisconnect(_that.id);case _:
+return connectionDisconnect(_that.id);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
+return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange() when autoLockOnLifecycleChange != null:
+return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
+return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
+return autoLockRequestLock();case BusCommand_AutoLockUnlock() when autoLockUnlock != null:
+return autoLockUnlock();case _:
   return orElse();
 
 }
@@ -141,11 +161,16 @@ return connectionDisconnect(_that.id);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  noopEcho,required TResult Function( String id)  connectionDisconnect,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  noopEcho,required TResult Function( String id)  connectionDisconnect,required TResult Function()  autoLockOnPointerActivity,required TResult Function( bool background)  autoLockOnLifecycleChange,required TResult Function( PlatformInt64 minutes)  autoLockSetTimeout,required TResult Function()  autoLockRequestLock,required TResult Function()  autoLockUnlock,}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho():
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect():
-return connectionDisconnect(_that.id);}
+return connectionDisconnect(_that.id);case BusCommand_AutoLockOnPointerActivity():
+return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange():
+return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout():
+return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock():
+return autoLockRequestLock();case BusCommand_AutoLockUnlock():
+return autoLockUnlock();}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -159,11 +184,16 @@ return connectionDisconnect(_that.id);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  noopEcho,TResult? Function( String id)?  connectionDisconnect,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  noopEcho,TResult? Function( String id)?  connectionDisconnect,TResult? Function()?  autoLockOnPointerActivity,TResult? Function( bool background)?  autoLockOnLifecycleChange,TResult? Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult? Function()?  autoLockRequestLock,TResult? Function()?  autoLockUnlock,}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
-return connectionDisconnect(_that.id);case _:
+return connectionDisconnect(_that.id);case BusCommand_AutoLockOnPointerActivity() when autoLockOnPointerActivity != null:
+return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange() when autoLockOnLifecycleChange != null:
+return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
+return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
+return autoLockRequestLock();case BusCommand_AutoLockUnlock() when autoLockUnlock != null:
+return autoLockUnlock();case _:
   return null;
 
 }
@@ -302,6 +332,234 @@ as String,
 
 
 }
+
+/// @nodoc
+
+
+class BusCommand_AutoLockOnPointerActivity extends BusCommand {
+  const BusCommand_AutoLockOnPointerActivity(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand_AutoLockOnPointerActivity);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusCommand.autoLockOnPointerActivity()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BusCommand_AutoLockOnLifecycleChange extends BusCommand {
+  const BusCommand_AutoLockOnLifecycleChange({required this.background}): super._();
+  
+
+ final  bool background;
+
+/// Create a copy of BusCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusCommand_AutoLockOnLifecycleChangeCopyWith<BusCommand_AutoLockOnLifecycleChange> get copyWith => _$BusCommand_AutoLockOnLifecycleChangeCopyWithImpl<BusCommand_AutoLockOnLifecycleChange>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand_AutoLockOnLifecycleChange&&(identical(other.background, background) || other.background == background));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,background);
+
+@override
+String toString() {
+  return 'BusCommand.autoLockOnLifecycleChange(background: $background)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusCommand_AutoLockOnLifecycleChangeCopyWith<$Res> implements $BusCommandCopyWith<$Res> {
+  factory $BusCommand_AutoLockOnLifecycleChangeCopyWith(BusCommand_AutoLockOnLifecycleChange value, $Res Function(BusCommand_AutoLockOnLifecycleChange) _then) = _$BusCommand_AutoLockOnLifecycleChangeCopyWithImpl;
+@useResult
+$Res call({
+ bool background
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusCommand_AutoLockOnLifecycleChangeCopyWithImpl<$Res>
+    implements $BusCommand_AutoLockOnLifecycleChangeCopyWith<$Res> {
+  _$BusCommand_AutoLockOnLifecycleChangeCopyWithImpl(this._self, this._then);
+
+  final BusCommand_AutoLockOnLifecycleChange _self;
+  final $Res Function(BusCommand_AutoLockOnLifecycleChange) _then;
+
+/// Create a copy of BusCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? background = null,}) {
+  return _then(BusCommand_AutoLockOnLifecycleChange(
+background: null == background ? _self.background : background // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusCommand_AutoLockSetTimeout extends BusCommand {
+  const BusCommand_AutoLockSetTimeout({required this.minutes}): super._();
+  
+
+ final  PlatformInt64 minutes;
+
+/// Create a copy of BusCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusCommand_AutoLockSetTimeoutCopyWith<BusCommand_AutoLockSetTimeout> get copyWith => _$BusCommand_AutoLockSetTimeoutCopyWithImpl<BusCommand_AutoLockSetTimeout>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand_AutoLockSetTimeout&&(identical(other.minutes, minutes) || other.minutes == minutes));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,minutes);
+
+@override
+String toString() {
+  return 'BusCommand.autoLockSetTimeout(minutes: $minutes)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusCommand_AutoLockSetTimeoutCopyWith<$Res> implements $BusCommandCopyWith<$Res> {
+  factory $BusCommand_AutoLockSetTimeoutCopyWith(BusCommand_AutoLockSetTimeout value, $Res Function(BusCommand_AutoLockSetTimeout) _then) = _$BusCommand_AutoLockSetTimeoutCopyWithImpl;
+@useResult
+$Res call({
+ PlatformInt64 minutes
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusCommand_AutoLockSetTimeoutCopyWithImpl<$Res>
+    implements $BusCommand_AutoLockSetTimeoutCopyWith<$Res> {
+  _$BusCommand_AutoLockSetTimeoutCopyWithImpl(this._self, this._then);
+
+  final BusCommand_AutoLockSetTimeout _self;
+  final $Res Function(BusCommand_AutoLockSetTimeout) _then;
+
+/// Create a copy of BusCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? minutes = null,}) {
+  return _then(BusCommand_AutoLockSetTimeout(
+minutes: null == minutes ? _self.minutes : minutes // ignore: cast_nullable_to_non_nullable
+as PlatformInt64,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusCommand_AutoLockRequestLock extends BusCommand {
+  const BusCommand_AutoLockRequestLock(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand_AutoLockRequestLock);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusCommand.autoLockRequestLock()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BusCommand_AutoLockUnlock extends BusCommand {
+  const BusCommand_AutoLockUnlock(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand_AutoLockUnlock);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusCommand.autoLockUnlock()';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 mixin _$BusConnectAuthRef {
@@ -755,7 +1013,7 @@ extension BusEventPatterns on BusEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -763,7 +1021,10 @@ return echoed(_that);case BusEvent_ConnectionStateChanged() when connectionState
 return connectionStateChanged(_that);case BusEvent_ConnectionProgress() when connectionProgress != null:
 return connectionProgress(_that);case BusEvent_ConnectionError() when connectionError != null:
 return connectionError(_that);case BusEvent_ConnectionRemoved() when connectionRemoved != null:
-return connectionRemoved(_that);case _:
+return connectionRemoved(_that);case BusEvent_AutoLockLocked() when autoLockLocked != null:
+return autoLockLocked(_that);case BusEvent_AutoLockUnlocked() when autoLockUnlocked != null:
+return autoLockUnlocked(_that);case BusEvent_AutoLockTimeoutChanged() when autoLockTimeoutChanged != null:
+return autoLockTimeoutChanged(_that);case _:
   return orElse();
 
 }
@@ -781,7 +1042,7 @@ return connectionRemoved(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
@@ -789,7 +1050,10 @@ return echoed(_that);case BusEvent_ConnectionStateChanged():
 return connectionStateChanged(_that);case BusEvent_ConnectionProgress():
 return connectionProgress(_that);case BusEvent_ConnectionError():
 return connectionError(_that);case BusEvent_ConnectionRemoved():
-return connectionRemoved(_that);}
+return connectionRemoved(_that);case BusEvent_AutoLockLocked():
+return autoLockLocked(_that);case BusEvent_AutoLockUnlocked():
+return autoLockUnlocked(_that);case BusEvent_AutoLockTimeoutChanged():
+return autoLockTimeoutChanged(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -803,7 +1067,7 @@ return connectionRemoved(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -811,7 +1075,10 @@ return echoed(_that);case BusEvent_ConnectionStateChanged() when connectionState
 return connectionStateChanged(_that);case BusEvent_ConnectionProgress() when connectionProgress != null:
 return connectionProgress(_that);case BusEvent_ConnectionError() when connectionError != null:
 return connectionError(_that);case BusEvent_ConnectionRemoved() when connectionRemoved != null:
-return connectionRemoved(_that);case _:
+return connectionRemoved(_that);case BusEvent_AutoLockLocked() when autoLockLocked != null:
+return autoLockLocked(_that);case BusEvent_AutoLockUnlocked() when autoLockUnlocked != null:
+return autoLockUnlocked(_that);case BusEvent_AutoLockTimeoutChanged() when autoLockTimeoutChanged != null:
+return autoLockTimeoutChanged(_that);case _:
   return null;
 
 }
@@ -828,14 +1095,17 @@ return connectionRemoved(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
 return connectionStateChanged(_that.id,_that.state);case BusEvent_ConnectionProgress() when connectionProgress != null:
 return connectionProgress(_that.id,_that.step);case BusEvent_ConnectionError() when connectionError != null:
 return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved() when connectionRemoved != null:
-return connectionRemoved(_that.id);case _:
+return connectionRemoved(_that.id);case BusEvent_AutoLockLocked() when autoLockLocked != null:
+return autoLockLocked();case BusEvent_AutoLockUnlocked() when autoLockUnlocked != null:
+return autoLockUnlocked();case BusEvent_AutoLockTimeoutChanged() when autoLockTimeoutChanged != null:
+return autoLockTimeoutChanged(_that.minutes);case _:
   return orElse();
 
 }
@@ -853,14 +1123,17 @@ return connectionRemoved(_that.id);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged():
 return connectionStateChanged(_that.id,_that.state);case BusEvent_ConnectionProgress():
 return connectionProgress(_that.id,_that.step);case BusEvent_ConnectionError():
 return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved():
-return connectionRemoved(_that.id);}
+return connectionRemoved(_that.id);case BusEvent_AutoLockLocked():
+return autoLockLocked();case BusEvent_AutoLockUnlocked():
+return autoLockUnlocked();case BusEvent_AutoLockTimeoutChanged():
+return autoLockTimeoutChanged(_that.minutes);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -874,14 +1147,17 @@ return connectionRemoved(_that.id);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
 return connectionStateChanged(_that.id,_that.state);case BusEvent_ConnectionProgress() when connectionProgress != null:
 return connectionProgress(_that.id,_that.step);case BusEvent_ConnectionError() when connectionError != null:
 return connectionError(_that.id,_that.detail);case BusEvent_ConnectionRemoved() when connectionRemoved != null:
-return connectionRemoved(_that.id);case _:
+return connectionRemoved(_that.id);case BusEvent_AutoLockLocked() when autoLockLocked != null:
+return autoLockLocked();case BusEvent_AutoLockUnlocked() when autoLockUnlocked != null:
+return autoLockUnlocked();case BusEvent_AutoLockTimeoutChanged() when autoLockTimeoutChanged != null:
+return autoLockTimeoutChanged(_that.minutes);case _:
   return null;
 
 }
@@ -1219,6 +1495,136 @@ class _$BusEvent_ConnectionRemovedCopyWithImpl<$Res>
   return _then(BusEvent_ConnectionRemoved(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_AutoLockLocked extends BusEvent {
+  const BusEvent_AutoLockLocked(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_AutoLockLocked);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusEvent.autoLockLocked()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BusEvent_AutoLockUnlocked extends BusEvent {
+  const BusEvent_AutoLockUnlocked(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_AutoLockUnlocked);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'BusEvent.autoLockUnlocked()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class BusEvent_AutoLockTimeoutChanged extends BusEvent {
+  const BusEvent_AutoLockTimeoutChanged({required this.minutes}): super._();
+  
+
+ final  PlatformInt64 minutes;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_AutoLockTimeoutChangedCopyWith<BusEvent_AutoLockTimeoutChanged> get copyWith => _$BusEvent_AutoLockTimeoutChangedCopyWithImpl<BusEvent_AutoLockTimeoutChanged>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_AutoLockTimeoutChanged&&(identical(other.minutes, minutes) || other.minutes == minutes));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,minutes);
+
+@override
+String toString() {
+  return 'BusEvent.autoLockTimeoutChanged(minutes: $minutes)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_AutoLockTimeoutChangedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_AutoLockTimeoutChangedCopyWith(BusEvent_AutoLockTimeoutChanged value, $Res Function(BusEvent_AutoLockTimeoutChanged) _then) = _$BusEvent_AutoLockTimeoutChangedCopyWithImpl;
+@useResult
+$Res call({
+ PlatformInt64 minutes
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_AutoLockTimeoutChangedCopyWithImpl<$Res>
+    implements $BusEvent_AutoLockTimeoutChangedCopyWith<$Res> {
+  _$BusEvent_AutoLockTimeoutChangedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_AutoLockTimeoutChanged _self;
+  final $Res Function(BusEvent_AutoLockTimeoutChanged) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? minutes = null,}) {
+  return _then(BusEvent_AutoLockTimeoutChanged(
+minutes: null == minutes ? _self.minutes : minutes // ignore: cast_nullable_to_non_nullable
+as PlatformInt64,
   ));
 }
 

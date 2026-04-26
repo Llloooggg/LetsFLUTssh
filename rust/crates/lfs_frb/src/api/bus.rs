@@ -134,6 +134,17 @@ pub enum BusEvent {
     /// 5.1 — actor removed from the registry (manual disconnect or
     /// parent of a disconnected bastion chain).
     ConnectionRemoved { id: String },
+
+    /// 5.5 auto-lock — fired when the idle timer expires, the app
+    /// backgrounds with a non-zero timeout, or the user explicitly
+    /// requests a lock.
+    AutoLockLocked,
+    /// 5.5 auto-lock — fired after the Dart unlock dialog supplies
+    /// a fresh key + reopens the DB.
+    AutoLockUnlocked,
+    /// 5.5 auto-lock — fired when the configured idle timeout
+    /// changes. Carries the new value in minutes (0 = off).
+    AutoLockTimeoutChanged { minutes: i64 },
 }
 
 impl BusEvent {
@@ -154,6 +165,11 @@ impl BusEvent {
                 BusEvent::ConnectionError { id, detail }
             }
             lfs_core::bus::Event::ConnectionRemoved { id } => BusEvent::ConnectionRemoved { id },
+            lfs_core::bus::Event::AutoLockLocked => BusEvent::AutoLockLocked,
+            lfs_core::bus::Event::AutoLockUnlocked => BusEvent::AutoLockUnlocked,
+            lfs_core::bus::Event::AutoLockTimeoutChanged { minutes } => {
+                BusEvent::AutoLockTimeoutChanged { minutes }
+            }
         }
     }
 }
@@ -248,6 +264,17 @@ pub enum BusCommand {
     /// 5.1 — remove an actor from the registry. Idempotent on a
     /// missing id.
     ConnectionDisconnect { id: String },
+
+    /// 5.5 auto-lock — pointer activity ping.
+    AutoLockOnPointerActivity,
+    /// 5.5 auto-lock — lifecycle change.
+    AutoLockOnLifecycleChange { background: bool },
+    /// 5.5 auto-lock — set the idle timeout in minutes (0 = off).
+    AutoLockSetTimeout { minutes: i64 },
+    /// 5.5 auto-lock — explicit lock request.
+    AutoLockRequestLock,
+    /// 5.5 auto-lock — unlock signal from the Dart-side dialog.
+    AutoLockUnlock,
 }
 
 impl From<BusCommand> for lfs_core::bus::Command {
@@ -257,6 +284,17 @@ impl From<BusCommand> for lfs_core::bus::Command {
             BusCommand::ConnectionDisconnect { id } => {
                 lfs_core::bus::Command::ConnectionDisconnect { id }
             }
+            BusCommand::AutoLockOnPointerActivity => {
+                lfs_core::bus::Command::AutoLockOnPointerActivity
+            }
+            BusCommand::AutoLockOnLifecycleChange { background } => {
+                lfs_core::bus::Command::AutoLockOnLifecycleChange { background }
+            }
+            BusCommand::AutoLockSetTimeout { minutes } => {
+                lfs_core::bus::Command::AutoLockSetTimeout { minutes }
+            }
+            BusCommand::AutoLockRequestLock => lfs_core::bus::Command::AutoLockRequestLock,
+            BusCommand::AutoLockUnlock => lfs_core::bus::Command::AutoLockUnlock,
         }
     }
 }

@@ -5997,6 +5997,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return BusCommand_NoopEcho(payload: dco_decode_String(raw[1]));
       case 1:
         return BusCommand_ConnectionDisconnect(id: dco_decode_String(raw[1]));
+      case 2:
+        return const BusCommand_AutoLockOnPointerActivity();
+      case 3:
+        return BusCommand_AutoLockOnLifecycleChange(
+          background: dco_decode_bool(raw[1]),
+        );
+      case 4:
+        return BusCommand_AutoLockSetTimeout(minutes: dco_decode_i_64(raw[1]));
+      case 5:
+        return const BusCommand_AutoLockRequestLock();
+      case 6:
+        return const BusCommand_AutoLockUnlock();
       default:
         throw Exception('unreachable');
     }
@@ -6079,6 +6091,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 4:
         return BusEvent_ConnectionRemoved(id: dco_decode_String(raw[1]));
+      case 5:
+        return const BusEvent_AutoLockLocked();
+      case 6:
+        return const BusEvent_AutoLockUnlocked();
+      case 7:
+        return BusEvent_AutoLockTimeoutChanged(
+          minutes: dco_decode_i_64(raw[1]),
+        );
       default:
         throw Exception('unreachable');
     }
@@ -7098,6 +7118,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 1:
         final var_id = sse_decode_String(deserializer);
         return BusCommand_ConnectionDisconnect(id: var_id);
+      case 2:
+        return const BusCommand_AutoLockOnPointerActivity();
+      case 3:
+        final var_background = sse_decode_bool(deserializer);
+        return BusCommand_AutoLockOnLifecycleChange(background: var_background);
+      case 4:
+        final var_minutes = sse_decode_i_64(deserializer);
+        return BusCommand_AutoLockSetTimeout(minutes: var_minutes);
+      case 5:
+        return const BusCommand_AutoLockRequestLock();
+      case 6:
+        return const BusCommand_AutoLockUnlock();
       default:
         throw UnimplementedError('');
     }
@@ -7202,6 +7234,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         final var_id = sse_decode_String(deserializer);
         return BusEvent_ConnectionRemoved(id: var_id);
+      case 5:
+        return const BusEvent_AutoLockLocked();
+      case 6:
+        return const BusEvent_AutoLockUnlocked();
+      case 7:
+        final var_minutes = sse_decode_i_64(deserializer);
+        return BusEvent_AutoLockTimeoutChanged(minutes: var_minutes);
       default:
         throw UnimplementedError('');
     }
@@ -8531,6 +8570,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BusCommand_ConnectionDisconnect(id: final id):
         sse_encode_i_32(1, serializer);
         sse_encode_String(id, serializer);
+      case BusCommand_AutoLockOnPointerActivity():
+        sse_encode_i_32(2, serializer);
+      case BusCommand_AutoLockOnLifecycleChange(background: final background):
+        sse_encode_i_32(3, serializer);
+        sse_encode_bool(background, serializer);
+      case BusCommand_AutoLockSetTimeout(minutes: final minutes):
+        sse_encode_i_32(4, serializer);
+        sse_encode_i_64(minutes, serializer);
+      case BusCommand_AutoLockRequestLock():
+        sse_encode_i_32(5, serializer);
+      case BusCommand_AutoLockUnlock():
+        sse_encode_i_32(6, serializer);
     }
   }
 
@@ -8621,6 +8672,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BusEvent_ConnectionRemoved(id: final id):
         sse_encode_i_32(4, serializer);
         sse_encode_String(id, serializer);
+      case BusEvent_AutoLockLocked():
+        sse_encode_i_32(5, serializer);
+      case BusEvent_AutoLockUnlocked():
+        sse_encode_i_32(6, serializer);
+      case BusEvent_AutoLockTimeoutChanged(minutes: final minutes):
+        sse_encode_i_32(7, serializer);
+        sse_encode_i_64(minutes, serializer);
     }
   }
 
