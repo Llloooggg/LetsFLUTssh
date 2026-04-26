@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256
 /// key (encrypted mode) or empty bytes (plaintext mode — writes
@@ -23,10 +23,46 @@ Future<DbRecorderSnapshot> recorderRegister({
   key: key,
 );
 
+/// Compose the asciinema v2 header line for the registered
+/// recording (`{"version": 2, "width": …, "height": …,
+/// "timestamp": …, "env": {…}}`) and append it as a frame. The
+/// timestamp anchor matches the recording's `started_at` (set at
+/// `recorder_register` time). `shell_label` is JSON-escaped
+/// inside the helper.
+Future<BigInt> recorderRecordHeader({
+  required String id,
+  required int width,
+  required int height,
+  required String shellLabel,
+}) => RustLib.instance.api.crateApiRecorderRecorderRecordHeader(
+  id: id,
+  width: width,
+  height: height,
+  shellLabel: shellLabel,
+);
+
+/// Compose an asciinema v2 event line `[delta_secs, "o"|"i",
+/// utf8_str]` and append it as a frame. The delta is computed
+/// against the recording's `started_at` anchor — same semantics
+/// the legacy Dart `_enqueueEvent` produced. Empty `bytes` is a
+/// no-op.
+Future<BigInt> recorderRecordEvent({
+  required String id,
+  required DbRecordDirection direction,
+  required List<int> bytes,
+}) => RustLib.instance.api.crateApiRecorderRecorderRecordEvent(
+  id: id,
+  direction: direction,
+  bytes: bytes,
+);
+
 /// Append a frame to an open recording. Encrypted recordings
 /// produce the `[len(4 LE)][nonce(12)][ct+tag]` framing
 /// internally; plaintext recordings write `plaintext` verbatim.
-/// Returns the running byte total.
+/// Returns the running byte total. Prefer
+/// [`recorder_record_header`] / [`recorder_record_event`] when
+/// composing asciinema lines — those keep the spec encoder in
+/// one place.
 Future<BigInt> recorderRecordFrame({
   required String id,
   required List<int> plaintext,
@@ -59,6 +95,9 @@ Future<BigInt> recorderMaxFileBytes() =>
 /// Flush + close an open recording. Idempotent on a missing id.
 Future<void> recorderClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderClose(id: id);
+
+/// FRB mirror of [`lfs_core::recorder::RecordDirection`].
+enum DbRecordDirection { output, input }
 
 /// Public mirror of `RecorderSnapshot`. Same shape — kept here
 /// rather than reused so FRB can derive its own marshalling.

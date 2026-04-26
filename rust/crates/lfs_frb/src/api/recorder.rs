@@ -63,10 +63,70 @@ pub async fn recorder_register(
     .map_err(|e| format!("recorder register task: {e}"))?
 }
 
+/// FRB mirror of [`lfs_core::recorder::RecordDirection`].
+pub enum DbRecordDirection {
+    Output,
+    Input,
+}
+
+impl From<DbRecordDirection> for lfs_core::recorder::RecordDirection {
+    fn from(d: DbRecordDirection) -> Self {
+        match d {
+            DbRecordDirection::Output => lfs_core::recorder::RecordDirection::Output,
+            DbRecordDirection::Input => lfs_core::recorder::RecordDirection::Input,
+        }
+    }
+}
+
+/// Compose the asciinema v2 header line for the registered
+/// recording (`{"version": 2, "width": …, "height": …,
+/// "timestamp": …, "env": {…}}`) and append it as a frame. The
+/// timestamp anchor matches the recording's `started_at` (set at
+/// `recorder_register` time). `shell_label` is JSON-escaped
+/// inside the helper.
+pub async fn recorder_record_header(
+    id: String,
+    width: u32,
+    height: u32,
+    shell_label: String,
+) -> Result<u64, String> {
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        app.recorders
+            .record_header(&id, width, height, &shell_label, &app.bus)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("recorder header task: {e}"))?
+}
+
+/// Compose an asciinema v2 event line `[delta_secs, "o"|"i",
+/// utf8_str]` and append it as a frame. The delta is computed
+/// against the recording's `started_at` anchor — same semantics
+/// the legacy Dart `_enqueueEvent` produced. Empty `bytes` is a
+/// no-op.
+pub async fn recorder_record_event(
+    id: String,
+    direction: DbRecordDirection,
+    bytes: Vec<u8>,
+) -> Result<u64, String> {
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        app.recorders
+            .record_event(&id, direction.into(), &bytes, &app.bus)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("recorder event task: {e}"))?
+}
+
 /// Append a frame to an open recording. Encrypted recordings
 /// produce the `[len(4 LE)][nonce(12)][ct+tag]` framing
 /// internally; plaintext recordings write `plaintext` verbatim.
-/// Returns the running byte total.
+/// Returns the running byte total. Prefer
+/// [`recorder_record_header`] / [`recorder_record_event`] when
+/// composing asciinema lines — those keep the spec encoder in
+/// one place.
 pub async fn recorder_record_frame(id: String, plaintext: Vec<u8>) -> Result<u64, String> {
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();

@@ -378,6 +378,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbQrExportOptions dco_decode_db_qr_export_options(dynamic raw);
 
   @protected
+  DbRecordDirection dco_decode_db_record_direction(dynamic raw);
+
+  @protected
   DbRecorderSnapshot dco_decode_db_recorder_snapshot(dynamic raw);
 
   @protected
@@ -955,6 +958,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbQrExportOptions sse_decode_db_qr_export_options(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbRecordDirection sse_decode_db_record_direction(
     SseDeserializer deserializer,
   );
 
@@ -1668,6 +1676,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_qr_export_options(
     DbQrExportOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_record_direction(
+    DbRecordDirection self,
     SseSerializer serializer,
   );
 

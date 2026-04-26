@@ -80,6 +80,10 @@ pub struct RecorderActor {
     pub path: String,
     pub bytes_written: u64,
     pub encrypted: bool,
+    /// Wall-clock timestamp captured at register time, used as the
+    /// `t = 0` anchor for asciinema event deltas. `None` for
+    /// counter-only actors that don't compose events here.
+    started_at: Option<std::time::SystemTime>,
     /// Owned file handle when the registry drives IO. `None` for
     /// counter-only actors registered via [`RecorderRegistry::register`].
     /// Wrapped in `Arc<Mutex>` so frame writes can drop the
@@ -98,6 +102,7 @@ impl RecorderActor {
             path,
             bytes_written: 0,
             encrypted,
+            started_at: None,
             file: None,
             key: None,
         }
@@ -248,6 +253,7 @@ impl RecorderRegistry {
             path: path.clone(),
             bytes_written,
             encrypted,
+            started_at: Some(std::time::SystemTime::now()),
             file: Some(Arc::new(Mutex::new(file))),
             key,
         };
@@ -258,6 +264,96 @@ impl RecorderRegistry {
         }
         bus.publish(Event::RecorderStarted { id, path });
         Ok(snap)
+    }
+
+    /// Compose the asciinema v2 header line (`{"version": 2, …}`)
+    /// using the registered recording's `started_at` anchor and
+    /// caller-supplied terminal dimensions, then append it as a
+    /// frame. Body of the header lands as the first JSON-Lines
+    /// entry of the file so any plaintext export — and the
+    /// encrypted file once decrypted — starts as a valid
+    /// asciinema document.
+    pub fn record_header(
+        &self,
+        id: &str,
+        width: u32,
+        height: u32,
+        shell_label: &str,
+        bus: &EventBus,
+    ) -> Result<u64, Error> {
+        let started_at = {
+            let g = self.lock();
+            let actor = g
+                .by_id
+                .get(id)
+                .ok_or_else(|| Error::Io(format!("recorder {id} not registered")))?;
+            actor
+                .started_at
+                .ok_or_else(|| Error::Io(format!("recorder {id} has no started_at anchor")))?
+        };
+        let timestamp_secs = started_at
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        // Hand-build the JSON instead of pulling serde derive on a
+        // single-call shape — the header is fixed, the values are
+        // sanitised at the boundary, and a matching encoder is the
+        // only path that produces byte-identical output to the
+        // legacy Dart writer.
+        let escaped_shell = json_escape(shell_label);
+        let line = format!(
+            "{{\"version\":2,\"width\":{width},\"height\":{height},\"timestamp\":{timestamp_secs},\"env\":{{\"TERM\":\"xterm-256color\",\"SHELL\":\"{escaped_shell}\"}}}}\n"
+        );
+        self.record_frame(id, line.as_bytes(), bus)
+    }
+
+    /// Compose an asciinema v2 event line `[delta_secs, "o"|"i",
+    /// utf8_str]` for the given direction, then append it as a
+    /// frame. `delta_secs` is the wall-clock delta from the
+    /// recording's `started_at` anchor — same semantics the legacy
+    /// Dart `_enqueueEvent` produced. Bytes that don't decode as
+    /// UTF-8 are passed through with replacement characters so a
+    /// stray binary chunk doesn't sink the whole event.
+    pub fn record_event(
+        &self,
+        id: &str,
+        kind: RecordDirection,
+        bytes: &[u8],
+        bus: &EventBus,
+    ) -> Result<u64, Error> {
+        if bytes.is_empty() {
+            // Nothing to record — return the running total so
+            // callers don't observe a state change.
+            let g = self.lock();
+            return Ok(g.by_id.get(id).map(|a| a.bytes_written).unwrap_or(0));
+        }
+        let started_at = {
+            let g = self.lock();
+            let actor = g
+                .by_id
+                .get(id)
+                .ok_or_else(|| Error::Io(format!("recorder {id} not registered")))?;
+            actor
+                .started_at
+                .ok_or_else(|| Error::Io(format!("recorder {id} has no started_at anchor")))?
+        };
+        let delta = std::time::SystemTime::now()
+            .duration_since(started_at)
+            .unwrap_or_default()
+            .as_micros() as f64
+            / 1_000_000.0;
+        let kind_char = match kind {
+            RecordDirection::Output => 'o',
+            RecordDirection::Input => 'i',
+        };
+        let payload = String::from_utf8_lossy(bytes);
+        let escaped = json_escape(&payload);
+        // asciinema v2 spec: float seconds with whatever precision
+        // the writer wants. Match the Dart writer's `delta.toString()`
+        // shape (no fixed-width, no trailing zeros) so the output is
+        // byte-identical for the same delta.
+        let line = format!("[{},\"{kind_char}\",\"{escaped}\"]\n", format_delta(delta));
+        self.record_frame(id, line.as_bytes(), bus)
     }
 
     /// Encrypt (when keyed) and append a frame to the recording's
@@ -393,6 +489,56 @@ impl RecorderRegistry {
         }
         Ok(())
     }
+}
+
+/// JSON-escape a string for embedding inside a `"…"` JSON
+/// literal. Handles the spec-mandated escapes (control chars,
+/// quote, backslash); UTF-8 passes through verbatim. Used by
+/// the asciinema header + event-line composers above so callers
+/// don't need to pull serde_json on a single-line shape.
+fn json_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            '\x08' => out.push_str("\\b"),
+            '\x0c' => out.push_str("\\f"),
+            c if (c as u32) < 0x20 => {
+                use std::fmt::Write as _;
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// Format the asciinema event delta `t` as a JSON-friendly
+/// number. Whole seconds emit as `"N"`, fractional seconds emit
+/// as `"N.frac"` with up to six digits of precision (microsecond
+/// resolution — same as the Dart writer's
+/// `Duration.inMicroseconds / 1e6` produced).
+fn format_delta(t: f64) -> String {
+    if t == 0.0 {
+        return "0".to_string();
+    }
+    if t.fract() == 0.0 {
+        return format!("{}", t as i64);
+    }
+    let formatted = format!("{t:.6}");
+    // Trim trailing zeros + dangling `.` so `1.500000` becomes
+    // `1.5` instead of carrying the noise. `f64`'s default Display
+    // produces scientific notation for sub-microsecond values
+    // (`1e-7`); the asciinema spec accepts any JSON number, but
+    // the Dart writer never emitted scientific shapes since its
+    // delta is microsecond-quantised. Stay in the same lane.
+    let trimmed = formatted.trim_end_matches('0');
+    let trimmed = trimmed.trim_end_matches('.');
+    trimmed.to_string()
 }
 
 /// Build the on-disk frame for `plaintext`. With `Some(key)`
@@ -593,5 +739,95 @@ mod tests {
         reg.register("r1".into(), "s1".into(), "/tmp/x".into(), false, &bus);
         let err = reg.rotate_to("r1", "/tmp/y".into(), &bus).unwrap_err();
         assert!(err.to_string().contains("no file handle"));
+    }
+
+    #[test]
+    fn record_header_emits_asciinema_v2_shape() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path = tempfile_path("header");
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), None, &bus)
+            .unwrap();
+        reg.record_header("r1", 80, 24, "/bin/zsh", &bus).unwrap();
+        let body = std::fs::read_to_string(&path).unwrap();
+        assert!(body.starts_with("{\"version\":2,"));
+        assert!(body.contains("\"width\":80"));
+        assert!(body.contains("\"height\":24"));
+        assert!(body.contains("\"SHELL\":\"/bin/zsh\""));
+        assert!(body.ends_with("\n"));
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn record_event_writes_jsonline_with_delta() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path = tempfile_path("event");
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), None, &bus)
+            .unwrap();
+        reg.record_event("r1", RecordDirection::Output, b"hello", &bus)
+            .unwrap();
+        let body = std::fs::read_to_string(&path).unwrap();
+        assert!(body.starts_with("["));
+        assert!(body.contains(",\"o\",\"hello\"]\n"));
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn record_event_escapes_control_chars_and_quotes() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path = tempfile_path("escapes");
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), None, &bus)
+            .unwrap();
+        reg.record_event(
+            "r1",
+            RecordDirection::Input,
+            b"line\nwith \"quote\" and \x07 bell",
+            &bus,
+        )
+        .unwrap();
+        let body = std::fs::read_to_string(&path).unwrap();
+        assert!(body.contains("\\n"));
+        assert!(body.contains("\\\""));
+        assert!(body.contains("\\u0007"));
+        assert!(body.contains(",\"i\","));
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn record_event_empty_bytes_is_noop() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path = tempfile_path("empty");
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), None, &bus)
+            .unwrap();
+        let total = reg
+            .record_event("r1", RecordDirection::Output, b"", &bus)
+            .unwrap();
+        assert_eq!(total, 0);
+        let body = std::fs::read_to_string(&path).unwrap();
+        assert!(body.is_empty());
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn format_delta_strips_trailing_zeros() {
+        assert_eq!(format_delta(0.0), "0");
+        assert_eq!(format_delta(1.0), "1");
+        assert_eq!(format_delta(1.5), "1.5");
+        assert_eq!(format_delta(0.123456), "0.123456");
+        assert_eq!(format_delta(2.500000), "2.5");
+    }
+
+    #[test]
+    fn json_escape_handles_spec_escapes() {
+        assert_eq!(json_escape("plain"), "plain");
+        assert_eq!(json_escape("with\"quote"), "with\\\"quote");
+        assert_eq!(json_escape("back\\slash"), "back\\\\slash");
+        assert_eq!(json_escape("new\nline"), "new\\nline");
+        assert_eq!(json_escape("tab\there"), "tab\\there");
+        assert_eq!(json_escape("\x01ctrl"), "\\u0001ctrl");
+        assert_eq!(json_escape("emoji 🦀 ok"), "emoji 🦀 ok");
     }
 }

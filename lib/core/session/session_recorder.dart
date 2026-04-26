@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -13,15 +12,11 @@ import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
 /// Direction marker on a recording event — matches asciinema v2's
-/// `"o"` / `"i"` codes so an exported plaintext stream can be played
-/// back in any asciinema-compatible viewer.
-enum RecordDirection {
-  output('o'),
-  input('i');
-
-  final String code;
-  const RecordDirection(this.code);
-}
+/// `"o"` / `"i"` codes. Mapped onto `lfs_core::recorder::RecordDirection`
+/// (FRB-mirrored as [rust_recorder.DbRecordDirection]) inside
+/// [_enqueueEvent]; the JSON-line composition itself runs Rust-side
+/// off `recorderRecordEvent`.
+enum RecordDirection { output, input }
 
 /// Per-shell session recorder.
 ///
@@ -71,11 +66,6 @@ class SessionRecorder {
   /// a stale duplicate.
   final int _maxFileBytes;
 
-  /// Stable across the recorder's lifetime — used in asciinema
-  /// timestamp deltas. Captured at construction so the first event's
-  /// `t = 0` lines up with the real wall-clock of the session start.
-  final DateTime _start;
-
   /// Active Rust-side recorder handle id. Re-allocated on each
   /// rotation (`_rotate` closes the previous handle and registers
   /// a fresh one). Empty when the recorder is closed.
@@ -86,7 +76,7 @@ class SessionRecorder {
   /// Outbound writes are queued so events emitted during a flush
   /// don't reorder — a strict serialised tail keeps timestamps
   /// monotonic in the rare case a stdout chunk arrives mid-await.
-  final _writeQueue = StreamController<Uint8List>(sync: false);
+  final _writeQueue = StreamController<_RecorderQueueEntry>(sync: false);
   StreamSubscription<void>? _writeSub;
 
   /// Set by [close]; subsequent record calls become no-ops so the
@@ -110,13 +100,13 @@ class SessionRecorder {
   }) : _key = key,
        _maxFileBytes = maxFileBytes,
        _handleId = handleId,
-       _currentPath = path,
-       _start = DateTime.now() {
-    // The Rust recorder owns IO + encryption now; the Dart queue
-    // serialises asciinema header + per-event JSON lines and hands
-    // each plaintext buffer to the FRB endpoint. Arrival order
-    // through `asyncMap` keeps timestamps monotonic across the FRB
-    // round-trip.
+       _currentPath = path {
+    // The Rust recorder owns IO + encryption + asciinema line
+    // composition now; the Dart queue serialises the (kind,
+    // bytes) pairs and hands each one to the FRB event endpoint
+    // (or the header endpoint for the open-time +
+    // post-rotate header line). Arrival order through `asyncMap`
+    // keeps timestamps monotonic across the FRB round-trip.
     _writeSub = _writeQueue.stream.asyncMap(_drainOne).listen((_) {});
   }
 
@@ -247,45 +237,46 @@ class SessionRecorder {
   );
 
   void _enqueueHeader() {
-    final header = jsonEncode({
-      'version': 2,
-      'width': width,
-      'height': height,
-      'timestamp': _start.millisecondsSinceEpoch ~/ 1000,
-      'env': {'TERM': 'xterm-256color', 'SHELL': terminalShellLabel},
-    });
-    _enqueuePlaintext(Uint8List.fromList(utf8.encode('$header\n')));
+    if (_closed) return;
+    _writeQueue.add(const _RecorderQueueEntry.header());
   }
 
   void _enqueueEvent(List<int> bytes, RecordDirection dir) {
     if (_closed || bytes.isEmpty) return;
-    final delta = DateTime.now().difference(_start).inMicroseconds / 1e6;
-    final str = utf8.decode(bytes, allowMalformed: true);
-    final line = jsonEncode([delta, dir.code, str]);
-    _enqueuePlaintext(Uint8List.fromList(utf8.encode('$line\n')));
+    _writeQueue.add(_RecorderQueueEntry.event(dir, Uint8List.fromList(bytes)));
   }
 
-  void _enqueuePlaintext(Uint8List plaintext) {
-    if (_closed) return;
-    _writeQueue.add(plaintext);
-  }
-
-  /// Drain one queued plaintext buffer onto disk via the Rust
-  /// recorder. Encryption (when `_key` is set) + the
-  /// `[len][nonce][ct+tag]` framing both happen Rust-side; Dart
-  /// only owns the asciinema header / event-line composition that
-  /// produced `plaintext`.
-  Future<void> _drainOne(Uint8List plaintext) async {
+  /// Drain one queued entry onto disk via the Rust recorder.
+  /// Encryption (when `_key` is set), the
+  /// `[len][nonce][ct+tag]` framing, the asciinema event-line +
+  /// header JSON composition, and the wall-clock delta against
+  /// `started_at` all happen Rust-side. Dart only owns the
+  /// (kind, bytes) tuple per event and the (cols, rows, shell)
+  /// triple per header.
+  Future<void> _drainOne(_RecorderQueueEntry entry) async {
     if (_handleId.isEmpty) return;
     try {
-      final total = await rust_recorder.recorderRecordFrame(
-        id: _handleId,
-        plaintext: plaintext,
-      );
+      final total = switch (entry) {
+        _HeaderEntry() => await rust_recorder.recorderRecordHeader(
+          id: _handleId,
+          width: width,
+          height: height,
+          shellLabel: terminalShellLabel,
+        ),
+        _EventEntry(:final dir, :final bytes) =>
+          await rust_recorder.recorderRecordEvent(
+            id: _handleId,
+            direction: switch (dir) {
+              RecordDirection.output => rust_recorder.DbRecordDirection.output,
+              RecordDirection.input => rust_recorder.DbRecordDirection.input,
+            },
+            bytes: bytes,
+          ),
+      };
       _currentBytes = total.toInt();
     } catch (e) {
       AppLogger.instance.log(
-        'recorderRecordFrame failed: $e',
+        'recorderRecord ${entry.runtimeType} failed: $e',
         name: 'Recorder',
       );
       return;
@@ -331,4 +322,27 @@ class SessionRecorder {
     }
     _enqueueHeader();
   }
+}
+
+/// Queue carrier — either an asciinema header line write or a
+/// per-event line write. Sealed so the drain switch is exhaustive
+/// without a default branch swallowing future variants.
+sealed class _RecorderQueueEntry {
+  const _RecorderQueueEntry();
+
+  const factory _RecorderQueueEntry.header() = _HeaderEntry;
+  const factory _RecorderQueueEntry.event(
+    RecordDirection dir,
+    Uint8List bytes,
+  ) = _EventEntry;
+}
+
+class _HeaderEntry extends _RecorderQueueEntry {
+  const _HeaderEntry();
+}
+
+class _EventEntry extends _RecorderQueueEntry {
+  final RecordDirection dir;
+  final Uint8List bytes;
+  const _EventEntry(this.dir, this.bytes);
 }
