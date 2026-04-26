@@ -55,7 +55,7 @@ russh-sftp = "2.1"
 # Typed error enum derive — used in lfs_core's `Error` to keep the
 # error-path well-shaped without manual `Display`/`From` boilerplate.
 thiserror = "2"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "io-util"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "io-util", "net", "time"] }
 # Best-effort scrub of secret buffers (passwords, key material) on
 # drop. Cannot reach copies russh / tokio hold internally — clears
 # only what we own. Dropping is best-effort, not a guarantee on every

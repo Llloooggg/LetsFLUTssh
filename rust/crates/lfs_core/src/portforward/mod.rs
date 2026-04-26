@@ -1,4 +1,4 @@
-//! Port forward registry — scaffolding.
+//! Port forward registry + listener / accept-loop driver.
 //!
 //! Owns the canonical state of every active forwarding rule:
 //! kind (`Local` / `Remote` / `Dynamic`), bind endpoint, target,
@@ -7,12 +7,12 @@
 //! `lfs_core::ssh`; this module brings the listener-runtime
 //! lifecycle next to them.
 //!
-//! # Scaffolding stage
-//!
-//! Today the registry exposes only the rule-registration / status
-//! mutation surface. The Tokio listener-accept loops + SOCKS5
-//! handshake driver land in the next 5.2 commit alongside the
-//! Dart `PortForwardRuntime` swap.
+//! [`driver`] carries the accept-loop + bidirectional pump
+//! generic over a [`driver::ChannelFactory`] — production wires
+//! the factory to `Session::open_direct_tcpip`; tests inject
+//! a duplex echo for self-contained coverage.
+
+pub mod driver;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
