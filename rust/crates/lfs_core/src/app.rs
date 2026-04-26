@@ -23,6 +23,7 @@ use crate::error::Error;
 use crate::portforward::PortForwardRegistry;
 use crate::recorder::RecorderRegistry;
 use crate::secrets::SecretStore;
+use crate::transfer::driver::WorkerPool;
 use crate::transfer::TransferQueue;
 
 static APP_STATE: OnceLock<Arc<AppState>> = OnceLock::new();
@@ -51,8 +52,12 @@ pub struct AppState {
     /// thin views over this once the frame-write driver lands.
     pub recorders: RecorderRegistry,
     /// Transfer queue. Owns the canonical task table + per-task
-    /// progress; Tokio worker pool driver lands in a follow-up.
+    /// progress.
     pub transfers: TransferQueue,
+    /// Worker pool that drains the queue. Lazy-initialised on
+    /// first dispatch (the FRB endpoint creates it once a tokio
+    /// runtime is available); `None` until then.
+    pub transfer_pool: Mutex<Option<Arc<WorkerPool>>>,
     /// Port-forward registry. Owns the canonical rule table +
     /// status; Tokio listener-accept loops land in a follow-up.
     pub port_forwards: PortForwardRegistry,
@@ -73,6 +78,7 @@ impl AppState {
             autolock: Arc::new(AutoLockMachine::new()),
             recorders: RecorderRegistry::new(),
             transfers: TransferQueue::new(),
+            transfer_pool: Mutex::new(None),
             port_forwards: PortForwardRegistry::new(),
             imports: ImportRegistry::new(),
         }

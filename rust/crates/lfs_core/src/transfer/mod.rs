@@ -1,17 +1,14 @@
-//! Transfer queue — scaffolding.
+//! Transfer queue + worker-pool driver.
 //!
 //! Owns the canonical state for the SFTP transfer queue: per-task
 //! status (`Queued / Running / Completed / Failed / Cancelled`),
-//! history ring buffer, byte progress. Per-file SFTP work already
-//! lives in `lfs_core::sftp`; this module brings the queue +
-//! worker pool next to it.
-//!
-//! # Scaffolding stage
-//!
-//! Today the registry exposes the actor-creation surface +
-//! status / progress mutators so the bus + FRB enums settle.
-//! The Tokio worker-pool driver lands in the next 5.3 commit
-//! alongside the Dart `TransferManager` swap.
+//! byte progress, insertion order. The bounded worker pool lives
+//! in [`driver`]; production wires it to
+//! [`driver::SftpTaskExecutor`] which drives
+//! `Sftp::download_file` / `upload_file` against the active
+//! connection actor's session.
+
+pub mod driver;
 
 use std::collections::HashMap;
 use std::sync::Mutex;

@@ -819,6 +819,32 @@ impl Session {
         })
     }
 
+    /// Open a direct-tcpip channel and return its `AsyncRead +
+    /// AsyncWrite` stream form. Used by the port-forward
+    /// listener-accept driver — `tokio::io::split` gives the
+    /// generic pump its `(reader, writer)` halves directly,
+    /// avoiding the [`ForwardChannel`] read/write/eof shape
+    /// that the high-level Dart-driven path consumes.
+    pub async fn open_direct_tcpip_stream(
+        &self,
+        host_to_connect: &str,
+        port_to_connect: u32,
+        originator_address: &str,
+        originator_port: u32,
+    ) -> Result<russh::ChannelStream<Msg>, Error> {
+        let channel = self
+            .handle
+            .channel_open_direct_tcpip(
+                host_to_connect.to_string(),
+                port_to_connect,
+                originator_address.to_string(),
+                originator_port,
+            )
+            .await
+            .map_err(|e| Error::Io(e.to_string()))?;
+        Ok(channel.into_stream())
+    }
+
     /// Open an SFTP subsystem on a fresh channel and return a live
     /// SFTP client. Multiple SFTP sessions can coexist on a single
     /// SSH session — each call here allocates a new channel.

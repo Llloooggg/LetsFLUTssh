@@ -35,6 +35,30 @@ pub trait StatusReporter: Send + Sync {
     fn report(&self, status: RuleStatus, detail: Option<String>);
 }
 
+/// Production reporter — owns a rule id + an `Arc` to the
+/// running `AppState` and routes every status event through
+/// `PortForwardRegistry::set_status` so subscribers receive
+/// the bus event for free.
+pub struct AppStatusReporter {
+    rule_id: String,
+}
+
+impl AppStatusReporter {
+    pub fn new(rule_id: impl Into<String>) -> Self {
+        Self {
+            rule_id: rule_id.into(),
+        }
+    }
+}
+
+impl StatusReporter for AppStatusReporter {
+    fn report(&self, status: RuleStatus, detail: Option<String>) {
+        let app = crate::app::instance();
+        app.port_forwards
+            .set_status(&self.rule_id, status, detail, &app.bus);
+    }
+}
+
 /// Reader half handed back from a [`ChannelFactory`] open. A
 /// trait object wrapper keeps the API monomorphisation-free
 /// — production wraps russh `ChannelReadHalf`, tests wrap
@@ -49,10 +73,59 @@ pub type OpenFuture =
     Pin<Box<dyn Future<Output = Result<(ReaderHalf, WriterHalf), Error>> + Send + 'static>>;
 
 /// Open a fresh upstream channel for one accepted socket. The
-/// production wiring calls `Session::open_direct_tcpip` and
-/// splits the result; tests return `tokio::io::duplex` halves.
+/// production wiring calls `Session::open_direct_tcpip_stream`
+/// and splits the result; tests return `tokio::io::duplex`
+/// halves.
 pub trait ChannelFactory: Send + Sync + 'static {
     fn open(&self, peer: SocketAddr) -> OpenFuture;
+}
+
+/// Production [`ChannelFactory`] impl that resolves each accept
+/// to a fresh russh `direct-tcpip` channel against the supplied
+/// session. `target_host` / `target_port` are the remote
+/// endpoint russh asks the server to connect to; the originator
+/// address + port carry the local peer's tuple for the SSH
+/// protocol's logging field.
+pub struct DirectTcpipFactory {
+    session: std::sync::Arc<crate::ssh::Session>,
+    target_host: String,
+    target_port: u16,
+}
+
+impl DirectTcpipFactory {
+    pub fn new(
+        session: std::sync::Arc<crate::ssh::Session>,
+        target_host: String,
+        target_port: u16,
+    ) -> Self {
+        Self {
+            session,
+            target_host,
+            target_port,
+        }
+    }
+}
+
+impl ChannelFactory for DirectTcpipFactory {
+    fn open(&self, peer: SocketAddr) -> OpenFuture {
+        let session = self.session.clone();
+        let host = self.target_host.clone();
+        let port = self.target_port as u32;
+        Box::pin(async move {
+            let stream = session
+                .open_direct_tcpip_stream(
+                    &host,
+                    port,
+                    &peer.ip().to_string(),
+                    peer.port() as u32,
+                )
+                .await?;
+            let (r, w) = tokio::io::split(stream);
+            let reader: ReaderHalf = Box::pin(r);
+            let writer: WriterHalf = Box::pin(w);
+            Ok((reader, writer))
+        })
+    }
 }
 
 /// Handle owning the spawned listener task. Dropping aborts

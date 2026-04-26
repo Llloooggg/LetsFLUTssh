@@ -9,6 +9,44 @@ import 'ssh.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`
 
+/// Start a Rust-driven `-L` local forward listener against the
+/// supplied connection actor. Binds `bind_host:bind_port`,
+/// resolves the active russh `Session` via the connection
+/// registry, and spawns the accept loop that relays each accepted
+/// socket through a fresh `direct-tcpip` channel to
+/// `target_host:target_port`.
+///
+/// Returns the actual bound port (matters when the caller passes
+/// `0` to let the OS pick). Status events (`Listening` / `Error`)
+/// flow onto the bus through the registered rule id; the Dart UI
+/// subscribes there as usual.
+///
+/// `connection_id` must point at a `Connected` actor — without
+/// a live session the russh handle is gone and the listener task
+/// would fail every accept.
+Future<int> portForwardStartLocal({
+  required String ruleId,
+  required String connectionId,
+  required String bindHost,
+  required int bindPort,
+  required String targetHost,
+  required int targetPort,
+}) => RustLib.instance.api.crateApiForwardPortForwardStartLocal(
+  ruleId: ruleId,
+  connectionId: connectionId,
+  bindHost: bindHost,
+  bindPort: bindPort,
+  targetHost: targetHost,
+  targetPort: targetPort,
+);
+
+/// Stop a listener spawned by [`port_forward_start_local`].
+/// Idempotent on a missing rule id — drops the stored handle
+/// (which aborts the accept loop and closes the listener
+/// socket). Returns `true` when a handle was actually stopped.
+Future<bool> portForwardStopLocal({required String ruleId}) =>
+    RustLib.instance.api.crateApiForwardPortForwardStopLocal(ruleId: ruleId);
+
 /// Open a direct-tcpip channel. `host_to_connect` / `port_to_connect`
 /// is the remote endpoint reached server-side; `originator_address`
 /// / `originator_port` is the local socket peer (used only by the

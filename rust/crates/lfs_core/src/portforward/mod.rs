@@ -88,6 +88,7 @@ impl RuleActor {
 /// Process-singleton port-forward registry. Owned by `AppState`.
 pub struct PortForwardRegistry {
     inner: Mutex<RegistryInner>,
+    listeners: Mutex<HashMap<RuleId, driver::ListenerHandle>>,
 }
 
 struct RegistryInner {
@@ -100,7 +101,36 @@ impl PortForwardRegistry {
             inner: Mutex::new(RegistryInner {
                 by_id: HashMap::new(),
             }),
+            listeners: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Park the listener handle alongside the rule row so a
+    /// subsequent stop call can abort it. Replaces any prior
+    /// handle for the same id (the previous handle drops, which
+    /// aborts its task).
+    pub fn store_listener(&self, id: &str, handle: driver::ListenerHandle) {
+        self.listeners
+            .lock()
+            .expect("port forward listeners mutex poisoned")
+            .insert(id.to_string(), handle);
+    }
+
+    /// Abort + remove the stored listener. Idempotent on a
+    /// missing id. Returns the bound port the listener was
+    /// running on (useful for diagnostic logs); `None` when no
+    /// handle was tracked.
+    pub fn stop_listener(&self, id: &str) -> Option<std::net::SocketAddr> {
+        let removed = self
+            .listeners
+            .lock()
+            .expect("port forward listeners mutex poisoned")
+            .remove(id);
+        removed.map(|h| {
+            let addr = h.bound_addr();
+            drop(h); // drops the JoinHandle → aborts the task
+            addr
+        })
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, RegistryInner> {
