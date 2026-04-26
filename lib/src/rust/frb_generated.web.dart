@@ -21,6 +21,8 @@ import 'api/recorder.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
+import 'api/winbio.dart';
+import 'api/winbio/inner.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';

@@ -134,6 +134,10 @@ zbus = { version = "5", default-features = false, features = ["tokio"] }
 # fprintd shim's verify cycle uses.
 futures-util = { version = "0.3", default-features = false }
 serde = { version = "1", default-features = false }
+# Cross-platform dynamic library loader. Used by
+# `lfs_frb::api::winbio` (Windows-only) to mirror the Dart
+# `DynamicLibrary.open('winbio.dll')` shape.
+libloading = "0.8"
 
 [profile.release]
 codegen-units = 1

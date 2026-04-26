@@ -16,6 +16,7 @@ pub mod recorder;
 pub mod sftp;
 pub mod ssh;
 pub mod ssh_config;
+pub mod winbio;
 
 /// FFI plumbing init — runs once when Dart loads the native blob.
 /// Sets up the FRB default user utils (panic hook, logging hook).
