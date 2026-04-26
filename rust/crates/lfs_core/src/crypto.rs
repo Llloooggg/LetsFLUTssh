@@ -73,6 +73,15 @@ pub fn ed25519_verify(public_key: &[u8], message: &[u8], signature: &[u8]) -> bo
     verifier.verify_strict(message, &signature).is_ok()
 }
 
+/// Generate a fresh random 32-byte AES-256 key. Uses `OsRng` —
+/// the same source [`aes_gcm_encrypt`] uses for its nonces.
+/// Sized at [`AES_GCM_KEY_LEN`] = 32 bytes.
+pub fn aes_gcm_random_key() -> Vec<u8> {
+    let mut key = vec![0u8; AES_GCM_KEY_LEN];
+    rand::rngs::OsRng.fill_bytes(&mut key);
+    key
+}
+
 /// Encrypt `plaintext` with AES-256-GCM. Generates a fresh random
 /// 12-byte nonce, returns `nonce || ciphertext || tag` — matches the
 /// wire shape `lib/core/security/aes_gcm.dart` ships today.

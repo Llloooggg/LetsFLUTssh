@@ -1102,7 +1102,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
 
   Future<void> _applyKeychainTier(SecuritySetupResult result) async {
     final keyStorage = ref.read(secureKeyStorageProvider);
-    final key = AesGcm.generateKey();
+    final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await keyStorage.writeKey(key);
     if (!stored) throw StateError('keychain write failed');
     await _applyAlwaysRekey(key, SecurityTier.keychain, result.modifiers);
@@ -1119,7 +1119,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final keyStorage = ref.read(secureKeyStorageProvider);
     final gate = ref.read(keychainPasswordGateProvider);
     await gate.setPassword(short);
-    final key = AesGcm.generateKey();
+    final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await keyStorage.writeKey(key);
     if (!stored) {
       await gate.clear();
@@ -1145,7 +1145,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // later unlock flows, so persisting it alongside the tier
     // keeps the read side in sync.
     final hwVault = ref.read(hardwareTierVaultProvider);
-    final key = AesGcm.generateKey();
+    final key = rust_crypto.cryptoAesGcmRandomKey();
     final sealed = await hwVault.store(dbKey: key, pin: result.pin);
     if (!sealed) throw StateError('hardware seal failed');
     await _applyAlwaysRekey(key, SecurityTier.hardware, result.modifiers);

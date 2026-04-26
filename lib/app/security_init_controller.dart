@@ -7,8 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/db/rust_db_init.dart';
 import '../src/rust/api/app.dart' as rust_app;
+import '../src/rust/api/crypto.dart' as rust_crypto;
 import '../core/migration/migration_runner.dart';
-import '../core/security/aes_gcm.dart';
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
 import '../core/security/master_password.dart';
@@ -923,7 +923,7 @@ class SecurityInitController {
       await _injectDatabase();
       return;
     }
-    final key = AesGcm.generateKey();
+    final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await keyStorage.writeKey(key);
     if (stored) {
       await _injectDatabase(
@@ -946,7 +946,7 @@ class SecurityInitController {
   }
 
   Future<bool> _autoSetupKeychain(SecureKeyStorage keyStorage) async {
-    final key = AesGcm.generateKey();
+    final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await keyStorage.writeKey(key);
     if (stored) {
       await _injectDatabase(key: key, level: SecurityTier.keychain);
@@ -990,7 +990,7 @@ class SecurityInitController {
     }
     final gate = ref.read(keychainPasswordGateProvider);
     await gate.setPassword(shortPassword);
-    final key = AesGcm.generateKey();
+    final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await keyStorage.writeKey(key);
     if (stored) {
       await _injectDatabase(
@@ -1018,7 +1018,7 @@ class SecurityInitController {
     SecurityTierModifiers? modifiers,
   ]) async {
     final vault = ref.read(hardwareTierVaultProvider);
-    final key = AesGcm.generateKey();
+    final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await vault.store(dbKey: key, pin: pin);
     if (stored) {
       await _injectDatabase(

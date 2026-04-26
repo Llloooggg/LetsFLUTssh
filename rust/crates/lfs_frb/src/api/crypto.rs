@@ -38,6 +38,13 @@ pub async fn crypto_ed25519_verify(
     .unwrap_or(false)
 }
 
+/// Generate a fresh random AES-256 key (32 bytes from `OsRng`).
+/// Synchronous — the call is a single OS getrandom round-trip.
+#[flutter_rust_bridge::frb(sync)]
+pub fn crypto_aes_gcm_random_key() -> Vec<u8> {
+    lfs_core::crypto::aes_gcm_random_key()
+}
+
 /// AES-256-GCM encrypt with a fresh random nonce. Returns the wire
 /// shape `nonce || ciphertext || tag` — the same layout the legacy
 /// pointycastle-backed `AesGcm.encrypt` produced, so existing on-disk

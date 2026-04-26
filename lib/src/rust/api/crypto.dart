@@ -34,6 +34,11 @@ Future<bool> cryptoEd25519Verify({
   signature: signature,
 );
 
+/// Generate a fresh random AES-256 key (32 bytes from `OsRng`).
+/// Synchronous — the call is a single OS getrandom round-trip.
+Uint8List cryptoAesGcmRandomKey() =>
+    RustLib.instance.api.crateApiCryptoCryptoAesGcmRandomKey();
+
 /// AES-256-GCM encrypt with a fresh random nonce. Returns the wire
 /// shape `nonce || ciphertext || tag` — the same layout the legacy
 /// pointycastle-backed `AesGcm.encrypt` produced, so existing on-disk
