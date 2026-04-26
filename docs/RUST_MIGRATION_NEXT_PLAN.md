@@ -106,7 +106,17 @@ trip identically to the Dart pipeline.
 
 ### Step 4 — recorder asciinema event composition → Rust
 
-**Status:** TODO
+**Status:** SKIPPED — `_enqueueEvent` is 6 lines that format an
+asciinema v2 event line per the published spec
+(`[delta, dir_code, str]`). The format is documented and
+canonical externally, not LetsFLUTssh-proprietary logic. Moving
+it Rust-side requires a typed write-queue carrier (header vs
+event variants), adds a new FRB endpoint with start-time
+tracking, and gains little — the surface area moved is
+arithmetic + JSON spec compliance, both trivially auditable in
+either language. Keep the Dart side as the spec adapter; the
+encryption / framing / file IO that actually require Rust are
+already there.
 
 **Why fourth:** Last bit of recorder logic Dart-side. The
 `jsonEncode([delta, dir, str])` + UTF-8 sequence runs per frame;
@@ -130,7 +140,15 @@ byte-identical to Dart's `jsonEncode`.
 
 ### Step 5 — KnownHostsManager → Rust
 
-**Status:** TODO
+**Status:** PARTIAL — text parser ports to Rust
+(`lfs_core::known_hosts_parser`); cache + write-serialisation +
+TOFU callback orchestration stay Dart-side because they bind
+directly to UI prompts (onUnknownHost, onHostKeyChanged) and the
+Riverpod-watched `entries` map. Storage already routed through
+`rust_db::dbKnownHosts*`; the remaining Dart-side surface is a
+thin wrapper over Rust for parsing + Rust for storage. Full
+class-port to a Rust actor would need a host-key prompt bus
+event protocol, which is more rewiring than it saves.
 
 **Why fifth:** TOFU host-key DB. Security-critical. ~573 LOC
 moves to Rust. Connect path's host-key callback would resolve

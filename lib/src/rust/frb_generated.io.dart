@@ -12,6 +12,7 @@ import 'api/db.dart';
 import 'api/deeplink.dart';
 import 'api/forward.dart';
 import 'api/keys.dart';
+import 'api/known_hosts_parser.dart';
 import 'api/log_sanitize.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
@@ -345,6 +346,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbOpenSshHostEntry dco_decode_db_open_ssh_host_entry(dynamic raw);
 
   @protected
+  DbParsedHostEntry dco_decode_db_parsed_host_entry(dynamic raw);
+
+  @protected
   DbPasswordStrength dco_decode_db_password_strength(dynamic raw);
 
   @protected
@@ -409,6 +413,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbOpenSshHostEntry> dco_decode_list_db_open_ssh_host_entry(dynamic raw);
+
+  @protected
+  List<DbParsedHostEntry> dco_decode_list_db_parsed_host_entry(dynamic raw);
 
   @protected
   List<DbPortForwardRule> dco_decode_list_db_port_forward_rule(dynamic raw);
@@ -852,6 +859,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbParsedHostEntry sse_decode_db_parsed_host_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbPasswordStrength sse_decode_db_password_strength(
     SseDeserializer deserializer,
   );
@@ -928,6 +940,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbOpenSshHostEntry> sse_decode_list_db_open_ssh_host_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbParsedHostEntry> sse_decode_list_db_parsed_host_entry(
     SseDeserializer deserializer,
   );
 
@@ -1477,6 +1494,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_parsed_host_entry(
+    DbParsedHostEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_password_strength(
     DbPasswordStrength self,
     SseSerializer serializer,
@@ -1578,6 +1601,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_open_ssh_host_entry(
     List<DbOpenSshHostEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_parsed_host_entry(
+    List<DbParsedHostEntry> self,
     SseSerializer serializer,
   );
 

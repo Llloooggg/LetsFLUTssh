@@ -10,6 +10,7 @@ pub mod db;
 pub mod deeplink;
 pub mod forward;
 pub mod keys;
+pub mod known_hosts_parser;
 pub mod log_sanitize;
 pub mod password_strength;
 pub mod path;
