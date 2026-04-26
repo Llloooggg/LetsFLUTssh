@@ -2,17 +2,17 @@
 // user-facing error toasts.
 //
 // Routes through `lfs_core::log_sanitize` over the synchronous FRB
-// endpoints so production keeps a single canonical implementation.
-// Falls back to the Dart RegExp pipeline when the FRB native lib isn't
-// loaded (unit tests without `RustLib.init`); the fallback is the
-// historical implementation kept in tree under the private `_dart*`
-// helpers below.
+// endpoints — the canonical implementation lives Rust-side. The Dart
+// fallback below mirrors the same regex pipeline; production never
+// reaches it because the FRB native lib is loaded at app start, but
+// flutter_test does not load it and many tests (format_test, widget
+// tests, AppLogger) call `sanitizeError` transitively. The fallback
+// keeps that test surface working without a per-suite RustLib.init
+// bootstrap.
 
 import '../src/rust/api/log_sanitize.dart' as rust_san;
 
-/// Strip PEM private keys and long base64 blobs. Routes through Rust
-/// where available; the Dart fallback is exercised by unit tests that
-/// don't bootstrap the FRB runtime.
+/// Strip PEM private keys and long base64 blobs.
 String redactSecrets(String input) {
   try {
     return rust_san.redactSecrets(input: input);
@@ -21,9 +21,8 @@ String redactSecrets(String input) {
   }
 }
 
-/// Remove sensitive data from error messages. Routes through Rust
-/// where available; the Dart fallback mirrors the same regex
-/// pipeline byte-for-byte.
+/// Remove sensitive data (IPv4 / IPv6 addresses, user@host, host:port,
+/// home-dir paths, …) from error messages.
 String sanitizeErrorMessage(String message) {
   try {
     return rust_san.sanitizeErrorMessage(input: message);
@@ -51,39 +50,18 @@ String _redactSecretsDart(String input) {
 
 String _sanitizeErrorMessageDart(String message) {
   // IPv6 literals FIRST — broader shape than IPv4 and would otherwise
-  // get partially chewed by later rules. Covers:
-  //   * full 8-group form `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
-  //   * compressed forms with `::` (leading, trailing, or middle)
-  //   * link-local `fe80::1`, loopback `::1`, unspecified `::`
-  //   * bracketed `[2001:db8::1]` shape used in URLs / SSH error
-  //     messages — optional `[` + `]` are eaten in the same match so
-  //     the follow-up `<ip>:<port>` rule below can redact the port
-  //     cleanly (bare `<ip>]` would not match that rule).
-  //
-  // Dart RegExp alternation picks the **first** matching branch, not
-  // the longest. Arrange branches by specificity — the most trailing
-  // hex groups first so `2001:db8::1` is consumed whole rather than
-  // stopping at `2001:db8::` and leaving `1` behind.
+  // get partially chewed by later rules.
   message = message.replaceAllMapped(
     RegExp(
       r'\[?(?:'
-      // Full 8-group (no compression): 1:2:3:4:5:6:7:8
       r'(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}'
-      // 1 leading group, 1..6 trailing groups after ::
       r'|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}'
-      // 1..2 leading, 5 trailing
       r'|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}'
-      // 1..3 leading, 4 trailing
       r'|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}'
-      // 1..4 leading, 3 trailing
       r'|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}'
-      // 1..5 leading, 2 trailing
       r'|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}'
-      // 1..6 leading, exactly 1 trailing — catches `2001:db8::1`
       r'|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}'
-      // Pure leading-then-:: (no trailing groups) — `1::`, `1:2::`
       r'|(?:[0-9A-Fa-f]{1,4}:){1,7}:'
-      // Pure trailing-after-:: — `::8`, `::1:2`, plus bare `::`
       r'|:(?::[0-9A-Fa-f]{1,4}){1,7}'
       r'|::'
       r')\]?',
@@ -91,14 +69,13 @@ String _sanitizeErrorMessageDart(String message) {
     (_) => '<ip>',
   );
 
-  // Redact IPv4 addresses (before user@host pattern matching)
+  // Redact IPv4 addresses (before user@host pattern matching).
   message = message.replaceAllMapped(
     RegExp(r'\b(\d{1,3}\.){3}\d{1,3}\b'),
     (_) => '<ip>',
   );
 
-  // Redact user@host patterns (e.g., "admin@example.com" → "<user>@example.com")
-  // Also handles "admin@<ip>" after IP redaction
+  // Redact user@host patterns (e.g. "admin@example.com" → "<user>@example.com").
   message = message.replaceAllMapped(
     RegExp(r'([a-zA-Z0-9_.-]+)@([a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)'),
     (m) => '<user>@${m.group(2) ?? '<host>'}',
@@ -106,15 +83,7 @@ String _sanitizeErrorMessageDart(String message) {
 
   // Defence-in-depth: also catch "as <user>" / "user=<user>" shapes
   // from SSH / russh error messages that name the authenticating
-  // principal without wrapping it in user@host form. Without this the
-  // username survives every other redaction, which is exactly the leak
-  // the review flagged in `Connecting to ... as burzuf`.
-  //
-  // The `as` arm requires at least one whitespace before the name —
-  // otherwise the regex eats word fragments that start with `as` (e.g.
-  // `dart:async/zone_root.dart` matched as `as` + `ync` and rewrote
-  // to `as <user>`). `user=` and `login=` keep the no-space form
-  // because they are literal key=value pairs.
+  // principal without wrapping it in user@host form.
   message = message.replaceAllMapped(
     RegExp(r'\bas\s+([a-zA-Z0-9_.-]+)'),
     (m) => 'as <user>',
@@ -124,25 +93,19 @@ String _sanitizeErrorMessageDart(String message) {
     (m) => '${m.group(1)}=<user>',
   );
 
-  // Redact port numbers in host:port patterns
+  // Redact port numbers in host:port patterns.
   message = message.replaceAllMapped(
     RegExp(r'(<ip>|[a-zA-Z0-9_.-]+):(\d{2,5})\b'),
     (m) => '${m.group(1) ?? '<host>'}:<port>',
   );
 
-  // Redact Windows file paths with usernames (C:\Users\Name or
-  // C:\Users\Name\rest). The username segment stops at the next backslash
-  // or newline, so trailing-slash-less paths (log lines ending at the
-  // home dir itself, e.g. "Initial dir: C:\Users\bob") are also caught.
+  // Redact Windows file paths with usernames.
   message = message.replaceAllMapped(
     RegExp(r'[A-Z]:\\Users\\[^\\\r\n]+'),
     (_) => '<path>',
   );
 
-  // Redact Unix/macOS file paths with usernames (/Users/Name,
-  // /home/name, and any extension path). Same rationale: match the
-  // username segment only, so a bare home-dir path at end-of-line is
-  // still redacted without needing a trailing slash.
+  // Redact Unix/macOS file paths with usernames.
   message = message.replaceAllMapped(
     RegExp(r'/(?:Users|home)/[^/\s]+'),
     (_) => '/<user>',

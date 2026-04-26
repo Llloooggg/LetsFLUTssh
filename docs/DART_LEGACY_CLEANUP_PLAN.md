@@ -201,7 +201,7 @@ the last "dual-impl" gap on the recorder.
 
 ### Step 5 — drop Dart utility fallbacks
 
-**Status:** TODO
+**Status:** PARTIAL — openssh_config_parser block resolver dropped; sanitize + password_strength fallbacks retained as flutter_test affordances (widget tests render the password-strength meter and AppLogger pipes through sanitizeError, both synchronous build-time calls). Re-evaluate once a flutter_test bootstrap that calls `RustLib.init` lands.
 
 **Why fifth:** tiny diff, last cleanup wave. Drops the
 "unit tests work without RustLib.init" affordance — once

@@ -67,42 +67,10 @@ List<OpenSshConfigEntry> parseOpenSshConfig(
   // Hand the fully-expanded content (no remaining Include directives)
   // to the Rust parser. Dart owns the filesystem walk so per-platform
   // home semantics — Android's `EXTERNAL_STORAGE` fallback, in
-  // particular — stay where they belong. Falls back to the in-Dart
-  // resolver when the FRB native lib isn't loaded (unit tests).
-  try {
-    final rustEntries = rust_ssh_config.parseOpensshConfig(content: expanded);
-    return [for (final e in rustEntries) _fromRustEntry(e)];
-  } catch (_) {
-    // Fall through to the Dart pipeline below.
-  }
-  final blocks = _parseBlocks(expanded);
-
-  // Resolution walks only two lists per concrete host: its own block plus the
-  // wildcard "default" blocks that appear in the file. Without this split the
-  // resolver is O(N²) over total blocks — a 2000-host config would compile a
-  // regex per (block, concrete-pattern) pair, which is what made the stress
-  // fuzz test take minutes.
-  final wildcardBlocks = <_RawBlock>[];
-  final concretePatterns = <(int blockIndex, String pattern)>[];
-  for (var i = 0; i < blocks.length; i++) {
-    final block = blocks[i];
-    var anyConcrete = false;
-    for (final pattern in block.patterns) {
-      if (_isWildcardPattern(pattern)) continue;
-      anyConcrete = true;
-      concretePatterns.add((i, pattern));
-    }
-    // A block is a wildcard "defaults" block if at least one of its patterns
-    // is a wildcard. Such blocks cascade onto other concrete hosts.
-    if (!anyConcrete || block.patterns.any(_isWildcardPattern)) {
-      wildcardBlocks.add(block);
-    }
-  }
-
-  return [
-    for (final (blockIndex, pattern) in concretePatterns)
-      _resolveEntry(pattern, blocks[blockIndex], wildcardBlocks),
-  ];
+  // particular — stay where they belong. Block resolution + wildcard
+  // cascading + PreferredAuthentications mapping live Rust-side now.
+  final rustEntries = rust_ssh_config.parseOpensshConfig(content: expanded);
+  return [for (final e in rustEntries) _fromRustEntry(e)];
 }
 
 OpenSshConfigEntry _fromRustEntry(rust_ssh_config.DbOpenSshHostEntry e) {
@@ -122,136 +90,6 @@ OpenSshConfigEntry _fromRustEntry(rust_ssh_config.DbOpenSshHostEntry e) {
     identityFiles: List.unmodifiable(e.identityFiles),
     preferredAuthTypes: preferred == null ? null : List.unmodifiable(preferred),
   );
-}
-
-/// Merge [ownBlock] with every [wildcardBlocks] block that matches [host],
-/// walking top-to-bottom in file order. First-value-wins for scalar
-/// directives; `IdentityFile` accumulates across every matching block.
-OpenSshConfigEntry _resolveEntry(
-  String host,
-  _RawBlock ownBlock,
-  List<_RawBlock> wildcardBlocks,
-) {
-  String? hostName;
-  String? user;
-  int? port;
-  List<AuthType>? preferred;
-  final identityFiles = <String>[];
-
-  // Walk wildcard defaults in file order — the own block's position is
-  // preserved via [ownBlock.orderIndex] so "Host * first" still wins over a
-  // later concrete block per OpenSSH semantics. For simplicity we always
-  // treat the own block as last-in-order (i.e. its directives only fill
-  // fields the wildcards didn't), then merge again with the own block's
-  // index as a tie-break.
-  final ordered = [...wildcardBlocks];
-  if (!ordered.contains(ownBlock)) ordered.add(ownBlock);
-  ordered.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-
-  for (final block in ordered) {
-    if (block != ownBlock && !block.matches(host)) continue;
-    hostName ??= block.hostName;
-    user ??= block.user;
-    port ??= block.port;
-    preferred ??= block.preferredAuthTypes;
-    identityFiles.addAll(block.identityFiles);
-  }
-
-  return OpenSshConfigEntry(
-    host: host,
-    hostName: hostName,
-    user: user,
-    port: port,
-    identityFiles: List.unmodifiable(identityFiles),
-    preferredAuthTypes: preferred,
-  );
-}
-
-/// Split the file into raw Host blocks, preserving order. Malformed lines,
-/// unknown directives, and orphan directives (before any Host) are dropped
-/// so broken configs still yield whatever live entries are readable.
-List<_RawBlock> _parseBlocks(String content) {
-  final blocks = <_RawBlock>[];
-  List<String>? patterns;
-  String? hostName;
-  String? user;
-  int? port;
-  List<AuthType>? preferred;
-  var identityFiles = <String>[];
-
-  void flush() {
-    final p = patterns;
-    if (p == null) return;
-    blocks.add(
-      _RawBlock(
-        orderIndex: blocks.length,
-        patterns: p,
-        hostName: hostName,
-        user: user,
-        port: port,
-        identityFiles: List.unmodifiable(identityFiles),
-        preferredAuthTypes: preferred,
-      ),
-    );
-  }
-
-  for (final rawLine in const LineSplitter().convert(content)) {
-    final line = _stripComment(rawLine).trim();
-    if (line.isEmpty) continue;
-    final (keyword, value) = _splitKeywordValue(line);
-    if (keyword == null || value == null) continue;
-    final kw = keyword.toLowerCase();
-
-    if (kw == 'host') {
-      flush();
-      patterns = _splitHostPatterns(value);
-      hostName = null;
-      user = null;
-      port = null;
-      preferred = null;
-      identityFiles = <String>[];
-      continue;
-    }
-
-    if (patterns == null) continue; // orphan directive — skip
-
-    switch (kw) {
-      case 'hostname':
-        hostName ??= value;
-      case 'user':
-        user ??= value;
-      case 'port':
-        port ??= int.tryParse(value);
-      case 'identityfile':
-        identityFiles.add(value);
-      case 'preferredauthentications':
-        preferred ??= _parsePreferredAuths(value);
-    }
-  }
-  flush();
-  return blocks;
-}
-
-/// Translate OpenSSH's `PreferredAuthentications` comma-list into our
-/// internal [AuthType] ordering. Methods we don't support (hostbased,
-/// gssapi-*) are dropped so an entry like
-/// `gssapi-with-mic,publickey,password` still resolves cleanly to
-/// `[AuthType.key, AuthType.password]`.
-List<AuthType>? _parsePreferredAuths(String raw) {
-  final parts = raw.split(',').map((p) => p.trim().toLowerCase());
-  final seen = <AuthType>{};
-  final out = <AuthType>[];
-  for (final p in parts) {
-    final mapped = switch (p) {
-      'publickey' => AuthType.key,
-      'password' => AuthType.password,
-      'keyboard-interactive' => AuthType.password,
-      _ => null,
-    };
-    if (mapped != null && seen.add(mapped)) out.add(mapped);
-  }
-  if (out.isEmpty) return null;
-  return List.unmodifiable(out);
 }
 
 /// Expand `Include` directives into a single config string. Matches OpenSSH
@@ -400,50 +238,10 @@ String? _defaultIncludeReader(String path) {
   }
 }
 
-/// Raw Host block kept in file order. A block matches a concrete host if any
-/// of its non-negated patterns matches AND no negation pattern matches — the
-/// same rule OpenSSH applies.
-class _RawBlock {
-  final int orderIndex;
-  final List<String> patterns;
-  final String? hostName;
-  final String? user;
-  final int? port;
-  final List<String> identityFiles;
-  final List<AuthType>? preferredAuthTypes;
-
-  const _RawBlock({
-    required this.orderIndex,
-    required this.patterns,
-    required this.hostName,
-    required this.user,
-    required this.port,
-    required this.identityFiles,
-    this.preferredAuthTypes,
-  });
-
-  bool matches(String host) {
-    var positiveMatch = false;
-    for (final raw in patterns) {
-      final isNegation = raw.startsWith('!');
-      final pattern = isNegation ? raw.substring(1) : raw;
-      if (!_globMatches(pattern, host)) continue;
-      if (isNegation) return false;
-      positiveMatch = true;
-    }
-    return positiveMatch;
-  }
-}
-
-bool _isWildcardPattern(String host) =>
-    host.contains('*') || host.contains('?') || host.startsWith('!');
-
 /// Compiled globs keyed by raw pattern. OpenSSH config rarely declares
 /// more than a handful of distinct `Host` patterns, so the cache stays
 /// tiny for the life of the process. Without it, [_globMatches] recompiled
-/// a [RegExp] per `(pattern, host)` pair on every config parse — quadratic
-/// in the number of host blocks for the scan that walks every `Host` line
-/// while resolving one target.
+/// a [RegExp] per `(pattern, name)` pair on every Include expansion.
 final _globRegexCache = <String, RegExp>{};
 
 RegExp _compileGlob(String pattern) {

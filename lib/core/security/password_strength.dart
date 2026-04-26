@@ -8,10 +8,13 @@ import '../../src/rust/api/password_strength.dart' as rust_pw;
 /// short password get a red bar; that is the end of the warning.
 ///
 /// Heuristic is intentionally simple: length + character-class diversity.
-/// No `zxcvbn` wordlist — shipping 30k entries of common-password dictionary
-/// would bloat the binary for an informational-only feature. If a future
-/// review wants a real score, swap the body of [assessPasswordStrength];
-/// the enum surface is what the UI locks onto.
+/// Lives canonically in `lfs_core::password_strength::assess`. The Dart
+/// fallback below mirrors the same heuristic byte-for-byte; production
+/// never reaches it (FRB native lib is loaded at app start) but
+/// flutter_test does not load it and widget tests rendering the
+/// password-strength meter call this synchronously during build —
+/// the fallback keeps that test surface working without a per-suite
+/// RustLib.init bootstrap.
 enum PasswordStrength {
   /// No characters entered — the meter hides itself.
   empty,
@@ -29,12 +32,7 @@ enum PasswordStrength {
   veryStrong,
 }
 
-/// Classify [password] into a [PasswordStrength] tier. Routes
-/// through the Rust core — `lfs_core::password_strength::assess`
-/// — so the meter logic stays in lockstep with the canonical
-/// implementation. Falls back to a tiny Dart classifier when
-/// the FRB native lib isn't loaded (unit tests that don't
-/// initialise `RustLib`).
+/// Classify [password] into a [PasswordStrength] tier.
 PasswordStrength assessPasswordStrength(String password) {
   try {
     final db = rust_pw.assessPasswordStrength(password: password);
