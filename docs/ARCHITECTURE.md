@@ -1700,7 +1700,7 @@ class DeepLinkHandler {
   //     "update the app" toast instead of a generic "invalid QR" error.
 
   // QR import UX: the main screen handler shows LinkImportPreviewDialog
-  // before calling ImportService.applyResult, giving the user the same
+  // before calling applyResultViaRust, giving the user the same
   // merge/replace + per-type opt-in/out picker as the .lfs and paste-link
   // flows. Skipping the preview would silently commit whatever the QR
   // author chose to include (including, potentially, session passwords —
@@ -1724,7 +1724,7 @@ class DeepLinkHandler {
 
 | File | Purpose |
 |------|---------|
-| `import_service.dart` | Import .lfs archives (ZIP + AES-256-GCM, Argon2id-derived key). `applyConfig` callback is typed `AppConfig` (not `dynamic`). Callbacks for tags (`saveTag`, `tagSession`, `tagFolder`) and snippets (`saveSnippet`, `linkSnippetToSession`) with ID remapping via oldId→newId maps. Merge-mode ID collisions on sessions/tags/snippets are resolved by minting a fresh UUID and suffixing the label/name with `(copy)` — mirrors session duplication. Optional `existingTagIds`/`existingSnippetIds`/`getCurrentConfig` callbacks enable copy-on-conflict detection and full config rollback in replace mode |
+| `import_service.dart` | Thin Dart wrapper over the Rust apply driver: `applyResultViaRust(ImportResult, refreshAfterImport)` serialises the result to the staged-import JSON envelope, calls `dbImportStage` + `dbImportApply` (FRB → `lfs_core::archive::apply_pending_import`), then runs the caller's cache-refresh hook. Hosts `ImportSummary` (per-type counters consumed by the success toast) and `LfsImportRolledBackException` (raised on replace-mode failure so the UI shows "data restored" — the surrounding sqlite transaction guarantees the rollback). All collisions, junction inserts, folder-hierarchy reconstruction, and replace-mode rollback live Rust-side now |
 | `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are detected here too via `PpkCodec.looksLikePpk` and converted in-place to OpenSSH PEM (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
 | `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
@@ -1829,16 +1829,33 @@ manifest.
 | **Merge** | Adds new sessions; on id collision, inserts a fresh UUID with a `(copy)` suffix (same semantics for tags/snippets). Manager keys deduplicate by private-key fingerprint via `KeyStore.importForMerge()` — identical keys reuse the existing id. Config apply failure is logged but doesn't abort the merge |
 | **Replace** | Full replacement of sessions from archive. Tags / snippets / known_hosts are additionally wiped when the corresponding `includeX` flag from the preview dialog is set — so a user who checks "Tags" with an empty archive ends up with zero tags. Unchecked types are left untouched. A failure at any step triggers a full rollback of the snapshot (sessions + folders + config + tags + snippets + known_hosts) |
 
-#### Import service
+#### Apply driver — Rust-routed
 
-`ImportService` applies import results with:
-- Manager key import first — builds oldId→newId map, remaps session `keyId` fields. Sessions pointing to a key that wasn't imported get `keyId` nulled out so the session still inserts without hitting `FOREIGN KEY constraint failed` on `Sessions.keyId → SshKeys.id`
-- Session import with graceful skip on failure
-- Empty folder restoration
-- Tag import with ID remapping, then session→tag and folder→tag link creation. Links referencing a tag that wasn't imported are silently skipped (otherwise the FK on `SessionTags.tagId` / `FolderTags.tagId` would fail)
-- Snippet import with ID remapping, then session→snippet link creation. Links referencing a snippet that wasn't imported are silently skipped
+`applyResultViaRust(result, refreshAfterImport)` is the only Dart-side
+entry point. It stages the `ImportResult` into a `DbStagedImport`
+JSON envelope (one `*_json` field per entity table — sessions, keys,
+tags, snippets, junction links, empty folders, known_hosts text),
+hands it to `dbImportStage` for handle minting, then calls
+`dbImportApply` with a `DbApplyOptions{mode, applyX...}` selector
+mask. The Rust driver
+([`lfs_core::archive::apply_pending_import`](../rust/crates/lfs_core/src/archive.rs))
+does the heavy lifting:
 
-**Session reload after linked-entity delete:** `Sessions.keyId` is declared with `onDelete: KeyAction.setNull`, and `SessionTags` / `SessionSnippets` cascade on FK, so deleting a key / tag / snippet in the DB is correct on its own. The in-memory `sessionProvider` cache doesn't see the cascade, though — the delete UI handlers (`key_manager_dialog`, `tag_manager_dialog`, `snippet_manager_dialog`) each call `sessionProvider.notifier.load()` after the delete so the session tree picks up the nulled `keyId` (the "invalid session" warning icon appears immediately) and the derived tag / snippet lists drop the stale link
+- **Manager keys first.** Imported under a fingerprint-dedup so identical keys reuse the existing id; returned id map remaps every `Sessions.keyId` reference. Sessions pointing at a key that wasn't imported get `keyId` cleared so the row still inserts without a `FOREIGN KEY constraint failed` on `Sessions.keyId → SshKeys.id`
+- **Folder hierarchy reconstruction.** `apply_folder_tree` splits each session's `folder` path on `/`, mints a UUID per segment, builds a path→id map, and rewrites session `folder_id` references; `empty_folders.json` paths feed the same map so the tree is complete on apply. Folder→tag link import currently ignored — see §3.9 "Folder-tag stub" below
+- **Junction inserts.** Session→tag and session→snippet links route through `SessionTags` / `SessionSnippets` once the side tables land; links referencing a non-imported target are silently dropped (would FK-fail otherwise)
+- **Replace-mode atomicity.** The whole apply runs inside a single `Connection::transaction()` — replace mode wipes existing sessions / tags / snippets / known_hosts in the same transaction, so a mid-apply failure rolls the DB back to the pre-import state automatically. The Dart wrapper catches the failure and rethrows `LfsImportRolledBackException` so the UI shows the "import failed — data restored" toast
+- **Known-hosts text** is appended verbatim to the host-key file via the registered `KnownHostsAdapter`
+
+The Dart `ImportSummary` is rebuilt from the Rust `DbApplyResult` row counts (`sessionsApplied`, `foldersApplied`, `keysApplied`, `tagsApplied`, `snippetsApplied`, `knownHostsApplied`) plus the source `ImportResult.skippedSessions` (decode-time loss, surfaced verbatim). `formatImportSummary()` in `utils/format.dart` renders it as the success toast (`Imported N sessions, K SSH keys, T tags, S snippets, …`) so users see what was actually persisted instead of only the session count. `SqliteException`s that carry a PEM private key in their bound parameters are run through `redactSecrets()` in `utils/sanitize.dart` before reaching the toast or the log file.
+
+**Cache refresh.** Rust writes through the DB directly without going through Dart-side per-store add callbacks, so the in-memory `sessionStore`/`tagStore`/`snippetStore` caches are stale until reloaded. The caller passes a `refreshAfterImport` thunk that calls `sessionStore.load()` + `tagStore.loadAll()` + `snippetStore.loadAll()`; `applyResultViaRust` invokes it once on success. Riverpod `FutureProvider`s (`sshKeysProvider`, `tagsProvider`, `snippetsProvider`) get invalidated by the surrounding flow (`import_flow.dart::_invalidateImportProviders`).
+
+**Config restore stays Dart-side.** The Rust apply ignores the `config_json` field on `DbStagedImport` — `config.json` is a Dart-managed artefact (see [§3.6 → Migration framework](#migration-framework-coremigration)) and the caller restores it via `ref.read(configProvider.notifier).update((_) => importResult.config!)` after `applyResultViaRust` returns.
+
+**Folder-tag stub.** Folder→tag link import is currently dropped — `ExportFolderTagLink` carries the folder PATH (not the id) but the Rust apply driver keys junctions on `folder_id`. Restoring the link table requires the Dart envelope to resolve paths to freshly-minted folder ids the same way `apply_folder_tree` does for sessions; tracked but not implemented. Folder→tag is the only pre-Rust feature the apply path doesn't yet round-trip — sessions, keys, tags, snippets, session-tags, session-snippets, empty folders, known_hosts, config all survive.
+
+**Session reload after linked-entity delete:** `Sessions.keyId` is declared with `onDelete: KeyAction.setNull`, and `SessionTags` / `SessionSnippets` cascade on FK, so deleting a key / tag / snippet in the DB is correct on its own. The in-memory `sessionProvider` cache doesn't see the cascade, though — the delete UI handlers (`key_manager_dialog`, `tag_manager_dialog`, `snippet_manager_dialog`) each call `sessionProvider.notifier.load()` after the delete so the session tree picks up the nulled `keyId` (the "invalid session" warning icon appears immediately) and the derived tag / snippet lists drop the stale link.
 
 The OpenSSH config parser honours wildcard defaults. `Host *` / `Host *.internal` blocks emit no entries of their own, but their directives cascade onto every concrete host matching the pattern using OpenSSH's first-value-wins rule — so the common idiom "put `Host *` at the end of ~/.ssh/config for defaults that concrete hosts override" works as expected. Negation patterns (`!pattern`) block a wildcard block from applying to a matching host. `IdentityFile` entries accumulate across every matching block in file order (OpenSSH tries them sequentially at connect time).
 
@@ -1847,12 +1864,6 @@ The OpenSSH config parser honours wildcard defaults. `Host *` / `Host *.internal
 `PreferredAuthentications` is parsed into an ordered list of `AuthType` values (publickey ↔ `AuthType.key`, password / keyboard-interactive ↔ `AuthType.password`, gssapi/hostbased ignored). The importer consults this list first — an entry that explicitly prefers password auth keeps `AuthType.password` even when an `IdentityFile` is readable, matching OpenSSH's runtime choice instead of forcing key auth on hosts where it would be rejected.
 
 Encrypted `IdentityFile` keys are detected by `KeyFileHelper.isEncryptedPem` (decoding the OpenSSH v1 binary frame for the KDF-name field, or sniffing PKCS#1 / PKCS#8 armor headers) and surfaced via `hostsWithEncryptedKeys` — a subset of the existing `hostsWithMissingKeys` list, so the old UI warning still fires but callers who care can tell "needs passphrase" from "truly missing" without re-reading the file.
-
-Both `applyResult()` paths return an `ImportSummary` with per-type row counts and `configApplied` / `knownHostsApplied` flags. `formatImportSummary()` in `utils/format.dart` renders it as the success toast (`Imported N sessions, K SSH keys, T tags, S snippets, …`) so users see what was actually persisted instead of only the session count. `SqliteException`s that carry a PEM private key in their bound parameters are run through `redactSecrets()` in `utils/sanitize.dart` before reaching the toast or the log file
-- Config application via typed `AppConfig` callback
-- Known hosts import via `KnownHostsManager.importFromString()`
-- Rollback support in replace mode via `restoreSnapshot` callback — snapshot includes sessions, empty folders, and (when `getCurrentConfig` is provided) the pre-import `AppConfig`, so a failed import restores atomically
-- Manager-key rollback — replace mode never wipes the key store (keys are deduped by fingerprint on merge), so instead the snapshot captures `existingManagerKeyIds()` before the import runs. If the import fails, the rollback path enumerates the store again and deletes any id that wasn't in the pre-import set. Pre-existing keys stay untouched. Tests without a wired `KeyStore` leave the callbacks null and this step is skipped
 
 ---
 
@@ -3658,7 +3669,7 @@ Long-running operations own a `ProgressReporter` and push updates as they work; 
 - `phase(label)` — **indeterminate** bar with a caption. Use when the current step is an atomic call (PBKDF2 inside an isolate, ZIP decode) where no percent is observable.
 - `step(label, current, total)` — **determinate** bar with `N / M` counter and percent. Use for per-row loops (importing sessions, tags, snippets).
 
-All long operations surface progress through this type — `ExportImport.export/import_` and `ImportService.applyResult` take optional `ProgressReporter? progress, S? l10n` parameters. **Never** put a bare `CircularProgressIndicator` inside a modal dialog for long work; use `AppProgressBarDialog` so the user always sees a labelled phase and a percentage when it is available. Small in-list spinners (≤ 100 ms loads) are fine.
+All long operations surface progress through this type — `ExportImport.export/import_` takes optional `ProgressReporter? progress, S? l10n` parameters; the apply path (`applyResultViaRust`) reports through the FRB stream from the Rust apply driver. **Never** put a bare `CircularProgressIndicator` inside a modal dialog for long work; use `AppProgressBarDialog` so the user always sees a labelled phase and a percentage when it is available. Small in-list spinners (≤ 100 ms loads) are fine.
 
 `LfsDecryptionFailedException` (from `ExportImport`) wraps GCM auth-tag failures and ZIP decoder failures so the UI can render a single localized "wrong master password or corrupted archive" message without leaking `InvalidCipherTextException` stack traces.
 
@@ -4140,7 +4151,7 @@ All files live in the platform's app-support directory (see **Location** below).
 - Android: app internal storage
 - iOS: app sandbox
 
-**Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed. `ImportService.applyResult` wraps its entire body in `AppDatabase.transaction(...)` via the injected `runInTransaction` hook, so a bulk import either fully lands or leaves the DB unchanged (a mid-import exception triggers SQLite rollback before the replace-mode snapshot restore runs).
+**Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed. `lfs_core::archive::apply_pending_import` wraps its entire body in a `Connection::transaction()` (Rust-side, via FRB), so a bulk import either fully lands or leaves the DB unchanged (a mid-import exception triggers SQLite rollback; the Dart wrapper rethrows `LfsImportRolledBackException` so the UI shows "data restored" in replace mode).
 
 **Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `onUpgrade` → walks `from < N` branches in version order, `beforeOpen` → `PRAGMA foreign_keys = ON`). v1 is the permanent floor — pre-framework legacy layouts that report a version below 1 are treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Forward bumps follow drift's normal `onUpgrade` flow — bump `schemaVersion`, add a `from < N` branch that executes additive DDL (DEFAULT-backed `addColumn`, new tables), regenerate the snapshot via `make DB_VERSION=N drift-schema-dump && make drift-schema-generate`, and add a `verifier.migrateAndValidate(db, N)` test in `test/core/db/drift_schema_test.dart`. Never skip a version.
 

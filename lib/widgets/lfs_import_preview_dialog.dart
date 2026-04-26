@@ -22,7 +22,7 @@ typedef LfsImportPreviewResult = ({
 /// Thin wrapper around [ImportPreviewDialog]: renders the archive filename as
 /// the header, maps [LfsPreview] fields to the shared count record, and
 /// packages the shared selection into a result that also carries the
-/// [filePath] so the caller can hand it back to `ImportService` without
+/// [filePath] so the caller can hand it back to the apply driver without
 /// bookkeeping.
 class LfsImportPreviewDialog extends StatelessWidget {
   final String filePath;

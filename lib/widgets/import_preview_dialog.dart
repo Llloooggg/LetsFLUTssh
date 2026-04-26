@@ -34,7 +34,7 @@ typedef ImportPreviewSelection = ({ImportMode mode, ExportOptions options});
 /// Every checkbox is always clickable regardless of [counts]. That matters in
 /// replace mode, where checking a type with zero entries in the payload is a
 /// deliberate "wipe it out" intent — the checkbox state carries through to
-/// `ImportResult.includeX` and `ImportService` honors it.
+/// `ImportResult.includeX` and the Rust apply driver honors it.
 class ImportPreviewDialog extends StatefulWidget {
   final Widget header;
   final ImportPreviewCounts counts;

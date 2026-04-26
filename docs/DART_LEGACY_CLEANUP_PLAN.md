@@ -65,7 +65,7 @@ intermediate states stay shippable.
 
 ### Step 1 — drop ImportService legacy callback path
 
-**Status:** TODO
+**Status:** DONE
 
 **Why first:** zero production callsites left. Every flow
 already routes through `applyResultViaRust`. Confidence

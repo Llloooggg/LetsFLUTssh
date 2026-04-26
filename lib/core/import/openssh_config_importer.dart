@@ -18,7 +18,8 @@ typedef PemKeyReader = Future<String?> Function(String path);
 /// bcrypt-wrapped key material.
 typedef EncryptedPemDetector = bool Function(String pem);
 
-/// Result of preparing a config-file import — ready to pass to ImportService.
+/// Result of preparing a config-file import — ready to pass to
+/// [applyResultViaRust].
 class OpenSshConfigImportPreview {
   final ImportResult result;
 

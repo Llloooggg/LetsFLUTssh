@@ -76,8 +76,8 @@ typedef PickKeysCallback = Future<List<ScannedKey>?> Function();
 /// scopes stay distinct even though they use the same row primitive.
 ///
 /// Returns a combined [ImportResult] on accept, or null on cancel. Sessions
-/// pointing to a deselected key get their keyId nulled by [ImportService]'s
-/// FK-safety pass.
+/// pointing to a deselected key get their keyId nulled by the Rust apply
+/// driver's FK-safety pass.
 class SshDirImportDialog extends StatefulWidget {
   final SshDirImportSource source;
   final PickConfigCallback? onPickConfigFile;
