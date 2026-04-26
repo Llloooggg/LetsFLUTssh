@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
+import '../core/shortcut_registry.dart';
 import '../theme/app_theme.dart';
+import '../utils/terminal_clipboard.dart';
 
 /// Read-only xterm TerminalView — no keyboard input, no context menu.
 ///
@@ -36,10 +39,25 @@ class _ReadOnlyTerminalViewState extends State<ReadOnlyTerminalView> {
     super.dispose();
   }
 
+  /// Intercept the terminal-copy shortcut before xterm swallows the
+  /// key event. xterm's `TerminalView` consumes most key combos as
+  /// raw terminal input; without this hook the read-only progress
+  /// view would silently drop Ctrl+C / Cmd+C even when the user
+  /// has selected text. Copy is the only shortcut we honour here —
+  /// paste and resize don't apply to a read-only progress overlay.
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (AppShortcutRegistry.instance.matches(AppShortcut.terminalCopy, event)) {
+      TerminalClipboard.copy(widget.terminal, _controller);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FocusScope(
-      canRequestFocus: false,
+    return Focus(
+      onKeyEvent: _handleKey,
       child: TerminalView(
         widget.terminal,
         controller: _controller,

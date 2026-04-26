@@ -366,7 +366,19 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     )
     .await;
 
-    let result = run_auth(args).await;
+    // 30-second connect timeout. russh `client::connect` does not
+    // bound the TCP connect on its own; an unreachable host (typo in
+    // address, firewall drop) would otherwise pin the actor for the
+    // OS-level TCP timeout (60–130 s on Linux). Wrapping the whole
+    // handshake — TCP dial, host-key exchange, userauth — keeps the
+    // worst case bounded; legitimate slow networks finish well under
+    // the cap. Mirrors `ConnectionManager.connectionTimeout` from
+    // the Dart-era driver.
+    let result =
+        match tokio::time::timeout(std::time::Duration::from_secs(30), run_auth(args)).await {
+            Ok(r) => r,
+            Err(_) => Err(Error::Connect("connect timed out (30 s)".into())),
+        };
     let _ = &result; // silence unused if future arms add early returns
 
     // Discard stale-generation results — a reconnect bumped the
