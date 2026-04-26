@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/import/import_service.dart';
 import '../core/progress/progress_reporter.dart';
+import '../src/rust/api/archive.dart' as rust_archive;
 import '../core/session/qr_codec.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
-import '../providers/connection_provider.dart';
 import '../providers/key_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/snippet_provider.dart';
@@ -55,8 +55,15 @@ Future<void> handleQrImport(WidgetRef ref, ExportPayloadData data) async {
   final importResult = fullResult.filtered(choice.options, choice.mode);
 
   try {
-    final summary = await _buildImportService(ref).applyResult(importResult);
+    final apply = await applyResultViaRust(
+      importResult,
+      refreshAfterImport: () => _refreshStores(ref),
+    );
+    if (importResult.config != null) {
+      ref.read(configProvider.notifier).update((_) => importResult.config!);
+    }
     _invalidateImportProviders(ref);
+    final summary = _summaryFromApply(apply, importResult);
 
     AppLogger.instance.log(
       'QR import complete: ${summary.sessions} session(s), '
@@ -149,10 +156,15 @@ Future<void> showLfsImportDialog(
       l10n: l10n,
     );
 
-    final summary = await _buildImportService(
-      ref,
-    ).applyResult(importResult, progress: progress, l10n: l10n);
+    final apply = await applyResultViaRust(
+      importResult,
+      refreshAfterImport: () => _refreshStores(ref),
+    );
+    if (importResult.config != null) {
+      ref.read(configProvider.notifier).update((_) => importResult.config!);
+    }
     _invalidateImportProviders(ref);
+    final summary = _summaryFromApply(apply, importResult);
 
     AppLogger.instance.log(
       'LFS import success: ${summary.sessions} session(s)',
@@ -197,62 +209,33 @@ void _invalidateImportProviders(WidgetRef ref) {
   ref.invalidate(snippetsProvider);
 }
 
-/// Wire the `ImportService` that both the QR and LFS paths share.
-///
-/// Kept as a private helper — callers go through [handleQrImport] /
-/// [showLfsImportDialog]. Every collaborator is pulled from [ref]
-/// so the service is a pure function of current provider state.
-ImportService _buildImportService(WidgetRef ref) {
-  final store = ref.read(sessionStoreProvider);
-  final keyStore = ref.read(keyStoreProvider);
-  final tagStore = ref.read(tagStoreProvider);
-  final snippetStore = ref.read(snippetStoreProvider);
-  final knownHostsMgr = ref.read(knownHostsProvider);
-  return ImportService(
-    addSession: (s) => ref.read(sessionProvider.notifier).add(s),
-    addEmptyFolder: (f) => store.addEmptyFolder(f),
-    deleteSession: (id) => ref.read(sessionProvider.notifier).delete(id),
-    getSessions: () => ref.read(sessionProvider),
-    applyConfig: (config) =>
-        ref.read(configProvider.notifier).update((_) => config),
-    saveManagerKey: (entry) => keyStore.importForMerge(entry),
-    saveTag: (tag) async {
-      await tagStore.add(tag);
-      return tag.id;
-    },
-    tagSession: tagStore.tagSession,
-    tagFolder: (folderId, tagId) => tagStore.tagFolder(folderId, tagId),
-    saveSnippet: (snippet) async {
-      await snippetStore.add(snippet);
-      return snippet.id;
-    },
-    linkSnippetToSession: snippetStore.linkToSession,
-    getEmptyFolders: () => store.emptyFolders,
-    restoreSnapshot: (sessions, folders) =>
-        store.restoreSnapshot(sessions, folders),
-    existingTagIds: () async =>
-        (await tagStore.loadAll()).map((t) => t.id).toSet(),
-    existingSnippetIds: () async =>
-        (await snippetStore.loadAll()).map((s) => s.id).toSet(),
-    getCurrentConfig: () => ref.read(configProvider),
-    loadAllTags: () => tagStore.loadAll(),
-    deleteAllTags: () => tagStore.deleteAll(),
-    loadAllSnippets: () => snippetStore.loadAll(),
-    deleteAllSnippets: () => snippetStore.deleteAll(),
-    exportKnownHosts: () => knownHostsMgr.exportToString(),
-    clearKnownHosts: () => knownHostsMgr.clearAll(),
-    importKnownHosts: (content) async {
-      await knownHostsMgr.importFromString(content);
-    },
-    existingManagerKeyIds: () async =>
-        (await keyStore.loadAllMetadata()).keys.toSet(),
-    deleteManagerKey: keyStore.delete,
-    // Stores write through FRB into `lfs_core.db`; the drift handle
-    // a `runInTransaction` callback would have wrapped no longer
-    // owns these writes, so atomicity becomes a Rust-side concern.
-    // Until lfs_core exposes a multi-statement transaction wrapper,
-    // imports proceed without a single rollback boundary; recovery
-    // is via re-import from the same source.
-    runInTransaction: null,
+/// Reload the in-memory caches the UI binds to. Rust apply
+/// writes directly through the DB — the Dart-side store lists
+/// (`SessionStore._sessions` etc) need a `load()` to pick up
+/// the new rows.
+Future<void> _refreshStores(WidgetRef ref) async {
+  await ref.read(sessionStoreProvider).load();
+  await ref.read(tagStoreProvider).loadAll();
+  await ref.read(snippetStoreProvider).loadAll();
+}
+
+/// Build a Dart-side `ImportSummary` from the Rust `DbApplyResult`
+/// + the original `ImportResult`. Counters route from Rust;
+/// `configApplied` mirrors the Dart-side config restore branch
+/// since the Rust apply doesn't touch `config.json`.
+ImportSummary _summaryFromApply(
+  rust_archive.DbApplyResult apply,
+  ImportResult source,
+) {
+  return ImportSummary(
+    sessions: apply.sessionsApplied.toInt(),
+    folders: apply.foldersApplied.toInt(),
+    managerKeys: apply.keysApplied.toInt(),
+    tags: apply.tagsApplied.toInt(),
+    snippets: apply.snippetsApplied.toInt(),
+    configApplied: source.config != null,
+    knownHostsApplied: apply.knownHostsApplied > 0,
+    skippedSessions: source.skippedSessions,
+    skippedLinks: 0,
   );
 }
