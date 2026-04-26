@@ -1117,4 +1117,105 @@ mod tests {
         // 1969-12-31T23:59:59.000Z → ms = -1000
         assert_eq!(format_iso8601_utc(-1000), "1969-12-31T23:59:59.000Z");
     }
+
+    fn pending_with_sessions(json: &str) -> PendingImport {
+        PendingImport {
+            manifest_json: None,
+            sessions_json: Some(json.to_string()),
+            keys_json: None,
+            tags_json: None,
+            session_tags_json: None,
+            folder_tags_json: None,
+            snippets_json: None,
+            session_snippets_json: None,
+            empty_folders_json: None,
+            config_json: None,
+            known_hosts_text: None,
+        }
+    }
+
+    #[test]
+    fn import_registry_round_trip() {
+        let reg = ImportRegistry::new();
+        let pending = pending_with_sessions(r#"[{"label":"prod"},{"label":"staging"}]"#);
+        reg.insert("h1".into(), pending);
+        assert_eq!(reg.count(), 1);
+        assert!(reg.get_clone("h1").is_some());
+        let taken = reg.take("h1").expect("take");
+        assert_eq!(reg.count(), 0);
+        assert_eq!(
+            taken.sessions_json.as_deref(),
+            Some(r#"[{"label":"prod"},{"label":"staging"}]"#)
+        );
+        // Take is idempotent: a second take on a missing id returns None.
+        assert!(reg.take("h1").is_none());
+    }
+
+    #[test]
+    fn import_registry_drop_handle_evicts_silently() {
+        let reg = ImportRegistry::new();
+        reg.insert("h1".into(), pending_with_sessions("[]"));
+        reg.drop_handle("h1");
+        reg.drop_handle("h1"); // missing id is a no-op
+        assert_eq!(reg.count(), 0);
+    }
+
+    #[test]
+    fn import_preview_counts_sessions_and_pulls_labels() {
+        let pending = pending_with_sessions(
+            r#"[{"label":"prod","host":"a"},{"label":"staging","host":"b"}]"#,
+        );
+        let preview = pending.preview(7);
+        assert_eq!(preview.schema_version, 7);
+        assert_eq!(preview.session_count, 2);
+        assert_eq!(preview.session_labels, vec!["prod", "staging"]);
+        assert!(!preview.has_config);
+        assert!(!preview.has_known_hosts);
+    }
+
+    #[test]
+    fn import_preview_handles_malformed_sessions_json() {
+        let mut pending = pending_with_sessions("not-actually-json");
+        // Corrupted entries decay to zero counts rather than panic —
+        // the apply path surfaces the parse error elsewhere.
+        let preview = pending.preview(1);
+        assert_eq!(preview.session_count, 0);
+        assert!(preview.session_labels.is_empty());
+        // Missing optional sources also yield zero counts.
+        pending.sessions_json = None;
+        let preview = pending.preview(1);
+        assert_eq!(preview.session_count, 0);
+    }
+
+    #[test]
+    fn import_preview_flags_config_and_known_hosts() {
+        let mut pending = pending_with_sessions("[]");
+        pending.config_json = Some("{\"theme\":\"dark\"}".into());
+        pending.known_hosts_text = Some("example.com ssh-ed25519 AAAA".into());
+        let preview = pending.preview(1);
+        assert!(preview.has_config);
+        assert!(preview.has_known_hosts);
+    }
+
+    #[test]
+    fn import_preview_empty_strings_treat_as_absent() {
+        let mut pending = pending_with_sessions("[]");
+        pending.config_json = Some(String::new());
+        pending.known_hosts_text = Some(String::new());
+        let preview = pending.preview(1);
+        assert!(!preview.has_config);
+        assert!(!preview.has_known_hosts);
+    }
+
+    #[test]
+    fn json_array_len_handles_object_payload() {
+        // The DAO writes top-level arrays today; a future migration
+        // could swap to wrapped objects. The helper must not blow
+        // up on a non-array — it returns 0 so the preview shows
+        // "import contains no entries" rather than panicking.
+        assert_eq!(json_array_len(Some(r#"{"sessions":[]}"#)), 0);
+        assert_eq!(json_array_len(Some("[]")), 0);
+        assert_eq!(json_array_len(Some("[1,2,3]")), 3);
+        assert_eq!(json_array_len(None), 0);
+    }
 }
