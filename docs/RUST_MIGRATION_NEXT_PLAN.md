@@ -24,7 +24,18 @@ contains only:
 
 ### Step 1 — flutter_test FRB bootstrap
 
-**Status:** TODO
+**Status:** REJECTED — `RustLib.init`'s `executeRustInitializers`
+calls `crateApiInitApp` which spins up `AppState` + opens default
+DAO connections. Widget tests with Riverpod `overrideWith`
+mocks then fail because the FRB calls succeed against a half-
+initialized AppState instead of falling through into the test's
+mock store. ~50 widget-test regressions vs the ~10 currently-
+skipped suites this would un-skip.
+
+The right fix is `initMock` with a per-suite mock RustLibApi —
+that's a separate arc-sized port. Until then the skip-marked
+suites stay skipped and the Dart fallbacks in sanitize +
+password_strength stay live.
 
 **Why first:** unblocks dropping the sanitize + password_strength
 Dart fallbacks (Step 2). Also un-skips 6+ test files marked
@@ -50,7 +61,11 @@ needs to pick the right one off `Platform.isLinux` etc.
 
 ### Step 2 — drop sanitize + password_strength Dart fallbacks
 
-**Status:** TODO
+**Status:** BLOCKED ON STEP 1 — fallbacks fire today only because
+flutter_test does not load the FRB native lib. Until Step 1
+lands a working init+mock surface, dropping the fallbacks would
+break ~200 widget tests that pipe error strings through
+`sanitizeError` or render `PasswordStrengthMeter`.
 
 **Why second:** Step 1 makes them dead weight. Fallbacks were
 retained earlier only because flutter_test would crash without
