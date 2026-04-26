@@ -736,28 +736,35 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
   - FRB: `bus_dispatch(BusCommand) -> ()` + `bus_subscribe(BusTopic) -> Stream<BusEvent>`. The subscriber loop drains the broadcast receiver, filters by topic, and routes events to the FRB `StreamSink`; cancelling the Dart subscription drops the sink → loop exits → receiver auto-detaches.
   - Dart: `lib/core/bus/app_bus.dart` re-exports the generated FRB types and wraps them under a Dart-side `AppBus` singleton so consumers don't depend on the regenerated symbols directly. Riverpod views layer on top in 5.1+.
 
-- [-] **5.1 Connection lifecycle → Rust actor (in progress — driver wired)**
+- [-] **5.1 Connection lifecycle → Rust actor (in progress — Rust side complete)**
 
-  **Shipped:** `lfs_core::connection::ConnectionRegistry` + `ConnectionActor`
-  types, `ConnectionState` / `ConnectionPhase` / `StepStatus` /
-  `ProgressStep` mirrors of the Dart enums, `ConnectionSnapshot` plain-data
-  view, FRB mirrors of all of the above. `connect_async` driver loop runs
-  the russh handshake via the new `connect_*_with_secret_owned` family
-  (Pin-Boxed `Future + Send + 'static` to break HRTB inference between
-  `wrap_async` and the deeper `&str`-borrowing path), publishes
+  **Shipped (Rust):** `lfs_core::connection::ConnectionRegistry` +
+  `ConnectionActor` types, `ConnectionState` / `ConnectionPhase` /
+  `StepStatus` / `ProgressStep` mirrors of the Dart enums,
+  `ConnectionSnapshot` plain-data view, FRB mirrors of all of the above.
+  `connect_async` driver loop runs the russh handshake via the new
+  `connect_*_with_secret_owned` family (Pin-Boxed
+  `Future + Send + 'static` to break HRTB inference between `wrap_async`
+  and the deeper `&str`-borrowing path), publishes
   `ConnectionStateChanged` / `ConnectionProgress` / `ConnectionError`
   events on the bus, and parks the resulting `Arc<Session>` on the actor.
   `disconnect(id)` drops the held russh handle and clears the actor row.
+  ProxyJump bastion path: `connect_*_via_proxy_with_secret_owned` family
+  takes parent as `Arc<Session>`; actor's `run_auth` looks up parent by
+  `bastion_id`, requires `Connected` state, grabs `Arc<Session>` via
+  `clone_session()`, and routes to the matching proxied constructor.
+
   `bus::Command::ConnectionDisconnect` lands; connect is exposed as a
   dedicated FRB call (`connection_connect`) because connect is a
   request/response op rather than a fire-and-forget command.
 
-  **Remaining scope (this sub-phase):** ProxyJump bastion-aware dispatch
-  inside the actor (the `bastion_id` field is plumbed; the driver still
-  errors on non-`None`); Dart-side `Connection` view-model rework
-  (subscribe to `ConnectionStateChanged` events, retire local FSM); thin
-  `ConnectionManager` dispatcher; consumer updates (workspace, terminal,
-  sftp); test refactor against the new view-stream surface.
+  **Remaining scope (Dart-side rework):** Dart `Connection` class
+  becomes a view subscriber (state read off `ConnectionStateChanged`
+  events; progress off `ConnectionProgress`); `ConnectionManager`
+  shrinks to a thin dispatcher (no local FSM, no transport ownership);
+  consumer updates (workspace, terminal, sftp) for channel ops that
+  today reach into `conn.transport`; test refactor against the new
+  view-stream surface.
   - Rust: `ConnectionRegistry` holds `HashMap<ConnId, ConnectionActor>`. Each actor owns: state (`Idle / Connecting / Connected / Disconnected`), generation counter, transport handle, bastion ref, error, progress steps, sshConfig, label, sessionId.
   - Commands: `ConnectAsync`, `Disconnect`, `Reconnect`, `BindBastion`.
   - Per-connection events: `StateChanged`, `ProgressStep`, `Connected`, `ErrorRaised`.
