@@ -12,6 +12,7 @@ import 'api/archive.dart';
 import 'api/bus.dart';
 import 'api/crypto.dart';
 import 'api/db.dart';
+import 'api/deeplink.dart';
 import 'api/forward.dart';
 import 'api/keys.dart';
 import 'api/log_sanitize.dart';
@@ -223,6 +224,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbApplyOptions dco_decode_box_autoadd_db_apply_options(dynamic raw);
 
   @protected
+  DbConnectLink dco_decode_box_autoadd_db_connect_link(dynamic raw);
+
+  @protected
   DbExportInput dco_decode_box_autoadd_db_export_input(dynamic raw);
 
   @protected
@@ -311,6 +315,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbApplyResult dco_decode_db_apply_result(dynamic raw);
+
+  @protected
+  DbConnectLink dco_decode_db_connect_link(dynamic raw);
 
   @protected
   DbExportInput dco_decode_db_export_input(dynamic raw);
@@ -455,6 +462,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAppConfig? dco_decode_opt_box_autoadd_db_app_config(dynamic raw);
+
+  @protected
+  DbConnectLink? dco_decode_opt_box_autoadd_db_connect_link(dynamic raw);
 
   @protected
   DbKnownHost? dco_decode_opt_box_autoadd_db_known_host(dynamic raw);
@@ -689,6 +699,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbConnectLink sse_decode_box_autoadd_db_connect_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbExportInput sse_decode_box_autoadd_db_export_input(
     SseDeserializer deserializer,
   );
@@ -801,6 +816,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbApplyResult sse_decode_db_apply_result(SseDeserializer deserializer);
+
+  @protected
+  DbConnectLink sse_decode_db_connect_link(SseDeserializer deserializer);
 
   @protected
   DbExportInput sse_decode_db_export_input(SseDeserializer deserializer);
@@ -975,6 +993,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbAppConfig? sse_decode_opt_box_autoadd_db_app_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbConnectLink? sse_decode_opt_box_autoadd_db_connect_link(
     SseDeserializer deserializer,
   );
 
@@ -1255,6 +1278,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_connect_link(
+    DbConnectLink self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_export_input(
     DbExportInput self,
     SseSerializer serializer,
@@ -1403,6 +1432,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_apply_result(DbApplyResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_connect_link(DbConnectLink self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_export_input(DbExportInput self, SseSerializer serializer);
@@ -1631,6 +1663,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_app_config(
     DbAppConfig? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_connect_link(
+    DbConnectLink? self,
     SseSerializer serializer,
   );
 

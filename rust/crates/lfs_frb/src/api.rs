@@ -7,6 +7,7 @@ pub mod archive;
 pub mod bus;
 pub mod crypto;
 pub mod db;
+pub mod deeplink;
 pub mod forward;
 pub mod keys;
 pub mod log_sanitize;

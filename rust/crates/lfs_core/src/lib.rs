@@ -24,6 +24,7 @@ pub mod bus;
 pub mod connection;
 pub mod crypto;
 pub mod db;
+pub mod deeplink;
 pub mod error;
 pub mod keys;
 pub mod log_sanitize;

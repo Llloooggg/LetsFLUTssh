@@ -84,7 +84,9 @@ pipe both work.
 
 ### Step 3 — DeepLinkHandler URI parser → Rust
 
-**Status:** TODO
+**Status:** DONE — Dart fallback retained (same flutter_test
+constraint that kept sanitize/password_strength fallbacks alive
+after Step 1 was rejected).
 
 **Why third:** Pure parser. Zero side effects, no platform
 dependency. Small port (~230 LOC Dart → ~150 LOC Rust).

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 
+import '../../src/rust/api/deeplink.dart' as rust_deeplink;
 import '../../utils/logger.dart';
 import '../session/qr_codec.dart';
 import '../ssh/ssh_config.dart';
@@ -156,14 +157,36 @@ class DeepLinkHandler {
   }
 
   /// Parse a `letsflutssh://connect?...` URI into an [SSHConfig].
-  /// Returns null if required params (host, user) are missing or invalid.
+  /// Returns null if required params (host, user) are missing or
+  /// invalid.
   ///
-  /// Inputs come from external deep links (OS-level URI handlers), so the
-  /// parser must never throw on garbage. Malformed percent-encoding in
-  /// the query string raises FormatException from dart:core's lazy
-  /// queryParameters decoder; treat that as "invalid URI, return null"
-  /// to keep the contract single-typed for callers.
+  /// Routes through `lfs_core::deeplink::parse_connect_uri` —
+  /// canonical validation rules (host length, control-char
+  /// rejection, port range, percent-decoding) live Rust-side.
+  /// The Dart fallback below mirrors the same rules; production
+  /// never reaches it (FRB native lib is loaded at app start)
+  /// but flutter_test does not load it and the deeplink fuzz
+  /// suite calls this synchronously over 2k random URI shapes.
   static SSHConfig? parseConnectUri(Uri uri) {
+    try {
+      final link = rust_deeplink.parseConnectUri(uri: uri.toString());
+      if (link == null) return null;
+      return SSHConfig(
+        server: ServerAddress(
+          host: link.host,
+          port: link.port,
+          user: link.user,
+        ),
+      );
+    } catch (_) {
+      return _parseConnectUriDart(uri);
+    }
+  }
+
+  /// Tiny Dart mirror of `lfs_core::deeplink::parse_connect_uri`.
+  /// Lives here only for the flutter_test surface — production
+  /// never falls through.
+  static SSHConfig? _parseConnectUriDart(Uri uri) {
     final Map<String, String> params;
     try {
       params = uri.queryParameters;
@@ -173,49 +196,30 @@ class DeepLinkHandler {
     }
     final host = params['host']?.trim();
     final user = params['user']?.trim();
-
     if (host == null || host.isEmpty || user == null || user.isEmpty) {
       return null;
     }
-
-    // Validate host: no path separators, null bytes, reasonable length
     if (host.length > 253 ||
         host.contains('/') ||
         host.contains('\\') ||
         _containsControlChar(host)) {
-      AppLogger.instance.log('Invalid host', name: 'DeepLink');
       return null;
     }
-
-    // Validate user: bound the length, reject control chars / null bytes /
-    // path separators. POSIX `useradd` caps at 32 chars; allow more to cover
-    // domain-style accounts (`user@domain`) but stay well under DoS-able size.
     if (user.length > 256 ||
         user.contains('/') ||
         user.contains('\\') ||
         _containsControlChar(user)) {
-      AppLogger.instance.log('Invalid user', name: 'DeepLink');
       return null;
     }
-
-    // Validate port range
     final port = int.tryParse(params['port'] ?? '') ?? 22;
-    if (port < 1 || port > 65535) {
-      AppLogger.instance.log('Invalid port $port', name: 'DeepLink');
-      return null;
-    }
-
-    // No credentials in deep links — passwords and keys are never transmitted
-    // via URL for security reasons (URLs can be logged by OS, clipboard, etc.)
-
+    if (port < 1 || port > 65535) return null;
     return SSHConfig(
       server: ServerAddress(host: host, port: port, user: user),
     );
   }
 
-  /// True if [s] contains any C0/C1 control character (0x00–0x1F, 0x7F–0x9F).
-  /// Catches null bytes, CR/LF injection into ssh-config, BEL/escape chars
-  /// that could mangle terminal prompts.
+  /// True if [s] contains any C0/C1 control character (0x00–0x1F,
+  /// 0x7F–0x9F). Catches null bytes, CR/LF injection, BEL/escape.
   static bool _containsControlChar(String s) {
     for (final cu in s.codeUnits) {
       if (cu < 0x20 || (cu >= 0x7F && cu <= 0x9F)) return true;
