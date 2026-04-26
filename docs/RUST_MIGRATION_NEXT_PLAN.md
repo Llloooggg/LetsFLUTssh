@@ -302,6 +302,23 @@ orchestration that today lives Dart-side.
 TPM / biometric sealing all converge here. Land on a separate
 branch, smoke-test on every platform before merge.
 
+### Step 10 — QR / paste-link decode → Rust
+
+**Status:** PARTIAL — `lfs_core::qr_codec_decode` lands the
+canonical decoder (deflate + base64url + JSON parse → emits
+the same `PendingImport` shape `.lfs` import uses) with 12
+unit tests. FRB endpoint `qr_import_open(payload)` decodes +
+stages a handle in one call, mirroring `db_import_open` so the
+existing apply driver consumes both archive and QR imports
+through one pipeline.
+
+Dart-side rewire deferred — `decodeImportUri` /
+`PasteImportLinkDialog` / `LinkImportPreviewDialog` /
+`handleQrImport` / settings call sites still walk the legacy
+Dart pipeline. The new FRB endpoint is callable any time;
+switching the Dart side over removes ~400 LOC of QR JSON
+parsing in a follow-up.
+
 ## Out of scope (feature work, not migration)
 
 - #149 mobile pipelines (Android / iOS native plugins).

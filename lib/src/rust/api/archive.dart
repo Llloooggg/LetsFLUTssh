@@ -24,6 +24,21 @@ Future<Uint8List> dbExportArchive({required DbExportInput input}) =>
 Future<String> dbExportQrPayload({required DbQrExportInput input}) =>
     RustLib.instance.api.crateApiArchiveDbExportQrPayload(input: input);
 
+/// Decode a QR / paste-link payload (deflated + base64url JSON,
+/// or v1 legacy raw base64url JSON), stage the resulting
+/// `PendingImport` under a freshly-generated handle id, and
+/// return the sanitised preview. Mirrors `db_import_open` for
+/// the QR / deeplink paths so the apply driver sees the same
+/// shape regardless of whether the bytes came from a `.lfs`
+/// archive or a QR scan.
+///
+/// `payload` is the value of the `d=` query parameter from a
+/// `letsflutssh://import?d=...` deeplink. The Dart caller may
+/// also pass the full URI — the leading `letsflutssh://import?d=`
+/// is stripped automatically.
+Future<DbImportOpenResult> qrImportOpen({required String payload}) =>
+    RustLib.instance.api.crateApiArchiveQrImportOpen(payload: payload);
+
 /// Open and decrypt a `.lfs` archive (or a raw ZIP for the
 /// no-password export shape). Stages the decoded entries inside
 /// `AppState::imports` under a freshly-generated handle id and

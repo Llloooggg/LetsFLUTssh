@@ -192,6 +192,35 @@ fn random_handle_id() -> String {
     hex
 }
 
+/// Decode a QR / paste-link payload (deflated + base64url JSON,
+/// or v1 legacy raw base64url JSON), stage the resulting
+/// `PendingImport` under a freshly-generated handle id, and
+/// return the sanitised preview. Mirrors `db_import_open` for
+/// the QR / deeplink paths so the apply driver sees the same
+/// shape regardless of whether the bytes came from a `.lfs`
+/// archive or a QR scan.
+///
+/// `payload` is the value of the `d=` query parameter from a
+/// `letsflutssh://import?d=...` deeplink. The Dart caller may
+/// also pass the full URI — the leading `letsflutssh://import?d=`
+/// is stripped automatically.
+pub async fn qr_import_open(payload: String) -> Result<DbImportOpenResult, String> {
+    tokio::task::spawn_blocking(move || {
+        let raw = lfs_core::qr_codec_decode::extract_payload_from_uri(&payload).unwrap_or(payload);
+        let decoded = lfs_core::qr_codec_decode::decode_payload(&raw).map_err(|e| e.to_string())?;
+        let preview = decoded.pending.preview(decoded.schema_version);
+        let app = lfs_core::app::instance();
+        let handle_id = random_handle_id();
+        app.imports.insert(handle_id.clone(), decoded.pending);
+        Ok(DbImportOpenResult {
+            handle_id,
+            preview: preview.into(),
+        })
+    })
+    .await
+    .map_err(|e| format!("qr import open task: {e}"))?
+}
+
 /// Open and decrypt a `.lfs` archive (or a raw ZIP for the
 /// no-password export shape). Stages the decoded entries inside
 /// `AppState::imports` under a freshly-generated handle id and
