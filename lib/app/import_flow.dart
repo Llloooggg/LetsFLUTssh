@@ -5,6 +5,7 @@ import '../core/import/import_service.dart';
 import '../core/progress/progress_reporter.dart';
 import '../src/rust/api/archive.dart' as rust_archive;
 import '../core/session/qr_codec.dart';
+import '../core/session/qr_decoded_source.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
@@ -20,54 +21,37 @@ import '../widgets/link_import_preview_dialog.dart';
 import '../widgets/toast.dart';
 import 'navigator_key.dart';
 
-/// Apply the QR deep-link payload to the user's stores.
+/// Apply the QR deep-link / paste-link payload to the user's stores.
 ///
-/// Mirror of `.lfs` + paste-link paths: the preview dialog lets the
-/// user pick what to bring in and merge vs. replace before any write
-/// touches the DB. Context is resolved off [navigatorKey] — the deep-
-/// link pump may fire before any `BuildContext` with a Toast surface
-/// is mounted, so every post-import notification routes through
-/// `addPostFrameCallback`.
-Future<void> handleQrImport(WidgetRef ref, ExportPayloadData data) async {
+/// Dispatches on the [QrDecodedSource] variant:
+///   * Rust source — staged handle id consumed by `applyOpenedHandle`,
+///     bytes never crossed the FRB boundary outwards.
+///   * Dart source — legacy fallback, applies via `applyResultViaRust`
+///     against the Dart-walked `ExportPayloadData` tree.
+///
+/// Both paths show the same `LinkImportPreviewDialog` and route the
+/// post-import toast through `addPostFrameCallback` (the deeplink
+/// pump may fire before a `BuildContext` with a Toast surface is
+/// mounted).
+Future<void> handleQrImport(WidgetRef ref, QrDecodedSource source) async {
   final ctx = navigatorKey.currentContext;
   if (ctx == null || !ctx.mounted) return;
-  final choice = await LinkImportPreviewDialog.show(ctx, payload: data);
+  final choice = await LinkImportPreviewDialog.show(ctx, source: source);
   if (choice == null) return;
 
-  // Build the full ImportResult from the payload, then let
-  // [ImportResult.filtered] drop whatever the user unchecked.
-  final fullResult = ImportResult(
-    sessions: data.sessions,
-    emptyFolders: data.emptyFolders,
-    managerKeys: data.managerKeys,
-    tags: data.tags,
-    sessionTags: data.sessionTags,
-    folderTags: data.folderTags,
-    snippets: data.snippets,
-    sessionSnippets: data.sessionSnippets,
-    config: data.config,
-    mode: choice.mode,
-    knownHostsContent: data.knownHostsContent,
-    includeTags: data.tags.isNotEmpty,
-    includeSnippets: data.snippets.isNotEmpty,
-    includeKnownHosts: data.knownHostsContent != null,
-  );
-  final importResult = fullResult.filtered(choice.options, choice.mode);
-
   try {
-    final apply = await applyResultViaRust(
-      importResult,
-      refreshAfterImport: () => _refreshStores(ref),
-    );
-    if (importResult.config != null) {
-      ref.read(configProvider.notifier).update((_) => importResult.config!);
+    final ImportSummary summary;
+    final rust = source.asRust;
+    if (rust != null) {
+      summary = await _applyRustQrSource(ref: ref, rust: rust, choice: choice);
+    } else {
+      final dart = source.asDart!;
+      summary = await _applyDartQrSource(
+        ref: ref,
+        payload: dart,
+        choice: choice,
+      );
     }
-    _invalidateImportProviders(ref);
-    final summary = _summaryFromApply(
-      apply,
-      importResult.config != null,
-      skippedSessions: importResult.skippedSessions,
-    );
 
     AppLogger.instance.log(
       'QR import complete: ${summary.sessions} session(s), '
@@ -101,6 +85,122 @@ Future<void> handleQrImport(WidgetRef ref, ExportPayloadData data) async {
         );
       }
     });
+  }
+}
+
+/// Apply a Rust-staged QR handle. The bytes never crossed the FRB
+/// boundary outwards — `applyOpenedHandle` consumes the handle in
+/// the same sqlite transaction as `.lfs` imports, and the staged
+/// `config_json` is read back from the apply result for restore.
+Future<ImportSummary> _applyRustQrSource({
+  required WidgetRef ref,
+  required rust_archive.DbImportOpenResult rust,
+  required LinkImportPreviewResult choice,
+}) async {
+  final apply = await applyOpenedHandle(
+    handleId: rust.handleId,
+    mode: choice.mode,
+    applySessions: choice.options.includeSessions,
+    applyKeys: choice.options.includeManagerKeys,
+    applyTags: choice.options.includeTags,
+    applySnippets: choice.options.includeSnippets,
+    applyKnownHosts: choice.options.includeKnownHosts,
+    refreshAfterImport: () => _refreshStores(ref),
+  );
+  // Config restore stays Dart-side — `lfs_core::archive::apply`
+  // leaves `config.json` to the caller. Security tier setup is
+  // per-machine and never travels.
+  final cfg = choice.options.includeConfig
+      ? decodeConfigFromApply(apply)
+      : null;
+  if (cfg != null) {
+    ref
+        .read(configProvider.notifier)
+        .update((current) => cfg.copyWithSecurity(security: current.security));
+  }
+  _invalidateImportProviders(ref);
+  return _summaryFromApply(apply, cfg != null);
+}
+
+/// Apply a Dart-walked QR payload. Used by the test surface and by
+/// production when the FRB native lib isn't loaded — the legacy
+/// `ExportPayloadData` tree builds an `ImportResult`, the existing
+/// `applyResultViaRust` path stages it.
+Future<ImportSummary> _applyDartQrSource({
+  required WidgetRef ref,
+  required ExportPayloadData payload,
+  required LinkImportPreviewResult choice,
+}) async {
+  final fullResult = ImportResult(
+    sessions: payload.sessions,
+    emptyFolders: payload.emptyFolders,
+    managerKeys: payload.managerKeys,
+    tags: payload.tags,
+    sessionTags: payload.sessionTags,
+    folderTags: payload.folderTags,
+    snippets: payload.snippets,
+    sessionSnippets: payload.sessionSnippets,
+    config: payload.config,
+    mode: choice.mode,
+    knownHostsContent: payload.knownHostsContent,
+    includeTags: payload.tags.isNotEmpty,
+    includeSnippets: payload.snippets.isNotEmpty,
+    includeKnownHosts: payload.knownHostsContent != null,
+  );
+  final importResult = fullResult.filtered(choice.options, choice.mode);
+  final apply = await applyResultViaRust(
+    importResult,
+    refreshAfterImport: () => _refreshStores(ref),
+  );
+  if (importResult.config != null) {
+    ref.read(configProvider.notifier).update((_) => importResult.config!);
+  }
+  _invalidateImportProviders(ref);
+  return _summaryFromApply(
+    apply,
+    importResult.config != null,
+    skippedSessions: importResult.skippedSessions,
+  );
+}
+
+/// Public helper for callers that already have a [QrDecodedSource]
+/// + a user-confirmed [LinkImportPreviewResult] (paste-import-link
+/// flow on Settings, where the dialog is shown by the screen and
+/// the apply is dispatched separately). Mirrors the Rust / Dart
+/// branch logic of [handleQrImport] without re-rendering the
+/// preview.
+Future<void> handleQrImportSource({
+  required BuildContext context,
+  required WidgetRef ref,
+  required QrDecodedSource source,
+  required LinkImportPreviewResult choice,
+}) async {
+  try {
+    final ImportSummary summary;
+    final rust = source.asRust;
+    if (rust != null) {
+      summary = await _applyRustQrSource(ref: ref, rust: rust, choice: choice);
+    } else {
+      summary = await _applyDartQrSource(
+        ref: ref,
+        payload: source.asDart!,
+        choice: choice,
+      );
+    }
+    if (!context.mounted) return;
+    Toast.show(
+      context,
+      message: formatImportSummary(S.of(context), summary),
+      level: ToastLevel.success,
+    );
+  } catch (e) {
+    AppLogger.instance.log('QR import failed: $e', name: 'App', error: e);
+    if (!context.mounted) return;
+    Toast.show(
+      context,
+      message: S.of(context).importFailed(localizeError(S.of(context), e)),
+      level: ToastLevel.error,
+    );
   }
 }
 

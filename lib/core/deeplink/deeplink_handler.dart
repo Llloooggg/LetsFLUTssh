@@ -5,6 +5,7 @@ import 'package:app_links/app_links.dart';
 import '../../src/rust/api/deeplink.dart' as rust_deeplink;
 import '../../utils/logger.dart';
 import '../session/qr_codec.dart';
+import '../session/qr_decoded_source.dart';
 import '../ssh/ssh_config.dart';
 
 /// Handles deep links and file open intents:
@@ -32,7 +33,11 @@ class DeepLinkHandler {
   void Function(SSHConfig config)? onConnect;
 
   /// Callback invoked when a QR import link is received.
-  void Function(ExportPayloadData data)? onQrImport;
+  /// Receives a unified [QrDecodedSource] — Rust-staged handle id +
+  /// preview when the FRB native lib decoded the payload, or the
+  /// Dart-walked `ExportPayloadData` tree when production fell back
+  /// to the legacy pipeline.
+  void Function(QrDecodedSource source)? onQrImport;
 
   /// Callback invoked when a QR import link carries a payload schema version
   /// newer than this build understands. The UI should surface an "update
@@ -108,7 +113,7 @@ class DeepLinkHandler {
     }
   }
 
-  void handleCustomScheme(Uri uri) {
+  Future<void> handleCustomScheme(Uri uri) async {
     if (uri.host == 'connect') {
       final config = parseConnectUri(uri);
       if (config != null) {
@@ -120,26 +125,50 @@ class DeepLinkHandler {
         );
       }
     } else if (uri.host == 'import') {
-      try {
-        final data = decodeImportUri(uri);
-        if (data != null) {
-          AppLogger.instance.log(
-            'QR import: ${data.sessions.length} session(s)',
-            name: 'DeepLink',
-          );
-          onQrImport?.call(data);
-        } else {
-          AppLogger.instance.log('Invalid import data', name: 'DeepLink');
-        }
-      } on QrPayloadVersionTooNewException catch (e) {
-        AppLogger.instance.log(
-          'QR import rejected: payload v${e.found} > supported v${e.supported}',
-          name: 'DeepLink',
-        );
-        onQrImportVersionTooNew?.call(e.found, e.supported);
-      }
+      // The Rust path is async (FRB qrImportOpen). Awaiting here
+      // keeps tests deterministic: callers can `await
+      // handleCustomScheme(...)` and immediately assert `onQrImport`
+      // was called. The deep-link pump in `init()` does not need to
+      // serialise on this — it already fires per URI in arrival
+      // order.
+      await _handleImportUri(uri);
     } else {
       AppLogger.instance.log('Unknown action "${uri.host}"', name: 'DeepLink');
+    }
+  }
+
+  /// Decode a `letsflutssh://import?d=...` URI. Tries the Rust
+  /// `qrImportOpen` FRB path first so bytes never cross the FRB
+  /// boundary outwards; falls back to the Dart `decodeImportUri`
+  /// walker when the native lib isn't loaded (flutter_test, fresh
+  /// checkout) or the Rust decoder rejected the payload.
+  Future<void> _handleImportUri(Uri uri) async {
+    final rustResult = await tryDecodeQrPayloadViaRust(uri.toString());
+    if (rustResult != null) {
+      AppLogger.instance.log(
+        'QR import (Rust): ${rustResult.preview.sessionCount} session(s)',
+        name: 'DeepLink',
+      );
+      onQrImport?.call(QrDecodedSource.rust(rustResult));
+      return;
+    }
+    try {
+      final data = decodeImportUri(uri);
+      if (data != null) {
+        AppLogger.instance.log(
+          'QR import (Dart): ${data.sessions.length} session(s)',
+          name: 'DeepLink',
+        );
+        onQrImport?.call(QrDecodedSource.dart(data));
+      } else {
+        AppLogger.instance.log('Invalid import data', name: 'DeepLink');
+      }
+    } on QrPayloadVersionTooNewException catch (e) {
+      AppLogger.instance.log(
+        'QR import rejected: payload v${e.found} > supported v${e.supported}',
+        name: 'DeepLink',
+      );
+      onQrImportVersionTooNew?.call(e.found, e.supported);
     }
   }
 

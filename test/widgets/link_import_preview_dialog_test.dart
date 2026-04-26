@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
+import 'package:letsflutssh/core/session/qr_decoded_source.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
@@ -62,7 +63,9 @@ void main() {
       theme: AppTheme.dark(),
       home: Scaffold(
         body: SingleChildScrollView(
-          child: LinkImportPreviewDialog(payload: payload),
+          child: LinkImportPreviewDialog(
+            preview: QrDecodedSource.dart(payload).preview,
+          ),
         ),
       ),
     );
@@ -152,7 +155,7 @@ void main() {
                 onPressed: () async {
                   result = await LinkImportPreviewDialog.show(
                     ctx,
-                    payload: makePayload(),
+                    source: QrDecodedSource.dart(makePayload()),
                   );
                 },
                 child: const Text('open'),

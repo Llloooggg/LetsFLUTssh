@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
+import 'package:letsflutssh/core/session/qr_decoded_source.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
@@ -350,8 +351,8 @@ void main() {
       // Should not throw
     });
 
-    test('import action calls onQrImport with valid data', () {
-      ExportPayloadData? received;
+    test('import action calls onQrImport with valid data', () async {
+      QrDecodedSource? received;
       handler.onQrImport = (d) => received = d;
 
       final payload = encodeExportPayload([
@@ -361,32 +362,37 @@ void main() {
         ),
       ]);
       final url = wrapInDeepLink(payload);
-      handler.handleCustomScheme(Uri.parse(url));
+      await handler.handleCustomScheme(Uri.parse(url));
 
       expect(received, isNotNull);
-      expect(received!.sessions.length, 1);
-      expect(received!.sessions[0].label, 'test');
+      final dart = received!.asDart;
+      expect(dart, isNotNull);
+      expect(dart!.sessions.length, 1);
+      expect(dart.sessions[0].label, 'test');
     });
 
-    test('import action with invalid data does not call onQrImport', () {
-      ExportPayloadData? received;
+    test('import action with invalid data does not call onQrImport', () async {
+      QrDecodedSource? received;
       handler.onQrImport = (d) => received = d;
 
-      handler.handleCustomScheme(
+      await handler.handleCustomScheme(
         Uri.parse('letsflutssh://import?d=invalidbase64'),
       );
       expect(received, isNull);
     });
 
-    test('import action with missing d param does not call onQrImport', () {
-      ExportPayloadData? received;
-      handler.onQrImport = (d) => received = d;
+    test(
+      'import action with missing d param does not call onQrImport',
+      () async {
+        QrDecodedSource? received;
+        handler.onQrImport = (d) => received = d;
 
-      handler.handleCustomScheme(Uri.parse('letsflutssh://import'));
-      expect(received, isNull);
-    });
+        await handler.handleCustomScheme(Uri.parse('letsflutssh://import'));
+        expect(received, isNull);
+      },
+    );
 
-    test('onQrImport null does not crash', () {
+    test('onQrImport null does not crash', () async {
       handler.onQrImport = null;
       final payload = encodeExportPayload([
         Session(
@@ -394,11 +400,11 @@ void main() {
           server: const ServerAddress(host: 'h', user: 'u'),
         ),
       ]);
-      handler.handleCustomScheme(Uri.parse(wrapInDeepLink(payload)));
+      await handler.handleCustomScheme(Uri.parse(wrapInDeepLink(payload)));
     });
 
-    test('handleUri routes import deep link to onQrImport', () {
-      ExportPayloadData? received;
+    test('handleUri routes import deep link to onQrImport', () async {
+      QrDecodedSource? received;
       handler.onQrImport = (d) => received = d;
 
       final payload = encodeExportPayload([
@@ -408,9 +414,15 @@ void main() {
         ),
       ]);
       handler.handleUri(Uri.parse(wrapInDeepLink(payload)));
+      // handleUri fires handleCustomScheme without await; the
+      // import branch resolves on the next microtask once the
+      // async Rust attempt + Dart fallback walk through.
+      await Future<void>.delayed(Duration.zero);
 
       expect(received, isNotNull);
-      expect(received!.sessions[0].label, 'via-uri');
+      final dart = received!.asDart;
+      expect(dart, isNotNull);
+      expect(dart!.sessions[0].label, 'via-uri');
     });
   });
 

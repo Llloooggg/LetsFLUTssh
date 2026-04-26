@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/deep_link_wiring.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
+import 'package:letsflutssh/core/session/qr_decoded_source.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -100,7 +101,9 @@ void main() {
     handler.onLfsFileOpened!.call('/tmp/a.lfs');
     handler.onKeyFileOpened!.call('/tmp/id_ed25519');
     handler.onQrImport!.call(
-      const ExportPayloadData(sessions: [], emptyFolders: {}),
+      QrDecodedSource.dart(
+        const ExportPayloadData(sessions: [], emptyFolders: {}),
+      ),
     );
     handler.onQrImportVersionTooNew!.call(99, 1);
     // Flush post-frame callbacks scheduled inside each branch — a

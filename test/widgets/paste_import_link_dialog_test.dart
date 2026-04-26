@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
+import 'package:letsflutssh/core/session/qr_decoded_source.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -40,7 +41,7 @@ void main() {
       final payload = buildSamplePayload();
       final url = wrapInDeepLink(payload);
 
-      ExportPayloadData? received;
+      QrDecodedSource? received;
       await tester.pumpWidget(
         wrap(
           Builder(
@@ -61,8 +62,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(received, isNotNull);
-      expect(received!.sessions, hasLength(1));
-      expect(received!.sessions.first.label, 'paste-host');
+      final decoded = received!.asDart;
+      expect(decoded, isNotNull);
+      expect(decoded!.sessions, hasLength(1));
+      expect(decoded.sessions.first.label, 'paste-host');
     });
 
     testWidgets('also decodes the raw payload without the URL wrapper', (
@@ -70,7 +73,7 @@ void main() {
     ) async {
       final payload = buildSamplePayload();
 
-      ExportPayloadData? received;
+      QrDecodedSource? received;
       await tester.pumpWidget(
         wrap(
           Builder(
@@ -90,7 +93,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(received, isNotNull);
-      expect(received!.sessions, hasLength(1));
+      final decoded = received!.asDart;
+      expect(decoded, isNotNull);
+      expect(decoded!.sessions, hasLength(1));
     });
 
     testWidgets('invalid input surfaces an error and keeps the dialog open', (

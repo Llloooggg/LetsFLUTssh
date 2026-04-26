@@ -67,14 +67,15 @@ void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
       }
     });
   };
-  handler.onQrImport = (data) {
+  handler.onQrImport = (source) {
+    final preview = source.preview;
     AppLogger.instance.log(
       'Deep link: QR import — '
-      '${data.sessions.length} session(s), '
-      '${data.emptyFolders.length} folder(s)',
+      '${preview.sessionCount} session(s), '
+      '${preview.emptyFoldersCount} folder(s)',
       name: 'DeepLink',
     );
-    handleQrImport(ref, data);
+    handleQrImport(ref, source);
   };
   handler.onQrImportVersionTooNew = (found, supported) {
     WidgetsBinding.instance.addPostFrameCallback((_) {

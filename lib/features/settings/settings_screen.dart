@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../app/import_flow.dart';
 import '../../core/config/app_config.dart';
 import '../../core/import/import_service.dart';
 import '../../core/progress/progress_reporter.dart';

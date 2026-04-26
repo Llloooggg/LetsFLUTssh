@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/import_flow.dart';
 import 'package:letsflutssh/core/session/qr_codec.dart';
+import 'package:letsflutssh/core/session/qr_decoded_source.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
 import '../helpers/fake_path_provider.dart';
@@ -84,7 +85,9 @@ void main() {
       // the function without pumping any widget. No Provider
       // container required because the early-return happens before
       // any `ref.read` fires.
-      const payload = ExportPayloadData(sessions: [], emptyFolders: {});
+      final source = QrDecodedSource.dart(
+        const ExportPayloadData(sessions: [], emptyFolders: {}),
+      );
 
       late WidgetRef capturedRef;
       await tester.pumpWidget(
@@ -100,7 +103,7 @@ void main() {
 
       // The MaterialApp is NOT mounted, so navigatorKey.currentContext
       // is null. Call should complete without throw.
-      await expectLater(handleQrImport(capturedRef, payload), completes);
+      await expectLater(handleQrImport(capturedRef, source), completes);
     },
   );
 }

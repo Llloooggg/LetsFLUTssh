@@ -304,7 +304,7 @@ branch, smoke-test on every platform before merge.
 
 ### Step 10 — QR / paste-link decode → Rust
 
-**Status:** PARTIAL — `lfs_core::qr_codec_decode` lands the
+**Status:** DONE — `lfs_core::qr_codec_decode` lands the
 canonical decoder (deflate + base64url + JSON parse → emits
 the same `PendingImport` shape `.lfs` import uses) with 12
 unit tests. FRB endpoint `qr_import_open(payload)` decodes +
@@ -312,12 +312,17 @@ stages a handle in one call, mirroring `db_import_open` so the
 existing apply driver consumes both archive and QR imports
 through one pipeline.
 
-Dart-side rewire deferred — `decodeImportUri` /
-`PasteImportLinkDialog` / `LinkImportPreviewDialog` /
-`handleQrImport` / settings call sites still walk the legacy
-Dart pipeline. The new FRB endpoint is callable any time;
-switching the Dart side over removes ~400 LOC of QR JSON
-parsing in a follow-up.
+Dart-side rewire shipped — unified `QrDecodedSource` sealed
+class wraps either the Rust-staged handle or the legacy
+`ExportPayloadData` (flutter_test fallback). Production
+deeplinks try Rust first via `tryDecodeQrPayloadViaRust`;
+fall back to Dart `decodeImportUri` only when the FRB native
+lib isn't loaded. `handleQrImport` dispatches: Rust source →
+`applyOpenedHandle` (bytes never crossed FRB outwards), Dart
+source → existing `applyResultViaRust(ImportResult)` path.
+`PasteImportLinkDialog` returns `QrDecodedSource`;
+`LinkImportPreviewDialog` reads counts off a unified
+`LfsPreview`. Five test files updated to the new shape.
 
 ## Out of scope (feature work, not migration)
 
