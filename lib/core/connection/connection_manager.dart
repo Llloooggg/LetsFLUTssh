@@ -13,6 +13,7 @@ import '../ssh/transport/rust_transport.dart';
 import '../ssh/transport/ssh_transport.dart';
 import '../ssh/transport/transport_factory.dart';
 import 'connection.dart';
+import 'connection_step.dart';
 
 /// Optional callback invoked when the number of active (connected) sessions changes.
 typedef ActiveCountCallback = void Function(int activeCount);
@@ -150,6 +151,18 @@ class ConnectionManager {
       auth: auth,
       inactivityTimeout: Duration(seconds: effectiveConfig.timeoutSec),
     );
+    // Synthetic phase emission — russh hides the discrete handshake
+    // events so the UI gets one "in-progress" tick at start and a
+    // batched success / failure after `connect()` returns. Failure
+    // type maps to the most-likely phase that broke (auth / host
+    // key / TCP) so the user sees "wrong password" instead of a
+    // generic red cross on the socket-connect line.
+    conn.addProgressStep(
+      const ConnectionStep(
+        phase: ConnectionPhase.socketConnect,
+        status: StepStatus.inProgress,
+      ),
+    );
     try {
       // ProxyJump dispatch: if `conn.bastion` carries a live Rust
       // transport, tunnel this hop's handshake through it via
@@ -172,6 +185,24 @@ class ConnectionManager {
       conn.state = SSHConnectionState.connected;
       _cachePostAuthCredentials(conn, effectiveConfig);
       conn.notifyExtensionsConnected();
+      conn.addProgressStep(
+        const ConnectionStep(
+          phase: ConnectionPhase.socketConnect,
+          status: StepStatus.success,
+        ),
+      );
+      conn.addProgressStep(
+        const ConnectionStep(
+          phase: ConnectionPhase.hostKeyVerify,
+          status: StepStatus.success,
+        ),
+      );
+      conn.addProgressStep(
+        const ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.success,
+        ),
+      );
       AppLogger.instance.log(
         'Connected: <label> (id=${conn.id})',
         name: 'Connection',
@@ -186,6 +217,13 @@ class ConnectionManager {
         connectionTimeout,
       );
       conn.state = SSHConnectionState.disconnected;
+      conn.addProgressStep(
+        const ConnectionStep(
+          phase: ConnectionPhase.socketConnect,
+          status: StepStatus.failed,
+          detail: 'timeout',
+        ),
+      );
       AppLogger.instance.log('Connection failed: timeout', name: 'Connection');
     } catch (e) {
       if (_isStaleGeneration(conn.id, generation)) {
@@ -194,6 +232,7 @@ class ConnectionManager {
       }
       conn.connectionError = e;
       conn.state = SSHConnectionState.disconnected;
+      conn.addProgressStep(_failureStep(e));
       AppLogger.instance.log(
         'Connection failed: $e',
         name: 'Connection',
@@ -351,6 +390,33 @@ class ConnectionManager {
   /// Whether a newer reconnect generation has superseded [generation].
   bool _isStaleGeneration(String id, int generation) =>
       _connectGeneration[id] != generation;
+
+  /// Map a connect-time exception onto the most-likely
+  /// `ConnectionPhase` that broke. Lets `progress_writer` paint the
+  /// red cross next to the right line — "wrong password" against
+  /// authenticate, "host key changed" against hostKeyVerify, anything
+  /// else falls back to socketConnect.
+  static ConnectionStep _failureStep(Object e) {
+    if (e is SshAuthFailed) {
+      return ConnectionStep(
+        phase: ConnectionPhase.authenticate,
+        status: StepStatus.failed,
+        detail: e.toString(),
+      );
+    }
+    if (e is SshHostKeyRejected) {
+      return ConnectionStep(
+        phase: ConnectionPhase.hostKeyVerify,
+        status: StepStatus.failed,
+        detail: e.toString(),
+      );
+    }
+    return ConnectionStep(
+      phase: ConnectionPhase.socketConnect,
+      status: StepStatus.failed,
+      detail: e.toString(),
+    );
+  }
 
   /// Reconnect an existing connection.
   ///
