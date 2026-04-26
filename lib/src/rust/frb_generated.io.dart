@@ -199,6 +199,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSession dco_decode_box_autoadd_db_session(dynamic raw);
 
   @protected
+  DbSessionMetadata dco_decode_box_autoadd_db_session_metadata(dynamic raw);
+
+  @protected
   DbSftpBookmark dco_decode_box_autoadd_db_sftp_bookmark(dynamic raw);
 
   @protected
@@ -233,6 +236,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession dco_decode_db_session(dynamic raw);
+
+  @protected
+  DbSessionMetadata dco_decode_db_session_metadata(dynamic raw);
 
   @protected
   DbSftpBookmark dco_decode_db_sftp_bookmark(dynamic raw);
@@ -507,6 +513,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSession sse_decode_box_autoadd_db_session(SseDeserializer deserializer);
 
   @protected
+  DbSessionMetadata sse_decode_box_autoadd_db_session_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSftpBookmark sse_decode_box_autoadd_db_sftp_bookmark(
     SseDeserializer deserializer,
   );
@@ -549,6 +560,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession sse_decode_db_session(SseDeserializer deserializer);
+
+  @protected
+  DbSessionMetadata sse_decode_db_session_metadata(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbSftpBookmark sse_decode_db_sftp_bookmark(SseDeserializer deserializer);
@@ -875,6 +891,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_session_metadata(
+    DbSessionMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_sftp_bookmark(
     DbSftpBookmark self,
     SseSerializer serializer,
@@ -930,6 +952,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_session(DbSession self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_session_metadata(
+    DbSessionMetadata self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_sftp_bookmark(

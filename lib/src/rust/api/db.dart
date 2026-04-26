@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -69,6 +69,29 @@ Future<int> dbSessionsDelete({required String id}) =>
 /// when the row no longer exists.
 Future<DbStagedSecrets?> dbSessionsStageSecrets({required String sessionId}) =>
     RustLib.instance.api.crateApiDbDbSessionsStageSecrets(sessionId: sessionId);
+
+/// Update non-credential metadata on a session row without touching
+/// the `password` / `key_data` / `passphrase` columns. Lets the
+/// edit dialog save a label / host / proxy change without first
+/// reading the existing secret bytes back onto the Dart heap.
+Future<int> dbSessionsUpdateMetadata({required DbSessionMetadata metadata}) =>
+    RustLib.instance.api.crateApiDbDbSessionsUpdateMetadata(metadata: metadata);
+
+/// Replace one credential column (`"password"` / `"key_data"` /
+/// `"passphrase"`) on a session. Crosses FRB plaintext one direction
+/// only (Dart → Rust → DB); pairs with `db_sessions_stage_secrets`
+/// for the read direction. Empty `value` clears the slot.
+Future<int> dbSessionsSetSecret({
+  required String id,
+  required String slot,
+  required String value,
+  required PlatformInt64 updatedAtMs,
+}) => RustLib.instance.api.crateApiDbDbSessionsSetSecret(
+  id: id,
+  slot: slot,
+  value: value,
+  updatedAtMs: updatedAtMs,
+);
 
 /// Copy a saved session row to a new id + label, optionally
 /// re-parented under [`target_folder_id`]. Credentials flow column-
@@ -536,6 +559,93 @@ class DbSession {
           viaPort == other.viaPort &&
           viaUser == other.viaUser &&
           createdAtMs == other.createdAtMs &&
+          updatedAtMs == other.updatedAtMs;
+}
+
+/// Mirror of [`lfs_core::db::sessions::SessionMetadata`] crossing
+/// FRB. Carries every column except the credential triplet so the
+/// edit dialog can save metadata without reading old secret bytes
+/// back onto the Dart heap.
+class DbSessionMetadata {
+  final String id;
+  final String label;
+  final String? folderId;
+  final String host;
+  final PlatformInt64 port;
+  final String user;
+  final String authType;
+  final String keyPath;
+  final String? keyId;
+  final PlatformInt64 sortOrder;
+  final String notes;
+  final String extras;
+  final String? viaSessionId;
+  final String? viaHost;
+  final PlatformInt64? viaPort;
+  final String? viaUser;
+  final PlatformInt64 updatedAtMs;
+
+  const DbSessionMetadata({
+    required this.id,
+    required this.label,
+    this.folderId,
+    required this.host,
+    required this.port,
+    required this.user,
+    required this.authType,
+    required this.keyPath,
+    this.keyId,
+    required this.sortOrder,
+    required this.notes,
+    required this.extras,
+    this.viaSessionId,
+    this.viaHost,
+    this.viaPort,
+    this.viaUser,
+    required this.updatedAtMs,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      label.hashCode ^
+      folderId.hashCode ^
+      host.hashCode ^
+      port.hashCode ^
+      user.hashCode ^
+      authType.hashCode ^
+      keyPath.hashCode ^
+      keyId.hashCode ^
+      sortOrder.hashCode ^
+      notes.hashCode ^
+      extras.hashCode ^
+      viaSessionId.hashCode ^
+      viaHost.hashCode ^
+      viaPort.hashCode ^
+      viaUser.hashCode ^
+      updatedAtMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSessionMetadata &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          label == other.label &&
+          folderId == other.folderId &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          authType == other.authType &&
+          keyPath == other.keyPath &&
+          keyId == other.keyId &&
+          sortOrder == other.sortOrder &&
+          notes == other.notes &&
+          extras == other.extras &&
+          viaSessionId == other.viaSessionId &&
+          viaHost == other.viaHost &&
+          viaPort == other.viaPort &&
+          viaUser == other.viaUser &&
           updatedAtMs == other.updatedAtMs;
 }
 

@@ -261,6 +261,95 @@ pub fn stage_secrets_into_store(
     }))
 }
 
+/// Plain-data view of a session row used by [`update_metadata`].
+/// The credential columns (`password` / `key_data` / `passphrase`)
+/// are deliberately absent — they are owned by
+/// [`set_secret_column`] / [`stage_secrets_into_store`] so that
+/// metadata edits never need to round-trip plaintext.
+#[derive(Debug, Clone)]
+pub struct SessionMetadata {
+    pub id: String,
+    pub label: String,
+    pub folder_id: Option<String>,
+    pub host: String,
+    pub port: i64,
+    pub user: String,
+    pub auth_type: String,
+    pub key_path: String,
+    pub key_id: Option<String>,
+    pub sort_order: i64,
+    pub notes: String,
+    pub extras: String,
+    pub via_session_id: Option<String>,
+    pub via_host: Option<String>,
+    pub via_port: Option<i64>,
+    pub via_user: Option<String>,
+    pub updated_at_ms: i64,
+}
+
+/// Update the non-credential metadata of a session in place. The
+/// `password` / `key_data` / `passphrase` columns are deliberately
+/// untouched — credential edits go through [`set_secret_column`]
+/// instead, so the edit dialog can save metadata changes without
+/// having to first read the existing secret bytes onto the Dart
+/// heap and write them back.
+pub fn update_metadata(conn: &Connection, m: &SessionMetadata) -> Result<usize, Error> {
+    conn.execute(
+        "UPDATE sessions SET \
+           label = ?1, folder_id = ?2, host = ?3, port = ?4, user = ?5, \
+           auth_type = ?6, key_path = ?7, key_id = ?8, sort_order = ?9, \
+           notes = ?10, extras = ?11, via_session_id = ?12, via_host = ?13, \
+           via_port = ?14, via_user = ?15, updated_at = ?16 \
+         WHERE id = ?17",
+        params![
+            m.label,
+            m.folder_id,
+            m.host,
+            m.port,
+            m.user,
+            m.auth_type,
+            m.key_path,
+            m.key_id,
+            m.sort_order,
+            m.notes,
+            m.extras,
+            m.via_session_id,
+            m.via_host,
+            m.via_port,
+            m.via_user,
+            m.updated_at_ms,
+            m.id,
+        ],
+    )
+    .map_err(|e| Error::Io(format!("sessions update_metadata: {e}")))
+}
+
+/// Replace a single credential column on a session row. `slot` is one
+/// of `"password"`, `"key_data"`, `"passphrase"`. Empty `value` writes
+/// an empty string (clears the credential). `value` reaches us
+/// through FRB but never crosses back to Dart — combined with
+/// [`stage_secrets_into_store`] this lets the edit dialog save a new
+/// password without ever pre-filling the old one onto the Dart heap.
+/// Returns rows affected (1 on success, 0 on missing row, error on
+/// unrecognised slot).
+pub fn set_secret_column(
+    conn: &Connection,
+    id: &str,
+    slot: &str,
+    value: &str,
+    updated_at_ms: i64,
+) -> Result<usize, Error> {
+    let column = match slot {
+        "password" => "password",
+        "key_data" => "key_data",
+        "passphrase" => "passphrase",
+        other => return Err(Error::Io(format!("unknown secret slot: {other}"))),
+    };
+    let sql = format!("UPDATE sessions SET {column} = ?1, updated_at = ?2 WHERE id = ?3");
+    conn.execute(&sql, params![value, updated_at_ms, id])
+        .map_err(|e| Error::Io(format!("sessions set_secret_column: {e}")))
+}
+
 /// Copy a session row by id, allocating a new id + label and
 /// optionally relocating into `target_folder_id`. Credentials
 /// (`password` / `key_data` / `passphrase`) flow column-to-column
