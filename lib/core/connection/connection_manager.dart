@@ -254,9 +254,19 @@ class ConnectionManager {
           case rust_bus.BusConnectionState.connecting:
             conn.state = SSHConnectionState.connecting;
           case rust_bus.BusConnectionState.connected:
+            AppLogger.instance.log(
+              'Connected: ${conn.label} (id=${conn.id})',
+              name: 'Connection',
+            );
             unawaited(_adoptConnectedSession(conn, generation, completer));
           case rust_bus.BusConnectionState.disconnected:
             conn.state = SSHConnectionState.disconnected;
+            AppLogger.instance.log(
+              'Connection failed: ${conn.connectionError ?? "no error detail"}',
+              name: 'Connection',
+              level: LogLevel.warn,
+              error: conn.connectionError,
+            );
             if (!completer.isCompleted) completer.complete();
         }
       case rust_bus.BusEvent_ConnectionProgress(:final step):
@@ -267,7 +277,20 @@ class ConnectionManager {
             detail: step.detail,
           ),
         );
+        if (step.status == rust_bus.BusStepStatus.failed) {
+          AppLogger.instance.log(
+            'Connect step failed: ${_mapPhase(step.phase).name} '
+            '— ${step.detail ?? "no detail"}',
+            name: 'Connection',
+            level: LogLevel.warn,
+          );
+        }
       case rust_bus.BusEvent_ConnectionError(:final detail):
+        AppLogger.instance.log(
+          'Connection actor error: $detail',
+          name: 'Connection',
+          level: LogLevel.warn,
+        );
         conn.connectionError = detail;
       case rust_bus.BusEvent_ConnectionRemoved():
         // Actor torn down — leave Connection in its current state;

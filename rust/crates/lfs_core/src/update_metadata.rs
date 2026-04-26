@@ -41,10 +41,16 @@ fn parse_version(v: &str) -> [i64; 3] {
 }
 
 /// True when `uri` is HTTPS and a host GitHub uses for release
-/// assets (same-origin policy for `browser_download_url` and
-/// redirect targets). Mirrors `UpdateService.isTrustedReleaseAssetUri`.
-/// Parses host-only with a tiny scheme + authority extractor —
-/// no `url` crate dep for a six-line check.
+/// assets or the Releases API. Accepts:
+///   - `github.com` — release HTML / direct download routes,
+///   - `*.github.com` — `api.github.com` (Releases JSON) plus any
+///     other GitHub-served subdomain that ships a release asset,
+///   - `*.githubusercontent.com` — the asset CDN that
+///     `browser_download_url` redirects into.
+///
+/// Everything else fails closed. Parses host-only with a tiny
+/// scheme + authority extractor — no `url` crate dep for a few
+/// lines of allowlist matching.
 pub fn is_trusted_release_asset_uri(uri: &str) -> bool {
     let after_scheme = match uri.strip_prefix("https://") {
         Some(rest) => rest,
@@ -57,7 +63,9 @@ pub fn is_trusted_release_asset_uri(uri: &str) -> bool {
     if host.is_empty() {
         return false;
     }
-    host == "github.com" || host.ends_with(".githubusercontent.com")
+    host == "github.com"
+        || host.ends_with(".github.com")
+        || host.ends_with(".githubusercontent.com")
 }
 
 /// Map an OS name (`Platform.operatingSystem` value) to the
@@ -215,6 +223,14 @@ mod tests {
         assert!(is_trusted_release_asset_uri(
             "https://objects.githubusercontent.com/some/path"
         ));
+        // Releases API lives on api.github.com — has to be accepted
+        // for `UpdateService.checkForUpdate` to read the release list.
+        assert!(is_trusted_release_asset_uri(
+            "https://api.github.com/repos/owner/repo/releases?per_page=30"
+        ));
+        assert!(is_trusted_release_asset_uri(
+            "https://raw.githubusercontent.com/owner/repo/main/README.md"
+        ));
     }
 
     #[test]
@@ -231,6 +247,9 @@ mod tests {
         assert!(!is_trusted_release_asset_uri(
             "https://github.com.evil.com/x"
         ));
+        // `*.github.com` allowance must not match a confusable like
+        // `evil-github.com` — the suffix has the leading dot.
+        assert!(!is_trusted_release_asset_uri("https://evil-github.com/x"));
         assert!(!is_trusted_release_asset_uri(""));
         assert!(!is_trusted_release_asset_uri("https://"));
     }
