@@ -10,6 +10,7 @@ pub mod db;
 pub mod forward;
 pub mod keys;
 pub mod path;
+pub mod recorder;
 pub mod sftp;
 pub mod ssh;
 

@@ -15,6 +15,7 @@ import 'api/db.dart';
 import 'api/forward.dart';
 import 'api/keys.dart';
 import 'api/path.dart';
+import 'api/recorder.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'dart:async';
@@ -307,6 +308,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbQrExportOptions dco_decode_db_qr_export_options(dynamic raw);
+
+  @protected
+  DbRecorderSnapshot dco_decode_db_recorder_snapshot(dynamic raw);
 
   @protected
   DbSession dco_decode_db_session(dynamic raw);
@@ -731,6 +735,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbQrExportOptions sse_decode_db_qr_export_options(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbRecorderSnapshot sse_decode_db_recorder_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -1249,6 +1258,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_qr_export_options(
     DbQrExportOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_recorder_snapshot(
+    DbRecorderSnapshot self,
     SseSerializer serializer,
   );
 
