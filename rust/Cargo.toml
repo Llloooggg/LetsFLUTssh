@@ -123,6 +123,17 @@ base64 = "0.22"
 # regex-engine guarantees matter. Same crate the standard library's
 # fancy-format helpers reach for.
 regex = "1"
+# Pure-Rust D-Bus client. Only pulled on Linux targets via the
+# per-target dep table in `lfs_core/Cargo.toml`; consumed by the
+# fprintd shim under `platform::linux`. `tokio` feature wires zbus
+# onto the same async runtime the rest of lfs_core uses; default
+# features are off so we don't drag the `async-io` (smol-based)
+# alternative in alongside.
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+# `StreamExt` on the zbus signal stream + serde derive paths the
+# fprintd shim's verify cycle uses.
+futures-util = { version = "0.3", default-features = false }
+serde = { version = "1", default-features = false }
 
 [profile.release]
 codegen-units = 1

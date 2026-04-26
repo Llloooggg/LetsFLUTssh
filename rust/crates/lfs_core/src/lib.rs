@@ -29,6 +29,7 @@ pub mod keys;
 pub mod log_sanitize;
 pub mod password_strength;
 pub mod path;
+pub mod platform;
 pub mod portforward;
 pub mod rate_limit;
 pub mod recorder;
