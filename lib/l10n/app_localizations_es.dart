@@ -419,6 +419,9 @@ class SEs extends S {
   String get hintOptional => 'Opcional';
 
   @override
+  String get savedTypeToChange => 'Guardado — escribe para cambiar';
+
+  @override
   String get hidePemText => 'Ocultar texto PEM';
 
   @override

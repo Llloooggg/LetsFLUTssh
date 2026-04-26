@@ -413,6 +413,9 @@ class SZh extends S {
   String get hintOptional => '可选';
 
   @override
+  String get savedTypeToChange => '已保存 — 输入以修改';
+
+  @override
   String get hidePemText => '隐藏 PEM 文本';
 
   @override

@@ -419,6 +419,9 @@ class SPt extends S {
   String get hintOptional => 'Opcional';
 
   @override
+  String get savedTypeToChange => 'Salvo — digite para alterar';
+
+  @override
   String get hidePemText => 'Ocultar texto PEM';
 
   @override

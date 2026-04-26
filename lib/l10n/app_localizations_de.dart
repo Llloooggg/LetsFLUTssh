@@ -420,6 +420,9 @@ class SDe extends S {
   String get hintOptional => 'Optional';
 
   @override
+  String get savedTypeToChange => 'Gespeichert — zum Ändern eingeben';
+
+  @override
   String get hidePemText => 'PEM-Text ausblenden';
 
   @override

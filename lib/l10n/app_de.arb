@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Schlüssel-Passphrase",
   "hintOptional": "Optional",
+  "savedTypeToChange": "Gespeichert — zum Ändern eingeben",
   "hidePemText": "PEM-Text ausblenden",
   "pastePemKeyText": "PEM-Schlüsseltext einfügen",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

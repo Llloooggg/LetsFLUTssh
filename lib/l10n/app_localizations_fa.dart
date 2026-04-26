@@ -416,6 +416,9 @@ class SFa extends S {
   String get hintOptional => 'اختیاری';
 
   @override
+  String get savedTypeToChange => 'ذخیره شد — برای تغییر بنویسید';
+
+  @override
   String get hidePemText => 'پنهان کردن متن PEM';
 
   @override

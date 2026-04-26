@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/db.dart' as rust_db;
@@ -240,6 +242,91 @@ class SessionStore {
         level: LogLevel.warn,
       );
     }
+  }
+
+  /// Save metadata edits without round-tripping the secret columns
+  /// through the Dart heap. Each `*Dirty` flag selects whether the
+  /// corresponding credential column is part of the write. The
+  /// session model already carries empty strings in
+  /// `password` / `keyData` / `passphrase` (the cache view), so the
+  /// metadata DAO is enough for the metadata side; secret slots that
+  /// got dirty land via `db_sessions_set_secret`.
+  Future<void> updatePartial(
+    Session session, {
+    bool passwordDirty = false,
+    bool keyDataDirty = false,
+    bool passphraseDirty = false,
+  }) async {
+    final error = session.validate();
+    if (error != null) throw ArgumentError(error);
+    final idx = _sessions.indexWhere((s) => s.id == session.id);
+    if (idx < 0) throw ArgumentError('Session not found: ${session.id}');
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    try {
+      final folderId = await resolveFolderPath(session.folder, _folderMap);
+      await rust_db.dbSessionsUpdateMetadata(
+        metadata: rust_db.DbSessionMetadata(
+          id: session.id,
+          label: session.label,
+          folderId: folderId,
+          host: session.host,
+          port: session.port,
+          user: session.user,
+          authType: session.auth.authType.name,
+          keyPath: session.auth.keyPath,
+          keyId: session.keyId.isEmpty ? null : session.keyId,
+          sortOrder: 0,
+          notes: '',
+          extras: jsonEncode(session.extras),
+          viaSessionId: session.viaSessionId,
+          viaHost: session.viaSessionId != null
+              ? null
+              : session.viaOverride?.host,
+          viaPort: session.viaSessionId != null
+              ? null
+              : session.viaOverride?.port,
+          viaUser: session.viaSessionId != null
+              ? null
+              : session.viaOverride?.user,
+          updatedAtMs: nowMs,
+        ),
+      );
+      if (passwordDirty) {
+        await rust_db.dbSessionsSetSecret(
+          id: session.id,
+          slot: 'password',
+          value: session.auth.password,
+          updatedAtMs: nowMs,
+        );
+      }
+      if (keyDataDirty) {
+        await rust_db.dbSessionsSetSecret(
+          id: session.id,
+          slot: 'key_data',
+          value: session.auth.keyData,
+          updatedAtMs: nowMs,
+        );
+      }
+      if (passphraseDirty) {
+        await rust_db.dbSessionsSetSecret(
+          id: session.id,
+          slot: 'passphrase',
+          value: session.auth.passphrase,
+          updatedAtMs: nowMs,
+        );
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionStore.updatePartial failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+      rethrow;
+    }
+    // Reload to refresh the per-slot `hasStoredX` flags + cached
+    // metadata after a partial save (dirty-bit changes shift the
+    // saved-or-not indicator state for the next dialog open).
+    await load();
   }
 
   Future<void> delete(String id) async {

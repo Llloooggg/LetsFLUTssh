@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "密钥密码",
   "hintOptional": "可选",
+  "savedTypeToChange": "已保存 — 输入以修改",
   "hidePemText": "隐藏 PEM 文本",
   "pastePemKeyText": "粘贴 PEM 密钥文本",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

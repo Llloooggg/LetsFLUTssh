@@ -244,6 +244,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Key Passphrase",
   "hintOptional": "Optional",
+  "savedTypeToChange": "Saved — type to change",
   "hidePemText": "Hide PEM text",
   "pastePemKeyText": "Paste PEM key text",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

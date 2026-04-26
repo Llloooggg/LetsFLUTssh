@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "키 패스프레이즈",
   "hintOptional": "선택 사항",
+  "savedTypeToChange": "저장됨 — 변경하려면 입력",
   "hidePemText": "PEM 텍스트 숨기기",
   "pastePemKeyText": "PEM 키 텍스트 붙여넣기",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

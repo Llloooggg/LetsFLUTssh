@@ -777,9 +777,15 @@ void main() {
   });
 
   group('SessionEditDialog — edit key session preserves all key fields', () {
-    testWidgets('editing key session and saving preserves key data', (
+    testWidgets('editing label leaves the key fields untouched (not dirty)', (
       tester,
     ) async {
+      // The dialog no longer pre-fills credential controllers; the
+      // store-side partial-update path skips secret columns whose
+      // dirty bit is false. Editing the label therefore returns a
+      // SaveResult whose `keyDataDirty` / `passphraseDirty` flags
+      // are clear — the caller writes only the metadata, leaving
+      // the DB columns intact.
       final session = Session(
         id: 'key-edit-1',
         label: 'key-srv',
@@ -787,9 +793,8 @@ void main() {
         auth: const SessionAuth(
           authType: AuthType.key,
           keyPath: '/path/to/key',
-          keyData:
-              '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
-          passphrase: 'phrase123',
+          hasStoredKeyData: true,
+          hasStoredPassphrase: true,
         ),
       );
       await tester.pumpWidget(buildApp(session: session));
@@ -807,8 +812,9 @@ void main() {
       expect(result.session.label, 'key-srv-updated');
       expect(result.session.authType, AuthType.key);
       expect(result.session.keyPath, '/path/to/key');
-      expect(result.session.keyData, contains('PRIVATE KEY'));
-      expect(result.session.passphrase, 'phrase123');
+      expect(result.passwordDirty, isFalse);
+      expect(result.keyDataDirty, isFalse);
+      expect(result.passphraseDirty, isFalse);
     });
   });
 
@@ -1591,60 +1597,59 @@ void main() {
         },
       );
 
-      testWidgets('toggling PEM off then on preserves keyData content', (
-        tester,
-      ) async {
-        final session = Session(
-          label: 'key-srv',
-          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
-          auth: const SessionAuth(
-            authType: AuthType.key,
-            keyData:
-                '-----BEGIN OPENSSH PRIVATE KEY-----\ndata\n-----END OPENSSH PRIVATE KEY-----',
-          ),
-        );
-        await tester.pumpWidget(buildApp(session: session));
-        await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
+      testWidgets(
+        'toggling PEM off then on does not flip the keyData dirty bit',
+        (tester) async {
+          // The dialog no longer pre-fills the PEM controller, so a
+          // visibility toggle that the user does not type into must
+          // not flip `keyDataDirty`. The save path therefore leaves
+          // the database column intact.
+          final session = Session(
+            label: 'key-srv',
+            server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+            auth: const SessionAuth(
+              authType: AuthType.key,
+              hasStoredKeyData: true,
+            ),
+          );
+          await tester.pumpWidget(buildApp(session: session));
+          await tester.tap(find.text('Open'));
+          await tester.pumpAndSettle();
 
-        await switchToAuth(tester);
+          await switchToAuth(tester);
 
-        final scrollable = find.byType(Scrollable).last;
+          final scrollable = find.byType(Scrollable).last;
 
-        // Hide PEM text
-        await tester.scrollUntilVisible(
-          find.text('Hide PEM text'),
-          100,
-          scrollable: scrollable,
-        );
-        await tester.tap(find.text('Hide PEM text'));
-        await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(
+            find.text('Hide PEM text'),
+            100,
+            scrollable: scrollable,
+          );
+          await tester.tap(find.text('Hide PEM text'));
+          await tester.pumpAndSettle();
+          expect(find.text('Paste PEM key text'), findsOneWidget);
 
-        expect(find.text('Paste PEM key text'), findsOneWidget);
-        expect(find.text('-----BEGIN OPENSSH PRIVATE KEY-----'), findsNothing);
+          await tester.scrollUntilVisible(
+            find.text('Paste PEM key text'),
+            100,
+            scrollable: scrollable,
+          );
+          await tester.tap(find.text('Paste PEM key text'));
+          await tester.pumpAndSettle();
 
-        // Show PEM text again
-        await tester.scrollUntilVisible(
-          find.text('Paste PEM key text'),
-          100,
-          scrollable: scrollable,
-        );
-        await tester.tap(find.text('Paste PEM key text'));
-        await tester.pumpAndSettle();
+          await tester.scrollUntilVisible(
+            find.text('Save'),
+            -100,
+            scrollable: scrollable,
+          );
+          await tester.tap(find.text('Save'));
+          await tester.pumpAndSettle();
 
-        // Save and verify keyData is preserved
-        await tester.scrollUntilVisible(
-          find.text('Save'),
-          -100,
-          scrollable: scrollable,
-        );
-        await tester.tap(find.text('Save'));
-        await tester.pumpAndSettle();
-
-        expect(dialogResult, isA<SaveResult>());
-        final result = dialogResult as SaveResult;
-        expect(result.session.keyData, contains('PRIVATE KEY'));
-      });
+          expect(dialogResult, isA<SaveResult>());
+          final result = dialogResult as SaveResult;
+          expect(result.keyDataDirty, isFalse);
+        },
+      );
     },
   );
 

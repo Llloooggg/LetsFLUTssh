@@ -416,6 +416,9 @@ class SVi extends S {
   String get hintOptional => 'Tùy chọn';
 
   @override
+  String get savedTypeToChange => 'Đã lưu — nhập để thay đổi';
+
+  @override
   String get hidePemText => 'Ẩn văn bản PEM';
 
   @override

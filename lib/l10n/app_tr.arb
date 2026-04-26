@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Anahtar Parolası",
   "hintOptional": "İsteğe bağlı",
+  "savedTypeToChange": "Kaydedildi — değiştirmek için yazın",
   "hidePemText": "PEM metnini gizle",
   "pastePemKeyText": "PEM anahtar metni yapıştır",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

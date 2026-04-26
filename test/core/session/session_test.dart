@@ -435,7 +435,7 @@ void main() {
       final s = Session(
         label: 'test',
         server: const ServerAddress(host: 'h', user: 'u'),
-        auth: const SessionAuth(authType: AuthType.key, hasStoredSecret: true),
+        auth: const SessionAuth(authType: AuthType.key, hasStoredKeyData: true),
       );
       expect(s.hasCredentials, isTrue);
       expect(s.isValid, isTrue);

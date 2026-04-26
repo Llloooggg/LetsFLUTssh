@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "Phrase secrète de la clé",
   "hintOptional": "Facultatif",
+  "savedTypeToChange": "Enregistré — saisir pour modifier",
   "hidePemText": "Masquer le texte PEM",
   "pastePemKeyText": "Coller le texte de la clé PEM",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",

@@ -418,6 +418,9 @@ class STr extends S {
   String get hintOptional => 'İsteğe bağlı';
 
   @override
+  String get savedTypeToChange => 'Kaydedildi — değiştirmek için yazın';
+
+  @override
   String get hidePemText => 'PEM metnini gizle';
 
   @override

@@ -418,6 +418,9 @@ class SEn extends S {
   String get hintOptional => 'Optional';
 
   @override
+  String get savedTypeToChange => 'Saved — type to change';
+
+  @override
   String get hidePemText => 'Hide PEM text';
 
   @override

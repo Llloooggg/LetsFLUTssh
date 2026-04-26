@@ -117,6 +117,7 @@
   "hintPassword": "••••••••",
   "keyPassphrase": "कुंजी पासफ़्रेज़",
   "hintOptional": "वैकल्पिक",
+  "savedTypeToChange": "सहेजा गया — बदलने के लिए टाइप करें",
   "hidePemText": "PEM टेक्स्ट छिपाएं",
   "pastePemKeyText": "PEM कुंजी टेक्स्ट पेस्ट करें",
   "hintPemKey": "-----BEGIN OPENSSH PRIVATE KEY-----",
