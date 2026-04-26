@@ -8,13 +8,33 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
 
-/// Parse OpenSSH config content. The caller MUST have expanded
-/// `Include` directives before calling — the synchronous
-/// boundary takes a single string. Returns one entry per
-/// concrete host (wildcard / negation blocks fold into the
-/// concretes).
+/// Parse OpenSSH config content with no `Include` expansion.
+/// Returns one entry per concrete host; wildcard / negation
+/// blocks fold into the concretes.
 List<DbOpenSshHostEntry> parseOpensshConfig({required String content}) =>
     RustLib.instance.api.crateApiSshConfigParseOpensshConfig(content: content);
+
+/// Same as [`parse_openssh_config`] but resolves `Include`
+/// directives against [`includes`] — Dart pre-reads each
+/// referenced file (handling glob expansion + filesystem walks
+/// itself) and hands a `path → content` map across the boundary.
+/// Paths that aren't in the map silently no-op, mirroring the
+/// Dart `IncludeReader` returning `null`.
+///
+/// `base_dir` anchors relative `Include` paths the same way the
+/// underlying parser does. `max_include_depth` bounds recursion;
+/// pass the same default the Dart parser uses (8) for parity.
+List<DbOpenSshHostEntry> parseOpensshConfigWithIncludes({
+  required String content,
+  required String baseDir,
+  required Map<String, String> includes,
+  required int maxIncludeDepth,
+}) => RustLib.instance.api.crateApiSshConfigParseOpensshConfigWithIncludes(
+  content: content,
+  baseDir: baseDir,
+  includes: includes,
+  maxIncludeDepth: maxIncludeDepth,
+);
 
 /// FRB-visible mirror of `lfs_core::ssh_config::AuthType`.
 enum DbOpenSshAuthType { password, key }

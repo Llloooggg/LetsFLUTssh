@@ -49,19 +49,43 @@ impl From<lfs_core::ssh_config::HostEntry> for DbOpenSshHostEntry {
     }
 }
 
-/// Parse OpenSSH config content. The caller MUST have expanded
-/// `Include` directives before calling — the synchronous
-/// boundary takes a single string. Returns one entry per
-/// concrete host (wildcard / negation blocks fold into the
-/// concretes).
+/// Parse OpenSSH config content with no `Include` expansion.
+/// Returns one entry per concrete host; wildcard / negation
+/// blocks fold into the concretes.
 #[flutter_rust_bridge::frb(sync)]
 pub fn parse_openssh_config(content: String) -> Vec<DbOpenSshHostEntry> {
-    // The base_dir / depth args are irrelevant when the include
-    // reader returns nothing — pass a no-op reader so the parser
-    // only runs the block + wildcard pipeline.
     let no_includes = |_: &str| -> Option<String> { None };
     lfs_core::ssh_config::parse_openssh_config(&content, &no_includes, "", 0)
         .into_iter()
         .map(DbOpenSshHostEntry::from)
         .collect()
+}
+
+/// Same as [`parse_openssh_config`] but resolves `Include`
+/// directives against [`includes`] — Dart pre-reads each
+/// referenced file (handling glob expansion + filesystem walks
+/// itself) and hands a `path → content` map across the boundary.
+/// Paths that aren't in the map silently no-op, mirroring the
+/// Dart `IncludeReader` returning `null`.
+///
+/// `base_dir` anchors relative `Include` paths the same way the
+/// underlying parser does. `max_include_depth` bounds recursion;
+/// pass the same default the Dart parser uses (8) for parity.
+#[flutter_rust_bridge::frb(sync)]
+pub fn parse_openssh_config_with_includes(
+    content: String,
+    base_dir: String,
+    includes: std::collections::HashMap<String, String>,
+    max_include_depth: u32,
+) -> Vec<DbOpenSshHostEntry> {
+    let reader = |p: &str| -> Option<String> { includes.get(p).cloned() };
+    lfs_core::ssh_config::parse_openssh_config(
+        &content,
+        &reader,
+        &base_dir,
+        max_include_depth as usize,
+    )
+    .into_iter()
+    .map(DbOpenSshHostEntry::from)
+    .collect()
 }
