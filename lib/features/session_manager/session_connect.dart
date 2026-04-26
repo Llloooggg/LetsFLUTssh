@@ -8,7 +8,6 @@ import '../../core/ssh/port_forward_runtime.dart';
 import '../../core/ssh/ssh_config.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
-import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/logger.dart';
 import '../../widgets/toast.dart';
@@ -81,7 +80,7 @@ class SessionConnect {
       'Opening $logLabel for ${fresh.label}',
       name: 'Session',
     );
-    final config = await _resolveConfig(ref, fresh);
+    final config = fresh.toSSHConfig();
     final manager = ref.read(connectionManagerProvider);
 
     // ProxyJump chain — connect every bastion bottom-up before the
@@ -150,7 +149,7 @@ class SessionConnect {
       if (visited.contains(bastionSession.id)) {
         throw ProxyJumpCycleError(bastionSession.id);
       }
-      bastionConfig = await _resolveConfig(ref, bastionSession);
+      bastionConfig = bastionSession.toSSHConfig();
       bastionLabel = bastionSession.label.isNotEmpty
           ? bastionSession.label
           : bastionSession.displayName;
@@ -201,37 +200,6 @@ class SessionConnect {
     if (rules.isEmpty) return;
     final runtime = PortForwardRuntime(rules: rules);
     conn.addExtension(runtime);
-  }
-
-  /// Build SSHConfig, resolving keyId from the key store if set.
-  static Future<SSHConfig> _resolveConfig(
-    WidgetRef ref,
-    Session session,
-  ) async {
-    final config = session.toSSHConfig();
-    if (session.keyId.isEmpty) return config;
-
-    final keyStore = ref.read(keyStoreProvider);
-    final entry = await keyStore.get(session.keyId);
-    if (entry == null) {
-      AppLogger.instance.log(
-        'Key ${session.keyId} not found in key store',
-        name: 'Session',
-      );
-      return config;
-    }
-    // Key label is free-form user-chosen text (e.g. "Burzuf",
-    // "work-laptop"), so there is no regex the sanitiser could match
-    // without false positives. Log the marker `<label>` so the log
-    // tells us "keyId X resolved to a label" without leaking the
-    // label itself.
-    AppLogger.instance.log(
-      'Resolved keyId ${session.keyId} → <label>',
-      name: 'Session',
-    );
-    return config.copyWith(
-      auth: config.auth.copyWith(keyData: entry.privateKey),
-    );
   }
 
   static void _showIncompleteMessage(BuildContext context) {

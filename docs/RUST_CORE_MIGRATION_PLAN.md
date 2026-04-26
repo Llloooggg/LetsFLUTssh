@@ -547,14 +547,25 @@ Dart calls `app.dispatch(Command)` (fire-and-forget); subscribes to `app.viewStr
     cached metadata + per-slot flags, and the Rust staging layer pushes
     the bytes directly. Same for the bastion-resolution loop and the
     terminal recorder hook.
+  - Manager-key reference resolution moved Rust-side:
+    `db_ssh_keys_stage_secret` reads `private_key` for the row inside
+    Rust and pushes the bytes into the SecretStore under
+    `key.priv.<keyId>`. `SshAuth` carries a `keyId` field that
+    `Session.toSSHConfig()` populates; `ConnectionManager
+    ._authFromConfig` calls the staging DAO and emits
+    `SshAuthPubkeyRef` referencing the staged id. The session_connect
+    `_resolveConfig` keystore lookup is gone — the connect path no
+    longer materialises any PEM bytes on the Dart heap, neither for
+    inline `keyData` nor for keyId references.
   - **Still open:** `.lfs` archive export still calls
     `loadWithCredentials` for each session it serialises before
     handing the manifest to Rust AES-GCM. Brief plaintext window during
     a rare user action; folding the orchestration into a single
     Rust-side `db_export_sessions_archive` retires this last leak.
-  - SSH cert blob: same shape — `SshKeyEntry.privateKey` still rides on
-    the Dart heap when the keystore opens an entry. Move keystore
-    reads through a similar staging surface.
+    `SshKeyEntry.privateKey` still rides on the Dart heap during
+    bulk keystore reads (export, import dedup, key manager listing) —
+    those paths consume the public-key fingerprint already, so the
+    private bytes will retire alongside the export orchestrator.
 
 - [x] **4.2 Database move — drift → rusqlite (SQLCipher)**
   - Schema for `sessions`, `folders`, `ssh_keys`, `snippets`,

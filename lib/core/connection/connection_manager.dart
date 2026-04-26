@@ -272,18 +272,20 @@ class ConnectionManager {
   /// path we copy into a transient secret-store entry under a fresh
   /// UUID so the russh handshake itself receives a Ref variant.
   Future<SshAuthMethod> _authFromConfig(SshAuth auth, String? sessionId) async {
+    String? passphraseSecretId;
     if (sessionId != null) {
       try {
         final staged = await rust_db.dbSessionsStageSecrets(
           sessionId: sessionId,
         );
         if (staged != null) {
+          if (staged.hasPassphrase) {
+            passphraseSecretId = 'sess.passphrase.$sessionId';
+          }
           if (staged.hasKeyData) {
             return SshAuthPubkeyRef(
               'sess.key.$sessionId',
-              passphraseSecretId: staged.hasPassphrase
-                  ? 'sess.passphrase.$sessionId'
-                  : null,
+              passphraseSecretId: passphraseSecretId,
             );
           }
           if (staged.hasPassword) {
@@ -302,6 +304,39 @@ class ConnectionManager {
         );
       }
     }
+    // Manager-key reference: stage the private PEM bytes Rust-side
+    // straight from the `ssh_keys` row into the SecretStore. Dart
+    // never sees the bytes — the connect path receives the secret
+    // id `key.priv.<keyId>` and the matching SshAuthPubkeyRef.
+    if (auth.keyId.isNotEmpty) {
+      try {
+        final staged = await rust_db.dbSshKeysStageSecret(keyId: auth.keyId);
+        if (staged) {
+          // Passphrase still rides on the `SshAuth.passphrase` slot
+          // for keys that are stored under a manager id but whose
+          // passphrase the user typed for this session — copy it
+          // into a transient store entry under the same keyId so
+          // russh can read both halves through the Ref variant.
+          if (auth.passphrase.isNotEmpty && passphraseSecretId == null) {
+            passphraseSecretId = 'key.passphrase.${auth.keyId}';
+            await rust_app.secretsPut(
+              id: passphraseSecretId,
+              bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
+            );
+          }
+          return SshAuthPubkeyRef(
+            'key.priv.${auth.keyId}',
+            passphraseSecretId: passphraseSecretId,
+          );
+        }
+      } catch (e) {
+        AppLogger.instance.log(
+          'dbSshKeysStageSecret failed; falling back to plaintext: $e',
+          name: 'Connection',
+          level: LogLevel.warn,
+        );
+      }
+    }
     // Quick-connect / staging fallback — copy the bytes once into a
     // transient secret-store entry keyed by a fresh UUID and return
     // the matching Ref variant. The plaintext lifetime on the Dart
@@ -314,15 +349,14 @@ class ConnectionManager {
         id: keyId,
         bytes: Uint8List.fromList(auth.keyData.codeUnits),
       );
-      String? passphraseId;
-      if (auth.passphrase.isNotEmpty) {
-        passphraseId = 'conn.passphrase.$transientId';
+      if (auth.passphrase.isNotEmpty && passphraseSecretId == null) {
+        passphraseSecretId = 'conn.passphrase.$transientId';
         await rust_app.secretsPut(
-          id: passphraseId,
+          id: passphraseSecretId,
           bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
         );
       }
-      return SshAuthPubkeyRef(keyId, passphraseSecretId: passphraseId);
+      return SshAuthPubkeyRef(keyId, passphraseSecretId: passphraseSecretId);
     }
     if (auth.password.isNotEmpty) {
       final id = 'conn.password.$transientId';

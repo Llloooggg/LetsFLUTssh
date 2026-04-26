@@ -53,9 +53,6 @@ class ProxyJumpOverride {
 class SessionAuth extends SshAuth {
   final AuthType authType;
 
-  /// Reference to a key in the central key store. Empty = not set.
-  final String keyId;
-
   /// Per-slot "credential exists in persistent storage" flags. Set by
   /// the DB loader when the cache is populated without decrypted
   /// secrets (so plaintext bytes don't sit on the Dart heap). Used by
@@ -74,13 +71,13 @@ class SessionAuth extends SshAuth {
 
   const SessionAuth({
     this.authType = AuthType.password,
-    this.keyId = '',
     this.hasStoredPassword = false,
     this.hasStoredKeyData = false,
     this.hasStoredPassphrase = false,
     super.password,
     super.keyPath,
     super.keyData,
+    super.keyId,
     super.passphrase,
   });
 
@@ -290,6 +287,7 @@ class Session {
         password: password,
         keyPath: expandedKeyPath,
         keyData: keyData,
+        keyId: keyId,
         passphrase: passphrase,
       ),
     );

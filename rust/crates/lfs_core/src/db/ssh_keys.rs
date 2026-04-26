@@ -1,7 +1,10 @@
-//! SshKeys DAO. Mirrors `lib/core/db/dao/ssh_key_dao.dart` against
-//! the same drift-shaped sqlite schema. The Dart KeyStore points at
-//! this module via FRB so the same on-disk rows are read/written from
-//! either side during the migration.
+//! SshKeys DAO. Backs the Dart `KeyStore` over FRB.
+//!
+//! **Secret-store angle**: `private_key` is sensitive PEM text. The
+//! [`stage_secret_into_store`] helper reads it inside Rust and pushes
+//! it directly into the process-singleton SecretStore so the Dart
+//! connect path can resolve a saved key by id without ever
+//! materialising the bytes on the Dart heap.
 
 use rusqlite::{params, Connection};
 
@@ -98,4 +101,33 @@ pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
         .execute("DELETE FROM ssh_keys WHERE id = ?1", params![id])
         .map_err(|e| Error::Io(format!("ssh_keys delete: {e}")))?;
     Ok(n)
+}
+
+/// Canonical secret-store id for a stored key's private PEM bytes.
+/// Mirrors the `sess.<slot>.<id>` pattern used by the sessions DAO.
+pub fn private_key_secret_id(key_id: &str) -> String {
+    format!("key.priv.{key_id}")
+}
+
+/// Read `private_key` for [`key_id`] and push its bytes into the
+/// process-singleton SecretStore under [`private_key_secret_id`].
+/// Returns `Ok(true)` when something landed in the store, `Ok(false)`
+/// when the row is missing or the column is empty. Plaintext never
+/// crosses the FRB boundary back to Dart — the Dart connect path
+/// only sees the secret id and constructs the matching
+/// `SshAuthPubkeyRef` variant.
+pub fn stage_secret_into_store(conn: &Connection, key_id: &str) -> Result<bool, Error> {
+    let mut stmt = conn
+        .prepare("SELECT private_key FROM ssh_keys WHERE id = ?1")
+        .map_err(|e| Error::Io(format!("ssh_keys stage prepare: {e}")))?;
+    let private_key: Option<String> = stmt.query_row(params![key_id], |row| row.get(0)).ok();
+    let Some(pem) = private_key else {
+        return Ok(false);
+    };
+    if pem.is_empty() {
+        return Ok(false);
+    }
+    let store = &crate::app::instance().secrets;
+    store.put(&private_key_secret_id(key_id), pem.as_bytes());
+    Ok(true)
 }

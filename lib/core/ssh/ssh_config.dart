@@ -32,32 +32,46 @@ class ServerAddress {
 }
 
 /// SSH authentication credentials.
+///
+/// `keyId` carries a reference to a row in the manager's key store —
+/// the connect path stages the private PEM bytes from Rust directly
+/// into the SecretStore by id, so the bytes do not need to round-
+/// trip through `keyData` on the Dart heap. `keyData` stays as the
+/// transport for inline / quick-connect / legacy paths that have no
+/// stored row to stage from.
 class SshAuth {
   final String password;
   final String keyPath;
   final String keyData; // raw PEM text
+  final String keyId;
   final String passphrase;
 
   const SshAuth({
     this.password = '',
     this.keyPath = '',
     this.keyData = '',
+    this.keyId = '',
     this.passphrase = '',
   });
 
   /// True if any auth method is configured.
   bool get hasAuth =>
-      password.isNotEmpty || keyPath.isNotEmpty || keyData.isNotEmpty;
+      password.isNotEmpty ||
+      keyPath.isNotEmpty ||
+      keyData.isNotEmpty ||
+      keyId.isNotEmpty;
 
   SshAuth copyWith({
     String? password,
     String? keyPath,
     String? keyData,
+    String? keyId,
     String? passphrase,
   }) => SshAuth(
     password: password ?? this.password,
     keyPath: keyPath ?? this.keyPath,
     keyData: keyData ?? this.keyData,
+    keyId: keyId ?? this.keyId,
     passphrase: passphrase ?? this.passphrase,
   );
 
@@ -68,10 +82,12 @@ class SshAuth {
           password == other.password &&
           keyPath == other.keyPath &&
           keyData == other.keyData &&
+          keyId == other.keyId &&
           passphrase == other.passphrase;
 
   @override
-  int get hashCode => Object.hash(password, keyPath, keyData, passphrase);
+  int get hashCode =>
+      Object.hash(password, keyPath, keyData, keyId, passphrase);
 }
 
 /// SSH connection configuration model.

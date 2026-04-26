@@ -92,6 +92,15 @@ pub async fn db_ssh_keys_delete(id: String) -> Result<u32, String> {
         .map(|n| n as u32)
 }
 
+/// Stage the stored key's private PEM bytes into the SecretStore
+/// under `key.priv.<id>`. Returns `true` when bytes landed in the
+/// store, `false` when the row is missing or the column is empty.
+/// Plaintext does not cross the FRB boundary — Dart only sees the
+/// boolean.
+pub async fn db_ssh_keys_stage_secret(key_id: String) -> Result<bool, String> {
+    run_db(move |c| lfs_core::db::ssh_keys::stage_secret_into_store(c, &key_id)).await
+}
+
 // ---- folders -----------------------------------------------------------
 
 #[derive(Debug, Clone)]

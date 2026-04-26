@@ -21,6 +21,14 @@ Future<void> dbSshKeysUpsert({required DbSshKey row}) =>
 Future<int> dbSshKeysDelete({required String id}) =>
     RustLib.instance.api.crateApiDbDbSshKeysDelete(id: id);
 
+/// Stage the stored key's private PEM bytes into the SecretStore
+/// under `key.priv.<id>`. Returns `true` when bytes landed in the
+/// store, `false` when the row is missing or the column is empty.
+/// Plaintext does not cross the FRB boundary — Dart only sees the
+/// boolean.
+Future<bool> dbSshKeysStageSecret({required String keyId}) =>
+    RustLib.instance.api.crateApiDbDbSshKeysStageSecret(keyId: keyId);
+
 Future<List<DbFolder>> dbFoldersListAll() =>
     RustLib.instance.api.crateApiDbDbFoldersListAll();
 
