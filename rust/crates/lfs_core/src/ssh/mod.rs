@@ -653,6 +653,127 @@ impl Session {
         })
     }
 
+    // ---- ProxyJump + secret-store-backed connects (Phase 5.1) -----
+    // The `_via_proxy_with_secret_owned_arc` family takes an
+    // `Arc<Session>` for the parent (so the returned future owns
+    // its parent reference and stays `'static` instead of borrowing
+    // for an unspecified lifetime) and a SecretStore id for every
+    // credential ingredient. Returned as
+    // `Pin<Box<dyn Future + Send + 'static>>` so the connection
+    // actor's dispatch path threads through FRB `wrap_async`
+    // without HRTB inference reaching into the deeper `&str`
+    // borrow plumbing.
+
+    /// Password auth tunnelled through a ProxyJump parent, resolving
+    /// the password from the SecretStore. See module docs for the
+    /// boxed-future rationale.
+    pub fn connect_password_via_proxy_with_secret_owned(
+        parent: Arc<Session>,
+        host: String,
+        port: u16,
+        user: String,
+        secret_id: String,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let bytes = crate::app::instance()
+                .secrets
+                .get(&secret_id)
+                .ok_or_else(|| Error::Auth(format!("no cached secret '{secret_id}'")))?;
+            let pwd = std::str::from_utf8(&bytes)
+                .map_err(|e| Error::Auth(format!("password not utf-8: {e}")))?;
+            Self::connect_password_via_proxy(&parent, &host, port, &user, pwd).await
+        })
+    }
+
+    /// Pubkey auth tunnelled through a ProxyJump parent, resolving
+    /// key + optional passphrase from the SecretStore.
+    pub fn connect_pubkey_via_proxy_with_secret_owned(
+        parent: Arc<Session>,
+        host: String,
+        port: u16,
+        user: String,
+        key_secret_id: String,
+        passphrase_secret_id: Option<String>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let store = &crate::app::instance().secrets;
+            let key_bytes = store
+                .get(&key_secret_id)
+                .ok_or_else(|| Error::Auth(format!("no cached key '{key_secret_id}'")))?;
+            let pass_bytes = passphrase_secret_id.as_deref().and_then(|id| store.get(id));
+            let passphrase = match pass_bytes.as_ref() {
+                Some(b) => Some(
+                    std::str::from_utf8(b)
+                        .map_err(|e| Error::Auth(format!("passphrase not utf-8: {e}")))?,
+                ),
+                None => None,
+            };
+            Self::connect_pubkey_via_proxy(&parent, &host, port, &user, &key_bytes, passphrase)
+                .await
+        })
+    }
+
+    /// OpenSSH-cert auth tunnelled through a ProxyJump parent.
+    #[allow(clippy::too_many_arguments)] // every cert auth ingredient is load-bearing
+    pub fn connect_pubkey_cert_via_proxy_with_secret_owned(
+        parent: Arc<Session>,
+        host: String,
+        port: u16,
+        user: String,
+        key_secret_id: String,
+        cert_secret_id: String,
+        passphrase_secret_id: Option<String>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let store = &crate::app::instance().secrets;
+            let key_bytes = store
+                .get(&key_secret_id)
+                .ok_or_else(|| Error::Auth(format!("no cached key '{key_secret_id}'")))?;
+            let cert_bytes = store
+                .get(&cert_secret_id)
+                .ok_or_else(|| Error::Auth(format!("no cached cert '{cert_secret_id}'")))?;
+            let pass_bytes = passphrase_secret_id.as_deref().and_then(|id| store.get(id));
+            let passphrase = match pass_bytes.as_ref() {
+                Some(b) => Some(
+                    std::str::from_utf8(b)
+                        .map_err(|e| Error::Auth(format!("passphrase not utf-8: {e}")))?,
+                ),
+                None => None,
+            };
+            Self::connect_pubkey_cert_via_proxy(
+                &parent,
+                &host,
+                port,
+                &user,
+                &key_bytes,
+                passphrase,
+                &cert_bytes,
+            )
+            .await
+        })
+    }
+
+    /// Agent auth tunnelled through a ProxyJump parent. Bridges
+    /// through `spawn_blocking + Handle::block_on` for the same
+    /// non-Send agent-client reason as [`connect_agent_owned`];
+    /// the parent `Arc<Session>` cloned into the blocking task so
+    /// the spawn boundary doesn't lose the reference.
+    pub fn connect_agent_via_proxy_owned(
+        parent: Arc<Session>,
+        host: String,
+        port: u16,
+        user: String,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
+        Box::pin(async move {
+            let handle = tokio::runtime::Handle::current();
+            tokio::task::spawn_blocking(move || {
+                handle.block_on(Self::connect_agent_via_proxy(&parent, &host, port, &user))
+            })
+            .await
+            .map_err(|e| Error::Auth(format!("agent task: {e}")))?
+        })
+    }
+
     /// SSH-agent auth tunnelled through a ProxyJump parent. Mirrors
     /// the non-proxy `connect_agent` path: spawn_blocking + Handle
     /// for the agent client whose per-call futures are not Send,

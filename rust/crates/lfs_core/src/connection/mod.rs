@@ -17,18 +17,11 @@
 //! through a snapshot command.
 //!
 //! Bastion refs (`bastion_id`) point at another actor in the same
-//! registry; teardown of the parent cascades into the bastion when
-//! it's flagged `internal`. The internal flag also gates the user-
-//! visible connection list so the workspace UI never paints a tab
-//! for a hop the user did not explicitly open.
-//!
-//! # Scaffolding stage
-//!
-//! This module ships the types + registry surface. The actual
-//! `connect` / `disconnect` / `reconnect` driver loops are wired in
-//! the next 5.1 commit — the present commit lays the rails so the
-//! Dart side can flip its `Connection` class to view-mode without
-//! waiting for the full state-machine port.
+//! registry; the connect driver looks the parent up, grabs its
+//! live `Arc<Session>`, and routes the child handshake through the
+//! `connect_*_via_proxy_with_secret_owned` family. The `internal`
+//! flag gates the user-visible connection list so the workspace UI
+//! never paints a tab for a hop the user did not explicitly open.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -443,34 +436,65 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
 }
 
 async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
-    // Bastion-aware paths land in the next 5.1 commit. For now the
-    // driver only handles direct connects — callers passing a
-    // bastion id surface a typed error so the omission is visible
-    // in tests rather than silently dialing direct.
-    if args.bastion_id.is_some() {
-        return Err(Error::Io(
-            "ProxyJump bastion path not yet wired into the actor".into(),
-        ));
-    }
     let ConnectArgs {
         host,
         user,
         port,
         auth,
+        bastion_id,
         ..
     } = args;
+
+    // ProxyJump bastion path — look up parent actor and grab its
+    // live `Arc<Session>`. If the parent is missing or not in the
+    // `Connected` state, fail the child with a typed error rather
+    // than silently dialing direct. Dart-side orchestrator is
+    // responsible for awaiting the parent before triggering the
+    // child connect (the actor's bus events provide the hook).
+    let bastion_session =
+        match bastion_id.as_deref() {
+            None => None,
+            Some(id) => {
+                let app = crate::app::instance();
+                let handle = app
+                    .connections
+                    .get(id)
+                    .ok_or_else(|| Error::Io(format!("ProxyJump parent '{id}' missing")))?;
+                let actor = handle.lock().expect("actor mutex poisoned");
+                if actor.state != ConnectionState::Connected {
+                    return Err(Error::Io(format!(
+                        "ProxyJump parent '{id}' not yet connected (state {:?})",
+                        actor.state
+                    )));
+                }
+                Some(actor.clone_session().ok_or_else(|| {
+                    Error::Io(format!("ProxyJump parent '{id}' has no live session"))
+                })?)
+            }
+        };
+
     // Owned-arg `_owned` variants — `Session::connect_*_with_secret_owned`
-    // takes `String` by value so the resulting future is `Send + 'static`
-    // without HRTB inference on `&str` borrows. The wrapping `wrap_async`
-    // future on the FRB side stays clean.
-    match auth {
-        ConnectAuthRef::Password { secret_id } => {
+    // (and `_via_proxy_with_secret_owned`) take `String`/`Arc<Session>`
+    // by value so the resulting future is `Send + 'static` without
+    // HRTB inference on `&str`/`&Session` borrows. The wrapping
+    // `wrap_async` future on the FRB side stays clean.
+    match (auth, bastion_session) {
+        (ConnectAuthRef::Password { secret_id }, None) => {
             Session::connect_password_with_secret_owned(host, port, user, secret_id).await
         }
-        ConnectAuthRef::Pubkey {
-            key_secret_id,
-            passphrase_secret_id,
-        } => {
+        (ConnectAuthRef::Password { secret_id }, Some(parent)) => {
+            Session::connect_password_via_proxy_with_secret_owned(
+                parent, host, port, user, secret_id,
+            )
+            .await
+        }
+        (
+            ConnectAuthRef::Pubkey {
+                key_secret_id,
+                passphrase_secret_id,
+            },
+            None,
+        ) => {
             Session::connect_pubkey_with_secret_owned(
                 host,
                 port,
@@ -480,11 +504,31 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
             )
             .await
         }
-        ConnectAuthRef::PubkeyCert {
-            key_secret_id,
-            cert_secret_id,
-            passphrase_secret_id,
-        } => {
+        (
+            ConnectAuthRef::Pubkey {
+                key_secret_id,
+                passphrase_secret_id,
+            },
+            Some(parent),
+        ) => {
+            Session::connect_pubkey_via_proxy_with_secret_owned(
+                parent,
+                host,
+                port,
+                user,
+                key_secret_id,
+                passphrase_secret_id,
+            )
+            .await
+        }
+        (
+            ConnectAuthRef::PubkeyCert {
+                key_secret_id,
+                cert_secret_id,
+                passphrase_secret_id,
+            },
+            None,
+        ) => {
             Session::connect_pubkey_cert_with_secret_owned(
                 host,
                 port,
@@ -495,7 +539,29 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
             )
             .await
         }
-        ConnectAuthRef::Agent => Session::connect_agent_owned(host, port, user).await,
+        (
+            ConnectAuthRef::PubkeyCert {
+                key_secret_id,
+                cert_secret_id,
+                passphrase_secret_id,
+            },
+            Some(parent),
+        ) => {
+            Session::connect_pubkey_cert_via_proxy_with_secret_owned(
+                parent,
+                host,
+                port,
+                user,
+                key_secret_id,
+                cert_secret_id,
+                passphrase_secret_id,
+            )
+            .await
+        }
+        (ConnectAuthRef::Agent, None) => Session::connect_agent_owned(host, port, user).await,
+        (ConnectAuthRef::Agent, Some(parent)) => {
+            Session::connect_agent_via_proxy_owned(parent, host, port, user).await
+        }
     }
 }
 
