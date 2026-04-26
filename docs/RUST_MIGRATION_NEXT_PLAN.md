@@ -46,6 +46,7 @@ right now"*, the design is wrong.
 | 9. Security tier stack → Rust | pending — largest port; `KdfParams` + `SecretBuffer` + `SecureRef` retire here |
 | 10a. `session_recorder` asciinema composer → Rust | DONE | `5adceb05` |
 | 10b. `session_recorder` ring buffer + driver loop | pending — registry-owned write loop is the next piece |
+| 13e. `tier_backing.dart` dead code drop | DONE | dead — no production caller |
 | 11. `qr_codec` finish + `import_service` close | pending |
 | 12. `deeplink_handler` listener through bus | pending — listener stays Dart (`app_links` plugin), parser already Rust |
 | 13a. `aes_gcm.generateKey` → Rust | DONE | `f1d14183` |
