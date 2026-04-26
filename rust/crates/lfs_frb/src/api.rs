@@ -23,6 +23,7 @@ pub mod threat_eval;
 pub mod transfer;
 pub mod update_http;
 pub mod update_metadata;
+pub mod update_signing;
 pub mod winbio;
 
 /// FFI plumbing init — runs once when Dart loads the native blob.

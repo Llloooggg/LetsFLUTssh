@@ -1707,8 +1707,9 @@ void main() {
   // Manifest-signature flow (the production [_defaultVerifyArtifact]
   // decomposes into two pure pieces: version parsing + manifest parsing).
   // We unit-test each directly; the full end-to-end path is exercised
-  // through the wider update flow in release_signing_test.dart and the
-  // public verifier contract.
+  // through the wider update flow + Rust unit tests under
+  // `lfs_core::update_signing::tests` (pinned-key verify, fail-closed
+  // wrong-length, all-zero signature) and the public verifier contract.
   // ===========================================================================
   group('UpdateService.parseAssetVersion', () {
     test('captures the semver from a canonical release asset filename', () {

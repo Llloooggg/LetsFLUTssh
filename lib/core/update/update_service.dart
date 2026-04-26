@@ -9,10 +9,10 @@ import 'package:path/path.dart' as p;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/update_http.dart' as rust_update_http;
 import '../../src/rust/api/update_metadata.dart' as rust_update;
+import '../../src/rust/api/update_signing.dart' as rust_update_signing;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 import 'cert_pinning.dart';
-import 'release_signing.dart';
 
 /// Callback shape for the optional native macOS `.dmg` installer. Kept
 /// as a typedef at the core layer so `UpdateService` can invoke the
@@ -376,7 +376,8 @@ class UpdateService {
   ///   * **Manifest signature** — the release's `.sha256sums`
   ///     manifest is fetched along with its single `.sha256sums.sig`.
   ///     The signature is verified against the pubkeys pinned in
-  ///     [ReleaseSigning]; the artefact's own sha256 must then match
+  ///     `lfs_core::update_signing::verify_release_signature`; the
+  ///     artefact's own sha256 must then match
   ///     its line in the manifest. This is the authoritative defence
   ///     against GitHub response tampering — a MITM would need to forge
   ///     an Ed25519 signature under the embedded public key to slip
@@ -524,7 +525,7 @@ class UpdateService {
       );
     }
 
-    final sigOk = await ReleaseSigning.verifyBytes(
+    final sigOk = rust_update_signing.updateVerifyReleaseSignature(
       message: manifestBytes,
       signature: sigBytes,
     );

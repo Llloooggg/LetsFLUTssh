@@ -25,6 +25,7 @@ import 'api/threat_eval.dart';
 import 'api/transfer.dart';
 import 'api/update_http.dart';
 import 'api/update_metadata.dart';
+import 'api/update_signing.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
 import 'dart:async';
@@ -89,7 +90,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -386464184;
+  int get rustContentHash => -279616545;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -827,6 +828,11 @@ abstract class RustLibApi extends BaseApi {
 
   List<DbSha256ManifestEntry> crateApiUpdateMetadataUpdateParseSha256Manifest({
     required String content,
+  });
+
+  bool crateApiUpdateSigningUpdateVerifyReleaseSignature({
+    required List<int> message,
+    required List<int> signature,
   });
 
   PlatformInt64 crateApiWinbioWinbioCountUnits();
@@ -6899,6 +6905,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  bool crateApiUpdateSigningUpdateVerifyReleaseSignature({
+    required List<int> message,
+    required List<int> signature,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(message, serializer);
+          sse_encode_list_prim_u_8_loose(signature, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 178,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdateSigningUpdateVerifyReleaseSignatureConstMeta,
+        argValues: [message, signature],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiUpdateSigningUpdateVerifyReleaseSignatureConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_verify_release_signature',
+        argNames: ['message', 'signature'],
+      );
+
+  @override
   PlatformInt64 crateApiWinbioWinbioCountUnits() {
     return handler.executeSync(
       SyncTask(
@@ -6907,7 +6948,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 178,
+            funcId: 179,
           )!;
         },
         codec: SseCodec(

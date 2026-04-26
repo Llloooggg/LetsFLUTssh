@@ -46,6 +46,7 @@ pub mod threat_vocabulary;
 pub mod transfer;
 pub mod update_http;
 pub mod update_metadata;
+pub mod update_signing;
 
 pub use error::Error;
 

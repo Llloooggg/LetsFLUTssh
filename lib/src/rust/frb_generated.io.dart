@@ -25,6 +25,7 @@ import 'api/threat_eval.dart';
 import 'api/transfer.dart';
 import 'api/update_http.dart';
 import 'api/update_metadata.dart';
+import 'api/update_signing.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
 import 'dart:async';
