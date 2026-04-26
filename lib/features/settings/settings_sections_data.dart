@@ -5,36 +5,6 @@ part of 'settings_screen.dart';
 // transfer, data (export/import/QR), updates, about
 // ═══════════════════════════════════════════════════════════════════
 
-/// Hydrate [sessions] with on-disk credentials and resolve keyId → keyData.
-///
-/// The incoming list comes from the in-memory session cache, which strips
-/// password / keyData / passphrase to minimize their RAM footprint. Export
-/// needs the full credential set, so we reload each session from the DB
-/// through [SessionStore.loadWithCredentials] before composing the archive.
-/// Key-ID references are then expanded to embedded `keyData` as before.
-Future<List<Session>> _resolveSessionKeys(
-  WidgetRef ref,
-  List<Session> sessions,
-) async {
-  final store = ref.read(sessionStoreProvider);
-  final keyStore = ref.read(keyStoreProvider);
-  final resolved = <Session>[];
-  for (final cached in sessions) {
-    final s = await store.loadWithCredentials(cached.id) ?? cached;
-    if (s.keyId.isNotEmpty) {
-      final entry = await keyStore.get(s.keyId);
-      if (entry != null && entry.privateKey.isNotEmpty) {
-        resolved.add(
-          s.copyWith(auth: s.auth.copyWith(keyData: entry.privateKey)),
-        );
-        continue;
-      }
-    }
-    resolved.add(s);
-  }
-  return resolved;
-}
-
 class _DataSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -873,45 +843,33 @@ class _QrExportTile extends ConsumerWidget {
 
     if (exportResult == null || !context.mounted) return;
 
-    // Resolve keyId → keyData after dialog closes
-    final resolvedSessions = await _resolveSessionKeys(
-      ref,
-      exportResult.selectedSessions,
-    );
-    if (!context.mounted) return;
-
-    // Collect tags/snippets data for QR payload
-    final tags = exportResult.options.includeTags ? allTags : <Tag>[];
-    final snippets = exportResult.options.includeSnippets
-        ? allSnippets
-        : <Snippet>[];
-    final sessionTags = await _collectQrSessionTags(
-      tagStore,
-      exportResult.selectedSessions,
-      includeTags: tags.isNotEmpty,
-    );
-    final sessionSnippets = await _collectQrSessionSnippets(
-      snippetStore,
-      exportResult.selectedSessions,
-      includeSnippets: snippets.isNotEmpty,
-    );
-
-    final payload = encodeExportPayload(
-      resolvedSessions,
-      input: ExportPayloadInput(
-        emptyFolders: exportResult.selectedEmptyFolders,
-        options: exportResult.options,
-        config: exportResult.options.includeConfig
-            ? ref.read(configProvider)
-            : null,
-        knownHostsContent: exportResult.options.includeKnownHosts
-            ? knownHostsContent
-            : null,
-        managerKeyEntries: allKeys,
-        tags: tags,
-        sessionTags: sessionTags,
-        snippets: snippets,
-        sessionSnippets: sessionSnippets,
+    // Hand the encode off to the Rust orchestrator — sessions /
+    // manager keys / tags / snippets / known-hosts come straight
+    // from `lfs_core.db`, dedup runs Rust-side, and only the
+    // deflated + base64url-encoded ASCII payload returns to Dart
+    // for the QR widget. Plaintext credentials never round-trip
+    // through the Dart heap during encode.
+    final selectedIds = exportResult.selectedSessions.map((s) => s.id).toList();
+    final emptyFolders = exportResult.selectedEmptyFolders.toList();
+    final cfg = exportResult.options.includeConfig
+        ? ref.read(configProvider)
+        : null;
+    final payload = await rust_archive.dbExportQrPayload(
+      input: rust_archive.DbQrExportInput(
+        options: rust_archive.DbQrExportOptions(
+          includeSessions: exportResult.options.includeSessions,
+          includeConfig: exportResult.options.includeConfig && cfg != null,
+          includeKnownHosts: exportResult.options.includeKnownHosts,
+          includePasswords: exportResult.options.includePasswords,
+          includeEmbeddedKeys: exportResult.options.includeEmbeddedKeys,
+          includeManagerKeys: exportResult.options.includeManagerKeys,
+          includeAllManagerKeys: exportResult.options.includeAllManagerKeys,
+          includeTags: exportResult.options.includeTags,
+          includeSnippets: exportResult.options.includeSnippets,
+        ),
+        selectedSessionIds: selectedIds,
+        selectedEmptyFolders: emptyFolders,
+        configJson: cfg != null ? jsonEncode(cfg.toJson()) : null,
       ),
     );
 
@@ -932,38 +890,6 @@ class _QrExportTile extends ConsumerWidget {
       sessionCount: sessionCount,
       containsCredentials: containsCredentials,
     );
-  }
-
-  Future<List<ExportLink>> _collectQrSessionTags(
-    TagStore tagStore,
-    List<Session> selectedSessions, {
-    required bool includeTags,
-  }) async {
-    final sessionTags = <ExportLink>[];
-    if (!includeTags) return sessionTags;
-    for (final s in selectedSessions) {
-      final sTags = await tagStore.getForSession(s.id);
-      for (final t in sTags) {
-        sessionTags.add(ExportLink(sessionId: s.id, targetId: t.id));
-      }
-    }
-    return sessionTags;
-  }
-
-  Future<List<ExportLink>> _collectQrSessionSnippets(
-    SnippetStore snippetStore,
-    List<Session> selectedSessions, {
-    required bool includeSnippets,
-  }) async {
-    final sessionSnippets = <ExportLink>[];
-    if (!includeSnippets) return sessionSnippets;
-    for (final s in selectedSessions) {
-      final sSnippets = await snippetStore.loadForSession(s.id);
-      for (final sn in sSnippets) {
-        sessionSnippets.add(ExportLink(sessionId: s.id, targetId: sn.id));
-      }
-    }
-    return sessionSnippets;
   }
 }
 

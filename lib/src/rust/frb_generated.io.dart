@@ -200,6 +200,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPortForwardRule dco_decode_box_autoadd_db_port_forward_rule(dynamic raw);
 
   @protected
+  DbQrExportInput dco_decode_box_autoadd_db_qr_export_input(dynamic raw);
+
+  @protected
   DbSession dco_decode_box_autoadd_db_session(dynamic raw);
 
   @protected
@@ -243,6 +246,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPortForwardRule dco_decode_db_port_forward_rule(dynamic raw);
+
+  @protected
+  DbQrExportInput dco_decode_db_qr_export_input(dynamic raw);
+
+  @protected
+  DbQrExportOptions dco_decode_db_qr_export_options(dynamic raw);
 
   @protected
   DbSession dco_decode_db_session(dynamic raw);
@@ -531,6 +540,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbQrExportInput sse_decode_box_autoadd_db_qr_export_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSession sse_decode_box_autoadd_db_session(SseDeserializer deserializer);
 
   @protected
@@ -582,6 +596,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPortForwardRule sse_decode_db_port_forward_rule(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbQrExportInput sse_decode_db_qr_export_input(SseDeserializer deserializer);
+
+  @protected
+  DbQrExportOptions sse_decode_db_qr_export_options(
     SseDeserializer deserializer,
   );
 
@@ -926,6 +948,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_qr_export_input(
+    DbQrExportInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_session(
     DbSession self,
     SseSerializer serializer,
@@ -997,6 +1025,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_port_forward_rule(
     DbPortForwardRule self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_export_input(
+    DbQrExportInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_export_options(
+    DbQrExportOptions self,
     SseSerializer serializer,
   );
 

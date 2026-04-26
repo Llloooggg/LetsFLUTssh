@@ -106,6 +106,17 @@ serde_json = "1"
 # (uncompressed) entries; AES-GCM after the ZIP makes deflate redundant
 # and pulling flate2 would balloon binary size for no win.
 zip = { version = "2", default-features = false }
+# Deflate compression for the QR export payload. The Dart side
+# wraps the UTF-8 JSON in `Deflate(...).getBytes()` then base64url-
+# encodes it. The Rust QR orchestrator mirrors that exactly so the
+# payload is wire-compatible. `rust_backend` keeps the dep pure-Rust
+# (no zlib system link).
+flate2 = { version = "1", default-features = false, features = [
+    "rust_backend",
+] }
+# base64url encoding for the QR payload tail. RFC 4648 §5 — `-_`
+# alphabet, no padding, matches Dart's `base64Url.encode`.
+base64 = "0.22"
 
 [profile.release]
 codegen-units = 1

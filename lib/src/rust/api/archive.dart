@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Compose and (optionally) encrypt the `.lfs` archive entirely
 /// inside Rust. Plaintext credentials never cross the FRB boundary
@@ -15,6 +15,14 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// finished archive returns to Dart.
 Future<Uint8List> dbExportArchive({required DbExportInput input}) =>
     RustLib.instance.api.crateApiArchiveDbExportArchive(input: input);
+
+/// Build the QR deeplink payload (`d=` value) entirely Rust-side.
+/// Returns the deflated + base64url-encoded ASCII string ready to
+/// hand to a QR widget. Plaintext credential bytes — manager-key
+/// PEM, session passwords — flow DB → JSON → deflate → base64
+/// inside Rust so the Dart heap only sees the encoded ASCII.
+Future<String> dbExportQrPayload({required DbQrExportInput input}) =>
+    RustLib.instance.api.crateApiArchiveDbExportQrPayload(input: input);
 
 /// Mirror of `ExportInput`. Pulled verbatim across the FRB
 /// boundary; the orchestrator owns the actual archive composition.
@@ -123,4 +131,87 @@ class DbExportOptions {
           includeSnippets == other.includeSnippets &&
           includeAllManagerKeys == other.includeAllManagerKeys &&
           hasManagerKeys == other.hasManagerKeys;
+}
+
+class DbQrExportInput {
+  final DbQrExportOptions options;
+  final List<String> selectedSessionIds;
+  final List<String> selectedEmptyFolders;
+  final String? configJson;
+
+  const DbQrExportInput({
+    required this.options,
+    required this.selectedSessionIds,
+    required this.selectedEmptyFolders,
+    this.configJson,
+  });
+
+  @override
+  int get hashCode =>
+      options.hashCode ^
+      selectedSessionIds.hashCode ^
+      selectedEmptyFolders.hashCode ^
+      configJson.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbQrExportInput &&
+          runtimeType == other.runtimeType &&
+          options == other.options &&
+          selectedSessionIds == other.selectedSessionIds &&
+          selectedEmptyFolders == other.selectedEmptyFolders &&
+          configJson == other.configJson;
+}
+
+/// Mirror of `QrExportOptions` over the FRB boundary.
+class DbQrExportOptions {
+  final bool includeSessions;
+  final bool includeConfig;
+  final bool includeKnownHosts;
+  final bool includePasswords;
+  final bool includeEmbeddedKeys;
+  final bool includeManagerKeys;
+  final bool includeAllManagerKeys;
+  final bool includeTags;
+  final bool includeSnippets;
+
+  const DbQrExportOptions({
+    required this.includeSessions,
+    required this.includeConfig,
+    required this.includeKnownHosts,
+    required this.includePasswords,
+    required this.includeEmbeddedKeys,
+    required this.includeManagerKeys,
+    required this.includeAllManagerKeys,
+    required this.includeTags,
+    required this.includeSnippets,
+  });
+
+  @override
+  int get hashCode =>
+      includeSessions.hashCode ^
+      includeConfig.hashCode ^
+      includeKnownHosts.hashCode ^
+      includePasswords.hashCode ^
+      includeEmbeddedKeys.hashCode ^
+      includeManagerKeys.hashCode ^
+      includeAllManagerKeys.hashCode ^
+      includeTags.hashCode ^
+      includeSnippets.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbQrExportOptions &&
+          runtimeType == other.runtimeType &&
+          includeSessions == other.includeSessions &&
+          includeConfig == other.includeConfig &&
+          includeKnownHosts == other.includeKnownHosts &&
+          includePasswords == other.includePasswords &&
+          includeEmbeddedKeys == other.includeEmbeddedKeys &&
+          includeManagerKeys == other.includeManagerKeys &&
+          includeAllManagerKeys == other.includeAllManagerKeys &&
+          includeTags == other.includeTags &&
+          includeSnippets == other.includeSnippets;
 }

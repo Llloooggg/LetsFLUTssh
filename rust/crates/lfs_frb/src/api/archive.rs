@@ -4,7 +4,7 @@
 //! file-based, not DB-resident); Rust returns the encrypted archive
 //! bytes ready to write atomically.
 
-use lfs_core::archive::{ExportInput, ExportOptions};
+use lfs_core::archive::{ExportInput, ExportOptions, QrExportInput, QrExportOptions};
 
 fn require_db() -> Result<std::sync::Arc<lfs_core::db::Db>, String> {
     lfs_core::app::instance()
@@ -82,4 +82,58 @@ pub async fn db_export_archive(input: DbExportInput) -> Result<Vec<u8>, String> 
     })
     .await
     .map_err(|e| format!("export task: {e}"))?
+}
+
+/// Mirror of `QrExportOptions` over the FRB boundary.
+#[derive(Debug, Clone)]
+pub struct DbQrExportOptions {
+    pub include_sessions: bool,
+    pub include_config: bool,
+    pub include_known_hosts: bool,
+    pub include_passwords: bool,
+    pub include_embedded_keys: bool,
+    pub include_manager_keys: bool,
+    pub include_all_manager_keys: bool,
+    pub include_tags: bool,
+    pub include_snippets: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct DbQrExportInput {
+    pub options: DbQrExportOptions,
+    pub selected_session_ids: Vec<String>,
+    pub selected_empty_folders: Vec<String>,
+    pub config_json: Option<String>,
+}
+
+/// Build the QR deeplink payload (`d=` value) entirely Rust-side.
+/// Returns the deflated + base64url-encoded ASCII string ready to
+/// hand to a QR widget. Plaintext credential bytes — manager-key
+/// PEM, session passwords — flow DB → JSON → deflate → base64
+/// inside Rust so the Dart heap only sees the encoded ASCII.
+pub async fn db_export_qr_payload(input: DbQrExportInput) -> Result<String, String> {
+    let core_input = QrExportInput {
+        options: QrExportOptions {
+            include_sessions: input.options.include_sessions,
+            include_config: input.options.include_config,
+            include_known_hosts: input.options.include_known_hosts,
+            include_passwords: input.options.include_passwords,
+            include_embedded_keys: input.options.include_embedded_keys,
+            include_manager_keys: input.options.include_manager_keys,
+            include_all_manager_keys: input.options.include_all_manager_keys,
+            include_tags: input.options.include_tags,
+            include_snippets: input.options.include_snippets,
+        },
+        selected_session_ids: input.selected_session_ids,
+        selected_empty_folders: input.selected_empty_folders,
+        config_json: input.config_json,
+    };
+
+    tokio::task::spawn_blocking(move || {
+        let db = require_db()?;
+        db.with_conn(|c| lfs_core::archive::qr_export_payload(c, &core_input))
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("qr export task: {e}"))?
 }
