@@ -70,6 +70,24 @@ Future<int> dbSessionsDelete({required String id}) =>
 Future<DbStagedSecrets?> dbSessionsStageSecrets({required String sessionId}) =>
     RustLib.instance.api.crateApiDbDbSessionsStageSecrets(sessionId: sessionId);
 
+/// Copy a saved session row to a new id + label, optionally
+/// re-parented under [`target_folder_id`]. Credentials flow column-
+/// to-column inside SQLite and never cross the FRB boundary, so the
+/// duplicate path no longer carries plaintext on the Dart heap.
+Future<void> dbSessionsDuplicate({
+  required String srcId,
+  required String newId,
+  required String newLabel,
+  String? targetFolderId,
+  required PlatformInt64 nowMs,
+}) => RustLib.instance.api.crateApiDbDbSessionsDuplicate(
+  srcId: srcId,
+  newId: newId,
+  newLabel: newLabel,
+  targetFolderId: targetFolderId,
+  nowMs: nowMs,
+);
+
 Future<int> dbSessionsDeleteMultiple({required List<String> ids}) =>
     RustLib.instance.api.crateApiDbDbSessionsDeleteMultiple(ids: ids);
 

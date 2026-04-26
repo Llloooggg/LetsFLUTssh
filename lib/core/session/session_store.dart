@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../db/mappers.dart';
@@ -292,17 +294,37 @@ class SessionStore {
   }
 
   Future<Session> duplicateSession(String id, {String? targetFolder}) async {
-    // The in-memory [get] result has no credentials; fetch the full row so
-    // the duplicate inherits the password / keyData / passphrase. Fall back
-    // to the cached entry when the DB isn't wired (e.g. early test setup).
-    final full = await loadWithCredentials(id);
-    final original = full ?? get(id);
+    final original = get(id);
     if (original == null) throw ArgumentError('Session not found: $id');
-    final base = original.duplicate();
-    final copy = targetFolder == null
-        ? base
-        : base.copyWith(folder: targetFolder);
-    await add(copy);
+    final newId = const Uuid().v4();
+    final newLabel = original.label.isNotEmpty
+        ? '${original.label} (copy)'
+        : '';
+    final folderForCopy = targetFolder ?? original.folder;
+    try {
+      final folderId = await resolveFolderPath(folderForCopy, _folderMap);
+      await rust_db.dbSessionsDuplicate(
+        srcId: id,
+        newId: newId,
+        newLabel: newLabel,
+        targetFolderId: folderId,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'duplicateSession FRB call failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+      rethrow;
+    }
+    // Re-pull the new row so the in-memory cache picks up the
+    // server-of-truth shape — credentials stay Rust-side.
+    await load();
+    final copy = get(newId);
+    if (copy == null) {
+      throw StateError('Duplicate session $newId missing after reload');
+    }
     return copy;
   }
 

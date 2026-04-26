@@ -261,6 +261,44 @@ pub fn stage_secrets_into_store(
     }))
 }
 
+/// Copy a session row by id, allocating a new id + label and
+/// optionally relocating into `target_folder_id`. Credentials
+/// (`password` / `key_data` / `passphrase`) flow column-to-column
+/// inside SQLite without crossing back to Dart — eliminates the
+/// brief plaintext window the Dart-side `loadWithCredentials` →
+/// `duplicate()` → `add()` path used to open. Returns "session
+/// missing" when the source row has been deleted.
+pub fn duplicate_session(
+    conn: &Connection,
+    src_id: &str,
+    new_id: &str,
+    new_label: &str,
+    target_folder_id: Option<&str>,
+    now_ms: i64,
+) -> Result<(), Error> {
+    let n = conn
+        .execute(
+            "INSERT INTO sessions ( \
+               id, label, folder_id, host, port, user, auth_type, password, \
+               key_path, key_data, key_id, passphrase, sort_order, notes, \
+               last_connected_at, extras, via_session_id, via_host, via_port, \
+               via_user, created_at, updated_at \
+             ) \
+             SELECT \
+               ?1 AS id, ?2 AS label, ?3 AS folder_id, host, port, user, auth_type, \
+               password, key_path, key_data, key_id, passphrase, sort_order, notes, \
+               NULL AS last_connected_at, extras, via_session_id, via_host, \
+               via_port, via_user, ?4 AS created_at, ?4 AS updated_at \
+             FROM sessions WHERE id = ?5",
+            params![new_id, new_label, target_folder_id, now_ms, src_id],
+        )
+        .map_err(|e| Error::Io(format!("sessions duplicate: {e}")))?;
+    if n == 0 {
+        return Err(Error::Io("sessions duplicate: source row missing".into()));
+    }
+    Ok(())
+}
+
 /// Bulk variant of [`move_to_folder`].
 pub fn move_multiple(
     conn: &Connection,
