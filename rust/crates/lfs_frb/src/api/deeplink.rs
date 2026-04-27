@@ -3,8 +3,8 @@
 //! - [`parse_connect_uri`] is the legacy stateless parser exposed for
 //!   the Dart-side `DeepLinkHandler.parseConnectUri` static helper
 //!   (still used by the deeplink fuzz suite).
-//! - [`deeplink_dispatch`] is the Phase-5 / step-12 entry point: the
-//!   Dart `app_links` listener pumps every URI through this call and
+//! - [`deeplink_dispatch`] is the dispatcher entry point: the Dart
+//!   `app_links` listener pumps every URI through this call and
 //!   switches on the typed [`DbDeeplinkOutcome`] to route to the right
 //!   UI action. Dedup, scheme routing, file-extension routing, and
 //!   QR-payload staging live in `lfs_core::deeplink::DeeplinkDispatcher`.

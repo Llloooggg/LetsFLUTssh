@@ -153,6 +153,10 @@ pub enum BusEvent {
     RecorderStopped { id: String },
     /// Recorder — chunk written; carries running byte total.
     RecorderBytesWritten { id: String, total_bytes: u64 },
+    /// Recorder — running total crossed the per-file cap; the
+    /// Dart shim subscribes, prepares a fresh path, and fires
+    /// `recorder_queue_enqueue_rotate` to roll the recording over.
+    RecorderRotateRequested { id: String, bytes_written: u64 },
 
     /// Transfer queue — task entered the queue.
     TransferTaskAdded { id: String },
@@ -257,6 +261,9 @@ impl BusEvent {
             lfs_core::bus::Event::RecorderStopped { id } => BusEvent::RecorderStopped { id },
             lfs_core::bus::Event::RecorderBytesWritten { id, total_bytes } => {
                 BusEvent::RecorderBytesWritten { id, total_bytes }
+            }
+            lfs_core::bus::Event::RecorderRotateRequested { id, bytes_written } => {
+                BusEvent::RecorderRotateRequested { id, bytes_written }
             }
             lfs_core::bus::Event::TransferTaskAdded { id } => BusEvent::TransferTaskAdded { id },
             lfs_core::bus::Event::TransferTaskState { id, state } => BusEvent::TransferTaskState {

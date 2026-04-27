@@ -7,6 +7,13 @@
 //! in one place rather than half on each side of the FRB
 //! boundary.
 //!
+//! [`queue`] adds the per-recording write queue: each id gets a
+//! dedicated tokio worker that drains an mpsc channel of
+//! `QueueEntry` items in arrival order. The Dart shim is then a
+//! fire-and-forget enqueue layer — the asciinema event stream
+//! lands on disk in the same order the user typed / saw it even
+//! when concurrent FRB calls overlap on the runtime.
+//!
 //! # Surfaces
 //!
 //! - [`RecorderRegistry::register`] — counter-only; the caller
@@ -23,6 +30,8 @@
 //! mirrors the existing Dart-era format so files written by
 //! either driver are interoperable. The leading file marker is
 //! `LFR1` + version byte `0x01`.
+
+pub mod queue;
 
 use std::collections::HashMap;
 use std::fs::OpenOptions;

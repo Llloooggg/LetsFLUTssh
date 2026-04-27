@@ -226,8 +226,8 @@ void main() {
 
   // ---------------------------------------------------------------------------
   // Routing, scheme dispatch, file-extension classification, and dedup all
-  // moved to `lfs_core::deeplink::DeeplinkDispatcher` (Phase 5 step 12). The
-  // Rust unit tests in `lfs_core/src/deeplink.rs` (`route_connect_*`,
+  // live in `lfs_core::deeplink::DeeplinkDispatcher` now. The Rust unit
+  // tests in `lfs_core/src/deeplink.rs` (`route_connect_*`,
   // `route_lfs_file*`, `route_pem_key_file`, `dispatcher_dedups_within_window`,
   // …) cover the same matrix the deleted Dart `handleUri routing`,
   // `handleCustomScheme`, `handleFileUri`, `dedup` groups used to.

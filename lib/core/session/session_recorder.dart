@@ -6,16 +6,17 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import '../bus/app_bus.dart';
 
 /// Direction marker on a recording event — matches asciinema v2's
 /// `"o"` / `"i"` codes. Mapped onto `lfs_core::recorder::RecordDirection`
 /// (FRB-mirrored as [rust_recorder.DbRecordDirection]) inside
-/// [_enqueueEvent]; the JSON-line composition itself runs Rust-side
-/// off `recorderRecordEvent`.
+/// [_enqueueEvent].
 enum RecordDirection { output, input }
 
 /// Per-shell session recorder.
@@ -56,28 +57,30 @@ enum RecordDirection { output, input }
 /// a different surface for one feature would be misleading. The
 /// file extension differs (`.cast` vs `.lfsr`) so the loader can
 /// pick the right path without reading magic bytes first.
+///
+/// **Write ordering.** All header / event / rotate / close calls
+/// route through the per-id Rust write queue
+/// (`recorder_queue_enqueue_*`); the Rust worker drains in arrival
+/// order. Concurrent stdout chunks land on disk in the order they
+/// were emitted even when the FRB runtime fans them out across
+/// threads.
 class SessionRecorder {
-  /// HKDF-derived 32-byte AES-256 key. Null in plaintext mode.
-  final Uint8List? _key;
+  /// Has the underlying recording an encryption key set on the
+  /// Rust side. Drives the file-extension pick on rotation
+  /// (`.lfsr` vs `.cast`); the actual key bytes live Rust-side
+  /// for the recording's lifetime.
+  final bool _encrypted;
 
-  /// Per-file byte cap, fetched from
-  /// `lfs_core::recorder::MAX_FILE_BYTES` once at open time.
-  /// The Rust side owns the cap so the Dart caller does not keep
-  /// a stale duplicate.
-  final int _maxFileBytes;
-
-  /// Active Rust-side recorder handle id. Re-allocated on each
-  /// rotation (`_rotate` closes the previous handle and registers
-  /// a fresh one). Empty when the recorder is closed.
-  String _handleId;
-  int _currentBytes = 0;
+  /// Active Rust-side recorder handle id. Re-used across
+  /// rotations — the Rust worker swaps the file handle in place
+  /// so subscribers tracking the recording don't have to re-bind.
+  final String _handleId;
   String? _currentPath;
 
-  /// Outbound writes are queued so events emitted during a flush
-  /// don't reorder — a strict serialised tail keeps timestamps
-  /// monotonic in the rare case a stdout chunk arrives mid-await.
-  final _writeQueue = StreamController<_RecorderQueueEntry>(sync: false);
-  StreamSubscription<void>? _writeSub;
+  /// Subscription to the per-id recorder bus topic — flips the
+  /// file path on rotate-requested and remembers the last
+  /// reported on-disk path so [close] returns the freshest value.
+  StreamSubscription<rust_bus.BusEvent>? _busSub;
 
   /// Set by [close]; subsequent record calls become no-ops so the
   /// shell teardown's last bytes do not throw on a closed sink.
@@ -93,21 +96,13 @@ class SessionRecorder {
     required this.terminalShellLabel,
     required this.width,
     required this.height,
-    required Uint8List? key,
+    required bool encrypted,
     required String handleId,
     required String path,
-    required int maxFileBytes,
-  }) : _key = key,
-       _maxFileBytes = maxFileBytes,
+  }) : _encrypted = encrypted,
        _handleId = handleId,
        _currentPath = path {
-    // The Rust recorder owns IO + encryption + asciinema line
-    // composition now; the Dart queue serialises the (kind,
-    // bytes) pairs and hands each one to the FRB event endpoint
-    // (or the header endpoint for the open-time +
-    // post-rotate header line). Arrival order through `asyncMap`
-    // keeps timestamps monotonic across the FRB round-trip.
-    _writeSub = _writeQueue.stream.asyncMap(_drainOne).listen((_) {});
+    _busSub = AppBus.instance.subscribeRecorder(_handleId).listen(_onBusEvent);
   }
 
   /// Open a recorder rooted at the platform's app-support directory.
@@ -128,12 +123,7 @@ class SessionRecorder {
       final dir = await _ensureDirectory(sessionId);
       final encrypted = dbKey != null;
       final ext = encrypted ? 'lfsr' : 'cast';
-      final isoTs = DateTime.now()
-          .toUtc()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .split('.')
-          .first;
+      final isoTs = _isoTimestamp();
       final path = p.join(dir.path, '$isoTs.$ext');
       // Empty file with hardened perms before Rust opens its
       // append-mode handle — keeps the existing 0600 / no-group
@@ -153,21 +143,27 @@ class SessionRecorder {
         path: path,
         key: key ?? Uint8List(0),
       );
-      final cap = (await rust_recorder.recorderMaxFileBytes()).toInt();
+      // Spawn the per-id worker before any enqueue arrives. The
+      // worker owns the asciinema event ordering on disk.
+      await rust_recorder.recorderQueueSpawn(id: handleId);
       final recorder = SessionRecorder._(
         sessionId: sessionId,
         terminalShellLabel: shellLabel,
         width: width,
         height: height,
-        key: key,
+        encrypted: encrypted,
         handleId: handleId,
         path: path,
-        maxFileBytes: cap,
       );
       // Emit asciinema v2 header line so any plaintext export — and
       // the encrypted file once decrypted — starts with a valid
       // asciinema document.
-      recorder._enqueueHeader();
+      await rust_recorder.recorderQueueEnqueueHeader(
+        id: handleId,
+        width: width,
+        height: height,
+        shellLabel: shellLabel,
+      );
       return recorder;
     } catch (e, st) {
       AppLogger.instance.log(
@@ -196,16 +192,16 @@ class SessionRecorder {
   Future<String?> close() async {
     if (_closed) return _currentPath;
     _closed = true;
-    await _writeQueue.close();
-    await _writeSub?.cancel();
-    if (_handleId.isNotEmpty) {
-      try {
-        await rust_recorder.recorderClose(id: _handleId);
-      } catch (e) {
-        AppLogger.instance.log('recorderClose failed: $e', name: 'Recorder');
-      }
-      _handleId = '';
+    try {
+      await rust_recorder.recorderQueueEnqueueClose(id: _handleId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'recorderQueueEnqueueClose failed: $e',
+        name: 'Recorder',
+      );
     }
+    await _busSub?.cancel();
+    _busSub = null;
     return _currentPath;
   }
 
@@ -236,113 +232,82 @@ class SessionRecorder {
     'letsflutssh-recording-v1'.codeUnits,
   );
 
-  void _enqueueHeader() {
-    if (_closed) return;
-    _writeQueue.add(const _RecorderQueueEntry.header());
-  }
-
   void _enqueueEvent(List<int> bytes, RecordDirection dir) {
     if (_closed || bytes.isEmpty) return;
-    _writeQueue.add(_RecorderQueueEntry.event(dir, Uint8List.fromList(bytes)));
-  }
-
-  /// Drain one queued entry onto disk via the Rust recorder.
-  /// Encryption (when `_key` is set), the
-  /// `[len][nonce][ct+tag]` framing, the asciinema event-line +
-  /// header JSON composition, and the wall-clock delta against
-  /// `started_at` all happen Rust-side. Dart only owns the
-  /// (kind, bytes) tuple per event and the (cols, rows, shell)
-  /// triple per header.
-  Future<void> _drainOne(_RecorderQueueEntry entry) async {
-    if (_handleId.isEmpty) return;
-    try {
-      final total = switch (entry) {
-        _HeaderEntry() => await rust_recorder.recorderRecordHeader(
-          id: _handleId,
-          width: width,
-          height: height,
-          shellLabel: terminalShellLabel,
-        ),
-        _EventEntry(:final dir, :final bytes) =>
-          await rust_recorder.recorderRecordEvent(
+    // Fire-and-forget. The Rust worker holds the mailbox; ordering
+    // across calls is preserved because tokio mpsc is FIFO.
+    unawaited(
+      rust_recorder
+          .recorderQueueEnqueueEvent(
             id: _handleId,
             direction: switch (dir) {
               RecordDirection.output => rust_recorder.DbRecordDirection.output,
               RecordDirection.input => rust_recorder.DbRecordDirection.input,
             },
-            bytes: bytes,
-          ),
-      };
-      _currentBytes = total.toInt();
-    } catch (e) {
-      AppLogger.instance.log(
-        'recorderRecord ${entry.runtimeType} failed: $e',
-        name: 'Recorder',
-      );
-      return;
-    }
-    if (_currentBytes > _maxFileBytes) {
-      await _rotate();
+            bytes: Uint8List.fromList(bytes),
+          )
+          .catchError((Object e) {
+            AppLogger.instance.log(
+              'recorderQueueEnqueueEvent failed: $e',
+              name: 'Recorder',
+            );
+          }),
+    );
+  }
+
+  /// Handler for the per-id recorder topic. Two events matter
+  /// here: `RecorderRotateRequested` triggers a fresh-file
+  /// rotation; `RecorderStarted` (re-emitted by `rotate_to`)
+  /// updates our cached `_currentPath`.
+  void _onBusEvent(rust_bus.BusEvent event) {
+    switch (event) {
+      case rust_bus.BusEvent_RecorderRotateRequested():
+        unawaited(_rotate());
+      case rust_bus.BusEvent_RecorderStarted(:final path):
+        _currentPath = path;
+      case _:
+        break;
     }
   }
 
-  /// Roll the active recording to a fresh timestamped file under
-  /// the same session directory. Path generation stays Dart-side
-  /// (`getApplicationSupportDirectory` + `hardenFilePerms` are
-  /// platform-aware); the Rust `recorderRotateTo` call closes the
-  /// current handle, opens the new file in append mode, writes
-  /// magic + version when encrypted, and resets the byte counter
-  /// in one atomic step under the registry mutex. The handle id
-  /// stays stable so bus subscribers tracking the recording across
-  /// rotations don't re-bind.
+  /// Allocate a fresh file under the same session dir and ask the
+  /// Rust worker to roll over to it. The Rust side closes the old
+  /// file, opens the new one in append mode, writes the magic +
+  /// version when encrypted, resets the byte counter, then re-
+  /// emits the asciinema header — order matters so a decrypted
+  /// recording stays a valid asciinema document mid-rotation.
   Future<void> _rotate() async {
-    if (_handleId.isEmpty) return;
-    final dir = await _ensureDirectory(sessionId);
-    final isoTs = DateTime.now()
-        .toUtc()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .split('.')
-        .first;
-    final ext = _key != null ? 'lfsr' : 'cast';
-    final path = p.join(dir.path, '$isoTs.$ext');
-    final file = File(path);
-    await file.create();
-    await hardenFilePerms(path);
+    if (_closed) return;
     try {
-      final snap = await rust_recorder.recorderRotateTo(
+      final dir = await _ensureDirectory(sessionId);
+      final ext = _encrypted ? 'lfsr' : 'cast';
+      final isoTs = _isoTimestamp();
+      final path = p.join(dir.path, '$isoTs.$ext');
+      final file = File(path);
+      await file.create();
+      await hardenFilePerms(path);
+      await rust_recorder.recorderQueueEnqueueRotate(
         id: _handleId,
         newPath: path,
       );
-      _currentPath = snap.path;
-      _currentBytes = snap.bytesWritten.toInt();
+      await rust_recorder.recorderQueueEnqueueHeader(
+        id: _handleId,
+        width: width,
+        height: height,
+        shellLabel: terminalShellLabel,
+      );
     } catch (e) {
-      AppLogger.instance.log('recorderRotateTo failed: $e', name: 'Recorder');
-      return;
+      AppLogger.instance.log(
+        'SessionRecorder rotate failed: $e',
+        name: 'Recorder',
+      );
     }
-    _enqueueHeader();
   }
-}
 
-/// Queue carrier — either an asciinema header line write or a
-/// per-event line write. Sealed so the drain switch is exhaustive
-/// without a default branch swallowing future variants.
-sealed class _RecorderQueueEntry {
-  const _RecorderQueueEntry();
-
-  const factory _RecorderQueueEntry.header() = _HeaderEntry;
-  const factory _RecorderQueueEntry.event(
-    RecordDirection dir,
-    Uint8List bytes,
-  ) = _EventEntry;
-}
-
-class _HeaderEntry extends _RecorderQueueEntry {
-  const _HeaderEntry();
-}
-
-class _EventEntry extends _RecorderQueueEntry {
-  final RecordDirection dir;
-  final Uint8List bytes;
-  const _EventEntry(this.dir, this.bytes);
+  static String _isoTimestamp() => DateTime.now()
+      .toUtc()
+      .toIso8601String()
+      .replaceAll(':', '-')
+      .split('.')
+      .first;
 }

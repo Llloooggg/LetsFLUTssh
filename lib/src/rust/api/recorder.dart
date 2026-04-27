@@ -81,6 +81,60 @@ Future<BigInt> recorderMaxFileBytes() =>
 Future<void> recorderClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderClose(id: id);
 
+/// Spawn the per-id write worker. Pair with a prior
+/// [`recorder_register`] so the actor row exists. Idempotent on a
+/// re-spawn for the same id (the prior worker exits cleanly on its
+/// next mailbox `recv`).
+Future<void> recorderQueueSpawn({required String id}) =>
+    RustLib.instance.api.crateApiRecorderRecorderQueueSpawn(id: id);
+
+/// Enqueue an asciinema header line. Fire-and-forget — returns once
+/// the entry is in the worker's mailbox; the actual write happens
+/// out of band and emits the usual `RecorderBytesWritten` bus event.
+Future<void> recorderQueueEnqueueHeader({
+  required String id,
+  required int width,
+  required int height,
+  required String shellLabel,
+}) => RustLib.instance.api.crateApiRecorderRecorderQueueEnqueueHeader(
+  id: id,
+  width: width,
+  height: height,
+  shellLabel: shellLabel,
+);
+
+/// Enqueue a terminal event chunk. Same fire-and-forget shape as
+/// [`recorder_queue_enqueue_header`]. `bytes` is the raw chunk
+/// (output or input); the worker hands it to the registry which
+/// composes the asciinema event line and applies AES-GCM in
+/// encrypted mode.
+Future<void> recorderQueueEnqueueEvent({
+  required String id,
+  required DbRecordDirection direction,
+  required List<int> bytes,
+}) => RustLib.instance.api.crateApiRecorderRecorderQueueEnqueueEvent(
+  id: id,
+  direction: direction,
+  bytes: bytes,
+);
+
+/// Enqueue an atomic rotation to a fresh file. The Dart side owns
+/// path allocation (the platform `getApplicationSupportDirectory`
+/// + `hardenFilePerms` sweeps); this enqueue just hands the worker
+/// the new destination.
+Future<void> recorderQueueEnqueueRotate({
+  required String id,
+  required String newPath,
+}) => RustLib.instance.api.crateApiRecorderRecorderQueueEnqueueRotate(
+  id: id,
+  newPath: newPath,
+);
+
+/// Enqueue a close. The worker drains any in-flight entries, calls
+/// `close_with_io`, drops itself from the queue map, and exits.
+Future<void> recorderQueueEnqueueClose({required String id}) =>
+    RustLib.instance.api.crateApiRecorderRecorderQueueEnqueueClose(id: id);
+
 /// FRB mirror of [`lfs_core::recorder::RecordDirection`].
 enum DbRecordDirection { output, input }
 

@@ -45,7 +45,7 @@ right now"*, the design is wrong.
 | 8c. `update_service` state machine → Rust | pending |
 | 9. Security tier stack → Rust | pending — largest port; `KdfParams` + `SecretBuffer` + `SecureRef` retire here |
 | 10a. `session_recorder` asciinema composer → Rust | DONE | `5adceb05` |
-| 10b. `session_recorder` ring buffer + driver loop | pending — registry-owned write loop is the next piece |
+| 10b. `session_recorder` ring buffer + driver loop | DONE — `lfs_core::recorder::queue` per-id worker + mpsc serialises header/event/rotate/close; Dart shim reduced to fire-and-forget enqueues |
 | 13e. `tier_backing.dart` dead code drop | DONE | dead — no production caller |
 | 11. `qr_codec` finish + `import_service` close | pending |
 | 12. `deeplink_handler` listener through Rust dispatcher | DONE — `lfs_core::deeplink::DeeplinkDispatcher` owns dedup + scheme/file routing + QR staging; Dart `DeepLinkHandler` shrank to a URI pump that switches on `DbDeeplinkOutcome` |
@@ -84,7 +84,7 @@ LOC reflects current tree):
 | `core/security/security_tier.dart` | 257 | tier model + transitions | 9 |
 | `core/config/app_config.dart` | 605 | schema + defaults + validation + migrations | 2 (gated on 9) |
 | `core/import/import_service.dart` | 300 | apply driver remnants | 11 |
-| `core/session/session_recorder.dart` | 348 | ring buffer + write loop (asciinema composer DONE in `5adceb05`; pure UI-side queue carrier remains) | 10b |
+| ~~`core/session/session_recorder.dart`~~ | ~280 | thin enqueue layer over `lfs_core::recorder::queue`; subscribes to the per-id recorder topic for `RecorderRotateRequested` to allocate fresh paths | DONE |
 | `core/session/qr_codec.dart` | 980 | encode payload marshalling (Rust pure encode shipped; Dart still owns the `ExportPayloadInput` build) | 11 |
 | ~~`core/deeplink/deeplink_handler.dart`~~ | ~225 | thin URI pump — `app_links` listener + per-URI `deeplinkDispatch` FRB call + outcome switch; static `parseConnectUri` retained for the Dart fuzz / flutter_test surface | DONE — step 12 |
 | `core/transfer/conflict_resolver.dart` | 72 | UI-prompt cache state | 7 (folded) |
@@ -332,20 +332,37 @@ machine.
 every platform (Linux + macOS + Windows + Android + iOS) before
 merge.
 
-### 10 — `session_recorder` → Rust driver
+### 10 — `session_recorder` → Rust driver [DONE]
 
-Per-frame AES already Rust; the header build + ring buffer +
-write loop is the missing driver. Same shape as transfer +
-port-forward drivers.
+Per-frame AES + asciinema composer already shipped in `lfs_core::
+recorder` (`record_header` / `record_event` / `rotate_to` /
+`close_with_io`). This rung adds the per-id write queue:
 
-**Touches.**
-- `lfs_core::recorder::Driver` per recording: header build
-  (cols / rows / shell / start time), ring buffer, write loop.
-- Bus events: `RecordingStarted`, `RecordingStopped`,
-  `FrameWritten(byte_count)`.
-- FRB: `recorder_start`, `recorder_stop`, `recorder_toggle`.
-- Dart: `core/session/session_recorder.dart` retires; playback
-  browser stays (read-only file consumer, no state).
+- `lfs_core::recorder::queue::RecorderQueue` — process-singleton
+  handle map keyed by `RecorderId`. `spawn(id)` creates a
+  per-id `mpsc::channel<QueueEntry>` + tokio worker; `enqueue(id,
+  entry)` pushes a `Header` / `Event` / `Rotate` / `Close` into
+  the worker's mailbox.
+- The worker drains entries serially through
+  `tokio::task::spawn_blocking` so the asciinema event stream lands
+  on disk in arrival order even when concurrent FRB calls overlap
+  on the runtime.
+- Auto-rotation: after each event write the worker checks the
+  registry's running total against `MAX_FILE_BYTES`; when it crosses,
+  it latches a flag and emits `RecorderRotateRequested { id,
+  bytes_written }` on the bus. Dart subscribes, allocates a fresh
+  path under the session directory (uses `getApplicationSupportDirectory`
+  + `hardenFilePerms` — platform concerns stay Dart), and enqueues a
+  `Rotate { new_path }` plus the next `Header`.
+- FRB: `recorder_queue_spawn`, `recorder_queue_enqueue_header`,
+  `recorder_queue_enqueue_event`, `recorder_queue_enqueue_rotate`,
+  `recorder_queue_enqueue_close`. Bus event `RecorderRotateRequested`
+  added to the recorder topic.
+- Dart `SessionRecorder` retires its `_writeQueue` /
+  `_writeSub` / `_drainOne` / local byte-counter rotation check.
+  The new shape is fire-and-forget enqueues + a bus subscription
+  that handles rotation. Playback browser stays (read-only file
+  consumer, no state).
 
 ### 11 — `qr_codec` finish + `import_service` close
 

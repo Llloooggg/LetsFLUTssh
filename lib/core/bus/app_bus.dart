@@ -50,4 +50,20 @@ class AppBus {
       return eventId == connectionId;
     });
   }
+
+  /// Convenience — subscribe to [BusTopic.recorder] events and
+  /// filter to a single recording id. Variants without an id are
+  /// dropped.
+  Stream<rust_bus.BusEvent> subscribeRecorder(String recorderId) {
+    return subscribe(rust_bus.BusTopic.recorder).where((e) {
+      final eventId = switch (e) {
+        rust_bus.BusEvent_RecorderStarted(:final id) => id,
+        rust_bus.BusEvent_RecorderStopped(:final id) => id,
+        rust_bus.BusEvent_RecorderBytesWritten(:final id) => id,
+        rust_bus.BusEvent_RecorderRotateRequested(:final id) => id,
+        _ => null,
+      };
+      return eventId == recorderId;
+    });
+  }
 }

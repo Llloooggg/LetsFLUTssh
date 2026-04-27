@@ -239,6 +239,14 @@ sealed class BusEvent with _$BusEvent {
     required BigInt totalBytes,
   }) = BusEvent_RecorderBytesWritten;
 
+  /// Recorder — running total crossed the per-file cap; the
+  /// Dart shim subscribes, prepares a fresh path, and fires
+  /// `recorder_queue_enqueue_rotate` to roll the recording over.
+  const factory BusEvent.recorderRotateRequested({
+    required String id,
+    required BigInt bytesWritten,
+  }) = BusEvent_RecorderRotateRequested;
+
   /// Transfer queue — task entered the queue.
   const factory BusEvent.transferTaskAdded({required String id}) =
       BusEvent_TransferTaskAdded;

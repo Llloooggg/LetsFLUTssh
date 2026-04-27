@@ -160,3 +160,95 @@ pub async fn recorder_close(id: String) -> Result<(), String> {
     .await
     .map_err(|e| format!("recorder close task: {e}"))?
 }
+
+// =====================================================================
+// Per-id write queue surface
+// =====================================================================
+//
+// The Dart shim does not call `recorder_record_*` directly any more —
+// the per-id worker inside `lfs_core::recorder::queue` drains a
+// dedicated mpsc and serialises calls into the registry so the
+// asciinema event stream lands on disk in arrival order even when
+// concurrent FRB calls overlap on the runtime. Spawn the worker once
+// after `recorder_register`; use the enqueue endpoints below for the
+// recording's lifetime; close drains + drops the worker.
+
+/// Spawn the per-id write worker. Pair with a prior
+/// [`recorder_register`] so the actor row exists. Idempotent on a
+/// re-spawn for the same id (the prior worker exits cleanly on its
+/// next mailbox `recv`).
+pub async fn recorder_queue_spawn(id: String) {
+    let app = lfs_core::app::instance();
+    app.recorder_queue.spawn(id).await;
+}
+
+/// Enqueue an asciinema header line. Fire-and-forget — returns once
+/// the entry is in the worker's mailbox; the actual write happens
+/// out of band and emits the usual `RecorderBytesWritten` bus event.
+pub async fn recorder_queue_enqueue_header(
+    id: String,
+    width: u32,
+    height: u32,
+    shell_label: String,
+) -> Result<(), String> {
+    let app = lfs_core::app::instance();
+    app.recorder_queue
+        .enqueue(
+            &id,
+            lfs_core::recorder::queue::QueueEntry::Header {
+                width,
+                height,
+                shell_label,
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Enqueue a terminal event chunk. Same fire-and-forget shape as
+/// [`recorder_queue_enqueue_header`]. `bytes` is the raw chunk
+/// (output or input); the worker hands it to the registry which
+/// composes the asciinema event line and applies AES-GCM in
+/// encrypted mode.
+pub async fn recorder_queue_enqueue_event(
+    id: String,
+    direction: DbRecordDirection,
+    bytes: Vec<u8>,
+) -> Result<(), String> {
+    let app = lfs_core::app::instance();
+    app.recorder_queue
+        .enqueue(
+            &id,
+            lfs_core::recorder::queue::QueueEntry::Event {
+                kind: direction.into(),
+                bytes,
+            },
+        )
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Enqueue an atomic rotation to a fresh file. The Dart side owns
+/// path allocation (the platform `getApplicationSupportDirectory`
+/// + `hardenFilePerms` sweeps); this enqueue just hands the worker
+/// the new destination.
+pub async fn recorder_queue_enqueue_rotate(id: String, new_path: String) -> Result<(), String> {
+    let app = lfs_core::app::instance();
+    app.recorder_queue
+        .enqueue(
+            &id,
+            lfs_core::recorder::queue::QueueEntry::Rotate { new_path },
+        )
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Enqueue a close. The worker drains any in-flight entries, calls
+/// `close_with_io`, drops itself from the queue map, and exits.
+pub async fn recorder_queue_enqueue_close(id: String) -> Result<(), String> {
+    let app = lfs_core::app::instance();
+    app.recorder_queue
+        .enqueue(&id, lfs_core::recorder::queue::QueueEntry::Close)
+        .await
+        .map_err(|e| e.to_string())
+}

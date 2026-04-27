@@ -22,6 +22,7 @@ use crate::db::Db;
 use crate::deeplink::DeeplinkDispatcher;
 use crate::error::Error;
 use crate::portforward::PortForwardRegistry;
+use crate::recorder::queue::RecorderQueue;
 use crate::recorder::RecorderRegistry;
 use crate::secrets::SecretStore;
 use crate::transfer::driver::WorkerPool;
@@ -52,6 +53,12 @@ pub struct AppState {
     /// active recording — Dart-side `SessionRecorder` swaps to
     /// thin views over this once the frame-write driver lands.
     pub recorders: RecorderRegistry,
+    /// Per-recording write queue. The Dart shim enqueues header /
+    /// event / rotate / close entries; a dedicated tokio worker per
+    /// id drains and serialises against the registry so the
+    /// asciinema event sequence on disk reflects the user's input
+    /// / terminal-output sequence even under concurrent FRB calls.
+    pub recorder_queue: RecorderQueue,
     /// Transfer queue. Owns the canonical task table + per-task
     /// progress.
     pub transfers: TransferQueue,
@@ -82,6 +89,7 @@ impl AppState {
             connections: ConnectionRegistry::new(),
             autolock: Arc::new(AutoLockMachine::new()),
             recorders: RecorderRegistry::new(),
+            recorder_queue: RecorderQueue::new(),
             transfers: TransferQueue::new(),
             transfer_pool: Mutex::new(None),
             port_forwards: PortForwardRegistry::new(),

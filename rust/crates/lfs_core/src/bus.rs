@@ -128,6 +128,15 @@ pub enum Event {
     /// a chunk of bytes. Carries the running total so subscribers
     /// can render progress without polling.
     RecorderBytesWritten { id: String, total_bytes: u64 },
+    /// Recorder — fired by the per-id worker when the running
+    /// total crosses [`crate::recorder::MAX_FILE_BYTES`]. The
+    /// Dart shim subscribes, prepares a fresh path under the
+    /// session's recording dir, and enqueues a
+    /// [`crate::recorder::queue::QueueEntry::Rotate`]. The
+    /// worker latches the request flag so a single overflow
+    /// emits one event regardless of how many writes follow
+    /// before the rotate enqueue arrives.
+    RecorderRotateRequested { id: String, bytes_written: u64 },
 
     /// Transfer queue — task entered the queue.
     TransferTaskAdded { id: String },
@@ -181,7 +190,8 @@ impl Event {
             | Event::AutoLockTimeoutChanged { .. } => EventTopic::AutoLock,
             Event::RecorderStarted { .. }
             | Event::RecorderStopped { .. }
-            | Event::RecorderBytesWritten { .. } => EventTopic::Recorder,
+            | Event::RecorderBytesWritten { .. }
+            | Event::RecorderRotateRequested { .. } => EventTopic::Recorder,
             Event::TransferTaskAdded { .. }
             | Event::TransferTaskState { .. }
             | Event::TransferTaskProgress { .. }

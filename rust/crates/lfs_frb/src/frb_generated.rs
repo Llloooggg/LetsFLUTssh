@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -942486667;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 875768921;
 
 // Section: executor
 
@@ -6069,6 +6069,211 @@ fn wire__crate__api__recorder__recorder_max_file_bytes_impl(
         },
     )
 }
+fn wire__crate__api__recorder__recorder_queue_enqueue_close_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "recorder_queue_enqueue_close",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::recorder::recorder_queue_enqueue_close(api_id).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__recorder__recorder_queue_enqueue_event_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "recorder_queue_enqueue_event",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_direction =
+                <crate::api::recorder::DbRecordDirection>::sse_decode(&mut deserializer);
+            let api_bytes = <Vec<u8>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::recorder::recorder_queue_enqueue_event(
+                            api_id,
+                            api_direction,
+                            api_bytes,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__recorder__recorder_queue_enqueue_header_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "recorder_queue_enqueue_header",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_width = <u32>::sse_decode(&mut deserializer);
+            let api_height = <u32>::sse_decode(&mut deserializer);
+            let api_shell_label = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::recorder::recorder_queue_enqueue_header(
+                            api_id,
+                            api_width,
+                            api_height,
+                            api_shell_label,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__recorder__recorder_queue_enqueue_rotate_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "recorder_queue_enqueue_rotate",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_new_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::recorder::recorder_queue_enqueue_rotate(
+                            api_id,
+                            api_new_path,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__recorder__recorder_queue_spawn_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "recorder_queue_spawn",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok = Result::<_, ()>::Ok({
+                            crate::api::recorder::recorder_queue_spawn(api_id).await;
+                        })?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__recorder__recorder_record_event_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -8348,9 +8553,17 @@ impl SseDecode for crate::api::bus::BusEvent {
             }
             11 => {
                 let mut var_id = <String>::sse_decode(deserializer);
-                return crate::api::bus::BusEvent::TransferTaskAdded { id: var_id };
+                let mut var_bytesWritten = <u64>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::RecorderRotateRequested {
+                    id: var_id,
+                    bytes_written: var_bytesWritten,
+                };
             }
             12 => {
+                let mut var_id = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::TransferTaskAdded { id: var_id };
+            }
+            13 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_state = <crate::api::bus::BusTaskState>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::TransferTaskState {
@@ -8358,7 +8571,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     state: var_state,
                 };
             }
-            13 => {
+            14 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_bytesDone = <u64>::sse_decode(deserializer);
                 let mut var_bytesTotal = <u64>::sse_decode(deserializer);
@@ -8368,7 +8581,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     bytes_total: var_bytesTotal,
                 };
             }
-            14 => {
+            15 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_detail = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::TransferTaskError {
@@ -8376,11 +8589,11 @@ impl SseDecode for crate::api::bus::BusEvent {
                     detail: var_detail,
                 };
             }
-            15 => {
+            16 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::PortForwardRegistered { id: var_id };
             }
-            16 => {
+            17 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_status = <crate::api::bus::BusRuleStatus>::sse_decode(deserializer);
                 let mut var_detail = <Option<String>>::sse_decode(deserializer);
@@ -8390,11 +8603,11 @@ impl SseDecode for crate::api::bus::BusEvent {
                     detail: var_detail,
                 };
             }
-            17 => {
+            18 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::PortForwardRemoved { id: var_id };
             }
-            18 => {
+            19 => {
                 let mut var_url = <String>::sse_decode(deserializer);
                 let mut var_writtenBytes = <u64>::sse_decode(deserializer);
                 let mut var_totalBytes = <Option<u64>>::sse_decode(deserializer);
@@ -10201,111 +10414,138 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        144 => wire__crate__api__recorder__recorder_record_event_impl(
+        144 => wire__crate__api__recorder__recorder_queue_enqueue_close_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        145 => wire__crate__api__recorder__recorder_record_header_impl(
+        145 => wire__crate__api__recorder__recorder_queue_enqueue_event_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        146 => {
+        146 => wire__crate__api__recorder__recorder_queue_enqueue_header_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        147 => wire__crate__api__recorder__recorder_queue_enqueue_rotate_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        148 => {
+            wire__crate__api__recorder__recorder_queue_spawn_impl(port, ptr, rust_vec_len, data_len)
+        }
+        149 => wire__crate__api__recorder__recorder_record_event_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        150 => wire__crate__api__recorder__recorder_record_header_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        151 => {
             wire__crate__api__recorder__recorder_register_impl(port, ptr, rust_vec_len, data_len)
         }
-        147 => {
+        152 => {
             wire__crate__api__recorder__recorder_rotate_to_impl(port, ptr, rust_vec_len, data_len)
         }
-        150 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
-        151 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
-        152 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
-        153 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
-        154 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
+        155 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
+        156 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
+        157 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
+        158 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
+        159 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        155 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
-        156 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
-        157 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
+        160 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
+        161 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
+        162 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        158 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
+        163 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        159 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
-        160 => {
+        164 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
+        165 => {
             wire__crate__api__ssh__ssh_connect_pubkey_cert_impl(port, ptr, rust_vec_len, data_len)
         }
-        161 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
+        166 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        162 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
+        167 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        163 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
+        168 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        164 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
+        169 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        165 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
+        170 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        166 => {
+        171 => {
             wire__crate__api__forward__ssh_open_direct_tcpip_impl(port, ptr, rust_vec_len, data_len)
         }
-        167 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
-        168 => wire__crate__api__forward__ssh_request_remote_forward_impl(
+        172 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
+        173 => wire__crate__api__forward__ssh_request_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        169 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
-        170 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
-        171 => {
+        174 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
+        175 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
+        176 => {
             wire__crate__api__ssh__ssh_try_connect_password_impl(port, ptr, rust_vec_len, data_len)
         }
-        172 => {
+        177 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
-        174 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-        175 => {
+        179 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+        180 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        179 => wire__crate__api__update_http__update_download_to_file_impl(
+        184 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        180 => {
+        185 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -10337,17 +10577,17 @@ fn pde_ffi_dispatcher_sync_impl(
 132 => wire__crate__api__ssh_config__parse_openssh_config_with_includes_impl(ptr, rust_vec_len, data_len),
 133 => wire__crate__api__path__path_expand_tilde_impl(ptr, rust_vec_len, data_len),
 134 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
-148 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
-149 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
-173 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
-176 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-177 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-178 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-181 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-182 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-183 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-184 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-185 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+153 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
+154 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
+178 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
+181 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+182 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+183 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+186 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+187 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+188 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+189 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+190 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -10648,11 +10888,17 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 total_bytes.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::bus::BusEvent::RecorderRotateRequested { id, bytes_written } => [
+                11.into_dart(),
+                id.into_into_dart().into_dart(),
+                bytes_written.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::api::bus::BusEvent::TransferTaskAdded { id } => {
-                [11.into_dart(), id.into_into_dart().into_dart()].into_dart()
+                [12.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::TransferTaskState { id, state } => [
-                12.into_dart(),
+                13.into_dart(),
                 id.into_into_dart().into_dart(),
                 state.into_into_dart().into_dart(),
             ]
@@ -10662,37 +10908,37 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 bytes_done,
                 bytes_total,
             } => [
-                13.into_dart(),
+                14.into_dart(),
                 id.into_into_dart().into_dart(),
                 bytes_done.into_into_dart().into_dart(),
                 bytes_total.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::TransferTaskError { id, detail } => [
-                14.into_dart(),
+                15.into_dart(),
                 id.into_into_dart().into_dart(),
                 detail.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::PortForwardRegistered { id } => {
-                [15.into_dart(), id.into_into_dart().into_dart()].into_dart()
+                [16.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::PortForwardStatus { id, status, detail } => [
-                16.into_dart(),
+                17.into_dart(),
                 id.into_into_dart().into_dart(),
                 status.into_into_dart().into_dart(),
                 detail.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::PortForwardRemoved { id } => {
-                [17.into_dart(), id.into_into_dart().into_dart()].into_dart()
+                [18.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::UpdateDownloadProgress {
                 url,
                 written_bytes,
                 total_bytes,
             } => [
-                18.into_dart(),
+                19.into_dart(),
                 url.into_into_dart().into_dart(),
                 written_bytes.into_into_dart().into_dart(),
                 total_bytes.into_into_dart().into_dart(),
@@ -12243,12 +12489,17 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <String>::sse_encode(id, serializer);
                 <u64>::sse_encode(total_bytes, serializer);
             }
-            crate::api::bus::BusEvent::TransferTaskAdded { id } => {
+            crate::api::bus::BusEvent::RecorderRotateRequested { id, bytes_written } => {
                 <i32>::sse_encode(11, serializer);
+                <String>::sse_encode(id, serializer);
+                <u64>::sse_encode(bytes_written, serializer);
+            }
+            crate::api::bus::BusEvent::TransferTaskAdded { id } => {
+                <i32>::sse_encode(12, serializer);
                 <String>::sse_encode(id, serializer);
             }
             crate::api::bus::BusEvent::TransferTaskState { id, state } => {
-                <i32>::sse_encode(12, serializer);
+                <i32>::sse_encode(13, serializer);
                 <String>::sse_encode(id, serializer);
                 <crate::api::bus::BusTaskState>::sse_encode(state, serializer);
             }
@@ -12257,28 +12508,28 @@ impl SseEncode for crate::api::bus::BusEvent {
                 bytes_done,
                 bytes_total,
             } => {
-                <i32>::sse_encode(13, serializer);
+                <i32>::sse_encode(14, serializer);
                 <String>::sse_encode(id, serializer);
                 <u64>::sse_encode(bytes_done, serializer);
                 <u64>::sse_encode(bytes_total, serializer);
             }
             crate::api::bus::BusEvent::TransferTaskError { id, detail } => {
-                <i32>::sse_encode(14, serializer);
+                <i32>::sse_encode(15, serializer);
                 <String>::sse_encode(id, serializer);
                 <String>::sse_encode(detail, serializer);
             }
             crate::api::bus::BusEvent::PortForwardRegistered { id } => {
-                <i32>::sse_encode(15, serializer);
+                <i32>::sse_encode(16, serializer);
                 <String>::sse_encode(id, serializer);
             }
             crate::api::bus::BusEvent::PortForwardStatus { id, status, detail } => {
-                <i32>::sse_encode(16, serializer);
+                <i32>::sse_encode(17, serializer);
                 <String>::sse_encode(id, serializer);
                 <crate::api::bus::BusRuleStatus>::sse_encode(status, serializer);
                 <Option<String>>::sse_encode(detail, serializer);
             }
             crate::api::bus::BusEvent::PortForwardRemoved { id } => {
-                <i32>::sse_encode(17, serializer);
+                <i32>::sse_encode(18, serializer);
                 <String>::sse_encode(id, serializer);
             }
             crate::api::bus::BusEvent::UpdateDownloadProgress {
@@ -12286,7 +12537,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 written_bytes,
                 total_bytes,
             } => {
-                <i32>::sse_encode(18, serializer);
+                <i32>::sse_encode(19, serializer);
                 <String>::sse_encode(url, serializer);
                 <u64>::sse_encode(written_bytes, serializer);
                 <Option<u64>>::sse_encode(total_bytes, serializer);

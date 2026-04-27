@@ -867,7 +867,7 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
 | 5.1 Connection lifecycle | `[-]` Rust actor + bus events + ProxyJump shipped; Dart `ConnectionManager` still owns registry / generation / bastion-await / credential overlay / active-count — see [RUST_MIGRATION_NEXT_PLAN.md] step 4 |
 | 5.2 Port forward actor | `[x]` shipped — Rust drivers (`-L` / `-D` SOCKS5 / `-R`) + bus events landed earlier; Dart `PortForwardRuntime` retired to a ~150-LOC FRB shim |
 | 5.3 Transfer queue actor | `[-]` Rust queue + state machine + bus events shipped; Tokio worker-pool driver + Dart `TransferManager` retire pending — NEXT_PLAN step 5 |
-| 5.4 Recorder | `[-]` Rust registry + bus events shipped; frame-write driver + Dart `SessionRecorder` retire pending — NEXT_PLAN step 10 |
+| 5.4 Recorder | `[x]` shipped — `lfs_core::recorder::queue` per-id mpsc + worker serialises header/event/rotate/close; auto-rotation routes through a `RecorderRotateRequested` bus event; Dart `SessionRecorder` reduced to fire-and-forget enqueues |
 | 5.5 Auto-lock state | `[-]` Rust state machine + ticker + bus events shipped; Dart `AutoLockDetector` lifecycle-bridge swap + full security-tier orchestration retire pending — NEXT_PLAN step 9 |
 | 5.6 `.lfs` import | `[-]` Rust handle registry + sanitized preview shape shipped; decrypt/parse/apply driver + Dart `ImportService` retire pending — NEXT_PLAN step 11 |
 | 5.7 Native plugin Rust ports | `[x]` shipped — `TpmClient`, `FprintdClient`, `WinBioProbe`, macOS code-signing all routed through `lfs_core::platform::*` |
