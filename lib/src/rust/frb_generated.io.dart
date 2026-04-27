@@ -237,6 +237,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFolder dco_decode_box_autoadd_db_folder(dynamic raw);
 
   @protected
+  DbImportPreview dco_decode_box_autoadd_db_import_preview(dynamic raw);
+
+  @protected
   DbKnownHost dco_decode_box_autoadd_db_known_host(dynamic raw);
 
   @protected
@@ -328,6 +331,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbConnectLink dco_decode_db_connect_link(dynamic raw);
+
+  @protected
+  DbDeeplinkOutcome dco_decode_db_deeplink_outcome(dynamic raw);
 
   @protected
   DbExportInput dco_decode_db_export_input(dynamic raw);
@@ -781,6 +787,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFolder sse_decode_box_autoadd_db_folder(SseDeserializer deserializer);
 
   @protected
+  DbImportPreview sse_decode_box_autoadd_db_import_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbKnownHost sse_decode_box_autoadd_db_known_host(
     SseDeserializer deserializer,
   );
@@ -896,6 +907,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbConnectLink sse_decode_db_connect_link(SseDeserializer deserializer);
+
+  @protected
+  DbDeeplinkOutcome sse_decode_db_deeplink_outcome(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbExportInput sse_decode_db_export_input(SseDeserializer deserializer);
@@ -1446,6 +1462,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_import_preview(
+    DbImportPreview self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_known_host(
     DbKnownHost self,
     SseSerializer serializer,
@@ -1594,6 +1616,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_connect_link(DbConnectLink self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_deeplink_outcome(
+    DbDeeplinkOutcome self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_export_input(DbExportInput self, SseSerializer serializer);

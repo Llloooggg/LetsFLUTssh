@@ -19,6 +19,7 @@ use crate::autolock::AutoLockMachine;
 use crate::bus::EventBus;
 use crate::connection::ConnectionRegistry;
 use crate::db::Db;
+use crate::deeplink::DeeplinkDispatcher;
 use crate::error::Error;
 use crate::portforward::PortForwardRegistry;
 use crate::recorder::RecorderRegistry;
@@ -66,6 +67,10 @@ pub struct AppState {
     /// calls so plaintext entries never leak through the Dart
     /// heap during the user's preview review.
     pub imports: ImportRegistry,
+    /// Deep-link dispatcher. Owns dedup state across the
+    /// `app_links.getInitialLink` / `uriLinkStream` cold-start
+    /// race so the Dart side is just a URI pump.
+    pub deeplinks: DeeplinkDispatcher,
 }
 
 impl AppState {
@@ -81,6 +86,7 @@ impl AppState {
             transfer_pool: Mutex::new(None),
             port_forwards: PortForwardRegistry::new(),
             imports: ImportRegistry::new(),
+            deeplinks: DeeplinkDispatcher::new(),
         }
     }
 

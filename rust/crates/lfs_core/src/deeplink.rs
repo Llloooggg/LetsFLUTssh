@@ -1,10 +1,18 @@
-//! Deep-link URI parser.
+//! Deep-link URI parser + dispatcher.
 //!
-//! Mirrors `DeepLinkHandler.parseConnectUri` in the Flutter app
-//! byte-for-byte. The OS hands us URIs from registered schemes
-//! (`letsflutssh://connect?...`) plus file/content URIs from
-//! "Open with" intents; this module owns the rules that decide
-//! when a URI is a valid connect-link payload.
+//! [`parse_connect_uri`] mirrors `DeepLinkHandler.parseConnectUri` in
+//! the Flutter app byte-for-byte. The OS hands us URIs from registered
+//! schemes (`letsflutssh://connect?...`) plus file/content URIs from
+//! "Open with" intents; this module owns the rules that decide when a
+//! URI is a valid connect-link payload.
+//!
+//! [`DeeplinkDispatcher`] is the next layer up: it dedups duplicate
+//! URIs (cold-start `getInitialLink` + `uriLinkStream` race), routes
+//! by scheme + host + file extension, and (for QR import) decodes the
+//! payload and stages it in [`crate::archive::ImportRegistry`] before
+//! returning a typed [`DeeplinkOutcome`] to the FRB caller. The Dart
+//! shim is then a thin URI pump that switches on the outcome to
+//! drive the right UI action.
 //!
 //! # Why Rust
 //!
@@ -13,7 +21,8 @@
 //! controllable input. The fuzz suite drives 2000 random URI
 //! shapes through and asserts no panic; keeping the canonical
 //! implementation Rust-side stays in one place rather than
-//! diverging between frontends.
+//! diverging between frontends. Dedup + scheme routing live
+//! Rust-side for the same reason: one canonical truth.
 
 /// Parsed payload of a `letsflutssh://connect?...` URI. Mirrors
 /// the Dart-side `SSHConfig.server` shape — no credential fields
@@ -210,6 +219,215 @@ fn percent_decode(s: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
+// =====================================================================
+// Dispatcher
+// =====================================================================
+
+/// Typed outcome of a [`DeeplinkDispatcher::dispatch`] call. Mirrors
+/// the Dart-era `DeepLinkHandler` callbacks (`onConnect`,
+/// `onLfsFileOpened`, `onKeyFileOpened`, `onQrImport`,
+/// `onQrImportVersionTooNew`) plus the `Duplicate` / `Unknown`
+/// branches that previously logged-and-dropped Dart-side.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DeeplinkOutcome {
+    /// `letsflutssh://connect?host=…&user=…[&port=…]` — open a
+    /// terminal tab against the parsed endpoint.
+    Connect { host: String, port: u16, user: String },
+    /// `letsflutssh://import?d=…` decoded successfully. The
+    /// `pending` payload is staged in `AppState::imports` under
+    /// `handle_id`; the Dart side fetches the preview from the
+    /// registry and routes to the import-preview dialog.
+    QrImport {
+        handle_id: String,
+        schema_version: i64,
+    },
+    /// `letsflutssh://import?d=…` carries a wire version newer than
+    /// this build understands. Surface as "update the app" toast.
+    QrImportRejected { found: i64, supported: i64 },
+    /// `file://…/*.lfs` or `content://…/*.lfs` — hand path to the
+    /// `.lfs` import dialog.
+    OpenLfs { path: String },
+    /// `file://…/*.{pem,key,pub}` or `content://…/*.{pem,key,pub}`
+    /// — hand path to the SSH-key receiver.
+    OpenKeyFile { path: String },
+    /// Recognised URI but no actionable mapping (unknown
+    /// `letsflutssh://` action, unsupported file extension,
+    /// unknown scheme). Logged Rust-side; Dart UI does nothing.
+    Unknown,
+    /// URI matched the dispatcher's last-seen entry inside the
+    /// dedup window. Cold-start `getInitialLink` +
+    /// `uriLinkStream` can fire the same URI twice — this branch
+    /// suppresses the duplicate so the user does not get two
+    /// dialogs / two tabs from one tap.
+    Duplicate,
+}
+
+/// Dedup window — covers the cold-start race between
+/// `app_links.getInitialLink()` and `app_links.uriLinkStream`
+/// without blocking a deliberate re-tap of the same QR / link
+/// after the user came back from background.
+const DEDUP_WINDOW_MS: u128 = 2000;
+
+/// Stateful dispatcher owned by [`crate::app::AppState`]. Owns
+/// only the dedup state (last URI + timestamp); routing and QR
+/// staging delegate to pure functions in this module / the
+/// archive registry.
+pub struct DeeplinkDispatcher {
+    inner: std::sync::Mutex<DispatcherInner>,
+}
+
+#[derive(Default)]
+struct DispatcherInner {
+    last_uri: Option<String>,
+    last_at: Option<std::time::Instant>,
+}
+
+impl DeeplinkDispatcher {
+    pub fn new() -> Self {
+        Self {
+            inner: std::sync::Mutex::new(DispatcherInner::default()),
+        }
+    }
+
+    /// Dedup, route, and (for QR import) stage. Returns the typed
+    /// outcome the FRB caller hands to the Dart UI. Idempotent on
+    /// dedup — repeated calls within the window return
+    /// `DeeplinkOutcome::Duplicate` and do not re-stage / re-emit.
+    pub fn dispatch(&self, uri: &str) -> DeeplinkOutcome {
+        if self.is_duplicate(uri) {
+            return DeeplinkOutcome::Duplicate;
+        }
+        self.record(uri);
+        route(uri)
+    }
+
+    fn is_duplicate(&self, uri: &str) -> bool {
+        let g = self.inner.lock().expect("deeplink dispatcher mutex poisoned");
+        match (&g.last_uri, &g.last_at) {
+            (Some(last), Some(at)) => {
+                last == uri && at.elapsed().as_millis() < DEDUP_WINDOW_MS
+            }
+            _ => false,
+        }
+    }
+
+    fn record(&self, uri: &str) {
+        let mut g = self.inner.lock().expect("deeplink dispatcher mutex poisoned");
+        g.last_uri = Some(uri.to_string());
+        g.last_at = Some(std::time::Instant::now());
+    }
+}
+
+impl Default for DeeplinkDispatcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Pure routing function — split out from
+/// [`DeeplinkDispatcher::dispatch`] so the dedup state is the
+/// only stateful concern. Tests cover the routing matrix here
+/// directly without spinning up the singleton AppState.
+fn route(uri: &str) -> DeeplinkOutcome {
+    let parsed = match ParsedUri::parse(uri) {
+        Some(p) => p,
+        None => return DeeplinkOutcome::Unknown,
+    };
+    match parsed.scheme {
+        "letsflutssh" => route_custom_scheme(&parsed, uri),
+        "file" | "content" => route_file_uri(uri),
+        _ => DeeplinkOutcome::Unknown,
+    }
+}
+
+fn route_custom_scheme(parsed: &ParsedUri<'_>, full: &str) -> DeeplinkOutcome {
+    match parsed.host_part {
+        Some("connect") => match parse_connect_uri(full) {
+            Some(link) => DeeplinkOutcome::Connect {
+                host: link.host,
+                port: link.port,
+                user: link.user,
+            },
+            None => DeeplinkOutcome::Unknown,
+        },
+        Some("import") => stage_qr_import(full),
+        _ => DeeplinkOutcome::Unknown,
+    }
+}
+
+fn stage_qr_import(uri: &str) -> DeeplinkOutcome {
+    let payload = match crate::qr_codec_decode::extract_payload_from_uri(uri) {
+        Some(p) => p,
+        None => return DeeplinkOutcome::Unknown,
+    };
+    match crate::qr_codec_decode::try_decode_payload(&payload) {
+        crate::qr_codec_decode::QrDecodeResult::Ok(decoded) => {
+            let handle_id = random_handle_id();
+            crate::app::instance()
+                .imports
+                .insert(handle_id.clone(), decoded.pending);
+            DeeplinkOutcome::QrImport {
+                handle_id,
+                schema_version: decoded.schema_version,
+            }
+        }
+        crate::qr_codec_decode::QrDecodeResult::VersionTooNew { found, supported } => {
+            DeeplinkOutcome::QrImportRejected { found, supported }
+        }
+        crate::qr_codec_decode::QrDecodeResult::Err(_) => DeeplinkOutcome::Unknown,
+    }
+}
+
+/// Map a `file://…` / `content://…` URI to the right open-action
+/// outcome by file extension. Mirrors the Dart-era `handleFileUri`
+/// (`.lfs` → archive, `.pem` / `.key` / `.pub` → SSH key).
+fn route_file_uri(uri: &str) -> DeeplinkOutcome {
+    // Strip query / fragment + scheme so the extension match runs
+    // on a clean path. Lowercased so case differences in
+    // user-typed extensions don't miss the match.
+    let path_section = uri
+        .splitn(2, '?')
+        .next()
+        .unwrap_or(uri)
+        .splitn(2, '#')
+        .next()
+        .unwrap_or(uri);
+    let lower = path_section.to_ascii_lowercase();
+    let raw_path = strip_file_scheme(uri);
+    if lower.ends_with(".lfs") {
+        return DeeplinkOutcome::OpenLfs { path: raw_path };
+    }
+    if lower.ends_with(".pem") || lower.ends_with(".key") || lower.ends_with(".pub") {
+        return DeeplinkOutcome::OpenKeyFile { path: raw_path };
+    }
+    DeeplinkOutcome::Unknown
+}
+
+fn strip_file_scheme(uri: &str) -> String {
+    if let Some(rest) = uri.strip_prefix("file://") {
+        rest.to_string()
+    } else if let Some(rest) = uri.strip_prefix("content://") {
+        // content URIs stay opaque — Android resolves them via
+        // ContentResolver. The Dart side hands the original URI
+        // back to the OS; we just preserve the full string.
+        format!("content://{rest}")
+    } else {
+        uri.to_string()
+    }
+}
+
+fn random_handle_id() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; 16];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    let mut hex = String::with_capacity(32);
+    for b in bytes {
+        use std::fmt::Write as _;
+        let _ = write!(hex, "{b:02x}");
+    }
+    hex
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,6 +542,151 @@ mod tests {
         for input in inputs {
             // All we promise: no panic.
             let _ = parse_connect_uri(input);
+        }
+    }
+
+    // ---- Dispatcher tests ----------------------------------------
+
+    #[test]
+    fn route_connect_returns_typed_link() {
+        match route("letsflutssh://connect?host=10.0.0.1&user=root&port=2222") {
+            DeeplinkOutcome::Connect { host, port, user } => {
+                assert_eq!(host, "10.0.0.1");
+                assert_eq!(port, 2222);
+                assert_eq!(user, "root");
+            }
+            other => panic!("expected Connect, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn route_connect_invalid_returns_unknown() {
+        // Missing user — the connect parser rejects, dispatcher
+        // collapses to Unknown.
+        assert_eq!(
+            route("letsflutssh://connect?host=h"),
+            DeeplinkOutcome::Unknown
+        );
+    }
+
+    #[test]
+    fn route_unknown_action_returns_unknown() {
+        assert_eq!(
+            route("letsflutssh://summon?spell=fireball"),
+            DeeplinkOutcome::Unknown
+        );
+    }
+
+    #[test]
+    fn route_lfs_file() {
+        match route("file:///tmp/backup.lfs") {
+            DeeplinkOutcome::OpenLfs { path } => assert_eq!(path, "/tmp/backup.lfs"),
+            other => panic!("expected OpenLfs, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn route_lfs_file_case_insensitive() {
+        match route("file:///tmp/Backup.LFS") {
+            DeeplinkOutcome::OpenLfs { .. } => {}
+            other => panic!("expected OpenLfs, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn route_pem_key_file() {
+        match route("file:///home/u/.ssh/id_ed25519.pem") {
+            DeeplinkOutcome::OpenKeyFile { path } => {
+                assert_eq!(path, "/home/u/.ssh/id_ed25519.pem")
+            }
+            other => panic!("expected OpenKeyFile, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn route_key_extension_variants() {
+        assert!(matches!(
+            route("file:///tmp/a.key"),
+            DeeplinkOutcome::OpenKeyFile { .. }
+        ));
+        assert!(matches!(
+            route("file:///tmp/a.pub"),
+            DeeplinkOutcome::OpenKeyFile { .. }
+        ));
+    }
+
+    #[test]
+    fn route_unknown_file_extension() {
+        assert_eq!(
+            route("file:///tmp/note.txt"),
+            DeeplinkOutcome::Unknown
+        );
+    }
+
+    #[test]
+    fn route_unknown_scheme() {
+        assert_eq!(route("https://example.com"), DeeplinkOutcome::Unknown);
+        assert_eq!(route("garbage"), DeeplinkOutcome::Unknown);
+    }
+
+    #[test]
+    fn dispatcher_dedups_within_window() {
+        let d = DeeplinkDispatcher::new();
+        let uri = "letsflutssh://connect?host=h&user=u";
+        // First call routes normally.
+        match d.dispatch(uri) {
+            DeeplinkOutcome::Connect { .. } => {}
+            other => panic!("first call: expected Connect, got {other:?}"),
+        }
+        // Second call within window collapses to Duplicate.
+        assert_eq!(d.dispatch(uri), DeeplinkOutcome::Duplicate);
+    }
+
+    #[test]
+    fn dispatcher_does_not_dedup_distinct_uris() {
+        let d = DeeplinkDispatcher::new();
+        match d.dispatch("letsflutssh://connect?host=a&user=u") {
+            DeeplinkOutcome::Connect { .. } => {}
+            other => panic!("expected Connect, got {other:?}"),
+        }
+        match d.dispatch("letsflutssh://connect?host=b&user=u") {
+            DeeplinkOutcome::Connect { .. } => {}
+            other => panic!("expected Connect, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn dispatcher_routes_qr_version_too_new_without_app_state() {
+        // Versions are detected before staging — this branch never
+        // touches AppState::imports, so we can exercise it without
+        // initialising the singleton.
+        // Encode a payload with v=999 (above CURRENT_FORMAT_VERSION = 4).
+        // Smallest valid wrapper: just `{"v":999}` deflate+base64url.
+        use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine as _};
+        use flate2::write::DeflateEncoder;
+        use flate2::Compression;
+        use std::io::Write;
+        let json = b"{\"v\":999}";
+        let mut enc = DeflateEncoder::new(Vec::new(), Compression::default());
+        enc.write_all(json).unwrap();
+        let deflated = enc.finish().unwrap();
+        let payload = URL_SAFE_NO_PAD.encode(&deflated);
+        let uri = format!("letsflutssh://import?d={payload}");
+        match route(&uri) {
+            DeeplinkOutcome::QrImportRejected { found, supported } => {
+                assert_eq!(found, 999);
+                assert_eq!(supported, 4);
+            }
+            other => panic!("expected QrImportRejected, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn dispatcher_unknown_for_malformed_qr_payload() {
+        // Garbage payload that's neither valid base64 nor valid JSON.
+        match route("letsflutssh://import?d=!!!") {
+            DeeplinkOutcome::Unknown => {}
+            other => panic!("expected Unknown, got {other:?}"),
         }
     }
 }

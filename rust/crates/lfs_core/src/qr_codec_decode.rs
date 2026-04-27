@@ -58,6 +58,50 @@ pub struct DecodedQrPayload {
     pub schema_version: i64,
 }
 
+/// Outcome of [`try_decode_payload`]. Splits the version-too-new
+/// case out of [`Error`] so callers (notably the deeplink
+/// dispatcher) can surface a typed "this build can't read v{found}"
+/// signal to the UI without parsing error strings.
+#[derive(Debug)]
+pub enum QrDecodeResult {
+    /// Decode succeeded — `pending` ready for staging via
+    /// `ImportRegistry::insert`.
+    Ok(DecodedQrPayload),
+    /// Payload's `v` field exceeded the version this build understands.
+    /// `supported` is [`CURRENT_FORMAT_VERSION`].
+    VersionTooNew { found: i64, supported: i64 },
+    /// Any other decode error (base64 / inflate / utf-8 / JSON shape).
+    Err(Error),
+}
+
+/// Typed decode entry point — splits version-too-new out of the
+/// generic `Error::Crypto` so dispatchers can branch on it cheaply.
+pub fn try_decode_payload(payload: &str) -> QrDecodeResult {
+    let json_text = match decode_to_json_text(payload) {
+        Ok(t) => t,
+        Err(e) => return QrDecodeResult::Err(e),
+    };
+    let json: Value = match serde_json::from_str(&json_text) {
+        Ok(v) => v,
+        Err(e) => return QrDecodeResult::Err(Error::Crypto(format!("payload malformed: {e}"))),
+    };
+    let obj = match json.as_object() {
+        Some(o) => o,
+        None => return QrDecodeResult::Err(Error::Crypto("payload root must be object".into())),
+    };
+    let version = obj.get("v").and_then(|v| v.as_i64()).unwrap_or(1);
+    if version > CURRENT_FORMAT_VERSION {
+        return QrDecodeResult::VersionTooNew {
+            found: version,
+            supported: CURRENT_FORMAT_VERSION,
+        };
+    }
+    match parse_payload(&json) {
+        Ok(p) => QrDecodeResult::Ok(p),
+        Err(e) => QrDecodeResult::Err(e),
+    }
+}
+
 /// Decode the QR / paste-link payload.
 ///
 /// Errors:

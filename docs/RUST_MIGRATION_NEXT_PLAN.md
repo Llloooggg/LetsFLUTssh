@@ -48,7 +48,7 @@ right now"*, the design is wrong.
 | 10b. `session_recorder` ring buffer + driver loop | pending — registry-owned write loop is the next piece |
 | 13e. `tier_backing.dart` dead code drop | DONE | dead — no production caller |
 | 11. `qr_codec` finish + `import_service` close | pending |
-| 12. `deeplink_handler` listener through bus | pending — listener stays Dart (`app_links` plugin), parser already Rust |
+| 12. `deeplink_handler` listener through Rust dispatcher | DONE — `lfs_core::deeplink::DeeplinkDispatcher` owns dedup + scheme/file routing + QR staging; Dart `DeepLinkHandler` shrank to a URI pump that switches on `DbDeeplinkOutcome` |
 | 13a. `aes_gcm.generateKey` → Rust | DONE | `f1d14183` |
 | 13b. `conflict_resolver` | folded into step 7 (prompt protocol) |
 | 13c. `secret_buffer` / `secure_ref` | folded into step 9 (security tier) |
@@ -86,7 +86,7 @@ LOC reflects current tree):
 | `core/import/import_service.dart` | 300 | apply driver remnants | 11 |
 | `core/session/session_recorder.dart` | 348 | ring buffer + write loop (asciinema composer DONE in `5adceb05`; pure UI-side queue carrier remains) | 10b |
 | `core/session/qr_codec.dart` | 980 | encode payload marshalling (Rust pure encode shipped; Dart still owns the `ExportPayloadInput` build) | 11 |
-| `core/deeplink/deeplink_handler.dart` | 266 | `app_links` subscription dispatch (parser already Rust) | 12 |
+| ~~`core/deeplink/deeplink_handler.dart`~~ | ~225 | thin URI pump — `app_links` listener + per-URI `deeplinkDispatch` FRB call + outcome switch; static `parseConnectUri` retained for the Dart fuzz / flutter_test surface | DONE — step 12 |
 | `core/transfer/conflict_resolver.dart` | 72 | UI-prompt cache state | 7 (folded) |
 | `core/security/secret_buffer.dart` | 215 | RAII + zeroing | 9 (folded) |
 | `core/security/secure_ref.dart` | 122 | RAII handle | 9 (folded) |
@@ -364,17 +364,35 @@ of conflict resolution + snapshot/rollback + FK ordering).
 - Dart: `core/session/qr_codec.dart` shrinks to FRB-DTO mirrors
   only. `core/import/import_service.dart` retires.
 
-### 12 — `deeplink_handler` listener through bus
+### 12 — `deeplink_handler` listener through Rust dispatcher [DONE]
 
-Parser already Rust; the `app_links` subscription + Dart-side
-dispatch is the residual.
+`lfs_core::deeplink::DeeplinkDispatcher` owns dedup state (last URI
++ timestamp, 2-second window) and the routing matrix: scheme
+dispatch (`letsflutssh` / `file` / `content`), custom-scheme action
+(`connect` / `import`), file-extension classification (`.lfs` /
+`.pem` / `.key` / `.pub`), QR-payload staging into
+`AppState::imports`. Returns a typed `DeeplinkOutcome` enum.
 
-**Touches.**
-- `lfs_core::deeplink::Dispatcher` actor receives raw URI
-  strings, parses, routes via bus commands.
-- Dart: `app_links` listener becomes a one-line FRB call —
-  `lfs_core` does the rest. `core/deeplink/deeplink_handler.dart`
-  retires.
+`lfs_core::qr_codec_decode::try_decode_payload` returns a typed
+`QrDecodeResult { Ok / VersionTooNew { found, supported } / Err }`
+so the dispatcher can emit a `QrImportRejected` outcome without
+parsing error strings.
+
+The FRB adapter (`lfs_frb::api::deeplink::deeplink_dispatch`)
+mirrors the outcome as `DbDeeplinkOutcome` and hydrates the
+QR-import variant with a full `DbImportPreview` (looked up off the
+staged handle in `AppState::imports`) so the Dart caller does not
+round-trip back to fetch counts before rendering the import-preview
+dialog.
+
+Dart `DeepLinkHandler` shrank from 266 LOC to ~225 LOC (the bulk
+of the cut is `_handleImportUri` + `handleCustomScheme` +
+`handleFileUri` + the dedup state machine; the static
+`parseConnectUri` + Dart fallback stay for the deeplink fuzz
+suite + flutter_test surface). The handler is now a URI pump:
+each URI from `app_links` (cold-start `getInitialLink` + warm
+`uriLinkStream`) flows through `deeplinkDispatch` and switches on
+the typed outcome to fire the right callback.
 
 ### 13 — Pure helpers cleanup
 
