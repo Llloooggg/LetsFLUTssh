@@ -30,10 +30,11 @@ PortForwardRule _localRule({
 
 void main() {
   group('PortForwardRuntime', () {
-    test('onConnected with no live SSHClient is a no-op', () {
+    test('onConnected with no live transport is a no-op', () {
       final runtime = PortForwardRuntime(rules: [_localRule()]);
-      // No sshConnection wired into the stub, so client lookup returns
-      // null and the runtime must skip listener creation cleanly.
+      // The stub Connection carries no transport, so the runtime
+      // must short-circuit before issuing any FRB driver call (the
+      // Rust lib is not loaded under flutter_test).
       expect(() => runtime.onConnected(_stubConnection()), returnsNormally);
       runtime.dispose();
     });

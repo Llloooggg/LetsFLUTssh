@@ -865,7 +865,7 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
 |---|---|
 | 5.0 Foundation (Cmd/Evt bus) | `[x]` shipped |
 | 5.1 Connection lifecycle | `[-]` Rust actor + bus events + ProxyJump shipped; Dart `ConnectionManager` still owns registry / generation / bastion-await / credential overlay / active-count — see [RUST_MIGRATION_NEXT_PLAN.md] step 4 |
-| 5.2 Port forward actor | `[-]` Rust registry + bus events shipped; Tokio listener-accept driver + Dart `PortForwardRuntime` retire pending — NEXT_PLAN step 6 |
+| 5.2 Port forward actor | `[x]` shipped — Rust drivers (`-L` / `-D` SOCKS5 / `-R`) + bus events landed earlier; Dart `PortForwardRuntime` retired to a ~150-LOC FRB shim |
 | 5.3 Transfer queue actor | `[-]` Rust queue + state machine + bus events shipped; Tokio worker-pool driver + Dart `TransferManager` retire pending — NEXT_PLAN step 5 |
 | 5.4 Recorder | `[-]` Rust registry + bus events shipped; frame-write driver + Dart `SessionRecorder` retire pending — NEXT_PLAN step 10 |
 | 5.5 Auto-lock state | `[-]` Rust state machine + ticker + bus events shipped; Dart `AutoLockDetector` lifecycle-bridge swap + full security-tier orchestration retire pending — NEXT_PLAN step 9 |

@@ -38,7 +38,7 @@ right now"*, the design is wrong.
 | 3. `session_store` → Rust | pending |
 | 4. `connection_manager` → Rust | pending |
 | 5. `transfer_manager` → Rust driver | pending — Rust queue+state+`SftpTaskExecutor` shipped Phase 5.3; needs FRB `transfer_enqueue` + Dart UI rewire (TransferManager retire + transfer_panel snapshot view) |
-| 6. `port_forward_runtime` → Rust driver | Rust drivers DONE (`-L` ✓, `-D` SOCKS5 in `52084df7`, `-R` + session-level dispatcher in `6b29b5da`); Dart UI rewire (~691 LOC retire) pending |
+| 6. `port_forward_runtime` → Rust driver | DONE — Rust drivers (`-L` / `-D` SOCKS5 / `-R`) shipped earlier; Dart `port_forward_runtime.dart` shrank to a ~150-LOC shim that dispatches per-rule `port_forward_start_*` / `port_forward_stop_*` over FRB |
 | 7. `known_hosts` manager → Rust + prompt protocol | pending |
 | 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |
 | 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
@@ -72,7 +72,7 @@ LOC reflects current tree):
 | `core/session/session_store.dart` | 712 | in-memory list + folder-map cache + collapsed-folders set + duplicate-naming + folder rename / move / delete cascade + snapshot restore | 3 |
 | `core/transfer/transfer_manager.dart` | 393 | queue scheduler + concurrency cap + history truncation + progress throttle + timeout tracker | 5 |
 | `core/update/update_service.dart` | 961 | check → fetch → verify → download → install state machine | 8c |
-| `core/ssh/port_forward_runtime.dart` | 691 | listener accept loops + per-rule lifecycle + reconnect re-arm (Rust drivers ready, Dart UI swap pending) | 6 (Dart retire) |
+| ~~`core/ssh/port_forward_runtime.dart`~~ | ~150 | thin FRB shim — armed-rule map + per-rule `port_forward_start_*` / `port_forward_stop_*` dispatch on connect / teardown; everything else is Rust | DONE — step 6 |
 | `core/ssh/known_hosts.dart` | 584 | TOFU policy + add / remove / match + cache | 7 |
 | `core/security/master_password.dart` | 396 | KDF verify orchestration + tier promotion | 9 |
 | `core/security/password_rate_limiter.dart` | 396 | exponential backoff state | 9 |
@@ -232,21 +232,20 @@ per-second progress throttle is the only remaining orchestration.
 **Risk.** Progress throttle UI behaviour — must coalesce events
 on the Rust side at ≤1 / 250 ms or Riverpod rebuilds storm.
 
-### 6 — `port_forward_runtime` → Rust driver
+### 6 — `port_forward_runtime` → Rust driver [DONE]
 
-Rust registry + bus events shipped; the Tokio listener-accept
-driver loop is the missing piece. Same shape as transfer queue.
-
-**Touches.**
-- `lfs_core::portforward::Driver` per rule: tokio `TcpListener`
-  for `-L` / `-D`, `request_remote_forward` for `-R`, SOCKS5
-  CONNECT handshake (RFC 1928, NO_AUTH-only) for `-D`,
-  bidirectional `tokio::io::copy_bidirectional` bridge.
-- Bus events: `RuleStatus`, optional per-rule byte counters.
-- FRB: registry already exposes commands; only the driver loop
-  is added.
-- Dart: `core/ssh/port_forward_runtime.dart` retires;
-  `forwardRulesProvider` becomes a `StreamProvider`.
+Rust drivers landed earlier (`-L` listener, `-D` SOCKS5, `-R` +
+session-level dispatcher). This rung retires the Dart-side
+runtime: `core/ssh/port_forward_runtime.dart` shrank from 691
+LOC of accept loops + SOCKS5 handshake + bridge pumps to a
+~150-LOC `ConnectionExtension` shim that dispatches per-enabled
+rule into `port_forward_start_local` / `port_forward_start_dynamic`
+/ `port_forward_start_remote` on `onConnected`, tracks armed rule
+ids, and issues the matching `port_forward_stop_*` on
+`onDisconnecting` / `onReconnecting`. Status events flow on the
+`PortForwardStatus` bus topic; nothing in the UI was ever
+subscribed to the old broadcast `statusStream`, so dropping it is
+behaviour-preserving.
 
 **Risk.** Hot path on Android (ProxyJump bastion chains lean on
 this). Smoke on real Android device after landing.
