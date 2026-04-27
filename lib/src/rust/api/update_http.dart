@@ -6,6 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+
 /// GET `url`, follow redirects bounded by the trusted-host
 /// allowlist, return the response body as a `String`. Used by
 /// the Dart `UpdateService.checkForUpdate` to read the GitHub
@@ -27,3 +29,139 @@ Future<String> updateDownloadToFile({
   url: url,
   targetPath: targetPath,
 );
+
+/// Query GitHub Releases for the configured repository, pick the
+/// asset that matches the host platform, and return the resulting
+/// [`DbUpdateInfo`]. Mirrors the Dart-era
+/// `UpdateService.checkForUpdate` end-to-end.
+///
+/// Pass an empty `repo` to use
+/// `lfs_core::update_orchestrator::DEFAULT_REPO`.
+Future<DbUpdateInfo> updateCheck({
+  required String currentVersion,
+  required String repo,
+}) => RustLib.instance.api.crateApiUpdateHttpUpdateCheck(
+  currentVersion: currentVersion,
+  repo: repo,
+);
+
+/// Download the asset at `url` into `target_dir`, verify its
+/// SHA-256 against `expected_digest` (when non-empty), then fetch +
+/// verify the signed manifest. Returns the typed
+/// [`DbDownloadResult`] — `asset` populated on success, `error_*`
+/// populated on failure. The Result wrapper carries no `Err` arm so
+/// the FRB caller doesn't have to branch twice on outcome.
+///
+/// Bus events emitted along the way (subscribe to
+/// `BusTopic::Update`):
+///   - `UpdateDownloadProgress` per HTTP chunk,
+///   - `UpdateVerifyingStarted` once HTTP completes,
+///   - `UpdateDownloadCompleted` on terminal success.
+Future<DbDownloadResult> updateDownloadWithVerification({
+  required String url,
+  required String targetDir,
+  required String expectedDigest,
+}) => RustLib.instance.api.crateApiUpdateHttpUpdateDownloadWithVerification(
+  url: url,
+  targetDir: targetDir,
+  expectedDigest: expectedDigest,
+);
+
+/// Categorical failure shape — surfaces the same split the
+/// Dart-era `InvalidReleaseSignatureException` /
+/// `ReleaseManifestUnavailableException` exposed so the UI can
+/// pick the right toast (security warning vs retry).
+enum DbDownloadErrorKind {
+  untrusted,
+  network,
+  manifestUnavailable,
+  invalidSignature,
+}
+
+class DbDownloadResult {
+  final DbDownloadedAsset? asset;
+  final DbDownloadErrorKind? errorKind;
+  final String? errorDetail;
+
+  const DbDownloadResult({this.asset, this.errorKind, this.errorDetail});
+
+  @override
+  int get hashCode =>
+      asset.hashCode ^ errorKind.hashCode ^ errorDetail.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbDownloadResult &&
+          runtimeType == other.runtimeType &&
+          asset == other.asset &&
+          errorKind == other.errorKind &&
+          errorDetail == other.errorDetail;
+}
+
+/// FRB mirror of `lfs_core::update_orchestrator::DownloadedAsset`.
+class DbDownloadedAsset {
+  final String assetPath;
+  final String manifestPath;
+  final String manifestSigPath;
+
+  const DbDownloadedAsset({
+    required this.assetPath,
+    required this.manifestPath,
+    required this.manifestSigPath,
+  });
+
+  @override
+  int get hashCode =>
+      assetPath.hashCode ^ manifestPath.hashCode ^ manifestSigPath.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbDownloadedAsset &&
+          runtimeType == other.runtimeType &&
+          assetPath == other.assetPath &&
+          manifestPath == other.manifestPath &&
+          manifestSigPath == other.manifestSigPath;
+}
+
+/// FRB mirror of `lfs_core::update_orchestrator::UpdateInfo`. Same
+/// field set + a derived `has_update` getter for the Dart caller.
+class DbUpdateInfo {
+  final String latestVersion;
+  final String currentVersion;
+  final String releaseUrl;
+  final String? assetUrl;
+  final String? assetDigest;
+  final String? changelog;
+
+  const DbUpdateInfo({
+    required this.latestVersion,
+    required this.currentVersion,
+    required this.releaseUrl,
+    this.assetUrl,
+    this.assetDigest,
+    this.changelog,
+  });
+
+  @override
+  int get hashCode =>
+      latestVersion.hashCode ^
+      currentVersion.hashCode ^
+      releaseUrl.hashCode ^
+      assetUrl.hashCode ^
+      assetDigest.hashCode ^
+      changelog.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbUpdateInfo &&
+          runtimeType == other.runtimeType &&
+          latestVersion == other.latestVersion &&
+          currentVersion == other.currentVersion &&
+          releaseUrl == other.releaseUrl &&
+          assetUrl == other.assetUrl &&
+          assetDigest == other.assetDigest &&
+          changelog == other.changelog;
+}

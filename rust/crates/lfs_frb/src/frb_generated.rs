@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 875768921;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -329068290;
 
 // Section: executor
 
@@ -7878,6 +7878,45 @@ fn wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(
         },
     )
 }
+fn wire__crate__api__update_http__update_check_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_check",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_current_version = <String>::sse_decode(&mut deserializer);
+            let api_repo = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::update_http::update_check(api_current_version, api_repo)
+                                .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__update_metadata__update_compare_versions_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -7944,6 +7983,51 @@ fn wire__crate__api__update_http__update_download_to_file_impl(
                             api_target_path,
                         )
                         .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__update_http__update_download_with_verification_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_download_with_verification",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_url = <String>::sse_decode(&mut deserializer);
+            let api_target_dir = <String>::sse_decode(&mut deserializer);
+            let api_expected_digest = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok = Result::<_, ()>::Ok(
+                            crate::api::update_http::update_download_with_verification(
+                                api_url,
+                                api_target_dir,
+                                api_expected_digest,
+                            )
+                            .await,
+                        )?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -8617,6 +8701,18 @@ impl SseDecode for crate::api::bus::BusEvent {
                     total_bytes: var_totalBytes,
                 };
             }
+            20 => {
+                let mut var_url = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::UpdateVerifyingStarted { url: var_url };
+            }
+            21 => {
+                let mut var_url = <String>::sse_decode(deserializer);
+                let mut var_path = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::UpdateDownloadCompleted {
+                    url: var_url,
+                    path: var_path,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -8837,6 +8933,50 @@ impl SseDecode for crate::api::deeplink::DbDeeplinkOutcome {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseDecode for crate::api::update_http::DbDownloadErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::update_http::DbDownloadErrorKind::Untrusted,
+            1 => crate::api::update_http::DbDownloadErrorKind::Network,
+            2 => crate::api::update_http::DbDownloadErrorKind::ManifestUnavailable,
+            3 => crate::api::update_http::DbDownloadErrorKind::InvalidSignature,
+            _ => unreachable!("Invalid variant for DbDownloadErrorKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::update_http::DbDownloadResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_asset =
+            <Option<crate::api::update_http::DbDownloadedAsset>>::sse_decode(deserializer);
+        let mut var_errorKind =
+            <Option<crate::api::update_http::DbDownloadErrorKind>>::sse_decode(deserializer);
+        let mut var_errorDetail = <Option<String>>::sse_decode(deserializer);
+        return crate::api::update_http::DbDownloadResult {
+            asset: var_asset,
+            error_kind: var_errorKind,
+            error_detail: var_errorDetail,
+        };
+    }
+}
+
+impl SseDecode for crate::api::update_http::DbDownloadedAsset {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_assetPath = <String>::sse_decode(deserializer);
+        let mut var_manifestPath = <String>::sse_decode(deserializer);
+        let mut var_manifestSigPath = <String>::sse_decode(deserializer);
+        return crate::api::update_http::DbDownloadedAsset {
+            asset_path: var_assetPath,
+            manifest_path: var_manifestPath,
+            manifest_sig_path: var_manifestSigPath,
+        };
     }
 }
 
@@ -9499,6 +9639,26 @@ impl SseDecode for crate::api::migration::DbUnsupportedFutureVersion {
     }
 }
 
+impl SseDecode for crate::api::update_http::DbUpdateInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_latestVersion = <String>::sse_decode(deserializer);
+        let mut var_currentVersion = <String>::sse_decode(deserializer);
+        let mut var_releaseUrl = <String>::sse_decode(deserializer);
+        let mut var_assetUrl = <Option<String>>::sse_decode(deserializer);
+        let mut var_assetDigest = <Option<String>>::sse_decode(deserializer);
+        let mut var_changelog = <Option<String>>::sse_decode(deserializer);
+        return crate::api::update_http::DbUpdateInfo {
+            latest_version: var_latestVersion,
+            current_version: var_currentVersion,
+            release_url: var_releaseUrl,
+            asset_url: var_assetUrl,
+            asset_digest: var_assetDigest,
+            changelog: var_changelog,
+        };
+    }
+}
+
 impl SseDecode for crate::api::update_metadata::DbVersionOrder {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9857,6 +10017,32 @@ impl SseDecode for Option<crate::api::deeplink::DbConnectLink> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::deeplink::DbConnectLink>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::update_http::DbDownloadErrorKind> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::update_http::DbDownloadErrorKind>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::update_http::DbDownloadedAsset> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::update_http::DbDownloadedAsset>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -10539,13 +10725,20 @@ fn pde_ffi_dispatcher_primary_impl(
         180 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        184 => wire__crate__api__update_http__update_download_to_file_impl(
+        183 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
+        185 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        185 => {
+        186 => wire__crate__api__update_http__update_download_with_verification_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        187 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
         _ => unreachable!(),
@@ -10582,12 +10775,12 @@ fn pde_ffi_dispatcher_sync_impl(
 178 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
 181 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
 182 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-183 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-186 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-187 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-188 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-189 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-190 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+184 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+188 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+189 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+190 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+191 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+192 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -10944,6 +11137,15 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 total_bytes.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::bus::BusEvent::UpdateVerifyingStarted { url } => {
+                [20.into_dart(), url.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::bus::BusEvent::UpdateDownloadCompleted { url, path } => [
+                21.into_dart(),
+                url.into_into_dart().into_dart(),
+                path.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -11227,6 +11429,73 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::deeplink::DbDeeplinkOutcome>
     for crate::api::deeplink::DbDeeplinkOutcome
 {
     fn into_into_dart(self) -> crate::api::deeplink::DbDeeplinkOutcome {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_http::DbDownloadErrorKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Untrusted => 0.into_dart(),
+            Self::Network => 1.into_dart(),
+            Self::ManifestUnavailable => 2.into_dart(),
+            Self::InvalidSignature => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_http::DbDownloadErrorKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_http::DbDownloadErrorKind>
+    for crate::api::update_http::DbDownloadErrorKind
+{
+    fn into_into_dart(self) -> crate::api::update_http::DbDownloadErrorKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_http::DbDownloadResult {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.asset.into_into_dart().into_dart(),
+            self.error_kind.into_into_dart().into_dart(),
+            self.error_detail.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_http::DbDownloadResult
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_http::DbDownloadResult>
+    for crate::api::update_http::DbDownloadResult
+{
+    fn into_into_dart(self) -> crate::api::update_http::DbDownloadResult {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_http::DbDownloadedAsset {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.asset_path.into_into_dart().into_dart(),
+            self.manifest_path.into_into_dart().into_dart(),
+            self.manifest_sig_path.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_http::DbDownloadedAsset
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_http::DbDownloadedAsset>
+    for crate::api::update_http::DbDownloadedAsset
+{
+    fn into_into_dart(self) -> crate::api::update_http::DbDownloadedAsset {
         self
     }
 }
@@ -12031,6 +12300,31 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::migration::DbUnsupportedFutur
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_http::DbUpdateInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.latest_version.into_into_dart().into_dart(),
+            self.current_version.into_into_dart().into_dart(),
+            self.release_url.into_into_dart().into_dart(),
+            self.asset_url.into_into_dart().into_dart(),
+            self.asset_digest.into_into_dart().into_dart(),
+            self.changelog.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_http::DbUpdateInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_http::DbUpdateInfo>
+    for crate::api::update_http::DbUpdateInfo
+{
+    fn into_into_dart(self) -> crate::api::update_http::DbUpdateInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::update_metadata::DbVersionOrder {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -12542,6 +12836,15 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <u64>::sse_encode(written_bytes, serializer);
                 <Option<u64>>::sse_encode(total_bytes, serializer);
             }
+            crate::api::bus::BusEvent::UpdateVerifyingStarted { url } => {
+                <i32>::sse_encode(20, serializer);
+                <String>::sse_encode(url, serializer);
+            }
+            crate::api::bus::BusEvent::UpdateDownloadCompleted { url, path } => {
+                <i32>::sse_encode(21, serializer);
+                <String>::sse_encode(url, serializer);
+                <String>::sse_encode(path, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -12726,6 +13029,45 @@ impl SseEncode for crate::api::deeplink::DbDeeplinkOutcome {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseEncode for crate::api::update_http::DbDownloadErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::update_http::DbDownloadErrorKind::Untrusted => 0,
+                crate::api::update_http::DbDownloadErrorKind::Network => 1,
+                crate::api::update_http::DbDownloadErrorKind::ManifestUnavailable => 2,
+                crate::api::update_http::DbDownloadErrorKind::InvalidSignature => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::update_http::DbDownloadResult {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<crate::api::update_http::DbDownloadedAsset>>::sse_encode(self.asset, serializer);
+        <Option<crate::api::update_http::DbDownloadErrorKind>>::sse_encode(
+            self.error_kind,
+            serializer,
+        );
+        <Option<String>>::sse_encode(self.error_detail, serializer);
+    }
+}
+
+impl SseEncode for crate::api::update_http::DbDownloadedAsset {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.asset_path, serializer);
+        <String>::sse_encode(self.manifest_path, serializer);
+        <String>::sse_encode(self.manifest_sig_path, serializer);
     }
 }
 
@@ -13190,6 +13532,18 @@ impl SseEncode for crate::api::migration::DbUnsupportedFutureVersion {
     }
 }
 
+impl SseEncode for crate::api::update_http::DbUpdateInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.latest_version, serializer);
+        <String>::sse_encode(self.current_version, serializer);
+        <String>::sse_encode(self.release_url, serializer);
+        <Option<String>>::sse_encode(self.asset_url, serializer);
+        <Option<String>>::sse_encode(self.asset_digest, serializer);
+        <Option<String>>::sse_encode(self.changelog, serializer);
+    }
+}
+
 impl SseEncode for crate::api::update_metadata::DbVersionOrder {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13486,6 +13840,26 @@ impl SseEncode for Option<crate::api::deeplink::DbConnectLink> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::deeplink::DbConnectLink>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::update_http::DbDownloadErrorKind> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::update_http::DbDownloadErrorKind>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::update_http::DbDownloadedAsset> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::update_http::DbDownloadedAsset>::sse_encode(value, serializer);
         }
     }
 }

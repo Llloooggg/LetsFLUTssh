@@ -231,6 +231,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbConnectLink dco_decode_box_autoadd_db_connect_link(dynamic raw);
 
   @protected
+  DbDownloadErrorKind dco_decode_box_autoadd_db_download_error_kind(
+    dynamic raw,
+  );
+
+  @protected
+  DbDownloadedAsset dco_decode_box_autoadd_db_downloaded_asset(dynamic raw);
+
+  @protected
   DbExportInput dco_decode_box_autoadd_db_export_input(dynamic raw);
 
   @protected
@@ -336,6 +344,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbDeeplinkOutcome dco_decode_db_deeplink_outcome(dynamic raw);
 
   @protected
+  DbDownloadErrorKind dco_decode_db_download_error_kind(dynamic raw);
+
+  @protected
+  DbDownloadResult dco_decode_db_download_result(dynamic raw);
+
+  @protected
+  DbDownloadedAsset dco_decode_db_downloaded_asset(dynamic raw);
+
+  @protected
   DbExportInput dco_decode_db_export_input(dynamic raw);
 
   @protected
@@ -435,6 +452,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbUnsupportedFutureVersion dco_decode_db_unsupported_future_version(
     dynamic raw,
   );
+
+  @protected
+  DbUpdateInfo dco_decode_db_update_info(dynamic raw);
 
   @protected
   DbVersionOrder dco_decode_db_version_order(dynamic raw);
@@ -537,6 +557,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbConnectLink? dco_decode_opt_box_autoadd_db_connect_link(dynamic raw);
+
+  @protected
+  DbDownloadErrorKind? dco_decode_opt_box_autoadd_db_download_error_kind(
+    dynamic raw,
+  );
+
+  @protected
+  DbDownloadedAsset? dco_decode_opt_box_autoadd_db_downloaded_asset(
+    dynamic raw,
+  );
 
   @protected
   DbKnownHost? dco_decode_opt_box_autoadd_db_known_host(dynamic raw);
@@ -779,6 +809,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbDownloadErrorKind sse_decode_box_autoadd_db_download_error_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbDownloadedAsset sse_decode_box_autoadd_db_downloaded_asset(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbExportInput sse_decode_box_autoadd_db_export_input(
     SseDeserializer deserializer,
   );
@@ -914,6 +954,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbDownloadErrorKind sse_decode_db_download_error_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbDownloadResult sse_decode_db_download_result(SseDeserializer deserializer);
+
+  @protected
+  DbDownloadedAsset sse_decode_db_downloaded_asset(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbExportInput sse_decode_db_export_input(SseDeserializer deserializer);
 
   @protected
@@ -1039,6 +1092,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbUpdateInfo sse_decode_db_update_info(SseDeserializer deserializer);
+
+  @protected
   DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer);
 
   @protected
@@ -1161,6 +1217,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbConnectLink? sse_decode_opt_box_autoadd_db_connect_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbDownloadErrorKind? sse_decode_opt_box_autoadd_db_download_error_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbDownloadedAsset? sse_decode_opt_box_autoadd_db_downloaded_asset(
     SseDeserializer deserializer,
   );
 
@@ -1450,6 +1516,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_download_error_kind(
+    DbDownloadErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_downloaded_asset(
+    DbDownloadedAsset self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_export_input(
     DbExportInput self,
     SseSerializer serializer,
@@ -1624,6 +1702,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_download_error_kind(
+    DbDownloadErrorKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_download_result(
+    DbDownloadResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_downloaded_asset(
+    DbDownloadedAsset self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_export_input(DbExportInput self, SseSerializer serializer);
 
   @protected
@@ -1792,6 +1888,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_update_info(DbUpdateInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_version_order(
     DbVersionOrder self,
     SseSerializer serializer,
@@ -1952,6 +2051,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_connect_link(
     DbConnectLink? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_download_error_kind(
+    DbDownloadErrorKind? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_downloaded_asset(
+    DbDownloadedAsset? self,
     SseSerializer serializer,
   );
 

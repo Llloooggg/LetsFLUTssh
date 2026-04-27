@@ -90,7 +90,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 875768921;
+  int get rustContentHash => -329068290;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -860,6 +860,11 @@ abstract class RustLibApi extends BaseApi {
     required String currentVersion,
   });
 
+  Future<DbUpdateInfo> crateApiUpdateHttpUpdateCheck({
+    required String currentVersion,
+    required String repo,
+  });
+
   DbVersionOrder crateApiUpdateMetadataUpdateCompareVersions({
     required String a,
     required String b,
@@ -868,6 +873,12 @@ abstract class RustLibApi extends BaseApi {
   Future<String> crateApiUpdateHttpUpdateDownloadToFile({
     required String url,
     required String targetPath,
+  });
+
+  Future<DbDownloadResult> crateApiUpdateHttpUpdateDownloadWithVerification({
+    required String url,
+    required String targetDir,
+    required String expectedDigest,
   });
 
   Future<String> crateApiUpdateHttpUpdateFetchText({required String url});
@@ -7163,6 +7174,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DbUpdateInfo> crateApiUpdateHttpUpdateCheck({
+    required String currentVersion,
+    required String repo,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(currentVersion, serializer);
+          sse_encode_String(repo, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 183,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_update_info,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiUpdateHttpUpdateCheckConstMeta,
+        argValues: [currentVersion, repo],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateHttpUpdateCheckConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_check',
+        argNames: ['currentVersion', 'repo'],
+      );
+
+  @override
   DbVersionOrder crateApiUpdateMetadataUpdateCompareVersions({
     required String a,
     required String b,
@@ -7176,7 +7222,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 183,
+            funcId: 184,
           )!;
         },
         codec: SseCodec(
@@ -7210,7 +7256,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 184,
+            funcId: 185,
             port: port_,
           );
         },
@@ -7232,6 +7278,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DbDownloadResult> crateApiUpdateHttpUpdateDownloadWithVerification({
+    required String url,
+    required String targetDir,
+    required String expectedDigest,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(url, serializer);
+          sse_encode_String(targetDir, serializer);
+          sse_encode_String(expectedDigest, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 186,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_download_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdateHttpUpdateDownloadWithVerificationConstMeta,
+        argValues: [url, targetDir, expectedDigest],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiUpdateHttpUpdateDownloadWithVerificationConstMeta =>
+      const TaskConstMeta(
+        debugName: 'update_download_with_verification',
+        argNames: ['url', 'targetDir', 'expectedDigest'],
+      );
+
+  @override
   Future<String> crateApiUpdateHttpUpdateFetchText({required String url}) {
     return handler.executeNormal(
       NormalTask(
@@ -7241,7 +7325,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 185,
+            funcId: 187,
             port: port_,
           );
         },
@@ -7271,7 +7355,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 186,
+            funcId: 188,
           )!;
         },
         codec: SseCodec(
@@ -7305,7 +7389,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 187,
+            funcId: 189,
           )!;
         },
         codec: SseCodec(
@@ -7337,7 +7421,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 188,
+            funcId: 190,
           )!;
         },
         codec: SseCodec(
@@ -7371,7 +7455,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 189,
+            funcId: 191,
           )!;
         },
         codec: SseCodec(
@@ -7401,7 +7485,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 190,
+            funcId: 192,
           )!;
         },
         codec: SseCodec(
@@ -7746,6 +7830,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbDownloadErrorKind dco_decode_box_autoadd_db_download_error_kind(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_db_download_error_kind(raw);
+  }
+
+  @protected
+  DbDownloadedAsset dco_decode_box_autoadd_db_downloaded_asset(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_db_downloaded_asset(raw);
+  }
+
+  @protected
   DbExportInput dco_decode_box_autoadd_db_export_input(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_db_export_input(raw);
@@ -8016,6 +8114,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           writtenBytes: dco_decode_u_64(raw[2]),
           totalBytes: dco_decode_opt_box_autoadd_u_64(raw[3]),
         );
+      case 20:
+        return BusEvent_UpdateVerifyingStarted(url: dco_decode_String(raw[1]));
+      case 21:
+        return BusEvent_UpdateDownloadCompleted(
+          url: dco_decode_String(raw[1]),
+          path: dco_decode_String(raw[2]),
+        );
       default:
         throw Exception('unreachable');
     }
@@ -8164,6 +8269,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw Exception('unreachable');
     }
+  }
+
+  @protected
+  DbDownloadErrorKind dco_decode_db_download_error_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbDownloadErrorKind.values[raw as int];
+  }
+
+  @protected
+  DbDownloadResult dco_decode_db_download_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DbDownloadResult(
+      asset: dco_decode_opt_box_autoadd_db_downloaded_asset(arr[0]),
+      errorKind: dco_decode_opt_box_autoadd_db_download_error_kind(arr[1]),
+      errorDetail: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
+  DbDownloadedAsset dco_decode_db_downloaded_asset(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return DbDownloadedAsset(
+      assetPath: dco_decode_String(arr[0]),
+      manifestPath: dco_decode_String(arr[1]),
+      manifestSigPath: dco_decode_String(arr[2]),
+    );
   }
 
   @protected
@@ -8649,6 +8786,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbUpdateInfo dco_decode_db_update_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return DbUpdateInfo(
+      latestVersion: dco_decode_String(arr[0]),
+      currentVersion: dco_decode_String(arr[1]),
+      releaseUrl: dco_decode_String(arr[2]),
+      assetUrl: dco_decode_opt_String(arr[3]),
+      assetDigest: dco_decode_opt_String(arr[4]),
+      changelog: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
   DbVersionOrder dco_decode_db_version_order(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DbVersionOrder.values[raw as int];
@@ -8864,6 +9017,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbConnectLink? dco_decode_opt_box_autoadd_db_connect_link(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_db_connect_link(raw);
+  }
+
+  @protected
+  DbDownloadErrorKind? dco_decode_opt_box_autoadd_db_download_error_kind(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_db_download_error_kind(raw);
+  }
+
+  @protected
+  DbDownloadedAsset? dco_decode_opt_box_autoadd_db_downloaded_asset(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_db_downloaded_asset(raw);
   }
 
   @protected
@@ -9368,6 +9539,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbDownloadErrorKind sse_decode_box_autoadd_db_download_error_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_db_download_error_kind(deserializer));
+  }
+
+  @protected
+  DbDownloadedAsset sse_decode_box_autoadd_db_downloaded_asset(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_db_downloaded_asset(deserializer));
+  }
+
+  @protected
   DbExportInput sse_decode_box_autoadd_db_export_input(
     SseDeserializer deserializer,
   ) {
@@ -9697,6 +9884,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           writtenBytes: var_writtenBytes,
           totalBytes: var_totalBytes,
         );
+      case 20:
+        final var_url = sse_decode_String(deserializer);
+        return BusEvent_UpdateVerifyingStarted(url: var_url);
+      case 21:
+        final var_url = sse_decode_String(deserializer);
+        final var_path = sse_decode_String(deserializer);
+        return BusEvent_UpdateDownloadCompleted(url: var_url, path: var_path);
       default:
         throw UnimplementedError('');
     }
@@ -9869,6 +10063,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  DbDownloadErrorKind sse_decode_db_download_error_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbDownloadErrorKind.values[inner];
+  }
+
+  @protected
+  DbDownloadResult sse_decode_db_download_result(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_asset = sse_decode_opt_box_autoadd_db_downloaded_asset(
+      deserializer,
+    );
+    final var_errorKind = sse_decode_opt_box_autoadd_db_download_error_kind(
+      deserializer,
+    );
+    final var_errorDetail = sse_decode_opt_String(deserializer);
+    return DbDownloadResult(
+      asset: var_asset,
+      errorKind: var_errorKind,
+      errorDetail: var_errorDetail,
+    );
+  }
+
+  @protected
+  DbDownloadedAsset sse_decode_db_downloaded_asset(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_assetPath = sse_decode_String(deserializer);
+    final var_manifestPath = sse_decode_String(deserializer);
+    final var_manifestSigPath = sse_decode_String(deserializer);
+    return DbDownloadedAsset(
+      assetPath: var_assetPath,
+      manifestPath: var_manifestPath,
+      manifestSigPath: var_manifestSigPath,
+    );
   }
 
   @protected
@@ -10482,6 +10717,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbUpdateInfo sse_decode_db_update_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_latestVersion = sse_decode_String(deserializer);
+    final var_currentVersion = sse_decode_String(deserializer);
+    final var_releaseUrl = sse_decode_String(deserializer);
+    final var_assetUrl = sse_decode_opt_String(deserializer);
+    final var_assetDigest = sse_decode_opt_String(deserializer);
+    final var_changelog = sse_decode_opt_String(deserializer);
+    return DbUpdateInfo(
+      latestVersion: var_latestVersion,
+      currentVersion: var_currentVersion,
+      releaseUrl: var_releaseUrl,
+      assetUrl: var_assetUrl,
+      assetDigest: var_assetDigest,
+      changelog: var_changelog,
+    );
+  }
+
+  @protected
   DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final inner = sse_decode_i_32(deserializer);
@@ -10858,6 +11112,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_db_connect_link(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  DbDownloadErrorKind? sse_decode_opt_box_autoadd_db_download_error_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_db_download_error_kind(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  DbDownloadedAsset? sse_decode_opt_box_autoadd_db_downloaded_asset(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_db_downloaded_asset(deserializer));
     } else {
       return null;
     }
@@ -11486,6 +11766,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_db_download_error_kind(
+    DbDownloadErrorKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_db_download_error_kind(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_db_downloaded_asset(
+    DbDownloadedAsset self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_db_downloaded_asset(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_db_export_input(
     DbExportInput self,
     SseSerializer serializer,
@@ -11824,6 +12122,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(url, serializer);
         sse_encode_u_64(writtenBytes, serializer);
         sse_encode_opt_box_autoadd_u_64(totalBytes, serializer);
+      case BusEvent_UpdateVerifyingStarted(url: final url):
+        sse_encode_i_32(20, serializer);
+        sse_encode_String(url, serializer);
+      case BusEvent_UpdateDownloadCompleted(url: final url, path: final path):
+        sse_encode_i_32(21, serializer);
+        sse_encode_String(url, serializer);
+        sse_encode_String(path, serializer);
     }
   }
 
@@ -11971,6 +12276,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case DbDeeplinkOutcome_Duplicate():
         sse_encode_i_32(6, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_db_download_error_kind(
+    DbDownloadErrorKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_download_result(
+    DbDownloadResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_db_downloaded_asset(self.asset, serializer);
+    sse_encode_opt_box_autoadd_db_download_error_kind(
+      self.errorKind,
+      serializer,
+    );
+    sse_encode_opt_String(self.errorDetail, serializer);
+  }
+
+  @protected
+  void sse_encode_db_downloaded_asset(
+    DbDownloadedAsset self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.assetPath, serializer);
+    sse_encode_String(self.manifestPath, serializer);
+    sse_encode_String(self.manifestSigPath, serializer);
   }
 
   @protected
@@ -12402,6 +12741,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_db_update_info(DbUpdateInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.latestVersion, serializer);
+    sse_encode_String(self.currentVersion, serializer);
+    sse_encode_String(self.releaseUrl, serializer);
+    sse_encode_opt_String(self.assetUrl, serializer);
+    sse_encode_opt_String(self.assetDigest, serializer);
+    sse_encode_opt_String(self.changelog, serializer);
+  }
+
+  @protected
   void sse_encode_db_version_order(
     DbVersionOrder self,
     SseSerializer serializer,
@@ -12753,6 +13103,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_db_connect_link(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_download_error_kind(
+    DbDownloadErrorKind? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_db_download_error_kind(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_downloaded_asset(
+    DbDownloadedAsset? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_db_downloaded_asset(self, serializer);
     }
   }
 

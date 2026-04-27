@@ -293,6 +293,17 @@ sealed class BusEvent with _$BusEvent {
     required BigInt writtenBytes,
     BigInt? totalBytes,
   }) = BusEvent_UpdateDownloadProgress;
+
+  /// Auto-update — HTTP done; verifying SHA + signed manifest.
+  const factory BusEvent.updateVerifyingStarted({required String url}) =
+      BusEvent_UpdateVerifyingStarted;
+
+  /// Auto-update — verification passed; asset is on disk at
+  /// `path` ready for the install step.
+  const factory BusEvent.updateDownloadCompleted({
+    required String url,
+    required String path,
+  }) = BusEvent_UpdateDownloadCompleted;
 }
 
 /// Connection progress step — FRB mirror of

@@ -190,6 +190,11 @@ pub enum BusEvent {
         written_bytes: u64,
         total_bytes: Option<u64>,
     },
+    /// Auto-update — HTTP done; verifying SHA + signed manifest.
+    UpdateVerifyingStarted { url: String },
+    /// Auto-update — verification passed; asset is on disk at
+    /// `path` ready for the install step.
+    UpdateDownloadCompleted { url: String, path: String },
 }
 
 /// Rule status — FRB mirror of `lfs_core::portforward::RuleStatus`.
@@ -302,6 +307,12 @@ impl BusEvent {
                 written_bytes,
                 total_bytes,
             },
+            lfs_core::bus::Event::UpdateVerifyingStarted { url } => {
+                BusEvent::UpdateVerifyingStarted { url }
+            }
+            lfs_core::bus::Event::UpdateDownloadCompleted { url, path } => {
+                BusEvent::UpdateDownloadCompleted { url, path }
+            }
         }
     }
 }

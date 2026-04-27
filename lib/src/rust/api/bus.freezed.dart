@@ -1051,7 +1051,7 @@ extension BusEventPatterns on BusEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -1074,7 +1074,9 @@ return transferTaskError(_that);case BusEvent_PortForwardRegistered() when portF
 return portForwardRegistered(_that);case BusEvent_PortForwardStatus() when portForwardStatus != null:
 return portForwardStatus(_that);case BusEvent_PortForwardRemoved() when portForwardRemoved != null:
 return portForwardRemoved(_that);case BusEvent_UpdateDownloadProgress() when updateDownloadProgress != null:
-return updateDownloadProgress(_that);case _:
+return updateDownloadProgress(_that);case BusEvent_UpdateVerifyingStarted() when updateVerifyingStarted != null:
+return updateVerifyingStarted(_that);case BusEvent_UpdateDownloadCompleted() when updateDownloadCompleted != null:
+return updateDownloadCompleted(_that);case _:
   return orElse();
 
 }
@@ -1092,7 +1094,7 @@ return updateDownloadProgress(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,required TResult Function( BusEvent_RecorderStarted value)  recorderStarted,required TResult Function( BusEvent_RecorderStopped value)  recorderStopped,required TResult Function( BusEvent_RecorderBytesWritten value)  recorderBytesWritten,required TResult Function( BusEvent_RecorderRotateRequested value)  recorderRotateRequested,required TResult Function( BusEvent_TransferTaskAdded value)  transferTaskAdded,required TResult Function( BusEvent_TransferTaskState value)  transferTaskState,required TResult Function( BusEvent_TransferTaskProgress value)  transferTaskProgress,required TResult Function( BusEvent_TransferTaskError value)  transferTaskError,required TResult Function( BusEvent_PortForwardRegistered value)  portForwardRegistered,required TResult Function( BusEvent_PortForwardStatus value)  portForwardStatus,required TResult Function( BusEvent_PortForwardRemoved value)  portForwardRemoved,required TResult Function( BusEvent_UpdateDownloadProgress value)  updateDownloadProgress,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,required TResult Function( BusEvent_RecorderStarted value)  recorderStarted,required TResult Function( BusEvent_RecorderStopped value)  recorderStopped,required TResult Function( BusEvent_RecorderBytesWritten value)  recorderBytesWritten,required TResult Function( BusEvent_RecorderRotateRequested value)  recorderRotateRequested,required TResult Function( BusEvent_TransferTaskAdded value)  transferTaskAdded,required TResult Function( BusEvent_TransferTaskState value)  transferTaskState,required TResult Function( BusEvent_TransferTaskProgress value)  transferTaskProgress,required TResult Function( BusEvent_TransferTaskError value)  transferTaskError,required TResult Function( BusEvent_PortForwardRegistered value)  portForwardRegistered,required TResult Function( BusEvent_PortForwardStatus value)  portForwardStatus,required TResult Function( BusEvent_PortForwardRemoved value)  portForwardRemoved,required TResult Function( BusEvent_UpdateDownloadProgress value)  updateDownloadProgress,required TResult Function( BusEvent_UpdateVerifyingStarted value)  updateVerifyingStarted,required TResult Function( BusEvent_UpdateDownloadCompleted value)  updateDownloadCompleted,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
@@ -1115,7 +1117,9 @@ return transferTaskError(_that);case BusEvent_PortForwardRegistered():
 return portForwardRegistered(_that);case BusEvent_PortForwardStatus():
 return portForwardStatus(_that);case BusEvent_PortForwardRemoved():
 return portForwardRemoved(_that);case BusEvent_UpdateDownloadProgress():
-return updateDownloadProgress(_that);}
+return updateDownloadProgress(_that);case BusEvent_UpdateVerifyingStarted():
+return updateVerifyingStarted(_that);case BusEvent_UpdateDownloadCompleted():
+return updateDownloadCompleted(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -1129,7 +1133,7 @@ return updateDownloadProgress(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult? Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult? Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult? Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult? Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult? Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult? Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult? Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult? Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult? Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult? Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult? Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult? Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult? Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult? Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult? Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult? Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult? Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult? Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult? Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult? Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult? Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult? Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult? Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult? Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult? Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult? Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -1152,7 +1156,9 @@ return transferTaskError(_that);case BusEvent_PortForwardRegistered() when portF
 return portForwardRegistered(_that);case BusEvent_PortForwardStatus() when portForwardStatus != null:
 return portForwardStatus(_that);case BusEvent_PortForwardRemoved() when portForwardRemoved != null:
 return portForwardRemoved(_that);case BusEvent_UpdateDownloadProgress() when updateDownloadProgress != null:
-return updateDownloadProgress(_that);case _:
+return updateDownloadProgress(_that);case BusEvent_UpdateVerifyingStarted() when updateVerifyingStarted != null:
+return updateVerifyingStarted(_that);case BusEvent_UpdateDownloadCompleted() when updateDownloadCompleted != null:
+return updateDownloadCompleted(_that);case _:
   return null;
 
 }
@@ -1169,7 +1175,7 @@ return updateDownloadProgress(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult Function( String id,  String path)?  recorderStarted,TResult Function( String id)?  recorderStopped,TResult Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult Function( String id)?  transferTaskAdded,TResult Function( String id,  BusTaskState state)?  transferTaskState,TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult Function( String id,  String detail)?  transferTaskError,TResult Function( String id)?  portForwardRegistered,TResult Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult Function( String id)?  portForwardRemoved,TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult Function( String id,  String path)?  recorderStarted,TResult Function( String id)?  recorderStopped,TResult Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult Function( String id)?  transferTaskAdded,TResult Function( String id,  BusTaskState state)?  transferTaskState,TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult Function( String id,  String detail)?  transferTaskError,TResult Function( String id)?  portForwardRegistered,TResult Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult Function( String id)?  portForwardRemoved,TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult Function( String url)?  updateVerifyingStarted,TResult Function( String url,  String path)?  updateDownloadCompleted,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
@@ -1191,7 +1197,9 @@ return transferTaskError(_that.id,_that.detail);case BusEvent_PortForwardRegiste
 return portForwardRegistered(_that.id);case BusEvent_PortForwardStatus() when portForwardStatus != null:
 return portForwardStatus(_that.id,_that.status,_that.detail);case BusEvent_PortForwardRemoved() when portForwardRemoved != null:
 return portForwardRemoved(_that.id);case BusEvent_UpdateDownloadProgress() when updateDownloadProgress != null:
-return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);case _:
+return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);case BusEvent_UpdateVerifyingStarted() when updateVerifyingStarted != null:
+return updateVerifyingStarted(_that.url);case BusEvent_UpdateDownloadCompleted() when updateDownloadCompleted != null:
+return updateDownloadCompleted(_that.url,_that.path);case _:
   return orElse();
 
 }
@@ -1209,7 +1217,7 @@ return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);cas
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,required TResult Function( String id,  String path)  recorderStarted,required TResult Function( String id)  recorderStopped,required TResult Function( String id,  BigInt totalBytes)  recorderBytesWritten,required TResult Function( String id,  BigInt bytesWritten)  recorderRotateRequested,required TResult Function( String id)  transferTaskAdded,required TResult Function( String id,  BusTaskState state)  transferTaskState,required TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)  transferTaskProgress,required TResult Function( String id,  String detail)  transferTaskError,required TResult Function( String id)  portForwardRegistered,required TResult Function( String id,  BusRuleStatus status,  String? detail)  portForwardStatus,required TResult Function( String id)  portForwardRemoved,required TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)  updateDownloadProgress,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,required TResult Function( String id,  String path)  recorderStarted,required TResult Function( String id)  recorderStopped,required TResult Function( String id,  BigInt totalBytes)  recorderBytesWritten,required TResult Function( String id,  BigInt bytesWritten)  recorderRotateRequested,required TResult Function( String id)  transferTaskAdded,required TResult Function( String id,  BusTaskState state)  transferTaskState,required TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)  transferTaskProgress,required TResult Function( String id,  String detail)  transferTaskError,required TResult Function( String id)  portForwardRegistered,required TResult Function( String id,  BusRuleStatus status,  String? detail)  portForwardStatus,required TResult Function( String id)  portForwardRemoved,required TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)  updateDownloadProgress,required TResult Function( String url)  updateVerifyingStarted,required TResult Function( String url,  String path)  updateDownloadCompleted,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged():
@@ -1231,7 +1239,9 @@ return transferTaskError(_that.id,_that.detail);case BusEvent_PortForwardRegiste
 return portForwardRegistered(_that.id);case BusEvent_PortForwardStatus():
 return portForwardStatus(_that.id,_that.status,_that.detail);case BusEvent_PortForwardRemoved():
 return portForwardRemoved(_that.id);case BusEvent_UpdateDownloadProgress():
-return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);}
+return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);case BusEvent_UpdateVerifyingStarted():
+return updateVerifyingStarted(_that.url);case BusEvent_UpdateDownloadCompleted():
+return updateDownloadCompleted(_that.url,_that.path);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -1245,7 +1255,7 @@ return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult? Function( String id,  String path)?  recorderStarted,TResult? Function( String id)?  recorderStopped,TResult? Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult? Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult? Function( String id)?  transferTaskAdded,TResult? Function( String id,  BusTaskState state)?  transferTaskState,TResult? Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult? Function( String id,  String detail)?  transferTaskError,TResult? Function( String id)?  portForwardRegistered,TResult? Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult? Function( String id)?  portForwardRemoved,TResult? Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult? Function( String id,  String path)?  recorderStarted,TResult? Function( String id)?  recorderStopped,TResult? Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult? Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult? Function( String id)?  transferTaskAdded,TResult? Function( String id,  BusTaskState state)?  transferTaskState,TResult? Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult? Function( String id,  String detail)?  transferTaskError,TResult? Function( String id)?  portForwardRegistered,TResult? Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult? Function( String id)?  portForwardRemoved,TResult? Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult? Function( String url)?  updateVerifyingStarted,TResult? Function( String url,  String path)?  updateDownloadCompleted,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
@@ -1267,7 +1277,9 @@ return transferTaskError(_that.id,_that.detail);case BusEvent_PortForwardRegiste
 return portForwardRegistered(_that.id);case BusEvent_PortForwardStatus() when portForwardStatus != null:
 return portForwardStatus(_that.id,_that.status,_that.detail);case BusEvent_PortForwardRemoved() when portForwardRemoved != null:
 return portForwardRemoved(_that.id);case BusEvent_UpdateDownloadProgress() when updateDownloadProgress != null:
-return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);case _:
+return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);case BusEvent_UpdateVerifyingStarted() when updateVerifyingStarted != null:
+return updateVerifyingStarted(_that.url);case BusEvent_UpdateDownloadCompleted() when updateDownloadCompleted != null:
+return updateDownloadCompleted(_that.url,_that.path);case _:
   return null;
 
 }
@@ -2549,6 +2561,140 @@ url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
 as String,writtenBytes: null == writtenBytes ? _self.writtenBytes : writtenBytes // ignore: cast_nullable_to_non_nullable
 as BigInt,totalBytes: freezed == totalBytes ? _self.totalBytes : totalBytes // ignore: cast_nullable_to_non_nullable
 as BigInt?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_UpdateVerifyingStarted extends BusEvent {
+  const BusEvent_UpdateVerifyingStarted({required this.url}): super._();
+  
+
+ final  String url;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_UpdateVerifyingStartedCopyWith<BusEvent_UpdateVerifyingStarted> get copyWith => _$BusEvent_UpdateVerifyingStartedCopyWithImpl<BusEvent_UpdateVerifyingStarted>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_UpdateVerifyingStarted&&(identical(other.url, url) || other.url == url));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,url);
+
+@override
+String toString() {
+  return 'BusEvent.updateVerifyingStarted(url: $url)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_UpdateVerifyingStartedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_UpdateVerifyingStartedCopyWith(BusEvent_UpdateVerifyingStarted value, $Res Function(BusEvent_UpdateVerifyingStarted) _then) = _$BusEvent_UpdateVerifyingStartedCopyWithImpl;
+@useResult
+$Res call({
+ String url
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_UpdateVerifyingStartedCopyWithImpl<$Res>
+    implements $BusEvent_UpdateVerifyingStartedCopyWith<$Res> {
+  _$BusEvent_UpdateVerifyingStartedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_UpdateVerifyingStarted _self;
+  final $Res Function(BusEvent_UpdateVerifyingStarted) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? url = null,}) {
+  return _then(BusEvent_UpdateVerifyingStarted(
+url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_UpdateDownloadCompleted extends BusEvent {
+  const BusEvent_UpdateDownloadCompleted({required this.url, required this.path}): super._();
+  
+
+ final  String url;
+ final  String path;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_UpdateDownloadCompletedCopyWith<BusEvent_UpdateDownloadCompleted> get copyWith => _$BusEvent_UpdateDownloadCompletedCopyWithImpl<BusEvent_UpdateDownloadCompleted>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_UpdateDownloadCompleted&&(identical(other.url, url) || other.url == url)&&(identical(other.path, path) || other.path == path));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,url,path);
+
+@override
+String toString() {
+  return 'BusEvent.updateDownloadCompleted(url: $url, path: $path)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_UpdateDownloadCompletedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_UpdateDownloadCompletedCopyWith(BusEvent_UpdateDownloadCompleted value, $Res Function(BusEvent_UpdateDownloadCompleted) _then) = _$BusEvent_UpdateDownloadCompletedCopyWithImpl;
+@useResult
+$Res call({
+ String url, String path
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_UpdateDownloadCompletedCopyWithImpl<$Res>
+    implements $BusEvent_UpdateDownloadCompletedCopyWith<$Res> {
+  _$BusEvent_UpdateDownloadCompletedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_UpdateDownloadCompleted _self;
+  final $Res Function(BusEvent_UpdateDownloadCompleted) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? url = null,Object? path = null,}) {
+  return _then(BusEvent_UpdateDownloadCompleted(
+url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
+as String,path: null == path ? _self.path : path // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

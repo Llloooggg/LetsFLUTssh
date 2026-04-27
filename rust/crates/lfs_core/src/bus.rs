@@ -175,6 +175,14 @@ pub enum Event {
         written_bytes: u64,
         total_bytes: Option<u64>,
     },
+    /// Auto-update — HTTP bytes are on disk; the orchestrator
+    /// is now hashing + fetching the signed manifest + verifying
+    /// the Ed25519 signature. UI swaps the determinate progress
+    /// bar for an indeterminate "Verifying…" caption.
+    UpdateVerifyingStarted { url: String },
+    /// Auto-update — every verification step passed; the asset
+    /// is at `path` ready to install.
+    UpdateDownloadCompleted { url: String, path: String },
 }
 
 impl Event {
@@ -199,7 +207,9 @@ impl Event {
             Event::PortForwardRegistered { .. }
             | Event::PortForwardStatus { .. }
             | Event::PortForwardRemoved { .. } => EventTopic::PortForward,
-            Event::UpdateDownloadProgress { .. } => EventTopic::Update,
+            Event::UpdateDownloadProgress { .. }
+            | Event::UpdateVerifyingStarted { .. }
+            | Event::UpdateDownloadCompleted { .. } => EventTopic::Update,
         }
     }
 }

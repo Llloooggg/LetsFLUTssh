@@ -42,7 +42,7 @@ right now"*, the design is wrong.
 | 7. `known_hosts` manager → Rust + prompt protocol | pending |
 | 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |
 | 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
-| 8c. `update_service` state machine → Rust | pending |
+| 8c. `update_service` state machine → Rust | DONE — `lfs_core::update_orchestrator` owns the GitHub-API parse + asset selection + signed-manifest verification; Dart `UpdateService.checkForUpdate` / `downloadAsset` route through FRB by default with a Dart fallback retained only for the test-injection path |
 | 9. Security tier stack → Rust | pending — largest port; `KdfParams` + `SecretBuffer` + `SecureRef` retire here |
 | 10a. `session_recorder` asciinema composer → Rust | DONE | `5adceb05` |
 | 10b. `session_recorder` ring buffer + driver loop | DONE — `lfs_core::recorder::queue` per-id worker + mpsc serialises header/event/rotate/close; Dart shim reduced to fire-and-forget enqueues |
@@ -71,7 +71,7 @@ LOC reflects current tree):
 | `core/connection/connection_manager.dart` | 768 | registry + generation counter + bastion-await coordination + credential overlay + reconnect cascade + active-count tracking | 4 |
 | `core/session/session_store.dart` | 712 | in-memory list + folder-map cache + collapsed-folders set + duplicate-naming + folder rename / move / delete cascade + snapshot restore | 3 |
 | `core/transfer/transfer_manager.dart` | 393 | queue scheduler + concurrency cap + history truncation + progress throttle + timeout tracker | 5 |
-| `core/update/update_service.dart` | 961 | check → fetch → verify → download → install state machine | 8c |
+| `core/update/update_service.dart` | ~1000 | thin façade over `lfs_core::update_orchestrator` (GitHub release parse + signed-manifest verify happen Rust-side); Dart fallback paths stay only for flutter_test contexts that don't load the FRB native lib | DONE |
 | ~~`core/ssh/port_forward_runtime.dart`~~ | ~150 | thin FRB shim — armed-rule map + per-rule `port_forward_start_*` / `port_forward_stop_*` dispatch on connect / teardown; everything else is Rust | DONE — step 6 |
 | `core/ssh/known_hosts.dart` | 584 | TOFU policy + add / remove / match + cache | 7 |
 | `core/security/master_password.dart` | 396 | KDF verify orchestration + tier promotion | 9 |

@@ -241,10 +241,47 @@ class UpdateService {
 
   /// Query GitHub for the latest release and compare with [currentVersion].
   ///
-  /// Fetches all recent releases to build a cumulative changelog covering
-  /// every version between [currentVersion] and the latest.
+  /// Production routes through `lfs_core::update_orchestrator::check_for_update`
+  /// (one FRB call replaces the GitHub JSON parse + asset selection +
+  /// changelog walk). The Dart fallback below mirrors the same logic
+  /// for flutter_test contexts that don't load the FRB native lib (or
+  /// for tests that inject a non-default [HttpFetcher] via the
+  /// constructor — the existence of an injected fetcher is signal that
+  /// the caller wants the Dart path).
   Future<UpdateInfo> checkForUpdate(String currentVersion) async {
     AppLogger.instance.log('Checking for updates...', name: 'UpdateService');
+    if (identical(_fetch, defaultFetch)) {
+      try {
+        final result = await rust_update_http.updateCheck(
+          currentVersion: currentVersion,
+          repo: repo,
+        );
+        final info = UpdateInfo(
+          latestVersion: result.latestVersion,
+          currentVersion: result.currentVersion,
+          releaseUrl: result.releaseUrl,
+          assetUrl: result.assetUrl,
+          assetDigest: result.assetDigest,
+          changelog: result.changelog,
+        );
+        AppLogger.instance.log(
+          'Update check: current=$currentVersion, '
+          'latest=${info.latestVersion}, hasUpdate=${info.hasUpdate}',
+          name: 'UpdateService',
+        );
+        return info;
+      } catch (e) {
+        AppLogger.instance.log(
+          'updateCheck FRB failed; using Dart fallback: $e',
+          name: 'UpdateService',
+          level: LogLevel.warn,
+        );
+      }
+    }
+    return _checkForUpdateDart(currentVersion);
+  }
+
+  Future<UpdateInfo> _checkForUpdateDart(String currentVersion) async {
     final body = await _fetch(apiUri);
     final releases = jsonDecode(body);
 
@@ -259,11 +296,6 @@ class UpdateService {
     }
 
     if (releaseList.isEmpty) {
-      // GitHub API answered but returned no releases — either the
-      // repo has literally no published releases (first-ever build
-      // in CI, fork without releases) or the API shape changed.
-      // Log the miss so the difference between "actually up to
-      // date" and "release list came back empty" is greppable.
       AppLogger.instance.log(
         'Update check: release list empty — treating current build as latest',
         name: 'UpdateService',
@@ -399,10 +431,122 @@ class UpdateService {
     if (!isTrustedReleaseAssetUri(uri)) {
       throw StateError('Untrusted update download URL: $uri');
     }
+    AppLogger.instance.log(
+      'Downloading ${uri.pathSegments.last}...',
+      name: 'UpdateService',
+    );
+    onPhase?.call(UpdateDownloadPhase.downloading);
+    if (identical(_download, defaultDownload) &&
+        identical(_verifyArtifact, _defaultVerifyArtifact)) {
+      try {
+        return await _downloadAssetViaRust(
+          url: url,
+          targetDir: targetDir,
+          expectedDigest: expectedDigest,
+          onProgress: onProgress,
+          onPhase: onPhase,
+        );
+      } catch (e) {
+        // Network / IO / signature failures intentionally propagate
+        // out — the caller (UpdateNotifier) maps them to error
+        // toasts. Only fall back to the legacy Dart path when the
+        // FRB native lib is genuinely unavailable; treat that as a
+        // missing-binding signal so flutter_test contexts still work.
+        if (e is! StateError &&
+            e is! InvalidReleaseSignatureException &&
+            e is! ReleaseManifestUnavailableException) {
+          AppLogger.instance.log(
+            'updateDownloadWithVerification FRB call failed; '
+            'falling back to dart:io: $e',
+            name: 'UpdateService',
+            level: LogLevel.warn,
+          );
+          return _downloadAssetDart(
+            uri: uri,
+            targetDir: targetDir,
+            expectedDigest: expectedDigest,
+            onProgress: onProgress,
+            onPhase: onPhase,
+          );
+        }
+        rethrow;
+      }
+    }
+    return _downloadAssetDart(
+      uri: uri,
+      targetDir: targetDir,
+      expectedDigest: expectedDigest,
+      onProgress: onProgress,
+      onPhase: onPhase,
+    );
+  }
+
+  Future<String> _downloadAssetViaRust({
+    required String url,
+    required String targetDir,
+    required String? expectedDigest,
+    required void Function(int received, int total)? onProgress,
+    required void Function(UpdateDownloadPhase phase)? onPhase,
+  }) async {
+    StreamSubscription<rust_bus.BusEvent>? sub;
+    if (onProgress != null || onPhase != null) {
+      sub = AppBus.instance.subscribe(rust_bus.BusTopic.update).listen((event) {
+        switch (event) {
+          case rust_bus.BusEvent_UpdateDownloadProgress(
+                :final url,
+                :final writtenBytes,
+                :final totalBytes,
+              )
+              when url == url:
+            onProgress?.call(writtenBytes.toInt(), totalBytes?.toInt() ?? 0);
+          case rust_bus.BusEvent_UpdateVerifyingStarted():
+            onPhase?.call(UpdateDownloadPhase.verifying);
+          case _:
+            break;
+        }
+      });
+    }
+    try {
+      final result = await rust_update_http.updateDownloadWithVerification(
+        url: url,
+        targetDir: targetDir,
+        expectedDigest: expectedDigest ?? '',
+      );
+      final asset = result.asset;
+      if (asset != null) {
+        AppLogger.instance.log(
+          'Downloaded to ${asset.assetPath}',
+          name: 'UpdateService',
+        );
+        return asset.assetPath;
+      }
+      final detail = result.errorDetail ?? 'unknown';
+      switch (result.errorKind) {
+        case rust_update_http.DbDownloadErrorKind.invalidSignature:
+          throw InvalidReleaseSignatureException(detail);
+        case rust_update_http.DbDownloadErrorKind.manifestUnavailable:
+          throw ReleaseManifestUnavailableException(detail);
+        case rust_update_http.DbDownloadErrorKind.untrusted:
+          throw StateError('Untrusted update download URL: $detail');
+        case rust_update_http.DbDownloadErrorKind.network:
+          throw StateError('Update download failed: $detail');
+        case null:
+          throw StateError('Update download failed without detail');
+      }
+    } finally {
+      await sub?.cancel();
+    }
+  }
+
+  Future<String> _downloadAssetDart({
+    required Uri uri,
+    required String targetDir,
+    required String? expectedDigest,
+    required void Function(int received, int total)? onProgress,
+    required void Function(UpdateDownloadPhase phase)? onPhase,
+  }) async {
     final fileName = uri.pathSegments.last;
     final savePath = p.join(targetDir, fileName);
-    AppLogger.instance.log('Downloading $fileName...', name: 'UpdateService');
-    onPhase?.call(UpdateDownloadPhase.downloading);
     await _download(uri, savePath, onProgress);
 
     // HTTP bytes are on disk. The rest (SHA256, manifest + signature
