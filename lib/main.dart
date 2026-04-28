@@ -9,6 +9,7 @@ import 'l10n/app_localizations.dart';
 import 'app/already_running_app.dart';
 import 'app/app_toolbar.dart';
 import 'app/deep_link_wiring.dart';
+import 'app/host_key_prompt_listener.dart';
 import 'app/global_error_dialog.dart';
 import 'app/import_flow.dart';
 import 'app/navigator_key.dart';
@@ -552,6 +553,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   void initState() {
     super.initState();
     wireDeepLinks(_deepLinkHandler, ref);
+    HostKeyPromptListener.start();
     _listenForStartupUpdate();
     _listenForFirstLaunchBanner();
   }

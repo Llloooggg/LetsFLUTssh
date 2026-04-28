@@ -35,10 +35,20 @@ use crate::error::Error;
 /// accept-all `check_server_key` to default.
 pub struct LfsHandler {
     forward_tx: Option<tokio::sync::mpsc::UnboundedSender<ForwardedConnection>>,
+    /// Endpoint we're connecting to — used by `check_server_key` to
+    /// look up the matching `known_hosts` entry. Empty `host` /
+    /// zero `port` means "skip TOFU enforcement" (probe handlers
+    /// auto-accept; production handlers always carry a real
+    /// endpoint).
+    host: String,
+    port: u16,
 }
 
 impl LfsHandler {
-    fn with_forwards() -> (
+    fn with_forwards(
+        host: &str,
+        port: u16,
+    ) -> (
         Self,
         tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection>,
     ) {
@@ -46,6 +56,8 @@ impl LfsHandler {
         (
             LfsHandler {
                 forward_tx: Some(tx),
+                host: host.to_string(),
+                port,
             },
             rx,
         )
@@ -55,7 +67,14 @@ impl LfsHandler {
         // One-shot probes (`try_connect_*`) never request remote
         // forwards, so no receiver is needed. Sender stays None;
         // any (hypothetical) inbound forwarded channel is dropped.
-        LfsHandler { forward_tx: None }
+        // Probe handlers also skip TOFU — an unauthenticated probe
+        // should not pollute the user's known_hosts table or pop a
+        // dialog before the user has decided to actually connect.
+        LfsHandler {
+            forward_tx: None,
+            host: String::new(),
+            port: 0,
+        }
     }
 }
 
@@ -64,9 +83,18 @@ impl Handler for LfsHandler {
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &ssh_key::PublicKey,
+        server_public_key: &ssh_key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        Ok(true)
+        // Empty host / zero port marks a probe handler — auto-accept.
+        if self.host.is_empty() || self.port == 0 {
+            return Ok(true);
+        }
+        // Defensive — a DB read failure or a missing prompt
+        // listener resolves to "rejected" so the handshake fails
+        // closed. Better than silent accept.
+        Ok(check_server_key_via_tofu(&self.host, self.port, server_public_key)
+            .await
+            .unwrap_or(false))
     }
 
     async fn server_channel_open_forwarded_tcpip(
@@ -132,6 +160,123 @@ async fn open_handle_for_probe(host: &str, port: u16) -> Result<Handle<LfsHandle
         .map_err(|e| Error::Connect(e.to_string()))
 }
 
+/// Run the TOFU lookup against the running DB and (when the host
+/// is unknown / changed) fire a `KnownHostPromptRequest` event +
+/// await the user's response via the prompt registry. Returns
+/// `Ok(true)` when the offered key is accepted (matched stored
+/// entry, or the user accepted a new/changed key — and we
+/// persisted it). `Ok(false)` rejects the handshake.
+///
+/// Returns `Err` when the DB is not initialised yet — the
+/// handshake then resolves to "rejected" via the caller's
+/// `unwrap_or(false)`. Same posture for a fingerprint-encoding
+/// failure: the safe default is "do not accept".
+async fn check_server_key_via_tofu(
+    host: &str,
+    port: u16,
+    server_public_key: &ssh_key::PublicKey,
+) -> Result<bool, Error> {
+    use base64::engine::{general_purpose::STANDARD as B64_STD, Engine as _};
+    let app = crate::app::instance();
+    let db = app
+        .db()
+        .ok_or_else(|| Error::Io("known-hosts: db not initialized".to_string()))?;
+    let key_type = server_public_key.algorithm().as_str().to_string();
+    // OpenSSH wire format for the known_hosts blob: the
+    // `<key-type> <base64(SSH wire bytes)>` pair OpenSSH writes.
+    // `to_openssh()` serializes as `ssh-ed25519 AAAA…` (one line);
+    // we strip the prefix back off to reach the raw base64 the
+    // known_hosts table stores.
+    let openssh_line = server_public_key
+        .to_openssh()
+        .map_err(|e| Error::Io(format!("known-hosts: encode public key: {e}")))?;
+    let key_b64 = openssh_line
+        .split_whitespace()
+        .nth(1)
+        .ok_or_else(|| Error::Io("known-hosts: malformed openssh line".to_string()))?
+        .to_string();
+    let key_bytes = B64_STD
+        .decode(&key_b64)
+        .map_err(|e| Error::Io(format!("known-hosts: base64 decode: {e}")))?;
+    let port_i64 = port as i64;
+    let result = crate::known_hosts::check_host(&db, host, port_i64, &key_type, &key_b64)?;
+    if matches!(result, crate::known_hosts::HostCheckResult::Accepted) {
+        return Ok(true);
+    }
+    let kind = crate::known_hosts::prompt_kind_for(&result)
+        .expect("non-Accepted result must have a prompt kind");
+    let fingerprint = format_fingerprint(&key_bytes);
+    let prompt_id = generate_prompt_id();
+    let receiver = app.known_hosts_prompts.register(prompt_id.clone());
+    app.bus.publish(crate::bus::Event::KnownHostPromptRequest {
+        prompt_id: prompt_id.clone(),
+        host: host.to_string(),
+        port: port_i64,
+        key_type: key_type.clone(),
+        fingerprint,
+        kind,
+    });
+    let accepted = match receiver.await {
+        Ok(v) => v,
+        Err(_) => {
+            // Sender dropped without resolving — Dart UI tore down
+            // the dialog or the dispatcher dropped the entry. Fail
+            // closed.
+            app.known_hosts_prompts.cancel(&prompt_id);
+            return Ok(false);
+        }
+    };
+    if accepted {
+        // Persist the freshly-accepted key. Upserting overrides a
+        // stored Changed entry under the same `host:port` PK — the
+        // user explicitly opted into the new fingerprint.
+        let now_ms = current_unix_ms();
+        let host_owned = host.to_string();
+        let key_type_owned = key_type;
+        let key_b64_owned = key_b64;
+        db.with_conn(move |conn| {
+            crate::db::known_hosts::upsert_by_host_port(
+                conn,
+                &host_owned,
+                port_i64,
+                &key_type_owned,
+                &key_b64_owned,
+                now_ms,
+            )
+        })?;
+        crate::known_hosts::notify_changed(&app);
+    }
+    Ok(accepted)
+}
+
+fn format_fingerprint(key_bytes: &[u8]) -> String {
+    use base64::engine::{general_purpose::STANDARD_NO_PAD as B64_NP, Engine as _};
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(key_bytes);
+    let digest = h.finalize();
+    format!("SHA256:{}", B64_NP.encode(digest))
+}
+
+fn generate_prompt_id() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; 16];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    let mut hex = String::with_capacity(32);
+    for b in bytes {
+        use std::fmt::Write as _;
+        let _ = write!(hex, "{b:02x}");
+    }
+    hex
+}
+
+fn current_unix_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
 async fn open_handle_for_session(
     host: &str,
     port: u16,
@@ -142,7 +287,7 @@ async fn open_handle_for_session(
     ),
     Error,
 > {
-    let (handler, rx) = LfsHandler::with_forwards();
+    let (handler, rx) = LfsHandler::with_forwards(host, port);
     let handle = client::connect(default_client_config(), (host, port), handler)
         .await
         .map_err(|e| Error::Connect(e.to_string()))?;
@@ -170,7 +315,7 @@ async fn open_handle_via_proxy(
     ),
     Error,
 > {
-    let (handler, rx) = LfsHandler::with_forwards();
+    let (handler, rx) = LfsHandler::with_forwards(host, port);
     // The originator fields are protocol metadata only — they're
     // logged server-side but do not affect routing. "127.0.0.1:0"
     // is the conservative shape (a real loopback peer would have
