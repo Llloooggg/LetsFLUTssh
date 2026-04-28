@@ -460,6 +460,26 @@ gate clears.
   Sync FRB shim over `lfs_core::path::harden_file_perms`;
   logger init + tpm_client auth-file writer also routed through
   it so the chmod / icacls grammar lives one place.
+- ~~`core/sftp/sftp_models.dart` mode-string + dirs-first sort~~ —
+  **DONE**. Both routed through
+  `lfs_core::sftp_models::{mode_string, sort_file_entries}` so
+  the chmod-letter renderer + directories-first stable sort
+  share one canonical implementation across `LocalFS` and
+  `RustSftpFs`. The sort returns indices to avoid round-tripping
+  the full `FileEntry` struct over FFI.
+- ~~`core/ssh/openssh_config_parser.dart` line-grammar helpers~~ —
+  **DONE**. `_globMatches`, `_stripComment`, `_splitKeywordValue`,
+  `_splitHostPatterns` all routed through
+  `lfs_core::ssh_config::{glob_matches, strip_comment,
+  split_keyword_value, split_host_patterns}` so the only
+  Dart-side concerns left are the platform-specific filesystem
+  walk + home-directory expansion for `Include` resolution.
+- ~~`features/recordings/recordings_browser.dart` IEC size +
+  fractional duration~~ — **DONE**. `_formatSize` (B / KiB / MiB
+  binary-prefix labels) and `_formatDuration` (f64 seconds shape
+  for asciinema timestamps) routed through
+  `lfs_core::format::{format_size_iec,
+  format_duration_seconds_fractional}`.
 
 After step 13: every load-bearing path runs in Rust. Dart layer
 is widgets + Riverpod subscribers + MethodChannel proxies.
