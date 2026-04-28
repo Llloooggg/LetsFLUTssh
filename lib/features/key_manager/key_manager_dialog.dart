@@ -11,6 +11,7 @@ import '../../core/security/key_store.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../src/rust/api/format.dart' as rust_format;
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
@@ -351,9 +352,20 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     }
   }
 
+  /// Routes through `lfs_core::format::format_date` so the
+  /// `YYYY-MM-DD` grammar lives one place; falls back to the
+  /// inline pad-and-concat when the FRB native lib is not loaded.
   String _formatDate(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}'
-        '-${dt.day.toString().padLeft(2, '0')}';
+    try {
+      return rust_format.formatDate(
+        year: dt.year,
+        month: dt.month,
+        day: dt.day,
+      );
+    } catch (_) {
+      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}'
+          '-${dt.day.toString().padLeft(2, '0')}';
+    }
   }
 }
 

@@ -110,6 +110,14 @@ pub fn format_timestamp_minute(year: i32, month: u32, day: u32, hour: u32, minut
     format!("{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}")
 }
 
+/// Render a date as `YYYY-MM-DD`. Bare-day variant — used by the
+/// key-manager list where the time component would just clutter
+/// the row.
+#[must_use]
+pub fn format_date(year: i32, month: u32, day: u32) -> String {
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
 /// Recordings-browser duration shape — fractional seconds below
 /// 1 minute, `Nm SSs` below 1 hour, `Nh MMm` above. Distinct from
 /// [`format_duration`] because the recordings come back from the
@@ -252,5 +260,11 @@ mod tests {
         // Defensive: a misbehaving consumer could pass a 3-digit
         // year; format helpers should not silently lose width.
         assert_eq!(format_timestamp_minute(99, 1, 1, 0, 0), "0099-01-01 00:00");
+    }
+
+    #[test]
+    fn format_date_pads_every_field() {
+        assert_eq!(format_date(2026, 4, 28), "2026-04-28");
+        assert_eq!(format_date(2026, 12, 31), "2026-12-31");
     }
 }

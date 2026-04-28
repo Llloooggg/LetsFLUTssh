@@ -43,3 +43,11 @@ pub fn format_duration_seconds_fractional(seconds: f64) -> String {
 pub fn format_timestamp_minute(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> String {
     format::format_timestamp_minute(year, month, day, hour, minute)
 }
+
+/// Render a date as `YYYY-MM-DD`. Bare-day variant for surfaces
+/// like the key-manager list where the time component would just
+/// clutter the row.
+#[flutter_rust_bridge::frb(sync)]
+pub fn format_date(year: i32, month: u32, day: u32) -> String {
+    format::format_date(year, month, day)
+}

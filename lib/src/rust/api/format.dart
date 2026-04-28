@@ -45,3 +45,13 @@ String formatTimestampMinute({
   hour: hour,
   minute: minute,
 );
+
+/// Render a date as `YYYY-MM-DD`. Bare-day variant for surfaces
+/// like the key-manager list where the time component would just
+/// clutter the row.
+String formatDate({required int year, required int month, required int day}) =>
+    RustLib.instance.api.crateApiFormatFormatDate(
+      year: year,
+      month: month,
+      day: day,
+    );
