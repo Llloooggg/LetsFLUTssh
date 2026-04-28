@@ -1,22 +1,35 @@
-//! Helper hooks around the sessions / folders DAOs.
+//! Helper hooks around the sessions / folders DAOs + the
+//! Rust-side session registry.
 //!
 //! The canonical session table lives in `lfs_core::db::sessions`
-//! (rusqlite + SQLCipher); the Dart `SessionStore` mirrors it as
-//! a UI snapshot. This module exposes [`notify_changed`] so the
-//! FRB DAO wrappers can publish a single `SessionsChanged` event
-//! after every successful write — sessions, folders, M2M
-//! junctions, secret-slot updates, all coalesced under one
-//! topic the Dart shim subscribes to.
+//! (rusqlite + SQLCipher); [`Registry`] caches the read view
+//! (session list + folder map + empty / collapsed paths) so
+//! callers can render against a stable snapshot without
+//! re-walking the DB on every read.
 //!
-//! No state-bearing struct yet — the manager actor with cache +
-//! folder cascade lives behind a separate arc. Today this is
-//! the Rust-side push that lets the Dart cache stay in sync
-//! without polling.
+//! [`notify_changed`] is the Rust-side push that lets the Dart
+//! cache stay in sync without polling — the FRB DAO wrappers
+//! publish a single `SessionsChanged` event after every
+//! successful write (sessions, folders, M2M junctions, secret-
+//! slot updates, all coalesced under one topic the Dart shim
+//! subscribes to).
+//!
+//! Both halves coexist with the legacy Dart `SessionStore`
+//! during the migration window: Registry hydrates from the same
+//! DAOs the Dart store calls, so a future cutover where Dart
+//! subscribes to `Registry::view` instead of running its own
+//! `_doLoad` is a flip rather than a rewrite.
 
-use std::sync::Arc;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::{Arc, RwLock};
 
 use crate::app::AppState;
 use crate::bus::Event;
+use crate::db::folders::FolderRow;
+use crate::db::sessions::SessionRow;
+use crate::db::Db;
+use crate::error::Error;
+use crate::folder_path;
 
 /// Publish [`Event::SessionsChanged`] on the global bus. Called
 /// by the FRB layer after every mutating session / folder DAO so
@@ -24,6 +37,118 @@ use crate::bus::Event;
 /// reload rather than per-call.
 pub fn notify_changed(app: &Arc<AppState>) {
     app.bus.publish(Event::SessionsChanged);
+}
+
+/// Cached read view of the sessions / folders cache. Mirrors what
+/// `SessionStore._doLoad` Dart-side builds:
+///
+/// * `sessions` — every row from `db_sessions_list_all`. Carries
+///   credential columns; the in-memory Dart cache used to clear
+///   them before keeping the row, but the Registry keeps them
+///   because (a) they live one process anyway, and (b) the
+///   future `connect_*_with_secret` path will want them resolved
+///   inside Rust.
+/// * `folders` — id → `FolderRow` map; rebuilt on every reload.
+/// * `empty_folders` — paths with no sessions pointing at them
+///   (UI renders them with a placeholder).
+/// * `collapsed_folders` — paths whose row carries `collapsed`.
+///
+/// Cloned by `Registry::snapshot`; callers receive an owned copy
+/// they can read without holding the lock.
+#[derive(Debug, Clone, Default)]
+pub struct RegistryView {
+    pub sessions: Vec<SessionRow>,
+    pub folders: BTreeMap<String, FolderRow>,
+    pub empty_folders: BTreeSet<String>,
+    pub collapsed_folders: BTreeSet<String>,
+}
+
+/// Process-singleton sessions registry. Wraps a [`RegistryView`]
+/// behind an `RwLock` so reads (UI snapshots) don't block other
+/// reads. Only the FRB layer + the future `SessionsChanged`
+/// dispatcher touch the writer.
+///
+/// Read-side only at this slice — no mutating helpers; all
+/// writes still go through the existing
+/// `db_sessions_*` / `db_folders_*` FRB endpoints, which call
+/// `notify_changed` and schedule a `reload(db)` here on the next
+/// hand-off slice.
+pub struct Registry {
+    inner: RwLock<RegistryView>,
+}
+
+impl Default for Registry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Registry {
+    pub fn new() -> Self {
+        Self {
+            inner: RwLock::new(RegistryView::default()),
+        }
+    }
+
+    /// Rebuild the cached view from the live DB. Walks
+    /// `sessions::list_all` + `folders::list_all` once, then
+    /// derives `empty_folders` + `collapsed_folders` via the
+    /// pure helpers in `lfs_core::folder_path`.
+    ///
+    /// On error the existing view is preserved — callers see
+    /// stale state rather than an empty cache + a fault.
+    pub fn reload(&self, db: &Db) -> Result<(), Error> {
+        let view = db.with_conn(|conn| {
+            let sessions = crate::db::sessions::list_all(conn)?;
+            let folder_rows = crate::db::folders::list_all(conn)?;
+            let folders: BTreeMap<String, FolderRow> =
+                folder_rows.into_iter().map(|f| (f.id.clone(), f)).collect();
+            let used_folder_ids: std::collections::HashSet<String> = sessions
+                .iter()
+                .filter_map(|s| s.folder_id.clone())
+                .collect();
+            let empty_folders: BTreeSet<String> =
+                folder_path::derive_empty_folders(&folders, &used_folder_ids)
+                    .into_iter()
+                    .collect();
+            let collapsed_folders: BTreeSet<String> =
+                folder_path::derive_collapsed_folders(&folders)
+                    .into_iter()
+                    .collect();
+            Ok::<_, Error>(RegistryView {
+                sessions,
+                folders,
+                empty_folders,
+                collapsed_folders,
+            })
+        })?;
+        let mut g = self.inner.write().expect("registry view lock poisoned");
+        *g = view;
+        Ok(())
+    }
+
+    /// Cheap snapshot — clones the current view so the caller can
+    /// read without holding the read lock. The clone cost scales
+    /// linearly with session / folder count; in practice the user
+    /// session list is bounded at ≤1k entries so the clone runs
+    /// in microseconds.
+    #[must_use]
+    pub fn snapshot(&self) -> RegistryView {
+        self.inner
+            .read()
+            .expect("registry view lock poisoned")
+            .clone()
+    }
+
+    /// Number of sessions cached. Cheap — read lock only, no clone.
+    #[must_use]
+    pub fn session_count(&self) -> usize {
+        self.inner
+            .read()
+            .expect("registry view lock poisoned")
+            .sessions
+            .len()
+    }
 }
 
 /// Searchable subset of a Session — the four fields the UI search
@@ -357,5 +482,109 @@ mod tests {
     fn distinct_folders_returns_empty_when_every_session_is_at_root() {
         let folders = vec![String::new(), String::new()];
         assert!(distinct_folders(&folders).is_empty());
+    }
+
+    fn build_in_memory_db() -> Db {
+        use crate::db::bootstrap_schema;
+        use rusqlite::Connection as RusqliteConn;
+        let conn = RusqliteConn::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Db::from_raw_for_tests(conn)
+    }
+
+    #[test]
+    fn registry_starts_with_empty_view() {
+        let r = Registry::new();
+        let view = r.snapshot();
+        assert!(view.sessions.is_empty());
+        assert!(view.folders.is_empty());
+        assert!(view.empty_folders.is_empty());
+        assert!(view.collapsed_folders.is_empty());
+        assert_eq!(r.session_count(), 0);
+    }
+
+    #[test]
+    fn registry_reload_hydrates_session_and_folder_view() {
+        let db = build_in_memory_db();
+        // Folder + child session.
+        db.with_conn(|c| {
+            crate::db::folders::upsert(
+                c,
+                &FolderRow {
+                    id: "f1".into(),
+                    name: "Production".into(),
+                    parent_id: None,
+                    sort_order: 0,
+                    collapsed: false,
+                    created_at_ms: 0,
+                },
+            )?;
+            crate::db::folders::upsert(
+                c,
+                &FolderRow {
+                    id: "f2".into(),
+                    name: "EU".into(),
+                    parent_id: Some("f1".into()),
+                    sort_order: 0,
+                    collapsed: true,
+                    created_at_ms: 0,
+                },
+            )?;
+            crate::db::sessions::upsert(
+                c,
+                &SessionRow {
+                    id: "s1".into(),
+                    label: "web".into(),
+                    folder_id: Some("f1".into()),
+                    host: "h".into(),
+                    port: 22,
+                    user: "u".into(),
+                    auth_type: "password".into(),
+                    password: String::new(),
+                    key_path: String::new(),
+                    key_data: String::new(),
+                    key_id: None,
+                    passphrase: String::new(),
+                    sort_order: 0,
+                    notes: String::new(),
+                    last_connected_at_ms: None,
+                    extras: "{}".into(),
+                    via_session_id: None,
+                    via_host: None,
+                    via_port: None,
+                    via_user: None,
+                    created_at_ms: 0,
+                    updated_at_ms: 0,
+                },
+            )?;
+            Ok::<_, Error>(())
+        })
+        .unwrap();
+
+        let r = Registry::new();
+        r.reload(&db).unwrap();
+        let view = r.snapshot();
+
+        assert_eq!(view.sessions.len(), 1);
+        assert_eq!(view.sessions[0].id, "s1");
+        assert_eq!(view.folders.len(), 2);
+        // f1 has a session — should not appear in empty_folders.
+        // f2 has no session — should appear as "Production/EU".
+        assert!(!view.empty_folders.contains("Production"));
+        assert!(view.empty_folders.contains("Production/EU"));
+        // f2 is collapsed.
+        assert!(view.collapsed_folders.contains("Production/EU"));
+    }
+
+    #[test]
+    fn registry_reload_preserves_view_on_subsequent_calls() {
+        let db = build_in_memory_db();
+        let r = Registry::new();
+        // Empty DB → empty view; reload a couple times to confirm
+        // idempotence on the empty case.
+        r.reload(&db).unwrap();
+        r.reload(&db).unwrap();
+        assert_eq!(r.session_count(), 0);
     }
 }

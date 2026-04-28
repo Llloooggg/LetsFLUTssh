@@ -27,6 +27,7 @@ use crate::rate_limit::InMemoryRateLimiterRegistry;
 use crate::recorder::queue::RecorderQueue;
 use crate::recorder::RecorderRegistry;
 use crate::secrets::SecretStore;
+use crate::sessions::Registry as SessionsRegistry;
 use crate::transfer::driver::WorkerPool;
 use crate::transfer::TransferQueue;
 
@@ -92,6 +93,12 @@ pub struct AppState {
     /// canonical state lives in this registry across hot reload
     /// + settings nav cycles.
     pub rate_limiters: InMemoryRateLimiterRegistry,
+    /// Cached read view of the sessions / folders cache. Mirrors
+    /// what the Dart `SessionStore` builds today; populated by
+    /// `sessions::Registry::reload(db)`. Read-only at this slice
+    /// — the future actor cutover will route mutations through
+    /// here so the Dart store retires.
+    pub sessions_registry: SessionsRegistry,
 }
 
 impl AppState {
@@ -111,6 +118,7 @@ impl AppState {
             deeplinks: DeeplinkDispatcher::new(),
             known_hosts_prompts: KnownHostsPromptRegistry::new(),
             rate_limiters: InMemoryRateLimiterRegistry::new(),
+            sessions_registry: SessionsRegistry::new(),
         }
     }
 

@@ -48,6 +48,20 @@ pub struct Db {
     conn: Mutex<Connection>,
 }
 
+#[cfg(test)]
+impl Db {
+    /// Test-only constructor — wrap an existing rusqlite
+    /// connection (typically `Connection::open_in_memory`) so
+    /// downstream module tests (`sessions::Registry`, the future
+    /// import / export drivers) can drive the DAOs against an
+    /// ephemeral database without going through SQLCipher.
+    pub fn from_raw_for_tests(conn: Connection) -> Self {
+        Self {
+            conn: Mutex::new(conn),
+        }
+    }
+}
+
 impl Db {
     /// Open `path` with the given 32-byte SQLCipher master key.
     ///
