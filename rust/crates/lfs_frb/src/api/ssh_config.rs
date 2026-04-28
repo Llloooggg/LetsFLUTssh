@@ -116,3 +116,10 @@ pub fn ssh_config_strip_comment(line: String) -> String {
 pub fn ssh_config_split_keyword_value(line: String) -> Option<(String, String)> {
     lfs_core::ssh_config::split_keyword_value(&line)
 }
+
+/// Split a Host / Include value into whitespace-separated
+/// patterns, preserving spaces inside `"…"` quoted runs.
+#[flutter_rust_bridge::frb(sync)]
+pub fn ssh_config_split_host_patterns(value: String) -> Vec<String> {
+    lfs_core::ssh_config::split_host_patterns(&value)
+}

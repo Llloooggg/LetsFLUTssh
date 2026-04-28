@@ -456,7 +456,11 @@ fn unquote(value: &str) -> &str {
     }
 }
 
-fn split_host_patterns(value: &str) -> Vec<String> {
+/// Split a Host-line / Include value into whitespace-separated
+/// patterns, preserving spaces inside `"…"` quoted runs. Public so
+/// the Dart Include-directive expander can route through the
+/// canonical grammar.
+pub fn split_host_patterns(value: &str) -> Vec<String> {
     let mut result: Vec<String> = Vec::new();
     let mut buf = String::new();
     let mut in_quotes = false;

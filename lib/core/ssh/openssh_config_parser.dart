@@ -342,8 +342,17 @@ String _unquote(String value) {
 }
 
 List<String> _splitHostPatterns(String value) {
-  // Host line can list multiple patterns separated by whitespace.
-  // Quoted patterns preserve spaces.
+  try {
+    return rust_ssh_config.sshConfigSplitHostPatterns(value: value);
+  } catch (_) {
+    return _splitHostPatternsDart(value);
+  }
+}
+
+/// Pure-Dart fallback — same grammar as
+/// `lfs_core::ssh_config::split_host_patterns`. Used by
+/// flutter_test contexts that don't load the FRB native lib.
+List<String> _splitHostPatternsDart(String value) {
   final result = <String>[];
   final buf = StringBuffer();
   var inQuotes = false;

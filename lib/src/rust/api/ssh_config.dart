@@ -62,6 +62,13 @@ String sshConfigStripComment({required String line}) =>
     .api
     .crateApiSshConfigSshConfigSplitKeywordValue(line: line);
 
+/// Split a Host / Include value into whitespace-separated
+/// patterns, preserving spaces inside `"…"` quoted runs.
+List<String> sshConfigSplitHostPatterns({required String value}) => RustLib
+    .instance
+    .api
+    .crateApiSshConfigSshConfigSplitHostPatterns(value: value);
+
 /// FRB-visible mirror of `lfs_core::ssh_config::AuthType`.
 enum DbOpenSshAuthType { password, key }
 
