@@ -22,3 +22,17 @@
 pub fn path_expand_tilde(path: String) -> String {
     lfs_core::path::expand_tilde(&path)
 }
+
+/// Atomic byte write — writes [`bytes`] to `<path>.tmp`, hardens
+/// the tmp file to owner-only perms, then renames to [`path`].
+/// Caller is responsible for ensuring the parent directory exists.
+///
+/// Sync because the per-call work is one `write` syscall + one
+/// `rename` syscall; the bytes themselves rarely top a few KiB
+/// (KDF salt, marker payloads, sealed-blob envelopes, rate-limit
+/// state). The Dart `writeBytesAtomic` shipped sync to the same
+/// callers; routing through FRB sync preserves the contract.
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_write_bytes_atomic(path: String, bytes: Vec<u8>) -> Result<(), String> {
+    lfs_core::path::write_bytes_atomic(std::path::Path::new(&path), &bytes)
+}

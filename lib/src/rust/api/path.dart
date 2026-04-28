@@ -11,3 +11,18 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// resolution rules.
 String pathExpandTilde({required String path}) =>
     RustLib.instance.api.crateApiPathPathExpandTilde(path: path);
+
+/// Atomic byte write — writes [`bytes`] to `<path>.tmp`, hardens
+/// the tmp file to owner-only perms, then renames to [`path`].
+/// Caller is responsible for ensuring the parent directory exists.
+///
+/// Sync because the per-call work is one `write` syscall + one
+/// `rename` syscall; the bytes themselves rarely top a few KiB
+/// (KDF salt, marker payloads, sealed-blob envelopes, rate-limit
+/// state). The Dart `writeBytesAtomic` shipped sync to the same
+/// callers; routing through FRB sync preserves the contract.
+void pathWriteBytesAtomic({required String path, required List<int> bytes}) =>
+    RustLib.instance.api.crateApiPathPathWriteBytesAtomic(
+      path: path,
+      bytes: bytes,
+    );

@@ -101,6 +101,54 @@ pub fn harden_file_perms(_path: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Atomic byte write: writes [`bytes`] to `<path>.tmp`, hardens the
+/// tmp file to owner-only perms via [`harden_file_perms`], then
+/// renames to [`path`]. A crash mid-flush leaves either the
+/// previous file content or the tmp file behind — never a torn
+/// destination.
+///
+/// Mirror of the Dart-side `utils/file_utils.dart::writeBytesAtomic`
+/// — every secret-bearing artefact under app-support (KDF salt,
+/// tier-transition marker, hardware-vault blob, rate-limit state,
+/// keychain marker, …) routes through this so the on-disk perms
+/// contract lives one place. Caller is responsible for ensuring
+/// the parent directory exists; this helper does not implicitly
+/// create it because the per-tier writers all have their own
+/// `create_dir_all` step earlier in the flow + the implicit
+/// behaviour would mask "support dir was never resolved" bugs.
+pub fn write_bytes_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
+    use rand::RngCore;
+    // Random 32-bit suffix on the tmp filename so concurrent
+    // writers to the same destination do not collide on the
+    // intermediate file. Mirror of the Dart `_rng.nextInt(1 << 30)`
+    // shape — the suffix only needs to be process-unique long
+    // enough for the rename to land; collisions across processes
+    // are caught by the rename step itself.
+    let mut salt = [0u8; 4];
+    rand::rngs::OsRng.fill_bytes(&mut salt);
+    let suffix = u32::from_le_bytes(salt);
+    let parent = path.parent().unwrap_or(std::path::Path::new("."));
+    let stem = path
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| String::from("blob"));
+    let tmp = parent.join(format!("{stem}.tmp{suffix:08x}"));
+    if let Err(e) = std::fs::write(&tmp, bytes) {
+        return Err(format!("write {}: {e}", tmp.display()));
+    }
+    // Best-effort harden — a chmod failure on the tmp file is the
+    // same posture the Dart writer shipped (log + swallow). The
+    // rename completes regardless so the destination always lands.
+    let _ = harden_file_perms(&tmp);
+    if let Err(e) = std::fs::rename(&tmp, path) {
+        // Clean up the tmp on rename failure so a wedged tier
+        // switch does not litter app-support with stale tmps.
+        let _ = std::fs::remove_file(&tmp);
+        return Err(format!("rename {}: {e}", path.display()));
+    }
+    Ok(())
+}
+
 fn home_dir() -> Option<String> {
     if let Ok(h) = std::env::var("HOME") {
         if !h.is_empty() {
@@ -202,5 +250,84 @@ mod tests {
         let path = dir.path().join("does-not-exist");
         let err = harden_file_perms(&path).unwrap_err();
         assert!(err.contains("chmod"));
+    }
+
+    #[test]
+    fn write_bytes_atomic_round_trips_payload() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("payload.bin");
+        write_bytes_atomic(&path, b"hello, atomic world").unwrap();
+        let contents = std::fs::read(&path).unwrap();
+        assert_eq!(contents, b"hello, atomic world");
+    }
+
+    #[test]
+    fn write_bytes_atomic_overwrites_existing() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("payload.bin");
+        std::fs::write(&path, b"first version").unwrap();
+        write_bytes_atomic(&path, b"second version").unwrap();
+        let contents = std::fs::read(&path).unwrap();
+        assert_eq!(contents, b"second version");
+    }
+
+    #[test]
+    fn write_bytes_atomic_leaves_no_tmp_on_success() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("payload.bin");
+        write_bytes_atomic(&path, b"x").unwrap();
+        assert!(path.exists());
+        // No leftover `.tmp*` files anywhere in the parent dir.
+        let leftover: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp"))
+            .collect();
+        assert!(leftover.is_empty(), "stale tmp file: {leftover:?}");
+    }
+
+    #[test]
+    fn write_bytes_atomic_concurrent_writes_do_not_corrupt_destination() {
+        // Mirror of the Dart `writeFileAtomic preserves content on
+        // concurrent writes` test. Three parallel writes to the
+        // same destination must produce a non-corrupt file with one
+        // of the three payloads — the random tmp suffix prevents
+        // intermediate-file collisions.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("race.bin");
+        let path_a = path.clone();
+        let path_b = path.clone();
+        let path_c = path.clone();
+        let h_a = std::thread::spawn(move || write_bytes_atomic(&path_a, b"a"));
+        let h_b = std::thread::spawn(move || write_bytes_atomic(&path_b, b"b"));
+        let h_c = std::thread::spawn(move || write_bytes_atomic(&path_c, b"c"));
+        h_a.join().unwrap().unwrap();
+        h_b.join().unwrap().unwrap();
+        h_c.join().unwrap().unwrap();
+        let final_bytes = std::fs::read(&path).unwrap();
+        assert_eq!(final_bytes.len(), 1);
+        assert!(matches!(final_bytes[0], b'a' | b'b' | b'c'));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_bytes_atomic_lands_destination_at_owner_only_perms() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("payload.bin");
+        write_bytes_atomic(&path, b"x").unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+    }
+
+    #[test]
+    fn write_bytes_atomic_errors_when_parent_dir_missing() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("does-not-exist").join("payload.bin");
+        // Caller is responsible for `create_dir_all`; this helper
+        // surfaces ENOENT rather than implicitly creating it, so a
+        // misconfigured caller is loud not silent.
+        let err = write_bytes_atomic(&path, b"x").unwrap_err();
+        assert!(err.contains("write"));
     }
 }
