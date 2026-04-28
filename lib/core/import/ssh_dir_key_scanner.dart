@@ -68,11 +68,10 @@ class SshDirKeyScanner {
     return false;
   }
 
-  static String _basename(String path) {
-    final normalized = path.replaceAll('\\', '/');
-    final idx = normalized.lastIndexOf('/');
-    return idx < 0 ? normalized : normalized.substring(idx + 1);
-  }
+  /// Routes through `KeyFileHelper.basename` so the
+  /// Windows-separator normalization grammar lives one place
+  /// (currently `lfs_core::path::basename` via the FRB shim).
+  static String _basename(String path) => KeyFileHelper.basename(path);
 
   static List<String> _defaultListDir(String directory) {
     try {
