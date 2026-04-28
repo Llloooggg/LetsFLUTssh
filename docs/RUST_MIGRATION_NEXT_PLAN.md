@@ -196,6 +196,18 @@ shim with the canonical/fallback shape. Reduces the surface the
 actor will need to reason about — the Registry will compose
 these pure helpers rather than re-implement them.
 
+**Registry actor scaffold landed.** `lfs_core::sessions::Registry`
+now caches the read view (session list + folder map + derived
+empty / collapsed paths). The FRB DAO write paths
+(`db_sessions_*` / `db_folders_*`) reload the registry on every
+successful mutation; `sessions_registry_snapshot` /
+`sessions_registry_reload` expose the read side. Dart
+`SessionStore._doLoad` hydrates from the snapshot; the
+`sessionsRegistryViewProvider` Riverpod `StreamProvider` lets
+opt-in consumers read the canonical view without driving the
+store's lifecycle. Remaining: route every consumer through the
+provider, then retire the store.
+
 ### 4 — `connection_manager` → Rust
 
 Largest hot-path orchestrator after the actor shell. Today the
