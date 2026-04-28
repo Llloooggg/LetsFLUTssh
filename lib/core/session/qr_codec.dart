@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:archive/archive.dart';
 
+import '../../src/rust/api/qr_codec_encode.dart' as rust_qr;
 import '../../utils/logger.dart';
 import '../security/key_store.dart';
 import '../snippets/snippet.dart';
@@ -331,8 +332,7 @@ String encodeExportPayload(
   _encodeSnippetsPayload(payload, input);
 
   final json = jsonEncode(payload);
-  final compressed = Deflate(utf8.encode(json)).getBytes();
-  final encoded = base64Url.encode(compressed);
+  final encoded = _compressToPayload(json);
   AppLogger.instance.log(
     'Encoded payload: ${sessions.length} sessions, '
     '${input.emptyFolders.length} folders, '
@@ -343,6 +343,33 @@ String encodeExportPayload(
     name: 'QrCodec',
   );
   return encoded;
+}
+
+/// Deflate + base64url encode the JSON payload via the canonical
+/// Rust path; falls back to `package:archive` Deflate +
+/// `base64Url.encode` for flutter_test contexts that don't load the
+/// FRB native lib (same Rust-canonical / Dart-fallback pattern as
+/// the security stack's compat wrappers).
+///
+/// Wire-shape parity: production Rust + the deeplink decoder both
+/// use `URL_SAFE_NO_PAD`. `dart:convert`'s `base64Url.encode` adds
+/// `=` padding by default; strip it so a payload produced by
+/// either path round-trips through `qr_codec_decode::decode_payload`.
+String _compressToPayload(String json) {
+  try {
+    return rust_qr.qrCodecCompressToPayload(json: json);
+  } catch (_) {
+    final compressed = Deflate(utf8.encode(json)).getBytes();
+    return _stripBase64Padding(base64Url.encode(compressed));
+  }
+}
+
+String _stripBase64Padding(String encoded) {
+  var end = encoded.length;
+  while (end > 0 && encoded.codeUnitAt(end - 1) == 0x3D /* '=' */ ) {
+    end--;
+  }
+  return encoded.substring(0, end);
 }
 
 /// For "all manager keys" mode, add keys not referenced by any session.

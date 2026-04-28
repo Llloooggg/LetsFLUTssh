@@ -9,6 +9,7 @@ import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
 import '../core/ssh/ssh_config.dart';
 import '../features/settings/export_import.dart';
+import '../src/rust/api/qr_codec_encode.dart' as rust_qr;
 import 'unified_export_dialog.dart';
 
 /// Identity of the currently-active preset. Kept in the controller as a
@@ -393,8 +394,12 @@ class UnifiedExportController extends ChangeNotifier {
       's': [encodeSessionCompact(dummySession)],
     };
     final json = jsonEncode(payload);
-    final compressed = Deflate(utf8.encode(json)).getBytes();
-    final withKeysSize = base64Url.encode(compressed).length;
+    // Route the deflate + base64url through `lfs_core::qr_codec_encode`
+    // so size estimation here uses the same compressor parameters as
+    // the production encode path (qr_codec.dart + Rust archive
+    // exporter). Falls back to package:archive Deflate when the FRB
+    // native lib isn't loaded (flutter_test).
+    final withKeysSize = _payloadSize(json);
 
     const baselineOptions = ExportOptions(
       includeSessions: true,
@@ -412,6 +417,25 @@ class UnifiedExportController extends ChangeNotifier {
       0,
       withKeysSize,
     );
+  }
+
+  /// Deflate + base64url encoded byte count of [json]. Routes
+  /// through `lfs_core::qr_codec_encode::compress_to_payload_size`
+  /// in production; falls back to `package:archive` Deflate for
+  /// flutter_test contexts that don't load the FRB native lib.
+  /// Strips `=` padding to match the canonical no-pad wire shape.
+  int _payloadSize(String json) {
+    try {
+      return rust_qr.qrCodecCompressToPayloadSize(json: json);
+    } catch (_) {
+      final compressed = Deflate(utf8.encode(json)).getBytes();
+      final encoded = base64Url.encode(compressed);
+      var end = encoded.length;
+      while (end > 0 && encoded.codeUnitAt(end - 1) == 0x3D /* '=' */ ) {
+        end--;
+      }
+      return end;
+    }
   }
 
   int get configSize {

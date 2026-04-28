@@ -36,6 +36,7 @@ pub mod path;
 pub mod platform;
 pub mod portforward;
 pub mod qr_codec_decode;
+pub mod qr_codec_encode;
 pub mod rate_limit;
 pub mod recorder;
 pub mod secrets;

@@ -20,6 +20,7 @@ pub mod migration;
 pub mod password_strength;
 pub mod path;
 pub mod persisted_rate_limit;
+pub mod qr_codec_encode;
 pub mod rate_limit;
 pub mod recorder;
 pub mod security_capabilities;
