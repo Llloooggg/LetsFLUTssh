@@ -127,6 +127,34 @@ pub fn import_ppk(
     finish(key, comment)
 }
 
+/// Compute the content-addressable fingerprint the Dart key store
+/// uses to dedup imports — SHA-256 hex of the key text after
+/// CRLF→LF + trim normalization. Distinct from
+/// [`crate::ssh::format_fingerprint`] (which is the OpenSSH host-
+/// key `SHA256:<base64>` shape); this one is keyed on text bytes
+/// and used as the M2M dedup id, not for display.
+///
+/// Returns the empty string for empty input so callers can short-
+/// circuit without branching on the result. Lower-case hex matches
+/// the existing Dart `sha256HexCompat` shape byte-for-byte.
+#[must_use]
+pub fn normalized_text_fingerprint(text: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let normalized = text.replace("\r\n", "\n");
+    let trimmed = normalized.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let mut h = Sha256::new();
+    h.update(trimmed.as_bytes());
+    let digest = h.finalize();
+    let mut out = String::with_capacity(digest.len() * 2);
+    for byte in digest.iter() {
+        out.push_str(&format!("{byte:02x}"));
+    }
+    out
+}
+
 /// True when [`pem`] is a password-protected private key.
 ///
 /// Covers the three encoding families the importer cares about:
@@ -227,6 +255,48 @@ fn is_encrypted_openssh_key(pem: &str) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fingerprint_returns_empty_for_empty_input() {
+        assert_eq!(normalized_text_fingerprint(""), "");
+        assert_eq!(normalized_text_fingerprint("   \n\n   "), "");
+    }
+
+    #[test]
+    fn fingerprint_normalizes_crlf_to_lf_before_hashing() {
+        let lf = "ssh-ed25519 AAAA...\nuser@host\n";
+        let crlf = "ssh-ed25519 AAAA...\r\nuser@host\r\n";
+        assert_eq!(
+            normalized_text_fingerprint(lf),
+            normalized_text_fingerprint(crlf)
+        );
+    }
+
+    #[test]
+    fn fingerprint_trims_surrounding_whitespace() {
+        let bare = "ssh-ed25519 AAAA";
+        let padded = "  \n\nssh-ed25519 AAAA\n  ";
+        assert_eq!(
+            normalized_text_fingerprint(bare),
+            normalized_text_fingerprint(padded)
+        );
+    }
+
+    #[test]
+    fn fingerprint_is_lowercase_hex_64_chars() {
+        let fp = normalized_text_fingerprint("ssh-ed25519 AAAA");
+        assert_eq!(fp.len(), 64);
+        assert!(fp
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+    }
+
+    #[test]
+    fn fingerprint_distinguishes_different_inputs() {
+        let a = normalized_text_fingerprint("ssh-ed25519 AAAA1");
+        let b = normalized_text_fingerprint("ssh-ed25519 AAAA2");
+        assert_ne!(a, b);
+    }
 
     #[test]
     fn pkcs1_dek_info_marks_encrypted() {

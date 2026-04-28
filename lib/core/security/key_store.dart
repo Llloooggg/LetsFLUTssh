@@ -356,20 +356,30 @@ class KeyStore {
   ///
   /// Public keys are normalized by trimming surrounding whitespace and
   /// collapsing CRLF — the key-type prefix and base64 body are stable
-  /// enough that this matches OpenSSH's own dedup behaviour.
+  /// enough that this matches OpenSSH's own dedup behaviour. Routes
+  /// through `lfs_core::keys::normalized_text_fingerprint` so the
+  /// normalize-then-hash grammar lives one place.
   static String publicKeyFingerprint(String publicKey) {
-    final normalized = publicKey.replaceAll('\r\n', '\n').trim();
-    if (normalized.isEmpty) return '';
-    return _sha256Hex(utf8.encode(normalized));
+    try {
+      return rust_keys.keysNormalizedTextFingerprint(text: publicKey);
+    } catch (_) {
+      final normalized = publicKey.replaceAll('\r\n', '\n').trim();
+      if (normalized.isEmpty) return '';
+      return _sha256Hex(utf8.encode(normalized));
+    }
   }
 
   /// SHA-256 hex of a normalized private key PEM. Retained only as a
   /// fallback for entries that lack an extracted public half. Prefer
   /// [publicKeyFingerprint] everywhere else.
   static String privateKeyFingerprint(String privateKey) {
-    final normalized = privateKey.replaceAll('\r\n', '\n').trim();
-    if (normalized.isEmpty) return '';
-    return _sha256Hex(utf8.encode(normalized));
+    try {
+      return rust_keys.keysNormalizedTextFingerprint(text: privateKey);
+    } catch (_) {
+      final normalized = privateKey.replaceAll('\r\n', '\n').trim();
+      if (normalized.isEmpty) return '';
+      return _sha256Hex(utf8.encode(normalized));
+    }
   }
 
   static String _sha256Hex(List<int> bytes) => sha256HexCompat(bytes);

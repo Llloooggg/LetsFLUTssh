@@ -97,3 +97,13 @@ pub async fn keys_import_ppk(
 pub fn keys_is_encrypted_pem(pem: String) -> bool {
     lfs_core::keys::is_encrypted_pem(&pem)
 }
+
+/// Content-addressable fingerprint of a key text (CRLF→LF + trim
+/// + SHA-256 hex). Used by the Dart key store as the M2M dedup id
+/// — distinct from the OpenSSH host-key SHA256 base64 shape that
+/// `ssh_format_host_key_fingerprint` returns. Returns the empty
+/// string for empty / whitespace-only input.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keys_normalized_text_fingerprint(text: String) -> String {
+    lfs_core::keys::normalized_text_fingerprint(&text)
+}

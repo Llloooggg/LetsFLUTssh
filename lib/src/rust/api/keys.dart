@@ -65,6 +65,14 @@ Future<KeyMaterial> keysImportPpk({
 bool keysIsEncryptedPem({required String pem}) =>
     RustLib.instance.api.crateApiKeysKeysIsEncryptedPem(pem: pem);
 
+/// Content-addressable fingerprint of a key text (CRLF→LF + trim
+/// + SHA-256 hex). Used by the Dart key store as the M2M dedup id
+/// — distinct from the OpenSSH host-key SHA256 base64 shape that
+/// `ssh_format_host_key_fingerprint` returns. Returns the empty
+/// string for empty / whitespace-only input.
+String keysNormalizedTextFingerprint({required String text}) =>
+    RustLib.instance.api.crateApiKeysKeysNormalizedTextFingerprint(text: text);
+
 class KeyMaterial {
   final String privatePem;
   final String publicOpenssh;
