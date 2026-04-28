@@ -506,6 +506,17 @@ gate clears.
   fields so the Rust side stays clock-independent. The defensive
   4-digit-year padding catches a corner the inline version
   silently lost.
+- ~~Cross-cutting `basename` consolidation~~ — **DONE**. Four
+  Dart-side basename copies (key file helper, ssh dir scanner,
+  transfer manager display name, transfer panel `_shortenPath`)
+  all route through `lfs_core::path::{basename,
+  shorten_to_two_segments}`. After this commit no Dart-side code
+  carries its own cross-platform basename grammar.
+- ~~`core/import/ssh_dir_key_scanner.dart::_isObviousNonKey`~~ —
+  **DONE**. The `*.pub` / `config` / `authorized_keys*` /
+  `known_hosts*` skip rule moved to
+  `lfs_core::keys::is_obvious_non_key_filename`; pre-filters the
+  dir-walk before the file-read + parse round-trip.
 
 After step 13: every load-bearing path runs in Rust. Dart layer
 is widgets + Riverpod subscribers + MethodChannel proxies.
