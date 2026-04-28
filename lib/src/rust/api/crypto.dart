@@ -20,6 +20,22 @@ Future<Uint8List> cryptoHkdfSha256({
   length: length,
 );
 
+/// HMAC-SHA-256: 32-byte MAC tag over `message` keyed by `key`.
+///
+/// Sync because the per-call work is a single SHA-256 digest pass —
+/// well under a millisecond even on the slowest mobile target. The
+/// security-tier secret gates (`KeychainPasswordGate`,
+/// `HardwareTierVault`, `PersistedRateLimiter`) call this from
+/// hot-ish paths (every unlock attempt, every persisted-state
+/// load) so the async hop overhead would dwarf the work.
+Uint8List cryptoHmacSha256({
+  required List<int> key,
+  required List<int> message,
+}) => RustLib.instance.api.crateApiCryptoCryptoHmacSha256(
+  key: key,
+  message: message,
+);
+
 /// Verify an Ed25519 signature over `message` against `public_key`.
 /// Returns `false` on any malformed input — never throws — so the
 /// caller's "no signature match → fail closed" branch is the only

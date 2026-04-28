@@ -31,6 +31,7 @@ rand = "0.8"
 # `lfs_core::crypto`. Replaces pointycastle / pinenacl on the Dart
 # side once the call sites flip.
 hkdf = { workspace = true }
+hmac = { workspace = true }
 sha2 = { workspace = true }
 ed25519-dalek = { workspace = true }
 aes-gcm = { workspace = true }

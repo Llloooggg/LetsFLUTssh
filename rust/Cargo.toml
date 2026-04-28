@@ -70,6 +70,12 @@ subtle = "2"
 # series russh 0.59 already pulls so the resolver doesn't double-stack
 # major versions.
 hkdf = "0.12"
+# HMAC-SHA-256 — needed for the per-tier secret-gating MACs
+# (master-password persisted-rate-limit signature, L2 keychain
+# password gate, L3 hardware-vault PIN auth value). Same version
+# series the `hkdf` crate consumes internally so the resolver
+# doesn't double-stack.
+hmac = "0.12"
 sha2 = "0.10"
 ed25519-dalek = { version = "2", default-features = false }
 # AES-256-GCM for Phase 2.1 envelopes (master-password verifier,

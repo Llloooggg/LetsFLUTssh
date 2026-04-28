@@ -22,6 +22,19 @@ pub async fn crypto_hkdf_sha256(
     .map_err(|e| format!("hkdf task: {e}"))?
 }
 
+/// HMAC-SHA-256: 32-byte MAC tag over `message` keyed by `key`.
+///
+/// Sync because the per-call work is a single SHA-256 digest pass —
+/// well under a millisecond even on the slowest mobile target. The
+/// security-tier secret gates (`KeychainPasswordGate`,
+/// `HardwareTierVault`, `PersistedRateLimiter`) call this from
+/// hot-ish paths (every unlock attempt, every persisted-state
+/// load) so the async hop overhead would dwarf the work.
+#[flutter_rust_bridge::frb(sync)]
+pub fn crypto_hmac_sha256(key: Vec<u8>, message: Vec<u8>) -> Vec<u8> {
+    lfs_core::crypto::hmac_sha256(&key, &message)
+}
+
 /// Verify an Ed25519 signature over `message` against `public_key`.
 /// Returns `false` on any malformed input — never throws — so the
 /// caller's "no signature match → fail closed" branch is the only

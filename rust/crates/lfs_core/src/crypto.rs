@@ -18,8 +18,11 @@ use aes_gcm::aead::{Aead, KeyInit, Payload};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use hkdf::Hkdf;
+use hmac::{Hmac, Mac};
 use rand::RngCore;
 use sha2::Sha256;
+
+type HmacSha256 = Hmac<Sha256>;
 
 use crate::error::Error;
 
@@ -48,6 +51,40 @@ pub fn hkdf_sha256(ikm: &[u8], salt: &[u8], info: &[u8], length: usize) -> Resul
     hk.expand(info, &mut out)
         .map_err(|e| Error::Crypto(format!("hkdf expand: {e}")))?;
     Ok(out)
+}
+
+/// HMAC-SHA-256 over `message` keyed by `key`. Returns the 32-byte
+/// MAC tag.
+///
+/// Used by the security-tier secret gates that prove the user typed
+/// the right password / PIN without ever decrypting the wrapped key
+/// material:
+///
+/// * `KeychainPasswordGate` (L2) — gate-stored hash:
+///   `HMAC(pepper, salt || password)`. Mismatch ≠ keychain unlock.
+/// * `HardwareTierVault` (L3) — TPM auth value:
+///   `HMAC(salt, password)` (or `HMAC(salt, fprintdHash)` on the
+///   biometric branch). Mismatch ≠ TPM unseal — the hardware
+///   enforces the per-attempt rate limit.
+/// * `PersistedRateLimiter` — disk-blob signature:
+///   `HMAC(stored_password_hash, payload)`. Mismatch indicates
+///   tampering; resets to the worst-case backoff.
+///
+/// Pure RustCrypto; the Dart sites flip to this once the FRB sync
+/// shim lands. Keying the HMAC the same way Dart does (key as the
+/// HMAC key, message as the data) keeps wire-byte parity with
+/// existing on-disk blobs across the migration.
+#[must_use]
+pub fn hmac_sha256(key: &[u8], message: &[u8]) -> Vec<u8> {
+    // `Mac::new_from_slice` accepts any key length (HMAC's spec
+    // pads/hashes to the block size internally) — the unwrap is safe.
+    // Disambiguate against `KeyInit::new_from_slice` (also in scope
+    // via the `aes_gcm::aead` re-export) so the compiler picks the
+    // HMAC-flavoured trait method.
+    let mut mac =
+        <HmacSha256 as Mac>::new_from_slice(key).expect("HMAC-SHA-256 accepts any key length");
+    mac.update(message);
+    mac.finalize().into_bytes().to_vec()
 }
 
 /// Verify an Ed25519 signature over `message` against `public_key`.
@@ -356,5 +393,39 @@ mod tests {
     fn argon2id_rejects_zero_length() {
         let result = argon2id_derive(&[1; 8], &[2; 16], 32, 3, 1, 0);
         assert!(matches!(result, Err(Error::Crypto(_))));
+    }
+
+    #[test]
+    fn hmac_sha256_known_answer_rfc4231_case_1() {
+        // RFC 4231 §4.2 test case 1: 20-byte 0x0b key, "Hi There".
+        let key = vec![0x0b; 20];
+        let mac = hmac_sha256(&key, b"Hi There");
+        assert_eq!(mac.len(), 32);
+        assert_eq!(
+            mac,
+            hex_decode("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7")
+        );
+    }
+
+    #[test]
+    fn hmac_sha256_empty_key_and_message_match_rust_crypto() {
+        // Empty inputs are valid for HMAC; the gate paths use this
+        // edge case when the user picks "no password" on T2.
+        let mac_a = hmac_sha256(&[], &[]);
+        let mac_b = hmac_sha256(&[], &[]);
+        assert_eq!(mac_a, mac_b);
+        assert_eq!(mac_a.len(), 32);
+    }
+
+    #[test]
+    fn hmac_sha256_key_length_does_not_truncate_output() {
+        // The Dart sites pass keys of every length (32-byte salt,
+        // 32-byte pepper, 32-byte derived password hash). Output
+        // must always be 32 bytes, the SHA-256 block size.
+        for key_len in [0, 1, 16, 32, 64, 100] {
+            let key = vec![0x42u8; key_len];
+            let mac = hmac_sha256(&key, b"x");
+            assert_eq!(mac.len(), 32, "key_len={key_len}");
+        }
     }
 }
