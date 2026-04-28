@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import '../core/import/import_service.dart';
-import '../core/session/qr_codec.dart' show QrPayloadVersionTooNewException;
 import '../core/sftp/errors.dart';
 import '../core/ssh/errors.dart';
 import '../core/update/update_service.dart'
@@ -173,12 +172,11 @@ String? _tryLocalizeLfsError(S l10n, Object error) {
   if (error is UnsupportedLfsVersionException) {
     return l10n.errLfsUnsupportedVersion(error.found, error.supported);
   }
-  if (error is QrPayloadVersionTooNewException) {
-    // Reuses errLfsUnsupportedVersion — the "archive" wording is imperfect
-    // for QR payloads but the action ("update the app") is identical, and
-    // routing both through one string keeps the translation burden flat.
-    return l10n.errLfsUnsupportedVersion(error.found, error.supported);
-  }
+  // Note: the QR-payload "version too new" path no longer raises a
+  // typed Dart exception — the Rust dispatcher returns a typed
+  // `QrImportRejected` outcome that the deeplink listener surfaces
+  // through `onQrImportVersionTooNew(found, supported)` directly,
+  // bypassing this generic localizer.
   if (error is LfsDecryptionFailedException) {
     return l10n.errLfsDecryptFailed;
   }
