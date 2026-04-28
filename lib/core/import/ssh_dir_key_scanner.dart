@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../src/rust/api/keys.dart' as rust_keys;
 import '../../utils/logger.dart';
 import 'key_file_helper.dart';
 import 'openssh_config_importer.dart' show PemKeyReader;
@@ -58,14 +59,22 @@ class SshDirKeyScanner {
     return result;
   }
 
+  /// Routes through `lfs_core::keys::is_obvious_non_key_filename`
+  /// so the `*.pub` / `config` / `authorized_keys*` /
+  /// `known_hosts*` skip rule lives one place; falls back to the
+  /// inline branch list when the FRB native lib is not loaded.
   static bool _isObviousNonKey(String name) {
-    if (name.endsWith('.pub')) return true;
-    if (name == 'config') return true;
-    if (name == 'authorized_keys' || name.startsWith('authorized_keys')) {
-      return true;
+    try {
+      return rust_keys.keysIsObviousNonKeyFilename(filename: name);
+    } catch (_) {
+      if (name.endsWith('.pub')) return true;
+      if (name == 'config') return true;
+      if (name == 'authorized_keys' || name.startsWith('authorized_keys')) {
+        return true;
+      }
+      if (name.startsWith('known_hosts')) return true;
+      return false;
     }
-    if (name.startsWith('known_hosts')) return true;
-    return false;
   }
 
   /// Routes through `KeyFileHelper.basename` so the

@@ -127,6 +127,32 @@ pub fn import_ppk(
     finish(key, comment)
 }
 
+/// True when [`filename`] is "obviously not a private key" by
+/// shape — public-key files (`*.pub`), the OpenSSH config file
+/// (`config`), `authorized_keys*`, and `known_hosts*` siblings
+/// the SSH dir scanner will see when walking `~/.ssh`. Used as a
+/// pre-filter to skip the file-read + parse round-trip on
+/// entries that cannot possibly be keys.
+///
+/// `filename` is a basename only (caller pre-strips the dir);
+/// this helper does not normalise paths.
+#[must_use]
+pub fn is_obvious_non_key_filename(filename: &str) -> bool {
+    if filename.ends_with(".pub") {
+        return true;
+    }
+    if filename == "config" {
+        return true;
+    }
+    if filename == "authorized_keys" || filename.starts_with("authorized_keys") {
+        return true;
+    }
+    if filename.starts_with("known_hosts") {
+        return true;
+    }
+    false
+}
+
 /// Compute the content-addressable fingerprint the Dart key store
 /// uses to dedup imports — SHA-256 hex of the key text after
 /// CRLF→LF + trim normalization. Distinct from
@@ -296,6 +322,36 @@ mod tests {
         let a = normalized_text_fingerprint("ssh-ed25519 AAAA1");
         let b = normalized_text_fingerprint("ssh-ed25519 AAAA2");
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn obvious_non_key_filename_flags_dot_pub() {
+        assert!(is_obvious_non_key_filename("id_ed25519.pub"));
+    }
+
+    #[test]
+    fn obvious_non_key_filename_flags_config() {
+        assert!(is_obvious_non_key_filename("config"));
+    }
+
+    #[test]
+    fn obvious_non_key_filename_flags_authorized_keys_variants() {
+        assert!(is_obvious_non_key_filename("authorized_keys"));
+        assert!(is_obvious_non_key_filename("authorized_keys.bak"));
+        assert!(is_obvious_non_key_filename("authorized_keys2"));
+    }
+
+    #[test]
+    fn obvious_non_key_filename_flags_known_hosts_variants() {
+        assert!(is_obvious_non_key_filename("known_hosts"));
+        assert!(is_obvious_non_key_filename("known_hosts.old"));
+    }
+
+    #[test]
+    fn obvious_non_key_filename_passes_actual_keys() {
+        assert!(!is_obvious_non_key_filename("id_ed25519"));
+        assert!(!is_obvious_non_key_filename("id_rsa"));
+        assert!(!is_obvious_non_key_filename("my-deploy-key"));
     }
 
     #[test]

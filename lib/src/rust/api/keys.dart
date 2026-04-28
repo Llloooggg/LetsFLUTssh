@@ -73,6 +73,16 @@ bool keysIsEncryptedPem({required String pem}) =>
 String keysNormalizedTextFingerprint({required String text}) =>
     RustLib.instance.api.crateApiKeysKeysNormalizedTextFingerprint(text: text);
 
+/// True when [`filename`] is "obviously not a private key" by
+/// shape — `*.pub`, `config`, `authorized_keys*`, `known_hosts*`
+/// siblings of a `~/.ssh` walk. Used by the SSH dir scanner to
+/// skip the file-read + parse round-trip on entries that cannot
+/// possibly be keys.
+bool keysIsObviousNonKeyFilename({required String filename}) => RustLib
+    .instance
+    .api
+    .crateApiKeysKeysIsObviousNonKeyFilename(filename: filename);
+
 class KeyMaterial {
   final String privatePem;
   final String publicOpenssh;

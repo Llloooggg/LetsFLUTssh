@@ -107,3 +107,13 @@ pub fn keys_is_encrypted_pem(pem: String) -> bool {
 pub fn keys_normalized_text_fingerprint(text: String) -> String {
     lfs_core::keys::normalized_text_fingerprint(&text)
 }
+
+/// True when [`filename`] is "obviously not a private key" by
+/// shape — `*.pub`, `config`, `authorized_keys*`, `known_hosts*`
+/// siblings of a `~/.ssh` walk. Used by the SSH dir scanner to
+/// skip the file-read + parse round-trip on entries that cannot
+/// possibly be keys.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keys_is_obvious_non_key_filename(filename: String) -> bool {
+    lfs_core::keys::is_obvious_non_key_filename(&filename)
+}
