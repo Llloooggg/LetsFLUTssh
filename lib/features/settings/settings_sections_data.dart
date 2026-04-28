@@ -920,7 +920,10 @@ class _QrExportTile extends ConsumerWidget {
       ),
     );
 
-    final deepLink = wrapInDeepLink(payload);
+    // The Rust encoder returns the raw deflated+base64url payload; the
+    // `letsflutssh://import?d=` prefix is a one-line wrap so we keep it
+    // inline here rather than ferry a one-call helper.
+    final deepLink = 'letsflutssh://import?d=$payload';
     // Selected ids = exported session count (the encoder writes one
     // entry per id). Avoids round-tripping the encoded blob back
     // through the Dart decoder just to count.

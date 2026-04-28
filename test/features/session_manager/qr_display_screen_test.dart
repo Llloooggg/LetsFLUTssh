@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/session/qr_codec.dart';
-import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/qr_display_screen.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 void main() {
-  final testPayload = wrapInDeepLink(
-    encodeExportPayload([
-      Session(
-        label: 'test-server',
-        server: const ServerAddress(host: 'example.com', user: 'root'),
-      ),
-    ]),
-  );
+  // The display screen renders whatever string it is handed — the actual
+  // encoded payload bytes are irrelevant to the dialog under test, so we
+  // hand it a fixed deeplink-shaped string instead of round-tripping
+  // through the encoder. The encoder itself lives Rust-side now and is
+  // covered by `lfs_core::archive` unit tests.
+  const testPayload = 'letsflutssh://import?d=test-payload-stub';
 
   Widget buildApp({required String data, int sessionCount = 1}) {
     return MaterialApp(
@@ -55,7 +50,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           home: QrDisplayScreen(
@@ -124,7 +119,7 @@ void main() {
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           theme: ThemeData.dark(),
-          home: QrDisplayScreen(data: testPayload, sessionCount: 1),
+          home: const QrDisplayScreen(data: testPayload, sessionCount: 1),
         ),
       );
       await tester.pumpAndSettle();
@@ -138,7 +133,7 @@ void main() {
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
           theme: ThemeData.light(),
-          home: QrDisplayScreen(data: testPayload, sessionCount: 1),
+          home: const QrDisplayScreen(data: testPayload, sessionCount: 1),
         ),
       );
       await tester.pumpAndSettle();

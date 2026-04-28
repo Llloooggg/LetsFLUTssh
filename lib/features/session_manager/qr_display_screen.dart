@@ -11,7 +11,7 @@ import '../../widgets/toast.dart';
 /// Modal display of a QR code for scanning by another device.
 ///
 /// Shown via [AppDialog.show] so it matches the rest of the export flow
-/// (the preceding `QrExportDialog` is also a modal). The previous
+/// (the preceding `UnifiedExportDialog` is also a modal). The previous
 /// full-screen route was an outlier and introduced an unwanted slide
 /// transition — every other modal in the app uses the app's shared
 /// no-animation dialog style.

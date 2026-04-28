@@ -47,7 +47,7 @@ right now"*, the design is wrong.
 | 10a. `session_recorder` asciinema composer → Rust | DONE | `5adceb05` |
 | 10b. `session_recorder` ring buffer + driver loop | DONE — `lfs_core::recorder::queue` per-id worker + mpsc serialises header/event/rotate/close; Dart shim reduced to fire-and-forget enqueues |
 | 13e. `tier_backing.dart` dead code drop | DONE | dead — no production caller |
-| 11. `qr_codec` finish + `import_service` close | partial — Dart QR decode fallback path retired (paste-link dialog + import-flow + QrDecodedSource sealed-class branch). Rust `qrImportOpen` is the only production decode entry point. `import_service::_stageFromResult` + ExportPayloadInput-build-side rewrite remain pending. |
+| 11. `qr_codec` finish + `import_service` close | partial — Dart QR decode fallback path retired (paste-link dialog + import-flow + QrDecodedSource sealed-class branch). Rust `qrImportOpen` is the only production decode entry point. The standalone `QrExportDialog` was deleted as dead code (production already routed through `UnifiedExportDialog` → `dbExportQrPayload`); `wrapInDeepLink` retired with it. `import_service::_stageFromResult` (OpenSSH-config import path) + the in-memory `encodeExportPayload` / `calculateExportPayloadSize` size-estimation helpers (still feeding `unified_export_controller`'s live UI) remain pending. |
 | 12. `deeplink_handler` listener through Rust dispatcher | DONE — `lfs_core::deeplink::DeeplinkDispatcher` owns dedup + scheme/file routing + QR staging; Dart `DeepLinkHandler` shrank to a URI pump that switches on `DbDeeplinkOutcome` |
 | 13a. `aes_gcm.generateKey` → Rust | DONE | `f1d14183` |
 | 13b. `conflict_resolver` | folded into step 7 (prompt protocol) |
@@ -85,7 +85,7 @@ LOC reflects current tree):
 | `core/config/app_config.dart` | 605 | schema + defaults + validation + migrations | 2 (gated on 9) |
 | `core/import/import_service.dart` | 300 | apply driver remnants | 11 |
 | ~~`core/session/session_recorder.dart`~~ | ~280 | thin enqueue layer over `lfs_core::recorder::queue`; subscribes to the per-id recorder topic for `RecorderRotateRequested` to allocate fresh paths | DONE |
-| `core/session/qr_codec.dart` | 980 | encode payload marshalling (Rust pure encode shipped; Dart still owns the `ExportPayloadInput` build) | 11 |
+| `core/session/qr_codec.dart` | ~525 | encode payload marshalling — Rust owns the production export path (`dbExportQrPayload`). Dart still owns `encodeExportPayload` / `calculateExportPayloadSize` / `encodeSessionCompact` because `unified_export_controller` calls them in synchronous getters during live UI feedback as the user toggles export options. Final retirement waits on a sync FRB sizing endpoint. | 11 |
 | ~~`core/deeplink/deeplink_handler.dart`~~ | ~225 | thin URI pump — `app_links` listener + per-URI `deeplinkDispatch` FRB call + outcome switch; static `parseConnectUri` retained for the Dart fuzz / flutter_test surface | DONE — step 12 |
 | `core/transfer/conflict_resolver.dart` | 72 | UI-prompt cache state | 7 (folded) |
 | `core/security/secret_buffer.dart` | 215 | RAII + zeroing | 9 (folded) |

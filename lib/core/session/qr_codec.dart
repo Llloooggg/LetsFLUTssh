@@ -488,11 +488,6 @@ int calculateExportPayloadSize(
   return encodeExportPayload(sessions, input: input).length;
 }
 
-/// Wrap encoded sessions into a deep link URI for QR code.
-String wrapInDeepLink(String encodedPayload) {
-  return 'letsflutssh://import?d=$encodedPayload';
-}
-
 /// Encode a session into the compact QR payload format.
 ///
 /// Used internally by [encodeExportPayload] and also available for
