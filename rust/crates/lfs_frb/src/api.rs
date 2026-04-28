@@ -26,6 +26,7 @@ pub mod sftp;
 pub mod ssh;
 pub mod ssh_config;
 pub mod threat_eval;
+pub mod tier_transition_marker;
 pub mod transfer;
 pub mod update_http;
 pub mod update_metadata;

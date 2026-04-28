@@ -13,8 +13,7 @@ void main() {
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('tier_switcher_test_');
     switcher = SecurityTierSwitcher(
-      markerFileFactory: () async =>
-          File('${tempDir.path}/.tier-transition-pending'),
+      supportDirFactory: () async => tempDir.path,
       keyFactory: () => Uint8List.fromList(List<int>.filled(32, 7)),
       // Stub the rekey — the FRB-backed default would call into the
       // native bridge, which the unit-test runner does not load. The
@@ -86,8 +85,7 @@ void main() {
     test('every switch runs rekey exactly once', () async {
       var rekeyCalls = 0;
       final invariantSwitcher = SecurityTierSwitcher(
-        markerFileFactory: () async =>
-            File('${tempDir.path}/.tier-transition-pending'),
+        supportDirFactory: () async => tempDir.path,
         keyFactory: () => Uint8List.fromList(List<int>.filled(32, 9)),
         rekey: (_) async => rekeyCalls++,
       );
@@ -106,8 +104,7 @@ void main() {
       // marker policy is identical: it must survive so startup can
       // see the pending transition and recover.
       final failSwitcher = SecurityTierSwitcher(
-        markerFileFactory: () async =>
-            File('${tempDir.path}/.tier-transition-pending-rekey-fail'),
+        supportDirFactory: () async => '${tempDir.path}/rekey-fail',
         keyFactory: () => Uint8List.fromList(List<int>.filled(32, 1)),
         rekey: (_) async => throw StateError('PRAGMA rekey failed'),
       );
@@ -138,7 +135,7 @@ void main() {
         // a factory that raises — the expected contract is "null, no
         // throw".
         final raisingSwitcher = SecurityTierSwitcher(
-          markerFileFactory: () async => throw StateError('disk mount gone'),
+          supportDirFactory: () async => throw StateError('disk mount gone'),
           keyFactory: () => Uint8List.fromList(List<int>.filled(32, 0)),
           rekey: (_) async {},
         );
@@ -150,7 +147,7 @@ void main() {
       'clearMarker swallows factory errors instead of blowing up callers',
       () async {
         final raisingSwitcher = SecurityTierSwitcher(
-          markerFileFactory: () async => throw StateError('disk mount gone'),
+          supportDirFactory: () async => throw StateError('disk mount gone'),
           keyFactory: () => Uint8List.fromList(List<int>.filled(32, 0)),
           rekey: (_) async {},
         );
@@ -182,8 +179,7 @@ void main() {
             var persist = 0;
             var clear = 0;
             final pairSwitcher = SecurityTierSwitcher(
-              markerFileFactory: () async =>
-                  File('${tempDir.path}/.tier-transition-pending-$src-$dst'),
+              supportDirFactory: () async => '${tempDir.path}/pair-$src-$dst',
               keyFactory: () => Uint8List.fromList(List<int>.filled(32, 1)),
               rekey: (_) async => rekey++,
             );

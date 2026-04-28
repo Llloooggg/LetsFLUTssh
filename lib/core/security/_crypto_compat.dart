@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -10,6 +11,7 @@ import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwv;
 import '../../src/rust/api/keychain_password_gate.dart' as rust_gate;
 import '../../src/rust/api/persisted_rate_limit.dart' as rust_prl;
+import '../../src/rust/api/tier_transition_marker.dart' as rust_ttm;
 
 /// HMAC-SHA-256 compat wrapper.
 ///
@@ -319,5 +321,66 @@ PersistedRateLimitState? _decodePersistedRateLimitFallback(
     );
   } catch (_) {
     return null;
+  }
+}
+
+/// Marker file name used by both the Rust + Dart-fallback paths.
+/// Mirror of `lfs_core::security::tier_transition_marker::MARKER_FILE_NAME`.
+const String _tierTransitionMarkerFileName = '.tier-transition-pending';
+
+/// Read the `.tier-transition-pending` marker body from
+/// [supportDir], or null when absent. Production routes through
+/// `lfs_core::security::tier_transition_marker::read`; flutter_test
+/// contexts that don't load the FRB native lib fall back to direct
+/// File I/O at the same path.
+String? tierTransitionMarkerReadCompat(String supportDir) {
+  try {
+    return rust_ttm.tierTransitionMarkerRead(supportDir: supportDir);
+  } catch (_) {
+    final file = File('$supportDir/$_tierTransitionMarkerFileName');
+    if (!file.existsSync()) return null;
+    try {
+      return file.readAsStringSync();
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+/// Write the `.tier-transition-pending` marker with [payload] as
+/// its body. Production routes through Rust (atomic + 0600 hardened);
+/// the Dart fallback writes directly + chmods via the file_utils
+/// helper to match the production perms.
+Future<void> tierTransitionMarkerWriteCompat(
+  String supportDir,
+  String payload,
+) async {
+  try {
+    rust_ttm.tierTransitionMarkerWrite(
+      supportDir: supportDir,
+      payload: payload,
+    );
+  } catch (_) {
+    final dir = Directory(supportDir);
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    final path = '$supportDir/$_tierTransitionMarkerFileName';
+    final file = File(path);
+    file.writeAsStringSync(payload, flush: true);
+  }
+}
+
+/// Drop the `.tier-transition-pending` marker. Idempotent on a
+/// missing file. Production routes through Rust; the fallback path
+/// deletes via `dart:io`.
+void tierTransitionMarkerClearCompat(String supportDir) {
+  try {
+    rust_ttm.tierTransitionMarkerClear(supportDir: supportDir);
+  } catch (_) {
+    final file = File('$supportDir/$_tierTransitionMarkerFileName');
+    if (file.existsSync()) {
+      try {
+        file.deleteSync();
+      } catch (_) {}
+    }
   }
 }

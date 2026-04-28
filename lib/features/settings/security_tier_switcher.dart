@@ -1,12 +1,10 @@
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/security/_crypto_compat.dart';
 import '../../src/rust/api/app.dart' as rust_app;
-import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
 /// Atomic tier-switch helper.
@@ -26,22 +24,21 @@ import '../../utils/logger.dart';
 /// rolls back. Clean-shutdown path deletes the marker as the last
 /// step.
 ///
-/// This class owns **orchestration order** and the **marker**.
-/// Wrapping a key for keychain / hardware / paranoid still lives in
-/// each tier's own store; the switcher calls back into them via
-/// closures.
+/// File-format ownership for the marker lives Rust-side in
+/// `lfs_core::security::tier_transition_marker`. This Dart class
+/// keeps the orchestration order + the per-tier callbacks + the DB
+/// rekey hook; the marker I/O delegates through the compat
+/// wrappers in `_crypto_compat.dart`.
 class SecurityTierSwitcher {
-  static const _markerFileName = '.tier-transition-pending';
-
-  final Future<File> Function() _markerFile;
+  final Future<String> Function() _supportDir;
   final Uint8List Function() _keyFactory;
   final Future<void> Function(Uint8List) _rekey;
 
   SecurityTierSwitcher({
-    Future<File> Function()? markerFileFactory,
+    Future<String> Function()? supportDirFactory,
     Uint8List Function()? keyFactory,
     Future<void> Function(Uint8List)? rekey,
-  }) : _markerFile = markerFileFactory ?? _defaultMarkerFile,
+  }) : _supportDir = supportDirFactory ?? _defaultSupportDir,
        _keyFactory = keyFactory ?? _defaultRandomKey,
        _rekey = rekey ?? _defaultRekey;
 
@@ -50,9 +47,9 @@ class SecurityTierSwitcher {
   static Future<void> _defaultRekey(Uint8List newKey) =>
       rust_app.dbRekey(newKey: List<int>.from(newKey));
 
-  static Future<File> _defaultMarkerFile() async {
+  static Future<String> _defaultSupportDir() async {
     final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _markerFileName));
+    return dir.path;
   }
 
   /// CSPRNG-backed 32-byte key. Uses `Random.secure()` — backed by
@@ -72,9 +69,8 @@ class SecurityTierSwitcher {
   /// encrypted under the target config's key, not the source's.
   Future<String?> readPendingMarker() async {
     try {
-      final file = await _markerFile();
-      if (!await file.exists()) return null;
-      return await file.readAsString();
+      final dir = await _supportDir();
+      return tierTransitionMarkerReadCompat(dir);
     } catch (e) {
       AppLogger.instance.log(
         'Tier switch marker read failed: $e',
@@ -86,8 +82,8 @@ class SecurityTierSwitcher {
 
   Future<void> clearMarker() async {
     try {
-      final file = await _markerFile();
-      if (await file.exists()) await file.delete();
+      final dir = await _supportDir();
+      tierTransitionMarkerClearCompat(dir);
     } catch (e) {
       AppLogger.instance.log(
         'Tier switch marker clear failed: $e',
@@ -122,7 +118,8 @@ class SecurityTierSwitcher {
     final newKey = _keyFactory();
 
     // 1 + 2. Write marker.
-    await _writeMarker(targetMarkerPayload);
+    final dir = await _supportDir();
+    await tierTransitionMarkerWriteCompat(dir, targetMarkerPayload);
 
     // 3. Atomic rekey. On failure the DB is still under the old key
     //    and the marker points at the unfinished target — startup
@@ -149,12 +146,5 @@ class SecurityTierSwitcher {
     // 7. Marker cleared last — its absence is the "all good"
     //    signal the next startup relies on.
     await clearMarker();
-  }
-
-  Future<void> _writeMarker(String payload) async {
-    final file = await _markerFile();
-    await file.parent.create(recursive: true);
-    await file.writeAsString(payload, flush: true);
-    await hardenFilePerms(file.path);
   }
 }
