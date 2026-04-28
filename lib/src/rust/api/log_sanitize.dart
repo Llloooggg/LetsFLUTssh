@@ -11,3 +11,11 @@ String redactSecrets({required String input}) =>
 
 String sanitizeErrorMessage({required String input}) =>
     RustLib.instance.api.crateApiLogSanitizeSanitizeErrorMessage(input: input);
+
+/// True when [`text`] looks like it carries secret material — a
+/// PEM private-key block or a long base64 run (≥ 200 chars).
+/// Backed by the same regex pool the redactor uses, so the
+/// clipboard auto-wipe + the log scrubber agree on what counts as
+/// "do not let this leak".
+bool looksSensitive({required String text}) =>
+    RustLib.instance.api.crateApiLogSanitizeLooksSensitive(text: text);

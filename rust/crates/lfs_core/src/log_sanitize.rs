@@ -50,6 +50,20 @@ pub fn redact_secrets(input: &str) -> String {
     after_b64.into_owned()
 }
 
+/// True when [`text`] looks like it carries secret material — a PEM
+/// private-key block or a long base64 run (≥ 200 chars). Mirror of
+/// the Dart-side `TerminalClipboard._looksSensitive` heuristic so
+/// the clipboard auto-wipe + the log redactor agree on what counts
+/// as "do not let this leak". Fast path — single substring scan +
+/// one regex match per call.
+#[must_use]
+pub fn looks_sensitive(text: &str) -> bool {
+    if text.contains("-----BEGIN") && text.contains("PRIVATE KEY") {
+        return true;
+    }
+    long_b64_re().is_match(text)
+}
+
 // ---- sanitize_error_message regex pool ------------------------------
 
 /// IPv6 literals (full + every compression shape, including
@@ -186,6 +200,40 @@ mod tests {
         let msg = "hash=AAAAB3NzaC1yc2EAAAADAQAB"; // < 200 chars
         let r = redact_secrets(msg);
         assert_eq!(r, msg);
+    }
+
+    #[test]
+    fn looks_sensitive_flags_pem_marker() {
+        let pem =
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaA==\n-----END OPENSSH PRIVATE KEY-----";
+        assert!(looks_sensitive(pem));
+    }
+
+    #[test]
+    fn looks_sensitive_flags_long_base64_run() {
+        let blob = "A".repeat(220);
+        assert!(looks_sensitive(&blob));
+    }
+
+    #[test]
+    fn looks_sensitive_passes_short_base64() {
+        assert!(!looks_sensitive("hash=AAAAB3NzaC1yc2EAAAADAQAB"));
+    }
+
+    #[test]
+    fn looks_sensitive_passes_plain_text() {
+        assert!(!looks_sensitive("the quick brown fox"));
+        assert!(!looks_sensitive(""));
+    }
+
+    #[test]
+    fn looks_sensitive_requires_both_pem_markers() {
+        // A bare `-----BEGIN` without `PRIVATE KEY` (e.g. a
+        // certificate header) is not flagged — clipboard auto-wipe
+        // only fires for private-key material.
+        assert!(!looks_sensitive(
+            "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----"
+        ));
     }
 
     #[test]

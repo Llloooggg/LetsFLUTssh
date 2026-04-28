@@ -13,3 +13,13 @@ pub fn redact_secrets(input: String) -> String {
 pub fn sanitize_error_message(input: String) -> String {
     lfs_core::log_sanitize::sanitize_error_message(&input)
 }
+
+/// True when [`text`] looks like it carries secret material — a
+/// PEM private-key block or a long base64 run (≥ 200 chars).
+/// Backed by the same regex pool the redactor uses, so the
+/// clipboard auto-wipe + the log scrubber agree on what counts as
+/// "do not let this leak".
+#[flutter_rust_bridge::frb(sync)]
+pub fn looks_sensitive(text: String) -> bool {
+    lfs_core::log_sanitize::looks_sensitive(&text)
+}
