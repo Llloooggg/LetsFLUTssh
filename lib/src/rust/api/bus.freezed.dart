@@ -55,7 +55,7 @@ extension BusCommandPatterns on BusCommand {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusCommand_NoopEcho value)?  noopEcho,TResult Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult Function( BusCommand_ConnectionDisconnectAll value)?  connectionDisconnectAll,TResult Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusCommand_NoopEcho value)?  noopEcho,TResult Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult Function( BusCommand_ConnectionDisconnectAll value)?  connectionDisconnectAll,TResult Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,TResult Function( BusCommand_KnownHostPromptResponse value)?  knownHostPromptResponse,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
@@ -66,7 +66,8 @@ return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChang
 return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
 return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
 return autoLockRequestLock(_that);case BusCommand_AutoLockUnlock() when autoLockUnlock != null:
-return autoLockUnlock(_that);case _:
+return autoLockUnlock(_that);case BusCommand_KnownHostPromptResponse() when knownHostPromptResponse != null:
+return knownHostPromptResponse(_that);case _:
   return orElse();
 
 }
@@ -84,7 +85,7 @@ return autoLockUnlock(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusCommand_NoopEcho value)  noopEcho,required TResult Function( BusCommand_ConnectionDisconnect value)  connectionDisconnect,required TResult Function( BusCommand_ConnectionDisconnectAll value)  connectionDisconnectAll,required TResult Function( BusCommand_AutoLockOnPointerActivity value)  autoLockOnPointerActivity,required TResult Function( BusCommand_AutoLockOnLifecycleChange value)  autoLockOnLifecycleChange,required TResult Function( BusCommand_AutoLockSetTimeout value)  autoLockSetTimeout,required TResult Function( BusCommand_AutoLockRequestLock value)  autoLockRequestLock,required TResult Function( BusCommand_AutoLockUnlock value)  autoLockUnlock,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusCommand_NoopEcho value)  noopEcho,required TResult Function( BusCommand_ConnectionDisconnect value)  connectionDisconnect,required TResult Function( BusCommand_ConnectionDisconnectAll value)  connectionDisconnectAll,required TResult Function( BusCommand_AutoLockOnPointerActivity value)  autoLockOnPointerActivity,required TResult Function( BusCommand_AutoLockOnLifecycleChange value)  autoLockOnLifecycleChange,required TResult Function( BusCommand_AutoLockSetTimeout value)  autoLockSetTimeout,required TResult Function( BusCommand_AutoLockRequestLock value)  autoLockRequestLock,required TResult Function( BusCommand_AutoLockUnlock value)  autoLockUnlock,required TResult Function( BusCommand_KnownHostPromptResponse value)  knownHostPromptResponse,}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho():
@@ -95,7 +96,8 @@ return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChang
 return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout():
 return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock():
 return autoLockRequestLock(_that);case BusCommand_AutoLockUnlock():
-return autoLockUnlock(_that);}
+return autoLockUnlock(_that);case BusCommand_KnownHostPromptResponse():
+return knownHostPromptResponse(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -109,7 +111,7 @@ return autoLockUnlock(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusCommand_NoopEcho value)?  noopEcho,TResult? Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult? Function( BusCommand_ConnectionDisconnectAll value)?  connectionDisconnectAll,TResult? Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult? Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult? Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult? Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult? Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusCommand_NoopEcho value)?  noopEcho,TResult? Function( BusCommand_ConnectionDisconnect value)?  connectionDisconnect,TResult? Function( BusCommand_ConnectionDisconnectAll value)?  connectionDisconnectAll,TResult? Function( BusCommand_AutoLockOnPointerActivity value)?  autoLockOnPointerActivity,TResult? Function( BusCommand_AutoLockOnLifecycleChange value)?  autoLockOnLifecycleChange,TResult? Function( BusCommand_AutoLockSetTimeout value)?  autoLockSetTimeout,TResult? Function( BusCommand_AutoLockRequestLock value)?  autoLockRequestLock,TResult? Function( BusCommand_AutoLockUnlock value)?  autoLockUnlock,TResult? Function( BusCommand_KnownHostPromptResponse value)?  knownHostPromptResponse,}){
 final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
@@ -120,7 +122,8 @@ return autoLockOnPointerActivity(_that);case BusCommand_AutoLockOnLifecycleChang
 return autoLockOnLifecycleChange(_that);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
 return autoLockSetTimeout(_that);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
 return autoLockRequestLock(_that);case BusCommand_AutoLockUnlock() when autoLockUnlock != null:
-return autoLockUnlock(_that);case _:
+return autoLockUnlock(_that);case BusCommand_KnownHostPromptResponse() when knownHostPromptResponse != null:
+return knownHostPromptResponse(_that);case _:
   return null;
 
 }
@@ -137,7 +140,7 @@ return autoLockUnlock(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  noopEcho,TResult Function( String id)?  connectionDisconnect,TResult Function()?  connectionDisconnectAll,TResult Function()?  autoLockOnPointerActivity,TResult Function( bool background)?  autoLockOnLifecycleChange,TResult Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult Function()?  autoLockRequestLock,TResult Function()?  autoLockUnlock,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  noopEcho,TResult Function( String id)?  connectionDisconnect,TResult Function()?  connectionDisconnectAll,TResult Function()?  autoLockOnPointerActivity,TResult Function( bool background)?  autoLockOnLifecycleChange,TResult Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult Function()?  autoLockRequestLock,TResult Function()?  autoLockUnlock,TResult Function( String promptId,  bool accepted)?  knownHostPromptResponse,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
@@ -147,7 +150,8 @@ return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange() w
 return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
 return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
 return autoLockRequestLock();case BusCommand_AutoLockUnlock() when autoLockUnlock != null:
-return autoLockUnlock();case _:
+return autoLockUnlock();case BusCommand_KnownHostPromptResponse() when knownHostPromptResponse != null:
+return knownHostPromptResponse(_that.promptId,_that.accepted);case _:
   return orElse();
 
 }
@@ -165,7 +169,7 @@ return autoLockUnlock();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  noopEcho,required TResult Function( String id)  connectionDisconnect,required TResult Function()  connectionDisconnectAll,required TResult Function()  autoLockOnPointerActivity,required TResult Function( bool background)  autoLockOnLifecycleChange,required TResult Function( PlatformInt64 minutes)  autoLockSetTimeout,required TResult Function()  autoLockRequestLock,required TResult Function()  autoLockUnlock,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  noopEcho,required TResult Function( String id)  connectionDisconnect,required TResult Function()  connectionDisconnectAll,required TResult Function()  autoLockOnPointerActivity,required TResult Function( bool background)  autoLockOnLifecycleChange,required TResult Function( PlatformInt64 minutes)  autoLockSetTimeout,required TResult Function()  autoLockRequestLock,required TResult Function()  autoLockUnlock,required TResult Function( String promptId,  bool accepted)  knownHostPromptResponse,}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho():
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect():
@@ -175,7 +179,8 @@ return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange():
 return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout():
 return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock():
 return autoLockRequestLock();case BusCommand_AutoLockUnlock():
-return autoLockUnlock();}
+return autoLockUnlock();case BusCommand_KnownHostPromptResponse():
+return knownHostPromptResponse(_that.promptId,_that.accepted);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -189,7 +194,7 @@ return autoLockUnlock();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  noopEcho,TResult? Function( String id)?  connectionDisconnect,TResult? Function()?  connectionDisconnectAll,TResult? Function()?  autoLockOnPointerActivity,TResult? Function( bool background)?  autoLockOnLifecycleChange,TResult? Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult? Function()?  autoLockRequestLock,TResult? Function()?  autoLockUnlock,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  noopEcho,TResult? Function( String id)?  connectionDisconnect,TResult? Function()?  connectionDisconnectAll,TResult? Function()?  autoLockOnPointerActivity,TResult? Function( bool background)?  autoLockOnLifecycleChange,TResult? Function( PlatformInt64 minutes)?  autoLockSetTimeout,TResult? Function()?  autoLockRequestLock,TResult? Function()?  autoLockUnlock,TResult? Function( String promptId,  bool accepted)?  knownHostPromptResponse,}) {final _that = this;
 switch (_that) {
 case BusCommand_NoopEcho() when noopEcho != null:
 return noopEcho(_that.payload);case BusCommand_ConnectionDisconnect() when connectionDisconnect != null:
@@ -199,7 +204,8 @@ return autoLockOnPointerActivity();case BusCommand_AutoLockOnLifecycleChange() w
 return autoLockOnLifecycleChange(_that.background);case BusCommand_AutoLockSetTimeout() when autoLockSetTimeout != null:
 return autoLockSetTimeout(_that.minutes);case BusCommand_AutoLockRequestLock() when autoLockRequestLock != null:
 return autoLockRequestLock();case BusCommand_AutoLockUnlock() when autoLockUnlock != null:
-return autoLockUnlock();case _:
+return autoLockUnlock();case BusCommand_KnownHostPromptResponse() when knownHostPromptResponse != null:
+return knownHostPromptResponse(_that.promptId,_that.accepted);case _:
   return null;
 
 }
@@ -598,6 +604,74 @@ String toString() {
 
 
 
+
+/// @nodoc
+
+
+class BusCommand_KnownHostPromptResponse extends BusCommand {
+  const BusCommand_KnownHostPromptResponse({required this.promptId, required this.accepted}): super._();
+  
+
+ final  String promptId;
+ final  bool accepted;
+
+/// Create a copy of BusCommand
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusCommand_KnownHostPromptResponseCopyWith<BusCommand_KnownHostPromptResponse> get copyWith => _$BusCommand_KnownHostPromptResponseCopyWithImpl<BusCommand_KnownHostPromptResponse>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusCommand_KnownHostPromptResponse&&(identical(other.promptId, promptId) || other.promptId == promptId)&&(identical(other.accepted, accepted) || other.accepted == accepted));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,promptId,accepted);
+
+@override
+String toString() {
+  return 'BusCommand.knownHostPromptResponse(promptId: $promptId, accepted: $accepted)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusCommand_KnownHostPromptResponseCopyWith<$Res> implements $BusCommandCopyWith<$Res> {
+  factory $BusCommand_KnownHostPromptResponseCopyWith(BusCommand_KnownHostPromptResponse value, $Res Function(BusCommand_KnownHostPromptResponse) _then) = _$BusCommand_KnownHostPromptResponseCopyWithImpl;
+@useResult
+$Res call({
+ String promptId, bool accepted
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusCommand_KnownHostPromptResponseCopyWithImpl<$Res>
+    implements $BusCommand_KnownHostPromptResponseCopyWith<$Res> {
+  _$BusCommand_KnownHostPromptResponseCopyWithImpl(this._self, this._then);
+
+  final BusCommand_KnownHostPromptResponse _self;
+  final $Res Function(BusCommand_KnownHostPromptResponse) _then;
+
+/// Create a copy of BusCommand
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? promptId = null,Object? accepted = null,}) {
+  return _then(BusCommand_KnownHostPromptResponse(
+promptId: null == promptId ? _self.promptId : promptId // ignore: cast_nullable_to_non_nullable
+as String,accepted: null == accepted ? _self.accepted : accepted // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
 
 /// @nodoc
 mixin _$BusConnectAuthRef {
@@ -1051,7 +1125,7 @@ extension BusEventPatterns on BusEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,TResult Function( BusEvent_KnownHostsChanged value)?  knownHostsChanged,TResult Function( BusEvent_SessionsChanged value)?  sessionsChanged,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,TResult Function( BusEvent_KnownHostsChanged value)?  knownHostsChanged,TResult Function( BusEvent_SessionsChanged value)?  sessionsChanged,TResult Function( BusEvent_KnownHostPromptRequest value)?  knownHostPromptRequest,TResult Function( BusEvent_KnownHostPromptResolved value)?  knownHostPromptResolved,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -1078,7 +1152,9 @@ return updateDownloadProgress(_that);case BusEvent_UpdateVerifyingStarted() when
 return updateVerifyingStarted(_that);case BusEvent_UpdateDownloadCompleted() when updateDownloadCompleted != null:
 return updateDownloadCompleted(_that);case BusEvent_KnownHostsChanged() when knownHostsChanged != null:
 return knownHostsChanged(_that);case BusEvent_SessionsChanged() when sessionsChanged != null:
-return sessionsChanged(_that);case _:
+return sessionsChanged(_that);case BusEvent_KnownHostPromptRequest() when knownHostPromptRequest != null:
+return knownHostPromptRequest(_that);case BusEvent_KnownHostPromptResolved() when knownHostPromptResolved != null:
+return knownHostPromptResolved(_that);case _:
   return orElse();
 
 }
@@ -1096,7 +1172,7 @@ return sessionsChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,required TResult Function( BusEvent_RecorderStarted value)  recorderStarted,required TResult Function( BusEvent_RecorderStopped value)  recorderStopped,required TResult Function( BusEvent_RecorderBytesWritten value)  recorderBytesWritten,required TResult Function( BusEvent_RecorderRotateRequested value)  recorderRotateRequested,required TResult Function( BusEvent_TransferTaskAdded value)  transferTaskAdded,required TResult Function( BusEvent_TransferTaskState value)  transferTaskState,required TResult Function( BusEvent_TransferTaskProgress value)  transferTaskProgress,required TResult Function( BusEvent_TransferTaskError value)  transferTaskError,required TResult Function( BusEvent_PortForwardRegistered value)  portForwardRegistered,required TResult Function( BusEvent_PortForwardStatus value)  portForwardStatus,required TResult Function( BusEvent_PortForwardRemoved value)  portForwardRemoved,required TResult Function( BusEvent_UpdateDownloadProgress value)  updateDownloadProgress,required TResult Function( BusEvent_UpdateVerifyingStarted value)  updateVerifyingStarted,required TResult Function( BusEvent_UpdateDownloadCompleted value)  updateDownloadCompleted,required TResult Function( BusEvent_KnownHostsChanged value)  knownHostsChanged,required TResult Function( BusEvent_SessionsChanged value)  sessionsChanged,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,required TResult Function( BusEvent_RecorderStarted value)  recorderStarted,required TResult Function( BusEvent_RecorderStopped value)  recorderStopped,required TResult Function( BusEvent_RecorderBytesWritten value)  recorderBytesWritten,required TResult Function( BusEvent_RecorderRotateRequested value)  recorderRotateRequested,required TResult Function( BusEvent_TransferTaskAdded value)  transferTaskAdded,required TResult Function( BusEvent_TransferTaskState value)  transferTaskState,required TResult Function( BusEvent_TransferTaskProgress value)  transferTaskProgress,required TResult Function( BusEvent_TransferTaskError value)  transferTaskError,required TResult Function( BusEvent_PortForwardRegistered value)  portForwardRegistered,required TResult Function( BusEvent_PortForwardStatus value)  portForwardStatus,required TResult Function( BusEvent_PortForwardRemoved value)  portForwardRemoved,required TResult Function( BusEvent_UpdateDownloadProgress value)  updateDownloadProgress,required TResult Function( BusEvent_UpdateVerifyingStarted value)  updateVerifyingStarted,required TResult Function( BusEvent_UpdateDownloadCompleted value)  updateDownloadCompleted,required TResult Function( BusEvent_KnownHostsChanged value)  knownHostsChanged,required TResult Function( BusEvent_SessionsChanged value)  sessionsChanged,required TResult Function( BusEvent_KnownHostPromptRequest value)  knownHostPromptRequest,required TResult Function( BusEvent_KnownHostPromptResolved value)  knownHostPromptResolved,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
@@ -1123,7 +1199,9 @@ return updateDownloadProgress(_that);case BusEvent_UpdateVerifyingStarted():
 return updateVerifyingStarted(_that);case BusEvent_UpdateDownloadCompleted():
 return updateDownloadCompleted(_that);case BusEvent_KnownHostsChanged():
 return knownHostsChanged(_that);case BusEvent_SessionsChanged():
-return sessionsChanged(_that);}
+return sessionsChanged(_that);case BusEvent_KnownHostPromptRequest():
+return knownHostPromptRequest(_that);case BusEvent_KnownHostPromptResolved():
+return knownHostPromptResolved(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -1137,7 +1215,7 @@ return sessionsChanged(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult? Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult? Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult? Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult? Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult? Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult? Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult? Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult? Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult? Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult? Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult? Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult? Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult? Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult? Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,TResult? Function( BusEvent_KnownHostsChanged value)?  knownHostsChanged,TResult? Function( BusEvent_SessionsChanged value)?  sessionsChanged,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult? Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult? Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult? Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult? Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult? Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult? Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult? Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult? Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult? Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult? Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult? Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult? Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult? Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult? Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,TResult? Function( BusEvent_KnownHostsChanged value)?  knownHostsChanged,TResult? Function( BusEvent_SessionsChanged value)?  sessionsChanged,TResult? Function( BusEvent_KnownHostPromptRequest value)?  knownHostPromptRequest,TResult? Function( BusEvent_KnownHostPromptResolved value)?  knownHostPromptResolved,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -1164,7 +1242,9 @@ return updateDownloadProgress(_that);case BusEvent_UpdateVerifyingStarted() when
 return updateVerifyingStarted(_that);case BusEvent_UpdateDownloadCompleted() when updateDownloadCompleted != null:
 return updateDownloadCompleted(_that);case BusEvent_KnownHostsChanged() when knownHostsChanged != null:
 return knownHostsChanged(_that);case BusEvent_SessionsChanged() when sessionsChanged != null:
-return sessionsChanged(_that);case _:
+return sessionsChanged(_that);case BusEvent_KnownHostPromptRequest() when knownHostPromptRequest != null:
+return knownHostPromptRequest(_that);case BusEvent_KnownHostPromptResolved() when knownHostPromptResolved != null:
+return knownHostPromptResolved(_that);case _:
   return null;
 
 }
@@ -1181,7 +1261,7 @@ return sessionsChanged(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult Function( String id,  String path)?  recorderStarted,TResult Function( String id)?  recorderStopped,TResult Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult Function( String id)?  transferTaskAdded,TResult Function( String id,  BusTaskState state)?  transferTaskState,TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult Function( String id,  String detail)?  transferTaskError,TResult Function( String id)?  portForwardRegistered,TResult Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult Function( String id)?  portForwardRemoved,TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult Function( String url)?  updateVerifyingStarted,TResult Function( String url,  String path)?  updateDownloadCompleted,TResult Function()?  knownHostsChanged,TResult Function()?  sessionsChanged,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult Function( String id,  String path)?  recorderStarted,TResult Function( String id)?  recorderStopped,TResult Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult Function( String id)?  transferTaskAdded,TResult Function( String id,  BusTaskState state)?  transferTaskState,TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult Function( String id,  String detail)?  transferTaskError,TResult Function( String id)?  portForwardRegistered,TResult Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult Function( String id)?  portForwardRemoved,TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult Function( String url)?  updateVerifyingStarted,TResult Function( String url,  String path)?  updateDownloadCompleted,TResult Function()?  knownHostsChanged,TResult Function()?  sessionsChanged,TResult Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)?  knownHostPromptRequest,TResult Function( String promptId,  bool accepted)?  knownHostPromptResolved,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
@@ -1207,7 +1287,9 @@ return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);cas
 return updateVerifyingStarted(_that.url);case BusEvent_UpdateDownloadCompleted() when updateDownloadCompleted != null:
 return updateDownloadCompleted(_that.url,_that.path);case BusEvent_KnownHostsChanged() when knownHostsChanged != null:
 return knownHostsChanged();case BusEvent_SessionsChanged() when sessionsChanged != null:
-return sessionsChanged();case _:
+return sessionsChanged();case BusEvent_KnownHostPromptRequest() when knownHostPromptRequest != null:
+return knownHostPromptRequest(_that.promptId,_that.host,_that.port,_that.keyType,_that.fingerprint,_that.kind);case BusEvent_KnownHostPromptResolved() when knownHostPromptResolved != null:
+return knownHostPromptResolved(_that.promptId,_that.accepted);case _:
   return orElse();
 
 }
@@ -1225,7 +1307,7 @@ return sessionsChanged();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,required TResult Function( String id,  String path)  recorderStarted,required TResult Function( String id)  recorderStopped,required TResult Function( String id,  BigInt totalBytes)  recorderBytesWritten,required TResult Function( String id,  BigInt bytesWritten)  recorderRotateRequested,required TResult Function( String id)  transferTaskAdded,required TResult Function( String id,  BusTaskState state)  transferTaskState,required TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)  transferTaskProgress,required TResult Function( String id,  String detail)  transferTaskError,required TResult Function( String id)  portForwardRegistered,required TResult Function( String id,  BusRuleStatus status,  String? detail)  portForwardStatus,required TResult Function( String id)  portForwardRemoved,required TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)  updateDownloadProgress,required TResult Function( String url)  updateVerifyingStarted,required TResult Function( String url,  String path)  updateDownloadCompleted,required TResult Function()  knownHostsChanged,required TResult Function()  sessionsChanged,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,required TResult Function( String id,  String path)  recorderStarted,required TResult Function( String id)  recorderStopped,required TResult Function( String id,  BigInt totalBytes)  recorderBytesWritten,required TResult Function( String id,  BigInt bytesWritten)  recorderRotateRequested,required TResult Function( String id)  transferTaskAdded,required TResult Function( String id,  BusTaskState state)  transferTaskState,required TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)  transferTaskProgress,required TResult Function( String id,  String detail)  transferTaskError,required TResult Function( String id)  portForwardRegistered,required TResult Function( String id,  BusRuleStatus status,  String? detail)  portForwardStatus,required TResult Function( String id)  portForwardRemoved,required TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)  updateDownloadProgress,required TResult Function( String url)  updateVerifyingStarted,required TResult Function( String url,  String path)  updateDownloadCompleted,required TResult Function()  knownHostsChanged,required TResult Function()  sessionsChanged,required TResult Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)  knownHostPromptRequest,required TResult Function( String promptId,  bool accepted)  knownHostPromptResolved,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged():
@@ -1251,7 +1333,9 @@ return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);cas
 return updateVerifyingStarted(_that.url);case BusEvent_UpdateDownloadCompleted():
 return updateDownloadCompleted(_that.url,_that.path);case BusEvent_KnownHostsChanged():
 return knownHostsChanged();case BusEvent_SessionsChanged():
-return sessionsChanged();}
+return sessionsChanged();case BusEvent_KnownHostPromptRequest():
+return knownHostPromptRequest(_that.promptId,_that.host,_that.port,_that.keyType,_that.fingerprint,_that.kind);case BusEvent_KnownHostPromptResolved():
+return knownHostPromptResolved(_that.promptId,_that.accepted);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -1265,7 +1349,7 @@ return sessionsChanged();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult? Function( String id,  String path)?  recorderStarted,TResult? Function( String id)?  recorderStopped,TResult? Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult? Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult? Function( String id)?  transferTaskAdded,TResult? Function( String id,  BusTaskState state)?  transferTaskState,TResult? Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult? Function( String id,  String detail)?  transferTaskError,TResult? Function( String id)?  portForwardRegistered,TResult? Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult? Function( String id)?  portForwardRemoved,TResult? Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult? Function( String url)?  updateVerifyingStarted,TResult? Function( String url,  String path)?  updateDownloadCompleted,TResult? Function()?  knownHostsChanged,TResult? Function()?  sessionsChanged,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult? Function( String id,  String path)?  recorderStarted,TResult? Function( String id)?  recorderStopped,TResult? Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult? Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult? Function( String id)?  transferTaskAdded,TResult? Function( String id,  BusTaskState state)?  transferTaskState,TResult? Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult? Function( String id,  String detail)?  transferTaskError,TResult? Function( String id)?  portForwardRegistered,TResult? Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult? Function( String id)?  portForwardRemoved,TResult? Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult? Function( String url)?  updateVerifyingStarted,TResult? Function( String url,  String path)?  updateDownloadCompleted,TResult? Function()?  knownHostsChanged,TResult? Function()?  sessionsChanged,TResult? Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)?  knownHostPromptRequest,TResult? Function( String promptId,  bool accepted)?  knownHostPromptResolved,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
@@ -1291,7 +1375,9 @@ return updateDownloadProgress(_that.url,_that.writtenBytes,_that.totalBytes);cas
 return updateVerifyingStarted(_that.url);case BusEvent_UpdateDownloadCompleted() when updateDownloadCompleted != null:
 return updateDownloadCompleted(_that.url,_that.path);case BusEvent_KnownHostsChanged() when knownHostsChanged != null:
 return knownHostsChanged();case BusEvent_SessionsChanged() when sessionsChanged != null:
-return sessionsChanged();case _:
+return sessionsChanged();case BusEvent_KnownHostPromptRequest() when knownHostPromptRequest != null:
+return knownHostPromptRequest(_that.promptId,_that.host,_that.port,_that.keyType,_that.fingerprint,_that.kind);case BusEvent_KnownHostPromptResolved() when knownHostPromptResolved != null:
+return knownHostPromptResolved(_that.promptId,_that.accepted);case _:
   return null;
 
 }
@@ -2776,5 +2862,149 @@ String toString() {
 
 
 
+
+/// @nodoc
+
+
+class BusEvent_KnownHostPromptRequest extends BusEvent {
+  const BusEvent_KnownHostPromptRequest({required this.promptId, required this.host, required this.port, required this.keyType, required this.fingerprint, required this.kind}): super._();
+  
+
+ final  String promptId;
+ final  String host;
+ final  PlatformInt64 port;
+ final  String keyType;
+ final  String fingerprint;
+ final  BusKnownHostPromptKind kind;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_KnownHostPromptRequestCopyWith<BusEvent_KnownHostPromptRequest> get copyWith => _$BusEvent_KnownHostPromptRequestCopyWithImpl<BusEvent_KnownHostPromptRequest>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_KnownHostPromptRequest&&(identical(other.promptId, promptId) || other.promptId == promptId)&&(identical(other.host, host) || other.host == host)&&(identical(other.port, port) || other.port == port)&&(identical(other.keyType, keyType) || other.keyType == keyType)&&(identical(other.fingerprint, fingerprint) || other.fingerprint == fingerprint)&&(identical(other.kind, kind) || other.kind == kind));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,promptId,host,port,keyType,fingerprint,kind);
+
+@override
+String toString() {
+  return 'BusEvent.knownHostPromptRequest(promptId: $promptId, host: $host, port: $port, keyType: $keyType, fingerprint: $fingerprint, kind: $kind)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_KnownHostPromptRequestCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_KnownHostPromptRequestCopyWith(BusEvent_KnownHostPromptRequest value, $Res Function(BusEvent_KnownHostPromptRequest) _then) = _$BusEvent_KnownHostPromptRequestCopyWithImpl;
+@useResult
+$Res call({
+ String promptId, String host, PlatformInt64 port, String keyType, String fingerprint, BusKnownHostPromptKind kind
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_KnownHostPromptRequestCopyWithImpl<$Res>
+    implements $BusEvent_KnownHostPromptRequestCopyWith<$Res> {
+  _$BusEvent_KnownHostPromptRequestCopyWithImpl(this._self, this._then);
+
+  final BusEvent_KnownHostPromptRequest _self;
+  final $Res Function(BusEvent_KnownHostPromptRequest) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? promptId = null,Object? host = null,Object? port = null,Object? keyType = null,Object? fingerprint = null,Object? kind = null,}) {
+  return _then(BusEvent_KnownHostPromptRequest(
+promptId: null == promptId ? _self.promptId : promptId // ignore: cast_nullable_to_non_nullable
+as String,host: null == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
+as String,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
+as PlatformInt64,keyType: null == keyType ? _self.keyType : keyType // ignore: cast_nullable_to_non_nullable
+as String,fingerprint: null == fingerprint ? _self.fingerprint : fingerprint // ignore: cast_nullable_to_non_nullable
+as String,kind: null == kind ? _self.kind : kind // ignore: cast_nullable_to_non_nullable
+as BusKnownHostPromptKind,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class BusEvent_KnownHostPromptResolved extends BusEvent {
+  const BusEvent_KnownHostPromptResolved({required this.promptId, required this.accepted}): super._();
+  
+
+ final  String promptId;
+ final  bool accepted;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$BusEvent_KnownHostPromptResolvedCopyWith<BusEvent_KnownHostPromptResolved> get copyWith => _$BusEvent_KnownHostPromptResolvedCopyWithImpl<BusEvent_KnownHostPromptResolved>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_KnownHostPromptResolved&&(identical(other.promptId, promptId) || other.promptId == promptId)&&(identical(other.accepted, accepted) || other.accepted == accepted));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,promptId,accepted);
+
+@override
+String toString() {
+  return 'BusEvent.knownHostPromptResolved(promptId: $promptId, accepted: $accepted)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $BusEvent_KnownHostPromptResolvedCopyWith<$Res> implements $BusEventCopyWith<$Res> {
+  factory $BusEvent_KnownHostPromptResolvedCopyWith(BusEvent_KnownHostPromptResolved value, $Res Function(BusEvent_KnownHostPromptResolved) _then) = _$BusEvent_KnownHostPromptResolvedCopyWithImpl;
+@useResult
+$Res call({
+ String promptId, bool accepted
+});
+
+
+
+
+}
+/// @nodoc
+class _$BusEvent_KnownHostPromptResolvedCopyWithImpl<$Res>
+    implements $BusEvent_KnownHostPromptResolvedCopyWith<$Res> {
+  _$BusEvent_KnownHostPromptResolvedCopyWithImpl(this._self, this._then);
+
+  final BusEvent_KnownHostPromptResolved _self;
+  final $Res Function(BusEvent_KnownHostPromptResolved) _then;
+
+/// Create a copy of BusEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? promptId = null,Object? accepted = null,}) {
+  return _then(BusEvent_KnownHostPromptResolved(
+promptId: null == promptId ? _self.promptId : promptId // ignore: cast_nullable_to_non_nullable
+as String,accepted: null == accepted ? _self.accepted : accepted // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
 
 // dart format on

@@ -20,6 +20,7 @@ use crate::bus::EventBus;
 use crate::connection::ConnectionRegistry;
 use crate::db::Db;
 use crate::deeplink::DeeplinkDispatcher;
+use crate::known_hosts::PromptRegistry as KnownHostsPromptRegistry;
 use crate::error::Error;
 use crate::portforward::PortForwardRegistry;
 use crate::recorder::queue::RecorderQueue;
@@ -78,6 +79,12 @@ pub struct AppState {
     /// `app_links.getInitialLink` / `uriLinkStream` cold-start
     /// race so the Dart side is just a URI pump.
     pub deeplinks: DeeplinkDispatcher,
+    /// TOFU prompt registry. The russh handler parks a oneshot
+    /// here when it needs the user's verdict on an unknown /
+    /// changed host key; the Dart UI dispatches the response
+    /// command and the bus dispatcher resolves the awaiting
+    /// receiver.
+    pub known_hosts_prompts: KnownHostsPromptRegistry,
 }
 
 impl AppState {
@@ -95,6 +102,7 @@ impl AppState {
             port_forwards: PortForwardRegistry::new(),
             imports: ImportRegistry::new(),
             deeplinks: DeeplinkDispatcher::new(),
+            known_hosts_prompts: KnownHostsPromptRegistry::new(),
         }
     }
 

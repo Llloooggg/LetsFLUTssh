@@ -8195,6 +8195,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return const BusCommand_AutoLockRequestLock();
       case 7:
         return const BusCommand_AutoLockUnlock();
+      case 8:
+        return BusCommand_KnownHostPromptResponse(
+          promptId: dco_decode_String(raw[1]),
+          accepted: dco_decode_bool(raw[2]),
+        );
       default:
         throw Exception('unreachable');
     }
@@ -8347,9 +8352,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return const BusEvent_KnownHostsChanged();
       case 23:
         return const BusEvent_SessionsChanged();
+      case 24:
+        return BusEvent_KnownHostPromptRequest(
+          promptId: dco_decode_String(raw[1]),
+          host: dco_decode_String(raw[2]),
+          port: dco_decode_i_64(raw[3]),
+          keyType: dco_decode_String(raw[4]),
+          fingerprint: dco_decode_String(raw[5]),
+          kind: dco_decode_bus_known_host_prompt_kind(raw[6]),
+        );
+      case 25:
+        return BusEvent_KnownHostPromptResolved(
+          promptId: dco_decode_String(raw[1]),
+          accepted: dco_decode_bool(raw[2]),
+        );
       default:
         throw Exception('unreachable');
     }
+  }
+
+  @protected
+  BusKnownHostPromptKind dco_decode_bus_known_host_prompt_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BusKnownHostPromptKind.values[raw as int];
   }
 
   @protected
@@ -9986,6 +10011,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return const BusCommand_AutoLockRequestLock();
       case 7:
         return const BusCommand_AutoLockUnlock();
+      case 8:
+        final var_promptId = sse_decode_String(deserializer);
+        final var_accepted = sse_decode_bool(deserializer);
+        return BusCommand_KnownHostPromptResponse(
+          promptId: var_promptId,
+          accepted: var_accepted,
+        );
       default:
         throw UnimplementedError('');
     }
@@ -10173,9 +10205,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return const BusEvent_KnownHostsChanged();
       case 23:
         return const BusEvent_SessionsChanged();
+      case 24:
+        final var_promptId = sse_decode_String(deserializer);
+        final var_host = sse_decode_String(deserializer);
+        final var_port = sse_decode_i_64(deserializer);
+        final var_keyType = sse_decode_String(deserializer);
+        final var_fingerprint = sse_decode_String(deserializer);
+        final var_kind = sse_decode_bus_known_host_prompt_kind(deserializer);
+        return BusEvent_KnownHostPromptRequest(
+          promptId: var_promptId,
+          host: var_host,
+          port: var_port,
+          keyType: var_keyType,
+          fingerprint: var_fingerprint,
+          kind: var_kind,
+        );
+      case 25:
+        final var_promptId = sse_decode_String(deserializer);
+        final var_accepted = sse_decode_bool(deserializer);
+        return BusEvent_KnownHostPromptResolved(
+          promptId: var_promptId,
+          accepted: var_accepted,
+        );
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  BusKnownHostPromptKind sse_decode_bus_known_host_prompt_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return BusKnownHostPromptKind.values[inner];
   }
 
   @protected
@@ -12312,6 +12375,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(6, serializer);
       case BusCommand_AutoLockUnlock():
         sse_encode_i_32(7, serializer);
+      case BusCommand_KnownHostPromptResponse(
+        promptId: final promptId,
+        accepted: final accepted,
+      ):
+        sse_encode_i_32(8, serializer);
+        sse_encode_String(promptId, serializer);
+        sse_encode_bool(accepted, serializer);
     }
   }
 
@@ -12485,7 +12555,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(22, serializer);
       case BusEvent_SessionsChanged():
         sse_encode_i_32(23, serializer);
+      case BusEvent_KnownHostPromptRequest(
+        promptId: final promptId,
+        host: final host,
+        port: final port,
+        keyType: final keyType,
+        fingerprint: final fingerprint,
+        kind: final kind,
+      ):
+        sse_encode_i_32(24, serializer);
+        sse_encode_String(promptId, serializer);
+        sse_encode_String(host, serializer);
+        sse_encode_i_64(port, serializer);
+        sse_encode_String(keyType, serializer);
+        sse_encode_String(fingerprint, serializer);
+        sse_encode_bus_known_host_prompt_kind(kind, serializer);
+      case BusEvent_KnownHostPromptResolved(
+        promptId: final promptId,
+        accepted: final accepted,
+      ):
+        sse_encode_i_32(25, serializer);
+        sse_encode_String(promptId, serializer);
+        sse_encode_bool(accepted, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_bus_known_host_prompt_kind(
+    BusKnownHostPromptKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

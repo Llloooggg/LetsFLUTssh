@@ -8,11 +8,24 @@
 //! This module owns the bulk shape: split a multi-line blob,
 //! upsert each entry, count what was added vs skipped (existing
 //! entries / hashed-hostnames we cannot reverse).
+//!
+//! [`PromptRegistry`] adds the TOFU prompt protocol: russh's
+//! `check_server_key` consults the DB, fires a
+//! `KnownHostPromptRequest` event when the host is unknown or the
+//! offered key changed, and awaits a `KnownHostPromptResponse`
+//! command via a per-prompt `tokio::sync::oneshot`. The Dart UI
+//! subscribes to the `KnownHosts` topic, surfaces the host-key
+//! dialog, and dispatches the response back. The handler then
+//! persists the entry (when accepted) and resumes the handshake.
 
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
+
+use tokio::sync::oneshot;
 
 use crate::app::AppState;
-use crate::bus::Event;
+use crate::bus::{Event, KnownHostPromptKind};
 use crate::db::Db;
 use crate::error::Error;
 use crate::known_hosts_parser;
@@ -114,6 +127,121 @@ pub fn export_to_string(db: &Db) -> Result<String, Error> {
 /// this so the bus event fires alongside.
 pub fn notify_changed(app: &Arc<AppState>) {
     app.bus.publish(Event::KnownHostsChanged);
+}
+
+/// Process-singleton registry of pending TOFU prompts, keyed by
+/// caller-allocated prompt id (UUIDv4). Owned by [`AppState`].
+/// The russh handler creates a oneshot, parks the receiver under
+/// the prompt id, publishes the request event, and awaits the
+/// receiver. The Dart UI dispatches the response command; the
+/// FRB layer's command dispatcher wakes the receiver via
+/// [`PromptRegistry::resolve`].
+pub struct PromptRegistry {
+    inner: Mutex<HashMap<String, oneshot::Sender<bool>>>,
+}
+
+impl PromptRegistry {
+    pub fn new() -> Self {
+        Self {
+            inner: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Park a fresh oneshot under `prompt_id` and return the
+    /// receiver. Caller awaits the receiver after publishing the
+    /// matching `KnownHostPromptRequest` event.
+    pub fn register(&self, prompt_id: String) -> oneshot::Receiver<bool> {
+        let (tx, rx) = oneshot::channel();
+        self.inner
+            .lock()
+            .expect("known-hosts prompt registry mutex poisoned")
+            .insert(prompt_id, tx);
+        rx
+    }
+
+    /// Resolve a pending prompt with the user's `accepted` choice.
+    /// Idempotent — a missing prompt id (already resolved, or the
+    /// awaiting side timed out) is a no-op. Returns `true` when a
+    /// receiver was actually woken.
+    pub fn resolve(&self, prompt_id: &str, accepted: bool) -> bool {
+        let sender = self
+            .inner
+            .lock()
+            .expect("known-hosts prompt registry mutex poisoned")
+            .remove(prompt_id);
+        match sender {
+            Some(tx) => tx.send(accepted).is_ok(),
+            None => false,
+        }
+    }
+
+    /// Drop a pending prompt without resolving — used by handlers
+    /// that abandon the await (timeout, peer drop, shutdown).
+    pub fn cancel(&self, prompt_id: &str) {
+        self.inner
+            .lock()
+            .expect("known-hosts prompt registry mutex poisoned")
+            .remove(prompt_id);
+    }
+
+    pub fn pending_count(&self) -> usize {
+        self.inner
+            .lock()
+            .expect("known-hosts prompt registry mutex poisoned")
+            .len()
+    }
+}
+
+impl Default for PromptRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Outcome of [`check_host`] — what the russh handler should do
+/// next. `Accepted` means the offered key matched the stored
+/// entry; `Unknown` / `Changed` should escalate to a TOFU prompt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HostCheckResult {
+    Accepted,
+    Unknown,
+    Changed { stored_key_b64: String },
+}
+
+/// Look up `(host, port)` in the known_hosts table and compare
+/// against the offered (`key_type`, `key_base64`).  Pure read —
+/// callers persist the new entry separately after the user's
+/// response if they accept.
+pub fn check_host(
+    db: &Db,
+    host: &str,
+    port: i64,
+    key_type: &str,
+    key_base64: &str,
+) -> Result<HostCheckResult, Error> {
+    db.with_conn(|conn| {
+        let row = crate::db::known_hosts::get_by_host_port(conn, host, port)?;
+        let result = match row {
+            None => HostCheckResult::Unknown,
+            Some(r) if r.key_type == key_type && r.key_base64 == key_base64 => {
+                HostCheckResult::Accepted
+            }
+            Some(r) => HostCheckResult::Changed {
+                stored_key_b64: r.key_base64,
+            },
+        };
+        Ok::<HostCheckResult, Error>(result)
+    })
+}
+
+/// Map a [`HostCheckResult`] mismatch to the matching
+/// [`KnownHostPromptKind`] for the bus event.
+pub fn prompt_kind_for(result: &HostCheckResult) -> Option<KnownHostPromptKind> {
+    match result {
+        HostCheckResult::Unknown => Some(KnownHostPromptKind::NewHost),
+        HostCheckResult::Changed { .. } => Some(KnownHostPromptKind::KeyChanged),
+        HostCheckResult::Accepted => None,
+    }
 }
 
 fn split_host_port(spec: &str) -> Option<(String, i64)> {

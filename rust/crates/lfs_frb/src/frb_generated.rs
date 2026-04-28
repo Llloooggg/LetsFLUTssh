@@ -8704,6 +8704,14 @@ impl SseDecode for crate::api::bus::BusCommand {
             7 => {
                 return crate::api::bus::BusCommand::AutoLockUnlock;
             }
+            8 => {
+                let mut var_promptId = <String>::sse_decode(deserializer);
+                let mut var_accepted = <bool>::sse_decode(deserializer);
+                return crate::api::bus::BusCommand::KnownHostPromptResponse {
+                    prompt_id: var_promptId,
+                    accepted: var_accepted,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -8956,10 +8964,47 @@ impl SseDecode for crate::api::bus::BusEvent {
             23 => {
                 return crate::api::bus::BusEvent::SessionsChanged;
             }
+            24 => {
+                let mut var_promptId = <String>::sse_decode(deserializer);
+                let mut var_host = <String>::sse_decode(deserializer);
+                let mut var_port = <i64>::sse_decode(deserializer);
+                let mut var_keyType = <String>::sse_decode(deserializer);
+                let mut var_fingerprint = <String>::sse_decode(deserializer);
+                let mut var_kind =
+                    <crate::api::bus::BusKnownHostPromptKind>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::KnownHostPromptRequest {
+                    prompt_id: var_promptId,
+                    host: var_host,
+                    port: var_port,
+                    key_type: var_keyType,
+                    fingerprint: var_fingerprint,
+                    kind: var_kind,
+                };
+            }
+            25 => {
+                let mut var_promptId = <String>::sse_decode(deserializer);
+                let mut var_accepted = <bool>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::KnownHostPromptResolved {
+                    prompt_id: var_promptId,
+                    accepted: var_accepted,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseDecode for crate::api::bus::BusKnownHostPromptKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::bus::BusKnownHostPromptKind::NewHost,
+            1 => crate::api::bus::BusKnownHostPromptKind::KeyChanged,
+            _ => unreachable!("Invalid variant for BusKnownHostPromptKind: {}", inner),
+        };
     }
 }
 
@@ -11259,6 +11304,15 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusCommand {
             }
             crate::api::bus::BusCommand::AutoLockRequestLock => [6.into_dart()].into_dart(),
             crate::api::bus::BusCommand::AutoLockUnlock => [7.into_dart()].into_dart(),
+            crate::api::bus::BusCommand::KnownHostPromptResponse {
+                prompt_id,
+                accepted,
+            } => [
+                8.into_dart(),
+                prompt_id.into_into_dart().into_dart(),
+                accepted.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -11505,6 +11559,32 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
             .into_dart(),
             crate::api::bus::BusEvent::KnownHostsChanged => [22.into_dart()].into_dart(),
             crate::api::bus::BusEvent::SessionsChanged => [23.into_dart()].into_dart(),
+            crate::api::bus::BusEvent::KnownHostPromptRequest {
+                prompt_id,
+                host,
+                port,
+                key_type,
+                fingerprint,
+                kind,
+            } => [
+                24.into_dart(),
+                prompt_id.into_into_dart().into_dart(),
+                host.into_into_dart().into_dart(),
+                port.into_into_dart().into_dart(),
+                key_type.into_into_dart().into_dart(),
+                fingerprint.into_into_dart().into_dart(),
+                kind.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::bus::BusEvent::KnownHostPromptResolved {
+                prompt_id,
+                accepted,
+            } => [
+                25.into_dart(),
+                prompt_id.into_into_dart().into_dart(),
+                accepted.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -11514,6 +11594,27 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::bus::BusEvent {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusEvent> for crate::api::bus::BusEvent {
     fn into_into_dart(self) -> crate::api::bus::BusEvent {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::bus::BusKnownHostPromptKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::NewHost => 0.into_dart(),
+            Self::KeyChanged => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::bus::BusKnownHostPromptKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::bus::BusKnownHostPromptKind>
+    for crate::api::bus::BusKnownHostPromptKind
+{
+    fn into_into_dart(self) -> crate::api::bus::BusKnownHostPromptKind {
         self
     }
 }
@@ -13096,6 +13197,14 @@ impl SseEncode for crate::api::bus::BusCommand {
             crate::api::bus::BusCommand::AutoLockUnlock => {
                 <i32>::sse_encode(7, serializer);
             }
+            crate::api::bus::BusCommand::KnownHostPromptResponse {
+                prompt_id,
+                accepted,
+            } => {
+                <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(prompt_id, serializer);
+                <bool>::sse_encode(accepted, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -13307,10 +13416,50 @@ impl SseEncode for crate::api::bus::BusEvent {
             crate::api::bus::BusEvent::SessionsChanged => {
                 <i32>::sse_encode(23, serializer);
             }
+            crate::api::bus::BusEvent::KnownHostPromptRequest {
+                prompt_id,
+                host,
+                port,
+                key_type,
+                fingerprint,
+                kind,
+            } => {
+                <i32>::sse_encode(24, serializer);
+                <String>::sse_encode(prompt_id, serializer);
+                <String>::sse_encode(host, serializer);
+                <i64>::sse_encode(port, serializer);
+                <String>::sse_encode(key_type, serializer);
+                <String>::sse_encode(fingerprint, serializer);
+                <crate::api::bus::BusKnownHostPromptKind>::sse_encode(kind, serializer);
+            }
+            crate::api::bus::BusEvent::KnownHostPromptResolved {
+                prompt_id,
+                accepted,
+            } => {
+                <i32>::sse_encode(25, serializer);
+                <String>::sse_encode(prompt_id, serializer);
+                <bool>::sse_encode(accepted, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
         }
+    }
+}
+
+impl SseEncode for crate::api::bus::BusKnownHostPromptKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::bus::BusKnownHostPromptKind::NewHost => 0,
+                crate::api::bus::BusKnownHostPromptKind::KeyChanged => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

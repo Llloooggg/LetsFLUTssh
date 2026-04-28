@@ -203,6 +203,37 @@ pub enum BusEvent {
     KnownHostsChanged,
     /// Sessions / folders tables mutated.
     SessionsChanged,
+    /// TOFU prompt — russh saw an unknown / changed host key.
+    /// Subscribers (Dart UI) surface the host-key dialog and
+    /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
+    KnownHostPromptRequest {
+        prompt_id: String,
+        host: String,
+        port: i64,
+        key_type: String,
+        fingerprint: String,
+        kind: BusKnownHostPromptKind,
+    },
+    /// TOFU prompt resolved — fired after the dispatcher wakes the
+    /// awaiting handler. Diagnostic only (the matching handler
+    /// already woke); UI may use it to dismiss any lingering toast.
+    KnownHostPromptResolved { prompt_id: String, accepted: bool },
+}
+
+/// FRB mirror of `lfs_core::bus::KnownHostPromptKind`.
+#[derive(Debug, Clone, Copy)]
+pub enum BusKnownHostPromptKind {
+    NewHost,
+    KeyChanged,
+}
+
+impl From<lfs_core::bus::KnownHostPromptKind> for BusKnownHostPromptKind {
+    fn from(k: lfs_core::bus::KnownHostPromptKind) -> Self {
+        match k {
+            lfs_core::bus::KnownHostPromptKind::NewHost => BusKnownHostPromptKind::NewHost,
+            lfs_core::bus::KnownHostPromptKind::KeyChanged => BusKnownHostPromptKind::KeyChanged,
+        }
+    }
 }
 
 /// Rule status — FRB mirror of `lfs_core::portforward::RuleStatus`.
@@ -323,6 +354,28 @@ impl BusEvent {
             }
             lfs_core::bus::Event::KnownHostsChanged => BusEvent::KnownHostsChanged,
             lfs_core::bus::Event::SessionsChanged => BusEvent::SessionsChanged,
+            lfs_core::bus::Event::KnownHostPromptRequest {
+                prompt_id,
+                host,
+                port,
+                key_type,
+                fingerprint,
+                kind,
+            } => BusEvent::KnownHostPromptRequest {
+                prompt_id,
+                host,
+                port,
+                key_type,
+                fingerprint,
+                kind: kind.into(),
+            },
+            lfs_core::bus::Event::KnownHostPromptResolved {
+                prompt_id,
+                accepted,
+            } => BusEvent::KnownHostPromptResolved {
+                prompt_id,
+                accepted,
+            },
         }
     }
 }
@@ -430,6 +483,9 @@ pub enum BusCommand {
     AutoLockRequestLock,
     /// Auto-lock — unlock signal from the Dart-side dialog.
     AutoLockUnlock,
+    /// TOFU prompt response — Dart UI's host-key dialog resolved.
+    /// Wakes the russh handler that fired the matching request.
+    KnownHostPromptResponse { prompt_id: String, accepted: bool },
 }
 
 impl From<BusCommand> for lfs_core::bus::Command {
@@ -451,6 +507,13 @@ impl From<BusCommand> for lfs_core::bus::Command {
             }
             BusCommand::AutoLockRequestLock => lfs_core::bus::Command::AutoLockRequestLock,
             BusCommand::AutoLockUnlock => lfs_core::bus::Command::AutoLockUnlock,
+            BusCommand::KnownHostPromptResponse {
+                prompt_id,
+                accepted,
+            } => lfs_core::bus::Command::KnownHostPromptResponse {
+                prompt_id,
+                accepted,
+            },
         }
     }
 }

@@ -206,6 +206,41 @@ pub enum Event {
     /// toggle) — the cache mirror picks the canonical state up
     /// from the DB after the FRB layer publishes here.
     SessionsChanged,
+
+    /// TOFU prompt — russh's `check_server_key` saw a host key
+    /// that does not match a stored entry. The prompt id is
+    /// caller-allocated (UUIDv4 from the Dart shim that subscribes
+    /// to this topic); the response command echoes the same id so
+    /// concurrent prompts (parallel reconnect storm) don't
+    /// cross-wire. `kind` distinguishes "first time we've seen
+    /// this host" from "host key changed under us — possible
+    /// MITM" so the UI picks the matching dialog wording.
+    KnownHostPromptRequest {
+        prompt_id: String,
+        host: String,
+        port: i64,
+        key_type: String,
+        fingerprint: String,
+        kind: KnownHostPromptKind,
+    },
+    /// TOFU prompt result — published after the dispatcher resolves
+    /// the user's choice from the bus command back into the
+    /// awaiting handler. Subscribers (the russh handler that fired
+    /// the request) match on `prompt_id`.
+    KnownHostPromptResolved { prompt_id: String, accepted: bool },
+}
+
+/// Distinguish the two TOFU prompt shapes:
+/// - `NewHost` — first time we've seen this `host:port`. The dialog
+///   shows the new fingerprint with a "trust this server?" prompt.
+/// - `KeyChanged` — we have a stored entry for this `host:port` but
+///   the offered key does not match. The dialog warns about
+///   possible MITM and shows both fingerprints; accepting overwrites
+///   the stored entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KnownHostPromptKind {
+    NewHost,
+    KeyChanged,
 }
 
 impl Event {
@@ -235,6 +270,9 @@ impl Event {
             | Event::UpdateDownloadCompleted { .. } => EventTopic::Update,
             Event::KnownHostsChanged => EventTopic::KnownHosts,
             Event::SessionsChanged => EventTopic::Sessions,
+            Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
+                EventTopic::KnownHosts
+            }
         }
     }
 }
@@ -278,6 +316,14 @@ pub enum Command {
     /// reopened the DB; the machine just resets its activity
     /// clock and emits the matching event.
     AutoLockUnlock,
+
+    /// TOFU prompt response — the Dart UI's host-key dialog
+    /// resolved (user tapped Accept / Reject). `prompt_id` echoes
+    /// the id from the matching [`Event::KnownHostPromptRequest`]
+    /// so the awaiting russh handler matches the right pending
+    /// prompt. `accepted` is the user's choice; the dispatcher
+    /// persists the new entry into `known_hosts` when accepted.
+    KnownHostPromptResponse { prompt_id: String, accepted: bool },
 }
 
 /// Broadcast-backed event broker. Owned by `AppState` (process
@@ -367,6 +413,19 @@ pub async fn dispatch(cmd: Command) -> Result<(), Error> {
         }
         Command::AutoLockUnlock => {
             app.autolock.unlock(&app.bus);
+            Ok(())
+        }
+        Command::KnownHostPromptResponse {
+            prompt_id,
+            accepted,
+        } => {
+            let resolved = app.known_hosts_prompts.resolve(&prompt_id, accepted);
+            if resolved {
+                app.bus.publish(Event::KnownHostPromptResolved {
+                    prompt_id,
+                    accepted,
+                });
+            }
             Ok(())
         }
     }

@@ -10,7 +10,7 @@ import 'ssh.dart';
 part 'bus.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Direct connect entry point. Bypasses the bus because connect is
 /// a request/response operation: the Dart caller awaits the result
@@ -95,6 +95,13 @@ sealed class BusCommand with _$BusCommand {
 
   /// Auto-lock — unlock signal from the Dart-side dialog.
   const factory BusCommand.autoLockUnlock() = BusCommand_AutoLockUnlock;
+
+  /// TOFU prompt response — Dart UI's host-key dialog resolved.
+  /// Wakes the russh handler that fired the matching request.
+  const factory BusCommand.knownHostPromptResponse({
+    required String promptId,
+    required bool accepted,
+  }) = BusCommand_KnownHostPromptResponse;
 }
 
 /// Inputs to a connect command — FRB mirror of
@@ -310,7 +317,30 @@ sealed class BusEvent with _$BusEvent {
 
   /// Sessions / folders tables mutated.
   const factory BusEvent.sessionsChanged() = BusEvent_SessionsChanged;
+
+  /// TOFU prompt — russh saw an unknown / changed host key.
+  /// Subscribers (Dart UI) surface the host-key dialog and
+  /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
+  const factory BusEvent.knownHostPromptRequest({
+    required String promptId,
+    required String host,
+    required PlatformInt64 port,
+    required String keyType,
+    required String fingerprint,
+    required BusKnownHostPromptKind kind,
+  }) = BusEvent_KnownHostPromptRequest;
+
+  /// TOFU prompt resolved — fired after the dispatcher wakes the
+  /// awaiting handler. Diagnostic only (the matching handler
+  /// already woke); UI may use it to dismiss any lingering toast.
+  const factory BusEvent.knownHostPromptResolved({
+    required String promptId,
+    required bool accepted,
+  }) = BusEvent_KnownHostPromptResolved;
 }
+
+/// FRB mirror of `lfs_core::bus::KnownHostPromptKind`.
+enum BusKnownHostPromptKind { newHost, keyChanged }
 
 /// Connection progress step — FRB mirror of
 /// `lfs_core::connection::ProgressStep`.

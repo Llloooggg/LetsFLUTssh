@@ -313,6 +313,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusEvent dco_decode_bus_event(dynamic raw);
 
   @protected
+  BusKnownHostPromptKind dco_decode_bus_known_host_prompt_kind(dynamic raw);
+
+  @protected
   BusProgressStep dco_decode_bus_progress_step(dynamic raw);
 
   @protected
@@ -934,6 +937,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BusEvent sse_decode_bus_event(SseDeserializer deserializer);
+
+  @protected
+  BusKnownHostPromptKind sse_decode_bus_known_host_prompt_kind(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BusProgressStep sse_decode_bus_progress_step(SseDeserializer deserializer);
@@ -1695,6 +1703,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bus_event(BusEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bus_known_host_prompt_kind(
+    BusKnownHostPromptKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_bus_progress_step(
