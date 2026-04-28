@@ -43,7 +43,7 @@ right now"*, the design is wrong.
 | 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |
 | 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
 | 8c. `update_service` state machine → Rust | DONE — `lfs_core::update_orchestrator` owns the GitHub-API parse + asset selection + signed-manifest verification; Dart `UpdateService.checkForUpdate` / `downloadAsset` route through FRB by default with a Dart fallback retained only for the test-injection path |
-| 9. Security tier stack → Rust | partial — `lfs_core::security::SecurityTier` + `SecurityTierModifiers` typed scaffold + `lfs_core::rate_limit::InMemoryRateLimiterRegistry` shipped; Dart `InMemoryRateLimiter` is now a thin FRB shim. `lfs_core::security::master_password` owns the `credentials.kdf` / `credentials.verify` file format + Argon2id derive + AES-GCM verifier round-trip; Dart `MasterPasswordManager` shrunk to a thin façade that resolves the platform app-support path and delegates each op to the FRB shim. Hardware-tier composer + keychain gate + biometric vault + tier state machine + bootstrap orchestration still Dart-side. |
+| 9. Security tier stack → Rust | partial — `lfs_core::security::SecurityTier` / `SecurityTierModifiers` / `SecurityConfig` typed scaffold + JSON ser/de mirroring Dart's permissive fallback shipped; `lfs_core::rate_limit::InMemoryRateLimiterRegistry` shipped (Dart shim); `lfs_core::security::master_password` owns the `credentials.kdf` / `credentials.verify` file format + Argon2id derive + AES-GCM verifier round-trip + 0600 perm hardening (Dart shim); `lfs_core::security::keychain_marker` owns the libsecret-noise gate marker file (Dart shim); `lfs_core::keys::is_encrypted_pem` owns the PEM encryption-format scan (Dart shim). Hardware-tier composer + keychain gate + biometric vault + tier state machine + bootstrap orchestration + wipe orchestrator still Dart-side. |
 | 10a. `session_recorder` asciinema composer → Rust | DONE | `5adceb05` |
 | 10b. `session_recorder` ring buffer + driver loop | DONE — `lfs_core::recorder::queue` per-id worker + mpsc serialises header/event/rotate/close; Dart shim reduced to fire-and-forget enqueues |
 | 13e. `tier_backing.dart` dead code drop | DONE | dead — no production caller |
@@ -82,6 +82,7 @@ LOC reflects current tree):
 | `core/security/keychain_password_gate.dart` | 262 | keychain unlock gate sequence | 9 |
 | `core/security/biometric_key_vault.dart` | 255 | biometric unlock sequence | 9 |
 | `core/security/security_tier.dart` | 257 | tier model + transitions | 9 |
+| `core/security/linux_keychain_marker.dart` | ~110 | thin façade — `exists` / `set` / `clear` delegate to `keychain_marker_*` FRB calls; only the platform `getApplicationSupportDirectory()` resolution + the non-Linux short-circuit stay Dart-side | 9 |
 | `core/config/app_config.dart` | 605 | schema + defaults + validation + migrations | 2 (gated on 9) |
 | `core/import/import_service.dart` | 300 | apply driver remnants | 11 |
 | ~~`core/session/session_recorder.dart`~~ | ~280 | thin enqueue layer over `lfs_core::recorder::queue`; subscribes to the per-id recorder topic for `RecorderRotateRequested` to allocate fresh paths | DONE |
