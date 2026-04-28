@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -10,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import '_crypto_compat.dart';
 import 'linux/tpm_client.dart';
 
 /// Hardware-bound DB-key vault for L3 (Hardware + PIN) tier.
@@ -337,8 +337,7 @@ class HardwareTierVault {
   /// so a vault sealed passwordless always unseals passwordless.
   Uint8List _deriveAuth(String? pin, Uint8List salt) {
     if (pin == null || pin.isEmpty) return Uint8List(0);
-    final mac = Hmac(sha256, salt);
-    return Uint8List.fromList(mac.convert(utf8.encode(pin)).bytes);
+    return hmacSha256Compat(salt, Uint8List.fromList(utf8.encode(pin)));
   }
 
   /// Resolve the TPM / hw-vault auth value for a (password, biometric)
@@ -374,13 +373,14 @@ class HardwareTierVault {
   }) {
     if (biometric) {
       if (fprintdHash == null || fprintdHash.isEmpty) return null;
-      final mac = Hmac(sha256, salt);
-      return Uint8List.fromList(mac.convert(fprintdHash).bytes);
+      return hmacSha256Compat(salt, fprintdHash);
     }
     if (password) {
       if (typedPassword == null || typedPassword.isEmpty) return null;
-      final mac = Hmac(sha256, salt);
-      return Uint8List.fromList(mac.convert(utf8.encode(typedPassword)).bytes);
+      return hmacSha256Compat(
+        salt,
+        Uint8List.fromList(utf8.encode(typedPassword)),
+      );
     }
     return Uint8List(0);
   }

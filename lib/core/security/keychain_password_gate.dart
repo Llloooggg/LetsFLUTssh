@@ -3,13 +3,13 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import '_crypto_compat.dart';
 import 'password_rate_limiter.dart';
 
 /// UX-only password gate for L2 (keychain + password).
@@ -65,12 +65,18 @@ class KeychainPasswordGate {
   /// Derive the comparison HMAC for [password] given [salt] and
   /// [pepper]. Same function used for both set and verify — any
   /// divergence between the two paths is a bug.
+  ///
+  /// Routes through `lfs_core::crypto::hmac_sha256` in production
+  /// so the gate's HMAC formula stays in sync with the
+  /// hardware-tier vault + persisted-rate-limiter sites; falls
+  /// back to `package:crypto`'s `Hmac(sha256, …)` for unit-test
+  /// contexts that don't load the FRB native lib (see
+  /// [hmacSha256Compat]).
   Uint8List _computeHmac(String password, Uint8List salt, Uint8List pepper) {
-    final mac = Hmac(sha256, pepper);
     final sb = BytesBuilder()
       ..add(salt)
       ..add(utf8.encode(password));
-    return Uint8List.fromList(mac.convert(sb.toBytes()).bytes);
+    return hmacSha256Compat(pepper, sb.toBytes());
   }
 
   /// True when a gate is configured on this install.

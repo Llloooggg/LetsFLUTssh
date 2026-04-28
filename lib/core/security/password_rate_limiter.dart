@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -11,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../src/rust/api/rate_limit.dart' as rust_rate_limit;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import '_crypto_compat.dart';
 
 /// Exponential-backoff password rate limiter.
 ///
@@ -356,10 +356,10 @@ class PersistedRateLimiter extends PasswordRateLimiter {
       'next_retry_at_millis': state.nextRetryAt?.millisecondsSinceEpoch,
     });
     final payloadBytes = utf8.encode(payload);
-    final hmac = Hmac(sha256, _hmacKey).convert(payloadBytes);
+    final hmac = hmacSha256Compat(_hmacKey, Uint8List.fromList(payloadBytes));
     final frame = jsonEncode({
       'payload': base64.encode(payloadBytes),
-      'hmac': base64.encode(hmac.bytes),
+      'hmac': base64.encode(hmac),
     });
     return Uint8List.fromList(utf8.encode(frame));
   }
@@ -372,7 +372,7 @@ class PersistedRateLimiter extends PasswordRateLimiter {
       if (payloadB64 is! String || hmacB64 is! String) return null;
       final payloadBytes = base64.decode(payloadB64);
       final claimed = base64.decode(hmacB64);
-      final expected = Hmac(sha256, _hmacKey).convert(payloadBytes).bytes;
+      final expected = hmacSha256Compat(_hmacKey, payloadBytes);
       if (!_constantTimeEqual(claimed, expected)) return null;
       final payload =
           jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
