@@ -101,6 +101,15 @@ pub fn format_duration(millis: i64) -> String {
     format!("{total_hours}h {minutes}m")
 }
 
+/// Render a date/time as `YYYY-MM-DD HH:MM`. Inputs are the
+/// already-extracted local-time fields — the Dart caller supplies
+/// `(year, month, day, hour, minute)` from its `DateTime` so the
+/// formatter stays pure (no timezone / clock dependency).
+#[must_use]
+pub fn format_timestamp_minute(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> String {
+    format!("{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}")
+}
+
 /// Recordings-browser duration shape — fractional seconds below
 /// 1 minute, `Nm SSs` below 1 hour, `Nh MMm` above. Distinct from
 /// [`format_duration`] because the recordings come back from the
@@ -220,5 +229,28 @@ mod tests {
     fn format_duration_seconds_fractional_hour_or_more_pads_minutes() {
         assert_eq!(format_duration_seconds_fractional(3600.0), "1h 00m");
         assert_eq!(format_duration_seconds_fractional(7500.0), "2h 05m");
+    }
+
+    #[test]
+    fn format_timestamp_minute_zero_pads_every_field() {
+        assert_eq!(
+            format_timestamp_minute(2026, 4, 28, 9, 5),
+            "2026-04-28 09:05"
+        );
+    }
+
+    #[test]
+    fn format_timestamp_minute_handles_two_digit_fields() {
+        assert_eq!(
+            format_timestamp_minute(2026, 12, 31, 23, 59),
+            "2026-12-31 23:59"
+        );
+    }
+
+    #[test]
+    fn format_timestamp_minute_pads_year_below_1000() {
+        // Defensive: a misbehaving consumer could pass a 3-digit
+        // year; format helpers should not silently lose width.
+        assert_eq!(format_timestamp_minute(99, 1, 1, 0, 0), "0099-01-01 00:00");
     }
 }

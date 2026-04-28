@@ -34,10 +34,23 @@ String formatSize(int bytes) {
   }
 }
 
-/// Format DateTime to short timestamp.
+/// Format DateTime to short timestamp `YYYY-MM-DD HH:MM`. Routes
+/// through `lfs_core::format::format_timestamp_minute` so the
+/// padding grammar lives one place; falls back to the inline
+/// concatenation when the FRB native lib is not loaded.
 String formatTimestamp(DateTime dt) {
-  return '${dt.year}-${_pad(dt.month)}-${_pad(dt.day)} '
-      '${_pad(dt.hour)}:${_pad(dt.minute)}';
+  try {
+    return rust_format.formatTimestampMinute(
+      year: dt.year,
+      month: dt.month,
+      day: dt.day,
+      hour: dt.hour,
+      minute: dt.minute,
+    );
+  } catch (_) {
+    return '${dt.year}-${_pad(dt.month)}-${_pad(dt.day)} '
+        '${_pad(dt.hour)}:${_pad(dt.minute)}';
+  }
 }
 
 /// Format Duration to human-readable string. Routes through

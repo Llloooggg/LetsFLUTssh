@@ -28,3 +28,20 @@ String formatDurationSecondsFractional({required double seconds}) => RustLib
     .instance
     .api
     .crateApiFormatFormatDurationSecondsFractional(seconds: seconds);
+
+/// Render a date/time as `YYYY-MM-DD HH:MM`. Caller supplies the
+/// already-extracted local-time fields so the formatter stays
+/// pure (no timezone / clock dependency).
+String formatTimestampMinute({
+  required int year,
+  required int month,
+  required int day,
+  required int hour,
+  required int minute,
+}) => RustLib.instance.api.crateApiFormatFormatTimestampMinute(
+  year: year,
+  month: month,
+  day: day,
+  hour: hour,
+  minute: minute,
+);

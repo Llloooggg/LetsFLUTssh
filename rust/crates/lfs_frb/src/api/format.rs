@@ -35,3 +35,11 @@ pub fn format_size_iec(bytes: i64) -> String {
 pub fn format_duration_seconds_fractional(seconds: f64) -> String {
     format::format_duration_seconds_fractional(seconds)
 }
+
+/// Render a date/time as `YYYY-MM-DD HH:MM`. Caller supplies the
+/// already-extracted local-time fields so the formatter stays
+/// pure (no timezone / clock dependency).
+#[flutter_rust_bridge::frb(sync)]
+pub fn format_timestamp_minute(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> String {
+    format::format_timestamp_minute(year, month, day, hour, minute)
+}
