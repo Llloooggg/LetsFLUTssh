@@ -49,6 +49,34 @@ pub fn format_size(bytes: i64) -> String {
     }
 }
 
+/// Human-readable file size with the IEC binary prefix labels
+/// (B / KiB / MiB / GiB). Same threshold ladder as
+/// [`format_size`] but shows the user the binary-prefix labels —
+/// used by the recordings browser where the technical context
+/// makes "MiB" read more naturally than "MB".
+///
+/// Decimals: 1 for KiB / MiB, 2 for GiB. Below 1 KiB the value
+/// renders as a bare integer.
+#[must_use]
+pub fn format_size_iec(bytes: i64) -> String {
+    let neg = bytes < 0;
+    let abs = bytes.unsigned_abs();
+    let body = if abs < 1024 {
+        format!("{abs} B")
+    } else if abs < 1024 * 1024 {
+        format!("{:.1} KiB", abs as f64 / 1024.0)
+    } else if abs < 1024 * 1024 * 1024 {
+        format!("{:.1} MiB", abs as f64 / (1024.0 * 1024.0))
+    } else {
+        format!("{:.2} GiB", abs as f64 / (1024.0 * 1024.0 * 1024.0))
+    };
+    if neg {
+        format!("-{body}")
+    } else {
+        body
+    }
+}
+
 /// Human-readable duration with ms / s / m / h granularity.
 ///
 /// Sub-second → `Nms`. Sub-minute → `Ns`. Sub-hour → `Nm Ss`.
@@ -71,6 +99,26 @@ pub fn format_duration(millis: i64) -> String {
     let total_hours = total_minutes / 60;
     let minutes = total_minutes % 60;
     format!("{total_hours}h {minutes}m")
+}
+
+/// Recordings-browser duration shape — fractional seconds below
+/// 1 minute, `Nm SSs` below 1 hour, `Nh MMm` above. Distinct from
+/// [`format_duration`] because the recordings come back from the
+/// recorder as `f64` seconds (the asciinema timestamp shape) and
+/// the UI shows fractional precision below the minute boundary.
+#[must_use]
+pub fn format_duration_seconds_fractional(seconds: f64) -> String {
+    if seconds < 60.0 {
+        return format!("{seconds:.1}s");
+    }
+    let total_minutes = (seconds / 60.0).floor() as i64;
+    let secs = (seconds - (total_minutes as f64) * 60.0).floor() as i64;
+    if total_minutes < 60 {
+        return format!("{total_minutes}m {secs:02}s");
+    }
+    let total_hours = total_minutes / 60;
+    let minutes = total_minutes - total_hours * 60;
+    format!("{total_hours}h {minutes:02}m")
 }
 
 #[cfg(test)]
@@ -139,5 +187,38 @@ mod tests {
     fn format_duration_renders_hour_or_more_in_hours_minutes() {
         assert_eq!(format_duration(3_600_000), "1h 0m");
         assert_eq!(format_duration(7_500_000), "2h 5m");
+    }
+
+    #[test]
+    fn format_size_iec_renders_binary_prefix_labels() {
+        assert_eq!(format_size_iec(1023), "1023 B");
+        assert_eq!(format_size_iec(1024), "1.0 KiB");
+        assert_eq!(format_size_iec(1024 * 1024), "1.0 MiB");
+        assert_eq!(format_size_iec(1024_i64 * 1024 * 1024), "1.00 GiB");
+    }
+
+    #[test]
+    fn format_size_iec_handles_negative() {
+        assert_eq!(format_size_iec(-2048), "-2.0 KiB");
+    }
+
+    #[test]
+    fn format_duration_seconds_fractional_sub_minute_shows_one_decimal() {
+        assert_eq!(format_duration_seconds_fractional(0.0), "0.0s");
+        assert_eq!(format_duration_seconds_fractional(1.5), "1.5s");
+        assert_eq!(format_duration_seconds_fractional(59.9), "59.9s");
+    }
+
+    #[test]
+    fn format_duration_seconds_fractional_sub_hour_pads_seconds_to_two_digits() {
+        assert_eq!(format_duration_seconds_fractional(60.0), "1m 00s");
+        assert_eq!(format_duration_seconds_fractional(125.7), "2m 05s");
+        assert_eq!(format_duration_seconds_fractional(3599.9), "59m 59s");
+    }
+
+    #[test]
+    fn format_duration_seconds_fractional_hour_or_more_pads_minutes() {
+        assert_eq!(format_duration_seconds_fractional(3600.0), "1h 00m");
+        assert_eq!(format_duration_seconds_fractional(7500.0), "2h 05m");
     }
 }

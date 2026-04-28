@@ -9,6 +9,7 @@ import '../../core/session/session.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/security_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../src/rust/api/format.dart' as rust_format;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_dialog.dart';
@@ -146,19 +147,39 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
     return '<deleted> ${sessionId.substring(0, 8)}';
   }
 
+  /// Routes through `lfs_core::format::format_size_iec` so the
+  /// IEC-prefix grammar (B / KiB / MiB / GiB) lives one place;
+  /// falls back to the inline ladder when the FRB native lib is
+  /// not loaded.
   String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KiB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
+    try {
+      return rust_format.formatSizeIec(bytes: bytes);
+    } catch (_) {
+      if (bytes < 1024) return '$bytes B';
+      if (bytes < 1024 * 1024) {
+        return '${(bytes / 1024).toStringAsFixed(1)} KiB';
+      }
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
+    }
   }
 
+  /// Routes through
+  /// `lfs_core::format::format_duration_seconds_fractional` so
+  /// the recordings duration shape (fractional sub-minute,
+  /// padded sub-hour, padded above-hour) lives one place; falls
+  /// back to the inline ladder for flutter_test contexts that
+  /// don't load the FRB native lib.
   String _formatDuration(double seconds) {
-    if (seconds < 60) return '${seconds.toStringAsFixed(1)}s';
-    final m = (seconds / 60).floor();
-    final s = (seconds - m * 60).floor();
-    if (m < 60) return '${m}m ${s.toString().padLeft(2, '0')}s';
-    final h = (m / 60).floor();
-    return '${h}h ${(m - h * 60).toString().padLeft(2, '0')}m';
+    try {
+      return rust_format.formatDurationSecondsFractional(seconds: seconds);
+    } catch (_) {
+      if (seconds < 60) return '${seconds.toStringAsFixed(1)}s';
+      final m = (seconds / 60).floor();
+      final s = (seconds - m * 60).floor();
+      if (m < 60) return '${m}m ${s.toString().padLeft(2, '0')}s';
+      final h = (m / 60).floor();
+      return '${h}h ${(m - h * 60).toString().padLeft(2, '0')}m';
+    }
   }
 
   @override

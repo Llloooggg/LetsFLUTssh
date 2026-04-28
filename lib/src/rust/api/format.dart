@@ -13,3 +13,18 @@ String formatSize({required PlatformInt64 bytes}) =>
 /// Human-readable duration (ms / s / m / h granularity).
 String formatDuration({required PlatformInt64 millis}) =>
     RustLib.instance.api.crateApiFormatFormatDuration(millis: millis);
+
+/// Human-readable file size with IEC binary-prefix labels
+/// (B / KiB / MiB / GiB). Used by the recordings browser where
+/// the technical context fits "MiB" better than "MB".
+String formatSizeIec({required PlatformInt64 bytes}) =>
+    RustLib.instance.api.crateApiFormatFormatSizeIec(bytes: bytes);
+
+/// Recordings-browser duration shape — fractional seconds below
+/// 1 minute, `Nm SSs` below 1 hour, `Nh MMm` above. Distinct from
+/// `format_duration` because the asciinema timestamp is f64
+/// seconds.
+String formatDurationSecondsFractional({required double seconds}) => RustLib
+    .instance
+    .api
+    .crateApiFormatFormatDurationSecondsFractional(seconds: seconds);
