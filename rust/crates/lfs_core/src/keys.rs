@@ -127,6 +127,16 @@ pub fn import_ppk(
     finish(key, comment)
 }
 
+/// True when [`text`] looks like a PuTTY PPK file (first line
+/// matches the v2 / v3 header). Cheap shape sniff used by the
+/// import dispatcher to route `.ppk` content to the PPK parser
+/// before falling through to PEM detection.
+#[must_use]
+pub fn looks_like_ppk(text: &str) -> bool {
+    let t = text.trim_start();
+    t.starts_with("PuTTY-User-Key-File-2:") || t.starts_with("PuTTY-User-Key-File-3:")
+}
+
 /// True when [`filename`] is "obviously not a private key" by
 /// shape — public-key files (`*.pub`), the OpenSSH config file
 /// (`config`), `authorized_keys*`, and `known_hosts*` siblings
@@ -352,6 +362,31 @@ mod tests {
         assert!(!is_obvious_non_key_filename("id_ed25519"));
         assert!(!is_obvious_non_key_filename("id_rsa"));
         assert!(!is_obvious_non_key_filename("my-deploy-key"));
+    }
+
+    #[test]
+    fn looks_like_ppk_matches_v2_and_v3_headers() {
+        assert!(looks_like_ppk("PuTTY-User-Key-File-2: ssh-rsa\n…"));
+        assert!(looks_like_ppk("PuTTY-User-Key-File-3: ssh-ed25519\n…"));
+    }
+
+    #[test]
+    fn looks_like_ppk_skips_leading_whitespace() {
+        // Leading newline / spaces shouldn't confuse the sniff —
+        // some pickers paste content with stray whitespace.
+        assert!(looks_like_ppk("\n  PuTTY-User-Key-File-3: ssh-ed25519\n"));
+    }
+
+    #[test]
+    fn looks_like_ppk_rejects_pem_armor() {
+        assert!(!looks_like_ppk("-----BEGIN OPENSSH PRIVATE KEY-----\n"));
+    }
+
+    #[test]
+    fn looks_like_ppk_rejects_unknown_text() {
+        assert!(!looks_like_ppk(""));
+        assert!(!looks_like_ppk("PuTTY-User-Key-File-1: ssh-rsa\n"));
+        assert!(!looks_like_ppk("hello world"));
     }
 
     #[test]

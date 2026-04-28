@@ -83,6 +83,12 @@ bool keysIsObviousNonKeyFilename({required String filename}) => RustLib
     .api
     .crateApiKeysKeysIsObviousNonKeyFilename(filename: filename);
 
+/// True when [`text`] looks like a PuTTY PPK file (v2 or v3
+/// header). Cheap shape sniff used by the import dispatcher to
+/// route `.ppk` content to the PPK parser before trying PEM.
+bool keysLooksLikePpk({required String text}) =>
+    RustLib.instance.api.crateApiKeysKeysLooksLikePpk(text: text);
+
 class KeyMaterial {
   final String privatePem;
   final String publicOpenssh;

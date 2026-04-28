@@ -56,11 +56,18 @@ class KeyFileHelper {
 
   /// Quick sniff: does [text] look like a PPK file at all? Used by
   /// the import dispatcher to route .ppk before falling through to
-  /// PEM detection. Cheap — first-line peek only.
+  /// PEM detection. Cheap — first-line peek only. Routes through
+  /// `lfs_core::keys::looks_like_ppk` so the v2 / v3 header set
+  /// lives one place; falls back to the inline header check when
+  /// the FRB native lib is not loaded.
   static bool _looksLikePpk(String text) {
-    final t = text.trimLeft();
-    return t.startsWith('PuTTY-User-Key-File-2:') ||
-        t.startsWith('PuTTY-User-Key-File-3:');
+    try {
+      return rust_keys.keysLooksLikePpk(text: text);
+    } catch (_) {
+      final t = text.trimLeft();
+      return t.startsWith('PuTTY-User-Key-File-2:') ||
+          t.startsWith('PuTTY-User-Key-File-3:');
+    }
   }
 
   /// Whether [pem] is a password-protected private key.

@@ -117,3 +117,11 @@ pub fn keys_normalized_text_fingerprint(text: String) -> String {
 pub fn keys_is_obvious_non_key_filename(filename: String) -> bool {
     lfs_core::keys::is_obvious_non_key_filename(&filename)
 }
+
+/// True when [`text`] looks like a PuTTY PPK file (v2 or v3
+/// header). Cheap shape sniff used by the import dispatcher to
+/// route `.ppk` content to the PPK parser before trying PEM.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keys_looks_like_ppk(text: String) -> bool {
+    lfs_core::keys::looks_like_ppk(&text)
+}
