@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -6,143 +7,231 @@ import '../../core/sftp/sftp_fs.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/conflict_resolver.dart';
 import '../../core/transfer/transfer_manager.dart';
-import '../../core/transfer/transfer_task.dart';
 import '../../core/transfer/unique_name.dart';
-import '../../l10n/app_localizations.dart';
 import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
-/// Shared upload/download helpers used by both desktop and mobile file browsers.
+/// Shared upload/download helpers used by both desktop and mobile file
+/// browsers. Single-file transfers enqueue one Rust queue task; directory
+/// transfers walk locally / over SFTP and enqueue a fresh Rust task per
+/// leaf file. The Rust queue owns scheduling, chunked streaming + per-task
+/// progress events; the Dart panels render off the same shared snapshot
+/// stream regardless of how the task was enqueued.
 class TransferHelpers {
   TransferHelpers._();
 
-  /// Enqueue an upload task for [entry] to the remote [remoteDirPath].
+  /// Enqueue an upload for [entry] to the remote [remoteDirPath].
   ///
-  /// Returns `true` if a task was enqueued, `false` if the transfer
-  /// was skipped (conflict → skip) or cancelled (conflict → cancel).
-  /// Dir entries bypass the conflict check — see class docs.
+  /// Returns `true` if at least one task was enqueued, `false` if the
+  /// transfer was skipped (conflict → skip) or cancelled (conflict →
+  /// cancel) before any work landed. Dir entries bypass the conflict
+  /// check at the top level — per-file conflicts inside the walker
+  /// still resolve via [conflictResolver].
   static Future<bool> enqueueUpload({
     required TransferManager manager,
     required RemoteSftpFs sftp,
+    required String connectionId,
     required FileEntry entry,
     required String remoteDirPath,
     required FilePaneController? remoteCtrl,
-    required S loc,
     BatchConflictResolver? conflictResolver,
   }) async {
-    var remotePath = p.posix.join(remoteDirPath, entry.name);
+    final remotePath = p.posix.join(remoteDirPath, entry.name);
 
-    if (!entry.isDir && conflictResolver != null) {
-      final resolved = await _resolveUploadConflict(
+    if (entry.isDir) {
+      final enqueued = await _enqueueUploadDir(
+        manager: manager,
+        sftp: sftp,
+        connectionId: connectionId,
+        localDir: Directory(entry.path),
+        remoteDir: remotePath,
+        conflictResolver: conflictResolver,
+      );
+      if (enqueued > 0) {
+        unawaited(_refreshAfterDelay(remoteCtrl));
+      }
+      return enqueued > 0;
+    }
+
+    String? resolvedRemote = remotePath;
+    if (conflictResolver != null) {
+      resolvedRemote = await _resolveUploadConflict(
         sftp: sftp,
         targetPath: remotePath,
         resolver: conflictResolver,
       );
-      if (resolved == null) return false;
-      remotePath = resolved;
+      if (resolvedRemote == null) return false;
     }
-
-    AppLogger.instance.log(
-      'Enqueue upload: ${entry.path} → $remotePath',
-      name: 'Transfer',
+    await manager.enqueueUpload(
+      connectionId: connectionId,
+      name: p.posix.basename(resolvedRemote),
+      localPath: entry.path,
+      remotePath: resolvedRemote,
+      sizeBytes: entry.size,
     );
-
-    final displayName = p.posix.basename(remotePath);
-    manager.enqueue(
-      TransferTask(
-        name: entry.isDir ? '${entry.name}/' : displayName,
-        direction: TransferDirection.upload,
-        sourcePath: entry.path,
-        targetPath: remotePath,
-        sizeBytes: entry.size,
-        run: (update) async {
-          update(0, loc.transferStartingUpload);
-          if (entry.isDir) {
-            await sftp.uploadDir(entry.path, remotePath, (progress) {
-              update(
-                progress.percent,
-                loc.transferFilesProgress(
-                  progress.doneBytes,
-                  progress.totalBytes,
-                ),
-              );
-            });
-          } else {
-            await sftp.upload(entry.path, remotePath, (progress) {
-              update(
-                progress.percent,
-                '${progress.doneBytes}/${progress.totalBytes}',
-              );
-            });
-          }
-          remoteCtrl?.refresh();
-        },
-      ),
-    );
+    unawaited(_refreshAfterDelay(remoteCtrl));
     return true;
   }
 
-  /// Enqueue a download task for [entry] to the local [localDirPath].
-  ///
-  /// Returns `true` if a task was enqueued, `false` if skipped/cancelled.
+  /// Enqueue a download for [entry] to the local [localDirPath].
   static Future<bool> enqueueDownload({
     required TransferManager manager,
     required RemoteSftpFs sftp,
+    required String connectionId,
     required FileEntry entry,
     required String localDirPath,
     required FilePaneController? localCtrl,
-    required S loc,
     BatchConflictResolver? conflictResolver,
   }) async {
-    var localPath = p.join(localDirPath, entry.name);
+    final localPath = p.join(localDirPath, entry.name);
 
-    if (!entry.isDir && conflictResolver != null) {
-      final resolved = await _resolveDownloadConflict(
+    if (entry.isDir) {
+      final enqueued = await _enqueueDownloadDir(
+        manager: manager,
+        sftp: sftp,
+        connectionId: connectionId,
+        remoteDir: entry.path,
+        localDir: localPath,
+        conflictResolver: conflictResolver,
+      );
+      if (enqueued > 0) {
+        unawaited(_refreshAfterDelay(localCtrl));
+      }
+      return enqueued > 0;
+    }
+
+    String? resolvedLocal = localPath;
+    if (conflictResolver != null) {
+      resolvedLocal = await _resolveDownloadConflict(
         targetPath: localPath,
         resolver: conflictResolver,
       );
-      if (resolved == null) return false;
-      localPath = resolved;
+      if (resolvedLocal == null) return false;
     }
-
-    AppLogger.instance.log(
-      'Enqueue download: ${entry.path} → $localPath',
-      name: 'Transfer',
+    await manager.enqueueDownload(
+      connectionId: connectionId,
+      name: p.basename(resolvedLocal),
+      remotePath: entry.path,
+      localPath: resolvedLocal,
+      sizeBytes: entry.size,
     );
-
-    final displayName = p.basename(localPath);
-    manager.enqueue(
-      TransferTask(
-        name: entry.isDir ? '${entry.name}/' : displayName,
-        direction: TransferDirection.download,
-        sourcePath: entry.path,
-        targetPath: localPath,
-        sizeBytes: entry.size,
-        run: (update) async {
-          update(0, loc.transferStartingDownload);
-          if (entry.isDir) {
-            await sftp.downloadDir(entry.path, localPath, (progress) {
-              update(
-                progress.percent,
-                loc.transferFilesProgress(
-                  progress.doneBytes,
-                  progress.totalBytes,
-                ),
-              );
-            });
-          } else {
-            await sftp.download(entry.path, localPath, (progress) {
-              update(
-                progress.percent,
-                '${progress.doneBytes}/${progress.totalBytes}',
-              );
-            });
-          }
-          localCtrl?.refresh();
-        },
-      ),
-    );
+    unawaited(_refreshAfterDelay(localCtrl));
     return true;
+  }
+
+  /// Walk [localDir] recursively and enqueue an upload task per leaf
+  /// file. Skips symlinks (we don't follow into arbitrary targets) and
+  /// conflict-skipped paths. Returns the total enqueue count.
+  static Future<int> _enqueueUploadDir({
+    required TransferManager manager,
+    required RemoteSftpFs sftp,
+    required String connectionId,
+    required Directory localDir,
+    required String remoteDir,
+    required BatchConflictResolver? conflictResolver,
+  }) async {
+    var enqueued = 0;
+    try {
+      await sftp.mkdir(remoteDir);
+    } catch (_) {
+      // Already exists or other transient — per-file upserts will fail
+      // if the dir is genuinely unwritable; let those surface there.
+    }
+    final children = localDir.listSync(followLinks: false);
+    for (final child in children) {
+      final base = p.basename(child.path);
+      final remoteChild = p.posix.join(remoteDir, base);
+      if (child is Directory) {
+        enqueued += await _enqueueUploadDir(
+          manager: manager,
+          sftp: sftp,
+          connectionId: connectionId,
+          localDir: child,
+          remoteDir: remoteChild,
+          conflictResolver: conflictResolver,
+        );
+      } else if (child is File) {
+        String? resolved = remoteChild;
+        if (conflictResolver != null) {
+          resolved = await _resolveUploadConflict(
+            sftp: sftp,
+            targetPath: remoteChild,
+            resolver: conflictResolver,
+          );
+          if (resolved == null) continue;
+        }
+        final stat = child.statSync();
+        await manager.enqueueUpload(
+          connectionId: connectionId,
+          name: p.posix.basename(resolved),
+          localPath: child.path,
+          remotePath: resolved,
+          sizeBytes: stat.size,
+        );
+        enqueued++;
+      }
+      // Skip symlinks — we don't follow them into arbitrary targets.
+    }
+    return enqueued;
+  }
+
+  /// Walk [remoteDir] over SFTP and enqueue a download task per leaf
+  /// file. Mirrors [_enqueueUploadDir] in shape.
+  static Future<int> _enqueueDownloadDir({
+    required TransferManager manager,
+    required RemoteSftpFs sftp,
+    required String connectionId,
+    required String remoteDir,
+    required String localDir,
+    required BatchConflictResolver? conflictResolver,
+  }) async {
+    var enqueued = 0;
+    Directory(localDir).createSync(recursive: true);
+    final entries = await sftp.list(remoteDir);
+    for (final remoteEntry in entries) {
+      final base = remoteEntry.name;
+      if (base == '.' || base == '..') continue;
+      final remoteChild = p.posix.join(remoteDir, base);
+      final localChild = p.join(localDir, base);
+      if (remoteEntry.isDir) {
+        enqueued += await _enqueueDownloadDir(
+          manager: manager,
+          sftp: sftp,
+          connectionId: connectionId,
+          remoteDir: remoteChild,
+          localDir: localChild,
+          conflictResolver: conflictResolver,
+        );
+      } else {
+        String? resolved = localChild;
+        if (conflictResolver != null) {
+          resolved = await _resolveDownloadConflict(
+            targetPath: localChild,
+            resolver: conflictResolver,
+          );
+          if (resolved == null) continue;
+        }
+        await manager.enqueueDownload(
+          connectionId: connectionId,
+          name: p.basename(resolved),
+          remotePath: remoteChild,
+          localPath: resolved,
+          sizeBytes: remoteEntry.size,
+        );
+        enqueued++;
+      }
+    }
+    return enqueued;
+  }
+
+  /// Refresh the file pane a moment after enqueue so the UI catches
+  /// up once the Rust queue starts the first task. The Rust executor
+  /// re-creates parent dirs / writes the file; the pane needs a
+  /// re-list to see them. Best-effort — no-op when the pane is null.
+  static Future<void> _refreshAfterDelay(FilePaneController? ctrl) async {
+    if (ctrl == null) return;
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    ctrl.refresh();
   }
 
   /// Returns the effective remote path to upload to, or `null` when
@@ -172,11 +261,6 @@ class TransferHelpers {
   }) async {
     final snapshot = _snapshotLocal(targetPath);
     if (snapshot == null) return targetPath;
-    // Symlink-at-probe is already suspicious — a plain overwrite through
-    // a symlink would follow it to whatever the link target is, which
-    // could be a sensitive file the user never intended to touch (e.g.
-    // `~/Downloads/foo.pdf` being a pre-planted symlink to `~/.ssh/id_ed25519`).
-    // Refuse up front rather than letting the user "replace" into it.
     if (snapshot.isSymlink) {
       AppLogger.instance.log(
         'Refusing download to pre-existing symlink: $targetPath',
@@ -192,12 +276,6 @@ class TransferHelpers {
       case ConflictAction.keepBoth:
         return uniqueSiblingName(targetPath, _localExists);
       case ConflictAction.replace:
-        // TOCTOU re-check: between probe and the user answering the
-        // prompt, another process could have swapped the file out for a
-        // symlink to a sensitive location or replaced it with a
-        // differently-shaped file. If that happened we refuse to
-        // overwrite — the user's "replace" was consent for the file
-        // they saw, not whatever is there now.
         final current = _snapshotLocal(targetPath);
         if (!_localSnapshotsMatch(snapshot, current)) {
           AppLogger.instance.log(
@@ -214,9 +292,6 @@ class TransferHelpers {
     return FileSystemEntity.typeSync(path) != FileSystemEntityType.notFound;
   }
 
-  /// Inode-level snapshot of a local path. Returns null when the path
-  /// does not exist, so a "no target yet → just write" flow can skip
-  /// the TOCTOU check entirely.
   static _LocalSnapshot? _snapshotLocal(String path) {
     final type = FileSystemEntity.typeSync(path, followLinks: false);
     if (type == FileSystemEntityType.notFound) return null;
@@ -242,12 +317,6 @@ class TransferHelpers {
   }
 }
 
-/// Shape/identity fingerprint for a local path captured just before a
-/// destructive operation. `size` + `modified` + `type` is coarse
-/// (Dart does not expose the inode number cross-platform) but it
-/// catches the common TOCTOU patterns: file swapped for a symlink,
-/// file replaced with different contents, or file moved and recreated
-/// as a different type.
 class _LocalSnapshot {
   final FileSystemEntityType? type;
   final int? size;

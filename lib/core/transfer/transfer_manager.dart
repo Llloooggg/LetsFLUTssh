@@ -1,393 +1,349 @@
 import 'dart:async';
 
+import 'package:uuid/uuid.dart';
+
+import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/api/transfer.dart' as rust_transfer;
 import '../../utils/logger.dart';
+import '../bus/app_bus.dart';
 import 'transfer_task.dart';
 
-/// Transfer queue manager with configurable parallel workers.
+/// Thin Dart shim over the Rust transfer queue
+/// (`lfs_core::transfer::TransferQueue` + `WorkerPool` +
+/// `SftpTaskExecutor`). The Rust side owns scheduling, parallelism,
+/// chunked SFTP streaming, cancellation tokens, and the canonical
+/// per-task state; this shim mirrors a snapshot for the UI and
+/// dispatches commands over FRB.
+///
+/// State refresh is event-driven: the Rust queue publishes
+/// `TransferTask*` events on the `Transfer` bus topic after every
+/// mutation. The shim subscribes once, debounces re-fetches, and
+/// fires `onChange` so the existing Riverpod stream providers keep
+/// rebuilding their consumers.
 class TransferManager {
-  final int parallelism;
-  final int maxHistory;
-  final Duration taskTimeout;
-
-  final _queue = <_QueueEntry>[];
-  final _history = <HistoryEntry>[];
+  final _historyCache = <HistoryEntry>[];
+  final _activeCache = <ActiveEntry>[];
+  String? _currentTransferInfo;
   int _running = 0;
-  int _counter = 0;
+  int _queued = 0;
   bool _disposed = false;
 
   final _controller = StreamController<void>.broadcast();
+  StreamSubscription<rust_bus.BusEvent>? _busSub;
 
-  /// Fires on any state change (queue/history update).
+  /// Pending refresh consolidator — multiple bus events in the same
+  /// microtask coalesce to a single `transferSnapshotAll` call.
+  Future<void>? _pendingRefresh;
+
+  /// Fires on any state change (queue/history update). Existing
+  /// `transferHistoryProvider` / `transferStatusProvider` /
+  /// `activeTransfersProvider` re-yield off this stream.
   Stream<void> get onChange => _controller.stream;
 
-  /// Per-task active transfer info, keyed by task ID.
-  final _activeTransfers = <String, String>{};
-
-  /// Per-task progress data for UI, keyed by task ID.
-  final _activeProgress = <String, _ActiveProgressData>{};
-
-  /// Active timeout timers — cancelled on dispose.
-  final _timeoutTimers = <String, Timer>{};
-
-  /// IDs of tasks that have been cancelled — checked during execution.
-  final _cancelledIds = <String>{};
-
-  /// Throttle interval for progress UI updates.
-  /// State is always updated in memory; only stream emit is throttled.
-  static const _progressThrottleInterval = Duration(milliseconds: 150);
-  DateTime _lastProgressEmit = DateTime.fromMillisecondsSinceEpoch(0);
-  Timer? _pendingProgressTimer;
-
-  /// Current active transfer info (name + percent) for status bar.
-  /// Shows the most recently updated active transfer.
-  String? get currentTransferInfo =>
-      _activeTransfers.isNotEmpty ? _activeTransfers.values.last : null;
-
-  TransferManager({
-    this.parallelism = 2,
-    this.maxHistory = 500,
-    this.taskTimeout = const Duration(minutes: 30),
-  });
-
-  List<HistoryEntry> get history => List.unmodifiable(_history);
-
-  int get queueLength => _queue.length;
-  int get runningCount => _running;
-
-  /// Active + queued entries for UI display.
-  List<ActiveEntry> get activeEntries {
-    return _activeProgress.entries.map((e) {
-      final d = e.value;
-      final isRunning = _activeTransfers.containsKey(e.key);
-      return ActiveEntry(
-        id: e.key,
-        name: d.task.name,
-        direction: d.task.direction,
-        sourcePath: d.task.sourcePath,
-        targetPath: d.task.targetPath,
-        status: isRunning ? TransferStatus.running : TransferStatus.queued,
-        percent: d.percent,
-        message: d.message,
-      );
-    }).toList();
-  }
-
-  /// Enqueue a transfer task. Returns task ID.
-  String enqueue(TransferTask task) {
-    _counter++;
-    final id = 'tr-$_counter';
-    final entry = _QueueEntry(id: id, task: task, createdAt: DateTime.now());
-    _queue.add(entry);
-    _activeProgress[id] = _ActiveProgressData(
-      task: task,
-      createdAt: DateTime.now(),
-    );
-    AppLogger.instance.log(
-      'Enqueued: ${task.name} (${task.direction.name})',
-      name: 'Transfer',
-    );
-    _notify();
-    _processQueue();
-    return id;
-  }
-
-  /// Cancel a queued or running transfer by ID.
-  /// Queued tasks are removed immediately. Running tasks are marked for
-  /// cancellation — the next progress callback check will abort them.
-  bool cancel(String id) {
-    // Try removing from queue first
-    final qIdx = _queue.indexWhere((e) => e.id == id);
-    if (qIdx >= 0) {
-      final entry = _queue.removeAt(qIdx);
-      _activeProgress.remove(id);
-      AppLogger.instance.log(
-        'Cancelled (queued): ${entry.task.name}',
-        name: 'Transfer',
-      );
-      _addHistory(
-        HistoryEntry(
-          id: entry.id,
-          name: entry.task.name,
-          direction: entry.task.direction,
-          sourcePath: entry.task.sourcePath,
-          targetPath: entry.task.targetPath,
-          status: TransferStatus.cancelled,
-          createdAt: entry.createdAt,
-          endedAt: DateTime.now(),
-        ),
-      );
-      _notify();
-      return true;
-    }
-
-    // Mark running task for cancellation
-    if (_activeTransfers.containsKey(id)) {
-      _cancelledIds.add(id);
-      AppLogger.instance.log('Cancel requested: $id', name: 'Transfer');
-      return true;
-    }
-
-    return false;
-  }
-
-  /// Cancel all queued and running transfers.
-  void cancelAll() {
-    // Cancel all queued
-    for (final entry in _queue) {
-      _addHistory(
-        HistoryEntry(
-          id: entry.id,
-          name: entry.task.name,
-          direction: entry.task.direction,
-          sourcePath: entry.task.sourcePath,
-          targetPath: entry.task.targetPath,
-          status: TransferStatus.cancelled,
-          createdAt: entry.createdAt,
-          endedAt: DateTime.now(),
-        ),
-      );
-    }
-    _queue.clear();
-
-    // Mark all running for cancellation
-    _cancelledIds.addAll(_activeTransfers.keys);
-
-    // Clean up queued progress (running ones are cleaned in _executeTask finally)
-    _activeProgress.removeWhere((id, _) => !_activeTransfers.containsKey(id));
-
-    _notify();
-  }
-
-  void clearHistory() {
-    _history.clear();
-    _notify();
-  }
-
-  void deleteHistory(List<String> ids) {
-    _history.removeWhere((e) => ids.contains(e.id));
-    _notify();
-  }
-
-  void _processQueue() {
-    while (_running < parallelism && _queue.isNotEmpty) {
-      final entry = _queue.removeAt(0);
-      _running++;
-      _notify();
-      unawaited(_executeTask(entry));
-    }
-  }
-
-  Future<void> _executeTask(_QueueEntry entry) async {
-    final startedAt = DateTime.now();
-    var lastPercent = 0.0;
-    var lastMessage = '';
-    AppLogger.instance.log(
-      'Started: <name> (id=${entry.id})',
-      name: 'Transfer',
-    );
-
+  TransferManager() {
     try {
-      final taskFuture = entry.task.run((percent, message) {
-        // Check cancellation on each progress callback
-        if (_cancelledIds.contains(entry.id)) {
-          throw const _CancelledException();
+      _busSub = AppBus.instance.subscribe(rust_bus.BusTopic.transfer).listen((
+        event,
+      ) {
+        if (event is rust_bus.BusEvent_TransferTaskAdded ||
+            event is rust_bus.BusEvent_TransferTaskState ||
+            event is rust_bus.BusEvent_TransferTaskProgress ||
+            event is rust_bus.BusEvent_TransferTaskError) {
+          _scheduleRefresh();
         }
-        lastPercent = percent;
-        lastMessage = message;
-        _activeTransfers[entry.id] =
-            '${entry.task.name} ${percent.toStringAsFixed(0)}%';
-        final progress = _activeProgress[entry.id];
-        if (progress != null) {
-          progress.percent = percent;
-          progress.message = message;
-        }
-        _notifyProgress();
       });
-
-      await _awaitWithTimeout(taskFuture, entry.id);
-
+    } catch (e) {
       AppLogger.instance.log(
-        'Completed: <name> (id=${entry.id})',
+        'TransferManager bus subscribe failed: $e',
         name: 'Transfer',
+        level: LogLevel.warn,
       );
-      _addHistory(
-        HistoryEntry(
-          id: entry.id,
-          name: entry.task.name,
-          direction: entry.task.direction,
-          sourcePath: entry.task.sourcePath,
-          targetPath: entry.task.targetPath,
-          status: TransferStatus.completed,
-          lastPercent: 100,
-          lastMessage: 'Done',
-          createdAt: entry.createdAt,
-          startedAt: startedAt,
-          endedAt: DateTime.now(),
-          sizeBytes: entry.task.sizeBytes,
-        ),
-      );
-    } on _CancelledException {
-      AppLogger.instance.log(
-        'Cancelled: <name> (id=${entry.id})',
-        name: 'Transfer',
-      );
-      _addHistory(
-        HistoryEntry(
-          id: entry.id,
-          name: entry.task.name,
-          direction: entry.task.direction,
-          sourcePath: entry.task.sourcePath,
-          targetPath: entry.task.targetPath,
-          status: TransferStatus.cancelled,
-          lastPercent: lastPercent,
-          lastMessage: 'Cancelled',
-          createdAt: entry.createdAt,
-          startedAt: startedAt,
-          endedAt: DateTime.now(),
-          sizeBytes: entry.task.sizeBytes,
-        ),
+    }
+    _scheduleRefresh();
+  }
+
+  List<HistoryEntry> get history => List.unmodifiable(_historyCache);
+  List<ActiveEntry> get activeEntries => List.unmodifiable(_activeCache);
+  String? get currentTransferInfo => _currentTransferInfo;
+  int get runningCount => _running;
+  int get queueLength => _queued;
+
+  /// Enqueue a download from `remotePath` on the SFTP session bound
+  /// to `connectionId` to `localPath`. Returns the assigned task id
+  /// so callers can track / cancel later.
+  Future<String> enqueueDownload({
+    required String connectionId,
+    required String name,
+    required String remotePath,
+    required String localPath,
+    int sizeBytes = 0,
+  }) async {
+    final id = const Uuid().v4();
+    AppLogger.instance.log(
+      'Enqueue download: $remotePath → $localPath',
+      name: 'Transfer',
+    );
+    try {
+      await rust_transfer.transferEnqueue(
+        id: id,
+        kind: rust_transfer.DbTransferKind.download,
+        sessionId: connectionId,
+        remotePath: remotePath,
+        localPath: localPath,
+        bytesTotal: BigInt.from(sizeBytes),
       );
     } catch (e) {
       AppLogger.instance.log(
-        'Failed: ${entry.task.name}: $e',
+        'transferEnqueue download failed: $e',
         name: 'Transfer',
-        error: e,
+        level: LogLevel.warn,
       );
-      _addHistory(
-        HistoryEntry(
-          id: entry.id,
-          name: entry.task.name,
-          direction: entry.task.direction,
-          sourcePath: entry.task.sourcePath,
-          targetPath: entry.task.targetPath,
-          status: TransferStatus.failed,
-          error: e,
-          lastPercent: lastPercent,
-          lastMessage: lastMessage,
-          createdAt: entry.createdAt,
-          startedAt: startedAt,
-          endedAt: DateTime.now(),
-          sizeBytes: entry.task.sizeBytes,
-        ),
+    }
+    return id;
+  }
+
+  /// Enqueue an upload from `localPath` to `remotePath` on the SFTP
+  /// session bound to `connectionId`. Same shape as
+  /// [enqueueDownload].
+  Future<String> enqueueUpload({
+    required String connectionId,
+    required String name,
+    required String localPath,
+    required String remotePath,
+    int sizeBytes = 0,
+  }) async {
+    final id = const Uuid().v4();
+    AppLogger.instance.log(
+      'Enqueue upload: $localPath → $remotePath',
+      name: 'Transfer',
+    );
+    try {
+      await rust_transfer.transferEnqueue(
+        id: id,
+        kind: rust_transfer.DbTransferKind.upload,
+        sessionId: connectionId,
+        remotePath: remotePath,
+        localPath: localPath,
+        bytesTotal: BigInt.from(sizeBytes),
       );
-    } finally {
-      _cancelledIds.remove(entry.id);
-      _timeoutTimers.remove(entry.id)?.cancel();
-      _pendingProgressTimer?.cancel();
-      _pendingProgressTimer = null;
-      _running--;
-      _activeTransfers.remove(entry.id);
-      _activeProgress.remove(entry.id);
-      _notify();
-      _processQueue();
+    } catch (e) {
+      AppLogger.instance.log(
+        'transferEnqueue upload failed: $e',
+        name: 'Transfer',
+        level: LogLevel.warn,
+      );
+    }
+    return id;
+  }
+
+  /// Cancel a running / queued task by id. Idempotent on a missing
+  /// id (already finished).
+  Future<bool> cancel(String id) async {
+    try {
+      return await rust_transfer.transferCancel(taskId: id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'transferCancel failed: $e',
+        name: 'Transfer',
+        level: LogLevel.warn,
+      );
+      return false;
     }
   }
 
-  Future<void> _awaitWithTimeout(
-    Future<void> taskFuture,
-    String entryId,
-  ) async {
-    if (taskTimeout <= Duration.zero) {
-      await taskFuture;
-      return;
+  /// Cancel every active task. Walks the snapshot and cancels each
+  /// non-terminal entry one-shot.
+  void cancelAll() {
+    unawaited(_cancelAllAsync());
+  }
+
+  Future<void> _cancelAllAsync() async {
+    final snapshots = await _safeSnapshot();
+    for (final s in snapshots) {
+      if (_isActive(s.state)) {
+        unawaited(cancel(s.id));
+      }
     }
-    final completer = Completer<void>();
-    final timer = Timer(taskTimeout, () {
-      // Mark for cooperative cancellation so the actual SFTP operation
-      // aborts at the next progress callback, not just the await.
-      _cancelledIds.add(entryId);
-      if (!completer.isCompleted) {
-        completer.completeError(
-          TimeoutException(
-            'Transfer timed out after ${taskTimeout.inMinutes} minutes',
-            taskTimeout,
-          ),
+  }
+
+  /// Drop every terminal (Completed / Failed / Cancelled) entry
+  /// from the registry.
+  Future<void> clearHistory() async {
+    try {
+      await rust_transfer.transferClearHistory();
+    } catch (e) {
+      AppLogger.instance.log(
+        'transferClearHistory failed: $e',
+        name: 'Transfer',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Drop a specific set of terminal tasks. Used by the panel's
+  /// per-row delete action.
+  Future<void> deleteHistory(List<String> ids) async {
+    for (final id in ids) {
+      try {
+        await rust_transfer.transferDropTerminal(taskId: id);
+      } catch (e) {
+        AppLogger.instance.log(
+          'transferDropTerminal($id) failed: $e',
+          name: 'Transfer',
+          level: LogLevel.warn,
         );
       }
-    });
-    _timeoutTimers[entryId] = timer;
-    unawaited(
-      taskFuture.then(
-        (_) {
-          if (!completer.isCompleted) completer.complete();
-        },
-        onError: (Object e) {
-          if (!completer.isCompleted) completer.completeError(e);
-        },
-      ),
-    );
-    await completer.future;
-  }
-
-  void _addHistory(HistoryEntry entry) {
-    _history.insert(0, entry); // newest first
-    if (_history.length > maxHistory) {
-      _history.removeRange(maxHistory, _history.length);
     }
   }
 
-  void _notify() {
-    if (!_disposed) {
-      _controller.add(null);
-    }
-  }
-
-  /// Throttled notify for progress updates only.
-  /// In-memory state is always current; this limits stream emits so the UI
-  /// rebuilds at most once per [_progressThrottleInterval].
-  void _notifyProgress() {
+  /// Schedule a refresh for the next microtask. Multiple events in
+  /// the same tick coalesce to one snapshot call so a download
+  /// progress storm doesn't fan out into N FRB round-trips.
+  void _scheduleRefresh() {
     if (_disposed) return;
-    final now = DateTime.now();
-    if (now.difference(_lastProgressEmit) >= _progressThrottleInterval) {
-      _lastProgressEmit = now;
-      _pendingProgressTimer?.cancel();
-      _pendingProgressTimer = null;
-      _controller.add(null);
-    } else {
-      // Schedule a trailing emit so the final update is never lost.
-      _pendingProgressTimer ??= Timer(_progressThrottleInterval, () {
-        _pendingProgressTimer = null;
-        if (!_disposed) {
-          _lastProgressEmit = DateTime.now();
-          _controller.add(null);
-        }
-      });
+    if (_pendingRefresh != null) return;
+    _pendingRefresh = Future.microtask(() async {
+      _pendingRefresh = null;
+      await _doRefresh();
+    });
+  }
+
+  Future<void> _doRefresh() async {
+    if (_disposed) return;
+    final snapshots = await _safeSnapshot();
+    if (_disposed) return;
+    _historyCache.clear();
+    _activeCache.clear();
+    var running = 0;
+    var queued = 0;
+    String? current;
+    for (final s in snapshots) {
+      final dir = s.kind == rust_transfer.DbTransferKind.upload
+          ? TransferDirection.upload
+          : TransferDirection.download;
+      final source = dir == TransferDirection.upload
+          ? s.localPath
+          : s.remotePath;
+      final target = dir == TransferDirection.upload
+          ? s.remotePath
+          : s.localPath;
+      final name = _displayName(target);
+      final percent = s.bytesTotal > BigInt.zero
+          ? (s.bytesDone.toDouble() / s.bytesTotal.toDouble()) * 100.0
+          : 0.0;
+      switch (s.state) {
+        case rust_transfer.DbTransferState.queued:
+          queued++;
+          _activeCache.add(
+            ActiveEntry(
+              id: s.id,
+              name: name,
+              direction: dir,
+              sourcePath: source,
+              targetPath: target,
+              status: TransferStatus.queued,
+              percent: percent,
+              message: 'Queued',
+            ),
+          );
+        case rust_transfer.DbTransferState.running:
+          running++;
+          current = '$name ${percent.toStringAsFixed(0)}%';
+          _activeCache.add(
+            ActiveEntry(
+              id: s.id,
+              name: name,
+              direction: dir,
+              sourcePath: source,
+              targetPath: target,
+              status: TransferStatus.running,
+              percent: percent,
+              message: '${s.bytesDone.toString()}/${s.bytesTotal.toString()}',
+            ),
+          );
+        case rust_transfer.DbTransferState.completed:
+          _historyCache.add(
+            HistoryEntry(
+              id: s.id,
+              name: name,
+              direction: dir,
+              sourcePath: source,
+              targetPath: target,
+              status: TransferStatus.completed,
+              lastPercent: 100,
+              lastMessage: 'Done',
+              createdAt: DateTime.now(),
+              sizeBytes: s.bytesTotal.toInt(),
+            ),
+          );
+        case rust_transfer.DbTransferState.failed:
+          _historyCache.add(
+            HistoryEntry(
+              id: s.id,
+              name: name,
+              direction: dir,
+              sourcePath: source,
+              targetPath: target,
+              status: TransferStatus.failed,
+              error: s.error ?? 'failed',
+              lastPercent: percent,
+              lastMessage: s.error ?? 'failed',
+              createdAt: DateTime.now(),
+              sizeBytes: s.bytesTotal.toInt(),
+            ),
+          );
+        case rust_transfer.DbTransferState.cancelled:
+          _historyCache.add(
+            HistoryEntry(
+              id: s.id,
+              name: name,
+              direction: dir,
+              sourcePath: source,
+              targetPath: target,
+              status: TransferStatus.cancelled,
+              lastPercent: percent,
+              lastMessage: 'Cancelled',
+              createdAt: DateTime.now(),
+              sizeBytes: s.bytesTotal.toInt(),
+            ),
+          );
+      }
     }
+    _running = running;
+    _queued = queued;
+    _currentTransferInfo = current;
+    if (!_disposed) _controller.add(null);
+  }
+
+  Future<List<rust_transfer.DbTransferSnapshot>> _safeSnapshot() async {
+    try {
+      return await rust_transfer.transferSnapshotAll();
+    } catch (e) {
+      AppLogger.instance.log(
+        'transferSnapshotAll failed: $e',
+        name: 'Transfer',
+        level: LogLevel.warn,
+      );
+      return const [];
+    }
+  }
+
+  bool _isActive(rust_transfer.DbTransferState s) =>
+      s == rust_transfer.DbTransferState.queued ||
+      s == rust_transfer.DbTransferState.running;
+
+  static String _displayName(String path) {
+    final unix = path.lastIndexOf('/');
+    final win = path.lastIndexOf('\\');
+    final idx = unix > win ? unix : win;
+    if (idx < 0 || idx == path.length - 1) return path;
+    return path.substring(idx + 1);
   }
 
   void dispose() {
     _disposed = true;
-    _pendingProgressTimer?.cancel();
-    _pendingProgressTimer = null;
-    cancelAll();
-    _history.clear();
-    for (final timer in _timeoutTimers.values) {
-      timer.cancel();
-    }
-    _timeoutTimers.clear();
+    unawaited(_busSub?.cancel());
+    _busSub = null;
     _controller.close();
   }
-}
-
-class _QueueEntry {
-  final String id;
-  final TransferTask task;
-  final DateTime createdAt;
-
-  _QueueEntry({required this.id, required this.task, required this.createdAt});
-}
-
-/// Internal exception thrown when a running task detects cancellation.
-class _CancelledException implements Exception {
-  const _CancelledException();
-}
-
-/// Progress data for an active transfer, tracked internally.
-class _ActiveProgressData {
-  final TransferTask task;
-  final DateTime createdAt;
-  double percent = 0;
-  String message = 'Queued';
-
-  _ActiveProgressData({required this.task, required this.createdAt});
 }

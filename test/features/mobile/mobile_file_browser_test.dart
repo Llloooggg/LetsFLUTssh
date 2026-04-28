@@ -898,7 +898,7 @@ void main() {
     late TransferManager manager;
 
     setUp(() {
-      manager = TransferManager(taskTimeout: Duration.zero);
+      manager = TransferManager();
     });
 
     tearDown(() {
@@ -1253,7 +1253,7 @@ void main() {
     late TransferManager manager;
 
     setUp(() {
-      manager = TransferManager(taskTimeout: Duration.zero);
+      manager = TransferManager();
     });
 
     tearDown(() {

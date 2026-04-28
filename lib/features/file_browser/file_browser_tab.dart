@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../utils/logger.dart';
 import 'package:path/path.dart' as p;
 
 import '../../providers/config_provider.dart';
@@ -13,8 +14,6 @@ import '../../widgets/app_empty_state.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_models.dart';
-import '../../core/transfer/transfer_task.dart';
-import '../../providers/transfer_provider.dart';
 import 'file_browser_controller.dart';
 import 'file_pane.dart';
 import 'sftp_browser_mixin.dart';
@@ -267,33 +266,46 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   }
 
   /// OS drop onto local pane — copy files into the current local directory.
+  ///
+  /// Local-to-local copies do not flow through the transfer queue
+  /// (which is owned Rust-side and SFTP-only); the file-system copy
+  /// runs inline on the UI isolate. Best-effort: a partial dir copy
+  /// surfaces as a logged warning, the user can re-drop to retry.
   void _osDropToLocal(List<String> paths) {
     final local = _localCtrl;
     if (local == null) return;
-    final manager = ref.read(transferManagerProvider);
-    final loc = S.of(context);
     for (final srcPath in paths) {
       final name = p.basename(srcPath);
       final targetPath = p.join(local.currentPath, name);
       final isDir = FileSystemEntity.isDirectorySync(srcPath);
-
-      manager.enqueue(
-        TransferTask(
-          name: isDir ? '$name/' : name,
-          direction: TransferDirection.download,
-          sourcePath: srcPath,
+      unawaited(
+        _runLocalDrop(
+          srcPath: srcPath,
           targetPath: targetPath,
-          run: (update) async {
-            update(0, loc.transferCopying);
-            if (isDir) {
-              await _copyDirLocal(Directory(srcPath), Directory(targetPath));
-            } else {
-              await File(srcPath).copy(targetPath);
-            }
-            update(100, loc.transferDone);
-            _localCtrl?.refresh();
-          },
+          isDir: isDir,
+          name: name,
         ),
+      );
+    }
+  }
+
+  Future<void> _runLocalDrop({
+    required String srcPath,
+    required String targetPath,
+    required bool isDir,
+    required String name,
+  }) async {
+    try {
+      if (isDir) {
+        await _copyDirLocal(Directory(srcPath), Directory(targetPath));
+      } else {
+        await File(srcPath).copy(targetPath);
+      }
+      _localCtrl?.refresh();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Local drop copy failed for $name: $e',
+        name: 'FileBrowser',
       );
     }
   }

@@ -122,7 +122,6 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final sftp = sftpResult?.filesystem;
     final remote = sftpResult?.remoteCtrl;
     if (sftp == null || remote == null || entries.isEmpty) return;
-    final loc = S.of(context);
     final resolver = _buildResolver(showApplyToAll: entries.length > 1);
 
     for (final entry in entries) {
@@ -131,10 +130,10 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       await TransferHelpers.enqueueUpload(
         manager: ref.read(transferManagerProvider),
         sftp: sftp,
+        connectionId: sftpConnection.id,
         entry: entry,
         remoteDirPath: remote.currentPath,
         remoteCtrl: remote,
-        loc: loc,
         conflictResolver: resolver,
       );
     }
@@ -145,7 +144,6 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final sftp = sftpResult?.filesystem;
     final local = sftpResult?.localCtrl;
     if (sftp == null || local == null || entries.isEmpty) return;
-    final loc = S.of(context);
     final resolver = _buildResolver(showApplyToAll: entries.length > 1);
 
     for (final entry in entries) {
@@ -154,10 +152,10 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       await TransferHelpers.enqueueDownload(
         manager: ref.read(transferManagerProvider),
         sftp: sftp,
+        connectionId: sftpConnection.id,
         entry: entry,
         localDirPath: local.currentPath,
         localCtrl: local,
-        loc: loc,
         conflictResolver: resolver,
       );
     }
