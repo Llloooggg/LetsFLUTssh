@@ -51,6 +51,20 @@ Future<KeyMaterial> keysImportPpk({
   comment: comment,
 );
 
+/// Cheap pre-check: does this PEM body look encrypted?
+///
+/// Returns `true` when the PEM carries one of the standard
+/// "encrypted" markers — legacy `Proc-Type: 4,ENCRYPTED`,
+/// PKCS#8 encrypted armor, or an OpenSSH `openssh-key-v1` body
+/// whose KDF-name field is anything other than `none`. Sync
+/// because the work is a couple of `contains` checks plus, for
+/// the OpenSSH case, a base64 decode of the (small) armored body
+/// — well under a millisecond. The async hop overhead would dwarf
+/// the actual work and the importer fans this out across every
+/// IdentityFile in the user's `~/.ssh/config`.
+bool keysIsEncryptedPem({required String pem}) =>
+    RustLib.instance.api.crateApiKeysKeysIsEncryptedPem(pem: pem);
+
 class KeyMaterial {
   final String privatePem;
   final String publicOpenssh;

@@ -81,3 +81,19 @@ pub async fn keys_import_ppk(
     .map_err(|e| e.to_string())?;
     Ok(km.into())
 }
+
+/// Cheap pre-check: does this PEM body look encrypted?
+///
+/// Returns `true` when the PEM carries one of the standard
+/// "encrypted" markers — legacy `Proc-Type: 4,ENCRYPTED`,
+/// PKCS#8 encrypted armor, or an OpenSSH `openssh-key-v1` body
+/// whose KDF-name field is anything other than `none`. Sync
+/// because the work is a couple of `contains` checks plus, for
+/// the OpenSSH case, a base64 decode of the (small) armored body
+/// — well under a millisecond. The async hop overhead would dwarf
+/// the actual work and the importer fans this out across every
+/// IdentityFile in the user's `~/.ssh/config`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keys_is_encrypted_pem(pem: String) -> bool {
+    lfs_core::keys::is_encrypted_pem(&pem)
+}

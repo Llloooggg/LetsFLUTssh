@@ -120,8 +120,8 @@ Future<void> recorderQueueEnqueueEvent({
 
 /// Enqueue an atomic rotation to a fresh file. The Dart side owns
 /// path allocation (the platform `getApplicationSupportDirectory`
-/// + `hardenFilePerms` sweeps); this enqueue just hands the worker
-/// the new destination.
+/// plus `hardenFilePerms` sweeps); this enqueue just hands the
+/// worker the new destination.
 Future<void> recorderQueueEnqueueRotate({
   required String id,
   required String newPath,

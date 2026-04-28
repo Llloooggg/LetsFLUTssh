@@ -126,3 +126,162 @@ pub fn import_ppk(
     })?;
     finish(key, comment)
 }
+
+/// True when [`pem`] is a password-protected private key.
+///
+/// Covers the three encoding families the importer cares about:
+///
+/// * Legacy PKCS#1/OpenSSL — carries `Proc-Type: 4,ENCRYPTED` +
+///   `DEK-Info` headers inside the ASCII-armor envelope.
+/// * PKCS#8 encrypted — announced via its own armor header.
+/// * New OpenSSH format — the outer armor is the same
+///   `-----BEGIN OPENSSH PRIVATE KEY-----` regardless of encryption,
+///   so we decode the base64 body and read the KDF-name field out
+///   of the `openssh-key-v1\0` binary prefix. `none` means
+///   unencrypted; anything else (typically `bcrypt`) means a
+///   passphrase is required.
+///
+/// Mirror of the Dart-side `KeyFileHelper.isEncryptedPem` that
+/// the OpenSSH-config importer + the `~/.ssh` directory scanner +
+/// the settings file picker all consult. Living one place keeps
+/// the encryption-detection rules consistent across every entry
+/// point that decides whether to silently skip a key (no
+/// passphrase prompt) or pop the key-manager passphrase flow.
+pub fn is_encrypted_pem(pem: &str) -> bool {
+    if pem.contains("Proc-Type: 4,ENCRYPTED") {
+        return true;
+    }
+    if pem.contains("DEK-Info:") {
+        return true;
+    }
+    if pem.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") {
+        return true;
+    }
+    if pem.contains("-----BEGIN OPENSSH PRIVATE KEY-----") {
+        return is_encrypted_openssh_key(pem).unwrap_or(false);
+    }
+    false
+}
+
+/// Parse the base64 body of an OpenSSH private key and inspect its
+/// KDF name field. Returns `None` when the body does not decode as
+/// a valid `openssh-key-v1` frame — the caller treats that as
+/// "can't tell, assume unencrypted" rather than false-positive
+/// warning the user about a malformed file.
+///
+/// Frame layout (big-endian):
+/// ```text
+///   "openssh-key-v1\0"   (15 bytes)
+///   u32 kdfNameLen
+///   kdfName              (ASCII)
+///   ... rest
+/// ```
+fn is_encrypted_openssh_key(pem: &str) -> Option<bool> {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+
+    // Strip armor lines + every whitespace byte (newlines, indent)
+    // before decoding — the standard PEM body is line-wrapped at 64
+    // chars and base64 rejects intervening whitespace.
+    let body: String = pem
+        .split('\n')
+        .filter(|l| !l.is_empty() && !l.starts_with("-----"))
+        .collect::<String>()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    if body.is_empty() {
+        return None;
+    }
+    let decoded = STANDARD.decode(body.as_bytes()).ok()?;
+    const MAGIC: &[u8] = b"openssh-key-v1";
+    if decoded.len() < MAGIC.len() + 1 + 4 {
+        return None;
+    }
+    if &decoded[..MAGIC.len()] != MAGIC {
+        return None;
+    }
+    if decoded[MAGIC.len()] != 0 {
+        return None;
+    }
+    const OFFSET: usize = 15; // magic (14) + null terminator
+    let kdf_len = u32::from_be_bytes([
+        decoded[OFFSET],
+        decoded[OFFSET + 1],
+        decoded[OFFSET + 2],
+        decoded[OFFSET + 3],
+    ]) as usize;
+    // Sanity-check the length so a malformed frame can't make us
+    // read gigabytes of garbage; a real KDF name is ≤ a dozen
+    // characters.
+    if kdf_len == 0 || kdf_len > 32 {
+        return None;
+    }
+    let start = OFFSET + 4;
+    if decoded.len() < start + kdf_len {
+        return None;
+    }
+    let name = std::str::from_utf8(&decoded[start..start + kdf_len]).ok()?;
+    Some(name != "none")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pkcs1_dek_info_marks_encrypted() {
+        let pem = "-----BEGIN RSA PRIVATE KEY-----\n\
+                   Proc-Type: 4,ENCRYPTED\n\
+                   DEK-Info: AES-128-CBC,1234\n\
+                   payload\n\
+                   -----END RSA PRIVATE KEY-----\n";
+        assert!(is_encrypted_pem(pem));
+    }
+
+    #[test]
+    fn dek_info_alone_marks_encrypted() {
+        // Some real-world keys ship `DEK-Info:` without the
+        // matching `Proc-Type:` line — match either marker so the
+        // importer doesn't silently try to use them as plaintext.
+        let pem = "-----BEGIN RSA PRIVATE KEY-----\n\
+                   DEK-Info: AES-256-CBC,abcd\n\
+                   payload\n\
+                   -----END RSA PRIVATE KEY-----\n";
+        assert!(is_encrypted_pem(pem));
+    }
+
+    #[test]
+    fn pkcs8_encrypted_armor_marks_encrypted() {
+        let pem = "-----BEGIN ENCRYPTED PRIVATE KEY-----\n\
+                   payload\n\
+                   -----END ENCRYPTED PRIVATE KEY-----\n";
+        assert!(is_encrypted_pem(pem));
+    }
+
+    #[test]
+    fn unencrypted_openssh_round_trips_via_keygen() {
+        // Generate a fresh ed25519 key — encoded with `none` KDF —
+        // and confirm the encrypted detector says "no".
+        let km = generate_ed25519("test").unwrap();
+        assert!(!is_encrypted_pem(&km.private_pem));
+    }
+
+    #[test]
+    fn random_text_is_not_encrypted() {
+        // Non-key text never trips the markers.
+        assert!(!is_encrypted_pem("just a random string\n"));
+        assert!(!is_encrypted_pem(""));
+    }
+
+    #[test]
+    fn malformed_openssh_body_falls_through_to_unencrypted() {
+        // Outer armor matches but the body decodes to nothing
+        // useful — caller must not warn the user about a malformed
+        // file (returning `false` here lets the importer attempt
+        // the real parse, which surfaces the proper format error).
+        let pem = "-----BEGIN OPENSSH PRIVATE KEY-----\n\
+                   bm90LXJlYWxseS1iYXNlNjQK\n\
+                   -----END OPENSSH PRIVATE KEY-----\n";
+        assert!(!is_encrypted_pem(pem));
+    }
+}
