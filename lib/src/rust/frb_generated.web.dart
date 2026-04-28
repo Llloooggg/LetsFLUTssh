@@ -31,6 +31,7 @@ import 'api/rate_limit.dart';
 import 'api/recorder.dart';
 import 'api/security_capabilities.dart';
 import 'api/security_config.dart';
+import 'api/sessions.dart';
 import 'api/sftp.dart';
 import 'api/snippet_template.dart';
 import 'api/ssh.dart';
@@ -476,6 +477,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbRenderedSnippet dco_decode_db_rendered_snippet(dynamic raw);
 
   @protected
+  DbSearchableSession dco_decode_db_searchable_session(dynamic raw);
+
+  @protected
   DbSecurityCapabilities dco_decode_db_security_capabilities(dynamic raw);
 
   @protected
@@ -581,6 +585,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbPortForwardRule> dco_decode_list_db_port_forward_rule(dynamic raw);
+
+  @protected
+  List<DbSearchableSession> dco_decode_list_db_searchable_session(dynamic raw);
 
   @protected
   List<DbSession> dco_decode_list_db_session(dynamic raw);
@@ -1221,6 +1228,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSearchableSession sse_decode_db_searchable_session(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSecurityCapabilities sse_decode_db_security_capabilities(
     SseDeserializer deserializer,
   );
@@ -1346,6 +1358,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbPortForwardRule> sse_decode_list_db_port_forward_rule(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbSearchableSession> sse_decode_list_db_searchable_session(
     SseDeserializer deserializer,
   );
 
@@ -2134,6 +2151,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_searchable_session(
+    DbSearchableSession self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_security_capabilities(
     DbSecurityCapabilities self,
     SseSerializer serializer,
@@ -2304,6 +2327,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_port_forward_rule(
     List<DbPortForwardRule> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_searchable_session(
+    List<DbSearchableSession> self,
     SseSerializer serializer,
   );
 

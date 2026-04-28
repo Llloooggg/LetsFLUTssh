@@ -26,6 +26,7 @@ pub mod rate_limit;
 pub mod recorder;
 pub mod security_capabilities;
 pub mod security_config;
+pub mod sessions;
 pub mod sftp;
 pub mod snippet_template;
 pub mod ssh;

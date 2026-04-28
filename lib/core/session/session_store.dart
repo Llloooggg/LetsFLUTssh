@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
+import '../../src/rust/api/sessions.dart' as rust_sess;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 import '../db/_folder_path_compat.dart';
@@ -725,15 +726,38 @@ class SessionStore {
 
   List<Session> search(String query) => filterSessions(_sessions, query);
 
+  /// Case-insensitive substring search across (label, folder, host,
+  /// user). Routes through `lfs_core::sessions::filter_sessions` so
+  /// the four-field grammar lives one place; falls back to the
+  /// equivalent Dart predicate when the FRB native lib is not
+  /// loaded (flutter_test contexts that mock the DAOs).
   static List<Session> filterSessions(List<Session> sessions, String query) {
     if (query.isEmpty) return sessions;
-    final q = query.toLowerCase();
-    return sessions.where((s) {
-      return s.label.toLowerCase().contains(q) ||
-          s.folder.toLowerCase().contains(q) ||
-          s.host.toLowerCase().contains(q) ||
-          s.user.toLowerCase().contains(q);
-    }).toList();
+    try {
+      final projection = sessions
+          .map(
+            (s) => rust_sess.DbSearchableSession(
+              id: s.id,
+              label: s.label,
+              folder: s.folder,
+              host: s.host,
+              user: s.user,
+            ),
+          )
+          .toList(growable: false);
+      final ids = rust_sess
+          .sessionsFilter(items: projection, query: query)
+          .toSet();
+      return sessions.where((s) => ids.contains(s.id)).toList();
+    } catch (_) {
+      final q = query.toLowerCase();
+      return sessions.where((s) {
+        return s.label.toLowerCase().contains(q) ||
+            s.folder.toLowerCase().contains(q) ||
+            s.host.toLowerCase().contains(q) ||
+            s.user.toLowerCase().contains(q);
+      }).toList();
+    }
   }
 
   // ── Internals ───────────────────────────────────────────────────
