@@ -25,7 +25,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::path::harden_file_perms;
+use crate::path::write_bytes_atomic;
 
 /// File name stored under the platform's app-support directory.
 /// Mirror of the Dart-side `_fileName` constant.
@@ -50,17 +50,14 @@ pub fn exists(support_dir: &Path) -> bool {
 /// call from multiple keychain-using classes — the file is a flag,
 /// not a counter; idempotent on a re-write.
 ///
-/// Writes `'1'` and chmods the file to owner-only via
-/// [`harden_file_perms`] so the whole `app-support` directory keeps
-/// a single 0600 permission contract.
+/// Routes through [`write_bytes_atomic`] so the marker file lands
+/// at the same 0600 perms the rest of `app-support` enforces, and
+/// concurrent `set` calls cannot trip on the intermediate file
+/// (random tmp suffix).
 pub fn set(support_dir: &Path) -> Result<(), String> {
     fs::create_dir_all(support_dir)
         .map_err(|e| format!("create {}: {e}", support_dir.display()))?;
-    let path = support_dir.join(MARKER_FILE_NAME);
-    fs::write(&path, b"1").map_err(|e| format!("write {}: {e}", path.display()))?;
-    // Best-effort harden — same posture as the Dart writer (log + swallow).
-    let _ = harden_file_perms(&path);
-    Ok(())
+    write_bytes_atomic(&support_dir.join(MARKER_FILE_NAME), b"1")
 }
 
 /// Drop the marker when the last keychain entry across all users is

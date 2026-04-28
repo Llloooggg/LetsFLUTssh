@@ -18,7 +18,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::path::harden_file_perms;
+use crate::path::write_bytes_atomic;
 
 /// File name stored under the platform's app-support directory.
 /// Mirror of the Dart-side `_markerFileName` constant.
@@ -37,17 +37,15 @@ pub fn read(support_dir: &Path) -> Option<String> {
     fs::read_to_string(&path).ok()
 }
 
-/// Write the marker with [`payload`] as its body. Atomic via tmp +
-/// rename; the tmp file gets hardened to 0600 before the rename so
-/// a reader that races never sees default umask perms.
+/// Write the marker with [`payload`] as its body. Routes through
+/// [`write_bytes_atomic`] so the file lands at the same 0600 perms
+/// the rest of `app-support` enforces; the random tmp-suffix path
+/// keeps concurrent switches (e.g. user double-clicks the apply
+/// button) from colliding on the intermediate file.
 pub fn write(support_dir: &Path, payload: &str) -> Result<(), String> {
     fs::create_dir_all(support_dir)
         .map_err(|e| format!("create {}: {e}", support_dir.display()))?;
-    let path = support_dir.join(MARKER_FILE_NAME);
-    let tmp = path.with_extension("tmp");
-    fs::write(&tmp, payload.as_bytes()).map_err(|e| format!("write {}: {e}", tmp.display()))?;
-    let _ = harden_file_perms(&tmp);
-    fs::rename(&tmp, &path).map_err(|e| format!("rename {}: {e}", path.display()))
+    write_bytes_atomic(&support_dir.join(MARKER_FILE_NAME), payload.as_bytes())
 }
 
 /// Drop the marker. Idempotent on a missing file — startup callers

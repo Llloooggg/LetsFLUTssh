@@ -317,18 +317,10 @@ fn verify_against_verifier(key: &[u8], verifier: &[u8]) -> bool {
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let tmp = path.with_extension("tmp");
-    fs::write(&tmp, bytes).map_err(|e| format!("write {}: {e}", tmp.display()))?;
-    // Harden the perms on the tmp file BEFORE rename — same order
-    // the Dart `writeBytesAtomic` follows. A reader that races the
-    // rename never sees the file with default umask perms. The
-    // outcome is best-effort: a failed harden is the same posture
-    // pre-port (a successfully-written-but-permissive file). The
-    // Dart side logged + swallowed; we do the same to keep
-    // behaviour parity until `lfs_core` has its own logging hook.
-    let _ = crate::path::harden_file_perms(&tmp);
-    fs::rename(&tmp, path).map_err(|e| format!("rename {}: {e}", path.display()))?;
-    Ok(())
+    // Canonical write-tmp + harden + rename lives in
+    // `crate::path::write_bytes_atomic` so every secret-bearing
+    // artefact under app-support shares one on-disk perms contract.
+    crate::path::write_bytes_atomic(path, bytes)
 }
 
 #[cfg(test)]

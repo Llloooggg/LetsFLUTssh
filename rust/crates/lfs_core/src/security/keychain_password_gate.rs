@@ -28,10 +28,10 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use serde_json::Value;
 
-/// Per-blob random-bytes lengths. Mirrors the Dart-side `_saltLength`
-/// + `_pepperLength` constants. Bumps are forward-compatible — a
-/// reader does not assume a specific length, only that the base64
-/// decode yields ≥ 1 byte.
+/// Per-blob random-bytes lengths. Mirrors the Dart-side
+/// `_saltLength` + `_pepperLength` constants. Bumps are
+/// forward-compatible — a reader does not assume a specific
+/// length, only that the base64 decode yields ≥ 1 byte.
 pub const SALT_LENGTH: usize = 32;
 pub const PEPPER_LENGTH: usize = 32;
 
@@ -202,17 +202,17 @@ mod tests {
 
     #[test]
     fn compute_gate_hmac_changes_when_salt_changes() {
-        let pepper = vec![0xaau8; PEPPER_LENGTH];
-        let a = compute_gate_hmac(&pepper, &vec![0xbbu8; SALT_LENGTH], "x");
-        let b = compute_gate_hmac(&pepper, &vec![0xccu8; SALT_LENGTH], "x");
+        let pepper = [0xaau8; PEPPER_LENGTH];
+        let a = compute_gate_hmac(&pepper, &[0xbbu8; SALT_LENGTH], "x");
+        let b = compute_gate_hmac(&pepper, &[0xccu8; SALT_LENGTH], "x");
         assert_ne!(a, b);
     }
 
     #[test]
     fn compute_gate_hmac_changes_when_pepper_changes() {
-        let salt = vec![0xbbu8; SALT_LENGTH];
-        let a = compute_gate_hmac(&vec![0xaau8; PEPPER_LENGTH], &salt, "x");
-        let b = compute_gate_hmac(&vec![0xddu8; PEPPER_LENGTH], &salt, "x");
+        let salt = [0xbbu8; SALT_LENGTH];
+        let a = compute_gate_hmac(&[0xaau8; PEPPER_LENGTH], &salt, "x");
+        let b = compute_gate_hmac(&[0xddu8; PEPPER_LENGTH], &salt, "x");
         assert_ne!(a, b);
     }
 }
