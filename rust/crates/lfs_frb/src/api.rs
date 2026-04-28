@@ -9,6 +9,7 @@ pub mod crypto;
 pub mod db;
 pub mod deeplink;
 pub mod forward;
+pub mod keychain_marker;
 pub mod keys;
 pub mod known_hosts_parser;
 pub mod log_sanitize;

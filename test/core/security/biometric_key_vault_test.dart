@@ -8,24 +8,41 @@ import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/linux/fprintd_client.dart';
 import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/linux_keychain_marker.dart';
-import 'package:path/path.dart' as p;
+
+/// Pure-Dart marker stand-in for tests. The production
+/// [LinuxKeychainMarker] now delegates each op across the FRB
+/// boundary into `lfs_core::security::keychain_marker`; under
+/// flutter_test the FRB native lib is not loaded so the production
+/// shim's `set` swallows the exception and the marker stays unset.
+/// This subclass overrides the surface to flip an in-memory flag so
+/// vault tests that depend on the post-store marker visibility keep
+/// working without bootstrapping the native lib. The Rust
+/// implementation has its own unit-test coverage in
+/// `lfs_core::security::keychain_marker::tests`.
+class _InMemoryMarker extends LinuxKeychainMarker {
+  bool _set = false;
+  _InMemoryMarker() : super(supportDirFactory: () async => '');
+  @override
+  Future<bool> exists({bool skipOnNonLinux = true}) async {
+    if (skipOnNonLinux && !Platform.isLinux) return true;
+    return _set;
+  }
+
+  @override
+  Future<void> set() async => _set = true;
+  @override
+  Future<void> clear() async => _set = false;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late Map<String, String> fakeStore;
-  late Directory markerDir;
   late LinuxKeychainMarker marker;
 
   setUp(() {
     fakeStore = {};
-    markerDir = Directory.systemTemp.createTempSync('bio_vault_marker_');
-    // Marker is instance-based so tests avoid binding the path_provider
-    // channel and keep each case isolated (every setUp gets a fresh temp
-    // dir, so no marker bleeds between tests).
-    marker = LinuxKeychainMarker(
-      pathFactory: () async => p.join(markerDir.path, 'keychain_enabled'),
-    );
+    marker = _InMemoryMarker();
     // FlutterSecureStorage talks to the host via a MethodChannel — replace
     // it with an in-memory fake so the test doesn't need a keychain.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -62,7 +79,6 @@ void main() {
           const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
           null,
         );
-    if (markerDir.existsSync()) markerDir.deleteSync(recursive: true);
   });
 
   group('BiometricKeyVault', () {
