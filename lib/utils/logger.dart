@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../src/rust/api/format.dart' as rust_format;
 import '../src/rust/api/path.dart' as rust_path;
 import 'sanitize.dart';
 
@@ -30,6 +31,24 @@ import 'sanitize.dart';
 ///   and bypasses the threshold so crash forensics are always on
 ///   disk. Red tint + left border.
 enum LogLevel { info, warn, error }
+
+/// Routes through `lfs_core::format::format_clock_hms` so the
+/// `HH:MM:SS` padding grammar lives one place; falls back to the
+/// inline pad-and-concat when the FRB native lib is not loaded
+/// (logger init runs before RustLib in some test contexts).
+String _formatHmsForLog(DateTime now) {
+  try {
+    return rust_format.formatClockHms(
+      hour: now.hour,
+      minute: now.minute,
+      second: now.second,
+    );
+  } catch (_) {
+    return '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}:'
+        '${now.second.toString().padLeft(2, '0')}';
+  }
+}
 
 String _levelChar(LogLevel l) => switch (l) {
   LogLevel.info => 'I',
@@ -273,10 +292,7 @@ class AppLogger {
     final safeError = error == null ? null : sanitize(error.toString());
     try {
       final now = DateTime.now();
-      final ts =
-          '${now.hour.toString().padLeft(2, '0')}:'
-          '${now.minute.toString().padLeft(2, '0')}:'
-          '${now.second.toString().padLeft(2, '0')}';
+      final ts = _formatHmsForLog(now);
       _sink!.writeln('$ts ${_levelChar(resolvedLevel)} [$tag] $safeMsg');
       if (safeError != null) {
         _sink!.writeln('  Error: $safeError');
@@ -326,10 +342,7 @@ class AppLogger {
     if (_logPath == null) return;
     try {
       final now = DateTime.now();
-      final ts =
-          '${now.hour.toString().padLeft(2, '0')}:'
-          '${now.minute.toString().padLeft(2, '0')}:'
-          '${now.second.toString().padLeft(2, '0')}';
+      final ts = _formatHmsForLog(now);
       // logCritical is always error-level by contract.
       final buf = StringBuffer()
         ..writeln('$ts ${_levelChar(LogLevel.error)} [$tag] $safeMsg');

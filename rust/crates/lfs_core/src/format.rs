@@ -118,6 +118,14 @@ pub fn format_date(year: i32, month: u32, day: u32) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
+/// Render a clock time as `HH:MM:SS`. Used by the logger for its
+/// per-line timestamp prefix; second-precision is enough for the
+/// debug log file.
+#[must_use]
+pub fn format_clock_hms(hour: u32, minute: u32, second: u32) -> String {
+    format!("{hour:02}:{minute:02}:{second:02}")
+}
+
 /// Recordings-browser duration shape — fractional seconds below
 /// 1 minute, `Nm SSs` below 1 hour, `Nh MMm` above. Distinct from
 /// [`format_duration`] because the recordings come back from the
@@ -266,5 +274,12 @@ mod tests {
     fn format_date_pads_every_field() {
         assert_eq!(format_date(2026, 4, 28), "2026-04-28");
         assert_eq!(format_date(2026, 12, 31), "2026-12-31");
+    }
+
+    #[test]
+    fn format_clock_hms_pads_every_field() {
+        assert_eq!(format_clock_hms(0, 0, 0), "00:00:00");
+        assert_eq!(format_clock_hms(9, 5, 1), "09:05:01");
+        assert_eq!(format_clock_hms(23, 59, 59), "23:59:59");
     }
 }

@@ -51,3 +51,10 @@ pub fn format_timestamp_minute(year: i32, month: u32, day: u32, hour: u32, minut
 pub fn format_date(year: i32, month: u32, day: u32) -> String {
     format::format_date(year, month, day)
 }
+
+/// Render a clock time as `HH:MM:SS`. Used by the logger for its
+/// per-line timestamp prefix.
+#[flutter_rust_bridge::frb(sync)]
+pub fn format_clock_hms(hour: u32, minute: u32, second: u32) -> String {
+    format::format_clock_hms(hour, minute, second)
+}

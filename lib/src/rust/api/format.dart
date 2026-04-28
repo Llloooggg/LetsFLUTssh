@@ -55,3 +55,15 @@ String formatDate({required int year, required int month, required int day}) =>
       month: month,
       day: day,
     );
+
+/// Render a clock time as `HH:MM:SS`. Used by the logger for its
+/// per-line timestamp prefix.
+String formatClockHms({
+  required int hour,
+  required int minute,
+  required int second,
+}) => RustLib.instance.api.crateApiFormatFormatClockHms(
+  hour: hour,
+  minute: minute,
+  second: second,
+);
