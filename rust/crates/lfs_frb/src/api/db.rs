@@ -239,16 +239,31 @@ pub async fn db_folders_delete_recursive(id: String) -> Result<u32, String> {
 /// Publish [`SessionsChanged`] when the wrapped DAO result is `Ok(_)`.
 /// No-op on `Err` so a failed write doesn't trigger a downstream
 /// re-fetch storm against state that didn't actually change.
+///
+/// Also rebuilds the Rust-side `sessions::Registry` view so future
+/// callers reading off the snapshot see the post-write state
+/// without round-tripping through the Dart store. Best-effort —
+/// a reload failure is logged via the Registry's own contract
+/// (preserves the prior view) and the bus event still fires so
+/// the Dart cache reloads.
 fn notify_sessions_on_ok<T>(res: &Result<T, String>) {
     if res.is_ok() {
-        lfs_core::sessions::notify_changed(&lfs_core::app::instance());
+        let app = lfs_core::app::instance();
+        if let Some(db) = app.db() {
+            let _ = app.sessions_registry.reload(&db);
+        }
+        lfs_core::sessions::notify_changed(&app);
     }
 }
 
 fn notify_sessions_on_ok_when<T>(res: &Result<T, String>, when: impl Fn(&T) -> bool) {
     if let Ok(v) = res {
         if when(v) {
-            lfs_core::sessions::notify_changed(&lfs_core::app::instance());
+            let app = lfs_core::app::instance();
+            if let Some(db) = app.db() {
+                let _ = app.sessions_registry.reload(&db);
+            }
+            lfs_core::sessions::notify_changed(&app);
         }
     }
 }
