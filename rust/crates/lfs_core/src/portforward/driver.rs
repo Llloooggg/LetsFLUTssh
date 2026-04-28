@@ -366,9 +366,7 @@ async fn handle_socks5_client(
     // Reply: success. BND values are zero — clients ignore them
     // for CONNECT against a SOCKS5 over SSH.
     socket
-        .write_all(&[
-            0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ])
+        .write_all(&[0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
         .await
         .map_err(|e| Error::Io(format!("socks5 reply: {e}")))?;
 

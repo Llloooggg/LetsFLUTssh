@@ -232,7 +232,11 @@ fn percent_decode(s: &str) -> Option<String> {
 pub enum DeeplinkOutcome {
     /// `letsflutssh://connect?host=…&user=…[&port=…]` — open a
     /// terminal tab against the parsed endpoint.
-    Connect { host: String, port: u16, user: String },
+    Connect {
+        host: String,
+        port: u16,
+        user: String,
+    },
     /// `letsflutssh://import?d=…` decoded successfully. The
     /// `pending` payload is staged in `AppState::imports` under
     /// `handle_id`; the Dart side fetches the preview from the
@@ -302,17 +306,21 @@ impl DeeplinkDispatcher {
     }
 
     fn is_duplicate(&self, uri: &str) -> bool {
-        let g = self.inner.lock().expect("deeplink dispatcher mutex poisoned");
+        let g = self
+            .inner
+            .lock()
+            .expect("deeplink dispatcher mutex poisoned");
         match (&g.last_uri, &g.last_at) {
-            (Some(last), Some(at)) => {
-                last == uri && at.elapsed().as_millis() < DEDUP_WINDOW_MS
-            }
+            (Some(last), Some(at)) => last == uri && at.elapsed().as_millis() < DEDUP_WINDOW_MS,
             _ => false,
         }
     }
 
     fn record(&self, uri: &str) {
-        let mut g = self.inner.lock().expect("deeplink dispatcher mutex poisoned");
+        let mut g = self
+            .inner
+            .lock()
+            .expect("deeplink dispatcher mutex poisoned");
         g.last_uri = Some(uri.to_string());
         g.last_at = Some(std::time::Instant::now());
     }
@@ -363,6 +371,7 @@ fn stage_qr_import(uri: &str) -> DeeplinkOutcome {
     match crate::qr_codec_decode::try_decode_payload(&payload) {
         crate::qr_codec_decode::QrDecodeResult::Ok(decoded) => {
             let handle_id = random_handle_id();
+            let decoded = *decoded;
             crate::app::instance()
                 .imports
                 .insert(handle_id.clone(), decoded.pending);
@@ -386,10 +395,10 @@ fn route_file_uri(uri: &str) -> DeeplinkOutcome {
     // on a clean path. Lowercased so case differences in
     // user-typed extensions don't miss the match.
     let path_section = uri
-        .splitn(2, '?')
+        .split('?')
         .next()
         .unwrap_or(uri)
-        .splitn(2, '#')
+        .split('#')
         .next()
         .unwrap_or(uri);
     let lower = path_section.to_ascii_lowercase();
@@ -617,10 +626,7 @@ mod tests {
 
     #[test]
     fn route_unknown_file_extension() {
-        assert_eq!(
-            route("file:///tmp/note.txt"),
-            DeeplinkOutcome::Unknown
-        );
+        assert_eq!(route("file:///tmp/note.txt"), DeeplinkOutcome::Unknown);
     }
 
     #[test]

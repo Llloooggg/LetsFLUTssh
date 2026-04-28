@@ -24,13 +24,12 @@
 //! path round-trip.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
 
-use super::{RecordDirection, RecorderId, RecorderRegistry, MAX_FILE_BYTES};
-use crate::bus::{Event, EventBus};
+use super::{RecordDirection, RecorderId, MAX_FILE_BYTES};
+use crate::bus::Event;
 use crate::error::Error;
 
 /// One unit of work sent to a recording's worker. The worker
@@ -55,8 +54,8 @@ pub enum QueueEntry {
     },
     /// Atomically rotate the recording to a new file. The Dart side
     /// allocates the path (it owns `getApplicationSupportDirectory`
-    /// + the `hardenFilePerms` platform sweep) so this entry just
-    /// hands the worker the new destination.
+    /// plus the `hardenFilePerms` platform sweep) so this entry
+    /// just hands the worker the new destination.
     Rotate { new_path: String },
     /// Flush + close the recording's file and exit the worker.
     /// Subsequent enqueues for the same id no-op (the worker handle
@@ -232,37 +231,6 @@ async fn worker_loop(id: RecorderId, mut rx: mpsc::Receiver<QueueEntry>) {
     .await;
 }
 
-/// Helper used by tests to push a registry directly without going
-/// through the singleton AppState. Production goes through
-/// [`RecorderQueue::enqueue`] which routes via
-/// `crate::app::instance()`.
-#[cfg(test)]
-pub(crate) async fn run_one_for_test(
-    registry: &RecorderRegistry,
-    bus: &EventBus,
-    id: &str,
-    entry: QueueEntry,
-) {
-    match entry {
-        QueueEntry::Header {
-            width,
-            height,
-            shell_label,
-        } => {
-            let _ = registry.record_header(id, width, height, &shell_label, bus);
-        }
-        QueueEntry::Event { kind, bytes } => {
-            let _ = registry.record_event(id, kind, &bytes, bus);
-        }
-        QueueEntry::Rotate { new_path } => {
-            let _ = registry.rotate_to(id, new_path, bus);
-        }
-        QueueEntry::Close => {
-            let _ = registry.close_with_io(id, bus);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -313,10 +281,7 @@ mod tests {
         // Plaintext mode → events appear verbatim, in order.
         for chunk in 0..16 {
             let token = format!("chunk-{chunk}");
-            assert!(
-                body.contains(&token),
-                "expected {token:?} in {body:?}"
-            );
+            assert!(body.contains(&token), "expected {token:?} in {body:?}");
         }
         // Ordering check: chunk-0 appears before chunk-15.
         let pos_first = body.find("chunk-0").expect("first");

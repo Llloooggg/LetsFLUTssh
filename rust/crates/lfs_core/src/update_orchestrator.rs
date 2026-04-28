@@ -359,9 +359,8 @@ pub async fn download_with_verification(
         ));
     }
 
-    let manifest_text = String::from_utf8(manifest_bytes).map_err(|e| {
-        DownloadError::InvalidSignature(format!("manifest text not utf-8: {e}"))
-    })?;
+    let manifest_text = String::from_utf8(manifest_bytes)
+        .map_err(|e| DownloadError::InvalidSignature(format!("manifest text not utf-8: {e}")))?;
     let manifest = update_metadata::parse_sha256_manifest(&manifest_text);
     let expected_hash = match manifest.get(asset_name) {
         Some(h) => h.clone(),
@@ -387,11 +386,10 @@ pub async fn download_with_verification(
         )));
     }
 
-    app.bus
-        .publish(crate::bus::Event::UpdateDownloadCompleted {
-            url: url.to_string(),
-            path: asset_path_str.clone(),
-        });
+    app.bus.publish(crate::bus::Event::UpdateDownloadCompleted {
+        url: url.to_string(),
+        path: asset_path_str.clone(),
+    });
 
     Ok(DownloadedAsset {
         asset_path: asset_path_str,

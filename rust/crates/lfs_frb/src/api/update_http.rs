@@ -73,10 +73,7 @@ impl From<lfs_core::update_orchestrator::UpdateInfo> for DbUpdateInfo {
 ///
 /// Pass an empty `repo` to use
 /// `lfs_core::update_orchestrator::DEFAULT_REPO`.
-pub async fn update_check(
-    current_version: String,
-    repo: String,
-) -> Result<DbUpdateInfo, String> {
+pub async fn update_check(current_version: String, repo: String) -> Result<DbUpdateInfo, String> {
     let target_repo = if repo.is_empty() {
         lfs_core::update_orchestrator::DEFAULT_REPO
     } else {
@@ -137,12 +134,8 @@ pub async fn update_download_with_verification(
     } else {
         Some(expected_digest.as_str())
     };
-    match lfs_core::update_orchestrator::download_with_verification(
-        &url,
-        &target_dir,
-        digest_opt,
-    )
-    .await
+    match lfs_core::update_orchestrator::download_with_verification(&url, &target_dir, digest_opt)
+        .await
     {
         Ok(asset) => DbDownloadResult {
             asset: Some(DbDownloadedAsset {

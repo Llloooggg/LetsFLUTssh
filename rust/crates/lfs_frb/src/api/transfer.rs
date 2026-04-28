@@ -187,10 +187,9 @@ pub async fn transfer_clear_history() -> u32 {
         if matches!(
             s.state,
             TaskState::Completed | TaskState::Failed | TaskState::Cancelled
-        ) {
-            if app.transfers.drop_terminal(&s.id) {
-                dropped += 1;
-            }
+        ) && app.transfers.drop_terminal(&s.id)
+        {
+            dropped += 1;
         }
     }
     dropped

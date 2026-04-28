@@ -106,9 +106,7 @@ pub fn import_from_string(
 pub fn export_to_string(db: &Db) -> Result<String, Error> {
     db.with_conn(|conn| {
         let mut rows = crate::db::known_hosts::list_all(conn)?;
-        rows.sort_by(|a, b| {
-            (a.host.as_str(), a.port).cmp(&(b.host.as_str(), b.port))
-        });
+        rows.sort_by(|a, b| (a.host.as_str(), a.port).cmp(&(b.host.as_str(), b.port)));
         let mut out = String::new();
         for row in rows {
             use std::fmt::Write as _;

@@ -157,10 +157,9 @@ pub async fn port_forward_start_dynamic(
             rule_id.clone(),
         ));
 
-    let handle =
-        lfs_core::portforward::driver::spawn_socks5_listener(bind_addr, session, reporter)
-            .await
-            .map_err(|e| e.to_string())?;
+    let handle = lfs_core::portforward::driver::spawn_socks5_listener(bind_addr, session, reporter)
+        .await
+        .map_err(|e| e.to_string())?;
     let bound_port = handle.bound_addr().port() as u32;
     app.port_forwards.store_listener(&rule_id, handle);
     Ok(bound_port)

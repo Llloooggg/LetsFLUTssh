@@ -230,8 +230,8 @@ pub async fn recorder_queue_enqueue_event(
 
 /// Enqueue an atomic rotation to a fresh file. The Dart side owns
 /// path allocation (the platform `getApplicationSupportDirectory`
-/// + `hardenFilePerms` sweeps); this enqueue just hands the worker
-/// the new destination.
+/// plus `hardenFilePerms` sweeps); this enqueue just hands the
+/// worker the new destination.
 pub async fn recorder_queue_enqueue_rotate(id: String, new_path: String) -> Result<(), String> {
     let app = lfs_core::app::instance();
     app.recorder_queue

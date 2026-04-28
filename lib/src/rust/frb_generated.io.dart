@@ -14,6 +14,7 @@ import 'api/forward.dart';
 import 'api/keys.dart';
 import 'api/known_hosts_parser.dart';
 import 'api/log_sanitize.dart';
+import 'api/master_password.dart';
 import 'api/migration.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
@@ -249,6 +250,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbImportPreview dco_decode_box_autoadd_db_import_preview(dynamic raw);
 
   @protected
+  DbKdfParams dco_decode_box_autoadd_db_kdf_params(dynamic raw);
+
+  @protected
   DbKnownHost dco_decode_box_autoadd_db_known_host(dynamic raw);
 
   @protected
@@ -373,6 +377,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbImportPreview dco_decode_db_import_preview(dynamic raw);
+
+  @protected
+  DbKdfParams dco_decode_db_kdf_params(dynamic raw);
 
   @protected
   DbKnownHost dco_decode_db_known_host(dynamic raw);
@@ -856,6 +863,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbKdfParams sse_decode_box_autoadd_db_kdf_params(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbKnownHost sse_decode_box_autoadd_db_known_host(
     SseDeserializer deserializer,
   );
@@ -1014,6 +1026,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbImportPreview sse_decode_db_import_preview(SseDeserializer deserializer);
+
+  @protected
+  DbKdfParams sse_decode_db_kdf_params(SseDeserializer deserializer);
 
   @protected
   DbKnownHost sse_decode_db_known_host(SseDeserializer deserializer);
@@ -1601,6 +1616,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_kdf_params(
+    DbKdfParams self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_known_host(
     DbKnownHost self,
     SseSerializer serializer,
@@ -1806,6 +1827,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DbImportPreview self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_db_kdf_params(DbKdfParams self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_known_host(DbKnownHost self, SseSerializer serializer);

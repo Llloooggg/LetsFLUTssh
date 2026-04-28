@@ -17,6 +17,8 @@
 
 use std::collections::BTreeMap;
 
+pub mod master_password;
+
 /// Named security tiers. Mirror of the Dart enum case-for-case.
 ///
 /// The user-facing UI presents four numbered tiers (L0–L3) on a
@@ -50,9 +52,7 @@ impl SecurityTier {
     pub fn has_keychain(self) -> bool {
         matches!(
             self,
-            SecurityTier::Keychain
-                | SecurityTier::KeychainWithPassword
-                | SecurityTier::Hardware
+            SecurityTier::Keychain | SecurityTier::KeychainWithPassword | SecurityTier::Hardware
         )
     }
 

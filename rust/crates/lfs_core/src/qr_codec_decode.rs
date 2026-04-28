@@ -65,8 +65,11 @@ pub struct DecodedQrPayload {
 #[derive(Debug)]
 pub enum QrDecodeResult {
     /// Decode succeeded — `pending` ready for staging via
-    /// `ImportRegistry::insert`.
-    Ok(DecodedQrPayload),
+    /// `ImportRegistry::insert`. Boxed because `DecodedQrPayload`
+    /// carries an inline `PendingImport` whose JSON-string fields
+    /// dwarf the other variants; clippy flags the size delta and
+    /// boxing keeps the enum stack footprint at a single pointer.
+    Ok(Box<DecodedQrPayload>),
     /// Payload's `v` field exceeded the version this build understands.
     /// `supported` is [`CURRENT_FORMAT_VERSION`].
     VersionTooNew { found: i64, supported: i64 },
@@ -97,7 +100,7 @@ pub fn try_decode_payload(payload: &str) -> QrDecodeResult {
         };
     }
     match parse_payload(&json) {
-        Ok(p) => QrDecodeResult::Ok(p),
+        Ok(p) => QrDecodeResult::Ok(Box::new(p)),
         Err(e) => QrDecodeResult::Err(e),
     }
 }

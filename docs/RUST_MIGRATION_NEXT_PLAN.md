@@ -43,7 +43,7 @@ right now"*, the design is wrong.
 | 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |
 | 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
 | 8c. `update_service` state machine → Rust | DONE — `lfs_core::update_orchestrator` owns the GitHub-API parse + asset selection + signed-manifest verification; Dart `UpdateService.checkForUpdate` / `downloadAsset` route through FRB by default with a Dart fallback retained only for the test-injection path |
-| 9. Security tier stack → Rust | partial — `lfs_core::security::SecurityTier` + `SecurityTierModifiers` typed scaffold + `lfs_core::rate_limit::InMemoryRateLimiterRegistry` shipped; Dart `InMemoryRateLimiter` is now a thin FRB shim. Master-password verifier + hardware-tier composer + keychain gate + biometric vault + tier state machine + bootstrap orchestration still Dart-side. |
+| 9. Security tier stack → Rust | partial — `lfs_core::security::SecurityTier` + `SecurityTierModifiers` typed scaffold + `lfs_core::rate_limit::InMemoryRateLimiterRegistry` shipped; Dart `InMemoryRateLimiter` is now a thin FRB shim. `lfs_core::security::master_password` owns the `credentials.kdf` / `credentials.verify` file format + Argon2id derive + AES-GCM verifier round-trip; Dart `MasterPasswordManager` shrunk to a thin façade that resolves the platform app-support path and delegates each op to the FRB shim. Hardware-tier composer + keychain gate + biometric vault + tier state machine + bootstrap orchestration still Dart-side. |
 | 10a. `session_recorder` asciinema composer → Rust | DONE | `5adceb05` |
 | 10b. `session_recorder` ring buffer + driver loop | DONE — `lfs_core::recorder::queue` per-id worker + mpsc serialises header/event/rotate/close; Dart shim reduced to fire-and-forget enqueues |
 | 13e. `tier_backing.dart` dead code drop | DONE | dead — no production caller |
@@ -74,7 +74,7 @@ LOC reflects current tree):
 | `core/update/update_service.dart` | ~1000 | thin façade over `lfs_core::update_orchestrator` (GitHub release parse + signed-manifest verify happen Rust-side); Dart fallback paths stay only for flutter_test contexts that don't load the FRB native lib | DONE |
 | ~~`core/ssh/port_forward_runtime.dart`~~ | ~150 | thin FRB shim — armed-rule map + per-rule `port_forward_start_*` / `port_forward_stop_*` dispatch on connect / teardown; everything else is Rust | DONE — step 6 |
 | `core/ssh/known_hosts.dart` | ~250 | snapshot mirror over `lfs_core::known_hosts` + bus subscriber for refresh; verify / TOFU-callback path retired (russh accept-all today, prompt protocol arc separate). |
-| `core/security/master_password.dart` | 396 | KDF verify orchestration + tier promotion | 9 |
+| `core/security/master_password.dart` | ~250 | thin façade — every op (`isEnabled` / `enable` / `verify` / `verifyAndDerive` / `changePassword` / `disable` / `reset` / `deriveKey`) delegates to `master_password_*` FRB calls; the rate-limiter wrapper + the `getApplicationSupportDirectory` resolution are the only Dart-side concerns left | 9 |
 | `core/security/password_rate_limiter.dart` | 396 | exponential backoff state | 9 |
 | `core/security/hardware_tier_vault.dart` | 395 | TPM / Keychain / WinBio composer | 9 |
 | `core/security/wipe_all_service.dart` | 374 | catastrophic-reset orchestrator | 9 |

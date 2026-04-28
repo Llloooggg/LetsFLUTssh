@@ -92,9 +92,11 @@ impl Handler for LfsHandler {
         // Defensive — a DB read failure or a missing prompt
         // listener resolves to "rejected" so the handshake fails
         // closed. Better than silent accept.
-        Ok(check_server_key_via_tofu(&self.host, self.port, server_public_key)
-            .await
-            .unwrap_or(false))
+        Ok(
+            check_server_key_via_tofu(&self.host, self.port, server_public_key)
+                .await
+                .unwrap_or(false),
+        )
     }
 
     async fn server_channel_open_forwarded_tcpip(
@@ -420,7 +422,8 @@ pub struct Session {
     /// task pulls from `forward_rx` and routes inbound forwards to
     /// the matching sender; mismatched (or unregistered) forwards
     /// are dropped on the floor.
-    forward_routes: Mutex<HashMap<(String, u32), tokio::sync::mpsc::UnboundedSender<ForwardedConnection>>>,
+    forward_routes:
+        Mutex<HashMap<(String, u32), tokio::sync::mpsc::UnboundedSender<ForwardedConnection>>>,
     /// Lazy-spawn flag for the dispatcher task. Set on the first
     /// call to `register_remote_forward_route`; mutual exclusion
     /// against concurrent first-call races is via

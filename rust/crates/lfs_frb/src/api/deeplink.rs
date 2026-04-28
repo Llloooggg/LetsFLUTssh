@@ -45,7 +45,11 @@ pub fn parse_connect_uri(uri: String) -> Option<DbConnectLink> {
 #[derive(Debug, Clone)]
 pub enum DbDeeplinkOutcome {
     /// `letsflutssh://connect?host=…&user=…[&port=…]`.
-    Connect { host: String, port: u16, user: String },
+    Connect {
+        host: String,
+        port: u16,
+        user: String,
+    },
     /// `letsflutssh://import?d=…` decoded successfully. The
     /// pending payload is staged in `AppState::imports` under
     /// `handle_id`; `preview` carries the sanitised counts +

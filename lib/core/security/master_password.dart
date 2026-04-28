@@ -1,48 +1,38 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
+    show AnyhowException;
 import 'package:path_provider/path_provider.dart';
 
-import '../../src/rust/api/crypto.dart' as rust_crypto;
-import '../../utils/file_utils.dart';
+import '../../src/rust/api/master_password.dart' as rust_mp;
 import '../../utils/logger.dart';
 import 'kdf_params.dart';
 import 'password_rate_limiter.dart';
 
 /// Manages optional master password protection.
 ///
-/// When enabled, the AES-256 encryption key is derived from the user's
-/// password via Argon2id (see [KdfParams.productionDefaults]) instead of
-/// being stored in a key file.
+/// Thin façade over `lfs_core::security::master_password`. The Rust
+/// side owns the on-disk file format (`credentials.kdf` /
+/// `credentials.verify`), the Argon2id wall-clock cost, and the
+/// AES-GCM verifier round-trip. This class translates the platform
+/// app-support path into FRB calls and hands the rate-limiter wrapper
+/// to the unlock UI.
 ///
-/// **File format** (`credentials.kdf`, v1):
+/// **File format** (owned Rust-side, mirror in `lfs_core::security::
+/// master_password::decode_kdf_record`):
 /// ```
 ///   offset 0   magic 'LFKD'          (4)
 ///   offset 4   file version 0x01     (1)
 ///   offset 5   KDF algorithm id      (1)
-///   offset 6   KDF params            (varies by algo; Argon2id = 9)
+///   offset 6   KDF params            (10 for Argon2id)
 ///   offset N   salt                  (32)
 /// ```
-/// Verification: `credentials.verify` contains AES-256-GCM encrypted known
-/// plaintext, validated on unlock to detect wrong passwords without needing
-/// to decrypt the full credential store.
 class MasterPasswordManager {
-  static const _kdfFileName = 'credentials.kdf';
-  static const _verifierFileName = 'credentials.verify';
-  static const _keyFileName = 'credentials.key';
-  static const _fileMagic = <int>[0x4C, 0x46, 0x4B, 0x44]; // 'LFKD'
-  static const _fileVersion = 0x01;
-  static const _headerBaseLen = 6; // magic(4) + version(1) + algoId(1)
-  static const _saltLength = 32;
-  static const _keyLength = 32;
-  static const _ivLength = 12;
-
-  /// The Argon2id profile used for fresh enable/changePassword calls.
-  /// Tests may lower it via [debugSetKdfParams] so enable/verify cycles
-  /// don't spend seconds each, stretching the full suite into minutes.
+  /// The Argon2id profile used for fresh enable / changePassword calls.
+  /// Tests may lower it via [debugSetKdfParams] so enable / verify
+  /// cycles don't spend seconds each, stretching the full suite into
+  /// minutes.
   static KdfParams _defaultParams = KdfParams.productionDefaults;
 
   /// Lower KDF cost for tests. Restores to production defaults when
@@ -51,9 +41,6 @@ class MasterPasswordManager {
   static void debugSetKdfParams(KdfParams? params) {
     _defaultParams = params ?? KdfParams.productionDefaults;
   }
-
-  /// Known plaintext encrypted in the verifier file.
-  static const _verifierPlaintext = 'LetsFLUTssh-verify';
 
   String? _basePath;
 
@@ -86,11 +73,22 @@ class MasterPasswordManager {
     return _basePath!;
   }
 
+  static rust_mp.DbKdfParams _wireParams(KdfParams params) {
+    // The Rust file-format reader rejects non-Argon2id algorithm ids,
+    // so even if a future enum case lands Dart-side it cannot leak
+    // into a `credentials.kdf` write without a matching Rust update.
+    return rust_mp.DbKdfParams(
+      memoryKib: params.memoryKiB,
+      iterations: params.iterations,
+      parallelism: params.parallelism,
+    );
+  }
+
   /// Whether master password protection is enabled — the Argon2id
   /// KDF file exists.
   Future<bool> isEnabled() async {
     final basePath = await _getBasePath();
-    return File('$basePath/$_kdfFileName').exists();
+    return rust_mp.masterPasswordIsEnabled(supportDir: basePath);
   }
 
   /// Derive a 256-bit key from password using the on-disk KDF params.
@@ -99,28 +97,34 @@ class MasterPasswordManager {
   /// heavy (400-1500ms wall-clock at the production profile) but the
   /// FRB worker thread isn't pinned for the duration.
   Future<Uint8List> deriveKey(String password) async {
-    final record = await _readKdfRecord();
-    return _deriveKeyAsync(password, record.salt, record.params);
+    final basePath = await _getBasePath();
+    try {
+      final out = await rust_mp.masterPasswordDeriveKey(
+        supportDir: basePath,
+        password: password,
+      );
+      return Uint8List.fromList(out);
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
+    }
   }
 
   /// Verify a password against the stored verifier.
   ///
   /// Returns true if the password is correct.
   ///
-  /// Prefer [verifyAndDerive] when the caller will immediately need the
-  /// derived key — that variant runs the KDF once instead of twice.
+  /// Prefer [verifyAndDerive] when the caller will immediately need
+  /// the derived key — that variant runs the KDF once instead of twice.
   Future<bool> verify(String password) async {
     final derived = await verifyAndDerive(password);
     return derived != null;
   }
 
-  /// Single-KDF unlock: verify the password and, on success, return the
-  /// derived DB key; return null on wrong password.
+  /// Single-KDF unlock: verify the password and, on success, return
+  /// the derived DB key; return null on wrong password.
   ///
-  /// The legacy unlock path called [verify] and then [deriveKey] back to
-  /// back — two isolate spawns + two KDF runs for each unlock. This
-  /// combined variant runs the KDF once inside a single isolate and
-  /// returns the same bytes the verifier was checked against.
+  /// One Argon2id pass instead of two — the legacy Dart path called
+  /// `verify` then `deriveKey` back-to-back, both running KDF.
   Future<Uint8List?> verifyAndDerive(
     String password, {
     bool useRateLimit = false,
@@ -132,23 +136,17 @@ class MasterPasswordManager {
     // cooldown.
     if (useRateLimit && _rateLimiter.status().isLocked) return null;
 
-    final record = await _readKdfRecord();
     final basePath = await _getBasePath();
-    final verifierFile = File('$basePath/$_verifierFileName');
-    if (!await verifierFile.exists()) {
-      throw const MasterPasswordException('Master password is not enabled');
+    Uint8List? key;
+    try {
+      final out = await rust_mp.masterPasswordVerifyAndDerive(
+        supportDir: basePath,
+        password: password,
+      );
+      key = out == null ? null : Uint8List.fromList(out);
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
     }
-    final verifierData = await verifierFile.readAsBytes();
-    final params = record.params;
-    final salt = record.salt;
-
-    // KDF runs on the Rust core's blocking pool — pinned to one
-    // pool thread for the Argon2id duration, frees the FRB worker.
-    // The GCM verify hops back to the root isolate where the FRB
-    // bindings live, then we compare against the verifier.
-    final derived = await _deriveKeyAsync(password, salt, params);
-    final ok = await _verifyAsync(derived, verifierData);
-    final key = ok ? derived : null;
     if (useRateLimit) {
       if (key == null) {
         _rateLimiter.recordFailure();
@@ -161,73 +159,58 @@ class MasterPasswordManager {
 
   /// Enable master password protection.
   ///
-  /// 1. Generates random salt
+  /// 1. Generates random salt (Rust-side `OsRng`)
   /// 2. Derives key with the production Argon2id profile
-  /// 3. Writes `credentials.kdf` (magic + version + algo + params + salt)
-  ///    and `credentials.verify` atomically
+  /// 3. Writes `credentials.kdf` + `credentials.verify` atomically
   /// 4. Returns the derived key (caller re-encrypts stores with it)
   ///
-  /// The caller is responsible for:
-  /// - Re-encrypting SessionStore, KeyStore, and KnownHostsManager with
-  ///   the returned key
+  /// The caller is responsible for re-encrypting SessionStore,
+  /// KeyStore, and KnownHostsManager with the returned key.
   Future<Uint8List> enable(String password) async {
     final basePath = await _getBasePath();
-    final random = Random.secure();
-    final salt = Uint8List.fromList(
-      List.generate(_saltLength, (_) => random.nextInt(256)),
-    );
-
-    final params = _defaultParams;
-    final key = await _deriveKeyAsync(password, salt, params);
-
-    final verifierData = await _encryptVerifier(key);
-    final kdfFileBytes = _encodeKdfRecord(params, salt);
-
-    await writeBytesAtomic('$basePath/$_kdfFileName', kdfFileBytes);
-    await writeBytesAtomic('$basePath/$_verifierFileName', verifierData);
-
-    AppLogger.instance.log(
-      'Master password enabled (Argon2id)',
-      name: 'MasterPassword',
-    );
-    return key;
+    try {
+      final out = await rust_mp.masterPasswordEnable(
+        supportDir: basePath,
+        password: password,
+        params: _wireParams(_defaultParams),
+      );
+      AppLogger.instance.log(
+        'Master password enabled (Argon2id)',
+        name: 'MasterPassword',
+      );
+      return Uint8List.fromList(out);
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
+    }
   }
 
   /// Change master password.
   ///
   /// 1. Verify old password
-  /// 2. Generate new salt + derive new key with the current default params
+  /// 2. Generate new salt + derive new key with the current default
+  ///    params
   /// 3. Update verifier + `credentials.kdf`
   /// 4. Returns the new key (caller re-encrypts stores)
   Future<Uint8List> changePassword(
     String oldPassword,
     String newPassword,
   ) async {
-    final isValid = await verify(oldPassword);
-    if (!isValid) {
-      throw const MasterPasswordException('Current password is incorrect');
-    }
-
     final basePath = await _getBasePath();
-    final random = Random.secure();
-    final newSalt = Uint8List.fromList(
-      List.generate(_saltLength, (_) => random.nextInt(256)),
-    );
-
-    final params = _defaultParams;
-    final newKey = await _deriveKeyAsync(newPassword, newSalt, params);
-
-    final verifierData = await _encryptVerifier(newKey);
-    final kdfFileBytes = _encodeKdfRecord(params, newSalt);
-
-    await writeBytesAtomic('$basePath/$_kdfFileName', kdfFileBytes);
-    await writeBytesAtomic('$basePath/$_verifierFileName', verifierData);
-
-    AppLogger.instance.log(
-      'Master password changed (Argon2id)',
-      name: 'MasterPassword',
-    );
-    return newKey;
+    try {
+      final out = await rust_mp.masterPasswordChange(
+        supportDir: basePath,
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+        params: _wireParams(_defaultParams),
+      );
+      AppLogger.instance.log(
+        'Master password changed (Argon2id)',
+        name: 'MasterPassword',
+      );
+      return Uint8List.fromList(out);
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
+    }
   }
 
   /// Disable master password protection.
@@ -237,155 +220,39 @@ class MasterPasswordManager {
   /// `credentials.key`.
   Future<void> disable() async {
     final basePath = await _getBasePath();
-    for (final name in [_kdfFileName, _verifierFileName]) {
-      final f = File('$basePath/$name');
-      if (await f.exists()) await f.delete();
+    try {
+      rust_mp.masterPasswordDisable(supportDir: basePath);
+      AppLogger.instance.log(
+        'Master password disabled',
+        name: 'MasterPassword',
+      );
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
     }
-    AppLogger.instance.log('Master password disabled', name: 'MasterPassword');
   }
 
   /// Reset all encrypted data (used when password is forgotten).
   ///
-  /// Deletes KDF salt, verifier, and key files. Destructive — all saved
-  /// passwords and keys are lost.
+  /// Deletes KDF salt, verifier, and key files. Destructive — all
+  /// saved passwords and keys are lost.
   Future<void> reset() async {
     final basePath = await _getBasePath();
-    final files = [
-      '$basePath/$_kdfFileName',
-      '$basePath/$_verifierFileName',
-      '$basePath/$_keyFileName',
-    ];
-    for (final path in files) {
-      final file = File(path);
-      if (await file.exists()) await file.delete();
-    }
-
-    AppLogger.instance.log(
-      'Master password reset — all encrypted data deleted',
-      name: 'MasterPassword',
-    );
-  }
-
-  // ── Encoding ─────────────────────────────────────────────────────
-
-  static Uint8List _encodeKdfRecord(KdfParams params, Uint8List salt) {
-    if (salt.length != _saltLength) {
-      throw ArgumentError.value(salt.length, 'salt.length', 'must be 32');
-    }
-    final paramsBytes = params.encode();
-    final out = Uint8List(_headerBaseLen + paramsBytes.length + salt.length);
-    var offset = 0;
-    out.setRange(offset, offset + _fileMagic.length, _fileMagic);
-    offset += _fileMagic.length;
-    out[offset++] = _fileVersion;
-    // params[0] is the algorithm id — the header's algo field mirrors it
-    // so a reader can skip ahead without fully parsing params.
-    out[offset++] = paramsBytes[0];
-    out.setRange(offset, offset + paramsBytes.length, paramsBytes);
-    offset += paramsBytes.length;
-    out.setRange(offset, offset + salt.length, salt);
-    return out;
-  }
-
-  Future<_KdfRecord> _readKdfRecord() async {
-    final basePath = await _getBasePath();
-    final kdfFile = File('$basePath/$_kdfFileName');
-    if (!await kdfFile.exists()) {
-      throw const MasterPasswordException('Master password is not enabled');
-    }
-    final bytes = await kdfFile.readAsBytes();
-    return _decodeKdfRecord(bytes);
-  }
-
-  /// Decode a `credentials.kdf` record. Exposed for tests.
-  static _KdfRecord _decodeKdfRecord(Uint8List bytes) {
-    if (bytes.length < _headerBaseLen + 1 + _saltLength) {
-      throw const FormatException('credentials.kdf: truncated header');
-    }
-    for (var i = 0; i < _fileMagic.length; i++) {
-      if (bytes[i] != _fileMagic[i]) {
-        throw const FormatException('credentials.kdf: bad magic');
-      }
-    }
-    final version = bytes[_fileMagic.length];
-    if (version != _fileVersion) {
-      throw FormatException(
-        'credentials.kdf: unsupported version 0x'
-        '${version.toRadixString(16).padLeft(2, '0')}',
-      );
-    }
-    // Params block starts at headerBaseLen; its first byte is the
-    // algorithm id, which must also match the header's id byte for
-    // consistency.
-    const paramsStart = _headerBaseLen;
-    final params = KdfParams.decode(Uint8List.sublistView(bytes, paramsStart));
-    final saltStart = paramsStart + params.encodedLength;
-    if (bytes.length < saltStart + _saltLength) {
-      throw const FormatException('credentials.kdf: truncated salt');
-    }
-    final salt = Uint8List.fromList(
-      bytes.sublist(saltStart, saltStart + _saltLength),
-    );
-    return _KdfRecord(params: params, salt: salt);
-  }
-
-  // ── KDF helper (Rust core) ───────────────────────────────────────
-
-  static Future<Uint8List> _deriveKeyAsync(
-    String password,
-    Uint8List salt,
-    KdfParams params,
-  ) async {
-    switch (params.algorithm) {
-      case KdfAlgorithm.argon2id:
-        final out = await rust_crypto.cryptoArgon2IdDerive(
-          password: Uint8List.fromList(utf8.encode(password)),
-          salt: salt,
-          memoryKib: params.memoryKiB,
-          iterations: params.iterations,
-          parallelism: params.parallelism,
-          length: _keyLength,
-        );
-        return Uint8List.fromList(out);
-    }
-  }
-
-  static Future<bool> _verifyAsync(
-    Uint8List key,
-    Uint8List verifierData,
-  ) async {
-    if (verifierData.length < _ivLength + 1) return false;
     try {
-      final pt = await rust_crypto.cryptoAesGcmDecrypt(
-        key: key,
-        data: verifierData,
+      rust_mp.masterPasswordReset(supportDir: basePath);
+      AppLogger.instance.log(
+        'Master password reset — all encrypted data deleted',
+        name: 'MasterPassword',
       );
-      return utf8.decode(pt) == _verifierPlaintext;
-    } catch (_) {
-      return false;
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
     }
   }
-
-  /// Encrypt the known verifier plaintext with the given key. Wire
-  /// shape is `[nonce 12][ciphertext + 16-byte GCM tag]`; existing
-  /// `credentials.verify` files round-trip across the migration.
-  static Future<Uint8List> _encryptVerifier(Uint8List key) async {
-    final out = await rust_crypto.cryptoAesGcmEncrypt(
-      key: key,
-      plaintext: Uint8List.fromList(utf8.encode(_verifierPlaintext)),
-    );
-    return Uint8List.fromList(out);
-  }
 }
 
-/// KDF salt file record — parsed form of `credentials.kdf`.
-class _KdfRecord {
-  final KdfParams params;
-  final Uint8List salt;
-  const _KdfRecord({required this.params, required this.salt});
-}
-
-/// Thrown when master password operations fail.
+/// Thrown when master password operations fail. Wraps the Rust
+/// error string so callers can branch on "Master password is not
+/// enabled" / "Current password is incorrect" without parsing
+/// exception types.
 class MasterPasswordException implements Exception {
   final String message;
 

@@ -152,29 +152,32 @@ impl InMemoryRateLimiterRegistry {
     /// limiter for unknown ids — the first `status()` call after a
     /// hot reload should not throw.
     pub fn status(&self, id: &str) -> RateLimitStatus {
-        let mut g = self.inner.lock().expect("rate limiter registry mutex poisoned");
-        g.entry(id.to_string())
-            .or_insert_with(InMemoryRateLimiter::new)
-            .status()
+        let mut g = self
+            .inner
+            .lock()
+            .expect("rate limiter registry mutex poisoned");
+        g.entry(id.to_string()).or_default().status()
     }
 
     /// Register a failed attempt against `id`. Auto-creates a
     /// limiter on first failure.
     pub fn record_failure(&self, id: &str) {
-        let mut g = self.inner.lock().expect("rate limiter registry mutex poisoned");
-        g.entry(id.to_string())
-            .or_insert_with(InMemoryRateLimiter::new)
-            .record_failure();
+        let mut g = self
+            .inner
+            .lock()
+            .expect("rate limiter registry mutex poisoned");
+        g.entry(id.to_string()).or_default().record_failure();
     }
 
     /// Register a successful attempt against `id`. Auto-creates a
     /// limiter (idempotent) — `recordSuccess` on a never-failed
     /// id is a no-op.
     pub fn record_success(&self, id: &str) {
-        let mut g = self.inner.lock().expect("rate limiter registry mutex poisoned");
-        g.entry(id.to_string())
-            .or_insert_with(InMemoryRateLimiter::new)
-            .record_success();
+        let mut g = self
+            .inner
+            .lock()
+            .expect("rate limiter registry mutex poisoned");
+        g.entry(id.to_string()).or_default().record_success();
     }
 
     /// Drop the limiter for `id`. Used at logout / wipe-all to
