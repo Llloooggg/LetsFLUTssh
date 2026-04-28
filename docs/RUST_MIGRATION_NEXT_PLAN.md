@@ -499,6 +499,13 @@ gate clears.
   **DONE**. `basename` (Windows-separator-aware) and
   `isSuspiciousPath` (`..`-segment detector) routed through
   `lfs_core::path::{basename, is_suspicious_path}`.
+- ~~`utils/format.dart::formatTimestamp` +
+  `features/key_manager` `_formatDate`~~ — **DONE**. Both routed
+  through `lfs_core::format::{format_timestamp_minute,
+  format_date}`; the inputs are caller-extracted local-time
+  fields so the Rust side stays clock-independent. The defensive
+  4-digit-year padding catches a corner the inline version
+  silently lost.
 
 After step 13: every load-bearing path runs in Rust. Dart layer
 is widgets + Riverpod subscribers + MethodChannel proxies.
