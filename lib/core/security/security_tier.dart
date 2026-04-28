@@ -1,3 +1,5 @@
+import '_crypto_compat.dart';
+
 /// Named security tiers.
 ///
 /// The user-facing UI presents four numbered tiers (L0–L3) in a linear
@@ -99,6 +101,11 @@ class SecurityTierModifiers {
     pinLength: pinLength ?? this.pinLength,
   );
 
+  /// Wire shape mirrored Rust-side in
+  /// `lfs_core::security::SecurityTierModifiers::to_json_map`. The
+  /// Dart facade composes the modifier block from the field set;
+  /// the outer `SecurityConfig.toJson` reuses it via the compat
+  /// wrapper so a future field bump only touches Rust.
   Map<String, dynamic> toJson() => {
     'password': password,
     'biometric': biometric,
@@ -106,6 +113,12 @@ class SecurityTierModifiers {
     'pin_length': pinLength,
   };
 
+  /// Decode mirrors the Rust `from_json_map` strictness: missing
+  /// fields fall back to defaults; `biometric` falls back to
+  /// `biometric_shortcut` so a v1-persisted install reads as
+  /// bank-style after reload; `pin_length` outside 4..=8 clamps to
+  /// the default rather than crashing the PIN widget with an
+  /// out-of-range cell count.
   factory SecurityTierModifiers.fromJson(Map<String, dynamic> json) {
     const d = SecurityTierModifiers.defaults;
     final rawPin = (json['pin_length'] as num?)?.toInt() ?? d.pinLength;
@@ -113,13 +126,8 @@ class SecurityTierModifiers {
         json['biometric_shortcut'] as bool? ?? d.biometricShortcut;
     return SecurityTierModifiers(
       password: json['password'] as bool? ?? d.password,
-      // `biometric` falls back to `biometric_shortcut` on legacy
-      // configs so a v1-persisted install reads as bank-style after
-      // reload without a migration step.
       biometric: json['biometric'] as bool? ?? biometricShortcut,
       biometricShortcut: biometricShortcut,
-      // Defensive: clamp to the supported range so a tampered config
-      // cannot crash the PIN widget with an out-of-range cell count.
       pinLength: rawPin < 4 || rawPin > 8 ? d.pinLength : rawPin,
     );
   }
@@ -191,19 +199,35 @@ class SecurityConfig {
     modifiers: modifiers ?? this.modifiers,
   );
 
-  Map<String, dynamic> toJson() => {
-    'tier': _tierToString(tier),
-    'modifiers': modifiers.toJson(),
-  };
+  /// Wire shape lives Rust-side in
+  /// `lfs_core::security::SecurityConfig::to_json_value`. The Dart
+  /// facade routes through the compat wrapper in
+  /// `_crypto_compat.dart` so production gets the Rust-canonical
+  /// JSON encode while flutter_test contexts that don't load the
+  /// FRB native lib see the same map shape via the Dart fallback.
+  Map<String, dynamic> toJson() => securityConfigToJsonCompat(
+    tierWireName: _tierToString(tier),
+    password: modifiers.password,
+    biometric: modifiers.biometric,
+    biometricShortcut: modifiers.biometricShortcut,
+    pinLength: modifiers.pinLength,
+  );
 
+  /// Decode mirrors the Rust permissive fallback: an unknown /
+  /// missing tier string falls through to `plaintext` so the caller
+  /// routes into the wizard rather than silently picking an
+  /// unintended tier.
   factory SecurityConfig.fromJson(Map<String, dynamic> json) {
-    final tierStr = json['tier'] as String?;
-    final parsed = _tierFromString(tierStr);
-    final modifiersJson = json['modifiers'];
-    final modifiers = modifiersJson is Map<String, dynamic>
-        ? SecurityTierModifiers.fromJson(modifiersJson)
-        : SecurityTierModifiers.defaults;
-    return SecurityConfig(tier: parsed, modifiers: modifiers);
+    final snap = securityConfigFromJsonCompat(json);
+    return SecurityConfig(
+      tier: _tierFromString(snap.tierWireName),
+      modifiers: SecurityTierModifiers(
+        password: snap.password,
+        biometric: snap.biometric,
+        biometricShortcut: snap.biometricShortcut,
+        pinLength: snap.pinLength,
+      ),
+    );
   }
 
   @override

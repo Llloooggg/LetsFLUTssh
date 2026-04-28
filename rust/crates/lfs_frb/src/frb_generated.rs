@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 861672259;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 97286747;
 
 // Section: executor
 
@@ -7659,6 +7659,150 @@ fn wire__crate__api__security_capabilities__security_capabilities_to_json_impl(
         },
     )
 }
+fn wire__crate__api__security_config__security_config_from_json_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "security_config_from_json",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::security_config::security_config_from_json(api_json),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__security_config__security_config_to_json_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "security_config_to_json",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_tier_wire_name = <String>::sse_decode(&mut deserializer);
+            let api_password = <bool>::sse_decode(&mut deserializer);
+            let api_biometric = <bool>::sse_decode(&mut deserializer);
+            let api_biometric_shortcut = <bool>::sse_decode(&mut deserializer);
+            let api_pin_length = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::security_config::security_config_to_json(
+                    api_tier_wire_name,
+                    api_password,
+                    api_biometric,
+                    api_biometric_shortcut,
+                    api_pin_length,
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__security_config__security_tier_modifiers_from_json_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "security_tier_modifiers_from_json",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::security_config::security_tier_modifiers_from_json(api_json),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__security_config__security_tier_modifiers_to_json_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "security_tier_modifiers_to_json",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_password = <bool>::sse_decode(&mut deserializer);
+            let api_biometric = <bool>::sse_decode(&mut deserializer);
+            let api_biometric_shortcut = <bool>::sse_decode(&mut deserializer);
+            let api_pin_length = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::security_config::security_tier_modifiers_to_json(
+                        api_password,
+                        api_biometric,
+                        api_biometric_shortcut,
+                        api_pin_length,
+                    ),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__forward__ssh_cancel_remote_forward_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -10873,6 +11017,24 @@ impl SseDecode for crate::api::security_capabilities::DbSecurityCapabilities {
     }
 }
 
+impl SseDecode for crate::api::security_config::DbSecurityConfig {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_tierWireName = <String>::sse_decode(deserializer);
+        let mut var_password = <bool>::sse_decode(deserializer);
+        let mut var_biometric = <bool>::sse_decode(deserializer);
+        let mut var_biometricShortcut = <bool>::sse_decode(deserializer);
+        let mut var_pinLength = <u32>::sse_decode(deserializer);
+        return crate::api::security_config::DbSecurityConfig {
+            tier_wire_name: var_tierWireName,
+            password: var_password,
+            biometric: var_biometric,
+            biometric_shortcut: var_biometricShortcut,
+            pin_length: var_pinLength,
+        };
+    }
+}
+
 impl SseDecode for crate::api::threat_eval::DbSecurityThreat {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10885,6 +11047,22 @@ impl SseDecode for crate::api::threat_eval::DbSecurityThreat {
             4 => crate::api::threat_eval::DbSecurityThreat::LiveRamForensicsLocked,
             5 => crate::api::threat_eval::DbSecurityThreat::OsKernelOrKeychainBreach,
             _ => unreachable!("Invalid variant for DbSecurityThreat: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::security_config::DbSecurityTierModifiers {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_password = <bool>::sse_decode(deserializer);
+        let mut var_biometric = <bool>::sse_decode(deserializer);
+        let mut var_biometricShortcut = <bool>::sse_decode(deserializer);
+        let mut var_pinLength = <u32>::sse_decode(deserializer);
+        return crate::api::security_config::DbSecurityTierModifiers {
+            password: var_password,
+            biometric: var_biometric,
+            biometric_shortcut: var_biometricShortcut,
+            pin_length: var_pinLength,
         };
     }
 }
@@ -11713,6 +11891,32 @@ impl SseDecode for Option<crate::api::security_capabilities::DbSecurityCapabilit
     }
 }
 
+impl SseDecode for Option<crate::api::security_config::DbSecurityConfig> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::security_config::DbSecurityConfig>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::security_config::DbSecurityTierModifiers> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(
+                <crate::api::security_config::DbSecurityTierModifiers>::sse_decode(deserializer),
+            );
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::db::DbSession> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12336,118 +12540,118 @@ fn pde_ffi_dispatcher_primary_impl(
         183 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
         184 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
         185 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
-        188 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
+        192 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        189 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
-        190 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
-        191 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
+        193 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
+        194 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
+        195 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        192 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
+        196 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        193 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
-        194 => {
+        197 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
+        198 => {
             wire__crate__api__ssh__ssh_connect_pubkey_cert_impl(port, ptr, rust_vec_len, data_len)
         }
-        195 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
+        199 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        196 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
+        200 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        197 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
+        201 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        198 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
+        202 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        199 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
+        203 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        200 => {
+        204 => {
             wire__crate__api__forward__ssh_open_direct_tcpip_impl(port, ptr, rust_vec_len, data_len)
         }
-        201 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
-        202 => wire__crate__api__forward__ssh_request_remote_forward_impl(
+        205 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
+        206 => wire__crate__api__forward__ssh_request_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        203 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
-        204 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
-        205 => {
+        207 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
+        208 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
+        209 => {
             wire__crate__api__ssh__ssh_try_connect_password_impl(port, ptr, rust_vec_len, data_len)
         }
-        206 => {
+        210 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
-        211 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-        212 => wire__crate__api__transfer__transfer_clear_history_impl(
+        215 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+        216 => wire__crate__api__transfer__transfer_clear_history_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        213 => {
+        217 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        214 => wire__crate__api__transfer__transfer_drop_terminal_impl(
+        218 => wire__crate__api__transfer__transfer_drop_terminal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        215 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
-        216 => wire__crate__api__transfer__transfer_snapshot_all_impl(
+        219 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
+        220 => wire__crate__api__transfer__transfer_snapshot_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        219 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
-        221 => wire__crate__api__update_http__update_download_to_file_impl(
+        223 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
+        225 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        222 => wire__crate__api__update_http__update_download_with_verification_impl(
+        226 => wire__crate__api__update_http__update_download_with_verification_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        223 => {
+        227 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
-        231 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+        235 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -12502,20 +12706,24 @@ fn pde_ffi_dispatcher_sync_impl(
 181 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
 186 => wire__crate__api__security_capabilities__security_capabilities_from_json_impl(ptr, rust_vec_len, data_len),
 187 => wire__crate__api__security_capabilities__security_capabilities_to_json_impl(ptr, rust_vec_len, data_len),
-207 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
-208 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
-209 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
-210 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
-217 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-218 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-220 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-224 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-225 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-226 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-227 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-228 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-229 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-230 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+188 => wire__crate__api__security_config__security_config_from_json_impl(ptr, rust_vec_len, data_len),
+189 => wire__crate__api__security_config__security_config_to_json_impl(ptr, rust_vec_len, data_len),
+190 => wire__crate__api__security_config__security_tier_modifiers_from_json_impl(ptr, rust_vec_len, data_len),
+191 => wire__crate__api__security_config__security_tier_modifiers_to_json_impl(ptr, rust_vec_len, data_len),
+211 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
+212 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
+213 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
+214 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
+221 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+222 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+224 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+228 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+229 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+230 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+231 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+232 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+233 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+234 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -13926,6 +14134,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::security_capabilities::DbSecu
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::security_config::DbSecurityConfig {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.tier_wire_name.into_into_dart().into_dart(),
+            self.password.into_into_dart().into_dart(),
+            self.biometric.into_into_dart().into_dart(),
+            self.biometric_shortcut.into_into_dart().into_dart(),
+            self.pin_length.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::security_config::DbSecurityConfig
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::security_config::DbSecurityConfig>
+    for crate::api::security_config::DbSecurityConfig
+{
+    fn into_into_dart(self) -> crate::api::security_config::DbSecurityConfig {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::threat_eval::DbSecurityThreat {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -13947,6 +14179,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::threat_eval::DbSecurityThreat
     for crate::api::threat_eval::DbSecurityThreat
 {
     fn into_into_dart(self) -> crate::api::threat_eval::DbSecurityThreat {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::security_config::DbSecurityTierModifiers {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.password.into_into_dart().into_dart(),
+            self.biometric.into_into_dart().into_dart(),
+            self.biometric_shortcut.into_into_dart().into_dart(),
+            self.pin_length.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::security_config::DbSecurityTierModifiers
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::security_config::DbSecurityTierModifiers>
+    for crate::api::security_config::DbSecurityTierModifiers
+{
+    fn into_into_dart(self) -> crate::api::security_config::DbSecurityTierModifiers {
         self
     }
 }
@@ -15521,6 +15776,17 @@ impl SseEncode for crate::api::security_capabilities::DbSecurityCapabilities {
     }
 }
 
+impl SseEncode for crate::api::security_config::DbSecurityConfig {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.tier_wire_name, serializer);
+        <bool>::sse_encode(self.password, serializer);
+        <bool>::sse_encode(self.biometric, serializer);
+        <bool>::sse_encode(self.biometric_shortcut, serializer);
+        <u32>::sse_encode(self.pin_length, serializer);
+    }
+}
+
 impl SseEncode for crate::api::threat_eval::DbSecurityThreat {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -15538,6 +15804,16 @@ impl SseEncode for crate::api::threat_eval::DbSecurityThreat {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::security_config::DbSecurityTierModifiers {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.password, serializer);
+        <bool>::sse_encode(self.biometric, serializer);
+        <bool>::sse_encode(self.biometric_shortcut, serializer);
+        <u32>::sse_encode(self.pin_length, serializer);
     }
 }
 
@@ -16160,6 +16436,26 @@ impl SseEncode for Option<crate::api::security_capabilities::DbSecurityCapabilit
             <crate::api::security_capabilities::DbSecurityCapabilities>::sse_encode(
                 value, serializer,
             );
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::security_config::DbSecurityConfig> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::security_config::DbSecurityConfig>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::security_config::DbSecurityTierModifiers> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::security_config::DbSecurityTierModifiers>::sse_encode(value, serializer);
         }
     }
 }

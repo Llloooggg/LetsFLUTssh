@@ -12,6 +12,7 @@ import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwv;
 import '../../src/rust/api/keychain_password_gate.dart' as rust_gate;
 import '../../src/rust/api/persisted_rate_limit.dart' as rust_prl;
 import '../../src/rust/api/security_capabilities.dart' as rust_caps;
+import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../../src/rust/api/tier_transition_marker.dart' as rust_ttm;
 
 /// HMAC-SHA-256 compat wrapper.
@@ -495,3 +496,134 @@ CapabilitiesSnapshot? _securityCapabilitiesFallback(Map<String, dynamic> json) {
     hardwareProbeCode: hardwareCode,
   );
 }
+
+/// Snapshot of a parsed `SecurityConfig` block from `config.json`.
+class SecurityConfigSnapshot {
+  final String tierWireName;
+  final bool password;
+  final bool biometric;
+  final bool biometricShortcut;
+  final int pinLength;
+  const SecurityConfigSnapshot({
+    required this.tierWireName,
+    required this.password,
+    required this.biometric,
+    required this.biometricShortcut,
+    required this.pinLength,
+  });
+}
+
+/// Encode the `SecurityConfig` blob persisted under
+/// `config.json::security`. Routes through
+/// `lfs_core::security::SecurityConfig::to_json_value` in
+/// production; fallback path produces the same nested map shape so
+/// flutter_test cases relying on the literal `{tier, modifiers}`
+/// envelope keep working without bootstrapping the FRB native lib.
+Map<String, dynamic> securityConfigToJsonCompat({
+  required String tierWireName,
+  required bool password,
+  required bool biometric,
+  required bool biometricShortcut,
+  required int pinLength,
+}) {
+  try {
+    final str = rust_sec_cfg.securityConfigToJson(
+      tierWireName: tierWireName,
+      password: password,
+      biometric: biometric,
+      biometricShortcut: biometricShortcut,
+      pinLength: pinLength,
+    );
+    return jsonDecode(str) as Map<String, dynamic>;
+  } catch (_) {
+    return {
+      'tier': tierWireName,
+      'modifiers': {
+        'password': password,
+        'biometric': biometric,
+        'biometric_shortcut': biometricShortcut,
+        'pin_length': pinLength,
+      },
+    };
+  }
+}
+
+/// Parse the `SecurityConfig` JSON object. Mirrors the Rust
+/// permissive fallback: an unknown / missing tier string falls
+/// through to plaintext + default modifiers so the wizard caller
+/// routes through the setup flow rather than silently picking an
+/// unintended tier.
+SecurityConfigSnapshot securityConfigFromJsonCompat(Map<String, dynamic> json) {
+  try {
+    final str = jsonEncode(json);
+    final decoded = rust_sec_cfg.securityConfigFromJson(json: str);
+    if (decoded != null) {
+      return SecurityConfigSnapshot(
+        tierWireName: decoded.tierWireName,
+        password: decoded.password,
+        biometric: decoded.biometric,
+        biometricShortcut: decoded.biometricShortcut,
+        pinLength: decoded.pinLength,
+      );
+    }
+  } catch (_) {
+    // FRB unavailable — fall through to the Dart parse below.
+  }
+  return _securityConfigFallback(json);
+}
+
+SecurityConfigSnapshot _securityConfigFallback(Map<String, dynamic> json) {
+  final tierStr = json['tier'];
+  final tierWire = (tierStr is String && _knownTierWireName(tierStr))
+      ? tierStr
+      : 'plaintext';
+  final modifiersJson = json['modifiers'];
+  final modifiers = modifiersJson is Map<String, dynamic>
+      ? _modifiersFallback(modifiersJson)
+      : const _ModifiersResolved.defaults();
+  return SecurityConfigSnapshot(
+    tierWireName: tierWire,
+    password: modifiers.password,
+    biometric: modifiers.biometric,
+    biometricShortcut: modifiers.biometricShortcut,
+    pinLength: modifiers.pinLength,
+  );
+}
+
+_ModifiersResolved _modifiersFallback(Map<String, dynamic> json) {
+  final biometricShortcut = json['biometric_shortcut'] as bool? ?? false;
+  final rawPin = (json['pin_length'] as num?)?.toInt() ?? 6;
+  return _ModifiersResolved(
+    password: json['password'] as bool? ?? false,
+    // `biometric` falls back to `biometric_shortcut` on legacy v1
+    // configs (matches the Dart `SecurityTierModifiers.fromJson`).
+    biometric: json['biometric'] as bool? ?? biometricShortcut,
+    biometricShortcut: biometricShortcut,
+    pinLength: rawPin < 4 || rawPin > 8 ? 6 : rawPin,
+  );
+}
+
+class _ModifiersResolved {
+  final bool password;
+  final bool biometric;
+  final bool biometricShortcut;
+  final int pinLength;
+  const _ModifiersResolved({
+    required this.password,
+    required this.biometric,
+    required this.biometricShortcut,
+    required this.pinLength,
+  });
+  const _ModifiersResolved.defaults()
+    : password = false,
+      biometric = false,
+      biometricShortcut = false,
+      pinLength = 6;
+}
+
+bool _knownTierWireName(String s) =>
+    s == 'plaintext' ||
+    s == 'keychain' ||
+    s == 'keychain_with_password' ||
+    s == 'hardware' ||
+    s == 'paranoid';

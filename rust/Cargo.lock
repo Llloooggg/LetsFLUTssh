@@ -1692,6 +1692,7 @@ dependencies = [
  "lfs_core",
  "libloading",
  "rand 0.8.6",
+ "serde_json",
  "tokio",
 ]
 

@@ -25,6 +25,7 @@ import 'api/persisted_rate_limit.dart';
 import 'api/rate_limit.dart';
 import 'api/recorder.dart';
 import 'api/security_capabilities.dart';
+import 'api/security_config.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
@@ -99,7 +100,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 861672259;
+  int get rustContentHash => 97286747;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -838,6 +839,29 @@ abstract class RustLibApi extends BaseApi {
     required bool isLinuxHost,
     required String keychainProbeWireName,
     required String hardwareProbeCode,
+  });
+
+  DbSecurityConfig? crateApiSecurityConfigSecurityConfigFromJson({
+    required String json,
+  });
+
+  String crateApiSecurityConfigSecurityConfigToJson({
+    required String tierWireName,
+    required bool password,
+    required bool biometric,
+    required bool biometricShortcut,
+    required int pinLength,
+  });
+
+  DbSecurityTierModifiers? crateApiSecurityConfigSecurityTierModifiersFromJson({
+    required String json,
+  });
+
+  String crateApiSecurityConfigSecurityTierModifiersToJson({
+    required bool password,
+    required bool biometric,
+    required bool biometricShortcut,
+    required int pinLength,
   });
 
   Future<void> crateApiForwardSshCancelRemoteForward({
@@ -7339,6 +7363,164 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  DbSecurityConfig? crateApiSecurityConfigSecurityConfigFromJson({
+    required String json,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(json, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 188,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_db_security_config,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSecurityConfigSecurityConfigFromJsonConstMeta,
+        argValues: [json],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSecurityConfigSecurityConfigFromJsonConstMeta =>
+      const TaskConstMeta(
+        debugName: 'security_config_from_json',
+        argNames: ['json'],
+      );
+
+  @override
+  String crateApiSecurityConfigSecurityConfigToJson({
+    required String tierWireName,
+    required bool password,
+    required bool biometric,
+    required bool biometricShortcut,
+    required int pinLength,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(tierWireName, serializer);
+          sse_encode_bool(password, serializer);
+          sse_encode_bool(biometric, serializer);
+          sse_encode_bool(biometricShortcut, serializer);
+          sse_encode_u_32(pinLength, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 189,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSecurityConfigSecurityConfigToJsonConstMeta,
+        argValues: [
+          tierWireName,
+          password,
+          biometric,
+          biometricShortcut,
+          pinLength,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSecurityConfigSecurityConfigToJsonConstMeta =>
+      const TaskConstMeta(
+        debugName: 'security_config_to_json',
+        argNames: [
+          'tierWireName',
+          'password',
+          'biometric',
+          'biometricShortcut',
+          'pinLength',
+        ],
+      );
+
+  @override
+  DbSecurityTierModifiers? crateApiSecurityConfigSecurityTierModifiersFromJson({
+    required String json,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(json, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 190,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_opt_box_autoadd_db_security_tier_modifiers,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiSecurityConfigSecurityTierModifiersFromJsonConstMeta,
+        argValues: [json],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSecurityConfigSecurityTierModifiersFromJsonConstMeta =>
+      const TaskConstMeta(
+        debugName: 'security_tier_modifiers_from_json',
+        argNames: ['json'],
+      );
+
+  @override
+  String crateApiSecurityConfigSecurityTierModifiersToJson({
+    required bool password,
+    required bool biometric,
+    required bool biometricShortcut,
+    required int pinLength,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_bool(password, serializer);
+          sse_encode_bool(biometric, serializer);
+          sse_encode_bool(biometricShortcut, serializer);
+          sse_encode_u_32(pinLength, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 191,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSecurityConfigSecurityTierModifiersToJsonConstMeta,
+        argValues: [password, biometric, biometricShortcut, pinLength],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSecurityConfigSecurityTierModifiersToJsonConstMeta =>
+      const TaskConstMeta(
+        debugName: 'security_tier_modifiers_to_json',
+        argNames: ['password', 'biometric', 'biometricShortcut', 'pinLength'],
+      );
+
+  @override
   Future<void> crateApiForwardSshCancelRemoteForward({
     required SshSession session,
     required String address,
@@ -7357,7 +7539,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 188,
+            funcId: 192,
             port: port_,
           );
         },
@@ -7394,7 +7576,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 189,
+            funcId: 193,
             port: port_,
           );
         },
@@ -7433,7 +7615,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 190,
+            funcId: 194,
             port: port_,
           );
         },
@@ -7478,7 +7660,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 191,
+            funcId: 195,
             port: port_,
           );
         },
@@ -7518,7 +7700,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 192,
+            funcId: 196,
             port: port_,
           );
         },
@@ -7560,7 +7742,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 193,
+            funcId: 197,
             port: port_,
           );
         },
@@ -7604,7 +7786,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 194,
+            funcId: 198,
             port: port_,
           );
         },
@@ -7653,7 +7835,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 195,
+            funcId: 199,
             port: port_,
           );
         },
@@ -7705,7 +7887,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 196,
+            funcId: 200,
             port: port_,
           );
         },
@@ -7766,7 +7948,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 197,
+            funcId: 201,
             port: port_,
           );
         },
@@ -7815,7 +7997,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 198,
+            funcId: 202,
             port: port_,
           );
         },
@@ -7852,7 +8034,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 199,
+            funcId: 203,
             port: port_,
           );
         },
@@ -7897,7 +8079,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 200,
+            funcId: 204,
             port: port_,
           );
         },
@@ -7944,7 +8126,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 201,
+            funcId: 205,
             port: port_,
           );
         },
@@ -7982,7 +8164,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 202,
+            funcId: 206,
             port: port_,
           );
         },
@@ -8020,7 +8202,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 203,
+            funcId: 207,
             port: port_,
           );
         },
@@ -8058,7 +8240,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 204,
+            funcId: 208,
             port: port_,
           );
         },
@@ -8097,7 +8279,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 205,
+            funcId: 209,
             port: port_,
           );
         },
@@ -8138,7 +8320,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 206,
+            funcId: 210,
             port: port_,
           );
         },
@@ -8175,7 +8357,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 207,
+            funcId: 211,
           )!;
         },
         codec: SseCodec(
@@ -8207,7 +8389,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 208,
+            funcId: 212,
           )!;
         },
         codec: SseCodec(
@@ -8241,7 +8423,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 209,
+            funcId: 213,
           )!;
         },
         codec: SseCodec(
@@ -8277,7 +8459,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 210,
+            funcId: 214,
           )!;
         },
         codec: SseCodec(
@@ -8309,7 +8491,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 211,
+            funcId: 215,
             port: port_,
           );
         },
@@ -8336,7 +8518,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 212,
+            funcId: 216,
             port: port_,
           );
         },
@@ -8364,7 +8546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 213,
+            funcId: 217,
             port: port_,
           );
         },
@@ -8392,7 +8574,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 214,
+            funcId: 218,
             port: port_,
           );
         },
@@ -8435,7 +8617,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 215,
+            funcId: 219,
             port: port_,
           );
         },
@@ -8472,7 +8654,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 216,
+            funcId: 220,
             port: port_,
           );
         },
@@ -8500,7 +8682,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 217,
+            funcId: 221,
           )!;
         },
         codec: SseCodec(
@@ -8534,7 +8716,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 218,
+            funcId: 222,
           )!;
         },
         codec: SseCodec(
@@ -8570,7 +8752,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 219,
+            funcId: 223,
             port: port_,
           );
         },
@@ -8605,7 +8787,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 220,
+            funcId: 224,
           )!;
         },
         codec: SseCodec(
@@ -8639,7 +8821,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 221,
+            funcId: 225,
             port: port_,
           );
         },
@@ -8676,7 +8858,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 222,
+            funcId: 226,
             port: port_,
           );
         },
@@ -8708,7 +8890,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 223,
+            funcId: 227,
             port: port_,
           );
         },
@@ -8738,7 +8920,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 224,
+            funcId: 228,
           )!;
         },
         codec: SseCodec(
@@ -8772,7 +8954,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 225,
+            funcId: 229,
           )!;
         },
         codec: SseCodec(
@@ -8804,7 +8986,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 226,
+            funcId: 230,
           )!;
         },
         codec: SseCodec(
@@ -8838,7 +9020,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 227,
+            funcId: 231,
           )!;
         },
         codec: SseCodec(
@@ -8868,7 +9050,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 228,
+            funcId: 232,
           )!;
         },
         codec: SseCodec(
@@ -8895,7 +9077,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 229,
+            funcId: 233,
           )!;
         },
         codec: SseCodec(
@@ -8925,7 +9107,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 230,
+            funcId: 234,
           )!;
         },
         codec: SseCodec(
@@ -8956,7 +9138,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 231,
+            funcId: 235,
             port: port_,
           );
         },
@@ -9372,6 +9554,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_db_security_capabilities(raw);
+  }
+
+  @protected
+  DbSecurityConfig dco_decode_box_autoadd_db_security_config(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_db_security_config(raw);
+  }
+
+  @protected
+  DbSecurityTierModifiers dco_decode_box_autoadd_db_security_tier_modifiers(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_db_security_tier_modifiers(raw);
   }
 
   @protected
@@ -10202,9 +10398,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbSecurityConfig dco_decode_db_security_config(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return DbSecurityConfig(
+      tierWireName: dco_decode_String(arr[0]),
+      password: dco_decode_bool(arr[1]),
+      biometric: dco_decode_bool(arr[2]),
+      biometricShortcut: dco_decode_bool(arr[3]),
+      pinLength: dco_decode_u_32(arr[4]),
+    );
+  }
+
+  @protected
   DbSecurityThreat dco_decode_db_security_threat(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return DbSecurityThreat.values[raw as int];
+  }
+
+  @protected
+  DbSecurityTierModifiers dco_decode_db_security_tier_modifiers(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return DbSecurityTierModifiers(
+      password: dco_decode_bool(arr[0]),
+      biometric: dco_decode_bool(arr[1]),
+      biometricShortcut: dco_decode_bool(arr[2]),
+      pinLength: dco_decode_u_32(arr[3]),
+    );
   }
 
   @protected
@@ -10744,6 +10969,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return raw == null
         ? null
         : dco_decode_box_autoadd_db_security_capabilities(raw);
+  }
+
+  @protected
+  DbSecurityConfig? dco_decode_opt_box_autoadd_db_security_config(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_db_security_config(raw);
+  }
+
+  @protected
+  DbSecurityTierModifiers?
+  dco_decode_opt_box_autoadd_db_security_tier_modifiers(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_db_security_tier_modifiers(raw);
   }
 
   @protected
@@ -11326,6 +11566,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_db_security_capabilities(deserializer));
+  }
+
+  @protected
+  DbSecurityConfig sse_decode_box_autoadd_db_security_config(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_db_security_config(deserializer));
+  }
+
+  @protected
+  DbSecurityTierModifiers sse_decode_box_autoadd_db_security_tier_modifiers(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_db_security_tier_modifiers(deserializer));
   }
 
   @protected
@@ -12321,10 +12577,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbSecurityConfig sse_decode_db_security_config(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_tierWireName = sse_decode_String(deserializer);
+    final var_password = sse_decode_bool(deserializer);
+    final var_biometric = sse_decode_bool(deserializer);
+    final var_biometricShortcut = sse_decode_bool(deserializer);
+    final var_pinLength = sse_decode_u_32(deserializer);
+    return DbSecurityConfig(
+      tierWireName: var_tierWireName,
+      password: var_password,
+      biometric: var_biometric,
+      biometricShortcut: var_biometricShortcut,
+      pinLength: var_pinLength,
+    );
+  }
+
+  @protected
   DbSecurityThreat sse_decode_db_security_threat(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final inner = sse_decode_i_32(deserializer);
     return DbSecurityThreat.values[inner];
+  }
+
+  @protected
+  DbSecurityTierModifiers sse_decode_db_security_tier_modifiers(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_password = sse_decode_bool(deserializer);
+    final var_biometric = sse_decode_bool(deserializer);
+    final var_biometricShortcut = sse_decode_bool(deserializer);
+    final var_pinLength = sse_decode_u_32(deserializer);
+    return DbSecurityTierModifiers(
+      password: var_password,
+      biometric: var_biometric,
+      biometricShortcut: var_biometricShortcut,
+      pinLength: var_pinLength,
+    );
   }
 
   @protected
@@ -13134,6 +13424,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbSecurityConfig? sse_decode_opt_box_autoadd_db_security_config(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_db_security_config(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  DbSecurityTierModifiers?
+  sse_decode_opt_box_autoadd_db_security_tier_modifiers(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_db_security_tier_modifiers(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   DbSession? sse_decode_opt_box_autoadd_db_session(
     SseDeserializer deserializer,
   ) {
@@ -13839,6 +14156,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_db_security_capabilities(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_db_security_config(
+    DbSecurityConfig self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_db_security_config(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_db_security_tier_modifiers(
+    DbSecurityTierModifiers self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_db_security_tier_modifiers(self, serializer);
   }
 
   @protected
@@ -14688,12 +15023,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_db_security_config(
+    DbSecurityConfig self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.tierWireName, serializer);
+    sse_encode_bool(self.password, serializer);
+    sse_encode_bool(self.biometric, serializer);
+    sse_encode_bool(self.biometricShortcut, serializer);
+    sse_encode_u_32(self.pinLength, serializer);
+  }
+
+  @protected
   void sse_encode_db_security_threat(
     DbSecurityThreat self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_security_tier_modifiers(
+    DbSecurityTierModifiers self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.password, serializer);
+    sse_encode_bool(self.biometric, serializer);
+    sse_encode_bool(self.biometricShortcut, serializer);
+    sse_encode_u_32(self.pinLength, serializer);
   }
 
   @protected
@@ -15358,6 +15718,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_db_security_capabilities(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_security_config(
+    DbSecurityConfig? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_db_security_config(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_security_tier_modifiers(
+    DbSecurityTierModifiers? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_db_security_tier_modifiers(self, serializer);
     }
   }
 

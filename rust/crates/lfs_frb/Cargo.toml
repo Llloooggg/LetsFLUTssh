@@ -24,6 +24,10 @@ tokio = { workspace = true }
 # adapter just needs its own dep declaration so the FRB module
 # can call `OsRng` directly.
 rand = "0.8"
+# Used by the security-config / capabilities FRB shims to round-trip
+# the `Map<String, dynamic>` payloads Dart consumers persist inside
+# `config.json`. Same crate `lfs_core` already pins.
+serde_json = { workspace = true }
 
 # Windows-only dynamic loader for the WinBio probe surface
 # (`api::winbio`). Skipped on every other build target.
