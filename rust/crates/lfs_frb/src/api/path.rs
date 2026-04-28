@@ -51,3 +51,21 @@ pub fn path_write_bytes_atomic(path: String, bytes: Vec<u8>) -> Result<(), Strin
 pub fn path_harden_file_perms(path: String) -> Result<(), String> {
     lfs_core::path::harden_file_perms(std::path::Path::new(&path))
 }
+
+/// Extract the basename portion of [`path`], normalising Windows
+/// `\` separators to `/` first. Mirrors the Dart
+/// `KeyFileHelper.basename` shape so file pickers + importers
+/// share one rule.
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_basename(path: String) -> String {
+    lfs_core::path::basename(&path)
+}
+
+/// True when [`path`] contains a `..` segment after normalising
+/// Windows separators. Used by the OpenSSH-config importer to
+/// short-circuit traversal-style `IdentityFile` entries before
+/// trying to read the file.
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_is_suspicious(path: String) -> bool {
+    lfs_core::path::is_suspicious_path(&path)
+}

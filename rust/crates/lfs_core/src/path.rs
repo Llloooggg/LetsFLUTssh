@@ -25,6 +25,35 @@
 //! verbatim — better to leave the literal `~` than to point at a
 //! wrong directory and corrupt user data.
 
+/// Extract the basename portion of [`path`], normalising Windows
+/// `\` separators to `/` first. Returns the input unchanged when
+/// the path has no separator (already a bare basename).
+///
+/// Pure helper used by the OpenSSH-config importer + the
+/// `~/.ssh` directory scanner — every file picker that needs to
+/// surface "what file is this?" without parsing the full path.
+#[must_use]
+pub fn basename(path: &str) -> String {
+    let normalized = path.replace('\\', "/");
+    match normalized.rfind('/') {
+        Some(idx) => normalized[idx + 1..].to_string(),
+        None => normalized,
+    }
+}
+
+/// True when [`path`] contains a `..` segment after normalising
+/// Windows separators. A maliciously-crafted `~/.ssh/config` could
+/// point `IdentityFile` at `~/../../etc/shadow`; the importer
+/// short-circuits on this rule before trying to read the file.
+///
+/// Absolute paths the user wrote intentionally are still allowed —
+/// only literal `..` segments inside the path raise the flag.
+#[must_use]
+pub fn is_suspicious_path(path: &str) -> bool {
+    let normalized = path.replace('\\', "/");
+    normalized.split('/').any(|seg| seg == "..")
+}
+
 /// Expand a leading `~` or `~/` against the running user's home
 /// directory. Other tilde shapes (`~user/foo`) are left as-is
 /// — they cannot be resolved without nss / passwd lookups, and
@@ -166,6 +195,49 @@ fn home_dir() -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn basename_returns_input_for_bare_filename() {
+        assert_eq!(basename("file.txt"), "file.txt");
+    }
+
+    #[test]
+    fn basename_returns_last_segment_for_unix_path() {
+        assert_eq!(basename("/home/user/file.txt"), "file.txt");
+    }
+
+    #[test]
+    fn basename_normalizes_windows_separators() {
+        assert_eq!(basename(r"C:\Users\u\file.txt"), "file.txt");
+    }
+
+    #[test]
+    fn basename_handles_trailing_separator() {
+        assert_eq!(basename("/home/user/"), "");
+    }
+
+    #[test]
+    fn is_suspicious_path_flags_dotdot_segment() {
+        assert!(is_suspicious_path("/home/user/../../etc/shadow"));
+        assert!(is_suspicious_path("../config"));
+    }
+
+    #[test]
+    fn is_suspicious_path_passes_clean_paths() {
+        assert!(!is_suspicious_path("/home/user/.ssh/id_ed25519"));
+        assert!(!is_suspicious_path("file.txt"));
+    }
+
+    #[test]
+    fn is_suspicious_path_flags_dotdot_with_windows_separators() {
+        assert!(is_suspicious_path(r"C:\Users\u\..\..\Windows"));
+    }
+
+    #[test]
+    fn is_suspicious_path_passes_dotdotextension() {
+        // ".." is the trigger; "..foo" is not a traversal segment.
+        assert!(!is_suspicious_path("/home/user/..foo"));
+    }
 
     /// Tests mutate process-wide environment variables. Run them
     /// serialised under a `Mutex` so parallel cargo-test runs

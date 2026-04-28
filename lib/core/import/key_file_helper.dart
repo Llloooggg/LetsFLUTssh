@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../src/rust/api/keys.dart' as rust_keys;
+import '../../src/rust/api/path.dart' as rust_path;
 
 /// Shared helpers for SSH key files on disk.
 ///
@@ -80,11 +81,18 @@ class KeyFileHelper {
   static bool isEncryptedPem(String pem) =>
       rust_keys.keysIsEncryptedPem(pem: pem);
 
-  /// Extract the filename portion of [path], normalising Windows separators.
+  /// Extract the filename portion of [path], normalising Windows
+  /// separators. Routes through `lfs_core::path::basename` so the
+  /// grammar lives one place; falls back to the inline scan when
+  /// the FRB native lib is not loaded.
   static String basename(String path) {
-    final normalized = path.replaceAll('\\', '/');
-    final idx = normalized.lastIndexOf('/');
-    return idx < 0 ? normalized : normalized.substring(idx + 1);
+    try {
+      return rust_path.pathBasename(path: path);
+    } catch (_) {
+      final normalized = path.replaceAll('\\', '/');
+      final idx = normalized.lastIndexOf('/');
+      return idx < 0 ? normalized : normalized.substring(idx + 1);
+    }
   }
 
   /// Reject paths that contain `..` segments — a maliciously crafted
@@ -92,11 +100,17 @@ class KeyFileHelper {
   /// similar, coercing an importer into reading sensitive files under the
   /// current user. Absolute paths the user wrote intentionally are still
   /// allowed — only traversal segments inside a path are rejected.
+  /// Routes through `lfs_core::path::is_suspicious_path` for one
+  /// canonical traversal-detection grammar across the codebase.
   static bool isSuspiciousPath(String path) {
-    final normalized = path.replaceAll('\\', '/');
-    for (final segment in normalized.split('/')) {
-      if (segment == '..') return true;
+    try {
+      return rust_path.pathIsSuspicious(path: path);
+    } catch (_) {
+      final normalized = path.replaceAll('\\', '/');
+      for (final segment in normalized.split('/')) {
+        if (segment == '..') return true;
+      }
+      return false;
     }
-    return false;
   }
 }

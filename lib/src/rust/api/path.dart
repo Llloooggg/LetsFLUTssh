@@ -39,3 +39,17 @@ void pathWriteBytesAtomic({required String path, required List<int> bytes}) =>
 /// `path_write_bytes_atomic`) are not on hot paths.
 void pathHardenFilePerms({required String path}) =>
     RustLib.instance.api.crateApiPathPathHardenFilePerms(path: path);
+
+/// Extract the basename portion of [`path`], normalising Windows
+/// `\` separators to `/` first. Mirrors the Dart
+/// `KeyFileHelper.basename` shape so file pickers + importers
+/// share one rule.
+String pathBasename({required String path}) =>
+    RustLib.instance.api.crateApiPathPathBasename(path: path);
+
+/// True when [`path`] contains a `..` segment after normalising
+/// Windows separators. Used by the OpenSSH-config importer to
+/// short-circuit traversal-style `IdentityFile` entries before
+/// trying to read the file.
+bool pathIsSuspicious({required String path}) =>
+    RustLib.instance.api.crateApiPathPathIsSuspicious(path: path);
