@@ -717,14 +717,26 @@ class SessionStore {
 
   // ── Query ───────────────────────────────────────────────────────
 
+  /// Distinct, sorted list of named folders referenced by any
+  /// session in the cache. Routes through
+  /// `lfs_core::sessions::distinct_folders` so the empty-skip +
+  /// sort grammar lives one place; falls back to the inline
+  /// pipeline for flutter_test contexts that don't load the FRB
+  /// native lib.
   List<String> folders() {
-    final g = _sessions
-        .map((s) => s.folder)
-        .where((g) => g.isNotEmpty)
-        .toSet()
-        .toList();
-    g.sort();
-    return g;
+    try {
+      return rust_sess.sessionsDistinctFolders(
+        sessionFolders: _sessions.map((s) => s.folder).toList(growable: false),
+      );
+    } catch (_) {
+      final g = _sessions
+          .map((s) => s.folder)
+          .where((g) => g.isNotEmpty)
+          .toSet()
+          .toList();
+      g.sort();
+      return g;
+    }
   }
 
   List<Session> byFolder(String folder) {

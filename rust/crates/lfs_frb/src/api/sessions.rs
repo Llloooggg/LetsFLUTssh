@@ -67,3 +67,11 @@ pub fn sessions_unique_label(base: String, taken: Vec<String>) -> String {
     let set: std::collections::HashSet<String> = taken.into_iter().collect();
     sessions::unique_label(&base, &set)
 }
+
+/// Distinct, sorted folder names referenced by [`session_folders`].
+/// Drops empty paths (root-level sessions). Used by the live
+/// folder-list accessor + folder-picker autocomplete.
+#[flutter_rust_bridge::frb(sync)]
+pub fn sessions_distinct_folders(session_folders: Vec<String>) -> Vec<String> {
+    sessions::distinct_folders(&session_folders)
+}

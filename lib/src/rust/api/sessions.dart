@@ -54,6 +54,14 @@ String sessionsUniqueLabel({
   taken: taken,
 );
 
+/// Distinct, sorted folder names referenced by [`session_folders`].
+/// Drops empty paths (root-level sessions). Used by the live
+/// folder-list accessor + folder-picker autocomplete.
+List<String> sessionsDistinctFolders({required List<String> sessionFolders}) =>
+    RustLib.instance.api.crateApiSessionsSessionsDistinctFolders(
+      sessionFolders: sessionFolders,
+    );
+
 /// Searchable Session projection — id + the four fields the UI
 /// search bar matches against. The Dart caller projects its
 /// domain `Session` list once and feeds it here, avoiding a

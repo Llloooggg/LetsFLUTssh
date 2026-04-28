@@ -60,6 +60,21 @@ pub fn validate_session_fields(host: &str, port: u16, user: &str) -> Option<Stri
     None
 }
 
+/// Distinct, sorted folder names referenced by [`session_folders`].
+/// Drops empty paths (sessions at root) — only named folders
+/// surface. Used by the SessionStore.folders() accessor and any
+/// future "folder picker" autocomplete that needs the live set.
+#[must_use]
+pub fn distinct_folders(session_folders: &[String]) -> Vec<String> {
+    let mut set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for f in session_folders {
+        if !f.is_empty() {
+            set.insert(f.clone());
+        }
+    }
+    set.into_iter().collect()
+}
+
 /// Generate a label that does not collide with any entry in
 /// [`taken`]. Returns [`base`] when free; otherwise tries
 /// `"{base} (copy)"`, then `"{base} (copy 2)"`, `"{base} (copy 3)"`,
@@ -316,5 +331,31 @@ mod tests {
         // " (copy)" — empty in, empty out.
         let taken: std::collections::HashSet<String> = ["foo".into()].into();
         assert_eq!(unique_label("", &taken), "");
+    }
+
+    #[test]
+    fn distinct_folders_drops_empty_dedups_and_sorts() {
+        let folders = vec![
+            "Production".to_string(),
+            String::new(),
+            "Staging".to_string(),
+            "Production".to_string(),
+            String::new(),
+            "Production/EU".to_string(),
+        ];
+        assert_eq!(
+            distinct_folders(&folders),
+            vec![
+                "Production".to_string(),
+                "Production/EU".to_string(),
+                "Staging".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn distinct_folders_returns_empty_when_every_session_is_at_root() {
+        let folders = vec![String::new(), String::new()];
+        assert!(distinct_folders(&folders).is_empty());
     }
 }
