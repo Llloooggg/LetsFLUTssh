@@ -180,6 +180,19 @@ restore) needs to live one place.
 **Risk.** Folder-cascade ordering bugs (rename + collapsed-set
 sync). Mitigate with property-based tests on the Rust side.
 
+**Pure helpers landed ahead of the actor arc.** Three Dart-side
+folder-path implementations consolidated into
+`lfs_core::folder_path` (`build_folder_path` / orphan-marker grammar,
+`find_folder_id_by_path`, `all_folder_paths`,
+`rename_paths_cascade`); the four-field session search predicate
+moved to `lfs_core::sessions::filter_sessions`; storable-field
+validation (`Session.validate`) and prefix-match folder counting
+moved to `validate_session_fields` + `count_in_folder`. Dart
+routes through `_folder_path_compat.dart` + the sessions FRB
+shim with the canonical/fallback shape. Reduces the surface the
+actor will need to reason about — the Registry will compose
+these pure helpers rather than re-implement them.
+
 ### 4 — `connection_manager` → Rust
 
 Largest hot-path orchestrator after the actor shell. Today the
