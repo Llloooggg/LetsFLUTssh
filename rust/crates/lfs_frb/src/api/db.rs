@@ -547,7 +547,7 @@ pub async fn db_known_hosts_upsert_by_host_port(
     key_base64: String,
     added_at_ms: i64,
 ) -> Result<i64, String> {
-    run_db(move |c| {
+    let row_id = run_db(move |c| {
         lfs_core::db::known_hosts::upsert_by_host_port(
             c,
             &host,
@@ -557,19 +557,80 @@ pub async fn db_known_hosts_upsert_by_host_port(
             added_at_ms,
         )
     })
-    .await
+    .await?;
+    lfs_core::known_hosts::notify_changed(&lfs_core::app::instance());
+    Ok(row_id)
 }
 
 pub async fn db_known_hosts_delete_by_host_port(host: String, port: i64) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::known_hosts::delete_by_host_port(c, &host, port))
+    let n = run_db(move |c| lfs_core::db::known_hosts::delete_by_host_port(c, &host, port))
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32)?;
+    if n > 0 {
+        lfs_core::known_hosts::notify_changed(&lfs_core::app::instance());
+    }
+    Ok(n)
 }
 
 pub async fn db_known_hosts_clear_all() -> Result<u32, String> {
-    run_db(lfs_core::db::known_hosts::clear_all)
+    let n = run_db(lfs_core::db::known_hosts::clear_all)
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32)?;
+    if n > 0 {
+        lfs_core::known_hosts::notify_changed(&lfs_core::app::instance());
+    }
+    Ok(n)
+}
+
+/// FRB mirror of `lfs_core::known_hosts::ImportSummary`.
+#[derive(Debug, Clone)]
+pub struct DbKnownHostsImportSummary {
+    pub added: i64,
+    pub skipped_existing: i64,
+    pub skipped_hashed: i64,
+}
+
+impl From<lfs_core::known_hosts::ImportSummary> for DbKnownHostsImportSummary {
+    fn from(s: lfs_core::known_hosts::ImportSummary) -> Self {
+        Self {
+            added: s.added,
+            skipped_existing: s.skipped_existing,
+            skipped_hashed: s.skipped_hashed,
+        }
+    }
+}
+
+/// Bulk-import `content` (LetsFLUTssh + OpenSSH known_hosts wire
+/// formats — see `lfs_core::known_hosts_parser::parse_line`)
+/// against the running DB. Existing host:port entries are
+/// preserved; only fresh rows insert. Emits a single
+/// `KnownHostsChanged` bus event when at least one row landed.
+pub async fn db_known_hosts_import_from_string(
+    content: String,
+    now_ms: i64,
+) -> Result<DbKnownHostsImportSummary, String> {
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        lfs_core::known_hosts::import_from_string(&db, &app.bus, &content, now_ms)
+            .map(DbKnownHostsImportSummary::from)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("known-hosts import task: {e}"))?
+}
+
+/// Render every known-hosts row to the LetsFLUTssh wire format
+/// (`host:port keytype base64key` per line). Used by `.lfs`
+/// archive export.
+pub async fn db_known_hosts_export_to_string() -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        lfs_core::known_hosts::export_to_string(&db).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("known-hosts export task: {e}"))?
 }
 
 // ---- app_configs -------------------------------------------------------

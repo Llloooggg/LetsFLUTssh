@@ -18,6 +18,7 @@ pub enum BusTopic {
     AutoLock,
     Import,
     Update,
+    KnownHosts,
 }
 
 impl From<BusTopic> for lfs_core::bus::EventTopic {
@@ -31,6 +32,7 @@ impl From<BusTopic> for lfs_core::bus::EventTopic {
             BusTopic::AutoLock => lfs_core::bus::EventTopic::AutoLock,
             BusTopic::Import => lfs_core::bus::EventTopic::Import,
             BusTopic::Update => lfs_core::bus::EventTopic::Update,
+            BusTopic::KnownHosts => lfs_core::bus::EventTopic::KnownHosts,
         }
     }
 }
@@ -195,6 +197,8 @@ pub enum BusEvent {
     /// Auto-update — verification passed; asset is on disk at
     /// `path` ready for the install step.
     UpdateDownloadCompleted { url: String, path: String },
+    /// Known-hosts table mutated.
+    KnownHostsChanged,
 }
 
 /// Rule status — FRB mirror of `lfs_core::portforward::RuleStatus`.
@@ -313,6 +317,7 @@ impl BusEvent {
             lfs_core::bus::Event::UpdateDownloadCompleted { url, path } => {
                 BusEvent::UpdateDownloadCompleted { url, path }
             }
+            lfs_core::bus::Event::KnownHostsChanged => BusEvent::KnownHostsChanged,
         }
     }
 }

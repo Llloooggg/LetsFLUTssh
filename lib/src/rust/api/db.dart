@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -183,6 +183,25 @@ Future<int> dbKnownHostsDeleteByHostPort({
 
 Future<int> dbKnownHostsClearAll() =>
     RustLib.instance.api.crateApiDbDbKnownHostsClearAll();
+
+/// Bulk-import `content` (LetsFLUTssh + OpenSSH known_hosts wire
+/// formats — see `lfs_core::known_hosts_parser::parse_line`)
+/// against the running DB. Existing host:port entries are
+/// preserved; only fresh rows insert. Emits a single
+/// `KnownHostsChanged` bus event when at least one row landed.
+Future<DbKnownHostsImportSummary> dbKnownHostsImportFromString({
+  required String content,
+  required PlatformInt64 nowMs,
+}) => RustLib.instance.api.crateApiDbDbKnownHostsImportFromString(
+  content: content,
+  nowMs: nowMs,
+);
+
+/// Render every known-hosts row to the LetsFLUTssh wire format
+/// (`host:port keytype base64key` per line). Used by `.lfs`
+/// archive export.
+Future<String> dbKnownHostsExportToString() =>
+    RustLib.instance.api.crateApiDbDbKnownHostsExportToString();
 
 Future<DbAppConfig?> dbAppConfigsGet() =>
     RustLib.instance.api.crateApiDbDbAppConfigsGet();
@@ -409,6 +428,32 @@ class DbKnownHost {
           keyType == other.keyType &&
           keyBase64 == other.keyBase64 &&
           addedAtMs == other.addedAtMs;
+}
+
+/// FRB mirror of `lfs_core::known_hosts::ImportSummary`.
+class DbKnownHostsImportSummary {
+  final PlatformInt64 added;
+  final PlatformInt64 skippedExisting;
+  final PlatformInt64 skippedHashed;
+
+  const DbKnownHostsImportSummary({
+    required this.added,
+    required this.skippedExisting,
+    required this.skippedHashed,
+  });
+
+  @override
+  int get hashCode =>
+      added.hashCode ^ skippedExisting.hashCode ^ skippedHashed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbKnownHostsImportSummary &&
+          runtimeType == other.runtimeType &&
+          added == other.added &&
+          skippedExisting == other.skippedExisting &&
+          skippedHashed == other.skippedHashed;
 }
 
 class DbPortForwardRule {

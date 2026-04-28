@@ -376,6 +376,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost dco_decode_db_known_host(dynamic raw);
 
   @protected
+  DbKnownHostsImportSummary dco_decode_db_known_hosts_import_summary(
+    dynamic raw,
+  );
+
+  @protected
   DbMigrationReport dco_decode_db_migration_report(dynamic raw);
 
   @protected
@@ -990,6 +995,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKnownHost sse_decode_db_known_host(SseDeserializer deserializer);
+
+  @protected
+  DbKnownHostsImportSummary sse_decode_db_known_hosts_import_summary(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbMigrationReport sse_decode_db_migration_report(
@@ -1750,6 +1760,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_known_host(DbKnownHost self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_known_hosts_import_summary(
+    DbKnownHostsImportSummary self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_migration_report(

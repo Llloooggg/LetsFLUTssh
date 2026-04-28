@@ -304,6 +304,9 @@ sealed class BusEvent with _$BusEvent {
     required String url,
     required String path,
   }) = BusEvent_UpdateDownloadCompleted;
+
+  /// Known-hosts table mutated.
+  const factory BusEvent.knownHostsChanged() = BusEvent_KnownHostsChanged;
 }
 
 /// Connection progress step — FRB mirror of
@@ -353,4 +356,5 @@ enum BusTopic {
   autoLock,
   import_,
   update,
+  knownHosts,
 }

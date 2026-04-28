@@ -52,7 +52,6 @@ import 'utils/sanitize.dart';
 import 'widgets/app_shell.dart';
 import 'widgets/auto_lock_detector.dart';
 import 'widgets/first_launch_security_toast.dart';
-import 'widgets/host_key_dialog.dart';
 import 'widgets/lock_screen.dart';
 import 'widgets/passphrase_dialog.dart';
 import 'widgets/toast.dart';
@@ -438,29 +437,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       return (passphrase: result.passphrase, remember: result.remember);
     };
 
-    final knownHosts = ref.read(knownHostsProvider);
-    knownHosts.onUnknownHost = (host, port, keyType, fingerprint) async {
-      final ctx = navigatorKey.currentContext;
-      if (ctx == null) return false;
-      return HostKeyDialog.showNewHost(
-        ctx,
-        host: host,
-        port: port,
-        keyType: keyType,
-        fingerprint: fingerprint,
-      );
-    };
-    knownHosts.onHostKeyChanged = (host, port, keyType, fingerprint) async {
-      final ctx = navigatorKey.currentContext;
-      if (ctx == null) return false;
-      return HostKeyDialog.showKeyChanged(
-        ctx,
-        host: host,
-        port: port,
-        keyType: keyType,
-        fingerprint: fingerprint,
-      );
-    };
+    // TOFU prompt callbacks were wired here previously, but russh's
+    // `check_server_key` always accepts the offered host key today
+    // (verification not yet wired on the Rust SSH handler), so the
+    // callbacks never fired. Removed to avoid implying live MITM
+    // detection. The dialog widgets stay in the tree against the
+    // future TOFU prompt-protocol arc that ships the bus
+    // request/response with russh's verifier.
   }
 
   @override

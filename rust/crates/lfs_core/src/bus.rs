@@ -59,6 +59,9 @@ pub enum EventTopic {
     Import,
     /// Auto-update channel — fetch / download progress.
     Update,
+    /// Known-hosts table — refresh notification for the
+    /// settings panel + any cached snapshot mirrors.
+    KnownHosts,
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -183,6 +186,13 @@ pub enum Event {
     /// Auto-update — every verification step passed; the asset
     /// is at `path` ready to install.
     UpdateDownloadCompleted { url: String, path: String },
+
+    /// Known-hosts table mutated (upsert / delete / clear /
+    /// import). No detail — Dart subscribers re-fetch the full
+    /// list via `db_known_hosts_list_all`. One coalesced event
+    /// per write; bulk imports emit a single event for the whole
+    /// batch.
+    KnownHostsChanged,
 }
 
 impl Event {
@@ -210,6 +220,7 @@ impl Event {
             Event::UpdateDownloadProgress { .. }
             | Event::UpdateVerifyingStarted { .. }
             | Event::UpdateDownloadCompleted { .. } => EventTopic::Update,
+            Event::KnownHostsChanged => EventTopic::KnownHosts,
         }
     }
 }

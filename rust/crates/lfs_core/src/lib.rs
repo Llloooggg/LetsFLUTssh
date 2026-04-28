@@ -27,6 +27,7 @@ pub mod db;
 pub mod deeplink;
 pub mod error;
 pub mod keys;
+pub mod known_hosts;
 pub mod known_hosts_parser;
 pub mod log_sanitize;
 pub mod migration;

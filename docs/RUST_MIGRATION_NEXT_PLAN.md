@@ -39,7 +39,7 @@ right now"*, the design is wrong.
 | 4. `connection_manager` → Rust | pending |
 | 5. `transfer_manager` → Rust driver | pending — Rust queue+state+`SftpTaskExecutor` shipped Phase 5.3; needs FRB `transfer_enqueue` + Dart UI rewire (TransferManager retire + transfer_panel snapshot view) |
 | 6. `port_forward_runtime` → Rust driver | DONE — Rust drivers (`-L` / `-D` SOCKS5 / `-R`) shipped earlier; Dart `port_forward_runtime.dart` shrank to a ~150-LOC shim that dispatches per-rule `port_forward_start_*` / `port_forward_stop_*` over FRB |
-| 7. `known_hosts` manager → Rust + prompt protocol | pending |
+| 7. `known_hosts` manager → Rust + prompt protocol | partial — `lfs_core::known_hosts` owns import-from-string + export-to-string + change-event publishing; Dart shim shrank to a snapshot mirror over the `KnownHosts` bus topic with verify/callback path retired. TOFU prompt protocol against `russh::Handler::check_server_key` still pending. |
 | 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |
 | 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
 | 8c. `update_service` state machine → Rust | DONE — `lfs_core::update_orchestrator` owns the GitHub-API parse + asset selection + signed-manifest verification; Dart `UpdateService.checkForUpdate` / `downloadAsset` route through FRB by default with a Dart fallback retained only for the test-injection path |
@@ -73,7 +73,7 @@ LOC reflects current tree):
 | `core/transfer/transfer_manager.dart` | 393 | queue scheduler + concurrency cap + history truncation + progress throttle + timeout tracker | 5 |
 | `core/update/update_service.dart` | ~1000 | thin façade over `lfs_core::update_orchestrator` (GitHub release parse + signed-manifest verify happen Rust-side); Dart fallback paths stay only for flutter_test contexts that don't load the FRB native lib | DONE |
 | ~~`core/ssh/port_forward_runtime.dart`~~ | ~150 | thin FRB shim — armed-rule map + per-rule `port_forward_start_*` / `port_forward_stop_*` dispatch on connect / teardown; everything else is Rust | DONE — step 6 |
-| `core/ssh/known_hosts.dart` | 584 | TOFU policy + add / remove / match + cache | 7 |
+| `core/ssh/known_hosts.dart` | ~250 | snapshot mirror over `lfs_core::known_hosts` + bus subscriber for refresh; verify / TOFU-callback path retired (russh accept-all today, prompt protocol arc separate). |
 | `core/security/master_password.dart` | 396 | KDF verify orchestration + tier promotion | 9 |
 | `core/security/password_rate_limiter.dart` | 396 | exponential backoff state | 9 |
 | `core/security/hardware_tier_vault.dart` | 395 | TPM / Keychain / WinBio composer | 9 |

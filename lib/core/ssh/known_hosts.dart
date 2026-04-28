@@ -1,29 +1,58 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
-import '../../src/rust/api/known_hosts_parser.dart' as rust_parser;
 import '../../utils/logger.dart';
+import '../bus/app_bus.dart';
 
 /// TOFU (Trust On First Use) host key verification backed by
-/// `lfs_core.db`. Engine behind the DAO is Rust + rusqlite; the
-/// on-disk row layout matches the `KnownHosts` schema drift used
-/// to own.
+/// `lfs_core.db`. Engine behind the DAO is Rust + rusqlite.
 ///
-/// In-memory cache + serialisation invariants are preserved verbatim
-/// from the drift era. Pre-unlock and inside the unit-test runner
-/// the FRB calls raise synchronously; every entry point catches and
-/// degrades to "no DB attached" semantics so a race between unlock
-/// and the first verify cannot crash the connect path.
+/// The Dart side is a thin snapshot mirror: `entries` / `count`
+/// expose the in-memory cache populated by [load]; mutating calls
+/// (upsert / remove / clear / import) route through FRB and the
+/// cache refreshes on the matching `KnownHostsChanged` bus event.
+/// Failures from FRB calls (DB locked / native lib missing in
+/// unit tests) are caught at every entry point and degrade to
+/// "no DB attached" semantics so a race between unlock and the
+/// first read cannot crash the connect path.
 class KnownHostsManager {
+  KnownHostsManager() {
+    // Subscribe to the global KnownHosts topic so any mutation
+    // (including from the FRB layer's bulk-import path) refreshes
+    // the cache. The subscription survives `invalidateCache`
+    // because the manager itself outlives the unlock cycle.
+    //
+    // The subscribe call hits the FRB native lib at construction
+    // time; flutter_test contexts that don't load the lib raise
+    // synchronously. Catch + log so the manager stays usable in
+    // tests with mocked FRB DAOs.
+    try {
+      _busSub = AppBus.instance.subscribe(rust_bus.BusTopic.knownHosts).listen((
+        event,
+      ) {
+        if (event is rust_bus.BusEvent_KnownHostsChanged) {
+          unawaited(reload());
+        }
+      });
+    } catch (e) {
+      AppLogger.instance.log(
+        'KnownHostsManager bus subscribe failed: $e',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
   final Map<String, String> _hosts = {};
+  StreamSubscription<rust_bus.BusEvent>? _busSub;
 
   /// Drop the in-memory cache so the next [load] re-reads. Called
-  /// from the unlock handshake — replaces the drift-era
-  /// `setDatabase` injection now that the FRB DAO resolves the live
-  /// connection off `AppState`.
+  /// from the unlock handshake.
   void invalidateCache() {
     _hosts.clear();
     _loaded = false;
@@ -41,44 +70,10 @@ class KnownHostsManager {
   /// Cached load future — ensures concurrent calls to [load] don't race.
   Future<void>? _loadFuture;
 
-  /// Serialises mutating database operations so that two concurrent
-  /// `clearAll` / `importFromString` / `removeMultiple` callers cannot
-  /// interleave and leave the in-memory cache and the database in
-  /// inconsistent states (e.g. one clear running while another is mid-flight).
-  Future<void> _writeLock = Future.value();
-
-  Future<T> _serializeWrite<T>(Future<T> Function() body) {
-    final pending = _writeLock.then((_) => body());
-    _writeLock = pending.then((_) {}, onError: (_) {});
-    return pending;
-  }
-
   /// True once [_doLoad] has completed successfully at least once. Used to
   /// distinguish "load already done" from "load attempted but failed and
   /// should be retried on the next call".
   bool _loaded = false;
-
-  /// Callback invoked when an unknown host is encountered.
-  /// Return true to accept the key, false to reject.
-  /// If null, unknown hosts are auto-accepted (TOFU).
-  Future<bool> Function(
-    String host,
-    int port,
-    String keyType,
-    String fingerprint,
-  )?
-  onUnknownHost;
-
-  /// Callback invoked when a known host's key has changed (potential MITM).
-  /// Return true to accept the new key, false to reject.
-  /// If null, changed keys are always rejected.
-  Future<bool> Function(
-    String host,
-    int port,
-    String keyType,
-    String fingerprint,
-  )?
-  onHostKeyChanged;
 
   /// Initialize and load known hosts from database.
   ///
@@ -130,106 +125,15 @@ class KnownHostsManager {
     }
   }
 
-  /// Verify host key. Returns true if accepted.
-  ///
-  /// Serialised against every other mutator via `_serializeWrite` so a
-  /// user-initiated `clearAll` / `removeMultiple` / `importFromString`
-  /// cannot interleave between the cache read and the follow-on
-  /// `_addHost` / `_updateHost`. Prior shape: reader path could call
-  /// `onUnknownHost` (long-running user prompt), user taps Accept, the
-  /// pending `clearAll` — which was queued while the prompt was open
-  /// — wiped `_hosts` and the DB, then `_addHost` re-wrote the row
-  /// the user had just told us to forget.
-  ///
-  /// Verifies are rare and short; full serialisation does not hurt
-  /// throughput and keeps the invariant trivial.
-  Future<bool> verify(
-    String host,
-    int port,
-    String keyType,
-    List<int> keyBytes,
-  ) => _serializeWrite(() => _verifyInner(host, port, keyType, keyBytes));
-
-  Future<bool> _verifyInner(
-    String host,
-    int port,
-    String keyType,
-    List<int> keyBytes,
-  ) async {
-    await load();
-    final hostPort = '$host:$port';
-    final keyData = base64Encode(keyBytes);
-    final keyString = '$keyType $keyData';
-    final existing = _hosts[hostPort];
-
-    if (existing != null) {
-      if (existing == keyString) {
-        AppLogger.instance.log(
-          'Host key verified: $hostPort',
-          name: 'KnownHosts',
-        );
-        return true;
-      }
-      AppLogger.instance.log(
-        'Host key CHANGED for $hostPort ($keyType) — potential MITM',
-        name: 'KnownHosts',
-      );
-      if (onHostKeyChanged != null) {
-        final fp = _fingerprint(keyBytes);
-        final accepted = await onHostKeyChanged!(host, port, keyType, fp);
-        if (accepted) {
-          AppLogger.instance.log(
-            'Changed host key accepted: $hostPort',
-            name: 'KnownHosts',
-          );
-          await _updateHost(host, port, keyType, keyData);
-          return true;
-        }
-      }
-      AppLogger.instance.log(
-        'Changed host key rejected: $hostPort',
-        name: 'KnownHosts',
-      );
-      return false;
-    }
-
-    // Unknown host
-    AppLogger.instance.log(
-      'Unknown host: $hostPort ($keyType)',
-      name: 'KnownHosts',
-    );
-    if (onUnknownHost != null) {
-      final fp = _fingerprint(keyBytes);
-      final accepted = await onUnknownHost!(host, port, keyType, fp);
-      if (accepted) {
-        AppLogger.instance.log(
-          'Unknown host accepted (TOFU): $hostPort',
-          name: 'KnownHosts',
-        );
-        await _addHost(host, port, keyType, keyData);
-        return true;
-      }
-      AppLogger.instance.log(
-        'Unknown host rejected: $hostPort',
-        name: 'KnownHosts',
-      );
-      return false;
-    }
-
-    AppLogger.instance.log(
-      'Unknown host rejected (no callback): $hostPort',
-      name: 'KnownHosts',
-    );
-    return false;
-  }
-
-  Future<void> _addHost(
+  /// Insert or update a single host entry. Routes through the FRB
+  /// upsert; the resulting `KnownHostsChanged` bus event refreshes
+  /// the cache.
+  Future<void> upsert(
     String host,
     int port,
     String keyType,
     String keyBase64,
   ) async {
-    _hosts['$host:$port'] = '$keyType $keyBase64';
     try {
       await rust_db.dbKnownHostsUpsertByHostPort(
         host: host,
@@ -240,33 +144,7 @@ class KnownHostsManager {
       );
     } catch (e) {
       AppLogger.instance.log(
-        '_addHost FRB write failed: $e',
-        name: 'KnownHosts',
-        level: LogLevel.warn,
-      );
-    }
-  }
-
-  Future<void> _updateHost(
-    String host,
-    int port,
-    String keyType,
-    String keyBase64,
-  ) async {
-    _hosts['$host:$port'] = '$keyType $keyBase64';
-    try {
-      // Rust's upsert handles ON CONFLICT(host, port) — no separate
-      // delete-then-insert dance needed.
-      await rust_db.dbKnownHostsUpsertByHostPort(
-        host: host,
-        port: port,
-        keyType: keyType,
-        keyBase64: keyBase64,
-        addedAtMs: DateTime.now().millisecondsSinceEpoch,
-      );
-    } catch (e) {
-      AppLogger.instance.log(
-        '_updateHost FRB write failed: $e',
+        'upsert FRB write failed: $e',
         name: 'KnownHosts',
         level: LogLevel.warn,
       );
@@ -274,58 +152,52 @@ class KnownHostsManager {
   }
 
   /// Remove a single known host entry.
-  Future<void> removeHost(String hostPort) => _serializeWrite(() async {
-    await load();
-    if (_hosts.remove(hostPort) != null) {
-      final parts = hostPort.split(':');
+  Future<void> removeHost(String hostPort) async {
+    final parts = hostPort.split(':');
+    if (parts.isEmpty) return;
+    final host = parts[0];
+    final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
+    try {
+      await rust_db.dbKnownHostsDeleteByHostPort(host: host, port: port);
+      AppLogger.instance.log(
+        'Removed known host: $hostPort',
+        name: 'KnownHosts',
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'removeHost FRB delete failed: $e',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Remove multiple known host entries. The cache refresh fires
+  /// once per row's bus event, but the listeners (settings UI) only
+  /// re-render once per microtask so the cost is bounded.
+  Future<void> removeMultiple(Set<String> hostPorts) async {
+    for (final hp in hostPorts) {
+      final parts = hp.split(':');
+      if (parts.isEmpty) continue;
       final host = parts[0];
       final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
       try {
         await rust_db.dbKnownHostsDeleteByHostPort(host: host, port: port);
       } catch (e) {
         AppLogger.instance.log(
-          'removeHost FRB delete failed: $e',
+          'removeMultiple FRB delete failed for $hp: $e',
           name: 'KnownHosts',
           level: LogLevel.warn,
         );
       }
-      AppLogger.instance.log(
-        'Removed known host: $hostPort',
-        name: 'KnownHosts',
-      );
     }
-  });
-
-  /// Remove multiple known host entries.
-  Future<void> removeMultiple(Set<String> hostPorts) =>
-      _serializeWrite(() async {
-        await load();
-        for (final hp in hostPorts) {
-          _hosts.remove(hp);
-        }
-        for (final hp in hostPorts) {
-          final parts = hp.split(':');
-          final host = parts[0];
-          final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 22 : 22;
-          try {
-            await rust_db.dbKnownHostsDeleteByHostPort(host: host, port: port);
-          } catch (e) {
-            AppLogger.instance.log(
-              'removeMultiple FRB delete failed for $hp: $e',
-              name: 'KnownHosts',
-              level: LogLevel.warn,
-            );
-          }
-        }
-      });
+  }
 
   /// Remove all known host entries.
-  Future<void> clearAll() => _serializeWrite(() async {
-    await load();
-    if (_hosts.isEmpty) return;
-    _hosts.clear();
+  Future<void> clearAll() async {
     try {
       await rust_db.dbKnownHostsClearAll();
+      AppLogger.instance.log('Cleared all known hosts', name: 'KnownHosts');
     } catch (e) {
       AppLogger.instance.log(
         'clearAll FRB write failed: $e',
@@ -333,8 +205,7 @@ class KnownHostsManager {
         level: LogLevel.warn,
       );
     }
-    AppLogger.instance.log('Cleared all known hosts', name: 'KnownHosts');
-  });
+  }
 
   /// Import entries from a LetsFLUTssh-format known_hosts file.
   ///
@@ -346,115 +217,62 @@ class KnownHostsManager {
     return importFromString(content);
   }
 
-  /// Import entries from a LetsFLUTssh-format known_hosts string.
+  /// Import entries from a multi-line known_hosts blob. Routes
+  /// through the Rust importer (`lfs_core::known_hosts::import_from_string`)
+  /// so the parser walk + per-line dedup + DB upserts run inside one
+  /// task. Skipped hashed-hostname rows are surfaced via the warning
+  /// log so the user knows their `HashKnownHosts yes` lines were not
+  /// silently swallowed.
   ///
-  /// Format is space-separated `host:port keytype base64key`, one entry
-  /// per line. Blank lines and `#`-prefixed comments are skipped. This
-  /// is NOT the OpenSSH `~/.ssh/known_hosts` wire format — real
-  /// OpenSSH uses `host` (port 22) or `[host]:port` for non-default
-  /// ports, supports hashed hostnames, comma-separated host aliases,
-  /// and `@cert-authority` / `@revoked` markers, none of which this
-  /// parser understands. The format exists purely for round-tripping
-  /// through our own `.lfs` archive export; paired with
-  /// [exportToString] below.
-  ///
-  /// Returns the number of new entries added (existing hosts are skipped).
-  Future<int> importFromString(String content) => _serializeWrite(() async {
-    await load();
-    var added = 0;
-    var skippedHashed = 0;
-    for (final line in content.split('\n')) {
-      final entries = _parseLine(line);
-      if (entries.isEmpty) {
-        if (_isHashedHostsLine(line)) skippedHashed++;
-        continue;
-      }
-      for (final entry in entries) {
-        if (_hosts.containsKey(entry.hostPort)) continue;
-        _hosts[entry.hostPort] = entry.keyString;
-        await _persistEntry(entry);
-        added++;
-      }
-    }
-    if (added > 0) {
-      AppLogger.instance.log(
-        'Imported $added known hosts from string',
-        name: 'KnownHosts',
-      );
-    }
-    if (skippedHashed > 0) {
-      AppLogger.instance.log(
-        'Skipped $skippedHashed hashed known-hosts entries (HashKnownHosts) — '
-        'we cannot reverse the HMAC-SHA1 hash back to a hostname for storage',
-        name: 'KnownHosts',
-        level: LogLevel.warn,
-      );
-    }
-    return added;
-  });
-
-  static bool _isHashedHostsLine(String line) {
+  /// Returns the number of new entries added.
+  Future<int> importFromString(String content) async {
     try {
-      return rust_parser.knownHostsIsHashedLine(line: line);
-    } catch (_) {
-      return _isHashedHostsLineDart(line);
-    }
-  }
-
-  /// Tiny Dart mirror of
-  /// `lfs_core::known_hosts_parser::is_hashed_hosts_line` for
-  /// flutter_test contexts that don't load the FRB native lib.
-  static bool _isHashedHostsLineDart(String line) {
-    final trimmed = line.trim();
-    if (trimmed.isEmpty || trimmed.startsWith('#')) return false;
-    final firstSpace = trimmed.indexOf(RegExp(r'\s'));
-    if (firstSpace < 0) return false;
-    return trimmed.substring(0, firstSpace).startsWith('|1|');
-  }
-
-  Future<void> _persistEntry(_ParsedHostEntry entry) async {
-    final hpParts = entry.hostPort.split(':');
-    final host = hpParts[0];
-    final port = hpParts.length > 1 ? int.tryParse(hpParts[1]) ?? 22 : 22;
-    try {
-      await rust_db.dbKnownHostsUpsertByHostPort(
-        host: host,
-        port: port,
-        keyType: entry.keyType,
-        keyBase64: entry.keyBase64,
-        addedAtMs: DateTime.now().millisecondsSinceEpoch,
+      final summary = await rust_db.dbKnownHostsImportFromString(
+        content: content,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
       );
+      if (summary.added > 0) {
+        AppLogger.instance.log(
+          'Imported ${summary.added} known hosts',
+          name: 'KnownHosts',
+        );
+      }
+      if (summary.skippedHashed > 0) {
+        AppLogger.instance.log(
+          'Skipped ${summary.skippedHashed} hashed known-hosts entries '
+          '(HashKnownHosts) — we cannot reverse the HMAC-SHA1 hash back '
+          'to a hostname for storage',
+          name: 'KnownHosts',
+          level: LogLevel.warn,
+        );
+      }
+      return summary.added.toInt();
     } catch (e) {
       AppLogger.instance.log(
-        '_persistEntry FRB write failed for ${entry.hostPort}: $e',
+        'importFromString FRB call failed: $e',
         name: 'KnownHosts',
         level: LogLevel.warn,
       );
+      return 0;
     }
   }
 
   /// Export all entries to the LetsFLUTssh known_hosts wire format.
   ///
-  /// Emits `host:port keytype base64key`, one entry per line —
-  /// symmetric with [importFromString] above. This is NOT real
-  /// OpenSSH format (that would be `host` / `[host]:port` with
-  /// brackets for non-default ports); the format is private to the
-  /// `.lfs` archive round-trip so the exporter stays a single
-  /// trivial line.
-  ///
-  /// Ensures the in-memory cache is hydrated first: callers that export
-  /// before any `verify()` / known-hosts-UI interaction in this session
-  /// would otherwise see an empty string even though the encrypted DB
-  /// has entries (the lazy `load()` only fires on first access). Missing
-  /// this call was the visible bug — archives shipped without the user's
-  /// TOFU history even though the checkbox was on.
+  /// Routes through the Rust exporter so the row order stays
+  /// deterministic across exports of the same DB. Used by the
+  /// `.lfs` archive composer to round-trip the user's TOFU history.
   Future<String> exportToString() async {
-    await load();
-    final sb = StringBuffer();
-    for (final entry in _hosts.entries) {
-      sb.writeln('${entry.key} ${entry.value}');
+    try {
+      return await rust_db.dbKnownHostsExportToString();
+    } catch (e) {
+      AppLogger.instance.log(
+        'exportToString FRB call failed: $e',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
+      );
+      return '';
     }
-    return sb.toString();
   }
 
   /// Compute SHA256 fingerprint of host key bytes.
@@ -463,122 +281,10 @@ class KnownHostsManager {
     return 'SHA256:${base64Encode(hash)}';
   }
 
-  String _fingerprint(List<int> keyBytes) => fingerprint(keyBytes);
-
-  /// Parse a single line into zero or more host entries.
-  ///
-  /// Accepts both formats:
-  ///
-  /// - **LetsFLUTssh internal** (`host:port keytype base64key`) —
-  ///   what `exportToString` emits for `.lfs` archive round-trips.
-  /// - **OpenSSH `~/.ssh/known_hosts`** — the file the user has
-  ///   built up over years of `ssh` use. Supports:
-  ///   - bare hostname (`example.com keytype base64`) → port 22
-  ///   - bracketed `[host]:port` for non-default ports
-  ///   - comma-separated multi-host (`example.com,1.2.3.4,...`)
-  ///   - bracketed IPv6 (`[::1]:22`, `[::1]`)
-  ///   - leading `@cert-authority` / `@revoked` markers — skipped
-  ///     (we don't ship a cert-authority chain today)
-  ///   - hashed hostnames (`|1|salt|hash`) — skipped, the HMAC-SHA1
-  ///     hash can't be reversed back to a real hostname so we have
-  ///     nothing to match against on subsequent connects. Counted
-  ///     and surfaced via the importer's "skipped N hashed entries"
-  ///     warning so the user knows their `HashKnownHosts yes` rows
-  ///     were not silently swallowed.
-  ///
-  /// Returns one entry per resolved host:port pair. A single
-  /// OpenSSH multi-host line can yield several entries.
-  static List<_ParsedHostEntry> _parseLine(String line) {
-    try {
-      final entries = rust_parser.knownHostsParseLine(line: line);
-      return [
-        for (final e in entries)
-          _ParsedHostEntry(
-            hostPort: e.hostPort,
-            keyType: e.keyType,
-            keyBase64: e.keyBase64,
-            keyString: '${e.keyType} ${e.keyBase64}',
-          ),
-      ];
-    } catch (_) {
-      return _parseLineDart(line);
-    }
+  /// Cancel the bus subscription. Idempotent — safe to call
+  /// multiple times.
+  void dispose() {
+    unawaited(_busSub?.cancel());
+    _busSub = null;
   }
-
-  /// Tiny Dart mirror of `lfs_core::known_hosts_parser::parse_line`
-  /// for flutter_test contexts that don't load the FRB native lib.
-  /// Production never reaches it.
-  static List<_ParsedHostEntry> _parseLineDart(String line) {
-    final trimmed = line.trim();
-    if (trimmed.isEmpty || trimmed.startsWith('#')) return const [];
-    final parts = trimmed.split(RegExp(r'\s+'));
-    var idx = 0;
-    while (idx < parts.length && parts[idx].startsWith('@')) {
-      idx++;
-    }
-    if (parts.length - idx < 3) return const [];
-    final hostSpec = parts[idx];
-    final keyType = parts[idx + 1];
-    final keyBase64 = parts[idx + 2];
-
-    if (hostSpec.startsWith('|1|')) return const [];
-    final keyString = '$keyType $keyBase64';
-    final out = <_ParsedHostEntry>[];
-    for (final spec in hostSpec.split(',')) {
-      final hostPort = _normaliseHostSpecDart(spec);
-      if (hostPort == null) continue;
-      out.add(
-        _ParsedHostEntry(
-          hostPort: hostPort,
-          keyType: keyType,
-          keyBase64: keyBase64,
-          keyString: keyString,
-        ),
-      );
-    }
-    return out;
-  }
-
-  static String? _normaliseHostSpecDart(String spec) {
-    final s = spec.trim();
-    if (s.isEmpty) return null;
-    if (s.startsWith('[')) {
-      final close = s.indexOf(']');
-      if (close < 0) return null;
-      final host = s.substring(1, close);
-      if (host.isEmpty) return null;
-      final tail = s.substring(close + 1);
-      if (tail.isEmpty) return '$host:22';
-      if (!tail.startsWith(':')) return null;
-      final port = int.tryParse(tail.substring(1));
-      if (port == null || port < 1 || port > 65535) return null;
-      return '$host:$port';
-    }
-    final colonCount = s.split(':').length - 1;
-    if (colonCount > 1) return null;
-    if (colonCount == 1) {
-      final parts = s.split(':');
-      final host = parts[0];
-      final port = int.tryParse(parts[1]);
-      if (host.isEmpty || port == null || port < 1 || port > 65535) {
-        return null;
-      }
-      return '$host:$port';
-    }
-    return '$s:22';
-  }
-}
-
-class _ParsedHostEntry {
-  final String hostPort;
-  final String keyType;
-  final String keyBase64;
-  final String keyString;
-
-  const _ParsedHostEntry({
-    required this.hostPort,
-    required this.keyType,
-    required this.keyBase64,
-    required this.keyString,
-  });
 }
