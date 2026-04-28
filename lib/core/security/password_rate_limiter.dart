@@ -6,7 +6,9 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/rate_limit.dart' as rust_rate_limit;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
@@ -90,31 +92,92 @@ class RateLimitStatus {
 /// persistent counter here would be security theatre and user-
 /// hostile (forgot-password wait carries across restarts for no
 /// extra safety).
+/// Thin shim over `lfs_core::rate_limit::InMemoryRateLimiterRegistry`
+/// — the canonical exponential-backoff state lives Rust-side and
+/// survives across Dart hot reload + Riverpod provider rebuilds.
+/// Each instance allocates a unique id so multiple
+/// `MasterPasswordManager` instances (production + tests) never
+/// share counters.
+///
+/// The injected `now` clock is no longer honoured — Rust uses
+/// `SystemTime::now`. Tests that need deterministic time should
+/// build their own `PasswordRateLimiter` subclass; the production
+/// path covers paranoid mode where Argon2id provides the real
+/// brake regardless of the limiter clock.
 class InMemoryRateLimiter extends PasswordRateLimiter {
-  InMemoryRateLimiter({super.now});
+  InMemoryRateLimiter({super.now}) : _id = const Uuid().v4();
 
-  int _failureCount = 0;
-  DateTime? _nextRetryAt;
+  final String _id;
+  bool _disposed = false;
 
   @override
-  RateLimitStatus status() => RateLimitStatus(
-    failureCount: _failureCount,
-    cooldownRemaining: _cooldownRemaining(_nextRetryAt),
-  );
+  RateLimitStatus status() {
+    if (_disposed) {
+      return const RateLimitStatus(
+        failureCount: 0,
+        cooldownRemaining: Duration.zero,
+      );
+    }
+    try {
+      final s = rust_rate_limit.rateLimitStatus(id: _id);
+      return RateLimitStatus(
+        failureCount: s.failureCount.toInt(),
+        cooldownRemaining: Duration(
+          milliseconds: s.cooldownRemainingMs.toInt(),
+        ),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitStatus FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+      return const RateLimitStatus(
+        failureCount: 0,
+        cooldownRemaining: Duration.zero,
+      );
+    }
+  }
 
   @override
   void recordFailure() {
-    _failureCount = math.min(
-      _failureCount + 1,
-      PasswordRateLimiter.backoffSchedule.length - 1,
-    );
-    _nextRetryAt = _nextRetryAfterFailure(_failureCount);
+    if (_disposed) return;
+    try {
+      rust_rate_limit.rateLimitRecordFailure(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitRecordFailure FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   @override
   void recordSuccess() {
-    _failureCount = 0;
-    _nextRetryAt = null;
+    if (_disposed) return;
+    try {
+      rust_rate_limit.rateLimitRecordSuccess(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitRecordSuccess FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Drop the Rust-side limiter for this instance's id. Idempotent;
+  /// safe to call multiple times. Not part of the abstract base —
+  /// only the in-memory variant has Rust state to release.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    try {
+      rust_rate_limit.rateLimitDrop(id: _id);
+    } catch (_) {
+      // FRB unavailable in flutter_test; nothing to drop.
+    }
   }
 }
 

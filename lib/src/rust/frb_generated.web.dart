@@ -20,6 +20,7 @@ import 'api/log_sanitize.dart';
 import 'api/migration.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
+import 'api/rate_limit.dart';
 import 'api/recorder.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
@@ -409,6 +410,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbQrExportOptions dco_decode_db_qr_export_options(dynamic raw);
+
+  @protected
+  DbRateLimitStatus dco_decode_db_rate_limit_status(dynamic raw);
 
   @protected
   DbRecordDirection dco_decode_db_record_direction(dynamic raw);
@@ -1059,6 +1063,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbQrExportOptions sse_decode_db_qr_export_options(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbRateLimitStatus sse_decode_db_rate_limit_status(
     SseDeserializer deserializer,
   );
 
@@ -1860,6 +1869,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_qr_export_options(
     DbQrExportOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_rate_limit_status(
+    DbRateLimitStatus self,
     SseSerializer serializer,
   );
 

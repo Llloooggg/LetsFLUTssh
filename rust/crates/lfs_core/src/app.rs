@@ -21,6 +21,7 @@ use crate::connection::ConnectionRegistry;
 use crate::db::Db;
 use crate::deeplink::DeeplinkDispatcher;
 use crate::known_hosts::PromptRegistry as KnownHostsPromptRegistry;
+use crate::rate_limit::InMemoryRateLimiterRegistry;
 use crate::error::Error;
 use crate::portforward::PortForwardRegistry;
 use crate::recorder::queue::RecorderQueue;
@@ -85,6 +86,12 @@ pub struct AppState {
     /// command and the bus dispatcher resolves the awaiting
     /// receiver.
     pub known_hosts_prompts: KnownHostsPromptRegistry,
+    /// Per-id in-memory password rate limiter pool. The Dart
+    /// `InMemoryRateLimiter` shim routes status / record_failure
+    /// / record_success through the FRB sync endpoints; the
+    /// canonical state lives in this registry across hot reload
+    /// + settings nav cycles.
+    pub rate_limiters: InMemoryRateLimiterRegistry,
 }
 
 impl AppState {
@@ -103,6 +110,7 @@ impl AppState {
             imports: ImportRegistry::new(),
             deeplinks: DeeplinkDispatcher::new(),
             known_hosts_prompts: KnownHostsPromptRegistry::new(),
+            rate_limiters: InMemoryRateLimiterRegistry::new(),
         }
     }
 

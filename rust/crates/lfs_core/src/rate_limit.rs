@@ -125,6 +125,76 @@ impl Default for InMemoryRateLimiter {
     }
 }
 
+impl Default for InMemoryRateLimiterRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Process-singleton registry of in-memory rate limiters keyed by
+/// caller-allocated id. Owned by `AppState`. The Dart shim
+/// instantiates one per [`MasterPasswordManager`] / per-tier-gate
+/// and routes through these sync FRB endpoints; the Rust side
+/// owns the canonical state across hot-reload, settings nav,
+/// and unlock cycles.
+pub struct InMemoryRateLimiterRegistry {
+    inner: Mutex<std::collections::HashMap<String, InMemoryRateLimiter>>,
+}
+
+impl InMemoryRateLimiterRegistry {
+    pub fn new() -> Self {
+        Self {
+            inner: Mutex::new(std::collections::HashMap::new()),
+        }
+    }
+
+    /// Snapshot the limiter under `id`. Auto-creates a fresh
+    /// limiter for unknown ids — the first `status()` call after a
+    /// hot reload should not throw.
+    pub fn status(&self, id: &str) -> RateLimitStatus {
+        let mut g = self.inner.lock().expect("rate limiter registry mutex poisoned");
+        g.entry(id.to_string())
+            .or_insert_with(InMemoryRateLimiter::new)
+            .status()
+    }
+
+    /// Register a failed attempt against `id`. Auto-creates a
+    /// limiter on first failure.
+    pub fn record_failure(&self, id: &str) {
+        let mut g = self.inner.lock().expect("rate limiter registry mutex poisoned");
+        g.entry(id.to_string())
+            .or_insert_with(InMemoryRateLimiter::new)
+            .record_failure();
+    }
+
+    /// Register a successful attempt against `id`. Auto-creates a
+    /// limiter (idempotent) — `recordSuccess` on a never-failed
+    /// id is a no-op.
+    pub fn record_success(&self, id: &str) {
+        let mut g = self.inner.lock().expect("rate limiter registry mutex poisoned");
+        g.entry(id.to_string())
+            .or_insert_with(InMemoryRateLimiter::new)
+            .record_success();
+    }
+
+    /// Drop the limiter for `id`. Used at logout / wipe-all to
+    /// reclaim memory; idempotent on a missing id.
+    pub fn drop_id(&self, id: &str) -> bool {
+        self.inner
+            .lock()
+            .expect("rate limiter registry mutex poisoned")
+            .remove(id)
+            .is_some()
+    }
+
+    pub fn count(&self) -> usize {
+        self.inner
+            .lock()
+            .expect("rate limiter registry mutex poisoned")
+            .len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

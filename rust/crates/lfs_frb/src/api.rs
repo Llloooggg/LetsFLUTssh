@@ -15,6 +15,7 @@ pub mod log_sanitize;
 pub mod migration;
 pub mod password_strength;
 pub mod path;
+pub mod rate_limit;
 pub mod recorder;
 pub mod sftp;
 pub mod ssh;
