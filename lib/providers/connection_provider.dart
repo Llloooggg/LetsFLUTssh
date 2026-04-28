@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/bus/app_bus.dart';
 import '../core/connection/connection.dart';
 import '../core/connection/connection_manager.dart';
 import '../core/connection/foreground_service.dart';
 import '../core/ssh/known_hosts.dart';
+import '../src/rust/api/bus.dart' as rust_bus;
 import 'session_credential_cache_provider.dart';
 
 /// Known hosts manager — singleton.
@@ -20,17 +22,50 @@ final foregroundServiceProvider = Provider<ForegroundServiceManager>((ref) {
 });
 
 /// Connection manager — singleton.
+///
+/// Active-count notifications no longer pass through the manager —
+/// the Rust connection registry publishes
+/// [rust_bus.BusEvent_ConnectionActiveCountChanged] on every state
+/// transition, and [foregroundActiveCountListenerProvider] below
+/// drives `ForegroundServiceManager.onConnectionCountChanged`
+/// straight off the bus.
 final connectionManagerProvider = Provider<ConnectionManager>((ref) {
   final knownHosts = ref.watch(knownHostsProvider);
-  final foreground = ref.watch(foregroundServiceProvider);
   final credentialCache = ref.watch(sessionCredentialCacheProvider);
   final manager = ConnectionManager(
     knownHosts: knownHosts,
     credentialCache: credentialCache,
-    onActiveCountChanged: (count) => foreground.onConnectionCountChanged(count),
   );
   ref.onDispose(() => manager.dispose());
   return manager;
+});
+
+/// User-visible Connected count — derived from the Rust registry's
+/// `ConnectionActiveCountChanged` bus event so the UI gets the same
+/// count the Android foreground-service binding sees, in lock-step.
+/// Yields `0` until the first event arrives.
+final connectionActiveCountProvider = StreamProvider<int>((ref) async* {
+  yield 0;
+  await for (final event in AppBus.instance.subscribe(
+    rust_bus.BusTopic.connection,
+  )) {
+    if (event is rust_bus.BusEvent_ConnectionActiveCountChanged) {
+      yield event.count.toInt();
+    }
+  }
+});
+
+/// Side-effect listener that bridges the Rust active-count event to
+/// the Android foreground-service binding. Watch from the app's root
+/// scope (`main.dart`) so the listener is alive for the process
+/// lifetime.
+final foregroundActiveCountListenerProvider = Provider<void>((ref) {
+  final foreground = ref.watch(foregroundServiceProvider);
+  ref.listen<AsyncValue<int>>(connectionActiveCountProvider, (prev, next) {
+    next.whenData((count) {
+      foreground.onConnectionCountChanged(count);
+    });
+  });
 });
 
 /// Reactive list of active connections.

@@ -17,9 +17,6 @@ import '../ssh/transport/ssh_transport.dart';
 import 'connection.dart';
 import 'connection_step.dart';
 
-/// Optional callback invoked when the number of active (connected) sessions changes.
-typedef ActiveCountCallback = void Function(int activeCount);
-
 /// Callback for interactive passphrase prompts — set by the UI layer.
 typedef PassphrasePromptCallback =
     Future<({String passphrase, bool remember})?> Function(
@@ -46,10 +43,6 @@ class ConnectionManager {
   /// reconnect-after-lock. See [SessionCredentialCache].
   final SessionCredentialCache? _credentialCache;
 
-  /// Called whenever the number of *connected* sessions changes.
-  /// Used by [ForegroundServiceManager] on Android to start/stop the service.
-  ActiveCountCallback? onActiveCountChanged;
-
   /// Called when an encrypted SSH key needs a passphrase interactively.
   /// Reserved for the upcoming Rust-side passphrase callback hook —
   /// today it stays unwired (the Rust transport returns
@@ -65,7 +58,6 @@ class ConnectionManager {
   ConnectionManager({
     required this.knownHosts,
     SessionCredentialCache? credentialCache,
-    this.onActiveCountChanged,
   }) : _credentialCache = credentialCache;
 
   /// User-visible connections. Excludes internal bastion hops the
@@ -741,22 +733,9 @@ class ConnectionManager {
 
   bool _disposed = false;
 
-  int _lastActiveCount = 0;
-
   void _notify() {
     if (!_disposed) {
       _controller.add(null);
-      _notifyActiveCount();
-    }
-  }
-
-  void _notifyActiveCount() {
-    final count = _connections.values
-        .where((c) => c.state == SSHConnectionState.connected)
-        .length;
-    if (count != _lastActiveCount) {
-      _lastActiveCount = count;
-      onActiveCountChanged?.call(count);
     }
   }
 

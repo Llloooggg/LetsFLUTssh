@@ -554,6 +554,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     super.initState();
     wireDeepLinks(_deepLinkHandler, ref);
     HostKeyPromptListener.start();
+    // Activate the bus → foreground-service bridge. The provider's
+    // body wires `ref.listen` against the active-count stream; the
+    // act of reading it once installs the listener for the process
+    // lifetime.
+    ref.read(foregroundActiveCountListenerProvider);
     _listenForStartupUpdate();
     _listenForFirstLaunchBanner();
   }
