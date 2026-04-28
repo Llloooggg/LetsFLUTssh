@@ -13,6 +13,7 @@ import 'api/bus.dart';
 import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/deeplink.dart';
+import 'api/folder_path.dart';
 import 'api/forward.dart';
 import 'api/hardware_tier_vault.dart';
 import 'api/keychain_marker.dart';

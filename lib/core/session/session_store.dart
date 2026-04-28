@@ -7,6 +7,7 @@ import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
+import '../db/_folder_path_compat.dart';
 import '../db/mappers.dart';
 import '../ssh/port_forward_rule.dart';
 import 'session.dart';
@@ -590,8 +591,22 @@ class SessionStore {
       }
     }
 
-    _renamePaths(_emptyFolders, oldPath, newPath);
-    _renamePaths(_collapsedFolders, oldPath, newPath);
+    final renamedEmpty = folderRenamePathsCascadeCompat(
+      _emptyFolders,
+      oldPath,
+      newPath,
+    );
+    _emptyFolders
+      ..clear()
+      ..addAll(renamedEmpty);
+    final renamedCollapsed = folderRenamePathsCascadeCompat(
+      _collapsedFolders,
+      oldPath,
+      newPath,
+    );
+    _collapsedFolders
+      ..clear()
+      ..addAll(renamedCollapsed);
 
     try {
       final folderId = findFolderIdByPath(oldPath, _folderMap);
@@ -614,23 +629,6 @@ class SessionStore {
         level: LogLevel.warn,
       );
     }
-  }
-
-  /// Rename paths in a set: exact match and children under oldPath/.
-  static void _renamePaths(Set<String> paths, String oldPath, String newPath) {
-    final toRemove = <String>[];
-    final toAdd = <String>[];
-    for (final p in paths) {
-      if (p == oldPath) {
-        toRemove.add(p);
-        toAdd.add(newPath);
-      } else if (p.startsWith('$oldPath/')) {
-        toRemove.add(p);
-        toAdd.add(newPath + p.substring(oldPath.length));
-      }
-    }
-    paths.removeAll(toRemove);
-    paths.addAll(toAdd);
   }
 
   Future<void> deleteFolder(String folderPath) async {
@@ -740,16 +738,6 @@ class SessionStore {
 
   // ── Internals ───────────────────────────────────────────────────
 
-  String _pathForId(String? folderId) {
-    if (folderId == null) return '';
-    final parts = <String>[];
-    String? current = folderId;
-    while (current != null) {
-      final folder = _folderMap[current];
-      if (folder == null) break;
-      parts.add(folder.name);
-      current = folder.parentId;
-    }
-    return parts.reversed.join('/');
-  }
+  String _pathForId(String? folderId) =>
+      folderBuildPathCompat(folderId, _folderMap);
 }

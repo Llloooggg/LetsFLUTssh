@@ -6,6 +6,7 @@ import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../session/session.dart';
 import '../ssh/ssh_config.dart';
+import '_folder_path_compat.dart';
 
 // ---------------------------------------------------------------------------
 // Session ↔ DB mapping
@@ -123,34 +124,15 @@ rust_db.DbSession sessionToRustRow(Session s, {required String? folderId}) {
 // ---------------------------------------------------------------------------
 
 /// Build folder path string (e.g. "Production/EU") from a folderId by walking
-/// up the parent chain.
-///
-/// If a referenced folder id is not present in [folderMap] (an orphaned
-/// `parent_id` pointing at a deleted row), the partial path collected so far
-/// is prefixed with `(orphaned)/` so the inconsistency is surfaced in the UI
-/// instead of being silently truncated, and a warning is logged with both ids
-/// so it can be diagnosed offline.
+/// up the parent chain. Routes through `lfs_core::folder_path::build_folder_path`
+/// via the FRB shim — same orphan-marker grammar (a missing parent_id surfaces
+/// as `(orphaned)/{partial}` so the UI sees the inconsistency rather than
+/// silently dropping the leaf name).
 String _buildFolderPath(
   String? folderId,
   Map<String, rust_db.DbFolder> folderMap,
 ) {
-  if (folderId == null) return '';
-  final parts = <String>[];
-  String? current = folderId;
-  while (current != null) {
-    final folder = folderMap[current];
-    if (folder == null) {
-      AppLogger.instance.log(
-        'Orphan folder reference: id=$current (started from $folderId). '
-        'Partial path: ${parts.reversed.join('/')}',
-        name: 'FolderMapper',
-      );
-      return '(orphaned)/${parts.reversed.join('/')}';
-    }
-    parts.add(folder.name);
-    current = folder.parentId;
-  }
-  return parts.reversed.join('/');
+  return folderBuildPathCompat(folderId, folderMap);
 }
 
 /// Resolve a folder path string to a folderId, creating missing folders.
@@ -214,25 +196,18 @@ Map<String, rust_db.DbFolder> buildFolderMap(List<rust_db.DbFolder> folders) {
   return {for (final f in folders) f.id: f};
 }
 
-/// Collect all folder path strings from the folder tree.
+/// Collect all folder path strings from the folder tree. Routes through
+/// `lfs_core::folder_path::all_folder_paths` so the Rust + Dart paths agree
+/// on the orphan-marker grammar by construction.
 Set<String> allFolderPaths(Map<String, rust_db.DbFolder> folderMap) {
-  final paths = <String>{};
-  for (final folder in folderMap.values) {
-    paths.add(_buildFolderPath(folder.id, folderMap));
-  }
-  return paths;
+  return folderAllPathsCompat(folderMap);
 }
 
-/// Find folderId by exact path string (returns null if not found).
+/// Find folderId by exact path string (returns null if not found). Routes
+/// through `lfs_core::folder_path::find_folder_id_by_path`.
 String? findFolderIdByPath(
   String path,
   Map<String, rust_db.DbFolder> folderMap,
 ) {
-  if (path.isEmpty) return null;
-  for (final entry in folderMap.entries) {
-    if (_buildFolderPath(entry.key, folderMap) == path) {
-      return entry.key;
-    }
-  }
-  return null;
+  return folderFindIdByPathCompat(path, folderMap);
 }
