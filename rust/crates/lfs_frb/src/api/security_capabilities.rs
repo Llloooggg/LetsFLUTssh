@@ -66,6 +66,25 @@ pub struct DbSecurityCapabilities {
     pub hardware_probe_code: String,
 }
 
+/// Wizard rule — true when the biometric modifier toggle should
+/// be offerable on this host. On Linux either the platform
+/// biometric API or fprintd suffices; every other platform
+/// requires the platform biometric API. Mirrors
+/// `SecurityCapabilities::can_offer_biometric_modifier` byte-for-
+/// byte.
+#[flutter_rust_bridge::frb(sync)]
+pub fn security_capabilities_can_offer_biometric_modifier(
+    biometric_available: bool,
+    fprintd_available: bool,
+    is_linux_host: bool,
+) -> bool {
+    if is_linux_host {
+        biometric_available || fprintd_available
+    } else {
+        biometric_available
+    }
+}
+
 /// Parse a `security_probe_cache` JSON snapshot. Returns `None` for
 /// any malformed shape (non-object root, unknown enum case,
 /// missing required strings) so the Dart caller falls through to

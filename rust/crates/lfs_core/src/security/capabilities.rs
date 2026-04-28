@@ -92,6 +92,24 @@ impl SecurityCapabilities {
         }
     }
 
+    /// Whether the biometric modifier is offerable on this host.
+    /// On Linux either the platform biometric API or fprintd
+    /// suffices (the wizard accepts the looser disjunction so a
+    /// fingerprint reader behind fprintd still unlocks the toggle
+    /// even when local_auth doesn't enumerate the device); every
+    /// other platform requires the platform biometric API.
+    ///
+    /// Password-dependency ("biometric requires password") is a UX
+    /// rule the wizard enforces separately — not a capability fact.
+    #[must_use]
+    pub fn can_offer_biometric_modifier(&self) -> bool {
+        if self.is_linux_host {
+            self.biometric_available || self.fprintd_available
+        } else {
+            self.biometric_available
+        }
+    }
+
     /// Render to the JSON shape the Dart wizard's `toJson` emits.
     pub fn to_json_value(&self) -> Value {
         json!({
@@ -276,5 +294,35 @@ mod tests {
         assert!(!d.is_linux_host);
         assert_eq!(d.keychain_probe, KeyringProbeResult::ProbeFailed);
         assert_eq!(d.hardware_probe_code, "unknown");
+    }
+
+    #[test]
+    fn linux_offers_biometric_when_either_platform_or_fprintd_available() {
+        let mut caps = sample();
+        caps.is_linux_host = true;
+        caps.biometric_available = false;
+        caps.fprintd_available = true;
+        assert!(caps.can_offer_biometric_modifier());
+
+        caps.fprintd_available = false;
+        caps.biometric_available = true;
+        assert!(caps.can_offer_biometric_modifier());
+
+        caps.biometric_available = false;
+        caps.fprintd_available = false;
+        assert!(!caps.can_offer_biometric_modifier());
+    }
+
+    #[test]
+    fn non_linux_only_uses_platform_biometric() {
+        let mut caps = sample();
+        caps.is_linux_host = false;
+        // fprintd-only on a Mac means nothing for the wizard.
+        caps.biometric_available = false;
+        caps.fprintd_available = true;
+        assert!(!caps.can_offer_biometric_modifier());
+
+        caps.biometric_available = true;
+        assert!(caps.can_offer_biometric_modifier());
     }
 }

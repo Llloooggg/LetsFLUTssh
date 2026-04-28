@@ -38,6 +38,23 @@ String securityCapabilitiesToJson({
       hardwareProbeCode: hardwareProbeCode,
     );
 
+/// Wizard rule — true when the biometric modifier toggle should
+/// be offerable on this host. On Linux either the platform
+/// biometric API or fprintd suffices; every other platform
+/// requires the platform biometric API. Mirrors
+/// `SecurityCapabilities::can_offer_biometric_modifier` byte-for-
+/// byte.
+bool securityCapabilitiesCanOfferBiometricModifier({
+  required bool biometricAvailable,
+  required bool fprintdAvailable,
+  required bool isLinuxHost,
+}) => RustLib.instance.api
+    .crateApiSecurityCapabilitiesSecurityCapabilitiesCanOfferBiometricModifier(
+      biometricAvailable: biometricAvailable,
+      fprintdAvailable: fprintdAvailable,
+      isLinuxHost: isLinuxHost,
+    );
+
 /// Parse a `security_probe_cache` JSON snapshot. Returns `None` for
 /// any malformed shape (non-object root, unknown enum case,
 /// missing required strings) so the Dart caller falls through to

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../utils/logger.dart';
 import '_crypto_compat.dart';
 import 'biometric_auth.dart';
@@ -154,9 +155,25 @@ class SecurityCapabilities {
   /// platform the platform biometric API suffices. Password-dependency
   /// ("biometric requires password") is enforced separately by the
   /// wizard UI because it is a UX rule, not a capability fact.
-  bool get canOfferBiometricModifier => isLinuxHost
-      ? (biometricAvailable || fprintdAvailable)
-      : biometricAvailable;
+  ///
+  /// Routes through
+  /// `lfs_core::security::capabilities::can_offer_biometric_modifier`
+  /// so the platform-disjunction rule lives one place; falls back
+  /// to the inline expression for flutter_test contexts that don't
+  /// load the FRB native lib.
+  bool get canOfferBiometricModifier {
+    try {
+      return rust_caps.securityCapabilitiesCanOfferBiometricModifier(
+        biometricAvailable: biometricAvailable,
+        fprintdAvailable: fprintdAvailable,
+        isLinuxHost: isLinuxHost,
+      );
+    } catch (_) {
+      return isLinuxHost
+          ? (biometricAvailable || fprintdAvailable)
+          : biometricAvailable;
+    }
+  }
 }
 
 /// Asynchronously probe every OS / hardware capability the wizard
