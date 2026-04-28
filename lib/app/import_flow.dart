@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/import/import_service.dart';
 import '../core/progress/progress_reporter.dart';
 import '../src/rust/api/archive.dart' as rust_archive;
-import '../core/session/qr_codec.dart';
 import '../core/session/qr_decoded_source.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
@@ -40,18 +39,11 @@ Future<void> handleQrImport(WidgetRef ref, QrDecodedSource source) async {
   if (choice == null) return;
 
   try {
-    final ImportSummary summary;
-    final rust = source.asRust;
-    if (rust != null) {
-      summary = await _applyRustQrSource(ref: ref, rust: rust, choice: choice);
-    } else {
-      final dart = source.asDart!;
-      summary = await _applyDartQrSource(
-        ref: ref,
-        payload: dart,
-        choice: choice,
-      );
-    }
+    final summary = await _applyRustQrSource(
+      ref: ref,
+      rust: source.rust,
+      choice: choice,
+    );
 
     AppLogger.instance.log(
       'QR import complete: ${summary.sessions} session(s), '
@@ -122,53 +114,10 @@ Future<ImportSummary> _applyRustQrSource({
   return _summaryFromApply(apply, cfg != null);
 }
 
-/// Apply a Dart-walked QR payload. Used by the test surface and by
-/// production when the FRB native lib isn't loaded — the legacy
-/// `ExportPayloadData` tree builds an `ImportResult`, the existing
-/// `applyResultViaRust` path stages it.
-Future<ImportSummary> _applyDartQrSource({
-  required WidgetRef ref,
-  required ExportPayloadData payload,
-  required LinkImportPreviewResult choice,
-}) async {
-  final fullResult = ImportResult(
-    sessions: payload.sessions,
-    emptyFolders: payload.emptyFolders,
-    managerKeys: payload.managerKeys,
-    tags: payload.tags,
-    sessionTags: payload.sessionTags,
-    folderTags: payload.folderTags,
-    snippets: payload.snippets,
-    sessionSnippets: payload.sessionSnippets,
-    config: payload.config,
-    mode: choice.mode,
-    knownHostsContent: payload.knownHostsContent,
-    includeTags: payload.tags.isNotEmpty,
-    includeSnippets: payload.snippets.isNotEmpty,
-    includeKnownHosts: payload.knownHostsContent != null,
-  );
-  final importResult = fullResult.filtered(choice.options, choice.mode);
-  final apply = await applyResultViaRust(
-    importResult,
-    refreshAfterImport: () => _refreshStores(ref),
-  );
-  if (importResult.config != null) {
-    ref.read(configProvider.notifier).update((_) => importResult.config!);
-  }
-  _invalidateImportProviders(ref);
-  return _summaryFromApply(
-    apply,
-    importResult.config != null,
-    skippedSessions: importResult.skippedSessions,
-  );
-}
-
 /// Public helper for callers that already have a [QrDecodedSource]
 /// + a user-confirmed [LinkImportPreviewResult] (paste-import-link
 /// flow on Settings, where the dialog is shown by the screen and
-/// the apply is dispatched separately). Mirrors the Rust / Dart
-/// branch logic of [handleQrImport] without re-rendering the
-/// preview.
+/// the apply is dispatched separately).
 Future<void> handleQrImportSource({
   required BuildContext context,
   required WidgetRef ref,
@@ -176,17 +125,11 @@ Future<void> handleQrImportSource({
   required LinkImportPreviewResult choice,
 }) async {
   try {
-    final ImportSummary summary;
-    final rust = source.asRust;
-    if (rust != null) {
-      summary = await _applyRustQrSource(ref: ref, rust: rust, choice: choice);
-    } else {
-      summary = await _applyDartQrSource(
-        ref: ref,
-        payload: source.asDart!,
-        choice: choice,
-      );
-    }
+    final summary = await _applyRustQrSource(
+      ref: ref,
+      rust: source.rust,
+      choice: choice,
+    );
     if (!context.mounted) return;
     Toast.show(
       context,

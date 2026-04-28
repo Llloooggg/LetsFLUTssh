@@ -921,8 +921,10 @@ class _QrExportTile extends ConsumerWidget {
     );
 
     final deepLink = wrapInDeepLink(payload);
-    final data = decodeImportUri(Uri.parse(deepLink));
-    final sessionCount = data?.sessions.length ?? 0;
+    // Selected ids = exported session count (the encoder writes one
+    // entry per id). Avoids round-tripping the encoded blob back
+    // through the Dart decoder just to count.
+    final sessionCount = selectedIds.length;
     // Reflect the *actual* export choice on the display screen. The QR
     // mode default is `includePasswords: true`, so a blanket reassurance
     // that the code carries no credentials would be misleading.
