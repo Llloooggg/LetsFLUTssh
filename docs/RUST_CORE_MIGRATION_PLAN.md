@@ -864,7 +864,7 @@ Typed `Command` enum dispatched over FRB; per-screen `viewStream::<T>()` subscri
 | Sub-phase | Status |
 |---|---|
 | 5.0 Foundation (Cmd/Evt bus) | `[x]` shipped |
-| 5.1 Connection lifecycle | `[-]` Rust actor + bus events + ProxyJump shipped; Dart `ConnectionManager` still owns registry / generation / bastion-await / credential overlay / active-count — see [RUST_MIGRATION_NEXT_PLAN.md] step 4 |
+| 5.1 Connection lifecycle | `[-]` Rust actor + bus events + ProxyJump + active-count bus event shipped; Dart `ConnectionManager` registry mirror + credential overlay wrapper retire still pending — see [RUST_MIGRATION_NEXT_PLAN.md] step 4 |
 | 5.2 Port forward actor | `[x]` shipped — Rust drivers (`-L` / `-D` SOCKS5 / `-R`) + bus events landed earlier; Dart `PortForwardRuntime` retired to a ~150-LOC FRB shim |
 | 5.3 Transfer queue actor | `[-]` Rust queue + state machine + worker pool + chunked SFTP streaming executor + cancellation token + FRB enqueue/snapshot/cancel/clear-history surface shipped; Dart `TransferManager` retire (closure-based `TransferTask` → typed enqueue) pending — NEXT_PLAN step 5 |
 | 5.4 Recorder | `[x]` shipped — `lfs_core::recorder::queue` per-id mpsc + worker serialises header/event/rotate/close; auto-rotation routes through a `RecorderRotateRequested` bus event; Dart `SessionRecorder` reduced to fire-and-forget enqueues |
