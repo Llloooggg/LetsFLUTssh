@@ -27,9 +27,6 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read, Write};
 
-use base64::engine::{general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use flate2::write::DeflateEncoder;
-use flate2::Compression;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use rusqlite::Connection;
@@ -1873,19 +1870,15 @@ pub fn qr_export_payload(conn: &Connection, input: &QrExportInput) -> Result<Str
         }
     }
 
-    let json_bytes = serde_json::to_vec(&Value::Object(payload))
+    let json = serde_json::to_string(&Value::Object(payload))
         .map_err(|e| Error::Io(format!("qr json serialise: {e}")))?;
 
-    // Deflate the JSON, then base64url-encode (no padding) to match
-    // Dart's `Deflate(utf8.encode(json)).getBytes()` +
-    // `base64Url.encode(...)` pipeline.
-    let mut enc = DeflateEncoder::new(Vec::new(), Compression::default());
-    enc.write_all(&json_bytes)
-        .map_err(|e| Error::Io(format!("qr deflate write: {e}")))?;
-    let deflated = enc
-        .finish()
-        .map_err(|e| Error::Io(format!("qr deflate finish: {e}")))?;
-    Ok(URL_SAFE_NO_PAD.encode(&deflated))
+    // Canonical deflate + base64url-no-pad lives in
+    // `crate::qr_codec_encode::compress_to_payload` — same
+    // function the Dart in-memory encoder + the export-controller
+    // size-estimator route through. Keeps the wire shape one
+    // place across every producer.
+    Ok(crate::qr_codec_encode::compress_to_payload(&json))
 }
 
 /// Compact per-session payload — same field names as Dart's
