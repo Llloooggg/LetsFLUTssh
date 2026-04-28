@@ -319,6 +319,14 @@ fn verify_against_verifier(key: &[u8], verifier: &[u8]) -> bool {
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let tmp = path.with_extension("tmp");
     fs::write(&tmp, bytes).map_err(|e| format!("write {}: {e}", tmp.display()))?;
+    // Harden the perms on the tmp file BEFORE rename — same order
+    // the Dart `writeBytesAtomic` follows. A reader that races the
+    // rename never sees the file with default umask perms. The
+    // outcome is best-effort: a failed harden is the same posture
+    // pre-port (a successfully-written-but-permissive file). The
+    // Dart side logged + swallowed; we do the same to keep
+    // behaviour parity until `lfs_core` has its own logging hook.
+    let _ = crate::path::harden_file_perms(&tmp);
     fs::rename(&tmp, path).map_err(|e| format!("rename {}: {e}", path.display()))?;
     Ok(())
 }
@@ -452,5 +460,25 @@ mod tests {
         let key = enable(dir.path(), "p", &params).unwrap();
         let again = derive_key_from_disk(dir.path(), "p").unwrap();
         assert_eq!(again, key);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn enable_writes_files_with_owner_only_perms() {
+        // The Dart `writeBytesAtomic` always called `hardenFilePerms`
+        // on the temp file before rename — without the matching
+        // chmod 0600 in the Rust write_atomic, the credentials.kdf
+        // and credentials.verify files would land at the default
+        // umask (typically 0644, world-readable). That would be a
+        // security regression for installs migrated from the Dart
+        // writer. Confirm the Rust write keeps 0600 parity.
+        use std::os::unix::fs::PermissionsExt;
+        let dir = TempDir::new().unwrap();
+        enable(dir.path(), "x", &fast_params()).unwrap();
+        for name in [KDF_FILE_NAME, VERIFIER_FILE_NAME] {
+            let p = dir.path().join(name);
+            let mode = std::fs::metadata(&p).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "{name} did not land at 0600 (got {mode:o})");
+        }
     }
 }
