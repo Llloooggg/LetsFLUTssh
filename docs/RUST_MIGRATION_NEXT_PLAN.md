@@ -480,6 +480,25 @@ gate clears.
   for asciinema timestamps) routed through
   `lfs_core::format::{format_size_iec,
   format_duration_seconds_fractional}`.
+- ~~`core/security/security_bootstrap.dart` biometric capability
+  rule~~ — **DONE**. `canOfferBiometricModifier` (Linux:
+  biometric-or-fprintd, others: biometric-only) routes through
+  `lfs_core::security::capabilities::can_offer_biometric_modifier`.
+- ~~`core/ssh/known_hosts.dart::KnownHostsManager.fingerprint`
+  shape fix~~ — **DONE**. The Dart helper used `base64Encode`
+  (with `=` padding) while the Rust core used
+  `STANDARD_NO_PAD`, so the same key rendered differently in
+  side-by-side UI surfaces. Routes through
+  `lfs_core::ssh::format_fingerprint`; Dart fallback now strips
+  trailing `=` to match the OpenSSH-canonical no-pad shape.
+- ~~`core/security/key_store.dart` content-hash fingerprints~~ —
+  **DONE**. `publicKeyFingerprint` + `privateKeyFingerprint`
+  (CRLF→LF + trim + SHA-256 hex) collapse to canonical
+  `lfs_core::keys::normalized_text_fingerprint`.
+- ~~`core/import/key_file_helper.dart` path safety helpers~~ —
+  **DONE**. `basename` (Windows-separator-aware) and
+  `isSuspiciousPath` (`..`-segment detector) routed through
+  `lfs_core::path::{basename, is_suspicious_path}`.
 
 After step 13: every load-bearing path runs in Rust. Dart layer
 is widgets + Riverpod subscribers + MethodChannel proxies.
