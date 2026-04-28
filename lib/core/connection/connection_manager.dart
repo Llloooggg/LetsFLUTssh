@@ -127,7 +127,7 @@ class ConnectionManager {
     SSHConfig config,
     int generation,
   ) async {
-    final effectiveConfig = await _withCredentialOverlay(conn, config);
+    final effectiveConfig = _withCredentialOverlay(conn, config);
     final auth = await _authFromConfig(effectiveConfig.auth, conn.sessionId);
 
     // The actor expects the parent to be in `Connected` state — if
@@ -499,64 +499,23 @@ class ConnectionManager {
     return SshAuthPasswordRef(id);
   }
 
-  /// Overlay credentials onto [config] from two defensive sources, in
-  /// order of precedence:
-  ///   1. [SessionCredentialCache] — page-locked copies kept alive across
-  ///      auto-lock, so a reconnect issued while the encrypted store is
-  ///      closed (see `AutoLockDetector`) still sees the user's password,
-  ///      key bytes, and passphrase. Applied only when the session has a
-  ///      stable id — quick-connect sessions have nothing to key on.
-  ///   2. [Connection.cachedPassphrase] — populated on interactive
-  ///      passphrase prompts with the "remember" box ticked. Strictly
-  ///      narrower than the session cache; applied only when neither the
-  ///      config nor the session cache carry a passphrase. Kept so the
-  ///      "remember for this session" UX still works for one-off keys
-  ///      that aren't in the session store.
-  Future<SSHConfig> _withCredentialOverlay(
-    Connection conn,
-    SSHConfig config,
-  ) async {
-    var auth = config.auth;
-    auth = await _overlaySessionCache(auth, conn.sessionId);
-    if (auth.passphrase.isEmpty && conn.cachedPassphrase != null) {
-      auth = auth.copyWith(passphrase: conn.cachedPassphrase);
-    }
-    return identical(auth, config.auth) ? config : config.copyWith(auth: auth);
-  }
-
-  /// Merge any password / key / passphrase entries the
-  /// [SessionCredentialCache] holds for [sessionId] into [auth],
-  /// overwriting empty fields only. The cache no longer serves
-  /// plaintext to the Dart heap — read accessors return null — so
-  /// the overlay is currently a no-op. It stays in place because the
-  /// connect path will later resolve bytes Rust-side via a
-  /// `connect_*_with_secret` variant; at that point the overlay is
-  /// the right layering point to re-introduce.
-  Future<SshAuth> _overlaySessionCache(SshAuth auth, String? sessionId) async {
-    final cache = _credentialCache;
-    if (sessionId == null || cache == null) return auth;
-    final cached = cache.read(sessionId);
-    if (cached == null) return auth;
-    var merged = auth;
-    if (merged.password.isEmpty) {
-      final cachedPassword = await cached.readPassword();
-      if (cachedPassword != null) {
-        merged = merged.copyWith(password: cachedPassword);
-      }
-    }
-    if (merged.keyData.isEmpty) {
-      final cachedKey = await cached.readKeyData();
-      if (cachedKey != null) {
-        merged = merged.copyWith(keyData: cachedKey);
-      }
-    }
-    if (merged.passphrase.isEmpty) {
-      final cachedPassphrase = await cached.readKeyPassphrase();
-      if (cachedPassphrase != null) {
-        merged = merged.copyWith(passphrase: cachedPassphrase);
-      }
-    }
-    return merged;
+  /// Overlay [Connection.cachedPassphrase] onto [config] when set —
+  /// populated on interactive passphrase prompts with the "remember"
+  /// box ticked. Applied only when the config does not already carry
+  /// a passphrase, so an explicitly-passed value wins. Kept so the
+  /// "remember for this session" UX still works for one-off keys that
+  /// are not in the session store.
+  ///
+  /// The wider `SessionCredentialCache` overlay used to live here too,
+  /// but the cache stopped serving plaintext to the Dart heap (every
+  /// `read*` accessor returned null) once `SecretStore` became the
+  /// canonical store, so the overlay collapsed to a no-op and was
+  /// retired. The eventual `connect_*_with_secret` connect variant
+  /// will resolve the cached bytes Rust-side instead.
+  SSHConfig _withCredentialOverlay(Connection conn, SSHConfig config) {
+    final cached = conn.cachedPassphrase;
+    if (cached == null || config.auth.passphrase.isNotEmpty) return config;
+    return config.copyWith(auth: config.auth.copyWith(passphrase: cached));
   }
 
   /// Store the post-auth credential envelope so a later reconnect
