@@ -18,6 +18,30 @@ List<String> sessionsFilter({
   query: query,
 );
 
+/// Validate a session's storable-field set: host non-empty, port in
+/// 1..=65535, user non-empty. Returns the user-facing error message
+/// or `None` when the session is storable. Same grammar as
+/// `Session.validate` Dart-side.
+String? sessionsValidateFields({
+  required String host,
+  required int port,
+  required String user,
+}) => RustLib.instance.api.crateApiSessionsSessionsValidateFields(
+  host: host,
+  port: port,
+  user: user,
+);
+
+/// Count session folders matching [`folder_path`] exactly or sitting
+/// under `{folder_path}/`. Empty path counts root-level sessions.
+int sessionsCountInFolder({
+  required List<String> sessionFolders,
+  required String folderPath,
+}) => RustLib.instance.api.crateApiSessionsSessionsCountInFolder(
+  sessionFolders: sessionFolders,
+  folderPath: folderPath,
+);
+
 /// Searchable Session projection — id + the four fields the UI
 /// search bar matches against. The Dart caller projects its
 /// domain `Session` list once and feeds it here, avoiding a

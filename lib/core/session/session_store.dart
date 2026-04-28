@@ -567,12 +567,26 @@ class SessionStore {
     }
   }
 
+  /// Count sessions whose folder equals [folderPath] or sits under
+  /// `{folderPath}/`. Routes through
+  /// `lfs_core::sessions::count_in_folder` so the prefix-match
+  /// grammar lives one place; falls back to the equivalent Dart
+  /// scan when the FRB native lib is not loaded.
   int countSessionsInFolder(String folderPath) {
-    return _sessions
-        .where(
-          (s) => s.folder == folderPath || s.folder.startsWith('$folderPath/'),
-        )
-        .length;
+    try {
+      return rust_sess.sessionsCountInFolder(
+        sessionFolders: _sessions.map((s) => s.folder).toList(growable: false),
+        folderPath: folderPath,
+      );
+    } catch (_) {
+      if (folderPath.isEmpty) {
+        return _sessions.where((s) => s.folder.isEmpty).length;
+      }
+      final prefix = '$folderPath/';
+      return _sessions
+          .where((s) => s.folder == folderPath || s.folder.startsWith(prefix))
+          .length;
+    }
   }
 
   // ── Folder operations ───────────────────────────────────────────
