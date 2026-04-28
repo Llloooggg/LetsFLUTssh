@@ -43,7 +43,7 @@ right now"*, the design is wrong.
 | 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |
 | 8b. `update_service::cert_pinning` Dart shim drop | DONE | `4710271e` |
 | 8c. `update_service` state machine → Rust | DONE — `lfs_core::update_orchestrator` owns the GitHub-API parse + asset selection + signed-manifest verification; Dart `UpdateService.checkForUpdate` / `downloadAsset` route through FRB by default with a Dart fallback retained only for the test-injection path |
-| 9. Security tier stack → Rust | pending — largest port; `KdfParams` + `SecretBuffer` + `SecureRef` retire here |
+| 9. Security tier stack → Rust | partial — `lfs_core::security::SecurityTier` + `SecurityTierModifiers` typed scaffold + `lfs_core::rate_limit::InMemoryRateLimiterRegistry` shipped; Dart `InMemoryRateLimiter` is now a thin FRB shim. Master-password verifier + hardware-tier composer + keychain gate + biometric vault + tier state machine + bootstrap orchestration still Dart-side. |
 | 10a. `session_recorder` asciinema composer → Rust | DONE | `5adceb05` |
 | 10b. `session_recorder` ring buffer + driver loop | DONE — `lfs_core::recorder::queue` per-id worker + mpsc serialises header/event/rotate/close; Dart shim reduced to fire-and-forget enqueues |
 | 13e. `tier_backing.dart` dead code drop | DONE | dead — no production caller |
