@@ -1,3 +1,4 @@
+import '../../src/rust/api/snippet_template.dart' as rust_snip;
 import 'snippet.dart';
 
 /// Result of rendering a snippet command against a context map.
@@ -45,6 +46,23 @@ class SnippetRender {
 /// string. If the user wants quoting, that is their problem at the
 /// snippet authoring site — same as `~/.ssh/config`.
 SnippetRender renderSnippet(Snippet snippet, Map<String, String> context) {
+  try {
+    final r = rust_snip.snippetTemplateRender(
+      template: snippet.command,
+      context: context.entries.map((e) => (e.key, e.value)).toList(),
+    );
+    return SnippetRender(rendered: r.rendered, unresolved: r.unresolved);
+  } catch (_) {
+    return _renderSnippetDart(snippet, context);
+  }
+}
+
+/// Pure-Dart fallback for [renderSnippet] used in flutter_test
+/// contexts that don't load the FRB native lib. Production routes
+/// through `lfs_core::snippet_template::render`; the fallback below
+/// implements the same token grammar byte-for-byte (mirror of the
+/// Dart implementation that lived here pre-port).
+SnippetRender _renderSnippetDart(Snippet snippet, Map<String, String> context) {
   final src = snippet.command;
   final out = StringBuffer();
   final unresolved = <String>[];

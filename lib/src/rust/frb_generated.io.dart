@@ -27,6 +27,7 @@ import 'api/recorder.dart';
 import 'api/security_capabilities.dart';
 import 'api/security_config.dart';
 import 'api/sftp.dart';
+import 'api/snippet_template.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
 import 'api/threat_eval.dart';
@@ -466,6 +467,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbRecorderSnapshot dco_decode_db_recorder_snapshot(dynamic raw);
+
+  @protected
+  DbRenderedSnippet dco_decode_db_rendered_snippet(dynamic raw);
 
   @protected
   DbSecurityCapabilities dco_decode_db_security_capabilities(dynamic raw);
@@ -1204,6 +1208,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbRecorderSnapshot sse_decode_db_recorder_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbRenderedSnippet sse_decode_db_rendered_snippet(
     SseDeserializer deserializer,
   );
 
@@ -2111,6 +2120,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_recorder_snapshot(
     DbRecorderSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_rendered_snippet(
+    DbRenderedSnippet self,
     SseSerializer serializer,
   );
 

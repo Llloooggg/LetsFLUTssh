@@ -25,6 +25,7 @@ pub mod recorder;
 pub mod security_capabilities;
 pub mod security_config;
 pub mod sftp;
+pub mod snippet_template;
 pub mod ssh;
 pub mod ssh_config;
 pub mod threat_eval;
