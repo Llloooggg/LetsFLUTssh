@@ -288,6 +288,23 @@ impl ConnectionRegistry {
     pub fn count(&self) -> usize {
         self.lock().by_id.len()
     }
+
+    /// Count of actors whose state is `Connected`. Excludes
+    /// internal bastion hops (parents own the user-visible
+    /// lifecycle) so the result matches the user-visible
+    /// "connected sessions" metric the Android foreground service
+    /// gates on.
+    pub fn connected_user_visible_count(&self) -> usize {
+        let g = self.lock();
+        let mut n: usize = 0;
+        for handle in g.by_id.values() {
+            let actor = handle.lock().expect("actor mutex poisoned");
+            if !actor.internal && matches!(actor.state, ConnectionState::Connected) {
+                n += 1;
+            }
+        }
+        n
+    }
 }
 
 impl Default for ConnectionRegistry {
@@ -417,6 +434,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
                 id,
                 state: ConnectionState::Connected,
             });
+            publish_active_count(&app);
         }
         Err(err) => {
             let detail = err.to_string();
@@ -443,6 +461,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
                 id,
                 state: ConnectionState::Disconnected,
             });
+            publish_active_count(&app);
         }
     }
 }
@@ -655,9 +674,24 @@ pub async fn disconnect(id: &str) -> Result<(), Error> {
         }
         app.bus
             .publish(crate::bus::Event::ConnectionRemoved { id: id.to_string() });
+        publish_active_count(&app);
     }
     Ok(())
 }
+
+/// Publish [`Event::ConnectionActiveCountChanged`] with the current
+/// user-visible Connected count. Coalesced through an `AtomicI64`
+/// so repeated calls with the same count don't fan out.
+fn publish_active_count(app: &std::sync::Arc<crate::app::AppState>) {
+    let count = app.connections.connected_user_visible_count() as i64;
+    let prev = LAST_ACTIVE_COUNT.swap(count, std::sync::atomic::Ordering::SeqCst);
+    if prev != count {
+        app.bus
+            .publish(crate::bus::Event::ConnectionActiveCountChanged { count });
+    }
+}
+
+static LAST_ACTIVE_COUNT: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(-1);
 
 #[cfg(test)]
 mod tests {

@@ -215,6 +215,13 @@ sealed class BusEvent with _$BusEvent {
   const factory BusEvent.connectionRemoved({required String id}) =
       BusEvent_ConnectionRemoved;
 
+  /// User-visible Connected count changed. Excludes internal
+  /// bastion hops. Foreground-service binding consumes this to
+  /// gate the Android persistent-notification service.
+  const factory BusEvent.connectionActiveCountChanged({
+    required PlatformInt64 count,
+  }) = BusEvent_ConnectionActiveCountChanged;
+
   /// Auto-lock — fired when the idle timer expires, the app
   /// backgrounds with a non-zero timeout, or the user explicitly
   /// requests a lock.

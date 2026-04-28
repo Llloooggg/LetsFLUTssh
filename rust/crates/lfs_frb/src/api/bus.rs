@@ -139,6 +139,10 @@ pub enum BusEvent {
     /// Actor removed from the registry (manual disconnect or
     /// parent of a disconnected bastion chain).
     ConnectionRemoved { id: String },
+    /// User-visible Connected count changed. Excludes internal
+    /// bastion hops. Foreground-service binding consumes this to
+    /// gate the Android persistent-notification service.
+    ConnectionActiveCountChanged { count: i64 },
 
     /// Auto-lock — fired when the idle timer expires, the app
     /// backgrounds with a non-zero timeout, or the user explicitly
@@ -294,6 +298,9 @@ impl BusEvent {
                 BusEvent::ConnectionError { id, detail }
             }
             lfs_core::bus::Event::ConnectionRemoved { id } => BusEvent::ConnectionRemoved { id },
+            lfs_core::bus::Event::ConnectionActiveCountChanged { count } => {
+                BusEvent::ConnectionActiveCountChanged { count }
+            }
             lfs_core::bus::Event::AutoLockLocked => BusEvent::AutoLockLocked,
             lfs_core::bus::Event::AutoLockUnlocked => BusEvent::AutoLockUnlocked,
             lfs_core::bus::Event::AutoLockTimeoutChanged { minutes } => {

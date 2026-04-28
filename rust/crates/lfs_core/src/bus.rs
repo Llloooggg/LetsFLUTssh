@@ -114,6 +114,15 @@ pub enum Event {
     /// disconnected bastion chain).
     ConnectionRemoved { id: crate::connection::ConnId },
 
+    /// Connection lifecycle — count of user-visible Connected
+    /// actors changed (excludes internal bastion hops). The
+    /// Android foreground-service binding subscribes here to
+    /// start / stop the persistent service. Re-published after
+    /// every state transition that flips at least one actor's
+    /// `Connected` predicate; coalesced inside the publisher so
+    /// repeated emits with the same count don't fan out.
+    ConnectionActiveCountChanged { count: i64 },
+
     /// Auto-lock — fired when the idle timer expires, when
     /// the app backgrounds with a non-zero timeout, or when the
     /// user explicitly requests a lock. The payload is empty —
@@ -250,7 +259,8 @@ impl Event {
             Event::ConnectionStateChanged { .. }
             | Event::ConnectionProgress { .. }
             | Event::ConnectionError { .. }
-            | Event::ConnectionRemoved { .. } => EventTopic::Connection,
+            | Event::ConnectionRemoved { .. }
+            | Event::ConnectionActiveCountChanged { .. } => EventTopic::Connection,
             Event::AutoLockLocked
             | Event::AutoLockUnlocked
             | Event::AutoLockTimeoutChanged { .. } => EventTopic::AutoLock,

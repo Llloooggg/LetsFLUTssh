@@ -8849,18 +8849,24 @@ impl SseDecode for crate::api::bus::BusEvent {
                 return crate::api::bus::BusEvent::ConnectionRemoved { id: var_id };
             }
             5 => {
-                return crate::api::bus::BusEvent::AutoLockLocked;
+                let mut var_count = <i64>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::ConnectionActiveCountChanged {
+                    count: var_count,
+                };
             }
             6 => {
-                return crate::api::bus::BusEvent::AutoLockUnlocked;
+                return crate::api::bus::BusEvent::AutoLockLocked;
             }
             7 => {
+                return crate::api::bus::BusEvent::AutoLockUnlocked;
+            }
+            8 => {
                 let mut var_minutes = <i64>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::AutoLockTimeoutChanged {
                     minutes: var_minutes,
                 };
             }
-            8 => {
+            9 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_path = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::RecorderStarted {
@@ -8868,11 +8874,11 @@ impl SseDecode for crate::api::bus::BusEvent {
                     path: var_path,
                 };
             }
-            9 => {
+            10 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::RecorderStopped { id: var_id };
             }
-            10 => {
+            11 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_totalBytes = <u64>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::RecorderBytesWritten {
@@ -8880,7 +8886,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     total_bytes: var_totalBytes,
                 };
             }
-            11 => {
+            12 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_bytesWritten = <u64>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::RecorderRotateRequested {
@@ -8888,11 +8894,11 @@ impl SseDecode for crate::api::bus::BusEvent {
                     bytes_written: var_bytesWritten,
                 };
             }
-            12 => {
+            13 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::TransferTaskAdded { id: var_id };
             }
-            13 => {
+            14 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_state = <crate::api::bus::BusTaskState>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::TransferTaskState {
@@ -8900,7 +8906,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     state: var_state,
                 };
             }
-            14 => {
+            15 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_bytesDone = <u64>::sse_decode(deserializer);
                 let mut var_bytesTotal = <u64>::sse_decode(deserializer);
@@ -8910,7 +8916,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     bytes_total: var_bytesTotal,
                 };
             }
-            15 => {
+            16 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_detail = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::TransferTaskError {
@@ -8918,11 +8924,11 @@ impl SseDecode for crate::api::bus::BusEvent {
                     detail: var_detail,
                 };
             }
-            16 => {
+            17 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::PortForwardRegistered { id: var_id };
             }
-            17 => {
+            18 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 let mut var_status = <crate::api::bus::BusRuleStatus>::sse_decode(deserializer);
                 let mut var_detail = <Option<String>>::sse_decode(deserializer);
@@ -8932,11 +8938,11 @@ impl SseDecode for crate::api::bus::BusEvent {
                     detail: var_detail,
                 };
             }
-            18 => {
+            19 => {
                 let mut var_id = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::PortForwardRemoved { id: var_id };
             }
-            19 => {
+            20 => {
                 let mut var_url = <String>::sse_decode(deserializer);
                 let mut var_writtenBytes = <u64>::sse_decode(deserializer);
                 let mut var_totalBytes = <Option<u64>>::sse_decode(deserializer);
@@ -8946,11 +8952,11 @@ impl SseDecode for crate::api::bus::BusEvent {
                     total_bytes: var_totalBytes,
                 };
             }
-            20 => {
+            21 => {
                 let mut var_url = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::UpdateVerifyingStarted { url: var_url };
             }
-            21 => {
+            22 => {
                 let mut var_url = <String>::sse_decode(deserializer);
                 let mut var_path = <String>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::UpdateDownloadCompleted {
@@ -8958,13 +8964,13 @@ impl SseDecode for crate::api::bus::BusEvent {
                     path: var_path,
                 };
             }
-            22 => {
+            23 => {
                 return crate::api::bus::BusEvent::KnownHostsChanged;
             }
-            23 => {
+            24 => {
                 return crate::api::bus::BusEvent::SessionsChanged;
             }
-            24 => {
+            25 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_host = <String>::sse_decode(deserializer);
                 let mut var_port = <i64>::sse_decode(deserializer);
@@ -8981,7 +8987,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     kind: var_kind,
                 };
             }
-            25 => {
+            26 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_accepted = <bool>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::KnownHostPromptResolved {
@@ -11472,37 +11478,40 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
             crate::api::bus::BusEvent::ConnectionRemoved { id } => {
                 [4.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::bus::BusEvent::AutoLockLocked => [5.into_dart()].into_dart(),
-            crate::api::bus::BusEvent::AutoLockUnlocked => [6.into_dart()].into_dart(),
+            crate::api::bus::BusEvent::ConnectionActiveCountChanged { count } => {
+                [5.into_dart(), count.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::bus::BusEvent::AutoLockLocked => [6.into_dart()].into_dart(),
+            crate::api::bus::BusEvent::AutoLockUnlocked => [7.into_dart()].into_dart(),
             crate::api::bus::BusEvent::AutoLockTimeoutChanged { minutes } => {
-                [7.into_dart(), minutes.into_into_dart().into_dart()].into_dart()
+                [8.into_dart(), minutes.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::RecorderStarted { id, path } => [
-                8.into_dart(),
+                9.into_dart(),
                 id.into_into_dart().into_dart(),
                 path.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::RecorderStopped { id } => {
-                [9.into_dart(), id.into_into_dart().into_dart()].into_dart()
+                [10.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::RecorderBytesWritten { id, total_bytes } => [
-                10.into_dart(),
+                11.into_dart(),
                 id.into_into_dart().into_dart(),
                 total_bytes.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::RecorderRotateRequested { id, bytes_written } => [
-                11.into_dart(),
+                12.into_dart(),
                 id.into_into_dart().into_dart(),
                 bytes_written.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::TransferTaskAdded { id } => {
-                [12.into_dart(), id.into_into_dart().into_dart()].into_dart()
+                [13.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::TransferTaskState { id, state } => [
-                13.into_dart(),
+                14.into_dart(),
                 id.into_into_dart().into_dart(),
                 state.into_into_dart().into_dart(),
             ]
@@ -11512,53 +11521,53 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 bytes_done,
                 bytes_total,
             } => [
-                14.into_dart(),
+                15.into_dart(),
                 id.into_into_dart().into_dart(),
                 bytes_done.into_into_dart().into_dart(),
                 bytes_total.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::TransferTaskError { id, detail } => [
-                15.into_dart(),
+                16.into_dart(),
                 id.into_into_dart().into_dart(),
                 detail.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::PortForwardRegistered { id } => {
-                [16.into_dart(), id.into_into_dart().into_dart()].into_dart()
+                [17.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::PortForwardStatus { id, status, detail } => [
-                17.into_dart(),
+                18.into_dart(),
                 id.into_into_dart().into_dart(),
                 status.into_into_dart().into_dart(),
                 detail.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::PortForwardRemoved { id } => {
-                [18.into_dart(), id.into_into_dart().into_dart()].into_dart()
+                [19.into_dart(), id.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::UpdateDownloadProgress {
                 url,
                 written_bytes,
                 total_bytes,
             } => [
-                19.into_dart(),
+                20.into_dart(),
                 url.into_into_dart().into_dart(),
                 written_bytes.into_into_dart().into_dart(),
                 total_bytes.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::UpdateVerifyingStarted { url } => {
-                [20.into_dart(), url.into_into_dart().into_dart()].into_dart()
+                [21.into_dart(), url.into_into_dart().into_dart()].into_dart()
             }
             crate::api::bus::BusEvent::UpdateDownloadCompleted { url, path } => [
-                21.into_dart(),
+                22.into_dart(),
                 url.into_into_dart().into_dart(),
                 path.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::api::bus::BusEvent::KnownHostsChanged => [22.into_dart()].into_dart(),
-            crate::api::bus::BusEvent::SessionsChanged => [23.into_dart()].into_dart(),
+            crate::api::bus::BusEvent::KnownHostsChanged => [23.into_dart()].into_dart(),
+            crate::api::bus::BusEvent::SessionsChanged => [24.into_dart()].into_dart(),
             crate::api::bus::BusEvent::KnownHostPromptRequest {
                 prompt_id,
                 host,
@@ -11567,7 +11576,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 fingerprint,
                 kind,
             } => [
-                24.into_dart(),
+                25.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 host.into_into_dart().into_dart(),
                 port.into_into_dart().into_dart(),
@@ -11580,7 +11589,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 prompt_id,
                 accepted,
             } => [
-                25.into_dart(),
+                26.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 accepted.into_into_dart().into_dart(),
             ]
@@ -13324,41 +13333,45 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <i32>::sse_encode(4, serializer);
                 <String>::sse_encode(id, serializer);
             }
-            crate::api::bus::BusEvent::AutoLockLocked => {
+            crate::api::bus::BusEvent::ConnectionActiveCountChanged { count } => {
                 <i32>::sse_encode(5, serializer);
+                <i64>::sse_encode(count, serializer);
             }
-            crate::api::bus::BusEvent::AutoLockUnlocked => {
+            crate::api::bus::BusEvent::AutoLockLocked => {
                 <i32>::sse_encode(6, serializer);
             }
-            crate::api::bus::BusEvent::AutoLockTimeoutChanged { minutes } => {
+            crate::api::bus::BusEvent::AutoLockUnlocked => {
                 <i32>::sse_encode(7, serializer);
+            }
+            crate::api::bus::BusEvent::AutoLockTimeoutChanged { minutes } => {
+                <i32>::sse_encode(8, serializer);
                 <i64>::sse_encode(minutes, serializer);
             }
             crate::api::bus::BusEvent::RecorderStarted { id, path } => {
-                <i32>::sse_encode(8, serializer);
+                <i32>::sse_encode(9, serializer);
                 <String>::sse_encode(id, serializer);
                 <String>::sse_encode(path, serializer);
             }
             crate::api::bus::BusEvent::RecorderStopped { id } => {
-                <i32>::sse_encode(9, serializer);
+                <i32>::sse_encode(10, serializer);
                 <String>::sse_encode(id, serializer);
             }
             crate::api::bus::BusEvent::RecorderBytesWritten { id, total_bytes } => {
-                <i32>::sse_encode(10, serializer);
+                <i32>::sse_encode(11, serializer);
                 <String>::sse_encode(id, serializer);
                 <u64>::sse_encode(total_bytes, serializer);
             }
             crate::api::bus::BusEvent::RecorderRotateRequested { id, bytes_written } => {
-                <i32>::sse_encode(11, serializer);
+                <i32>::sse_encode(12, serializer);
                 <String>::sse_encode(id, serializer);
                 <u64>::sse_encode(bytes_written, serializer);
             }
             crate::api::bus::BusEvent::TransferTaskAdded { id } => {
-                <i32>::sse_encode(12, serializer);
+                <i32>::sse_encode(13, serializer);
                 <String>::sse_encode(id, serializer);
             }
             crate::api::bus::BusEvent::TransferTaskState { id, state } => {
-                <i32>::sse_encode(13, serializer);
+                <i32>::sse_encode(14, serializer);
                 <String>::sse_encode(id, serializer);
                 <crate::api::bus::BusTaskState>::sse_encode(state, serializer);
             }
@@ -13367,28 +13380,28 @@ impl SseEncode for crate::api::bus::BusEvent {
                 bytes_done,
                 bytes_total,
             } => {
-                <i32>::sse_encode(14, serializer);
+                <i32>::sse_encode(15, serializer);
                 <String>::sse_encode(id, serializer);
                 <u64>::sse_encode(bytes_done, serializer);
                 <u64>::sse_encode(bytes_total, serializer);
             }
             crate::api::bus::BusEvent::TransferTaskError { id, detail } => {
-                <i32>::sse_encode(15, serializer);
+                <i32>::sse_encode(16, serializer);
                 <String>::sse_encode(id, serializer);
                 <String>::sse_encode(detail, serializer);
             }
             crate::api::bus::BusEvent::PortForwardRegistered { id } => {
-                <i32>::sse_encode(16, serializer);
+                <i32>::sse_encode(17, serializer);
                 <String>::sse_encode(id, serializer);
             }
             crate::api::bus::BusEvent::PortForwardStatus { id, status, detail } => {
-                <i32>::sse_encode(17, serializer);
+                <i32>::sse_encode(18, serializer);
                 <String>::sse_encode(id, serializer);
                 <crate::api::bus::BusRuleStatus>::sse_encode(status, serializer);
                 <Option<String>>::sse_encode(detail, serializer);
             }
             crate::api::bus::BusEvent::PortForwardRemoved { id } => {
-                <i32>::sse_encode(18, serializer);
+                <i32>::sse_encode(19, serializer);
                 <String>::sse_encode(id, serializer);
             }
             crate::api::bus::BusEvent::UpdateDownloadProgress {
@@ -13396,25 +13409,25 @@ impl SseEncode for crate::api::bus::BusEvent {
                 written_bytes,
                 total_bytes,
             } => {
-                <i32>::sse_encode(19, serializer);
+                <i32>::sse_encode(20, serializer);
                 <String>::sse_encode(url, serializer);
                 <u64>::sse_encode(written_bytes, serializer);
                 <Option<u64>>::sse_encode(total_bytes, serializer);
             }
             crate::api::bus::BusEvent::UpdateVerifyingStarted { url } => {
-                <i32>::sse_encode(20, serializer);
+                <i32>::sse_encode(21, serializer);
                 <String>::sse_encode(url, serializer);
             }
             crate::api::bus::BusEvent::UpdateDownloadCompleted { url, path } => {
-                <i32>::sse_encode(21, serializer);
+                <i32>::sse_encode(22, serializer);
                 <String>::sse_encode(url, serializer);
                 <String>::sse_encode(path, serializer);
             }
             crate::api::bus::BusEvent::KnownHostsChanged => {
-                <i32>::sse_encode(22, serializer);
+                <i32>::sse_encode(23, serializer);
             }
             crate::api::bus::BusEvent::SessionsChanged => {
-                <i32>::sse_encode(23, serializer);
+                <i32>::sse_encode(24, serializer);
             }
             crate::api::bus::BusEvent::KnownHostPromptRequest {
                 prompt_id,
@@ -13424,7 +13437,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 fingerprint,
                 kind,
             } => {
-                <i32>::sse_encode(24, serializer);
+                <i32>::sse_encode(25, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <String>::sse_encode(host, serializer);
                 <i64>::sse_encode(port, serializer);
@@ -13436,7 +13449,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 prompt_id,
                 accepted,
             } => {
-                <i32>::sse_encode(25, serializer);
+                <i32>::sse_encode(26, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <bool>::sse_encode(accepted, serializer);
             }
