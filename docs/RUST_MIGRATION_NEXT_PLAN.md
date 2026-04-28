@@ -79,7 +79,7 @@ LOC reflects current tree):
 | `core/security/hardware_tier_vault.dart` | 395 | TPM / Keychain / WinBio composer | 9 |
 | `core/security/wipe_all_service.dart` | ~210 | thin orchestrator — file half (`MANAGED_FILES` / `ORPHAN_PROBE_FILES` catalogue + `.wipe-pending` crash marker + per-file delete + `logs/` sweep) lives Rust-side in `lfs_core::security::wipe`. Dart keeps the keychain (`flutter_secure_storage`) purge, the `com.letsflutssh/hardware_vault` `MethodChannel` invocations, and the credential-cache evict. | 9 |
 | `core/security/security_bootstrap.dart` | 351 | startup tier resolution | 9 |
-| `core/security/keychain_password_gate.dart` | 262 | keychain unlock gate sequence | 9 |
+| `core/security/keychain_password_gate.dart` | ~210 | thin orchestrator — disk-blob format (`{salt, hmac}` JSON envelope) + salt/pepper random + HMAC compose live in `lfs_core::security::keychain_password_gate`. Dart keeps file I/O via `writeBytesAtomic`, `flutter_secure_storage` pepper read/write, and the rate-limit-state clear. | 9 |
 | `core/security/biometric_key_vault.dart` | 255 | biometric unlock sequence | 9 |
 | `core/security/security_tier.dart` | 257 | tier model + transitions | 9 |
 | `core/security/linux_keychain_marker.dart` | ~110 | thin façade — `exists` / `set` / `clear` delegate to `keychain_marker_*` FRB calls; only the platform `getApplicationSupportDirectory()` resolution + the non-Linux short-circuit stay Dart-side | 9 |

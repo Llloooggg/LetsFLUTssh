@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
@@ -30,53 +28,28 @@ import 'password_rate_limiter.dart';
 /// guessing across process restarts without trying to protect
 /// against offline attack.
 ///
-/// Wiring into the wizard / unlock flow lands on top of this class.
+/// Wire format + HMAC composition + salt/pepper generation live in
+/// `lfs_core::security::keychain_password_gate` so the on-disk
+/// envelope shape stays in sync with future bumps. This Dart class
+/// orchestrates the file I/O + keychain plugin calls; the
+/// crypto-shaped operations route through the compat wrappers in
+/// `_crypto_compat.dart`.
 class KeychainPasswordGate {
   KeychainPasswordGate({
     FlutterSecureStorage? keychain,
     Future<File> Function()? hashFileFactory,
-    Random? random,
   }) : _keychain = keychain ?? const FlutterSecureStorage(),
-       _hashFile = hashFileFactory ?? _defaultHashFile,
-       _random = random ?? Random.secure();
+       _hashFile = hashFileFactory ?? _defaultHashFile;
 
   static const _pepperKey = 'letsflutssh_l2_pepper';
   static const _hashFileName = 'security_pass_hash.bin';
-  static const _saltLength = 32;
-  static const _pepperLength = 32;
 
   final FlutterSecureStorage _keychain;
   final Future<File> Function() _hashFile;
-  final Random _random;
 
   static Future<File> _defaultHashFile() async {
     final dir = await getApplicationSupportDirectory();
     return File(p.join(dir.path, _hashFileName));
-  }
-
-  Uint8List _rand(int n) {
-    final out = Uint8List(n);
-    for (var i = 0; i < n; i++) {
-      out[i] = _random.nextInt(256);
-    }
-    return out;
-  }
-
-  /// Derive the comparison HMAC for [password] given [salt] and
-  /// [pepper]. Same function used for both set and verify — any
-  /// divergence between the two paths is a bug.
-  ///
-  /// Routes through `lfs_core::crypto::hmac_sha256` in production
-  /// so the gate's HMAC formula stays in sync with the
-  /// hardware-tier vault + persisted-rate-limiter sites; falls
-  /// back to `package:crypto`'s `Hmac(sha256, …)` for unit-test
-  /// contexts that don't load the FRB native lib (see
-  /// [hmacSha256Compat]).
-  Uint8List _computeHmac(String password, Uint8List salt, Uint8List pepper) {
-    final sb = BytesBuilder()
-      ..add(salt)
-      ..add(utf8.encode(password));
-    return hmacSha256Compat(pepper, sb.toBytes());
   }
 
   /// True when a gate is configured on this install.
@@ -107,16 +80,16 @@ class KeychainPasswordGate {
   /// cooldown on first launch. Wiping the state here aligns the
   /// counter with the new password.
   Future<void> setPassword(String password) async {
-    final salt = _rand(_saltLength);
-    final pepper = _rand(_pepperLength);
-    final hmac = _computeHmac(password, salt, pepper);
+    final seed = keychainGateRandomSeedCompat();
+    final hmac = keychainGateComputeHmacCompat(
+      seed.pepper,
+      seed.salt,
+      password,
+    );
 
     final file = await _hashFile();
     await file.parent.create(recursive: true);
-    final blob = jsonEncode({
-      'salt': base64.encode(salt),
-      'hmac': base64.encode(hmac),
-    });
+    final blob = keychainGateEncodeBlobCompat(seed.salt, hmac);
     // Two invariants, both load-bearing for L2:
     //
     //   (1) Atomic write of the disk hash. A `File.writeAsBytes` crash
@@ -132,7 +105,7 @@ class KeychainPasswordGate {
     //       the OLD pepper still in the keychain.
     await writeBytesAtomic(file.path, utf8.encode(blob));
     try {
-      await _keychain.write(key: _pepperKey, value: base64.encode(pepper));
+      await _keychain.write(key: _pepperKey, value: base64.encode(seed.pepper));
     } catch (e) {
       // Keychain write failed after the disk hash landed. The gate is
       // now half-configured — pepper missing, disk hash present but
@@ -186,19 +159,19 @@ class KeychainPasswordGate {
       final file = await _hashFile();
       if (!await file.exists()) return false;
       final raw = await file.readAsBytes();
-      final decoded = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-      final saltB64 = decoded['salt'];
-      final hmacB64 = decoded['hmac'];
-      if (saltB64 is! String || hmacB64 is! String) return false;
-      final salt = base64.decode(saltB64);
-      final storedHmac = base64.decode(hmacB64);
+      final decoded = keychainGateDecodeBlobCompat(utf8.decode(raw));
+      if (decoded == null) return false;
 
       final pepperB64 = await _keychain.read(key: _pepperKey);
       if (pepperB64 == null) return false;
       final pepper = base64.decode(pepperB64);
 
-      final computed = _computeHmac(password, salt, pepper);
-      return constantTimeEqCompat(computed, storedHmac);
+      final computed = keychainGateComputeHmacCompat(
+        pepper,
+        decoded.salt,
+        password,
+      );
+      return constantTimeEqCompat(computed, decoded.hmac);
     } catch (e) {
       AppLogger.instance.log(
         'KeychainPasswordGate.verify failed: $e',
@@ -221,11 +194,9 @@ class KeychainPasswordGate {
       final file = await _hashFile();
       if (!await file.exists()) return null;
       final raw = await file.readAsBytes();
-      final decoded = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-      final hmacB64 = decoded['hmac'];
-      if (hmacB64 is! String) return null;
-      final storedHmac = base64.decode(hmacB64);
-      return PersistedRateLimiter(hmacKey: Uint8List.fromList(storedHmac));
+      final decoded = keychainGateDecodeBlobCompat(utf8.decode(raw));
+      if (decoded == null) return null;
+      return PersistedRateLimiter(hmacKey: decoded.hmac);
     } catch (e) {
       AppLogger.instance.log(
         'KeychainPasswordGate.rateLimiter failed: $e',

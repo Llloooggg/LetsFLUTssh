@@ -18,6 +18,7 @@
 use std::collections::BTreeMap;
 
 pub mod keychain_marker;
+pub mod keychain_password_gate;
 pub mod master_password;
 pub mod wipe;
 

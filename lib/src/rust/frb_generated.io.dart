@@ -12,6 +12,7 @@ import 'api/db.dart';
 import 'api/deeplink.dart';
 import 'api/forward.dart';
 import 'api/keychain_marker.dart';
+import 'api/keychain_password_gate.dart';
 import 'api/keys.dart';
 import 'api/known_hosts_parser.dart';
 import 'api/log_sanitize.dart';
@@ -385,6 +386,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKdfParams dco_decode_db_kdf_params(dynamic raw);
+
+  @protected
+  DbKeychainGateBlob dco_decode_db_keychain_gate_blob(dynamic raw);
+
+  @protected
+  DbKeychainGateSeed dco_decode_db_keychain_gate_seed(dynamic raw);
 
   @protected
   DbKnownHost dco_decode_db_known_host(dynamic raw);
@@ -1039,6 +1046,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKdfParams sse_decode_db_kdf_params(SseDeserializer deserializer);
+
+  @protected
+  DbKeychainGateBlob sse_decode_db_keychain_gate_blob(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbKeychainGateSeed sse_decode_db_keychain_gate_seed(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbKnownHost sse_decode_db_known_host(SseDeserializer deserializer);
@@ -1846,6 +1863,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_kdf_params(DbKdfParams self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_keychain_gate_blob(
+    DbKeychainGateBlob self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_keychain_gate_seed(
+    DbKeychainGateSeed self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_known_host(DbKnownHost self, SseSerializer serializer);
