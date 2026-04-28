@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/api/path.dart' as rust_path;
 import '../../src/rust/api/transfer.dart' as rust_transfer;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
@@ -332,12 +333,20 @@ class TransferManager {
       s == rust_transfer.DbTransferState.queued ||
       s == rust_transfer.DbTransferState.running;
 
+  /// Routes through `lfs_core::path::basename` so the
+  /// Windows-separator normalisation grammar lives one place;
+  /// falls back to the inline cross-separator scan when the FRB
+  /// native lib is not loaded.
   static String _displayName(String path) {
-    final unix = path.lastIndexOf('/');
-    final win = path.lastIndexOf('\\');
-    final idx = unix > win ? unix : win;
-    if (idx < 0 || idx == path.length - 1) return path;
-    return path.substring(idx + 1);
+    try {
+      return rust_path.pathBasename(path: path);
+    } catch (_) {
+      final unix = path.lastIndexOf('/');
+      final win = path.lastIndexOf('\\');
+      final idx = unix > win ? unix : win;
+      if (idx < 0 || idx == path.length - 1) return path;
+      return path.substring(idx + 1);
+    }
   }
 
   void dispose() {
