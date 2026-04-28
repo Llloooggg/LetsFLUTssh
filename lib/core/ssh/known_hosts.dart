@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
+import '../../src/rust/api/ssh.dart' as rust_ssh;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 import '../security/_crypto_compat.dart';
@@ -274,11 +276,30 @@ class KnownHostsManager {
     }
   }
 
-  /// Compute SHA256 fingerprint of host key bytes — `SHA256:<base64>`,
-  /// the OpenSSH `ssh-keygen -lf` shape.
+  /// Compute SHA256 fingerprint of host key bytes —
+  /// `SHA256:<base64-no-pad>`, the OpenSSH `ssh-keygen -lf` shape.
+  /// Routes through `lfs_core::ssh::format_fingerprint` so the
+  /// no-pad base64 grammar matches the rest of the codebase
+  /// (KnownHostsRow.host_key_fingerprint comes from the same
+  /// helper Rust-side); falls back to a Dart pipeline that strips
+  /// the standard-base64 padding for flutter_test contexts.
   static String fingerprint(List<int> keyBytes) {
-    final hash = sha256Compat(keyBytes);
-    return 'SHA256:${base64Encode(hash)}';
+    try {
+      return rust_ssh.sshFormatHostKeyFingerprint(
+        keyBytes: keyBytes is Uint8List
+            ? keyBytes
+            : Uint8List.fromList(keyBytes),
+      );
+    } catch (_) {
+      final hash = sha256Compat(keyBytes);
+      // Strip standard-base64 `=` padding — the OpenSSH-canonical
+      // shape carries no padding.
+      var encoded = base64Encode(hash);
+      while (encoded.endsWith('=')) {
+        encoded = encoded.substring(0, encoded.length - 1);
+      }
+      return 'SHA256:$encoded';
+    }
   }
 
   /// Cancel the bus subscription. Idempotent — safe to call

@@ -11,6 +11,15 @@ part 'ssh.freezed.dart';
 // These functions are ignored because they are not marked as `pub`: `cancel_remote_forward_inner`, `from_arc`, `from_core`, `from_core`, `next_forwarded_connection_inner`, `open_direct_tcpip_inner`, `open_sftp_inner`, `request_remote_forward_inner`, `snapshot`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
+/// Compute the OpenSSH `SHA256:<base64-no-pad>` host-key
+/// fingerprint. Sync — one SHA-256 + one base64 encode, runs in
+/// microseconds. Used by the `known_hosts` settings UI when
+/// rendering a key the user is about to confirm.
+String sshFormatHostKeyFingerprint({required List<int> keyBytes}) => RustLib
+    .instance
+    .api
+    .crateApiSshSshFormatHostKeyFingerprint(keyBytes: keyBytes);
+
 /// Probe an SSH server with username + password.
 ///
 /// Returns `Ok(())` on successful auth (server immediately

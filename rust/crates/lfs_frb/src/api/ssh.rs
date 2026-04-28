@@ -27,6 +27,17 @@ use flutter_rust_bridge::frb;
 // codegen recognise the parameter as a Rust→Dart Stream channel.
 use crate::frb_generated::StreamSink;
 
+// ---- Pure helpers -----------------------------------------------------
+
+/// Compute the OpenSSH `SHA256:<base64-no-pad>` host-key
+/// fingerprint. Sync — one SHA-256 + one base64 encode, runs in
+/// microseconds. Used by the `known_hosts` settings UI when
+/// rendering a key the user is about to confirm.
+#[flutter_rust_bridge::frb(sync)]
+pub fn ssh_format_host_key_fingerprint(key_bytes: Vec<u8>) -> String {
+    lfs_core::ssh::format_fingerprint(&key_bytes)
+}
+
 // ---- Probes (1.1, 1.2) ------------------------------------------------
 
 /// Probe an SSH server with username + password.

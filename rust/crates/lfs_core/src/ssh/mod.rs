@@ -251,7 +251,16 @@ async fn check_server_key_via_tofu(
     Ok(accepted)
 }
 
-fn format_fingerprint(key_bytes: &[u8]) -> String {
+/// Compute the OpenSSH-style SHA-256 host-key fingerprint —
+/// `SHA256:<base64-no-pad>` shape, matching `ssh-keygen -lf` output.
+///
+/// Public so the Dart `KnownHostsManager.fingerprint` display
+/// helper routes through the canonical implementation. Without
+/// this the Dart side used `base64Encode` (with `=` padding), so
+/// a key rendered Dart-side displayed as `SHA256:abc...=` while
+/// the same key rendered Rust-side displayed as `SHA256:abc...` —
+/// confusing when both shapes appear in the same UI.
+pub fn format_fingerprint(key_bytes: &[u8]) -> String {
     use base64::engine::{general_purpose::STANDARD_NO_PAD as B64_NP, Engine as _};
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();
