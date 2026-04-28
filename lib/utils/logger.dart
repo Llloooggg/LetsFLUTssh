@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../src/rust/api/path.dart' as rust_path;
 import 'sanitize.dart';
 
 /// Severity marker for a log line. Written as a single char after the
@@ -204,8 +205,22 @@ class AppLogger {
   /// paths. Failures are swallowed: a file that existed with wider
   /// perms before this hook is best-effort tightened; we do not want
   /// a chmod failure to block logging.
+  ///
+  /// Routes through `lfs_core::path::harden_file_perms` in production
+  /// so the chmod / icacls grammar lives one place; falls back to a
+  /// direct subprocess shell-out when the FRB native lib is not
+  /// loaded (logger initialisation runs early enough that RustLib
+  /// may not be ready yet).
   Future<void> _restrictPermissions(String path) async {
     if (Platform.isWindows) return;
+    try {
+      rust_path.pathHardenFilePerms(path: path);
+      return;
+    } catch (_) {
+      // FRB native lib not loaded yet (early-boot logger init) or
+      // a runtime serialisation issue — fall through to the direct
+      // chmod so log file hardening still happens.
+    }
     try {
       await Process.run('chmod', ['600', path]);
     } catch (_) {

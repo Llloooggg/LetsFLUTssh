@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import '../../../utils/file_utils.dart';
 import '../../../utils/logger.dart';
 
 /// Classified TPM probe outcome — surfaces the reason the probe
@@ -366,8 +367,17 @@ class TpmClient {
     final path = p.join(dir.path, 'auth.bin');
     final file = File(path);
     await file.writeAsBytes(authValue, flush: true);
-    if (Platform.isLinux || Platform.isMacOS) {
-      await Process.run('chmod', ['600', path]);
+    // The auth value gates every TPM unseal — keep its on-disk
+    // perms locked to owner-only. Routes through the canonical
+    // `lfs_core::path::harden_file_perms` helper; falls back to
+    // direct chmod for the rare flutter_test path that wires this
+    // through without bootstrapping the FRB native lib.
+    try {
+      hardenFilePerms(path);
+    } catch (_) {
+      if (Platform.isLinux || Platform.isMacOS) {
+        await Process.run('chmod', ['600', path]);
+      }
     }
     return 'file:$path';
   }
