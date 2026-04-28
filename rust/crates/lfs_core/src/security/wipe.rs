@@ -1,0 +1,323 @@
+//! Catastrophic-reset file sweep — the on-disk half of "wipe every
+//! piece of app state this install holds".
+//!
+//! Owns the canonical [`MANAGED_FILES`] list (every artefact the app
+//! writes under `app-support`) and the [`ORPHAN_PROBE_FILES`] subset
+//! used at startup to detect "this install has prior state but the
+//! current build sees no `SecurityConfig` for it". Both lists used
+//! to live Dart-side in `wipe_all_service.dart`; consolidating
+//! Rust-side keeps the file-name catalogue authoritative even when
+//! the Dart shim shrinks further.
+//!
+//! What stays Dart: keychain (`flutter_secure_storage`) purge, the
+//! `com.letsflutssh/hardware_vault` `MethodChannel` invocations, and
+//! the per-session credential cache evict. Each of those rides on a
+//! platform plugin that has no equivalent in `lfs_core`; the file
+//! half is what this module owns.
+
+use std::fs;
+use std::path::Path;
+use std::time::SystemTime;
+
+/// Marker the wipe writes before any delete runs. A leftover marker
+/// at startup means the previous run started a wipe that did not
+/// finish — caller resumes the sweep idempotently before reaching
+/// `_initSecurity`.
+pub const WIPE_PENDING_MARKER: &str = ".wipe-pending";
+
+/// Every file the app writes under the app-support directory. New
+/// artefacts MUST be added here so the wipe stays total. Ordered
+/// from "safest to delete first" (markers, overlays) → "most
+/// destructive last" (the DB itself) so a mid-wipe crash leaves the
+/// user with at least a detectable "wipe was in progress" state.
+///
+/// Mirror of the Dart `_managedFiles` list — both must agree
+/// case-for-case or the wipe leaves orphan files behind. Add new
+/// artefacts here AND keep the Dart side in sync until the Dart
+/// shim retires entirely.
+pub const MANAGED_FILES: &[&str] = &[
+    // Markers / transient state
+    ".tier-transition-pending",
+    "keychain_enabled",
+    "rate_limit_state.bin",
+    // Biometric / hw overlay blobs
+    "hardware_vault_password_overlay_android.bin",
+    "hardware_vault_password_overlay_apple.bin",
+    "hardware_vault_password_overlay_windows.bin",
+    // Password gate
+    "security_pass_hash.bin",
+    // Hardware vault primary blobs — one per platform
+    "hardware_vault.bin",
+    "hardware_vault_android.bin",
+    "hardware_vault_apple.bin",
+    "hardware_vault_ios.bin",
+    "hardware_vault_macos.bin",
+    "hardware_vault_windows.bin",
+    "hardware_vault_linux.bin",
+    "hardware_vault_salt.bin",
+    // KDF descriptors (Argon2id params) + verifier + key
+    "credentials.kdf",
+    "credentials.verify",
+    "credentials.key",
+    // Config (active tier, modifiers, user prefs)
+    "config.json",
+    // Migration framework state — regenerates on next launch
+    "migration_history.json",
+    // Drift DB + SQLite sidecars. Last because losing these zaps the
+    // session list. Ordering intentional: if the wipe crashes before
+    // we get here, the user still sees a tier-less install that the
+    // wizard can handle, rather than a DB under an unknown cipher.
+    "letsflutssh.db",
+    "letsflutssh.db-wal",
+    "letsflutssh.db-shm",
+    "letsflutssh.db-journal",
+];
+
+/// Subset of [`MANAGED_FILES`] used at startup to detect "install has
+/// prior state" when the current build also finds `config.security
+/// == None`. `config.json` and `migration_history.json` are
+/// excluded — both are recreated as soon as the app initialises its
+/// provider graph, so counting them as state would trap the user in
+/// a reset-dialog loop after every wipe. The real "orphan install"
+/// signal is a KDF descriptor, a hw-vault blob, a DB file, or a
+/// credentials artefact.
+pub const ORPHAN_PROBE_FILES: &[&str] = &[
+    ".tier-transition-pending",
+    "keychain_enabled",
+    "rate_limit_state.bin",
+    "hardware_vault_password_overlay_android.bin",
+    "hardware_vault_password_overlay_apple.bin",
+    "hardware_vault_password_overlay_windows.bin",
+    "security_pass_hash.bin",
+    "hardware_vault.bin",
+    "hardware_vault_android.bin",
+    "hardware_vault_apple.bin",
+    "hardware_vault_ios.bin",
+    "hardware_vault_macos.bin",
+    "hardware_vault_windows.bin",
+    "hardware_vault_linux.bin",
+    "hardware_vault_salt.bin",
+    "credentials.kdf",
+    "credentials.verify",
+    "credentials.key",
+    "letsflutssh.db",
+    "letsflutssh.db-wal",
+    "letsflutssh.db-shm",
+    "letsflutssh.db-journal",
+];
+
+/// Result of a file-sweep run. The caller (Dart shim) merges this
+/// with the keychain / native-vault / overlay results before
+/// surfacing the final `WipeReport` to the UI.
+#[derive(Debug, Clone)]
+pub struct FileSweepReport {
+    pub deleted_files: Vec<String>,
+    pub failed_files: Vec<String>,
+}
+
+/// True when the `.wipe-pending` marker is on disk under
+/// `support_dir` — the previous run started a wipe that did not
+/// finish. Call sites check this on startup and re-run the service
+/// before `_initSecurity`. Any I/O failure is treated as
+/// "no marker present" — a broken support-dir probe must not
+/// block startup.
+pub fn has_pending_wipe(support_dir: &Path) -> bool {
+    support_dir.join(WIPE_PENDING_MARKER).exists()
+}
+
+/// True when **any security-bearing** managed artefact lives in the
+/// app-support dir. Used at startup to detect installs whose
+/// `config.security == None` predates the current schema and need a
+/// user-confirmed reset.
+pub fn has_any_state(support_dir: &Path) -> bool {
+    ORPHAN_PROBE_FILES
+        .iter()
+        .any(|name| support_dir.join(name).exists())
+}
+
+/// Walk every managed file + the logs directory; return per-file
+/// success / failure for the caller to surface.
+///
+/// Step ordering matches the Dart implementation for crash-recovery
+/// parity:
+///   1. Write the `.wipe-pending` marker so a mid-wipe crash leaves a
+///      trace.
+///   2. Best-effort delete each managed file. One stuck entry does
+///      not abort the sweep — the file lands in `failed_files`.
+///   3. Wipe the `logs/` subdirectory entry-by-entry. A "reset all"
+///      that leaves session-name traces in logs defeats the point;
+///      per-entry failure is non-fatal.
+///   4. Clear the `.wipe-pending` marker.
+pub fn sweep_files(support_dir: &Path) -> FileSweepReport {
+    let mut deleted = Vec::new();
+    let mut failed = Vec::new();
+
+    // 1. Marker first.
+    let _ = write_pending_marker(support_dir);
+
+    // 2. Files.
+    for name in MANAGED_FILES {
+        let path = support_dir.join(name);
+        if !path.exists() {
+            continue;
+        }
+        match fs::remove_file(&path) {
+            Ok(()) => deleted.push((*name).to_string()),
+            Err(_) => failed.push((*name).to_string()),
+        }
+    }
+
+    // 3. Logs.
+    let _ = wipe_logs_dir(support_dir);
+
+    // 4. Clear the marker.
+    let _ = clear_pending_marker(support_dir);
+
+    FileSweepReport {
+        deleted_files: deleted,
+        failed_files: failed,
+    }
+}
+
+fn write_pending_marker(support_dir: &Path) -> Result<(), String> {
+    fs::create_dir_all(support_dir)
+        .map_err(|e| format!("create {}: {e}", support_dir.display()))?;
+    let path = support_dir.join(WIPE_PENDING_MARKER);
+    let now = SystemTime::now();
+    let payload = match now.duration_since(SystemTime::UNIX_EPOCH) {
+        // ISO-style stamp would require chrono; the Dart side wrote
+        // an ISO string, but the marker's load-bearing property is
+        // only "file exists" — readers never parse the body. Write
+        // a Unix-epoch millisecond stamp to keep a breadcrumb that
+        // doesn't pull a date crate.
+        Ok(d) => format!("{}\n", d.as_millis()),
+        Err(_) => String::from("0\n"),
+    };
+    fs::write(&path, payload).map_err(|e| format!("write {}: {e}", path.display()))
+}
+
+fn clear_pending_marker(support_dir: &Path) -> Result<(), String> {
+    let path = support_dir.join(WIPE_PENDING_MARKER);
+    if !path.exists() {
+        return Ok(());
+    }
+    fs::remove_file(&path).map_err(|e| format!("delete {}: {e}", path.display()))
+}
+
+fn wipe_logs_dir(support_dir: &Path) -> Result<(), String> {
+    let logs = support_dir.join("logs");
+    if !logs.exists() {
+        return Ok(());
+    }
+    let entries = fs::read_dir(&logs).map_err(|e| format!("read {}: {e}", logs.display()))?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        // Per-entry failure is non-fatal — the next entity's delete
+        // still runs. We don't propagate the per-entry error; the
+        // Dart logger captured it before the port and consumers
+        // never branched on this detail.
+        if path.is_dir() {
+            let _ = fs::remove_dir_all(&path);
+        } else {
+            let _ = fs::remove_file(&path);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn pending_wipe_is_false_on_fresh_install() {
+        let dir = TempDir::new().unwrap();
+        assert!(!has_pending_wipe(dir.path()));
+    }
+
+    #[test]
+    fn pending_wipe_is_true_when_marker_present() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join(WIPE_PENDING_MARKER), "stamp").unwrap();
+        assert!(has_pending_wipe(dir.path()));
+    }
+
+    #[test]
+    fn has_any_state_is_false_on_clean_dir() {
+        let dir = TempDir::new().unwrap();
+        assert!(!has_any_state(dir.path()));
+    }
+
+    #[test]
+    fn has_any_state_ignores_config_and_migration_history() {
+        // Both files regenerate on next launch; counting them as
+        // state would trap the user in a reset loop.
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("config.json"), "{}").unwrap();
+        std::fs::write(dir.path().join("migration_history.json"), "[]").unwrap();
+        assert!(!has_any_state(dir.path()));
+    }
+
+    #[test]
+    fn has_any_state_flags_a_credentials_kdf() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("credentials.kdf"), [0u8; 8]).unwrap();
+        assert!(has_any_state(dir.path()));
+    }
+
+    #[test]
+    fn sweep_deletes_present_files_and_skips_absent() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("credentials.kdf"), [1u8]).unwrap();
+        std::fs::write(dir.path().join("letsflutssh.db"), [2u8]).unwrap();
+        // `config.json` absent — sweep should not list it as failed.
+        let report = sweep_files(dir.path());
+        assert!(report
+            .deleted_files
+            .contains(&"credentials.kdf".to_string()));
+        assert!(report.deleted_files.contains(&"letsflutssh.db".to_string()));
+        assert!(report.failed_files.is_empty());
+        // Marker cleared after a clean sweep.
+        assert!(!has_pending_wipe(dir.path()));
+    }
+
+    #[test]
+    fn sweep_writes_then_clears_pending_marker() {
+        let dir = TempDir::new().unwrap();
+        let report = sweep_files(dir.path());
+        // No managed files present, but the sweep still ran the
+        // marker write/clear cycle.
+        assert!(report.deleted_files.is_empty());
+        assert!(report.failed_files.is_empty());
+        assert!(!has_pending_wipe(dir.path()));
+    }
+
+    #[test]
+    fn sweep_wipes_logs_dir_contents() {
+        let dir = TempDir::new().unwrap();
+        let logs = dir.path().join("logs");
+        std::fs::create_dir(&logs).unwrap();
+        std::fs::write(logs.join("session-1.log"), "x").unwrap();
+        std::fs::write(logs.join("session-2.log"), "y").unwrap();
+        sweep_files(dir.path());
+        // Logs dir itself stays (matches Dart behaviour — the dir is
+        // recreated on next log-line write); only the entries inside
+        // are gone.
+        assert!(logs.exists());
+        let remaining: Vec<_> = std::fs::read_dir(&logs).unwrap().flatten().collect();
+        assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn managed_and_orphan_lists_are_in_sync() {
+        // Every orphan probe entry must appear in the managed list —
+        // otherwise startup would flag state the wipe doesn't clean.
+        for name in ORPHAN_PROBE_FILES {
+            assert!(
+                MANAGED_FILES.contains(name),
+                "{name} in ORPHAN_PROBE_FILES but not MANAGED_FILES"
+            );
+        }
+    }
+}

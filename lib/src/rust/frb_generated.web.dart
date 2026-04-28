@@ -34,6 +34,7 @@ import 'api/update_metadata.dart';
 import 'api/update_signing.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
+import 'api/wipe.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -368,6 +369,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbExportOptions dco_decode_db_export_options(dynamic raw);
+
+  @protected
+  DbFileSweepReport dco_decode_db_file_sweep_report(dynamic raw);
 
   @protected
   DbFolder dco_decode_db_folder(dynamic raw);
@@ -1015,6 +1019,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbExportOptions sse_decode_db_export_options(SseDeserializer deserializer);
+
+  @protected
+  DbFileSweepReport sse_decode_db_file_sweep_report(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbFolder sse_decode_db_folder(SseDeserializer deserializer);
@@ -1810,6 +1819,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_export_options(
     DbExportOptions self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_file_sweep_report(
+    DbFileSweepReport self,
     SseSerializer serializer,
   );
 

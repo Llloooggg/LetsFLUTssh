@@ -19,6 +19,7 @@ use std::collections::BTreeMap;
 
 pub mod keychain_marker;
 pub mod master_password;
+pub mod wipe;
 
 /// Named security tiers. Mirror of the Dart enum case-for-case.
 ///

@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/wipe.dart' as rust_wipe;
 import '../../utils/logger.dart';
 
 /// Report returned by [WipeAllService.wipeAll]. Callers log it and
@@ -33,20 +33,25 @@ class WipeReport {
 /// holds, across every tier, so the next launch starts from a clean
 /// slate".
 ///
-/// Single source of truth for every file + keychain alias + native
-/// hw-vault entry the app ever writes. Three consumers share this
-/// service:
+/// Three consumers share this service:
 ///
 /// * Settings → Reset all data (user-initiated; double-confirmed).
 /// * DbCorruptDialog (automatic on failed cipher-under-tier probe).
 /// * TierResetDialog (automatic when the resolved tier no longer
 ///   matches the on-disk artefact shape).
 ///
-/// Crash safety: before any delete runs, the service writes a
-/// `.wipe-pending` marker to app-support. The next launch treats a
-/// leftover marker as "resume wipe" and re-runs the full sweep
-/// idempotently before hitting `_initSecurity`. The marker is cleared
-/// only after every best-effort step finishes.
+/// **File-half lives Rust-side** in `lfs_core::security::wipe`: the
+/// canonical [`MANAGED_FILES`] / [`ORPHAN_PROBE_FILES`] catalogue,
+/// the `.wipe-pending` crash-marker write/clear cycle, the per-file
+/// best-effort delete, and the `logs/` sweep. Crash safety: the Rust
+/// sweep writes the marker before any delete and clears it only
+/// after every step finishes. The next launch reads
+/// [hasPendingWipe] and re-runs the sweep idempotently.
+///
+/// Dart side keeps the platform-bound concerns: the keychain
+/// (`flutter_secure_storage`) purge, the
+/// `com.letsflutssh/hardware_vault` `MethodChannel` invocations, and
+/// the optional per-session credential cache evict.
 ///
 /// Intentionally *not* tied to the migration framework's `Artefact`
 /// interface: wipe is a cross-cutting concern that touches files even
@@ -68,66 +73,15 @@ class WipeAllService {
        _credentialCacheEvict = credentialCacheEvict;
 
   static const _hardwareVaultChannelName = 'com.letsflutssh/hardware_vault';
-  static const _wipePendingMarker = '.wipe-pending';
-
-  /// Every file the app writes under the app-support directory. New
-  /// artefacts MUST be added here so the wipe stays total. Ordered
-  /// from "safest to delete first" (markers, overlays) → "most
-  /// destructive last" (the DB itself) so a mid-wipe crash leaves the
-  /// user with at least a detectable "wipe was in progress" state.
-  static const _managedFiles = <String>[
-    // Markers / transient state
-    '.tier-transition-pending',
-    'keychain_enabled',
-    'rate_limit_state.bin',
-
-    // Biometric / hw overlay blobs (password released from biometric-gated slot)
-    'hardware_vault_password_overlay_android.bin',
-    'hardware_vault_password_overlay_apple.bin',
-    'hardware_vault_password_overlay_windows.bin',
-
-    // Password gate
-    'security_pass_hash.bin',
-
-    // Hardware vault primary blobs — one per platform
-    'hardware_vault.bin',
-    'hardware_vault_android.bin',
-    'hardware_vault_apple.bin',
-    'hardware_vault_ios.bin',
-    'hardware_vault_macos.bin',
-    'hardware_vault_windows.bin',
-    'hardware_vault_linux.bin',
-    'hardware_vault_salt.bin',
-
-    // KDF descriptors (Argon2id params) + verifier + key
-    'credentials.kdf',
-    'credentials.verify',
-    'credentials.key',
-
-    // Config (contains the active tier, modifiers, user prefs)
-    'config.json',
-
-    // Migration framework state — regenerates on next launch
-    'migration_history.json',
-
-    // Drift DB + SQLite sidecars. Last because losing these zaps the
-    // session list. Ordering intentional: if the wipe crashes before
-    // we get here, the user still sees a tier-less install that the
-    // wizard can handle, rather than a DB under an unknown cipher.
-    'letsflutssh.db',
-    'letsflutssh.db-wal',
-    'letsflutssh.db-shm',
-    'letsflutssh.db-journal',
-  ];
 
   final Future<Directory> Function() _supportDir;
   final FlutterSecureStorage _keychain;
   final MethodChannel _hwChannel;
   final bool _purgeKeychain;
 
-  /// Optional hook that drops every [SessionCredentialCache] entry
-  /// before the file sweep runs. The cache holds page-locked copies of
-  /// per-session passwords / key bytes; a wipe that deletes the
+  /// Optional hook that drops every cached per-session credential
+  /// before the file sweep runs. The cache holds page-locked copies
+  /// of per-session passwords / key bytes; a wipe that deletes the
   /// Sessions table on disk must also drop these, or a later
   /// `reconnect` against a now-gone session would still find
   /// credentials in memory. Nullable because tests and the
@@ -140,12 +94,8 @@ class WipeAllService {
   Future<bool> hasPendingWipe() async {
     try {
       final dir = await _supportDir();
-      return File(p.join(dir.path, _wipePendingMarker)).exists();
+      return rust_wipe.wipeHasPending(supportDir: dir.path);
     } catch (e) {
-      // Swallow is deliberate — a broken support-dir probe must not
-      // block startup. Log so a support trace can tell the difference
-      // between "no marker present" (common) and "probe threw" (rare,
-      // usually means an FS permission regression on first-run).
       AppLogger.instance.log(
         'WipeAllService.hasPendingWipe probe failed (assuming no marker): $e',
         name: 'WipeAllService',
@@ -156,54 +106,17 @@ class WipeAllService {
 
   /// True when **any security-bearing** managed artefact lives in the
   /// app-support dir. Used on startup to detect "install has prior
-  /// state" when the current build also finds `config.security == null`
-  /// — together those predicates mean the on-disk state predates the
-  /// current schema and should be wiped via the user-confirmed reset
-  /// dialog.
+  /// state" when the current build also finds `config.security == null`.
   ///
-  /// *`config.json` and `migration_history.json` are excluded from
-  /// this probe* because both are recreated as soon as the app
-  /// initialises its provider graph — a freshly-reset install writes
-  /// `config.json` back with `security: null` seconds after the wipe
-  /// finishes, so counting it as "state" trapped the user in a
-  /// reset-dialog loop: reset → wipe → provider rewrites config →
-  /// next launch sees "orphan state" → offers reset again. Neither
-  /// file carries credential material; they are settings. The real
-  /// "orphan install" signal is a KDF descriptor, a hw-vault blob,
-  /// a DB file, or a credentials artefact — all of which stay in the
-  /// scan list below.
-  static const _orphanProbeFiles = <String>[
-    '.tier-transition-pending',
-    'keychain_enabled',
-    'rate_limit_state.bin',
-    'hardware_vault_password_overlay_android.bin',
-    'hardware_vault_password_overlay_apple.bin',
-    'hardware_vault_password_overlay_windows.bin',
-    'security_pass_hash.bin',
-    'hardware_vault.bin',
-    'hardware_vault_android.bin',
-    'hardware_vault_apple.bin',
-    'hardware_vault_ios.bin',
-    'hardware_vault_macos.bin',
-    'hardware_vault_windows.bin',
-    'hardware_vault_linux.bin',
-    'hardware_vault_salt.bin',
-    'credentials.kdf',
-    'credentials.verify',
-    'credentials.key',
-    'letsflutssh.db',
-    'letsflutssh.db-wal',
-    'letsflutssh.db-shm',
-    'letsflutssh.db-journal',
-  ];
-
+  /// `config.json` and `migration_history.json` are excluded from the
+  /// orphan probe — both are recreated as soon as the app initialises
+  /// its provider graph, so counting them as state would trap the
+  /// user in a reset-dialog loop. The probe list lives in
+  /// `lfs_core::security::wipe::ORPHAN_PROBE_FILES`.
   Future<bool> hasAnyState() async {
     try {
       final dir = await _supportDir();
-      for (final name in _orphanProbeFiles) {
-        if (await File(p.join(dir.path, name)).exists()) return true;
-      }
-      return false;
+      return rust_wipe.wipeHasAnyState(supportDir: dir.path);
     } catch (e) {
       AppLogger.instance.log(
         'WipeAllService.hasAnyState probe failed: $e',
@@ -217,8 +130,6 @@ class WipeAllService {
   /// plugin to drop its secondary keys. Returns a [WipeReport] so
   /// callers can surface partial failures.
   Future<WipeReport> wipeAll() async {
-    final deleted = <String>[];
-    final failed = <String>[];
     final dir = await _supportDir();
 
     // 0. Flush the per-session credential cache BEFORE any file
@@ -240,44 +151,27 @@ class WipeAllService {
       );
     }
 
-    // 1. Drop the marker first so a crash mid-wipe leaves a trace the
-    //    next launch can detect.
-    await _writePendingMarker(dir);
-
-    // 2. Files. Best-effort per-file; one stuck entry does not abort
-    //    the sweep.
-    for (final name in _managedFiles) {
-      final file = File(p.join(dir.path, name));
-      try {
-        if (await file.exists()) {
-          await file.delete();
-          deleted.add(name);
-        }
-      } catch (e) {
-        failed.add(name);
-        AppLogger.instance.log(
-          'WipeAllService: failed to delete $name: $e',
-          name: 'WipeAllService',
-        );
-      }
+    // 1. Files (Rust-side: marker write → managed-file delete →
+    //    logs sweep → marker clear, all under one FRB hop). The
+    //    Rust sweep also handles the `.wipe-pending` crash marker.
+    final fileReport = await rust_wipe.wipeSweepFiles(supportDir: dir.path);
+    final deleted = List<String>.from(fileReport.deletedFiles);
+    final failed = List<String>.from(fileReport.failedFiles);
+    for (final name in failed) {
+      AppLogger.instance.log(
+        'WipeAllService: failed to delete $name',
+        name: 'WipeAllService',
+      );
     }
 
-    // 3. Native hw-vault: primary + biometric overlay. Swallow errors;
+    // 2. Native hw-vault: primary + biometric overlay. Swallow errors;
     //    a missing channel (desktop Linux, missing plugin) is a no-op.
     final nativeCleared = await _invokeNative('clear');
     final overlayCleared = await _invokeNative('clearBiometricPassword');
 
-    // 4. OS secure storage (keychain / Credential Manager / keyring /
+    // 3. OS secure storage (keychain / Credential Manager / keyring /
     //    EncryptedSharedPrefs depending on platform).
     final purged = _purgeKeychain ? await _purgeKeychainStore() : false;
-
-    // 5. Logs directory — a "reset all" that leaves behind a log of
-    //    every session name defeats the point. Best-effort; a busy
-    //    FS handle on Windows (logger not closed) is not fatal.
-    await _wipeLogsDir(dir);
-
-    // 6. All done — drop the marker.
-    await _clearPendingMarker(dir);
 
     return WipeReport(
       deletedFiles: deleted,
@@ -286,37 +180,6 @@ class WipeAllService {
       nativeVaultCleared: nativeCleared,
       biometricOverlayCleared: overlayCleared,
     );
-  }
-
-  Future<void> _writePendingMarker(Directory dir) async {
-    try {
-      await dir.create(recursive: true);
-      await File(
-        p.join(dir.path, _wipePendingMarker),
-      ).writeAsString('${DateTime.now().toUtc().toIso8601String()}\n');
-    } catch (e) {
-      AppLogger.instance.log(
-        'WipeAllService: failed to write marker: $e',
-        name: 'WipeAllService',
-      );
-    }
-  }
-
-  Future<void> _clearPendingMarker(Directory dir) async {
-    try {
-      final f = File(p.join(dir.path, _wipePendingMarker));
-      if (await f.exists()) await f.delete();
-    } catch (e) {
-      // Marker is load-bearing for crash-recovery: a leftover marker
-      // forces a re-wipe on next launch which is the safe default.
-      // Log so a stuck marker has a breadcrumb — the file won't make
-      // it off disk, and the user will see an unexpected re-wipe
-      // flow on the next cold start.
-      AppLogger.instance.log(
-        'WipeAllService: could not clear pending-wipe marker: $e',
-        name: 'WipeAllService',
-      );
-    }
   }
 
   Future<bool> _invokeNative(String method) async {
@@ -342,33 +205,6 @@ class WipeAllService {
         name: 'WipeAllService',
       );
       return false;
-    }
-  }
-
-  Future<void> _wipeLogsDir(Directory supportDir) async {
-    try {
-      final logs = Directory(p.join(supportDir.path, 'logs'));
-      if (await logs.exists()) {
-        await for (final entity in logs.list(followLinks: false)) {
-          try {
-            await entity.delete(recursive: true);
-          } catch (e) {
-            // Per-entry failure is non-fatal — the next entity's
-            // delete still runs. Log so a stuck log file (open
-            // handle, permission drift) leaves a breadcrumb
-            // pointing at which entity refused to sweep.
-            AppLogger.instance.log(
-              'WipeAllService: log entry "${entity.path}" delete failed: $e',
-              name: 'WipeAllService',
-            );
-          }
-        }
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'WipeAllService: log-dir wipe outer failure: $e',
-        name: 'WipeAllService',
-      );
     }
   }
 }

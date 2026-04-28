@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1346765200;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -81457047;
 
 // Section: executor
 
@@ -8987,6 +8987,106 @@ fn wire__crate__api__winbio__winbio_count_units_impl(
         },
     )
 }
+fn wire__crate__api__wipe__wipe_has_any_state_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "wipe_has_any_state",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_support_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::wipe::wipe_has_any_state(api_support_dir))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__wipe__wipe_has_pending_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "wipe_has_pending",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_support_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::wipe::wipe_has_pending(api_support_dir))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__wipe__wipe_sweep_files_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "wipe_sweep_files",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_support_dir = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok = Result::<_, ()>::Ok(
+                            crate::api::wipe::wipe_sweep_files(api_support_dir).await,
+                        )?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 
 // Section: related_funcs
 
@@ -9841,6 +9941,18 @@ impl SseDecode for crate::api::archive::DbExportOptions {
             include_snippets: var_includeSnippets,
             include_all_manager_keys: var_includeAllManagerKeys,
             has_manager_keys: var_hasManagerKeys,
+        };
+    }
+}
+
+impl SseDecode for crate::api::wipe::DbFileSweepReport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deletedFiles = <Vec<String>>::sse_decode(deserializer);
+        let mut var_failedFiles = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::wipe::DbFileSweepReport {
+            deleted_files: var_deletedFiles,
+            failed_files: var_failedFiles,
         };
     }
 }
@@ -11716,6 +11828,7 @@ fn pde_ffi_dispatcher_primary_impl(
         208 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
+        216 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -11767,6 +11880,8 @@ fn pde_ffi_dispatcher_sync_impl(
 211 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
 212 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
 213 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+214 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+215 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -12601,6 +12716,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::archive::DbExportOptions>
     for crate::api::archive::DbExportOptions
 {
     fn into_into_dart(self) -> crate::api::archive::DbExportOptions {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::wipe::DbFileSweepReport {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.deleted_files.into_into_dart().into_dart(),
+            self.failed_files.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::wipe::DbFileSweepReport
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::wipe::DbFileSweepReport>
+    for crate::api::wipe::DbFileSweepReport
+{
+    fn into_into_dart(self) -> crate::api::wipe::DbFileSweepReport {
         self
     }
 }
@@ -14345,6 +14481,14 @@ impl SseEncode for crate::api::archive::DbExportOptions {
         <bool>::sse_encode(self.include_snippets, serializer);
         <bool>::sse_encode(self.include_all_manager_keys, serializer);
         <bool>::sse_encode(self.has_manager_keys, serializer);
+    }
+}
+
+impl SseEncode for crate::api::wipe::DbFileSweepReport {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<String>>::sse_encode(self.deleted_files, serializer);
+        <Vec<String>>::sse_encode(self.failed_files, serializer);
     }
 }
 

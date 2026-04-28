@@ -31,6 +31,7 @@ import 'api/update_metadata.dart';
 import 'api/update_signing.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
+import 'api/wipe.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -93,7 +94,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1346765200;
+  int get rustContentHash => -81457047;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -975,6 +976,14 @@ abstract class RustLibApi extends BaseApi {
   });
 
   PlatformInt64 crateApiWinbioWinbioCountUnits();
+
+  bool crateApiWipeWipeHasAnyState({required String supportDir});
+
+  bool crateApiWipeWipeHasPending({required String supportDir});
+
+  Future<DbFileSweepReport> crateApiWipeWipeSweepFiles({
+    required String supportDir,
+  });
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_SshForwardChannel;
@@ -8254,6 +8263,97 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiWinbioWinbioCountUnitsConstMeta =>
       const TaskConstMeta(debugName: 'winbio_count_units', argNames: []);
 
+  @override
+  bool crateApiWipeWipeHasAnyState({required String supportDir}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(supportDir, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 214,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWipeWipeHasAnyStateConstMeta,
+        argValues: [supportDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWipeWipeHasAnyStateConstMeta =>
+      const TaskConstMeta(
+        debugName: 'wipe_has_any_state',
+        argNames: ['supportDir'],
+      );
+
+  @override
+  bool crateApiWipeWipeHasPending({required String supportDir}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(supportDir, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 215,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWipeWipeHasPendingConstMeta,
+        argValues: [supportDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWipeWipeHasPendingConstMeta => const TaskConstMeta(
+    debugName: 'wipe_has_pending',
+    argNames: ['supportDir'],
+  );
+
+  @override
+  Future<DbFileSweepReport> crateApiWipeWipeSweepFiles({
+    required String supportDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(supportDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 216,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_file_sweep_report,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiWipeWipeSweepFilesConstMeta,
+        argValues: [supportDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWipeWipeSweepFilesConstMeta => const TaskConstMeta(
+    debugName: 'wipe_sweep_files',
+    argNames: ['supportDir'],
+  );
+
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_SshForwardChannel => wire
       .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel;
@@ -9129,6 +9229,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       includeSnippets: dco_decode_bool(arr[4]),
       includeAllManagerKeys: dco_decode_bool(arr[5]),
       hasManagerKeys: dco_decode_bool(arr[6]),
+    );
+  }
+
+  @protected
+  DbFileSweepReport dco_decode_db_file_sweep_report(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DbFileSweepReport(
+      deletedFiles: dco_decode_list_String(arr[0]),
+      failedFiles: dco_decode_list_String(arr[1]),
     );
   }
 
@@ -11074,6 +11186,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       includeSnippets: var_includeSnippets,
       includeAllManagerKeys: var_includeAllManagerKeys,
       hasManagerKeys: var_hasManagerKeys,
+    );
+  }
+
+  @protected
+  DbFileSweepReport sse_decode_db_file_sweep_report(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_deletedFiles = sse_decode_list_String(deserializer);
+    final var_failedFiles = sse_decode_list_String(deserializer);
+    return DbFileSweepReport(
+      deletedFiles: var_deletedFiles,
+      failedFiles: var_failedFiles,
     );
   }
 
@@ -13415,6 +13540,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.includeSnippets, serializer);
     sse_encode_bool(self.includeAllManagerKeys, serializer);
     sse_encode_bool(self.hasManagerKeys, serializer);
+  }
+
+  @protected
+  void sse_encode_db_file_sweep_report(
+    DbFileSweepReport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.deletedFiles, serializer);
+    sse_encode_list_String(self.failedFiles, serializer);
   }
 
   @protected
