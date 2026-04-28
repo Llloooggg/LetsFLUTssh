@@ -36,3 +36,18 @@ pub fn path_expand_tilde(path: String) -> String {
 pub fn path_write_bytes_atomic(path: String, bytes: Vec<u8>) -> Result<(), String> {
     lfs_core::path::write_bytes_atomic(std::path::Path::new(&path), &bytes)
 }
+
+/// Tighten [`path`] to owner-only perms — `chmod 600` on Unix,
+/// `icacls /inheritance:r /grant:r` on Windows, no-op on iOS /
+/// Android (sandboxed app storage). Best-effort: returns the OS
+/// error as `Err(String)` for the caller to log, never panics.
+///
+/// Sync because the per-call work is one syscall on Unix and one
+/// short-lived subprocess on Windows; both run in microseconds
+/// and the call sites (drift WAL/SHM sidecars, explicit
+/// post-write hardening for files where the writer cannot use
+/// `path_write_bytes_atomic`) are not on hot paths.
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_harden_file_perms(path: String) -> Result<(), String> {
+    lfs_core::path::harden_file_perms(std::path::Path::new(&path))
+}

@@ -26,3 +26,16 @@ void pathWriteBytesAtomic({required String path, required List<int> bytes}) =>
       path: path,
       bytes: bytes,
     );
+
+/// Tighten [`path`] to owner-only perms — `chmod 600` on Unix,
+/// `icacls /inheritance:r /grant:r` on Windows, no-op on iOS /
+/// Android (sandboxed app storage). Best-effort: returns the OS
+/// error as `Err(String)` for the caller to log, never panics.
+///
+/// Sync because the per-call work is one syscall on Unix and one
+/// short-lived subprocess on Windows; both run in microseconds
+/// and the call sites (drift WAL/SHM sidecars, explicit
+/// post-write hardening for files where the writer cannot use
+/// `path_write_bytes_atomic`) are not on hot paths.
+void pathHardenFilePerms({required String path}) =>
+    RustLib.instance.api.crateApiPathPathHardenFilePerms(path: path);

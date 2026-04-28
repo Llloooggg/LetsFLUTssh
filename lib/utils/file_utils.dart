@@ -85,7 +85,22 @@ Future<void> _writeBytesDartFallback(File file, List<int> bytes) async {
 /// Silent no-op on platforms with sandboxed per-app storage (iOS,
 /// Android) — the OS already enforces tighter access than `chmod 600`
 /// would.
+///
+/// Routes through `lfs_core::path::harden_file_perms` in production
+/// so the chmod / icacls grammar lives one place. Falls back to a
+/// Dart subprocess shell-out for flutter_test contexts that don't
+/// load the FRB native lib.
 Future<void> hardenFilePerms(String path) async {
+  try {
+    rust_path.pathHardenFilePerms(path: path);
+    return;
+  } catch (e) {
+    AppLogger.instance.log(
+      'hardenFilePerms Rust path failed, falling back: $e',
+      name: 'FileUtils',
+      level: LogLevel.warn,
+    );
+  }
   try {
     if (Platform.isLinux || Platform.isMacOS) {
       final result = await Process.run('chmod', ['600', path]);
