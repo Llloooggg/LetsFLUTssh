@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/bus/app_bus.dart';
 import '../core/session/session.dart';
 import '../core/session/session_history.dart';
 import '../core/session/session_store.dart';
 import '../core/session/session_tree.dart';
+import '../src/rust/api/bus.dart' as rust_bus;
+import '../src/rust/api/sessions_registry.dart' as rust_registry;
 import '../utils/logger.dart';
 
 /// Global session store instance.
@@ -200,3 +203,48 @@ final filteredSessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
   final store = ref.watch(sessionStoreProvider);
   return SessionTree.build(sessions, emptyFolders: store.emptyFolders);
 });
+
+/// Reactive snapshot of the Rust-side `sessions::Registry` view —
+/// the cached session list + folder map + derived empty / collapsed
+/// paths. Re-emits on every `BusTopic.sessions` `SessionsChanged`
+/// event published by the FRB DAO write paths.
+///
+/// The first emission is the current snapshot at subscribe time
+/// (no wait for an event); subsequent emissions arrive whenever
+/// the Rust side commits a session / folder / link mutation.
+///
+/// Used by callers that want the canonical view without driving
+/// `SessionStore`'s lifecycle (count badges, debug surfaces). The
+/// store still provides the in-memory cache + history-backed
+/// undo / redo for the main UI; this is the read-only mirror for
+/// surfaces that don't need them.
+final sessionsRegistryViewProvider =
+    StreamProvider<rust_registry.DbSessionRegistryView>((ref) async* {
+      // Yield the current snapshot immediately so consumers don't
+      // render an empty placeholder until the next mutation.
+      try {
+        yield rust_registry.sessionsRegistrySnapshot();
+      } catch (e) {
+        AppLogger.instance.log(
+          'sessionsRegistryViewProvider initial snapshot failed: $e',
+          name: 'SessionRegistryProvider',
+          level: LogLevel.warn,
+        );
+        return;
+      }
+      await for (final event in AppBus.instance.subscribe(
+        rust_bus.BusTopic.sessions,
+      )) {
+        if (event is rust_bus.BusEvent_SessionsChanged) {
+          try {
+            yield rust_registry.sessionsRegistrySnapshot();
+          } catch (e) {
+            AppLogger.instance.log(
+              'sessionsRegistryViewProvider snapshot failed: $e',
+              name: 'SessionRegistryProvider',
+              level: LogLevel.warn,
+            );
+          }
+        }
+      }
+    });
