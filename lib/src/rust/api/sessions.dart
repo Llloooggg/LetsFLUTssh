@@ -42,6 +42,18 @@ int sessionsCountInFolder({
   folderPath: folderPath,
 );
 
+/// Return a label that does not collide with any entry in
+/// [`taken`]. Identity for free `base`; otherwise appends
+/// `(copy)`, `(copy 2)`, `(copy 3)`, … until a free slot is found.
+/// Empty `base` passes through unchanged.
+String sessionsUniqueLabel({
+  required String base,
+  required List<String> taken,
+}) => RustLib.instance.api.crateApiSessionsSessionsUniqueLabel(
+  base: base,
+  taken: taken,
+);
+
 /// Searchable Session projection — id + the four fields the UI
 /// search bar matches against. The Dart caller projects its
 /// domain `Session` list once and feeds it here, avoiding a

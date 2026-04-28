@@ -60,6 +60,37 @@ pub fn validate_session_fields(host: &str, port: u16, user: &str) -> Option<Stri
     None
 }
 
+/// Generate a label that does not collide with any entry in
+/// [`taken`]. Returns [`base`] when free; otherwise tries
+/// `"{base} (copy)"`, then `"{base} (copy 2)"`, `"{base} (copy 3)"`,
+/// … until a free slot is found.
+///
+/// Empty [`base`] passes through unchanged — callers (the duplicate-
+/// key importer, the duplicate-session path) expect "no label" to
+/// stay empty rather than growing a `(copy)` tag onto nothing.
+///
+/// Mirrors `KeyStore._uniqueLabel` Dart-side and is the canonical
+/// source-of-truth for the dedup grammar that also appears in the
+/// session-duplicate / snippet-duplicate flows.
+#[must_use]
+pub fn unique_label(base: &str, taken: &std::collections::HashSet<String>) -> String {
+    if base.is_empty() || !taken.contains(base) {
+        return base.to_string();
+    }
+    let copy = format!("{base} (copy)");
+    if !taken.contains(&copy) {
+        return copy;
+    }
+    let mut n = 2_u32;
+    loop {
+        let candidate = format!("{base} (copy {n})");
+        if !taken.contains(&candidate) {
+            return candidate;
+        }
+        n += 1;
+    }
+}
+
 /// Count sessions whose `folder` field equals [`folder_path`] or
 /// sits under `{folder_path}/`. Used by the folder context-menu
 /// confirm dialog ("Delete folder containing N sessions?") and by
@@ -246,5 +277,44 @@ mod tests {
     fn count_in_folder_root_path_counts_root_sessions() {
         let folders = vec![String::new(), "Production".to_string(), String::new()];
         assert_eq!(count_in_folder(&folders, ""), 2);
+    }
+
+    #[test]
+    fn unique_label_passes_through_when_base_is_free() {
+        let taken: std::collections::HashSet<String> = ["foo".into()].into();
+        assert_eq!(unique_label("bar", &taken), "bar");
+    }
+
+    #[test]
+    fn unique_label_appends_copy_marker_when_base_taken() {
+        let taken: std::collections::HashSet<String> = ["foo".into()].into();
+        assert_eq!(unique_label("foo", &taken), "foo (copy)");
+    }
+
+    #[test]
+    fn unique_label_appends_copy_n_when_copy_taken() {
+        let taken: std::collections::HashSet<String> = ["foo".into(), "foo (copy)".into()].into();
+        assert_eq!(unique_label("foo", &taken), "foo (copy 2)");
+    }
+
+    #[test]
+    fn unique_label_walks_until_free_slot_found() {
+        let taken: std::collections::HashSet<String> = [
+            "foo".into(),
+            "foo (copy)".into(),
+            "foo (copy 2)".into(),
+            "foo (copy 3)".into(),
+        ]
+        .into();
+        assert_eq!(unique_label("foo", &taken), "foo (copy 4)");
+    }
+
+    #[test]
+    fn unique_label_keeps_empty_base_empty() {
+        // The duplicate-key import path passes through entries with
+        // no label; `unique_label("", _)` must not produce
+        // " (copy)" — empty in, empty out.
+        let taken: std::collections::HashSet<String> = ["foo".into()].into();
+        assert_eq!(unique_label("", &taken), "");
     }
 }

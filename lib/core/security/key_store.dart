@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/keys.dart' as rust_keys;
+import '../../src/rust/api/sessions.dart' as rust_sess;
 import '../../utils/logger.dart';
 import '_crypto_compat.dart';
 
@@ -327,15 +328,26 @@ class KeyStore {
     return newId;
   }
 
+  /// Routes through `lfs_core::sessions::unique_label` so the
+  /// `(copy)` / `(copy N)` dedup grammar lives one place. Falls back
+  /// to the equivalent inline loop in flutter_test contexts that
+  /// don't bootstrap the FRB native lib.
   static String _uniqueLabel(String base, Set<String> taken) {
-    if (base.isEmpty || !taken.contains(base)) return base;
-    final copy = '$base (copy)';
-    if (!taken.contains(copy)) return copy;
-    var n = 2;
-    while (taken.contains('$base (copy $n)')) {
-      n++;
+    try {
+      return rust_sess.sessionsUniqueLabel(
+        base: base,
+        taken: taken.toList(growable: false),
+      );
+    } catch (_) {
+      if (base.isEmpty || !taken.contains(base)) return base;
+      final copy = '$base (copy)';
+      if (!taken.contains(copy)) return copy;
+      var n = 2;
+      while (taken.contains('$base (copy $n)')) {
+        n++;
+      }
+      return '$base (copy $n)';
     }
-    return '$base (copy $n)';
   }
 
   /// SHA-256 hex of a normalized public key (OpenSSH single-line form).

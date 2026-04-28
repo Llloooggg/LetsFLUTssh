@@ -57,3 +57,13 @@ pub fn sessions_validate_fields(host: String, port: u16, user: String) -> Option
 pub fn sessions_count_in_folder(session_folders: Vec<String>, folder_path: String) -> u32 {
     sessions::count_in_folder(&session_folders, &folder_path) as u32
 }
+
+/// Return a label that does not collide with any entry in
+/// [`taken`]. Identity for free `base`; otherwise appends
+/// `(copy)`, `(copy 2)`, `(copy 3)`, … until a free slot is found.
+/// Empty `base` passes through unchanged.
+#[flutter_rust_bridge::frb(sync)]
+pub fn sessions_unique_label(base: String, taken: Vec<String>) -> String {
+    let set: std::collections::HashSet<String> = taken.into_iter().collect();
+    sessions::unique_label(&base, &set)
+}
