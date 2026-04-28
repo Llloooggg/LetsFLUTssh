@@ -29,3 +29,27 @@ Uint8List hmacSha256Compat(Uint8List key, Uint8List message) {
     );
   }
 }
+
+/// Constant-time byte-slice equality compat wrapper.
+///
+/// Production routes through `lfs_core::crypto::constant_time_eq`
+/// (sync FRB), backed by `subtle::ConstantTimeEq`. Falls back to a
+/// pure-Dart loop with the same constant-time shape (XOR fold over
+/// every byte regardless of where the first mismatch sits) when
+/// the FRB native lib is not loaded — same test-context fallback
+/// pattern as [hmacSha256Compat]. Length mismatch fails fast: the
+/// lengths themselves are not secret, only the byte content is.
+bool constantTimeEqCompat(List<int> a, List<int> b) {
+  try {
+    return rust_crypto.cryptoConstantTimeEq(a: _bytes(a), b: _bytes(b));
+  } catch (_) {
+    if (a.length != b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+      diff |= a[i] ^ b[i];
+    }
+    return diff == 0;
+  }
+}
+
+Uint8List _bytes(List<int> v) => v is Uint8List ? v : Uint8List.fromList(v);

@@ -198,7 +198,7 @@ class KeychainPasswordGate {
       final pepper = base64.decode(pepperB64);
 
       final computed = _computeHmac(password, salt, pepper);
-      return _constantTimeEqual(computed, storedHmac);
+      return constantTimeEqCompat(computed, storedHmac);
     } catch (e) {
       AppLogger.instance.log(
         'KeychainPasswordGate.verify failed: $e',
@@ -255,14 +255,5 @@ class KeychainPasswordGate {
         name: 'KeychainPasswordGate',
       );
     }
-  }
-
-  static bool _constantTimeEqual(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    var diff = 0;
-    for (var i = 0; i < a.length; i++) {
-      diff |= a[i] ^ b[i];
-    }
-    return diff == 0;
   }
 }

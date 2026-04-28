@@ -87,6 +87,26 @@ pub fn hmac_sha256(key: &[u8], message: &[u8]) -> Vec<u8> {
     mac.finalize().into_bytes().to_vec()
 }
 
+/// Constant-time equality over two byte slices. Returns `false`
+/// immediately when the lengths differ (lengths are not secret); the
+/// per-byte comparison runs to completion regardless of where the
+/// first differing byte sits, so a timing-side-channel attacker
+/// cannot binary-search the secret one byte at a time.
+///
+/// Backed by `subtle::ConstantTimeEq` — never replace with `==` on
+/// MAC tags, derived keys, or any value where mismatch leaks part of
+/// a secret. The Dart-side `_constantTimeEqual` helpers in the L2
+/// gate + persisted-rate-limiter route through this via
+/// `crypto_constant_time_eq` so the implementation lives one place.
+#[must_use]
+pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    use subtle::ConstantTimeEq;
+    if a.len() != b.len() {
+        return false;
+    }
+    a.ct_eq(b).into()
+}
+
 /// Verify an Ed25519 signature over `message` against `public_key`.
 ///
 /// Returns `Ok(true)` only on a valid signature; bad-length inputs
@@ -427,5 +447,27 @@ mod tests {
             let mac = hmac_sha256(&key, b"x");
             assert_eq!(mac.len(), 32, "key_len={key_len}");
         }
+    }
+
+    #[test]
+    fn constant_time_eq_matches_equal_bytes() {
+        assert!(constant_time_eq(b"abc", b"abc"));
+        assert!(constant_time_eq(&[], &[]));
+        assert!(constant_time_eq(&[0u8; 32], &[0u8; 32]));
+    }
+
+    #[test]
+    fn constant_time_eq_rejects_different_bytes() {
+        assert!(!constant_time_eq(b"abc", b"abd"));
+        assert!(!constant_time_eq(&[0u8; 32], &[1u8; 32]));
+    }
+
+    #[test]
+    fn constant_time_eq_rejects_different_lengths() {
+        // Length mismatch fails fast — the lengths themselves are
+        // not secret, only the byte content is.
+        assert!(!constant_time_eq(b"abc", b"abcd"));
+        assert!(!constant_time_eq(b"", b"x"));
+        assert!(!constant_time_eq(b"x", b""));
     }
 }

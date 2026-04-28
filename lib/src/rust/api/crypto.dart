@@ -36,6 +36,18 @@ Uint8List cryptoHmacSha256({
   message: message,
 );
 
+/// Constant-time equality over two byte slices. `false` immediately
+/// when lengths differ (lengths are not secret); the per-byte
+/// comparison runs to completion regardless of where the first
+/// differing byte sits, so a timing-side-channel attacker cannot
+/// binary-search the secret one byte at a time.
+///
+/// Sync — same hot-path argument as `crypto_hmac_sha256`. Backed by
+/// `subtle::ConstantTimeEq` Rust-side so the implementation lives
+/// one place across the per-tier secret gates.
+bool cryptoConstantTimeEq({required List<int> a, required List<int> b}) =>
+    RustLib.instance.api.crateApiCryptoCryptoConstantTimeEq(a: a, b: b);
+
 /// Verify an Ed25519 signature over `message` against `public_key`.
 /// Returns `false` on any malformed input — never throws — so the
 /// caller's "no signature match → fail closed" branch is the only

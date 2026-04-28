@@ -373,7 +373,7 @@ class PersistedRateLimiter extends PasswordRateLimiter {
       final payloadBytes = base64.decode(payloadB64);
       final claimed = base64.decode(hmacB64);
       final expected = hmacSha256Compat(_hmacKey, payloadBytes);
-      if (!_constantTimeEqual(claimed, expected)) return null;
+      if (!constantTimeEqCompat(claimed, expected)) return null;
       final payload =
           jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
       final failureCount = (payload['failure_count'] as num?)?.toInt() ?? 0;
@@ -399,15 +399,6 @@ class PersistedRateLimiter extends PasswordRateLimiter {
       );
       return null;
     }
-  }
-
-  static bool _constantTimeEqual(List<int> a, List<int> b) {
-    if (a.length != b.length) return false;
-    var diff = 0;
-    for (var i = 0; i < a.length; i++) {
-      diff |= a[i] ^ b[i];
-    }
-    return diff == 0;
   }
 }
 
