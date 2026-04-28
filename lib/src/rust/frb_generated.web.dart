@@ -34,6 +34,7 @@ import 'api/security_capabilities.dart';
 import 'api/security_config.dart';
 import 'api/sessions.dart';
 import 'api/sftp.dart';
+import 'api/sftp_models.dart';
 import 'api/snippet_template.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
@@ -399,6 +400,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbExportOptions dco_decode_db_export_options(dynamic raw);
 
   @protected
+  DbFileSortKey dco_decode_db_file_sort_key(dynamic raw);
+
+  @protected
   DbFileSweepReport dco_decode_db_file_sweep_report(dynamic raw);
 
   @protected
@@ -567,6 +571,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbChangelogRelease> dco_decode_list_db_changelog_release(dynamic raw);
 
   @protected
+  List<DbFileSortKey> dco_decode_list_db_file_sort_key(dynamic raw);
+
+  @protected
   List<DbFolder> dco_decode_list_db_folder(dynamic raw);
 
   @protected
@@ -622,6 +629,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   List<DbUnsupportedFutureVersion>
   dco_decode_list_db_unsupported_future_version(dynamic raw);
+
+  @protected
+  Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -1118,6 +1128,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbExportOptions sse_decode_db_export_options(SseDeserializer deserializer);
 
   @protected
+  DbFileSortKey sse_decode_db_file_sort_key(SseDeserializer deserializer);
+
+  @protected
   DbFileSweepReport sse_decode_db_file_sweep_report(
     SseDeserializer deserializer,
   );
@@ -1332,6 +1345,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DbFileSortKey> sse_decode_list_db_file_sort_key(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DbFolder> sse_decode_list_db_folder(SseDeserializer deserializer);
 
   @protected
@@ -1405,6 +1423,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   List<DbUnsupportedFutureVersion>
   sse_decode_list_db_unsupported_future_version(SseDeserializer deserializer);
+
+  @protected
+  Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -2014,6 +2035,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_file_sort_key(
+    DbFileSortKey self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_file_sweep_report(
     DbFileSweepReport self,
     SseSerializer serializer,
@@ -2293,6 +2320,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_db_file_sort_key(
+    List<DbFileSortKey> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_db_folder(List<DbFolder> self, SseSerializer serializer);
 
   @protected
@@ -2391,6 +2424,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_unsupported_future_version(
     List<DbUnsupportedFutureVersion> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_32_strict(
+    Uint32List self,
     SseSerializer serializer,
   );
 

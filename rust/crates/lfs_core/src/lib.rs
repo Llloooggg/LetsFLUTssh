@@ -45,6 +45,7 @@ pub mod secrets;
 pub mod security;
 pub mod sessions;
 pub mod sftp;
+pub mod sftp_models;
 pub mod snippet_template;
 pub mod ssh;
 pub mod ssh_config;
