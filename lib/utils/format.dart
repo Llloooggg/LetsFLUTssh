@@ -13,16 +13,25 @@ import '../features/settings/export_import.dart'
         LfsKnownHostsTooLargeException,
         UnsupportedLfsVersionException;
 import '../l10n/app_localizations.dart';
+import '../src/rust/api/format.dart' as rust_format;
 import 'sanitize.dart';
 
-/// Format byte size to human-readable string.
+/// Format byte size to human-readable string. Routes through
+/// `lfs_core::format::format_size` so the B / KB / MB / GB ladder
+/// (with the canonical decimal places — 1 for KB/MB, 2 for GB)
+/// lives one place; falls back to the equivalent inline ladder
+/// for flutter_test contexts that don't load the FRB native lib.
 String formatSize(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-  if (bytes < 1024 * 1024 * 1024) {
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  try {
+    return rust_format.formatSize(bytes: bytes);
+  } catch (_) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
-  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
 }
 
 /// Format DateTime to short timestamp.
@@ -31,12 +40,19 @@ String formatTimestamp(DateTime dt) {
       '${_pad(dt.hour)}:${_pad(dt.minute)}';
 }
 
-/// Format Duration to human-readable string.
+/// Format Duration to human-readable string. Routes through
+/// `lfs_core::format::format_duration` so the ms / s / m / h
+/// granularity lives one place; falls back to the inline ladder
+/// for flutter_test contexts that don't load the FRB native lib.
 String formatDuration(Duration d) {
-  if (d.inSeconds < 1) return '${d.inMilliseconds}ms';
-  if (d.inMinutes < 1) return '${d.inSeconds}s';
-  if (d.inHours < 1) return '${d.inMinutes}m ${d.inSeconds % 60}s';
-  return '${d.inHours}h ${d.inMinutes % 60}m';
+  try {
+    return rust_format.formatDuration(millis: d.inMilliseconds);
+  } catch (_) {
+    if (d.inSeconds < 1) return '${d.inMilliseconds}ms';
+    if (d.inMinutes < 1) return '${d.inSeconds}s';
+    if (d.inHours < 1) return '${d.inMinutes}m ${d.inSeconds % 60}s';
+    return '${d.inHours}h ${d.inMinutes % 60}m';
+  }
 }
 
 String _pad(int n) => n.toString().padLeft(2, '0');
