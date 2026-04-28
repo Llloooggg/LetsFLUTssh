@@ -8953,6 +8953,9 @@ impl SseDecode for crate::api::bus::BusEvent {
             22 => {
                 return crate::api::bus::BusEvent::KnownHostsChanged;
             }
+            23 => {
+                return crate::api::bus::BusEvent::SessionsChanged;
+            }
             _ => {
                 unimplemented!("");
             }
@@ -9029,6 +9032,7 @@ impl SseDecode for crate::api::bus::BusTopic {
             6 => crate::api::bus::BusTopic::Import,
             7 => crate::api::bus::BusTopic::Update,
             8 => crate::api::bus::BusTopic::KnownHosts,
+            9 => crate::api::bus::BusTopic::Sessions,
             _ => unreachable!("Invalid variant for BusTopic: {}", inner),
         };
     }
@@ -11500,6 +11504,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
             ]
             .into_dart(),
             crate::api::bus::BusEvent::KnownHostsChanged => [22.into_dart()].into_dart(),
+            crate::api::bus::BusEvent::SessionsChanged => [23.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -11612,6 +11617,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusTopic {
             Self::Import => 6.into_dart(),
             Self::Update => 7.into_dart(),
             Self::KnownHosts => 8.into_dart(),
+            Self::Sessions => 9.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -13298,6 +13304,9 @@ impl SseEncode for crate::api::bus::BusEvent {
             crate::api::bus::BusEvent::KnownHostsChanged => {
                 <i32>::sse_encode(22, serializer);
             }
+            crate::api::bus::BusEvent::SessionsChanged => {
+                <i32>::sse_encode(23, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -13381,6 +13390,7 @@ impl SseEncode for crate::api::bus::BusTopic {
                 crate::api::bus::BusTopic::Import => 6,
                 crate::api::bus::BusTopic::Update => 7,
                 crate::api::bus::BusTopic::KnownHosts => 8,
+                crate::api::bus::BusTopic::Sessions => 9,
                 _ => {
                     unimplemented!("");
                 }

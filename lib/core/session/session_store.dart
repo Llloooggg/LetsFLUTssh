@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
+import '../bus/app_bus.dart';
 import '../db/mappers.dart';
 import '../ssh/port_forward_rule.dart';
 import 'session.dart';
@@ -17,12 +20,52 @@ import 'session.dart';
 /// empty-result / no-op semantics the legacy `_db == null` branch
 /// used to expose. Live persistence coverage moves to integration_test.
 class SessionStore {
+  SessionStore() {
+    // Subscribe to the global Sessions topic so any FRB-side
+    // mutation (including bulk-import paths) refreshes the cache.
+    // The subscribe call hits the FRB native lib at construction
+    // time; flutter_test contexts that don't load the lib raise
+    // synchronously. Catch + log so the store stays usable in
+    // tests with mocked DAOs.
+    try {
+      _busSub = AppBus.instance.subscribe(rust_bus.BusTopic.sessions).listen((
+        event,
+      ) {
+        if (event is rust_bus.BusEvent_SessionsChanged) {
+          unawaited(reload());
+        }
+      });
+    } catch (e) {
+      AppLogger.instance.log(
+        'SessionStore bus subscribe failed: $e',
+        name: 'SessionStore',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  StreamSubscription<rust_bus.BusEvent>? _busSub;
+
   final List<Session> _sessions = [];
   final Set<String> _emptyFolders = {};
   final Set<String> _collapsedFolders = {};
 
   /// Folder tree cache (id → DbFolder). Rebuilt on [load].
   Map<String, rust_db.DbFolder> _folderMap = {};
+
+  /// Force a reload from the DB on the next [load] call. Used by the
+  /// bus subscriber (above) to drop the cached future after a
+  /// `SessionsChanged` event so the next read picks up the new state.
+  Future<void> reload() async {
+    invalidateCache();
+    await load();
+  }
+
+  /// Cancel the bus subscription. Call from disposing the provider.
+  void dispose() {
+    unawaited(_busSub?.cancel());
+    _busSub = null;
+  }
 
   List<Session> get sessions => List.unmodifiable(_sessions);
   Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);

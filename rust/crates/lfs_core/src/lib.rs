@@ -39,6 +39,7 @@ pub mod qr_codec_decode;
 pub mod rate_limit;
 pub mod recorder;
 pub mod secrets;
+pub mod sessions;
 pub mod sftp;
 pub mod ssh;
 pub mod ssh_config;

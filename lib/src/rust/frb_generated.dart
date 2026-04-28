@@ -8345,6 +8345,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 22:
         return const BusEvent_KnownHostsChanged();
+      case 23:
+        return const BusEvent_SessionsChanged();
       default:
         throw Exception('unreachable');
     }
@@ -10169,6 +10171,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return BusEvent_UpdateDownloadCompleted(url: var_url, path: var_path);
       case 22:
         return const BusEvent_KnownHostsChanged();
+      case 23:
+        return const BusEvent_SessionsChanged();
       default:
         throw UnimplementedError('');
     }
@@ -12479,6 +12483,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(path, serializer);
       case BusEvent_KnownHostsChanged():
         sse_encode_i_32(22, serializer);
+      case BusEvent_SessionsChanged():
+        sse_encode_i_32(23, serializer);
     }
   }
 

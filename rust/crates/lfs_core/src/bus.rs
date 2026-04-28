@@ -62,6 +62,12 @@ pub enum EventTopic {
     /// Known-hosts table — refresh notification for the
     /// settings panel + any cached snapshot mirrors.
     KnownHosts,
+    /// Sessions / folders tables — refresh notification for the
+    /// session-store cache mirror. Fires after every write
+    /// (upsert / delete / move / folder rename / collapsed-flag
+    /// toggle) so the Dart shim can re-fetch in one
+    /// microtask-coalesced refresh rather than per-call.
+    Sessions,
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -193,6 +199,13 @@ pub enum Event {
     /// per write; bulk imports emit a single event for the whole
     /// batch.
     KnownHostsChanged,
+    /// Sessions / folders tables mutated. No detail — Dart
+    /// subscribers re-fetch the full list via the session DAOs.
+    /// One event per write covers both session-row changes and
+    /// folder-cascade ripples (rename / move / delete / collapsed
+    /// toggle) — the cache mirror picks the canonical state up
+    /// from the DB after the FRB layer publishes here.
+    SessionsChanged,
 }
 
 impl Event {
@@ -221,6 +234,7 @@ impl Event {
             | Event::UpdateVerifyingStarted { .. }
             | Event::UpdateDownloadCompleted { .. } => EventTopic::Update,
             Event::KnownHostsChanged => EventTopic::KnownHosts,
+            Event::SessionsChanged => EventTopic::Sessions,
         }
     }
 }

@@ -35,7 +35,7 @@ right now"*, the design is wrong.
 |---|---|---|
 | 1. `migration_runner` → Rust | DONE | `101798a7` |
 | 2. `app_config` → Rust | pending — **gated on step 9** (security_tier types couple in) |
-| 3. `session_store` → Rust | pending |
+| 3. `session_store` → Rust | partial — `lfs_core::sessions::notify_changed` + `Sessions` bus topic shipped; every mutating session/folder DAO publishes `SessionsChanged` after writes; Dart `SessionStore` subscribes for auto-refresh. Cache + folder-cascade move to a Rust registry actor remains the next arc. |
 | 4. `connection_manager` → Rust | pending |
 | 5. `transfer_manager` → Rust driver | partial — Rust executor extended with chunked streaming (64 KiB) + per-task cancellation token honoured between chunks; FRB `transfer_enqueue` / `transfer_dispatch` / `transfer_cancel` / `transfer_snapshot_all` / `transfer_drop_terminal` / `transfer_clear_history` shipped. Dart `TransferManager` retire (closure-based `TransferTask` → typed enqueue + bus-stream provider + recursive-dir walker move) remains the next arc. |
 | 6. `port_forward_runtime` → Rust driver | DONE — Rust drivers (`-L` / `-D` SOCKS5 / `-R`) shipped earlier; Dart `port_forward_runtime.dart` shrank to a ~150-LOC shim that dispatches per-rule `port_forward_start_*` / `port_forward_stop_*` over FRB |

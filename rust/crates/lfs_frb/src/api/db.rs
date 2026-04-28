@@ -185,25 +185,33 @@ pub async fn db_folders_list_all() -> Result<Vec<DbFolder>, String> {
 
 pub async fn db_folders_upsert(row: DbFolder) -> Result<(), String> {
     let row: lfs_core::db::folders::FolderRow = row.into();
-    run_db(move |c| lfs_core::db::folders::upsert(c, &row)).await
+    let res = run_db(move |c| lfs_core::db::folders::upsert(c, &row)).await;
+    notify_sessions_on_ok(&res);
+    res
 }
 
 pub async fn db_folders_delete(id: String) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::folders::delete(c, &id))
+    let res = run_db(move |c| lfs_core::db::folders::delete(c, &id))
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 pub async fn db_folders_delete_all() -> Result<u32, String> {
-    run_db(lfs_core::db::folders::delete_all)
+    let res = run_db(lfs_core::db::folders::delete_all)
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 pub async fn db_folders_toggle_collapsed(id: String) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::folders::toggle_collapsed(c, &id))
+    let res = run_db(move |c| lfs_core::db::folders::toggle_collapsed(c, &id))
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 pub async fn db_folders_update_name_parent(
@@ -211,15 +219,38 @@ pub async fn db_folders_update_name_parent(
     name: String,
     parent_id: Option<String>,
 ) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::folders::update_name_parent(c, &id, &name, parent_id.as_deref()))
-        .await
-        .map(|n| n as u32)
+    let res = run_db(move |c| {
+        lfs_core::db::folders::update_name_parent(c, &id, &name, parent_id.as_deref())
+    })
+    .await
+    .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 pub async fn db_folders_delete_recursive(id: String) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::folders::delete_recursive(c, &id))
+    let res = run_db(move |c| lfs_core::db::folders::delete_recursive(c, &id))
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
+}
+
+/// Publish [`SessionsChanged`] when the wrapped DAO result is `Ok(_)`.
+/// No-op on `Err` so a failed write doesn't trigger a downstream
+/// re-fetch storm against state that didn't actually change.
+fn notify_sessions_on_ok<T>(res: &Result<T, String>) {
+    if res.is_ok() {
+        lfs_core::sessions::notify_changed(&lfs_core::app::instance());
+    }
+}
+
+fn notify_sessions_on_ok_when<T>(res: &Result<T, String>, when: impl Fn(&T) -> bool) {
+    if let Ok(v) = res {
+        if when(v) {
+            lfs_core::sessions::notify_changed(&lfs_core::app::instance());
+        }
+    }
 }
 
 // ---- sessions ----------------------------------------------------------
@@ -322,13 +353,17 @@ pub async fn db_sessions_get(id: String) -> Result<Option<DbSession>, String> {
 
 pub async fn db_sessions_upsert(row: DbSession) -> Result<(), String> {
     let row: lfs_core::db::sessions::SessionRow = row.into();
-    run_db(move |c| lfs_core::db::sessions::upsert(c, &row)).await
+    let res = run_db(move |c| lfs_core::db::sessions::upsert(c, &row)).await;
+    notify_sessions_on_ok(&res);
+    res
 }
 
 pub async fn db_sessions_delete(id: String) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::sessions::delete(c, &id))
+    let res = run_db(move |c| lfs_core::db::sessions::delete(c, &id))
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 /// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.
@@ -420,9 +455,11 @@ impl From<DbSessionMetadata> for lfs_core::db::sessions::SessionMetadata {
 /// reading the existing secret bytes back onto the Dart heap.
 pub async fn db_sessions_update_metadata(metadata: DbSessionMetadata) -> Result<u32, String> {
     let m: lfs_core::db::sessions::SessionMetadata = metadata.into();
-    run_db(move |c| lfs_core::db::sessions::update_metadata(c, &m))
+    let res = run_db(move |c| lfs_core::db::sessions::update_metadata(c, &m))
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 /// Replace one credential column (`"password"` / `"key_data"` /
@@ -435,9 +472,13 @@ pub async fn db_sessions_set_secret(
     value: String,
     updated_at_ms: i64,
 ) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::sessions::set_secret_column(c, &id, &slot, &value, updated_at_ms))
-        .await
-        .map(|n| n as u32)
+    let res = run_db(move |c| {
+        lfs_core::db::sessions::set_secret_column(c, &id, &slot, &value, updated_at_ms)
+    })
+    .await
+    .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 /// Copy a saved session row to a new id + label, optionally
@@ -451,7 +492,7 @@ pub async fn db_sessions_duplicate(
     target_folder_id: Option<String>,
     now_ms: i64,
 ) -> Result<(), String> {
-    run_db(move |c| {
+    let res = run_db(move |c| {
         lfs_core::db::sessions::duplicate_session(
             c,
             &src_id,
@@ -461,19 +502,25 @@ pub async fn db_sessions_duplicate(
             now_ms,
         )
     })
-    .await
+    .await;
+    notify_sessions_on_ok(&res);
+    res
 }
 
 pub async fn db_sessions_delete_multiple(ids: Vec<String>) -> Result<u32, String> {
-    run_db(move |c| lfs_core::db::sessions::delete_multiple(c, &ids))
+    let res = run_db(move |c| lfs_core::db::sessions::delete_multiple(c, &ids))
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 pub async fn db_sessions_delete_all() -> Result<u32, String> {
-    run_db(lfs_core::db::sessions::delete_all)
+    let res = run_db(lfs_core::db::sessions::delete_all)
         .await
-        .map(|n| n as u32)
+        .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 pub async fn db_sessions_move_to_folder(
@@ -481,11 +528,13 @@ pub async fn db_sessions_move_to_folder(
     folder_id: Option<String>,
     updated_at_ms: i64,
 ) -> Result<u32, String> {
-    run_db(move |c| {
+    let res = run_db(move |c| {
         lfs_core::db::sessions::move_to_folder(c, &session_id, folder_id.as_deref(), updated_at_ms)
     })
     .await
-    .map(|n| n as u32)
+    .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 pub async fn db_sessions_move_multiple(
@@ -493,11 +542,13 @@ pub async fn db_sessions_move_multiple(
     folder_id: Option<String>,
     updated_at_ms: i64,
 ) -> Result<u32, String> {
-    run_db(move |c| {
+    let res = run_db(move |c| {
         lfs_core::db::sessions::move_multiple(c, &ids, folder_id.as_deref(), updated_at_ms)
     })
     .await
-    .map(|n| n as u32)
+    .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
 }
 
 // ---- known_hosts -------------------------------------------------------

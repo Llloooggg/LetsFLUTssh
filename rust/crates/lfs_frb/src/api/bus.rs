@@ -19,6 +19,7 @@ pub enum BusTopic {
     Import,
     Update,
     KnownHosts,
+    Sessions,
 }
 
 impl From<BusTopic> for lfs_core::bus::EventTopic {
@@ -33,6 +34,7 @@ impl From<BusTopic> for lfs_core::bus::EventTopic {
             BusTopic::Import => lfs_core::bus::EventTopic::Import,
             BusTopic::Update => lfs_core::bus::EventTopic::Update,
             BusTopic::KnownHosts => lfs_core::bus::EventTopic::KnownHosts,
+            BusTopic::Sessions => lfs_core::bus::EventTopic::Sessions,
         }
     }
 }
@@ -199,6 +201,8 @@ pub enum BusEvent {
     UpdateDownloadCompleted { url: String, path: String },
     /// Known-hosts table mutated.
     KnownHostsChanged,
+    /// Sessions / folders tables mutated.
+    SessionsChanged,
 }
 
 /// Rule status — FRB mirror of `lfs_core::portforward::RuleStatus`.
@@ -318,6 +322,7 @@ impl BusEvent {
                 BusEvent::UpdateDownloadCompleted { url, path }
             }
             lfs_core::bus::Event::KnownHostsChanged => BusEvent::KnownHostsChanged,
+            lfs_core::bus::Event::SessionsChanged => BusEvent::SessionsChanged,
         }
     }
 }

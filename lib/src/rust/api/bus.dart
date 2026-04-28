@@ -307,6 +307,9 @@ sealed class BusEvent with _$BusEvent {
 
   /// Known-hosts table mutated.
   const factory BusEvent.knownHostsChanged() = BusEvent_KnownHostsChanged;
+
+  /// Sessions / folders tables mutated.
+  const factory BusEvent.sessionsChanged() = BusEvent_SessionsChanged;
 }
 
 /// Connection progress step — FRB mirror of
@@ -357,4 +360,5 @@ enum BusTopic {
   import_,
   update,
   knownHosts,
+  sessions,
 }
