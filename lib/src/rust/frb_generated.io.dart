@@ -454,6 +454,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbThreatTier dco_decode_db_threat_tier(dynamic raw);
 
   @protected
+  DbTransferKind dco_decode_db_transfer_kind(dynamic raw);
+
+  @protected
+  DbTransferSnapshot dco_decode_db_transfer_snapshot(dynamic raw);
+
+  @protected
+  DbTransferState dco_decode_db_transfer_state(dynamic raw);
+
+  @protected
   DbUnsupportedFutureVersion dco_decode_db_unsupported_future_version(
     dynamic raw,
   );
@@ -525,6 +534,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbThreatRow> dco_decode_list_db_threat_row(dynamic raw);
+
+  @protected
+  List<DbTransferSnapshot> dco_decode_list_db_transfer_snapshot(dynamic raw);
 
   @protected
   List<DbUnsupportedFutureVersion>
@@ -1097,6 +1109,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbThreatTier sse_decode_db_threat_tier(SseDeserializer deserializer);
 
   @protected
+  DbTransferKind sse_decode_db_transfer_kind(SseDeserializer deserializer);
+
+  @protected
+  DbTransferSnapshot sse_decode_db_transfer_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbTransferState sse_decode_db_transfer_state(SseDeserializer deserializer);
+
+  @protected
   DbUnsupportedFutureVersion sse_decode_db_unsupported_future_version(
     SseDeserializer deserializer,
   );
@@ -1184,6 +1207,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbThreatRow> sse_decode_list_db_threat_row(SseDeserializer deserializer);
+
+  @protected
+  List<DbTransferSnapshot> sse_decode_list_db_transfer_snapshot(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbUnsupportedFutureVersion>
@@ -1898,6 +1926,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_threat_tier(DbThreatTier self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_transfer_kind(
+    DbTransferKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_transfer_snapshot(
+    DbTransferSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_transfer_state(
+    DbTransferState self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_unsupported_future_version(
     DbUnsupportedFutureVersion self,
     SseSerializer serializer,
@@ -2011,6 +2057,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_threat_row(
     List<DbThreatRow> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_transfer_snapshot(
+    List<DbTransferSnapshot> self,
     SseSerializer serializer,
   );
 

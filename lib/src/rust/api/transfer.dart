@@ -7,16 +7,37 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `pool_arc`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+
+/// Enqueue a fresh transfer task and immediately dispatch it
+/// into the worker pool. Returns the registered task id (used
+/// later for cancel + history-drop). Lazy-inits the worker pool
+/// on the first enqueue.
+///
+/// `bytes_total` is informational — the executor reports
+/// real-time `bytes_done` via `TransferTaskProgress` events.
+/// Pass `0` when the size is unknown (e.g. a remote read whose
+/// size we haven't stat'd yet).
+Future<DbTransferSnapshot> transferEnqueue({
+  required String id,
+  required DbTransferKind kind,
+  required String sessionId,
+  required String remotePath,
+  required String localPath,
+  required BigInt bytesTotal,
+}) => RustLib.instance.api.crateApiTransferTransferEnqueue(
+  id: id,
+  kind: kind,
+  sessionId: sessionId,
+  remotePath: remotePath,
+  localPath: localPath,
+  bytesTotal: bytesTotal,
+);
 
 /// Dispatch a previously-enqueued task into the worker pool.
-/// Caller must have already inserted the row through the
-/// existing DAO surface (currently exposed by the export /
-/// import driver path Dart-side); the pool needs the row to
-/// resolve session id + paths via [`TransferQueue::snapshot`].
-///
-/// Lazy-initialises the worker pool on the first call so the
-/// tokio runtime is guaranteed to be alive (the FRB worker
-/// hosts a tokio runtime by construction).
+/// Used by paths that build the row out-of-band (not through
+/// [`transfer_enqueue`]) — kept around for symmetry with the
+/// older single-step shape.
 Future<void> transferDispatch({required String taskId}) =>
     RustLib.instance.api.crateApiTransferTransferDispatch(taskId: taskId);
 
@@ -25,3 +46,79 @@ Future<void> transferDispatch({required String taskId}) =>
 /// Returns `true` when a token was actually flipped.
 Future<bool> transferCancel({required String taskId}) =>
     RustLib.instance.api.crateApiTransferTransferCancel(taskId: taskId);
+
+/// Snapshot every task in the registry — queued / running /
+/// completed / failed / cancelled. Insertion order preserved
+/// so the UI renders the same row sequence the user enqueued.
+Future<List<DbTransferSnapshot>> transferSnapshotAll() =>
+    RustLib.instance.api.crateApiTransferTransferSnapshotAll();
+
+/// Drop a terminal task (Completed / Failed / Cancelled) from
+/// the registry. No-op for missing or non-terminal ids — the
+/// UI's "clear history" button calls this per row.
+Future<bool> transferDropTerminal({required String taskId}) =>
+    RustLib.instance.api.crateApiTransferTransferDropTerminal(taskId: taskId);
+
+/// Bulk drop every terminal task. Mirrors the existing Dart
+/// `TransferManager.clearHistory`. Returns the count of dropped
+/// tasks.
+Future<int> transferClearHistory() =>
+    RustLib.instance.api.crateApiTransferTransferClearHistory();
+
+/// FRB mirror of `lfs_core::transfer::TaskKind`.
+enum DbTransferKind { download, upload }
+
+/// FRB mirror of `lfs_core::transfer::TaskSnapshot`.
+class DbTransferSnapshot {
+  final String id;
+  final DbTransferKind kind;
+  final String sessionId;
+  final String remotePath;
+  final String localPath;
+  final DbTransferState state;
+  final BigInt bytesDone;
+  final BigInt bytesTotal;
+  final String? error;
+
+  const DbTransferSnapshot({
+    required this.id,
+    required this.kind,
+    required this.sessionId,
+    required this.remotePath,
+    required this.localPath,
+    required this.state,
+    required this.bytesDone,
+    required this.bytesTotal,
+    this.error,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      kind.hashCode ^
+      sessionId.hashCode ^
+      remotePath.hashCode ^
+      localPath.hashCode ^
+      state.hashCode ^
+      bytesDone.hashCode ^
+      bytesTotal.hashCode ^
+      error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbTransferSnapshot &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          kind == other.kind &&
+          sessionId == other.sessionId &&
+          remotePath == other.remotePath &&
+          localPath == other.localPath &&
+          state == other.state &&
+          bytesDone == other.bytesDone &&
+          bytesTotal == other.bytesTotal &&
+          error == other.error;
+}
+
+/// FRB mirror of `lfs_core::transfer::TaskState`.
+enum DbTransferState { queued, running, completed, failed, cancelled }

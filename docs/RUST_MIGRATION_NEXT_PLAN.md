@@ -37,7 +37,7 @@ right now"*, the design is wrong.
 | 2. `app_config` → Rust | pending — **gated on step 9** (security_tier types couple in) |
 | 3. `session_store` → Rust | pending |
 | 4. `connection_manager` → Rust | pending |
-| 5. `transfer_manager` → Rust driver | pending — Rust queue+state+`SftpTaskExecutor` shipped Phase 5.3; needs FRB `transfer_enqueue` + Dart UI rewire (TransferManager retire + transfer_panel snapshot view) |
+| 5. `transfer_manager` → Rust driver | partial — Rust executor extended with chunked streaming (64 KiB) + per-task cancellation token honoured between chunks; FRB `transfer_enqueue` / `transfer_dispatch` / `transfer_cancel` / `transfer_snapshot_all` / `transfer_drop_terminal` / `transfer_clear_history` shipped. Dart `TransferManager` retire (closure-based `TransferTask` → typed enqueue + bus-stream provider + recursive-dir walker move) remains the next arc. |
 | 6. `port_forward_runtime` → Rust driver | DONE — Rust drivers (`-L` / `-D` SOCKS5 / `-R`) shipped earlier; Dart `port_forward_runtime.dart` shrank to a ~150-LOC shim that dispatches per-rule `port_forward_start_*` / `port_forward_stop_*` over FRB |
 | 7. `known_hosts` manager → Rust + prompt protocol | partial — `lfs_core::known_hosts` owns import-from-string + export-to-string + change-event publishing; Dart shim shrank to a snapshot mirror over the `KnownHosts` bus topic with verify/callback path retired. TOFU prompt protocol against `russh::Handler::check_server_key` still pending. |
 | 8a. `update_service::release_signing` → Rust | DONE | `f4fd49d4` |

@@ -222,35 +222,77 @@ impl TaskExecutor for SftpTaskExecutor {
     }
 }
 
+/// Chunk size for streaming SFTP transfers. Matches russh-sftp's
+/// default packet payload (`SshFxpData` body), keeps memory bounded
+/// for multi-GB files, and leaves room for the protocol framing
+/// inside a single SSH channel window.
+const TRANSFER_CHUNK_SIZE: usize = 64 * 1024;
+
 async fn download(
     sftp: &crate::sftp::Sftp,
     task: &TaskSnapshot,
-    _cancel: &CancellationToken,
+    cancel: &CancellationToken,
 ) -> Result<(), Error> {
-    // Small-file path: pull the whole blob in one read, write
-    // it atomically. Streaming + cancellation hooks for large
-    // files go through the byte-stream surface — wired in
-    // alongside the `SftpFile` open path.
-    let bytes = sftp.read_file(&task.remote_path).await?;
-    std::fs::write(&task.local_path, &bytes)
-        .map_err(|e| Error::Io(format!("write {}: {e}", task.local_path)))?;
+    use std::io::Write;
     let app = crate::app::instance();
-    app.transfers
-        .set_progress(&task.id, bytes.len() as u64, &app.bus);
+    let remote = sftp.open(&task.remote_path).await?;
+    let local_path = std::path::Path::new(&task.local_path);
+    if let Some(parent) = local_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| Error::Io(format!("mkdir {}: {e}", parent.display())))?;
+        }
+    }
+    let mut local = std::fs::File::create(&task.local_path)
+        .map_err(|e| Error::Io(format!("create {}: {e}", task.local_path)))?;
+    let mut written: u64 = 0;
+    loop {
+        if cancel.is_cancelled() {
+            return Err(Error::Io("download cancelled".to_string()));
+        }
+        let chunk = remote.read_chunk(TRANSFER_CHUNK_SIZE).await?;
+        if chunk.is_empty() {
+            break;
+        }
+        local
+            .write_all(&chunk)
+            .map_err(|e| Error::Io(format!("write {}: {e}", task.local_path)))?;
+        written = written.saturating_add(chunk.len() as u64);
+        app.transfers.set_progress(&task.id, written, &app.bus);
+    }
+    local
+        .sync_all()
+        .map_err(|e| Error::Io(format!("fsync {}: {e}", task.local_path)))?;
     Ok(())
 }
 
 async fn upload(
     sftp: &crate::sftp::Sftp,
     task: &TaskSnapshot,
-    _cancel: &CancellationToken,
+    cancel: &CancellationToken,
 ) -> Result<(), Error> {
-    let bytes = std::fs::read(&task.local_path)
-        .map_err(|e| Error::Io(format!("read {}: {e}", task.local_path)))?;
-    sftp.write_file(&task.remote_path, &bytes).await?;
+    use std::io::Read;
     let app = crate::app::instance();
-    app.transfers
-        .set_progress(&task.id, bytes.len() as u64, &app.bus);
+    let mut local = std::fs::File::open(&task.local_path)
+        .map_err(|e| Error::Io(format!("read {}: {e}", task.local_path)))?;
+    let remote = sftp.create(&task.remote_path).await?;
+    let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+    let mut written: u64 = 0;
+    loop {
+        if cancel.is_cancelled() {
+            return Err(Error::Io("upload cancelled".to_string()));
+        }
+        let n = local
+            .read(&mut buf)
+            .map_err(|e| Error::Io(format!("read {}: {e}", task.local_path)))?;
+        if n == 0 {
+            break;
+        }
+        remote.write_all(&buf[..n]).await?;
+        written = written.saturating_add(n as u64);
+        app.transfers.set_progress(&task.id, written, &app.bus);
+    }
+    remote.sync_all().await?;
     Ok(())
 }
 

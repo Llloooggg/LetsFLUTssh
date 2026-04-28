@@ -90,7 +90,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1305374921;
+  int get rustContentHash => 319407389;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -858,7 +858,22 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiTransferTransferCancel({required String taskId});
 
+  Future<int> crateApiTransferTransferClearHistory();
+
   Future<void> crateApiTransferTransferDispatch({required String taskId});
+
+  Future<bool> crateApiTransferTransferDropTerminal({required String taskId});
+
+  Future<DbTransferSnapshot> crateApiTransferTransferEnqueue({
+    required String id,
+    required DbTransferKind kind,
+    required String sessionId,
+    required String remotePath,
+    required String localPath,
+    required BigInt bytesTotal,
+  });
+
+  Future<List<DbTransferSnapshot>> crateApiTransferTransferSnapshotAll();
 
   String? crateApiUpdateMetadataUpdateAssetSuffix({required String platform});
 
@@ -7152,6 +7167,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'transfer_cancel', argNames: ['taskId']);
 
   @override
+  Future<int> crateApiTransferTransferClearHistory() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 182,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTransferTransferClearHistoryConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTransferTransferClearHistoryConstMeta =>
+      const TaskConstMeta(debugName: 'transfer_clear_history', argNames: []);
+
+  @override
   Future<void> crateApiTransferTransferDispatch({required String taskId}) {
     return handler.executeNormal(
       NormalTask(
@@ -7161,7 +7203,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 182,
+            funcId: 183,
             port: port_,
           );
         },
@@ -7180,6 +7222,114 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'transfer_dispatch', argNames: ['taskId']);
 
   @override
+  Future<bool> crateApiTransferTransferDropTerminal({required String taskId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(taskId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 184,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTransferTransferDropTerminalConstMeta,
+        argValues: [taskId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTransferTransferDropTerminalConstMeta =>
+      const TaskConstMeta(
+        debugName: 'transfer_drop_terminal',
+        argNames: ['taskId'],
+      );
+
+  @override
+  Future<DbTransferSnapshot> crateApiTransferTransferEnqueue({
+    required String id,
+    required DbTransferKind kind,
+    required String sessionId,
+    required String remotePath,
+    required String localPath,
+    required BigInt bytesTotal,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          sse_encode_db_transfer_kind(kind, serializer);
+          sse_encode_String(sessionId, serializer);
+          sse_encode_String(remotePath, serializer);
+          sse_encode_String(localPath, serializer);
+          sse_encode_u_64(bytesTotal, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 185,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_transfer_snapshot,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTransferTransferEnqueueConstMeta,
+        argValues: [id, kind, sessionId, remotePath, localPath, bytesTotal],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTransferTransferEnqueueConstMeta =>
+      const TaskConstMeta(
+        debugName: 'transfer_enqueue',
+        argNames: [
+          'id',
+          'kind',
+          'sessionId',
+          'remotePath',
+          'localPath',
+          'bytesTotal',
+        ],
+      );
+
+  @override
+  Future<List<DbTransferSnapshot>> crateApiTransferTransferSnapshotAll() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 186,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_db_transfer_snapshot,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTransferTransferSnapshotAllConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTransferTransferSnapshotAllConstMeta =>
+      const TaskConstMeta(debugName: 'transfer_snapshot_all', argNames: []);
+
+  @override
   String? crateApiUpdateMetadataUpdateAssetSuffix({required String platform}) {
     return handler.executeSync(
       SyncTask(
@@ -7189,7 +7339,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 183,
+            funcId: 187,
           )!;
         },
         codec: SseCodec(
@@ -7223,7 +7373,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 184,
+            funcId: 188,
           )!;
         },
         codec: SseCodec(
@@ -7259,7 +7409,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 185,
+            funcId: 189,
             port: port_,
           );
         },
@@ -7294,7 +7444,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 186,
+            funcId: 190,
           )!;
         },
         codec: SseCodec(
@@ -7328,7 +7478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 187,
+            funcId: 191,
             port: port_,
           );
         },
@@ -7365,7 +7515,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 188,
+            funcId: 192,
             port: port_,
           );
         },
@@ -7397,7 +7547,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 189,
+            funcId: 193,
             port: port_,
           );
         },
@@ -7427,7 +7577,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 190,
+            funcId: 194,
           )!;
         },
         codec: SseCodec(
@@ -7461,7 +7611,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 191,
+            funcId: 195,
           )!;
         },
         codec: SseCodec(
@@ -7493,7 +7643,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 192,
+            funcId: 196,
           )!;
         },
         codec: SseCodec(
@@ -7527,7 +7677,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 193,
+            funcId: 197,
           )!;
         },
         codec: SseCodec(
@@ -7557,7 +7707,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 194,
+            funcId: 198,
           )!;
         },
         codec: SseCodec(
@@ -8860,6 +9010,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbTransferKind dco_decode_db_transfer_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbTransferKind.values[raw as int];
+  }
+
+  @protected
+  DbTransferSnapshot dco_decode_db_transfer_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    return DbTransferSnapshot(
+      id: dco_decode_String(arr[0]),
+      kind: dco_decode_db_transfer_kind(arr[1]),
+      sessionId: dco_decode_String(arr[2]),
+      remotePath: dco_decode_String(arr[3]),
+      localPath: dco_decode_String(arr[4]),
+      state: dco_decode_db_transfer_state(arr[5]),
+      bytesDone: dco_decode_u_64(arr[6]),
+      bytesTotal: dco_decode_u_64(arr[7]),
+      error: dco_decode_opt_String(arr[8]),
+    );
+  }
+
+  @protected
+  DbTransferState dco_decode_db_transfer_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbTransferState.values[raw as int];
+  }
+
+  @protected
   DbUnsupportedFutureVersion dco_decode_db_unsupported_future_version(
     dynamic raw,
   ) {
@@ -9029,6 +9210,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbThreatRow> dco_decode_list_db_threat_row(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_db_threat_row).toList();
+  }
+
+  @protected
+  List<DbTransferSnapshot> dco_decode_list_db_transfer_snapshot(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_db_transfer_snapshot).toList();
   }
 
   @protected
@@ -10808,6 +10995,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbTransferKind sse_decode_db_transfer_kind(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbTransferKind.values[inner];
+  }
+
+  @protected
+  DbTransferSnapshot sse_decode_db_transfer_snapshot(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_id = sse_decode_String(deserializer);
+    final var_kind = sse_decode_db_transfer_kind(deserializer);
+    final var_sessionId = sse_decode_String(deserializer);
+    final var_remotePath = sse_decode_String(deserializer);
+    final var_localPath = sse_decode_String(deserializer);
+    final var_state = sse_decode_db_transfer_state(deserializer);
+    final var_bytesDone = sse_decode_u_64(deserializer);
+    final var_bytesTotal = sse_decode_u_64(deserializer);
+    final var_error = sse_decode_opt_String(deserializer);
+    return DbTransferSnapshot(
+      id: var_id,
+      kind: var_kind,
+      sessionId: var_sessionId,
+      remotePath: var_remotePath,
+      localPath: var_localPath,
+      state: var_state,
+      bytesDone: var_bytesDone,
+      bytesTotal: var_bytesTotal,
+      error: var_error,
+    );
+  }
+
+  @protected
+  DbTransferState sse_decode_db_transfer_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbTransferState.values[inner];
+  }
+
+  @protected
   DbUnsupportedFutureVersion sse_decode_db_unsupported_future_version(
     SseDeserializer deserializer,
   ) {
@@ -11095,6 +11323,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final ans_ = <DbThreatRow>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_threat_row(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DbTransferSnapshot> sse_decode_list_db_transfer_snapshot(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    final len_ = sse_decode_i_32(deserializer);
+    final ans_ = <DbTransferSnapshot>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_db_transfer_snapshot(deserializer));
     }
     return ans_;
   }
@@ -12849,6 +13091,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_db_transfer_kind(
+    DbTransferKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_db_transfer_snapshot(
+    DbTransferSnapshot self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_db_transfer_kind(self.kind, serializer);
+    sse_encode_String(self.sessionId, serializer);
+    sse_encode_String(self.remotePath, serializer);
+    sse_encode_String(self.localPath, serializer);
+    sse_encode_db_transfer_state(self.state, serializer);
+    sse_encode_u_64(self.bytesDone, serializer);
+    sse_encode_u_64(self.bytesTotal, serializer);
+    sse_encode_opt_String(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_db_transfer_state(
+    DbTransferState self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_db_unsupported_future_version(
     DbUnsupportedFutureVersion self,
     SseSerializer serializer,
@@ -13094,6 +13371,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_db_threat_row(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_db_transfer_snapshot(
+    List<DbTransferSnapshot> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_db_transfer_snapshot(item, serializer);
     }
   }
 
