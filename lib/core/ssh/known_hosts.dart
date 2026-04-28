@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
-
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
+import '../security/_crypto_compat.dart';
 
 /// TOFU (Trust On First Use) host key verification backed by
 /// `lfs_core.db`. Engine behind the DAO is Rust + rusqlite.
@@ -275,9 +274,10 @@ class KnownHostsManager {
     }
   }
 
-  /// Compute SHA256 fingerprint of host key bytes.
+  /// Compute SHA256 fingerprint of host key bytes — `SHA256:<base64>`,
+  /// the OpenSSH `ssh-keygen -lf` shape.
   static String fingerprint(List<int> keyBytes) {
-    final hash = sha256.convert(keyBytes).bytes;
+    final hash = sha256Compat(keyBytes);
     return 'SHA256:${base64Encode(hash)}';
   }
 

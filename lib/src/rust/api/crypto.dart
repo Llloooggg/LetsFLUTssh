@@ -36,6 +36,21 @@ Uint8List cryptoHmacSha256({
   message: message,
 );
 
+/// SHA-256 digest over `bytes`. Returns the 32-byte hash. Sync —
+/// per-call work is a single SHA-256 pass, well under a millisecond
+/// even on the slowest mobile target. Used by the per-key
+/// fingerprint helpers, the known-hosts fingerprint formatter,
+/// fprintd enrolment-list digest, and the update-feed asset content
+/// hash; consolidating here drops `package:crypto` as a per-site dep.
+Uint8List cryptoSha256({required List<int> bytes}) =>
+    RustLib.instance.api.crateApiCryptoCryptoSha256(bytes: bytes);
+
+/// Lower-case hex of [`crypto_sha256`]. Convenience for callers
+/// that store the digest as a hex string. Same hot-path argument
+/// as `crypto_sha256` — sync, no async hop.
+String cryptoSha256Hex({required List<int> bytes}) =>
+    RustLib.instance.api.crateApiCryptoCryptoSha256Hex(bytes: bytes);
+
 /// Constant-time equality over two byte slices. `false` immediately
 /// when lengths differ (lengths are not secret); the per-byte
 /// comparison runs to completion regardless of where the first

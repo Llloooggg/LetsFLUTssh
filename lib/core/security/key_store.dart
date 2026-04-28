@@ -1,11 +1,11 @@
 import 'dart:convert';
 
-import 'package:crypto/crypto.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/keys.dart' as rust_keys;
 import '../../utils/logger.dart';
+import '_crypto_compat.dart';
 
 /// Supported SSH key types for generation.
 enum SshKeyType {
@@ -360,9 +360,7 @@ class KeyStore {
     return _sha256Hex(utf8.encode(normalized));
   }
 
-  static String _sha256Hex(List<int> bytes) {
-    return sha256.convert(bytes).toString();
-  }
+  static String _sha256Hex(List<int> bytes) => sha256HexCompat(bytes);
 
   /// Import an OpenSSH PEM-armored private key. Returns the created
   /// entry. Async — the underlying parse runs on the Rust core's

@@ -35,6 +35,25 @@ pub fn crypto_hmac_sha256(key: Vec<u8>, message: Vec<u8>) -> Vec<u8> {
     lfs_core::crypto::hmac_sha256(&key, &message)
 }
 
+/// SHA-256 digest over `bytes`. Returns the 32-byte hash. Sync —
+/// per-call work is a single SHA-256 pass, well under a millisecond
+/// even on the slowest mobile target. Used by the per-key
+/// fingerprint helpers, the known-hosts fingerprint formatter,
+/// fprintd enrolment-list digest, and the update-feed asset content
+/// hash; consolidating here drops `package:crypto` as a per-site dep.
+#[flutter_rust_bridge::frb(sync)]
+pub fn crypto_sha256(bytes: Vec<u8>) -> Vec<u8> {
+    lfs_core::crypto::sha256(&bytes)
+}
+
+/// Lower-case hex of [`crypto_sha256`]. Convenience for callers
+/// that store the digest as a hex string. Same hot-path argument
+/// as `crypto_sha256` — sync, no async hop.
+#[flutter_rust_bridge::frb(sync)]
+pub fn crypto_sha256_hex(bytes: Vec<u8>) -> String {
+    lfs_core::crypto::sha256_hex(&bytes)
+}
+
 /// Constant-time equality over two byte slices. `false` immediately
 /// when lengths differ (lengths are not secret); the per-byte
 /// comparison runs to completion regardless of where the first

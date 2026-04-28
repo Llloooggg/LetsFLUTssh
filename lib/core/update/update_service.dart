@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
+import '../security/_crypto_compat.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
@@ -791,7 +791,7 @@ class UpdateService {
   /// Compute SHA256 hex digest of a file.
   static Future<String> computeFileSha256(String path) async {
     final bytes = await File(path).readAsBytes();
-    return sha256.convert(bytes).toString();
+    return sha256HexCompat(bytes);
   }
 
   /// Pick the right asset for the current platform from the release assets.

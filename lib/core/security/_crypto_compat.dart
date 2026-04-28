@@ -65,6 +65,30 @@ bool constantTimeEqCompat(List<int> a, List<int> b) {
 
 Uint8List _bytes(List<int> v) => v is Uint8List ? v : Uint8List.fromList(v);
 
+/// SHA-256 digest compat wrapper. Production routes through
+/// `lfs_core::crypto::sha256` (sync FRB); the Dart fallback below
+/// uses `package:crypto`'s `sha256.convert` so flutter_test
+/// contexts that don't load the FRB native lib see the same digest
+/// bytes by construction.
+Uint8List sha256Compat(List<int> bytes) {
+  try {
+    return rust_crypto.cryptoSha256(bytes: _bytes(bytes));
+  } catch (_) {
+    return Uint8List.fromList(dart_crypto.sha256.convert(bytes).bytes);
+  }
+}
+
+/// Lower-case hex of [sha256Compat]. Convenience for the half-dozen
+/// fingerprint helpers around the codebase that persist the digest
+/// as a hex string.
+String sha256HexCompat(List<int> bytes) {
+  try {
+    return rust_crypto.cryptoSha256Hex(bytes: _bytes(bytes));
+  } catch (_) {
+    return dart_crypto.sha256.convert(bytes).toString();
+  }
+}
+
 /// L2 keychain-password-gate seed: random salt + pepper pair.
 class KeychainGateSeed {
   final Uint8List salt;

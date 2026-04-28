@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:dbus/dbus.dart';
 
 import '../../../utils/logger.dart';
+import '../_crypto_compat.dart';
 
 /// Thin async wrapper around the `net.reactivated.Fprint` system-bus
 /// API exposed by the `fprintd` daemon. Lives in the Linux-only
@@ -99,8 +99,7 @@ class FprintdClient {
       final fingers = response.values.first.asStringArray().toList()..sort();
       if (fingers.isEmpty) return null;
       final joined = fingers.join(':');
-      final digest = sha256.convert(utf8.encode(joined));
-      return Uint8List.fromList(digest.bytes);
+      return sha256Compat(utf8.encode(joined));
     } catch (e) {
       AppLogger.instance.log(
         'fprintd getEnrolmentHash failed: $e',

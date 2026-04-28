@@ -20,7 +20,7 @@ use argon2::{Algorithm, Argon2, Params, Version};
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -85,6 +85,33 @@ pub fn hmac_sha256(key: &[u8], message: &[u8]) -> Vec<u8> {
         <HmacSha256 as Mac>::new_from_slice(key).expect("HMAC-SHA-256 accepts any key length");
     mac.update(message);
     mac.finalize().into_bytes().to_vec()
+}
+
+/// SHA-256 digest over `bytes`. Returns the 32-byte hash. Used by
+/// the per-key fingerprint helpers (`KeyStore.privateKeyFingerprint` /
+/// `publicKeyFingerprint`), the known-hosts MD5/SHA-256 fingerprint
+/// formatter, fprintd enrolment-list digest, and the update-feed
+/// asset content hash. Consolidating here keeps `package:crypto`'s
+/// `sha256.convert` from being a per-site dep.
+#[must_use]
+pub fn sha256(bytes: &[u8]) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hasher.finalize().to_vec()
+}
+
+/// Lower-case hex of [`sha256(bytes)`]. Convenience for callers
+/// that store the digest as a hex string (Dart side: every
+/// `_sha256Hex` helper).
+#[must_use]
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = sha256(bytes);
+    let mut out = String::with_capacity(digest.len() * 2);
+    for b in digest {
+        use std::fmt::Write as _;
+        let _ = write!(out, "{b:02x}");
+    }
+    out
 }
 
 /// Constant-time equality over two byte slices. Returns `false`
@@ -460,6 +487,37 @@ mod tests {
     fn constant_time_eq_rejects_different_bytes() {
         assert!(!constant_time_eq(b"abc", b"abd"));
         assert!(!constant_time_eq(&[0u8; 32], &[1u8; 32]));
+    }
+
+    #[test]
+    fn sha256_known_answer_empty_input() {
+        // FIPS 180-4 reference vector: SHA-256("") = e3b0c4...
+        assert_eq!(
+            sha256_hex(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn sha256_known_answer_abc() {
+        // FIPS 180-4 reference vector: SHA-256("abc")
+        assert_eq!(
+            sha256_hex(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn sha256_bytes_match_hex_string() {
+        let raw = sha256(b"hello world");
+        assert_eq!(raw.len(), 32);
+        let hex = sha256_hex(b"hello world");
+        let mut from_bytes = String::new();
+        for b in &raw {
+            use std::fmt::Write as _;
+            let _ = write!(from_bytes, "{b:02x}");
+        }
+        assert_eq!(hex, from_bytes);
     }
 
     #[test]
