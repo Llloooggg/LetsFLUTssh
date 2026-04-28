@@ -10,6 +10,7 @@ import '../core/session/session.dart';
 import '../core/ssh/ssh_config.dart';
 import '../features/settings/export_import.dart';
 import '../src/rust/api/qr_codec_encode.dart' as rust_qr;
+import '../utils/format.dart' as utils_format;
 import 'unified_export_dialog.dart';
 
 /// Identity of the currently-active preset. Kept in the controller as a
@@ -141,10 +142,12 @@ class UnifiedExportController extends ChangeNotifier {
 
   /// Pure helper — kept on the controller so the widget doesn't need to
   /// reimplement the same 2-line formatter.
-  static String formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    return '${(bytes / 1024).toStringAsFixed(1)} KB';
-  }
+  /// Routes through the canonical `lfs_core::format::format_size`
+  /// via `utils/format.dart` so the QR-export size readout shares
+  /// the project-wide B / KB / MB / GB ladder. QR payloads cap at
+  /// `qrMaxPayloadBytes` (~2 KB), so in production this only ever
+  /// renders B or KB; the wider ladder is dead-but-correct branch.
+  static String formatSize(int bytes) => utils_format.formatSize(bytes);
 
   bool get _payloadSizeCacheValid {
     return _cachedPayloadOptions == _options &&
