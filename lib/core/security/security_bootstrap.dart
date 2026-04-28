@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../utils/logger.dart';
+import '_crypto_compat.dart';
 import 'biometric_auth.dart';
 import 'hardware_tier_vault.dart';
 import 'linux/fprintd_client.dart';
@@ -93,39 +94,35 @@ class SecurityCapabilities {
   /// straight from the snapshot instead of paying the real probe
   /// cost on every launch. The Recheck button + destructive security
   /// paths clear this cache so the next read reprobes.
-  Map<String, dynamic> toJson() => {
-    'keychain_available': keychainAvailable,
-    'hardware_vault_available': hardwareVaultAvailable,
-    'biometric_available': biometricAvailable,
-    'fprintd_available': fprintdAvailable,
-    'is_linux_host': isLinuxHost,
-    'keychain_probe': keychainProbe.name,
-    'hardware_probe_code': hardwareProbeCode,
-  };
+  ///
+  /// Wire-format owner is `lfs_core::security::capabilities`; this
+  /// Dart facade rebuilds the field set into a `Map<String, dynamic>`
+  /// for the existing `app_config.dart` consumers.
+  Map<String, dynamic> toJson() => securityCapabilitiesToJsonCompat(
+    keychainAvailable: keychainAvailable,
+    hardwareVaultAvailable: hardwareVaultAvailable,
+    biometricAvailable: biometricAvailable,
+    fprintdAvailable: fprintdAvailable,
+    isLinuxHost: isLinuxHost,
+    keychainProbeWireName: keychainProbe.name,
+    hardwareProbeCode: hardwareProbeCode,
+  );
 
   static SecurityCapabilities? fromJson(Map<String, dynamic>? json) {
-    if (json == null) return null;
-    // Every field is guarded with a type check because the file is
-    // user-writable and may carry a partial / corrupted snapshot from
-    // a previous build. A malformed cache is treated as "no cache" so
-    // the next call reprobes fresh — we never parse past a bad type
-    // into a default.
-    final probeName = json['keychain_probe'];
-    if (probeName is! String) return null;
+    final snap = securityCapabilitiesFromJsonCompat(json);
+    if (snap == null) return null;
     final probe = KeyringProbeResult.values
-        .where((v) => v.name == probeName)
+        .where((v) => v.name == snap.keychainProbeWireName)
         .firstOrNull;
     if (probe == null) return null;
-    final hardwareCode = json['hardware_probe_code'];
-    if (hardwareCode is! String) return null;
     return SecurityCapabilities(
-      keychainAvailable: json['keychain_available'] == true,
-      hardwareVaultAvailable: json['hardware_vault_available'] == true,
-      biometricAvailable: json['biometric_available'] == true,
-      fprintdAvailable: json['fprintd_available'] == true,
-      isLinuxHost: json['is_linux_host'] == true,
+      keychainAvailable: snap.keychainAvailable,
+      hardwareVaultAvailable: snap.hardwareVaultAvailable,
+      biometricAvailable: snap.biometricAvailable,
+      fprintdAvailable: snap.fprintdAvailable,
+      isLinuxHost: snap.isLinuxHost,
       keychainProbe: probe,
-      hardwareProbeCode: hardwareCode,
+      hardwareProbeCode: snap.hardwareProbeCode,
     );
   }
 

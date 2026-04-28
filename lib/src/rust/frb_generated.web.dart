@@ -27,6 +27,7 @@ import 'api/path.dart';
 import 'api/persisted_rate_limit.dart';
 import 'api/rate_limit.dart';
 import 'api/recorder.dart';
+import 'api/security_capabilities.dart';
 import 'api/sftp.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
@@ -274,6 +275,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbQrExportInput dco_decode_box_autoadd_db_qr_export_input(dynamic raw);
 
   @protected
+  DbSecurityCapabilities dco_decode_box_autoadd_db_security_capabilities(
+    dynamic raw,
+  );
+
+  @protected
   DbSession dco_decode_box_autoadd_db_session(dynamic raw);
 
   @protected
@@ -455,6 +461,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbRecorderSnapshot dco_decode_db_recorder_snapshot(dynamic raw);
 
   @protected
+  DbSecurityCapabilities dco_decode_db_security_capabilities(dynamic raw);
+
+  @protected
   DbSecurityThreat dco_decode_db_security_threat(dynamic raw);
 
   @protected
@@ -634,6 +643,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DbPersistedRateLimitState?
   dco_decode_opt_box_autoadd_db_persisted_rate_limit_state(dynamic raw);
+
+  @protected
+  DbSecurityCapabilities? dco_decode_opt_box_autoadd_db_security_capabilities(
+    dynamic raw,
+  );
 
   @protected
   DbSession? dco_decode_opt_box_autoadd_db_session(dynamic raw);
@@ -922,6 +936,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSecurityCapabilities sse_decode_box_autoadd_db_security_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSession sse_decode_box_autoadd_db_session(SseDeserializer deserializer);
 
   @protected
@@ -1159,6 +1178,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSecurityCapabilities sse_decode_db_security_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSecurityThreat sse_decode_db_security_threat(SseDeserializer deserializer);
 
   @protected
@@ -1372,6 +1396,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DbPersistedRateLimitState?
   sse_decode_opt_box_autoadd_db_persisted_rate_limit_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSecurityCapabilities? sse_decode_opt_box_autoadd_db_security_capabilities(
     SseDeserializer deserializer,
   );
 
@@ -1716,6 +1745,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_security_capabilities(
+    DbSecurityCapabilities self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_session(
     DbSession self,
     SseSerializer serializer,
@@ -2019,6 +2054,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_security_capabilities(
+    DbSecurityCapabilities self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_security_threat(
     DbSecurityThreat self,
     SseSerializer serializer,
@@ -2302,6 +2343,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_persisted_rate_limit_state(
     DbPersistedRateLimitState? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_security_capabilities(
+    DbSecurityCapabilities? self,
     SseSerializer serializer,
   );
 

@@ -11,6 +11,7 @@ import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwv;
 import '../../src/rust/api/keychain_password_gate.dart' as rust_gate;
 import '../../src/rust/api/persisted_rate_limit.dart' as rust_prl;
+import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../src/rust/api/tier_transition_marker.dart' as rust_ttm;
 
 /// HMAC-SHA-256 compat wrapper.
@@ -383,4 +384,114 @@ void tierTransitionMarkerClearCompat(String supportDir) {
       } catch (_) {}
     }
   }
+}
+
+/// Snapshot of the parsed `security_probe_cache` block. Mirror of
+/// `lfs_core::security::capabilities::SecurityCapabilities`, flattened
+/// across the FRB boundary so the Dart caller can rebuild its own
+/// `SecurityCapabilities` without re-importing the enum.
+class CapabilitiesSnapshot {
+  final bool keychainAvailable;
+  final bool hardwareVaultAvailable;
+  final bool biometricAvailable;
+  final bool fprintdAvailable;
+  final bool isLinuxHost;
+  final String keychainProbeWireName;
+  final String hardwareProbeCode;
+  const CapabilitiesSnapshot({
+    required this.keychainAvailable,
+    required this.hardwareVaultAvailable,
+    required this.biometricAvailable,
+    required this.fprintdAvailable,
+    required this.isLinuxHost,
+    required this.keychainProbeWireName,
+    required this.hardwareProbeCode,
+  });
+}
+
+/// Encode the security-capabilities snapshot as the JSON map the
+/// wizard persists inside `config.json::security_probe_cache`.
+/// Production routes through `lfs_core::security::capabilities`;
+/// flutter_test contexts that don't load the FRB native lib fall
+/// back to a Dart literal that produces the same field set.
+Map<String, dynamic> securityCapabilitiesToJsonCompat({
+  required bool keychainAvailable,
+  required bool hardwareVaultAvailable,
+  required bool biometricAvailable,
+  required bool fprintdAvailable,
+  required bool isLinuxHost,
+  required String keychainProbeWireName,
+  required String hardwareProbeCode,
+}) {
+  try {
+    final str = rust_caps.securityCapabilitiesToJson(
+      keychainAvailable: keychainAvailable,
+      hardwareVaultAvailable: hardwareVaultAvailable,
+      biometricAvailable: biometricAvailable,
+      fprintdAvailable: fprintdAvailable,
+      isLinuxHost: isLinuxHost,
+      keychainProbeWireName: keychainProbeWireName,
+      hardwareProbeCode: hardwareProbeCode,
+    );
+    return jsonDecode(str) as Map<String, dynamic>;
+  } catch (_) {
+    return {
+      'keychain_available': keychainAvailable,
+      'hardware_vault_available': hardwareVaultAvailable,
+      'biometric_available': biometricAvailable,
+      'fprintd_available': fprintdAvailable,
+      'is_linux_host': isLinuxHost,
+      'keychain_probe': keychainProbeWireName,
+      'hardware_probe_code': hardwareProbeCode,
+    };
+  }
+}
+
+/// Parse a `security_probe_cache` JSON snapshot. Returns null on
+/// any malformed shape (non-object root, unknown enum case, missing
+/// required strings) so the wizard caller falls through to "no
+/// cache" and reprobes. Mirror of the Dart `SecurityCapabilities.fromJson`
+/// strictness — bool fields default to `false` when missing or
+/// non-bool, every other field type-checks fail-closed.
+CapabilitiesSnapshot? securityCapabilitiesFromJsonCompat(
+  Map<String, dynamic>? json,
+) {
+  if (json == null) return null;
+  try {
+    final str = jsonEncode(json);
+    final decoded = rust_caps.securityCapabilitiesFromJson(json: str);
+    if (decoded == null) return null;
+    return CapabilitiesSnapshot(
+      keychainAvailable: decoded.keychainAvailable,
+      hardwareVaultAvailable: decoded.hardwareVaultAvailable,
+      biometricAvailable: decoded.biometricAvailable,
+      fprintdAvailable: decoded.fprintdAvailable,
+      isLinuxHost: decoded.isLinuxHost,
+      keychainProbeWireName: decoded.keychainProbeWireName,
+      hardwareProbeCode: decoded.hardwareProbeCode,
+    );
+  } catch (_) {
+    return _securityCapabilitiesFallback(json);
+  }
+}
+
+CapabilitiesSnapshot? _securityCapabilitiesFallback(Map<String, dynamic> json) {
+  final probeName = json['keychain_probe'];
+  if (probeName is! String) return null;
+  if (probeName != 'available' &&
+      probeName != 'linuxNoSecretService' &&
+      probeName != 'probeFailed') {
+    return null;
+  }
+  final hardwareCode = json['hardware_probe_code'];
+  if (hardwareCode is! String) return null;
+  return CapabilitiesSnapshot(
+    keychainAvailable: json['keychain_available'] == true,
+    hardwareVaultAvailable: json['hardware_vault_available'] == true,
+    biometricAvailable: json['biometric_available'] == true,
+    fprintdAvailable: json['fprintd_available'] == true,
+    isLinuxHost: json['is_linux_host'] == true,
+    keychainProbeWireName: probeName,
+    hardwareProbeCode: hardwareCode,
+  );
 }

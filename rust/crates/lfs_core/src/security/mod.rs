@@ -17,6 +17,7 @@
 
 use std::collections::BTreeMap;
 
+pub mod capabilities;
 pub mod hardware_tier_vault;
 pub mod keychain_marker;
 pub mod keychain_password_gate;

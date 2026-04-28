@@ -22,6 +22,7 @@ pub mod path;
 pub mod persisted_rate_limit;
 pub mod rate_limit;
 pub mod recorder;
+pub mod security_capabilities;
 pub mod sftp;
 pub mod ssh;
 pub mod ssh_config;
