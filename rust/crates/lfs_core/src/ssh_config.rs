@@ -366,7 +366,12 @@ fn is_wildcard_pattern(host: &str) -> bool {
 /// exactly one char, anything else literal. Case-sensitive.
 /// Real-world `Host` patterns are short enough that the
 /// worst-case backtracking cost stays in microseconds.
-pub(crate) fn glob_matches(pattern: &str, text: &str) -> bool {
+///
+/// Public so the Dart-side `Include`-directive expander
+/// (`openssh_config_parser.dart`, where filesystem glob walks
+/// stay Dart-side because of platform path semantics) can reuse
+/// the same grammar without compiling its own regex.
+pub fn glob_matches(pattern: &str, text: &str) -> bool {
     glob_at(pattern.as_bytes(), 0, text.as_bytes(), 0)
 }
 

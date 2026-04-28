@@ -36,6 +36,18 @@ List<DbOpenSshHostEntry> parseOpensshConfigWithIncludes({
   maxIncludeDepth: maxIncludeDepth,
 );
 
+/// Minimal OpenSSH-style glob match. `*` matches any run, `?`
+/// matches exactly one char, anything else literal. Same grammar
+/// as the parser's internal pattern matcher; exposed so the Dart
+/// `Include`-directive expander (which keeps filesystem walks
+/// Dart-side for per-platform path semantics) can reuse the
+/// canonical implementation rather than compile its own regex.
+bool sshConfigGlobMatches({required String pattern, required String text}) =>
+    RustLib.instance.api.crateApiSshConfigSshConfigGlobMatches(
+      pattern: pattern,
+      text: text,
+    );
+
 /// FRB-visible mirror of `lfs_core::ssh_config::AuthType`.
 enum DbOpenSshAuthType { password, key }
 

@@ -238,10 +238,11 @@ String? _defaultIncludeReader(String path) {
   }
 }
 
-/// Compiled globs keyed by raw pattern. OpenSSH config rarely declares
-/// more than a handful of distinct `Host` patterns, so the cache stays
-/// tiny for the life of the process. Without it, [_globMatches] recompiled
-/// a [RegExp] per `(pattern, name)` pair on every Include expansion.
+/// Compiled globs keyed by raw pattern (Dart fallback only — used
+/// when the FRB native lib is not loaded in flutter_test). OpenSSH
+/// config rarely declares more than a handful of distinct
+/// `Host` patterns, so the cache stays tiny for the life of the
+/// process.
 final _globRegexCache = <String, RegExp>{};
 
 RegExp _compileGlob(String pattern) {
@@ -261,12 +262,19 @@ RegExp _compileGlob(String pattern) {
 
 /// Minimal OpenSSH-style glob: `*` matches any run (including empty), `?`
 /// matches exactly one char, everything else is literal. Case-sensitive.
+/// Routes through `lfs_core::ssh_config::glob_matches` so the grammar
+/// lives one place; the cached `RegExp` translation below is the
+/// flutter_test fallback.
 bool _globMatches(String pattern, String text) {
-  final compiled = _globRegexCache.putIfAbsent(
-    pattern,
-    () => _compileGlob(pattern),
-  );
-  return compiled.hasMatch(text);
+  try {
+    return rust_ssh_config.sshConfigGlobMatches(pattern: pattern, text: text);
+  } catch (_) {
+    final compiled = _globRegexCache.putIfAbsent(
+      pattern,
+      () => _compileGlob(pattern),
+    );
+    return compiled.hasMatch(text);
+  }
 }
 
 String _stripComment(String line) {

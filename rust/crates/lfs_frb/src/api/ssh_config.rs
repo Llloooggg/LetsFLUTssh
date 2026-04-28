@@ -89,3 +89,14 @@ pub fn parse_openssh_config_with_includes(
     .map(DbOpenSshHostEntry::from)
     .collect()
 }
+
+/// Minimal OpenSSH-style glob match. `*` matches any run, `?`
+/// matches exactly one char, anything else literal. Same grammar
+/// as the parser's internal pattern matcher; exposed so the Dart
+/// `Include`-directive expander (which keeps filesystem walks
+/// Dart-side for per-platform path semantics) can reuse the
+/// canonical implementation rather than compile its own regex.
+#[flutter_rust_bridge::frb(sync)]
+pub fn ssh_config_glob_matches(pattern: String, text: String) -> bool {
+    lfs_core::ssh_config::glob_matches(&pattern, &text)
+}
