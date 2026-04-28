@@ -60,12 +60,15 @@ impl SecurityTier {
         matches!(self, SecurityTier::Hardware)
     }
 
-    /// Wire name used by the Dart-side JSON config.
+    /// Wire name used by the Dart-side JSON config (snake_case to
+    /// match `lib/core/config/app_config.dart::_tierToString`). Any
+    /// drift here breaks round-trip with installs whose `config.json`
+    /// already carries a tier string written by the Dart writer.
     pub fn wire_name(self) -> &'static str {
         match self {
             SecurityTier::Plaintext => "plaintext",
             SecurityTier::Keychain => "keychain",
-            SecurityTier::KeychainWithPassword => "keychainWithPassword",
+            SecurityTier::KeychainWithPassword => "keychain_with_password",
             SecurityTier::Hardware => "hardware",
             SecurityTier::Paranoid => "paranoid",
         }
@@ -75,7 +78,7 @@ impl SecurityTier {
         match name {
             "plaintext" => Some(SecurityTier::Plaintext),
             "keychain" => Some(SecurityTier::Keychain),
-            "keychainWithPassword" => Some(SecurityTier::KeychainWithPassword),
+            "keychain_with_password" => Some(SecurityTier::KeychainWithPassword),
             "hardware" => Some(SecurityTier::Hardware),
             "paranoid" => Some(SecurityTier::Paranoid),
             _ => None,
