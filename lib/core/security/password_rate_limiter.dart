@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -351,54 +350,34 @@ class PersistedRateLimiter extends PasswordRateLimiter {
   }
 
   Uint8List _encode(_RateState state) {
-    final payload = jsonEncode({
-      'failure_count': state.failureCount,
-      'next_retry_at_millis': state.nextRetryAt?.millisecondsSinceEpoch,
-    });
-    final payloadBytes = utf8.encode(payload);
-    final hmac = hmacSha256Compat(_hmacKey, Uint8List.fromList(payloadBytes));
-    final frame = jsonEncode({
-      'payload': base64.encode(payloadBytes),
-      'hmac': base64.encode(hmac),
-    });
-    return Uint8List.fromList(utf8.encode(frame));
+    return persistedRateLimitEncodeCompat(
+      PersistedRateLimitState(
+        failureCount: state.failureCount,
+        nextRetryAtMillis: state.nextRetryAt?.millisecondsSinceEpoch,
+      ),
+      _hmacKey,
+    );
   }
 
   _RateState? _decode(Uint8List bytes) {
-    try {
-      final frame = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-      final payloadB64 = frame['payload'];
-      final hmacB64 = frame['hmac'];
-      if (payloadB64 is! String || hmacB64 is! String) return null;
-      final payloadBytes = base64.decode(payloadB64);
-      final claimed = base64.decode(hmacB64);
-      final expected = hmacSha256Compat(_hmacKey, payloadBytes);
-      if (!constantTimeEqCompat(claimed, expected)) return null;
-      final payload =
-          jsonDecode(utf8.decode(payloadBytes)) as Map<String, dynamic>;
-      final failureCount = (payload['failure_count'] as num?)?.toInt() ?? 0;
-      final retryMillis = (payload['next_retry_at_millis'] as num?)?.toInt();
-      return _RateState(
-        failureCount: failureCount.clamp(
-          0,
-          PasswordRateLimiter.backoffSchedule.length - 1,
-        ),
-        nextRetryAt: retryMillis == null
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(retryMillis),
-      );
-    } catch (e) {
+    final decoded = persistedRateLimitDecodeCompat(bytes, _hmacKey);
+    if (decoded == null) {
       // Tamper or corruption — return null so the caller starts
-      // from a clean state. Log the reason because a "rate limit
-      // reset itself" complaint needs to distinguish expected
-      // fresh-install (no file) from "bytes on disk were malformed"
-      // (should not happen unless something wrote into the state file).
-      AppLogger.instance.log(
-        'PasswordRateLimiter: state decode failed (starting fresh): $e',
-        name: 'RateLimiter',
-      );
+      // from a clean state. The Rust-side decoder swallowed the
+      // specific parse / HMAC-mismatch reason; the limiter never
+      // surfaces tamper details to the user, so the legacy log
+      // line that classified the failure is no longer useful.
       return null;
     }
+    return _RateState(
+      failureCount: decoded.failureCount.clamp(
+        0,
+        PasswordRateLimiter.backoffSchedule.length - 1,
+      ),
+      nextRetryAt: decoded.nextRetryAtMillis == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(decoded.nextRetryAtMillis!),
+    );
   }
 }
 

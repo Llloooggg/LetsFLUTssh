@@ -9,6 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwv;
 import '../../src/rust/api/keychain_password_gate.dart' as rust_gate;
+import '../../src/rust/api/persisted_rate_limit.dart' as rust_prl;
 
 /// HMAC-SHA-256 compat wrapper.
 ///
@@ -226,6 +227,96 @@ HardwareTierLinuxBlob? _decodeHardwareLinuxFallback(String blob) {
     final sealed = base64.decode(sealedB64);
     if (salt.isEmpty || sealed.isEmpty) return null;
     return HardwareTierLinuxBlob(salt: salt, sealed: sealed);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// `PersistedRateLimiter` HMAC-authenticated state on disk.
+class PersistedRateLimitState {
+  final int failureCount;
+  final int? nextRetryAtMillis;
+  const PersistedRateLimitState({
+    required this.failureCount,
+    required this.nextRetryAtMillis,
+  });
+}
+
+/// Encode the limiter's state as the HMAC-authenticated frame
+/// written to `rate_limit_state.bin`. Wire format documented in
+/// `lfs_core::security::persisted_rate_limit`. Production routes
+/// through Rust; the fallback below produces byte-identical output
+/// for the same inputs (minified JSON in both languages on the
+/// shape `{failure_count, next_retry_at_millis}`).
+Uint8List persistedRateLimitEncodeCompat(
+  PersistedRateLimitState state,
+  Uint8List hmacKey,
+) {
+  try {
+    return rust_prl.persistedRateLimitEncode(
+      failureCount: state.failureCount,
+      nextRetryAtMillis: state.nextRetryAtMillis,
+      hmacKey: hmacKey,
+    );
+  } catch (_) {
+    final payload = jsonEncode({
+      'failure_count': state.failureCount,
+      'next_retry_at_millis': state.nextRetryAtMillis,
+    });
+    final payloadBytes = utf8.encode(payload);
+    final hmac = hmacSha256Compat(hmacKey, Uint8List.fromList(payloadBytes));
+    final frame = jsonEncode({
+      'payload': base64.encode(payloadBytes),
+      'hmac': base64.encode(hmac),
+    });
+    return Uint8List.fromList(utf8.encode(frame));
+  }
+}
+
+/// Parse + HMAC-verify the on-disk frame. Returns null on tamper /
+/// corruption / wrong key — the limiter's caller treats null as
+/// "no state on disk" without surfacing the parse error.
+PersistedRateLimitState? persistedRateLimitDecodeCompat(
+  Uint8List bytes,
+  Uint8List hmacKey,
+) {
+  try {
+    final decoded = rust_prl.persistedRateLimitDecode(
+      bytes: bytes,
+      hmacKey: hmacKey,
+    );
+    if (decoded == null) return null;
+    return PersistedRateLimitState(
+      failureCount: decoded.failureCount,
+      nextRetryAtMillis: decoded.nextRetryAtMillis,
+    );
+  } catch (_) {
+    return _decodePersistedRateLimitFallback(bytes, hmacKey);
+  }
+}
+
+PersistedRateLimitState? _decodePersistedRateLimitFallback(
+  Uint8List bytes,
+  Uint8List hmacKey,
+) {
+  try {
+    final frame = jsonDecode(utf8.decode(bytes));
+    if (frame is! Map<String, dynamic>) return null;
+    final payloadB64 = frame['payload'];
+    final hmacB64 = frame['hmac'];
+    if (payloadB64 is! String || hmacB64 is! String) return null;
+    final payloadBytes = base64.decode(payloadB64);
+    final claimed = base64.decode(hmacB64);
+    final expected = hmacSha256Compat(hmacKey, payloadBytes);
+    if (!constantTimeEqCompat(claimed, expected)) return null;
+    final payload = jsonDecode(utf8.decode(payloadBytes));
+    if (payload is! Map<String, dynamic>) return null;
+    final failureCount = (payload['failure_count'] as num?)?.toInt() ?? 0;
+    final retryMillis = (payload['next_retry_at_millis'] as num?)?.toInt();
+    return PersistedRateLimitState(
+      failureCount: failureCount,
+      nextRetryAtMillis: retryMillis,
+    );
   } catch (_) {
     return null;
   }
