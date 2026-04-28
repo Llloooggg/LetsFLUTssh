@@ -100,3 +100,19 @@ pub fn parse_openssh_config_with_includes(
 pub fn ssh_config_glob_matches(pattern: String, text: String) -> bool {
     lfs_core::ssh_config::glob_matches(&pattern, &text)
 }
+
+/// Strip a `#`-prefixed comment (outside quoted strings).
+/// Mirrors the parser's internal pre-processing pass so the
+/// Dart Include-directive expander applies the same grammar.
+#[flutter_rust_bridge::frb(sync)]
+pub fn ssh_config_strip_comment(line: String) -> String {
+    lfs_core::ssh_config::strip_comment(&line)
+}
+
+/// Split a `keyword value` or `keyword = value` config line into
+/// `(keyword, value)`. Returns `None` for blank / malformed lines.
+/// The value is unquoted; quoting rules match `ssh_config(5)`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn ssh_config_split_keyword_value(line: String) -> Option<(String, String)> {
+    lfs_core::ssh_config::split_keyword_value(&line)
+}

@@ -48,6 +48,20 @@ bool sshConfigGlobMatches({required String pattern, required String text}) =>
       text: text,
     );
 
+/// Strip a `#`-prefixed comment (outside quoted strings).
+/// Mirrors the parser's internal pre-processing pass so the
+/// Dart Include-directive expander applies the same grammar.
+String sshConfigStripComment({required String line}) =>
+    RustLib.instance.api.crateApiSshConfigSshConfigStripComment(line: line);
+
+/// Split a `keyword value` or `keyword = value` config line into
+/// `(keyword, value)`. Returns `None` for blank / malformed lines.
+/// The value is unquoted; quoting rules match `ssh_config(5)`.
+(String, String)? sshConfigSplitKeywordValue({required String line}) => RustLib
+    .instance
+    .api
+    .crateApiSshConfigSshConfigSplitKeywordValue(line: line);
+
 /// FRB-visible mirror of `lfs_core::ssh_config::AuthType`.
 enum DbOpenSshAuthType { password, key }
 

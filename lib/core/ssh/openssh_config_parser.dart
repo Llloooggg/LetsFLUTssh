@@ -277,44 +277,61 @@ bool _globMatches(String pattern, String text) {
   }
 }
 
+/// Routes through `lfs_core::ssh_config::strip_comment` so the
+/// quote-aware comment grammar lives one place; falls back to the
+/// inline scan when the FRB native lib is not loaded.
 String _stripComment(String line) {
-  // Comments start with '#' but only outside quoted strings.
-  var inQuotes = false;
-  for (var i = 0; i < line.length; i++) {
-    final c = line[i];
-    if (c == '"') inQuotes = !inQuotes;
-    if (c == '#' && !inQuotes) return line.substring(0, i);
+  try {
+    return rust_ssh_config.sshConfigStripComment(line: line);
+  } catch (_) {
+    var inQuotes = false;
+    for (var i = 0; i < line.length; i++) {
+      final c = line[i];
+      if (c == '"') inQuotes = !inQuotes;
+      if (c == '#' && !inQuotes) return line.substring(0, i);
+    }
+    return line;
   }
-  return line;
 }
 
 /// Matches the first whitespace character; pre-compiled so the
 /// per-line [_splitKeywordValue] scan does not recompile the regex on
-/// every config line.
+/// every config line. Used only by the Dart fallback below — the
+/// Rust-canonical path lives in
+/// `lfs_core::ssh_config::split_keyword_value`.
 final _whitespaceRegex = RegExp(r'\s');
 
+/// Routes through `lfs_core::ssh_config::split_keyword_value` so
+/// the `keyword value` / `keyword = value` grammar (with quoting)
+/// lives one place; falls back to the inline scan when the FRB
+/// native lib is not loaded.
 (String?, String?) _splitKeywordValue(String line) {
-  // OpenSSH allows `keyword value` or `keyword = value` (optional equals).
-  final eqIdx = line.indexOf('=');
-  final spaceMatch = _whitespaceRegex.firstMatch(line);
-  final spaceIdx = spaceMatch?.start ?? -1;
+  try {
+    final pair = rust_ssh_config.sshConfigSplitKeywordValue(line: line);
+    if (pair == null) return (null, null);
+    return (pair.$1, pair.$2);
+  } catch (_) {
+    // OpenSSH allows `keyword value` or `keyword = value`.
+    final eqIdx = line.indexOf('=');
+    final spaceMatch = _whitespaceRegex.firstMatch(line);
+    final spaceIdx = spaceMatch?.start ?? -1;
 
-  int sepIdx;
-  if (eqIdx < 0) {
-    sepIdx = spaceIdx;
-  } else if (spaceIdx < 0) {
-    sepIdx = eqIdx;
-  } else {
-    sepIdx = eqIdx < spaceIdx ? eqIdx : spaceIdx;
+    int sepIdx;
+    if (eqIdx < 0) {
+      sepIdx = spaceIdx;
+    } else if (spaceIdx < 0) {
+      sepIdx = eqIdx;
+    } else {
+      sepIdx = eqIdx < spaceIdx ? eqIdx : spaceIdx;
+    }
+    if (sepIdx < 0) return (null, null);
+
+    final keyword = line.substring(0, sepIdx).trim();
+    var rest = line.substring(sepIdx + 1).trim();
+    if (rest.startsWith('=')) rest = rest.substring(1).trim();
+    if (keyword.isEmpty || rest.isEmpty) return (null, null);
+    return (keyword, _unquote(rest));
   }
-  if (sepIdx < 0) return (null, null);
-
-  final keyword = line.substring(0, sepIdx).trim();
-  var rest = line.substring(sepIdx + 1).trim();
-  // Strip optional `=` between keyword and value.
-  if (rest.startsWith('=')) rest = rest.substring(1).trim();
-  if (keyword.isEmpty || rest.isEmpty) return (null, null);
-  return (keyword, _unquote(rest));
 }
 
 String _unquote(String value) {

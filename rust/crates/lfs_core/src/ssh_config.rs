@@ -403,7 +403,11 @@ fn glob_at(p: &[u8], pi: usize, t: &[u8], ti: usize) -> bool {
     }
 }
 
-fn strip_comment(line: &str) -> String {
+/// Strip the `#`-prefixed comment (outside quoted strings) from
+/// [`line`]. Public so the Dart Include-directive expander
+/// (which needs to peel comments before it knows whether the line
+/// is an `Include` line) can route through the canonical grammar.
+pub fn strip_comment(line: &str) -> String {
     let mut in_quotes = false;
     let mut out = String::with_capacity(line.len());
     for c in line.chars() {
@@ -418,7 +422,13 @@ fn strip_comment(line: &str) -> String {
     out
 }
 
-fn split_keyword_value(line: &str) -> Option<(String, String)> {
+/// Split a single config line into `(keyword, value)`. Accepts both
+/// `keyword value` and `keyword = value` forms; returns `None` for
+/// blank lines or lines with only one token. Unquotes the value.
+///
+/// Public so the Dart Include-directive expander can detect an
+/// `Include` line without re-implementing the grammar.
+pub fn split_keyword_value(line: &str) -> Option<(String, String)> {
     let eq_idx = line.find('=');
     let space_idx = line.find(|c: char| c.is_whitespace());
     let sep_idx = match (eq_idx, space_idx) {
