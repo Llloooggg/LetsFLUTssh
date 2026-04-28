@@ -116,27 +116,20 @@ class SessionStore {
         ..clear()
         ..addAll(dbSessions.map((s) => dbSessionToSession(s, _folderMap)));
 
-      // Empty folders = folders in tree that have no sessions pointing to them
+      // Both derivations route through `lfs_core::folder_path` so the
+      // empty / collapsed cascading rules live one place. The
+      // `usedFolderIds` set is built Dart-side because `dbSessions`
+      // already lives here; the helper folds + path-resolves it.
       final usedFolderIds = dbSessions
           .map((s) => s.folderId)
           .whereType<String>()
           .toSet();
-      _emptyFolders.clear();
-      for (final folder in _folderMap.values) {
-        if (!usedFolderIds.contains(folder.id)) {
-          final path = _pathForId(folder.id);
-          if (path.isNotEmpty) _emptyFolders.add(path);
-        }
-      }
-
-      // Collapsed state from folder tree
-      _collapsedFolders.clear();
-      for (final folder in _folderMap.values) {
-        if (folder.collapsed) {
-          final path = _pathForId(folder.id);
-          if (path.isNotEmpty) _collapsedFolders.add(path);
-        }
-      }
+      _emptyFolders
+        ..clear()
+        ..addAll(folderDeriveEmptyCompat(_folderMap, usedFolderIds));
+      _collapsedFolders
+        ..clear()
+        ..addAll(folderDeriveCollapsedCompat(_folderMap));
 
       AppLogger.instance.log(
         'Loaded ${_sessions.length} sessions, '
@@ -773,9 +766,4 @@ class SessionStore {
       }).toList();
     }
   }
-
-  // ── Internals ───────────────────────────────────────────────────
-
-  String _pathForId(String? folderId) =>
-      folderBuildPathCompat(folderId, _folderMap);
 }

@@ -44,3 +44,22 @@ List<String> folderRenamePathsCascade({
   oldPath: oldPath,
   newPath: newPath,
 );
+
+/// Derive the set of folder paths that have no sessions pointing
+/// at them. A folder is empty when its id is absent from
+/// `used_folder_ids`. Skips empty paths (root has no folder node).
+List<String> folderDeriveEmpty({
+  required List<DbFolder> folders,
+  required List<String> usedFolderIds,
+}) => RustLib.instance.api.crateApiFolderPathFolderDeriveEmpty(
+  folders: folders,
+  usedFolderIds: usedFolderIds,
+);
+
+/// Derive the set of folder paths whose row carries the
+/// `collapsed` flag. Skips empty paths (root has no collapsed
+/// state).
+List<String> folderDeriveCollapsed({required List<DbFolder> folders}) => RustLib
+    .instance
+    .api
+    .crateApiFolderPathFolderDeriveCollapsed(folders: folders);

@@ -57,3 +57,20 @@ pub fn folder_rename_paths_cascade(
 ) -> Vec<String> {
     folder_path::rename_paths_cascade(&paths, &old_path, &new_path)
 }
+
+/// Derive the set of folder paths that have no sessions pointing
+/// at them. A folder is empty when its id is absent from
+/// `used_folder_ids`. Skips empty paths (root has no folder node).
+#[flutter_rust_bridge::frb(sync)]
+pub fn folder_derive_empty(folders: Vec<DbFolder>, used_folder_ids: Vec<String>) -> Vec<String> {
+    let used: std::collections::HashSet<String> = used_folder_ids.into_iter().collect();
+    folder_path::derive_empty_folders(&into_map(folders), &used)
+}
+
+/// Derive the set of folder paths whose row carries the
+/// `collapsed` flag. Skips empty paths (root has no collapsed
+/// state).
+#[flutter_rust_bridge::frb(sync)]
+pub fn folder_derive_collapsed(folders: Vec<DbFolder>) -> Vec<String> {
+    folder_path::derive_collapsed_folders(&into_map(folders))
+}

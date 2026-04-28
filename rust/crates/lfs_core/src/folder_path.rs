@@ -89,6 +89,51 @@ pub fn all_folder_paths(folders: &BTreeMap<String, FolderRow>) -> Vec<String> {
     out
 }
 
+/// Derive the set of folder paths that have no sessions pointing
+/// at them — the "empty folders" the UI renders even though no
+/// session lives under them. A folder is empty when its id is
+/// absent from [`used_folder_ids`].
+///
+/// Output is sorted + deduped for stable wire shape and
+/// deterministic test output. Skips empty paths (root) since
+/// "root" is implicit and never rendered as a folder node.
+#[must_use]
+pub fn derive_empty_folders(
+    folders: &BTreeMap<String, FolderRow>,
+    used_folder_ids: &std::collections::HashSet<String>,
+) -> Vec<String> {
+    let mut out: Vec<String> = folders
+        .values()
+        .filter(|row| !used_folder_ids.contains(&row.id))
+        .map(|row| build_folder_path(&row.id, folders))
+        .filter(|path| !path.is_empty())
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Derive the set of folder paths whose row carries the
+/// `collapsed` flag. The UI uses this to draw the collapsed-
+/// triangle marker without having to peek at the FolderRow shape
+/// — the rendered representation is the same flat path set
+/// `derive_empty_folders` produces.
+///
+/// Output is sorted + deduped, skips empty paths (root has no
+/// collapsed state).
+#[must_use]
+pub fn derive_collapsed_folders(folders: &BTreeMap<String, FolderRow>) -> Vec<String> {
+    let mut out: Vec<String> = folders
+        .values()
+        .filter(|row| row.collapsed)
+        .map(|row| build_folder_path(&row.id, folders))
+        .filter(|path| !path.is_empty())
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
 /// Apply a folder rename across a flat path set: every entry that
 /// equals [`old_path`] becomes [`new_path`]; every entry that
 /// starts with `{old_path}/` has the prefix rewritten. Other
@@ -276,5 +321,76 @@ mod tests {
         let paths = vec!["A".to_string(), "B".to_string()];
         assert_eq!(rename_paths_cascade(&paths, "", "Prod"), vec!["A", "B"]);
         assert_eq!(rename_paths_cascade(&paths, "A", ""), vec!["A", "B"]);
+    }
+
+    fn collapsed_row(id: &str, name: &str, parent: Option<&str>) -> FolderRow {
+        FolderRow {
+            id: id.to_string(),
+            name: name.to_string(),
+            parent_id: parent.map(|s| s.to_string()),
+            sort_order: 0,
+            collapsed: true,
+            created_at_ms: 0,
+        }
+    }
+
+    #[test]
+    fn empty_folders_skips_folders_with_sessions() {
+        let folders = map_of(vec![
+            row("a", "Production", None),
+            row("b", "EU", Some("a")),
+            row("c", "Staging", None),
+        ]);
+        let used: std::collections::HashSet<String> = ["a".into()].into();
+        let empty = derive_empty_folders(&folders, &used);
+        // 'a' has a session — exclude. 'b' (Production/EU) and 'c'
+        // (Staging) are empty.
+        assert_eq!(
+            empty,
+            vec!["Production/EU".to_string(), "Staging".to_string()]
+        );
+    }
+
+    #[test]
+    fn empty_folders_returns_every_folder_when_no_session_present() {
+        let folders = map_of(vec![
+            row("a", "Production", None),
+            row("b", "Staging", None),
+        ]);
+        let used: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let empty = derive_empty_folders(&folders, &used);
+        assert_eq!(empty, vec!["Production".to_string(), "Staging".to_string()]);
+    }
+
+    #[test]
+    fn empty_folders_skips_orphan_partial_paths_when_root_present() {
+        // An orphan folder still gets a path entry — the UI shows
+        // the marker — but only when it actually resolves to a
+        // non-empty path. A row with no name + no parent would
+        // resolve to empty and we drop it.
+        let folders = map_of(vec![row("a", "Production", None)]);
+        let used: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let empty = derive_empty_folders(&folders, &used);
+        assert_eq!(empty, vec!["Production".to_string()]);
+    }
+
+    #[test]
+    fn collapsed_folders_returns_only_collapsed_rows() {
+        let folders = map_of(vec![
+            row("a", "Production", None),
+            collapsed_row("b", "EU", Some("a")),
+            collapsed_row("c", "Staging", None),
+        ]);
+        let collapsed = derive_collapsed_folders(&folders);
+        assert_eq!(
+            collapsed,
+            vec!["Production/EU".to_string(), "Staging".to_string()]
+        );
+    }
+
+    #[test]
+    fn collapsed_folders_returns_empty_when_nothing_collapsed() {
+        let folders = map_of(vec![row("a", "Production", None)]);
+        assert!(derive_collapsed_folders(&folders).is_empty());
     }
 }
