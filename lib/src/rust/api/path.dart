@@ -53,3 +53,10 @@ String pathBasename({required String path}) =>
 /// trying to read the file.
 bool pathIsSuspicious({required String path}) =>
     RustLib.instance.api.crateApiPathPathIsSuspicious(path: path);
+
+/// Shorten a path to its last two non-empty segments, prefixed
+/// with `.../`. Used by the transfer panel + history rows to
+/// keep long paths readable in narrow row widths without losing
+/// the trailing context.
+String pathShortenToTwoSegments({required String path}) =>
+    RustLib.instance.api.crateApiPathPathShortenToTwoSegments(path: path);

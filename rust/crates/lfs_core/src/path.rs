@@ -54,6 +54,25 @@ pub fn is_suspicious_path(path: &str) -> bool {
     normalized.split('/').any(|seg| seg == "..")
 }
 
+/// Shorten a path to its last two non-empty segments (joined with
+/// `/`), prefixed with `.../`. Used by the transfer panel to keep
+/// long paths readable in the row width without losing the
+/// trailing context. Returns the input verbatim when it has at
+/// most two segments; empty in → empty out.
+#[must_use]
+pub fn shorten_to_two_segments(path: &str) -> String {
+    if path.is_empty() {
+        return String::new();
+    }
+    let normalized = path.replace('\\', "/");
+    let parts: Vec<&str> = normalized.split('/').filter(|s| !s.is_empty()).collect();
+    if parts.len() <= 2 {
+        return normalized;
+    }
+    let tail = &parts[parts.len() - 2..];
+    format!(".../{}", tail.join("/"))
+}
+
 /// Expand a leading `~` or `~/` against the running user's home
 /// directory. Other tilde shapes (`~user/foo`) are left as-is
 /// — they cannot be resolved without nss / passwd lookups, and
@@ -237,6 +256,34 @@ mod tests {
     fn is_suspicious_path_passes_dotdotextension() {
         // ".." is the trigger; "..foo" is not a traversal segment.
         assert!(!is_suspicious_path("/home/user/..foo"));
+    }
+
+    #[test]
+    fn shorten_returns_empty_for_empty() {
+        assert_eq!(shorten_to_two_segments(""), "");
+    }
+
+    #[test]
+    fn shorten_passes_through_paths_with_two_or_fewer_segments() {
+        assert_eq!(shorten_to_two_segments("foo"), "foo");
+        assert_eq!(shorten_to_two_segments("foo/bar"), "foo/bar");
+        assert_eq!(shorten_to_two_segments("/foo"), "/foo");
+    }
+
+    #[test]
+    fn shorten_keeps_last_two_segments_for_deep_paths() {
+        assert_eq!(
+            shorten_to_two_segments("/home/user/projects/myrepo/file.txt"),
+            ".../myrepo/file.txt"
+        );
+    }
+
+    #[test]
+    fn shorten_normalizes_windows_separators() {
+        assert_eq!(
+            shorten_to_two_segments(r"C:\Users\u\Downloads\file.txt"),
+            ".../Downloads/file.txt"
+        );
     }
 
     /// Tests mutate process-wide environment variables. Run them

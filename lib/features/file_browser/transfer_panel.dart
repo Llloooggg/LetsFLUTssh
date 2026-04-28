@@ -5,6 +5,7 @@ import '../../core/transfer/transfer_manager.dart';
 import '../../core/transfer/transfer_task.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/transfer_provider.dart';
+import '../../src/rust/api/path.dart' as rust_path;
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart'
     show formatDuration, formatSize, formatTimestamp, localizeError;
@@ -742,12 +743,19 @@ class _HistoryRow extends StatelessWidget {
   }
 
   /// Shorten a path to just the last 2 segments for display.
+  /// Routes through `lfs_core::path::shorten_to_two_segments` so
+  /// the abbreviation grammar lives one place; falls back to the
+  /// inline version when the FRB native lib is not loaded.
   static String _shortenPath(String path) {
-    if (path.isEmpty) return '';
-    final normalized = path.replaceAll('\\', '/');
-    final parts = normalized.split('/').where((p) => p.isNotEmpty).toList();
-    if (parts.length <= 2) return normalized;
-    return '.../${parts.sublist(parts.length - 2).join('/')}';
+    try {
+      return rust_path.pathShortenToTwoSegments(path: path);
+    } catch (_) {
+      if (path.isEmpty) return '';
+      final normalized = path.replaceAll('\\', '/');
+      final parts = normalized.split('/').where((p) => p.isNotEmpty).toList();
+      if (parts.length <= 2) return normalized;
+      return '.../${parts.sublist(parts.length - 2).join('/')}';
+    }
   }
 }
 

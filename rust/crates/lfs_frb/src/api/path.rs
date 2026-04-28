@@ -69,3 +69,12 @@ pub fn path_basename(path: String) -> String {
 pub fn path_is_suspicious(path: String) -> bool {
     lfs_core::path::is_suspicious_path(&path)
 }
+
+/// Shorten a path to its last two non-empty segments, prefixed
+/// with `.../`. Used by the transfer panel + history rows to
+/// keep long paths readable in narrow row widths without losing
+/// the trailing context.
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_shorten_to_two_segments(path: String) -> String {
+    lfs_core::path::shorten_to_two_segments(&path)
+}
