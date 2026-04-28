@@ -28,6 +28,7 @@ pub mod recorder;
 pub mod security_capabilities;
 pub mod security_config;
 pub mod sessions;
+pub mod sessions_registry;
 pub mod sftp;
 pub mod sftp_models;
 pub mod snippet_template;

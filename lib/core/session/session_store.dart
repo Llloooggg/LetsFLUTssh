@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/sessions.dart' as rust_sess;
+import '../../src/rust/api/sessions_registry.dart' as rust_registry;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 import '../db/_folder_path_compat.dart';
@@ -103,33 +104,59 @@ class SessionStore {
 
   Future<List<Session>> _doLoad() async {
     try {
-      // Load folder tree
-      final folders = await rust_db.dbFoldersListAll();
-      _folderMap = buildFolderMap(folders);
+      // Hydrate from the Rust-side `sessions::Registry` snapshot when
+      // the FRB native lib is available — the registry is kept in sync
+      // by the FRB DAO write paths so the snapshot reflects the latest
+      // committed state without an extra DAO round-trip from Dart.
+      // `sessionsRegistryReload` forces an initial pull from disk on
+      // first load (the registry starts empty). Falls back to the
+      // explicit DAO walk below for the flutter_test surface that
+      // doesn't bootstrap RustLib.
+      var hydratedFromRegistry = false;
+      try {
+        await rust_registry.sessionsRegistryReload();
+        final view = rust_registry.sessionsRegistrySnapshot();
+        _folderMap = buildFolderMap(view.folders);
+        _sessions
+          ..clear()
+          ..addAll(view.sessions.map((s) => dbSessionToSession(s, _folderMap)));
+        _emptyFolders
+          ..clear()
+          ..addAll(view.emptyFolders);
+        _collapsedFolders
+          ..clear()
+          ..addAll(view.collapsedFolders);
+        hydratedFromRegistry = true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'SessionStore registry hydration failed, falling back to DAO walk: $e',
+          name: 'SessionStore',
+          level: LogLevel.warn,
+        );
+      }
 
-      // Load sessions, convert to domain model WITHOUT credentials. The
-      // cached list in memory must not carry plaintext passwords / keyData /
-      // passphrases — callers that need them (connect, edit dialog, export)
-      // fetch on demand via [loadWithCredentials].
-      final dbSessions = await rust_db.dbSessionsListAll();
-      _sessions
-        ..clear()
-        ..addAll(dbSessions.map((s) => dbSessionToSession(s, _folderMap)));
+      if (!hydratedFromRegistry) {
+        // Load folder tree
+        final folders = await rust_db.dbFoldersListAll();
+        _folderMap = buildFolderMap(folders);
 
-      // Both derivations route through `lfs_core::folder_path` so the
-      // empty / collapsed cascading rules live one place. The
-      // `usedFolderIds` set is built Dart-side because `dbSessions`
-      // already lives here; the helper folds + path-resolves it.
-      final usedFolderIds = dbSessions
-          .map((s) => s.folderId)
-          .whereType<String>()
-          .toSet();
-      _emptyFolders
-        ..clear()
-        ..addAll(folderDeriveEmptyCompat(_folderMap, usedFolderIds));
-      _collapsedFolders
-        ..clear()
-        ..addAll(folderDeriveCollapsedCompat(_folderMap));
+        // Load sessions, convert to domain model WITHOUT credentials.
+        final dbSessions = await rust_db.dbSessionsListAll();
+        _sessions
+          ..clear()
+          ..addAll(dbSessions.map((s) => dbSessionToSession(s, _folderMap)));
+
+        final usedFolderIds = dbSessions
+            .map((s) => s.folderId)
+            .whereType<String>()
+            .toSet();
+        _emptyFolders
+          ..clear()
+          ..addAll(folderDeriveEmptyCompat(_folderMap, usedFolderIds));
+        _collapsedFolders
+          ..clear()
+          ..addAll(folderDeriveCollapsedCompat(_folderMap));
+      }
 
       AppLogger.instance.log(
         'Loaded ${_sessions.length} sessions, '

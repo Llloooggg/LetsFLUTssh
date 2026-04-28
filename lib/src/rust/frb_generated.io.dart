@@ -30,6 +30,7 @@ import 'api/recorder.dart';
 import 'api/security_capabilities.dart';
 import 'api/security_config.dart';
 import 'api/sessions.dart';
+import 'api/sessions_registry.dart';
 import 'api/sftp.dart';
 import 'api/sftp_models.dart';
 import 'api/snippet_template.dart';
@@ -502,6 +503,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSessionMetadata dco_decode_db_session_metadata(dynamic raw);
+
+  @protected
+  DbSessionRegistryView dco_decode_db_session_registry_view(dynamic raw);
 
   @protected
   DbSftpBookmark dco_decode_db_sftp_bookmark(dynamic raw);
@@ -1281,6 +1285,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSessionMetadata sse_decode_db_session_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSessionRegistryView sse_decode_db_session_registry_view(
     SseDeserializer deserializer,
   );
 
@@ -2242,6 +2251,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_session_metadata(
     DbSessionMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_session_registry_view(
+    DbSessionRegistryView self,
     SseSerializer serializer,
   );
 
