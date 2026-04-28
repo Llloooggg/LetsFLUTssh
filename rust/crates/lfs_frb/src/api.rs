@@ -9,6 +9,7 @@ pub mod crypto;
 pub mod db;
 pub mod deeplink;
 pub mod forward;
+pub mod hardware_tier_vault;
 pub mod keychain_marker;
 pub mod keychain_password_gate;
 pub mod keys;

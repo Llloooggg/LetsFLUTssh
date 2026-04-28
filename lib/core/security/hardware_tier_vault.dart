@@ -179,10 +179,7 @@ class HardwareTierVault {
 
         final file = await _stateFile();
         await file.parent.create(recursive: true);
-        final blob = jsonEncode({
-          'salt': base64.encode(salt),
-          'sealed': base64.encode(sealed),
-        });
+        final blob = hardwareTierEncodeLinuxBlobCompat(salt, sealed);
         // Atomic write — a crash mid-flush on direct `writeAsBytes`
         // could leave `hardware_vault.bin` half-written, bricking the
         // tier (unseal path reads the JSON and throws on malformed
@@ -233,15 +230,11 @@ class HardwareTierVault {
         if (!await file.exists()) return null;
 
         final raw = await file.readAsBytes();
-        final decoded = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
-        final saltB64 = decoded['salt'];
-        final sealedB64 = decoded['sealed'];
-        if (saltB64 is! String || sealedB64 is! String) return null;
+        final decoded = hardwareTierDecodeLinuxBlobCompat(utf8.decode(raw));
+        if (decoded == null) return null;
 
-        final salt = base64.decode(saltB64);
-        final sealed = base64.decode(sealedB64);
-        final authValue = _deriveAuth(pin, salt);
-        return _tpm.unseal(sealed, authValue: authValue);
+        final authValue = _deriveAuth(pin, decoded.salt);
+        return _tpm.unseal(decoded.sealed, authValue: authValue);
       }
       if (_usesMethodChannel) {
         final salt = await _readSaltFile();

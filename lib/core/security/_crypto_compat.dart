@@ -7,6 +7,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show AnyhowException;
 
 import '../../src/rust/api/crypto.dart' as rust_crypto;
+import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwv;
 import '../../src/rust/api/keychain_password_gate.dart' as rust_gate;
 
 /// HMAC-SHA-256 compat wrapper.
@@ -171,3 +172,61 @@ KeychainGateBlob? _decodeBlobFallback(String blob) {
 /// single shared instance avoids paying the seeding cost per call
 /// in the test suite.
 final math.Random _testRng = math.Random.secure();
+
+/// L3 hardware-tier-vault Linux disk blob: salt + TPM-sealed
+/// DB-key bytes the vault persists in `hardware_vault.bin`.
+class HardwareTierLinuxBlob {
+  final Uint8List salt;
+  final Uint8List sealed;
+  const HardwareTierLinuxBlob({required this.salt, required this.sealed});
+}
+
+/// Encode the salt + sealed-blob pair as the JSON envelope written
+/// to `hardware_vault.bin` on Linux. Wire format:
+/// `{"salt":"<base64>","sealed":"<base64>"}`. Same Rust-canonical /
+/// Dart-fallback shape as the L2 gate's
+/// [keychainGateEncodeBlobCompat].
+String hardwareTierEncodeLinuxBlobCompat(Uint8List salt, Uint8List sealed) {
+  try {
+    return rust_hwv.hardwareTierVaultEncodeLinuxBlob(
+      salt: salt,
+      sealed: sealed,
+    );
+  } catch (_) {
+    return jsonEncode({
+      'salt': base64.encode(salt),
+      'sealed': base64.encode(sealed),
+    });
+  }
+}
+
+/// Parse the on-disk JSON envelope. Returns null on any malformed
+/// shape (bad JSON / missing fields / non-string values / invalid
+/// base64 / empty decoded bytes); the vault's `read` treats null
+/// as "vault corrupt — route back to password unlock".
+HardwareTierLinuxBlob? hardwareTierDecodeLinuxBlobCompat(String blob) {
+  try {
+    final decoded = rust_hwv.hardwareTierVaultDecodeLinuxBlob(blob: blob);
+    return HardwareTierLinuxBlob(salt: decoded.salt, sealed: decoded.sealed);
+  } on AnyhowException catch (_) {
+    return null;
+  } catch (_) {
+    return _decodeHardwareLinuxFallback(blob);
+  }
+}
+
+HardwareTierLinuxBlob? _decodeHardwareLinuxFallback(String blob) {
+  try {
+    final decoded = jsonDecode(blob);
+    if (decoded is! Map<String, dynamic>) return null;
+    final saltB64 = decoded['salt'];
+    final sealedB64 = decoded['sealed'];
+    if (saltB64 is! String || sealedB64 is! String) return null;
+    final salt = base64.decode(saltB64);
+    final sealed = base64.decode(sealedB64);
+    if (salt.isEmpty || sealed.isEmpty) return null;
+    return HardwareTierLinuxBlob(salt: salt, sealed: sealed);
+  } catch (_) {
+    return null;
+  }
+}

@@ -35,11 +35,7 @@ pub fn keychain_gate_random_seed() -> DbKeychainGateSeed {
 /// in the salt-prefix vs. trailing ordering invalidates every
 /// install on disk.
 #[flutter_rust_bridge::frb(sync)]
-pub fn keychain_gate_compute_hmac(
-    pepper: Vec<u8>,
-    salt: Vec<u8>,
-    password: String,
-) -> Vec<u8> {
+pub fn keychain_gate_compute_hmac(pepper: Vec<u8>, salt: Vec<u8>, password: String) -> Vec<u8> {
     gate::compute_gate_hmac(&pepper, &salt, &password)
 }
 

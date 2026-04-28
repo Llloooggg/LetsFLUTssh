@@ -11,6 +11,7 @@ import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/deeplink.dart';
 import 'api/forward.dart';
+import 'api/hardware_tier_vault.dart';
 import 'api/keychain_marker.dart';
 import 'api/keychain_password_gate.dart';
 import 'api/keys.dart';
@@ -374,6 +375,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbFolder dco_decode_db_folder(dynamic raw);
+
+  @protected
+  DbHardwareTierLinuxBlob dco_decode_db_hardware_tier_linux_blob(dynamic raw);
 
   @protected
   DbImportMode dco_decode_db_import_mode(dynamic raw);
@@ -1032,6 +1036,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbFolder sse_decode_db_folder(SseDeserializer deserializer);
+
+  @protected
+  DbHardwareTierLinuxBlob sse_decode_db_hardware_tier_linux_blob(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbImportMode sse_decode_db_import_mode(SseDeserializer deserializer);
@@ -1845,6 +1854,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_folder(DbFolder self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_hardware_tier_linux_blob(
+    DbHardwareTierLinuxBlob self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_import_mode(DbImportMode self, SseSerializer serializer);
