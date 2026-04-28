@@ -60,3 +60,19 @@ bool pathIsSuspicious({required String path}) =>
 /// the trailing context.
 String pathShortenToTwoSegments({required String path}) =>
     RustLib.instance.api.crateApiPathPathShortenToTwoSegments(path: path);
+
+/// Generate the `n`-th `"stem (N)ext"` sibling-name candidate
+/// next to [`path`]. Caller checks whether the candidate exists
+/// and increments `n`; the helper only constructs the name
+/// (matches GNOME Files / Finder splitting — only the final
+/// extension is preserved). `posix=true` selects `/` as the
+/// dirname separator.
+String pathSiblingCandidate({
+  required String path,
+  required int n,
+  required bool posix,
+}) => RustLib.instance.api.crateApiPathPathSiblingCandidate(
+  path: path,
+  n: n,
+  posix: posix,
+);

@@ -54,6 +54,45 @@ pub fn is_suspicious_path(path: &str) -> bool {
     normalized.split('/').any(|seg| seg == "..")
 }
 
+/// Generate the `n`-th `"stem (N)ext"` sibling-name candidate
+/// next to [`path`]. Used by the transfer-conflict resolver +
+/// the local + remote drag-into-existing flows: each attempt
+/// asks the FS whether the candidate is free, incrementing `n`
+/// until a slot opens.
+///
+/// Splitting rule matches GNOME Files / Finder: only the **final**
+/// extension is preserved, so `archive.tar.gz` becomes
+/// `archive.tar (N).gz`. `README` (no extension) becomes
+/// `README (N)`.
+///
+/// `posix` selects the path-separator family — `true` for SFTP
+/// remote paths, `false` for the local OS native form (which
+/// matches `\` on Windows + `/` elsewhere).
+///
+/// Generates the candidate text only — checking whether the
+/// slot exists stays caller-side (it needs FS / SFTP I/O).
+#[must_use]
+pub fn sibling_candidate(path: &str, n: u32, posix: bool) -> String {
+    let sep = if posix || !path.contains('\\') {
+        '/'
+    } else {
+        '\\'
+    };
+    // Find the dirname / basename split — last separator.
+    let (dir, base) = match path.rfind(sep) {
+        Some(idx) => (&path[..=idx], &path[idx + 1..]),
+        None => ("", path),
+    };
+    // Last `.` inside the basename, ignoring leading `.` (a
+    // dotfile like `.bashrc` has no extension).
+    let ext_idx = base.rfind('.').filter(|&i| i > 0);
+    let (stem, ext) = match ext_idx {
+        Some(i) => (&base[..i], &base[i..]),
+        None => (base, ""),
+    };
+    format!("{dir}{stem} ({n}){ext}")
+}
+
 /// Shorten a path to its last two non-empty segments (joined with
 /// `/`), prefixed with `.../`. Used by the transfer panel to keep
 /// long paths readable in the row width without losing the
@@ -283,6 +322,60 @@ mod tests {
         assert_eq!(
             shorten_to_two_segments(r"C:\Users\u\Downloads\file.txt"),
             ".../Downloads/file.txt"
+        );
+    }
+
+    #[test]
+    fn sibling_candidate_inserts_n_before_extension() {
+        assert_eq!(
+            sibling_candidate("/home/u/report.txt", 1, true),
+            "/home/u/report (1).txt"
+        );
+        assert_eq!(
+            sibling_candidate("/home/u/report.txt", 42, true),
+            "/home/u/report (42).txt"
+        );
+    }
+
+    #[test]
+    fn sibling_candidate_only_preserves_final_extension() {
+        // "archive.tar.gz" → "archive.tar (1).gz" — matches GNOME
+        // Files / Finder behaviour.
+        assert_eq!(
+            sibling_candidate("/home/u/archive.tar.gz", 1, true),
+            "/home/u/archive.tar (1).gz"
+        );
+    }
+
+    #[test]
+    fn sibling_candidate_handles_extensionless_files() {
+        assert_eq!(
+            sibling_candidate("/home/u/README", 1, true),
+            "/home/u/README (1)"
+        );
+    }
+
+    #[test]
+    fn sibling_candidate_handles_dotfiles_as_extensionless() {
+        // ".bashrc" — leading dot is not an extension.
+        assert_eq!(
+            sibling_candidate("/home/u/.bashrc", 1, true),
+            "/home/u/.bashrc (1)"
+        );
+    }
+
+    #[test]
+    fn sibling_candidate_handles_bare_filename() {
+        assert_eq!(sibling_candidate("file.txt", 1, true), "file (1).txt");
+    }
+
+    #[test]
+    fn sibling_candidate_uses_native_separator_when_not_posix() {
+        // Windows path; posix=false should use `\` as the
+        // dirname separator.
+        assert_eq!(
+            sibling_candidate(r"C:\Users\u\file.txt", 1, false),
+            r"C:\Users\u\file (1).txt"
         );
     }
 

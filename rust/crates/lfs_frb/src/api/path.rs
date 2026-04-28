@@ -78,3 +78,14 @@ pub fn path_is_suspicious(path: String) -> bool {
 pub fn path_shorten_to_two_segments(path: String) -> String {
     lfs_core::path::shorten_to_two_segments(&path)
 }
+
+/// Generate the `n`-th `"stem (N)ext"` sibling-name candidate
+/// next to [`path`]. Caller checks whether the candidate exists
+/// and increments `n`; the helper only constructs the name
+/// (matches GNOME Files / Finder splitting — only the final
+/// extension is preserved). `posix=true` selects `/` as the
+/// dirname separator.
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_sibling_candidate(path: String, n: u32, posix: bool) -> String {
+    lfs_core::path::sibling_candidate(&path, n, posix)
+}
