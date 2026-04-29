@@ -49,6 +49,37 @@ pub fn master_password_is_enabled(support_dir: String) -> bool {
     master_password::is_enabled(Path::new(&support_dir))
 }
 
+/// Encode the algo-id + Argon2id params block to the 10-byte
+/// big-endian shape `credentials.kdf` stores after the magic +
+/// version header. Lets the Dart `KdfParams.encode` route
+/// through the canonical Rust serialiser instead of carrying its
+/// own `ByteData.setUint32` block.
+#[flutter_rust_bridge::frb(sync)]
+pub fn kdf_params_encode(memory_kib: u32, iterations: u32, parallelism: u32) -> Vec<u8> {
+    let p = KdfParams::from(DbKdfParams {
+        memory_kib,
+        iterations,
+        parallelism,
+    });
+    p.encode().to_vec()
+}
+
+/// Decode the 10-byte algo-id + Argon2id params block. Returns
+/// `Err(message)` for unknown algo ids, truncated buffers, and
+/// values outside the sanity ceilings (see `KdfParams::decode`).
+/// Wire-shape parity with the Dart `KdfParams.decode` was the
+/// deliberate goal — both halves now read the same canonical
+/// validator.
+#[flutter_rust_bridge::frb(sync)]
+pub fn kdf_params_decode(bytes: Vec<u8>) -> Result<DbKdfParams, String> {
+    let p = KdfParams::decode(&bytes)?;
+    Ok(DbKdfParams {
+        memory_kib: p.memory_kib,
+        iterations: p.iterations,
+        parallelism: u32::from(p.parallelism),
+    })
+}
+
 /// Enable master-password protection: fresh salt + Argon2id derive +
 /// atomic write of the KDF record + verifier files. Returns the
 /// derived key — the caller re-encrypts the SQLCipher store with it.

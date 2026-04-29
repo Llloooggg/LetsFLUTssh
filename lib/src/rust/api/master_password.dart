@@ -15,6 +15,30 @@ bool masterPasswordIsEnabled({required String supportDir}) => RustLib
     .api
     .crateApiMasterPasswordMasterPasswordIsEnabled(supportDir: supportDir);
 
+/// Encode the algo-id + Argon2id params block to the 10-byte
+/// big-endian shape `credentials.kdf` stores after the magic +
+/// version header. Lets the Dart `KdfParams.encode` route
+/// through the canonical Rust serialiser instead of carrying its
+/// own `ByteData.setUint32` block.
+Uint8List kdfParamsEncode({
+  required int memoryKib,
+  required int iterations,
+  required int parallelism,
+}) => RustLib.instance.api.crateApiMasterPasswordKdfParamsEncode(
+  memoryKib: memoryKib,
+  iterations: iterations,
+  parallelism: parallelism,
+);
+
+/// Decode the 10-byte algo-id + Argon2id params block. Returns
+/// `Err(message)` for unknown algo ids, truncated buffers, and
+/// values outside the sanity ceilings (see `KdfParams::decode`).
+/// Wire-shape parity with the Dart `KdfParams.decode` was the
+/// deliberate goal — both halves now read the same canonical
+/// validator.
+DbKdfParams kdfParamsDecode({required List<int> bytes}) =>
+    RustLib.instance.api.crateApiMasterPasswordKdfParamsDecode(bytes: bytes);
+
 /// Enable master-password protection: fresh salt + Argon2id derive +
 /// atomic write of the KDF record + verifier files. Returns the
 /// derived key — the caller re-encrypts the SQLCipher store with it.

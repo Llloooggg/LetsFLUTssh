@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../../src/rust/api/master_password.dart' as rust_mp;
+
 /// Supported key-derivation algorithms. The on-disk enum value is the
 /// stable wire ID — new entries must never reuse existing IDs or the
 /// format versioning guarantee breaks.
@@ -62,15 +64,28 @@ class KdfParams {
 
   /// Serialize algorithm ID + params. Excludes the salt — the file layout
   /// places it after this block.
+  ///
+  /// Routes through `lfs_core::security::master_password::KdfParams::encode`
+  /// (FRB sync) so the on-disk wire format lives one place; falls back
+  /// to the equivalent `ByteData.setUint32` block when the FRB native
+  /// lib is not loaded.
   Uint8List encode() {
     switch (algorithm) {
       case KdfAlgorithm.argon2id:
-        final b = ByteData(10);
-        b.setUint8(0, algorithm.id);
-        b.setUint32(1, memoryKiB);
-        b.setUint32(5, iterations);
-        b.setUint8(9, parallelism);
-        return b.buffer.asUint8List();
+        try {
+          return rust_mp.kdfParamsEncode(
+            memoryKib: memoryKiB,
+            iterations: iterations,
+            parallelism: parallelism,
+          );
+        } catch (_) {
+          final b = ByteData(10);
+          b.setUint8(0, algorithm.id);
+          b.setUint32(1, memoryKiB);
+          b.setUint32(5, iterations);
+          b.setUint8(9, parallelism);
+          return b.buffer.asUint8List();
+        }
     }
   }
 
@@ -93,7 +108,40 @@ class KdfParams {
   ///
   /// Returns the parsed params; callers pass [bytes.sublist(0,
   /// encodedLength)] back to `encode()` for round-trip.
+  ///
+  /// Routes through `lfs_core::security::master_password::KdfParams::decode`
+  /// so the validator (algo-id + sanity ceilings) lives one place;
+  /// falls back to the inline scan when the FRB native lib is not
+  /// loaded.
   static KdfParams decode(Uint8List bytes) {
+    try {
+      final p = rust_mp.kdfParamsDecode(bytes: bytes);
+      return KdfParams._(
+        algorithm: KdfAlgorithm.argon2id,
+        memoryKiB: p.memoryKib,
+        iterations: p.iterations,
+        parallelism: p.parallelism,
+      );
+    } catch (e) {
+      // Rust path returned an Err or the FRB native lib isn't
+      // loaded — fall through to the inline parser. Production
+      // never reaches this branch because RustLib.init runs at
+      // app start.
+      if (e is FormatException) rethrow;
+      // Surface the Rust-side error message as a FormatException
+      // so the catch-arm below + the inline parser stay
+      // exception-shape-compatible. AnyhowException stringifies
+      // as `anyhow_exception "<msg>"` — strip the wrapping if
+      // present.
+      final msg = e.toString();
+      if (msg.contains('KdfParams:')) {
+        // Rust validator rejected the bytes — preserve the
+        // canonical message.
+        final idx = msg.indexOf('KdfParams:');
+        final tail = msg.substring(idx).replaceAll(RegExp(r'"$'), '');
+        throw FormatException(tail);
+      }
+    }
     if (bytes.isEmpty) {
       throw const FormatException('KdfParams: empty input');
     }
