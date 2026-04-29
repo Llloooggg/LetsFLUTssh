@@ -123,19 +123,24 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final remote = sftpResult?.remoteCtrl;
     if (sftp == null || remote == null || entries.isEmpty) return;
     final resolver = _buildResolver(showApplyToAll: entries.length > 1);
-
-    for (final entry in entries) {
-      if (resolver.isCancelled) break;
-      if (!mounted) return;
-      await TransferHelpers.enqueueUpload(
-        manager: ref.read(transferManagerProvider),
-        sftp: sftp,
-        connectionId: sftpConnection.id,
-        entry: entry,
-        remoteDirPath: remote.currentPath,
-        remoteCtrl: remote,
-        conflictResolver: resolver,
-      );
+    try {
+      for (final entry in entries) {
+        if (resolver.isCancelled) break;
+        if (!mounted) return;
+        await TransferHelpers.enqueueUpload(
+          manager: ref.read(transferManagerProvider),
+          sftp: sftp,
+          connectionId: sftpConnection.id,
+          entry: entry,
+          remoteDirPath: remote.currentPath,
+          remoteCtrl: remote,
+          conflictResolver: resolver,
+        );
+      }
+    } finally {
+      // Drop the Rust-side handle so the per-batch entry doesn't
+      // leak into the BatchStateRegistry across the app lifetime.
+      resolver.dispose();
     }
   }
 
@@ -145,19 +150,22 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final local = sftpResult?.localCtrl;
     if (sftp == null || local == null || entries.isEmpty) return;
     final resolver = _buildResolver(showApplyToAll: entries.length > 1);
-
-    for (final entry in entries) {
-      if (resolver.isCancelled) break;
-      if (!mounted) return;
-      await TransferHelpers.enqueueDownload(
-        manager: ref.read(transferManagerProvider),
-        sftp: sftp,
-        connectionId: sftpConnection.id,
-        entry: entry,
-        localDirPath: local.currentPath,
-        localCtrl: local,
-        conflictResolver: resolver,
-      );
+    try {
+      for (final entry in entries) {
+        if (resolver.isCancelled) break;
+        if (!mounted) return;
+        await TransferHelpers.enqueueDownload(
+          manager: ref.read(transferManagerProvider),
+          sftp: sftp,
+          connectionId: sftpConnection.id,
+          entry: entry,
+          localDirPath: local.currentPath,
+          localCtrl: local,
+          conflictResolver: resolver,
+        );
+      }
+    } finally {
+      resolver.dispose();
     }
   }
 
