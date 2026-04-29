@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
+import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
@@ -304,10 +305,23 @@ class SessionRecorder {
     }
   }
 
-  static String _isoTimestamp() => DateTime.now()
-      .toUtc()
-      .toIso8601String()
-      .replaceAll(':', '-')
-      .split('.')
-      .first;
+  /// Routes through `lfs_core::format::format_filesafe_iso_timestamp`
+  /// so the colon-replacement + fractional-drop grammar lives one
+  /// place. Falls back to the inline `replaceAll`/`split` chain
+  /// when the FRB native lib is not loaded.
+  static String _isoTimestamp() {
+    final now = DateTime.now().toUtc();
+    try {
+      return rust_format.formatFilesafeIsoTimestamp(
+        year: now.year,
+        month: now.month,
+        day: now.day,
+        hour: now.hour,
+        minute: now.minute,
+        second: now.second,
+      );
+    } catch (_) {
+      return now.toIso8601String().replaceAll(':', '-').split('.').first;
+    }
+  }
 }

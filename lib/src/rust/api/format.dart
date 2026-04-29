@@ -67,3 +67,22 @@ String formatClockHms({
   minute: minute,
   second: second,
 );
+
+/// Render a UTC date+time as a filename-safe ISO timestamp:
+/// `YYYY-MM-DDTHH-MM-SS`. Drops the colon (illegal on Windows /
+/// awkward in shell paths). Used by the recorder file-name path.
+String formatFilesafeIsoTimestamp({
+  required int year,
+  required int month,
+  required int day,
+  required int hour,
+  required int minute,
+  required int second,
+}) => RustLib.instance.api.crateApiFormatFormatFilesafeIsoTimestamp(
+  year: year,
+  month: month,
+  day: day,
+  hour: hour,
+  minute: minute,
+  second: second,
+);

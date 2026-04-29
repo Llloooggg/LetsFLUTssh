@@ -126,6 +126,24 @@ pub fn format_clock_hms(hour: u32, minute: u32, second: u32) -> String {
     format!("{hour:02}:{minute:02}:{second:02}")
 }
 
+/// Render a UTC date+time as a filename-safe ISO timestamp:
+/// `YYYY-MM-DDTHH-MM-SS`. Drops the colon (illegal on Windows /
+/// awkward in shell paths) + the fractional second + the
+/// timezone suffix. Used by the recorder to mint
+/// `<isoTimestamp>.lfsr` paths under the per-session recordings
+/// directory.
+#[must_use]
+pub fn format_filesafe_iso_timestamp(
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    second: u32,
+) -> String {
+    format!("{year:04}-{month:02}-{day:02}T{hour:02}-{minute:02}-{second:02}")
+}
+
 /// Recordings-browser duration shape — fractional seconds below
 /// 1 minute, `Nm SSs` below 1 hour, `Nh MMm` above. Distinct from
 /// [`format_duration`] because the recordings come back from the
@@ -281,5 +299,25 @@ mod tests {
         assert_eq!(format_clock_hms(0, 0, 0), "00:00:00");
         assert_eq!(format_clock_hms(9, 5, 1), "09:05:01");
         assert_eq!(format_clock_hms(23, 59, 59), "23:59:59");
+    }
+
+    #[test]
+    fn filesafe_iso_timestamp_uses_dash_separators() {
+        assert_eq!(
+            format_filesafe_iso_timestamp(2026, 4, 29, 0, 49, 32),
+            "2026-04-29T00-49-32"
+        );
+    }
+
+    #[test]
+    fn filesafe_iso_timestamp_pads_every_field() {
+        assert_eq!(
+            format_filesafe_iso_timestamp(2026, 1, 1, 0, 0, 0),
+            "2026-01-01T00-00-00"
+        );
+        assert_eq!(
+            format_filesafe_iso_timestamp(2026, 12, 31, 23, 59, 59),
+            "2026-12-31T23-59-59"
+        );
     }
 }

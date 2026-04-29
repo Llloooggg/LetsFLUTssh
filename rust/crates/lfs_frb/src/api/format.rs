@@ -58,3 +58,18 @@ pub fn format_date(year: i32, month: u32, day: u32) -> String {
 pub fn format_clock_hms(hour: u32, minute: u32, second: u32) -> String {
     format::format_clock_hms(hour, minute, second)
 }
+
+/// Render a UTC date+time as a filename-safe ISO timestamp:
+/// `YYYY-MM-DDTHH-MM-SS`. Drops the colon (illegal on Windows /
+/// awkward in shell paths). Used by the recorder file-name path.
+#[flutter_rust_bridge::frb(sync)]
+pub fn format_filesafe_iso_timestamp(
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    second: u32,
+) -> String {
+    format::format_filesafe_iso_timestamp(year, month, day, hour, minute, second)
+}
