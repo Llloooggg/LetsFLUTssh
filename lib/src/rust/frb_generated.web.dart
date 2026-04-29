@@ -30,6 +30,7 @@ import 'api/migration.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
 import 'api/persisted_rate_limit.dart';
+import 'api/persisted_rate_limit_actor.dart';
 import 'api/qr_codec_encode.dart';
 import 'api/rate_limit.dart';
 import 'api/recorder.dart';

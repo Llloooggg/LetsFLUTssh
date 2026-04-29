@@ -1,11 +1,13 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/persisted_rate_limit_actor.dart'
+    as rust_persisted_actor;
 import '../../src/rust/api/rate_limit.dart' as rust_rate_limit;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
@@ -221,53 +223,209 @@ class PersistedRateLimiter extends PasswordRateLimiter {
   PersistedRateLimiter({
     required Uint8List hmacKey,
     Future<File> Function()? stateFileFactory,
+    String? id,
     super.now,
   }) : _hmacKey = hmacKey,
-       _stateFile = stateFileFactory ?? _defaultStateFile;
+       _stateFile = stateFileFactory ?? _defaultStateFile,
+       _id = id ?? const Uuid().v4();
 
   static const _fileName = 'rate_limit_state.bin';
 
   final Uint8List _hmacKey;
   final Future<File> Function() _stateFile;
 
-  _RateState? _cached;
-  bool _loaded = false;
+  /// Per-instance id under which the Rust
+  /// `persisted_rate_limit_actor` registers this limiter. Each
+  /// Dart instance auto-allocates one so multiple gates
+  /// (production + tests) never share counters inside the
+  /// singleton registry.
+  final String _id;
 
-  /// Serialises writes so two rapid-fire `recordFailure` /
-  /// `recordSuccess` calls never race each other at the filesystem —
-  /// the second write always observes the first's completion even
-  /// though neither is awaited by the caller.
-  Future<void> _pendingSave = Future<void>.value();
+  /// Set once `_initOnce` confirms the Rust actor loaded the
+  /// on-disk frame. Until then, [status] returns the safe zero
+  /// baseline so the unlock dialog renders no cooldown before the
+  /// load settles.
+  bool _initialised = false;
 
-  static Future<File> _defaultStateFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _fileName));
-  }
+  /// True when the Rust `persisted_rate_limit_actor` is reachable
+  /// (production). False when the FRB native lib is not loaded
+  /// (flutter_test) — the limiter falls back to an in-memory
+  /// state machine + per-instance disk write chain.
+  bool _useRust = true;
 
-  /// Force an on-disk read on the next [status] call. Primarily
-  /// exists for tests that edit the state file behind the limiter's
-  /// back to simulate tamper.
+  // ── Dart-fallback state (used when `_useRust == false`) ────────
+  _RateState? _cachedFallback;
+  bool _loadedFallback = false;
+  Future<void> _pendingSaveFallback = Future<void>.value();
+
+  /// Force a re-read on next status call. Drops the Rust actor's
+  /// cache + the Dart fallback cache.
   void invalidateCache() {
-    _cached = null;
-    _loaded = false;
+    _initialised = false;
+    _cachedFallback = null;
+    _loadedFallback = false;
+    if (_useRust) {
+      try {
+        rust_persisted_actor.persistedRateLimitActorClear(id: _id);
+      } catch (_) {
+        // Actor unreachable — fallback path will re-load on
+        // next status call.
+      }
+    }
   }
 
-  /// Awaits the currently-pending save chain so a test can assert
-  /// post-write invariants deterministically. Production callers
-  /// never need this — the unlock flow is fine with fire-and-forget.
-  Future<void> awaitPendingSave() => _pendingSave;
+  /// Awaits any pending save. In Rust mode the actor schedules
+  /// writes via `tokio::spawn_blocking`; we yield twice to give
+  /// the worker thread a chance to drain. In fallback mode we
+  /// await the `_pendingSaveFallback` chain directly.
+  Future<void> awaitPendingSave() async {
+    if (_useRust) {
+      await Future<void>.value();
+      await Future<void>.value();
+    } else {
+      await _pendingSaveFallback;
+    }
+  }
 
   @override
   RateLimitStatus status() {
-    // Returning a synchronous snapshot is required by the base-class
-    // contract; `statusAsync` runs the disk read + HMAC verify.
-    if (!_loaded) {
+    if (_useRust && _initialised) {
+      try {
+        return _toRateLimitStatus(
+          rust_persisted_actor.persistedRateLimitActorStatus(id: _id),
+        );
+      } catch (_) {
+        // Actor unreachable mid-flight — fall through to fallback.
+        _useRust = false;
+      }
+    }
+    if (_useRust && !_initialised) {
+      // Init hasn't settled yet (production caller didn't await
+      // statusAsync). Return the safe baseline so the unlock
+      // dialog renders no cooldown — the bus event will refresh
+      // it once init completes.
       return const RateLimitStatus(
         failureCount: 0,
         cooldownRemaining: Duration.zero,
       );
     }
-    final state = _cached;
+    return _statusFallback();
+  }
+
+  /// Async variant — loads the on-disk frame (HMAC-verified)
+  /// before snapshotting. The unlock dialog awaits this on open
+  /// so the post-restart cooldown countdown lands on the first
+  /// frame.
+  Future<RateLimitStatus> statusAsync() async {
+    await _ensureLoaded();
+    return status();
+  }
+
+  @override
+  void recordFailure() {
+    if (_useRust) {
+      if (!_initialised) {
+        // First-call probe: attempt the Rust path so a sync
+        // caller (test harness) gets either a Rust-side update
+        // or a fast fall-through to the inline state machine.
+        try {
+          rust_persisted_actor.persistedRateLimitActorRecordFailure(id: _id);
+          // Rust accepted the call — actor is reachable. Mark
+          // initialised so subsequent reads route through Rust
+          // even if the caller never awaits statusAsync.
+          _initialised = true;
+          return;
+        } catch (_) {
+          _useRust = false;
+        }
+      } else {
+        try {
+          rust_persisted_actor.persistedRateLimitActorRecordFailure(id: _id);
+          return;
+        } catch (e) {
+          _useRust = false;
+          AppLogger.instance.log(
+            'PersistedRateLimiter recordFailure rust path failed, '
+            'falling through to fallback: $e',
+            name: 'PersistedRateLimiter',
+          );
+        }
+      }
+    }
+    _recordFailureFallback();
+  }
+
+  @override
+  void recordSuccess() {
+    if (_useRust) {
+      if (!_initialised) {
+        try {
+          rust_persisted_actor.persistedRateLimitActorRecordSuccess(id: _id);
+          _initialised = true;
+          return;
+        } catch (_) {
+          _useRust = false;
+        }
+      } else {
+        try {
+          rust_persisted_actor.persistedRateLimitActorRecordSuccess(id: _id);
+          return;
+        } catch (e) {
+          _useRust = false;
+          AppLogger.instance.log(
+            'PersistedRateLimiter recordSuccess rust path failed, '
+            'falling through to fallback: $e',
+            name: 'PersistedRateLimiter',
+          );
+        }
+      }
+    }
+    _recordSuccessFallback();
+  }
+
+  Future<void> _ensureLoaded() async {
+    if (_initialised || _loadedFallback) return;
+    File? file;
+    try {
+      file = await _stateFile();
+      await file.parent.create(recursive: true);
+      rust_persisted_actor.persistedRateLimitActorInitOrGet(
+        id: _id,
+        filePath: file.path,
+        hmacKey: _hmacKey,
+      );
+      _initialised = true;
+      _useRust = true;
+      return;
+    } catch (_) {
+      // Rust actor unreachable, or the path_provider plugin is not
+      // mocked (flutter_test contexts). Fall back to the inline
+      // Dart state machine + disk write chain so the limiter still
+      // functions in unit tests.
+      _useRust = false;
+    }
+    if (file != null) {
+      await _ensureLoadedFallback(file);
+    } else {
+      // path_provider call failed before yielding a path — adopt
+      // the zero-state baseline so subsequent recordFailure calls
+      // still update the in-memory cache (writes will silently
+      // fail in the same way the Dart-only legacy branch did).
+      _cachedFallback = const _RateState(failureCount: 0);
+      _loadedFallback = true;
+    }
+  }
+
+  // ── Dart fallback implementation ───────────────────────────────
+
+  RateLimitStatus _statusFallback() {
+    if (!_loadedFallback) {
+      return const RateLimitStatus(
+        failureCount: 0,
+        cooldownRemaining: Duration.zero,
+      );
+    }
+    final state = _cachedFallback;
     if (state == null) {
       return const RateLimitStatus(
         failureCount: 0,
@@ -280,125 +438,102 @@ class PersistedRateLimiter extends PasswordRateLimiter {
     );
   }
 
-  /// Async variant that loads + HMAC-verifies the on-disk state.
-  /// Callers on the unlock path should await this before rendering a
-  /// cooldown countdown.
-  Future<RateLimitStatus> statusAsync() async {
-    await _ensureLoaded();
-    return status();
-  }
-
-  @override
-  void recordFailure() {
-    final current = _cached ?? const _RateState(failureCount: 0);
-    final nextCount = math.min(
-      current.failureCount + 1,
-      PasswordRateLimiter.backoffSchedule.length - 1,
-    );
+  void _recordFailureFallback() {
+    final current = _cachedFallback ?? const _RateState(failureCount: 0);
+    final cap = PasswordRateLimiter.backoffSchedule.length - 1;
+    final next = current.failureCount + 1;
+    final nextCount = next > cap ? cap : next;
     final nextRetryAt = _nextRetryAfterFailure(nextCount);
     final state = _RateState(failureCount: nextCount, nextRetryAt: nextRetryAt);
-    _cached = state;
-    _loaded = true;
-    _unawaitedSave(state);
+    _cachedFallback = state;
+    _loadedFallback = true;
+    _unawaitedSaveFallback(state);
   }
 
-  @override
-  void recordSuccess() {
-    _cached = const _RateState(failureCount: 0);
-    _loaded = true;
-    _unawaitedSave(_cached!);
+  void _recordSuccessFallback() {
+    _cachedFallback = const _RateState(failureCount: 0);
+    _loadedFallback = true;
+    _unawaitedSaveFallback(_cachedFallback!);
   }
 
-  /// Kicks off the disk write without awaiting. A persist failure is
-  /// logged but never blocks the unlock flow — worst case is the
-  /// counter drops on restart, which is a smaller loss than a failed
-  /// password field. Writes are chained on `_pendingSave` so a
-  /// sequence of `recordFailure; recordSuccess` always lands as two
-  /// sequential writes rather than a race.
-  void _unawaitedSave(_RateState state) {
-    _pendingSave = _pendingSave.catchError((_) {}).then((_) async {
+  void _unawaitedSaveFallback(_RateState state) {
+    _pendingSaveFallback = _pendingSaveFallback.catchError((_) {}).then((
+      _,
+    ) async {
       try {
         final file = await _stateFile();
         await file.parent.create(recursive: true);
-        final bytes = _encode(state);
+        final bytes = persistedRateLimitEncodeCompat(
+          PersistedRateLimitState(
+            failureCount: state.failureCount,
+            nextRetryAtMillis: state.nextRetryAt?.millisecondsSinceEpoch,
+          ),
+          _hmacKey,
+        );
         await file.writeAsBytes(bytes, flush: true);
         await hardenFilePerms(file.path);
       } catch (e) {
         AppLogger.instance.log(
-          'PersistedRateLimiter save failed: $e',
+          'PersistedRateLimiter fallback save failed: $e',
           name: 'PersistedRateLimiter',
         );
       }
     });
   }
 
-  Future<void> _ensureLoaded() async {
-    if (_loaded) return;
+  Future<void> _ensureLoadedFallback(File file) async {
+    if (_loadedFallback) return;
     try {
-      final file = await _stateFile();
       if (!await file.exists()) {
-        _cached = const _RateState(failureCount: 0);
-        _loaded = true;
+        _cachedFallback = const _RateState(failureCount: 0);
+        _loadedFallback = true;
         return;
       }
       final raw = await file.readAsBytes();
-      final decoded = _decode(raw);
+      final decoded = persistedRateLimitDecodeCompat(raw, _hmacKey);
       if (decoded == null) {
-        // Tamper or corruption — treat as worst-case cooldown.
-        _cached = _RateState(
+        _cachedFallback = _RateState(
           failureCount: PasswordRateLimiter.backoffSchedule.length - 1,
           nextRetryAt: _now().add(
             Duration(seconds: PasswordRateLimiter.backoffSchedule.last),
           ),
         );
-        _loaded = true;
-        AppLogger.instance.log(
-          'PersistedRateLimiter state tampered or corrupt — max cooldown',
-          name: 'PersistedRateLimiter',
+      } else {
+        final cap = PasswordRateLimiter.backoffSchedule.length - 1;
+        final clamped = decoded.failureCount < 0
+            ? 0
+            : (decoded.failureCount > cap ? cap : decoded.failureCount);
+        _cachedFallback = _RateState(
+          failureCount: clamped,
+          nextRetryAt: decoded.nextRetryAtMillis == null
+              ? null
+              : DateTime.fromMillisecondsSinceEpoch(decoded.nextRetryAtMillis!),
         );
-        return;
       }
-      _cached = decoded;
-      _loaded = true;
+      _loadedFallback = true;
     } catch (e) {
       AppLogger.instance.log(
-        'PersistedRateLimiter load failed: $e',
+        'PersistedRateLimiter fallback load failed: $e',
         name: 'PersistedRateLimiter',
       );
-      _cached = const _RateState(failureCount: 0);
-      _loaded = true;
+      _cachedFallback = const _RateState(failureCount: 0);
+      _loadedFallback = true;
     }
   }
 
-  Uint8List _encode(_RateState state) {
-    return persistedRateLimitEncodeCompat(
-      PersistedRateLimitState(
-        failureCount: state.failureCount,
-        nextRetryAtMillis: state.nextRetryAt?.millisecondsSinceEpoch,
-      ),
-      _hmacKey,
+  static RateLimitStatus _toRateLimitStatus(
+    rust_rate_limit.DbRateLimitStatus s,
+  ) {
+    final ms = s.cooldownRemainingMs.toInt();
+    return RateLimitStatus(
+      failureCount: s.failureCount.toInt(),
+      cooldownRemaining: ms > 0 ? Duration(milliseconds: ms) : Duration.zero,
     );
   }
 
-  _RateState? _decode(Uint8List bytes) {
-    final decoded = persistedRateLimitDecodeCompat(bytes, _hmacKey);
-    if (decoded == null) {
-      // Tamper or corruption — return null so the caller starts
-      // from a clean state. The Rust-side decoder swallowed the
-      // specific parse / HMAC-mismatch reason; the limiter never
-      // surfaces tamper details to the user, so the legacy log
-      // line that classified the failure is no longer useful.
-      return null;
-    }
-    return _RateState(
-      failureCount: decoded.failureCount.clamp(
-        0,
-        PasswordRateLimiter.backoffSchedule.length - 1,
-      ),
-      nextRetryAt: decoded.nextRetryAtMillis == null
-          ? null
-          : DateTime.fromMillisecondsSinceEpoch(decoded.nextRetryAtMillis!),
-    );
+  static Future<File> _defaultStateFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File(p.join(dir.path, _fileName));
   }
 }
 
@@ -435,10 +570,9 @@ class HardwareRateLimiter extends PasswordRateLimiter {
 
   @override
   void recordFailure() {
-    _failureCount = math.min(
-      _failureCount + 1,
-      PasswordRateLimiter.backoffSchedule.length - 1,
-    );
+    final cap = PasswordRateLimiter.backoffSchedule.length - 1;
+    final next = _failureCount + 1;
+    _failureCount = next > cap ? cap : next;
     _nextRetryAt = _nextRetryAfterFailure(_failureCount);
   }
 
