@@ -1,7 +1,6 @@
 //! FRB adapter for `lfs_core::qr_compose` — typed QR-payload
 //! composer that the `unified_export_controller` live size
-//! estimator routes through (Decision 6 / E2 in
-//! `docs/RUST_MIGRATION_REMAINING.md`).
+//! estimator routes through.
 //!
 //! Sync — composition is a few hundred clones + a deflate pass,
 //! sub-millisecond on realistic export selections (≤100 sessions

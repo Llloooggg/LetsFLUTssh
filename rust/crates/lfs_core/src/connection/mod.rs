@@ -23,6 +23,8 @@
 //! flag gates the user-visible connection list so the workspace UI
 //! never paints a tab for a hop the user did not explicitly open.
 
+pub mod auth_compose;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -516,6 +518,121 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     }
 }
 
+/// Hard upper bound on how long a child connect waits for its
+/// ProxyJump parent to leave the `Connecting` state. 30 s
+/// matches the SSH banner timeout the dialler itself uses;
+/// going past it almost always means the parent's TCP /
+/// handshake itself is wedged and the child failure is the
+/// right outcome (vs. burning UI spinner time on a parent that
+/// will never settle).
+const PARENT_READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Subscribe to the bus, snapshot the parent actor's current
+/// state, and either return immediately (parent already
+/// `Connected`) or await the next `ConnectionStateChanged`
+/// event for `parent_id` until it transitions to a terminal
+/// state. The Dart `ConnectionManager._doConnect` orchestrator
+/// previously awaited a Dart-side completer for the same
+/// effect; pulling the wait into the connect actor keeps the
+/// FRB surface self-contained — a child connect FRB call
+/// already returns the parent-failed branch as the same typed
+/// error the rest of the cascade surfaces.
+///
+/// Returns:
+///
+/// * `Ok(())` — parent is `Connected`. Caller proceeds with the
+///   existing parent-session-grab + child auth.
+/// * `Err(_)` — parent is missing, transitioned to
+///   `Disconnected`, or did not settle within
+///   [`PARENT_READY_TIMEOUT`]. Caller fails the child connect
+///   with the typed error so the UI gets one clean
+///   "ProxyJump parent failed" line.
+///
+/// **Race window** — `app.bus.subscribe()` returns a
+/// `tokio::sync::broadcast::Receiver` BEFORE we snapshot
+/// `actor.state`, so an event published between the snapshot
+/// and the await is delivered through the receiver and the
+/// caller's await fires immediately. Subscribing first and
+/// snapshotting second is the standard "lost-update" hedge
+/// for broadcast streams.
+async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
+    let app = crate::app::instance();
+    let mut rx = app.bus.subscribe();
+
+    // Snapshot the current state. If parent is already in a
+    // terminal state we don't need to await anything.
+    let initial_state = {
+        let handle = app
+            .connections
+            .get(parent_id)
+            .ok_or_else(|| Error::Io(format!("ProxyJump parent '{parent_id}' missing")))?;
+        let actor = handle.lock().expect("actor mutex poisoned");
+        actor.state
+    };
+    match initial_state {
+        ConnectionState::Connected => return Ok(()),
+        ConnectionState::Disconnected => {
+            return Err(Error::Io(format!(
+                "ProxyJump parent '{parent_id}' is disconnected"
+            )));
+        }
+        ConnectionState::Connecting => {} // wait below
+    }
+
+    let parent_id = parent_id.to_string();
+    let wait_fut = async {
+        loop {
+            match rx.recv().await {
+                Ok(crate::bus::Event::ConnectionStateChanged { id, state }) if id == parent_id => {
+                    match state {
+                        ConnectionState::Connected => return Ok(()),
+                        ConnectionState::Disconnected => {
+                            return Err(Error::Io(format!(
+                                "ProxyJump parent '{parent_id}' failed to connect"
+                            )));
+                        }
+                        ConnectionState::Connecting => continue,
+                    }
+                }
+                Ok(_) => continue,
+                Err(_) => {
+                    // Receiver lagged or the bus shut down. Re-snapshot
+                    // the actor state — if a transition to Connected
+                    // happened we missed, the snapshot still surfaces it.
+                    let app = crate::app::instance();
+                    if let Some(handle) = app.connections.get(&parent_id) {
+                        let actor = handle.lock().expect("actor mutex poisoned");
+                        match actor.state {
+                            ConnectionState::Connected => return Ok(()),
+                            ConnectionState::Disconnected => {
+                                return Err(Error::Io(format!(
+                                    "ProxyJump parent '{parent_id}' is disconnected"
+                                )));
+                            }
+                            ConnectionState::Connecting => {
+                                // Re-subscribe and keep waiting.
+                                rx = app.bus.subscribe();
+                                continue;
+                            }
+                        }
+                    }
+                    return Err(Error::Io(format!(
+                        "ProxyJump parent '{parent_id}' missing during wait"
+                    )));
+                }
+            }
+        }
+    };
+
+    match tokio::time::timeout(PARENT_READY_TIMEOUT, wait_fut).await {
+        Ok(r) => r,
+        Err(_) => Err(Error::Io(format!(
+            "ProxyJump parent '{parent_id}' did not settle within {}s",
+            PARENT_READY_TIMEOUT.as_secs()
+        ))),
+    }
+}
+
 async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
     let ConnectArgs {
         host,
@@ -527,15 +644,17 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
     } = args;
 
     // ProxyJump bastion path — look up parent actor and grab its
-    // live `Arc<Session>`. If the parent is missing or not in the
-    // `Connected` state, fail the child with a typed error rather
-    // than silently dialing direct. Dart-side orchestrator is
-    // responsible for awaiting the parent before triggering the
-    // child connect (the actor's bus events provide the hook).
+    // live `Arc<Session>`. If the parent is still `Connecting`,
+    // wait for it to settle (Connected → proceed; Disconnected →
+    // fail the child) up to [`PARENT_READY_TIMEOUT`]. The wait
+    // lives Rust-side so the FRB call surfaces the wait + the
+    // parent-failed branch in one place rather than splitting
+    // it across the Dart connect orchestrator.
     let bastion_session =
         match bastion_id.as_deref() {
             None => None,
             Some(id) => {
+                wait_for_parent_ready(id).await?;
                 let app = crate::app::instance();
                 let handle = app
                     .connections

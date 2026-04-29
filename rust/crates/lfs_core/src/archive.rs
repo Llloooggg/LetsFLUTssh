@@ -1604,6 +1604,31 @@ pub struct QrExportInput {
 /// → base64 inside Rust and only the encoded ASCII string crosses
 /// the FRB boundary back to Dart for the QR canvas.
 pub fn qr_export_payload(conn: &Connection, input: &QrExportInput) -> Result<String, Error> {
+    let json = build_qr_export_json(conn, input)?;
+    Ok(crate::qr_codec_encode::compress_to_payload(&json))
+}
+
+/// Same composition as [`qr_export_payload`] but skips the
+/// base64url encode step and returns the deflated payload's
+/// byte count. Drives the live "fits in QR" gauge in the Dart
+/// `unified_export_controller` — single FRB call per checkbox
+/// toggle replaces the per-toggle Dart-side JSON build + Rust
+/// deflate round-trip the controller used to do.
+///
+/// Wire-shape parity with [`qr_export_payload`] is enforced by
+/// the `qr_codec_encode::compress_to_payload_size` helper:
+/// both producers run the same `Deflate(default).encode + base64url`
+/// pass, only the result type differs (size only vs full string).
+pub fn qr_export_payload_size(conn: &Connection, input: &QrExportInput) -> Result<u32, Error> {
+    let json = build_qr_export_json(conn, input)?;
+    Ok(crate::qr_codec_encode::compress_to_payload_size(&json))
+}
+
+/// Internal — build the canonical-JSON payload string. Both the
+/// `qr_export_payload` (encode-and-emit) and the
+/// `qr_export_payload_size` (encode-and-count) wrappers route
+/// through this so the wire shape stays one place.
+fn build_qr_export_json(conn: &Connection, input: &QrExportInput) -> Result<String, Error> {
     let mut payload = serde_json::Map::new();
     payload.insert("v".into(), json!(QR_FORMAT_VERSION));
 
@@ -1877,13 +1902,7 @@ pub fn qr_export_payload(conn: &Connection, input: &QrExportInput) -> Result<Str
 
     let json = serde_json::to_string(&Value::Object(payload))
         .map_err(|e| Error::Io(format!("qr json serialise: {e}")))?;
-
-    // Canonical deflate + base64url-no-pad lives in
-    // `crate::qr_codec_encode::compress_to_payload` — same
-    // function the Dart in-memory encoder + the export-controller
-    // size-estimator route through. Keeps the wire shape one
-    // place across every producer.
-    Ok(crate::qr_codec_encode::compress_to_payload(&json))
+    Ok(json)
 }
 
 #[cfg(test)]

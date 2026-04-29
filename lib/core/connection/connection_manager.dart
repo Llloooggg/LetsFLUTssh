@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/app.dart' as rust_app;
+import '../../src/rust/api/auth_compose.dart' as rust_auth;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/connection.dart' as rust_connection;
 import '../../src/rust/api/db.dart' as rust_db;
@@ -13,10 +14,10 @@ import '../bus/app_bus.dart';
 import '../security/session_credential_cache.dart';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_config.dart';
-import '../ssh/transport/rust_transport.dart';
 import '../ssh/transport/ssh_transport.dart';
 import 'connection.dart';
 import 'connection_step.dart';
+import 'connection_step_mappers.dart';
 
 /// Callback for interactive passphrase prompts — set by the UI layer.
 typedef PassphrasePromptCallback =
@@ -28,6 +29,13 @@ typedef PassphrasePromptCallback =
 /// Manages active SSH connections lifecycle.
 ///
 /// Tracks connections, associates them with tabs, notifies listeners.
+/// Bus-driven per-connection state — transport adoption,
+/// transient-secret eviction, progress fan-out — lives inside
+/// the [Connection] class itself; the manager is the orchestrator
+/// for the connect-attempt envelope (auth-overlay composition,
+/// generation guarding, post-auth credential cache, extension
+/// hook dispatch + the Dart-side Connection map the workspace UI
+/// providers render against).
 class ConnectionManager {
   final _connections = <String, Connection>{};
   final _uuid = const Uuid();
@@ -190,28 +198,28 @@ class ConnectionManager {
       conn,
     );
 
-    // The actor expects the parent to be in `Connected` state — if
-    // a Dart Connection is supplied as bastion, await its readiness
-    // first so the child dispatch sees a usable parent.
+    // Bastion-readiness wait lives Rust-side now:
+    // `lfs_core::connection::wait_for_parent_ready` subscribes to
+    // the bus, snapshots the parent's current state, awaits the
+    // next `ConnectionStateChanged` for the parent until it
+    // settles into `Connected` (proceed) or `Disconnected`
+    // (fail with a typed "ProxyJump parent failed" error). The
+    // generation guard below still catches a stale-reconnect
+    // overwrite if the user kicks a second connect mid-wait.
+    //
+    // The previous Dart `bastion!.waitUntilReady() + isConnected`
+    // pair lives here as the test fallback only — flutter_test
+    // contexts that don't load the FRB native lib never reach
+    // the Rust connect path, so the in-memory `Connection`
+    // bastion completer keeps tests passing without a fake
+    // event-bus.
     if (conn.bastion != null) {
-      await conn.bastion!.waitUntilReady();
+      final localBastion = conn.bastion!;
+      // Best-effort — if the bastion future is already complete
+      // this is a no-op; the Rust side will re-verify the parent
+      // state when it actually runs the child connect.
+      await localBastion.waitUntilReady();
       if (_isStaleGeneration(conn.id, generation)) return;
-      if (!conn.bastion!.isConnected) {
-        if (!_isStaleGeneration(conn.id, generation)) {
-          conn.connectionError = StateError('bastion not connected');
-          conn.state = SSHConnectionState.disconnected;
-          conn.addProgressStep(
-            const ConnectionStep(
-              phase: ConnectionPhase.socketConnect,
-              status: StepStatus.failed,
-              detail: 'bastion not connected',
-            ),
-          );
-          conn.completeReady();
-          _notify();
-        }
-        return;
-      }
     }
 
     final rust_bus.BusConnectArgs args;
@@ -306,15 +314,17 @@ class ConnectionManager {
           case rust_bus.BusConnectionState.connecting:
             conn.state = SSHConnectionState.connecting;
           case rust_bus.BusConnectionState.connected:
+            conn.state = SSHConnectionState.connected;
             AppLogger.instance.log(
               'Connected: ${conn.label} (id=${conn.id})',
               name: 'Connection',
             );
-            // russh has read the per-attempt secrets via the Ref
-            // variants; drop the SecretStore entries so they don't
-            // accumulate across the process lifetime.
-            _evictTransientSecrets(conn);
-            unawaited(_adoptConnectedSession(conn, generation, completer));
+            // Transport adoption + transient-secret eviction
+            // happen inside `Connection`'s own bus subscription
+            // (it sees the same event). The manager only owns
+            // the connect-attempt completer + cache step that
+            // the outer `_doConnect` finally arm runs.
+            if (!completer.isCompleted) completer.complete();
           case rust_bus.BusConnectionState.disconnected:
             conn.state = SSHConnectionState.disconnected;
             AppLogger.instance.log(
@@ -323,22 +333,18 @@ class ConnectionManager {
               level: LogLevel.warn,
               error: conn.connectionError,
             );
-            // Failure path — drop the staged secrets too; the user
-            // will retype on the next attempt.
-            _evictTransientSecrets(conn);
+            // Transient eviction happens inside Connection.
             if (!completer.isCompleted) completer.complete();
         }
       case rust_bus.BusEvent_ConnectionProgress(:final step):
-        conn.addProgressStep(
-          ConnectionStep(
-            phase: _mapPhase(step.phase),
-            status: _mapStatus(step.status),
-            detail: step.detail,
-          ),
-        );
+        // Per-step append happens inside `Connection` via its
+        // own bus subscription — nothing to do here for the
+        // history fan-out. Failed-step logging stays here so
+        // a support trace pins which connect attempt's Dart
+        // listener saw the failure.
         if (step.status == rust_bus.BusStepStatus.failed) {
           AppLogger.instance.log(
-            'Connect step failed: ${_mapPhase(step.phase).name} '
+            'Connect step failed: ${mapBusPhase(step.phase).name} '
             '— ${step.detail ?? "no detail"}',
             name: 'Connection',
             level: LogLevel.warn,
@@ -362,30 +368,12 @@ class ConnectionManager {
     _notify();
   }
 
-  Future<void> _adoptConnectedSession(
-    Connection conn,
-    int generation,
-    Completer<void> completer,
-  ) async {
-    try {
-      final session = await rust_bus.connectionGetSession(id: conn.id);
-      if (_isStaleGeneration(conn.id, generation)) return;
-      if (session == null) {
-        AppLogger.instance.log(
-          'connection_get_session returned null for ${conn.id}',
-          name: 'Connection',
-          level: LogLevel.warn,
-        );
-        return;
-      }
-      conn.transport = RustTransport.adopt(session);
-      conn.state = SSHConnectionState.connected;
-      conn.notifyExtensionsConnected();
-      _notify();
-    } finally {
-      if (!completer.isCompleted) completer.complete();
-    }
-  }
+  // Transport adoption (`connection_get_session(id)` →
+  // `RustTransport.adopt`) + the per-attempt transient-secret
+  // eviction live inside `Connection`'s own bus subscription
+  // since the relevant state is per-connection. The manager
+  // only owns the connect-attempt orchestration: completer +
+  // post-auth credential cache.
 
   rust_bus.BusConnectArgs _busConnectArgs(
     Connection conn,
@@ -427,24 +415,9 @@ class ConnectionManager {
     };
   }
 
-  ConnectionPhase _mapPhase(rust_bus.BusConnectionPhase phase) {
-    return switch (phase) {
-      rust_bus.BusConnectionPhase.socketConnect =>
-        ConnectionPhase.socketConnect,
-      rust_bus.BusConnectionPhase.hostKeyVerify =>
-        ConnectionPhase.hostKeyVerify,
-      rust_bus.BusConnectionPhase.authenticate => ConnectionPhase.authenticate,
-      rust_bus.BusConnectionPhase.openChannel => ConnectionPhase.openChannel,
-    };
-  }
-
-  StepStatus _mapStatus(rust_bus.BusStepStatus status) {
-    return switch (status) {
-      rust_bus.BusStepStatus.inProgress => StepStatus.inProgress,
-      rust_bus.BusStepStatus.success => StepStatus.success,
-      rust_bus.BusStepStatus.failed => StepStatus.failed,
-    };
-  }
+  // Phase / status mapping lives in
+  // `connection_step_mappers.dart` so the Connection class +
+  // the manager share one canonical implementation.
 
   /// Connection timeout — applied inside the Rust actor.
   static const connectionTimeout = Duration(seconds: 30);
@@ -453,19 +426,55 @@ class ConnectionManager {
   /// [SshAuthMethod] family the bus connect args carry.
   /// Precedence: keyData > password.
   ///
-  /// Saved sessions go through `db_sessions_stage_secrets` which
-  /// reads the credential columns inside Rust and pushes them
-  /// straight into the SecretStore — plaintext never lands on the
-  /// Dart heap on the connect path. Quick-connect (no sessionId,
-  /// no DB row) still has to take its bytes from the in-memory
-  /// `SshAuth` because there is nothing on disk to read; for that
-  /// path we copy into a transient secret-store entry under a fresh
-  /// UUID so the russh handshake itself receives a Ref variant.
+  /// Production routes through `lfs_core::connection::auth_compose::
+  /// prepare_auth` (FRB async) so the saved-session-staged →
+  /// manager-key-staged → quick-connect-fallback walk lives one
+  /// place. The composer reads sqlite columns + stages every
+  /// byte into the SecretStore inside Rust; the Dart caller
+  /// only sees the typed ref + the transient id list to drop
+  /// after the connect attempt settles.
+  ///
+  /// The inline Dart pipeline below stays in place as the
+  /// flutter_test fallback (no FRB native lib loaded).
   Future<SshAuthMethod> _authFromConfig(
     SshAuth auth,
     String? sessionId,
     Connection conn,
   ) async {
+    try {
+      final prepared = await rust_auth.connectionPrepareAuth(
+        input: rust_auth.DbPrepareAuthInput(
+          sessionId: sessionId,
+          keyId: auth.keyId,
+          keyData: auth.keyData,
+          password: auth.password,
+          passphrase: auth.passphrase,
+        ),
+      );
+      conn.transientSecretIds.addAll(prepared.transientSecretIds);
+      switch (prepared.kind) {
+        case 'password':
+          return SshAuthPasswordRef(prepared.primarySecretId);
+        case 'pubkey':
+          return SshAuthPubkeyRef(
+            prepared.primarySecretId,
+            passphraseSecretId: prepared.passphraseSecretId,
+          );
+        default:
+          AppLogger.instance.log(
+            'connection_prepare_auth returned unknown kind '
+            '"${prepared.kind}" — falling back to Dart pipeline',
+            name: 'Connection',
+            level: LogLevel.warn,
+          );
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'connection_prepare_auth FRB unreachable, falling back '
+        'to Dart pipeline: $e',
+        name: 'Connection',
+      );
+    }
     String? passphraseSecretId;
     if (sessionId != null) {
       try {
@@ -621,31 +630,11 @@ class ConnectionManager {
     );
   }
 
-  /// Drop every per-attempt secret the connect path staged into
-  /// the Rust `SecretStore` (`conn.*.<uuid>` /
-  /// `key.passphrase.<keyId>` for the typed-passphrase case).
-  /// Idempotent — clears the tracking set even when individual
-  /// `secretsDrop` calls fail.
-  ///
-  /// Fire-and-forget: the FRB drop is non-blocking and the next
-  /// connect attempt immediately repopulates `transientSecretIds`
-  /// before re-staging. Logging the failure is enough.
-  void _evictTransientSecrets(Connection conn) {
-    if (conn.transientSecretIds.isEmpty) return;
-    final ids = List<String>.of(conn.transientSecretIds);
-    conn.transientSecretIds.clear();
-    for (final id in ids) {
-      unawaited(
-        rust_app.secretsDrop(id: id).catchError((Object e) {
-          AppLogger.instance.log(
-            'secretsDrop $id failed (transient cleanup): $e',
-            name: 'Connection',
-            level: LogLevel.warn,
-          );
-        }),
-      );
-    }
-  }
+  // Per-attempt transient-secret eviction lives inside
+  // `Connection` — the connect-path's terminal-state bus event
+  // drives it, and `Connection.dispose()` belt-and-braces
+  // covers the disconnect race where the bus event might miss
+  // a freshly-cancelled subscription.
 
   /// Whether a newer reconnect generation has superseded [generation].
   /// Routes through the Rust registry; falls back to the Dart map
@@ -718,10 +707,9 @@ class ConnectionManager {
       name: 'Connection',
     );
     conn.notifyExtensionsDisconnecting();
-    // Drop any per-attempt secrets the connect path staged but
-    // didn't get to evict via the terminal-state path (e.g. an
-    // explicit disconnect during a still-connecting attempt).
-    _evictTransientSecrets(conn);
+    // Per-attempt transient secrets are evicted by
+    // `Connection.dispose()` below (covers the explicit
+    // disconnect race against the bus event path).
     final transport = conn.transport;
     conn.transport = null;
     conn.state = SSHConnectionState.disconnected;
@@ -775,6 +763,10 @@ class ConnectionManager {
     if (bastion != null) {
       disconnect(bastion.id);
     }
+    // Tear down Connection's persistent resources (bus
+    // subscription + progress controller) now that it's
+    // no longer reachable through the manager's map.
+    conn.dispose();
     _notify();
   }
 
@@ -785,10 +777,8 @@ class ConnectionManager {
   void disconnectAll() {
     for (final conn in _connections.values) {
       conn.notifyExtensionsDisconnecting();
-      // Drop the per-attempt staged secrets — same rule as the
-      // single-disconnect path; the bus event won't fire for
-      // attempts the user is forcing down.
-      _evictTransientSecrets(conn);
+      // Transient eviction folded into `Connection.dispose()`
+      // below.
       final transport = conn.transport;
       conn.transport = null;
       if (transport != null) {
@@ -803,6 +793,10 @@ class ConnectionManager {
               Future<void>.value(),
         );
       }
+      // Persistent bus subscription + progress controller —
+      // both teardowns must fire here too, otherwise wholesale
+      // disconnect leaves a fan-out of zombie listeners.
+      conn.dispose();
     }
     _connections.clear();
     _clearGenerations();

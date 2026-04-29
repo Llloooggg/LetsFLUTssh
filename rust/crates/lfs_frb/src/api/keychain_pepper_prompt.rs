@@ -1,15 +1,14 @@
-//! FRB adapter for `lfs_core::security::keychain_pepper_prompt`
-//! (Decision 1 + Decision 2 in
-//! `docs/RUST_MIGRATION_REMAINING.md`).
+//! FRB adapter for `lfs_core::security::keychain_pepper_prompt`.
 //!
 //! Sync — every op is a small mutex acquire + oneshot send.
 //! The Dart subscriber executes the
 //! `flutter_secure_storage.read('letsflutssh_l2_pepper')`
 //! plugin call after seeing
 //! `BusEvent::KeychainPepperPromptRequest`, then dispatches
-//! the response via this shim. Decision 2: keychain access
-//! stays Dart-side (existing audit perimeter, no new native
-//! crate per platform).
+//! the response via this shim. Keychain access stays Dart-side
+//! because the Flutter plugin already audits that entry point
+//! and there is no native Rust crate covering every target
+//! platform's keychain backend.
 
 use lfs_core::security::keychain_pepper_prompt;
 
@@ -42,8 +41,8 @@ pub fn keychain_pepper_prompt_cancel(prompt_id: String) {
 }
 
 /// L2 keychain-password gate verify — composes disk-blob
-/// read + Decision 1 prompt round-trip + HMAC compare into
-/// one async FRB call. Returns `Ok(true)` on a match,
+/// read + keychain-pepper prompt round-trip + HMAC compare
+/// into one async FRB call. Returns `Ok(true)` on a match,
 /// `Ok(false)` for every other outcome (file missing /
 /// corrupt blob / pepper missing / HMAC mismatch / cancelled
 /// prompt). `Err` is reserved for unrecoverable filesystem

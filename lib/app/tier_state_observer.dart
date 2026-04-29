@@ -4,14 +4,14 @@ import '../core/bus/app_bus.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../utils/logger.dart';
 
-/// Diagnostic subscriber for the C9 `tier_machine` bus topic.
+/// Diagnostic subscriber for the `tier_machine` bus topic.
 ///
 /// Logs every transition the actor publishes so support traces
 /// show the unlock / lock / wipe sequence the user observed.
 /// Non-functional — does not own any state, does not change the
 /// unlock flow. The production Dart `SecurityInitController`
-/// keeps owning the cascade until the C9.1+ per-tier wiring
-/// commits flip individual tiers behind feature gates.
+/// keeps owning the cascade until the per-tier wiring commits
+/// flip individual tiers behind feature gates.
 ///
 /// Process-singleton subscription. Cold-start init from
 /// `MainScreenState.initState` alongside the other bus

@@ -19,18 +19,24 @@ use std::collections::BTreeMap;
 
 pub mod biometric_probe_prompt;
 pub mod capabilities;
+pub mod capabilities_cache;
+pub mod capabilities_orchestrator;
 pub mod credential_prompt;
 pub mod hardware_tier_vault;
+pub mod hardware_vault_probe_prompt;
 pub mod keychain_marker;
+pub mod keychain_op_prompt;
 pub mod keychain_password_gate;
 pub mod keychain_password_gate_actor;
 pub mod keychain_pepper_prompt;
+pub mod keychain_probe_prompt;
 pub mod master_password;
 pub mod persisted_rate_limit;
 pub mod persisted_rate_limit_actor;
 pub mod tier_machine;
 pub mod tier_transition_marker;
 pub mod wipe;
+pub mod wipe_keychain;
 
 /// Named security tiers. Mirror of the Dart enum case-for-case.
 ///

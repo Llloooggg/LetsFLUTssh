@@ -11,7 +11,10 @@ import 'app/app_toolbar.dart';
 import 'app/biometric_probe_prompt_listener.dart';
 import 'app/deep_link_wiring.dart';
 import 'app/host_key_prompt_listener.dart';
+import 'app/hardware_vault_probe_prompt_listener.dart';
+import 'app/keychain_op_prompt_listener.dart';
 import 'app/keychain_pepper_prompt_listener.dart';
+import 'app/keychain_probe_prompt_listener.dart';
 import 'app/tier_state_observer.dart';
 import 'app/global_error_dialog.dart';
 import 'app/import_flow.dart';
@@ -564,15 +567,26 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // path can flip to the Rust actor in a follow-up commit
     // without further wiring.
     KeychainPepperPromptListener.start();
-    // Biometric capability probe subscriber — wires the C5
+    // Generic keychain op subscriber — handles the L2 setPassword
+    // / clear / isConfigured composite actor commands' write /
+    // delete / contains prompts. Same audit perimeter as the
+    // pepper-read listener; the op kind is multiplexed by
+    // `op_wire_name` on the bus event.
+    KeychainOpPromptListener.start();
+    // Biometric capability probe subscriber — drives the
     // capabilities cache actor's local_auth round-trip.
-    // Production probeCapabilities() still owns the cache
-    // refresh until C5 actor commits flip the source of truth.
     BiometricProbePromptListener.start();
+    // Keychain reachability probe subscriber — drives the
+    // capabilities orchestrator's keychain-ping round-trip.
+    KeychainProbePromptListener.start();
+    // Hardware-vault probe subscriber — drives the
+    // orchestrator's MethodChannel round-trip on
+    // Apple/Android/Windows. Linux never fires this prompt.
+    HardwareVaultProbePromptListener.start();
     // Diagnostic observer for tier_machine transitions — logs
     // every Locked/Unlocking/Unlocked/Wiping flip a support
-    // trace can read back. Non-functional until C9.1+ wires
-    // production unlock through the actor.
+    // trace can read back. Non-functional until per-tier
+    // handlers wire production unlock through the actor.
     TierStateObserver.start();
     // Activate the bus → foreground-service bridge. The provider's
     // body wires `ref.listen` against the active-count stream; the

@@ -1,5 +1,4 @@
-//! Per-prompt-type registry for connection credential prompts
-//! (Decision 1 / A3 in `docs/RUST_MIGRATION_REMAINING.md`).
+//! Per-prompt-type registry for connection credential prompts.
 //!
 //! Mirrors `lfs_core::security::keychain_pepper_prompt::PromptRegistry`
 //! shape — typed `tokio::oneshot::Sender<CredentialResponse>` per
@@ -7,14 +6,17 @@
 //! resolved by the Dart subscriber after the user types a secret
 //! into the unlock dialog.
 //!
-//! Per Decision 1: per-prompt-type typed registry, not a generic
-//! JSON shape. Per Decision 2: the Dart UI dialog stays Dart-side
-//! (UI rendering is not portable across platforms via Rust); the
-//! Rust actor publishes the request + awaits the response.
+//! Typed per-prompt response (not a generic JSON shape) so a
+//! Dart-side typo at the wire layer surfaces as a decode failure
+//! at the registry boundary rather than a silent miscompare in
+//! the connect cascade. The Dart UI dialog stays Dart-side
+//! because UI rendering is not portable through Rust; the Rust
+//! actor publishes the request + awaits the response.
 //!
 //! **Currently not wired into the production connect path.**
-//! Lands ahead of A3 so the `ConnectionManager` credential
-//! overlay actor commit (A3+) targets a stable registry API.
+//! Lands ahead of the connection-credential-overlay actor work
+//! so the FRB shim layer + the Dart subscriber bus wiring can
+//! target a stable registry API.
 
 use std::collections::HashMap;
 use std::sync::Mutex;

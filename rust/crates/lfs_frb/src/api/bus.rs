@@ -23,6 +23,7 @@ pub enum BusTopic {
     Config,
     Tier,
     SecurityPrompt,
+    SecurityCapabilities,
 }
 
 impl From<BusTopic> for lfs_core::bus::EventTopic {
@@ -41,6 +42,7 @@ impl From<BusTopic> for lfs_core::bus::EventTopic {
             BusTopic::Config => lfs_core::bus::EventTopic::Config,
             BusTopic::Tier => lfs_core::bus::EventTopic::Tier,
             BusTopic::SecurityPrompt => lfs_core::bus::EventTopic::SecurityPrompt,
+            BusTopic::SecurityCapabilities => lfs_core::bus::EventTopic::SecurityCapabilities,
         }
     }
 }
@@ -238,6 +240,37 @@ pub enum BusEvent {
     /// `local_auth.canCheckBiometrics` + enrolment check,
     /// dispatches the typed response back.
     BiometricProbePromptRequest { prompt_id: String },
+    /// Capabilities orchestrator needs the OS-keychain
+    /// reachability answer. Dart subscriber pings the platform
+    /// keychain and dispatches the `KeyringProbeResult` wire
+    /// name (`"available"` / `"linuxNoSecretService"` /
+    /// `"probeFailed"`).
+    KeychainProbePromptRequest { prompt_id: String },
+    /// Capabilities orchestrator needs the hardware-vault
+    /// probe code on Apple / Android / Windows. Dart
+    /// subscriber calls
+    /// `MethodChannel('com.letsflutssh/hardware_vault')
+    /// .invokeMethod('probeDetail')` and dispatches the
+    /// platform reason code verbatim.
+    HardwareVaultProbePromptRequest { prompt_id: String },
+    /// Generic keychain op — Dart subscriber branches on
+    /// `op_wire_name` (`"read" | "contains" | "write" | "delete"`)
+    /// and executes the matching `flutter_secure_storage` call.
+    /// `value_b64` carries the base64-encoded payload for the
+    /// write op, `null` otherwise. Resolved via
+    /// `keychain_op_prompt_resolve*` shims.
+    KeychainOpPromptRequest {
+        prompt_id: String,
+        key: String,
+        op_wire_name: String,
+        value_b64: Option<String>,
+    },
+    /// Security capabilities cache snapshot updated. `json` is
+    /// the freshly-cached snapshot in the `lfs_core::security::
+    /// capabilities` snake_case JSON shape; an empty string
+    /// signals an explicit `clear` (Dart subscriber flips back
+    /// to the neutral "probing…" state).
+    SecurityCapabilitiesChanged { json: String },
     /// TOFU prompt — russh saw an unknown / changed host key.
     /// Subscribers (Dart UI) surface the host-key dialog and
     /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
@@ -410,6 +443,26 @@ impl BusEvent {
             },
             lfs_core::bus::Event::BiometricProbePromptRequest { prompt_id } => {
                 BusEvent::BiometricProbePromptRequest { prompt_id }
+            }
+            lfs_core::bus::Event::KeychainProbePromptRequest { prompt_id } => {
+                BusEvent::KeychainProbePromptRequest { prompt_id }
+            }
+            lfs_core::bus::Event::HardwareVaultProbePromptRequest { prompt_id } => {
+                BusEvent::HardwareVaultProbePromptRequest { prompt_id }
+            }
+            lfs_core::bus::Event::KeychainOpPromptRequest {
+                prompt_id,
+                key,
+                op_wire_name,
+                value_b64,
+            } => BusEvent::KeychainOpPromptRequest {
+                prompt_id,
+                key,
+                op_wire_name,
+                value_b64,
+            },
+            lfs_core::bus::Event::SecurityCapabilitiesChanged { json } => {
+                BusEvent::SecurityCapabilitiesChanged { json }
             }
             lfs_core::bus::Event::KnownHostPromptRequest {
                 prompt_id,

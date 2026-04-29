@@ -34,6 +34,17 @@ pub fn secrets_drop(id: String) {
     lfs_core::app::instance().secrets.drop_id(&id);
 }
 
+/// Drop every secret in [ids] in a single FRB hop. Used by the
+/// connect path's transient-secret cleanup so an N-id evict
+/// doesn't pay N FRB round-trips. Idempotent on a missing id.
+#[flutter_rust_bridge::frb(sync)]
+pub fn secrets_drop_many(ids: Vec<String>) {
+    let store = &lfs_core::app::instance().secrets;
+    for id in ids {
+        store.drop_id(&id);
+    }
+}
+
 /// Drop every cached secret. The caller — typically the auto-lock
 /// path or the explicit "wipe data" flow — uses this to evict the
 /// cache wholesale on lock / sign-out.

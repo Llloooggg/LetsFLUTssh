@@ -13,11 +13,11 @@ import '../utils/logger.dart';
 /// `letsflutssh_l2_pepper` value from `flutter_secure_storage`
 /// and dispatching the typed response back via FRB.
 ///
-/// Per Decision 1 + Decision 2 in
-/// `docs/RUST_MIGRATION_REMAINING.md`: the Rust L2 verify
-/// actor publishes the request through the bus; the Dart
-/// subscriber owns the keychain plugin call (existing
-/// audit perimeter — no native Rust crate per platform).
+/// The Rust L2 verify actor publishes the request through the
+/// bus; this subscriber owns the keychain plugin call because
+/// the Flutter plugin already audits that entry point and
+/// there is no native Rust crate covering every target
+/// platform's keychain backend.
 ///
 /// Process-singleton subscription. Cold-start init from
 /// `MainScreenState` after the navigator + secure-storage

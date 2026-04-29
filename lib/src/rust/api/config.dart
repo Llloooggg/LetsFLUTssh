@@ -72,9 +72,9 @@ String? configAppConfigValidateJson({required String inputJson}) => RustLib
 /// canonical JSON the actor adopted so the Dart caller doesn't
 /// need a follow-up `config_store_get_json` round-trip.
 ///
-/// Decision 5 — Rust owns debounce + atomic file I/O + bus
-/// event publication. Dart `ConfigNotifier` shrinks to a
-/// `BusEvent::ConfigChanged` subscriber + `set_json` calls.
+/// Rust owns debounce + atomic file I/O + bus event publication.
+/// Dart `ConfigNotifier` shrinks to a `BusEvent::ConfigChanged`
+/// subscriber + `set_json` calls.
 String configStoreInit({required String supportDir}) =>
     RustLib.instance.api.crateApiConfigConfigStoreInit(supportDir: supportDir);
 

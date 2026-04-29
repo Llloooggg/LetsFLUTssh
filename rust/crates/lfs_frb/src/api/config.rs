@@ -86,7 +86,7 @@ pub fn config_app_config_validate_json(input_json: String) -> Option<String> {
     cfg.validate().map(String::from)
 }
 
-// ── Store actor (D5) ──────────────────────────────────────────
+// ── Store actor ───────────────────────────────────────────────
 
 /// Initialise the process-singleton config store actor against
 /// `support_dir`. Loads `<support_dir>/config.json` if present;
@@ -94,9 +94,9 @@ pub fn config_app_config_validate_json(input_json: String) -> Option<String> {
 /// canonical JSON the actor adopted so the Dart caller doesn't
 /// need a follow-up `config_store_get_json` round-trip.
 ///
-/// Decision 5 — Rust owns debounce + atomic file I/O + bus
-/// event publication. Dart `ConfigNotifier` shrinks to a
-/// `BusEvent::ConfigChanged` subscriber + `set_json` calls.
+/// Rust owns debounce + atomic file I/O + bus event publication.
+/// Dart `ConfigNotifier` shrinks to a `BusEvent::ConfigChanged`
+/// subscriber + `set_json` calls.
 #[flutter_rust_bridge::frb(sync)]
 pub fn config_store_init(support_dir: String) -> Result<String, String> {
     lfs_core::config_store::instance().init(std::path::PathBuf::from(support_dir))

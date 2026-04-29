@@ -334,11 +334,19 @@ final _whitespaceRegex = RegExp(r'\s');
   }
 }
 
+/// Routes through `lfs_core::ssh_config::unquote` (FRB sync) so
+/// the OpenSSH-grammar quote-stripping rule lives one place.
+/// Falls back to the inline pure-Dart implementation for the
+/// flutter_test contexts that don't load the FRB native lib.
 String _unquote(String value) {
-  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
-    return value.substring(1, value.length - 1);
+  try {
+    return rust_ssh_config.sshConfigUnquote(value: value);
+  } catch (_) {
+    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+      return value.substring(1, value.length - 1);
+    }
+    return value;
   }
-  return value;
 }
 
 List<String> _splitHostPatterns(String value) {

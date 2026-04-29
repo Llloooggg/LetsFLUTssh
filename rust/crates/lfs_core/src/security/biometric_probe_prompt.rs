@@ -1,5 +1,4 @@
-//! Per-prompt-type registry for biometric capability probes
-//! (Decision 1 / C5 in `docs/RUST_MIGRATION_REMAINING.md`).
+//! Per-prompt-type registry for biometric capability probes.
 //!
 //! The L3 hardware-tier path needs to know whether the platform
 //! biometric API is reachable + has an enrolment configured. The
@@ -10,13 +9,11 @@
 //!
 //! Mirrors `lfs_core::security::keychain_pepper_prompt::PromptRegistry`
 //! shape — typed `tokio::oneshot::Sender<BiometricProbeResponse>`
-//! per prompt id. Per Decision 1: per-prompt-type typed registry.
-//! Per Decision 2: biometric plugin stays Dart-side (no mature
-//! Rust crate covers every target platform's `local_auth` shape).
-//!
-//! **Currently not wired into the production capabilities probe.**
-//! Lands ahead of C5 so the `SecurityCapabilities` cache actor
-//! commit (C5+) targets a stable registry API.
+//! per prompt id. Typed per-prompt response keeps a Dart-side
+//! typo at the wire layer surfacing as a decode failure rather
+//! than a silent miscompare. Biometric plugin stays Dart-side
+//! because no mature Rust crate covers every target platform's
+//! `local_auth` shape.
 
 use std::collections::HashMap;
 use std::sync::Mutex;

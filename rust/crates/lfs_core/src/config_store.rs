@@ -1,5 +1,4 @@
-//! Process-singleton actor for the persisted `config.json`
-//! (Decision 5 / D5 in `docs/RUST_MIGRATION_REMAINING.md`).
+//! Process-singleton actor for the persisted `config.json`.
 //!
 //! Owns three responsibilities the Dart `ConfigNotifier` used to
 //! split across an in-memory state + a debounce timer + an
@@ -15,11 +14,9 @@
 //!    [`crate::bus::BusEvent::ConfigChanged`] so Dart Riverpod
 //!    consumers refresh from the canonical state without polling.
 //!
-//! **Why land the actor independently of the Dart cutover.**
-//! Decision 5 unlocked D5 from C9 (per-tier rolling means no
-//! monolithic gate). Landing the Rust actor + FRB shims first
-//! keeps the additive change isolated; the Dart `ConfigNotifier`
-//! rewrite (D6) lands as a follow-up against a stable API.
+//! Lands independently of the Dart cutover so the additive
+//! change is isolated; the Dart `ConfigNotifier` rewrite lands
+//! as a follow-up against this stable API.
 
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};

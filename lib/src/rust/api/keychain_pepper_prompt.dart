@@ -34,8 +34,8 @@ void keychainPepperPromptCancel({required String promptId}) => RustLib
     .crateApiKeychainPepperPromptKeychainPepperPromptCancel(promptId: promptId);
 
 /// L2 keychain-password gate verify — composes disk-blob
-/// read + Decision 1 prompt round-trip + HMAC compare into
-/// one async FRB call. Returns `Ok(true)` on a match,
+/// read + keychain-pepper prompt round-trip + HMAC compare
+/// into one async FRB call. Returns `Ok(true)` on a match,
 /// `Ok(false)` for every other outcome (file missing /
 /// corrupt blob / pepper missing / HMAC mismatch / cancelled
 /// prompt). `Err` is reserved for unrecoverable filesystem

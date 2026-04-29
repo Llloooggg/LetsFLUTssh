@@ -1,17 +1,16 @@
-//! FRB adapter for `lfs_core::security::tier_machine` (C9.0
-//! scaffold from `docs/RUST_MIGRATION_REMAINING.md`).
+//! FRB adapter for `lfs_core::security::tier_machine`.
 //!
 //! Sync — every call is a small mutex acquire + transition table
-//! lookup, sub-microsecond. Exposes the C9.0 typed scaffold so
-//! Dart can read state + drive transitions for diagnostics. Per-
-//! tier handlers (C9.1+) will wire production unlock cascades on
-//! top of these primitives.
+//! lookup, sub-microsecond. Exposes the typed scaffold so Dart
+//! can read state + drive transitions for diagnostics. Per-tier
+//! handlers wire production unlock cascades on top of these
+//! primitives.
 //!
 //! **Currently not wired into the Dart unlock flow.** The Dart
 //! `SecurityInitController` (1167 LOC) still owns the production
-//! unlock cascade. Each C9.x commit migrates one tier at a time
-//! under a feature gate; this scaffold lets the per-tier wiring
-//! commits target a stable FRB API.
+//! unlock cascade. Each per-tier handler migrates one tier at a
+//! time under a feature gate; this scaffold lets the per-tier
+//! wiring commits target a stable FRB API.
 
 use std::sync::Mutex;
 
@@ -158,12 +157,12 @@ pub fn tier_machine_dispatch(event: DbTierEvent) -> Result<Option<DbTierState>, 
 /// Returns the new state when an advance fired, `None`
 /// otherwise.
 ///
-/// **C9.1.** Plaintext is the only tier that self-advances
-/// today; Dart calls this immediately after dispatching
-/// `unlock_requested` so the synchronous unlock path lands
-/// without waiting on a no-op prompt round-trip. Keychain /
-/// Hardware / Paranoid keep returning `None` until C9.2+ wires
-/// their per-tier handlers.
+/// Plaintext is the only tier that self-advances today; Dart
+/// calls this immediately after dispatching `unlock_requested`
+/// so the synchronous unlock path lands without waiting on a
+/// no-op prompt round-trip. Keychain / Hardware / Paranoid
+/// keep returning `None` until their per-tier handlers wire
+/// in.
 #[flutter_rust_bridge::frb(sync)]
 pub fn tier_machine_try_advance() -> Option<DbTierState> {
     machine_lock()

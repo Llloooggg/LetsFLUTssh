@@ -1,5 +1,4 @@
-//! FRB adapter for `lfs_core::security::biometric_probe_prompt`
-//! (Decision 1 / C5 in `docs/RUST_MIGRATION_REMAINING.md`).
+//! FRB adapter for `lfs_core::security::biometric_probe_prompt`.
 //!
 //! Sync — every op is a small mutex acquire + oneshot send.
 //! Dart subscriber executes

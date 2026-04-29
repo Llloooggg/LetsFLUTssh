@@ -1,5 +1,4 @@
-//! Pure typed composer for the v4 QR export payload (Decision 6
-//! in `docs/RUST_MIGRATION_REMAINING.md`).
+//! Pure typed composer for the v4 QR export payload.
 //!
 //! Splits the existing `lfs_core::archive::qr_export_payload`
 //! into two halves:

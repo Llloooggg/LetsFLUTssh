@@ -12,11 +12,10 @@ import '../utils/logger.dart';
 /// `local_auth.canCheckBiometrics` + an enrolment check, then
 /// dispatching the typed response back via FRB.
 ///
-/// Per Decision 1 + Decision 2 in
-/// `docs/RUST_MIGRATION_REMAINING.md`: the C5 capabilities
-/// cache actor publishes the request through the bus; the
-/// Dart subscriber owns the `local_auth` plugin call (no
-/// mature Rust crate covers every target platform's API).
+/// The capabilities orchestrator publishes the request
+/// through the bus; this subscriber owns the `local_auth`
+/// plugin call because no mature Rust crate covers every
+/// target platform's biometric API.
 ///
 /// Process-singleton subscription. Cold-start init from
 /// `MainScreenState` alongside the other prompt listeners.

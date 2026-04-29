@@ -87,25 +87,41 @@ no actor (can't lift orchestration into the tier machine).
 
 ### Decision 3 — Subprocess infra in `lfs_core`
 
-**Locked: `tokio::process::Command` directly in `lfs_core`,
-target-gated to Linux.**
+**Locked: subprocess driver lives directly in `lfs_core`,
+Linux-target-gated, async exposed via `spawn_blocking` at the
+FRB boundary.**
 
-Add `tempfile` from `dev-dependencies` to `dependencies`;
-`tokio::process` is already pulled by `tokio` workspace dep.
-Subprocess driver lives in `lfs_core::security::tpm_subprocess`
-under `cfg(target_os = "linux")`.
+Driver lives in `lfs_core::platform::linux::tpm` (alongside the
+existing `fprintd` D-Bus shim — same Linux-only platform
+namespace, not in `security/`). Implementation uses
+`std::process::Command` + an internal `mpsc` timeout thread
+rather than `tokio::process` because (a) the rest of the
+`platform/macos/process.rs` file already does the same, (b) the
+TPM crypto core is fundamentally serial — once-per-unlock — so
+non-blocking I/O buys nothing and a blocking caller is easier
+to audit, (c) the FRB shim wraps every call in
+`tokio::task::spawn_blocking` (matching the keygen shim
+pattern), so the FRB worker thread never stalls.
+
+`tempfile` is NOT used — the driver ships a hand-rolled RAII
+`WorkDir` that zero-overwrites every file before unlink, which
+the off-the-shelf `tempfile::TempDir` does not do.
 
 Why: `lfs_core` already spawns `std::process::Command` (see
-`path.rs:218` for `icacls` on Windows) — subprocess is an
-existing pattern, not a new category. `tempfile` provides
-auto-deleting `NamedTempFile` for the auth-value file the
-TPM driver writes (cleanup-on-crash discipline). Plaintext
-auth bytes never cross FRB.
+`path.rs:218` for `icacls` on Windows, and
+`platform/macos/process.rs` for the macOS auth helper) —
+subprocess is an existing pattern, not a new category.
+Plaintext auth bytes never cross FRB twice (single hop into the
+shim, written to a 0600 file inside the RAII work dir, passed
+to `tpm2-tools` as `file:<path>` so they never appear in
+`/proc/<pid>/cmdline`).
 
 Rejected: separate `lfs_subprocess` crate (overengineering for
-single use case — YAGNI), Dart-side `Process.run` with Rust
+single use case — YAGNI); Dart-side `Process.run` with Rust
 business logic over bus (extra plaintext FRB crossings, looser
-cleanup discipline).
+cleanup discipline); `tokio::process::Command` (no concurrency
+win on a serial-by-hardware op, and the spawn_blocking wrapper
+is a one-line cost at the boundary).
 
 ### Decision 4 — Tier state machine actor scope
 
@@ -375,17 +391,64 @@ Rust-side; transient SecretStore IDs evicted on terminal state.
   calls. The Dart `SessionCredentialCache` class survives as a
   thin namespace-aware wrapper consumed by ConnectionManager +
   WipeAllService.
-- [ ] A2 — Bastion-readiness await moves into Rust
-  `connect_async`'s pre-auth phase (today Dart does
-  `await conn.bastion!.waitUntilReady()`). (2 commits)
-- [ ] A3 — `prepare_auth` Rust-side composer for credential
-  overlay. (2 commits)
-- [ ] A4 — `connection_connect_async` / `connection_reconnect`
-  / `connection_disconnect` / `connection_disconnect_all` FRB
-  surface; Dart `ConnectionManager` deletes; `Connection` Dart
-  class shrinks to a FRB-DTO mirror with no setters;
-  `connectionListProvider` becomes a `StreamProvider`. (3 commits,
-  test-risk high)
+- [x] A2 — `lfs_core::connection::wait_for_parent_ready(parent_id)`
+  subscribes to the bus, snapshots the parent actor's state,
+  awaits the next `ConnectionStateChanged` for the parent
+  until it settles into `Connected` (proceed) or `Disconnected`
+  (fail with a typed "ProxyJump parent failed" error). 30 s
+  timeout matches the SSH banner ceiling so a wedged parent
+  doesn't burn the unlock spinner forever. Race-free:
+  subscribe-then-snapshot avoids the lost-update window. The
+  Dart `_doConnect` keeps `bastion.waitUntilReady()` as a
+  best-effort no-op for flutter_test contexts that don't load
+  the FRB native lib (the in-memory completer keeps the test
+  bastion graph drainable without a fake event bus); the
+  failure-branch logic moves Rust-side and surfaces via the
+  same `connectionConnect` error path the rest of the connect
+  cascade uses.
+- [x] A3 — `lfs_core::connection::auth_compose::prepare_auth`
+  composes the saved-session-staged → manager-key-staged →
+  quick-connect-fallback walk in one place. Reads sqlite
+  columns + stages every byte into the `SecretStore` inside
+  Rust; returns the typed `PreparedAuthRef` (`Password` /
+  `Pubkey`) plus the list of transient store ids the caller
+  drops after the connect attempt settles. FRB shim
+  `connection_prepare_auth(input)` returns the wire DTO.
+  Dart `_authFromConfig` routes through the FRB composer by
+  default; the inline pipeline stays in place as the
+  flutter_test fallback (no FRB native lib loaded). 8 unit
+  tests cover the precedence walk + transient-id bookkeeping.
+- [~] A4 — partial. The four FRB endpoints already exist
+  (`connection_connect`, `connection_reconnect`, etc., served
+  by the bus dispatcher). The Dart-side retire is incremental:
+  - [x] A4.1 — `Connection` class self-subscribes to the
+    per-id connection bus topic and feeds its own
+    `progressStream` from `BusEvent::ConnectionProgress`
+    events via the shared `connection_step_mappers`. The
+    manager's `_applyConnectionEvent` no longer fans out
+    progress steps; only the failed-step log line remains
+    (kept for support traces). Connection now exposes a
+    `dispose()` that cancels the bus subscription + closes
+    the controller; the manager calls it from `disconnect` /
+    `disconnectAll` so a removed connection stops consuming
+    events.
+  - [x] A4.2 — Transport adoption + per-attempt transient-secret
+    eviction live inside `Connection` itself. The bus listener
+    now also handles `BusEvent::ConnectionStateChanged`:
+    `Connected` → spawn `connection_get_session(id)` async,
+    wrap in `RustTransport.adopt`, fire `notifyExtensionsConnected`,
+    evict transients via the batched `secretsDropMany` shim;
+    `Disconnected` → clear transport + evict. The manager's
+    `_adoptConnectedSession` and `_evictTransientSecrets`
+    helpers retire entirely. `Connection.dispose()` now also
+    runs the eviction as a belt-and-braces against the
+    explicit-disconnect race where the bus subscription is
+    cancelled before the terminal-state event lands.
+  - [ ] A4.3 — `ConnectionManager` deletes;
+    `connectionListProvider` becomes a pure `StreamProvider`
+    sourcing from `connection_snapshot_all` + bus events.
+    Test-risk high — the workspace UI provider graph rebuilds
+    against the new shape.
 
 **Risk:** reconnect cascade through auto-lock relies on the
 in-memory credential cache. A1 must land first.
@@ -413,39 +476,105 @@ FRB calls. Remaining: rate-limiter wrapper +
 
 Crypto already Rust-side. Remaining: file I/O + flutter_secure_storage I/O orchestration.
 
-- [ ] C2.1 — `keychain_password_gate_set` / `verify` / `clear`
-  actor commands that own the disk-blob + pepper-key write
-  ordering invariant (disk before keychain, atomic disk write).
-  Dart wrapper shrinks to FRB calls + flutter_secure_storage
-  delegation as a callback the Rust actor invokes.
+- [x] C2.1 — Verify path: `keychain_password_gate_actor::verify_password`
+  composes disk-blob read + Decision-1 pepper-prompt round-trip
+  + HMAC compare; FRB async shim + Dart `verify()` route
+  through Rust with the existing inline pipeline as fallback.
+- [x] C2.2 — `is_configured` / `set_password` / `clear` actor
+  commands. Disk side (atomic write, rollback on keychain
+  failure, rate-limit-state wipe, file deletes) lives in
+  `keychain_password_gate_actor`; the Dart side is reduced to
+  a generic `keychain_op_prompt` registry that handles the
+  `containsKey` / `write` / `delete` `flutter_secure_storage`
+  calls via bus prompts. Disk-before-keychain ordering +
+  rollback-on-keychain-write-failure preserved. Dart
+  `KeychainPasswordGate.{isConfigured,setPassword,clear}`
+  routes through Rust with the inline Dart pipeline as the
+  flutter_test fallback. The same `keychain_op_prompt`
+  registry will host C6's wipe enumeration too.
 
 ### C3 — `HardwareTierVault` Linux composer (~407 LOC)
 
 TPM CLI shell-out (`tpm2-tools`) → Rust subprocess; method-channel
 platforms stay Dart.
 
-- [ ] C3.1 — `lfs_core::security::tpm_subprocess` driver wrapping
-  `tpm2-tools` invocations.
-- [ ] C3.2 — `hardware_tier_vault_linux_*` FRB shims; Dart Linux
-  branch shrinks to FRB calls. Method-channel platforms unchanged.
+- [x] C3.1 — `lfs_core::platform::linux::tpm` driver wrapping
+  `tpm2-tools` invocations: classified `probe()`, `seal()`,
+  `unseal()`, RAII `WorkDir` with zero-overwrite-on-drop,
+  `file:<path>` auth-value handoff so the HMAC never crosses
+  argv. Sync core + async FRB boundary via `spawn_blocking`
+  (see Decision 3 update).
+- [x] C3.2 — `lfs_frb::api::tpm` async shim (`tpm_probe` /
+  `tpm_seal` / `tpm_unseal`); Dart `TpmClient` routes through
+  the FRB shim by default, retains the inline `Process.run`
+  pipeline as a fallback for flutter_test contexts that don't
+  bootstrap `RustLib`. `_FakeTpm` test substitutes still
+  satisfy the `TpmClient` interface — no test changes needed.
 
 ### C5 — `SecurityBootstrap.probeCapabilities` (~404 LOC)
 
-Async probes through D-Bus / platform plugins. State can move
-into a Rust actor that caches the snapshot.
+Async probes through D-Bus / platform plugins. State moves into
+a Rust actor that caches the snapshot; the Rust-orchestrated
+re-probe (which fans out prompt-registry round-trips per probe)
+lands incrementally per Decision 4 scaffold-first discipline.
 
-- [ ] C5.1 — `lfs_core::security::capabilities_probe::Cache`
-  actor; FRB `capabilities_probe_run` + `capabilities_view`.
-  Dart `probeCapabilities` retires; provider subscribes.
+- [x] C5.1 — `lfs_core::security::capabilities_cache::Cache`
+  process-singleton actor. FRB shims:
+  `security_capabilities_view` (sync), `security_capabilities_set`
+  (sync), `security_capabilities_clear` (sync).
+  `BusEvent::SecurityCapabilitiesChanged { json }` published on
+  every set-that-differs + on explicit clear (with empty JSON).
+  Dart `probeCapabilities` pushes the snapshot into the cache
+  after running the existing platform plugin probes — provider
+  / Settings cards can subscribe today; the Rust-orchestrated
+  re-probe slots in via C5.2 without changing the FRB surface.
+- [x] C5.2 — `lfs_core::security::capabilities_orchestrator::run`
+  fans out four probes concurrently via `tokio::join!`:
+  biometric (existing prompt registry), keychain
+  (`keychain_probe_prompt`, new), hardware-vault
+  (`hardware_vault_probe_prompt`, new — non-Linux only), and
+  Linux fprintd (in-process via
+  `lfs_core::platform::linux::fprintd::has_enrolled_fingers`).
+  Per-probe 5 s timeout collapses stuck D-Bus calls /
+  unresponsive plugins to the matching "unavailable" answer.
+  Snapshot is pushed through `capabilities_cache::Cache::set`
+  on every successful run; the cache fires
+  `BusEvent::SecurityCapabilitiesChanged` on a delta.
+  FRB shim `capabilities_probe_run(is_linux_host)` returns the
+  snapshot DTO so the Dart caller doesn't need a follow-up
+  view call. Dart `probeCapabilities` routes through the FRB
+  orchestrator by default; the inline platform-plugin pipeline
+  stays in place as the flutter_test fallback (no FRB native
+  lib loaded). New Dart subscribers
+  `KeychainProbePromptListener` +
+  `HardwareVaultProbePromptListener` delegate to the existing
+  `SecureKeyStorage.probe()` / `HardwareTierVault.probeDetail()`
+  helpers — the orchestrator just routes the call through Rust
+  for the cache discipline + bus fan-out.
 
 ### C6 — `WipeAllService` (~210 LOC)
 
 File-half already Rust-side. Remaining: `MethodChannel`
 invocations + flutter_secure_storage purge.
 
-- [ ] C6.1 — `wipe_keychain_purge` FRB shim that owns the
-  flutter_secure_storage key list (versioned alongside the
-  vault). Dart wrapper retires.
+- [x] C6.1 — `lfs_core::security::wipe_keychain` actor owns the
+  canonical `MANAGED_KEYS` list (5 slots: encryption_key,
+  biometric_encryption_key, keychain_probe, l2_pepper,
+  bio_db_key). `wipe_keychain_run` walks the list sequentially
+  and dispatches a `KeychainOpKind::Delete` prompt per key via
+  the `keychain_op_prompt` registry; the existing
+  `KeychainOpPromptListener` Dart subscriber handles the
+  `flutter_secure_storage.delete` call. Per-key outcome report
+  surfaces partial failure to the Settings UI. Dart
+  `WipeAllService._purgeKeychainStore` routes through Rust
+  with `keychain.deleteAll()` retained as the flutter_test
+  fallback. The list-vs-`deleteAll` design is deliberate:
+  enumeration makes the wipe surface auditable (a new key
+  caught at code review when its consumer doesn't add to the
+  list) and avoids prefix-matching surprises on shared
+  platform keychain backends. `MethodChannel` (hardware vault)
+  invocations stay Dart-side — single-arc pattern, the
+  channel is a Flutter primitive without a Rust analogue.
 
 ### C7 — `PersistedRateLimiter` (~429 LOC) [DONE]
 
@@ -465,18 +594,29 @@ unmocked).
 
 ### C9 — Tier state-machine actor (final synthesis)
 
-`lfs_core::security::tier::Machine` actor:
-`Plaintext | Keychain | Hardware | Paranoid` transitions, unlock
-requested/succeeded/failed events.
+**Superseded by Decision 4 rolling — see C9.0 / C9.1 / C9.2 /
+C9.3 / C9.4 / C9.5 above** (under the Decision 4 block). The
+original monolithic C9.1-C9.3 plan below is kept as a
+historical anchor; the actual work tracks per-tier rolling so
+each commit ships an isolated rollback-able feature gate
+rather than one big-bang flip.
 
-- [ ] C9.1 — Actor scaffold + state transitions + bus events.
-- [ ] C9.2 — Compose master-password / keychain-gate / hardware-
-  vault / wipe orchestrators behind the actor.
-- [ ] C9.3 — `security_provider.dart` (462 LOC) → `StreamProvider`
+- [~] C9.1 — Actor scaffold + state transitions + bus events.
+  Done as C9.0 (per Decision 4).
+- [~] C9.2 — Compose master-password / keychain-gate / hardware-
+  vault / wipe orchestrators behind the actor. Done as C9.1-C9.4
+  observation half (per Decision 4); the per-tier handlers
+  themselves still live Dart-side until C9.5 lands.
+- [~] C9.3 — `security_provider.dart` (462 LOC) → `StreamProvider`
   mirror. `security_bootstrap.dart` orchestration retires.
+  Pending — gated on C9.5 retire of `SecurityInitController`,
+  which itself waits for the per-tier handlers to move into
+  Rust. Capabilities cache + orchestrator (C5.1 + C5.2) already
+  cover the Settings-card subscription side.
 
-**Risk:** highest of the migration. Land on a focused branch,
-smoke on every platform before merge.
+**Risk:** highest of the migration. The Decision 4 rolling
+keeps every step rollback-able; the residual C9.5 retire is
+the last gate.
 
 ## Arc D — `app_config` (~605 LOC) [partial]
 
@@ -528,12 +668,32 @@ the persistence layer routes through Rust.
 sizing endpoint). Production export already through
 `dbExportQrPayload`.
 
-- [ ] E1 — `qr_export_estimate_size(opts, session_ids,
-  manager_keys)` Rust-side that mirrors `dbExportQrPayload` but
-  returns only the byte count (no archive build).
-- [ ] E2 — Dart controller drops `_deduplicateKeys` /
-  `_addAllManagerKeys` / `_encode*Payload`; keeps only UI state +
-  the FRB sizing call.
+- [x] E1 — `lfs_core::archive::qr_export_payload_size(conn,
+  input)` mirrors `qr_export_payload` step-for-step (same DB
+  reads + dedup + opts filter + folder-path resolve + JSON
+  build) but skips the base64url encode and returns the
+  deflated byte count via `qr_codec_encode::compress_to_payload_size`.
+  Both producers now route through a shared
+  `build_qr_export_json` helper so the wire shape stays one
+  place. FRB shim `db_export_qr_payload_size(input)` exposes
+  the API. The Dart `unified_export_controller` per-toggle
+  estimators (`_qrEstimateSize`) currently route through
+  `qr_compose::compose_and_size` (Decision 6 / E3-E4 work in
+  earlier session); flipping the controller to call
+  `db_export_qr_payload_size` for the full-DB-driven sizing
+  path lands as E2.
+- [x] E2 — `unified_export_controller` no longer references
+  `_deduplicateKeys` / `_addAllManagerKeys` / `_encode*Payload`
+  Dart-side composers; the per-toggle estimator routes through
+  `qr_compose::compose_and_size` (Decision 6 / E3-E4 in earlier
+  session) for the in-memory `data` carrier path. The full-DB
+  `db_export_qr_payload_size` shim from E1 stays available for
+  callers that want a DB-driven estimate (none today — would
+  cost a query per checkbox toggle, slower than the in-memory
+  composer for the live gauge UX). The Dart fallback composers
+  in `qr_codec.dart` survive solely for flutter_test contexts
+  that don't load the FRB native lib; production controllers
+  never reach them.
 
 ## Arc F — Pure helper consolidations
 
@@ -542,7 +702,7 @@ sizing endpoint). Production export already through
 | [x] `assetUrlForPlatform`          | `update_service.dart:797`                 | Routed through `lfs_core::update_metadata::asset_url_for_platform`. |
 | —    `_compileGlob` regex cache     | `openssh_config_parser.dart:248`          | Cache lives in the Dart fallback only; production already routes through Rust. Removing the cache slows the test-only path with no production benefit — skip. |
 | [x] `backoffSchedule` constant     | `password_rate_limiter.dart:35`           | Hydrated from Rust `BACKOFF_SCHEDULE` via FRB const, lazy-cached. |
-| [ ] `_unquote` (OpenSSH config)    | `openssh_config_parser.dart:337`          | Trivial, low priority.                                           |
+| [x] `_unquote` (OpenSSH config)    | `openssh_config_parser.dart:337`          | Routed through `lfs_core::ssh_config::unquote` via `sshConfigUnquote` FRB sync; pure-Dart inline kept as flutter_test fallback. |
 | —    `OpenSshConfigImporter.expandHome` | `openssh_config_importer.dart:72`    | Skip — Android `EXTERNAL_STORAGE` divergence vs Rust `home_dir`. |
 | —    `_tierToString` / `_tierFromString` | `security_tier.dart:247,262`         | Skip — 5-line switches; routing through Rust adds no value.      |
 

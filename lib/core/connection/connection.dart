@@ -1,11 +1,16 @@
 import 'dart:async';
 
+import '../../src/rust/api/app.dart' as rust_app;
+import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../utils/logger.dart';
+import '../bus/app_bus.dart';
 import '../ssh/known_hosts.dart';
 import '../ssh/ssh_config.dart';
+import '../ssh/transport/rust_transport.dart';
 import '../ssh/transport/ssh_transport.dart';
 import 'connection_extension.dart';
 import 'connection_step.dart';
+import 'connection_step_mappers.dart';
 
 /// SSH connection lifecycle state.
 enum SSHConnectionState { disconnected, connecting, connected }
@@ -109,7 +114,124 @@ class Connection {
     this.connectionError,
     this.bastion,
     this.internal = false,
-  }) : knownHosts = knownHosts ?? KnownHostsManager();
+  }) : knownHosts = knownHosts ?? KnownHostsManager() {
+    _subscribeProgressBus();
+  }
+
+  /// Bus subscription that drives the per-connection progress
+  /// stream. The Rust connection actor publishes
+  /// `BusEvent::ConnectionProgress` for every phase transition
+  /// (socket connect, host-key verify, authenticate, open
+  /// channel); this listener filters on [id], maps the typed
+  /// FRB phase / status into the Dart enums, and feeds the
+  /// existing [progressStream] / [progressHistory] surface so
+  /// downstream consumers (`ProgressTracker`, the connection
+  /// drawer) keep working unchanged.
+  ///
+  /// Best-effort — flutter_test contexts that don't load the
+  /// FRB native lib hit the catch and the test code drives
+  /// progress via direct [addProgressStep] calls instead.
+  StreamSubscription<rust_bus.BusEvent>? _busSub;
+
+  void _subscribeProgressBus() {
+    try {
+      _busSub = AppBus.instance.subscribeConnection(id).listen((event) {
+        if (event is rust_bus.BusEvent_ConnectionProgress) {
+          addProgressStep(
+            ConnectionStep(
+              phase: mapBusPhase(event.step.phase),
+              status: mapBusStatus(event.step.status),
+              detail: event.step.detail,
+            ),
+          );
+        } else if (event is rust_bus.BusEvent_ConnectionStateChanged) {
+          _onBusStateChanged(event.state);
+        }
+      });
+    } catch (e) {
+      // FRB native lib not loaded (flutter_test). Tests drive
+      // progress via direct `addProgressStep` and set
+      // `transport` / `state` directly; the bus subscription
+      // is opt-in.
+      AppLogger.instance.log(
+        'Connection.subscribeProgressBus skipped: $e',
+        name: 'Connection',
+      );
+    }
+  }
+
+  /// Bus-driven state-machine hook. The Rust connection actor
+  /// publishes a `ConnectionStateChanged` event for every
+  /// transition; this listener mirrors the relevant Dart-side
+  /// state (transport adoption + transient-secret eviction)
+  /// without requiring the manager to mediate.
+  ///
+  /// `Connecting` → no Dart-side mutation needed (the manager
+  /// flips the `state` field directly when it kicks off the
+  /// connect attempt; a redundant write here would just race).
+  ///
+  /// `Connected` → fetch the live russh session via FRB, wrap
+  /// it in `RustTransport.adopt`, fire the connected hook, drop
+  /// any per-attempt transient secrets the connect path staged.
+  ///
+  /// `Disconnected` → clear the adopted transport + drop staged
+  /// transient secrets so the next reconnect starts clean.
+  void _onBusStateChanged(rust_bus.BusConnectionState state) {
+    switch (state) {
+      case rust_bus.BusConnectionState.connecting:
+        // No-op — manager-side flow flips the Dart `state`
+        // field at the same edge.
+        break;
+      case rust_bus.BusConnectionState.connected:
+        unawaited(_adoptSession());
+        _evictTransientSecrets();
+      case rust_bus.BusConnectionState.disconnected:
+        transport = null;
+        _evictTransientSecrets();
+    }
+  }
+
+  Future<void> _adoptSession() async {
+    try {
+      final session = await rust_bus.connectionGetSession(id: id);
+      if (session == null) {
+        AppLogger.instance.log(
+          'connection_get_session returned null for $id',
+          name: 'Connection',
+          level: LogLevel.warn,
+        );
+        return;
+      }
+      transport = RustTransport.adopt(session);
+      notifyExtensionsConnected();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Connection.adoptSession failed for $id: $e',
+        name: 'Connection',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Drop every per-attempt secret the connect path staged into
+  /// the Rust SecretStore in one batch FRB call. Best-effort —
+  /// flutter_test contexts that don't load the FRB native lib
+  /// hit the catch and the in-memory tracking set is still
+  /// cleared so the next attempt starts clean.
+  void _evictTransientSecrets() {
+    if (transientSecretIds.isEmpty) return;
+    final ids = List<String>.of(transientSecretIds);
+    transientSecretIds.clear();
+    try {
+      rust_app.secretsDropMany(ids: ids);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Connection.evictTransientSecrets skipped: $e',
+        name: 'Connection',
+        level: LogLevel.warn,
+      );
+    }
+  }
 
   bool get isConnected => state == SSHConnectionState.connected;
   bool get isConnecting => state == SSHConnectionState.connecting;
@@ -223,5 +345,33 @@ class Connection {
   /// "drop reference" is as strong as Dart allows.
   void clearCachedCredentials() {
     cachedPassphrase = null;
+  }
+
+  /// Tear down the Connection's persistent resources — bus
+  /// subscription, progress controller, and any per-attempt
+  /// transient secrets the connect path staged that the bus's
+  /// terminal-state path didn't already clear. Must be called
+  /// by [ConnectionManager] when removing the Connection from
+  /// its map; without this the subscription pins the Connection
+  /// in memory + keeps consuming bus events for an id no one
+  /// renders anymore.
+  ///
+  /// Idempotent — repeated calls are a no-op.
+  void dispose() {
+    final sub = _busSub;
+    _busSub = null;
+    if (sub != null) {
+      unawaited(sub.cancel());
+    }
+    if (!_progressController.isClosed) {
+      _progressController.close();
+    }
+    // Belt-and-braces: evict any transient secrets the bus
+    // event path didn't get to clear (explicit user-disconnect
+    // races the bus subscription teardown — by the time the
+    // `Disconnected` event fires the subscription may already
+    // be cancelled, leaving the staged ids stranded in the
+    // SecretStore).
+    _evictTransientSecrets();
   }
 }

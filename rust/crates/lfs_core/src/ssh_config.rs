@@ -448,7 +448,12 @@ pub fn split_keyword_value(line: &str) -> Option<(String, String)> {
     Some((keyword, unquote(&rest).to_string()))
 }
 
-fn unquote(value: &str) -> &str {
+/// Strip a single matched pair of leading/trailing `"`. The
+/// OpenSSH config grammar treats values verbatim except when
+/// quoted — `Host "my workstation"` keeps the single token,
+/// `Host my workstation` is two tokens. Public so the Dart
+/// `_unquote` helper can route through the canonical grammar.
+pub fn unquote(value: &str) -> &str {
     if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
         &value[1..value.len() - 1]
     } else {

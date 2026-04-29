@@ -39,12 +39,12 @@ DbTierState? tierMachineDispatch({required DbTierEvent event}) =>
 /// Returns the new state when an advance fired, `None`
 /// otherwise.
 ///
-/// **C9.1.** Plaintext is the only tier that self-advances
-/// today; Dart calls this immediately after dispatching
-/// `unlock_requested` so the synchronous unlock path lands
-/// without waiting on a no-op prompt round-trip. Keychain /
-/// Hardware / Paranoid keep returning `None` until C9.2+ wires
-/// their per-tier handlers.
+/// Plaintext is the only tier that self-advances today; Dart
+/// calls this immediately after dispatching `unlock_requested`
+/// so the synchronous unlock path lands without waiting on a
+/// no-op prompt round-trip. Keychain / Hardware / Paranoid
+/// keep returning `None` until their per-tier handlers wire
+/// in.
 DbTierState? tierMachineTryAdvance() =>
     RustLib.instance.api.crateApiTierMachineTierMachineTryAdvance();
 

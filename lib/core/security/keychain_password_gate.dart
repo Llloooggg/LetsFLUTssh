@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/keychain_op_prompt.dart' as rust_op_gate;
 import '../../src/rust/api/keychain_pepper_prompt.dart' as rust_pepper_gate;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
@@ -54,7 +55,25 @@ class KeychainPasswordGate {
   }
 
   /// True when a gate is configured on this install.
+  ///
+  /// Routes through `lfs_core::security::keychain_password_gate_actor::
+  /// is_configured` (FRB async) so the disk presence check + the
+  /// `flutter_secure_storage.containsKey` round-trip live one
+  /// place. Falls back to the inline Dart pipeline when the FRB
+  /// native lib is not loaded.
   Future<bool> isConfigured() async {
+    try {
+      final file = await _hashFile();
+      return await rust_op_gate.keychainPasswordGateIsConfigured(
+        supportDir: file.parent.path,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeychainPasswordGate.isConfigured FRB unreachable, '
+        'falling back to Dart pipeline: $e',
+        name: 'KeychainPasswordGate',
+      );
+    }
     try {
       final file = await _hashFile();
       if (!await file.exists()) return false;
@@ -81,6 +100,21 @@ class KeychainPasswordGate {
   /// cooldown on first launch. Wiping the state here aligns the
   /// counter with the new password.
   Future<void> setPassword(String password) async {
+    try {
+      final file = await _hashFile();
+      await file.parent.create(recursive: true);
+      await rust_op_gate.keychainPasswordGateSetPassword(
+        supportDir: file.parent.path,
+        password: password,
+      );
+      return;
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeychainPasswordGate.setPassword FRB unreachable, '
+        'falling back to Dart pipeline: $e',
+        name: 'KeychainPasswordGate',
+      );
+    }
     final seed = keychainGateRandomSeedCompat();
     final hmac = keychainGateComputeHmacCompat(
       seed.pepper,
@@ -230,7 +264,26 @@ class KeychainPasswordGate {
 
   /// Drop every artifact the gate writes. Called on tier switch
   /// away from L2 and on breaking-change reset.
+  ///
+  /// Routes through `lfs_core::security::keychain_password_gate_actor::
+  /// clear` (FRB async) so the disk delete + the
+  /// `flutter_secure_storage.delete` round-trip live one place.
+  /// Falls back to the inline Dart pipeline when the FRB native
+  /// lib is not loaded.
   Future<void> clear() async {
+    try {
+      final file = await _hashFile();
+      await rust_op_gate.keychainPasswordGateClear(
+        supportDir: file.parent.path,
+      );
+      return;
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeychainPasswordGate.clear FRB unreachable, '
+        'falling back to Dart pipeline: $e',
+        name: 'KeychainPasswordGate',
+      );
+    }
     try {
       final file = await _hashFile();
       if (await file.exists()) await file.delete();

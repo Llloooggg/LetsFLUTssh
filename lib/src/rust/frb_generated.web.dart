@@ -10,8 +10,11 @@ import 'api.dart';
 import 'api/app.dart';
 import 'api/archive.dart';
 import 'api/archive_stage.dart';
+import 'api/auth_compose.dart';
 import 'api/biometric_probe_prompt.dart';
 import 'api/bus.dart';
+import 'api/capabilities_cache.dart';
+import 'api/capabilities_orchestrator.dart';
 import 'api/config.dart';
 import 'api/connection.dart';
 import 'api/credential_prompt.dart';
@@ -23,6 +26,7 @@ import 'api/format.dart';
 import 'api/forward.dart';
 import 'api/hardware_tier_vault.dart';
 import 'api/keychain_marker.dart';
+import 'api/keychain_op_prompt.dart';
 import 'api/keychain_password_gate.dart';
 import 'api/keychain_pepper_prompt.dart';
 import 'api/keys.dart';
@@ -50,6 +54,7 @@ import 'api/ssh_config.dart';
 import 'api/threat_eval.dart';
 import 'api/tier_machine.dart';
 import 'api/tier_transition_marker.dart';
+import 'api/tpm.dart';
 import 'api/transfer.dart';
 import 'api/transfer_conflict.dart';
 import 'api/update_http.dart';
@@ -58,6 +63,7 @@ import 'api/update_signing.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
 import 'api/wipe.dart';
+import 'api/wipe_keychain.dart';
 import 'api/wizard_setup.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -294,6 +300,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPortForwardRule dco_decode_box_autoadd_db_port_forward_rule(dynamic raw);
 
   @protected
+  DbPrepareAuthInput dco_decode_box_autoadd_db_prepare_auth_input(dynamic raw);
+
+  @protected
   DbQrExportInput dco_decode_box_autoadd_db_qr_export_input(dynamic raw);
 
   @protected
@@ -303,6 +312,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSecurityCapabilities dco_decode_box_autoadd_db_security_capabilities(
     dynamic raw,
   );
+
+  @protected
+  DbSecurityCapabilitiesSnapshot
+  dco_decode_box_autoadd_db_security_capabilities_snapshot(dynamic raw);
 
   @protected
   DbSecurityConfig dco_decode_box_autoadd_db_security_config(dynamic raw);
@@ -465,6 +478,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKeychainGateSeed dco_decode_db_keychain_gate_seed(dynamic raw);
 
   @protected
+  DbKeychainKeyWipe dco_decode_db_keychain_key_wipe(dynamic raw);
+
+  @protected
+  DbKeychainWipeReport dco_decode_db_keychain_wipe_report(dynamic raw);
+
+  @protected
   DbKnownHost dco_decode_db_known_host(dynamic raw);
 
   @protected
@@ -500,6 +519,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPortForwardRule dco_decode_db_port_forward_rule(dynamic raw);
+
+  @protected
+  DbPrepareAuthInput dco_decode_db_prepare_auth_input(dynamic raw);
+
+  @protected
+  DbPreparedAuth dco_decode_db_prepared_auth(dynamic raw);
 
   @protected
   DbQrExportInput dco_decode_db_qr_export_input(dynamic raw);
@@ -554,6 +579,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityCapabilities dco_decode_db_security_capabilities(dynamic raw);
+
+  @protected
+  DbSecurityCapabilitiesSnapshot dco_decode_db_security_capabilities_snapshot(
+    dynamic raw,
+  );
 
   @protected
   DbSecurityConfig dco_decode_db_security_config(dynamic raw);
@@ -625,6 +655,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTierState dco_decode_db_tier_state(dynamic raw);
 
   @protected
+  DbTpmProbeResult dco_decode_db_tpm_probe_result(dynamic raw);
+
+  @protected
   DbTransferKind dco_decode_db_transfer_kind(dynamic raw);
 
   @protected
@@ -670,6 +703,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbFolder> dco_decode_list_db_folder(dynamic raw);
+
+  @protected
+  List<DbKeychainKeyWipe> dco_decode_list_db_keychain_key_wipe(dynamic raw);
 
   @protected
   List<DbKnownHost> dco_decode_list_db_known_host(dynamic raw);
@@ -834,6 +870,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSecurityCapabilities? dco_decode_opt_box_autoadd_db_security_capabilities(
     dynamic raw,
   );
+
+  @protected
+  DbSecurityCapabilitiesSnapshot?
+  dco_decode_opt_box_autoadd_db_security_capabilities_snapshot(dynamic raw);
 
   @protected
   DbSecurityConfig? dco_decode_opt_box_autoadd_db_security_config(dynamic raw);
@@ -1142,6 +1182,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbPrepareAuthInput sse_decode_box_autoadd_db_prepare_auth_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbQrExportInput sse_decode_box_autoadd_db_qr_export_input(
     SseDeserializer deserializer,
   );
@@ -1153,6 +1198,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityCapabilities sse_decode_box_autoadd_db_security_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSecurityCapabilitiesSnapshot
+  sse_decode_box_autoadd_db_security_capabilities_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -1361,6 +1412,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbKeychainKeyWipe sse_decode_db_keychain_key_wipe(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbKeychainWipeReport sse_decode_db_keychain_wipe_report(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbKnownHost sse_decode_db_known_host(SseDeserializer deserializer);
 
   @protected
@@ -1410,6 +1471,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPortForwardRule sse_decode_db_port_forward_rule(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbPrepareAuthInput sse_decode_db_prepare_auth_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbPreparedAuth sse_decode_db_prepared_auth(SseDeserializer deserializer);
 
   @protected
   DbQrExportInput sse_decode_db_qr_export_input(SseDeserializer deserializer);
@@ -1486,6 +1555,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityCapabilities sse_decode_db_security_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSecurityCapabilitiesSnapshot sse_decode_db_security_capabilities_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -1575,6 +1649,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTierState sse_decode_db_tier_state(SseDeserializer deserializer);
 
   @protected
+  DbTpmProbeResult sse_decode_db_tpm_probe_result(SseDeserializer deserializer);
+
+  @protected
   DbTransferKind sse_decode_db_transfer_kind(SseDeserializer deserializer);
 
   @protected
@@ -1628,6 +1705,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbFolder> sse_decode_list_db_folder(SseDeserializer deserializer);
+
+  @protected
+  List<DbKeychainKeyWipe> sse_decode_list_db_keychain_key_wipe(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbKnownHost> sse_decode_list_db_known_host(SseDeserializer deserializer);
@@ -1838,6 +1920,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityCapabilities? sse_decode_opt_box_autoadd_db_security_capabilities(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSecurityCapabilitiesSnapshot?
+  sse_decode_opt_box_autoadd_db_security_capabilities_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -2208,6 +2296,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_prepare_auth_input(
+    DbPrepareAuthInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_qr_export_input(
     DbQrExportInput self,
     SseSerializer serializer,
@@ -2222,6 +2316,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_security_capabilities(
     DbSecurityCapabilities self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_security_capabilities_snapshot(
+    DbSecurityCapabilitiesSnapshot self,
     SseSerializer serializer,
   );
 
@@ -2490,6 +2590,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_keychain_key_wipe(
+    DbKeychainKeyWipe self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_keychain_wipe_report(
+    DbKeychainWipeReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_known_host(DbKnownHost self, SseSerializer serializer);
 
   @protected
@@ -2549,6 +2661,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_port_forward_rule(
     DbPortForwardRule self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_prepare_auth_input(
+    DbPrepareAuthInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_prepared_auth(
+    DbPreparedAuth self,
     SseSerializer serializer,
   );
 
@@ -2654,6 +2778,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_security_capabilities(
     DbSecurityCapabilities self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_security_capabilities_snapshot(
+    DbSecurityCapabilitiesSnapshot self,
     SseSerializer serializer,
   );
 
@@ -2772,6 +2902,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_tier_state(DbTierState self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_tpm_probe_result(
+    DbTpmProbeResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_transfer_kind(
     DbTransferKind self,
     SseSerializer serializer,
@@ -2839,6 +2975,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_db_folder(List<DbFolder> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_db_keychain_key_wipe(
+    List<DbKeychainKeyWipe> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_db_known_host(
@@ -3106,6 +3248,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_security_capabilities(
     DbSecurityCapabilities? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_security_capabilities_snapshot(
+    DbSecurityCapabilitiesSnapshot? self,
     SseSerializer serializer,
   );
 

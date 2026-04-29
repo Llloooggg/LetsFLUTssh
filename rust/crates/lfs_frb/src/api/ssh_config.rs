@@ -123,3 +123,12 @@ pub fn ssh_config_split_keyword_value(line: String) -> Option<(String, String)> 
 pub fn ssh_config_split_host_patterns(value: String) -> Vec<String> {
     lfs_core::ssh_config::split_host_patterns(&value)
 }
+
+/// Strip a single matched pair of leading/trailing `"`. Mirrors
+/// the OpenSSH config grammar: `Host "my workstation"` keeps
+/// the single token, `Host my workstation` is two tokens. The
+/// Dart `openssh_config_parser._unquote` routes through here.
+#[flutter_rust_bridge::frb(sync)]
+pub fn ssh_config_unquote(value: String) -> String {
+    lfs_core::ssh_config::unquote(&value).to_string()
+}

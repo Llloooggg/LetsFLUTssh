@@ -531,11 +531,11 @@ class UnifiedExportController extends ChangeNotifier {
       includeManagerKeys: false,
     );
     // Baseline routes through `_qrEstimateSize` so the
-    // dummy-session shape matches the canonical Rust composer
-    // (Decision 6). The `withKeysSize` half stays Dart-built
-    // for now because the dummy-session + key-only payload is
-    // already minimal Dart composition that doesn't go through
-    // the encodeExportPayload pipeline.
+    // dummy-session shape matches the canonical Rust composer.
+    // The `withKeysSize` half stays Dart-built for now because
+    // the dummy-session + key-only payload is already minimal
+    // Dart composition that doesn't go through the
+    // encodeExportPayload pipeline.
     final baselineSize = _qrEstimateSize(
       sessions: [dummySession],
       emptyFolders: const <String>{},

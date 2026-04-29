@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import '../../../src/rust/api/tpm.dart' as rust_tpm;
 import '../../../utils/file_utils.dart';
 import '../../../utils/logger.dart';
 
@@ -108,8 +109,40 @@ class TpmClient {
   /// generic "hardware not available on this device". Settings →
   /// Security consumes this on Linux to render the hardware-tier
   /// card's unavailable reason.
+  ///
+  /// Routes through `lfs_core::platform::linux::tpm::probe` (FRB
+  /// async, runs the spawn on the blocking pool). Falls back to
+  /// the inline Dart `Process.run` pipeline below when the FRB
+  /// native lib is not loaded — flutter_test contexts that don't
+  /// bootstrap `RustLib` keep working against the existing test
+  /// harness without needing to load the native blob.
   Future<TpmProbeResult> probe() async {
     if (!Platform.isLinux) return TpmProbeResult.wrongPlatform;
+    try {
+      final r = await rust_tpm.tpmProbe(
+        binary: _binary,
+        device: _tpmDevice,
+        timeoutMs: BigInt.from(_timeout.inMilliseconds),
+      );
+      switch (r) {
+        case rust_tpm.DbTpmProbeResult.available:
+          return TpmProbeResult.available;
+        case rust_tpm.DbTpmProbeResult.deviceNodeMissing:
+          return TpmProbeResult.deviceNodeMissing;
+        case rust_tpm.DbTpmProbeResult.binaryMissing:
+          return TpmProbeResult.binaryMissing;
+        case rust_tpm.DbTpmProbeResult.probeFailed:
+          return TpmProbeResult.probeFailed;
+        case rust_tpm.DbTpmProbeResult.notLinux:
+          return TpmProbeResult.wrongPlatform;
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'TpmClient.probe FRB unreachable, falling back to Dart '
+        'pipeline: $e',
+        name: 'TpmClient',
+      );
+    }
     if (!await File(_tpmDevice).exists()) {
       return TpmProbeResult.deviceNodeMissing;
     }
@@ -192,6 +225,22 @@ class TpmClient {
       );
       return null;
     }
+    try {
+      final out = await rust_tpm.tpmSeal(
+        secret: secret,
+        authValue: authValue,
+        binary: _binary,
+        device: _tpmDevice,
+        timeoutMs: BigInt.from(_timeout.inMilliseconds),
+      );
+      return out;
+    } catch (e) {
+      AppLogger.instance.log(
+        'TpmClient.seal FRB path failed, falling back to Dart '
+        'pipeline: $e',
+        name: 'TpmClient',
+      );
+    }
     final workDir = await Directory.systemTemp.createTemp('lfs-tpm-seal-');
     try {
       final primary = p.join(workDir.path, 'primary.ctx');
@@ -251,6 +300,22 @@ class TpmClient {
     Uint8List blob, {
     required Uint8List authValue,
   }) async {
+    try {
+      final out = await rust_tpm.tpmUnseal(
+        blob: blob,
+        authValue: authValue,
+        binary: _binary,
+        device: _tpmDevice,
+        timeoutMs: BigInt.from(_timeout.inMilliseconds),
+      );
+      return out;
+    } catch (e) {
+      AppLogger.instance.log(
+        'TpmClient.unseal FRB path failed, falling back to Dart '
+        'pipeline: $e',
+        name: 'TpmClient',
+      );
+    }
     final unpacked = _unpack(blob);
     if (unpacked == null) return null;
     final (pub, priv) = unpacked;

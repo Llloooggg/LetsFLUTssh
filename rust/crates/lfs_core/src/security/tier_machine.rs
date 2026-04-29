@@ -1,30 +1,27 @@
-//! Typed scaffold for the L0-L3 + Paranoid tier state machine
-//! (`Decision 4 — scaffold-first` in
-//! `docs/RUST_MIGRATION_REMAINING.md`).
+//! Typed scaffold for the L0-L3 + Paranoid tier state machine.
 //!
 //! Owns the state + event + transition table only. Per-tier
 //! orchestration (Plaintext / Keychain / KeychainWithPassword /
-//! Hardware / Paranoid) lands in subsequent C9.x commits behind
-//! feature gates — see the doc for the rolling sequence.
+//! Hardware / Paranoid) lands incrementally behind feature
+//! gates so each per-tier handler ships as a retain-rollback-able
+//! commit.
 //!
 //! This file is **purely additive** and does not yet touch the
 //! Dart `SecurityInitController` (1167 LOC) which still owns the
 //! production unlock flow. That orchestrator retires once every
-//! per-tier feature gate is on by default (C9.5).
+//! per-tier feature gate is on by default.
 //!
 //! **Why land the scaffold ahead of the wiring.** The transition
 //! table is the contract every per-tier sub-machine implements.
 //! Putting it down now (with property tests) lets the per-tier
-//! arcs compose against a fixed shape instead of redesigning the
-//! state machine each time. Mirrors the same playbook Decision 4
-//! lays out — incremental, retain-rollback-able commits over a
-//! big-bang rewrite.
+//! work compose against a fixed shape instead of redesigning the
+//! state machine each time.
 //!
 //! **Why no `dispatch` impl yet.** A dispatch with no per-tier
 //! handlers wired would either return `Pending` for every event
 //! (dead code) or fake side-effects with `todo!` (worse than no
 //! impl). The transition table itself is enough scaffold —
-//! per-tier handlers wire up the real transitions in C9.1+.
+//! per-tier handlers wire up the real transitions later.
 
 use crate::security::SecurityTier;
 
@@ -42,8 +39,8 @@ pub enum TierState {
     Locked,
     /// User has dismissed an unlock prompt or the bootstrap has
     /// requested unlock; we're waiting for the secret to land
-    /// (passing through Decision 1's prompt protocol for L2 / L3
-    /// / Paranoid). For L0 / L1 this state is transient — the
+    /// (passing through the typed prompt registry for L2 / L3 /
+    /// Paranoid). For L0 / L1 this state is transient — the
     /// transition fires immediately on `UnlockRequested`.
     Unlocking,
     /// DB is open under the active tier's key; the rest of the app
@@ -107,14 +104,14 @@ pub enum UnlockFailureReason {
 }
 
 /// Events the tier machine accepts. Dispatched by the per-tier
-/// sub-machine (C9.1+) in response to bus subscriptions, FRB
-/// commands, or internal timers.
+/// sub-machine in response to bus subscriptions, FRB commands,
+/// or internal timers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TierEvent {
     /// Bootstrap requested unlock under the persisted tier. The
-    /// per-tier handler (C9.1+) resolves the secret via Decision 1
-    /// prompt protocol where needed and emits
-    /// `UnlockSucceeded` / `UnlockFailed` when the verifier returns.
+    /// per-tier handler resolves the secret via the typed prompt
+    /// registry where needed and emits `UnlockSucceeded` /
+    /// `UnlockFailed` when the verifier returns.
     UnlockRequested,
     /// Verifier accepted the secret; the DB key is staged in the
     /// `SecretStore` under the canonical id. The actor flips to
@@ -142,7 +139,7 @@ pub type TransitionResult = Option<TierState>;
 /// Pure transition table. Mirrors the contract every per-tier
 /// sub-machine implements: given `(current_state, event)`, return
 /// the next state or `None` if the event is invalid for that
-/// state. No side effects — handlers (C9.1+) own the SecretStore
+/// state. No side effects — handlers own the SecretStore
 /// staging, plugin invocation, and bus event publication.
 #[must_use]
 pub fn next_state(current: TierState, event: &TierEvent) -> TransitionResult {
@@ -182,7 +179,7 @@ pub fn next_state(current: TierState, event: &TierEvent) -> TransitionResult {
 /// change pushes a new tier in before kicking off
 /// `UnlockRequested`).
 ///
-/// **Not yet wired to anything.** Future C9.x commits attach
+/// **Not yet wired to anything.** Future commits attach
 /// per-tier sub-machine handlers + bus event publication. For
 /// now the type exists so the per-tier handler signatures are
 /// fixed and the FRB shim layer can target a stable API.
@@ -246,18 +243,18 @@ impl Machine {
     /// that can self-advance without external input. Returns the
     /// new state if a self-advance fired.
     ///
-    /// **C9.1 — Plaintext.** Plaintext tier has no secret, no
-    /// plugin call, no user prompt. From `Unlocking` it fires
+    /// **Plaintext.** Plaintext tier has no secret, no plugin
+    /// call, no user prompt. From `Unlocking` it fires
     /// `UnlockSucceeded` immediately — same shape the Dart
     /// `_unlockByTier` switch used (`case SecurityTier.plaintext:
     /// await _injectDatabase()`).
     ///
-    /// **C9.2+ — other tiers.** Keychain / Hardware / Paranoid
-    /// stay stuck in `Unlocking` until their per-tier handler
-    /// (Decision 1 prompt protocol + Decision 2 plugin callback)
-    /// resolves. This function is a no-op for those tiers — the
-    /// actor waits on an explicit `UnlockSucceeded` /
-    /// `UnlockFailed` dispatch from the handler.
+    /// **Other tiers.** Keychain / Hardware / Paranoid stay stuck
+    /// in `Unlocking` until their per-tier handler (typed prompt
+    /// registry + Dart plugin callback) resolves. This function
+    /// is a no-op for those tiers — the actor waits on an
+    /// explicit `UnlockSucceeded` / `UnlockFailed` dispatch from
+    /// the handler.
     pub fn try_advance(&mut self) -> TransitionResult {
         if self.state != TierState::Unlocking {
             return None;
@@ -470,8 +467,8 @@ mod tests {
             m.dispatch(&TierEvent::UnlockRequested).unwrap();
             assert_eq!(m.state(), TierState::Unlocking);
             // Non-plaintext tiers stay in Unlocking — the per-tier
-            // handler resolves through Decision 1's prompt
-            // protocol later.
+            // handler resolves through the typed prompt registry
+            // later.
             assert_eq!(m.try_advance(), None);
             assert_eq!(m.state(), TierState::Unlocking);
         }

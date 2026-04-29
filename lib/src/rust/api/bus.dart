@@ -361,6 +361,46 @@ sealed class BusEvent with _$BusEvent {
     required String promptId,
   }) = BusEvent_BiometricProbePromptRequest;
 
+  /// Capabilities orchestrator needs the OS-keychain
+  /// reachability answer. Dart subscriber pings the platform
+  /// keychain and dispatches the `KeyringProbeResult` wire
+  /// name (`"available"` / `"linuxNoSecretService"` /
+  /// `"probeFailed"`).
+  const factory BusEvent.keychainProbePromptRequest({
+    required String promptId,
+  }) = BusEvent_KeychainProbePromptRequest;
+
+  /// Capabilities orchestrator needs the hardware-vault
+  /// probe code on Apple / Android / Windows. Dart
+  /// subscriber calls
+  /// `MethodChannel('com.letsflutssh/hardware_vault')
+  /// .invokeMethod('probeDetail')` and dispatches the
+  /// platform reason code verbatim.
+  const factory BusEvent.hardwareVaultProbePromptRequest({
+    required String promptId,
+  }) = BusEvent_HardwareVaultProbePromptRequest;
+
+  /// Generic keychain op — Dart subscriber branches on
+  /// `op_wire_name` (`"read" | "contains" | "write" | "delete"`)
+  /// and executes the matching `flutter_secure_storage` call.
+  /// `value_b64` carries the base64-encoded payload for the
+  /// write op, `null` otherwise. Resolved via
+  /// `keychain_op_prompt_resolve*` shims.
+  const factory BusEvent.keychainOpPromptRequest({
+    required String promptId,
+    required String key,
+    required String opWireName,
+    String? valueB64,
+  }) = BusEvent_KeychainOpPromptRequest;
+
+  /// Security capabilities cache snapshot updated. `json` is
+  /// the freshly-cached snapshot in the `lfs_core::security::
+  /// capabilities` snake_case JSON shape; an empty string
+  /// signals an explicit `clear` (Dart subscriber flips back
+  /// to the neutral "probing…" state).
+  const factory BusEvent.securityCapabilitiesChanged({required String json}) =
+      BusEvent_SecurityCapabilitiesChanged;
+
   /// TOFU prompt — russh saw an unknown / changed host key.
   /// Subscribers (Dart UI) surface the host-key dialog and
   /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
@@ -437,4 +477,5 @@ enum BusTopic {
   config,
   tier,
   securityPrompt,
+  securityCapabilities,
 }

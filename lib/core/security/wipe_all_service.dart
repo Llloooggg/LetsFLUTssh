@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/wipe.dart' as rust_wipe;
+import '../../src/rust/api/wipe_keychain.dart' as rust_wipe_kc;
 import '../../utils/logger.dart';
 
 /// Report returned by [WipeAllService.wipeAll]. Callers log it and
@@ -195,7 +196,37 @@ class WipeAllService {
     }
   }
 
+  /// Walk the canonical key list (versioned in Rust as
+  /// `lfs_core::security::wipe_keychain::MANAGED_KEYS`) and ask
+  /// the keychain plugin to drop each. Routes through the Rust
+  /// actor by default — owns the audited key catalogue + a
+  /// per-key outcome report; falls back to the inline
+  /// `_keychain.deleteAll()` shape for flutter_test contexts
+  /// that don't load the FRB native lib.
+  ///
+  /// Per-key outcomes are logged so a partial failure (e.g. one
+  /// stuck Linux libsecret slot) is visible in a support trace
+  /// without having to re-run the wipe.
   Future<bool> _purgeKeychainStore() async {
+    try {
+      final report = await rust_wipe_kc.wipeKeychainRun();
+      for (final entry in report.entries) {
+        if (entry.status != 'deleted') {
+          AppLogger.instance.log(
+            'WipeAllService: keychain key "${entry.key}" '
+            '${entry.status}',
+            name: 'WipeAllService',
+          );
+        }
+      }
+      return report.allSucceeded;
+    } catch (e) {
+      AppLogger.instance.log(
+        'WipeAllService.keychainPurge FRB unreachable, '
+        'falling back to deleteAll: $e',
+        name: 'WipeAllService',
+      );
+    }
     try {
       await _keychain.deleteAll();
       return true;

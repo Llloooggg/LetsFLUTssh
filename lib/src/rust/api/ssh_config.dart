@@ -69,6 +69,13 @@ List<String> sshConfigSplitHostPatterns({required String value}) => RustLib
     .api
     .crateApiSshConfigSshConfigSplitHostPatterns(value: value);
 
+/// Strip a single matched pair of leading/trailing `"`. Mirrors
+/// the OpenSSH config grammar: `Host "my workstation"` keeps
+/// the single token, `Host my workstation` is two tokens. The
+/// Dart `openssh_config_parser._unquote` routes through here.
+String sshConfigUnquote({required String value}) =>
+    RustLib.instance.api.crateApiSshConfigSshConfigUnquote(value: value);
+
 /// FRB-visible mirror of `lfs_core::ssh_config::AuthType`.
 enum DbOpenSshAuthType { password, key }
 

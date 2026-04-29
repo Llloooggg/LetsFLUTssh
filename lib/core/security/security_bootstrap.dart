@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../src/rust/api/capabilities_cache.dart' as rust_cache;
+import '../../src/rust/api/capabilities_orchestrator.dart' as rust_orch;
 import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../src/rust/api/wizard_setup.dart' as rust_wizard;
 import '../../utils/logger.dart';
@@ -181,6 +183,20 @@ class SecurityCapabilities {
 /// needs. Returns a [SecurityCapabilities] with sensible defaults on
 /// any probe failure so a stuck D-Bus call (common on Linux test
 /// boxes) never leaves the user staring at a spinner.
+///
+/// Production path routes through
+/// `lfs_core::security::capabilities_orchestrator::run` (FRB
+/// async): the orchestrator fans out the four probes
+/// concurrently via `tokio::join!`, applies a 5 s per-probe
+/// timeout, composes the snapshot, pushes it through the
+/// `capabilities_cache` actor, and returns it. The Dart
+/// subscribers (`BiometricProbePromptListener`,
+/// `KeychainProbePromptListener`,
+/// `HardwareVaultProbePromptListener`) execute the platform
+/// plugin calls under the orchestrator's prompts. The inline
+/// Dart pipeline below stays in place as the flutter_test
+/// fallback (no FRB native lib loaded) and as the canonical
+/// reference implementation that the orchestrator mirrors.
 Future<SecurityCapabilities> probeCapabilities({
   required SecureKeyStorage keyStorage,
   required HardwareTierVault hardwareVault,
@@ -191,6 +207,48 @@ Future<SecurityCapabilities> probeCapabilities({
   final linux = isLinuxHostOverride ?? Platform.isLinux;
   final bio = biometricAuth ?? BiometricAuth();
   final fprintd = fprintdClient ?? FprintdClient();
+
+  // Try the Rust orchestrator first. The orchestrator already
+  // pushes the snapshot through `capabilities_cache::Cache::set`
+  // for us; we still rebuild the typed Dart enum + write the
+  // greppable log line below so a support trace from the FRB
+  // path looks identical to the Dart fallback path.
+  try {
+    final snap = await rust_orch.capabilitiesProbeRun(isLinuxHost: linux);
+    final probe = KeyringProbeResult.values
+        .where((v) => v.name == snap.keychainProbeWireName)
+        .firstOrNull;
+    if (probe != null) {
+      final caps = SecurityCapabilities(
+        keychainAvailable: snap.keychainAvailable,
+        hardwareVaultAvailable: snap.hardwareVaultAvailable,
+        biometricAvailable: snap.biometricAvailable,
+        fprintdAvailable: snap.fprintdAvailable,
+        isLinuxHost: snap.isLinuxHost,
+        keychainProbe: probe,
+        hardwareProbeCode: snap.hardwareProbeCode,
+      );
+      AppLogger.instance.log(
+        'Capabilities (orchestrator): keychain=${caps.keychainProbe.name} '
+        'hardware=${caps.hardwareProbeCode} '
+        'biometric=${caps.biometricAvailable} '
+        'fprintd=${caps.fprintdAvailable}',
+        name: 'SecurityBootstrap',
+      );
+      return caps;
+    }
+    AppLogger.instance.log(
+      'Capabilities orchestrator returned unknown wire name '
+      '"${snap.keychainProbeWireName}" — falling back to Dart pipeline',
+      name: 'SecurityBootstrap',
+    );
+  } catch (e) {
+    AppLogger.instance.log(
+      'Capabilities orchestrator FRB unreachable, falling back '
+      'to Dart pipeline: $e',
+      name: 'SecurityBootstrap',
+    );
+  }
 
   Future<T> safely<T>(Future<T> Function() fn, T fallback, String probe) async {
     try {
@@ -269,14 +327,38 @@ Future<SecurityCapabilities> probeCapabilities({
     'fprintd=${caps.fprintdAvailable}',
     name: 'SecurityBootstrap',
   );
+  // Push the freshly-probed snapshot into the Rust-side cache so
+  // `BusTopic.securityCapabilities` subscribers (Settings security
+  // cards) re-render off the canonical snapshot without a
+  // follow-up FRB round-trip. Best-effort — flutter_test contexts
+  // that don't load the FRB native lib hit the catch and the test
+  // harness keeps reading `caps` directly.
+  try {
+    rust_cache.securityCapabilitiesSet(
+      snapshot: rust_cache.DbSecurityCapabilitiesSnapshot(
+        keychainAvailable: caps.keychainAvailable,
+        hardwareVaultAvailable: caps.hardwareVaultAvailable,
+        biometricAvailable: caps.biometricAvailable,
+        fprintdAvailable: caps.fprintdAvailable,
+        isLinuxHost: caps.isLinuxHost,
+        keychainProbeWireName: caps.keychainProbe.name,
+        hardwareProbeCode: caps.hardwareProbeCode,
+      ),
+    );
+  } catch (e) {
+    AppLogger.instance.log(
+      'capabilities_cache.set FRB unreachable (non-fatal): $e',
+      name: 'SecurityBootstrap',
+    );
+  }
   return caps;
 }
 
 /// Pure mapping (tier selected in wizard + modifier flags) → the
 /// existing `SecurityTier` enum value plus the secret field the
 /// downstream `_applyTierChange` / `_firstLaunchSetup` code paths
-/// look up. Keeps the wizard UI decoupled from the current persistence
-/// shape while the Phase F enum-collapse lands.
+/// look up. Keeps the wizard UI decoupled from the current
+/// persistence shape until the eventual enum-collapse refactor.
 ///
 /// T2 + password → `hardware` tier with the password routed into the
 /// `pin` field. The HardwareTierVault's HMAC gate does not care about
@@ -313,8 +395,8 @@ class MappedSetupChoice {
 /// Translate the wizard's (T0/T1/T2/Paranoid + password + biometric +
 /// typed secret) shape into the persistence-layer `SecurityTier` +
 /// typed secret the current `_applyTierChange` cascade expects. The
-/// Phase F refactor will drop this adapter and let the wizard return
-/// `SecurityConfig` directly.
+/// eventual enum-collapse refactor will drop this adapter and let
+/// the wizard return `SecurityConfig` directly.
 ///
 /// Routes through `lfs_core::security::map_wizard_choice` (FRB sync)
 /// so the choice grammar — which secret slot the typed secret routes

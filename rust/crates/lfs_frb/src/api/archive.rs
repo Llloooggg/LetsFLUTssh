@@ -106,6 +106,39 @@ pub struct DbQrExportInput {
     pub config_json: Option<String>,
 }
 
+/// Same composition as [`db_export_qr_payload`] but skips the
+/// base64url encode step and returns the deflated payload's
+/// byte count. Drives the live "fits in QR" gauge in the Dart
+/// `unified_export_controller` — single FRB call per checkbox
+/// toggle replaces the per-toggle Dart-side JSON build + Rust
+/// deflate round-trip the controller used to do.
+pub async fn db_export_qr_payload_size(input: DbQrExportInput) -> Result<u32, String> {
+    let core_input = QrExportInput {
+        options: QrExportOptions {
+            include_sessions: input.options.include_sessions,
+            include_config: input.options.include_config,
+            include_known_hosts: input.options.include_known_hosts,
+            include_passwords: input.options.include_passwords,
+            include_embedded_keys: input.options.include_embedded_keys,
+            include_manager_keys: input.options.include_manager_keys,
+            include_all_manager_keys: input.options.include_all_manager_keys,
+            include_tags: input.options.include_tags,
+            include_snippets: input.options.include_snippets,
+        },
+        selected_session_ids: input.selected_session_ids,
+        selected_empty_folders: input.selected_empty_folders,
+        config_json: input.config_json,
+    };
+
+    tokio::task::spawn_blocking(move || {
+        let db = require_db()?;
+        db.with_conn(|c| lfs_core::archive::qr_export_payload_size(c, &core_input))
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("qr export size task: {e}"))?
+}
+
 /// Build the QR deeplink payload (`d=` value) entirely Rust-side.
 /// Returns the deflated + base64url-encoded ASCII string ready to
 /// hand to a QR widget. Plaintext credential bytes — manager-key

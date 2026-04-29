@@ -1,6 +1,5 @@
 //! Per-prompt-type registry for the L2 keychain-pepper-read
-//! callback (Decision 1 / C2 in
-//! `docs/RUST_MIGRATION_REMAINING.md`).
+//! callback.
 //!
 //! Mirrors the existing `lfs_core::known_hosts::PromptRegistry`
 //! shape — typed `tokio::oneshot::Sender<Option<Vec<u8>>>` per
@@ -9,14 +8,12 @@
 //! `flutter_secure_storage.read('letsflutssh_l2_pepper')`
 //! plugin call returns.
 //!
-//! Per Decision 2: keychain access stays Dart-side (existing
-//! audit perimeter, no new native crate per platform). Decision
-//! 1: per-prompt-type typed registry — no generic `Json` shape
-//! that loses compile-time safety.
-//!
-//! **Currently not wired into the production keychain-gate
-//! flow.** Lands ahead of C2 so the `KeychainPasswordGate`
-//! actor commit (C2.1+) targets a stable registry API.
+//! Keychain access stays Dart-side because the Flutter plugin
+//! already audits that entry point and there is no native Rust
+//! crate covering every target platform's keychain backend.
+//! The typed per-prompt response (not a generic JSON shape)
+//! keeps a Dart-side typo at the wire layer surfacing as a
+//! decode failure rather than a silent miscompare.
 
 use std::collections::HashMap;
 use std::sync::Mutex;

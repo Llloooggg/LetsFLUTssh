@@ -26,6 +26,12 @@ Future<bool> secretsHas({required String id}) =>
 Future<void> secretsDrop({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsDrop(id: id);
 
+/// Drop every secret in [ids] in a single FRB hop. Used by the
+/// connect path's transient-secret cleanup so an N-id evict
+/// doesn't pay N FRB round-trips. Idempotent on a missing id.
+void secretsDropMany({required List<String> ids}) =>
+    RustLib.instance.api.crateApiAppSecretsDropMany(ids: ids);
+
 /// Drop every cached secret. The caller — typically the auto-lock
 /// path or the explicit "wipe data" flow — uses this to evict the
 /// cache wholesale on lock / sign-out.

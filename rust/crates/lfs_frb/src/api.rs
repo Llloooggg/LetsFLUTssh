@@ -5,8 +5,11 @@
 pub mod app;
 pub mod archive;
 pub mod archive_stage;
+pub mod auth_compose;
 pub mod biometric_probe_prompt;
 pub mod bus;
+pub mod capabilities_cache;
+pub mod capabilities_orchestrator;
 pub mod config;
 pub mod connection;
 pub mod credential_prompt;
@@ -18,6 +21,7 @@ pub mod format;
 pub mod forward;
 pub mod hardware_tier_vault;
 pub mod keychain_marker;
+pub mod keychain_op_prompt;
 pub mod keychain_password_gate;
 pub mod keychain_pepper_prompt;
 pub mod keys;
@@ -45,6 +49,7 @@ pub mod ssh_config;
 pub mod threat_eval;
 pub mod tier_machine;
 pub mod tier_transition_marker;
+pub mod tpm;
 pub mod transfer;
 pub mod transfer_conflict;
 pub mod update_http;
@@ -52,6 +57,7 @@ pub mod update_metadata;
 pub mod update_signing;
 pub mod winbio;
 pub mod wipe;
+pub mod wipe_keychain;
 pub mod wizard_setup;
 
 /// FFI plumbing init — runs once when Dart loads the native blob.

@@ -15,7 +15,7 @@ fn require_db() -> Result<std::sync::Arc<lfs_core::db::Db>, String> {
 /// Run a sync DAO closure inside `spawn_blocking` against the
 /// running `Db` connection. Centralises the boilerplate so each
 /// DAO function below is one short call site.
-async fn run_db<F, R>(f: F) -> Result<R, String>
+pub(crate) async fn run_db<F, R>(f: F) -> Result<R, String>
 where
     F: FnOnce(&lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
     R: Send + 'static,

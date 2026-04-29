@@ -1,5 +1,4 @@
-//! FRB adapter for `lfs_core::security::credential_prompt`
-//! (Decision 1 / A3 in `docs/RUST_MIGRATION_REMAINING.md`).
+//! FRB adapter for `lfs_core::security::credential_prompt`.
 //!
 //! Sync — every op is a small mutex acquire + oneshot send.
 //! Dart subscriber renders the password / passphrase dialog

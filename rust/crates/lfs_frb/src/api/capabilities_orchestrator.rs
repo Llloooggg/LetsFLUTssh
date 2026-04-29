@@ -1,0 +1,86 @@
+//! FRB adapter for `lfs_core::security::capabilities_orchestrator`
+//! and the two probe-prompt registries it composes.
+//!
+//! The orchestrator is async — it fans out four probes
+//! concurrently and waits for the slowest. Per-probe timeouts
+//! inside the orchestrator (5 s) keep a stuck D-Bus call from
+//! freezing the wizard spinner indefinitely.
+
+use lfs_core::security::capabilities_cache as cache;
+use lfs_core::security::{
+    capabilities_orchestrator, hardware_vault_probe_prompt, keychain_probe_prompt,
+};
+
+use crate::api::capabilities_cache::DbSecurityCapabilitiesSnapshot;
+
+/// Resolve a pending keychain-reachability probe with the
+/// `KeyringProbeResult` wire name the Dart subscriber computed
+/// from the OS-keychain ping. Wire names: `"available"` /
+/// `"linuxNoSecretService"` / `"probeFailed"`. Returns `true`
+/// when a receiver was actually woken.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keychain_probe_prompt_resolve(prompt_id: String, wire_name: String) -> bool {
+    keychain_probe_prompt::instance().resolve(&prompt_id, wire_name)
+}
+
+/// Cancel a pending keychain-reachability probe — used when
+/// the Dart subscriber detaches before dispatching (e.g. wizard
+/// dismissed mid-flight). Idempotent on a missing id.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keychain_probe_prompt_cancel(prompt_id: String) {
+    keychain_probe_prompt::instance().cancel(&prompt_id);
+}
+
+/// Resolve a pending hardware-vault probe with the platform-
+/// specific reason code the Dart subscriber pulled from the
+/// `MethodChannel('com.letsflutssh/hardware_vault')
+/// .invokeMethod('probeDetail')` call. The string is opaque to
+/// Rust — `"available"` is the canonical success value, every
+/// other value flows through the snapshot's
+/// `hardware_probe_code` for the wizard to map to localised
+/// reason copy.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_probe_prompt_resolve(prompt_id: String, code: String) -> bool {
+    hardware_vault_probe_prompt::instance().resolve(&prompt_id, code)
+}
+
+/// Cancel a pending hardware-vault probe — see
+/// [`keychain_probe_prompt_cancel`] for the why.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_probe_prompt_cancel(prompt_id: String) {
+    hardware_vault_probe_prompt::instance().cancel(&prompt_id);
+}
+
+/// Run every capability probe concurrently and push the result
+/// snapshot into the cache. Returns the freshly-probed
+/// snapshot so the Dart caller doesn't need a follow-up
+/// `view` call.
+///
+/// `is_linux_host` overrides the platform sniff. Production
+/// callers pass `Platform.isLinux`.
+///
+/// Per-probe failures (timeout, missing subscriber, plugin
+/// error) collapse to the matching "unavailable" answer rather
+/// than `Err` so a stuck D-Bus call never blocks the wizard
+/// spinner.
+pub async fn capabilities_probe_run(is_linux_host: bool) -> DbSecurityCapabilitiesSnapshot {
+    let snap = capabilities_orchestrator::run(is_linux_host).await;
+    DbSecurityCapabilitiesSnapshot {
+        keychain_available: snap.keychain_available,
+        hardware_vault_available: snap.hardware_vault_available,
+        biometric_available: snap.biometric_available,
+        fprintd_available: snap.fprintd_available,
+        is_linux_host: snap.is_linux_host,
+        keychain_probe_wire_name: snap.keychain_probe.wire_name().to_string(),
+        hardware_probe_code: snap.hardware_probe_code,
+    }
+}
+
+/// Pure helper — drop the cached snapshot. Wraps
+/// `capabilities_cache::Cache::clear` so the wizard's Recheck
+/// button can route through the orchestrator namespace
+/// instead of mixing FRB modules.
+#[flutter_rust_bridge::frb(sync)]
+pub fn capabilities_probe_clear() {
+    cache::instance().clear();
+}

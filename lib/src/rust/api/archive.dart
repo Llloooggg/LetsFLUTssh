@@ -16,6 +16,15 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<Uint8List> dbExportArchive({required DbExportInput input}) =>
     RustLib.instance.api.crateApiArchiveDbExportArchive(input: input);
 
+/// Same composition as [`db_export_qr_payload`] but skips the
+/// base64url encode step and returns the deflated payload's
+/// byte count. Drives the live "fits in QR" gauge in the Dart
+/// `unified_export_controller` — single FRB call per checkbox
+/// toggle replaces the per-toggle Dart-side JSON build + Rust
+/// deflate round-trip the controller used to do.
+Future<int> dbExportQrPayloadSize({required DbQrExportInput input}) =>
+    RustLib.instance.api.crateApiArchiveDbExportQrPayloadSize(input: input);
+
 /// Build the QR deeplink payload (`d=` value) entirely Rust-side.
 /// Returns the deflated + base64url-encoded ASCII string ready to
 /// hand to a QR widget. Plaintext credential bytes — manager-key

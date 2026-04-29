@@ -70,20 +70,25 @@ pub enum EventTopic {
     Sessions,
     /// `config.json` actor — fires after a debounced save lands
     /// on disk. Subscribers re-snapshot the canonical state
-    /// without polling. Decision 5 / D5 in
-    /// `docs/RUST_MIGRATION_REMAINING.md`.
+    /// without polling.
     Config,
     /// Tier state machine — Locked / Unlocking / Unlocked /
     /// Wiping transitions. Subscribers (Dart unlock dialog,
     /// auto-lock path, lock indicator) react to state changes
-    /// without polling. Decision 4 / C9 in
-    /// `docs/RUST_MIGRATION_REMAINING.md`.
+    /// without polling.
     Tier,
-    /// Per-prompt-type request channels (Decision 1 / Decision
-    /// 2). Today: keychain pepper read; future arcs add
-    /// credential / biometric prompt channels under the same
-    /// topic so the Dart subscriber can multiplex them.
+    /// Per-prompt-type request channels — keychain pepper read,
+    /// keychain op (write/delete/contains), biometric probe,
+    /// keychain reachability probe, hardware-vault probe,
+    /// credential prompt. The Dart subscriber multiplexes by
+    /// event variant.
     SecurityPrompt,
+    /// `SecurityCapabilities` snapshot — fired by
+    /// `lfs_core::security::capabilities_cache::Cache` whenever
+    /// the cached snapshot changes (or is explicitly cleared).
+    /// Subscribers (wizard dialog, Settings security cards)
+    /// re-render against the canonical snapshot without polling.
+    SecurityCapabilities,
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -156,7 +161,6 @@ pub enum Event {
     /// a debounced atomic write of `config.json` lands on disk.
     /// Carries the freshly-written JSON so subscribers can swap
     /// in the snapshot without a follow-up `get_json` round-trip.
-    /// Decision 5 / D5 in `docs/RUST_MIGRATION_REMAINING.md`.
     ConfigChanged { json: String },
 
     /// Tier state machine — fired by
@@ -164,7 +168,6 @@ pub enum Event {
     /// successful state transition. Carries the new state's wire
     /// name (`locked` / `unlocking` / `unlocked` / `wiping`) so
     /// subscribers branch without parsing an enum across FRB.
-    /// Decision 4 / C9 in `docs/RUST_MIGRATION_REMAINING.md`.
     TierStateChanged { state_wire_name: String },
 
     /// Keychain pepper read request — fired by the L2 gate actor
@@ -173,8 +176,6 @@ pub enum Event {
     /// keychain read, then dispatches the response command which
     /// resolves the awaiting Rust handler through
     /// `lfs_core::security::keychain_pepper_prompt::PromptRegistry`.
-    /// Decision 1 + Decision 2 in
-    /// `docs/RUST_MIGRATION_REMAINING.md`.
     KeychainPepperPromptRequest { prompt_id: String },
 
     /// Connection credential prompt — fired by the connection
@@ -184,7 +185,6 @@ pub enum Event {
     /// Dart UI render the right session label in the dialog
     /// caption. Resolved through
     /// `lfs_core::security::credential_prompt::PromptRegistry`.
-    /// Decision 1 / A3 in `docs/RUST_MIGRATION_REMAINING.md`.
     CredentialPromptRequest {
         prompt_id: String,
         session_id: String,
@@ -195,9 +195,50 @@ pub enum Event {
     /// SecurityCapabilities cache actor when it needs to know
     /// whether `local_auth.canCheckBiometrics` returns true on
     /// this host. Dart subscriber executes the plugin call,
-    /// dispatches the typed response back. Decision 1 / C5 in
-    /// `docs/RUST_MIGRATION_REMAINING.md`.
+    /// dispatches the typed response back.
     BiometricProbePromptRequest { prompt_id: String },
+
+    /// Keychain-reachability probe — fired by the capabilities
+    /// orchestrator. Dart subscriber pings the OS
+    /// secure-storage backend (Linux: `gdbus call …
+    /// org.freedesktop.secrets`; non-Linux: live
+    /// `flutter_secure_storage` write/read/delete round-trip)
+    /// and dispatches the `KeyringProbeResult` wire name back
+    /// via `keychain_probe_prompt::instance().resolve`.
+    KeychainProbePromptRequest { prompt_id: String },
+    /// Hardware-vault probe — fired by the capabilities
+    /// orchestrator on Apple / Android / Windows. Dart
+    /// subscriber calls
+    /// `MethodChannel('com.letsflutssh/hardware_vault')
+    /// .invokeMethod('probeDetail')` and dispatches the
+    /// platform-specific reason code (`available` /
+    /// `no_secure_enclave` / `strongbox_unavailable` / ...)
+    /// via `hardware_vault_probe_prompt::instance().resolve`.
+    /// Linux uses the in-process TPM probe and never
+    /// publishes this event.
+    HardwareVaultProbePromptRequest { prompt_id: String },
+    /// Generic keychain op prompt — fired by Rust actors that
+    /// need to perform a `flutter_secure_storage` write / delete
+    /// / contains call (the read path uses the dedicated
+    /// `KeychainPepperPromptRequest`). `op_wire_name` is one of
+    /// `"read" | "contains" | "write" | "delete"`; `value_b64`
+    /// carries the base64-encoded payload for the write op,
+    /// `None` otherwise. Resolved through
+    /// `lfs_core::security::keychain_op_prompt::PromptRegistry`.
+    KeychainOpPromptRequest {
+        prompt_id: String,
+        key: String,
+        op_wire_name: String,
+        value_b64: Option<String>,
+    },
+
+    /// Security capabilities snapshot updated — fired by
+    /// `lfs_core::security::capabilities_cache::Cache::set` when
+    /// the new snapshot differs from the cached one, and by
+    /// `Cache::clear` (with `json` empty) when the cache is
+    /// dropped. Subscribers (wizard / Settings cards) re-render
+    /// off the carried JSON without a follow-up `view` call.
+    SecurityCapabilitiesChanged { json: String },
 
     /// Recorder — fired when a fresh recording actor enters
     /// the registry.
@@ -348,6 +389,10 @@ impl Event {
             Event::KeychainPepperPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::CredentialPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::BiometricProbePromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::KeychainProbePromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::HardwareVaultProbePromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::KeychainOpPromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::SecurityCapabilitiesChanged { .. } => EventTopic::SecurityCapabilities,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
                 EventTopic::KnownHosts
             }

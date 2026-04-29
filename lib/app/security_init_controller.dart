@@ -472,12 +472,12 @@ class SecurityInitController {
       case SecurityTier.paranoid:
         await _unlockParanoid(manager);
       case SecurityTier.plaintext:
-        // C9.1 — route Plaintext through `tier_machine` actor.
+        // Route Plaintext through `tier_machine` actor.
         // Actor tracks state (Locked → Unlocking → Unlocked) and
         // publishes `BusEvent::TierStateChanged` for diagnostics +
-        // future C9.x consumers; the DB injection still happens
-        // here because Dart owns the `databaseProvider` slot.
-        // Best-effort — failures fall through to the legacy
+        // future tier-state consumers; the DB injection still
+        // happens here because Dart owns the `databaseProvider`
+        // slot. Best-effort — failures fall through to the legacy
         // path (Dart still injects the DB regardless).
         _routePlaintextThroughTierMachine();
         await _injectDatabase();
@@ -510,9 +510,9 @@ class SecurityInitController {
 
   /// Set the active tier + emit `unlock_requested` so the
   /// `tier_machine` actor + every observer sees the cascade
-  /// start. C9.2-C9.4 paths invoke this before their per-tier
-  /// async unlock work; the matching `_emitTierUnlockResolved`
-  /// fires when the work completes (or fails).
+  /// start. Per-tier paths invoke this before their async unlock
+  /// work; the matching `_emitTierUnlockResolved` fires when
+  /// the work completes (or fails).
   void _emitTierUnlockStart(String tierWireName) {
     try {
       rust_tier.tierMachineSetTier(tierWireName: tierWireName);
@@ -532,7 +532,8 @@ class SecurityInitController {
   /// failure. Failure reasons map to `UnlockFailureReason` —
   /// the Dart caller passes the discriminant; the typed payload
   /// (plugin code / corruption detail) is best-effort empty
-  /// today. Future C9.x commits enrich the reason payloads.
+  /// today and gets enriched as per-tier handlers move into
+  /// Rust.
   void _emitTierUnlockResolved({
     required bool succeeded,
     String failureDiscriminant = 'wrong_secret',
