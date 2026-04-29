@@ -214,6 +214,10 @@ pub enum BusEvent {
     /// Tier state machine transitioned. `state_wire_name` is
     /// `locked` / `unlocking` / `unlocked` / `wiping`.
     TierStateChanged { state_wire_name: String },
+    /// L2 gate needs the keychain pepper bytes — Dart
+    /// subscriber executes flutter_secure_storage.read, then
+    /// dispatches the response command back.
+    KeychainPepperPromptRequest { prompt_id: String },
     /// TOFU prompt — russh saw an unknown / changed host key.
     /// Subscribers (Dart UI) surface the host-key dialog and
     /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
@@ -371,6 +375,9 @@ impl BusEvent {
             lfs_core::bus::Event::ConfigChanged { json } => BusEvent::ConfigChanged { json },
             lfs_core::bus::Event::TierStateChanged { state_wire_name } => {
                 BusEvent::TierStateChanged { state_wire_name }
+            }
+            lfs_core::bus::Event::KeychainPepperPromptRequest { prompt_id } => {
+                BusEvent::KeychainPepperPromptRequest { prompt_id }
             }
             lfs_core::bus::Event::KnownHostPromptRequest {
                 prompt_id,

@@ -79,6 +79,11 @@ pub enum EventTopic {
     /// without polling. Decision 4 / C9 in
     /// `docs/RUST_MIGRATION_REMAINING.md`.
     Tier,
+    /// Per-prompt-type request channels (Decision 1 / Decision
+    /// 2). Today: keychain pepper read; future arcs add
+    /// credential / biometric prompt channels under the same
+    /// topic so the Dart subscriber can multiplex them.
+    SecurityPrompt,
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -161,6 +166,16 @@ pub enum Event {
     /// subscribers branch without parsing an enum across FRB.
     /// Decision 4 / C9 in `docs/RUST_MIGRATION_REMAINING.md`.
     TierStateChanged { state_wire_name: String },
+
+    /// Keychain pepper read request — fired by the L2 gate actor
+    /// when it needs the `letsflutssh_l2_pepper` value from
+    /// flutter_secure_storage. Dart subscriber executes the
+    /// keychain read, then dispatches the response command which
+    /// resolves the awaiting Rust handler through
+    /// `lfs_core::security::keychain_pepper_prompt::PromptRegistry`.
+    /// Decision 1 + Decision 2 in
+    /// `docs/RUST_MIGRATION_REMAINING.md`.
+    KeychainPepperPromptRequest { prompt_id: String },
 
     /// Recorder — fired when a fresh recording actor enters
     /// the registry.
@@ -308,6 +323,7 @@ impl Event {
             Event::SessionsChanged => EventTopic::Sessions,
             Event::ConfigChanged { .. } => EventTopic::Config,
             Event::TierStateChanged { .. } => EventTopic::Tier,
+            Event::KeychainPepperPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
                 EventTopic::KnownHosts
             }

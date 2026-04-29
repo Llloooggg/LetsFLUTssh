@@ -336,6 +336,13 @@ sealed class BusEvent with _$BusEvent {
   const factory BusEvent.tierStateChanged({required String stateWireName}) =
       BusEvent_TierStateChanged;
 
+  /// L2 gate needs the keychain pepper bytes — Dart
+  /// subscriber executes flutter_secure_storage.read, then
+  /// dispatches the response command back.
+  const factory BusEvent.keychainPepperPromptRequest({
+    required String promptId,
+  }) = BusEvent_KeychainPepperPromptRequest;
+
   /// TOFU prompt — russh saw an unknown / changed host key.
   /// Subscribers (Dart UI) surface the host-key dialog and
   /// dispatch [`BusCommand::KnownHostPromptResponse`] back.

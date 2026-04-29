@@ -22,6 +22,7 @@ import 'api/forward.dart';
 import 'api/hardware_tier_vault.dart';
 import 'api/keychain_marker.dart';
 import 'api/keychain_password_gate.dart';
+import 'api/keychain_pepper_prompt.dart';
 import 'api/keys.dart';
 import 'api/known_hosts_parser.dart';
 import 'api/log_sanitize.dart';

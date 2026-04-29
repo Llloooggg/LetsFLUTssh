@@ -21,6 +21,7 @@ pub mod capabilities;
 pub mod hardware_tier_vault;
 pub mod keychain_marker;
 pub mod keychain_password_gate;
+pub mod keychain_pepper_prompt;
 pub mod master_password;
 pub mod persisted_rate_limit;
 pub mod persisted_rate_limit_actor;

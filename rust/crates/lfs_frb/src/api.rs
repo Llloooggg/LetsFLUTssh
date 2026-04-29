@@ -17,6 +17,7 @@ pub mod forward;
 pub mod hardware_tier_vault;
 pub mod keychain_marker;
 pub mod keychain_password_gate;
+pub mod keychain_pepper_prompt;
 pub mod keys;
 pub mod known_hosts_parser;
 pub mod log_sanitize;
