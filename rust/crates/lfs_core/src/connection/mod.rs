@@ -226,6 +226,13 @@ struct RegistryInner {
     /// view that paints connections in the order the user opened
     /// them.
     order: Vec<ConnId>,
+    /// Per-connection reconnect-generation counter. The Dart
+    /// `ConnectionManager` bumps it on every reconnect attempt so
+    /// late-arriving bus events from a superseded attempt can be
+    /// dropped. Living one place lets the future actor cutover
+    /// move the bump+check into the Rust event dispatcher itself
+    /// without a separate registry lookup.
+    generations: HashMap<ConnId, u32>,
 }
 
 impl ConnectionRegistry {
@@ -234,6 +241,7 @@ impl ConnectionRegistry {
             inner: Mutex::new(RegistryInner {
                 by_id: HashMap::new(),
                 order: Vec::new(),
+                generations: HashMap::new(),
             }),
         }
     }
@@ -287,6 +295,48 @@ impl ConnectionRegistry {
     /// Live count — diagnostic only.
     pub fn count(&self) -> usize {
         self.lock().by_id.len()
+    }
+
+    /// Reset the generation counter for [`id`] to `1`. Called on
+    /// the initial connect — the first reconnect bumps to `2`.
+    pub fn init_generation(&self, id: &str) {
+        self.lock().generations.insert(id.to_string(), 1);
+    }
+
+    /// Bump the generation counter for [`id`] and return the new
+    /// value. Returns `1` for the first call on an unknown id
+    /// (matches the `init_generation` shape so a missed init still
+    /// produces a sensible value).
+    pub fn bump_generation(&self, id: &str) -> u32 {
+        let mut g = self.lock();
+        let next = g.generations.get(id).copied().unwrap_or(0) + 1;
+        g.generations.insert(id.to_string(), next);
+        next
+    }
+
+    /// True when [`generation`] matches the current value for
+    /// [`id`]. Returns `false` for unknown ids — callers treat
+    /// "missing" the same as "stale" and drop the event.
+    #[must_use]
+    pub fn is_current_generation(&self, id: &str, generation: u32) -> bool {
+        self.lock()
+            .generations
+            .get(id)
+            .copied()
+            .map(|g| g == generation)
+            .unwrap_or(false)
+    }
+
+    /// Drop the generation counter for [`id`]. Called on
+    /// disconnect / connection-removed.
+    pub fn drop_generation(&self, id: &str) {
+        self.lock().generations.remove(id);
+    }
+
+    /// Drop every generation counter — used by `disconnectAll` /
+    /// the auto-lock teardown path.
+    pub fn clear_generations(&self) {
+        self.lock().generations.clear();
     }
 
     /// Count of actors whose state is `Connected`. Excludes
@@ -762,5 +812,48 @@ mod tests {
         let snap = reg.snapshot_all();
         assert_eq!(snap[0].progress.len(), 1);
         assert_eq!(snap[0].progress[0].phase, ConnectionPhase::SocketConnect);
+    }
+
+    #[test]
+    fn init_generation_starts_at_one() {
+        let reg = ConnectionRegistry::new();
+        reg.init_generation("c1");
+        assert!(reg.is_current_generation("c1", 1));
+        assert!(!reg.is_current_generation("c1", 2));
+    }
+
+    #[test]
+    fn bump_generation_increments_monotonically() {
+        let reg = ConnectionRegistry::new();
+        assert_eq!(reg.bump_generation("c1"), 1);
+        assert_eq!(reg.bump_generation("c1"), 2);
+        assert_eq!(reg.bump_generation("c1"), 3);
+        assert!(reg.is_current_generation("c1", 3));
+        assert!(!reg.is_current_generation("c1", 2));
+    }
+
+    #[test]
+    fn drop_generation_makes_subsequent_checks_false() {
+        let reg = ConnectionRegistry::new();
+        reg.init_generation("c1");
+        reg.drop_generation("c1");
+        assert!(!reg.is_current_generation("c1", 1));
+    }
+
+    #[test]
+    fn clear_generations_drops_every_id() {
+        let reg = ConnectionRegistry::new();
+        reg.init_generation("c1");
+        reg.init_generation("c2");
+        reg.clear_generations();
+        assert!(!reg.is_current_generation("c1", 1));
+        assert!(!reg.is_current_generation("c2", 1));
+    }
+
+    #[test]
+    fn unknown_id_is_never_current() {
+        let reg = ConnectionRegistry::new();
+        assert!(!reg.is_current_generation("missing", 1));
+        assert!(!reg.is_current_generation("missing", 0));
     }
 }

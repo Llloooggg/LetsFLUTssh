@@ -7,6 +7,7 @@ import 'api.dart';
 import 'api/app.dart';
 import 'api/archive.dart';
 import 'api/bus.dart';
+import 'api/connection.dart';
 import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/deeplink.dart';

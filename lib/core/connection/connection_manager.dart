@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/api/connection.dart' as rust_connection;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
@@ -31,8 +32,63 @@ class ConnectionManager {
   final _connections = <String, Connection>{};
   final _uuid = const Uuid();
 
-  /// Per-connection generation counter — prevents stale reconnect results.
-  final _connectGeneration = <String, int>{};
+  /// Per-connection generation counter — prevents stale reconnect
+  /// results. Routes through `lfs_core::connection::ConnectionRegistry`
+  /// (FRB sync) so the bump + check live one place; the Dart map
+  /// below is the flutter_test fallback for contexts that don't
+  /// load the FRB native lib.
+  final _connectGenerationFallback = <String, int>{};
+  bool _useRustGeneration = true;
+
+  void _initGeneration(String id) {
+    if (_useRustGeneration) {
+      try {
+        rust_connection.connectionInitGeneration(id: id);
+        return;
+      } catch (_) {
+        _useRustGeneration = false;
+      }
+    }
+    _connectGenerationFallback[id] = 1;
+  }
+
+  int _bumpGeneration(String id) {
+    if (_useRustGeneration) {
+      try {
+        return rust_connection.connectionBumpGeneration(id: id);
+      } catch (_) {
+        _useRustGeneration = false;
+      }
+    }
+    final next = (_connectGenerationFallback[id] ?? 0) + 1;
+    _connectGenerationFallback[id] = next;
+    return next;
+  }
+
+  void _dropGeneration(String id) {
+    if (_useRustGeneration) {
+      try {
+        rust_connection.connectionDropGeneration(id: id);
+        return;
+      } catch (_) {
+        _useRustGeneration = false;
+      }
+    }
+    _connectGenerationFallback.remove(id);
+  }
+
+  void _clearGenerations() {
+    if (_useRustGeneration) {
+      try {
+        rust_connection.connectionClearGenerations();
+        return;
+      } catch (_) {
+        _useRustGeneration = false;
+      }
+    }
+    _connectGenerationFallback.clear();
+  }
+
   final KnownHostsManager knownHosts;
 
   /// Page-locked per-session credential cache. Populated on successful
@@ -111,7 +167,7 @@ class ConnectionManager {
     // Connect through the Rust actor. Bus events stream the
     // handshake state changes back; once the actor reports
     // Connected we adopt the session into a `RustTransport`.
-    _connectGeneration[id] = 1;
+    _initGeneration(id);
     unawaited(_doConnect(conn, config, 1));
     return conn;
   }
@@ -542,8 +598,21 @@ class ConnectionManager {
   }
 
   /// Whether a newer reconnect generation has superseded [generation].
-  bool _isStaleGeneration(String id, int generation) =>
-      _connectGeneration[id] != generation;
+  /// Routes through the Rust registry; falls back to the Dart map
+  /// for flutter_test contexts.
+  bool _isStaleGeneration(String id, int generation) {
+    if (_useRustGeneration) {
+      try {
+        return !rust_connection.connectionIsCurrentGeneration(
+          id: id,
+          generation: generation,
+        );
+      } catch (_) {
+        _useRustGeneration = false;
+      }
+    }
+    return _connectGenerationFallback[id] != generation;
+  }
 
   /// Reconnect an existing connection.
   ///
@@ -586,8 +655,7 @@ class ConnectionManager {
       name: 'Connection',
     );
 
-    final gen = (_connectGeneration[id] ?? 0) + 1;
-    _connectGeneration[id] = gen;
+    final gen = _bumpGeneration(id);
     _doConnect(conn, conn.sshConfig, gen);
   }
 
@@ -647,7 +715,7 @@ class ConnectionManager {
       );
     }
     _connections.remove(id);
-    _connectGeneration.remove(id);
+    _dropGeneration(id);
     // Cascade-disconnect the bastion this connection rode on.
     final bastion = conn.bastion;
     if (bastion != null) {
@@ -679,7 +747,7 @@ class ConnectionManager {
       }
     }
     _connections.clear();
-    _connectGeneration.clear();
+    _clearGenerations();
     _notify();
   }
 
