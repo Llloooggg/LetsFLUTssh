@@ -9,7 +9,6 @@ import '../core/connection/connection_manager.dart';
 import '../core/connection/foreground_service.dart';
 import '../core/ssh/known_hosts.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
-import '../src/rust/api/connection.dart' as rust_conn;
 import 'session_credential_cache_provider.dart';
 
 /// Known hosts manager — singleton.
@@ -106,42 +105,6 @@ final connectionsProvider = StreamProvider<List<Connection>>((ref) async* {
     yield manager.connections;
   }
 });
-
-/// Rust-driven snapshot of every connection actor in the
-/// registry. Mirrors `connectionsProvider` but sources from
-/// `connection_snapshot_all` + the bus, with no dependency on
-/// the Dart `ConnectionManager`. Stepping stone for the future
-/// retire of the manager — consumers that don't need
-/// `Connection`'s Dart-only state (transport, extensions,
-/// cachedPassphrase) can subscribe here today.
-///
-/// Yields an empty list immediately, then re-snapshots on every
-/// `BusTopic.connection` event. Falls back to an empty list +
-/// no further yields when the FRB native lib isn't loaded
-/// (flutter_test).
-final connectionRustSnapshotsProvider =
-    StreamProvider<List<rust_conn.DbConnectionSnapshot>>((ref) async* {
-      List<rust_conn.DbConnectionSnapshot> snapshot() {
-        try {
-          return rust_conn.connectionSnapshotAll();
-        } catch (_) {
-          return const <rust_conn.DbConnectionSnapshot>[];
-        }
-      }
-
-      yield snapshot();
-      final Stream<rust_bus.BusEvent> stream;
-      try {
-        stream = AppBus.instance.subscribe(rust_bus.BusTopic.connection);
-      } catch (_) {
-        // FRB native lib unavailable (flutter_test) — yield once
-        // and stop; consumers fall back to the empty list.
-        return;
-      }
-      await for (final _ in stream) {
-        yield snapshot();
-      }
-    });
 
 /// Projection of [connectionsProvider] into only the per-connection state
 /// the UI actually renders: which sessions are connected or connecting,
