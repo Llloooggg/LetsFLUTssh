@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`
 
 DbVersionOrder updateCompareVersions({required String a, required String b}) =>
     RustLib.instance.api.crateApiUpdateMetadataUpdateCompareVersions(
@@ -26,6 +26,19 @@ String? updateParseAssetVersion({required String assetName}) => RustLib
     .instance
     .api
     .crateApiUpdateMetadataUpdateParseAssetVersion(assetName: assetName);
+
+/// Pick the release asset URL whose `name` ends with the
+/// platform's expected suffix (`asset_suffix`). Returns `None` for
+/// unknown platforms or when no asset matches. Mirrors
+/// `UpdateService.assetUrlForPlatform` so the suffix-allowlist
+/// + asset-iteration grammar lives one place.
+String? updateAssetUrlForPlatform({
+  required List<DbReleaseAsset> assets,
+  required String platform,
+}) => RustLib.instance.api.crateApiUpdateMetadataUpdateAssetUrlForPlatform(
+  assets: assets,
+  platform: platform,
+);
 
 List<DbSha256ManifestEntry> updateParseSha256Manifest({
   required String content,
@@ -60,6 +73,28 @@ class DbChangelogRelease {
           runtimeType == other.runtimeType &&
           tag == other.tag &&
           body == other.body;
+}
+
+/// Single GitHub release asset entry — `(name,
+/// browser_download_url)`. Caller flattens the GitHub Releases
+/// API JSON's `assets` array into this shape before calling
+/// [`update_asset_url_for_platform`].
+class DbReleaseAsset {
+  final String name;
+  final String browserDownloadUrl;
+
+  const DbReleaseAsset({required this.name, required this.browserDownloadUrl});
+
+  @override
+  int get hashCode => name.hashCode ^ browserDownloadUrl.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbReleaseAsset &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          browserDownloadUrl == other.browserDownloadUrl;
 }
 
 /// Single `(name, hash)` pair from the manifest. Returned as a

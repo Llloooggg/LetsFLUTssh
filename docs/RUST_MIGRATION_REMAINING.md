@@ -55,19 +55,22 @@ mutating DAOs notify on every successful write.
 
 **Remaining commits:**
 
-- [ ] B1 — `session_duplicate` actor command (Rust composes
+- [x] B1 — `session_duplicate` actor command (Rust composes
   unique-label dedup + DAO insert + notify in one transaction).
-  Dart `SessionStore.duplicateSession` becomes a single FRB call.
-- [ ] B2 — `folder_rename_cascade` actor command (rename folder +
-  rewrite descendant paths in one transaction). Dart
-  `renameFolder` / `moveFolder` shrink to FRB calls.
-- [ ] B3 — `session_restore_snapshot` actor command (atomic
-  apply of a `SnapshotRestore` payload — sessions + folders +
-  collapsed-set + history in one transaction). Dart
-  `restoreSnapshot` shrinks to a single FRB call.
-- [ ] B4 — `SessionStore` retire. `sessionStoreProvider` becomes a
-  thin façade over `sessionsRegistryViewProvider` + the per-op
-  FRB shims; the Dart in-memory `_sessions` list disappears.
+  Dart `SessionStore.duplicateSession` is now a single FRB call.
+- [x] B2 — `folder_rename_cascade` actor command (composite rename
+  + cross-tree re-parent inside one transaction; fixes the Dart
+  bug where `moveFolder` carried the OLD `parent_id`). Dart
+  `renameFolder` / `moveFolder` shrunk to one FRB call.
+- [x] B3 — `session_restore_snapshot` actor command (atomic
+  delete-all + folder-tree rebuild + per-session insert in one
+  transaction). Dart `restoreSnapshot` shrunk to one FRB call.
+- [ ] B4 — `SessionStore` retire **deferred**. The store is
+  already a registry mirror (cache hydrates from
+  `sessionsRegistrySnapshot`, bus events trigger reload). A full
+  retire would touch ~25 call sites across providers / dialogs /
+  tests; current shape is acceptable as a thin Dart façade. Revisit
+  if registry consumers diverge or the Dart cache drifts.
 
 **Risk:** folder-cascade ordering bugs (rename + collapsed-set
 sync). Mitigate with property-based tests on the Rust side
@@ -96,11 +99,14 @@ Rust-side; transient SecretStore IDs evicted on terminal state.
 
 **Remaining commits:**
 
-- [ ] A1 — `SessionCredentialCache` through
-  `lfs_core::secrets::SecretStore`. Dart `_credentialCache`
-  field disappears; reconnect after auto-lock reads from
-  `SecretStore` instead. (1 commit, security fix, can ship
-  ahead of the rest of arc A.)
+- [x] A1 — `SessionCredentialCache` through
+  `lfs_core::secrets::SecretStore` — already done. Read-side
+  retired (every `read*` accessor returned null once `SecretStore`
+  became canonical, the overlay collapsed to a no-op).
+  Write-through still goes via `secretsPut` / `secretsDrop` FRB
+  calls. The Dart `SessionCredentialCache` class survives as a
+  thin namespace-aware wrapper consumed by ConnectionManager +
+  WipeAllService.
 - [ ] A2 — Bastion-readiness await moves into Rust
   `connect_async`'s pre-auth phase (today Dart does
   `await conn.bastion!.waitUntilReady()`). (2 commits)

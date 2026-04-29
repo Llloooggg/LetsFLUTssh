@@ -35,6 +35,33 @@ pub fn update_parse_asset_version(asset_name: String) -> Option<String> {
     lfs_core::update_metadata::parse_asset_version(&asset_name)
 }
 
+/// Single GitHub release asset entry — `(name,
+/// browser_download_url)`. Caller flattens the GitHub Releases
+/// API JSON's `assets` array into this shape before calling
+/// [`update_asset_url_for_platform`].
+#[derive(Debug, Clone)]
+pub struct DbReleaseAsset {
+    pub name: String,
+    pub browser_download_url: String,
+}
+
+/// Pick the release asset URL whose `name` ends with the
+/// platform's expected suffix (`asset_suffix`). Returns `None` for
+/// unknown platforms or when no asset matches. Mirrors
+/// `UpdateService.assetUrlForPlatform` so the suffix-allowlist
+/// + asset-iteration grammar lives one place.
+#[flutter_rust_bridge::frb(sync)]
+pub fn update_asset_url_for_platform(
+    assets: Vec<DbReleaseAsset>,
+    platform: String,
+) -> Option<String> {
+    let pairs: Vec<(&str, &str)> = assets
+        .iter()
+        .map(|a| (a.name.as_str(), a.browser_download_url.as_str()))
+        .collect();
+    lfs_core::update_metadata::asset_url_for_platform(pairs.into_iter(), &platform)
+}
+
 /// Single `(name, hash)` pair from the manifest. Returned as a
 /// list because FRB's HashMap support varies across language
 /// targets — pairs round-trip cleanly everywhere.

@@ -494,6 +494,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbRecorderSnapshot dco_decode_db_recorder_snapshot(dynamic raw);
 
   @protected
+  DbReleaseAsset dco_decode_db_release_asset(dynamic raw);
+
+  @protected
   DbRenderedSnippet dco_decode_db_rendered_snippet(dynamic raw);
 
   @protected
@@ -629,6 +632,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbPortForwardRule> dco_decode_list_db_port_forward_rule(dynamic raw);
+
+  @protected
+  List<DbReleaseAsset> dco_decode_list_db_release_asset(dynamic raw);
 
   @protected
   List<DbRestoreSessionInput> dco_decode_list_db_restore_session_input(
@@ -1320,6 +1326,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbReleaseAsset sse_decode_db_release_asset(SseDeserializer deserializer);
+
+  @protected
   DbRenderedSnippet sse_decode_db_rendered_snippet(
     SseDeserializer deserializer,
   );
@@ -1493,6 +1502,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbPortForwardRule> sse_decode_list_db_port_forward_rule(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbReleaseAsset> sse_decode_list_db_release_asset(
     SseDeserializer deserializer,
   );
 
@@ -2348,6 +2362,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_release_asset(
+    DbReleaseAsset self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_rendered_snippet(
     DbRenderedSnippet self,
     SseSerializer serializer,
@@ -2575,6 +2595,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_port_forward_rule(
     List<DbPortForwardRule> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_release_asset(
+    List<DbReleaseAsset> self,
     SseSerializer serializer,
   );
 

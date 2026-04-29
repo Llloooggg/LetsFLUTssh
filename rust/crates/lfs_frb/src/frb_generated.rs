@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 708154867;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -781952597;
 
 // Section: executor
 
@@ -11694,6 +11694,43 @@ fn wire__crate__api__update_metadata__update_asset_suffix_impl(
         },
     )
 }
+fn wire__crate__api__update_metadata__update_asset_url_for_platform_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_asset_url_for_platform",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_assets =
+                <Vec<crate::api::update_metadata::DbReleaseAsset>>::sse_decode(&mut deserializer);
+            let api_platform = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::update_metadata::update_asset_url_for_platform(
+                        api_assets,
+                        api_platform,
+                    ),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -13482,6 +13519,18 @@ impl SseDecode for crate::api::recorder::DbRecorderSnapshot {
     }
 }
 
+impl SseDecode for crate::api::update_metadata::DbReleaseAsset {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_browserDownloadUrl = <String>::sse_decode(deserializer);
+        return crate::api::update_metadata::DbReleaseAsset {
+            name: var_name,
+            browser_download_url: var_browserDownloadUrl,
+        };
+    }
+}
+
 impl SseDecode for crate::api::snippet_template::DbRenderedSnippet {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -14306,6 +14355,20 @@ impl SseDecode for Vec<crate::api::db::DbPortForwardRule> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::db::DbPortForwardRule>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::update_metadata::DbReleaseAsset> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::update_metadata::DbReleaseAsset>::sse_decode(
                 deserializer,
             ));
         }
@@ -15485,23 +15548,23 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        296 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
-        298 => wire__crate__api__update_http__update_download_to_file_impl(
+        297 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
+        299 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        299 => wire__crate__api__update_http__update_download_with_verification_impl(
+        300 => wire__crate__api__update_http__update_download_with_verification_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        300 => {
+        301 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
-        308 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+        309 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -15634,15 +15697,16 @@ fn pde_ffi_dispatcher_sync_impl(
 288 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
 289 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
 294 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-295 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-297 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-301 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-302 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-303 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-304 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-305 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-306 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-307 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+295 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
+296 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+298 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+302 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+303 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+304 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+305 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+306 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+307 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+308 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -17094,6 +17158,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::recorder::DbRecorderSnapshot>
     for crate::api::recorder::DbRecorderSnapshot
 {
     fn into_into_dart(self) -> crate::api::recorder::DbRecorderSnapshot {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::update_metadata::DbReleaseAsset {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.name.into_into_dart().into_dart(),
+            self.browser_download_url.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::update_metadata::DbReleaseAsset
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::update_metadata::DbReleaseAsset>
+    for crate::api::update_metadata::DbReleaseAsset
+{
+    fn into_into_dart(self) -> crate::api::update_metadata::DbReleaseAsset {
         self
     }
 }
@@ -19014,6 +19099,14 @@ impl SseEncode for crate::api::recorder::DbRecorderSnapshot {
     }
 }
 
+impl SseEncode for crate::api::update_metadata::DbReleaseAsset {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <String>::sse_encode(self.browser_download_url, serializer);
+    }
+}
+
 impl SseEncode for crate::api::snippet_template::DbRenderedSnippet {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -19587,6 +19680,16 @@ impl SseEncode for Vec<crate::api::db::DbPortForwardRule> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::db::DbPortForwardRule>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::update_metadata::DbReleaseAsset> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::update_metadata::DbReleaseAsset>::sse_encode(item, serializer);
         }
     }
 }

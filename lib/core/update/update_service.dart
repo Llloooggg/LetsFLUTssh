@@ -795,22 +795,43 @@ class UpdateService {
   }
 
   /// Pick the right asset for the current platform from the release assets.
+  ///
+  /// Routes through `lfs_core::update_metadata::asset_url_for_platform`
+  /// (FRB sync) so the suffix-allowlist + asset-iteration grammar
+  /// lives one place; falls back to the inline scan for
+  /// flutter_test contexts that don't load the FRB native lib.
   static String? assetUrlForPlatform(
     List<dynamic> assets, {
     String? platformOverride,
   }) {
     final platform = platformOverride ?? _hostPlatform();
-    final suffix = _assetSuffix(platform);
-    if (suffix == null) return null;
-
-    for (final asset in assets) {
-      if (asset is! Map<String, dynamic>) continue;
-      final name = asset['name'] as String? ?? '';
-      if (name.endsWith(suffix)) {
-        return asset['browser_download_url'] as String?;
+    try {
+      final entries = <rust_update.DbReleaseAsset>[];
+      for (final asset in assets) {
+        if (asset is! Map<String, dynamic>) continue;
+        final name = asset['name'] as String? ?? '';
+        final url = asset['browser_download_url'] as String? ?? '';
+        if (name.isEmpty || url.isEmpty) continue;
+        entries.add(
+          rust_update.DbReleaseAsset(name: name, browserDownloadUrl: url),
+        );
       }
+      return rust_update.updateAssetUrlForPlatform(
+        assets: entries,
+        platform: platform,
+      );
+    } catch (_) {
+      final suffix = _assetSuffix(platform);
+      if (suffix == null) return null;
+      for (final asset in assets) {
+        if (asset is! Map<String, dynamic>) continue;
+        final name = asset['name'] as String? ?? '';
+        if (name.endsWith(suffix)) {
+          return asset['browser_download_url'] as String?;
+        }
+      }
+      return null;
     }
-    return null;
   }
 
   /// Platforms we ship self-updatable binaries for. Anything else (iOS,

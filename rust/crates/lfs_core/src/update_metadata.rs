@@ -82,6 +82,30 @@ pub fn asset_suffix(platform: &str) -> Option<&'static str> {
     }
 }
 
+/// Find the GitHub release asset matching the host platform's
+/// expected suffix from a list of `(name, browser_download_url)`
+/// pairs. Returns the URL of the first match, or `None` when no
+/// asset's `name` ends with the platform's suffix (or the
+/// platform itself has no self-update channel).
+///
+/// Mirrors `UpdateService.assetUrlForPlatform` Dart-side. Lifts
+/// the asset-list iteration off the Dart heap so the same
+/// allowlist (`asset_suffix`) drives both sides; the FRB shim
+/// flattens the GitHub release JSON's `assets` array into the
+/// flat `(name, url)` list before crossing the boundary.
+pub fn asset_url_for_platform<'a, I>(assets: I, platform: &str) -> Option<String>
+where
+    I: IntoIterator<Item = (&'a str, &'a str)>,
+{
+    let suffix = asset_suffix(platform)?;
+    for (name, url) in assets {
+        if name.ends_with(suffix) {
+            return Some(url.to_string());
+        }
+    }
+    None
+}
+
 /// Extract the semver version from a release asset filename.
 /// Mirrors `UpdateService._parseAssetVersion` regex
 /// `^letsflutssh-([0-9]+\.[0-9]+\.[0-9]+)-`.
@@ -267,6 +291,40 @@ mod tests {
         assert_eq!(asset_suffix("ios"), None);
         assert_eq!(asset_suffix("fuchsia"), None);
         assert_eq!(asset_suffix(""), None);
+    }
+
+    #[test]
+    fn asset_url_for_platform_returns_first_suffix_match() {
+        let assets = [
+            ("letsflutssh-5.9.0-android-arm64.apk", "https://a/and"),
+            ("letsflutssh-5.9.0-linux-x64.AppImage", "https://a/lin"),
+            ("letsflutssh-5.9.0-windows-x64-setup.exe", "https://a/win"),
+        ];
+        assert_eq!(
+            asset_url_for_platform(assets.iter().copied(), "linux").as_deref(),
+            Some("https://a/lin"),
+        );
+        assert_eq!(
+            asset_url_for_platform(assets.iter().copied(), "windows").as_deref(),
+            Some("https://a/win"),
+        );
+    }
+
+    #[test]
+    fn asset_url_for_platform_unknown_platform_is_none() {
+        let assets = [("letsflutssh-5.9.0-linux-x64.AppImage", "https://a/lin")];
+        assert!(asset_url_for_platform(assets.iter().copied(), "ios").is_none());
+        assert!(asset_url_for_platform(assets.iter().copied(), "").is_none());
+    }
+
+    #[test]
+    fn asset_url_for_platform_no_match_returns_none() {
+        // Suffix lookup succeeds (linux is known), but no asset
+        // carries the matching suffix — filter releases that
+        // dropped a platform mid-cycle. Caller falls back to the
+        // GitHub release page.
+        let assets = [("letsflutssh-5.9.0-android-arm64.apk", "https://a/and")];
+        assert!(asset_url_for_platform(assets.iter().copied(), "linux").is_none());
     }
 
     #[test]
