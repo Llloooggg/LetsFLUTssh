@@ -755,12 +755,19 @@ class SessionStore {
   // ── Query ───────────────────────────────────────────────────────
 
   /// Distinct, sorted list of named folders referenced by any
-  /// session in the cache. Routes through
-  /// `lfs_core::sessions::distinct_folders` so the empty-skip +
-  /// sort grammar lives one place; falls back to the inline
-  /// pipeline for flutter_test contexts that don't load the FRB
-  /// native lib.
+  /// session in the cache. Routes through the Rust registry's
+  /// `sessions_registry_distinct_folders` (cache read, no Dart-
+  /// side projection per call) when the FRB native lib is
+  /// loaded; falls back to the projecting `distinctFolders`
+  /// shim and finally to the inline pipeline for flutter_test
+  /// contexts.
   List<String> folders() {
+    try {
+      return rust_registry.sessionsRegistryDistinctFolders();
+    } catch (_) {
+      // Registry path unreachable — fall through to the
+      // projecting shim, then the inline pipeline.
+    }
     try {
       return rust_sess.sessionsDistinctFolders(
         sessionFolders: _sessions.map((s) => s.folder).toList(growable: false),

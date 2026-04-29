@@ -55,6 +55,12 @@ List<String> sessionsRegistryFilterIds({required String query}) => RustLib
     .api
     .crateApiSessionsRegistrySessionsRegistryFilterIds(query: query);
 
+/// Distinct, sorted folder paths referenced by any cached
+/// session. Drops empty paths (sessions at root). Reads off the
+/// cached view.
+List<String> sessionsRegistryDistinctFolders() => RustLib.instance.api
+    .crateApiSessionsRegistrySessionsRegistryDistinctFolders();
+
 /// Snapshot of the Rust-side sessions / folders cache view.
 /// Mirrors `lfs_core::sessions::RegistryView` across the FRB
 /// boundary using the same `DbSession` / `DbFolder` types the

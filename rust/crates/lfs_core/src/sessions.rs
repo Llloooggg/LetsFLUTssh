@@ -150,6 +150,23 @@ impl Registry {
             .len()
     }
 
+    /// Distinct, sorted folder paths referenced by any cached
+    /// session. Drops empty paths (sessions at root). Reads off
+    /// the cached view; no DB round-trip.
+    #[must_use]
+    pub fn distinct_folders(&self) -> Vec<String> {
+        let view = self.inner.read().expect("registry view lock poisoned");
+        let folders: Vec<String> = view
+            .sessions
+            .iter()
+            .map(|s| match &s.folder_id {
+                Some(fid) => folder_path::build_folder_path(fid, &view.folders),
+                None => String::new(),
+            })
+            .collect();
+        distinct_folders(&folders)
+    }
+
     /// Filter cached session ids using the four-field substring
     /// search predicate (label / folder / host / user, case-
     /// insensitive). Reads off the cached view; no DB round-trip

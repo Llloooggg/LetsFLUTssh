@@ -98,3 +98,13 @@ pub fn sessions_registry_filter_ids(query: String) -> Vec<String> {
         .sessions_registry
         .filter_ids(&query)
 }
+
+/// Distinct, sorted folder paths referenced by any cached
+/// session. Drops empty paths (sessions at root). Reads off the
+/// cached view.
+#[flutter_rust_bridge::frb(sync)]
+pub fn sessions_registry_distinct_folders() -> Vec<String> {
+    lfs_core::app::instance()
+        .sessions_registry
+        .distinct_folders()
+}
