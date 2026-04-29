@@ -3,11 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/auto_lock_store.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
 
-// Phase 4.2 stage 6: AutoLockStore now reads/writes through FRB
-// (`lfs_core.db`). flutter_test does not load the native bridge, so
-// the persistence-asserting tests that round-tripped through drift's
-// in-memory DB no longer apply — see plan precedent at "Drop
-// dartssh2 ... rewrite against MockSshTransport in a follow-up".
+// AutoLockStore reads/writes through FRB (`lfs_core.db`). flutter_test
+// does not load the native bridge, so the persistence-asserting tests
+// that round-tripped through drift's in-memory DB no longer apply.
 // Equivalent coverage moves to integration_test.
 
 void main() {

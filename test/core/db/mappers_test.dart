@@ -2,12 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/db/mappers.dart';
 import 'package:letsflutssh/src/rust/api/db.dart' as rust_db;
 
-// Phase 4.2 stage 6: mappers now operate on FRB DTO types instead
-// of drift's row classes. The pure-Dart helpers (`dbSessionToSession`
-// folder-path resolution + `_buildFolderPath` orphan handling) test
-// without any DB; the cache-first `resolveFolderPath` does call FRB
-// when it has to insert, which is not loadable here — that path
-// moves to integration_test.
+// Mappers operate on FRB DTO types instead of drift's row classes.
+// The pure-Dart helpers (`dbSessionToSession` folder-path resolution
+// + `_buildFolderPath` orphan handling) test without any DB; the
+// cache-first `resolveFolderPath` does call FRB when it has to
+// insert, which is not loadable here — that path moves to
+// integration_test.
 
 rust_db.DbFolder _folder(String id, String name, String? parentId) =>
     rust_db.DbFolder(

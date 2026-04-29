@@ -159,7 +159,7 @@ void main() {
   );
 }
 
-// _hkdf + _decryptAll helpers removed alongside pointycastle drop
-// (Phase 2.6). The encrypted-mode round-trip test that used them is
-// now `skip:` because writer + reader both go through FRB; both
-// halves are covered end-to-end in `lfs_core::crypto::tests`.
+// _hkdf + _decryptAll helpers removed alongside the pointycastle drop.
+// The encrypted-mode round-trip test that used them is now `skip:`
+// because writer + reader both go through FRB; both halves are
+// covered end-to-end in `lfs_core::crypto::tests`.

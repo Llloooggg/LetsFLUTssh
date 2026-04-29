@@ -4,12 +4,11 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
-// Phase 4.2 stage 6: SessionStore now reads/writes through FRB
-// (`lfs_core.db`). flutter_test does not load the native bridge, so
-// the persistence-asserting unit tests that round-tripped through
-// drift's in-memory DB no longer apply — equivalent coverage moves
-// to integration_test. Same precedent as the dartssh2 →
-// MockSshTransport sweep.
+// SessionStore reads/writes through FRB (`lfs_core.db`). flutter_test
+// does not load the native bridge, so the persistence-asserting unit
+// tests that round-tripped through drift's in-memory DB no longer
+// apply — equivalent coverage moves to integration_test. Same
+// precedent as the dartssh2 → MockSshTransport sweep.
 
 Session _makeSession({
   String id = 'test-id',

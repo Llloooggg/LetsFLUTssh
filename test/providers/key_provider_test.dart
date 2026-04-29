@@ -3,11 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/key_store.dart';
 import 'package:letsflutssh/providers/key_provider.dart';
 
-// Phase 4.2 stage 6: KeyStore now reads/writes through FRB
-// (`lfs_core.db`). flutter_test does not load the native bridge, so
-// the persistence-asserting tests that round-tripped through drift's
-// in-memory DB no longer apply — equivalent coverage moves to
-// integration_test.
+// KeyStore reads/writes through FRB (`lfs_core.db`). flutter_test
+// does not load the native bridge, so the persistence-asserting tests
+// that round-tripped through drift's in-memory DB no longer apply —
+// equivalent coverage moves to integration_test.
 
 void main() {
   group('keyStoreProvider', () {

@@ -1,12 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/snippets/snippet_store.dart';
 
-// Phase 4.2 stage 6: SnippetStore now reads/writes through FRB
-// (`lfs_core.db`). flutter_test does not load the native bridge, so
-// the persistence-asserting unit tests that round-tripped through
-// drift's in-memory DB no longer apply — equivalent coverage moves
-// to integration_test. Same precedent as the dartssh2 →
-// MockSshTransport sweep.
+// SnippetStore reads/writes through FRB (`lfs_core.db`). flutter_test
+// does not load the native bridge, so the persistence-asserting unit
+// tests that round-tripped through drift's in-memory DB no longer
+// apply — equivalent coverage moves to integration_test. Same
+// precedent as the dartssh2 → MockSshTransport sweep.
 
 void main() {
   group('SnippetStore (no-DB sentinels)', () {

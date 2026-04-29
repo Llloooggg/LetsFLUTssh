@@ -3,11 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/tags/tag_store.dart';
 import 'package:letsflutssh/providers/tag_provider.dart';
 
-// Phase 4.2 stage 6: TagStore now reads/writes through FRB. The
-// flutter_test runner does not load the native bridge, so the
-// persistence-asserting tests that round-tripped through drift's
-// in-memory DB no longer apply — equivalent coverage moves to
-// integration_test.
+// TagStore reads/writes through FRB. The flutter_test runner does
+// not load the native bridge, so the persistence-asserting tests
+// that round-tripped through drift's in-memory DB no longer apply —
+// equivalent coverage moves to integration_test.
 
 void main() {
   group('tagStoreProvider', () {
