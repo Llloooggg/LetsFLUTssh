@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../src/rust/api/archive.dart' as rust_archive;
+import '../../src/rust/api/archive_stage.dart' as rust_stage;
 import '../config/app_config.dart';
 import '../security/key_store.dart';
 import '../snippets/snippet.dart';
@@ -172,16 +173,19 @@ AppConfig? decodeConfigFromApply(rust_archive.DbApplyResult apply) {
 /// the same parser, so a round-trip
 /// (Dart-built `ImportResult` → staged JSON → Rust apply) holds without
 /// exporter / importer drift.
+///
+/// Sessions / keys / tags / snippets route through
+/// `lfs_core::archive_stage::stage_*_to_json` (FRB sync) so the
+/// JSON-shape contract — field names, default-omission, ISO
+/// timestamp formatting, nested `via_override` object — lives one
+/// place. The link-table envelopes (`session_tags`,
+/// `session_snippets`) and the bare-string lists (`empty_folders`)
+/// stay Dart-built because they're trivial `jsonEncode` calls with
+/// no shape contract worth a Rust hop.
 rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
-  final sessionsJson = result.sessions.isEmpty
-      ? null
-      : jsonEncode([for (final s in result.sessions) _sessionToJson(s)]);
-  final keysJson = result.managerKeys.isEmpty
-      ? null
-      : jsonEncode([for (final k in result.managerKeys) _keyToJson(k)]);
-  final tagsJson = result.tags.isEmpty
-      ? null
-      : jsonEncode([for (final t in result.tags) _tagToJson(t)]);
+  final sessionsJson = _stageSessionsJson(result.sessions);
+  final keysJson = _stageKeysJson(result.managerKeys);
+  final tagsJson = _stageTagsJson(result.tags);
   // `ExportLink.sessionId` is the session's id; `targetId` is the
   // tag/snippet on the other end (the field is reused for both M2M
   // relations).
@@ -197,9 +201,7 @@ rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
   // same way `apply_folder_tree` does for sessions.
   const String? folderTagsJson = null;
   final _ = result.folderTags;
-  final snippetsJson = result.snippets.isEmpty
-      ? null
-      : jsonEncode([for (final s in result.snippets) _snippetToJson(s)]);
+  final snippetsJson = _stageSnippetsJson(result.snippets);
   final sessionSnippetsJson = result.sessionSnippets.isEmpty
       ? null
       : jsonEncode([
@@ -222,6 +224,104 @@ rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
     configJson: null, // config restore stays Dart-side via applyConfig
     knownHostsText: result.knownHostsContent,
   );
+}
+
+String? _stageSessionsJson(List<Session> sessions) {
+  if (sessions.isEmpty) return null;
+  try {
+    return rust_stage.archiveStageSessionsToJson(
+      rows: [
+        for (final s in sessions)
+          rust_stage.DbStagedSessionImport(
+            id: s.id,
+            label: s.label,
+            folder: s.folder,
+            host: s.host,
+            port: s.port,
+            user: s.user,
+            authType: s.authType.name,
+            password: s.password,
+            keyPath: s.keyPath,
+            keyData: s.keyData,
+            passphrase: s.passphrase,
+            keyId: s.keyId.isEmpty ? null : s.keyId,
+            extrasJson: s.extras.isEmpty ? '' : jsonEncode(s.extras),
+            viaSessionId: (s.viaSessionId == null || s.viaSessionId!.isEmpty)
+                ? null
+                : s.viaSessionId,
+            viaOverrideHost: s.viaOverride?.host,
+            viaOverridePort: s.viaOverride?.port,
+            viaOverrideUser: s.viaOverride?.user,
+            createdAtMs: s.createdAt.millisecondsSinceEpoch,
+            updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
+          ),
+      ],
+    );
+  } catch (_) {
+    return jsonEncode([for (final s in sessions) _sessionToJson(s)]);
+  }
+}
+
+String? _stageKeysJson(List<SshKeyEntry> keys) {
+  if (keys.isEmpty) return null;
+  try {
+    return rust_stage.archiveStageKeysToJson(
+      rows: [
+        for (final k in keys)
+          rust_stage.DbStagedKeyImport(
+            id: k.id,
+            label: k.label,
+            privateKey: k.privateKey,
+            publicKey: k.publicKey,
+            keyType: k.keyType,
+            isGenerated: k.isGenerated,
+            createdAtMs: k.createdAt.millisecondsSinceEpoch,
+          ),
+      ],
+    );
+  } catch (_) {
+    return jsonEncode([for (final k in keys) _keyToJson(k)]);
+  }
+}
+
+String? _stageTagsJson(List<Tag> tags) {
+  if (tags.isEmpty) return null;
+  try {
+    return rust_stage.archiveStageTagsToJson(
+      rows: [
+        for (final t in tags)
+          rust_stage.DbStagedTagImport(
+            id: t.id,
+            name: t.name,
+            color: t.color,
+            createdAtMs: t.createdAt.millisecondsSinceEpoch,
+          ),
+      ],
+    );
+  } catch (_) {
+    return jsonEncode([for (final t in tags) _tagToJson(t)]);
+  }
+}
+
+String? _stageSnippetsJson(List<Snippet> snippets) {
+  if (snippets.isEmpty) return null;
+  try {
+    return rust_stage.archiveStageSnippetsToJson(
+      rows: [
+        for (final s in snippets)
+          rust_stage.DbStagedSnippetImport(
+            id: s.id,
+            title: s.title,
+            command: s.command,
+            description: s.description,
+            createdAtMs: s.createdAt.millisecondsSinceEpoch,
+            updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
+          ),
+      ],
+    );
+  } catch (_) {
+    return jsonEncode([for (final s in snippets) _snippetToJson(s)]);
+  }
 }
 
 Map<String, Object?> _sessionToJson(Session s) {

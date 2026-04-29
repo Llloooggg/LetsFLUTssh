@@ -9,6 +9,7 @@
 import 'api.dart';
 import 'api/app.dart';
 import 'api/archive.dart';
+import 'api/archive_stage.dart';
 import 'api/bus.dart';
 import 'api/connection.dart';
 import 'api/crypto.dart';
@@ -536,7 +537,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbStagedImport dco_decode_db_staged_import(dynamic raw);
 
   @protected
+  DbStagedKeyImport dco_decode_db_staged_key_import(dynamic raw);
+
+  @protected
   DbStagedSecrets dco_decode_db_staged_secrets(dynamic raw);
+
+  @protected
+  DbStagedSessionImport dco_decode_db_staged_session_import(dynamic raw);
+
+  @protected
+  DbStagedSnippetImport dco_decode_db_staged_snippet_import(dynamic raw);
+
+  @protected
+  DbStagedTagImport dco_decode_db_staged_tag_import(dynamic raw);
 
   @protected
   DbTag dco_decode_db_tag(dynamic raw);
@@ -634,6 +647,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSshKeyMetadata> dco_decode_list_db_ssh_key_metadata(dynamic raw);
+
+  @protected
+  List<DbStagedKeyImport> dco_decode_list_db_staged_key_import(dynamic raw);
+
+  @protected
+  List<DbStagedSessionImport> dco_decode_list_db_staged_session_import(
+    dynamic raw,
+  );
+
+  @protected
+  List<DbStagedSnippetImport> dco_decode_list_db_staged_snippet_import(
+    dynamic raw,
+  );
+
+  @protected
+  List<DbStagedTagImport> dco_decode_list_db_staged_tag_import(dynamic raw);
 
   @protected
   List<DbTag> dco_decode_list_db_tag(dynamic raw);
@@ -1335,7 +1364,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbStagedImport sse_decode_db_staged_import(SseDeserializer deserializer);
 
   @protected
+  DbStagedKeyImport sse_decode_db_staged_key_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbStagedSecrets sse_decode_db_staged_secrets(SseDeserializer deserializer);
+
+  @protected
+  DbStagedSessionImport sse_decode_db_staged_session_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbStagedSnippetImport sse_decode_db_staged_snippet_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbStagedTagImport sse_decode_db_staged_tag_import(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbTag sse_decode_db_tag(SseDeserializer deserializer);
@@ -1453,6 +1502,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSshKeyMetadata> sse_decode_list_db_ssh_key_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbStagedKeyImport> sse_decode_list_db_staged_key_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbStagedSessionImport> sse_decode_list_db_staged_session_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbStagedSnippetImport> sse_decode_list_db_staged_snippet_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbStagedTagImport> sse_decode_list_db_staged_tag_import(
     SseDeserializer deserializer,
   );
 
@@ -2329,8 +2398,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_staged_key_import(
+    DbStagedKeyImport self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_staged_secrets(
     DbStagedSecrets self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_staged_session_import(
+    DbStagedSessionImport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_staged_snippet_import(
+    DbStagedSnippetImport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_staged_tag_import(
+    DbStagedTagImport self,
     SseSerializer serializer,
   );
 
@@ -2487,6 +2580,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_ssh_key_metadata(
     List<DbSshKeyMetadata> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_staged_key_import(
+    List<DbStagedKeyImport> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_staged_session_import(
+    List<DbStagedSessionImport> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_staged_snippet_import(
+    List<DbStagedSnippetImport> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_staged_tag_import(
+    List<DbStagedTagImport> self,
     SseSerializer serializer,
   );
 

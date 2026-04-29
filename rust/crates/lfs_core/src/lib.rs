@@ -19,6 +19,7 @@
 
 pub mod app;
 pub mod archive;
+pub mod archive_stage;
 pub mod autolock;
 pub mod bus;
 pub mod connection;
