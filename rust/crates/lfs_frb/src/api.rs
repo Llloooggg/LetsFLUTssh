@@ -8,6 +8,7 @@ pub mod archive_stage;
 pub mod bus;
 pub mod config;
 pub mod connection;
+pub mod credential_prompt;
 pub mod crypto;
 pub mod db;
 pub mod deeplink;

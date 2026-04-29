@@ -218,6 +218,15 @@ pub enum BusEvent {
     /// subscriber executes flutter_secure_storage.read, then
     /// dispatches the response command back.
     KeychainPepperPromptRequest { prompt_id: String },
+    /// Connection actor needs a password / passphrase for the
+    /// saved session — Dart subscriber renders the dialog,
+    /// dispatches the response command back. `kind_wire_name`
+    /// is `password` or `passphrase`.
+    CredentialPromptRequest {
+        prompt_id: String,
+        session_id: String,
+        kind_wire_name: String,
+    },
     /// TOFU prompt — russh saw an unknown / changed host key.
     /// Subscribers (Dart UI) surface the host-key dialog and
     /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
@@ -379,6 +388,15 @@ impl BusEvent {
             lfs_core::bus::Event::KeychainPepperPromptRequest { prompt_id } => {
                 BusEvent::KeychainPepperPromptRequest { prompt_id }
             }
+            lfs_core::bus::Event::CredentialPromptRequest {
+                prompt_id,
+                session_id,
+                kind_wire_name,
+            } => BusEvent::CredentialPromptRequest {
+                prompt_id,
+                session_id,
+                kind_wire_name,
+            },
             lfs_core::bus::Event::KnownHostPromptRequest {
                 prompt_id,
                 host,

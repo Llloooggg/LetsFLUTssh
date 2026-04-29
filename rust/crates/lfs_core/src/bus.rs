@@ -177,6 +177,20 @@ pub enum Event {
     /// `docs/RUST_MIGRATION_REMAINING.md`.
     KeychainPepperPromptRequest { prompt_id: String },
 
+    /// Connection credential prompt — fired by the connection
+    /// actor when a saved session needs a password / passphrase
+    /// the SecretStore doesn't already carry. `kind_wire_name`
+    /// is `password` / `passphrase`; `session_id` lets the
+    /// Dart UI render the right session label in the dialog
+    /// caption. Resolved through
+    /// `lfs_core::security::credential_prompt::PromptRegistry`.
+    /// Decision 1 / A3 in `docs/RUST_MIGRATION_REMAINING.md`.
+    CredentialPromptRequest {
+        prompt_id: String,
+        session_id: String,
+        kind_wire_name: String,
+    },
+
     /// Recorder — fired when a fresh recording actor enters
     /// the registry.
     RecorderStarted { id: String, path: String },
@@ -324,6 +338,7 @@ impl Event {
             Event::ConfigChanged { .. } => EventTopic::Config,
             Event::TierStateChanged { .. } => EventTopic::Tier,
             Event::KeychainPepperPromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::CredentialPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
                 EventTopic::KnownHosts
             }

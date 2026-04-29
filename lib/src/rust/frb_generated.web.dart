@@ -13,6 +13,7 @@ import 'api/archive_stage.dart';
 import 'api/bus.dart';
 import 'api/config.dart';
 import 'api/connection.dart';
+import 'api/credential_prompt.dart';
 import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/deeplink.dart';

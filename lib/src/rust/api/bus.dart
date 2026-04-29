@@ -343,6 +343,16 @@ sealed class BusEvent with _$BusEvent {
     required String promptId,
   }) = BusEvent_KeychainPepperPromptRequest;
 
+  /// Connection actor needs a password / passphrase for the
+  /// saved session — Dart subscriber renders the dialog,
+  /// dispatches the response command back. `kind_wire_name`
+  /// is `password` or `passphrase`.
+  const factory BusEvent.credentialPromptRequest({
+    required String promptId,
+    required String sessionId,
+    required String kindWireName,
+  }) = BusEvent_CredentialPromptRequest;
+
   /// TOFU prompt — russh saw an unknown / changed host key.
   /// Subscribers (Dart UI) surface the host-key dialog and
   /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
