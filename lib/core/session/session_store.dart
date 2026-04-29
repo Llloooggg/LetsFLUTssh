@@ -170,23 +170,6 @@ class SessionStore {
     return List.of(_sessions);
   }
 
-  /// Fetch a single session with credentials populated (password/keyData/
-  /// passphrase). Returns null if the session no longer exists in the DB.
-  Future<Session?> loadWithCredentials(String id) async {
-    try {
-      final row = await rust_db.dbSessionsGet(id: id);
-      if (row == null) return null;
-      return dbSessionToSession(row, _folderMap, withCredentials: true);
-    } catch (e) {
-      AppLogger.instance.log(
-        'loadWithCredentials failed: $e',
-        name: 'SessionStore',
-        level: LogLevel.warn,
-      );
-      return null;
-    }
-  }
-
   // ── CRUD ─────────────────────────────────────────────────────────
 
   Future<void> add(Session session) async {
