@@ -529,6 +529,22 @@ gate clears.
   `known_hosts*` skip rule moved to
   `lfs_core::keys::is_obvious_non_key_filename`; pre-filters the
   dir-walk before the file-read + parse round-trip.
+- ~~`core/import/key_file_helper.dart::_looksLikePpk`~~ —
+  **DONE**. PuTTY v2 / v3 header sniff routed through
+  `lfs_core::keys::looks_like_ppk` so the supported version set
+  lives next to `is_encrypted_pem` /
+  `normalized_text_fingerprint` /
+  `is_obvious_non_key_filename` in the keys module.
+- ~~`core/transfer/unique_name.dart` candidate generation~~ —
+  **DONE**. The `"stem (N)ext"` candidate-text shape (with the
+  GNOME Files / Finder splitting rule that preserves only the
+  final extension) routes through
+  `lfs_core::path::sibling_candidate`. Caller still owns the
+  async existence probe.
+- ~~`utils/logger.dart` HH:MM:SS prefix~~ — **DONE**. Two inline
+  copies (`log` + `logCritical`) collapse against
+  `lfs_core::format::format_clock_hms` via a shared
+  `_formatHmsForLog` helper.
 
 After step 13: every load-bearing path runs in Rust. Dart layer
 is widgets + Riverpod subscribers + MethodChannel proxies.
