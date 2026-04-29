@@ -680,14 +680,27 @@ class SecurityInitController {
         key: Uint8List.fromList(key),
         level: SecurityTier.keychainWithPassword,
       );
-      _emitTierUnlockResolved(succeeded: true);
+      // Cascade `UnlockSucceeded` already fired inside the
+      // dialog's verify callback (orchestrator owns it); the
+      // dialog open itself emitted `UnlockRequested` via the
+      // Dart helper above. Nothing to re-emit here.
       AppLogger.instance.log('L2 keychain+password unlocked', name: 'App');
       return;
     }
-    _emitTierUnlockResolved(
-      succeeded: false,
-      failureDiscriminant: 'user_cancelled',
-    );
+    // Dialog dismissed without a successful unlock. Fire the
+    // cancel cascade so `UnlockRequested` from `_emitTierUnlockStart`
+    // above lands a paired terminal-state event; idempotent on
+    // an already-Locked machine (the orchestrator's own
+    // WrongSecret emit may have already returned us there).
+    try {
+      rust_orch.tierUnlockKeychainWithPasswordCancel();
+    } catch (e) {
+      AppLogger.instance.log(
+        'tier_unlock_keychain_with_password_cancel FRB unreachable: $e',
+        name: 'TierMachine',
+        level: LogLevel.warn,
+      );
+    }
     await _injectDatabase();
     AppLogger.instance.log(
       'L2 reset — plaintext fallback',
@@ -730,8 +743,27 @@ class SecurityInitController {
       ),
       rateLimiter: limiter,
       verify: (password) async {
+        // Production routes through the
+        // `tier_unlock_keychain_with_password` orchestrator
+        // which composes the gate verify + keychain key read
+        // into one FRB hop AND emits the
+        // `BusEvent::TierStateChanged` cascade. The pure-Dart
+        // `gate.verify + keyStorage.readKey` chain stays as
+        // the flutter_test fallback (no FRB native lib).
+        try {
+          return await rust_orch.tierUnlockKeychainWithPassword(
+            password: password,
+          );
+        } catch (e) {
+          AppLogger.instance.log(
+            'tier_unlock_keychain_with_password FRB unreachable, '
+            'falling back to Dart pipeline: $e',
+            name: 'App',
+          );
+        }
         if (!await gate.verify(password)) return null;
-        return keyStorage.readKey();
+        final fallback = await keyStorage.readKey();
+        return fallback;
       },
       biometricUnlock: _biometricUnlockForTierDialog,
       autoTriggerBiometric: autoTriggerBiometric,
