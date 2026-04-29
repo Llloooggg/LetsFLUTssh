@@ -5,7 +5,6 @@ import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/sftp/sftp_fs.dart';
 import 'package:letsflutssh/core/sftp/sftp_models.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
-import 'package:letsflutssh/core/transfer/transfer_manager.dart';
 import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/core/sftp/file_system.dart';
 import 'package:letsflutssh/features/file_browser/sftp_initializer.dart';
@@ -15,6 +14,8 @@ import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/connection_progress.dart';
 import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
 import '''package:letsflutssh/l10n/app_localizations.dart''';
+
+import '../../helpers/fake_transfers_notifier.dart';
 
 /// Stub `RemoteSftpFs` for the mobile-browser tests — every method
 /// is a no-op. The browser code never reaches into the SFTP layer
@@ -895,14 +896,10 @@ void main() {
   // MobileFileBrowser — success path (injectable factory)
   // ===========================================================================
   group('MobileFileBrowser — success path', () {
-    late TransferManager manager;
+    late FakeTransfersNotifier manager;
 
     setUp(() {
-      manager = TransferManager();
-    });
-
-    tearDown(() {
-      manager.dispose();
+      manager = FakeTransfersNotifier();
     });
 
     Future<SFTPInitResult> fakeInitFactory(Connection conn) async {
@@ -929,7 +926,7 @@ void main() {
 
     Widget buildBrowser(Connection conn) {
       return ProviderScope(
-        overrides: [transferManagerProvider.overrideWithValue(manager)],
+        overrides: [transfersProvider.overrideWith(() => manager)],
         child: MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
@@ -979,7 +976,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [transferManagerProvider.overrideWithValue(manager)],
+          overrides: [transfersProvider.overrideWith(() => manager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -1146,7 +1143,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [transferManagerProvider.overrideWithValue(manager)],
+          overrides: [transfersProvider.overrideWith(() => manager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -1250,14 +1247,10 @@ void main() {
   // MobileFileBrowser — breadcrumb navigation
   // ===========================================================================
   group('MobileFileBrowser — breadcrumb navigation', () {
-    late TransferManager manager;
+    late FakeTransfersNotifier manager;
 
     setUp(() {
-      manager = TransferManager();
-    });
-
-    tearDown(() {
-      manager.dispose();
+      manager = FakeTransfersNotifier();
     });
 
     Future<SFTPInitResult> deepPathFactory(Connection conn) async {
@@ -1282,7 +1275,7 @@ void main() {
 
     Widget buildBrowser(Connection conn) {
       return ProviderScope(
-        overrides: [transferManagerProvider.overrideWithValue(manager)],
+        overrides: [transfersProvider.overrideWith(() => manager)],
         child: MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,

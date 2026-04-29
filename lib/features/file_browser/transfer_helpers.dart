@@ -6,8 +6,8 @@ import 'package:path/path.dart' as p;
 import '../../core/sftp/sftp_fs.dart';
 import '../../core/sftp/sftp_models.dart';
 import '../../core/transfer/conflict_resolver.dart';
-import '../../core/transfer/transfer_manager.dart';
 import '../../core/transfer/unique_name.dart';
+import '../../providers/transfer_provider.dart';
 import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
@@ -28,7 +28,7 @@ class TransferHelpers {
   /// check at the top level — per-file conflicts inside the walker
   /// still resolve via [conflictResolver].
   static Future<bool> enqueueUpload({
-    required TransferManager manager,
+    required TransfersNotifier manager,
     required RemoteSftpFs sftp,
     required String connectionId,
     required FileEntry entry,
@@ -75,7 +75,7 @@ class TransferHelpers {
 
   /// Enqueue a download for [entry] to the local [localDirPath].
   static Future<bool> enqueueDownload({
-    required TransferManager manager,
+    required TransfersNotifier manager,
     required RemoteSftpFs sftp,
     required String connectionId,
     required FileEntry entry,
@@ -123,7 +123,7 @@ class TransferHelpers {
   /// file. Skips symlinks (we don't follow into arbitrary targets) and
   /// conflict-skipped paths. Returns the total enqueue count.
   static Future<int> _enqueueUploadDir({
-    required TransferManager manager,
+    required TransfersNotifier manager,
     required RemoteSftpFs sftp,
     required String connectionId,
     required Directory localDir,
@@ -178,7 +178,7 @@ class TransferHelpers {
   /// Walk [remoteDir] over SFTP and enqueue a download task per leaf
   /// file. Mirrors [_enqueueUploadDir] in shape.
   static Future<int> _enqueueDownloadDir({
-    required TransferManager manager,
+    required TransfersNotifier manager,
     required RemoteSftpFs sftp,
     required String connectionId,
     required String remoteDir,

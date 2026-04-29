@@ -128,7 +128,7 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         if (resolver.isCancelled) break;
         if (!mounted) return;
         await TransferHelpers.enqueueUpload(
-          manager: ref.read(transferManagerProvider),
+          manager: ref.read(transfersProvider.notifier),
           sftp: sftp,
           connectionId: sftpConnection.id,
           entry: entry,
@@ -155,7 +155,7 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         if (resolver.isCancelled) break;
         if (!mounted) return;
         await TransferHelpers.enqueueDownload(
-          manager: ref.read(transferManagerProvider),
+          manager: ref.read(transfersProvider.notifier),
           sftp: sftp,
           connectionId: sftpConnection.id,
           entry: entry,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/transfer/transfer_manager.dart';
 import '../../core/transfer/transfer_task.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/transfer_provider.dart';
@@ -76,14 +75,13 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final manager = ref.watch(transferManagerProvider);
-    final historyAsync = ref.watch(transferHistoryProvider);
-    final statusAsync = ref.watch(transferStatusProvider);
+    final notifier = ref.read(transfersProvider.notifier);
+    final history = ref.watch(transferHistoryProvider);
+    final status = ref.watch(transferStatusProvider);
 
     // Auto-expand edge is owned by the controller; calling this on
     // every build is safe because it's idempotent on same-value writes.
-    final status = statusAsync.value;
-    _ctrl.syncAutoExpand(status?.hasActive ?? false);
+    _ctrl.syncAutoExpand(status.hasActive);
 
     return AnimatedBuilder(
       animation: _ctrl,
@@ -92,8 +90,8 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildHeaderBar(context, status, historyAsync, manager),
-            if (_ctrl.expanded) _buildExpandedBody(historyAsync, ref),
+            _buildHeaderBar(context, status, history, notifier),
+            if (_ctrl.expanded) _buildExpandedBody(history, ref),
           ],
         ),
       ),
@@ -102,9 +100,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
   Widget _buildHeaderBar(
     BuildContext context,
-    ActiveTransferState? status,
-    AsyncValue<List<HistoryEntry>> historyAsync,
-    TransferManager manager,
+    ActiveTransferState status,
+    List<HistoryEntry> history,
+    TransfersNotifier notifier,
   ) {
     return Stack(
       clipBehavior: Clip.none,
@@ -119,8 +117,8 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
               children: _buildHeaderRowChildren(
                 context,
                 status,
-                historyAsync,
-                manager,
+                history,
+                notifier,
               ),
             ),
           ),
@@ -132,9 +130,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
 
   List<Widget> _buildHeaderRowChildren(
     BuildContext context,
-    ActiveTransferState? status,
-    AsyncValue<List<HistoryEntry>> historyAsync,
-    TransferManager manager,
+    ActiveTransferState status,
+    List<HistoryEntry> history,
+    TransfersNotifier notifier,
   ) {
     final xsDim = AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.fgDim);
     return [
@@ -153,15 +151,16 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         ),
       ),
       const SizedBox(width: 6),
-      if (status != null) ...[
-        Text(
-          S.of(context).transferCountActive(status.running),
-          style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.accent),
-        ),
-        Text(S.of(context).transferCountQueued(status.queued), style: xsDim),
-      ],
+      Text(
+        S.of(context).transferCountActive(status.running),
+        style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.accent),
+      ),
+      Text(S.of(context).transferCountQueued(status.queued), style: xsDim),
       const Spacer(),
-      _buildHistoryCountLabel(context, historyAsync),
+      Text(
+        S.of(context).transferCountInHistory(history.length),
+        style: AppFonts.inter(fontSize: AppFonts.xxs, color: AppTheme.fgFaint),
+      ),
       const SizedBox(width: 4),
       if (_ctrl.expanded && _mobile)
         _headerButton(
@@ -173,23 +172,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         _headerButton(
           icon: Icons.delete_outline,
           tooltip: S.of(context).clearHistory,
-          onTap: () => manager.clearHistory(),
+          onTap: () => notifier.clearHistory(),
         ),
     ];
-  }
-
-  Widget _buildHistoryCountLabel(
-    BuildContext context,
-    AsyncValue<List<HistoryEntry>> historyAsync,
-  ) {
-    return historyAsync.when(
-      data: (history) => Text(
-        S.of(context).transferCountInHistory(history.length),
-        style: AppFonts.inter(fontSize: AppFonts.xxs, color: AppTheme.fgFaint),
-      ),
-      loading: SizedBox.shrink,
-      error: (_, _) => const SizedBox.shrink(),
-    );
   }
 
   Widget _buildResizeHandle() {
@@ -208,10 +193,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     );
   }
 
-  Widget _buildExpandedBody(
-    AsyncValue<List<HistoryEntry>> historyAsync,
-    WidgetRef ref,
-  ) {
+  Widget _buildExpandedBody(List<HistoryEntry> history, WidgetRef ref) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -220,8 +202,8 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           child: SizedBox(
             height: _ctrl.panelHeight,
             child: _mobile
-                ? _buildScrollableBody(historyAsync, ref)
-                : _buildTransferList(historyAsync, ref),
+                ? _buildScrollableBody(history, ref)
+                : _buildTransferList(history, ref),
           ),
         ),
       ],
@@ -242,46 +224,34 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     );
   }
 
-  Widget _buildTransferList(
-    AsyncValue<List<HistoryEntry>> historyAsync,
-    WidgetRef ref,
-  ) {
-    final activeAsync = ref.watch(activeTransfersProvider);
-    final active = activeAsync.value ?? [];
-
-    return historyAsync.when(
-      data: (history) {
-        if (active.isEmpty && history.isEmpty) {
-          return AppEmptyState(message: S.of(context).noTransfersYet);
+  Widget _buildTransferList(List<HistoryEntry> history, WidgetRef ref) {
+    final active = ref.watch(activeTransfersProvider);
+    if (active.isEmpty && history.isEmpty) {
+      return AppEmptyState(message: S.of(context).noTransfersYet);
+    }
+    final sorted = _ctrl.sorted(history);
+    final totalCount = active.length + sorted.length;
+    return ListView.builder(
+      itemCount: totalCount,
+      itemExtent: 24,
+      itemBuilder: (context, index) {
+        if (index < active.length) {
+          return _ActiveRow(
+            entry: active[index],
+            localWidth: _ctrl.localColWidth,
+            remoteWidth: _ctrl.remoteColWidth,
+            sizeWidth: _ctrl.sizeColWidth,
+            timeWidth: _ctrl.timeColWidth,
+          );
         }
-        final sorted = _ctrl.sorted(history);
-        final totalCount = active.length + sorted.length;
-        return ListView.builder(
-          itemCount: totalCount,
-          itemExtent: 24,
-          itemBuilder: (context, index) {
-            if (index < active.length) {
-              return _ActiveRow(
-                entry: active[index],
-                localWidth: _ctrl.localColWidth,
-                remoteWidth: _ctrl.remoteColWidth,
-                sizeWidth: _ctrl.sizeColWidth,
-                timeWidth: _ctrl.timeColWidth,
-              );
-            }
-            return _HistoryRow(
-              entry: sorted[index - active.length],
-              localWidth: _ctrl.localColWidth,
-              remoteWidth: _ctrl.remoteColWidth,
-              sizeWidth: _ctrl.sizeColWidth,
-              timeWidth: _ctrl.timeColWidth,
-            );
-          },
+        return _HistoryRow(
+          entry: sorted[index - active.length],
+          localWidth: _ctrl.localColWidth,
+          remoteWidth: _ctrl.remoteColWidth,
+          sizeWidth: _ctrl.sizeColWidth,
+          timeWidth: _ctrl.timeColWidth,
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) =>
-          Center(child: Text(S.of(context).errorPrefix(e.toString()))),
     );
   }
 
@@ -444,55 +414,43 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
     );
   }
 
-  Widget _buildScrollableBody(
-    AsyncValue<List<HistoryEntry>> historyAsync,
-    WidgetRef ref,
-  ) {
-    final activeAsync = ref.watch(activeTransfersProvider);
-    final active = activeAsync.value ?? [];
-
-    return historyAsync.when(
-      data: (history) {
-        if (active.isEmpty && history.isEmpty) {
-          return AppEmptyState(message: S.of(context).noTransfersYet);
-        }
-        final sorted = _ctrl.sorted(history);
-        final totalCount = active.length + sorted.length;
-        return SingleChildScrollView(
-          controller: _bodyScrollCtrl,
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: _scrollableRowWidth,
-            child: ListView.builder(
-              itemCount: totalCount,
-              itemExtent: 24,
-              itemBuilder: (context, index) {
-                if (index < active.length) {
-                  return _ActiveRow(
-                    entry: active[index],
-                    nameWidth: TransferPanelController.nameColWidth,
-                    localWidth: _ctrl.localColWidth,
-                    remoteWidth: _ctrl.remoteColWidth,
-                    sizeWidth: _ctrl.sizeColWidth,
-                    timeWidth: _ctrl.timeColWidth,
-                  );
-                }
-                return _HistoryRow(
-                  entry: sorted[index - active.length],
-                  nameWidth: TransferPanelController.nameColWidth,
-                  localWidth: _ctrl.localColWidth,
-                  remoteWidth: _ctrl.remoteColWidth,
-                  sizeWidth: _ctrl.sizeColWidth,
-                  timeWidth: _ctrl.timeColWidth,
-                );
-              },
-            ),
-          ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) =>
-          Center(child: Text(S.of(context).errorPrefix(e.toString()))),
+  Widget _buildScrollableBody(List<HistoryEntry> history, WidgetRef ref) {
+    final active = ref.watch(activeTransfersProvider);
+    if (active.isEmpty && history.isEmpty) {
+      return AppEmptyState(message: S.of(context).noTransfersYet);
+    }
+    final sorted = _ctrl.sorted(history);
+    final totalCount = active.length + sorted.length;
+    return SingleChildScrollView(
+      controller: _bodyScrollCtrl,
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: _scrollableRowWidth,
+        child: ListView.builder(
+          itemCount: totalCount,
+          itemExtent: 24,
+          itemBuilder: (context, index) {
+            if (index < active.length) {
+              return _ActiveRow(
+                entry: active[index],
+                nameWidth: TransferPanelController.nameColWidth,
+                localWidth: _ctrl.localColWidth,
+                remoteWidth: _ctrl.remoteColWidth,
+                sizeWidth: _ctrl.sizeColWidth,
+                timeWidth: _ctrl.timeColWidth,
+              );
+            }
+            return _HistoryRow(
+              entry: sorted[index - active.length],
+              nameWidth: TransferPanelController.nameColWidth,
+              localWidth: _ctrl.localColWidth,
+              remoteWidth: _ctrl.remoteColWidth,
+              sizeWidth: _ctrl.sizeColWidth,
+              timeWidth: _ctrl.timeColWidth,
+            );
+          },
+        ),
+      ),
     );
   }
 
