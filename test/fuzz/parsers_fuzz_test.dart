@@ -18,9 +18,10 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
+import 'package:letsflutssh/providers/known_hosts_provider.dart';
 
 const _seed = 0xC0FFEE;
 const _iterations = 2000;
@@ -44,18 +45,20 @@ String _rngString(Random rng, int maxLen) {
 void main() {
   final rng = Random(_seed);
 
-  group('Fuzz: KnownHostsManager.importFromString', () {
+  group('Fuzz: KnownHostsNotifier.importFromString', () {
     test(
       'never throws on $_iterations random byte-shape inputs (seed=$_seed)',
       () async {
-        final manager = KnownHostsManager();
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final notifier = container.read(knownHostsProvider.notifier);
         for (var i = 0; i < _iterations; i++) {
           final input = _rngString(rng, 4096);
           // Returns the count of new entries added (or 0). Anything that
           // throws here — including a stack frame from inside split/regex —
           // is a parser defect, even on garbage input.
           await expectLater(
-            () => manager.importFromString(input),
+            () => notifier.importFromString(input),
             returnsNormally,
             reason: 'iteration=$i input.length=${input.length}',
           );

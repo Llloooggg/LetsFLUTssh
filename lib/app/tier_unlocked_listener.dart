@@ -150,7 +150,7 @@ class TierUnlockedListener {
       // existing `_injectDatabase` pre-step.
       _ref.read(sessionProvider.notifier).invalidateCache();
       _ref.read(sshKeysProvider.notifier).invalidateCache();
-      _ref.read(knownHostsProvider).invalidateCache();
+      _ref.read(knownHostsProvider.notifier).invalidateCache();
       if (key != null) {
         _ref.read(securityStateProvider.notifier).set(tier, key);
       }

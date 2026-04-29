@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/ssh/known_hosts.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/connection_provider.dart';
+import '../../providers/known_hosts_provider.dart'
+    show KnownHostsNotifier, knownHostFingerprint;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_collection_toolbar.dart';
 import '../../widgets/app_data_search_bar.dart';
@@ -31,7 +32,7 @@ class _KnownHostsManagerPanelState
   String _filter = '';
   bool _loading = true;
 
-  KnownHostsManager get _manager => ref.read(knownHostsProvider);
+  KnownHostsNotifier get _manager => ref.read(knownHostsProvider.notifier);
 
   @override
   void initState() {
@@ -119,7 +120,7 @@ class _KnownHostsManagerPanelState
     String fp;
     try {
       final keyBytes = base64Decode(keyData);
-      fp = KnownHostsManager.fingerprint(keyBytes);
+      fp = knownHostFingerprint(keyBytes);
     } catch (_) {
       fp = '?';
     }

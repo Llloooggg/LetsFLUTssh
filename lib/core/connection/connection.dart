@@ -4,7 +4,6 @@ import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
-import '../ssh/known_hosts.dart';
 import '../ssh/ssh_config.dart';
 import '../ssh/transport/rust_transport.dart';
 import '../ssh/transport/ssh_transport.dart';
@@ -26,9 +25,6 @@ class Connection {
   /// Session ID from the store — used to re-read fresh config on reconnect.
   /// Null for quick-connect sessions (no saved session).
   final String? sessionId;
-
-  /// Known hosts manager — retained for reconnect after disconnect.
-  final KnownHostsManager knownHosts;
 
   /// Engine-agnostic SSH transport. Set on successful connect by
   /// `ConnectionsNotifier`; downstream features (shell_helper,
@@ -108,13 +104,12 @@ class Connection {
     required this.label,
     required this.sshConfig,
     this.sessionId,
-    KnownHostsManager? knownHosts,
     this.transport,
     this.state = SSHConnectionState.disconnected,
     this.connectionError,
     this.bastion,
     this.internal = false,
-  }) : knownHosts = knownHosts ?? KnownHostsManager() {
+  }) {
     _subscribeProgressBus();
   }
 

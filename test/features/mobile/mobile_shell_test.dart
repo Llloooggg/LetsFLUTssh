@@ -6,7 +6,7 @@ import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
+import 'package:letsflutssh/providers/known_hosts_provider.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/mobile/mobile_shell.dart';
 import 'package:letsflutssh/features/session_manager/session_panel.dart';
@@ -127,7 +127,7 @@ void main() {
         overrides: [
           sessionProvider.overrideWith(() => FakeSessionNotifier()),
           sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          knownHostsProvider.overrideWith(KnownHostsNotifier.new),
           connectionsProvider.overrideWith(
             () => StaticConnectionsNotifier(<Connection>[]),
           ),
@@ -207,7 +207,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -252,7 +252,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -297,7 +297,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -414,7 +414,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -478,7 +478,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -539,7 +539,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -602,7 +602,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -660,7 +660,7 @@ void main() {
               sessionsLoadingProvider.overrideWith(
                 IdleSessionsLoadingNotifier.new,
               ),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
+              knownHostsProvider.overrideWith(KnownHostsNotifier.new),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier(<Connection>[]),
               ),
@@ -703,7 +703,7 @@ void main() {
             () => FakeSessionNotifier(sessions: [session]),
           ),
           sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
-          knownHostsProvider.overrideWithValue(KnownHostsManager()),
+          knownHostsProvider.overrideWith(KnownHostsNotifier.new),
           connectionsProvider.overrideWith(() => manager),
         ],
         child: MaterialApp(
@@ -890,7 +890,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -937,7 +937,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -982,7 +982,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1029,7 +1029,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1076,7 +1076,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1130,7 +1130,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1169,7 +1169,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1230,7 +1230,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1291,7 +1291,7 @@ void main() {
               sessionsLoadingProvider.overrideWith(
                 IdleSessionsLoadingNotifier.new,
               ),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
+              knownHostsProvider.overrideWith(KnownHostsNotifier.new),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier(<Connection>[]),
               ),
@@ -1355,7 +1355,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier([conn]),
             ),
@@ -1399,7 +1399,7 @@ void main() {
               sessionsLoadingProvider.overrideWith(
                 IdleSessionsLoadingNotifier.new,
               ),
-              knownHostsProvider.overrideWithValue(KnownHostsManager()),
+              knownHostsProvider.overrideWith(KnownHostsNotifier.new),
               connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier([conn]),
               ),
@@ -1441,7 +1441,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1489,7 +1489,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1558,7 +1558,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1619,7 +1619,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1709,7 +1709,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1798,7 +1798,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1857,7 +1857,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1916,7 +1916,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
@@ -1971,7 +1971,7 @@ void main() {
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),
-            knownHostsProvider.overrideWithValue(KnownHostsManager()),
+            knownHostsProvider.overrideWith(KnownHostsNotifier.new),
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),

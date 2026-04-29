@@ -1433,7 +1433,7 @@ class SecurityInitController {
     // read pulls fresh rows after the engine swap.
     ref.read(sessionProvider.notifier).invalidateCache();
     ref.read(sshKeysProvider.notifier).invalidateCache();
-    ref.read(knownHostsProvider).invalidateCache();
+    ref.read(knownHostsProvider.notifier).invalidateCache();
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);
     }

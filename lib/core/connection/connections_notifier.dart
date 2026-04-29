@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../providers/known_hosts_provider.dart';
 import '../../providers/session_credential_cache_provider.dart';
 import '../../src/rust/api/auth_compose.dart' as rust_auth;
 import '../../src/rust/api/bus.dart' as rust_bus;
@@ -11,7 +10,6 @@ import '../../src/rust/api/connection.dart' as rust_connection;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 import '../security/session_credential_cache.dart';
-import '../ssh/known_hosts.dart';
 import '../ssh/ssh_config.dart';
 import '../ssh/transport/ssh_transport.dart';
 import 'connection.dart';
@@ -45,19 +43,11 @@ import 'connection_step_mappers.dart';
 class ConnectionsNotifier extends Notifier<List<Connection>> {
   final _connections = <String, Connection>{};
   final _uuid = const Uuid();
-  late KnownHostsManager _knownHosts;
   SessionCredentialCache? _credentialCache;
   bool _disposed = false;
 
-  /// Resolved [KnownHostsManager] — used by [Connection] for the
-  /// pin-on-trust handshake. Exposed so `session_connect` can
-  /// hand it to a fresh `Connection` instance directly when it
-  /// builds one outside the standard `connectAsync` path.
-  KnownHostsManager get knownHosts => _knownHosts;
-
   @override
   List<Connection> build() {
-    _knownHosts = ref.watch(knownHostsProvider);
     _credentialCache = ref.watch(sessionCredentialCacheProvider);
     StreamSubscription<rust_bus.BusEvent>? busSub;
     // FRB-unreachable contexts (flutter_test) skip the bus
@@ -160,7 +150,6 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       label: label ?? config.displayName,
       sshConfig: config,
       sessionId: sessionId,
-      knownHosts: _knownHosts,
       state: SSHConnectionState.connecting,
       bastion: bastion,
       internal: internal,

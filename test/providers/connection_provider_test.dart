@@ -1,17 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connections_notifier.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
+import 'package:letsflutssh/providers/known_hosts_provider.dart';
 
 void main() {
   group('connection providers', () {
-    test('knownHostsProvider returns KnownHostsManager', () {
+    test('knownHostsProvider exposes a KnownHostsNotifier', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final kh = container.read(knownHostsProvider);
-      expect(kh, isA<KnownHostsManager>());
+      final notifier = container.read(knownHostsProvider.notifier);
+      expect(notifier, isA<KnownHostsNotifier>());
+      expect(notifier.entries, isEmpty);
     });
 
     test('connectionsProvider exposes a ConnectionsNotifier', () {
@@ -20,14 +21,6 @@ void main() {
       final notifier = container.read(connectionsProvider.notifier);
       expect(notifier, isA<ConnectionsNotifier>());
       expect(notifier.connections, isEmpty);
-    });
-
-    test('connectionsProvider notifier resolves the known-hosts singleton', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final kh = container.read(knownHostsProvider);
-      final notifier = container.read(connectionsProvider.notifier);
-      expect(notifier.knownHosts, kh);
     });
 
     test('connectionsProvider yields empty list initially', () {

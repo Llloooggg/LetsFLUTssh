@@ -345,7 +345,7 @@ class _ExportImportTile extends ConsumerWidget {
     );
 
     final knownHostsContent = await ref
-        .read(knownHostsProvider)
+        .read(knownHostsProvider.notifier)
         .exportToString();
     if (!context.mounted) return;
 
@@ -865,7 +865,7 @@ class _QrExportTile extends ConsumerWidget {
     );
 
     final knownHostsContent = await ref
-        .read(knownHostsProvider)
+        .read(knownHostsProvider.notifier)
         .exportToString();
     if (!context.mounted) return;
 
