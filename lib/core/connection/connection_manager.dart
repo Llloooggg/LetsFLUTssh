@@ -175,7 +175,7 @@ class ConnectionManager {
 
     final rust_bus.BusConnectArgs args;
     try {
-      args = _busConnectArgs(conn, effectiveConfig, auth);
+      args = busConnectArgs(conn, effectiveConfig, auth);
     } catch (e, st) {
       AppLogger.instance.log(
         'Bus connect args build failed: $e',
@@ -326,47 +326,7 @@ class ConnectionManager {
   // only owns the connect-attempt orchestration: completer +
   // post-auth credential cache.
 
-  rust_bus.BusConnectArgs _busConnectArgs(
-    Connection conn,
-    SSHConfig config,
-    SshAuthMethod auth,
-  ) {
-    return rust_bus.BusConnectArgs(
-      label: conn.label,
-      sessionId: conn.sessionId,
-      host: config.host,
-      port: config.port,
-      user: config.user,
-      auth: _busAuthRef(auth),
-      bastionId: conn.bastion?.id,
-      internal: conn.internal,
-    );
-  }
-
-  rust_bus.BusConnectAuthRef _busAuthRef(SshAuthMethod auth) {
-    return switch (auth) {
-      SshAuthPasswordRef(:final passwordSecretId) =>
-        rust_bus.BusConnectAuthRef.password(secretId: passwordSecretId),
-      SshAuthPubkeyRef(:final keySecretId, :final passphraseSecretId) =>
-        rust_bus.BusConnectAuthRef.pubkey(
-          keySecretId: keySecretId,
-          passphraseSecretId: passphraseSecretId,
-        ),
-      SshAuthPubkeyCertRef(
-        :final keySecretId,
-        :final certSecretId,
-        :final passphraseSecretId,
-      ) =>
-        rust_bus.BusConnectAuthRef.pubkeyCert(
-          keySecretId: keySecretId,
-          certSecretId: certSecretId,
-          passphraseSecretId: passphraseSecretId,
-        ),
-      SshAuthAgent() => const rust_bus.BusConnectAuthRef.agent(),
-    };
-  }
-
-  // Phase / status mapping lives in
+  // Phase / status / auth-ref / connect-args mapping lives in
   // `connection_step_mappers.dart` so the Connection class +
   // the manager share one canonical implementation.
 
