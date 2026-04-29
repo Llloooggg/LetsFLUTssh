@@ -8,7 +8,7 @@ import '../core/db/rust_db_init.dart';
 import '../core/security/security_tier.dart';
 import '../providers/config_provider.dart';
 import '../providers/connection_provider.dart' show knownHostsProvider;
-import '../providers/key_provider.dart' show keyStoreProvider;
+import '../providers/key_provider.dart' show sshKeysProvider;
 import '../providers/security_provider.dart';
 import '../providers/session_provider.dart';
 import '../src/rust/api/app.dart' as rust_app;
@@ -149,7 +149,7 @@ class TierUnlockedListener {
       // pulls fresh rows after the engine swap. Mirrors the
       // existing `_injectDatabase` pre-step.
       _ref.read(sessionProvider.notifier).invalidateCache();
-      _ref.read(keyStoreProvider).invalidateCache();
+      _ref.read(sshKeysProvider.notifier).invalidateCache();
       _ref.read(knownHostsProvider).invalidateCache();
       if (key != null) {
         _ref.read(securityStateProvider.notifier).set(tier, key);

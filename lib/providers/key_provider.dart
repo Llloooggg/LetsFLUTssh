@@ -1,18 +1,295 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
-import '../core/security/key_store.dart';
+import '../core/security/ssh_key.dart';
+import '../src/rust/api/db.dart' as rust_db;
+import '../src/rust/api/sessions.dart' as rust_sess;
+import '../utils/logger.dart';
 
-/// Key store — singleton (encrypted SSH key storage).
-final keyStoreProvider = Provider<KeyStore>((ref) {
-  return KeyStore();
-});
-
-/// Reactive list of all stored SSH keys.
+/// All stored SSH keys, sorted by createdAt descending. Loaded from
+/// `lfs_core.db` on first access; mutations route through the
+/// [SshKeysNotifier] CRUD methods which invalidate state and refresh.
 ///
-/// Loads keys on first access; [invalidate] to reload after mutations.
-final sshKeysProvider = FutureProvider<List<SshKeyEntry>>((ref) async {
-  final store = ref.watch(keyStoreProvider);
-  final keys = await store.loadAllSafe();
-  return keys.values.toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-});
+/// Replaces the prior two-tier `Provider<KeyStore>` +
+/// `FutureProvider<List<SshKeyEntry>>` split. The AsyncNotifier
+/// owns the FRB read/write pipeline directly.
+final sshKeysProvider =
+    AsyncNotifierProvider<SshKeysNotifier, List<SshKeyEntry>>(
+      SshKeysNotifier.new,
+    );
+
+class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
+  Map<String, SshKeyEntry>? _cache;
+
+  @override
+  Future<List<SshKeyEntry>> build() async {
+    // `loadAllSafe` (not `loadAll`) — first-frame reads happen
+    // before unlock has put a usable key in the FRB native lib;
+    // the prior FutureProvider used the sentinel-empty path so
+    // the sidebar didn't surface a KeyStoreException as the
+    // cold-start visible error.
+    final map = await loadAllSafe();
+    return map.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  /// Drop the in-memory cache. Called from the unlock handshake so
+  /// the next read pulls fresh rows after the DB switches behind us.
+  void invalidateCache() {
+    _cache = null;
+    if (_attached) ref.invalidateSelf();
+  }
+
+  bool _attached = false;
+
+  /// Load all stored keys (id-keyed). Throws on FRB failure so
+  /// callers that need a hard error path can react; use [loadAllSafe]
+  /// for the sentinel-empty version.
+  Future<Map<String, SshKeyEntry>> loadAll() async {
+    _attached = true;
+    if (_cache != null) return Map.of(_cache!);
+    try {
+      final rows = await rust_db.dbSshKeysListAll();
+      final result = {for (final r in rows) r.id: _fromRow(r)};
+      _cache = result;
+      return Map.of(result);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to load keys',
+        name: 'SshKeysNotifier',
+        error: e,
+      );
+      throw KeyStoreException('Failed to load keys.', cause: e);
+    }
+  }
+
+  /// Load all keys, returning an empty map on any error.
+  Future<Map<String, SshKeyEntry>> loadAllSafe() async {
+    try {
+      return await loadAll();
+    } on KeyStoreException catch (e) {
+      AppLogger.instance.log(
+        'loadAllSafe: returning empty map — $e',
+        name: 'SshKeysNotifier',
+      );
+      return {};
+    }
+  }
+
+  /// List every stored key without pulling its PEM bytes. Returns
+  /// metadata only — id, label, public half, key type, timestamps,
+  /// `isGenerated` flag, plus SHA-256 fingerprints of the private
+  /// and public material computed inside Rust.
+  ///
+  /// Call this from any path that needs *which keys exist* but not
+  /// *what's in them* (key manager listing, import dedup,
+  /// existing-id checks). The PEM-bearing [loadAll] stays in place
+  /// for the rare paths that genuinely need the bytes (e.g. `.lfs`
+  /// archive export, before the export orchestrator moves Rust-
+  /// side).
+  Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
+    try {
+      final rows = await rust_db.dbSshKeysListMetadata();
+      return {
+        for (final r in rows)
+          r.id: SshKeyMetadata(
+            id: r.id,
+            label: r.label,
+            publicKey: r.publicKey,
+            keyType: r.keyType,
+            createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
+            isGenerated: r.isGenerated,
+            privateFingerprint: r.privateFingerprint,
+            publicFingerprint: r.publicFingerprint,
+          ),
+      };
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to load key metadata',
+        name: 'SshKeysNotifier',
+        error: e,
+      );
+      throw KeyStoreException('Failed to load key metadata.', cause: e);
+    }
+  }
+
+  /// Save all keys (replaces entire store).
+  Future<void> saveAll(Map<String, SshKeyEntry> keys) async {
+    try {
+      final existing = await rust_db.dbSshKeysListAll();
+      for (final r in existing) {
+        await rust_db.dbSshKeysDelete(id: r.id);
+      }
+      for (final entry in keys.values) {
+        await rust_db.dbSshKeysUpsert(row: _toRow(entry));
+      }
+      _cache = Map.of(keys);
+    } catch (e) {
+      AppLogger.instance.log(
+        'SshKeysNotifier.saveAll failed: $e',
+        name: 'SshKeysNotifier',
+        level: LogLevel.warn,
+      );
+    }
+    if (_attached) ref.invalidateSelf();
+  }
+
+  /// Get a single key entry.
+  Future<SshKeyEntry?> get(String id) async {
+    final all = await loadAll();
+    return all[id];
+  }
+
+  /// Add or update a key entry.
+  Future<void> save(SshKeyEntry entry) async {
+    try {
+      await rust_db.dbSshKeysUpsert(row: _toRow(entry));
+      _cache?[entry.id] = entry;
+    } catch (e) {
+      AppLogger.instance.log(
+        'SshKeysNotifier.save failed: $e',
+        name: 'SshKeysNotifier',
+        level: LogLevel.warn,
+      );
+    }
+    if (_attached) ref.invalidateSelf();
+  }
+
+  /// Delete a key entry.
+  Future<void> delete(String id) async {
+    try {
+      await rust_db.dbSshKeysDelete(id: id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'SshKeysNotifier.delete failed: $e',
+        name: 'SshKeysNotifier',
+        level: LogLevel.warn,
+      );
+    }
+    _cache?.remove(id);
+    if (_attached) ref.invalidateSelf();
+  }
+
+  /// Find the id of a stored key whose material matches [entry].
+  /// Returns null if no match.
+  ///
+  /// Prefers the public-key fingerprint — public key bytes never leave
+  /// the secure store via this path, so dedup runs without pulling
+  /// private material through an isolate just to hash it. Falls back to
+  /// the private-key fingerprint only when [entry.publicKey] is empty
+  /// (a rare path for keys imported without an extracted public half).
+  Future<String?> findIdByKeyMaterial(SshKeyEntry entry) async {
+    final all = await loadAll();
+    final publicTarget = publicKeyFingerprint(entry.publicKey);
+    if (publicTarget.isNotEmpty) {
+      for (final stored in all.values) {
+        if (publicKeyFingerprint(stored.publicKey) == publicTarget) {
+          return stored.id;
+        }
+      }
+      return null;
+    }
+    final privateTarget = privateKeyFingerprint(entry.privateKey);
+    if (privateTarget.isEmpty) return null;
+    for (final stored in all.values) {
+      if (privateKeyFingerprint(stored.privateKey) == privateTarget) {
+        return stored.id;
+      }
+    }
+    return null;
+  }
+
+  /// Import a key from another source (QR/.lfs), deduplicating by content.
+  ///
+  /// - If a stored key has the same public-key fingerprint (or private-
+  ///   key fingerprint as fallback), returns its id without writing
+  ///   anything — no duplicates.
+  /// - Otherwise, inserts a new entry. The id is replaced with a fresh
+  ///   UUID to avoid colliding with an unrelated stored key that
+  ///   happens to share the imported id. If the label already exists, a
+  ///   "(copy)"/"(copy N)" suffix is appended — mirrors session
+  ///   duplication semantics.
+  ///
+  /// Routes through `lfs_core::db::ssh_keys::import_key_for_merge`
+  /// (FRB async) so the dedup-by-fingerprint + label-uniqueness +
+  /// insert sequence runs as one sqlite transaction. Falls back to
+  /// the inline three-step composition when the FRB native lib
+  /// isn't loaded (flutter_test).
+  Future<String> importForMerge(SshKeyEntry entry) async {
+    try {
+      return await rust_db.dbSshKeysImportForMerge(proposed: _toRow(entry));
+    } catch (_) {
+      // FRB unavailable — fall through to the Dart composition.
+    }
+    final all = await loadAll();
+    final existingId = await findIdByKeyMaterial(entry);
+    if (existingId != null) return existingId;
+
+    final labels = all.values.map((e) => e.label).toSet();
+    final takenIds = all.keys.toSet();
+    final newLabel = _uniqueLabel(entry.label, labels);
+    final newId = takenIds.contains(entry.id) ? const Uuid().v4() : entry.id;
+
+    final deduped = SshKeyEntry(
+      id: newId,
+      label: newLabel,
+      privateKey: entry.privateKey,
+      publicKey: entry.publicKey,
+      keyType: entry.keyType,
+      createdAt: entry.createdAt,
+      isGenerated: entry.isGenerated,
+    );
+    await save(deduped);
+    return newId;
+  }
+
+  /// Import an OpenSSH PEM-armored private key. Returns the created
+  /// entry — the caller decides whether to persist via [save] /
+  /// [importForMerge]. Thin delegation to the top-level
+  /// [importSshKey] in `ssh_key.dart` so callers without a Riverpod
+  /// ref (config importer, ssh-dir wizard) can hit the same parser.
+  Future<SshKeyEntry> importKey(String pem, String label) =>
+      importSshKey(pem, label);
+
+  /// Routes through `lfs_core::sessions::unique_label` so the
+  /// `(copy)` / `(copy N)` dedup grammar lives one place. Falls back
+  /// to the equivalent inline loop in flutter_test contexts that
+  /// don't bootstrap the FRB native lib.
+  static String _uniqueLabel(String base, Set<String> taken) {
+    try {
+      return rust_sess.sessionsUniqueLabel(
+        base: base,
+        taken: taken.toList(growable: false),
+      );
+    } catch (_) {
+      if (base.isEmpty || !taken.contains(base)) return base;
+      final copy = '$base (copy)';
+      if (!taken.contains(copy)) return copy;
+      var n = 2;
+      while (taken.contains('$base (copy $n)')) {
+        n++;
+      }
+      return '$base (copy $n)';
+    }
+  }
+
+  static SshKeyEntry _fromRow(rust_db.DbSshKey r) => SshKeyEntry(
+    id: r.id,
+    label: r.label,
+    privateKey: r.privateKey,
+    publicKey: r.publicKey,
+    keyType: r.keyType,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
+    isGenerated: r.isGenerated,
+  );
+
+  static rust_db.DbSshKey _toRow(SshKeyEntry e) => rust_db.DbSshKey(
+    id: e.id,
+    label: e.label,
+    privateKey: e.privateKey,
+    publicKey: e.publicKey,
+    keyType: e.keyType,
+    isGenerated: e.isGenerated,
+    createdAtMs: e.createdAt.millisecondsSinceEpoch,
+  );
+}

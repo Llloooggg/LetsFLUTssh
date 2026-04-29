@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
-import '../../core/security/key_store.dart';
+import '../../core/security/ssh_key.dart';
 import '../../core/session/port_forwards_dao.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/session/session.dart';
@@ -271,7 +271,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
 
   /// Look up the key label from the store for display.
   Future<void> _resolveKeyLabel() async {
-    final store = ref.read(keyStoreProvider);
+    final store = ref.read(sshKeysProvider.notifier);
     final entry = await store.get(_selectedKeyId);
     if (entry != null && mounted) {
       setState(() => _selectedKeyLabel = entry.label);

@@ -4,7 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/config/app_config.dart';
-import '../core/security/key_store.dart';
+import '../core/security/ssh_key.dart';
 import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
 import '../core/snippets/snippet.dart';

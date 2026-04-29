@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/import/openssh_config_importer.dart';
 import 'package:letsflutssh/core/import/ssh_dir_key_scanner.dart';
-import 'package:letsflutssh/core/security/key_store.dart';
+import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
@@ -305,7 +305,7 @@ void main() {
                 keys: [key],
                 folderLabel: '.ssh 2026-04-15',
                 existingKeyFingerprints: {
-                  KeyStore.privateKeyFingerprint(key.pem),
+                  privateKeyFingerprint(key.pem),
                 },
               ),
             ),

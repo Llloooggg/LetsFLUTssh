@@ -4,7 +4,7 @@ import 'package:archive/archive.dart';
 
 import '../../src/rust/api/qr_codec_encode.dart' as rust_qr;
 import '../../utils/logger.dart';
-import '../security/key_store.dart';
+import '../security/ssh_key.dart';
 import '../snippets/snippet.dart';
 import '../tags/tag.dart';
 import 'session.dart';

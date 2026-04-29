@@ -1432,7 +1432,7 @@ class SecurityInitController {
     // handshake invalidates each store's in-memory cache so the next
     // read pulls fresh rows after the engine swap.
     ref.read(sessionProvider.notifier).invalidateCache();
-    ref.read(keyStoreProvider).invalidateCache();
+    ref.read(sshKeysProvider.notifier).invalidateCache();
     ref.read(knownHostsProvider).invalidateCache();
     if (key != null) {
       ref.read(securityStateProvider.notifier).set(level, key);

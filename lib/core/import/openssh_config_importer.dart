@@ -3,7 +3,7 @@ import 'dart:io';
 import '../../features/settings/export_import.dart';
 import '../../utils/logger.dart';
 import '../../utils/platform.dart';
-import '../security/key_store.dart';
+import '../security/ssh_key.dart';
 import '../session/session.dart';
 import '../ssh/openssh_config_parser.dart';
 import '../ssh/ssh_config.dart';
@@ -55,17 +55,17 @@ class OpenSshConfigImporter {
   final PemKeyReader readPem;
   final EncryptedPemDetector isEncryptedPem;
 
-  /// Instance used only for its stateless [KeyStore.importKey] — avoids
-  /// duplicating the PEM→SshKeyEntry parsing logic already there.
-  final KeyStore _keyParser;
+  /// Stateless PEM→SshKeyEntry parser. Defaults to the top-level
+  /// [importSshKey] so test rigs can swap in a deterministic stub.
+  final SshKeyImporter parseKey;
 
   OpenSshConfigImporter({
     PemKeyReader? readPem,
     EncryptedPemDetector? isEncryptedPem,
-    KeyStore? keyParser,
+    SshKeyImporter? parseKey,
   }) : readPem = readPem ?? KeyFileHelper.tryReadPemKey,
        isEncryptedPem = isEncryptedPem ?? KeyFileHelper.isEncryptedPem,
-       _keyParser = keyParser ?? KeyStore();
+       parseKey = parseKey ?? importSshKey;
 
   /// Expand a leading `~` in [path] to the user's home directory.
   /// Paths without `~` pass through untouched.
@@ -202,11 +202,11 @@ class OpenSshConfigImporter {
         );
         continue;
       }
-      final fp = KeyStore.privateKeyFingerprint(pem);
+      final fp = privateKeyFingerprint(pem);
       final existingId = keyIdByFingerprint[fp];
       if (existingId != null) return _KeyResolution(existingId);
       try {
-        final keyEntry = await _keyParser.importKey(
+        final keyEntry = await parseKey(
           pem,
           _keyLabel(rawPath, keyLabelSuffix),
         );

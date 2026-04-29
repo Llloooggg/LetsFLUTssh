@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/import/key_file_helper.dart';
-import '../../core/security/key_store.dart';
+import '../../core/security/ssh_key.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
@@ -51,7 +51,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   }
 
   Future<void> _loadKeys() async {
-    final store = ref.read(keyStoreProvider);
+    final store = ref.read(sshKeysProvider.notifier);
     try {
       final keys = await store.loadAllMetadata();
       if (mounted) {
@@ -214,7 +214,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final store = ref.read(keyStoreProvider);
+    final store = ref.read(sshKeysProvider.notifier);
     await store.delete(entry.id);
     ref.invalidate(sshKeysProvider);
     // DB cascades `Sessions.keyId → NULL` on key deletion, but the in-memory
@@ -232,7 +232,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     final result = await _GenerateKeyDialog.show(context);
     if (result == null || !mounted) return;
 
-    final store = ref.read(keyStoreProvider);
+    final store = ref.read(sshKeysProvider.notifier);
     await store.save(result);
     ref.invalidate(sshKeysProvider);
     await _loadKeys();
@@ -328,7 +328,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
 
   Future<void> _persistImportedKey(String label, String pem) async {
     try {
-      final store = ref.read(keyStoreProvider);
+      final store = ref.read(sshKeysProvider.notifier);
       final entry = await store.importKey(pem, label);
       await store.save(entry);
       ref.invalidate(sshKeysProvider);
@@ -472,7 +472,7 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
     try {
       // Run in microtask to let UI update for RSA
       final entry = await Future.microtask(
-        () => KeyStore.generateKeyPair(_type, label),
+        () => generateSshKeyPair(_type, label),
       );
       if (mounted) Navigator.pop(context, entry);
     } catch (e) {

@@ -3,7 +3,7 @@ import 'dart:convert';
 import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/archive_stage.dart' as rust_stage;
 import '../config/app_config.dart';
-import '../security/key_store.dart';
+import '../security/ssh_key.dart';
 import '../snippets/snippet.dart';
 import '../tags/tag.dart';
 import '../../features/settings/export_import.dart';

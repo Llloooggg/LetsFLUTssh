@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/import/openssh_config_importer.dart';
 import '../core/import/ssh_dir_key_scanner.dart';
-import '../core/security/key_store.dart';
+import '../core/security/ssh_key.dart';
 import '../core/session/session.dart';
 import '../features/settings/export_import.dart';
 import '../l10n/app_localizations.dart';
@@ -148,7 +148,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     _keyAlreadyInStore = _keys
         .map(
           (k) => widget.source.existingKeyFingerprints.contains(
-            KeyStore.privateKeyFingerprint(k.pem),
+            privateKeyFingerprint(k.pem),
           ),
         )
         .toList();
@@ -247,10 +247,10 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
       if (picked == null || picked.isEmpty || !mounted) return;
       setState(() {
         final existingFps = _keys
-            .map((k) => KeyStore.privateKeyFingerprint(k.pem))
+            .map((k) => privateKeyFingerprint(k.pem))
             .toSet();
         for (final k in picked) {
-          final fp = KeyStore.privateKeyFingerprint(k.pem);
+          final fp = privateKeyFingerprint(k.pem);
           if (!existingFps.add(fp)) continue;
           _keys.add(k);
           final existsInStore = widget.source.existingKeyFingerprints.contains(
@@ -279,7 +279,6 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     // importer (IdentityFile → SshKeyEntry) and raw keys picked up by the
     // scanner / file picker. We only keep keys the user opted into; dedup by
     // fingerprint so a key referenced by both paths doesn't import twice.
-    final keyStore = KeyStore();
     final date = DateTime.now().toIso8601String().split('T').first;
     final pickedEntries = <SshKeyEntry>[];
     final seenFingerprints = <String>{};
@@ -287,14 +286,11 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
     for (var i = 0; i < _keys.length; i++) {
       if (!_selectedKeys[i]) continue;
       final scanned = _keys[i];
-      final fp = KeyStore.privateKeyFingerprint(scanned.pem);
+      final fp = privateKeyFingerprint(scanned.pem);
       if (!seenFingerprints.add(fp)) continue;
       try {
         pickedEntries.add(
-          await keyStore.importKey(
-            scanned.pem,
-            '${scanned.suggestedLabel} $date',
-          ),
+          await importSshKey(scanned.pem, '${scanned.suggestedLabel} $date'),
         );
       } catch (_) {
         // Skip unparseable PEM — the handler above already warns about each
@@ -308,7 +304,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         .toSet();
     for (final entry in _hostManagerKeys) {
       if (!referencedKeyIds.contains(entry.id)) continue;
-      final fp = KeyStore.privateKeyFingerprint(entry.privateKey);
+      final fp = privateKeyFingerprint(entry.privateKey);
       if (!seenFingerprints.add(fp)) continue;
       pickedEntries.add(entry);
     }

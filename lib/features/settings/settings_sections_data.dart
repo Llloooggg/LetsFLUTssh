@@ -179,7 +179,7 @@ class _ExportImportTile extends ConsumerWidget {
     try {
       final sshDir = p.join(plat.homeDirectory, '.ssh');
       final configPath = p.join(sshDir, 'config');
-      final keyStore = ref.read(keyStoreProvider);
+      final keyStore = ref.read(sshKeysProvider.notifier);
 
       // Capture localized strings BEFORE the first async hop. The
       // PPK-aware key scanner now awaits FRB; resolving `S.of(context)`
@@ -335,7 +335,7 @@ class _ExportImportTile extends ConsumerWidget {
     final notifier = ref.read(sessionProvider.notifier);
 
     // Load counts for export dialog
-    final keyStore = ref.read(keyStoreProvider);
+    final keyStore = ref.read(sshKeysProvider.notifier);
     final allKeys = await keyStore.loadAll();
     final allTags = await ref.read(tagsProvider.notifier).loadAll();
     final allSnippets = await ref.read(snippetsProvider.notifier).loadAll();
@@ -855,7 +855,7 @@ class _QrExportTile extends ConsumerWidget {
     final notifier = ref.read(sessionProvider.notifier);
 
     // Load counts for export dialog
-    final keyStore = ref.read(keyStoreProvider);
+    final keyStore = ref.read(sshKeysProvider.notifier);
     final allKeys = await keyStore.loadAll();
     final allTags = await ref.read(tagsProvider.notifier).loadAll();
     final allSnippets = await ref.read(snippetsProvider.notifier).loadAll();

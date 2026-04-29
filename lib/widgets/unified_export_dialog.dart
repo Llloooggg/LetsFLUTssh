@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/config/app_config.dart';
-import '../core/security/key_store.dart';
+import '../core/security/ssh_key.dart';
 import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
 import '../core/session/session_tree.dart';

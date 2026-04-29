@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/key_store.dart';
+import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
@@ -1983,14 +1983,14 @@ void main() {
     Widget buildWithKeys(
       List<SshKeyEntry> keys, {
       Session? session,
-      KeyStore? keyStore,
+      _StubKeysNotifier? notifier,
     }) {
+      final keysList = List<SshKeyEntry>.unmodifiable(keys);
       return ProviderScope(
         overrides: [
           sshKeysProvider.overrideWith(
-            (_) async => List<SshKeyEntry>.unmodifiable(keys),
+            () => notifier ?? _StubKeysNotifier(keysList),
           ),
-          if (keyStore != null) keyStoreProvider.overrideWithValue(keyStore),
           if (session != null)
             sessionTagsProvider(
               session.id,
@@ -2111,7 +2111,10 @@ void main() {
         // render the resolved label on the chip. The session itself never
         // stores the label — the key store is the source of truth.
         final storedKey = makeKey('k-abc', 'Saved laptop key');
-        final fakeStore = _StubKeyStore({'k-abc': storedKey});
+        final fakeStore = _StubKeysNotifier(
+          [storedKey],
+          lookup: {'k-abc': storedKey},
+        );
         final existing = Session(
           id: 's1',
           label: 'Existing',
@@ -2120,7 +2123,7 @@ void main() {
         );
 
         await tester.pumpWidget(
-          buildWithKeys([storedKey], session: existing, keyStore: fakeStore),
+          buildWithKeys([storedKey], session: existing, notifier: fakeStore),
         );
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
@@ -2138,23 +2141,27 @@ void main() {
   });
 }
 
-/// Minimal [KeyStore] test double.
+/// Minimal [SshKeysNotifier] test double.
 ///
-/// Overrides only [get] — the one method the key-picker flow relies on when
-/// resolving an already-stored `keyId` into a human label. Records the ids it
-/// is queried with so tests can assert the dialog only looks up what it needs.
-class _StubKeyStore implements KeyStore {
+/// Overrides only [get] — the one method the key-picker flow relies on
+/// when resolving an already-stored `keyId` into a human label.
+/// Records the ids it is queried with so tests can assert the dialog
+/// only looks up what it needs. `build()` returns the seeded list so
+/// `ref.watch(sshKeysProvider)` resolves immediately.
+class _StubKeysNotifier extends SshKeysNotifier {
+  _StubKeysNotifier(this._initial, {Map<String, SshKeyEntry>? lookup})
+    : _entries = lookup ?? {for (final k in _initial) k.id: k};
+
+  final List<SshKeyEntry> _initial;
   final Map<String, SshKeyEntry> _entries;
   final List<String> getIds = [];
 
-  _StubKeyStore(this._entries);
+  @override
+  Future<List<SshKeyEntry>> build() async => _initial;
 
   @override
   Future<SshKeyEntry?> get(String id) async {
     getIds.add(id);
     return _entries[id];
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
