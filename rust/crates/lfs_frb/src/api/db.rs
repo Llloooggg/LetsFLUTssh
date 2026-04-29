@@ -552,6 +552,95 @@ pub async fn db_sessions_duplicate(
     res
 }
 
+/// FRB mirror of `lfs_core::db::sessions::RestoreSessionInput`.
+/// Same field set as `DbSession` but carries `folder_path`
+/// instead of `folder_id` — the snapshot caller (undo history)
+/// only knows the path, and the post-restore folder tree is
+/// re-minted inside the same transaction so any prior id is
+/// stale anyway.
+#[derive(Debug, Clone)]
+pub struct DbRestoreSessionInput {
+    pub id: String,
+    pub label: String,
+    pub folder_path: String,
+    pub host: String,
+    pub port: i64,
+    pub user: String,
+    pub auth_type: String,
+    pub password: String,
+    pub key_path: String,
+    pub key_data: String,
+    pub key_id: Option<String>,
+    pub passphrase: String,
+    pub sort_order: i64,
+    pub notes: String,
+    pub last_connected_at_ms: Option<i64>,
+    pub extras: String,
+    pub via_session_id: Option<String>,
+    pub via_host: Option<String>,
+    pub via_port: Option<i64>,
+    pub via_user: Option<String>,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+impl From<DbRestoreSessionInput> for lfs_core::db::sessions::RestoreSessionInput {
+    fn from(d: DbRestoreSessionInput) -> Self {
+        Self {
+            id: d.id,
+            label: d.label,
+            folder_path: d.folder_path,
+            host: d.host,
+            port: d.port,
+            user: d.user,
+            auth_type: d.auth_type,
+            password: d.password,
+            key_path: d.key_path,
+            key_data: d.key_data,
+            key_id: d.key_id,
+            passphrase: d.passphrase,
+            sort_order: d.sort_order,
+            notes: d.notes,
+            last_connected_at_ms: d.last_connected_at_ms,
+            extras: d.extras,
+            via_session_id: d.via_session_id,
+            via_host: d.via_host,
+            via_port: d.via_port,
+            via_user: d.via_user,
+            created_at_ms: d.created_at_ms,
+            updated_at_ms: d.updated_at_ms,
+        }
+    }
+}
+
+/// Atomic restore from an undo-history snapshot. Wipes live
+/// sessions + folders, rebuilds the folder tree from session
+/// paths + the bare empty-folder list, re-inserts every session
+/// under the freshly-resolved folder id. One transaction.
+///
+/// Replaces the Dart `SessionStore.restoreSnapshot` orchestration
+/// (delete-all sessions + delete-all folders + N× resolveFolderPath
+/// + N× upsert + M× resolveFolderPath) with a single FRB call.
+pub async fn db_sessions_restore_snapshot(
+    sessions: Vec<DbRestoreSessionInput>,
+    empty_folder_paths: Vec<String>,
+    now_ms: i64,
+) -> Result<(), String> {
+    let res = tokio::task::spawn_blocking(move || {
+        let db = require_db()?;
+        let typed: Vec<lfs_core::db::sessions::RestoreSessionInput> =
+            sessions.into_iter().map(Into::into).collect();
+        db.with_conn_mut(|c| {
+            lfs_core::db::sessions::restore_snapshot(c, typed, empty_folder_paths, now_ms)
+        })
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("db task: {e}"))?;
+    notify_sessions_on_ok(&res);
+    res
+}
+
 /// Composite duplicate — Rust composes label-uniqueness +
 /// folder-path resolution + duplicate-insert in one transaction.
 /// Returns the new session id. Replaces the multi-step Dart

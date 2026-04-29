@@ -14,7 +14,7 @@ use rusqlite::{params, Connection};
 
 use crate::error::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SessionRow {
     pub id: String,
     pub label: String,
@@ -483,6 +483,104 @@ pub fn move_multiple(
         .map_err(|e| Error::Io(format!("sessions move_multiple: {e}")))
 }
 
+/// Single session input for [`restore_snapshot`]. Mirrors
+/// `SessionRow` but carries a `folder_path` string instead of a
+/// pre-resolved `folder_id` — the snapshot caller (undo history)
+/// only knows the path, and the post-restore folder tree is
+/// re-minted inside the same transaction so any prior id is
+/// stale anyway.
+#[derive(Debug, Clone, Default)]
+pub struct RestoreSessionInput {
+    pub id: String,
+    pub label: String,
+    pub folder_path: String,
+    pub host: String,
+    pub port: i64,
+    pub user: String,
+    pub auth_type: String,
+    pub password: String,
+    pub key_path: String,
+    pub key_data: String,
+    pub key_id: Option<String>,
+    pub passphrase: String,
+    pub sort_order: i64,
+    pub notes: String,
+    pub last_connected_at_ms: Option<i64>,
+    pub extras: String,
+    pub via_session_id: Option<String>,
+    pub via_host: Option<String>,
+    pub via_port: Option<i64>,
+    pub via_user: Option<String>,
+    pub created_at_ms: i64,
+    pub updated_at_ms: i64,
+}
+
+/// Atomic restore from an undo-history snapshot. Wipes the live
+/// sessions + folders tables, re-creates the folder tree from the
+/// distinct paths, and re-inserts every session under the freshly-
+/// resolved folder id. All in one transaction so a partial failure
+/// rolls back to the pre-restore state.
+///
+/// Empty folders (`empty_folder_paths`) are ensured separately so a
+/// snapshot that captured an empty folder tree (no sessions) still
+/// rebuilds the folder rows.
+///
+/// Replaces the Dart `SessionStore.restoreSnapshot` orchestration
+/// (`dbSessionsDeleteAll` + `dbFoldersDeleteAll` + N×
+/// `resolveFolderPath` + N× `dbSessionsUpsert` + M×
+/// `resolveFolderPath`) with one FRB call. The N+1 round-trip
+/// pattern collapses to a single transaction.
+pub fn restore_snapshot(
+    conn: &mut Connection,
+    sessions: Vec<RestoreSessionInput>,
+    empty_folder_paths: Vec<String>,
+    now_ms: i64,
+) -> Result<(), Error> {
+    let tx = conn
+        .transaction()
+        .map_err(|e| Error::Io(format!("sessions restore_snapshot tx: {e}")))?;
+
+    delete_all(&tx)?;
+    crate::db::folders::delete_all(&tx)?;
+
+    for s in sessions {
+        let folder_id = crate::db::folders::ensure_folder_path(&tx, &s.folder_path, now_ms)?;
+        let row = SessionRow {
+            id: s.id,
+            label: s.label,
+            folder_id,
+            host: s.host,
+            port: s.port,
+            user: s.user,
+            auth_type: s.auth_type,
+            password: s.password,
+            key_path: s.key_path,
+            key_data: s.key_data,
+            key_id: s.key_id,
+            passphrase: s.passphrase,
+            sort_order: s.sort_order,
+            notes: s.notes,
+            last_connected_at_ms: s.last_connected_at_ms,
+            extras: s.extras,
+            via_session_id: s.via_session_id,
+            via_host: s.via_host,
+            via_port: s.via_port,
+            via_user: s.via_user,
+            created_at_ms: s.created_at_ms,
+            updated_at_ms: s.updated_at_ms,
+        };
+        upsert(&tx, &row)?;
+    }
+
+    for path in empty_folder_paths {
+        crate::db::folders::ensure_folder_path(&tx, &path, now_ms)?;
+    }
+
+    tx.commit()
+        .map_err(|e| Error::Io(format!("sessions restore_snapshot commit: {e}")))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod duplicate_tests {
     use super::*;
@@ -612,5 +710,120 @@ mod duplicate_tests {
         assert_eq!(infra_count, 1, "infra folder must be reused");
         let prod_count = folders.iter().filter(|f| f.name == "prod").count();
         assert_eq!(prod_count, 1, "prod folder must be reused");
+    }
+}
+
+#[cfg(test)]
+mod restore_tests {
+    use super::*;
+    use crate::db::{bootstrap_schema, folders, Db};
+    use rusqlite::Connection as RusqliteConn;
+
+    fn db() -> Db {
+        let conn = RusqliteConn::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Db::from_raw_for_tests(conn)
+    }
+
+    fn input(id: &str, label: &str, folder_path: &str) -> RestoreSessionInput {
+        RestoreSessionInput {
+            id: id.into(),
+            label: label.into(),
+            folder_path: folder_path.into(),
+            host: "h".into(),
+            port: 22,
+            user: "u".into(),
+            auth_type: "password".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn restore_replaces_live_state_atomically() {
+        let db = db();
+        // Seed pre-restore state.
+        db.with_conn(|c| {
+            folders::upsert(
+                c,
+                &folders::FolderRow {
+                    id: "f-old".into(),
+                    name: "old".into(),
+                    parent_id: None,
+                    sort_order: 0,
+                    collapsed: false,
+                    created_at_ms: 0,
+                },
+            )
+        })
+        .unwrap();
+        db.with_conn(|c| {
+            upsert(
+                c,
+                &SessionRow {
+                    id: "s-old".into(),
+                    label: "old".into(),
+                    folder_id: Some("f-old".into()),
+                    host: "h".into(),
+                    port: 22,
+                    user: "u".into(),
+                    auth_type: "password".into(),
+                    ..Default::default()
+                },
+            )
+        })
+        .unwrap();
+
+        db.with_conn_mut(|c| {
+            restore_snapshot(
+                c,
+                vec![input("s1", "Web", "infra/prod"), input("s2", "Db", "")],
+                vec!["empty/dir".into()],
+                100,
+            )
+        })
+        .unwrap();
+
+        // Pre-restore rows are gone.
+        let sessions = db.with_conn(list_all).unwrap();
+        assert_eq!(sessions.len(), 2);
+        assert!(sessions.iter().all(|s| s.id != "s-old"));
+        let folder_rows = db.with_conn(folders::list_all).unwrap();
+        assert!(folder_rows.iter().all(|f| f.id != "f-old"));
+        // Folder tree was rebuilt: infra → prod, empty → dir.
+        assert!(folder_rows.iter().any(|f| f.name == "infra"));
+        assert!(folder_rows.iter().any(|f| f.name == "prod"));
+        assert!(folder_rows.iter().any(|f| f.name == "empty"));
+        assert!(folder_rows.iter().any(|f| f.name == "dir"));
+        // Session got the freshly-resolved folder id.
+        let prod = folder_rows.iter().find(|f| f.name == "prod").unwrap();
+        let s1 = sessions.iter().find(|s| s.id == "s1").unwrap();
+        assert_eq!(s1.folder_id.as_deref(), Some(prod.id.as_str()));
+        let s2 = sessions.iter().find(|s| s.id == "s2").unwrap();
+        assert!(s2.folder_id.is_none());
+    }
+
+    #[test]
+    fn restore_empty_input_clears_everything() {
+        let db = db();
+        db.with_conn(|c| {
+            upsert(
+                c,
+                &SessionRow {
+                    id: "s-old".into(),
+                    label: "old".into(),
+                    host: "h".into(),
+                    port: 22,
+                    user: "u".into(),
+                    auth_type: "password".into(),
+                    ..Default::default()
+                },
+            )
+        })
+        .unwrap();
+        db.with_conn_mut(|c| restore_snapshot(c, vec![], vec![], 0))
+            .unwrap();
+        assert!(db.with_conn(list_all).unwrap().is_empty());
+        assert!(db.with_conn(folders::list_all).unwrap().is_empty());
     }
 }

@@ -738,24 +738,51 @@ class SessionStore {
       ..clear()
       ..addAll(emptyFolders);
 
+    // One Rust transaction now wipes live sessions + folders,
+    // rebuilds the folder tree from the snapshot's session paths
+    // + bare empty-folder list, and re-inserts every session under
+    // the freshly-resolved folder id. Replaces the Dart
+    // delete-all + N× resolveFolderPath + N× upsert + M×
+    // resolveFolderPath fan-out.
     try {
-      // Clear and rebuild
-      await rust_db.dbSessionsDeleteAll();
-      await rust_db.dbFoldersDeleteAll();
-      _folderMap.clear();
-
-      // Re-insert sessions with folder resolution
-      for (final session in sessions) {
-        final folderId = await resolveFolderPath(session.folder, _folderMap);
-        await rust_db.dbSessionsUpsert(
-          row: sessionToRustRow(session, folderId: folderId),
-        );
-      }
-
-      // Re-create empty folders
-      for (final path in emptyFolders) {
-        await resolveFolderPath(path, _folderMap);
-      }
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      await rust_db.dbSessionsRestoreSnapshot(
+        sessions: [
+          for (final s in sessions)
+            rust_db.DbRestoreSessionInput(
+              id: s.id,
+              label: s.label,
+              folderPath: s.folder,
+              host: s.host,
+              port: s.port,
+              user: s.user,
+              authType: s.authType.name,
+              password: s.password,
+              keyPath: s.keyPath,
+              keyData: s.keyData,
+              keyId: s.keyId.isEmpty ? null : s.keyId,
+              passphrase: s.passphrase,
+              sortOrder: 0,
+              notes: '',
+              lastConnectedAtMs: null,
+              extras: s.extras.isEmpty ? '' : jsonEncode(s.extras),
+              viaSessionId: (s.viaSessionId == null || s.viaSessionId!.isEmpty)
+                  ? null
+                  : s.viaSessionId,
+              viaHost: s.viaOverride?.host,
+              viaPort: s.viaOverride?.port,
+              viaUser: s.viaOverride?.user,
+              createdAtMs: s.createdAt.millisecondsSinceEpoch,
+              updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
+            ),
+        ],
+        emptyFolderPaths: emptyFolders.toList(growable: false),
+        nowMs: nowMs,
+      );
+      // Refresh the folder cache so subsequent reads see the
+      // post-restore tree without waiting for the bus tick.
+      final folders = await rust_db.dbFoldersListAll();
+      _folderMap = buildFolderMap(folders);
     } catch (e) {
       AppLogger.instance.log(
         'restoreSnapshot failed: $e',

@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `notify_sessions_on_ok_when`, `notify_sessions_on_ok`, `require_db`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -140,6 +140,24 @@ Future<void> dbSessionsDuplicate({
   newId: newId,
   newLabel: newLabel,
   targetFolderId: targetFolderId,
+  nowMs: nowMs,
+);
+
+/// Atomic restore from an undo-history snapshot. Wipes live
+/// sessions + folders, rebuilds the folder tree from session
+/// paths + the bare empty-folder list, re-inserts every session
+/// under the freshly-resolved folder id. One transaction.
+///
+/// Replaces the Dart `SessionStore.restoreSnapshot` orchestration
+/// (delete-all sessions + delete-all folders + N× resolveFolderPath
+/// + N× upsert + M× resolveFolderPath) with a single FRB call.
+Future<void> dbSessionsRestoreSnapshot({
+  required List<DbRestoreSessionInput> sessions,
+  required List<String> emptyFolderPaths,
+  required PlatformInt64 nowMs,
+}) => RustLib.instance.api.crateApiDbDbSessionsRestoreSnapshot(
+  sessions: sessions,
+  emptyFolderPaths: emptyFolderPaths,
   nowMs: nowMs,
 );
 
@@ -550,6 +568,115 @@ class DbPortForwardRule {
           enabled == other.enabled &&
           sortOrder == other.sortOrder &&
           createdAtMs == other.createdAtMs;
+}
+
+/// FRB mirror of `lfs_core::db::sessions::RestoreSessionInput`.
+/// Same field set as `DbSession` but carries `folder_path`
+/// instead of `folder_id` — the snapshot caller (undo history)
+/// only knows the path, and the post-restore folder tree is
+/// re-minted inside the same transaction so any prior id is
+/// stale anyway.
+class DbRestoreSessionInput {
+  final String id;
+  final String label;
+  final String folderPath;
+  final String host;
+  final PlatformInt64 port;
+  final String user;
+  final String authType;
+  final String password;
+  final String keyPath;
+  final String keyData;
+  final String? keyId;
+  final String passphrase;
+  final PlatformInt64 sortOrder;
+  final String notes;
+  final PlatformInt64? lastConnectedAtMs;
+  final String extras;
+  final String? viaSessionId;
+  final String? viaHost;
+  final PlatformInt64? viaPort;
+  final String? viaUser;
+  final PlatformInt64 createdAtMs;
+  final PlatformInt64 updatedAtMs;
+
+  const DbRestoreSessionInput({
+    required this.id,
+    required this.label,
+    required this.folderPath,
+    required this.host,
+    required this.port,
+    required this.user,
+    required this.authType,
+    required this.password,
+    required this.keyPath,
+    required this.keyData,
+    this.keyId,
+    required this.passphrase,
+    required this.sortOrder,
+    required this.notes,
+    this.lastConnectedAtMs,
+    required this.extras,
+    this.viaSessionId,
+    this.viaHost,
+    this.viaPort,
+    this.viaUser,
+    required this.createdAtMs,
+    required this.updatedAtMs,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      label.hashCode ^
+      folderPath.hashCode ^
+      host.hashCode ^
+      port.hashCode ^
+      user.hashCode ^
+      authType.hashCode ^
+      password.hashCode ^
+      keyPath.hashCode ^
+      keyData.hashCode ^
+      keyId.hashCode ^
+      passphrase.hashCode ^
+      sortOrder.hashCode ^
+      notes.hashCode ^
+      lastConnectedAtMs.hashCode ^
+      extras.hashCode ^
+      viaSessionId.hashCode ^
+      viaHost.hashCode ^
+      viaPort.hashCode ^
+      viaUser.hashCode ^
+      createdAtMs.hashCode ^
+      updatedAtMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbRestoreSessionInput &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          label == other.label &&
+          folderPath == other.folderPath &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          authType == other.authType &&
+          password == other.password &&
+          keyPath == other.keyPath &&
+          keyData == other.keyData &&
+          keyId == other.keyId &&
+          passphrase == other.passphrase &&
+          sortOrder == other.sortOrder &&
+          notes == other.notes &&
+          lastConnectedAtMs == other.lastConnectedAtMs &&
+          extras == other.extras &&
+          viaSessionId == other.viaSessionId &&
+          viaHost == other.viaHost &&
+          viaPort == other.viaPort &&
+          viaUser == other.viaUser &&
+          createdAtMs == other.createdAtMs &&
+          updatedAtMs == other.updatedAtMs;
 }
 
 class DbSession {
