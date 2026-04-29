@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/import/key_file_helper.dart';
 import '../../core/security/key_store.dart';
+import '../../core/session/port_forwards_dao.dart';
 import '../../core/shortcut_registry.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/port_forward_rule.dart';
@@ -263,8 +264,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// edited sessions — new sessions never have rules until the user
   /// adds one in the Forwarding tab.
   Future<void> _loadForwards(String sessionId) async {
-    final store = ref.read(sessionStoreProvider);
-    final loaded = await store.loadPortForwards(sessionId);
+    final loaded = await loadPortForwards(sessionId);
     if (!mounted) return;
     setState(() => _forwards = loaded);
   }

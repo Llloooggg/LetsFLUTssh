@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/session/port_forwards_dao.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -32,8 +33,7 @@ void main() {
     });
 
     test('loadPortForwards returns empty when DB is unreachable', () async {
-      final store = SessionStore();
-      expect(await store.loadPortForwards('whatever'), isEmpty);
+      expect(await loadPortForwards('whatever'), isEmpty);
     });
 
     test('add validates input even without a DB', () async {

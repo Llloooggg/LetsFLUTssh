@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection.dart';
+import '../../core/session/port_forwards_dao.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/errors.dart';
 import '../../core/ssh/port_forward_runtime.dart';
@@ -195,8 +196,7 @@ class SessionConnect {
     String sessionId,
     Connection conn,
   ) async {
-    final store = ref.read(sessionStoreProvider);
-    final rules = await store.loadPortForwards(sessionId);
+    final rules = await loadPortForwards(sessionId);
     if (rules.isEmpty) return;
     final runtime = PortForwardRuntime(rules: rules);
     conn.addExtension(runtime);

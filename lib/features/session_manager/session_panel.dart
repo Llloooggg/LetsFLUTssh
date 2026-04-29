@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/session/port_forwards_dao.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
 import '../../core/shortcut_registry.dart';
@@ -558,16 +559,15 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     String sessionId,
     List<PortForwardRule> nextRules,
   ) async {
-    final store = ref.read(sessionStoreProvider);
-    final existing = await store.loadPortForwards(sessionId);
+    final existing = await loadPortForwards(sessionId);
     final keep = nextRules.map((r) => r.id).toSet();
     for (final old in existing) {
       if (!keep.contains(old.id)) {
-        await store.deletePortForward(old.id);
+        await deletePortForward(old.id);
       }
     }
     for (final r in nextRules) {
-      await store.upsertPortForward(sessionId, r);
+      await upsertPortForward(sessionId, r);
     }
   }
 
