@@ -450,11 +450,6 @@ class SessionStore {
     }
   }
 
-  Future<void> removeEmptyFolder(String folderPath) async {
-    _emptyFolders.remove(folderPath);
-    // Folder stays in tree — will be cleaned up naturally when it gets sessions
-  }
-
   // ── Collapsed folders ───────────────────────────────────────────
 
   Future<void> toggleFolderCollapsed(String folderPath) async {
