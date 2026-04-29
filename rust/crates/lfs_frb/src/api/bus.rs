@@ -20,6 +20,9 @@ pub enum BusTopic {
     Update,
     KnownHosts,
     Sessions,
+    Config,
+    Tier,
+    SecurityPrompt,
 }
 
 impl From<BusTopic> for lfs_core::bus::EventTopic {
@@ -35,6 +38,9 @@ impl From<BusTopic> for lfs_core::bus::EventTopic {
             BusTopic::Update => lfs_core::bus::EventTopic::Update,
             BusTopic::KnownHosts => lfs_core::bus::EventTopic::KnownHosts,
             BusTopic::Sessions => lfs_core::bus::EventTopic::Sessions,
+            BusTopic::Config => lfs_core::bus::EventTopic::Config,
+            BusTopic::Tier => lfs_core::bus::EventTopic::Tier,
+            BusTopic::SecurityPrompt => lfs_core::bus::EventTopic::SecurityPrompt,
         }
     }
 }

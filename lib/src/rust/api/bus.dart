@@ -434,4 +434,7 @@ enum BusTopic {
   update,
   knownHosts,
   sessions,
+  config,
+  tier,
+  securityPrompt,
 }

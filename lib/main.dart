@@ -10,6 +10,7 @@ import 'app/already_running_app.dart';
 import 'app/app_toolbar.dart';
 import 'app/deep_link_wiring.dart';
 import 'app/host_key_prompt_listener.dart';
+import 'app/keychain_pepper_prompt_listener.dart';
 import 'app/global_error_dialog.dart';
 import 'app/import_flow.dart';
 import 'app/navigator_key.dart';
@@ -554,6 +555,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     super.initState();
     wireDeepLinks(_deepLinkHandler, ref);
     HostKeyPromptListener.start();
+    // L2 keychain-pepper prompt subscriber. Wires the
+    // Decision-1 prompt round-trip the Rust
+    // `keychain_password_gate_actor::verify_password` actor
+    // depends on; the Dart `KeychainPasswordGate.verify` Dart
+    // path can flip to the Rust actor in a follow-up commit
+    // without further wiring.
+    KeychainPepperPromptListener.start();
     // Activate the bus → foreground-service bridge. The provider's
     // body wires `ref.listen` against the active-count stream; the
     // act of reading it once installs the listener for the process

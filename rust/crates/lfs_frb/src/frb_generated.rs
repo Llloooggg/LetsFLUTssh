@@ -13872,6 +13872,9 @@ impl SseDecode for crate::api::bus::BusTopic {
             7 => crate::api::bus::BusTopic::Update,
             8 => crate::api::bus::BusTopic::KnownHosts,
             9 => crate::api::bus::BusTopic::Sessions,
+            10 => crate::api::bus::BusTopic::Config,
+            11 => crate::api::bus::BusTopic::Tier,
+            12 => crate::api::bus::BusTopic::SecurityPrompt,
             _ => unreachable!("Invalid variant for BusTopic: {}", inner),
         };
     }
@@ -17664,6 +17667,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusTopic {
             Self::Update => 7.into_dart(),
             Self::KnownHosts => 8.into_dart(),
             Self::Sessions => 9.into_dart(),
+            Self::Config => 10.into_dart(),
+            Self::Tier => 11.into_dart(),
+            Self::SecurityPrompt => 12.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -20306,6 +20312,9 @@ impl SseEncode for crate::api::bus::BusTopic {
                 crate::api::bus::BusTopic::Update => 7,
                 crate::api::bus::BusTopic::KnownHosts => 8,
                 crate::api::bus::BusTopic::Sessions => 9,
+                crate::api::bus::BusTopic::Config => 10,
+                crate::api::bus::BusTopic::Tier => 11,
+                crate::api::bus::BusTopic::SecurityPrompt => 12,
                 _ => {
                     unimplemented!("");
                 }
