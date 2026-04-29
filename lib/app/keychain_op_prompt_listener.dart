@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -81,16 +82,24 @@ class KeychainOpPromptListener {
           if (value == null || value.isEmpty) {
             rust_op.keychainOpPromptResolveAbsent(promptId: id);
           } else {
-            // The L2 read path keeps the pepper as a base64 string
-            // in the keychain slot; the existing Rust actor decodes
-            // via the dedicated pepper-read registry, so this code
-            // path mostly exists for symmetry / future op consumers
-            // (the L2 setPassword / clear / isConfigured cutover
-            // routes contains/write/delete here, not read).
-            rust_op.keychainOpPromptResolve(
-              promptId: id,
-              bytes: value.codeUnits,
-            );
+            // Every keychain slot the app writes (DB encryption
+            // key, biometric key, L2 pepper, biometric DB key)
+            // stores its bytes base64-encoded for the
+            // `flutter_secure_storage` String contract — see
+            // `SecureKeyStorage.writeKey` /
+            // `KeychainPasswordGate.setPassword`. Decode back
+            // to the raw bytes the Rust caller expects;
+            // `value.codeUnits` would hand back the UTF-16
+            // codepoints of the base64 string instead.
+            try {
+              final bytes = base64.decode(value);
+              rust_op.keychainOpPromptResolve(promptId: id, bytes: bytes);
+            } on FormatException catch (e) {
+              rust_op.keychainOpPromptResolveError(
+                promptId: id,
+                message: 'keychain value not valid base64: $e',
+              );
+            }
           }
         case 'contains':
           final present = await _storage.containsKey(key: event.key);
