@@ -456,9 +456,26 @@ class SessionStore {
     final original = get(id);
     if (original == null) throw ArgumentError('Session not found: $id');
     final newId = const Uuid().v4();
-    final newLabel = original.label.isNotEmpty
-        ? '${original.label} (copy)'
-        : '';
+    // Route through `lfs_core::sessions::unique_label` so a
+    // duplicate of "Web" produces "Web (copy)", a second
+    // duplicate produces "Web (copy 2)", and so on — instead of
+    // ending up with three "Web (copy)" sessions in the list.
+    // Falls back to the bare-suffix shape when the FRB native
+    // lib is not loaded (flutter_test).
+    final taken = _sessions.map((s) => s.label).toSet();
+    String newLabel;
+    if (original.label.isEmpty) {
+      newLabel = '';
+    } else {
+      try {
+        newLabel = rust_sess.sessionsUniqueLabel(
+          base: original.label,
+          taken: taken.toList(growable: false),
+        );
+      } catch (_) {
+        newLabel = '${original.label} (copy)';
+      }
+    }
     final folderForCopy = targetFolder ?? original.folder;
     try {
       final folderId = await resolveFolderPath(folderForCopy, _folderMap);
