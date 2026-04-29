@@ -608,8 +608,13 @@ class SecurityInitController {
   }
 
   Future<void> _unlockKeychainWithPassword(SecureKeyStorage keyStorage) async {
+    _emitTierUnlockStart('keychain_with_password');
     final gate = ref.read(keychainPasswordGateProvider);
     if (!await gate.isConfigured()) {
+      _emitTierUnlockResolved(
+        succeeded: false,
+        failureDiscriminant: 'plugin_unavailable',
+      );
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
@@ -630,6 +635,7 @@ class SecurityInitController {
           key: bioKey,
           level: SecurityTier.keychainWithPassword,
         );
+        _emitTierUnlockResolved(succeeded: true);
         AppLogger.instance.log(
           'L2 keychain+password unlocked via biometrics',
           name: 'App',
@@ -647,9 +653,14 @@ class SecurityInitController {
         key: Uint8List.fromList(key),
         level: SecurityTier.keychainWithPassword,
       );
+      _emitTierUnlockResolved(succeeded: true);
       AppLogger.instance.log('L2 keychain+password unlocked', name: 'App');
       return;
     }
+    _emitTierUnlockResolved(
+      succeeded: false,
+      failureDiscriminant: 'user_cancelled',
+    );
     await _injectDatabase();
     AppLogger.instance.log(
       'L2 reset — plaintext fallback',
@@ -733,8 +744,13 @@ class SecurityInitController {
   }
 
   Future<void> _unlockHardware() async {
+    _emitTierUnlockStart('hardware');
     final vault = ref.read(hardwareTierVaultProvider);
     if (!await vault.isStored()) {
+      _emitTierUnlockResolved(
+        succeeded: false,
+        failureDiscriminant: 'plugin_unavailable',
+      );
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
@@ -753,12 +769,17 @@ class SecurityInitController {
           level: SecurityTier.hardware,
           modifiers: mods,
         );
+        _emitTierUnlockResolved(succeeded: true);
         AppLogger.instance.log(
           'L3 hardware-vault unlocked (passwordless)',
           name: 'App',
         );
         return;
       }
+      _emitTierUnlockResolved(
+        succeeded: false,
+        failureDiscriminant: 'corruption',
+      );
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
@@ -780,6 +801,7 @@ class SecurityInitController {
           level: SecurityTier.hardware,
           modifiers: mods,
         );
+        _emitTierUnlockResolved(succeeded: true);
         AppLogger.instance.log(
           'L3 hardware-vault unlocked via biometrics',
           name: 'App',
@@ -793,9 +815,14 @@ class SecurityInitController {
       autoTriggerBiometric: !biometricAttempted,
     );
     if (unlocked) {
+      _emitTierUnlockResolved(succeeded: true);
       AppLogger.instance.log('L3 hardware-vault unlocked', name: 'App');
       return;
     }
+    _emitTierUnlockResolved(
+      succeeded: false,
+      failureDiscriminant: 'user_cancelled',
+    );
     await _injectDatabase();
     AppLogger.instance.log(
       'L3 reset — plaintext fallback',
