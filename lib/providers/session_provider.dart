@@ -9,7 +9,9 @@ import '../utils/logger.dart';
 
 /// Global session store instance.
 final sessionStoreProvider = Provider<SessionStore>((ref) {
-  return SessionStore();
+  final store = SessionStore();
+  ref.onDispose(store.dispose);
+  return store;
 });
 
 /// Session list state — loaded async, notifies on changes.
