@@ -48,3 +48,9 @@ String configAppConfigStripForExport({required String inputJson}) => RustLib
 /// bootstrap to seed `config.json` before any user interaction.
 String configAppConfigDefaultsJson() =>
     RustLib.instance.api.crateApiConfigConfigAppConfigDefaultsJson();
+
+/// Locale codes the app's `app_*.arb` bundles ship for. Mirror of
+/// `AppConfig.supportedLocales` Dart-side; exposed via FRB so the
+/// validator + Settings dropdown read the same Rust-side const.
+List<String> configSupportedLocales() =>
+    RustLib.instance.api.crateApiConfigConfigSupportedLocales();

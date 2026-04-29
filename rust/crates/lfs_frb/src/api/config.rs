@@ -61,3 +61,14 @@ pub fn config_app_config_strip_for_export(input_json: String) -> Result<String, 
 pub fn config_app_config_defaults_json() -> String {
     AppConfig::default().to_json_value().to_string()
 }
+
+/// Locale codes the app's `app_*.arb` bundles ship for. Mirror of
+/// `AppConfig.supportedLocales` Dart-side; exposed via FRB so the
+/// validator + Settings dropdown read the same Rust-side const.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_supported_locales() -> Vec<String> {
+    lfs_core::config::SUPPORTED_LOCALES
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect()
+}

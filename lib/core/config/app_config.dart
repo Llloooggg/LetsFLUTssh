@@ -562,19 +562,37 @@ class AppConfig {
     }
   }
 
+  /// Parse `config.json` JSON into a typed `AppConfig`. Routes
+  /// through `lfs_core::config::AppConfig::from_json_value` (FRB
+  /// sync) so the canonical sanitize pipeline (clamp out-of-range
+  /// values to defaults, fall through unknown locale to `null`,
+  /// fall through unknown tier to `null`) lives one place. Falls
+  /// back to the inline factory when the FRB native lib is not
+  /// loaded (flutter_test).
   factory AppConfig.fromJson(Map<String, dynamic> json) {
+    Map<String, dynamic> resolved = json;
+    try {
+      final canonical = rust_config.configAppConfigSanitizeJson(
+        inputJson: jsonEncode(json),
+      );
+      resolved = jsonDecode(canonical) as Map<String, dynamic>;
+    } catch (_) {
+      // Fall through to the Dart factory below — flutter_test
+      // contexts that don't bring up RustLib hit this branch.
+    }
     const d = AppConfig.defaults;
     return AppConfig(
-      terminal: TerminalConfig.fromJson(json),
-      ssh: SshDefaults.fromJson(json),
-      ui: UiConfig.fromJson(json),
-      behavior: BehaviorConfig.fromJson(json),
-      transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
-      maxHistory: json['max_history'] as int? ?? d.maxHistory,
-      locale: json['locale'] as String?,
-      security: _readSecurityConfig(json),
+      terminal: TerminalConfig.fromJson(resolved),
+      ssh: SshDefaults.fromJson(resolved),
+      ui: UiConfig.fromJson(resolved),
+      behavior: BehaviorConfig.fromJson(resolved),
+      transferWorkers:
+          resolved['transfer_workers'] as int? ?? d.transferWorkers,
+      maxHistory: resolved['max_history'] as int? ?? d.maxHistory,
+      locale: resolved['locale'] as String?,
+      security: _readSecurityConfig(resolved),
       securityProbeCache: SecurityCapabilities.fromJson(
-        json['security_probe_cache'] as Map<String, dynamic>?,
+        resolved['security_probe_cache'] as Map<String, dynamic>?,
       ),
     ).sanitized();
   }
