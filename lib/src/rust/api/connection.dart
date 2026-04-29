@@ -6,6 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+
 /// Initialise the generation counter for [`id`] to `1`. Call on
 /// the initial connect.
 void connectionInitGeneration({required String id}) =>
@@ -37,3 +39,74 @@ void connectionDropGeneration({required String id}) =>
 /// `disconnectAll` / auto-lock teardown path.
 void connectionClearGenerations() =>
     RustLib.instance.api.crateApiConnectionConnectionClearGenerations();
+
+/// Snapshot every connection actor in the registry. Used by the
+/// Rust-driven mirror provider that future workspace UI consumers
+/// subscribe to in lieu of the Dart `ConnectionManager` map.
+List<DbConnectionSnapshot> connectionSnapshotAll() =>
+    RustLib.instance.api.crateApiConnectionConnectionSnapshotAll();
+
+/// FRB mirror of `lfs_core::connection::ConnectionSnapshot` — the
+/// per-actor view a Dart consumer materialises against. Carries
+/// no plaintext (credentials live in the SecretStore, bastion
+/// linkage is by id only) so the wire shape is safe to ship to
+/// any Riverpod-side renderer.
+class DbConnectionSnapshot {
+  final String id;
+  final String label;
+  final String? sessionId;
+  final String? bastionId;
+  final bool internal;
+
+  /// `"disconnected" | "connecting" | "connected"`. Wire-name
+  /// matches the existing Dart `SSHConnectionState.name` so a
+  /// future `StreamProvider` mirror can map without an extra
+  /// translation table.
+  final String stateWireName;
+  final String? error;
+  final String host;
+  final int port;
+  final String user;
+
+  const DbConnectionSnapshot({
+    required this.id,
+    required this.label,
+    this.sessionId,
+    this.bastionId,
+    required this.internal,
+    required this.stateWireName,
+    this.error,
+    required this.host,
+    required this.port,
+    required this.user,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      label.hashCode ^
+      sessionId.hashCode ^
+      bastionId.hashCode ^
+      internal.hashCode ^
+      stateWireName.hashCode ^
+      error.hashCode ^
+      host.hashCode ^
+      port.hashCode ^
+      user.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbConnectionSnapshot &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          label == other.label &&
+          sessionId == other.sessionId &&
+          bastionId == other.bastionId &&
+          internal == other.internal &&
+          stateWireName == other.stateWireName &&
+          error == other.error &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user;
+}

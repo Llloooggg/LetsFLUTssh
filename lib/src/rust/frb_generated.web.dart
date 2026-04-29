@@ -430,6 +430,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbConnectLink dco_decode_db_connect_link(dynamic raw);
 
   @protected
+  DbConnectionSnapshot dco_decode_db_connection_snapshot(dynamic raw);
+
+  @protected
   DbDeeplinkOutcome dco_decode_db_deeplink_outcome(dynamic raw);
 
   @protected
@@ -697,6 +700,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbChangelogRelease> dco_decode_list_db_changelog_release(dynamic raw);
+
+  @protected
+  List<DbConnectionSnapshot> dco_decode_list_db_connection_snapshot(
+    dynamic raw,
+  );
 
   @protected
   List<DbFileSortKey> dco_decode_list_db_file_sort_key(dynamic raw);
@@ -1348,6 +1356,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbConnectLink sse_decode_db_connect_link(SseDeserializer deserializer);
 
   @protected
+  DbConnectionSnapshot sse_decode_db_connection_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbDeeplinkOutcome sse_decode_db_deeplink_outcome(
     SseDeserializer deserializer,
   );
@@ -1695,6 +1708,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbChangelogRelease> sse_decode_list_db_changelog_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbConnectionSnapshot> sse_decode_list_db_connection_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -2506,6 +2524,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_connect_link(DbConnectLink self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_connection_snapshot(
+    DbConnectionSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_deeplink_outcome(
     DbDeeplinkOutcome self,
     SseSerializer serializer,
@@ -2964,6 +2988,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_changelog_release(
     List<DbChangelogRelease> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_connection_snapshot(
+    List<DbConnectionSnapshot> self,
     SseSerializer serializer,
   );
 

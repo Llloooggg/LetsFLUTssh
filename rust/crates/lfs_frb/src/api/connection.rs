@@ -50,3 +50,72 @@ pub fn connection_drop_generation(id: String) {
 pub fn connection_clear_generations() {
     lfs_core::app::instance().connections.clear_generations();
 }
+
+/// FRB mirror of `lfs_core::connection::ConnectionSnapshot` — the
+/// per-actor view a Dart consumer materialises against. Carries
+/// no plaintext (credentials live in the SecretStore, bastion
+/// linkage is by id only) so the wire shape is safe to ship to
+/// any Riverpod-side renderer.
+#[derive(Debug, Clone)]
+pub struct DbConnectionSnapshot {
+    pub id: String,
+    pub label: String,
+    pub session_id: Option<String>,
+    pub bastion_id: Option<String>,
+    pub internal: bool,
+    /// `"disconnected" | "connecting" | "connected"`. Wire-name
+    /// matches the existing Dart `SSHConnectionState.name` so a
+    /// future `StreamProvider` mirror can map without an extra
+    /// translation table.
+    pub state_wire_name: String,
+    pub error: Option<String>,
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+}
+
+impl From<lfs_core::connection::ConnectionSnapshot> for DbConnectionSnapshot {
+    fn from(s: lfs_core::connection::ConnectionSnapshot) -> Self {
+        let state_wire_name = match s.state {
+            lfs_core::connection::ConnectionState::Disconnected => "disconnected",
+            lfs_core::connection::ConnectionState::Connecting => "connecting",
+            lfs_core::connection::ConnectionState::Connected => "connected",
+        }
+        .to_string();
+        // Resolve host/port/user from the actor handle since
+        // ConnectionSnapshot doesn't carry them today (the manager
+        // tracked the destination Dart-side). Pull off the registry.
+        let app = lfs_core::app::instance();
+        let (host, port, user) = if let Some(handle) = app.connections.get(&s.id) {
+            let actor = handle.lock().expect("actor mutex poisoned");
+            (actor.host.clone(), actor.port, actor.user.clone())
+        } else {
+            (String::new(), 0, String::new())
+        };
+        DbConnectionSnapshot {
+            id: s.id,
+            label: s.label,
+            session_id: s.session_id,
+            bastion_id: s.bastion_id,
+            internal: s.internal,
+            state_wire_name,
+            error: s.error,
+            host,
+            port,
+            user,
+        }
+    }
+}
+
+/// Snapshot every connection actor in the registry. Used by the
+/// Rust-driven mirror provider that future workspace UI consumers
+/// subscribe to in lieu of the Dart `ConnectionManager` map.
+#[flutter_rust_bridge::frb(sync)]
+pub fn connection_snapshot_all() -> Vec<DbConnectionSnapshot> {
+    lfs_core::app::instance()
+        .connections
+        .snapshot_all()
+        .into_iter()
+        .map(Into::into)
+        .collect()
+}
