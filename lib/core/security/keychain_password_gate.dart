@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/keychain_pepper_prompt.dart' as rust_pepper_gate;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import '_crypto_compat.dart';
@@ -154,7 +155,28 @@ class KeychainPasswordGate {
   /// failure (missing state, tampered blob, keychain unreadable).
   /// Never throws — callers treat false as "wrong password" and
   /// route through the rate limiter.
+  ///
+  /// Routes through `lfs_core::security::keychain_password_gate_actor::
+  /// verify_password` (FRB async) so the disk-blob read +
+  /// Decision-1 prompt round-trip + HMAC compare lives one
+  /// place. Falls back to the inline Dart pipeline when the
+  /// FRB native lib is not loaded (flutter_test contexts that
+  /// don't load `RustLib`).
   Future<bool> verify(String password) async {
+    try {
+      final file = await _hashFile();
+      final supportDir = file.parent.path;
+      return await rust_pepper_gate.keychainPasswordGateVerify(
+        supportDir: supportDir,
+        password: password,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'KeychainPasswordGate.verify FRB unreachable, '
+        'falling back to Dart pipeline: $e',
+        name: 'KeychainPasswordGate',
+      );
+    }
     try {
       final file = await _hashFile();
       if (!await file.exists()) return false;
