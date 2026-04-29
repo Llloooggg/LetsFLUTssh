@@ -770,7 +770,23 @@ class SessionStore {
     return _sessions.where((s) => s.folder == folder).toList();
   }
 
-  List<Session> search(String query) => filterSessions(_sessions, query);
+  /// Case-insensitive substring search across the cached session
+  /// list. Routes through the Rust registry's
+  /// `sessions_registry_filter_ids` when the FRB native lib is
+  /// loaded — that path reads off the same view this store
+  /// hydrated from, so the projection round-trip
+  /// `filterSessions` makes per call disappears. Falls back to
+  /// the projecting `filterSessions` for flutter_test contexts.
+  List<Session> search(String query) {
+    if (query.isEmpty) return List.unmodifiable(_sessions);
+    try {
+      final ids = rust_registry.sessionsRegistryFilterIds(query: query).toSet();
+      if (ids.isEmpty) return const <Session>[];
+      return _sessions.where((s) => ids.contains(s.id)).toList();
+    } catch (_) {
+      return filterSessions(_sessions, query);
+    }
+  }
 
   /// Case-insensitive substring search across (label, folder, host,
   /// user). Routes through `lfs_core::sessions::filter_sessions` so
