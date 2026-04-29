@@ -588,11 +588,21 @@ class SessionStore {
   }
 
   /// Count sessions whose folder equals [folderPath] or sits under
-  /// `{folderPath}/`. Routes through
-  /// `lfs_core::sessions::count_in_folder` so the prefix-match
-  /// grammar lives one place; falls back to the equivalent Dart
-  /// scan when the FRB native lib is not loaded.
+  /// `{folderPath}/`. Routes through the Rust registry's
+  /// `sessions_registry_count_in_folder` when the FRB native lib
+  /// is loaded — that path reads off the cached view, no folder-
+  /// list projection per call. Falls back to the projecting
+  /// `sessions::count_in_folder` shim and finally to the inline
+  /// scan for flutter_test contexts that bring up neither.
   int countSessionsInFolder(String folderPath) {
+    try {
+      return rust_registry.sessionsRegistryCountInFolder(
+        folderPath: folderPath,
+      );
+    } catch (_) {
+      // Registry path unreachable — fall through to the
+      // projecting shim, then the inline scan.
+    }
     try {
       return rust_sess.sessionsCountInFolder(
         sessionFolders: _sessions.map((s) => s.folder).toList(growable: false),
