@@ -128,8 +128,8 @@ lib/
 │   ├── security/                     # AES-256-GCM, master password, keychain, tier ladder
 │   ├── migration/                    # Dart shim over `lfs_core::migration` (FRB DTO re-exports + `runStartupMigrations()`). Runner, registry, artefacts all live Rust-side. Full description: §3.6 → Migration framework
 │   ├── config/                       # App configuration (file-based, loaded before DB)
-│   ├── snippets/                     # Snippet model + SnippetStore
-│   ├── tags/                         # Tag model + TagStore
+│   ├── snippets/                     # Snippet model (notifier in providers/)
+│   ├── tags/                         # Tag model (notifier in providers/)
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
 │   ├── progress/                     # ProgressReporter — phase/step stream consumed by AppProgressBarDialog and connection-progress widgets
@@ -230,12 +230,12 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 | `transport/transport_factory.dart` | `createSshTransport` | Single construction point — every connect path goes through here so tests can override one factory and stub the whole transport surface. |
 | `ssh_config.dart` | `SSHConfig`, `SshAuth`, `ServerAddress` | Config model carried across the connect path. `SshAuth` carries `password`, `keyPath`, `keyData`, `keyId`, `passphrase`; the connect path stages stored secrets via `db_sessions_stage_secrets` / `db_ssh_keys_stage_secret` so the bytes never round-trip through the Dart heap (see [§3.6 Security boundary](#36-security--encryption-coresecurity)). |
 | `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH-dir import path; never touched at connect time. |
-| `known_hosts.dart` | `KnownHostsManager` | TOFU host-key verification surface. Reads / writes the `known_hosts` table in `lfs_core.db` over FRB; serialises mutators against `verify` so an interactive prompt cannot interleave with a parallel `clearAll`. |
-| `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionManager._failureStep` maps those into the typed errors above. |
+| `providers/known_hosts_provider.dart` | `KnownHostsNotifier` | TOFU host-key verification surface. Reads / writes the `known_hosts` table in `lfs_core.db` over FRB; serialises mutators against `verify` so an interactive prompt cannot interleave with a parallel `clearAll`. |
+| `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionsNotifier._failureStep` maps those into the typed errors above. |
 | `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model for the per-session forwarding tab. |
 | `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); thin shim that asks `lfs_core::portforward::driver` to spawn / stop the `-L` / `-D` / `-R` listeners against the live connection actor on connect / disconnect. No accept loop or SOCKS5 handshake on the Dart side. |
 | `shell_helper.dart` | `openShellWithRetry()` | Shared shell-open path with one retry on `SshConnectError("session disconnected")`. Used by the terminal pane + session recorder. |
-| `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`, host-key callback wired to the Dart `KnownHostsManager` over FRB. |
+| `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`, host-key callback wired to the Dart `KnownHostsNotifier` over FRB. |
 
 #### SSH transport surface
 
@@ -265,7 +265,7 @@ abstract class SshTransport {
 
 #### Auth chain
 
-The transport receives **one** auth method per connect attempt. `ConnectionManager._authFromConfig` picks it before calling `connect`:
+The transport receives **one** auth method per connect attempt. `ConnectionsNotifier._authFromConfig` picks it before calling `connect`:
 
 1. `sessionId` set + `db_sessions_stage_secrets` returns `has_key_data` → `SshAuthPubkeyRef("sess.key.<id>", passphraseSecretId: "sess.passphrase.<id>" if staged)`.
 2. `sessionId` set + `has_password` → `SshAuthPasswordRef("sess.password.<id>")`.
@@ -273,13 +273,13 @@ The transport receives **one** auth method per connect attempt. `ConnectionManag
 4. Quick-connect: inline `auth.keyData` / `auth.password` → push into a transient SecretStore entry under `conn.<slot>.<uuid>` and emit the same Ref variants.
 5. Empty auth → `SshAuthPassword('')` so russh surfaces "no credentials" rather than auto-rejecting.
 
-If the user has an encrypted key and no stored / passed passphrase, `RustTransport.connect` raises `SshAuthFailed` with detail `passphrase required`; `ConnectionManager` catches it, runs the interactive `PassphrasePromptCallback` (up to `maxPassphraseAttempts = 3`), and retries with the new passphrase staged into the SecretStore.
+If the user has an encrypted key and no stored / passed passphrase, `RustTransport.connect` raises `SshAuthFailed` with detail `passphrase required`; `ConnectionsNotifier` catches it, runs the interactive `PassphrasePromptCallback` (up to `maxPassphraseAttempts = 3`), and retries with the new passphrase staged into the SecretStore.
 
-#### KnownHostsManager
+#### KnownHostsNotifier
 
 ```dart
-class KnownHostsManager {
-  KnownHostsManager();             // no path — backed by lfs_core.db
+class KnownHostsNotifier {
+  KnownHostsNotifier();             // no path — backed by lfs_core.db
   Future<void> load();             // hydrates the in-memory cache from DAO
   void invalidateCache();          // dropped on auto-lock unlock so stale rows don't survive a tier switch
 
@@ -316,9 +316,9 @@ class KnownHostsManager {
 
 Per-session rules — model + persistence + lifecycle — that open `ssh -L`-style local listeners on connect and tear them down on disconnect. The model lives in `port_forward_rule.dart` (`PortForwardRule { id, kind, bindHost, bindPort, remoteHost, remotePort, description, enabled, sortOrder, createdAt }`), the runtime in `port_forward_runtime.dart`.
 
-**Persistence.** `port_forward_rules` table in `lfs_core.db` joined to `sessions` with `ON DELETE CASCADE`. `SessionStore.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the FRB DAO never escapes the store.
+**Persistence.** `port_forward_rules` table in `lfs_core.db` joined to `sessions` with `ON DELETE CASCADE`. `SessionNotifier.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the FRB DAO never escapes the store.
 
-**Runtime — `PortForwardRuntime` implements `ConnectionExtension`.** Built by `_attachPortForwards` in `features/session_manager/session_connect.dart` only when the session has at least one saved rule (so a session with zero rules pays nothing). The runtime is registered on the [`Connection`](#connectionextension--lifecycle-add-ons) before [`ConnectionManager`](#connectionmanager) calls `connectAsync`'s underlying `_doConnect`, so when the transport reaches `state == connected` the standard fan-out fires `onConnected` and the runtime asks `lfs_core::portforward::driver` to spawn the listeners with no race against the new transport assignment.
+**Runtime — `PortForwardRuntime` implements `ConnectionExtension`.** Built by `_attachPortForwards` in `features/session_manager/session_connect.dart` only when the session has at least one saved rule (so a session with zero rules pays nothing). The runtime is registered on the [`Connection`](#connectionextension--lifecycle-add-ons) before [`ConnectionsNotifier`](#connectionmanager) calls `connectAsync`'s underlying `_doConnect`, so when the transport reaches `state == connected` the standard fan-out fires `onConnected` and the runtime asks `lfs_core::portforward::driver` to spawn the listeners with no race against the new transport assignment.
 
 **Listener model — three kinds, all Rust-driven.** `onConnected` dispatches by [`PortForwardKind`](#3-modules) onto the FRB driver entry points (`port_forward_start_local` / `port_forward_start_dynamic` / `port_forward_start_remote`). Every variant takes the active connection actor's id; the driver resolves it to the live russh `Session` via `lfs_core::app::instance().connections` and spawns the accept-loop / inbound-bridge task on the tokio runtime. Per-rule kind:
 
@@ -356,9 +356,9 @@ Per-session "bounce through a bastion before reaching the final host" model. Sav
 
 **Cycle / depth guards.** `_ensureBastion` carries a `Set<String> visited` (session ids already in the chain). A `viaSessionId` already in the set throws [`ProxyJumpCycleError`](#3-modules) carrying the offending id. Independently, `visited.length >= maxProxyJumpDepth` (8) throws [`ProxyJumpDepthError`](#3-modules) before the recursion goes deep. The 8 cap leaves room for realistic enterprise chains (corp gateway → region gateway → cluster gateway → service ≈ 4) doubled for safety, while still tripping accidental loops fast. Both errors localise through `errProxyJumpCycle` / `errProxyJumpDepth` so the user sees a concrete message rather than a stack trace.
 
-**Transport injection — `RustTransport.connectViaProxy`.** When `Connection.bastion` is non-null and connected, `ConnectionManager._doConnect` waits for the bastion to reach `connected` (`bastion.waitUntilReady()`), then routes the child handshake through `transport.connectViaProxy(parentTransport, request)`. Inside Rust, `connectViaProxy` opens a russh `direct-tcpip` channel on the parent session targeting the child's `host:port`, wraps it as the upstream socket for the child russh `Session::connect_to_socket`, and runs the standard auth dance over that channel. Reconnect on the parent re-runs the same path, so a bastion mid-handshake when the parent retries simply queues until the upstream's `Connected` state.
+**Transport injection — `RustTransport.connectViaProxy`.** When `Connection.bastion` is non-null and connected, `ConnectionsNotifier._doConnect` waits for the bastion to reach `connected` (`bastion.waitUntilReady()`), then routes the child handshake through `transport.connectViaProxy(parentTransport, request)`. Inside Rust, `connectViaProxy` opens a russh `direct-tcpip` channel on the parent session targeting the child's `host:port`, wraps it as the upstream socket for the child russh `Session::connect_to_socket`, and runs the standard auth dance over that channel. Reconnect on the parent re-runs the same path, so a bastion mid-handshake when the parent retries simply queues until the upstream's `Connected` state.
 
-**Hidden bastion lifecycle — Connection.internal.** Bastion connections are full `Connection` objects in [`ConnectionManager`](#connectionmanager) so the credential overlay, keep-alive timer, and progress-stream machinery all "just work". They are flagged `internal: true`; the user-visible `connections` getter filters them out so the workspace UI never paints a phantom tab for a hop the user did not explicitly open. The `allConnections` getter returns the full set so the foreground-service active-count callback (Android) keeps the service alive while the bastion is running. The parent connection holds a `bastion: Connection?` reference; `disconnect(parent.id)` cascades into `disconnect(bastion.id)` so the chain is torn down as a unit.
+**Hidden bastion lifecycle — Connection.internal.** Bastion connections are full `Connection` objects in [`ConnectionsNotifier`](#connectionmanager) so the credential overlay, keep-alive timer, and progress-stream machinery all "just work". They are flagged `internal: true`; the user-visible `connections` getter filters them out so the workspace UI never paints a phantom tab for a hop the user did not explicitly open. The `allConnections` getter returns the full set so the foreground-service active-count callback (Android) keeps the service alive while the bastion is running. The parent connection holds a `bastion: Connection?` reference; `disconnect(parent.id)` cascades into `disconnect(bastion.id)` so the chain is torn down as a unit.
 
 **UI — ProxyJump section in Connection tab.** A three-chip selector (`None` / `Saved session` / `Custom`) sits below the user/host/port row in the Connection tab. The saved-session mode renders a dropdown of every **other** session (the dialog filters out the session being edited so it cannot reference itself — inline guard before the runtime cycle detector kicks in); the custom mode renders host/port/user fields with a note explaining the inherits-credentials limitation. Mode + values persist in dialog state independently so flipping between modes does not destroy partial input.
 
@@ -433,14 +433,14 @@ class RemoteFS implements FileSystem { ... }   // wraps RustSftpFs; dirSize capp
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `transfer_manager.dart` | `TransferManager` | Task queue, parallel workers, history, cancellation |
+| `providers/transfer_provider.dart` | `TransfersNotifier` | Task queue, parallel workers, history, cancellation |
 | `transfer_task.dart` | `TransferTask`, `TransferDirection`, `HistoryEntry` | Task model, direction enum, history entry |
 | `conflict_resolver.dart` | `ConflictAction`, `ConflictDecision`, `BatchConflictResolver` | User decision for destination-exists conflicts, with "apply to all remaining" caching across a batch |
 | `unique_name.dart` | `uniqueSiblingName()` | Compute a non-colliding destination path (`file.txt` → `file (1).txt`) for the "Keep both" conflict action |
 
-#### TransferManager — architecture
+#### TransfersNotifier — architecture
 
-**`TransferManager`** runtime shape:
+**`TransfersNotifier`** runtime shape:
 
 - Queue: `[task1, task2, task3, ...]`
 - Workers: `2` (configurable)
@@ -450,8 +450,8 @@ class RemoteFS implements FileSystem { ... }   // wraps RustSftpFs; dirSize capp
 - Streams: `onChange → UI updates`, `onHistoryChange → history`
 
 ```dart
-class TransferManager {
-  TransferManager({int parallelism = 2, int maxHistory = 500, Duration taskTimeout = 30 min});
+class TransfersNotifier {
+  TransfersNotifier({int parallelism = 2, int maxHistory = 500, Duration taskTimeout = 30 min});
 
   String enqueue(TransferTask task);          // returns task ID
   void cancel(String taskId);
@@ -503,7 +503,7 @@ The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsib
 | File | Class | Purpose |
 |------|-------|---------|
 | `session.dart` | `Session`, `ServerAddress`, `SessionAuth`, `AuthType` | Session model with all fields |
-| `session_store.dart` | `SessionStore` | CRUD via drift DAOs, search, folder tree management |
+| `providers/session_provider.dart` | `SessionNotifier` | CRUD via FRB DAOs, search, folder tree management |
 | `session_tree.dart` | `SessionTree`, `TreeNode` | Hierarchical tree built from flat session list |
 | `session_history.dart` | `SessionHistory` | Undo/redo snapshots (stores credentials separately) |
 | `qr_codec.dart` | Free functions | Export payload encoding/decoding (QR, `.lfs` files). Versioned format (`v: 4`), deflate compressed, key map deduplication. Decoder rejects payloads with `v > 4` to avoid silently dropping unknown fields. Public API: `encodeExportPayload()`, `decodeExportPayload()`, `calculateExportPayloadSize()`, `encodeSessionCompact()`, `wrapInDeepLink()`, `decodeImportUri()`. Supports sessions, empty folders, passwords, SSH keys (embedded + manager), config, known_hosts, tags, snippets. Max ~2000 bytes for QR. |
@@ -573,12 +573,12 @@ Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column (added in
 
 **Persistence path.** `mappers.dart::sessionToCompanion` calls `jsonEncode(s.extras)` on save; `mappers.dart::dbSessionToSession` calls `_decodeExtras(db.extras)` on load. The export path (`Session.toJson`) emits an `extras` key only when the map is non-empty — keeps imported v1 archives byte-stable in their JSON representation when no feature has populated extras yet.
 
-#### SessionStore — drift-backed persistence
+#### SessionNotifier — FRB-backed persistence
 
 All session data (including credentials) is stored in a single drift (SQLite) database. Encryption is handled at the DB level via SQLite3MultipleCiphers — stores no longer manage encryption themselves.
 
 ```dart
-class SessionStore {
+class SessionNotifier {
   void setDatabase(AppDatabase db); // injected at startup
 
   Future<List<Session>> load();     // reads from SessionDao + FolderDao
@@ -633,7 +633,7 @@ class SessionTreeNode {
 | `connection_step.dart` | `ConnectionStep` | Progress step model — phase (`socketConnect` / `hostKeyVerify` / `authenticate` / `openChannel`) × status (`inProgress` / `success` / `failed`) |
 | `progress_tracker.dart` | `ProgressTracker` | Subscribes to `Connection.progressStream`, replays history for late subscribers, notifies listeners |
 | `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to an xterm `Terminal` (shared by desktop and mobile terminal views) |
-| `connection_manager.dart` | `ConnectionManager` | Active connection management, creation, disconnection, stream |
+| `core/connection/connections_notifier.dart` | `ConnectionsNotifier` | Active connection management, creation, disconnection, stream |
 | `foreground_service.dart` | `ForegroundServiceManager` | Android: foreground service for SSH keep-alive on screen lock |
 
 #### Connection model
@@ -644,7 +644,7 @@ class Connection {
   final String label;
   SSHConfig sshConfig;       // mutable — refreshed from session store on reconnect
   final String? sessionId;   // links back to saved Session (null for quick-connect)
-  final KnownHostsManager knownHosts;  // for host key verification
+  final KnownHostsNotifier knownHosts;  // for host key verification
   SSHConnection? sshConnection;
   SSHConnectionState state;  // disconnected | connecting | connected
   Object? connectionError;
@@ -654,7 +654,7 @@ class Connection {
   List<ConnectionStep> progressHistory;   // buffered for late subscribers
 
   Future<void> waitUntilReady();   // waits for connect attempt to finish (success or error)
-  void completeReady();            // called by ConnectionManager — also closes progressStream
+  void completeReady();            // called by ConnectionsNotifier — also closes progressStream
   void addProgressStep(step);      // buffers + broadcasts a progress step
   void resetForReconnect();        // closes old progress controller, then fresh completer + stream, clears history/error
 
@@ -662,7 +662,7 @@ class Connection {
   void addExtension(ConnectionExtension ext);    // idempotent on the same instance
   void removeExtension(ConnectionExtension ext);
   List<ConnectionExtension> get extensions;
-  void notifyExtensionsConnected();      // called by ConnectionManager after handshake
+  void notifyExtensionsConnected();      // called by ConnectionsNotifier after handshake
   void notifyExtensionsDisconnecting();  // called before transport tear-down
   void notifyExtensionsReconnecting();   // called between disconnect and re-connect
 }
@@ -704,12 +704,12 @@ stateDiagram-v2
     disconnected --> [*]: disconnect() / disposeAll()
 ```
 
-#### ConnectionManager
+#### ConnectionsNotifier
 
 ```dart
-class ConnectionManager {
-  ConnectionManager({
-    required KnownHostsManager knownHosts,
+class ConnectionsNotifier {
+  ConnectionsNotifier({
+    required KnownHostsNotifier knownHosts,
     SSHConnectionFactory? connectionFactory,
     ActiveCountCallback? onActiveCountChanged,  // notifies foreground service
   });
@@ -804,7 +804,7 @@ bypasses the OS keychain layer).
 - `pinLength` — advisory only post-refactor. Retained so older
   pre-refactor configs still deserialise.
 
-Stores (`SessionStore`, `KeyStore`, `KnownHostsManager`, `SnippetStore`, `TagStore`, `AutoLockStore`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
+Stores (`SessionNotifier`, `SshKeysNotifier`, `KnownHostsNotifier`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
 
 #### Tier resolution at startup (`main._initSecurity`)
 
@@ -918,7 +918,7 @@ Two more secret-id namespaces ride on the same store: `key.priv.<keyId>` for sta
 
 `SecurityStateNotifier` no longer owns the DB key directly — it hands the 32-byte derived key to `dbInit(key)` over FRB once per unlock, and the key lives inside Rust until `dbClose()` zeroes the cached SQLCipher state on auto-lock or a tier switch. The legacy Dart `SecretBuffer` (page-locked native memory with `mlock` / `VirtualLock`) was retired alongside drift — pinning the bytes in Dart became redundant once they stopped crossing the FRB boundary outbound.
 
-**Bytes-don't-cross invariant — current state.** Every credential path keeps plaintext bytes on the Rust side of the FRB boundary. Connect / edit / duplicate / bulk listing paths read credentials only via SecretStore staging or pre-hashed metadata. `.lfs` archive composition runs entirely Rust-side via `db_export_archive` / `lfs_core::archive::export_archive`: the orchestrator reads sessions / ssh_keys / tags / snippets / session_tags / folder_tags / session_snippets / known_hosts straight from `lfs_core.db`, builds the manifest + per-entry JSON inside Rust, ZIPs in Stored mode, and applies the Argon2id + AES-GCM envelope before returning the encrypted bytes to Dart for atomic write. The QR-export deeplink path still goes through `KeyStore.loadAll()` for embedded-key payloads — QR is even rarer than `.lfs` and the codec path is the next slice if the question reopens.
+**Bytes-don't-cross invariant — current state.** Every credential path keeps plaintext bytes on the Rust side of the FRB boundary. Connect / edit / duplicate / bulk listing paths read credentials only via SecretStore staging or pre-hashed metadata. `.lfs` archive composition runs entirely Rust-side via `db_export_archive` / `lfs_core::archive::export_archive`: the orchestrator reads sessions / ssh_keys / tags / snippets / session_tags / folder_tags / session_snippets / known_hosts straight from `lfs_core.db`, builds the manifest + per-entry JSON inside Rust, ZIPs in Stored mode, and applies the Argon2id + AES-GCM envelope before returning the encrypted bytes to Dart for atomic write. The QR-export deeplink path still goes through `SshKeysNotifier.loadAll()` for embedded-key payloads — QR is even rarer than `.lfs` and the codec path is the next slice if the question reopens.
 
 #### Unlock-path single KDF
 
@@ -1108,9 +1108,9 @@ Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60
 
 Lifetime:
 
-1. **Populate** — `ConnectionManager._cachePostAuthCredentials` writes the envelope into the SecretStore immediately after a successful SSH auth, but only when the `Connection` has a stable `sessionId`. Quick-connect sessions have no key to namespace under and are skipped.
-2. **Read on (re)connect** — `ConnectionManager._withCredentialOverlay` overlays the cache onto the outgoing `SSHConfig` before calling `transport.connect`. Today the read accessors return null by design — the connect path resolves saved-session credentials through `db_sessions_stage_secrets` directly, so the overlay is a no-op for stored sessions; the layering point stays for future reconnect paths that need it.
-3. **Evict on explicit close** — `ConnectionManager.disconnect(id)` and `disconnectAll` evict the matching ids. Transient drops (network blip, app suspend/resume) flip the Connection's state without calling `disconnect`, so the SecretStore entries are preserved across reconnect.
+1. **Populate** — `ConnectionsNotifier._cachePostAuthCredentials` writes the envelope into the SecretStore immediately after a successful SSH auth, but only when the `Connection` has a stable `sessionId`. Quick-connect sessions have no key to namespace under and are skipped.
+2. **Read on (re)connect** — `ConnectionsNotifier._withCredentialOverlay` overlays the cache onto the outgoing `SSHConfig` before calling `transport.connect`. Today the read accessors return null by design — the connect path resolves saved-session credentials through `db_sessions_stage_secrets` directly, so the overlay is a no-op for stored sessions; the layering point stays for future reconnect paths that need it.
+3. **Evict on explicit close** — `ConnectionsNotifier.disconnect(id)` and `disconnectAll` evict the matching ids. Transient drops (network blip, app suspend/resume) flip the Connection's state without calling `disconnect`, so the SecretStore entries are preserved across reconnect.
 4. **Evict on wipe / reset** — [`WipeAllService`](../lib/core/security/wipe_all_service.dart) accepts a `credentialCacheEvict: VoidCallback?` constructor param and invokes `secrets_clear` over FRB before any file deletion runs. Every runtime reset path (Settings → Reset All Data, forgot-password, DB-corruption wipe-and-restart, T1 / T2 `onReset`) threads it through.
 5. **App shutdown** — the provider's `ref.onDispose` calls `secrets_clear`, dropping every cached secret as the Riverpod container tears down.
 
@@ -1232,12 +1232,12 @@ OS keychain backends: Keychain (macOS/iOS), Credential Manager (Windows), libsec
 
 **Linux gating:** libsecret emits a non-recoverable `g_warning` to stderr on any call that tries to unlock a locked keyring, and Dart cannot intercept the warning. To keep the console quiet for users who never opt into keychain storage, a shared [`LinuxKeychainMarker`](../lib/core/security/linux_keychain_marker.dart) tracks opt-in with a marker file (`keychain_enabled`) inside the app-support dir. `SecureKeyStorage.writeKey` creates it on success, `deleteKey` clears it, and `readKey` / the `isAvailable` probe refuse to touch libsecret on Linux until the marker is present. `BiometricKeyVault` uses the same marker for its libsecret fallback path so a fresh install on a no-keyring host (WSL, headless container, minimal desktop) never probes libsecret until the user has successfully written at least one secret through either class. The marker is instance-based (injectable `pathFactory`) so tests can point it at a temp dir without binding the `path_provider` channel; `LinuxKeychainMarker.defaultInstance` is the production singleton both callers default to. First write on opt-in still talks to libsecret so any real failure surfaces through the normal error path.
 
-#### KeyStore
+#### SshKeysNotifier
 
 Central SSH key store backed by drift DAO.
 
 ```dart
-class KeyStore {
+class SshKeysNotifier {
   void setDatabase(AppDatabase db);   // injected at startup
   Future<Map<String, SshKeyEntry>> loadAll();
   Future<Map<String, SshKeyEntry>> loadAllSafe(); // returns {} on error
@@ -1647,11 +1647,11 @@ class AppConfig {
 }
 ```
 
-#### ConfigStore
+#### ConfigNotifier
 
 ```dart
-class ConfigStore {
-  ConfigStore(String dataDir);
+class ConfigNotifier {
+  ConfigNotifier();
 
   Future<AppConfig> load();       // JSON → AppConfig + sanitize
   Future<void> save(AppConfig config);  // atomic write
@@ -1723,7 +1723,7 @@ class DeepLinkHandler {
 | `import_service.dart` | Thin Dart wrapper over the Rust apply driver: `applyResultViaRust(ImportResult, refreshAfterImport)` serialises the result to the staged-import JSON envelope, calls `dbImportStage` + `dbImportApply` (FRB → `lfs_core::archive::apply_pending_import`), then runs the caller's cache-refresh hook. Hosts `ImportSummary` (per-type counters consumed by the success toast) and `LfsImportRolledBackException` (raised on replace-mode failure so the UI shows "data restored" — the surrounding sqlite transaction guarantees the rollback). All collisions, junction inserts, folder-hierarchy reconstruction, and replace-mode rollback live Rust-side now |
 | `key_file_helper.dart` | Shared helpers for SSH key files on disk: `tryReadPemKey`, `isEncryptedPem` (decodes OpenSSH v1 KDF-name field, or sniffs PKCS#1 / PKCS#8 armor), `basename`, `isSuspiciousPath` — centralises the rules used by the OpenSSH-config importer, the `~/.ssh` scanner, and the settings file-picker. PPK files are detected here too via `PpkCodec.looksLikePpk` and converted in-place to OpenSSH PEM (see [PPK codec](#ppk-codec--puttys-private-key-format)) |
 | `openssh_config_importer.dart` | Build `ImportResult` from `~/.ssh/config`. Pure — takes a `PemKeyReader` for file isolation. Dedups identity keys within the import by SHA-256 fingerprint; hosts with unreadable IdentityFiles are still imported (blank credentials) and reported via `hostsWithMissingKeys`. Entry point for [ssh config import UI](#312-user-interface-libfeatures) in Settings → Data |
-| `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `KeyStore.importForMerge` so fingerprint-duplicate keys are not re-added |
+| `ssh_dir_key_scanner.dart` | Scan a directory (typically `~/.ssh`) for PEM private-key files. Pure — takes a `DirectoryLister` + `PemKeyReader` for full test isolation. Skips obvious non-keys (`*.pub`, `known_hosts*`, `config`, `authorized_keys*`). Used by the "Import SSH keys from ~/.ssh" tile — selected candidates are persisted through `SshKeysNotifier.importForMerge` so fingerprint-duplicate keys are not re-added |
 
 #### .lfs format
 
@@ -1823,7 +1823,7 @@ in the manifest.
 
 | Mode | Behavior |
 |------|----------|
-| **Merge** | Adds new sessions; on id collision, inserts a fresh UUID with a `(copy)` suffix (same semantics for tags/snippets). Manager keys deduplicate by private-key fingerprint via `KeyStore.importForMerge()` — identical keys reuse the existing id. Config apply failure is logged but doesn't abort the merge |
+| **Merge** | Adds new sessions; on id collision, inserts a fresh UUID with a `(copy)` suffix (same semantics for tags/snippets). Manager keys deduplicate by private-key fingerprint via `SshKeysNotifier.importForMerge()` — identical keys reuse the existing id. Config apply failure is logged but doesn't abort the merge |
 | **Replace** | Full replacement of sessions from archive. Tags / snippets / known_hosts are additionally wiped when the corresponding `includeX` flag from the preview dialog is set — so a user who checks "Tags" with an empty archive ends up with zero tags. Unchecked types are left untouched. A failure at any step triggers a full rollback of the snapshot (sessions + folders + config + tags + snippets + known_hosts) |
 
 #### Apply driver — Rust-routed
@@ -2205,8 +2205,8 @@ flowchart TD
     UI -->|watches| wp["workspaceProvider<br/>(Notifier)"]
     sp --> ssp["sessionStoreProvider"]
     cp --> csp["configStoreProvider"]
-    ssp --> ss["SessionStore + CredentialStore<br/><i>core/ (pure Dart)</i>"]
-    csp --> cs["ConfigStore<br/><i>core/ (pure Dart)</i>"]
+    ssp --> ss["SessionNotifier + CredentialStore<br/><i>core/ (pure Dart)</i>"]
+    csp --> cs["ConfigNotifier<br/><i>core/ (pure Dart)</i>"]
 
     sp -.-> stp["sessionTreeProvider<br/>(computed from sessionProvider)"]
     cp -.-> tmop["themeModeProvider<br/>(computed from configProvider)"]
@@ -2228,28 +2228,28 @@ flowchart LR
 | Provider | Type | Depends on | Description |
 |----------|------|-----------|-------------|
 | `masterPasswordProvider` | Provider | — | MasterPasswordManager singleton |
-| `sessionStoreProvider` | Provider | — | Singleton SessionStore (drift-backed) |
+| `sessionProvider.notifier` | Provider | — | Singleton SessionNotifier (FRB-backed via lfs_core.db) |
 | `sessionProvider` | NotifierProvider | sessionStoreProvider | Session CRUD + undo/redo |
 | `sessionTreeProvider` | Provider | sessionProvider | Hierarchical tree |
 | `filteredSessionsProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered session list |
 | `sessionSearchProvider` | NotifierProvider<SessionSearchNotifier, String> | — | Search query string |
-| `configStoreProvider` | Provider | — | Singleton ConfigStore (file-based) |
+| `configProvider.notifier` + `preloadedAppConfigProvider` | Provider | — | Singleton ConfigNotifier (file-based) |
 | `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger (sequential save lock via `_pendingSave`) |
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
 | `localeProvider` | Provider | configProvider | Locale? (null = system default) |
-| `knownHostsProvider` | Provider | — | KnownHostsManager (drift-backed) |
-| `keyStoreProvider` | Provider | — | KeyStore (drift-backed) |
+| `knownHostsProvider` | Provider | — | KnownHostsNotifier (FRB-backed via lfs_core.db) |
+| `sshKeysProvider.notifier` | Provider | — | SshKeysNotifier (FRB-backed via lfs_core.db) |
 | `sshKeysProvider` | FutureProvider | keyStoreProvider | List\<SshKeyEntry\> |
-| `snippetStoreProvider` | Provider | — | SnippetStore (drift-backed) |
+| `snippetsProvider.notifier` | Provider | — | SnippetsNotifier (FRB-backed via lfs_core.db) |
 | `snippetsProvider` | FutureProvider | snippetStoreProvider | All snippets |
 | `sessionSnippetsProvider` | FutureProvider.family | snippetStoreProvider | Snippets pinned to a session |
-| `tagStoreProvider` | Provider | — | TagStore (drift-backed) |
+| `tagsProvider.notifier` | Provider | — | TagsNotifier (FRB-backed via lfs_core.db) |
 | `tagsProvider` | FutureProvider | tagStoreProvider | All tags |
 | `sessionTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a session |
 | `folderTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a folder |
-| `connectionManagerProvider` | Provider | knownHostsProvider | ConnectionManager singleton |
+| `connectionsProvider.notifier` | Provider | knownHostsProvider | ConnectionsNotifier singleton |
 | `connectionsProvider` | StreamProvider | connectionManagerProvider | Real-time connection list |
-| `transferManagerProvider` | Provider | — | TransferManager singleton |
+| `transfersProvider.notifier` | Provider | — | TransfersNotifier singleton |
 | `activeTransfersProvider` | StreamProvider | transferManagerProvider | Active/queued tasks |
 | `transferHistoryProvider` | StreamProvider | transferManagerProvider | Completed transfer history |
 | `transferStatusProvider` | StreamProvider<ActiveTransferState> | transferManagerProvider | Active tasks + progress state |
@@ -2535,7 +2535,7 @@ class FilePaneController extends ChangeNotifier {
 | `session_panel_controller.dart` | `SessionPanelController` | Headless `ChangeNotifier` holding the panel's selection set, focused session / folder, marquee progress, and copied-session clipboard. Same pattern as [`FilePaneController`](#filepanecontroller) |
 | `session_tree_view.dart` | `SessionTreeView` | Hierarchical list with drag & drop. Uses `FolderDrag` for folder drag data. Session icon color: green (connected), yellow (connecting), grey (disconnected) |
 | `session_edit_dialog.dart` | `SessionEditDialog` | Create/edit session form. Auth tab: password, key file/PEM, or key from central store (via `keyId`). Key store selector shown when keys exist |
-| `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionManager. Async to support key store lookup |
+| `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionsNotifier. Async to support key store lookup |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link). The bottom badge switches between a neutral "No passwords in QR" info and an orange warning (`qrContainsCredentialsWarning`) depending on the `containsCredentials` flag the caller passes — so the screen doesn't claim there are no passwords when the user enabled `includePasswords` / `includeManagerKeys` in the preceding export dialog |
 | `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export (legacy, replaced by UnifiedExportDialog) |
@@ -2572,7 +2572,7 @@ The sidebar owns its own keyboard/focus/pointer contract. Four invariants hold a
 - **Shortcut dispatch is `CallbackShortcuts`-based**, not a `Focus.onKeyEvent` handler. `SessionPanel.build` wraps the root in `CallbackShortcuts(bindings: _buildShortcutBindings())` so `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+Z` / `Ctrl+Y` / `Delete` / `F2` fire as long as *any* `FocusNode` descendant of the panel holds focus. An earlier `Focus(onKeyEvent:)` version fired only when the panel root itself was focused — clicking a session row handed focus to an inner `Draggable` / `AppIconButton`, and the shortcut fell back on nothing ("works every other time"). The panel-level `Focus(autofocus: false)` stays for the "panel owns focus → rows render in accent colour" visual state; the shortcut path is independent.
 - **Empty-sidebar tap drops the focused pointer, never the `FocusNode`.** `onEmptySpaceTap` calls `_ctrl.clearFocus()` (nulls `focusedSessionId` + `focusedFolderPath` so the row highlight dims to grey) but leaves `_focusNode` focused. Yanking the Flutter focus would drop the panel out of the `CallbackShortcuts` scope — subsequent `Ctrl+V` / `Ctrl+Z` after an empty-space click would silently do nothing.
 - **Folder click is two-phase.** First tap on an unfocused folder focuses it (sets the paste target, no toggle); a second tap on the already-focused folder toggles expand. The branch lives in `session_tree_view._onFolderTap`, keyed off `widget.focusedFolderPath == fullPath`. Mirrors macOS Finder's column view and closes the "click folder to paste into it, it collapses instead" regression. Mobile keeps the single-tap toggle — long-press there is the focus-without-toggle alternative.
-- **Paste target is resolved at paste time** via `_resolvePasteTargetFolder`: focused folder first, then the folder of the focused session, then root. `pasteCopiedSession` forwards the target to `sessionProvider.duplicate(id, targetFolder:)` so the duplicate lands directly in the destination — no intermediate state the user can observe between "copy made" and "copy moved into place". `duplicateSession` in the store accepts the same `targetFolder` parameter; `FakeSessionStore` mirrors the signature. An `explicitTarget:` override on `pasteCopiedSession` lets the session and folder right-click menus force the target to the clicked row / folder regardless of current focus — matches "paste into this folder" without making the user pre-focus it.
+- **Paste target is resolved at paste time** via `_resolvePasteTargetFolder`: focused folder first, then the folder of the focused session, then root. `pasteCopiedSession` forwards the target to `sessionProvider.duplicate(id, targetFolder:)` so the duplicate lands directly in the destination — no intermediate state the user can observe between "copy made" and "copy moved into place". `duplicateSession` in the store accepts the same `targetFolder` parameter; `FakeSessionNotifier` mirrors the signature. An `explicitTarget:` override on `pasteCopiedSession` lets the session and folder right-click menus force the target to the clicked row / folder regardless of current focus — matches "paste into this folder" without making the user pre-focus it.
 - **Drop-zone covers the expanded folder's child rows, not just its header.** Every session row (`_buildSessionTile`) wraps its content in a `DragTarget<SessionDragData>` keyed off `session.folder`, so dropping a drag anywhere inside an expanded folder lands in that folder. Without the per-row wrap the drop fell through to the tree-root `DragTarget` (folder `""`) and the dragged session silently appeared at the root — users read this as "drag-into-folder only works on the folder row". DragTarget nesting resolves innermost-wins, so dropping directly on a sub-folder header still targets that sub-folder (its own `DragTarget` claims the hit first).
 
 #### Session clipboard — pointer model
@@ -2644,7 +2644,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 
 **Tab styling:** Active tab has `AppTheme.bg2` background with a 2 px `AppTheme.accent` top bar. Inactive tabs have `AppTheme.bg1` background. Icons are colored by kind (blue = terminal, yellow = SFTP) when active, `AppTheme.fgFaint` when inactive. Height: `AppTheme.barHeightSm` (34 px).
 
-**Connection lifecycle:** When all tabs referencing a connection are closed across **all** panels, `WorkspaceNotifier` automatically disconnects the orphaned connection via `ConnectionManager.disconnect()`.
+**Connection lifecycle:** When all tabs referencing a connection are closed across **all** panels, `WorkspaceNotifier` automatically disconnects the orphaned connection via `ConnectionsNotifier.disconnect()`.
 
 **Panel collapse:** When the last tab in a panel is closed (or moved out), the panel is removed from the workspace tree and its sibling is promoted up.
 
@@ -2660,7 +2660,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
 | `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
-| `known_hosts_manager.dart` | `KnownHostsManagerDialog` | Known hosts management dialog (search, delete, import, export, clear) |
+| `known_hosts_manager.dart` | `KnownHostsNotifierDialog` | Known hosts management dialog (search, delete, import, export, clear) |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
 | `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags, Known Hosts |
 | `tools/tools_screen.dart` | `ToolsScreen` | Mobile Tools route — list of tool tiles (same entries as desktop dialog) |
@@ -3075,7 +3075,7 @@ class PassphraseResult { String passphrase; bool remember; }
 ```
 Interactive prompt for encrypted SSH key passphrase. Shows "wrong passphrase" on retry (attempt > 1).
 Checkbox "Remember for this session" (default: checked). Returns null on cancel.
-Wired via `ConnectionManager.onPassphraseRequired` → `SSHConnection.onPassphraseRequired`.
+Wired via `ConnectionsNotifier.onPassphraseRequired` → `SSHConnection.onPassphraseRequired`.
 
 ### ConfirmDialog
 
@@ -3271,7 +3271,7 @@ Shared search input for list / table dialogs. Visually paired with [AppDataRow](
 SessionTagDots({required String sessionId, double diameter = 8})
 FolderTagDots({required String folderPath, double diameter = 8})
 ```
-Coloured dot row showing the tags assigned to a session (or aggregated across a folder subtree). `Consumer*` widgets — both watch `tagProvider` so dots stay in sync with tag CRUD without manual rebuilds. See [§3 Tags](#3-core-modules) for the underlying `TagStore`.
+Coloured dot row showing the tags assigned to a session (or aggregated across a folder subtree). `Consumer*` widgets — both watch `tagProvider` so dots stay in sync with tag CRUD without manual rebuilds. See [§3 Tags](#3-core-modules) for the underlying `TagsNotifier`.
 
 ### DataCheckboxes — CollapsibleCheckboxesSection & DataCheckboxRow
 
@@ -3926,7 +3926,7 @@ flowchart TD
     tab -.->|via progressStream| errui
 ```
 
-**Progress pipeline:** `SSHConnection.connect()` accepts an `onProgress` callback that emits `ConnectionStep` events at each phase boundary. `ConnectionManager._doConnect()` forwards these to `Connection.addProgressStep()`, which buffers them in `progressHistory` and broadcasts via `progressStream`. The UI subscribes to the stream (replaying history for late subscribers) and renders steps in real time.
+**Progress pipeline:** `SSHConnection.connect()` accepts an `onProgress` callback that emits `ConnectionStep` events at each phase boundary. `ConnectionsNotifier._doConnect()` forwards these to `Connection.addProgressStep()`, which buffers them in `progressHistory` and broadcasts via `progressStream`. The UI subscribes to the stream (replaying history for late subscribers) and renders steps in real time.
 
 **Reconnect flow:** When a terminal tab reconnects (user clicks "Reconnect" after disconnect), `TerminalTab._refreshConfig()` re-reads the `Session` from `sessionProvider` using `Connection.sessionId` and updates `Connection.sshConfig` before creating a new `SSHConnection`. This ensures reconnect picks up any session edits (e.g. added keys, changed password). Quick-connect tabs (`sessionId == null`) use the original config.
 
@@ -3950,7 +3950,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     ui["UI → sessionProvider.add(session)"]
-    ui --> add["SessionStore.add(session)<br/>Adds to list → SessionStore.save()"]
+    ui --> add["SessionNotifier.add(session)<br/>Adds to list → SessionNotifier.save()"]
     add --> meta["sessions.json<br/>metadata, atomic write"]
     add --> creds["credentials.enc<br/>AES-256-GCM, atomic write"]
     ui --> hist["SessionHistory.push(snapshot)<br/>undo support"]
@@ -4011,7 +4011,7 @@ Connection {
   label: String
   sshConfig: SSHConfig    // mutable — refreshed from session store on reconnect
   sessionId: String?      // links back to saved Session (null for quick-connect)
-  knownHosts: KnownHostsManager  // for host key verification
+  knownHosts: KnownHostsNotifier  // for host key verification
   sshConnection: SSHConnection?
   state: SSHConnectionState  // disconnected | connecting | connected
   connectionError: Object?
@@ -4057,7 +4057,7 @@ TransferTask {
   targetPath: String
   sizeBytes: int
   run: Future<void> Function(ProgressCallback)
-  // Note: id, state, progress are managed by TransferManager (ActiveEntry wrapper),
+  // Note: id, state, progress are managed by TransfersNotifier (ActiveEntry wrapper),
   // not stored on TransferTask itself
 }
 ```
@@ -4432,7 +4432,7 @@ missing magic, or no manifest are rejected with
 `UnsupportedLfsVersionException`. See the .lfs format table in §3.9 for
 the full layout.
 
-Export decrypts known_hosts via `KnownHostsManager.exportToString()`. Import returns content for caller to import via `KnownHostsManager.importFromString()`.
+Export decrypts known_hosts via `KnownHostsNotifier.exportToString()`. Import returns content for caller to import via `KnownHostsNotifier.importFromString()`.
 
 Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths. Manager keys, tags (with session/folder assignments), and snippets (with session links) are each stored in separate JSON files inside the ZIP archive (see [§3.9](#39-import-coreimport) for full file list).
 
@@ -4461,7 +4461,7 @@ The archive also carries a `manifest.json` with `schema_version` (current: `Expo
 - `SFTPError` (`core/sftp/errors.dart`) — typed SFTP error with `message`, `cause`, `path`, `statusCode`, `userMessage`. Factory `SFTPError.wrap(error, op, path)` for wrapping raw exceptions with operation context
 - `Connection.connectionError` stores raw `Object?` — localized at display time with `localizeError`
 - Unknown errno → original OS text preserved as-is
-- Applied in: `ConnectionManager`, `TerminalTab.reconnect()`, `TransferManager` (+ path stripping, inline error in transfer panel)
+- Applied in: `ConnectionsNotifier`, `TerminalTab.reconnect()`, `TransfersNotifier` (+ path stripping, inline error in transfer panel)
 
 ### Error Handling Architecture
 
@@ -4589,7 +4589,7 @@ This provides:
 | Class | DI parameter | Purpose |
 |-------|------------|---------|
 | `SSHConnection` | `socketFactory`, `clientFactory` | Mock TCP/SSH |
-| `ConnectionManager` | `connectionFactory` | Mock connection creation |
+| `ConnectionsNotifier` | `connectionFactory` | Mock connection creation |
 | `TerminalTab` | `reconnectFactory` | Mock reconnect logic |
 | `FileBrowserTab` | `sftpInitFactory` | Mock SFTP initialization |
 | `MobileFileBrowser` | `sftpInitFactory` | Mock SFTP initialization (mobile) |
@@ -4610,14 +4610,14 @@ debugDesktopPlatformOverride = true;   // force desktop layout in tests
 | File | Contents |
 |------|----------|
 | `test_notifiers.dart` | `TestConfigNotifier`, `PrePopulatedConfigNotifier`, `PrePopulatedSessionNotifier`, `PrePopulatedWorkspaceNotifier`, `PrePopulatedUpdateNotifier`, `FixedVersionNotifier` |
-| `fake_session_store.dart` | `FakeSessionStore` (in-memory), `ThrowingSessionStore` |
-| `fake_security.dart` | `FakeMasterPasswordManager`, `FakeSecureKeyStorage` (`writeKeySucceeds` flag), `FakeHardwareTierVault` (`storeSucceeds` flag), `FakeKeychainPasswordGate`, `FakeBiometricAuth` (`skipFirstNAvailableCalls` counter), `FakeBiometricKeyVault` (`isStoredThrows` + `throwAfterNCalls`), `FakeAutoLockStore` — all subclasses with no-op async defaults; flags let tests drive write-failure / throw / availability-change branches without swapping fakes mid-test |
+| `fake_session_notifier.dart` | `FakeSessionNotifier` (in-memory), `StaticSessionNotifier`, `ThrowingSessionNotifier` |
+| `fake_transfers_notifier.dart` | `FakeTransfersNotifier` — production `TransfersNotifier` subclass that records `clearHistoryCalls`; bypasses the FRB queue |
+| `fake_security.dart` | `FakeMasterPasswordManager`, `FakeSecureKeyStorage` (`writeKeySucceeds` flag), `FakeHardwareTierVault` (`storeSucceeds` flag), `FakeKeychainPasswordGate`, `FakeBiometricAuth` (`skipFirstNAvailableCalls` counter), `FakeBiometricKeyVault` (`isStoredThrows` + `throwAfterNCalls`), `FakeAutoLockNotifier` — all subclasses with no-op async defaults; flags let tests drive write-failure / throw / availability-change branches without swapping fakes mid-test |
 | `fake_dialog_prompter.dart` | `FakeSecurityDialogPrompter` — scripted answers for `showFirstLaunchWizard`, `showDbCorrupt`, `showTierReset`, `showMasterPasswordUnlock`, `showTierSecretUnlock`; `tierSecretSimulatedInput` delegates to the real `verify` closure so the DB-inject side effect fires; `fireOnReset` + `fireBiometricUnlock` trigger the dialog's reset / biometric callbacks for coverage |
 | `fake_path_provider.dart` | `installFakePathProvider()` + `uninstallFakePathProvider(tmp)` — redirects the `path_provider` channel to a per-test tmp dir; returns the `Directory` so tests can pre-seed / inspect state files |
 | `fake_secure_storage.dart` | `installFakeSecureStorage()` — in-memory backing for `flutter_secure_storage`; returns the map so tests can pre-seed entries |
 | `fake_native_plugins.dart` | `installFakeNativePlugins({config})` / `uninstallFakeNativePlugins()` — one-call mock for every app MethodChannel (hardware_vault, clipboard_secure, session_lock, backup_exclusion, permissions, secure_screen, qrscanner) + file_picker; returns a `NativeCallLog` so tests assert on the exact invocation shape |
 | `test_providers.dart` | `makeTestProviderContainer({...})` and `securityProviderOverrides({...})` — shared baseline of Riverpod overrides (session / master-password / keychain / hardware-vault / keychain-gate / biometric-auth / biometric-vault / auto-lock stores). Widget tests that need their own `ProviderScope` spread the override list; unit tests call the factory |
-| `test_stores.dart` | `makeTestStores()` → `TestStores` bundle of real drift-backed stores wired to an in-memory `openTestDatabase()`; for round-trip tests that need real persistence |
 
 ### Test file mapping
 
@@ -4828,8 +4828,8 @@ flowchart TD
 | chmod 600 | Minimal permissions on sensitive files |
 | TOFU reject without callback | Fail-safe: if no UI → reject |
 | `CredentialStoreException` with two types | Distinguish "no credentials" from "corrupt key" |
-| SessionStore abort on credential load failure | Prevents overwriting encrypted store |
-| SessionStore concurrent load guard | Prevents race condition when multiple lifecycle events fire simultaneously |
+| SessionNotifier abort on credential load failure | Prevents overwriting encrypted store |
+| SessionNotifier concurrent load guard | Prevents race condition when multiple lifecycle events fire simultaneously |
 | `RandomAccessFile` + try/finally for upload | Guarantees file handle cleanup |
 | Error sanitization | Don't expose file paths to user |
 | Deep link path traversal rejection | URL handling security |
