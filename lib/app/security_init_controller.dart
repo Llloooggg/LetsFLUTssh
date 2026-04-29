@@ -821,24 +821,44 @@ class SecurityInitController {
     }
     final mods = ref.read(configProvider).security?.modifiers;
     if (mods != null && !mods.password) {
-      final unsealed = await vault.read(null);
+      // Passwordless variant — vault was sealed without a user
+      // secret. Production routes through the
+      // `tier_unlock_hardware(null)` orchestrator which fans
+      // out to the platform vault via the prompt registry +
+      // emits the cascade. Falls back to direct `vault.read`
+      // for flutter_test contexts (no FRB native lib).
+      List<int>? unsealed;
+      var orchestratorRoute = false;
+      try {
+        unsealed = await rust_orch.tierUnlockHardware();
+        orchestratorRoute = true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'tier_unlock_hardware (passwordless) FRB unreachable, '
+          'falling back to Dart pipeline: $e',
+          name: 'App',
+        );
+        unsealed = await vault.read(null);
+      }
       if (unsealed != null) {
         await _injectDatabase(
           key: Uint8List.fromList(unsealed),
           level: SecurityTier.hardware,
           modifiers: mods,
         );
-        _emitTierUnlockResolved(succeeded: true);
+        if (!orchestratorRoute) _emitTierUnlockResolved(succeeded: true);
         AppLogger.instance.log(
           'L3 hardware-vault unlocked (passwordless)',
           name: 'App',
         );
         return;
       }
-      _emitTierUnlockResolved(
-        succeeded: false,
-        failureDiscriminant: 'corruption',
-      );
+      if (!orchestratorRoute) {
+        _emitTierUnlockResolved(
+          succeeded: false,
+          failureDiscriminant: 'corruption',
+        );
+      }
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
@@ -874,14 +894,25 @@ class SecurityInitController {
       autoTriggerBiometric: !biometricAttempted,
     );
     if (unlocked) {
-      _emitTierUnlockResolved(succeeded: true);
+      // Cascade `UnlockSucceeded` already fired inside the
+      // dialog's verify callback (orchestrator owns it for the
+      // PIN path).
       AppLogger.instance.log('L3 hardware-vault unlocked', name: 'App');
       return;
     }
-    _emitTierUnlockResolved(
-      succeeded: false,
-      failureDiscriminant: 'user_cancelled',
-    );
+    // Dialog dismissed without success. Fire the cancel
+    // cascade so the dialog-open `UnlockRequested` lands a
+    // paired terminal-state event; idempotent on an already-
+    // Locked machine.
+    try {
+      rust_orch.tierUnlockHardwareCancel();
+    } catch (e) {
+      AppLogger.instance.log(
+        'tier_unlock_hardware_cancel FRB unreachable: $e',
+        name: 'TierMachine',
+        level: LogLevel.warn,
+      );
+    }
     await _injectDatabase();
     AppLogger.instance.log(
       'L3 reset — plaintext fallback',
@@ -909,7 +940,22 @@ class SecurityInitController {
       ),
       rateLimiter: limiter,
       verify: (pin) async {
-        final unsealed = await vault.read(pin);
+        // Production routes through `tier_unlock_hardware(pin)`
+        // which fans out to the platform vault via the prompt
+        // registry + emits the cascade. Falls back to direct
+        // `vault.read(pin)` for flutter_test contexts (no FRB
+        // native lib).
+        List<int>? unsealed;
+        try {
+          unsealed = await rust_orch.tierUnlockHardware(pin: pin);
+        } catch (e) {
+          AppLogger.instance.log(
+            'tier_unlock_hardware FRB unreachable, falling back '
+            'to Dart pipeline: $e',
+            name: 'App',
+          );
+          unsealed = await vault.read(pin);
+        }
         if (unsealed == null) return null;
         await _injectDatabase(
           key: Uint8List.fromList(unsealed),
