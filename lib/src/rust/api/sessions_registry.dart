@@ -37,6 +37,15 @@ DbSessionRegistryView sessionsRegistrySnapshot() =>
 int sessionsRegistryCount() =>
     RustLib.instance.api.crateApiSessionsRegistrySessionsRegistryCount();
 
+/// Count cached sessions whose folder path equals [`folder_path`]
+/// or sits under `{folder_path}/`. Reads off the cached view —
+/// no DB round-trip; the FRB writers keep the view current.
+/// Empty path counts root-level sessions.
+int sessionsRegistryCountInFolder({required String folderPath}) =>
+    RustLib.instance.api.crateApiSessionsRegistrySessionsRegistryCountInFolder(
+      folderPath: folderPath,
+    );
+
 /// Snapshot of the Rust-side sessions / folders cache view.
 /// Mirrors `lfs_core::sessions::RegistryView` across the FRB
 /// boundary using the same `DbSession` / `DbFolder` types the

@@ -149,6 +149,27 @@ impl Registry {
             .sessions
             .len()
     }
+
+    /// Count sessions whose folder path equals [`folder_path`] or
+    /// sits under `{folder_path}/`. Empty path counts root-level
+    /// sessions. Reads off the cached view — no DB round-trip.
+    ///
+    /// The folder paths come from walking the cached folder map,
+    /// so the count reflects the live snapshot the FRB writers
+    /// already kept current.
+    #[must_use]
+    pub fn count_in_folder(&self, folder_path: &str) -> usize {
+        let view = self.inner.read().expect("registry view lock poisoned");
+        let folders: Vec<String> = view
+            .sessions
+            .iter()
+            .map(|s| match &s.folder_id {
+                Some(fid) => folder_path::build_folder_path(fid, &view.folders),
+                None => String::new(),
+            })
+            .collect();
+        count_in_folder(&folders, folder_path)
+    }
 }
 
 /// Searchable subset of a Session — the four fields the UI search
@@ -586,5 +607,78 @@ mod tests {
         r.reload(&db).unwrap();
         r.reload(&db).unwrap();
         assert_eq!(r.session_count(), 0);
+    }
+
+    #[test]
+    fn registry_count_in_folder_walks_cached_view() {
+        let db = build_in_memory_db();
+        db.with_conn(|c| {
+            crate::db::folders::upsert(
+                c,
+                &FolderRow {
+                    id: "f_prod".into(),
+                    name: "Production".into(),
+                    parent_id: None,
+                    sort_order: 0,
+                    collapsed: false,
+                    created_at_ms: 0,
+                },
+            )?;
+            crate::db::folders::upsert(
+                c,
+                &FolderRow {
+                    id: "f_eu".into(),
+                    name: "EU".into(),
+                    parent_id: Some("f_prod".into()),
+                    sort_order: 0,
+                    collapsed: false,
+                    created_at_ms: 0,
+                },
+            )?;
+            for (id, folder) in [
+                ("s_root", None),
+                ("s_prod", Some("f_prod")),
+                ("s_eu", Some("f_eu")),
+            ] {
+                crate::db::sessions::upsert(
+                    c,
+                    &SessionRow {
+                        id: id.into(),
+                        label: id.into(),
+                        folder_id: folder.map(String::from),
+                        host: "h".into(),
+                        port: 22,
+                        user: "u".into(),
+                        auth_type: "password".into(),
+                        password: String::new(),
+                        key_path: String::new(),
+                        key_data: String::new(),
+                        key_id: None,
+                        passphrase: String::new(),
+                        sort_order: 0,
+                        notes: String::new(),
+                        last_connected_at_ms: None,
+                        extras: "{}".into(),
+                        via_session_id: None,
+                        via_host: None,
+                        via_port: None,
+                        via_user: None,
+                        created_at_ms: 0,
+                        updated_at_ms: 0,
+                    },
+                )?;
+            }
+            Ok::<_, Error>(())
+        })
+        .unwrap();
+
+        let r = Registry::new();
+        r.reload(&db).unwrap();
+        // Production includes its child + the EU child = 2 entries.
+        assert_eq!(r.count_in_folder("Production"), 2);
+        // Empty path → root-level only.
+        assert_eq!(r.count_in_folder(""), 1);
+        // Unknown path → 0.
+        assert_eq!(r.count_in_folder("Staging"), 0);
     }
 }

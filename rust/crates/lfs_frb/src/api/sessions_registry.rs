@@ -76,3 +76,14 @@ pub fn sessions_registry_snapshot() -> DbSessionRegistryView {
 pub fn sessions_registry_count() -> u32 {
     lfs_core::app::instance().sessions_registry.session_count() as u32
 }
+
+/// Count cached sessions whose folder path equals [`folder_path`]
+/// or sits under `{folder_path}/`. Reads off the cached view —
+/// no DB round-trip; the FRB writers keep the view current.
+/// Empty path counts root-level sessions.
+#[flutter_rust_bridge::frb(sync)]
+pub fn sessions_registry_count_in_folder(folder_path: String) -> u32 {
+    lfs_core::app::instance()
+        .sessions_registry
+        .count_in_folder(&folder_path) as u32
+}
