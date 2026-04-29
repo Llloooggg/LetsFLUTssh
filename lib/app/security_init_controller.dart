@@ -637,32 +637,60 @@ class SecurityInitController {
 
   Future<void> _unlockKeychain(SecureKeyStorage keyStorage) async {
     // Production routes through `tier_unlock_orchestrator::unlock_keychain`
-    // which dispatches the cascade events + reads the keychain
-    // slot via the prompt registry. Falls back to the inline
-    // Dart helper when the FRB native lib is not loaded
-    // (flutter_test contexts that don't bootstrap RustLib).
-    Uint8List? keychainKey;
-    var fellBack = false;
+    // + `TierUnlockedListener`: orchestrator stages the keychain
+    // key under `tier.unlock.key`, listener takes it + runs the
+    // post-unlock cascade (caches, securityStateProvider, Rust DB,
+    // tier persist). Falls back to the inline Dart helper +
+    // direct `_injectDatabase` when the FRB native lib is not
+    // loaded (flutter_test contexts).
+    var orchestratorRoute = false;
+    List<int>? bytes;
     try {
-      final bytes = await rust_orch.tierUnlockKeychain();
-      keychainKey = bytes == null ? null : Uint8List.fromList(bytes);
+      final listener = ref.read(tierUnlockedListenerProvider)..start();
+      final unlockDone = listener.awaitNextUnlock();
+      bytes = await rust_orch.tierUnlockKeychain();
+      orchestratorRoute = true;
+      if (bytes != null) {
+        final outcome = await unlockDone.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => TierUnlockOutcome.failed,
+        );
+        if (outcome == TierUnlockOutcome.unlocked) {
+          AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
+          return;
+        }
+        // Listener didn't resolve cleanly but we have bytes —
+        // recover via direct `_injectDatabase` so the unlock
+        // path doesn't strand.
+        await _injectDatabase(
+          key: Uint8List.fromList(bytes),
+          level: SecurityTier.keychain,
+        );
+        AppLogger.instance.log(
+          'Keychain key loaded via fallback inject (listener '
+          'returned $outcome)',
+          name: 'App',
+        );
+        return;
+      }
+      // bytes == null — orchestrator emitted UnlockFailed; fall
+      // through to plaintext fallback below.
     } catch (e) {
       AppLogger.instance.log(
         'tier_unlock_keychain FRB unreachable, falling back to '
         'Dart pipeline: $e',
         name: 'App',
       );
+    }
+    if (!orchestratorRoute) {
       _emitTierUnlockStart('keychain');
-      keychainKey = await keyStorage.readKey();
-      fellBack = true;
-    }
-    if (keychainKey != null) {
-      await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
-      if (fellBack) _emitTierUnlockResolved(succeeded: true);
-      AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
-      return;
-    }
-    if (fellBack) {
+      final keychainKey = await keyStorage.readKey();
+      if (keychainKey != null) {
+        await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
+        _emitTierUnlockResolved(succeeded: true);
+        AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
+        return;
+      }
       _emitTierUnlockResolved(
         succeeded: false,
         failureDiscriminant: 'plugin_unavailable',
