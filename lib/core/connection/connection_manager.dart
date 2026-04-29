@@ -1,14 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:uuid/uuid.dart';
 
-import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/auth_compose.dart' as rust_auth;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/connection.dart' as rust_connection;
-import '../../src/rust/api/db.dart' as rust_db;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 import '../security/session_credential_cache.dart';
@@ -394,158 +390,38 @@ class ConnectionManager {
   /// only sees the typed ref + the transient id list to drop
   /// after the connect attempt settles.
   ///
-  /// The inline Dart pipeline below stays in place as the
-  /// flutter_test fallback (no FRB native lib loaded).
+  /// FRB-unreachable contexts (flutter_test) propagate the throw —
+  /// every secret-staging path below is itself a FRB call, so the
+  /// previous "Dart fallback" pipeline collapsed to the same failure
+  /// the orchestrator surfaces directly.
   Future<SshAuthMethod> _authFromConfig(
     SshAuth auth,
     String? sessionId,
     Connection conn,
   ) async {
-    try {
-      final prepared = await rust_auth.connectionPrepareAuth(
-        input: rust_auth.DbPrepareAuthInput(
-          sessionId: sessionId,
-          keyId: auth.keyId,
-          keyData: auth.keyData,
-          password: auth.password,
-          passphrase: auth.passphrase,
-        ),
-      );
-      conn.transientSecretIds.addAll(prepared.transientSecretIds);
-      switch (prepared.kind) {
-        case 'password':
-          return SshAuthPasswordRef(prepared.primarySecretId);
-        case 'pubkey':
-          return SshAuthPubkeyRef(
-            prepared.primarySecretId,
-            passphraseSecretId: prepared.passphraseSecretId,
-          );
-        default:
-          AppLogger.instance.log(
-            'connection_prepare_auth returned unknown kind '
-            '"${prepared.kind}" — falling back to Dart pipeline',
-            name: 'Connection',
-            level: LogLevel.warn,
-          );
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'connection_prepare_auth FRB unreachable, falling back '
-        'to Dart pipeline: $e',
-        name: 'Connection',
-      );
-    }
-    String? passphraseSecretId;
-    if (sessionId != null) {
-      try {
-        final staged = await rust_db.dbSessionsStageSecrets(
-          sessionId: sessionId,
+    final prepared = await rust_auth.connectionPrepareAuth(
+      input: rust_auth.DbPrepareAuthInput(
+        sessionId: sessionId,
+        keyId: auth.keyId,
+        keyData: auth.keyData,
+        password: auth.password,
+        passphrase: auth.passphrase,
+      ),
+    );
+    conn.transientSecretIds.addAll(prepared.transientSecretIds);
+    switch (prepared.kind) {
+      case 'password':
+        return SshAuthPasswordRef(prepared.primarySecretId);
+      case 'pubkey':
+        return SshAuthPubkeyRef(
+          prepared.primarySecretId,
+          passphraseSecretId: prepared.passphraseSecretId,
         );
-        if (staged != null) {
-          if (staged.hasPassphrase) {
-            passphraseSecretId = 'sess.passphrase.$sessionId';
-          }
-          if (staged.hasKeyData) {
-            return SshAuthPubkeyRef(
-              'sess.key.$sessionId',
-              passphraseSecretId: passphraseSecretId,
-            );
-          }
-          if (staged.hasPassword) {
-            return SshAuthPasswordRef('sess.password.$sessionId');
-          }
-        }
-      } catch (e) {
-        // Falls through to the plaintext variant if the stage call
-        // fails (DB locked, missing row, FRB unavailable). The
-        // operator still gets to connect; the only loss is the
-        // bytes-stay-Rust-side guarantee for this one attempt.
-        AppLogger.instance.log(
-          'dbSessionsStageSecrets failed; falling back to plaintext: $e',
-          name: 'Connection',
-          level: LogLevel.warn,
+      default:
+        throw StateError(
+          'connection_prepare_auth returned unknown kind "${prepared.kind}"',
         );
-      }
     }
-    // Manager-key reference: stage the private PEM bytes Rust-side
-    // straight from the `ssh_keys` row into the SecretStore. Dart
-    // never sees the bytes — the connect path receives the secret
-    // id `key.priv.<keyId>` and the matching SshAuthPubkeyRef.
-    if (auth.keyId.isNotEmpty) {
-      try {
-        final staged = await rust_db.dbSshKeysStageSecret(keyId: auth.keyId);
-        if (staged) {
-          // Passphrase still rides on the `SshAuth.passphrase` slot
-          // for keys that are stored under a manager id but whose
-          // passphrase the user typed for this session — copy it
-          // into a transient store entry under the same keyId so
-          // russh can read both halves through the Ref variant.
-          if (auth.passphrase.isNotEmpty && passphraseSecretId == null) {
-            passphraseSecretId = 'key.passphrase.${auth.keyId}';
-            await rust_app.secretsPut(
-              id: passphraseSecretId,
-              bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
-            );
-            // Drop after this attempt — the typed-passphrase value
-            // is per-connection, not per-key, so it must not survive
-            // the connect handshake.
-            conn.transientSecretIds.add(passphraseSecretId);
-          }
-          return SshAuthPubkeyRef(
-            'key.priv.${auth.keyId}',
-            passphraseSecretId: passphraseSecretId,
-          );
-        }
-      } catch (e) {
-        AppLogger.instance.log(
-          'dbSshKeysStageSecret failed; falling back to plaintext: $e',
-          name: 'Connection',
-          level: LogLevel.warn,
-        );
-      }
-    }
-    // Quick-connect / staging fallback — copy the bytes once into a
-    // transient secret-store entry keyed by a fresh UUID and return
-    // the matching Ref variant. The plaintext lifetime on the Dart
-    // heap shrinks to this scope; the entry is dropped from
-    // SecretStore by `_evictTransientSecrets` once the connect
-    // attempt reaches a terminal state (Connected / Disconnected).
-    final transientId = const Uuid().v4();
-    if (auth.keyData.isNotEmpty) {
-      final keyId = 'conn.key.$transientId';
-      await rust_app.secretsPut(
-        id: keyId,
-        bytes: Uint8List.fromList(auth.keyData.codeUnits),
-      );
-      conn.transientSecretIds.add(keyId);
-      if (auth.passphrase.isNotEmpty && passphraseSecretId == null) {
-        passphraseSecretId = 'conn.passphrase.$transientId';
-        await rust_app.secretsPut(
-          id: passphraseSecretId,
-          bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
-        );
-        conn.transientSecretIds.add(passphraseSecretId);
-      }
-      return SshAuthPubkeyRef(keyId, passphraseSecretId: passphraseSecretId);
-    }
-    if (auth.password.isNotEmpty) {
-      final id = 'conn.password.$transientId';
-      await rust_app.secretsPut(
-        id: id,
-        bytes: Uint8List.fromList(utf8.encode(auth.password)),
-      );
-      conn.transientSecretIds.add(id);
-      return SshAuthPasswordRef(id);
-    }
-    // Empty auth — stage an empty password as a transient secret
-    // so the actor still receives a Ref-shaped variant. russh
-    // surfaces "no credentials" naturally; pushing the bytes via
-    // SecretStore avoids leaking an alternate plaintext code path
-    // through the bus.
-    final id = 'conn.password.$transientId';
-    await rust_app.secretsPut(id: id, bytes: Uint8List(0));
-    conn.transientSecretIds.add(id);
-    return SshAuthPasswordRef(id);
   }
 
   /// Overlay [Connection.cachedPassphrase] onto [config] when set —
