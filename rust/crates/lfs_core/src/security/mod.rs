@@ -17,6 +17,7 @@
 
 use std::collections::BTreeMap;
 
+pub mod biometric_probe_prompt;
 pub mod capabilities;
 pub mod credential_prompt;
 pub mod hardware_tier_vault;

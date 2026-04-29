@@ -227,6 +227,11 @@ pub enum BusEvent {
         session_id: String,
         kind_wire_name: String,
     },
+    /// Capabilities cache needs the biometric-availability
+    /// answer — Dart subscriber executes
+    /// `local_auth.canCheckBiometrics` + enrolment check,
+    /// dispatches the typed response back.
+    BiometricProbePromptRequest { prompt_id: String },
     /// TOFU prompt — russh saw an unknown / changed host key.
     /// Subscribers (Dart UI) surface the host-key dialog and
     /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
@@ -397,6 +402,9 @@ impl BusEvent {
                 session_id,
                 kind_wire_name,
             },
+            lfs_core::bus::Event::BiometricProbePromptRequest { prompt_id } => {
+                BusEvent::BiometricProbePromptRequest { prompt_id }
+            }
             lfs_core::bus::Event::KnownHostPromptRequest {
                 prompt_id,
                 host,

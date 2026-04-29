@@ -10,6 +10,7 @@ import 'api.dart';
 import 'api/app.dart';
 import 'api/archive.dart';
 import 'api/archive_stage.dart';
+import 'api/biometric_probe_prompt.dart';
 import 'api/bus.dart';
 import 'api/config.dart';
 import 'api/connection.dart';

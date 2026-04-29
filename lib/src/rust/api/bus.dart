@@ -353,6 +353,14 @@ sealed class BusEvent with _$BusEvent {
     required String kindWireName,
   }) = BusEvent_CredentialPromptRequest;
 
+  /// Capabilities cache needs the biometric-availability
+  /// answer — Dart subscriber executes
+  /// `local_auth.canCheckBiometrics` + enrolment check,
+  /// dispatches the typed response back.
+  const factory BusEvent.biometricProbePromptRequest({
+    required String promptId,
+  }) = BusEvent_BiometricProbePromptRequest;
+
   /// TOFU prompt — russh saw an unknown / changed host key.
   /// Subscribers (Dart UI) surface the host-key dialog and
   /// dispatch [`BusCommand::KnownHostPromptResponse`] back.

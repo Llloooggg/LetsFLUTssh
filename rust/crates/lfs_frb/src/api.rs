@@ -5,6 +5,7 @@
 pub mod app;
 pub mod archive;
 pub mod archive_stage;
+pub mod biometric_probe_prompt;
 pub mod bus;
 pub mod config;
 pub mod connection;

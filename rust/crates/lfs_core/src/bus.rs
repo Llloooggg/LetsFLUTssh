@@ -191,6 +191,14 @@ pub enum Event {
         kind_wire_name: String,
     },
 
+    /// Biometric capability probe — fired by the
+    /// SecurityCapabilities cache actor when it needs to know
+    /// whether `local_auth.canCheckBiometrics` returns true on
+    /// this host. Dart subscriber executes the plugin call,
+    /// dispatches the typed response back. Decision 1 / C5 in
+    /// `docs/RUST_MIGRATION_REMAINING.md`.
+    BiometricProbePromptRequest { prompt_id: String },
+
     /// Recorder — fired when a fresh recording actor enters
     /// the registry.
     RecorderStarted { id: String, path: String },
@@ -339,6 +347,7 @@ impl Event {
             Event::TierStateChanged { .. } => EventTopic::Tier,
             Event::KeychainPepperPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::CredentialPromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::BiometricProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
                 EventTopic::KnownHosts
             }
