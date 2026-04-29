@@ -13316,6 +13316,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 25:
         return BusEvent_ConfigChanged(json: dco_decode_String(raw[1]));
       case 26:
+        return BusEvent_TierStateChanged(
+          stateWireName: dco_decode_String(raw[1]),
+        );
+      case 27:
         return BusEvent_KnownHostPromptRequest(
           promptId: dco_decode_String(raw[1]),
           host: dco_decode_String(raw[2]),
@@ -13324,7 +13328,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           fingerprint: dco_decode_String(raw[5]),
           kind: dco_decode_bus_known_host_prompt_kind(raw[6]),
         );
-      case 27:
+      case 28:
         return BusEvent_KnownHostPromptResolved(
           promptId: dco_decode_String(raw[1]),
           accepted: dco_decode_bool(raw[2]),
@@ -15938,6 +15942,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final var_json = sse_decode_String(deserializer);
         return BusEvent_ConfigChanged(json: var_json);
       case 26:
+        final var_stateWireName = sse_decode_String(deserializer);
+        return BusEvent_TierStateChanged(stateWireName: var_stateWireName);
+      case 27:
         final var_promptId = sse_decode_String(deserializer);
         final var_host = sse_decode_String(deserializer);
         final var_port = sse_decode_i_64(deserializer);
@@ -15952,7 +15959,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           fingerprint: var_fingerprint,
           kind: var_kind,
         );
-      case 27:
+      case 28:
         final var_promptId = sse_decode_String(deserializer);
         final var_accepted = sse_decode_bool(deserializer);
         return BusEvent_KnownHostPromptResolved(
@@ -19302,6 +19309,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case BusEvent_ConfigChanged(json: final json):
         sse_encode_i_32(25, serializer);
         sse_encode_String(json, serializer);
+      case BusEvent_TierStateChanged(stateWireName: final stateWireName):
+        sse_encode_i_32(26, serializer);
+        sse_encode_String(stateWireName, serializer);
       case BusEvent_KnownHostPromptRequest(
         promptId: final promptId,
         host: final host,
@@ -19310,7 +19320,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         fingerprint: final fingerprint,
         kind: final kind,
       ):
-        sse_encode_i_32(26, serializer);
+        sse_encode_i_32(27, serializer);
         sse_encode_String(promptId, serializer);
         sse_encode_String(host, serializer);
         sse_encode_i_64(port, serializer);
@@ -19321,7 +19331,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         promptId: final promptId,
         accepted: final accepted,
       ):
-        sse_encode_i_32(27, serializer);
+        sse_encode_i_32(28, serializer);
         sse_encode_String(promptId, serializer);
         sse_encode_bool(accepted, serializer);
     }

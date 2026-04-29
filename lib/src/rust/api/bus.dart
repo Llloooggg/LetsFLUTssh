@@ -331,6 +331,11 @@ sealed class BusEvent with _$BusEvent {
   const factory BusEvent.configChanged({required String json}) =
       BusEvent_ConfigChanged;
 
+  /// Tier state machine transitioned. `state_wire_name` is
+  /// `locked` / `unlocking` / `unlocked` / `wiping`.
+  const factory BusEvent.tierStateChanged({required String stateWireName}) =
+      BusEvent_TierStateChanged;
+
   /// TOFU prompt — russh saw an unknown / changed host key.
   /// Subscribers (Dart UI) surface the host-key dialog and
   /// dispatch [`BusCommand::KnownHostPromptResponse`] back.

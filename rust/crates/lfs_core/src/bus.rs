@@ -73,6 +73,12 @@ pub enum EventTopic {
     /// without polling. Decision 5 / D5 in
     /// `docs/RUST_MIGRATION_REMAINING.md`.
     Config,
+    /// Tier state machine — Locked / Unlocking / Unlocked /
+    /// Wiping transitions. Subscribers (Dart unlock dialog,
+    /// auto-lock path, lock indicator) react to state changes
+    /// without polling. Decision 4 / C9 in
+    /// `docs/RUST_MIGRATION_REMAINING.md`.
+    Tier,
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -147,6 +153,14 @@ pub enum Event {
     /// in the snapshot without a follow-up `get_json` round-trip.
     /// Decision 5 / D5 in `docs/RUST_MIGRATION_REMAINING.md`.
     ConfigChanged { json: String },
+
+    /// Tier state machine — fired by
+    /// `lfs_core::security::tier_machine::Machine` on every
+    /// successful state transition. Carries the new state's wire
+    /// name (`locked` / `unlocking` / `unlocked` / `wiping`) so
+    /// subscribers branch without parsing an enum across FRB.
+    /// Decision 4 / C9 in `docs/RUST_MIGRATION_REMAINING.md`.
+    TierStateChanged { state_wire_name: String },
 
     /// Recorder — fired when a fresh recording actor enters
     /// the registry.
@@ -293,6 +307,7 @@ impl Event {
             Event::KnownHostsChanged => EventTopic::KnownHosts,
             Event::SessionsChanged => EventTopic::Sessions,
             Event::ConfigChanged { .. } => EventTopic::Config,
+            Event::TierStateChanged { .. } => EventTopic::Tier,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
                 EventTopic::KnownHosts
             }

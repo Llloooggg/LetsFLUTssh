@@ -58,6 +58,20 @@ pub enum TierState {
     Wiping,
 }
 
+impl TierState {
+    /// Stable wire name for the bus boundary. Each variant maps
+    /// to a string so Dart subscribers branch without parsing
+    /// the enum across FRB.
+    pub fn wire_name(self) -> &'static str {
+        match self {
+            TierState::Locked => "locked",
+            TierState::Unlocking => "unlocking",
+            TierState::Unlocked => "unlocked",
+            TierState::Wiping => "wiping",
+        }
+    }
+}
+
 /// Reason an unlock attempt failed. Surfaces to the bus so the UI
 /// can pick the right copy / dialog variant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -200,10 +214,25 @@ impl Machine {
 
     /// Apply a transition. Returns the new state on success,
     /// `None` when the event is invalid for the current state
-    /// (caller logs + drops).
+    /// (caller logs + drops). On a successful transition, also
+    /// publishes [`crate::bus::Event::TierStateChanged`] through
+    /// the AppState bus so subscribers can refresh without
+    /// polling.
     pub fn dispatch(&mut self, event: &TierEvent) -> TransitionResult {
         let next = next_state(self.state, event)?;
         self.state = next;
+        // Publish through the AppState singleton so subscribers
+        // refresh without polling. The `wire_name` carries the
+        // new state across FRB without a typed enum surface.
+        // Test-only constructions of `Machine` trigger this too;
+        // the bus' `broadcast` channel returns Ok(0) when there
+        // are no subscribers (test isolation), so the publish is
+        // a harmless no-op there.
+        crate::app::instance()
+            .bus
+            .publish(crate::bus::Event::TierStateChanged {
+                state_wire_name: next.wire_name().to_string(),
+            });
         Some(next)
     }
 

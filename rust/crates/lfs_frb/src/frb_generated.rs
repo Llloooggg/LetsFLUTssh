@@ -13415,6 +13415,12 @@ impl SseDecode for crate::api::bus::BusEvent {
                 return crate::api::bus::BusEvent::ConfigChanged { json: var_json };
             }
             26 => {
+                let mut var_stateWireName = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::TierStateChanged {
+                    state_wire_name: var_stateWireName,
+                };
+            }
+            27 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_host = <String>::sse_decode(deserializer);
                 let mut var_port = <i64>::sse_decode(deserializer);
@@ -13431,7 +13437,7 @@ impl SseDecode for crate::api::bus::BusEvent {
                     kind: var_kind,
                 };
             }
-            27 => {
+            28 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
                 let mut var_accepted = <bool>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::KnownHostPromptResolved {
@@ -17126,6 +17132,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
             crate::api::bus::BusEvent::ConfigChanged { json } => {
                 [25.into_dart(), json.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::bus::BusEvent::TierStateChanged { state_wire_name } => {
+                [26.into_dart(), state_wire_name.into_into_dart().into_dart()].into_dart()
+            }
             crate::api::bus::BusEvent::KnownHostPromptRequest {
                 prompt_id,
                 host,
@@ -17134,7 +17143,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 fingerprint,
                 kind,
             } => [
-                26.into_dart(),
+                27.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 host.into_into_dart().into_dart(),
                 port.into_into_dart().into_dart(),
@@ -17147,7 +17156,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 prompt_id,
                 accepted,
             } => [
-                27.into_dart(),
+                28.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
                 accepted.into_into_dart().into_dart(),
             ]
@@ -19782,6 +19791,10 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <i32>::sse_encode(25, serializer);
                 <String>::sse_encode(json, serializer);
             }
+            crate::api::bus::BusEvent::TierStateChanged { state_wire_name } => {
+                <i32>::sse_encode(26, serializer);
+                <String>::sse_encode(state_wire_name, serializer);
+            }
             crate::api::bus::BusEvent::KnownHostPromptRequest {
                 prompt_id,
                 host,
@@ -19790,7 +19803,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 fingerprint,
                 kind,
             } => {
-                <i32>::sse_encode(26, serializer);
+                <i32>::sse_encode(27, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <String>::sse_encode(host, serializer);
                 <i64>::sse_encode(port, serializer);
@@ -19802,7 +19815,7 @@ impl SseEncode for crate::api::bus::BusEvent {
                 prompt_id,
                 accepted,
             } => {
-                <i32>::sse_encode(27, serializer);
+                <i32>::sse_encode(28, serializer);
                 <String>::sse_encode(prompt_id, serializer);
                 <bool>::sse_encode(accepted, serializer);
             }
