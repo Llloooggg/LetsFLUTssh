@@ -27,6 +27,7 @@ pub mod path;
 pub mod persisted_rate_limit;
 pub mod persisted_rate_limit_actor;
 pub mod qr_codec_encode;
+pub mod qr_compose;
 pub mod rate_limit;
 pub mod recorder;
 pub mod security_capabilities;

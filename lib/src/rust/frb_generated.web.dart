@@ -32,6 +32,7 @@ import 'api/path.dart';
 import 'api/persisted_rate_limit.dart';
 import 'api/persisted_rate_limit_actor.dart';
 import 'api/qr_codec_encode.dart';
+import 'api/qr_compose.dart';
 import 'api/rate_limit.dart';
 import 'api/recorder.dart';
 import 'api/security_capabilities.dart';
@@ -292,6 +293,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbQrExportInput dco_decode_box_autoadd_db_qr_export_input(dynamic raw);
 
   @protected
+  DbQrPayloadInput dco_decode_box_autoadd_db_qr_payload_input(dynamic raw);
+
+  @protected
   DbSecurityCapabilities dco_decode_box_autoadd_db_security_capabilities(
     dynamic raw,
   );
@@ -489,6 +493,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbQrExportOptions dco_decode_db_qr_export_options(dynamic raw);
 
   @protected
+  DbQrFolderTagLink dco_decode_db_qr_folder_tag_link(dynamic raw);
+
+  @protected
+  DbQrManagerKeyEntry dco_decode_db_qr_manager_key_entry(dynamic raw);
+
+  @protected
+  DbQrPayloadInput dco_decode_db_qr_payload_input(dynamic raw);
+
+  @protected
+  DbQrSessionInput dco_decode_db_qr_session_input(dynamic raw);
+
+  @protected
+  DbQrSessionSnippetLink dco_decode_db_qr_session_snippet_link(dynamic raw);
+
+  @protected
+  DbQrSessionTagLink dco_decode_db_qr_session_tag_link(dynamic raw);
+
+  @protected
+  DbQrSnippetInput dco_decode_db_qr_snippet_input(dynamic raw);
+
+  @protected
+  DbQrTagInput dco_decode_db_qr_tag_input(dynamic raw);
+
+  @protected
   DbRateLimitStatus dco_decode_db_rate_limit_status(dynamic raw);
 
   @protected
@@ -636,6 +664,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbPortForwardRule> dco_decode_list_db_port_forward_rule(dynamic raw);
+
+  @protected
+  List<DbQrFolderTagLink> dco_decode_list_db_qr_folder_tag_link(dynamic raw);
+
+  @protected
+  List<DbQrManagerKeyEntry> dco_decode_list_db_qr_manager_key_entry(
+    dynamic raw,
+  );
+
+  @protected
+  List<DbQrSessionInput> dco_decode_list_db_qr_session_input(dynamic raw);
+
+  @protected
+  List<DbQrSessionSnippetLink> dco_decode_list_db_qr_session_snippet_link(
+    dynamic raw,
+  );
+
+  @protected
+  List<DbQrSessionTagLink> dco_decode_list_db_qr_session_tag_link(dynamic raw);
+
+  @protected
+  List<DbQrSnippetInput> dco_decode_list_db_qr_snippet_input(dynamic raw);
+
+  @protected
+  List<DbQrTagInput> dco_decode_list_db_qr_tag_input(dynamic raw);
 
   @protected
   List<DbReleaseAsset> dco_decode_list_db_release_asset(dynamic raw);
@@ -1062,6 +1115,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbQrPayloadInput sse_decode_box_autoadd_db_qr_payload_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSecurityCapabilities sse_decode_box_autoadd_db_security_capabilities(
     SseDeserializer deserializer,
   );
@@ -1315,6 +1373,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbQrFolderTagLink sse_decode_db_qr_folder_tag_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbQrManagerKeyEntry sse_decode_db_qr_manager_key_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbQrPayloadInput sse_decode_db_qr_payload_input(SseDeserializer deserializer);
+
+  @protected
+  DbQrSessionInput sse_decode_db_qr_session_input(SseDeserializer deserializer);
+
+  @protected
+  DbQrSessionSnippetLink sse_decode_db_qr_session_snippet_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbQrSessionTagLink sse_decode_db_qr_session_tag_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbQrSnippetInput sse_decode_db_qr_snippet_input(SseDeserializer deserializer);
+
+  @protected
+  DbQrTagInput sse_decode_db_qr_tag_input(SseDeserializer deserializer);
+
+  @protected
   DbRateLimitStatus sse_decode_db_rate_limit_status(
     SseDeserializer deserializer,
   );
@@ -1506,6 +1596,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbPortForwardRule> sse_decode_list_db_port_forward_rule(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbQrFolderTagLink> sse_decode_list_db_qr_folder_tag_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbQrManagerKeyEntry> sse_decode_list_db_qr_manager_key_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbQrSessionInput> sse_decode_list_db_qr_session_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbQrSessionSnippetLink> sse_decode_list_db_qr_session_snippet_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbQrSessionTagLink> sse_decode_list_db_qr_session_tag_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbQrSnippetInput> sse_decode_list_db_qr_snippet_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbQrTagInput> sse_decode_list_db_qr_tag_input(
     SseDeserializer deserializer,
   );
 
@@ -2021,6 +2146,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_qr_payload_input(
+    DbQrPayloadInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_security_capabilities(
     DbSecurityCapabilities self,
     SseSerializer serializer,
@@ -2348,6 +2479,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_qr_folder_tag_link(
+    DbQrFolderTagLink self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_manager_key_entry(
+    DbQrManagerKeyEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_payload_input(
+    DbQrPayloadInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_session_input(
+    DbQrSessionInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_session_snippet_link(
+    DbQrSessionSnippetLink self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_session_tag_link(
+    DbQrSessionTagLink self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_snippet_input(
+    DbQrSnippetInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_qr_tag_input(DbQrTagInput self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_rate_limit_status(
     DbRateLimitStatus self,
     SseSerializer serializer,
@@ -2599,6 +2775,48 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_port_forward_rule(
     List<DbPortForwardRule> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_qr_folder_tag_link(
+    List<DbQrFolderTagLink> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_qr_manager_key_entry(
+    List<DbQrManagerKeyEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_qr_session_input(
+    List<DbQrSessionInput> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_qr_session_snippet_link(
+    List<DbQrSessionSnippetLink> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_qr_session_tag_link(
+    List<DbQrSessionTagLink> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_qr_snippet_input(
+    List<DbQrSnippetInput> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_qr_tag_input(
+    List<DbQrTagInput> self,
     SseSerializer serializer,
   );
 

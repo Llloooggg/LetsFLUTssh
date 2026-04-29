@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 141146596;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1604744978;
 
 // Section: executor
 
@@ -8651,6 +8651,39 @@ fn wire__crate__api__qr_codec_encode__qr_codec_encode_session_compact_impl(
         },
     )
 }
+fn wire__crate__api__qr_compose__qr_estimate_export_size_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "qr_estimate_export_size",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_input =
+                <crate::api::qr_compose::DbQrPayloadInput>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::qr_compose::qr_estimate_export_size(api_input),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__archive__qr_import_open_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -13861,6 +13894,154 @@ impl SseDecode for crate::api::archive::DbQrExportOptions {
     }
 }
 
+impl SseDecode for crate::api::qr_compose::DbQrFolderTagLink {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_folderPath = <String>::sse_decode(deserializer);
+        let mut var_tagId = <String>::sse_decode(deserializer);
+        return crate::api::qr_compose::DbQrFolderTagLink {
+            folder_path: var_folderPath,
+            tag_id: var_tagId,
+        };
+    }
+}
+
+impl SseDecode for crate::api::qr_compose::DbQrManagerKeyEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_keyType = <String>::sse_decode(deserializer);
+        let mut var_publicKey = <String>::sse_decode(deserializer);
+        let mut var_privateKey = <String>::sse_decode(deserializer);
+        return crate::api::qr_compose::DbQrManagerKeyEntry {
+            id: var_id,
+            label: var_label,
+            key_type: var_keyType,
+            public_key: var_publicKey,
+            private_key: var_privateKey,
+        };
+    }
+}
+
+impl SseDecode for crate::api::qr_compose::DbQrPayloadInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_options = <crate::api::archive::DbQrExportOptions>::sse_decode(deserializer);
+        let mut var_sessions =
+            <Vec<crate::api::qr_compose::DbQrSessionInput>>::sse_decode(deserializer);
+        let mut var_emptyFolders = <Vec<String>>::sse_decode(deserializer);
+        let mut var_configJson = <Option<String>>::sse_decode(deserializer);
+        let mut var_knownHosts = <String>::sse_decode(deserializer);
+        let mut var_tags = <Vec<crate::api::qr_compose::DbQrTagInput>>::sse_decode(deserializer);
+        let mut var_sessionTags =
+            <Vec<crate::api::qr_compose::DbQrSessionTagLink>>::sse_decode(deserializer);
+        let mut var_folderTags =
+            <Vec<crate::api::qr_compose::DbQrFolderTagLink>>::sse_decode(deserializer);
+        let mut var_snippets =
+            <Vec<crate::api::qr_compose::DbQrSnippetInput>>::sse_decode(deserializer);
+        let mut var_sessionSnippets =
+            <Vec<crate::api::qr_compose::DbQrSessionSnippetLink>>::sse_decode(deserializer);
+        let mut var_managerKeyEntries =
+            <Vec<crate::api::qr_compose::DbQrManagerKeyEntry>>::sse_decode(deserializer);
+        return crate::api::qr_compose::DbQrPayloadInput {
+            options: var_options,
+            sessions: var_sessions,
+            empty_folders: var_emptyFolders,
+            config_json: var_configJson,
+            known_hosts: var_knownHosts,
+            tags: var_tags,
+            session_tags: var_sessionTags,
+            folder_tags: var_folderTags,
+            snippets: var_snippets,
+            session_snippets: var_sessionSnippets,
+            manager_key_entries: var_managerKeyEntries,
+        };
+    }
+}
+
+impl SseDecode for crate::api::qr_compose::DbQrSessionInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_host = <String>::sse_decode(deserializer);
+        let mut var_port = <i64>::sse_decode(deserializer);
+        let mut var_user = <String>::sse_decode(deserializer);
+        let mut var_authType = <String>::sse_decode(deserializer);
+        let mut var_password = <String>::sse_decode(deserializer);
+        let mut var_keyId = <Option<String>>::sse_decode(deserializer);
+        let mut var_keyData = <String>::sse_decode(deserializer);
+        let mut var_folderPath = <String>::sse_decode(deserializer);
+        return crate::api::qr_compose::DbQrSessionInput {
+            id: var_id,
+            label: var_label,
+            host: var_host,
+            port: var_port,
+            user: var_user,
+            auth_type: var_authType,
+            password: var_password,
+            key_id: var_keyId,
+            key_data: var_keyData,
+            folder_path: var_folderPath,
+        };
+    }
+}
+
+impl SseDecode for crate::api::qr_compose::DbQrSessionSnippetLink {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sessionId = <String>::sse_decode(deserializer);
+        let mut var_snippetId = <String>::sse_decode(deserializer);
+        return crate::api::qr_compose::DbQrSessionSnippetLink {
+            session_id: var_sessionId,
+            snippet_id: var_snippetId,
+        };
+    }
+}
+
+impl SseDecode for crate::api::qr_compose::DbQrSessionTagLink {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sessionId = <String>::sse_decode(deserializer);
+        let mut var_tagId = <String>::sse_decode(deserializer);
+        return crate::api::qr_compose::DbQrSessionTagLink {
+            session_id: var_sessionId,
+            tag_id: var_tagId,
+        };
+    }
+}
+
+impl SseDecode for crate::api::qr_compose::DbQrSnippetInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_title = <String>::sse_decode(deserializer);
+        let mut var_command = <String>::sse_decode(deserializer);
+        let mut var_description = <String>::sse_decode(deserializer);
+        return crate::api::qr_compose::DbQrSnippetInput {
+            id: var_id,
+            title: var_title,
+            command: var_command,
+            description: var_description,
+        };
+    }
+}
+
+impl SseDecode for crate::api::qr_compose::DbQrTagInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
+        return crate::api::qr_compose::DbQrTagInput {
+            id: var_id,
+            name: var_name,
+            color: var_color,
+        };
+    }
+}
+
 impl SseDecode for crate::api::rate_limit::DbRateLimitStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -14739,6 +14920,102 @@ impl SseDecode for Vec<crate::api::db::DbPortForwardRule> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::db::DbPortForwardRule>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::qr_compose::DbQrFolderTagLink> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::qr_compose::DbQrFolderTagLink>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::qr_compose::DbQrManagerKeyEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::qr_compose::DbQrManagerKeyEntry>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::qr_compose::DbQrSessionInput> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::qr_compose::DbQrSessionInput>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::qr_compose::DbQrSessionSnippetLink> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::qr_compose::DbQrSessionSnippetLink>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::qr_compose::DbQrSessionTagLink> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::qr_compose::DbQrSessionTagLink>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::qr_compose::DbQrSnippetInput> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::qr_compose::DbQrSnippetInput>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::qr_compose::DbQrTagInput> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::qr_compose::DbQrTagInput>::sse_decode(
                 deserializer,
             ));
         }
@@ -15784,181 +16061,181 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        221 => wire__crate__api__archive__qr_import_open_impl(port, ptr, rust_vec_len, data_len),
-        227 => wire__crate__api__recorder__recorder_close_impl(port, ptr, rust_vec_len, data_len),
-        228 => wire__crate__api__recorder__recorder_max_file_bytes_impl(
+        222 => wire__crate__api__archive__qr_import_open_impl(port, ptr, rust_vec_len, data_len),
+        228 => wire__crate__api__recorder__recorder_close_impl(port, ptr, rust_vec_len, data_len),
+        229 => wire__crate__api__recorder__recorder_max_file_bytes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        229 => wire__crate__api__recorder__recorder_queue_enqueue_close_impl(
+        230 => wire__crate__api__recorder__recorder_queue_enqueue_close_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        230 => wire__crate__api__recorder__recorder_queue_enqueue_event_impl(
+        231 => wire__crate__api__recorder__recorder_queue_enqueue_event_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        231 => wire__crate__api__recorder__recorder_queue_enqueue_header_impl(
+        232 => wire__crate__api__recorder__recorder_queue_enqueue_header_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        232 => wire__crate__api__recorder__recorder_queue_enqueue_rotate_impl(
+        233 => wire__crate__api__recorder__recorder_queue_enqueue_rotate_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        233 => {
+        234 => {
             wire__crate__api__recorder__recorder_queue_spawn_impl(port, ptr, rust_vec_len, data_len)
         }
-        234 => wire__crate__api__recorder__recorder_record_event_impl(
+        235 => wire__crate__api__recorder__recorder_record_event_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        235 => wire__crate__api__recorder__recorder_record_header_impl(
+        236 => wire__crate__api__recorder__recorder_record_header_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        236 => {
+        237 => {
             wire__crate__api__recorder__recorder_register_impl(port, ptr, rust_vec_len, data_len)
         }
-        237 => {
+        238 => {
             wire__crate__api__recorder__recorder_rotate_to_impl(port, ptr, rust_vec_len, data_len)
         }
-        240 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
-        241 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
-        242 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
-        243 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
-        260 => wire__crate__api__sessions_registry__sessions_registry_reload_impl(
+        241 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
+        242 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
+        243 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
+        244 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
+        261 => wire__crate__api__sessions_registry__sessions_registry_reload_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        268 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
+        269 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        273 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
-        274 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
-        275 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
+        274 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
+        275 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
+        276 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        276 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
+        277 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        277 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
-        278 => {
+        278 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
+        279 => {
             wire__crate__api__ssh__ssh_connect_pubkey_cert_impl(port, ptr, rust_vec_len, data_len)
         }
-        279 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
+        280 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        280 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
+        281 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        281 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
+        282 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        282 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
+        283 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        284 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
+        285 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        285 => {
+        286 => {
             wire__crate__api__forward__ssh_open_direct_tcpip_impl(port, ptr, rust_vec_len, data_len)
         }
-        286 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
-        287 => wire__crate__api__forward__ssh_request_remote_forward_impl(
+        287 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
+        288 => wire__crate__api__forward__ssh_request_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        288 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
-        289 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
-        290 => {
+        289 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
+        290 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
+        291 => {
             wire__crate__api__ssh__ssh_try_connect_password_impl(port, ptr, rust_vec_len, data_len)
         }
-        291 => {
+        292 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
-        296 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-        297 => wire__crate__api__transfer__transfer_clear_history_impl(
+        297 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+        298 => wire__crate__api__transfer__transfer_clear_history_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        303 => {
+        304 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        304 => wire__crate__api__transfer__transfer_drop_terminal_impl(
+        305 => wire__crate__api__transfer__transfer_drop_terminal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        305 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
-        306 => wire__crate__api__transfer__transfer_snapshot_all_impl(
+        306 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
+        307 => wire__crate__api__transfer__transfer_snapshot_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        310 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
-        312 => wire__crate__api__update_http__update_download_to_file_impl(
+        311 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
+        313 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        313 => wire__crate__api__update_http__update_download_with_verification_impl(
+        314 => wire__crate__api__update_http__update_download_with_verification_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        314 => {
+        315 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
-        322 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+        323 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -16058,61 +16335,62 @@ fn pde_ffi_dispatcher_sync_impl(
 218 => wire__crate__api__qr_codec_encode__qr_codec_compress_to_payload_impl(ptr, rust_vec_len, data_len),
 219 => wire__crate__api__qr_codec_encode__qr_codec_compress_to_payload_size_impl(ptr, rust_vec_len, data_len),
 220 => wire__crate__api__qr_codec_encode__qr_codec_encode_session_compact_impl(ptr, rust_vec_len, data_len),
-222 => wire__crate__api__rate_limit__rate_limit_backoff_schedule_seconds_impl(ptr, rust_vec_len, data_len),
-223 => wire__crate__api__rate_limit__rate_limit_drop_impl(ptr, rust_vec_len, data_len),
-224 => wire__crate__api__rate_limit__rate_limit_record_failure_impl(ptr, rust_vec_len, data_len),
-225 => wire__crate__api__rate_limit__rate_limit_record_success_impl(ptr, rust_vec_len, data_len),
-226 => wire__crate__api__rate_limit__rate_limit_status_impl(ptr, rust_vec_len, data_len),
-238 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
-239 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
-244 => wire__crate__api__security_capabilities__security_capabilities_can_offer_biometric_modifier_impl(ptr, rust_vec_len, data_len),
-245 => wire__crate__api__security_capabilities__security_capabilities_from_json_impl(ptr, rust_vec_len, data_len),
-246 => wire__crate__api__security_capabilities__security_capabilities_to_json_impl(ptr, rust_vec_len, data_len),
-247 => wire__crate__api__security_config__security_config_from_json_impl(ptr, rust_vec_len, data_len),
-248 => wire__crate__api__security_config__security_config_to_json_impl(ptr, rust_vec_len, data_len),
-249 => wire__crate__api__wizard_setup__security_map_wizard_choice_impl(ptr, rust_vec_len, data_len),
-250 => wire__crate__api__security_config__security_tier_modifiers_from_json_impl(ptr, rust_vec_len, data_len),
-251 => wire__crate__api__security_config__security_tier_modifiers_to_json_impl(ptr, rust_vec_len, data_len),
-252 => wire__crate__api__sessions__sessions_count_in_folder_impl(ptr, rust_vec_len, data_len),
-253 => wire__crate__api__sessions__sessions_distinct_folders_impl(ptr, rust_vec_len, data_len),
-254 => wire__crate__api__sessions__sessions_filter_impl(ptr, rust_vec_len, data_len),
-255 => wire__crate__api__sessions_registry__sessions_registry_count_impl(ptr, rust_vec_len, data_len),
-256 => wire__crate__api__sessions_registry__sessions_registry_count_in_folder_impl(ptr, rust_vec_len, data_len),
-257 => wire__crate__api__sessions_registry__sessions_registry_distinct_folders_impl(ptr, rust_vec_len, data_len),
-258 => wire__crate__api__sessions_registry__sessions_registry_filter_ids_impl(ptr, rust_vec_len, data_len),
-259 => wire__crate__api__sessions_registry__sessions_registry_ids_by_exact_folder_impl(ptr, rust_vec_len, data_len),
-261 => wire__crate__api__sessions_registry__sessions_registry_snapshot_impl(ptr, rust_vec_len, data_len),
-262 => wire__crate__api__sessions__sessions_unique_label_impl(ptr, rust_vec_len, data_len),
-263 => wire__crate__api__sessions__sessions_validate_fields_impl(ptr, rust_vec_len, data_len),
-264 => wire__crate__api__sftp_models__sftp_mode_string_impl(ptr, rust_vec_len, data_len),
-265 => wire__crate__api__sftp_models__sftp_sort_file_entries_impl(ptr, rust_vec_len, data_len),
-266 => wire__crate__api__snippet_template__snippet_template_fill_unresolved_impl(ptr, rust_vec_len, data_len),
-267 => wire__crate__api__snippet_template__snippet_template_render_impl(ptr, rust_vec_len, data_len),
-269 => wire__crate__api__ssh_config__ssh_config_glob_matches_impl(ptr, rust_vec_len, data_len),
-270 => wire__crate__api__ssh_config__ssh_config_split_host_patterns_impl(ptr, rust_vec_len, data_len),
-271 => wire__crate__api__ssh_config__ssh_config_split_keyword_value_impl(ptr, rust_vec_len, data_len),
-272 => wire__crate__api__ssh_config__ssh_config_strip_comment_impl(ptr, rust_vec_len, data_len),
-283 => wire__crate__api__ssh__ssh_format_host_key_fingerprint_impl(ptr, rust_vec_len, data_len),
-292 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
-293 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
-294 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
-295 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
-298 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
-299 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
-300 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
-301 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
-302 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
-307 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-308 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
-309 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-311 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-315 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-316 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-317 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-318 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-319 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-320 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-321 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+221 => wire__crate__api__qr_compose__qr_estimate_export_size_impl(ptr, rust_vec_len, data_len),
+223 => wire__crate__api__rate_limit__rate_limit_backoff_schedule_seconds_impl(ptr, rust_vec_len, data_len),
+224 => wire__crate__api__rate_limit__rate_limit_drop_impl(ptr, rust_vec_len, data_len),
+225 => wire__crate__api__rate_limit__rate_limit_record_failure_impl(ptr, rust_vec_len, data_len),
+226 => wire__crate__api__rate_limit__rate_limit_record_success_impl(ptr, rust_vec_len, data_len),
+227 => wire__crate__api__rate_limit__rate_limit_status_impl(ptr, rust_vec_len, data_len),
+239 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
+240 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
+245 => wire__crate__api__security_capabilities__security_capabilities_can_offer_biometric_modifier_impl(ptr, rust_vec_len, data_len),
+246 => wire__crate__api__security_capabilities__security_capabilities_from_json_impl(ptr, rust_vec_len, data_len),
+247 => wire__crate__api__security_capabilities__security_capabilities_to_json_impl(ptr, rust_vec_len, data_len),
+248 => wire__crate__api__security_config__security_config_from_json_impl(ptr, rust_vec_len, data_len),
+249 => wire__crate__api__security_config__security_config_to_json_impl(ptr, rust_vec_len, data_len),
+250 => wire__crate__api__wizard_setup__security_map_wizard_choice_impl(ptr, rust_vec_len, data_len),
+251 => wire__crate__api__security_config__security_tier_modifiers_from_json_impl(ptr, rust_vec_len, data_len),
+252 => wire__crate__api__security_config__security_tier_modifiers_to_json_impl(ptr, rust_vec_len, data_len),
+253 => wire__crate__api__sessions__sessions_count_in_folder_impl(ptr, rust_vec_len, data_len),
+254 => wire__crate__api__sessions__sessions_distinct_folders_impl(ptr, rust_vec_len, data_len),
+255 => wire__crate__api__sessions__sessions_filter_impl(ptr, rust_vec_len, data_len),
+256 => wire__crate__api__sessions_registry__sessions_registry_count_impl(ptr, rust_vec_len, data_len),
+257 => wire__crate__api__sessions_registry__sessions_registry_count_in_folder_impl(ptr, rust_vec_len, data_len),
+258 => wire__crate__api__sessions_registry__sessions_registry_distinct_folders_impl(ptr, rust_vec_len, data_len),
+259 => wire__crate__api__sessions_registry__sessions_registry_filter_ids_impl(ptr, rust_vec_len, data_len),
+260 => wire__crate__api__sessions_registry__sessions_registry_ids_by_exact_folder_impl(ptr, rust_vec_len, data_len),
+262 => wire__crate__api__sessions_registry__sessions_registry_snapshot_impl(ptr, rust_vec_len, data_len),
+263 => wire__crate__api__sessions__sessions_unique_label_impl(ptr, rust_vec_len, data_len),
+264 => wire__crate__api__sessions__sessions_validate_fields_impl(ptr, rust_vec_len, data_len),
+265 => wire__crate__api__sftp_models__sftp_mode_string_impl(ptr, rust_vec_len, data_len),
+266 => wire__crate__api__sftp_models__sftp_sort_file_entries_impl(ptr, rust_vec_len, data_len),
+267 => wire__crate__api__snippet_template__snippet_template_fill_unresolved_impl(ptr, rust_vec_len, data_len),
+268 => wire__crate__api__snippet_template__snippet_template_render_impl(ptr, rust_vec_len, data_len),
+270 => wire__crate__api__ssh_config__ssh_config_glob_matches_impl(ptr, rust_vec_len, data_len),
+271 => wire__crate__api__ssh_config__ssh_config_split_host_patterns_impl(ptr, rust_vec_len, data_len),
+272 => wire__crate__api__ssh_config__ssh_config_split_keyword_value_impl(ptr, rust_vec_len, data_len),
+273 => wire__crate__api__ssh_config__ssh_config_strip_comment_impl(ptr, rust_vec_len, data_len),
+284 => wire__crate__api__ssh__ssh_format_host_key_fingerprint_impl(ptr, rust_vec_len, data_len),
+293 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
+294 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
+295 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
+296 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
+299 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
+300 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
+301 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
+302 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
+303 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
+308 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+309 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
+310 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+312 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+316 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+317 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+318 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+319 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+320 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+321 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+322 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -17498,6 +17776,197 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::archive::DbQrExportOptions>
     for crate::api::archive::DbQrExportOptions
 {
     fn into_into_dart(self) -> crate::api::archive::DbQrExportOptions {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_compose::DbQrFolderTagLink {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.folder_path.into_into_dart().into_dart(),
+            self.tag_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_compose::DbQrFolderTagLink
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_compose::DbQrFolderTagLink>
+    for crate::api::qr_compose::DbQrFolderTagLink
+{
+    fn into_into_dart(self) -> crate::api::qr_compose::DbQrFolderTagLink {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_compose::DbQrManagerKeyEntry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.key_type.into_into_dart().into_dart(),
+            self.public_key.into_into_dart().into_dart(),
+            self.private_key.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_compose::DbQrManagerKeyEntry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_compose::DbQrManagerKeyEntry>
+    for crate::api::qr_compose::DbQrManagerKeyEntry
+{
+    fn into_into_dart(self) -> crate::api::qr_compose::DbQrManagerKeyEntry {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_compose::DbQrPayloadInput {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.options.into_into_dart().into_dart(),
+            self.sessions.into_into_dart().into_dart(),
+            self.empty_folders.into_into_dart().into_dart(),
+            self.config_json.into_into_dart().into_dart(),
+            self.known_hosts.into_into_dart().into_dart(),
+            self.tags.into_into_dart().into_dart(),
+            self.session_tags.into_into_dart().into_dart(),
+            self.folder_tags.into_into_dart().into_dart(),
+            self.snippets.into_into_dart().into_dart(),
+            self.session_snippets.into_into_dart().into_dart(),
+            self.manager_key_entries.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_compose::DbQrPayloadInput
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_compose::DbQrPayloadInput>
+    for crate::api::qr_compose::DbQrPayloadInput
+{
+    fn into_into_dart(self) -> crate::api::qr_compose::DbQrPayloadInput {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_compose::DbQrSessionInput {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.label.into_into_dart().into_dart(),
+            self.host.into_into_dart().into_dart(),
+            self.port.into_into_dart().into_dart(),
+            self.user.into_into_dart().into_dart(),
+            self.auth_type.into_into_dart().into_dart(),
+            self.password.into_into_dart().into_dart(),
+            self.key_id.into_into_dart().into_dart(),
+            self.key_data.into_into_dart().into_dart(),
+            self.folder_path.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_compose::DbQrSessionInput
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_compose::DbQrSessionInput>
+    for crate::api::qr_compose::DbQrSessionInput
+{
+    fn into_into_dart(self) -> crate::api::qr_compose::DbQrSessionInput {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_compose::DbQrSessionSnippetLink {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.session_id.into_into_dart().into_dart(),
+            self.snippet_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_compose::DbQrSessionSnippetLink
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_compose::DbQrSessionSnippetLink>
+    for crate::api::qr_compose::DbQrSessionSnippetLink
+{
+    fn into_into_dart(self) -> crate::api::qr_compose::DbQrSessionSnippetLink {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_compose::DbQrSessionTagLink {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.session_id.into_into_dart().into_dart(),
+            self.tag_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_compose::DbQrSessionTagLink
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_compose::DbQrSessionTagLink>
+    for crate::api::qr_compose::DbQrSessionTagLink
+{
+    fn into_into_dart(self) -> crate::api::qr_compose::DbQrSessionTagLink {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_compose::DbQrSnippetInput {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.command.into_into_dart().into_dart(),
+            self.description.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_compose::DbQrSnippetInput
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_compose::DbQrSnippetInput>
+    for crate::api::qr_compose::DbQrSnippetInput
+{
+    fn into_into_dart(self) -> crate::api::qr_compose::DbQrSnippetInput {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_compose::DbQrTagInput {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.color.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_compose::DbQrTagInput
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_compose::DbQrTagInput>
+    for crate::api::qr_compose::DbQrTagInput
+{
+    fn into_into_dart(self) -> crate::api::qr_compose::DbQrTagInput {
         self
     }
 }
@@ -19470,6 +19939,102 @@ impl SseEncode for crate::api::archive::DbQrExportOptions {
     }
 }
 
+impl SseEncode for crate::api::qr_compose::DbQrFolderTagLink {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.folder_path, serializer);
+        <String>::sse_encode(self.tag_id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::qr_compose::DbQrManagerKeyEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.key_type, serializer);
+        <String>::sse_encode(self.public_key, serializer);
+        <String>::sse_encode(self.private_key, serializer);
+    }
+}
+
+impl SseEncode for crate::api::qr_compose::DbQrPayloadInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::archive::DbQrExportOptions>::sse_encode(self.options, serializer);
+        <Vec<crate::api::qr_compose::DbQrSessionInput>>::sse_encode(self.sessions, serializer);
+        <Vec<String>>::sse_encode(self.empty_folders, serializer);
+        <Option<String>>::sse_encode(self.config_json, serializer);
+        <String>::sse_encode(self.known_hosts, serializer);
+        <Vec<crate::api::qr_compose::DbQrTagInput>>::sse_encode(self.tags, serializer);
+        <Vec<crate::api::qr_compose::DbQrSessionTagLink>>::sse_encode(
+            self.session_tags,
+            serializer,
+        );
+        <Vec<crate::api::qr_compose::DbQrFolderTagLink>>::sse_encode(self.folder_tags, serializer);
+        <Vec<crate::api::qr_compose::DbQrSnippetInput>>::sse_encode(self.snippets, serializer);
+        <Vec<crate::api::qr_compose::DbQrSessionSnippetLink>>::sse_encode(
+            self.session_snippets,
+            serializer,
+        );
+        <Vec<crate::api::qr_compose::DbQrManagerKeyEntry>>::sse_encode(
+            self.manager_key_entries,
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::qr_compose::DbQrSessionInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.host, serializer);
+        <i64>::sse_encode(self.port, serializer);
+        <String>::sse_encode(self.user, serializer);
+        <String>::sse_encode(self.auth_type, serializer);
+        <String>::sse_encode(self.password, serializer);
+        <Option<String>>::sse_encode(self.key_id, serializer);
+        <String>::sse_encode(self.key_data, serializer);
+        <String>::sse_encode(self.folder_path, serializer);
+    }
+}
+
+impl SseEncode for crate::api::qr_compose::DbQrSessionSnippetLink {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.session_id, serializer);
+        <String>::sse_encode(self.snippet_id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::qr_compose::DbQrSessionTagLink {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.session_id, serializer);
+        <String>::sse_encode(self.tag_id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::qr_compose::DbQrSnippetInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.title, serializer);
+        <String>::sse_encode(self.command, serializer);
+        <String>::sse_encode(self.description, serializer);
+    }
+}
+
+impl SseEncode for crate::api::qr_compose::DbQrTagInput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
+    }
+}
+
 impl SseEncode for crate::api::rate_limit::DbRateLimitStatus {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20086,6 +20651,76 @@ impl SseEncode for Vec<crate::api::db::DbPortForwardRule> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::db::DbPortForwardRule>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::qr_compose::DbQrFolderTagLink> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::qr_compose::DbQrFolderTagLink>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::qr_compose::DbQrManagerKeyEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::qr_compose::DbQrManagerKeyEntry>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::qr_compose::DbQrSessionInput> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::qr_compose::DbQrSessionInput>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::qr_compose::DbQrSessionSnippetLink> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::qr_compose::DbQrSessionSnippetLink>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::qr_compose::DbQrSessionTagLink> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::qr_compose::DbQrSessionTagLink>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::qr_compose::DbQrSnippetInput> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::qr_compose::DbQrSnippetInput>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::qr_compose::DbQrTagInput> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::qr_compose::DbQrTagInput>::sse_encode(item, serializer);
         }
     }
 }
