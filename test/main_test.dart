@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
-import 'package:letsflutssh/core/config/config_store.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/foreground_service.dart';
 import 'package:letsflutssh/core/session/session.dart';
@@ -70,7 +69,6 @@ void main() {
         connectionsProvider.overrideWith(
           () => StaticConnectionsNotifier(<Connection>[]),
         ),
-        configStoreProvider.overrideWithValue(ConfigStore()),
         configProvider.overrideWith(
           config != null
               ? () => PrePopulatedConfigNotifier(config)

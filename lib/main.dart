@@ -23,7 +23,6 @@ import 'app/import_flow.dart';
 import 'app/navigator_key.dart';
 import 'app/security_init_controller.dart';
 import 'app/update_dialog_flow.dart';
-import 'core/config/config_store.dart';
 import 'core/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
@@ -241,10 +240,11 @@ Future<void> _mainBody() async {
   }
 
   // Load config before first frame to prevent light-theme flash.
-  // The pre-loaded store is injected via override so ConfigNotifier.build()
-  // reads the real config instead of defaults.
-  final configStore = ConfigStore();
-  final config = await configStore.load();
+  // The pre-loaded value is injected via [preloadedAppConfigProvider]
+  // so ConfigNotifier.build() seeds state with it instead of falling
+  // back to AppConfig.defaults.
+  final loaded = await loadAppConfigFromDisk();
+  final config = loaded.config;
   await loggerInit; // ensure log path resolved before enabling file logging
   // `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` overrides the on-
   // disk config on dev / beta-tester builds so fresh installs start
@@ -265,7 +265,7 @@ Future<void> _mainBody() async {
   // one fixes that.
   runApp(
     ProviderScope(
-      overrides: [configStoreProvider.overrideWithValue(configStore)],
+      overrides: [preloadedAppConfigProvider.overrideWithValue(config)],
       child: const LetsFLUTsshApp(),
     ),
   );

@@ -2,7 +2,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/config/config_store.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -65,7 +64,6 @@ void main() {
         connectionsProvider.overrideWith(
           () => StaticConnectionsNotifier(<Connection>[]),
         ),
-        configStoreProvider.overrideWithValue(ConfigStore()),
         configProvider.overrideWith(TestConfigNotifier.new),
         if (workspaceState != null)
           workspaceProvider.overrideWith(
@@ -360,7 +358,6 @@ void main() {
             connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier(<Connection>[]),
             ),
-            configStoreProvider.overrideWithValue(ConfigStore()),
             configProvider.overrideWith(TestConfigNotifier.new),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(ws),

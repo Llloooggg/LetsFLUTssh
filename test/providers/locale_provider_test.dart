@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
-import 'package:letsflutssh/core/config/config_store.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/locale_provider.dart';
 
@@ -11,13 +10,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   ProviderContainer createContainer({AppConfig? config}) {
-    final store = ConfigStore();
     final container = ProviderContainer(
-      overrides: [configStoreProvider.overrideWithValue(store)],
+      overrides: [
+        if (config != null)
+          preloadedAppConfigProvider.overrideWithValue(config),
+      ],
     );
-    if (config != null) {
-      container.read(configProvider.notifier).state = config;
-    }
     return container;
   }
 
