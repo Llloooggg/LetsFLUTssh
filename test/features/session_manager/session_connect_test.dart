@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
+import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/errors.dart';
-import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/session_manager/session_connect.dart';
 import 'package:letsflutssh/features/workspace/workspace_controller.dart';
@@ -16,12 +15,17 @@ import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
-/// A fake ConnectionManager that returns a disconnected connection with error.
-class _FailingConnectionManager extends ConnectionManager {
+/// A fake ConnectionsNotifier that returns a disconnected
+/// connection with error. `build()` skips the real init (no FRB
+/// bus subscription, no ref.watches that would fail under
+/// flutter_test).
+class _FailingConnectionManager extends ConnectionsNotifier {
+  _FailingConnectionManager(this.error);
+
   final Object error;
 
-  _FailingConnectionManager(this.error)
-    : super(knownHosts: KnownHostsManager());
+  @override
+  List<Connection> build() => const [];
 
   @override
   Connection connectAsync(
@@ -42,14 +46,15 @@ class _FailingConnectionManager extends ConnectionManager {
   }
 }
 
-/// A fake ConnectionManager that simulates connect success
+/// A fake ConnectionsNotifier that simulates connect success
 /// without real network calls.
-class _FakeConnectionManager extends ConnectionManager {
+class _FakeConnectionManager extends ConnectionsNotifier {
   String? lastLabel;
   String? lastSessionId;
   SSHConfig? lastConfig;
 
-  _FakeConnectionManager() : super(knownHosts: KnownHostsManager());
+  @override
+  List<Connection> build() => const [];
 
   @override
   Connection connectAsync(
@@ -115,7 +120,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -151,8 +156,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(Scaffold), findsOneWidget);
-
-      fakeManager.dispose();
     });
 
     testWidgets('uses session label when non-empty', (tester) async {
@@ -160,7 +163,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -197,8 +200,6 @@ void main() {
 
       // The label should be passed to connect()
       expect(fakeManager.lastLabel, 'My Server');
-
-      fakeManager.dispose();
     });
 
     testWidgets('passes session ID to connection manager', (tester) async {
@@ -206,7 +207,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -241,8 +242,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(fakeManager.lastSessionId, 'sess-42');
-
-      fakeManager.dispose();
     });
 
     testWidgets('uses displayName when session label is empty', (tester) async {
@@ -250,7 +249,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -287,8 +286,6 @@ void main() {
 
       // Empty label => displayName used
       expect(fakeManager.lastLabel, 'root@10.0.0.1:22');
-
-      fakeManager.dispose();
     });
 
     testWidgets('creates tab in tab provider on success', (tester) async {
@@ -297,7 +294,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -336,8 +333,6 @@ void main() {
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.terminal);
-
-      fakeManager.dispose();
     });
   });
 
@@ -348,7 +343,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -387,8 +382,6 @@ void main() {
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.sftp);
-
-      fakeManager.dispose();
     });
 
     testWidgets('uses displayName when label is empty for SFTP', (
@@ -398,7 +391,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -433,8 +426,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(fakeManager.lastLabel, 'admin@10.0.0.1:22');
-
-      fakeManager.dispose();
     });
   });
 
@@ -449,7 +440,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
+          overrides: [connectionsProvider.overrideWith(() => failManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -489,8 +480,6 @@ void main() {
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.terminal);
-
-      failManager.dispose();
     });
 
     testWidgets('connectSftp adds tab even when connection fails', (
@@ -501,7 +490,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
+          overrides: [connectionsProvider.overrideWith(() => failManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -540,8 +529,6 @@ void main() {
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.sftp);
-
-      failManager.dispose();
     });
 
     testWidgets('connectConfig adds tab even when connection fails', (
@@ -552,7 +539,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(failManager)],
+          overrides: [connectionsProvider.overrideWith(() => failManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -585,8 +572,6 @@ void main() {
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.terminal);
-
-      failManager.dispose();
     });
   });
 
@@ -599,7 +584,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -636,8 +621,6 @@ void main() {
       final allTabs = collectAllTabs(ws.root);
       expect(allTabs.length, 1);
       expect(allTabs.first.kind, TabKind.terminal);
-
-      fakeManager.dispose();
     });
 
     testWidgets('connectConfig does not pass label to connect', (tester) async {
@@ -645,7 +628,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -679,8 +662,6 @@ void main() {
 
       // connectConfig doesn't pass a label
       expect(fakeManager.lastLabel, isNull);
-
-      fakeManager.dispose();
     });
   });
 
@@ -693,7 +674,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -729,7 +710,6 @@ void main() {
 
       expect(result, isFalse);
       Toast.clearAllForTest();
-      fakeManager.dispose();
     });
 
     testWidgets('connectSftp returns false for incomplete session', (
@@ -740,7 +720,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -776,7 +756,6 @@ void main() {
 
       expect(result, isFalse);
       Toast.clearAllForTest();
-      fakeManager.dispose();
     });
 
     testWidgets('connectTerminal returns true for complete session', (
@@ -787,7 +766,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -822,7 +801,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(result, isTrue);
-      fakeManager.dispose();
     });
 
     testWidgets(
@@ -839,9 +817,7 @@ void main() {
 
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [
-              connectionManagerProvider.overrideWithValue(fakeManager),
-            ],
+            overrides: [connectionsProvider.overrideWith(() => fakeManager)],
             child: MaterialApp(
               localizationsDelegates: S.localizationsDelegates,
               supportedLocales: S.supportedLocales,
@@ -884,7 +860,6 @@ void main() {
           isEmpty,
           reason: 'PEM bytes must not be materialised on the Dart heap',
         );
-        fakeManager.dispose();
       },
     );
 
@@ -893,7 +868,7 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [connectionManagerProvider.overrideWithValue(fakeManager)],
+          overrides: [connectionsProvider.overrideWith(() => fakeManager)],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
             supportedLocales: S.supportedLocales,
@@ -927,7 +902,6 @@ void main() {
 
       // Clean up toast overlay
       Toast.clearAllForTest();
-      fakeManager.dispose();
     });
   });
 }

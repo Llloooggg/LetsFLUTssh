@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
+import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/core/security/lock_state.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
@@ -24,12 +24,16 @@ class _AutoLockMinutes extends AutoLockMinutesNotifier {
   int build() => initial;
 }
 
-/// Always-ready connection manager double — the detector only reads
-/// `connections` to decide whether to wipe the DB key on lock, so we
-/// don't need a real SSH stack.
-class _StubConnectionManager extends ConnectionManager {
-  _StubConnectionManager(this._conns) : super(knownHosts: KnownHostsManager());
+/// Always-ready ConnectionsNotifier double — the detector only
+/// reads the connection list to decide whether to wipe the DB key
+/// on lock, so we skip the real init that would touch the FRB
+/// bus.
+class _StubConnectionManager extends ConnectionsNotifier {
+  _StubConnectionManager(this._conns);
   final List<Connection> _conns;
+
+  @override
+  List<Connection> build() => _conns;
 
   @override
   List<Connection> get connections => _conns;
@@ -46,9 +50,7 @@ void main() {
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            _StubConnectionManager(const []),
-          ),
+          connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
         ],
       );
       addTearDown(container.dispose);
@@ -82,9 +84,7 @@ void main() {
           overrides: [
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              _StubConnectionManager(const []),
-            ),
+            connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
           ],
         );
         addTearDown(container.dispose);
@@ -114,9 +114,7 @@ void main() {
             // 1-minute timeout so the test only advances wall-clock once.
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              _StubConnectionManager(const []),
-            ),
+            connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
           ],
         );
         addTearDown(container.dispose);
@@ -172,9 +170,7 @@ void main() {
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            _StubConnectionManager([liveConn]),
-          ),
+          connectionsProvider.overrideWith(() => _StubConnectionManager([liveConn])),
         ],
       );
       addTearDown(container.dispose);
@@ -216,9 +212,7 @@ void main() {
             // Timer OFF — auto-lock disabled entirely.
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              _StubConnectionManager(const []),
-            ),
+            connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
           ],
         );
         addTearDown(container.dispose);
@@ -253,9 +247,7 @@ void main() {
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(15)),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            _StubConnectionManager(const []),
-          ),
+          connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
         ],
       );
       addTearDown(container.dispose);
@@ -289,9 +281,7 @@ void main() {
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            _StubConnectionManager(const []),
-          ),
+          connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
         ],
       );
       addTearDown(container.dispose);
@@ -332,9 +322,7 @@ void main() {
           overrides: [
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              _StubConnectionManager(const []),
-            ),
+            connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
           ],
         );
         addTearDown(container.dispose);

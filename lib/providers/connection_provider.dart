@@ -1,45 +1,19 @@
-import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/bus/app_bus.dart';
 import '../core/connection/connection.dart';
-import '../core/connection/connection_manager.dart';
+import '../core/connection/connections_notifier.dart';
 import '../core/connection/foreground_service.dart';
-import '../core/ssh/known_hosts.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
-import 'session_credential_cache_provider.dart';
 
-/// Known hosts manager — singleton.
-final knownHostsProvider = Provider<KnownHostsManager>((ref) {
-  final manager = KnownHostsManager();
-  ref.onDispose(manager.dispose);
-  return manager;
-});
+export 'known_hosts_provider.dart' show knownHostsProvider;
 
-/// Foreground service manager — singleton (Android only, no-op on other platforms).
+/// Foreground service manager — singleton (Android only, no-op on
+/// other platforms).
 final foregroundServiceProvider = Provider<ForegroundServiceManager>((ref) {
   final manager = ForegroundServiceManager();
-  ref.onDispose(() => manager.dispose());
-  return manager;
-});
-
-/// Connection manager — singleton.
-///
-/// Active-count notifications no longer pass through the manager —
-/// the Rust connection registry publishes
-/// [rust_bus.BusEvent_ConnectionActiveCountChanged] on every state
-/// transition, and [foregroundActiveCountListenerProvider] below
-/// drives `ForegroundServiceManager.onConnectionCountChanged`
-/// straight off the bus.
-final connectionManagerProvider = Provider<ConnectionManager>((ref) {
-  final knownHosts = ref.watch(knownHostsProvider);
-  final credentialCache = ref.watch(sessionCredentialCacheProvider);
-  final manager = ConnectionManager(
-    knownHosts: knownHosts,
-    credentialCache: credentialCache,
-  );
   ref.onDispose(() => manager.dispose());
   return manager;
 });
@@ -59,10 +33,10 @@ final connectionActiveCountProvider = StreamProvider<int>((ref) async* {
   }
 });
 
-/// Side-effect listener that bridges the Rust active-count event to
-/// the Android foreground-service binding. Watch from the app's root
-/// scope (`main.dart`) so the listener is alive for the process
-/// lifetime.
+/// Side-effect listener that bridges the Rust active-count event
+/// to the Android foreground-service binding. Watch from the app's
+/// root scope (`main.dart`) so the listener is alive for the
+/// process lifetime.
 final foregroundActiveCountListenerProvider = Provider<void>((ref) {
   final foreground = ref.watch(foregroundServiceProvider);
   ref.listen<AsyncValue<int>>(connectionActiveCountProvider, (prev, next) {
@@ -72,48 +46,23 @@ final foregroundActiveCountListenerProvider = Provider<void>((ref) {
   });
 });
 
-/// Reactive list of active connections.
+/// Active SSH connections — Riverpod-native [NotifierProvider].
 ///
-/// State source is the manager's in-memory list. Two trigger
-/// sources push state updates through this Notifier:
+/// `state` is the live `List<Connection>` (excludes internal
+/// bastion hops the orchestrator opens for ProxyJump). Mutations
+/// (`connectAsync` / `reconnect` / `disconnect` /
+/// `notifyStateChanged`) live on the [ConnectionsNotifier]; UI
+/// consumers reach them via `ref.read(connectionsProvider.notifier)`.
 ///
-/// 1. `manager.onChange` — Dart-side mutations (a new Connection
-///    enters the map via `connectAsync`, leaves via `disconnect`,
-///    or the workspace UI calls `notifyStateChanged` after a
-///    shell open / close that the bus does not see).
-/// 2. `BusTopic.connection` events — every Rust actor state
-///    transition (`ConnectionStateChanged`, `ConnectionRemoved`,
-///    `ConnectionError`) that the workspace status dots track.
-///
-/// Consumers `ref.watch(connectionsProvider)` get the live
-/// `List<Connection>` directly — no `AsyncValue` wrapping. Tests
-/// inject a static list via [StaticConnectionsNotifier].
-class ConnectionsNotifier extends Notifier<List<Connection>> {
-  @override
-  List<Connection> build() {
-    final manager = ref.watch(connectionManagerProvider);
-    final dartSub = manager.onChange.listen((_) {
-      state = manager.connections;
-    });
-    StreamSubscription<rust_bus.BusEvent>? busSub;
-    // FRB-unreachable contexts (flutter_test) skip the bus
-    // subscription — the manager's own onChange stream covers
-    // every Dart-driven mutation, and there are no Rust-driven
-    // events to listen for without the native lib.
-    try {
-      busSub = AppBus.instance.subscribe(rust_bus.BusTopic.connection).listen((
-        _,
-      ) {
-        state = manager.connections;
-      });
-    } catch (_) {}
-    ref.onDispose(() {
-      unawaited(dartSub.cancel());
-      if (busSub != null) unawaited(busSub.cancel());
-    });
-    return manager.connections;
-  }
-}
+/// The notifier subscribes to `BusTopic.connection` so every Rust
+/// actor state transition (`ConnectionStateChanged`,
+/// `ConnectionRemoved`, `ConnectionError`) re-emits state without
+/// the workspace needing to poll. Tests inject a static list via
+/// [StaticConnectionsNotifier].
+final connectionsProvider =
+    NotifierProvider<ConnectionsNotifier, List<Connection>>(
+      ConnectionsNotifier.new,
+    );
 
 /// Test-only seam — overrides [connectionsProvider] with a static
 /// list. Tests pass a `List&lt;Connection&gt;` to the constructor and
@@ -128,34 +77,33 @@ class StaticConnectionsNotifier extends ConnectionsNotifier {
   List<Connection> build() => _initial;
 }
 
-final connectionsProvider =
-    NotifierProvider<ConnectionsNotifier, List<Connection>>(
-      ConnectionsNotifier.new,
-    );
-
-/// Projection of [connectionsProvider] into only the per-connection state
-/// the UI actually renders: which sessions are connected or connecting,
-/// and how many connections are in each bucket.
+/// Projection of [connectionsProvider] into only the
+/// per-connection state the UI actually renders: which sessions
+/// are connected or connecting, and how many connections are in
+/// each bucket.
 ///
-/// Consumers use this instead of [connectionsProvider] to avoid rebuilding
-/// on unrelated [Connection] mutations (cached passphrase stored, live
-/// transport swapped, progress steps appended). Two emits produce the
-/// same [ConnectionSummary] iff the displayed state is unchanged, so
-/// Riverpod short-circuits the rebuild via value equality.
+/// Consumers use this instead of [connectionsProvider] to avoid
+/// rebuilding on unrelated [Connection] mutations (cached
+/// passphrase stored, live transport swapped, progress steps
+/// appended). Two emits produce the same [ConnectionSummary] iff
+/// the displayed state is unchanged, so Riverpod short-circuits
+/// the rebuild via value equality.
 @immutable
 class ConnectionSummary {
-  /// Session ids of connections currently in the `connected` state.
-  /// Filtered to entries whose `sessionId` is non-null — i.e. the set a
-  /// session tree row would use to paint a green dot. Connections
-  /// without a sessionId (quick-connect) are not included here; they
-  /// still contribute to [connectedTotal].
+  /// Session ids of connections currently in the `connected`
+  /// state. Filtered to entries whose `sessionId` is non-null —
+  /// i.e. the set a session tree row would use to paint a green
+  /// dot. Connections without a sessionId (quick-connect) are not
+  /// included here; they still contribute to [connectedTotal].
   final Set<String> connectedSessionIds;
 
-  /// Same as [connectedSessionIds] for the transient `connecting` state.
+  /// Same as [connectedSessionIds] for the transient `connecting`
+  /// state.
   final Set<String> connectingSessionIds;
 
-  /// Total number of connections in the `connected` state (including
-  /// those without a session id — quick-connect connections).
+  /// Total number of connections in the `connected` state
+  /// (including those without a session id — quick-connect
+  /// connections).
   final int connectedTotal;
 
   /// Total number of connections in the `connecting` state.
@@ -195,9 +143,10 @@ class ConnectionSummary {
   );
 }
 
-/// Derived summary of the connection list. Re-emits only when any of the
-/// four observed fields changes — unrelated [Connection] mutations are
-/// dropped at this boundary so consumers don't rebuild.
+/// Derived summary of the connection list. Re-emits only when any
+/// of the four observed fields changes — unrelated [Connection]
+/// mutations are dropped at this boundary so consumers don't
+/// rebuild.
 final connectionSummaryProvider = Provider<ConnectionSummary>((ref) {
   final list = ref.watch(connectionsProvider);
   if (list.isEmpty) return ConnectionSummary.empty;

@@ -12,14 +12,14 @@ import 'connection.dart';
 /// not grow a fan of feature-specific fields and so feature wiring does
 /// not have to re-implement reconnect-survival logic. Each feature
 /// registers an extension via [Connection.addExtension] at construction
-/// time; [Connection] / [ConnectionManager] call the hooks at the
+/// time; [Connection] / [ConnectionsNotifier] call the hooks at the
 /// canonical moments.
 ///
 /// **Hook order on a successful connect:**
 /// 1. [onConnected] — fired once `state == connected` and the SSH
 ///    transport is wired up. Extensions open their channels here.
 /// 2. ... user activity ...
-/// 3. [onDisconnecting] — fired on explicit `ConnectionManager.disconnect`,
+/// 3. [onDisconnecting] — fired on explicit `ConnectionsNotifier.disconnect`,
 ///    on `disconnectAll`, and just before `reconnect` tears down the
 ///    old transport. Extensions close their channels here. Idempotent —
 ///    safe to call when nothing was ever opened.

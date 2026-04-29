@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
+import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
@@ -14,28 +14,28 @@ void main() {
       expect(kh, isA<KnownHostsManager>());
     });
 
-    test('connectionManagerProvider returns ConnectionManager', () {
+    test('connectionsProvider exposes a ConnectionsNotifier', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final manager = container.read(connectionManagerProvider);
-      expect(manager, isA<ConnectionManager>());
-      expect(manager.connections, isEmpty);
+      final notifier = container.read(connectionsProvider.notifier);
+      expect(notifier, isA<ConnectionsNotifier>());
+      expect(notifier.connections, isEmpty);
     });
 
-    test('connectionManagerProvider uses knownHostsProvider', () {
+    test('connectionsProvider notifier resolves the known-hosts singleton', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final kh = container.read(knownHostsProvider);
-      final manager = container.read(connectionManagerProvider);
-      expect(manager.knownHosts, kh);
+      final notifier = container.read(connectionsProvider.notifier);
+      expect(notifier.knownHosts, kh);
     });
 
-    test('connectionsProvider yields empty list initially', () async {
+    test('connectionsProvider yields empty list initially', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       // NotifierProvider returns the list directly — no AsyncValue
       // wrapping. The Notifier's build() seeds the state from the
-      // manager's empty `_connections` map.
+      // empty `_connections` map.
       expect(container.read(connectionsProvider), isEmpty);
     });
 
@@ -45,21 +45,20 @@ void main() {
         final container = ProviderContainer();
         addTearDown(container.dispose);
 
-        // Listen to the provider to start the stream generator
+        // Listen to start the build cycle.
         container.listen(connectionsProvider, (_, _) {});
-        // Let the stream start and emit initial value
         await Future.delayed(const Duration(milliseconds: 100));
 
-        // Add a connection via manager — triggers onChange stream
-        final manager = container.read(connectionManagerProvider);
-        manager.connectAsync(
+        // Add a connection via the notifier — the connectAsync side
+        // effect calls `_notify()` which rebuilds state.
+        final notifier = container.read(connectionsProvider.notifier);
+        notifier.connectAsync(
           const SSHConfig(
             server: ServerAddress(host: 'test', user: 'u'),
           ),
           label: 'Test',
         );
 
-        // Wait for onChange event to propagate through the await-for loop
         await Future.delayed(const Duration(milliseconds: 200));
 
         final connections = container.read(connectionsProvider);
@@ -125,19 +124,6 @@ void main() {
         connectingTotal: 1,
       );
       expect(connected, isNot(equals(connecting)));
-    });
-
-    test('connectionManagerProvider disposes on container dispose', () async {
-      final container = ProviderContainer();
-      final manager = container.read(connectionManagerProvider);
-      expect(manager.connections, isEmpty);
-
-      // Listen to onChange — it should complete when disposed.
-      final streamDone = manager.onChange.toList();
-      container.dispose();
-
-      // Stream completes (controller closed by dispose).
-      await streamDone;
     });
   });
 }

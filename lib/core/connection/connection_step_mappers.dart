@@ -29,7 +29,7 @@ StepStatus mapBusStatus(rust_bus.BusStepStatus status) {
 
 /// Translate the Dart [SshAuthMethod] sealed family into the
 /// FRB-mirrored bus connect-auth ref. Pure mapping — extracted
-/// from `ConnectionManager` so the per-tier auth-ref construction
+/// from `ConnectionsNotifier` so the per-tier auth-ref construction
 /// lives alongside the phase / status mappers.
 rust_bus.BusConnectAuthRef busAuthRef(SshAuthMethod auth) {
   return switch (auth) {
@@ -56,7 +56,7 @@ rust_bus.BusConnectAuthRef busAuthRef(SshAuthMethod auth) {
 
 /// Build the FRB-mirrored bus connect args from a [Connection] +
 /// [SSHConfig] + resolved [SshAuthMethod]. Pure mapping — used by
-/// `ConnectionManager._doConnect` to feed the Rust connect actor.
+/// `ConnectionsNotifier._doConnect` to feed the Rust connect actor.
 rust_bus.BusConnectArgs busConnectArgs(
   Connection conn,
   SSHConfig config,

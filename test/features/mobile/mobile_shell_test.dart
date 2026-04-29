@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
+import 'package:letsflutssh/core/connection/connections_notifier.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
@@ -66,10 +66,12 @@ class _WorkspaceStateBuilder {
 }
 
 /// A ConnectionManager that simulates a connection that fails in background.
-class _FailingConnectionManager extends ConnectionManager {
+class _FailingConnectionManager extends ConnectionsNotifier {
+  _FailingConnectionManager(this.error);
   final Object error;
-  _FailingConnectionManager(this.error)
-    : super(knownHosts: KnownHostsManager());
+
+  @override
+  List<Connection> build() => const [];
 
   @override
   Connection connectAsync(
@@ -91,9 +93,11 @@ class _FailingConnectionManager extends ConnectionManager {
   }
 }
 
-/// A ConnectionManager that returns a connected connection (simulates success).
-class _SuccessConnectionManager extends ConnectionManager {
-  _SuccessConnectionManager() : super(knownHosts: KnownHostsManager());
+/// A ConnectionsNotifier that returns a connected connection
+/// (simulates success).
+class _SuccessConnectionManager extends ConnectionsNotifier {
+  @override
+  List<Connection> build() => const [];
 
   @override
   Connection connectAsync(
@@ -125,8 +129,8 @@ void main() {
           sessionProvider.overrideWith(SessionNotifier.new),
           sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(
-            ConnectionManager(knownHosts: KnownHostsManager()),
+          connectionsProvider.overrideWith(
+            () => StaticConnectionsNotifier(<Connection>[]),
           ),
           if (workspaceState != null)
             workspaceProvider.overrideWith(WorkspaceNotifier.new),
@@ -206,8 +210,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -252,8 +256,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -298,8 +302,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -416,8 +420,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -481,8 +485,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -543,8 +547,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -607,8 +611,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -666,8 +670,8 @@ void main() {
                 IdleSessionsLoadingNotifier.new,
               ),
               knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
               ),
               workspaceProvider.overrideWith(
                 () => PrePopulatedWorkspaceNotifier(
@@ -697,10 +701,10 @@ void main() {
       },
     );
 
-    // Helper to build widget with a session and custom ConnectionManager
+    // Helper to build widget with a session and custom ConnectionsNotifier
     Widget buildWithSession({
       required Session session,
-      required ConnectionManager manager,
+      required ConnectionsNotifier manager,
     }) {
       final store = SessionStore();
       store.add(session);
@@ -712,7 +716,7 @@ void main() {
           ),
           sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
           knownHostsProvider.overrideWithValue(KnownHostsManager()),
-          connectionManagerProvider.overrideWithValue(manager),
+          connectionsProvider.overrideWith(() => manager),
         ],
         child: MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
@@ -900,8 +904,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -948,8 +952,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -994,8 +998,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1042,8 +1046,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1090,8 +1094,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1145,8 +1149,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             // Start with dark theme
             themeModeProvider.overrideWithValue(ThemeMode.dark),
@@ -1185,8 +1189,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             themeModeProvider.overrideWithValue(ThemeMode.light),
           ],
@@ -1247,8 +1251,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1309,8 +1313,8 @@ void main() {
                 IdleSessionsLoadingNotifier.new,
               ),
               knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier(<Connection>[]),
               ),
             ],
             child: MaterialApp(
@@ -1374,10 +1378,7 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
-            ),
-            connectionsProvider.overrideWith(
+                        connectionsProvider.overrideWith(
               () => StaticConnectionsNotifier([conn]),
             ),
           ],
@@ -1422,10 +1423,7 @@ void main() {
                 IdleSessionsLoadingNotifier.new,
               ),
               knownHostsProvider.overrideWithValue(KnownHostsManager()),
-              connectionManagerProvider.overrideWithValue(
-                ConnectionManager(knownHosts: KnownHostsManager()),
-              ),
-              connectionsProvider.overrideWith(
+                            connectionsProvider.overrideWith(
                 () => StaticConnectionsNotifier([conn]),
               ),
             ],
@@ -1468,8 +1466,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1517,8 +1515,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1587,8 +1585,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1649,8 +1647,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1740,8 +1738,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1830,8 +1828,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1890,8 +1888,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -1950,8 +1948,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(
@@ -2006,8 +2004,8 @@ void main() {
               IdleSessionsLoadingNotifier.new,
             ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
-            connectionManagerProvider.overrideWithValue(
-              ConnectionManager(knownHosts: KnownHostsManager()),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             workspaceProvider.overrideWith(
               () => PrePopulatedWorkspaceNotifier(

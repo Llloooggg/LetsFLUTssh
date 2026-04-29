@@ -34,7 +34,7 @@ void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = navigatorKey.currentContext;
       if (ctx == null) return;
-      final manager = ref.read(connectionManagerProvider);
+      final manager = ref.read(connectionsProvider.notifier);
       final conn = manager.connectAsync(config, label: config.displayName);
       ref.read(workspaceProvider.notifier).addTerminalTab(conn);
     });

@@ -551,7 +551,7 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     final remainingConnIds = collectAllTabs(
       state.root,
     ).map((t) => t.connection.id).toSet();
-    final manager = ref.read(connectionManagerProvider);
+    final manager = ref.read(connectionsProvider.notifier);
     for (final tab in closedTabs) {
       if (!remainingConnIds.contains(tab.connection.id)) {
         AppLogger.instance.log(

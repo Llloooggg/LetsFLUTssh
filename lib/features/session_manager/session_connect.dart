@@ -68,7 +68,7 @@ class SessionConnect {
     // No `loadWithCredentials` round-trip — the cached `session`
     // carries the metadata + per-slot stored-secret flags that
     // `Session.hasCredentials` reads. The connect path inside
-    // `ConnectionManager._authFromConfig` stages the actual
+    // `ConnectionsNotifier._authFromConfig` stages the actual
     // credential bytes directly from the DB into the SecretStore
     // via `db_sessions_stage_secrets`, so plaintext never has to
     // ride the Dart heap.
@@ -82,10 +82,10 @@ class SessionConnect {
       name: 'Session',
     );
     final config = fresh.toSSHConfig();
-    final manager = ref.read(connectionManagerProvider);
+    final manager = ref.read(connectionsProvider.notifier);
 
     // ProxyJump chain — connect every bastion bottom-up before the
-    // final session. ConnectionManager._doConnect reads the bastion's
+    // final session. ConnectionsNotifier._doConnect reads the bastion's
     // transport off `conn.bastion?.transport` and tunnels via
     // `connectViaProxy`.
     Connection? bastion;
@@ -166,7 +166,7 @@ class SessionConnect {
       bastionLabel = '${ov.user}@${ov.host}:${ov.port}';
     }
 
-    final manager = ref.read(connectionManagerProvider);
+    final manager = ref.read(connectionsProvider.notifier);
 
     // Recursively materialise this bastion's own bastion chain.
     Connection? upstream;
@@ -217,7 +217,7 @@ class SessionConnect {
     SSHConfig config,
   ) {
     AppLogger.instance.log('Quick connect to ${config.host}', name: 'Session');
-    final manager = ref.read(connectionManagerProvider);
+    final manager = ref.read(connectionsProvider.notifier);
     final conn = manager.connectAsync(config);
     ref.read(workspaceProvider.notifier).addTerminalTab(conn);
   }

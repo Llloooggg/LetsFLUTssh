@@ -91,7 +91,7 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
 
   /// Reconnect SSH and reset to a single terminal pane.
   ///
-  /// Delegates the actual SSH reconnect to [ConnectionManager.reconnect()].
+  /// Delegates the actual SSH reconnect to [ConnectionsNotifier.reconnect()].
   /// Immediately resets the pane tree so the new TerminalPane subscribes
   /// to the fresh progressStream and shows the connection log.
   void reconnect() {
@@ -103,8 +103,8 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
       widget.connection.state = SSHConnectionState.connecting;
       _runReconnectFactory(widget.connection);
     } else {
-      // Delegate to ConnectionManager — handles reset, progress, notify
-      final manager = ref.read(connectionManagerProvider);
+      // Delegate to ConnectionsNotifier — handles reset, progress, notify
+      final manager = ref.read(connectionsProvider.notifier);
       manager.reconnect(widget.connection.id, updatedConfig: freshConfig);
     }
 
@@ -119,7 +119,7 @@ class TerminalTabState extends ConsumerState<TerminalTab> {
   }
 
   /// Run the test-injected reconnect factory with the same lifecycle
-  /// guarantees as [ConnectionManager._doConnect]: set state, error,
+  /// guarantees as [ConnectionsNotifier._doConnect]: set state, error,
   /// and complete ready on success or failure.
   Future<void> _runReconnectFactory(Connection conn) async {
     try {

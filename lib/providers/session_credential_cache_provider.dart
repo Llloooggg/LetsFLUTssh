@@ -10,7 +10,7 @@ import '../core/security/session_credential_cache.dart';
 /// [SessionCredentialCache.evictAll].
 ///
 /// Consumed by:
-///   * `ConnectionManager` — populate on successful auth, evict on
+///   * `ConnectionsNotifier` — populate on successful auth, evict on
 ///     explicit disconnect.
 ///   * `Connection._reconnect*` — read as an override before falling
 ///     back to `Session.auth`.

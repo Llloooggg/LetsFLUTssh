@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/config/config_store.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_manager.dart';
 import 'package:letsflutssh/core/connection/foreground_service.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
@@ -73,9 +72,6 @@ void main() {
         ),
         sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
-        connectionManagerProvider.overrideWithValue(
-          ConnectionManager(knownHosts: KnownHostsManager()),
-        ),
         connectionsProvider.overrideWith(
           () => StaticConnectionsNotifier(<Connection>[]),
         ),

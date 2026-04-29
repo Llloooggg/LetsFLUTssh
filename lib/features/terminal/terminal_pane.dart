@@ -193,7 +193,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       _terminal.write('\x1B[?25h\x1B[31m$error\x1B[0m\r\n');
       setState(() => _error = error);
       // Notify provider so workspace status dots and connection bar update
-      ref.read(connectionManagerProvider).notifyStateChanged();
+      ref.read(connectionsProvider.notifier).notifyStateChanged();
       return;
     }
 
@@ -212,7 +212,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       );
       _attachBroadcast();
       // Notify provider so workspace status dots and connection bar update
-      if (mounted) ref.read(connectionManagerProvider).notifyStateChanged();
+      if (mounted) ref.read(connectionsProvider.notifier).notifyStateChanged();
     } catch (e) {
       AppLogger.instance.log(
         'Shell open failed: $e',

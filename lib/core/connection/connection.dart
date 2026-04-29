@@ -31,7 +31,7 @@ class Connection {
   final KnownHostsManager knownHosts;
 
   /// Engine-agnostic SSH transport. Set on successful connect by
-  /// `ConnectionManager`; downstream features (shell_helper,
+  /// `ConnectionsNotifier`; downstream features (shell_helper,
   /// sftp_initializer, port_forward_runtime) read it for shell /
   /// SFTP / port-forward channels.
   SshTransport? transport;
@@ -40,8 +40,8 @@ class Connection {
 
   /// Passphrase entered interactively — cached for reconnect within same session.
   ///
-  /// Cleared eagerly on [ConnectionManager.disconnect] via
-  /// [clearCachedCredentials]. Set by [ConnectionManager] when user
+  /// Cleared eagerly on [ConnectionsNotifier.disconnect] via
+  /// [clearCachedCredentials]. Set by [ConnectionsNotifier] when user
   /// checks "remember".
   ///
   /// ## Memory hygiene caveat
@@ -58,7 +58,7 @@ class Connection {
 
   /// Per-attempt transient secret IDs the connect path staged into
   /// the Rust `SecretStore`. Populated by
-  /// `ConnectionManager._authFromConfig` whenever the auth bytes
+  /// `ConnectionsNotifier._authFromConfig` whenever the auth bytes
   /// don't have a stable id (quick-connect, key-with-typed-passphrase,
   /// empty-auth probe). Drained on terminal state (Connected /
   /// Disconnected) by `_applyConnectionEvent` so the secrets are
@@ -243,13 +243,13 @@ class Connection {
   /// Wait for connection to leave `connecting` state.
   ///
   /// No-op if not currently connecting. Timeout is handled at the
-  /// [ConnectionManager] level — UI callers just await this.
+  /// [ConnectionsNotifier] level — UI callers just await this.
   Future<void> waitUntilReady() async {
     if (!isConnecting) return;
     await ready;
   }
 
-  /// Mark connection attempt as resolved. Called by [ConnectionManager].
+  /// Mark connection attempt as resolved. Called by [ConnectionsNotifier].
   void completeReady() {
     if (!_readyCompleter.isCompleted) _readyCompleter.complete();
     if (!_progressController.isClosed) _progressController.close();
@@ -337,7 +337,7 @@ class Connection {
   /// Drop every reference this Connection owns to plaintext credentials
   /// so the GC can reclaim them as soon as possible.
   ///
-  /// Meant to be called by [ConnectionManager] right before removing the
+  /// Meant to be called by [ConnectionsNotifier] right before removing the
   /// Connection from its map on disconnect — by that point there is no
   /// legitimate reason to keep the passphrase, and holding onto an
   /// immutable `String` any longer just widens the window a coredump
@@ -351,7 +351,7 @@ class Connection {
   /// subscription, progress controller, and any per-attempt
   /// transient secrets the connect path staged that the bus's
   /// terminal-state path didn't already clear. Must be called
-  /// by [ConnectionManager] when removing the Connection from
+  /// by [ConnectionsNotifier] when removing the Connection from
   /// its map; without this the subscription pins the Connection
   /// in memory + keeps consuming bus events for an id no one
   /// renders anymore.

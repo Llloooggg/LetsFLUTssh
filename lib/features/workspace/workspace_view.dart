@@ -337,10 +337,10 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
       // the first build frame.
       return () => _terminalKeys[tab.id]?.currentState?.reconnect();
     }
-    // SFTP tab — reconnect SSH via ConnectionManager, then close + re-open
+    // SFTP tab — reconnect SSH via ConnectionsNotifier, then close + re-open
     // the SFTP tab so FileBrowserTab re-runs _initSftp on the fresh connection.
     return () {
-      final manager = ref.read(connectionManagerProvider);
+      final manager = ref.read(connectionsProvider.notifier);
       manager.reconnect(tab.connection.id);
       final notifier = ref.read(workspaceProvider.notifier);
       notifier.closeTab(panel.id, tab.id);
