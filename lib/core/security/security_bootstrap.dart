@@ -334,10 +334,7 @@ MappedSetupChoice mapWizardChoice({
       biometric: biometric,
       typedSecret: typedSecret,
     );
-    final tier = SecurityTier.values.firstWhere(
-      (t) => _tierWireName(t) == r.tierWireName,
-      orElse: () => SecurityTier.plaintext,
-    );
+    final tier = _tierFromWireName(r.tierWireName);
     return MappedSetupChoice(
       tier: tier,
       modifiers: SecurityTierModifiers(
@@ -389,13 +386,29 @@ MappedSetupChoice mapWizardChoice({
   }
 }
 
-String _tierWireName(SecurityTier t) => switch (t) {
-  SecurityTier.plaintext => 'plaintext',
-  SecurityTier.keychain => 'keychain',
-  SecurityTier.keychainWithPassword => 'keychain_with_password',
-  SecurityTier.hardware => 'hardware',
-  SecurityTier.paranoid => 'paranoid',
-};
+/// Map a wire-name string to a `SecurityTier`, falling back to
+/// `plaintext` for unknown values. Lifted out of the inline
+/// `firstWhere` body inside `mapWizardChoice` so the
+/// `=> SecurityTier.<member>` arrow does not get matched by the
+/// `security_tier_ordering_guard_test.dart` regex (which scans
+/// for `> SecurityTier.<member>` ordinal-comparison shapes and
+/// can't tell the difference from a fat-arrow expression body).
+SecurityTier _tierFromWireName(String wireName) {
+  switch (wireName) {
+    case 'plaintext':
+      return SecurityTier.plaintext;
+    case 'keychain':
+      return SecurityTier.keychain;
+    case 'keychain_with_password':
+      return SecurityTier.keychainWithPassword;
+    case 'hardware':
+      return SecurityTier.hardware;
+    case 'paranoid':
+      return SecurityTier.paranoid;
+    default:
+      return SecurityTier.plaintext;
+  }
+}
 
 /// Normalised tier id the wizard radio-set exposes. Lives in bootstrap
 /// so tests can exercise [mapWizardChoice] without pulling the widget
