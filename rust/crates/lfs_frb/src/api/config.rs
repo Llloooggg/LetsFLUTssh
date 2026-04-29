@@ -85,3 +85,55 @@ pub fn config_app_config_validate_json(input_json: String) -> Option<String> {
     let cfg = AppConfig::from_json_value(&value);
     cfg.validate().map(String::from)
 }
+
+// ── Store actor (D5) ──────────────────────────────────────────
+
+/// Initialise the process-singleton config store actor against
+/// `support_dir`. Loads `<support_dir>/config.json` if present;
+/// seeds with `AppConfig::default()` otherwise. Returns the
+/// canonical JSON the actor adopted so the Dart caller doesn't
+/// need a follow-up `config_store_get_json` round-trip.
+///
+/// Decision 5 — Rust owns debounce + atomic file I/O + bus
+/// event publication. Dart `ConfigNotifier` shrinks to a
+/// `BusEvent::ConfigChanged` subscriber + `set_json` calls.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_store_init(support_dir: String) -> Result<String, String> {
+    lfs_core::config_store::instance().init(std::path::PathBuf::from(support_dir))
+}
+
+/// Snapshot the actor's current config. Returns `None` before
+/// `config_store_init` runs; callers treat that as "use defaults
+/// until startup init lands".
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_store_get_json() -> Option<String> {
+    lfs_core::config_store::instance().get_json()
+}
+
+/// Replace the in-memory state and arm the debounce timer. The
+/// disk write is fire-and-forget (300 ms after the last
+/// `set_json` call); callers that want save-settled guarantees
+/// use [`config_store_flush`].
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_store_set_json(new_json: String) -> Result<(), String> {
+    lfs_core::config_store::instance().set_json(&new_json)
+}
+
+/// Force any pending state to disk synchronously. Returns the
+/// JSON written (or the current snapshot when nothing was
+/// pending). Used at app shutdown / test teardown so the last
+/// `set_json` is durable.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_store_flush() -> Result<Option<String>, String> {
+    lfs_core::config_store::instance().flush()
+}
+
+/// Drive the debounce loop one tick — caller checks if the
+/// pending-flush deadline has passed and flushes if so. Used by
+/// the Dart-side periodic ticker (300 ms timer) so the actor
+/// doesn't need its own background tokio task. Returns `true`
+/// when a flush fired.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_store_tick_if_due() -> Result<bool, String> {
+    lfs_core::config_store::instance().tick_if_due()
+}

@@ -207,6 +207,10 @@ pub enum BusEvent {
     KnownHostsChanged,
     /// Sessions / folders tables mutated.
     SessionsChanged,
+    /// `config.json` save landed — carries the freshly-written
+    /// JSON so subscribers swap in the canonical state without
+    /// a follow-up `config_store_get_json` round-trip.
+    ConfigChanged { json: String },
     /// TOFU prompt — russh saw an unknown / changed host key.
     /// Subscribers (Dart UI) surface the host-key dialog and
     /// dispatch [`BusCommand::KnownHostPromptResponse`] back.
@@ -361,6 +365,7 @@ impl BusEvent {
             }
             lfs_core::bus::Event::KnownHostsChanged => BusEvent::KnownHostsChanged,
             lfs_core::bus::Event::SessionsChanged => BusEvent::SessionsChanged,
+            lfs_core::bus::Event::ConfigChanged { json } => BusEvent::ConfigChanged { json },
             lfs_core::bus::Event::KnownHostPromptRequest {
                 prompt_id,
                 host,

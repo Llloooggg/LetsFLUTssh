@@ -325,6 +325,12 @@ sealed class BusEvent with _$BusEvent {
   /// Sessions / folders tables mutated.
   const factory BusEvent.sessionsChanged() = BusEvent_SessionsChanged;
 
+  /// `config.json` save landed — carries the freshly-written
+  /// JSON so subscribers swap in the canonical state without
+  /// a follow-up `config_store_get_json` round-trip.
+  const factory BusEvent.configChanged({required String json}) =
+      BusEvent_ConfigChanged;
+
   /// TOFU prompt — russh saw an unknown / changed host key.
   /// Subscribers (Dart UI) surface the host-key dialog and
   /// dispatch [`BusCommand::KnownHostPromptResponse`] back.

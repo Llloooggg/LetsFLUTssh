@@ -68,6 +68,11 @@ pub enum EventTopic {
     /// toggle) so the Dart shim can re-fetch in one
     /// microtask-coalesced refresh rather than per-call.
     Sessions,
+    /// `config.json` actor — fires after a debounced save lands
+    /// on disk. Subscribers re-snapshot the canonical state
+    /// without polling. Decision 5 / D5 in
+    /// `docs/RUST_MIGRATION_REMAINING.md`.
+    Config,
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -135,6 +140,13 @@ pub enum Event {
     /// Auto-lock — fired when the configured idle timeout
     /// changes. Carries the new value in minutes (0 = off).
     AutoLockTimeoutChanged { minutes: i64 },
+
+    /// Config — fired by `lfs_core::config_store::Store` after
+    /// a debounced atomic write of `config.json` lands on disk.
+    /// Carries the freshly-written JSON so subscribers can swap
+    /// in the snapshot without a follow-up `get_json` round-trip.
+    /// Decision 5 / D5 in `docs/RUST_MIGRATION_REMAINING.md`.
+    ConfigChanged { json: String },
 
     /// Recorder — fired when a fresh recording actor enters
     /// the registry.
@@ -280,6 +292,7 @@ impl Event {
             | Event::UpdateDownloadCompleted { .. } => EventTopic::Update,
             Event::KnownHostsChanged => EventTopic::KnownHosts,
             Event::SessionsChanged => EventTopic::Sessions,
+            Event::ConfigChanged { .. } => EventTopic::Config,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
                 EventTopic::KnownHosts
             }

@@ -23,6 +23,7 @@ pub mod archive_stage;
 pub mod autolock;
 pub mod bus;
 pub mod config;
+pub mod config_store;
 pub mod connection;
 pub mod crypto;
 pub mod db;
