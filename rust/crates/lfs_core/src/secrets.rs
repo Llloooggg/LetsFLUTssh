@@ -62,6 +62,19 @@ impl SecretStore {
         g.remove(id);
     }
 
+    /// Atomic read-and-remove. Returns the bytes that were
+    /// stored under `id`, removing the entry from the map in
+    /// the same critical section so concurrent callers see
+    /// either the same bytes (if their lock landed first) or
+    /// `None` (if ours did). Used by the bus-driven Dart
+    /// unlock listener: the orchestrator stages the key, the
+    /// listener takes it once for drift, the entry is gone
+    /// from the store after a single FRB byte crossing.
+    pub fn take(&self, id: &str) -> Option<Zeroizing<Vec<u8>>> {
+        let mut g = self.inner.lock().expect("secrets lock");
+        g.remove(id)
+    }
+
     /// Drop every secret under any id. Used by the auth-failure
     /// recovery path that wipes all cached credentials at once.
     pub fn clear(&self) {

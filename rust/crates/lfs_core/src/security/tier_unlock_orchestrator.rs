@@ -27,6 +27,28 @@ use crate::security::keychain_op_prompt::{self, KeychainOpKind};
 use crate::security::tier_machine::{instance_dispatch, TierEvent, UnlockFailureReason};
 use crate::security::SecurityTier;
 
+/// Canonical SecretStore id the per-tier orchestrators stage
+/// the resolved DB key under just before emitting
+/// `UnlockSucceeded`. The Dart bus listener subscribed to
+/// `TierStateChanged.unlocked` takes the bytes via
+/// `secrets_take` (atomic read-and-remove) and hands them to
+/// drift; the SecretStore entry is gone after the take.
+///
+/// Plaintext stages an empty buffer so the listener's
+/// `secrets_take` call returns the empty `Vec` consistent
+/// with the "no key" tier shape.
+pub const TIER_UNLOCK_KEY_ID: &str = "tier.unlock.key";
+
+/// Stage the resolved key in the SecretStore under the
+/// canonical id so the Dart bus listener can take it. Called
+/// just before `UnlockSucceeded` dispatches; the listener's
+/// `secrets_take` runs on the bus event handler.
+fn stage_key(bytes: &[u8]) {
+    crate::app::instance()
+        .secrets
+        .put(TIER_UNLOCK_KEY_ID, bytes);
+}
+
 /// Storage key for the L1 / L2 DB encryption key in the OS
 /// keychain. Mirrors the Dart-era
 /// `SecureKeyStorage._keyName` const — both implementations
@@ -50,6 +72,11 @@ const ENCRYPTION_KEY_SLOT: &str = "letsflutssh_encryption_key";
 /// file as plaintext).
 pub fn unlock_plaintext() {
     instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockRequested);
+    // Stage an empty buffer so the Dart `TierUnlockedListener`
+    // sees the same "take the staged key, hand it to drift"
+    // shape across every tier — drift opens with empty bytes
+    // for the plaintext path.
+    stage_key(&[]);
     instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockSucceeded);
 }
 
@@ -86,6 +113,7 @@ pub async fn unlock_keychain() -> Option<Vec<u8>> {
 
     match receiver.await {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            stage_key(&bytes);
             instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
             Some(bytes)
         }
@@ -187,6 +215,7 @@ pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> 
 
     match receiver.await {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            stage_key(&bytes);
             instance_dispatch(
                 SecurityTier::KeychainWithPassword,
                 &TierEvent::UnlockSucceeded,
@@ -251,6 +280,7 @@ pub async fn unlock_paranoid(password: String) -> Option<Vec<u8>> {
 
     match key {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            stage_key(&bytes);
             instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockSucceeded);
             Some(bytes)
         }
@@ -320,6 +350,7 @@ pub async fn unlock_hardware(pin: Option<String>) -> Option<Vec<u8>> {
 
     match receiver.await {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            stage_key(&bytes);
             instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockSucceeded);
             Some(bytes)
         }

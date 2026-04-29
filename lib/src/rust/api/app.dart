@@ -26,6 +26,24 @@ Future<bool> secretsHas({required String id}) =>
 Future<void> secretsDrop({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsDrop(id: id);
 
+/// Atomic read-and-remove. Returns the bytes that were stored
+/// under [id] AND removes the entry from the store inside the
+/// same critical section so concurrent callers see either the
+/// same bytes (their lock landed first) or empty (ours did).
+///
+/// The Dart bus-driven unlock listener reads the staged tier
+/// key here once on `TierStateChanged.unlocked`, hands the
+/// bytes to drift, and the SecretStore entry is gone after a
+/// single FRB byte crossing — same plaintext window as the
+/// pre-listener path where the tier orchestrator returned the
+/// bytes through its FRB return value.
+///
+/// Returns an empty `Vec` when the id is missing (preserves
+/// the FRB-friendly non-nullable signature; the caller branches
+/// on `bytes.isEmpty` for the absent case).
+Uint8List secretsTake({required String id}) =>
+    RustLib.instance.api.crateApiAppSecretsTake(id: id);
+
 /// Drop every secret in [ids] in a single FRB hop. Used by the
 /// connect path's transient-secret cleanup so an N-id evict
 /// doesn't pay N FRB round-trips. Idempotent on a missing id.
