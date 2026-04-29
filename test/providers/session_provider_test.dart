@@ -269,19 +269,6 @@ void main() {
       expect(filtered.length, 1);
       expect(filtered.first.host, '192.168.1.1');
     });
-
-    test('sessionTreeProvider builds tree', () async {
-      final store = FakeSessionStore();
-      final container = ProviderContainer(
-        overrides: [sessionStoreProvider.overrideWithValue(store)],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(sessionProvider.notifier);
-      await notifier.add(makeSession(id: 's1', folder: 'Web'));
-      final tree = container.read(sessionTreeProvider);
-      expect(tree, isNotEmpty);
-    });
   });
 
   group('SessionsLoadingNotifier', () {

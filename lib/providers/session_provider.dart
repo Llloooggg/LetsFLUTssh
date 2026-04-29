@@ -169,13 +169,6 @@ class SessionNotifier extends Notifier<List<Session>> {
   }
 }
 
-/// Tree built from current session list (includes empty groups).
-final sessionTreeProvider = Provider<List<SessionTreeNode>>((ref) {
-  final sessions = ref.watch(sessionProvider);
-  final store = ref.watch(sessionStoreProvider);
-  return SessionTree.build(sessions, emptyFolders: store.emptyFolders);
-});
-
 /// Search query state.
 final sessionSearchProvider = NotifierProvider<SessionSearchNotifier, String>(
   SessionSearchNotifier.new,
