@@ -88,11 +88,6 @@ class ConnectionManager {
       if (!c.internal) c,
   ];
 
-  /// Every connection including internal bastion hops — used by the
-  /// foreground-service active-count callback so a long-running
-  /// bastion still keeps the Android service alive.
-  List<Connection> get allConnections => _connections.values.toList();
-
   Connection? get(String id) => _connections[id];
 
   /// Create a connection and start connecting in the background.
