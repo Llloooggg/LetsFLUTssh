@@ -43,6 +43,7 @@ import '../widgets/toast.dart';
 import 'navigator_key.dart';
 import 'security_dialog_prompter.dart';
 import 'security_dialogs.dart';
+import 'tier_unlocked_listener.dart';
 
 /// Owns the startup / security / tier / DB lifecycle that
 /// `_LetsFLUTsshAppState` used to carry inline.
@@ -473,17 +474,59 @@ class SecurityInitController {
       case SecurityTier.paranoid:
         await _unlockParanoid(manager);
       case SecurityTier.plaintext:
-        // Route Plaintext through `tier_machine` actor.
-        // Actor tracks state (Locked → Unlocking → Unlocked) and
-        // publishes `BusEvent::TierStateChanged` for diagnostics +
-        // future tier-state consumers; the DB injection still
-        // happens here because Dart owns the `databaseProvider`
-        // slot. Best-effort — failures fall through to the legacy
-        // path (Dart still injects the DB regardless).
-        _routePlaintextThroughTierMachine();
-        await _injectDatabase();
+        // Plaintext routes the cascade end-to-end through Rust:
+        // `tier_unlock_plaintext` orchestrator dispatches
+        // `UnlockRequested` + `UnlockSucceeded` and stages the
+        // (empty) key under `tier.unlock.key`. The
+        // `TierUnlockedListener` provider takes the staged key,
+        // invalidates Dart-side caches, opens the Rust DB,
+        // publishes `securityStateProvider`, persists the tier
+        // into config — everything `_injectDatabase` used to do
+        // here. Falls back to the inline `_injectDatabase` call
+        // when the orchestrator is unreachable (flutter_test
+        // contexts that don't load the FRB native lib — listener
+        // never fires + the test harness drives drift open via
+        // the manual call below).
+        await _runPlaintextUnlockCascade();
         AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
     }
+  }
+
+  /// Drive the Plaintext unlock cascade through the
+  /// orchestrator + listener pair; fall back to the inline
+  /// `_injectDatabase` when either side is unreachable
+  /// (flutter_test contexts that don't load the FRB native
+  /// lib).
+  Future<void> _runPlaintextUnlockCascade() async {
+    try {
+      final listener = ref.read(tierUnlockedListenerProvider)..start();
+      // Arm BEFORE dispatch — the orchestrator's UnlockSucceeded
+      // event delivery is async (FRB stream → Dart microtask)
+      // but Dart can't process it before this call returns
+      // control to the event loop, so the arm always lands
+      // before the listener handler runs.
+      final unlockDone = listener.awaitNextUnlock();
+      _routePlaintextThroughTierMachine();
+      final outcome = await unlockDone.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => TierUnlockOutcome.failed,
+      );
+      if (outcome == TierUnlockOutcome.unlocked) return;
+      AppLogger.instance.log(
+        'Plaintext unlock listener returned $outcome — falling '
+        'back to inline _injectDatabase',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Plaintext orchestrator path failed, falling back to '
+        'inline _injectDatabase: $e',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+    }
+    await _injectDatabase();
   }
 
   /// Push the active tier into the `tier_machine` actor +
