@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'l10n/app_localizations.dart';
 import 'app/already_running_app.dart';
 import 'app/app_toolbar.dart';
+import 'app/biometric_probe_prompt_listener.dart';
 import 'app/deep_link_wiring.dart';
 import 'app/host_key_prompt_listener.dart';
 import 'app/keychain_pepper_prompt_listener.dart';
@@ -563,6 +564,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // path can flip to the Rust actor in a follow-up commit
     // without further wiring.
     KeychainPepperPromptListener.start();
+    // Biometric capability probe subscriber — wires the C5
+    // capabilities cache actor's local_auth round-trip.
+    // Production probeCapabilities() still owns the cache
+    // refresh until C5 actor commits flip the source of truth.
+    BiometricProbePromptListener.start();
     // Diagnostic observer for tier_machine transitions — logs
     // every Locked/Unlocking/Unlocked/Wiping flip a support
     // trace can read back. Non-functional until C9.1+ wires
