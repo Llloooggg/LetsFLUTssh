@@ -113,17 +113,24 @@ cleanup discipline).
 gate.**
 
 Sequence:
-- C9.0 — typed scaffold (state enum + event enum + transition
-  table + tests). Not wired to Dart — purely additive.
-- C9.1 — Plaintext path through actor under
+- [x] C9.0 — typed scaffold (state enum + event enum + transition
+  table + 18 tests). Not wired to Dart — purely additive.
+- [x] C9.0.1 — FRB shim exposing the scaffold so per-tier
+  wiring commits target a stable Dart API. Process-singleton
+  Machine instance behind a Mutex so dispatch is race-free
+  across multiple Dart isolates.
+- [ ] C9.1 — Plaintext path through actor under
   `--dart-define=LFS_TIER_MACHINE_PLAINTEXT=true`. Default off;
-  feature gate flip in next commit.
-- C9.2 — Keychain path (uses Decision 2 callbacks via Decision 1).
-- C9.3 — Hardware path (uses C3 subprocess + Decision 2 for
+  feature gate flip in next commit. Pending — requires per-tier
+  handler dispatch + bus event subscription + Dart wait-for-state
+  primitive.
+- [ ] C9.2 — Keychain path (uses Decision 2 callbacks via
+  Decision 1).
+- [ ] C9.3 — Hardware path (uses C3 subprocess + Decision 2 for
   per-platform vault plugins).
-- C9.4 — Paranoid path (uses C7 + master_password).
-- C9.5 — Retire Dart `SecurityInitController` after every tier
-  feature gate is on by default.
+- [ ] C9.4 — Paranoid path (uses C7 + master_password).
+- [ ] C9.5 — Retire Dart `SecurityInitController` after every
+  tier feature gate is on by default.
 
 Why: 1167 LOC `SecurityInitController` is the single most
 complex Dart orchestrator. Big-bang retire = all-eggs-one-basket
@@ -457,13 +464,19 @@ the persistence layer routes through Rust.
   chain (terminal → ssh → ui → workers → history). English
   error strings stay placeholders that the Settings UI translates
   via `app_*.arb` validation keys.
-- [ ] D4 — `lfs_core::config::Store` reads / persists via the
-  `app_configs` table. Pending — gated on C9 / actor wiring.
-- [ ] D5 — FRB `config_get` / `config_update` + bus
-  `ConfigChanged` event. Pending alongside D4.
-- [ ] D6 — Dart `core/config/app_config.dart` shrinks to FRB
-  DTOs + a `StreamProvider<AppConfig>` over the bus topic.
-  Pending alongside D4.
+- [x] D4/D5 — `lfs_core::config_store::Store` actor (init /
+  get / set / flush / tick_if_due). Owns 300 ms debounce + atomic
+  write through `write_bytes_atomic` + bus event publication.
+  FRB sync shims expose the API. 13 Rust unit tests +
+  `BusEvent::ConfigChanged { json }` event variant.
+- [x] D6 — Dart `ConfigStore.save` routes through Rust actor's
+  `set_json + flush` so the explicit save semantic ("save now")
+  goes through the canonical pipeline. Inline `writeFileAtomic`
+  preserved for flutter_test contexts.
+- [ ] D6.2 — Dart `ConfigNotifier` debounce timer ⇒ Rust
+  actor's `tick_if_due`. Bus subscription instead of in-Notifier
+  state mutation. Pending — current Dart debounce works
+  correctly, refactor adds risk without adding safety.
 
 **Risk:** every config read crosses FRB. Mitigate by emitting
 `ConfigChanged` on writes only; reads return cached snapshot.
