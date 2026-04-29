@@ -534,7 +534,7 @@ class AppConfig {
       'transfer_workers': transferWorkers,
       'max_history': maxHistory,
       if (locale != null) 'locale': locale,
-      if (security != null) 'security_tier': _tierName(security!.tier),
+      if (security != null) 'security_tier': security!.tier.wireName,
       if (security != null) 'security_modifiers': security!.modifiers.toJson(),
       if (securityProbeCache != null)
         'security_probe_cache': securityProbeCache!.toJson(),
@@ -609,21 +609,6 @@ class AppConfig {
         resolved['security_probe_cache'] as Map<String, dynamic>?,
       ),
     ).sanitized();
-  }
-}
-
-String _tierName(SecurityTier tier) {
-  switch (tier) {
-    case SecurityTier.plaintext:
-      return 'plaintext';
-    case SecurityTier.keychain:
-      return 'keychain';
-    case SecurityTier.keychainWithPassword:
-      return 'keychain_with_password';
-    case SecurityTier.hardware:
-      return 'hardware';
-    case SecurityTier.paranoid:
-      return 'paranoid';
   }
 }
 
