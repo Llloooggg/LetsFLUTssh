@@ -6,6 +6,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/master_password.dart' as rust_mp;
+import '../../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../../utils/logger.dart';
 import 'kdf_params.dart';
 import 'password_rate_limiter.dart';
@@ -135,6 +136,19 @@ class MasterPasswordManager {
   ///
   /// One Argon2id pass instead of two — the legacy Dart path called
   /// `verify` then `deriveKey` back-to-back, both running KDF.
+  ///
+  /// When [useRateLimit] is on, also routes through the Paranoid
+  /// tier-unlock orchestrator (`tier_unlock_paranoid`) which
+  /// emits the `BusEvent::TierStateChanged` cascade alongside
+  /// the verify; this keeps the in-memory bystander limiter
+  /// gating the call (intentionally Dart-side per the model in
+  /// `password_rate_limiter.dart`) while the cascade fires once
+  /// per attempt for the `tier_machine` observers + the future
+  /// drift-open listener. Internal callers (changePassword,
+  /// tests) bypass both the limiter AND the orchestrator and
+  /// hit the raw `master_password_verify_and_derive` shim so a
+  /// re-key cycle never trips the cascade for a transition
+  /// that's not a user-driven unlock.
   Future<Uint8List?> verifyAndDerive(
     String password, {
     bool useRateLimit = false,
@@ -149,9 +163,9 @@ class MasterPasswordManager {
     await _getBasePath();
     Uint8List? key;
     try {
-      final out = await rust_mp.masterPasswordVerifyAndDerive(
-        password: password,
-      );
+      final out = useRateLimit
+          ? await rust_orch.tierUnlockParanoid(password: password)
+          : await rust_mp.masterPasswordVerifyAndDerive(password: password);
       key = out == null ? null : Uint8List.fromList(out);
     } on AnyhowException catch (e) {
       throw MasterPasswordException(e.message);

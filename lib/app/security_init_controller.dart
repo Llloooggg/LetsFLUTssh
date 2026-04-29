@@ -563,17 +563,26 @@ class SecurityInitController {
 
   Future<void> _unlockParanoid(MasterPasswordManager manager) async {
     if (!isMounted()) return;
-    _emitTierUnlockStart('paranoid');
+    // Cascade emit (UnlockRequested → UnlockSucceeded /
+    // UnlockFailed) fires inside `manager.verifyAndDerive(...,
+    // useRateLimit: true)` which routes through the
+    // `tier_unlock_paranoid` orchestrator. The dismiss-without-
+    // submit branch below explicitly emits the cancel cascade
+    // so every attempt lands a paired terminal-state event.
     final derivedKey = await _dialogs.showMasterPasswordUnlock(manager);
     if (derivedKey != null) {
       await _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
-      _emitTierUnlockResolved(succeeded: true);
       AppLogger.instance.log('Master password unlocked', name: 'App');
     } else {
-      _emitTierUnlockResolved(
-        succeeded: false,
-        failureDiscriminant: 'user_cancelled',
-      );
+      try {
+        rust_orch.tierUnlockParanoidCancel();
+      } catch (e) {
+        AppLogger.instance.log(
+          'tier_unlock_paranoid_cancel FRB unreachable: $e',
+          name: 'TierMachine',
+          level: LogLevel.warn,
+        );
+      }
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
