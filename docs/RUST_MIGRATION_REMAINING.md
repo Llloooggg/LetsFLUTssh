@@ -206,7 +206,27 @@ indefinitely, F-arc proved this repeats).
 
 ## Tractable today vs needs-architectural-decision
 
-**Closed in the current arc** (composite actor commands + helper
+**Closed after the decision lock** (decisions 1-6 implemented):
+
+- C9.0 — typed tier_machine scaffold + 18 tests; FRB shim
+  + bus event publication on every transition; per-tier
+  handler hook (`try_advance` for Plaintext self-advance)
+- E1-E4 — qr_compose helper extracted; FRB shim for live
+  size estimator; main + per-toggle delta estimators routed
+  through Rust composer (every section now contract-tied
+  against the production export wire shape)
+- D5/D6 — config_store actor (init/get/set/flush/tick + 13
+  tests + bus ConfigChanged event); Dart ConfigStore.save
+  routes through actor's set_json + flush
+- Decision-1 prompt-protocol foundations (purely additive,
+  per-prompt-type typed registries):
+  - keychain_pepper_prompt — for C2 L2 gate
+  - credential_prompt — for A3 connection auth
+  - biometric_probe_prompt — for C5 capabilities cache
+  Each gets bus event variant + FRB resolve/cancel shims +
+  process-singleton instance + 5-6 unit tests.
+
+**Closed in the prior arc** (composite actor commands + helper
 consolidations + schema mirrors + dedup-import composite):
 
 - B1 — `db_sessions_duplicate_with_path` actor command
