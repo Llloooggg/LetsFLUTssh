@@ -119,11 +119,18 @@ Sequence:
   wiring commits target a stable Dart API. Process-singleton
   Machine instance behind a Mutex so dispatch is race-free
   across multiple Dart isolates.
-- [ ] C9.1 — Plaintext path through actor under
-  `--dart-define=LFS_TIER_MACHINE_PLAINTEXT=true`. Default off;
-  feature gate flip in next commit. Pending — requires per-tier
-  handler dispatch + bus event subscription + Dart wait-for-state
-  primitive.
+- [x] C9.1 (Rust half) — `Machine::try_advance` fires
+  `UnlockSucceeded` for Plaintext tier inside `Unlocking`
+  (Plaintext is the only synchronous-resolve tier; Keychain /
+  Hardware / Paranoid wait for their per-tier handler).
+  `tier_machine_try_advance` FRB shim exposes the hook.
+- [ ] C9.1 (Dart wiring) — Dart subscribes to
+  `BusEvent::TierStateChanged`, dispatches
+  `unlock_requested` + `try_advance` on bootstrap for
+  Plaintext, runs `_injectDatabase()` on
+  `TierStateChanged(unlocked)`. Behind
+  `--dart-define=LFS_TIER_MACHINE_PLAINTEXT=true` until
+  smoke-tested on every desktop.
 - [ ] C9.2 — Keychain path (uses Decision 2 callbacks via
   Decision 1).
 - [ ] C9.3 — Hardware path (uses C3 subprocess + Decision 2 for
