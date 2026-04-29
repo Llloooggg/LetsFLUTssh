@@ -34,6 +34,66 @@ E  — unified_export_controller live size estimate  (3–4 commits, anytime)
 F  — pure helpers                                  (~6 commits, background)
 ```
 
+## Tractable today vs needs-architectural-decision
+
+**Closed in the current arc** (composite actor commands + helper
+consolidations):
+
+- B1 — `db_sessions_duplicate_with_path` actor command
+- B2 — `db_folders_rename_path_cascade` actor command (also fixed
+  the moveFolder OLD-`parent_id` bug that silently failed cross-
+  tree moves)
+- B3 — `db_sessions_restore_snapshot` atomic actor command
+- F1 — `update_asset_url_for_platform` helper consolidation
+- F2 — `rate_limit_backoff_schedule_seconds` const exposure
+- A1 — confirmed already done (`SessionCredentialCache` reads
+  retired earlier; writes still route via `secretsPut` /
+  `secretsDrop` FRB calls)
+
+**Closed-enough as thin façades** — full retire would be churn:
+
+- B4 — `SessionStore` retire. The store is already a registry
+  mirror (cache hydrates from `sessionsRegistrySnapshot`, bus
+  events trigger reload). Touching the ~25 call sites across
+  providers / dialogs / tests for marginal gain is not worth it.
+- C1 — `MasterPasswordManager` retire. Already a thin façade;
+  `_basePath` resolution stays Dart because `getApplicationSupportDirectory`
+  is a `path_provider` plugin call.
+- F3 — `_compileGlob` regex cache. Lives in the Dart fallback
+  only; production already routes through `glob_matches`.
+
+**Needs an architectural decision before the next coding pass:**
+
+- A2/A3/A4 — ConnectionManager full retire. Bastion-readiness
+  await + credential overlay + reconnect cascade in Rust requires
+  designing how russh callbacks (`check_server_key`, auth
+  prompts) hand off to the Dart UI. The `KnownHostPromptRegistry`
+  arc shows the pattern, but the credential-prompt surface is
+  larger.
+- C2 — `KeychainPasswordGate` runtime as actor. Needs flutter_secure_storage
+  callbacks Rust→Dart (or moving the keychain reads into a Rust
+  platform plugin matrix).
+- C3 — `HardwareTierVault` Linux composer. Needs `tpm2-tools`
+  subprocess driver in Rust + decision on whether the Apple /
+  Android / Windows method-channel plugins similarly migrate.
+- C5 — `SecurityBootstrap.probeCapabilities` cache as actor.
+  Same callback question — biometric / fprintd / hardware-vault
+  probes are platform plugin calls.
+- C9 — Tier state-machine actor. Gated on C2 / C3 / C5 / C7.
+- D — `app_config` actor. Gated on C9 (security_tier types
+  couple in).
+- E — `unified_export_controller` full retire. The live size
+  estimator already routes the deflate + base64url through Rust;
+  retiring the Dart JSON-build orchestration requires Rust
+  mirrors of `Tag` / `Snippet` / `AppConfig` / `SshKeyEntry`
+  shapes (overlaps with arc D's app_config port).
+
+Each of these arcs is a 5-10 commit multi-day effort and benefits
+from explicit user direction on the design tradeoffs (which
+plugin paths stay Dart, which migrate to Rust subprocess /
+platform-matrix, what callback shape the Rust-Dart prompt
+protocol uses).
+
 ## Arc B — `SessionStore` mutating-paths cutover
 
 **Status:** in progress (read accessors landed; cache write fix landed).
@@ -246,9 +306,9 @@ sizing endpoint). Production export already through
 
 | Helper                             | Current location                          | Notes                                                            |
 |------------------------------------|-------------------------------------------|------------------------------------------------------------------|
-| [ ] `assetUrlForPlatform`          | `update_service.dart:797`                 | Move to `lfs_core::update_metadata` (already has `asset_suffix`) |
-| [ ] `_compileGlob` regex cache     | `openssh_config_parser.dart:248`          | Already routed through `glob_matches`; drop the Dart cache.      |
-| [ ] `backoffSchedule` constant     | `password_rate_limiter.dart:35`           | Expose `BACKOFF_SCHEDULE` via FRB const.                          |
+| [x] `assetUrlForPlatform`          | `update_service.dart:797`                 | Routed through `lfs_core::update_metadata::asset_url_for_platform`. |
+| —    `_compileGlob` regex cache     | `openssh_config_parser.dart:248`          | Cache lives in the Dart fallback only; production already routes through Rust. Removing the cache slows the test-only path with no production benefit — skip. |
+| [x] `backoffSchedule` constant     | `password_rate_limiter.dart:35`           | Hydrated from Rust `BACKOFF_SCHEDULE` via FRB const, lazy-cached. |
 | [ ] `_unquote` (OpenSSH config)    | `openssh_config_parser.dart:337`          | Trivial, low priority.                                           |
 | —    `OpenSshConfigImporter.expandHome` | `openssh_config_importer.dart:72`    | Skip — Android `EXTERNAL_STORAGE` divergence vs Rust `home_dir`. |
 | —    `_tierToString` / `_tierFromString` | `security_tier.dart:247,262`         | Skip — 5-line switches; routing through Rust adds no value.      |
