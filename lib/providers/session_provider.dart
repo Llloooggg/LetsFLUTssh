@@ -191,10 +191,24 @@ class SessionSearchNotifier extends Notifier<String> {
 }
 
 /// Filtered sessions based on search query.
+///
+/// Routes through the registry's `sessions_registry_filter_ids`
+/// when the FRB native lib is loaded — that path reads off the
+/// cached view, avoiding the per-keystroke
+/// `DbSearchableSession` projection that
+/// `SessionStore.filterSessions` rebuilds. Falls back to the
+/// projecting helper for flutter_test contexts.
 final filteredSessionsProvider = Provider<List<Session>>((ref) {
   final sessions = ref.watch(sessionProvider);
   final query = ref.watch(sessionSearchProvider);
-  return SessionStore.filterSessions(sessions, query);
+  if (query.isEmpty) return sessions;
+  try {
+    final ids = rust_registry.sessionsRegistryFilterIds(query: query).toSet();
+    if (ids.isEmpty) return const <Session>[];
+    return sessions.where((s) => ids.contains(s.id)).toList();
+  } catch (_) {
+    return SessionStore.filterSessions(sessions, query);
+  }
 });
 
 /// Filtered tree based on search.
