@@ -33,6 +33,14 @@ void rateLimitRecordSuccess({required String id}) =>
 bool rateLimitDrop({required String id}) =>
     RustLib.instance.api.crateApiRateLimitRateLimitDrop(id: id);
 
+/// Canonical exponential-backoff schedule (seconds) — index N
+/// is the wait after N consecutive failures, capped at the last
+/// entry. Mirrors `lfs_core::rate_limit::BACKOFF_SCHEDULE`
+/// byte-for-byte; exposed so the Dart `PasswordRateLimiter` base
+/// class doesn't carry its own const copy that could drift.
+Uint32List rateLimitBackoffScheduleSeconds() =>
+    RustLib.instance.api.crateApiRateLimitRateLimitBackoffScheduleSeconds();
+
 /// FRB mirror of [`lfs_core::rate_limit::RateLimitStatus`].
 /// `cooldownRemainingMs` is `0` when the next attempt is allowed
 /// immediately; non-zero when a wait is in effect.

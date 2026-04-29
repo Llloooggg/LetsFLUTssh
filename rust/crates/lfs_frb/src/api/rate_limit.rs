@@ -61,3 +61,13 @@ pub fn rate_limit_drop(id: String) -> bool {
     let app = lfs_core::app::instance();
     app.rate_limiters.drop_id(&id)
 }
+
+/// Canonical exponential-backoff schedule (seconds) — index N
+/// is the wait after N consecutive failures, capped at the last
+/// entry. Mirrors `lfs_core::rate_limit::BACKOFF_SCHEDULE`
+/// byte-for-byte; exposed so the Dart `PasswordRateLimiter` base
+/// class doesn't carry its own const copy that could drift.
+#[flutter_rust_bridge::frb(sync)]
+pub fn rate_limit_backoff_schedule_seconds() -> Vec<u32> {
+    lfs_core::rate_limit::BACKOFF_SCHEDULE.to_vec()
+}

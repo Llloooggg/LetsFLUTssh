@@ -32,7 +32,28 @@ abstract class PasswordRateLimiter {
   /// Seconds to wait between attempts after N consecutive failures.
   /// Index 0 = "no failures yet, no wait"; index 1 = "one failure,
   /// wait 1 s"; every index above that doubles up to the cap.
-  static const List<int> backoffSchedule = [0, 1, 2, 4, 8, 16, 32, 60, 60, 60];
+  ///
+  /// Hydrated lazily from
+  /// `lfs_core::rate_limit::BACKOFF_SCHEDULE` (FRB sync) so the
+  /// schedule lives one place across Dart + Rust; falls back to
+  /// the inline literal when the FRB native lib is not loaded
+  /// (flutter_test contexts that don't initialise `RustLib`).
+  static List<int> get backoffSchedule {
+    return _cachedBackoff ??= _resolveBackoff();
+  }
+
+  static List<int>? _cachedBackoff;
+  static const List<int> _backoffFallback = [0, 1, 2, 4, 8, 16, 32, 60, 60, 60];
+
+  static List<int> _resolveBackoff() {
+    try {
+      return List.unmodifiable(
+        rust_rate_limit.rateLimitBackoffScheduleSeconds().map((s) => s.toInt()),
+      );
+    } catch (_) {
+      return _backoffFallback;
+    }
+  }
 
   /// Clock injection for deterministic tests.
   final DateTime Function() _now;
