@@ -11,14 +11,20 @@ Delete both files once every arc closes.
 
 | Category                                          | LOC Dart | Action       |
 |---------------------------------------------------|---------:|--------------|
-| 1. Big orchestrator actors with real logic        |  ~3 200  | arcs A + B   |
-| 2. Security tier stack (orchestrators + persist)  |  ~2 800  | arc C        |
+| 1. Big orchestrator actors with real logic        |  ~2 400  | arcs A + B   |
+| 2. Security tier stack (orchestrators + persist)  |  ~1 500  | arc C        |
 | 3. `app_config` schema + persistence              |    ~700  | arc D        |
 | 4. UI/controllers with duplicated logic           |    ~700  | arc E        |
 | 5. Pure helpers not yet consolidated              |    ~150  | arc F        |
 | 6. Stays Dart by design                           |  ~3 500  | leave alone  |
 
-Total to move: ~6 850 LOC. Roughly 40–50 commits across all arcs.
+Categories 1 + 2 dropped substantially after the security-tier-stack
+arc landed: every per-tier verify, first-launch persist, and unlock
+cascade now lives Rust-side. The residual surface in
+`SecurityInitController` (1538 LOC) + `ConnectionManager` (660 LOC) +
+`SessionStore` (757 LOC) is Dart-side glue (Riverpod / drift /
+plugins / navigation / undo-history) that legitimately can't move
+without dragging Flutter primitives along.
 
 ## Sequence
 
