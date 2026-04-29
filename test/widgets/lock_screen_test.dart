@@ -60,14 +60,6 @@ class _FakeMasterPassword extends MasterPasswordManager {
 
   @override
   Future<bool> verify(String password) async => password == expectedPassword;
-
-  @override
-  Future<Uint8List> deriveKey(String password) async {
-    if (password != expectedPassword) {
-      throw const MasterPasswordException('wrong password');
-    }
-    return keyBytes;
-  }
 }
 
 class _NoBiometricVault extends BiometricKeyVault {

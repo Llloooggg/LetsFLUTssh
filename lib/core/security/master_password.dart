@@ -106,21 +106,6 @@ class MasterPasswordManager {
     return rust_mp.masterPasswordIsEnabled();
   }
 
-  /// Derive a 256-bit key from password using the on-disk KDF params.
-  ///
-  /// Runs on the Rust core's blocking pool — Argon2id is CPU + memory
-  /// heavy (400-1500ms wall-clock at the production profile) but the
-  /// FRB worker thread isn't pinned for the duration.
-  Future<Uint8List> deriveKey(String password) async {
-    await _getBasePath();
-    try {
-      final out = await rust_mp.masterPasswordDeriveKey(password: password);
-      return Uint8List.fromList(out);
-    } on AnyhowException catch (e) {
-      throw MasterPasswordException(e.message);
-    }
-  }
-
   /// Verify a password against the stored verifier.
   ///
   /// Returns true if the password is correct. No rate-limit gating,

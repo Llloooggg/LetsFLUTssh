@@ -148,11 +148,6 @@ class _MockMasterPasswordManager extends MasterPasswordManager {
 
   @override
   Future<bool> verify(String password) async => true;
-
-  @override
-  Future<Uint8List> deriveKey(String password) async {
-    return Uint8List.fromList(List.generate(32, (i) => i));
-  }
 }
 
 /// Stub FilePicker — the logging section wires up FilePicker.saveFile /

@@ -42,17 +42,11 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
   Future<bool> isEnabled() async => enabled;
 
   @override
-  Future<Uint8List> deriveKey(String password) async =>
-      derivedKey ?? Uint8List(32);
-
-  @override
   Future<bool> verify(String password) async => verifyResult;
 
   @override
-  Future<Uint8List?> verifyAndDerive(
-    String password, {
-    bool useRateLimit = false,
-  }) async => verifyResult ? (derivedKey ?? Uint8List(32)) : null;
+  Future<Uint8List?> verifyAndDerive(String password) async =>
+      verifyResult ? (derivedKey ?? Uint8List(32)) : null;
 
   @override
   Future<Uint8List> enable(String password) async {
