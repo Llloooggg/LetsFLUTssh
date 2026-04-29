@@ -29,6 +29,23 @@ void tierUnlockPlaintext() =>
 Future<Uint8List?> tierUnlockKeychain() =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockKeychain();
 
+/// KeychainWithPassword tier (L2) — verify the typed user
+/// password through the on-disk gate, then read the DB
+/// encryption key from the OS keychain. Emits cascade events
+/// along the way; returns the key bytes on success or `None`
+/// on wrong password / missing keychain entry / cancelled
+/// prompt.
+///
+/// The Dart caller owns the unlock dialog UI (rate-limit
+/// countdown, biometric option); after the user submits the
+/// password the caller invokes this orchestrator to drive the
+/// verify + key-read + cascade emission in one FRB hop.
+Future<Uint8List?> tierUnlockKeychainWithPassword({required String password}) =>
+    RustLib.instance.api
+        .crateApiTierUnlockOrchestratorTierUnlockKeychainWithPassword(
+          password: password,
+        );
+
 /// Paranoid tier — derive the DB key from the typed master
 /// password via Argon2id; emit cascade events along the way;
 /// return the key bytes on success or `None` on a wrong

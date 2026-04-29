@@ -37,6 +37,21 @@ pub async fn tier_unlock_keychain() -> Option<Vec<u8>> {
     tier_unlock_orchestrator::unlock_keychain().await
 }
 
+/// KeychainWithPassword tier (L2) — verify the typed user
+/// password through the on-disk gate, then read the DB
+/// encryption key from the OS keychain. Emits cascade events
+/// along the way; returns the key bytes on success or `None`
+/// on wrong password / missing keychain entry / cancelled
+/// prompt.
+///
+/// The Dart caller owns the unlock dialog UI (rate-limit
+/// countdown, biometric option); after the user submits the
+/// password the caller invokes this orchestrator to drive the
+/// verify + key-read + cascade emission in one FRB hop.
+pub async fn tier_unlock_keychain_with_password(password: String) -> Option<Vec<u8>> {
+    tier_unlock_orchestrator::unlock_keychain_with_password(password).await
+}
+
 /// Paranoid tier — derive the DB key from the typed master
 /// password via Argon2id; emit cascade events along the way;
 /// return the key bytes on success or `None` on a wrong

@@ -116,6 +116,108 @@ pub async fn unlock_keychain() -> Option<Vec<u8>> {
     }
 }
 
+/// KeychainWithPassword tier (L2) — verify the typed user
+/// password through the on-disk gate (HMAC-SHA-256 against the
+/// stored salt + the keychain pepper), then on success read
+/// the DB encryption key from the OS keychain and return its
+/// bytes. Dispatches the cascade events along the way; emits
+/// `UnlockFailed { WrongSecret }` on gate-mismatch and
+/// `UnlockFailed { PluginUnavailable }` on missing keychain
+/// entry.
+///
+/// The Dart caller owns the unlock dialog UI (rate-limit
+/// countdown, biometric option, "forgot password" reset);
+/// after the user submits the password the caller invokes this
+/// orchestrator to drive the verify + key-read + cascade
+/// emission in one FRB hop.
+///
+/// Reads the support dir from the pinned singleton — caller
+/// must have invoked `master_password_init` at app startup
+/// (the L2 gate shares the same support-dir pin since both
+/// store on-disk state under the same root).
+pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> {
+    instance_dispatch(
+        SecurityTier::KeychainWithPassword,
+        &TierEvent::UnlockRequested,
+    );
+
+    let support_dir = crate::security::master_password::pinned_support_dir();
+    let verify_result =
+        crate::security::keychain_password_gate_actor::verify_password(support_dir, &password)
+            .await;
+
+    let verified = match verify_result {
+        Ok(b) => b,
+        Err(detail) => {
+            instance_dispatch(
+                SecurityTier::KeychainWithPassword,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::Corruption { detail },
+                },
+            );
+            return None;
+        }
+    };
+
+    if !verified {
+        instance_dispatch(
+            SecurityTier::KeychainWithPassword,
+            &TierEvent::UnlockFailed {
+                reason: UnlockFailureReason::WrongSecret,
+            },
+        );
+        return None;
+    }
+
+    // Password verified — read the DB encryption key from the
+    // OS keychain via the same prompt registry the L1 path
+    // uses. The Dart subscriber base64-decodes back to raw
+    // bytes before resolving.
+    let prompt_id = generate_prompt_id();
+    let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
+    crate::app::instance()
+        .bus
+        .publish(Event::KeychainOpPromptRequest {
+            prompt_id: prompt_id.clone(),
+            key: ENCRYPTION_KEY_SLOT.to_string(),
+            op_wire_name: KeychainOpKind::Read.wire_name().to_string(),
+            value_b64: None,
+        });
+
+    match receiver.await {
+        Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            instance_dispatch(
+                SecurityTier::KeychainWithPassword,
+                &TierEvent::UnlockSucceeded,
+            );
+            Some(bytes)
+        }
+        Ok(_) => {
+            instance_dispatch(
+                SecurityTier::KeychainWithPassword,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: "missing_keychain_entry_after_verify".into(),
+                    },
+                },
+            );
+            None
+        }
+        Err(_) => {
+            keychain_op_prompt::instance().cancel(&prompt_id);
+            instance_dispatch(
+                SecurityTier::KeychainWithPassword,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: "keychain_prompt_cancelled".into(),
+                    },
+                },
+            );
+            None
+        }
+    }
+}
+
 /// Paranoid tier — derive the DB key from the typed master
 /// password via Argon2id; dispatch the cascade events along
 /// the way; return the key bytes on success or `None` on a
