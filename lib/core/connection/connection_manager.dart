@@ -198,12 +198,9 @@ class ConnectionManager {
       }
       return;
     }
-    final completer = Completer<void>();
     final sub = AppBus.instance
         .subscribeConnection(conn.id)
-        .listen(
-          (event) => _applyConnectionEvent(conn, generation, event, completer),
-        );
+        .listen((event) => _applyConnectionEvent(conn, generation, event));
 
     conn.addProgressStep(
       const ConnectionStep(
@@ -219,13 +216,6 @@ class ConnectionManager {
       // arrive concurrently so the UI sees state transitions in
       // real time rather than at the resolve point.
       await rust_bus.connectionConnect(id: conn.id, args: args);
-      // Belt: the actor *should* have published terminal-state
-      // events by now and the listener flipped Connection.state.
-      // If not (event lag, dropped subscription), force-resolve so
-      // `conn.ready` doesn't hang forever.
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
     } catch (e, st) {
       AppLogger.instance.log(
         'connectionConnect failed: $e',
@@ -256,7 +246,6 @@ class ConnectionManager {
     Connection conn,
     int generation,
     rust_bus.BusEvent event,
-    Completer<void> completer,
   ) {
     if (_isStaleGeneration(conn.id, generation)) return;
     switch (event) {
@@ -270,12 +259,9 @@ class ConnectionManager {
               'Connected: ${conn.label} (id=${conn.id})',
               name: 'Connection',
             );
-            // Transport adoption + transient-secret eviction
-            // happen inside `Connection`'s own bus subscription
-            // (it sees the same event). The manager only owns
-            // the connect-attempt completer + cache step that
-            // the outer `_doConnect` finally arm runs.
-            if (!completer.isCompleted) completer.complete();
+          // Transport adoption + transient-secret eviction
+          // happen inside `Connection`'s own bus subscription
+          // (it sees the same event).
           case rust_bus.BusConnectionState.disconnected:
             conn.state = SSHConnectionState.disconnected;
             AppLogger.instance.log(
@@ -284,8 +270,6 @@ class ConnectionManager {
               level: LogLevel.warn,
               error: conn.connectionError,
             );
-            // Transient eviction happens inside Connection.
-            if (!completer.isCompleted) completer.complete();
         }
       case rust_bus.BusEvent_ConnectionProgress(:final step):
         // Per-step append happens inside `Connection` via its
@@ -312,7 +296,7 @@ class ConnectionManager {
         // Actor torn down — leave Connection in its current state;
         // the manager's own `disconnect(id)` already removed the
         // Dart-side row.
-        if (!completer.isCompleted) completer.complete();
+        break;
       case _:
         break;
     }
