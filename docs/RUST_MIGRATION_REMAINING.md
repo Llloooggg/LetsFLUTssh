@@ -37,7 +37,7 @@ F  — pure helpers                                  (~6 commits, background)
 ## Tractable today vs needs-architectural-decision
 
 **Closed in the current arc** (composite actor commands + helper
-consolidations):
+consolidations + schema mirrors):
 
 - B1 — `db_sessions_duplicate_with_path` actor command
 - B2 — `db_folders_rename_path_cascade` actor command (also fixed
@@ -49,6 +49,14 @@ consolidations):
 - A1 — confirmed already done (`SessionCredentialCache` reads
   retired earlier; writes still route via `secretsPut` /
   `secretsDrop` FRB calls)
+- D1 / D2 / D3 — `AppConfig` schema mirror (struct + JSON ser/de
+  + sanitise + validate) lifted into `lfs_core::config`. Dart
+  routes `toJson` / `toJsonForExport` / `fromJson` / `validate`
+  through the canonical pipeline.
+- C7 — `PersistedRateLimiter` actor (process-singleton with
+  cached HMAC-verified state + tokio-spawned disk writes).
+  Dart shim retains an in-memory state-machine fallback for
+  flutter_test where path_provider is unmocked.
 
 **Closed-enough as thin façades** — full retire would be churn:
 
@@ -239,15 +247,21 @@ invocations + flutter_secure_storage purge.
   flutter_secure_storage key list (versioned alongside the
   vault). Dart wrapper retires.
 
-### C7 — `PersistedRateLimiter` (~429 LOC)
+### C7 — `PersistedRateLimiter` (~429 LOC) [DONE]
 
-HMAC-frame already Rust-side. Remaining: file I/O + in-memory
-cache.
+HMAC-frame + cache + serialised disk-write coordination all
+Rust-side. The Dart `PersistedRateLimiter` shrank to a thin
+shim with a Dart state-machine fallback for flutter_test
+contexts that don't load the FRB native lib (path_provider
+unmocked).
 
-- [ ] C7.1 — `persisted_rate_limit_actor` owns state +
-  on-disk frame; FRB `rate_limit_status` /
-  `rate_limit_record_failure` / `rate_limit_record_success`.
-  Dart `PersistedRateLimiter` shrinks to FRB calls.
+- [x] C7.1 — `lfs_core::security::persisted_rate_limit_actor::
+  PersistedRateLimiterRegistry` process-singleton actor.
+  `init_or_get(id, file_path, hmac_key)` loads + HMAC-verifies
+  on-disk; subsequent `status` / `record_failure` /
+  `record_success` / `clear` route through the cached entry.
+  Disk writes via `tokio::spawn_blocking`. Tampered files clamp
+  to max-cooldown slot.
 
 ### C9 — Tier state-machine actor (final synthesis)
 
@@ -264,19 +278,32 @@ requested/succeeded/failed events.
 **Risk:** highest of the migration. Land on a focused branch,
 smoke on every platform before merge.
 
-## Arc D — `app_config` (~605 LOC)
+## Arc D — `app_config` (~605 LOC) [partial]
 
-**Gated on C9** because `SecurityConfig` types couple in.
+**Originally gated on C9** because `SecurityConfig` types couple
+in. The schema mirror landed ahead of C9 because the typed
+struct + JSON ser/de + sanitise rules are usable independently;
+the `Store` actor + bus event remain pending until C9 lands and
+the persistence layer routes through Rust.
 
-- [ ] D1 — `lfs_core::config::AppConfig` + serde mirrors of every
-  sub-struct (`TerminalConfig` / `SshDefaults` / `UiConfig` /
-  `BehaviorConfig`).
-- [ ] D2 — `lfs_core::config::Store` reads / persists via the
-  `app_configs` table (already in `lfs_core.db`).
-- [ ] D3 — FRB `config_get` / `config_update` + bus
-  `ConfigChanged` event.
-- [ ] D4 — Dart `core/config/app_config.dart` shrinks to FRB DTOs
-  + a `StreamProvider<AppConfig>` over the bus topic.
+- [x] D1 — `lfs_core::config::AppConfig` + mirrors of
+  `TerminalConfig` / `SshDefaults` / `UiConfig` /
+  `BehaviorConfig`. JSON ser/de + sanitise + per-field validate;
+  flat top-level wire shape preserved. Dart `AppConfig.toJson` /
+  `toJsonForExport` route through the canonical Rust encoders.
+- [x] D2 — `AppConfig.fromJson` routes through Rust sanitise
+  pipeline (clamp out-of-range + drop unknown tier / locale).
+- [x] D3 — `AppConfig.validate` routes through Rust validation
+  chain (terminal → ssh → ui → workers → history). English
+  error strings stay placeholders that the Settings UI translates
+  via `app_*.arb` validation keys.
+- [ ] D4 — `lfs_core::config::Store` reads / persists via the
+  `app_configs` table. Pending — gated on C9 / actor wiring.
+- [ ] D5 — FRB `config_get` / `config_update` + bus
+  `ConfigChanged` event. Pending alongside D4.
+- [ ] D6 — Dart `core/config/app_config.dart` shrinks to FRB
+  DTOs + a `StreamProvider<AppConfig>` over the bus topic.
+  Pending alongside D4.
 
 **Risk:** every config read crosses FRB. Mitigate by emitting
 `ConfigChanged` on writes only; reads return cached snapshot.
