@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/db/rust_db_init.dart';
 import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
-import '../src/rust/api/tier_machine.dart' as rust_tier;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../core/migration/migration_runner.dart';
 import '../core/security/hardware_tier_vault.dart';
@@ -494,9 +493,8 @@ class SecurityInitController {
 
   /// Drive the Plaintext unlock cascade through the
   /// orchestrator + listener pair; fall back to the inline
-  /// `_injectDatabase` when either side is unreachable
-  /// (flutter_test contexts that don't load the FRB native
-  /// lib).
+  /// `_injectDatabase` when the FRB native lib is unreachable
+  /// (flutter_test contexts).
   Future<void> _runPlaintextUnlockCascade() async {
     try {
       final listener = ref.read(tierUnlockedListenerProvider)..start();
@@ -506,7 +504,7 @@ class SecurityInitController {
       // control to the event loop, so the arm always lands
       // before the listener handler runs.
       final unlockDone = listener.awaitNextUnlock();
-      _routePlaintextThroughTierMachine();
+      rust_orch.tierUnlockPlaintext();
       final outcome = await unlockDone.timeout(
         const Duration(seconds: 5),
         onTimeout: () => TierUnlockOutcome.failed,
@@ -527,81 +525,6 @@ class SecurityInitController {
       );
     }
     await _injectDatabase();
-  }
-
-  /// Push the active tier into the `tier_machine` actor +
-  /// dispatch the unlock cascade so observers (TierStateObserver
-  /// + future per-tier handlers) see the transition. Single FRB
-  /// hop — the Rust `tier_unlock_orchestrator::unlock_plaintext`
-  /// owns the set_tier + UnlockRequested + UnlockSucceeded chain
-  /// internally. Best-effort — orchestrator unreachable in
-  /// flutter_test contexts that don't load the FRB native lib.
-  void _routePlaintextThroughTierMachine() {
-    try {
-      rust_orch.tierUnlockPlaintext();
-    } catch (e) {
-      AppLogger.instance.log(
-        'tier_machine plaintext route failed: $e',
-        name: 'TierMachine',
-        level: LogLevel.warn,
-      );
-    }
-  }
-
-  /// Set the active tier + emit `unlock_requested` so the
-  /// `tier_machine` actor + every observer sees the cascade
-  /// start. Per-tier paths invoke this before their async unlock
-  /// work; the matching `_emitTierUnlockResolved` fires when
-  /// the work completes (or fails).
-  void _emitTierUnlockStart(String tierWireName) {
-    try {
-      rust_tier.tierMachineSetTier(tierWireName: tierWireName);
-      rust_tier.tierMachineDispatch(
-        event: const rust_tier.DbTierEvent(discriminant: 'unlock_requested'),
-      );
-    } catch (e) {
-      AppLogger.instance.log(
-        'tier_machine $tierWireName start failed: $e',
-        name: 'TierMachine',
-        level: LogLevel.warn,
-      );
-    }
-  }
-
-  /// Resolve the in-flight `unlock_requested` with success or
-  /// failure. Failure reasons map to `UnlockFailureReason` —
-  /// the Dart caller passes the discriminant; the typed payload
-  /// (plugin code / corruption detail) is best-effort empty
-  /// today and gets enriched as per-tier handlers move into
-  /// Rust.
-  void _emitTierUnlockResolved({
-    required bool succeeded,
-    String failureDiscriminant = 'wrong_secret',
-  }) {
-    try {
-      if (succeeded) {
-        rust_tier.tierMachineDispatch(
-          event: const rust_tier.DbTierEvent(discriminant: 'unlock_succeeded'),
-        );
-      } else {
-        rust_tier.tierMachineDispatch(
-          event: rust_tier.DbTierEvent(
-            discriminant: 'unlock_failed',
-            failReason: rust_tier.DbUnlockFailureReason(
-              discriminant: failureDiscriminant,
-              code: '',
-              detail: '',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'tier_machine resolve failed: $e',
-        name: 'TierMachine',
-        level: LogLevel.warn,
-      );
-    }
   }
 
   Future<void> _unlockParanoid(MasterPasswordManager manager) async {
@@ -691,18 +614,14 @@ class SecurityInitController {
       );
     }
     if (!orchestratorRoute) {
-      _emitTierUnlockStart('keychain');
+      // FRB-unreachable test fallback: read keychain directly + inject.
+      // The cascade emits would also be no-ops without the native lib.
       final keychainKey = await keyStorage.readKey();
       if (keychainKey != null) {
         await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
-        _emitTierUnlockResolved(succeeded: true);
         AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
         return;
       }
-      _emitTierUnlockResolved(
-        succeeded: false,
-        failureDiscriminant: 'plugin_unavailable',
-      );
     }
     _credentialsWereReset = true;
     await _injectDatabase();
@@ -716,11 +635,6 @@ class SecurityInitController {
   Future<void> _unlockKeychainWithPassword(SecureKeyStorage keyStorage) async {
     final gate = ref.read(keychainPasswordGateProvider);
     if (!await gate.isConfigured()) {
-      _emitTierUnlockStart('keychain_with_password');
-      _emitTierUnlockResolved(
-        succeeded: false,
-        failureDiscriminant: 'plugin_unavailable',
-      );
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
@@ -943,11 +857,6 @@ class SecurityInitController {
   Future<void> _unlockHardware() async {
     final vault = ref.read(hardwareTierVaultProvider);
     if (!await vault.isStored()) {
-      _emitTierUnlockStart('hardware');
-      _emitTierUnlockResolved(
-        succeeded: false,
-        failureDiscriminant: 'plugin_unavailable',
-      );
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
@@ -996,7 +905,7 @@ class SecurityInitController {
         );
       }
       if (!orchestratorRoute) {
-        _emitTierUnlockStart('hardware');
+        // FRB-unreachable test fallback: read directly + inject.
         final fallbackKey = await vault.read(null);
         if (fallbackKey != null) {
           await _injectDatabase(
@@ -1004,17 +913,12 @@ class SecurityInitController {
             level: SecurityTier.hardware,
             modifiers: mods,
           );
-          _emitTierUnlockResolved(succeeded: true);
           AppLogger.instance.log(
-            'L3 hardware-vault unlocked (passwordless)',
+            'L3 hardware-vault unlocked (passwordless, fallback)',
             name: 'App',
           );
           return;
         }
-        _emitTierUnlockResolved(
-          succeeded: false,
-          failureDiscriminant: 'corruption',
-        );
       }
       listener.cancelPending();
       _credentialsWereReset = true;
