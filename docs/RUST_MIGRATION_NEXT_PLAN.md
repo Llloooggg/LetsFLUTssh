@@ -267,6 +267,17 @@ through `lfs_core::secrets::SecretStore` (already the canonical
 owner of cached plaintext); the Dart-side `_credentialCache`
 field disappears.
 
+**Generation counter landed ahead of the actor arc.** The
+`ConnectionRegistry` now tracks per-connection reconnect
+generations (`init_generation` / `bump_generation` /
+`is_current_generation` / `drop_generation` /
+`clear_generations`); the Dart `ConnectionManager` routes init /
+bump / check / drop through the matching FRB sync shims. The
+in-Dart `_connectGenerationFallback` map stays as the
+flutter_test fallback; production sees one canonical counter
+shared with whatever future Rust event dispatcher folds the
+check inline.
+
 ### 5 — `transfer_manager` → Rust driver
 
 Rust queue exists; the Dart-side scheduler + history truncation +
