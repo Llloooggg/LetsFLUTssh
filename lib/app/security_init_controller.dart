@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/db/rust_db_init.dart';
 import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
+import '../src/rust/api/tier_machine.dart' as rust_tier;
 import '../core/migration/migration_runner.dart';
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
@@ -471,8 +472,39 @@ class SecurityInitController {
       case SecurityTier.paranoid:
         await _unlockParanoid(manager);
       case SecurityTier.plaintext:
+        // C9.1 — route Plaintext through `tier_machine` actor.
+        // Actor tracks state (Locked → Unlocking → Unlocked) and
+        // publishes `BusEvent::TierStateChanged` for diagnostics +
+        // future C9.x consumers; the DB injection still happens
+        // here because Dart owns the `databaseProvider` slot.
+        // Best-effort — failures fall through to the legacy
+        // path (Dart still injects the DB regardless).
+        _routePlaintextThroughTierMachine();
         await _injectDatabase();
         AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
+    }
+  }
+
+  /// Push the active tier into the `tier_machine` actor +
+  /// dispatch the unlock cascade so observers (TierStateObserver
+  /// + future per-tier handlers) see the transition. Best-effort
+  /// — actor unreachable in flutter_test contexts that don't
+  /// load the FRB native lib.
+  void _routePlaintextThroughTierMachine() {
+    try {
+      rust_tier.tierMachineSetTier(tierWireName: 'plaintext');
+      rust_tier.tierMachineDispatch(
+        event: const rust_tier.DbTierEvent(discriminant: 'unlock_requested'),
+      );
+      // Plaintext self-advances Unlocking → Unlocked because no
+      // secret / plugin / prompt is needed.
+      rust_tier.tierMachineTryAdvance();
+    } catch (e) {
+      AppLogger.instance.log(
+        'tier_machine plaintext route failed: $e',
+        name: 'TierMachine',
+        level: LogLevel.warn,
+      );
     }
   }
 
