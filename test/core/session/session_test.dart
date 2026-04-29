@@ -289,6 +289,69 @@ void main() {
       const auth = SessionAuth();
       expect(auth.keyId, isEmpty);
     });
+
+    group('withoutCredentials', () {
+      test('clears every plaintext slot', () {
+        const auth = SessionAuth(
+          authType: AuthType.keyWithPassword,
+          password: 'pw',
+          keyPath: '/k',
+          keyData: 'kd',
+          passphrase: 'pp',
+        );
+        final cleared = auth.withoutCredentials();
+        expect(cleared.password, isEmpty);
+        expect(cleared.keyData, isEmpty);
+        expect(cleared.passphrase, isEmpty);
+      });
+
+      test('preserves keyPath + keyId + authType', () {
+        const auth = SessionAuth(
+          authType: AuthType.key,
+          keyId: 'kid',
+          keyPath: '/k',
+          keyData: 'kd',
+        );
+        final cleared = auth.withoutCredentials();
+        expect(cleared.authType, AuthType.key);
+        expect(cleared.keyId, 'kid');
+        expect(cleared.keyPath, '/k');
+      });
+
+      test('promotes live values to hasStoredX markers', () {
+        // No `hasStoredX` flags pre-set, but the live values
+        // mean the underlying row will hold something — the
+        // sanitised view must reflect that or the edit dialog
+        // would render "[Saved]" badges incorrectly.
+        const auth = SessionAuth(password: 'pw', keyData: '', passphrase: 'p');
+        final cleared = auth.withoutCredentials();
+        expect(cleared.hasStoredPassword, isTrue);
+        expect(cleared.hasStoredKeyData, isFalse);
+        expect(cleared.hasStoredPassphrase, isTrue);
+      });
+
+      test('keeps explicit hasStoredX markers when live values empty', () {
+        const auth = SessionAuth(
+          hasStoredPassword: true,
+          hasStoredKeyData: true,
+          hasStoredPassphrase: false,
+        );
+        final cleared = auth.withoutCredentials();
+        expect(cleared.hasStoredPassword, isTrue);
+        expect(cleared.hasStoredKeyData, isTrue);
+        expect(cleared.hasStoredPassphrase, isFalse);
+      });
+
+      test('is idempotent', () {
+        const auth = SessionAuth(password: 'pw', keyData: 'kd');
+        final once = auth.withoutCredentials();
+        final twice = once.withoutCredentials();
+        expect(twice.password, isEmpty);
+        expect(twice.keyData, isEmpty);
+        expect(twice.hasStoredPassword, isTrue);
+        expect(twice.hasStoredKeyData, isTrue);
+      });
+    });
   });
 
   group('Session equality', () {
