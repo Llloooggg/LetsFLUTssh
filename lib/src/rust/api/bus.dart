@@ -393,6 +393,17 @@ sealed class BusEvent with _$BusEvent {
     String? pin,
   }) = BusEvent_HardwareVaultUnlockPromptRequest;
 
+  /// Hardware-vault seal — fired by the L3 first-launch
+  /// orchestrator. Dart subscriber wraps the bytes via
+  /// `HardwareTierVault.store(dbKey: bytes, pin: pin)`;
+  /// resolves via `hardware_vault_seal_prompt_resolve*` shims.
+  /// `pin` is `None` for the passwordless variant.
+  const factory BusEvent.hardwareVaultSealPromptRequest({
+    required String promptId,
+    required Uint8List dbKey,
+    String? pin,
+  }) = BusEvent_HardwareVaultSealPromptRequest;
+
   /// Generic keychain op — Dart subscriber branches on
   /// `op_wire_name` (`"read" | "contains" | "write" | "delete"`)
   /// and executes the matching `flutter_secure_storage` call.

@@ -22,6 +22,7 @@
 //! `biometric_probe_prompt`, etc.).
 
 use crate::bus::Event;
+use crate::security::hardware_vault_seal_prompt;
 use crate::security::hardware_vault_unlock_prompt;
 use crate::security::keychain_op_prompt::{self, KeychainOpKind};
 use crate::security::tier_machine::{instance_dispatch, TierEvent, UnlockFailureReason};
@@ -548,6 +549,57 @@ pub async fn first_launch_keychain_with_password(password: String) -> UnlockOutc
             UnlockOutcome::PluginError(detail)
         }
     }
+}
+
+/// First-launch L3 (Hardware). Generates a fresh AES-GCM key,
+/// publishes a `HardwareVaultSealPromptRequest` so the Dart
+/// subscriber wraps it via `HardwareTierVault.store(dbKey: bytes,
+/// pin: pin)`, stages the same bytes + emits the cascade. `pin`
+/// is `None` for the passwordless variant.
+pub async fn first_launch_hardware(pin: Option<String>) -> UnlockOutcome {
+    instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockRequested);
+    let key = crate::crypto::aes_gcm_random_key();
+    let prompt_id = generate_prompt_id();
+    let receiver = hardware_vault_seal_prompt::instance().register(prompt_id.clone());
+    crate::app::instance()
+        .bus
+        .publish(Event::HardwareVaultSealPromptRequest {
+            prompt_id: prompt_id.clone(),
+            db_key: key.clone(),
+            pin,
+        });
+    let outcome = match receiver.await {
+        Ok(Ok(())) => {
+            stage_key(&key);
+            instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockSucceeded);
+            UnlockOutcome::Staged
+        }
+        Ok(Err(detail)) => {
+            instance_dispatch(
+                SecurityTier::Hardware,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: detail.clone(),
+                    },
+                },
+            );
+            UnlockOutcome::PluginError(detail)
+        }
+        Err(_) => {
+            hardware_vault_seal_prompt::instance().cancel(&prompt_id);
+            let detail = "hardware_vault_seal_prompt_cancelled".to_string();
+            instance_dispatch(
+                SecurityTier::Hardware,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: detail.clone(),
+                    },
+                },
+            );
+            UnlockOutcome::PluginError(detail)
+        }
+    };
+    outcome
 }
 
 /// Round-trip a `Write` through the keychain prompt registry.

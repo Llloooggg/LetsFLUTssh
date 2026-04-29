@@ -231,6 +231,21 @@ pub enum Event {
         prompt_id: String,
         pin: Option<String>,
     },
+    /// Hardware-vault seal — fired by the L3 first-launch
+    /// orchestrator. Dart subscriber calls
+    /// `HardwareTierVault.store(dbKey: bytes, pin: pin)` which
+    /// fans out per-platform; resolves `Ok(())` on success or
+    /// `Err(message)` on plugin failure via
+    /// `hardware_vault_seal_prompt::instance().resolve`. `pin` is
+    /// `None` for the passwordless variant. `db_key` is the
+    /// random AES-GCM key the orchestrator generated; the
+    /// orchestrator stages the same bytes in the SecretStore on
+    /// the success path so the listener can take them to drift.
+    HardwareVaultSealPromptRequest {
+        prompt_id: String,
+        db_key: Vec<u8>,
+        pin: Option<String>,
+    },
     /// Generic keychain op prompt — fired by Rust actors that
     /// need to perform a `flutter_secure_storage` write / delete
     /// / contains call (the read path uses the dedicated
@@ -406,6 +421,7 @@ impl Event {
             Event::KeychainProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultUnlockPromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::HardwareVaultSealPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KeychainOpPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::SecurityCapabilitiesChanged { .. } => EventTopic::SecurityCapabilities,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {

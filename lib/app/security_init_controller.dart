@@ -1542,6 +1542,24 @@ class SecurityInitController {
     String? pin, [
     SecurityTierModifiers? modifiers,
   ]) async {
+    final ok = await _runFirstLaunchOrchestrator(
+      tier: SecurityTier.hardware,
+      modifiers: modifiers,
+      dispatch: () async {
+        final outcome = await rust_orch.tierFirstLaunchHardware(pin: pin);
+        return outcome is rust_orch.DbUnlockOutcome_Staged;
+      },
+    );
+    if (ok) {
+      AppLogger.instance.log(
+        'First launch: hardware vault (L3) sealed',
+        name: 'App',
+      );
+      return;
+    }
+    // Orchestrator unreachable / staging failed — fall back to the
+    // pure-Dart pipeline so flutter_test contexts (no FRB native
+    // lib) still resolve.
     final vault = ref.read(hardwareTierVaultProvider);
     final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await vault.store(dbKey: key, pin: pin);
@@ -1552,7 +1570,7 @@ class SecurityInitController {
         modifiers: modifiers,
       );
       AppLogger.instance.log(
-        'First launch: hardware vault (L3) sealed',
+        'First launch: hardware vault (L3) sealed (fallback)',
         name: 'App',
       );
       return;

@@ -192,6 +192,45 @@ pub async fn tier_first_launch_keychain_with_password(password: String) -> DbUnl
         .into()
 }
 
+/// First-launch L3 (Hardware). Generates a fresh AES-GCM key,
+/// publishes a `HardwareVaultSealPromptRequest` so the Dart
+/// subscriber wraps it via `HardwareTierVault.store(...)`,
+/// stages + emits cascade. Pass `pin: None` for the passwordless
+/// variant.
+pub async fn tier_first_launch_hardware(pin: Option<String>) -> DbUnlockOutcome {
+    tier_unlock_orchestrator::first_launch_hardware(pin)
+        .await
+        .into()
+}
+
+/// Resolve a pending hardware-vault seal prompt with success.
+/// `Ok(())` — the orchestrator stages the bytes it generated and
+/// dispatches `UnlockSucceeded`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_seal_prompt_resolve(prompt_id: String) -> bool {
+    use lfs_core::security::hardware_vault_seal_prompt;
+    hardware_vault_seal_prompt::instance().resolve(&prompt_id, Ok(()))
+}
+
+/// Resolve a pending hardware-vault seal prompt with a plugin
+/// error. Orchestrator dispatches `UnlockFailed
+/// { PluginUnavailable { code: message } }` so the Dart caller
+/// falls back to plaintext.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_seal_prompt_resolve_error(prompt_id: String, message: String) -> bool {
+    use lfs_core::security::hardware_vault_seal_prompt;
+    hardware_vault_seal_prompt::instance().resolve(&prompt_id, Err(message))
+}
+
+/// Cancel a pending hardware-vault seal prompt without resolving
+/// — used by the Dart subscriber when the wizard / first-launch
+/// flow tears down before the platform call returns.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_seal_prompt_cancel(prompt_id: String) {
+    use lfs_core::security::hardware_vault_seal_prompt;
+    hardware_vault_seal_prompt::instance().cancel(&prompt_id);
+}
+
 /// Stage [`bytes`] in the SecretStore + emit the unlock cascade
 /// for [`tier_wire_name`] without running the per-tier verify
 /// step. Used by the biometric fast-path: the bytes come from

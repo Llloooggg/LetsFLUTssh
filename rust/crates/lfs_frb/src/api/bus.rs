@@ -265,6 +265,16 @@ pub enum BusEvent {
         prompt_id: String,
         pin: Option<String>,
     },
+    /// Hardware-vault seal — fired by the L3 first-launch
+    /// orchestrator. Dart subscriber wraps the bytes via
+    /// `HardwareTierVault.store(dbKey: bytes, pin: pin)`;
+    /// resolves via `hardware_vault_seal_prompt_resolve*` shims.
+    /// `pin` is `None` for the passwordless variant.
+    HardwareVaultSealPromptRequest {
+        prompt_id: String,
+        db_key: Vec<u8>,
+        pin: Option<String>,
+    },
     /// Generic keychain op — Dart subscriber branches on
     /// `op_wire_name` (`"read" | "contains" | "write" | "delete"`)
     /// and executes the matching `flutter_secure_storage` call.
@@ -465,6 +475,15 @@ impl BusEvent {
             lfs_core::bus::Event::HardwareVaultUnlockPromptRequest { prompt_id, pin } => {
                 BusEvent::HardwareVaultUnlockPromptRequest { prompt_id, pin }
             }
+            lfs_core::bus::Event::HardwareVaultSealPromptRequest {
+                prompt_id,
+                db_key,
+                pin,
+            } => BusEvent::HardwareVaultSealPromptRequest {
+                prompt_id,
+                db_key,
+                pin,
+            },
             lfs_core::bus::Event::KeychainOpPromptRequest {
                 prompt_id,
                 key,

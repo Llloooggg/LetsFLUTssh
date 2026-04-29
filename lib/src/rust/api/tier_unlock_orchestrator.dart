@@ -126,10 +126,10 @@ void hardwareVaultUnlockPromptCancel({required String promptId}) => RustLib
 void tierFirstLaunchPlaintext() => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierFirstLaunchPlaintext();
 
-/// First-launch Paranoid. Runs `master_password::enable` (Argon2id
-/// + writes `credentials.kdf` + `credentials.verify`), stages the
-/// derived key + emits the cascade. Async — Argon2id is
-/// CPU-heavy and runs on `spawn_blocking`.
+/// First-launch Paranoid. Runs `master_password::enable`
+/// (Argon2id + writes `credentials.kdf` + `credentials.verify`),
+/// stages the derived key + emits the cascade. Async — Argon2id
+/// is CPU-heavy and runs on `spawn_blocking`.
 Future<DbUnlockOutcome> tierFirstLaunchParanoid({required String password}) =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierFirstLaunchParanoid(
       password: password,
@@ -153,6 +153,49 @@ Future<DbUnlockOutcome> tierFirstLaunchKeychainWithPassword({
 }) => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPassword(
       password: password,
+    );
+
+/// First-launch L3 (Hardware). Generates a fresh AES-GCM key,
+/// publishes a `HardwareVaultSealPromptRequest` so the Dart
+/// subscriber wraps it via `HardwareTierVault.store(...)`,
+/// stages + emits cascade. Pass `pin: None` for the passwordless
+/// variant.
+Future<DbUnlockOutcome> tierFirstLaunchHardware({String? pin}) => RustLib
+    .instance
+    .api
+    .crateApiTierUnlockOrchestratorTierFirstLaunchHardware(pin: pin);
+
+/// Resolve a pending hardware-vault seal prompt with success.
+/// `Ok(())` — the orchestrator stages the bytes it generated and
+/// dispatches `UnlockSucceeded`.
+bool hardwareVaultSealPromptResolve({required String promptId}) => RustLib
+    .instance
+    .api
+    .crateApiTierUnlockOrchestratorHardwareVaultSealPromptResolve(
+      promptId: promptId,
+    );
+
+/// Resolve a pending hardware-vault seal prompt with a plugin
+/// error. Orchestrator dispatches `UnlockFailed
+/// { PluginUnavailable { code: message } }` so the Dart caller
+/// falls back to plaintext.
+bool hardwareVaultSealPromptResolveError({
+  required String promptId,
+  required String message,
+}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorHardwareVaultSealPromptResolveError(
+      promptId: promptId,
+      message: message,
+    );
+
+/// Cancel a pending hardware-vault seal prompt without resolving
+/// — used by the Dart subscriber when the wizard / first-launch
+/// flow tears down before the platform call returns.
+void hardwareVaultSealPromptCancel({required String promptId}) => RustLib
+    .instance
+    .api
+    .crateApiTierUnlockOrchestratorHardwareVaultSealPromptCancel(
+      promptId: promptId,
     );
 
 /// Stage [`bytes`] in the SecretStore + emit the unlock cascade
