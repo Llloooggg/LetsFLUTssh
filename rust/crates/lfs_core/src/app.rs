@@ -30,6 +30,7 @@ use crate::secrets::SecretStore;
 use crate::sessions::Registry as SessionsRegistry;
 use crate::transfer::driver::WorkerPool;
 use crate::transfer::TransferQueue;
+use crate::transfer_conflict::BatchStateRegistry;
 
 static APP_STATE: OnceLock<Arc<AppState>> = OnceLock::new();
 
@@ -99,6 +100,15 @@ pub struct AppState {
     /// — the future actor cutover will route mutations through
     /// here so the Dart store retires.
     pub sessions_registry: SessionsRegistry,
+    /// Per-handle conflict-resolver state. The Dart
+    /// `BatchConflictResolver` allocates a UUID handle on
+    /// construction, folds prompt outcomes through
+    /// `record_decision`, and drops the handle on dispose. Living
+    /// the cache + cancellation grammar one place lets the future
+    /// bus-prompt-protocol arc swap the resolver itself for a
+    /// Rust-side dispatcher without re-inventing the state
+    /// machine.
+    pub conflict_resolvers: BatchStateRegistry,
 }
 
 impl AppState {
@@ -119,6 +129,7 @@ impl AppState {
             known_hosts_prompts: KnownHostsPromptRegistry::new(),
             rate_limiters: InMemoryRateLimiterRegistry::new(),
             sessions_registry: SessionsRegistry::new(),
+            conflict_resolvers: BatchStateRegistry::new(),
         }
     }
 

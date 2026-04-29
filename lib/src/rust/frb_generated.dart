@@ -39,6 +39,7 @@ import 'api/ssh_config.dart';
 import 'api/threat_eval.dart';
 import 'api/tier_transition_marker.dart';
 import 'api/transfer.dart';
+import 'api/transfer_conflict.dart';
 import 'api/update_http.dart';
 import 'api/update_metadata.dart';
 import 'api/update_signing.dart';
@@ -107,7 +108,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 156567810;
+  int get rustContentHash => -820515907;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1211,6 +1212,24 @@ abstract class RustLibApi extends BaseApi {
   Future<bool> crateApiTransferTransferCancel({required String taskId});
 
   Future<int> crateApiTransferTransferClearHistory();
+
+  DbConflictAction? crateApiTransferConflictTransferConflictCached({
+    required String handle,
+  });
+
+  void crateApiTransferConflictTransferConflictCreate({required String handle});
+
+  void crateApiTransferConflictTransferConflictDrop({required String handle});
+
+  bool crateApiTransferConflictTransferConflictIsCancelled({
+    required String handle,
+  });
+
+  DbConflictAction crateApiTransferConflictTransferConflictRecordDecision({
+    required String handle,
+    required DbConflictAction action,
+    required bool applyToAll,
+  });
 
   Future<void> crateApiTransferTransferDispatch({required String taskId});
 
@@ -10310,6 +10329,172 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'transfer_clear_history', argNames: []);
 
   @override
+  DbConflictAction? crateApiTransferConflictTransferConflictCached({
+    required String handle,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(handle, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 267,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_db_conflict_action,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTransferConflictTransferConflictCachedConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTransferConflictTransferConflictCachedConstMeta =>
+      const TaskConstMeta(
+        debugName: 'transfer_conflict_cached',
+        argNames: ['handle'],
+      );
+
+  @override
+  void crateApiTransferConflictTransferConflictCreate({
+    required String handle,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(handle, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 268,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTransferConflictTransferConflictCreateConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTransferConflictTransferConflictCreateConstMeta =>
+      const TaskConstMeta(
+        debugName: 'transfer_conflict_create',
+        argNames: ['handle'],
+      );
+
+  @override
+  void crateApiTransferConflictTransferConflictDrop({required String handle}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(handle, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 269,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTransferConflictTransferConflictDropConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTransferConflictTransferConflictDropConstMeta =>
+      const TaskConstMeta(
+        debugName: 'transfer_conflict_drop',
+        argNames: ['handle'],
+      );
+
+  @override
+  bool crateApiTransferConflictTransferConflictIsCancelled({
+    required String handle,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(handle, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 270,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiTransferConflictTransferConflictIsCancelledConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiTransferConflictTransferConflictIsCancelledConstMeta =>
+      const TaskConstMeta(
+        debugName: 'transfer_conflict_is_cancelled',
+        argNames: ['handle'],
+      );
+
+  @override
+  DbConflictAction crateApiTransferConflictTransferConflictRecordDecision({
+    required String handle,
+    required DbConflictAction action,
+    required bool applyToAll,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(handle, serializer);
+          sse_encode_db_conflict_action(action, serializer);
+          sse_encode_bool(applyToAll, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 271,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_conflict_action,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiTransferConflictTransferConflictRecordDecisionConstMeta,
+        argValues: [handle, action, applyToAll],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiTransferConflictTransferConflictRecordDecisionConstMeta =>
+      const TaskConstMeta(
+        debugName: 'transfer_conflict_record_decision',
+        argNames: ['handle', 'action', 'applyToAll'],
+      );
+
+  @override
   Future<void> crateApiTransferTransferDispatch({required String taskId}) {
     return handler.executeNormal(
       NormalTask(
@@ -10319,7 +10504,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 267,
+            funcId: 272,
             port: port_,
           );
         },
@@ -10347,7 +10532,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 268,
+            funcId: 273,
             port: port_,
           );
         },
@@ -10390,7 +10575,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 269,
+            funcId: 274,
             port: port_,
           );
         },
@@ -10427,7 +10612,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 270,
+            funcId: 275,
             port: port_,
           );
         },
@@ -10455,7 +10640,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 271,
+            funcId: 276,
           )!;
         },
         codec: SseCodec(
@@ -10489,7 +10674,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 272,
+            funcId: 277,
           )!;
         },
         codec: SseCodec(
@@ -10525,7 +10710,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 273,
+            funcId: 278,
             port: port_,
           );
         },
@@ -10560,7 +10745,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 274,
+            funcId: 279,
           )!;
         },
         codec: SseCodec(
@@ -10594,7 +10779,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 275,
+            funcId: 280,
             port: port_,
           );
         },
@@ -10631,7 +10816,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 276,
+            funcId: 281,
             port: port_,
           );
         },
@@ -10663,7 +10848,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 277,
+            funcId: 282,
             port: port_,
           );
         },
@@ -10693,7 +10878,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 278,
+            funcId: 283,
           )!;
         },
         codec: SseCodec(
@@ -10727,7 +10912,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 279,
+            funcId: 284,
           )!;
         },
         codec: SseCodec(
@@ -10759,7 +10944,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 280,
+            funcId: 285,
           )!;
         },
         codec: SseCodec(
@@ -10793,7 +10978,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 281,
+            funcId: 286,
           )!;
         },
         codec: SseCodec(
@@ -10823,7 +11008,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 282,
+            funcId: 287,
           )!;
         },
         codec: SseCodec(
@@ -10850,7 +11035,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 283,
+            funcId: 288,
           )!;
         },
         codec: SseCodec(
@@ -10880,7 +11065,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 284,
+            funcId: 289,
           )!;
         },
         codec: SseCodec(
@@ -10911,7 +11096,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 285,
+            funcId: 290,
             port: port_,
           );
         },
@@ -11250,6 +11435,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbApplyOptions dco_decode_box_autoadd_db_apply_options(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_db_apply_options(raw);
+  }
+
+  @protected
+  DbConflictAction dco_decode_box_autoadd_db_conflict_action(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_db_conflict_action(raw);
   }
 
   @protected
@@ -11726,6 +11917,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tag: dco_decode_String(arr[0]),
       body: dco_decode_String(arr[1]),
     );
+  }
+
+  @protected
+  DbConflictAction dco_decode_db_conflict_action(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DbConflictAction.values[raw as int];
   }
 
   @protected
@@ -12781,6 +12978,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbConflictAction? dco_decode_opt_box_autoadd_db_conflict_action(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_db_conflict_action(raw);
+  }
+
+  @protected
   DbConnectLink? dco_decode_opt_box_autoadd_db_connect_link(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_db_connect_link(raw);
@@ -13339,6 +13542,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_db_apply_options(deserializer));
+  }
+
+  @protected
+  DbConflictAction sse_decode_box_autoadd_db_conflict_action(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_db_conflict_action(deserializer));
   }
 
   @protected
@@ -13911,6 +14122,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final var_tag = sse_decode_String(deserializer);
     final var_body = sse_decode_String(deserializer);
     return DbChangelogRelease(tag: var_tag, body: var_body);
+  }
+
+  @protected
+  DbConflictAction sse_decode_db_conflict_action(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final inner = sse_decode_i_32(deserializer);
+    return DbConflictAction.values[inner];
   }
 
   @protected
@@ -15317,6 +15535,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DbConflictAction? sse_decode_opt_box_autoadd_db_conflict_action(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_db_conflict_action(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   DbConnectLink? sse_decode_opt_box_autoadd_db_connect_link(
     SseDeserializer deserializer,
   ) {
@@ -16038,6 +16269,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_db_conflict_action(
+    DbConflictAction self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_db_conflict_action(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_db_connect_link(
     DbConnectLink self,
     SseSerializer serializer,
@@ -16602,6 +16842,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.tag, serializer);
     sse_encode_String(self.body, serializer);
+  }
+
+  @protected
+  void sse_encode_db_conflict_action(
+    DbConflictAction self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -17721,6 +17970,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_db_app_config(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_conflict_action(
+    DbConflictAction? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_db_conflict_action(self, serializer);
     }
   }
 

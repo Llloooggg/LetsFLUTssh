@@ -45,7 +45,7 @@ pub struct ConflictDecision {
 /// "apply to all"; `cancelled` short-circuits everything once the
 /// user cancelled. The Dart caller owns instances; folds prompt
 /// outcomes through [`record_decision`].
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct BatchState {
     cached: Option<ConflictAction>,
     cancelled: bool,
@@ -95,6 +95,90 @@ impl BatchState {
             _ => {}
         }
         decision.action
+    }
+}
+
+/// Process-wide registry of `BatchState` instances keyed by an
+/// opaque handle id (UUIDv4 from the Dart caller). Lives one
+/// place so the Dart `BatchConflictResolver` can stay a thin
+/// per-batch wrapper that just folds prompt outcomes through
+/// `record_decision` via FRB.
+///
+/// The registry uses a per-process `Mutex` because conflict
+/// prompts are user-driven (≪10 / s in any realistic batch); the
+/// lock contention is irrelevant.
+pub struct BatchStateRegistry {
+    inner: std::sync::Mutex<std::collections::HashMap<String, BatchState>>,
+}
+
+impl Default for BatchStateRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BatchStateRegistry {
+    pub fn new() -> Self {
+        Self {
+            inner: std::sync::Mutex::new(std::collections::HashMap::new()),
+        }
+    }
+
+    /// Register a fresh state for [`handle`]. Idempotent — a
+    /// second `create` with the same handle resets the state to
+    /// the default (no cache, not cancelled).
+    pub fn create(&self, handle: &str) {
+        self.inner
+            .lock()
+            .expect("conflict-resolver registry mutex poisoned")
+            .insert(handle.to_string(), BatchState::default());
+    }
+
+    /// Drop the state for [`handle`]. No-op when the handle is
+    /// already gone.
+    pub fn drop(&self, handle: &str) {
+        self.inner
+            .lock()
+            .expect("conflict-resolver registry mutex poisoned")
+            .remove(handle);
+    }
+
+    /// Cached action for [`handle`], or `None` when the handle
+    /// is unknown / the user hasn't checked "apply to all" yet.
+    #[must_use]
+    pub fn cached(&self, handle: &str) -> Option<ConflictAction> {
+        self.inner
+            .lock()
+            .expect("conflict-resolver registry mutex poisoned")
+            .get(handle)
+            .and_then(|s| s.cached())
+    }
+
+    /// True after the user cancelled the batch behind [`handle`].
+    /// Returns `false` for unknown handles so callers default to
+    /// "not cancelled" instead of branching.
+    #[must_use]
+    pub fn is_cancelled(&self, handle: &str) -> bool {
+        self.inner
+            .lock()
+            .expect("conflict-resolver registry mutex poisoned")
+            .get(handle)
+            .map(|s| s.is_cancelled())
+            .unwrap_or(false)
+    }
+
+    /// Fold [`decision`] into the state behind [`handle`] and
+    /// return the effective action. Auto-creates the state when
+    /// the handle is unknown so callers don't have to call
+    /// [`create`] explicitly first; the typical path threads
+    /// `create → record_decision* → drop`.
+    pub fn record_decision(&self, handle: &str, decision: ConflictDecision) -> ConflictAction {
+        let mut g = self
+            .inner
+            .lock()
+            .expect("conflict-resolver registry mutex poisoned");
+        let state = g.entry(handle.to_string()).or_default();
+        state.record_decision(decision)
     }
 }
 
@@ -164,5 +248,39 @@ mod tests {
         s.reset();
         assert!(!s.is_cancelled());
         assert!(s.cached().is_none());
+    }
+
+    #[test]
+    fn registry_create_drop_round_trip() {
+        let r = BatchStateRegistry::new();
+        r.create("h1");
+        assert!(r.cached("h1").is_none());
+        assert!(!r.is_cancelled("h1"));
+        r.drop("h1");
+        // Unknown handle reads as default — no panic.
+        assert!(r.cached("h1").is_none());
+        assert!(!r.is_cancelled("h1"));
+    }
+
+    #[test]
+    fn registry_record_decision_caches_per_handle() {
+        let r = BatchStateRegistry::new();
+        r.record_decision("h1", dec(ConflictAction::Replace, true));
+        r.record_decision("h2", dec(ConflictAction::Skip, false));
+        // h1 cached Replace; h2 didn't cache anything.
+        assert_eq!(r.cached("h1"), Some(ConflictAction::Replace));
+        assert!(r.cached("h2").is_none());
+    }
+
+    #[test]
+    fn registry_short_circuits_after_cancel_per_handle() {
+        let r = BatchStateRegistry::new();
+        r.record_decision("h1", dec(ConflictAction::Cancel, false));
+        // Subsequent record on h1 returns Cancel without
+        // affecting h2.
+        let result = r.record_decision("h1", dec(ConflictAction::Replace, true));
+        assert_eq!(result, ConflictAction::Cancel);
+        assert!(r.is_cancelled("h1"));
+        assert!(!r.is_cancelled("h2"));
     }
 }

@@ -42,6 +42,7 @@ import 'api/ssh_config.dart';
 import 'api/threat_eval.dart';
 import 'api/tier_transition_marker.dart';
 import 'api/transfer.dart';
+import 'api/transfer_conflict.dart';
 import 'api/update_http.dart';
 import 'api/update_metadata.dart';
 import 'api/update_signing.dart';
@@ -247,6 +248,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbApplyOptions dco_decode_box_autoadd_db_apply_options(dynamic raw);
 
   @protected
+  DbConflictAction dco_decode_box_autoadd_db_conflict_action(dynamic raw);
+
+  @protected
   DbConnectLink dco_decode_box_autoadd_db_connect_link(dynamic raw);
 
   @protected
@@ -381,6 +385,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbChangelogRelease dco_decode_db_changelog_release(dynamic raw);
+
+  @protected
+  DbConflictAction dco_decode_db_conflict_action(dynamic raw);
 
   @protected
   DbConnectLink dco_decode_db_connect_link(dynamic raw);
@@ -674,6 +681,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbAppConfig? dco_decode_opt_box_autoadd_db_app_config(dynamic raw);
 
   @protected
+  DbConflictAction? dco_decode_opt_box_autoadd_db_conflict_action(dynamic raw);
+
+  @protected
   DbConnectLink? dco_decode_opt_box_autoadd_db_connect_link(dynamic raw);
 
   @protected
@@ -943,6 +953,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbConflictAction sse_decode_box_autoadd_db_conflict_action(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbConnectLink sse_decode_box_autoadd_db_connect_link(
     SseDeserializer deserializer,
   );
@@ -1119,6 +1134,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbChangelogRelease sse_decode_db_changelog_release(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbConflictAction sse_decode_db_conflict_action(SseDeserializer deserializer);
 
   @protected
   DbConnectLink sse_decode_db_connect_link(SseDeserializer deserializer);
@@ -1492,6 +1510,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbConflictAction? sse_decode_opt_box_autoadd_db_conflict_action(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbConnectLink? sse_decode_opt_box_autoadd_db_connect_link(
     SseDeserializer deserializer,
   );
@@ -1813,6 +1836,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_conflict_action(
+    DbConflictAction self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_connect_link(
     DbConnectLink self,
     SseSerializer serializer,
@@ -2034,6 +2063,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_changelog_release(
     DbChangelogRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_conflict_action(
+    DbConflictAction self,
     SseSerializer serializer,
   );
 
@@ -2522,6 +2557,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_app_config(
     DbAppConfig? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_conflict_action(
+    DbConflictAction? self,
     SseSerializer serializer,
   );
 
