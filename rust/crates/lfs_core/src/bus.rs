@@ -217,6 +217,20 @@ pub enum Event {
     /// Linux uses the in-process TPM probe and never
     /// publishes this event.
     HardwareVaultProbePromptRequest { prompt_id: String },
+    /// Hardware-vault unlock — fired by the L3 tier-unlock
+    /// orchestrator. Dart subscriber calls
+    /// `HardwareTierVault.read(pin)` which fans out to
+    /// `tpm2-tools` on Linux or the platform method channel
+    /// on Apple / Android / Windows; resolves with the
+    /// unsealed key bytes (or `None` on wrong PIN / cancelled
+    /// dialog, or `Err` on plugin failure) via
+    /// `hardware_vault_unlock_prompt::instance().resolve`.
+    /// `pin` is `None` for the passwordless variant where the
+    /// vault was sealed without a user secret.
+    HardwareVaultUnlockPromptRequest {
+        prompt_id: String,
+        pin: Option<String>,
+    },
     /// Generic keychain op prompt — fired by Rust actors that
     /// need to perform a `flutter_secure_storage` write / delete
     /// / contains call (the read path uses the dedicated
@@ -391,6 +405,7 @@ impl Event {
             Event::BiometricProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KeychainProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultProbePromptRequest { .. } => EventTopic::SecurityPrompt,
+            Event::HardwareVaultUnlockPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KeychainOpPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::SecurityCapabilitiesChanged { .. } => EventTopic::SecurityCapabilities,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {

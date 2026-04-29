@@ -67,3 +67,57 @@ pub async fn tier_unlock_keychain_with_password(password: String) -> Option<Vec<
 pub async fn tier_unlock_paranoid(password: String) -> Option<Vec<u8>> {
     tier_unlock_orchestrator::unlock_paranoid(password).await
 }
+
+/// Hardware tier (L3) — fan out a hardware-vault-unlock prompt
+/// to the Dart subscriber + emit cascade events. `pin` is the
+/// typed user secret for the password modifier; pass `None`
+/// for the passwordless variant.
+///
+/// The Dart subscriber owns the platform call:
+/// `HardwareTierVault.read(pin)` fans out to `tpm2-tools` on
+/// Linux or the platform method channel on Apple / Android /
+/// Windows. This orchestrator emits the cascade (UnlockRequested
+/// → UnlockSucceeded / UnlockFailed) and returns the unsealed
+/// key bytes for the Dart caller to hand to drift.
+pub async fn tier_unlock_hardware(pin: Option<String>) -> Option<Vec<u8>> {
+    tier_unlock_orchestrator::unlock_hardware(pin).await
+}
+
+/// Resolve a pending hardware-vault unlock with success bytes.
+/// `Ok(Some(bytes))` on a successful unseal; the orchestrator
+/// dispatches `UnlockSucceeded` against the tier machine.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_unlock_prompt_resolve(prompt_id: String, bytes: Vec<u8>) -> bool {
+    use lfs_core::security::hardware_vault_unlock_prompt;
+    let payload = if bytes.is_empty() { None } else { Some(bytes) };
+    hardware_vault_unlock_prompt::instance().resolve(&prompt_id, Ok(payload))
+}
+
+/// Resolve a pending hardware-vault unlock with the
+/// "wrong PIN / user cancel / hardware reported failure"
+/// signal. `Ok(None)`. Orchestrator dispatches `UnlockFailed
+/// { WrongSecret }`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_unlock_prompt_resolve_wrong(prompt_id: String) -> bool {
+    use lfs_core::security::hardware_vault_unlock_prompt;
+    hardware_vault_unlock_prompt::instance().resolve(&prompt_id, Ok(None))
+}
+
+/// Resolve a pending hardware-vault unlock with a plugin
+/// error message. Orchestrator dispatches `UnlockFailed
+/// { PluginUnavailable { code: message } }`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_unlock_prompt_resolve_error(prompt_id: String, message: String) -> bool {
+    use lfs_core::security::hardware_vault_unlock_prompt;
+    hardware_vault_unlock_prompt::instance().resolve(&prompt_id, Err(message))
+}
+
+/// Cancel a pending hardware-vault unlock without resolving —
+/// used by the Dart subscriber when the unlock dialog is torn
+/// down before the platform call returns. Idempotent on a
+/// missing id.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_vault_unlock_prompt_cancel(prompt_id: String) {
+    use lfs_core::security::hardware_vault_unlock_prompt;
+    hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
+}

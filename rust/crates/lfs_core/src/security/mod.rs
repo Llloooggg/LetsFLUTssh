@@ -24,6 +24,7 @@ pub mod capabilities_orchestrator;
 pub mod credential_prompt;
 pub mod hardware_tier_vault;
 pub mod hardware_vault_probe_prompt;
+pub mod hardware_vault_unlock_prompt;
 pub mod keychain_marker;
 pub mod keychain_op_prompt;
 pub mod keychain_password_gate;

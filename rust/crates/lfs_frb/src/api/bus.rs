@@ -253,6 +253,18 @@ pub enum BusEvent {
     /// .invokeMethod('probeDetail')` and dispatches the
     /// platform reason code verbatim.
     HardwareVaultProbePromptRequest { prompt_id: String },
+    /// L3 tier-unlock orchestrator needs the hardware vault
+    /// to unseal the DB key. Dart subscriber calls
+    /// `HardwareTierVault.read(pin)` which fans out to
+    /// `tpm2-tools` on Linux or the platform method channel
+    /// elsewhere; resolves with the unsealed bytes / wrong-
+    /// PIN signal / plugin error via the
+    /// `hardware_vault_unlock_prompt_resolve*` shims. `pin`
+    /// is `None` for the passwordless variant.
+    HardwareVaultUnlockPromptRequest {
+        prompt_id: String,
+        pin: Option<String>,
+    },
     /// Generic keychain op — Dart subscriber branches on
     /// `op_wire_name` (`"read" | "contains" | "write" | "delete"`)
     /// and executes the matching `flutter_secure_storage` call.
@@ -449,6 +461,9 @@ impl BusEvent {
             }
             lfs_core::bus::Event::HardwareVaultProbePromptRequest { prompt_id } => {
                 BusEvent::HardwareVaultProbePromptRequest { prompt_id }
+            }
+            lfs_core::bus::Event::HardwareVaultUnlockPromptRequest { prompt_id, pin } => {
+                BusEvent::HardwareVaultUnlockPromptRequest { prompt_id, pin }
             }
             lfs_core::bus::Event::KeychainOpPromptRequest {
                 prompt_id,

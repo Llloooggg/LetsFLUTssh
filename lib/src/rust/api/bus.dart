@@ -380,6 +380,19 @@ sealed class BusEvent with _$BusEvent {
     required String promptId,
   }) = BusEvent_HardwareVaultProbePromptRequest;
 
+  /// L3 tier-unlock orchestrator needs the hardware vault
+  /// to unseal the DB key. Dart subscriber calls
+  /// `HardwareTierVault.read(pin)` which fans out to
+  /// `tpm2-tools` on Linux or the platform method channel
+  /// elsewhere; resolves with the unsealed bytes / wrong-
+  /// PIN signal / plugin error via the
+  /// `hardware_vault_unlock_prompt_resolve*` shims. `pin`
+  /// is `None` for the passwordless variant.
+  const factory BusEvent.hardwareVaultUnlockPromptRequest({
+    required String promptId,
+    String? pin,
+  }) = BusEvent_HardwareVaultUnlockPromptRequest;
+
   /// Generic keychain op — Dart subscriber branches on
   /// `op_wire_name` (`"read" | "contains" | "write" | "delete"`)
   /// and executes the matching `flutter_secure_storage` call.

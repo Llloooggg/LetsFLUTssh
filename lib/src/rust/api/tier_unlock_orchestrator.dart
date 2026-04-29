@@ -62,3 +62,62 @@ Future<Uint8List?> tierUnlockParanoid({required String password}) => RustLib
     .instance
     .api
     .crateApiTierUnlockOrchestratorTierUnlockParanoid(password: password);
+
+/// Hardware tier (L3) — fan out a hardware-vault-unlock prompt
+/// to the Dart subscriber + emit cascade events. `pin` is the
+/// typed user secret for the password modifier; pass `None`
+/// for the passwordless variant.
+///
+/// The Dart subscriber owns the platform call:
+/// `HardwareTierVault.read(pin)` fans out to `tpm2-tools` on
+/// Linux or the platform method channel on Apple / Android /
+/// Windows. This orchestrator emits the cascade (UnlockRequested
+/// → UnlockSucceeded / UnlockFailed) and returns the unsealed
+/// key bytes for the Dart caller to hand to drift.
+Future<Uint8List?> tierUnlockHardware({String? pin}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierUnlockHardware(pin: pin);
+
+/// Resolve a pending hardware-vault unlock with success bytes.
+/// `Ok(Some(bytes))` on a successful unseal; the orchestrator
+/// dispatches `UnlockSucceeded` against the tier machine.
+bool hardwareVaultUnlockPromptResolve({
+  required String promptId,
+  required List<int> bytes,
+}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorHardwareVaultUnlockPromptResolve(
+      promptId: promptId,
+      bytes: bytes,
+    );
+
+/// Resolve a pending hardware-vault unlock with the
+/// "wrong PIN / user cancel / hardware reported failure"
+/// signal. `Ok(None)`. Orchestrator dispatches `UnlockFailed
+/// { WrongSecret }`.
+bool hardwareVaultUnlockPromptResolveWrong({required String promptId}) =>
+    RustLib.instance.api
+        .crateApiTierUnlockOrchestratorHardwareVaultUnlockPromptResolveWrong(
+          promptId: promptId,
+        );
+
+/// Resolve a pending hardware-vault unlock with a plugin
+/// error message. Orchestrator dispatches `UnlockFailed
+/// { PluginUnavailable { code: message } }`.
+bool hardwareVaultUnlockPromptResolveError({
+  required String promptId,
+  required String message,
+}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorHardwareVaultUnlockPromptResolveError(
+      promptId: promptId,
+      message: message,
+    );
+
+/// Cancel a pending hardware-vault unlock without resolving —
+/// used by the Dart subscriber when the unlock dialog is torn
+/// down before the platform call returns. Idempotent on a
+/// missing id.
+void hardwareVaultUnlockPromptCancel({required String promptId}) => RustLib
+    .instance
+    .api
+    .crateApiTierUnlockOrchestratorHardwareVaultUnlockPromptCancel(
+      promptId: promptId,
+    );

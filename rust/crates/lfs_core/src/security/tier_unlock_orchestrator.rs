@@ -22,6 +22,7 @@
 //! `biometric_probe_prompt`, etc.).
 
 use crate::bus::Event;
+use crate::security::hardware_vault_unlock_prompt;
 use crate::security::keychain_op_prompt::{self, KeychainOpKind};
 use crate::security::tier_machine::{instance_dispatch, TierEvent, UnlockFailureReason};
 use crate::security::SecurityTier;
@@ -280,6 +281,75 @@ pub async fn unlock_paranoid(password: String) -> Option<Vec<u8>> {
                 &TierEvent::UnlockFailed {
                     reason: UnlockFailureReason::Corruption {
                         detail: "Argon2id task panicked".into(),
+                    },
+                },
+            );
+            None
+        }
+    }
+}
+
+/// Hardware tier (L3) — unseal the DB key via the platform
+/// hardware vault (Linux TPM via `tpm2-tools`, Apple Secure
+/// Enclave / Android StrongBox / Windows Hello via method
+/// channel). Dispatches the cascade events along the way;
+/// returns the unsealed key bytes on success or `None` on
+/// wrong PIN / cancelled dialog / plugin failure.
+///
+/// `pin` is the typed user secret for the password-modifier
+/// variant; pass `None` for the passwordless variant where
+/// the vault was sealed without a user secret.
+///
+/// The Dart caller owns the L3 unlock dialog UI (PIN input,
+/// rate-limit countdown, biometric option, "forgot PIN" reset)
+/// and the platform channel call itself; the orchestrator
+/// publishes a `HardwareVaultUnlockPromptRequest` and the
+/// `HardwareVaultUnlockPromptListener` Dart subscriber calls
+/// `HardwareTierVault.read(pin)` which fans out per-platform.
+pub async fn unlock_hardware(pin: Option<String>) -> Option<Vec<u8>> {
+    instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockRequested);
+
+    let prompt_id = generate_prompt_id();
+    let receiver = hardware_vault_unlock_prompt::instance().register(prompt_id.clone());
+    crate::app::instance()
+        .bus
+        .publish(Event::HardwareVaultUnlockPromptRequest {
+            prompt_id: prompt_id.clone(),
+            pin,
+        });
+
+    match receiver.await {
+        Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockSucceeded);
+            Some(bytes)
+        }
+        Ok(Ok(_)) => {
+            // Wrong PIN / user cancel / hardware-reported failure
+            // without recoverable detail.
+            instance_dispatch(
+                SecurityTier::Hardware,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::WrongSecret,
+                },
+            );
+            None
+        }
+        Ok(Err(detail)) => {
+            instance_dispatch(
+                SecurityTier::Hardware,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable { code: detail },
+                },
+            );
+            None
+        }
+        Err(_) => {
+            hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
+            instance_dispatch(
+                SecurityTier::Hardware,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: "hardware_vault_prompt_cancelled".into(),
                     },
                 },
             );
