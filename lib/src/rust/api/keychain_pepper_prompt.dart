@@ -32,3 +32,25 @@ void keychainPepperPromptCancel({required String promptId}) => RustLib
     .instance
     .api
     .crateApiKeychainPepperPromptKeychainPepperPromptCancel(promptId: promptId);
+
+/// L2 keychain-password gate verify — composes disk-blob
+/// read + Decision 1 prompt round-trip + HMAC compare into
+/// one async FRB call. Returns `Ok(true)` on a match,
+/// `Ok(false)` for every other outcome (file missing /
+/// corrupt blob / pepper missing / HMAC mismatch / cancelled
+/// prompt). `Err` is reserved for unrecoverable filesystem
+/// errors.
+///
+/// Caller is the Dart unlock dialog; the Dart subscriber for
+/// `BusEvent::KeychainPepperPromptRequest` performs the
+/// `flutter_secure_storage.read` call after seeing the
+/// request and dispatches the response via
+/// [`keychain_pepper_prompt_resolve`].
+Future<bool> keychainPasswordGateVerify({
+  required String supportDir,
+  required String password,
+}) =>
+    RustLib.instance.api.crateApiKeychainPepperPromptKeychainPasswordGateVerify(
+      supportDir: supportDir,
+      password: password,
+    );

@@ -40,3 +40,25 @@ pub fn keychain_pepper_prompt_resolve(prompt_id: String, pepper_bytes: Vec<u8>) 
 pub fn keychain_pepper_prompt_cancel(prompt_id: String) {
     keychain_pepper_prompt::instance().cancel(&prompt_id);
 }
+
+/// L2 keychain-password gate verify — composes disk-blob
+/// read + Decision 1 prompt round-trip + HMAC compare into
+/// one async FRB call. Returns `Ok(true)` on a match,
+/// `Ok(false)` for every other outcome (file missing /
+/// corrupt blob / pepper missing / HMAC mismatch / cancelled
+/// prompt). `Err` is reserved for unrecoverable filesystem
+/// errors.
+///
+/// Caller is the Dart unlock dialog; the Dart subscriber for
+/// `BusEvent::KeychainPepperPromptRequest` performs the
+/// `flutter_secure_storage.read` call after seeing the
+/// request and dispatches the response via
+/// [`keychain_pepper_prompt_resolve`].
+pub async fn keychain_password_gate_verify(
+    support_dir: String,
+    password: String,
+) -> Result<bool, String> {
+    use lfs_core::security::keychain_password_gate_actor::verify_password;
+    let path = std::path::PathBuf::from(support_dir);
+    verify_password(&path, &password).await
+}
