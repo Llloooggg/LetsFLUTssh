@@ -75,6 +75,10 @@ String? configAppConfigValidateJson({required String inputJson}) => RustLib
 /// Rust owns debounce + atomic file I/O + bus event publication.
 /// Dart `ConfigNotifier` shrinks to a `BusEvent::ConfigChanged`
 /// subscriber + `set_json` calls.
+///
+/// Also spawns the singleton background ticker that drives the
+/// debounce flush — production calls this once at startup; tests
+/// drive ticks manually via `config_store_tick_if_due`.
 String configStoreInit({required String supportDir}) =>
     RustLib.instance.api.crateApiConfigConfigStoreInit(supportDir: supportDir);
 

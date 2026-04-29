@@ -172,6 +172,31 @@ pub fn next_state(current: TierState, event: &TierEvent) -> TransitionResult {
     }
 }
 
+/// Process-singleton tier machine instance. Held behind a Mutex
+/// so dispatch is race-free; the underlying handle does not need
+/// internal locking because every access goes through this
+/// guard. Initialised lazily to `Plaintext` (cold-boot tier);
+/// the wizard / persisted config seeds the real tier on first
+/// use via [`Machine::set_tier`].
+///
+/// FRB shims and the per-tier unlock orchestrators share this
+/// instance so the cascade visibility lives one place.
+pub fn instance() -> &'static std::sync::Mutex<Machine> {
+    static GLOBAL: std::sync::OnceLock<std::sync::Mutex<Machine>> = std::sync::OnceLock::new();
+    GLOBAL.get_or_init(|| std::sync::Mutex::new(Machine::new(SecurityTier::Plaintext)))
+}
+
+/// Convenience: lock the singleton, set the tier, dispatch the
+/// event. Used by orchestrators that need to atomically swap
+/// the active tier and fire a cascade event in one critical
+/// section.
+pub fn instance_dispatch(tier: SecurityTier, event: &TierEvent) -> TransitionResult {
+    let m = instance();
+    let mut g = m.lock().expect("tier machine mutex poisoned");
+    g.set_tier(tier);
+    g.dispatch(event)
+}
+
 /// Process-singleton tier machine handle.
 ///
 /// Owns the current state + the active tier under which the

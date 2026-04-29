@@ -14,16 +14,16 @@
 
 use std::sync::Mutex;
 
-use lfs_core::security::tier_machine::{Machine, TierEvent, TierState, UnlockFailureReason};
+use lfs_core::security::tier_machine::{
+    instance, Machine, TierEvent, TierState, UnlockFailureReason,
+};
 use lfs_core::security::SecurityTier;
 
-/// Process-singleton tier machine instance. Held behind a Mutex
-/// so dispatch is race-free; the underlying handle does not need
-/// internal locking because every access goes through this
-/// guard.
+/// Process-singleton tier machine instance — alias for the
+/// `lfs_core::security::tier_machine::instance()` so the per-tier
+/// unlock orchestrators share the same handle as the FRB shims.
 fn machine_lock() -> &'static Mutex<Machine> {
-    static GLOBAL: std::sync::OnceLock<Mutex<Machine>> = std::sync::OnceLock::new();
-    GLOBAL.get_or_init(|| Mutex::new(Machine::new(SecurityTier::Plaintext)))
+    instance()
 }
 
 /// FRB mirror of `lfs_core::security::tier_machine::TierState`.

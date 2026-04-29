@@ -35,6 +35,7 @@ pub mod persisted_rate_limit;
 pub mod persisted_rate_limit_actor;
 pub mod tier_machine;
 pub mod tier_transition_marker;
+pub mod tier_unlock_orchestrator;
 pub mod wipe;
 pub mod wipe_keychain;
 
