@@ -358,6 +358,25 @@ pub async fn unlock_hardware(pin: Option<String>) -> Option<Vec<u8>> {
     }
 }
 
+/// Cancel an in-flight unlock attempt for [`tier`]. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// from `Unlocking` back to `Locked` instead of staying wedged
+/// in the half-state when the user dismisses the dialog
+/// without submitting.
+///
+/// Idempotent — the dispatch is state-guarded; calling against
+/// a tier that's already `Locked` is a no-op. The Dart unlock
+/// dialog calls this on its dismiss handler so every
+/// `request_unlock` lands a paired terminal-state event.
+pub fn cancel_unlock(tier: SecurityTier) {
+    instance_dispatch(
+        tier,
+        &TierEvent::UnlockFailed {
+            reason: UnlockFailureReason::UserCancelled,
+        },
+    );
+}
+
 /// UUIDv4-shaped prompt id. Mirrors the same id-shape every
 /// other prompt registry caller uses.
 fn generate_prompt_id() -> String {

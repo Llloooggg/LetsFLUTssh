@@ -121,3 +121,46 @@ pub fn hardware_vault_unlock_prompt_cancel(prompt_id: String) {
     use lfs_core::security::hardware_vault_unlock_prompt;
     hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
 }
+
+/// Cancel an in-flight Keychain (L1) unlock attempt. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// back to `Locked`. Used by the Dart unlock-flow caller when
+/// the L1 cascade is torn down before the keychain read lands
+/// (e.g. user invoked a tier reset mid-unlock).
+#[flutter_rust_bridge::frb(sync)]
+pub fn tier_unlock_keychain_cancel() {
+    use lfs_core::security::SecurityTier;
+    tier_unlock_orchestrator::cancel_unlock(SecurityTier::Keychain);
+}
+
+/// Cancel an in-flight L2 unlock attempt. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// back to `Locked` when the user dismisses the L2 unlock
+/// dialog without submitting a password.
+#[flutter_rust_bridge::frb(sync)]
+pub fn tier_unlock_keychain_with_password_cancel() {
+    use lfs_core::security::SecurityTier;
+    tier_unlock_orchestrator::cancel_unlock(SecurityTier::KeychainWithPassword);
+}
+
+/// Cancel an in-flight L3 unlock attempt. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// back to `Locked` when the user dismisses the L3 PIN dialog
+/// without submitting.
+#[flutter_rust_bridge::frb(sync)]
+pub fn tier_unlock_hardware_cancel() {
+    use lfs_core::security::SecurityTier;
+    tier_unlock_orchestrator::cancel_unlock(SecurityTier::Hardware);
+}
+
+/// Cancel an in-flight Paranoid unlock attempt. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// back to `Locked` when the user dismisses the master-
+/// password unlock dialog without submitting. The Dart
+/// "forgot password" reset flow also routes through this
+/// before kicking off the wipe.
+#[flutter_rust_bridge::frb(sync)]
+pub fn tier_unlock_paranoid_cancel() {
+    use lfs_core::security::SecurityTier;
+    tier_unlock_orchestrator::cancel_unlock(SecurityTier::Paranoid);
+}

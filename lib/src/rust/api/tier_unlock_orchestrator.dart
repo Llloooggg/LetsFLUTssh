@@ -121,3 +121,34 @@ void hardwareVaultUnlockPromptCancel({required String promptId}) => RustLib
     .crateApiTierUnlockOrchestratorHardwareVaultUnlockPromptCancel(
       promptId: promptId,
     );
+
+/// Cancel an in-flight Keychain (L1) unlock attempt. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// back to `Locked`. Used by the Dart unlock-flow caller when
+/// the L1 cascade is torn down before the keychain read lands
+/// (e.g. user invoked a tier reset mid-unlock).
+void tierUnlockKeychainCancel() => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierUnlockKeychainCancel();
+
+/// Cancel an in-flight L2 unlock attempt. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// back to `Locked` when the user dismisses the L2 unlock
+/// dialog without submitting a password.
+void tierUnlockKeychainWithPasswordCancel() => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierUnlockKeychainWithPasswordCancel();
+
+/// Cancel an in-flight L3 unlock attempt. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// back to `Locked` when the user dismisses the L3 PIN dialog
+/// without submitting.
+void tierUnlockHardwareCancel() => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierUnlockHardwareCancel();
+
+/// Cancel an in-flight Paranoid unlock attempt. Dispatches
+/// `UnlockFailed { UserCancelled }` so the tier machine flips
+/// back to `Locked` when the user dismisses the master-
+/// password unlock dialog without submitting. The Dart
+/// "forgot password" reset flow also routes through this
+/// before kicking off the wipe.
+void tierUnlockParanoidCancel() => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierUnlockParanoidCancel();
