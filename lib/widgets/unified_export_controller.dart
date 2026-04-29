@@ -7,10 +7,15 @@ import '../core/config/app_config.dart';
 import '../core/security/key_store.dart';
 import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
+import '../core/snippets/snippet.dart';
 import '../core/ssh/ssh_config.dart';
+import '../core/tags/tag.dart';
 import '../features/settings/export_import.dart';
+import '../src/rust/api/archive.dart' as rust_archive;
 import '../src/rust/api/qr_codec_encode.dart' as rust_qr;
+import '../src/rust/api/qr_compose.dart' as rust_compose;
 import '../utils/format.dart' as utils_format;
+import '../utils/logger.dart';
 import 'unified_export_dialog.dart';
 
 /// Identity of the currently-active preset. Kept in the controller as a
@@ -205,24 +210,132 @@ class UnifiedExportController extends ChangeNotifier {
   /// the tag / snippet bodies themselves, so the estimate remains
   /// conservative — worst case we slightly under-count by a few tens
   /// of bytes, not a kilobyte.
+  ///
+  /// Routes through `lfs_core::qr_compose::compose_and_size` (FRB
+  /// sync) so the v4 wire shape lives one place across the
+  /// estimator + the production export path. Falls back to the
+  /// inline Dart composition (qr_codec.encodeExportPayload) when
+  /// the FRB native lib is not loaded (flutter_test).
   int _qrPayloadSize() {
-    final base = calculateExportPayloadSize(
-      selectedSessions,
-      input: ExportPayloadInput(
-        emptyFolders: relevantEmptyFolders,
-        options: _options
-            .withIncludeManagerKeys(false)
-            .withIncludeAllManagerKeys(false),
-        config: _options.includeConfig ? data.config : null,
-        knownHostsContent: _options.includeKnownHosts
-            ? data.knownHostsContent
-            : null,
-        tags: _options.includeTags ? data.tags : const [],
-        snippets: _options.includeSnippets ? data.snippets : const [],
-      ),
+    final estimatorOptions = _options
+        .withIncludeManagerKeys(false)
+        .withIncludeAllManagerKeys(false);
+    final base = _qrEstimateSize(
+      sessions: selectedSessions,
+      emptyFolders: relevantEmptyFolders,
+      options: estimatorOptions,
     );
     return _options.hasManagerKeys ? base + managerKeysExtraSize : base;
   }
+
+  /// Convert the typed Dart inputs into the FRB DTO shape and call
+  /// the Rust composer. On any failure (FRB not loaded, type cast
+  /// failure) falls back to the inline Dart `encodeExportPayload`
+  /// pipeline so the estimator still works in unit-test contexts.
+  int _qrEstimateSize({
+    required List<Session> sessions,
+    required Set<String> emptyFolders,
+    required ExportOptions options,
+  }) {
+    try {
+      return rust_compose.qrEstimateExportSize(
+        input: rust_compose.DbQrPayloadInput(
+          options: rust_archive.DbQrExportOptions(
+            includeSessions: options.includeSessions,
+            includeConfig: options.includeConfig,
+            includeKnownHosts: options.includeKnownHosts,
+            includePasswords: options.includePasswords,
+            includeEmbeddedKeys: options.includeEmbeddedKeys,
+            includeManagerKeys: options.includeManagerKeys,
+            includeAllManagerKeys: options.includeAllManagerKeys,
+            includeTags: options.includeTags,
+            includeSnippets: options.includeSnippets,
+          ),
+          sessions: [for (final s in sessions) _toQrSessionInput(s)],
+          emptyFolders: emptyFolders.toList(growable: false),
+          configJson: options.includeConfig && data.config != null
+              ? jsonEncode(data.config!.toJson())
+              : null,
+          knownHosts: options.includeKnownHosts
+              ? (data.knownHostsContent ?? '')
+              : '',
+          tags: options.includeTags
+              ? [for (final t in data.tags) _toQrTagInput(t)]
+              : const [],
+          // Link tables not held by the dialog's data carrier;
+          // see the docstring on `_qrPayloadSize` for the
+          // conservative-undercount caveat.
+          sessionTags: const [],
+          folderTags: const [],
+          snippets: options.includeSnippets
+              ? [for (final s in data.snippets) _toQrSnippetInput(s)]
+              : const [],
+          sessionSnippets: const [],
+          managerKeyEntries: options.hasManagerKeys
+              ? [
+                  for (final e in data.managerKeyEntries.values)
+                    _toQrManagerKeyEntry(e),
+                ]
+              : const [],
+        ),
+      );
+    } catch (e) {
+      // FRB native lib not loaded (flutter_test) or input shape
+      // diverged — fall back to the existing Dart pipeline.
+      AppLogger.instance.log(
+        'qrEstimateExportSize FRB unreachable, falling back to '
+        'Dart estimator: $e',
+        name: 'UnifiedExportController',
+      );
+      return calculateExportPayloadSize(
+        sessions,
+        input: ExportPayloadInput(
+          emptyFolders: emptyFolders,
+          options: options,
+          config: options.includeConfig ? data.config : null,
+          knownHostsContent: options.includeKnownHosts
+              ? data.knownHostsContent
+              : null,
+          tags: options.includeTags ? data.tags : const [],
+          snippets: options.includeSnippets ? data.snippets : const [],
+        ),
+      );
+    }
+  }
+
+  rust_compose.DbQrSessionInput _toQrSessionInput(Session s) =>
+      rust_compose.DbQrSessionInput(
+        id: s.id,
+        label: s.label,
+        host: s.host,
+        port: s.port,
+        user: s.user,
+        authType: s.authType.name,
+        password: s.password,
+        keyId: s.keyId.isEmpty ? null : s.keyId,
+        keyData: s.keyData,
+        folderPath: s.folder,
+      );
+
+  rust_compose.DbQrTagInput _toQrTagInput(Tag t) =>
+      rust_compose.DbQrTagInput(id: t.id, name: t.name, color: t.color);
+
+  rust_compose.DbQrSnippetInput _toQrSnippetInput(Snippet s) =>
+      rust_compose.DbQrSnippetInput(
+        id: s.id,
+        title: s.title,
+        command: s.command,
+        description: s.description,
+      );
+
+  rust_compose.DbQrManagerKeyEntry _toQrManagerKeyEntry(SshKeyEntry k) =>
+      rust_compose.DbQrManagerKeyEntry(
+        id: k.id,
+        label: k.label,
+        keyType: k.keyType,
+        publicKey: k.publicKey,
+        privateKey: k.privateKey,
+      );
 
   /// .lfs archive size: ZIP + AES-GCM overhead (salt+IV+tag = 60 bytes).
   int _lfsArchiveSize() {
