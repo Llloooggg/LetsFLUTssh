@@ -9,6 +9,7 @@ import '../core/db/rust_db_init.dart';
 import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
 import '../src/rust/api/tier_machine.dart' as rust_tier;
+import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../core/migration/migration_runner.dart';
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
@@ -487,18 +488,14 @@ class SecurityInitController {
 
   /// Push the active tier into the `tier_machine` actor +
   /// dispatch the unlock cascade so observers (TierStateObserver
-  /// + future per-tier handlers) see the transition. Best-effort
-  /// — actor unreachable in flutter_test contexts that don't
-  /// load the FRB native lib.
+  /// + future per-tier handlers) see the transition. Single FRB
+  /// hop — the Rust `tier_unlock_orchestrator::unlock_plaintext`
+  /// owns the set_tier + UnlockRequested + UnlockSucceeded chain
+  /// internally. Best-effort — orchestrator unreachable in
+  /// flutter_test contexts that don't load the FRB native lib.
   void _routePlaintextThroughTierMachine() {
     try {
-      rust_tier.tierMachineSetTier(tierWireName: 'plaintext');
-      rust_tier.tierMachineDispatch(
-        event: const rust_tier.DbTierEvent(discriminant: 'unlock_requested'),
-      );
-      // Plaintext self-advances Unlocking → Unlocked because no
-      // secret / plugin / prompt is needed.
-      rust_tier.tierMachineTryAdvance();
+      rust_orch.tierUnlockPlaintext();
     } catch (e) {
       AppLogger.instance.log(
         'tier_machine plaintext route failed: $e',

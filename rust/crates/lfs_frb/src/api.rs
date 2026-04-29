@@ -49,6 +49,7 @@ pub mod ssh_config;
 pub mod threat_eval;
 pub mod tier_machine;
 pub mod tier_transition_marker;
+pub mod tier_unlock_orchestrator;
 pub mod tpm;
 pub mod transfer;
 pub mod transfer_conflict;

@@ -51,6 +51,7 @@ import 'api/ssh_config.dart';
 import 'api/threat_eval.dart';
 import 'api/tier_machine.dart';
 import 'api/tier_transition_marker.dart';
+import 'api/tier_unlock_orchestrator.dart';
 import 'api/tpm.dart';
 import 'api/transfer.dart';
 import 'api/transfer_conflict.dart';
