@@ -37,7 +37,7 @@ F  — pure helpers                                  (~6 commits, background)
 ## Tractable today vs needs-architectural-decision
 
 **Closed in the current arc** (composite actor commands + helper
-consolidations + schema mirrors):
+consolidations + schema mirrors + dedup-import composite):
 
 - B1 — `db_sessions_duplicate_with_path` actor command
 - B2 — `db_folders_rename_path_cascade` actor command (also fixed
@@ -57,6 +57,10 @@ consolidations + schema mirrors):
   cached HMAC-verified state + tokio-spawned disk writes).
   Dart shim retains an in-memory state-machine fallback for
   flutter_test where path_provider is unmocked.
+- `db_ssh_keys_import_for_merge` composite — folds `loadAll` +
+  `findIdByKeyMaterial` + `uniqueLabel` + `save` into one Rust
+  transaction; uses pre-hashed `list_metadata` to dedup by
+  fingerprint without pulling PEMs through FRB.
 
 **Closed-enough as thin façades** — full retire would be churn:
 
