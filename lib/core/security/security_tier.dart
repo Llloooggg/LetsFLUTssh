@@ -248,7 +248,7 @@ class SecurityConfig {
   /// JSON encode while flutter_test contexts that don't load the
   /// FRB native lib see the same map shape via the Dart fallback.
   Map<String, dynamic> toJson() => securityConfigToJsonCompat(
-    tierWireName: _tierToString(tier),
+    tierWireName: tier.wireName,
     password: modifiers.password,
     biometric: modifiers.biometric,
     biometricShortcut: modifiers.biometricShortcut,
@@ -258,11 +258,15 @@ class SecurityConfig {
   /// Decode mirrors the Rust permissive fallback: an unknown /
   /// missing tier string falls through to `plaintext` so the caller
   /// routes into the wizard rather than silently picking an
+  /// unintended tier. The fall-through is in
+  /// [SecurityTierWireName.fromWireName] — null / unknown both land
+  /// on `plaintext` so the caller sees `SecurityConfig.defaults`
+  /// and routes into the wizard rather than silently picking an
   /// unintended tier.
   factory SecurityConfig.fromJson(Map<String, dynamic> json) {
     final snap = securityConfigFromJsonCompat(json);
     return SecurityConfig(
-      tier: _tierFromString(snap.tierWireName),
+      tier: SecurityTierWireName.fromWireName(snap.tierWireName),
       modifiers: SecurityTierModifiers(
         password: snap.password,
         biometric: snap.biometric,
@@ -283,41 +287,5 @@ class SecurityConfig {
   int get hashCode => Object.hash(tier, modifiers);
 
   @override
-  String toString() => 'SecurityConfig(${_tierToString(tier)}, $modifiers)';
-}
-
-String _tierToString(SecurityTier tier) {
-  switch (tier) {
-    case SecurityTier.plaintext:
-      return 'plaintext';
-    case SecurityTier.keychain:
-      return 'keychain';
-    case SecurityTier.keychainWithPassword:
-      return 'keychain_with_password';
-    case SecurityTier.hardware:
-      return 'hardware';
-    case SecurityTier.paranoid:
-      return 'paranoid';
-  }
-}
-
-SecurityTier _tierFromString(String? s) {
-  switch (s) {
-    case 'plaintext':
-      return SecurityTier.plaintext;
-    case 'keychain':
-      return SecurityTier.keychain;
-    case 'keychain_with_password':
-      return SecurityTier.keychainWithPassword;
-    case 'hardware':
-      return SecurityTier.hardware;
-    case 'paranoid':
-      return SecurityTier.paranoid;
-    default:
-      // Unknown or missing string → treat as plaintext so the caller
-      // sees `SecurityConfig.none` (plaintext + defaults) and routes
-      // into the wizard. Never silently guess a non-plaintext tier
-      // from corrupt config.
-      return SecurityTier.plaintext;
-  }
+  String toString() => 'SecurityConfig(${tier.wireName}, $modifiers)';
 }
