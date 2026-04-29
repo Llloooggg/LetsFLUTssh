@@ -122,6 +122,22 @@ Future<void> dbSessionsDuplicate({
   nowMs: nowMs,
 );
 
+/// Composite duplicate — Rust composes label-uniqueness +
+/// folder-path resolution + duplicate-insert in one transaction.
+/// Returns the new session id. Replaces the multi-step Dart
+/// `SessionStore.duplicateSession` orchestration; callers that only
+/// know the source id + a target folder path now pay one FRB call
+/// instead of three.
+Future<String> dbSessionsDuplicateWithPath({
+  required String srcId,
+  required String targetFolderPath,
+  required PlatformInt64 nowMs,
+}) => RustLib.instance.api.crateApiDbDbSessionsDuplicateWithPath(
+  srcId: srcId,
+  targetFolderPath: targetFolderPath,
+  nowMs: nowMs,
+);
+
 Future<int> dbSessionsDeleteMultiple({required List<String> ids}) =>
     RustLib.instance.api.crateApiDbDbSessionsDeleteMultiple(ids: ids);
 

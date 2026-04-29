@@ -388,6 +388,78 @@ pub fn duplicate_session(
     Ok(())
 }
 
+/// Composite duplicate — looks up the source row, resolves
+/// [`target_folder_path`] to a folder id (creating folders as
+/// needed), computes a unique label against the live session list,
+/// generates a fresh UUID, and inserts the duplicate row. All in
+/// one transaction so a partial failure rolls back cleanly.
+///
+/// Returns the new session id. Mirrors what
+/// `SessionStore.duplicateSession` was composing Dart-side; folding
+/// the steps Rust-side keeps the unique-label + folder-creation +
+/// duplicate-insert sequence atomic and lets the Dart caller drop
+/// to a single FRB call.
+pub fn duplicate_with_path(
+    conn: &mut Connection,
+    src_id: &str,
+    target_folder_path: &str,
+    now_ms: i64,
+) -> Result<String, Error> {
+    use rand::RngCore;
+    let tx = conn
+        .transaction()
+        .map_err(|e| Error::Io(format!("sessions duplicate_with_path tx: {e}")))?;
+
+    // Source row — needed for the base label.
+    let mut stmt = tx
+        .prepare("SELECT label FROM sessions WHERE id = ?1")
+        .map_err(|e| Error::Io(format!("sessions duplicate_with_path lookup: {e}")))?;
+    let base_label: String = stmt
+        .query_row([src_id], |row| row.get::<_, String>(0))
+        .map_err(|e| Error::Io(format!("sessions duplicate_with_path source missing: {e}")))?;
+    drop(stmt);
+
+    // Live session labels — feed unique_label so the returned label
+    // doesn't collide with anything already in the list.
+    let mut taken: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut labels_stmt = tx
+        .prepare("SELECT label FROM sessions")
+        .map_err(|e| Error::Io(format!("sessions duplicate_with_path labels: {e}")))?;
+    let label_rows = labels_stmt
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|e| Error::Io(format!("sessions duplicate_with_path labels query: {e}")))?;
+    for r in label_rows {
+        taken.insert(
+            r.map_err(|e| Error::Io(format!("sessions duplicate_with_path label row: {e}")))?,
+        );
+    }
+    drop(labels_stmt);
+    let new_label = crate::sessions::unique_label(&base_label, &taken);
+
+    // Folder ensure — walks the path inside the same tx so a
+    // partial folder create rolls back with the duplicate.
+    let target_folder_id = crate::db::folders::ensure_folder_path(&tx, target_folder_path, now_ms)?;
+
+    // Fresh id.
+    let mut bytes = [0u8; 16];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    let new_id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+
+    duplicate_session(
+        &tx,
+        src_id,
+        &new_id,
+        &new_label,
+        target_folder_id.as_deref(),
+        now_ms,
+    )?;
+
+    tx.commit()
+        .map_err(|e| Error::Io(format!("sessions duplicate_with_path commit: {e}")))?;
+
+    Ok(new_id)
+}
+
 /// Bulk variant of [`move_to_folder`].
 pub fn move_multiple(
     conn: &Connection,
@@ -409,4 +481,136 @@ pub fn move_multiple(
     }
     conn.execute(&sql, params_vec.as_slice())
         .map_err(|e| Error::Io(format!("sessions move_multiple: {e}")))
+}
+
+#[cfg(test)]
+mod duplicate_tests {
+    use super::*;
+    use crate::db::{bootstrap_schema, folders, Db};
+    use rusqlite::Connection as RusqliteConn;
+
+    fn db() -> Db {
+        let conn = RusqliteConn::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Db::from_raw_for_tests(conn)
+    }
+
+    fn seed_session(db: &Db, id: &str, label: &str, folder_id: Option<&str>) {
+        db.with_conn(|c| {
+            let row = SessionRow {
+                id: id.into(),
+                label: label.into(),
+                folder_id: folder_id.map(String::from),
+                host: "h".into(),
+                port: 22,
+                user: "u".into(),
+                auth_type: "password".into(),
+                password: "secret".into(),
+                key_path: String::new(),
+                key_data: String::new(),
+                key_id: None,
+                passphrase: String::new(),
+                sort_order: 0,
+                notes: String::new(),
+                last_connected_at_ms: None,
+                extras: String::new(),
+                via_session_id: None,
+                via_host: None,
+                via_port: None,
+                via_user: None,
+                created_at_ms: 0,
+                updated_at_ms: 0,
+            };
+            upsert(c, &row)
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn duplicate_with_path_inserts_under_resolved_folder() {
+        let db = db();
+        seed_session(&db, "src", "Web", None);
+        let new_id = db
+            .with_conn_mut(|c| duplicate_with_path(c, "src", "infra/prod", 1000))
+            .unwrap();
+        let rows = db.with_conn(list_all).unwrap();
+        let copy = rows.iter().find(|r| r.id == new_id).unwrap();
+        assert_eq!(copy.label, "Web (copy)");
+        // Folder hierarchy was created — leaf folder id matches.
+        let f_rows = db.with_conn(folders::list_all).unwrap();
+        let prod = f_rows.iter().find(|f| f.name == "prod").unwrap();
+        assert_eq!(copy.folder_id.as_deref(), Some(prod.id.as_str()));
+    }
+
+    #[test]
+    fn duplicate_with_path_propagates_credentials_column_to_column() {
+        // Credentials live on the duplicate row even though they
+        // never crossed the FRB boundary (the SELECT-INSERT in
+        // duplicate_session preserves them).
+        let db = db();
+        seed_session(&db, "src", "S", None);
+        let new_id = db
+            .with_conn_mut(|c| duplicate_with_path(c, "src", "", 1000))
+            .unwrap();
+        let rows = db.with_conn(list_all).unwrap();
+        let copy = rows.iter().find(|r| r.id == new_id).unwrap();
+        assert_eq!(copy.password, "secret");
+    }
+
+    #[test]
+    fn duplicate_with_path_unique_label_walks_taken_set() {
+        let db = db();
+        seed_session(&db, "src", "Web", None);
+        // Pre-stamp the obvious dedup name so the next duplicate
+        // walks past it instead of colliding.
+        seed_session(&db, "existing", "Web (copy)", None);
+        let new_id = db
+            .with_conn_mut(|c| duplicate_with_path(c, "src", "", 0))
+            .unwrap();
+        let rows = db.with_conn(list_all).unwrap();
+        let copy = rows.iter().find(|r| r.id == new_id).unwrap();
+        assert_eq!(copy.label, "Web (copy 2)");
+    }
+
+    #[test]
+    fn duplicate_with_path_empty_path_is_root_level() {
+        let db = db();
+        seed_session(&db, "src", "Web", None);
+        let new_id = db
+            .with_conn_mut(|c| duplicate_with_path(c, "src", "", 0))
+            .unwrap();
+        let rows = db.with_conn(list_all).unwrap();
+        let copy = rows.iter().find(|r| r.id == new_id).unwrap();
+        assert!(copy.folder_id.is_none());
+    }
+
+    #[test]
+    fn duplicate_with_path_missing_source_errors() {
+        let db = db();
+        let err = db
+            .with_conn_mut(|c| duplicate_with_path(c, "nope", "", 0))
+            .unwrap_err();
+        assert!(err.to_string().contains("source missing"));
+    }
+
+    #[test]
+    fn duplicate_with_path_reuses_existing_folder_segments() {
+        // Two duplicates into the same path must share the
+        // pre-existing folder ids — `ensure_folder_path` should not
+        // mint a second `infra` row.
+        let db = db();
+        seed_session(&db, "src", "Web", None);
+        let _first = db
+            .with_conn_mut(|c| duplicate_with_path(c, "src", "infra/prod", 0))
+            .unwrap();
+        let _second = db
+            .with_conn_mut(|c| duplicate_with_path(c, "src", "infra/prod", 0))
+            .unwrap();
+        let folders = db.with_conn(folders::list_all).unwrap();
+        let infra_count = folders.iter().filter(|f| f.name == "infra").count();
+        assert_eq!(infra_count, 1, "infra folder must be reused");
+        let prod_count = folders.iter().filter(|f| f.name == "prod").count();
+        assert_eq!(prod_count, 1, "prod folder must be reused");
+    }
 }

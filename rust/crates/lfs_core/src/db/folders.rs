@@ -75,6 +75,61 @@ pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
         .map_err(|e| Error::Io(format!("folders delete_all: {e}")))
 }
 
+/// Walk a `/`-separated `path` (e.g. `infra/prod/web`) and ensure
+/// every segment exists as a folder row, returning the id of the
+/// leaf segment. Empty `path` returns `Ok(None)` (root-level).
+///
+/// Each missing segment gets a fresh 16-byte random id (same shape
+/// `apply_folder_tree` mints); existing segments resolve by
+/// `(parent_id, name)` lookup against the in-memory list this
+/// function loads at the top of the call. Caller wraps the call
+/// in a transaction when atomicity matters — the per-segment upsert
+/// below is not transactional on its own.
+///
+/// Mirrors the Dart `resolveFolderPath` helper byte-for-byte so a
+/// composite session-duplicate / session-add command can resolve the
+/// folder path Rust-side without round-tripping through the FRB DAO
+/// surface.
+pub fn ensure_folder_path(
+    conn: &Connection,
+    path: &str,
+    now_ms: i64,
+) -> Result<Option<String>, Error> {
+    if path.is_empty() {
+        return Ok(None);
+    }
+    use rand::RngCore;
+    let folders = list_all(conn)?;
+    let mut by_parent: std::collections::HashMap<(Option<String>, String), String> =
+        std::collections::HashMap::new();
+    for f in &folders {
+        by_parent.insert((f.parent_id.clone(), f.name.clone()), f.id.clone());
+    }
+    let mut parent_id: Option<String> = None;
+    for seg in path.split('/').filter(|s| !s.is_empty()) {
+        let key = (parent_id.clone(), seg.to_string());
+        if let Some(existing) = by_parent.get(&key) {
+            parent_id = Some(existing.clone());
+            continue;
+        }
+        let mut bytes = [0u8; 16];
+        rand::rngs::OsRng.fill_bytes(&mut bytes);
+        let id: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+        let row = FolderRow {
+            id: id.clone(),
+            name: seg.to_string(),
+            parent_id: parent_id.clone(),
+            sort_order: 0,
+            collapsed: false,
+            created_at_ms: now_ms,
+        };
+        upsert(conn, &row)?;
+        by_parent.insert(key, id.clone());
+        parent_id = Some(id);
+    }
+    Ok(parent_id)
+}
+
 /// Flip the `collapsed` flag on a single folder. Returns the new
 /// value (true = now collapsed) so the caller can update its cache
 /// without a follow-up read. Empty `Ok(0)` if the row is missing.

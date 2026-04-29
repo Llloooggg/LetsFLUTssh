@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:uuid/uuid.dart';
-
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/sessions.dart' as rust_sess;
@@ -455,35 +453,17 @@ class SessionStore {
   Future<Session> duplicateSession(String id, {String? targetFolder}) async {
     final original = get(id);
     if (original == null) throw ArgumentError('Session not found: $id');
-    final newId = const Uuid().v4();
-    // Route through `lfs_core::sessions::unique_label` so a
-    // duplicate of "Web" produces "Web (copy)", a second
-    // duplicate produces "Web (copy 2)", and so on — instead of
-    // ending up with three "Web (copy)" sessions in the list.
-    // Falls back to the bare-suffix shape when the FRB native
-    // lib is not loaded (flutter_test).
-    final taken = _sessions.map((s) => s.label).toSet();
-    String newLabel;
-    if (original.label.isEmpty) {
-      newLabel = '';
-    } else {
-      try {
-        newLabel = rust_sess.sessionsUniqueLabel(
-          base: original.label,
-          taken: taken.toList(growable: false),
-        );
-      } catch (_) {
-        newLabel = '${original.label} (copy)';
-      }
-    }
     final folderForCopy = targetFolder ?? original.folder;
+    // One Rust transaction now owns: source-row lookup, label dedup
+    // against the live session list, folder-path ensure, fresh UUID
+    // mint, duplicate-row insert. Replaces the prior Dart-side
+    // sequence of `unique_label` + `resolveFolderPath` +
+    // `dbSessionsDuplicate` round-trips.
+    final String newId;
     try {
-      final folderId = await resolveFolderPath(folderForCopy, _folderMap);
-      await rust_db.dbSessionsDuplicate(
+      newId = await rust_db.dbSessionsDuplicateWithPath(
         srcId: id,
-        newId: newId,
-        newLabel: newLabel,
-        targetFolderId: folderId,
+        targetFolderPath: folderForCopy,
         nowMs: DateTime.now().millisecondsSinceEpoch,
       );
     } catch (e) {

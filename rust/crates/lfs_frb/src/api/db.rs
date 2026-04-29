@@ -522,6 +522,30 @@ pub async fn db_sessions_duplicate(
     res
 }
 
+/// Composite duplicate — Rust composes label-uniqueness +
+/// folder-path resolution + duplicate-insert in one transaction.
+/// Returns the new session id. Replaces the multi-step Dart
+/// `SessionStore.duplicateSession` orchestration; callers that only
+/// know the source id + a target folder path now pay one FRB call
+/// instead of three.
+pub async fn db_sessions_duplicate_with_path(
+    src_id: String,
+    target_folder_path: String,
+    now_ms: i64,
+) -> Result<String, String> {
+    let res = tokio::task::spawn_blocking(move || {
+        let db = require_db()?;
+        db.with_conn_mut(|c| {
+            lfs_core::db::sessions::duplicate_with_path(c, &src_id, &target_folder_path, now_ms)
+        })
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("db task: {e}"))?;
+    notify_sessions_on_ok(&res);
+    res
+}
+
 pub async fn db_sessions_delete_multiple(ids: Vec<String>) -> Result<u32, String> {
     let res = run_db(move |c| lfs_core::db::sessions::delete_multiple(c, &ids))
         .await
