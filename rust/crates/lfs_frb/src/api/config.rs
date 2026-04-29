@@ -97,9 +97,15 @@ pub fn config_app_config_validate_json(input_json: String) -> Option<String> {
 /// Rust owns debounce + atomic file I/O + bus event publication.
 /// Dart `ConfigNotifier` shrinks to a `BusEvent::ConfigChanged`
 /// subscriber + `set_json` calls.
+///
+/// Also spawns the singleton background ticker that drives the
+/// debounce flush — production calls this once at startup; tests
+/// drive ticks manually via `config_store_tick_if_due`.
 #[flutter_rust_bridge::frb(sync)]
 pub fn config_store_init(support_dir: String) -> Result<String, String> {
-    lfs_core::config_store::instance().init(std::path::PathBuf::from(support_dir))
+    let json = lfs_core::config_store::instance().init(std::path::PathBuf::from(support_dir))?;
+    lfs_core::config_store::start_background_ticker();
+    Ok(json)
 }
 
 /// Snapshot the actor's current config. Returns `None` before

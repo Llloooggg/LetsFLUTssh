@@ -647,9 +647,17 @@ the persistence layer routes through Rust.
   `set_json + flush` so the explicit save semantic ("save now")
   goes through the canonical pipeline. Inline `writeFileAtomic`
   preserved for flutter_test contexts.
-- [ ] D6.2 — Dart `ConfigNotifier` debounce timer ⇒ Rust
-  actor's `tick_if_due`. Bus subscription instead of in-Notifier
-  state mutation.
+- [~] D6.2 — Rust-side singleton background ticker drives
+  `tick_if_due` automatically after `config_store_init` runs;
+  the actor's debounce flush no longer needs a Dart-side caller
+  to poke it. Dart `ConfigNotifier` retains its own 300 ms
+  Timer for now because the existing test suite's
+  `_SaveCountingStore` asserts coalescing behaviour through the
+  Dart debouncer; collapsing the Dart timer into the Rust
+  ticker requires reworking the test contract (the assertion
+  switches from `saveCount == 1 across 20 update bursts` to
+  observing the `BusEvent::ConfigChanged` arrival rate, which
+  flutter_test can't drive without bootstrapping `RustLib`).
 
 **Risk:** every config read crosses FRB. Mitigate by emitting
 `ConfigChanged` on writes only; reads return cached snapshot.

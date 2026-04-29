@@ -213,6 +213,40 @@ pub fn instance() -> &'static Store {
     GLOBAL.get_or_init(Store::new)
 }
 
+/// Spawn a background ticker that drives [`Store::tick_if_due`]
+/// against the singleton every [`TICK_INTERVAL`]. Production
+/// callers invoke this once at app startup after the FRB tokio
+/// runtime is ready; tests don't call it (they tick manually
+/// via `Store::tick_if_due`).
+///
+/// Idempotent — repeated calls are no-ops; the ticker spawns
+/// at most once per process. Cancellation happens implicitly at
+/// process exit; no manual teardown needed.
+pub fn start_background_ticker() {
+    static TICKER_STARTED: OnceLock<()> = OnceLock::new();
+    if TICKER_STARTED.set(()).is_err() {
+        return;
+    }
+    tokio::spawn(async {
+        let mut interval = tokio::time::interval(TICK_INTERVAL);
+        loop {
+            interval.tick().await;
+            // Ignore tick errors — `tick_if_due` returns Err only
+            // when the disk write fails, and the next tick will
+            // retry against the same pending state. Logging here
+            // would spam on a stuck disk; the bus event publisher
+            // already records writes that did land.
+            let _ = instance().tick_if_due();
+        }
+    });
+}
+
+/// Background ticker cadence. Picks a value tight enough that a
+/// pending write lands within ~one frame after `DEBOUNCE`
+/// expires, loose enough to keep the wakeup cost off the
+/// idle-app profile.
+const TICK_INTERVAL: Duration = Duration::from_millis(100);
+
 fn write_to_disk(path: &std::path::Path, json: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("config_store: create dir: {e}"))?;
