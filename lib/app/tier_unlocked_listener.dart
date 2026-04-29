@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/bus/app_bus.dart';
 import '../core/db/rust_db_init.dart';
 import '../core/security/security_tier.dart';
+import '../providers/config_provider.dart';
 import '../providers/connection_provider.dart' show knownHostsProvider;
 import '../providers/key_provider.dart' show keyStoreProvider;
 import '../providers/security_provider.dart';
@@ -121,6 +122,13 @@ class TierUnlockedListener {
       // Open the Rust-owned sqlite handle keyed off the same
       // master key the orchestrator just resolved.
       await ensureRustDbOpen(key: key);
+      // Persist the tier into config so a cold-restart picks
+      // up the same tier without re-entering the wizard.
+      // Modifiers come from the wizard / settings flow that
+      // ran earlier; the listener reads the current config
+      // and updates only when the resolved (tier, modifiers)
+      // pair differs from what's stored.
+      await _persistSecurityTier(tier);
       _resolvePending(TierUnlockOutcome.unlocked);
     } catch (e, st) {
       AppLogger.instance.log(
@@ -132,6 +140,26 @@ class TierUnlockedListener {
       );
       _resolvePending(TierUnlockOutcome.failed);
     }
+  }
+
+  /// Mirror of `SecurityInitController._persistSecurityTier`.
+  /// Reads the current tier + modifiers from config and writes
+  /// only when the resolved pair differs from the stored one.
+  /// Modifiers come from the wizard's prior write — the listener
+  /// just keeps the tier slot consistent with what the
+  /// orchestrator just unlocked.
+  Future<void> _persistSecurityTier(SecurityTier tier) async {
+    final existing = _ref.read(configProvider).security;
+    final resolved = existing?.modifiers ?? SecurityTierModifiers.defaults;
+    if (existing != null &&
+        existing.tier == tier &&
+        existing.modifiers == resolved) {
+      return;
+    }
+    final next = SecurityConfig(tier: tier, modifiers: resolved);
+    await _ref
+        .read(configProvider.notifier)
+        .update((cfg) => cfg.copyWithSecurity(security: next));
   }
 
   void _resolvePending(TierUnlockOutcome outcome) {
