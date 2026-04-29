@@ -336,11 +336,9 @@ class _ExportImportTile extends ConsumerWidget {
 
     // Load counts for export dialog
     final keyStore = ref.read(keyStoreProvider);
-    final tagStore = ref.read(tagStoreProvider);
-    final snippetStore = ref.read(snippetStoreProvider);
     final allKeys = await keyStore.loadAll();
-    final allTags = await tagStore.loadAll();
-    final allSnippets = await snippetStore.loadAll();
+    final allTags = await ref.read(tagsProvider.notifier).loadAll();
+    final allSnippets = await ref.read(snippetsProvider.notifier).loadAll();
     if (!context.mounted) return;
     final managerKeys = Map<String, String>.fromEntries(
       allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
@@ -698,8 +696,8 @@ class _ExportImportTile extends ConsumerWidget {
         applyKnownHosts: options.includeKnownHosts,
         refreshAfterImport: () async {
           await ref.read(sessionProvider.notifier).load();
-          await ref.read(tagStoreProvider).loadAll();
-          await ref.read(snippetStoreProvider).loadAll();
+          await ref.read(tagsProvider.notifier).loadAll();
+          await ref.read(snippetsProvider.notifier).loadAll();
         },
       );
       // Config restore (file IO, not a DB write) stays Dart-side.
@@ -779,8 +777,8 @@ class _ExportImportTile extends ConsumerWidget {
         importResult,
         refreshAfterImport: () async {
           await ref.read(sessionProvider.notifier).load();
-          await ref.read(tagStoreProvider).loadAll();
-          await ref.read(snippetStoreProvider).loadAll();
+          await ref.read(tagsProvider.notifier).loadAll();
+          await ref.read(snippetsProvider.notifier).loadAll();
         },
       );
       final cfg = importResult.config;
@@ -858,11 +856,9 @@ class _QrExportTile extends ConsumerWidget {
 
     // Load counts for export dialog
     final keyStore = ref.read(keyStoreProvider);
-    final tagStore = ref.read(tagStoreProvider);
-    final snippetStore = ref.read(snippetStoreProvider);
     final allKeys = await keyStore.loadAll();
-    final allTags = await tagStore.loadAll();
-    final allSnippets = await snippetStore.loadAll();
+    final allTags = await ref.read(tagsProvider.notifier).loadAll();
+    final allSnippets = await ref.read(snippetsProvider.notifier).loadAll();
     if (!context.mounted) return;
     final managerKeys = Map<String, String>.fromEntries(
       allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),

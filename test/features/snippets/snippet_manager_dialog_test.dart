@@ -2,39 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
-import 'package:letsflutssh/core/snippets/snippet_store.dart';
 import 'package:letsflutssh/features/snippets/snippet_manager_dialog.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/snippet_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
-/// In-memory fake for [SnippetStore] — no database.
-class FakeSnippetStore extends SnippetStore {
+/// In-memory fake for [SnippetsNotifier] — no database. The dialog
+/// drives `add` / `save` / `delete` / `loadAll`; everything else
+/// stays at the production default.
+class FakeSnippetsNotifier extends SnippetsNotifier {
+  FakeSnippetsNotifier([List<Snippet>? initial]) : _snippets = [...?initial];
+
   final List<Snippet> _snippets;
 
-  FakeSnippetStore([List<Snippet>? initial]) : _snippets = [...?initial];
+  @override
+  Future<List<Snippet>> build() async => _sorted();
 
   @override
-  Future<List<Snippet>> loadAll() async =>
-      List.of(_snippets)..sort((a, b) => a.title.compareTo(b.title));
+  Future<List<Snippet>> loadAll() async => _sorted();
 
   @override
-  Future<void> add(Snippet snippet) async => _snippets.add(snippet);
-
-  @override
-  Future<void> update(Snippet snippet) async {
-    _snippets.removeWhere((s) => s.id == snippet.id);
+  Future<void> add(Snippet snippet) async {
     _snippets.add(snippet);
+    ref.invalidateSelf();
   }
 
   @override
-  Future<void> delete(String id) async =>
-      _snippets.removeWhere((s) => s.id == id);
+  Future<void> save(Snippet snippet) async {
+    _snippets.removeWhere((s) => s.id == snippet.id);
+    _snippets.add(snippet);
+    ref.invalidateSelf();
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _snippets.removeWhere((s) => s.id == id);
+    ref.invalidateSelf();
+  }
+
+  List<Snippet> _sorted() =>
+      List.of(_snippets)..sort((a, b) => a.title.compareTo(b.title));
 }
 
 void main() {
-  late FakeSnippetStore fakeStore;
+  late FakeSnippetsNotifier fakeStore;
 
   final testSnippet = Snippet(
     id: 's1',
@@ -51,7 +63,7 @@ void main() {
 
   Widget buildApp() {
     return ProviderScope(
-      overrides: [snippetStoreProvider.overrideWithValue(fakeStore)],
+      overrides: [snippetsProvider.overrideWith(() => fakeStore)],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,
@@ -78,7 +90,7 @@ void main() {
 
   group('SnippetManagerDialog', () {
     testWidgets('shows loading then transitions to content', (tester) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await tester.pumpWidget(buildApp());
       await tester.tap(find.text('Open'));
       // After one frame the dialog is visible with the spinner.
@@ -91,14 +103,14 @@ void main() {
     });
 
     testWidgets('shows empty state when no snippets', (tester) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await openDialog(tester);
 
       expect(find.text('No snippets yet'), findsOneWidget);
     });
 
     testWidgets('shows dialog title Snippets', (tester) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await openDialog(tester);
 
       expect(find.text('Snippets'), findsOneWidget);
@@ -107,7 +119,7 @@ void main() {
     testWidgets('renders snippet entries with title and command', (
       tester,
     ) async {
-      fakeStore = FakeSnippetStore([testSnippet]);
+      fakeStore = FakeSnippetsNotifier([testSnippet]);
       await openDialog(tester);
 
       expect(find.text('Deploy App'), findsOneWidget);
@@ -115,14 +127,14 @@ void main() {
     });
 
     testWidgets('shows description when present', (tester) async {
-      fakeStore = FakeSnippetStore([testSnippet]);
+      fakeStore = FakeSnippetsNotifier([testSnippet]);
       await openDialog(tester);
 
       expect(find.text('Restart the web server'), findsOneWidget);
     });
 
     testWidgets('cancel button closes dialog', (tester) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await openDialog(tester);
 
       await tester.tap(find.text('Cancel'));
@@ -133,7 +145,7 @@ void main() {
     });
 
     testWidgets('delete button shows confirmation dialog', (tester) async {
-      fakeStore = FakeSnippetStore([testSnippet]);
+      fakeStore = FakeSnippetsNotifier([testSnippet]);
       await openDialog(tester);
 
       // Tap the delete icon button.
@@ -144,7 +156,7 @@ void main() {
     });
 
     testWidgets('delete confirmation removes snippet', (tester) async {
-      fakeStore = FakeSnippetStore([testSnippet]);
+      fakeStore = FakeSnippetsNotifier([testSnippet]);
       await openDialog(tester);
 
       // Open delete confirmation.
@@ -165,7 +177,7 @@ void main() {
     });
 
     testWidgets('delete cancel keeps snippet', (tester) async {
-      fakeStore = FakeSnippetStore([testSnippet]);
+      fakeStore = FakeSnippetsNotifier([testSnippet]);
       await openDialog(tester);
 
       // Open delete confirmation.
@@ -185,7 +197,7 @@ void main() {
     testWidgets('add snippet button opens add dialog with fields', (
       tester,
     ) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await openDialog(tester);
 
       await tester.tap(find.text('Add Snippet'));
@@ -200,7 +212,7 @@ void main() {
     testWidgets('add snippet with title and command saves and shows in list', (
       tester,
     ) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await openDialog(tester);
 
       // Open add dialog.
@@ -232,7 +244,7 @@ void main() {
     });
 
     testWidgets('add snippet with empty title does not save', (tester) async {
-      fakeStore = FakeSnippetStore();
+      fakeStore = FakeSnippetsNotifier();
       await openDialog(tester);
 
       // Open add dialog.
@@ -256,7 +268,7 @@ void main() {
     });
 
     testWidgets('edit button opens edit dialog pre-filled', (tester) async {
-      fakeStore = FakeSnippetStore([testSnippet]);
+      fakeStore = FakeSnippetsNotifier([testSnippet]);
       await openDialog(tester);
 
       // Tap the edit icon button.
@@ -285,7 +297,7 @@ void main() {
     });
 
     testWidgets('copy button shows command copied toast', (tester) async {
-      fakeStore = FakeSnippetStore([snippetNoDesc]);
+      fakeStore = FakeSnippetsNotifier([snippetNoDesc]);
       await openDialog(tester);
 
       // Tap the copy icon button.

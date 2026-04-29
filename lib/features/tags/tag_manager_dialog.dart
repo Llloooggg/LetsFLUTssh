@@ -37,8 +37,7 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
   }
 
   Future<void> _load() async {
-    final store = ref.read(tagStoreProvider);
-    final tags = await store.loadAll();
+    final tags = await ref.read(tagsProvider.notifier).loadAll();
     if (mounted) {
       setState(() {
         _tags = tags;
@@ -127,9 +126,7 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
   Future<void> _addTag() async {
     final result = await _AddTagDialog.show(context);
     if (result == null || !mounted) return;
-    final store = ref.read(tagStoreProvider);
-    await store.add(result);
-    ref.invalidate(tagsProvider);
+    await ref.read(tagsProvider.notifier).add(result);
     await _load();
     if (mounted) {
       Toast.show(
@@ -157,9 +154,7 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final store = ref.read(tagStoreProvider);
-    await store.delete(tag.id);
-    ref.invalidate(tagsProvider);
+    await ref.read(tagsProvider.notifier).delete(tag.id);
     // SessionTags cascades on FK, but any UI that derives per-session tag
     // lists from the in-memory session state needs a reload to drop links
     // to the now-deleted tag.

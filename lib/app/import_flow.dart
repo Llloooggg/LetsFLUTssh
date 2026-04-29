@@ -271,8 +271,8 @@ void _invalidateImportProviders(WidgetRef ref) {
 /// a `load()` to pick up the new rows.
 Future<void> _refreshStores(WidgetRef ref) async {
   await ref.read(sessionProvider.notifier).load();
-  await ref.read(tagStoreProvider).loadAll();
-  await ref.read(snippetStoreProvider).loadAll();
+  await ref.read(tagsProvider.notifier).loadAll();
+  await ref.read(snippetsProvider.notifier).loadAll();
 }
 
 /// Build a Dart-side `ImportSummary` from the Rust `DbApplyResult`.

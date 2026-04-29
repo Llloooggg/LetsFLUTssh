@@ -40,8 +40,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   }
 
   Future<void> _load() async {
-    final store = ref.read(snippetStoreProvider);
-    final snippets = await store.loadAll();
+    final snippets = await ref.read(snippetsProvider.notifier).loadAll();
     if (mounted) {
       setState(() {
         _snippets = snippets;
@@ -152,9 +151,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   Future<void> _addSnippet() async {
     final result = await _SnippetEditDialog.show(context);
     if (result == null || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.add(result);
-    ref.invalidate(snippetsProvider);
+    await ref.read(snippetsProvider.notifier).add(result);
     await _load();
     if (mounted) {
       Toast.show(
@@ -168,9 +165,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
   Future<void> _editSnippet(Snippet snippet) async {
     final result = await _SnippetEditDialog.show(context, snippet: snippet);
     if (result == null || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.update(result);
-    ref.invalidate(snippetsProvider);
+    await ref.read(snippetsProvider.notifier).save(result);
     await _load();
     if (mounted) {
       Toast.show(
@@ -198,9 +193,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    final store = ref.read(snippetStoreProvider);
-    await store.delete(snippet.id);
-    ref.invalidate(snippetsProvider);
+    await ref.read(snippetsProvider.notifier).delete(snippet.id);
     // SessionSnippets cascades on FK; reload so the in-memory session list
     // doesn't hold stale snippet links in its derived UI state.
     await ref.read(sessionProvider.notifier).load();

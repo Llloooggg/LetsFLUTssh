@@ -63,12 +63,14 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
   }
 
   Future<void> _load() async {
-    final store = ref.read(snippetStoreProvider);
-    final all = await store.loadAll();
+    final notifier = ref.read(snippetsProvider.notifier);
+    final all = await notifier.loadAll();
     List<Snippet> pinned = [];
     Set<String> pinnedIds = {};
     if (widget.sessionId != null) {
-      pinned = await store.loadForSession(widget.sessionId!);
+      pinned = await ref.read(
+        sessionSnippetsProvider(widget.sessionId!).future,
+      );
       pinnedIds = pinned.map((s) => s.id).toSet();
     }
     if (mounted) {
@@ -226,14 +228,13 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
   }
 
   Future<void> _togglePin(Snippet snippet, bool currentlyPinned) async {
-    final store = ref.read(snippetStoreProvider);
+    final notifier = ref.read(snippetsProvider.notifier);
     final sid = widget.sessionId!;
     if (currentlyPinned) {
-      await store.unlinkFromSession(snippet.id, sid);
+      await notifier.unlinkFromSession(snippet.id, sid);
     } else {
-      await store.linkToSession(snippet.id, sid);
+      await notifier.linkToSession(snippet.id, sid);
     }
-    ref.invalidate(sessionSnippetsProvider(sid));
     await _load();
   }
 }
