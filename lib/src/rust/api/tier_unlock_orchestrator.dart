@@ -28,3 +28,20 @@ void tierUnlockPlaintext() =>
 /// stays responsive.
 Future<Uint8List?> tierUnlockKeychain() =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockKeychain();
+
+/// Paranoid tier — derive the DB key from the typed master
+/// password via Argon2id; emit cascade events along the way;
+/// return the key bytes on success or `None` on a wrong
+/// password / corrupted KDF record.
+///
+/// The Dart caller owns the unlock dialog UI (rate-limit
+/// countdown, "forgot password" reset path); after the user
+/// submits the password the caller invokes this orchestrator
+/// to drive the verify + cascade emission in one FRB hop.
+///
+/// Reads the support dir from the pinned singleton — caller
+/// must have invoked `master_password_init` at app startup.
+Future<Uint8List?> tierUnlockParanoid({required String password}) => RustLib
+    .instance
+    .api
+    .crateApiTierUnlockOrchestratorTierUnlockParanoid(password: password);

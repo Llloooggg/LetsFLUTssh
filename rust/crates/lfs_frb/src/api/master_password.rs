@@ -14,40 +14,35 @@
 //! responsibility (the plugin contract is platform-bound), but the
 //! lifetime concern shrinks to "init once, use everywhere".
 
-use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::path::PathBuf;
 
 use lfs_core::security::master_password::{self, KdfParams};
 
-/// Pinned support directory, set once via [`master_password_init`].
-/// `OnceLock` because the path resolves at app startup and never
-/// changes for the process lifetime; subsequent inits are no-ops
-/// (the first wins). Tests inject the path through the same
-/// init shim, so multiple unit tests in the same process share
-/// whichever path landed first.
-static SUPPORT_DIR: OnceLock<PathBuf> = OnceLock::new();
-
-/// Pin the support directory. Production callers resolve the path
-/// once via Dart's `getApplicationSupportDirectory()` plugin call
-/// at app startup and forward it here; subsequent inits are
-/// no-ops. Returns the canonical path the actor adopted so a
-/// caller can confirm the bind without a re-read.
+/// Pin the support directory inside the
+/// `lfs_core::security::master_password` singleton; subsequent
+/// per-call FRB shims read from the pin instead of taking the
+/// path per call. The pin lives in core so per-tier unlock
+/// orchestrators (`tier_unlock_orchestrator`) can share the
+/// same lookup without crossing crate boundaries through a
+/// re-export hack.
+///
+/// Production callers resolve the path once via Dart's
+/// `getApplicationSupportDirectory()` plugin call at app
+/// startup and forward it here; subsequent inits are no-ops
+/// (the first pin wins). Returns the canonical path the actor
+/// adopted so a caller can confirm the bind without a re-read.
 #[flutter_rust_bridge::frb(sync)]
 pub fn master_password_init(support_dir: String) -> String {
-    let path = PathBuf::from(support_dir);
-    let pinned = SUPPORT_DIR.get_or_init(|| path.clone());
-    pinned.to_string_lossy().into_owned()
+    master_password::pin_support_dir(PathBuf::from(support_dir))
+        .to_string_lossy()
+        .into_owned()
 }
 
-/// Pull the pinned support dir; returns the canonical
-/// `getApplicationSupportDirectory()` path. Panics in the
-/// unreachable "no init was called" case — every FRB function
-/// below routes through this and the Dart shim guarantees
-/// `master_password_init` runs before any other call.
-fn support_dir() -> &'static Path {
-    SUPPORT_DIR
-        .get()
-        .expect("master_password_init must be called before any other master_password_* op")
+/// Re-export of `master_password::pinned_support_dir` so the
+/// rest of this file reads as it did before the pin moved into
+/// core.
+fn support_dir() -> &'static std::path::Path {
+    master_password::pinned_support_dir()
 }
 
 /// FRB mirror of `lfs_core::security::master_password::KdfParams`.

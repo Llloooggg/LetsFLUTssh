@@ -116,6 +116,76 @@ pub async fn unlock_keychain() -> Option<Vec<u8>> {
     }
 }
 
+/// Paranoid tier — derive the DB key from the typed master
+/// password via Argon2id; dispatch the cascade events along
+/// the way; return the key bytes on success or `None` on a
+/// wrong password / corrupted KDF record.
+///
+/// The Dart caller owns the unlock dialog UI (rate-limit
+/// countdown, "forgot password" reset path, biometric option
+/// where applicable); after the user submits the password the
+/// caller invokes this orchestrator to drive the verify +
+/// cascade emission in one FRB hop.
+///
+/// `support_dir` is read from the pinned singleton inside the
+/// `master_password` FRB layer (see `master_password_init`).
+/// `password` crosses FRB once on the way in; the key bytes
+/// cross once on the way out for the Dart caller to hand to
+/// drift.
+pub async fn unlock_paranoid(password: String) -> Option<Vec<u8>> {
+    instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockRequested);
+
+    // Argon2id is CPU + memory heavy (400-1500ms wall-clock at
+    // production profile); spawn_blocking frees the FRB worker
+    // for the duration. The pinned support_dir lives inside the
+    // `master_password` singleton (set at startup via
+    // `master_password::pin_support_dir`).
+    let key = tokio::task::spawn_blocking(move || {
+        let path = crate::security::master_password::pinned_support_dir();
+        crate::security::master_password::verify_and_derive(path, &password)
+    })
+    .await;
+
+    match key {
+        Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockSucceeded);
+            Some(bytes)
+        }
+        Ok(Ok(_)) => {
+            // verify_and_derive returned None — wrong password.
+            instance_dispatch(
+                SecurityTier::Paranoid,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::WrongSecret,
+                },
+            );
+            None
+        }
+        Ok(Err(detail)) => {
+            // KDF record corrupt or missing.
+            instance_dispatch(
+                SecurityTier::Paranoid,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::Corruption { detail },
+                },
+            );
+            None
+        }
+        Err(_) => {
+            // spawn_blocking task panicked.
+            instance_dispatch(
+                SecurityTier::Paranoid,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::Corruption {
+                        detail: "Argon2id task panicked".into(),
+                    },
+                },
+            );
+            None
+        }
+    }
+}
+
 /// UUIDv4-shaped prompt id. Mirrors the same id-shape every
 /// other prompt registry caller uses.
 fn generate_prompt_id() -> String {

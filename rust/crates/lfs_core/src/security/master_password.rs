@@ -193,6 +193,30 @@ pub fn decode_kdf_record(bytes: &[u8]) -> Result<KdfRecord, String> {
     Ok(KdfRecord { params, salt })
 }
 
+/// Pinned `getApplicationSupportDirectory()` path. Set once at
+/// startup via [`pin_support_dir`] so per-tier orchestrators +
+/// FRB shims share one canonical lookup; subsequent pins are
+/// no-ops. Tests construct paths inline and don't pin.
+static SUPPORT_DIR: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
+/// Pin the support directory. Production calls this once after
+/// the Dart `path_provider` plugin resolves the path. Returns
+/// the canonical path the actor adopted (the first pin wins;
+/// later calls are no-ops + return the existing pin).
+pub fn pin_support_dir(support_dir: std::path::PathBuf) -> std::path::PathBuf {
+    SUPPORT_DIR.get_or_init(|| support_dir.clone()).clone()
+}
+
+/// Read the pinned support dir. Panics in the unreachable
+/// "no pin was set" case — production callers fire
+/// [`pin_support_dir`] at startup before any other op
+/// routes through the singleton.
+pub fn pinned_support_dir() -> &'static Path {
+    SUPPORT_DIR.get().expect(
+        "pin_support_dir must be called before any master_password op routes through the singleton",
+    )
+}
+
 /// True when `credentials.kdf` exists under [`support_dir`] —
 /// the master-password tier is enabled.
 pub fn is_enabled(support_dir: &Path) -> bool {

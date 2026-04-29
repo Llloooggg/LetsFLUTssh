@@ -9,11 +9,19 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These functions are ignored because they are not marked as `pub`: `support_dir`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
 
-/// Pin the support directory. Production callers resolve the path
-/// once via Dart's `getApplicationSupportDirectory()` plugin call
-/// at app startup and forward it here; subsequent inits are
-/// no-ops. Returns the canonical path the actor adopted so a
-/// caller can confirm the bind without a re-read.
+/// Pin the support directory inside the
+/// `lfs_core::security::master_password` singleton; subsequent
+/// per-call FRB shims read from the pin instead of taking the
+/// path per call. The pin lives in core so per-tier unlock
+/// orchestrators (`tier_unlock_orchestrator`) can share the
+/// same lookup without crossing crate boundaries through a
+/// re-export hack.
+///
+/// Production callers resolve the path once via Dart's
+/// `getApplicationSupportDirectory()` plugin call at app
+/// startup and forward it here; subsequent inits are no-ops
+/// (the first pin wins). Returns the canonical path the actor
+/// adopted so a caller can confirm the bind without a re-read.
 String masterPasswordInit({required String supportDir}) => RustLib.instance.api
     .crateApiMasterPasswordMasterPasswordInit(supportDir: supportDir);
 
