@@ -62,7 +62,6 @@ import 'widgets/app_shell.dart';
 import 'widgets/auto_lock_detector.dart';
 import 'widgets/first_launch_security_toast.dart';
 import 'widgets/lock_screen.dart';
-import 'widgets/passphrase_dialog.dart';
 import 'widgets/toast.dart';
 
 /// Single-instance lock — kept alive for the process lifetime.
@@ -432,27 +431,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   }
 
   void _setupHostKeyCallbacks() {
-    // Interactive passphrase prompt for encrypted SSH keys.
-    final connManager = ref.read(connectionManagerProvider);
-    connManager.onPassphraseRequired = (host, attempt) async {
-      final ctx = navigatorKey.currentContext;
-      if (ctx == null) return null;
-      final result = await PassphraseDialog.show(
-        ctx,
-        host: host,
-        attempt: attempt,
-      );
-      if (result == null) return null;
-      return (passphrase: result.passphrase, remember: result.remember);
-    };
-
-    // TOFU prompt callbacks were wired here previously, but russh's
-    // `check_server_key` always accepts the offered host key today
-    // (verification not yet wired on the Rust SSH handler), so the
-    // callbacks never fired. Removed to avoid implying live MITM
-    // detection. The dialog widgets stay in the tree against the
-    // future TOFU prompt-protocol arc that ships the bus
-    // request/response with russh's verifier.
+    // Interactive passphrase prompt + TOFU host-key verification land
+    // through the Rust-side prompt-protocol arcs (russh's
+    // `check_server_key` already routes through the bus for
+    // `KnownHostPromptRequest`; the passphrase prompt follows the
+    // same shape). Until the russh layer fans out a
+    // `PassphrasePromptRequest` event there's nothing to wire here —
+    // the Rust transport surfaces `PassphraseIncorrect` /
+    // `PassphraseRequired` as connect errors which the workspace
+    // surfaces as a re-edit hint on the session row.
   }
 
   @override

@@ -19,13 +19,6 @@ import 'connection.dart';
 import 'connection_step.dart';
 import 'connection_step_mappers.dart';
 
-/// Callback for interactive passphrase prompts — set by the UI layer.
-typedef PassphrasePromptCallback =
-    Future<({String passphrase, bool remember})?> Function(
-      String host,
-      int attempt,
-    );
-
 /// Manages active SSH connections lifecycle.
 ///
 /// Tracks connections, associates them with tabs, notifies listeners.
@@ -106,13 +99,6 @@ class ConnectionManager {
   /// legacy constructor callers in tests that don't care about
   /// reconnect-after-lock. See [SessionCredentialCache].
   final SessionCredentialCache? _credentialCache;
-
-  /// Called when an encrypted SSH key needs a passphrase interactively.
-  /// Reserved for the upcoming Rust-side passphrase callback hook —
-  /// today it stays unwired (the Rust transport returns
-  /// `PassphraseIncorrect` / `PassphraseRequired` errors rather than
-  /// prompting mid-handshake).
-  PassphrasePromptCallback? onPassphraseRequired;
 
   final _controller = StreamController<void>.broadcast();
 
