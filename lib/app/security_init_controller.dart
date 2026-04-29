@@ -10,7 +10,6 @@ import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../core/migration/migration_runner.dart';
-import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
 import '../core/security/master_password.dart';
 import '../core/security/password_rate_limiter.dart';
@@ -467,9 +466,9 @@ class SecurityInitController {
       case SecurityTier.hardware:
         await _unlockHardware();
       case SecurityTier.keychainWithPassword:
-        await _unlockKeychainWithPassword(keyStorage);
+        await _unlockKeychainWithPassword();
       case SecurityTier.keychain:
-        await _unlockKeychain(keyStorage);
+        await _unlockKeychain();
       case SecurityTier.paranoid:
         await _unlockParanoid(manager);
       case SecurityTier.plaintext:
@@ -573,20 +572,18 @@ class SecurityInitController {
     );
   }
 
-  Future<void> _unlockKeychain(SecureKeyStorage keyStorage) async {
+  Future<void> _unlockKeychain() async {
     // Production routes through `tier_unlock_orchestrator::unlock_keychain`
     // + `TierUnlockedListener`: orchestrator stages the keychain
     // key under `tier.unlock.key`, listener takes it + runs the
     // post-unlock cascade (caches, securityStateProvider, Rust DB,
-    // tier persist). Falls back to the inline Dart helper +
-    // direct `_injectDatabase` when the FRB native lib is not
-    // loaded (flutter_test contexts).
-    var orchestratorRoute = false;
+    // tier persist). Plaintext fallback covers both the orchestrator-
+    // returned PluginError (keychain entry missing) and the FRB-
+    // unreachable case (flutter_test).
     try {
       final listener = ref.read(tierUnlockedListenerProvider)..start();
       final unlockDone = listener.awaitNextUnlock();
       final outcome = await rust_orch.tierUnlockKeychain();
-      orchestratorRoute = true;
       if (outcome is rust_orch.DbUnlockOutcome_Staged) {
         final result = await unlockDone.timeout(
           const Duration(seconds: 5),
@@ -602,26 +599,14 @@ class SecurityInitController {
           name: 'App',
           level: LogLevel.warn,
         );
-        // Listener missed the cascade — fall through to fallback.
       }
-      // Non-Staged outcome (PluginError) — fall through to plaintext fallback.
       listener.cancelPending();
     } catch (e) {
       AppLogger.instance.log(
-        'tier_unlock_keychain FRB unreachable, falling back to '
-        'Dart pipeline: $e',
+        'tier_unlock_keychain FRB unreachable: $e',
         name: 'App',
+        level: LogLevel.warn,
       );
-    }
-    if (!orchestratorRoute) {
-      // FRB-unreachable test fallback: read keychain directly + inject.
-      // The cascade emits would also be no-ops without the native lib.
-      final keychainKey = await keyStorage.readKey();
-      if (keychainKey != null) {
-        await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
-        AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
-        return;
-      }
     }
     _credentialsWereReset = true;
     await _injectDatabase();
@@ -632,7 +617,7 @@ class SecurityInitController {
     );
   }
 
-  Future<void> _unlockKeychainWithPassword(SecureKeyStorage keyStorage) async {
+  Future<void> _unlockKeychainWithPassword() async {
     final gate = ref.read(keychainPasswordGateProvider);
     if (!await gate.isConfigured()) {
       _credentialsWereReset = true;
@@ -680,7 +665,6 @@ class SecurityInitController {
     }
     final dialogResult = await _showL2UnlockDialog(
       gate,
-      keyStorage,
       autoTriggerBiometric: !biometricAttempted,
     );
     if (dialogResult == true) {
@@ -722,23 +706,18 @@ class SecurityInitController {
   }
 
   Future<bool?> _showL2UnlockDialog(
-    KeychainPasswordGate gate,
-    SecureKeyStorage keyStorage, {
+    KeychainPasswordGate gate, {
     bool autoTriggerBiometric = true,
   }) async {
     final limiter = await gate.rateLimiter();
     if (!isMounted()) return null;
     return _showL2DialogSync(
-      gate,
-      keyStorage,
       limiter,
       autoTriggerBiometric: autoTriggerBiometric,
     );
   }
 
   Future<bool?> _showL2DialogSync(
-    KeychainPasswordGate gate,
-    SecureKeyStorage keyStorage,
     PasswordRateLimiter? limiter, {
     bool autoTriggerBiometric = true,
   }) {
@@ -755,13 +734,13 @@ class SecurityInitController {
       ),
       rateLimiter: limiter,
       verify: (password) async {
-        // Production routes through the
-        // `tier_unlock_keychain_with_password` orchestrator
-        // which composes the gate verify + keychain key read
-        // into one FRB hop, stages the bytes in the SecretStore,
-        // emits the cascade. The pure-Dart `gate.verify +
-        // keyStorage.readKey` chain stays as the flutter_test
-        // fallback (no FRB native lib).
+        // Routes through the `tier_unlock_keychain_with_password`
+        // orchestrator: gate verify + keychain key read in one FRB
+        // hop, bytes staged in the SecretStore, cascade emitted.
+        // FRB-unreachable contexts (flutter_test) surface as
+        // `TierUnlockAttempt.error` so the dialog closes + the
+        // caller routes through the plaintext fallback in
+        // `_unlockKeychainWithPassword`.
         try {
           final outcome = await rust_orch.tierUnlockKeychainWithPassword(
             password: password,
@@ -769,23 +748,12 @@ class SecurityInitController {
           return mapUnlockOutcome(outcome);
         } catch (e) {
           AppLogger.instance.log(
-            'tier_unlock_keychain_with_password FRB unreachable, '
-            'falling back to Dart pipeline: $e',
+            'tier_unlock_keychain_with_password FRB unreachable: $e',
             name: 'App',
+            level: LogLevel.warn,
           );
+          return TierUnlockAttempt.error;
         }
-        if (!await gate.verify(password)) return TierUnlockAttempt.wrongSecret;
-        final fallback = await keyStorage.readKey();
-        if (fallback == null) return TierUnlockAttempt.error;
-        // Test-fallback: stage bytes locally so the listener can
-        // pick them up the same way the production orchestrator
-        // would. The cascade is best-effort here — no native lib
-        // means tier_machine dispatch is also a no-op.
-        await _stageBiometricFallback(
-          SecurityTier.keychainWithPassword,
-          fallback,
-        );
-        return TierUnlockAttempt.staged;
       },
       biometricUnlock: () =>
           _tryBiometricCommit(SecurityTier.keychainWithPassword),
@@ -829,12 +797,9 @@ class SecurityInitController {
         AppLogger.instance.log(
           'tier_unlock_biometric_commit FRB unreachable: $e',
           name: 'App',
+          level: LogLevel.warn,
         );
-        // Test fallback: stage manually + return true so the
-        // dialog closes with success; the listener's cascade
-        // is a no-op without the native lib.
-        await _stageBiometricFallback(tier, key);
-        return true;
+        return false;
       }
     } catch (e) {
       AppLogger.instance.log(
@@ -844,14 +809,6 @@ class SecurityInitController {
       );
       return false;
     }
-  }
-
-  /// Test-only fallback used when the FRB native lib isn't loaded
-  /// (flutter_test). Mirrors what `tier_unlock_biometric_commit`
-  /// does on the Rust side but inlined in Dart so the listener
-  /// path still resolves end-to-end under the test harness.
-  Future<void> _stageBiometricFallback(SecurityTier tier, Uint8List key) async {
-    await _injectDatabase(key: key, level: tier);
   }
 
   Future<void> _unlockHardware() async {
@@ -873,12 +830,10 @@ class SecurityInitController {
       // Passwordless variant — vault was sealed without a user
       // secret. Routes through `tier_unlock_hardware(null)` which
       // fans out to the platform vault via the prompt registry +
-      // stages bytes in the SecretStore. Falls back to direct
-      // `vault.read` for flutter_test contexts (no FRB native lib).
-      var orchestratorRoute = false;
+      // stages bytes in the SecretStore. FRB-unreachable contexts
+      // (flutter_test) skip straight to the plaintext fallback.
       try {
         final outcome = await rust_orch.tierUnlockHardware();
-        orchestratorRoute = true;
         if (outcome is rust_orch.DbUnlockOutcome_Staged) {
           final result = await unlockDone.timeout(
             const Duration(seconds: 5),
@@ -899,26 +854,10 @@ class SecurityInitController {
         }
       } catch (e) {
         AppLogger.instance.log(
-          'tier_unlock_hardware (passwordless) FRB unreachable, '
-          'falling back to Dart pipeline: $e',
+          'tier_unlock_hardware (passwordless) FRB unreachable: $e',
           name: 'App',
+          level: LogLevel.warn,
         );
-      }
-      if (!orchestratorRoute) {
-        // FRB-unreachable test fallback: read directly + inject.
-        final fallbackKey = await vault.read(null);
-        if (fallbackKey != null) {
-          await _injectDatabase(
-            key: Uint8List.fromList(fallbackKey),
-            level: SecurityTier.hardware,
-            modifiers: mods,
-          );
-          AppLogger.instance.log(
-            'L3 hardware-vault unlocked (passwordless, fallback)',
-            name: 'App',
-          );
-          return;
-        }
       }
       listener.cancelPending();
       _credentialsWereReset = true;
@@ -956,7 +895,6 @@ class SecurityInitController {
       }
     }
     final dialogResult = await _showL3UnlockDialog(
-      vault,
       mods,
       autoTriggerBiometric: !biometricAttempted,
     );
@@ -997,7 +935,6 @@ class SecurityInitController {
   }
 
   Future<bool?> _showL3UnlockDialog(
-    HardwareTierVault vault,
     SecurityTierModifiers? mods, {
     bool autoTriggerBiometric = true,
   }) async {
@@ -1015,28 +952,24 @@ class SecurityInitController {
       ),
       rateLimiter: limiter,
       verify: (pin) async {
-        // Production routes through `tier_unlock_hardware(pin)`
-        // which fans out to the platform vault via the prompt
-        // registry, stages bytes in the SecretStore, emits the
-        // cascade. Falls back to direct `vault.read(pin)` for
-        // flutter_test contexts (no FRB native lib).
+        // Routes through `tier_unlock_hardware(pin)` which fans
+        // out to the platform vault via the prompt registry,
+        // stages bytes in the SecretStore, emits the cascade.
+        // FRB-unreachable contexts (flutter_test) surface as
+        // `TierUnlockAttempt.error` so the dialog closes + the
+        // caller routes through the plaintext fallback in
+        // `_unlockHardware`.
         try {
           final outcome = await rust_orch.tierUnlockHardware(pin: pin);
           return mapUnlockOutcome(outcome);
         } catch (e) {
           AppLogger.instance.log(
-            'tier_unlock_hardware FRB unreachable, falling back '
-            'to Dart pipeline: $e',
+            'tier_unlock_hardware FRB unreachable: $e',
             name: 'App',
+            level: LogLevel.warn,
           );
+          return TierUnlockAttempt.error;
         }
-        final unsealed = await vault.read(pin);
-        if (unsealed == null) return TierUnlockAttempt.wrongSecret;
-        await _stageBiometricFallback(
-          SecurityTier.hardware,
-          Uint8List.fromList(unsealed),
-        );
-        return TierUnlockAttempt.staged;
       },
       biometricUnlock: () => _tryBiometricCommit(SecurityTier.hardware),
       autoTriggerBiometric: autoTriggerBiometric,
