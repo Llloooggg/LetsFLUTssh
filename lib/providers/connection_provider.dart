@@ -13,7 +13,9 @@ import 'session_credential_cache_provider.dart';
 
 /// Known hosts manager — singleton.
 final knownHostsProvider = Provider<KnownHostsManager>((ref) {
-  return KnownHostsManager();
+  final manager = KnownHostsManager();
+  ref.onDispose(manager.dispose);
+  return manager;
 });
 
 /// Foreground service manager — singleton (Android only, no-op on other platforms).
