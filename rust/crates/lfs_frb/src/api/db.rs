@@ -228,6 +228,36 @@ pub async fn db_folders_update_name_parent(
     res
 }
 
+/// Composite folder rename / move — Rust resolves the existing
+/// folder by `old_path`, computes the new leaf name + new parent
+/// path, ensures the new parent exists, then updates the row in
+/// one transaction.
+///
+/// Replaces the Dart `SessionStore.renameFolder` + `moveFolder`
+/// two-step (which carried a stale `parent_id` from the row
+/// cache and silently failed to re-parent on cross-tree moves).
+///
+/// Returns 1 on success, 0 when `old_path` resolves to nothing.
+/// `Err` for cycle moves (folder under its own descendant).
+pub async fn db_folders_rename_path_cascade(
+    old_path: String,
+    new_path: String,
+    now_ms: i64,
+) -> Result<u32, String> {
+    let res = tokio::task::spawn_blocking(move || {
+        let db = require_db()?;
+        db.with_conn_mut(|c| {
+            lfs_core::db::folders::rename_path_cascade(c, &old_path, &new_path, now_ms)
+        })
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("db task: {e}"))?
+    .map(|n| n as u32);
+    notify_sessions_on_ok_when(&res, |n| *n > 0);
+    res
+}
+
 pub async fn db_folders_delete_recursive(id: String) -> Result<u32, String> {
     let res = run_db(move |c| lfs_core::db::folders::delete_recursive(c, &id))
         .await

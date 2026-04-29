@@ -57,6 +57,27 @@ Future<int> dbFoldersUpdateNameParent({
   parentId: parentId,
 );
 
+/// Composite folder rename / move — Rust resolves the existing
+/// folder by `old_path`, computes the new leaf name + new parent
+/// path, ensures the new parent exists, then updates the row in
+/// one transaction.
+///
+/// Replaces the Dart `SessionStore.renameFolder` + `moveFolder`
+/// two-step (which carried a stale `parent_id` from the row
+/// cache and silently failed to re-parent on cross-tree moves).
+///
+/// Returns 1 on success, 0 when `old_path` resolves to nothing.
+/// `Err` for cycle moves (folder under its own descendant).
+Future<int> dbFoldersRenamePathCascade({
+  required String oldPath,
+  required String newPath,
+  required PlatformInt64 nowMs,
+}) => RustLib.instance.api.crateApiDbDbFoldersRenamePathCascade(
+  oldPath: oldPath,
+  newPath: newPath,
+  nowMs: nowMs,
+);
+
 Future<int> dbFoldersDeleteRecursive({required String id}) =>
     RustLib.instance.api.crateApiDbDbFoldersDeleteRecursive(id: id);
 

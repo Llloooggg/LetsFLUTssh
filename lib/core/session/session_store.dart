@@ -628,7 +628,11 @@ class SessionStore {
   Future<void> renameFolder(String oldPath, String newPath) async {
     if (oldPath.isEmpty || newPath.isEmpty || oldPath == newPath) return;
 
-    // Update in-memory sessions
+    // Optimistic Dart-side cache cascade — the bus event will
+    // re-hydrate from the registry snapshot, but the live cache
+    // needs to reflect the new path between the FRB call and the
+    // bus tick so widgets reading off `_sessions` don't render the
+    // old path for a frame.
     for (int i = 0; i < _sessions.length; i++) {
       final s = _sessions[i];
       if (s.folder == oldPath) {
@@ -657,20 +661,20 @@ class SessionStore {
       ..clear()
       ..addAll(renamedCollapsed);
 
+    // One Rust transaction now resolves the existing folder by
+    // path, ensures the new parent path (creating segments as
+    // needed), and updates the row. Replaces the prior two-step
+    // (`findFolderIdByPath` Dart-side + `dbFoldersUpdateNameParent`
+    // with the OLD `parent_id`) which silently failed to re-parent
+    // on cross-tree moves.
     try {
-      final folderId = findFolderIdByPath(oldPath, _folderMap);
-      if (folderId != null) {
-        final row = _folderMap[folderId];
-        final newName = newPath.split('/').last;
-        await rust_db.dbFoldersUpdateNameParent(
-          id: folderId,
-          name: newName,
-          parentId: row?.parentId,
-        );
-        // Rebuild cache
-        final folders = await rust_db.dbFoldersListAll();
-        _folderMap = buildFolderMap(folders);
-      }
+      await rust_db.dbFoldersRenamePathCascade(
+        oldPath: oldPath,
+        newPath: newPath,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      );
+      final folders = await rust_db.dbFoldersListAll();
+      _folderMap = buildFolderMap(folders);
     } catch (e) {
       AppLogger.instance.log(
         'renameFolder failed: $e',

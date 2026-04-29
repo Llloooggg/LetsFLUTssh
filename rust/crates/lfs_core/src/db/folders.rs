@@ -157,6 +157,76 @@ pub fn update_name_parent(
     .map_err(|e| Error::Io(format!("folders update_name_parent: {e}")))
 }
 
+/// Rename / move a folder from `old_path` to `new_path` in one
+/// transaction. Resolves the existing folder by path, computes the
+/// new name (last segment) + new parent path (everything before),
+/// ensures the new parent path exists (creating segments as
+/// needed), then updates the folder row.
+///
+/// Returns 1 on success, 0 when `old_path` resolves to no folder
+/// (caller treats that as "nothing to rename"). Errors come from
+/// the underlying DAOs.
+///
+/// Replaces the Dart `SessionStore.renameFolder` /
+/// `moveFolder` two-step (`findFolderIdByPath` + manual
+/// `dbFoldersUpdateNameParent` with a stale `parent_id` carried
+/// from the row cache). The Dart caller passed the OLD parent_id
+/// when moving across the tree — this helper computes the NEW
+/// parent from the target path so move-across-the-tree actually
+/// re-parents the row.
+pub fn rename_path_cascade(
+    conn: &mut Connection,
+    old_path: &str,
+    new_path: &str,
+    now_ms: i64,
+) -> Result<usize, Error> {
+    if old_path.is_empty() || new_path.is_empty() || old_path == new_path {
+        return Ok(0);
+    }
+    // Reject cycles: moving a folder under one of its own descendants
+    // would orphan the rest of the subtree.
+    if new_path.starts_with(&format!("{old_path}/")) {
+        return Err(Error::Io(format!(
+            "folders rename_path_cascade: refused to move {old_path} under its own descendant {new_path}",
+        )));
+    }
+    let tx = conn
+        .transaction()
+        .map_err(|e| Error::Io(format!("folders rename_path_cascade tx: {e}")))?;
+
+    let folders = list_all(&tx)?;
+    let folder_map: std::collections::BTreeMap<String, FolderRow> =
+        folders.iter().map(|f| (f.id.clone(), f.clone())).collect();
+
+    let folder_id = match crate::folder_path::find_folder_id_by_path(old_path, &folder_map) {
+        Some(id) => id,
+        None => return Ok(0),
+    };
+
+    let segments: Vec<&str> = new_path.split('/').filter(|s| !s.is_empty()).collect();
+    if segments.is_empty() {
+        return Err(Error::Io(format!(
+            "folders rename_path_cascade: empty new_path after split: {new_path}",
+        )));
+    }
+    let new_name = segments
+        .last()
+        .expect("non-empty by check above")
+        .to_string();
+    let new_parent_path = if segments.len() == 1 {
+        String::new()
+    } else {
+        segments[..segments.len() - 1].join("/")
+    };
+
+    let new_parent_id = ensure_folder_path(&tx, &new_parent_path, now_ms)?;
+
+    let n = update_name_parent(&tx, &folder_id, &new_name, new_parent_id.as_deref())?;
+    tx.commit()
+        .map_err(|e| Error::Io(format!("folders rename_path_cascade commit: {e}")))?;
+    Ok(n)
+}
+
 /// Delete `id` and every descendant in the parent_id tree. Uses a
 /// recursive CTE so the round-trip count is one regardless of tree
 /// depth — same shape drift's `getDescendantIds` paired with a
@@ -173,4 +243,104 @@ pub fn delete_recursive(conn: &Connection, id: &str) -> Result<usize, Error> {
         params![id],
     )
     .map_err(|e| Error::Io(format!("folders delete_recursive: {e}")))
+}
+
+#[cfg(test)]
+mod rename_tests {
+    use super::*;
+    use crate::db::{bootstrap_schema, Db};
+    use rusqlite::Connection as RusqliteConn;
+
+    fn db() -> Db {
+        let conn = RusqliteConn::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Db::from_raw_for_tests(conn)
+    }
+
+    fn ensure(db: &Db, path: &str) -> String {
+        db.with_conn(|c| ensure_folder_path(c, path, 0))
+            .unwrap()
+            .unwrap()
+    }
+
+    fn rename(db: &Db, old_p: &str, new_p: &str) -> Result<usize, crate::error::Error> {
+        db.with_conn_mut(|c| rename_path_cascade(c, old_p, new_p, 100))
+    }
+
+    #[test]
+    fn rename_renames_leaf_segment_only() {
+        let db = db();
+        let old_id = ensure(&db, "infra");
+        let n = rename(&db, "infra", "platform").unwrap();
+        assert_eq!(n, 1);
+        let folders = db.with_conn(list_all).unwrap();
+        let row = folders.iter().find(|f| f.id == old_id).unwrap();
+        assert_eq!(row.name, "platform");
+        assert!(row.parent_id.is_none());
+    }
+
+    #[test]
+    fn rename_moves_across_tree_reparenting_correctly() {
+        // The Dart-side bug: SessionStore.moveFolder routed through
+        // renameFolder which passed the OLD parent_id back to the
+        // DAO. The composite Rust helper here resolves the new
+        // parent path directly so the row actually re-parents.
+        let db = db();
+        let original = ensure(&db, "infra/prod");
+        ensure(&db, "infra/staging"); // ensure target parent exists
+        rename(&db, "infra/prod", "infra/staging/prod").unwrap();
+
+        let folders = db.with_conn(list_all).unwrap();
+        let prod = folders.iter().find(|f| f.id == original).unwrap();
+        assert_eq!(prod.name, "prod");
+        let staging = folders.iter().find(|f| f.name == "staging").unwrap();
+        assert_eq!(prod.parent_id.as_deref(), Some(staging.id.as_str()));
+    }
+
+    #[test]
+    fn rename_creates_missing_parent_segments() {
+        let db = db();
+        let original = ensure(&db, "infra/prod");
+        // New parent path doesn't exist yet — composite must mint
+        // it inside the same transaction.
+        rename(&db, "infra/prod", "platforms/cloud/prod").unwrap();
+
+        let folders = db.with_conn(list_all).unwrap();
+        let cloud = folders.iter().find(|f| f.name == "cloud").unwrap();
+        let prod = folders.iter().find(|f| f.id == original).unwrap();
+        assert_eq!(prod.parent_id.as_deref(), Some(cloud.id.as_str()));
+    }
+
+    #[test]
+    fn rename_unknown_old_path_returns_zero() {
+        let db = db();
+        let n = rename(&db, "ghost", "real").unwrap();
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn rename_under_own_descendant_errors() {
+        // Moving infra/prod → infra/prod/leaf would orphan the
+        // subtree. Rust helper rejects the cycle.
+        let db = db();
+        ensure(&db, "infra/prod");
+        let err = rename(&db, "infra/prod", "infra/prod/leaf").unwrap_err();
+        assert!(err.to_string().contains("descendant"));
+    }
+
+    #[test]
+    fn rename_same_path_is_noop() {
+        let db = db();
+        ensure(&db, "infra/prod");
+        let n = rename(&db, "infra/prod", "infra/prod").unwrap();
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn rename_empty_paths_are_noop() {
+        let db = db();
+        assert_eq!(rename(&db, "", "x").unwrap(), 0);
+        assert_eq!(rename(&db, "x", "").unwrap(), 0);
+    }
 }
