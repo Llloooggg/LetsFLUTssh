@@ -108,3 +108,13 @@ pub fn sessions_registry_distinct_folders() -> Vec<String> {
         .sessions_registry
         .distinct_folders()
 }
+
+/// Cached session ids whose folder path equals [`folder_path`]
+/// exactly. Empty path yields root-level sessions. Reads off
+/// the cached view.
+#[flutter_rust_bridge::frb(sync)]
+pub fn sessions_registry_ids_by_exact_folder(folder_path: String) -> Vec<String> {
+    lfs_core::app::instance()
+        .sessions_registry
+        .ids_by_exact_folder(&folder_path)
+}

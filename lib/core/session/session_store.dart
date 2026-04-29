@@ -783,8 +783,22 @@ class SessionStore {
     }
   }
 
+  /// Cached sessions whose folder equals [folder] exactly (no
+  /// prefix match — use [countSessionsInFolder] for the
+  /// recursive count). Routes through the registry's
+  /// `sessions_registry_ids_by_exact_folder` (cache read, no
+  /// Dart-side scan per call) when available; falls back to the
+  /// inline filter for flutter_test contexts.
   List<Session> byFolder(String folder) {
-    return _sessions.where((s) => s.folder == folder).toList();
+    try {
+      final ids = rust_registry
+          .sessionsRegistryIdsByExactFolder(folderPath: folder)
+          .toSet();
+      if (ids.isEmpty) return const <Session>[];
+      return _sessions.where((s) => ids.contains(s.id)).toList();
+    } catch (_) {
+      return _sessions.where((s) => s.folder == folder).toList();
+    }
   }
 
   /// Case-insensitive substring search across the cached session

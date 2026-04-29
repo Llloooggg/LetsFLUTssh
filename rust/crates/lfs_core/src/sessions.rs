@@ -150,6 +150,26 @@ impl Registry {
             .len()
     }
 
+    /// Cached session ids whose folder path equals [`folder_path`]
+    /// **exactly** (no prefix match — use [`count_in_folder`] for
+    /// the prefix-aware count). Empty path yields root-level
+    /// sessions. Reads off the cached view; no DB round-trip.
+    #[must_use]
+    pub fn ids_by_exact_folder(&self, folder_path: &str) -> Vec<String> {
+        let view = self.inner.read().expect("registry view lock poisoned");
+        view.sessions
+            .iter()
+            .filter(|s| {
+                let path = match &s.folder_id {
+                    Some(fid) => folder_path::build_folder_path(fid, &view.folders),
+                    None => String::new(),
+                };
+                path == folder_path
+            })
+            .map(|s| s.id.clone())
+            .collect()
+    }
+
     /// Distinct, sorted folder paths referenced by any cached
     /// session. Drops empty paths (sessions at root). Reads off
     /// the cached view; no DB round-trip.

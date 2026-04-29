@@ -61,6 +61,15 @@ List<String> sessionsRegistryFilterIds({required String query}) => RustLib
 List<String> sessionsRegistryDistinctFolders() => RustLib.instance.api
     .crateApiSessionsRegistrySessionsRegistryDistinctFolders();
 
+/// Cached session ids whose folder path equals [`folder_path`]
+/// exactly. Empty path yields root-level sessions. Reads off
+/// the cached view.
+List<String> sessionsRegistryIdsByExactFolder({required String folderPath}) =>
+    RustLib.instance.api
+        .crateApiSessionsRegistrySessionsRegistryIdsByExactFolder(
+          folderPath: folderPath,
+        );
+
 /// Snapshot of the Rust-side sessions / folders cache view.
 /// Mirrors `lfs_core::sessions::RegistryView` across the FRB
 /// boundary using the same `DbSession` / `DbFolder` types the
