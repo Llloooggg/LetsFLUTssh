@@ -7,14 +7,48 @@
 //! 400-1500ms wall-clock KDF cost frees the FRB worker.
 //!
 //! `support_dir` is the platform `getApplicationSupportDirectory()`
-//! path, resolved Dart-side and passed in per call. Mirrors the
-//! migration FRB shape — keeps the path-resolution concern Dart's
-//! responsibility (it owns the `path_provider` plugin contract) and
-//! avoids leaking a global path slot into AppState.
+//! path. Dart resolves it once at startup (via the `path_provider`
+//! plugin) and pins it Rust-side via [`master_password_init`]; every
+//! subsequent op reads it from the FRB-layer singleton instead of
+//! re-passing the string per call. Path resolution stays Dart's
+//! responsibility (the plugin contract is platform-bound), but the
+//! lifetime concern shrinks to "init once, use everywhere".
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use lfs_core::security::master_password::{self, KdfParams};
+
+/// Pinned support directory, set once via [`master_password_init`].
+/// `OnceLock` because the path resolves at app startup and never
+/// changes for the process lifetime; subsequent inits are no-ops
+/// (the first wins). Tests inject the path through the same
+/// init shim, so multiple unit tests in the same process share
+/// whichever path landed first.
+static SUPPORT_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Pin the support directory. Production callers resolve the path
+/// once via Dart's `getApplicationSupportDirectory()` plugin call
+/// at app startup and forward it here; subsequent inits are
+/// no-ops. Returns the canonical path the actor adopted so a
+/// caller can confirm the bind without a re-read.
+#[flutter_rust_bridge::frb(sync)]
+pub fn master_password_init(support_dir: String) -> String {
+    let path = PathBuf::from(support_dir);
+    let pinned = SUPPORT_DIR.get_or_init(|| path.clone());
+    pinned.to_string_lossy().into_owned()
+}
+
+/// Pull the pinned support dir; returns the canonical
+/// `getApplicationSupportDirectory()` path. Panics in the
+/// unreachable "no init was called" case — every FRB function
+/// below routes through this and the Dart shim guarantees
+/// `master_password_init` runs before any other call.
+fn support_dir() -> &'static Path {
+    SUPPORT_DIR
+        .get()
+        .expect("master_password_init must be called before any other master_password_* op")
+}
 
 /// FRB mirror of `lfs_core::security::master_password::KdfParams`.
 /// The Dart side passes the production defaults from
@@ -42,11 +76,11 @@ impl From<DbKdfParams> for KdfParams {
     }
 }
 
-/// True when `credentials.kdf` exists under `support_dir` — the
-/// master-password tier is enabled.
+/// True when `credentials.kdf` exists under the pinned support
+/// dir — the master-password tier is enabled.
 #[flutter_rust_bridge::frb(sync)]
-pub fn master_password_is_enabled(support_dir: String) -> bool {
-    master_password::is_enabled(Path::new(&support_dir))
+pub fn master_password_is_enabled() -> bool {
+    master_password::is_enabled(support_dir())
 }
 
 /// Encode the algo-id + Argon2id params block to the 10-byte
@@ -84,12 +118,11 @@ pub fn kdf_params_decode(bytes: Vec<u8>) -> Result<DbKdfParams, String> {
 /// atomic write of the KDF record + verifier files. Returns the
 /// derived key — the caller re-encrypts the SQLCipher store with it.
 pub async fn master_password_enable(
-    support_dir: String,
     password: String,
     params: DbKdfParams,
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
-        master_password::enable(Path::new(&support_dir), &password, &params.into())
+        master_password::enable(support_dir(), &password, &params.into())
     })
     .await
     .map_err(|e| format!("master_password_enable task: {e}"))?
@@ -100,14 +133,13 @@ pub async fn master_password_enable(
 /// wrong old password — the Dart `MasterPasswordException` wrapper
 /// surfaces it to the change-password dialog.
 pub async fn master_password_change(
-    support_dir: String,
     old_password: String,
     new_password: String,
     params: DbKdfParams,
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
         master_password::change_password(
-            Path::new(&support_dir),
+            support_dir(),
             &old_password,
             &new_password,
             &params.into(),
@@ -121,27 +153,24 @@ pub async fn master_password_change(
 /// re-encrypting stores with a fresh random key + writing
 /// `credentials.key`.
 #[flutter_rust_bridge::frb(sync)]
-pub fn master_password_disable(support_dir: String) -> Result<(), String> {
-    master_password::disable(Path::new(&support_dir))
+pub fn master_password_disable() -> Result<(), String> {
+    master_password::disable(support_dir())
 }
 
 /// Drop everything: KDF + verifier + key file. Destructive — only
 /// the forgotten-password reset flow uses this once the user has
 /// confirmed the data loss.
 #[flutter_rust_bridge::frb(sync)]
-pub fn master_password_reset(support_dir: String) -> Result<(), String> {
-    master_password::reset(Path::new(&support_dir))
+pub fn master_password_reset() -> Result<(), String> {
+    master_password::reset(support_dir())
 }
 
 /// Run the KDF against the on-disk salt + params and return the
 /// derived key without checking the verifier. Used when the caller
 /// already trusts the password and just needs the key.
-pub async fn master_password_derive_key(
-    support_dir: String,
-    password: String,
-) -> Result<Vec<u8>, String> {
+pub async fn master_password_derive_key(password: String) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
-        master_password::derive_key_from_disk(Path::new(&support_dir), &password)
+        master_password::derive_key_from_disk(support_dir(), &password)
     })
     .await
     .map_err(|e| format!("master_password_derive_key task: {e}"))?
@@ -151,11 +180,10 @@ pub async fn master_password_derive_key(
 /// return `Some(key)` on success or `None` on a wrong password.
 /// `Err` is reserved for "the tier is not enabled" / "files corrupt".
 pub async fn master_password_verify_and_derive(
-    support_dir: String,
     password: String,
 ) -> Result<Option<Vec<u8>>, String> {
     tokio::task::spawn_blocking(move || {
-        master_password::verify_and_derive(Path::new(&support_dir), &password)
+        master_password::verify_and_derive(support_dir(), &password)
     })
     .await
     .map_err(|e| format!("master_password_verify task: {e}"))?

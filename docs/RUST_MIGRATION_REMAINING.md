@@ -462,9 +462,14 @@ Already a thin façade — every op delegates to `master_password_*`
 FRB calls. Remaining: rate-limiter wrapper +
 `getApplicationSupportDirectory` resolution.
 
-- [ ] C1.1 — Move `support_dir` resolution into a one-shot
-  `master_password_init(support_dir)` call instead of passing it
-  per-call.
+- [x] C1.1 — `master_password_init(support_dir)` FRB shim pins
+  the path inside an `OnceLock<PathBuf>` Rust-side; subsequent
+  ops (`is_enabled`, `enable`, `change`, `disable`, `reset`,
+  `derive_key`, `verify_and_derive`) read from the singleton
+  instead of taking the path per call. Dart
+  `MasterPasswordManager._getBasePath` resolves once via
+  `getApplicationSupportDirectory()` and forwards to the init
+  shim; consumers stay unchanged.
 - [ ] C1.2 — `MasterPasswordException` localised messages stay
   Dart; the Dart wrapper retires.
 

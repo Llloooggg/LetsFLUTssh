@@ -6,14 +6,21 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `support_dir`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
 
-/// True when `credentials.kdf` exists under `support_dir` — the
-/// master-password tier is enabled.
-bool masterPasswordIsEnabled({required String supportDir}) => RustLib
-    .instance
-    .api
-    .crateApiMasterPasswordMasterPasswordIsEnabled(supportDir: supportDir);
+/// Pin the support directory. Production callers resolve the path
+/// once via Dart's `getApplicationSupportDirectory()` plugin call
+/// at app startup and forward it here; subsequent inits are
+/// no-ops. Returns the canonical path the actor adopted so a
+/// caller can confirm the bind without a re-read.
+String masterPasswordInit({required String supportDir}) => RustLib.instance.api
+    .crateApiMasterPasswordMasterPasswordInit(supportDir: supportDir);
+
+/// True when `credentials.kdf` exists under the pinned support
+/// dir — the master-password tier is enabled.
+bool masterPasswordIsEnabled() =>
+    RustLib.instance.api.crateApiMasterPasswordMasterPasswordIsEnabled();
 
 /// Encode the algo-id + Argon2id params block to the 10-byte
 /// big-endian shape `credentials.kdf` stores after the magic +
@@ -43,11 +50,9 @@ DbKdfParams kdfParamsDecode({required List<int> bytes}) =>
 /// atomic write of the KDF record + verifier files. Returns the
 /// derived key — the caller re-encrypts the SQLCipher store with it.
 Future<Uint8List> masterPasswordEnable({
-  required String supportDir,
   required String password,
   required DbKdfParams params,
 }) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordEnable(
-  supportDir: supportDir,
   password: password,
   params: params,
 );
@@ -57,12 +62,10 @@ Future<Uint8List> masterPasswordEnable({
 /// wrong old password — the Dart `MasterPasswordException` wrapper
 /// surfaces it to the change-password dialog.
 Future<Uint8List> masterPasswordChange({
-  required String supportDir,
   required String oldPassword,
   required String newPassword,
   required DbKdfParams params,
 }) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordChange(
-  supportDir: supportDir,
   oldPassword: oldPassword,
   newPassword: newPassword,
   params: params,
@@ -71,36 +74,30 @@ Future<Uint8List> masterPasswordChange({
 /// Drop the KDF + verifier files. Caller is responsible for
 /// re-encrypting stores with a fresh random key + writing
 /// `credentials.key`.
-void masterPasswordDisable({required String supportDir}) => RustLib.instance.api
-    .crateApiMasterPasswordMasterPasswordDisable(supportDir: supportDir);
+void masterPasswordDisable() =>
+    RustLib.instance.api.crateApiMasterPasswordMasterPasswordDisable();
 
 /// Drop everything: KDF + verifier + key file. Destructive — only
 /// the forgotten-password reset flow uses this once the user has
 /// confirmed the data loss.
-void masterPasswordReset({required String supportDir}) => RustLib.instance.api
-    .crateApiMasterPasswordMasterPasswordReset(supportDir: supportDir);
+void masterPasswordReset() =>
+    RustLib.instance.api.crateApiMasterPasswordMasterPasswordReset();
 
 /// Run the KDF against the on-disk salt + params and return the
 /// derived key without checking the verifier. Used when the caller
 /// already trusts the password and just needs the key.
-Future<Uint8List> masterPasswordDeriveKey({
-  required String supportDir,
-  required String password,
-}) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordDeriveKey(
-  supportDir: supportDir,
-  password: password,
-);
+Future<Uint8List> masterPasswordDeriveKey({required String password}) => RustLib
+    .instance
+    .api
+    .crateApiMasterPasswordMasterPasswordDeriveKey(password: password);
 
 /// Single-KDF unlock: derive the key, decrypt-and-match the verifier,
 /// return `Some(key)` on success or `None` on a wrong password.
 /// `Err` is reserved for "the tier is not enabled" / "files corrupt".
-Future<Uint8List?> masterPasswordVerifyAndDerive({
-  required String supportDir,
-  required String password,
-}) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordVerifyAndDerive(
-  supportDir: supportDir,
-  password: password,
-);
+Future<Uint8List?> masterPasswordVerifyAndDerive({required String password}) =>
+    RustLib.instance.api.crateApiMasterPasswordMasterPasswordVerifyAndDerive(
+      password: password,
+    );
 
 /// FRB mirror of `lfs_core::security::master_password::KdfParams`.
 /// The Dart side passes the production defaults from

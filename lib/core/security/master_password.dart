@@ -66,10 +66,23 @@ class MasterPasswordManager {
   /// [RateLimitStatus.isLocked] is true.
   RateLimitStatus rateLimitStatus() => _rateLimiter.status();
 
+  /// Resolve the support dir once via path_provider, then pin it
+  /// inside the Rust shim so subsequent calls don't repeat the
+  /// per-call passing. The pin is process-wide
+  /// (`OnceLock<PathBuf>` Rust-side); first init wins, repeated
+  /// inits are no-ops.
   Future<String> _getBasePath() async {
     if (_basePath != null) return _basePath!;
     final dir = await getApplicationSupportDirectory();
     _basePath = dir.path;
+    try {
+      rust_mp.masterPasswordInit(supportDir: _basePath!);
+    } catch (e) {
+      AppLogger.instance.log(
+        'masterPasswordInit unreachable (FRB native lib not loaded?): $e',
+        name: 'MasterPassword',
+      );
+    }
     return _basePath!;
   }
 
@@ -87,8 +100,8 @@ class MasterPasswordManager {
   /// Whether master password protection is enabled — the Argon2id
   /// KDF file exists.
   Future<bool> isEnabled() async {
-    final basePath = await _getBasePath();
-    return rust_mp.masterPasswordIsEnabled(supportDir: basePath);
+    await _getBasePath();
+    return rust_mp.masterPasswordIsEnabled();
   }
 
   /// Derive a 256-bit key from password using the on-disk KDF params.
@@ -97,12 +110,9 @@ class MasterPasswordManager {
   /// heavy (400-1500ms wall-clock at the production profile) but the
   /// FRB worker thread isn't pinned for the duration.
   Future<Uint8List> deriveKey(String password) async {
-    final basePath = await _getBasePath();
+    await _getBasePath();
     try {
-      final out = await rust_mp.masterPasswordDeriveKey(
-        supportDir: basePath,
-        password: password,
-      );
+      final out = await rust_mp.masterPasswordDeriveKey(password: password);
       return Uint8List.fromList(out);
     } on AnyhowException catch (e) {
       throw MasterPasswordException(e.message);
@@ -136,11 +146,10 @@ class MasterPasswordManager {
     // cooldown.
     if (useRateLimit && _rateLimiter.status().isLocked) return null;
 
-    final basePath = await _getBasePath();
+    await _getBasePath();
     Uint8List? key;
     try {
       final out = await rust_mp.masterPasswordVerifyAndDerive(
-        supportDir: basePath,
         password: password,
       );
       key = out == null ? null : Uint8List.fromList(out);
@@ -167,10 +176,9 @@ class MasterPasswordManager {
   /// The caller is responsible for re-encrypting SessionStore,
   /// KeyStore, and KnownHostsManager with the returned key.
   Future<Uint8List> enable(String password) async {
-    final basePath = await _getBasePath();
+    await _getBasePath();
     try {
       final out = await rust_mp.masterPasswordEnable(
-        supportDir: basePath,
         password: password,
         params: _wireParams(_defaultParams),
       );
@@ -195,10 +203,9 @@ class MasterPasswordManager {
     String oldPassword,
     String newPassword,
   ) async {
-    final basePath = await _getBasePath();
+    await _getBasePath();
     try {
       final out = await rust_mp.masterPasswordChange(
-        supportDir: basePath,
         oldPassword: oldPassword,
         newPassword: newPassword,
         params: _wireParams(_defaultParams),
@@ -219,9 +226,9 @@ class MasterPasswordManager {
   /// re-encrypting stores with a new random key and saving it to
   /// `credentials.key`.
   Future<void> disable() async {
-    final basePath = await _getBasePath();
+    await _getBasePath();
     try {
-      rust_mp.masterPasswordDisable(supportDir: basePath);
+      rust_mp.masterPasswordDisable();
       AppLogger.instance.log(
         'Master password disabled',
         name: 'MasterPassword',
@@ -236,9 +243,9 @@ class MasterPasswordManager {
   /// Deletes KDF salt, verifier, and key files. Destructive — all
   /// saved passwords and keys are lost.
   Future<void> reset() async {
-    final basePath = await _getBasePath();
+    await _getBasePath();
     try {
-      rust_mp.masterPasswordReset(supportDir: basePath);
+      rust_mp.masterPasswordReset();
       AppLogger.instance.log(
         'Master password reset — all encrypted data deleted',
         name: 'MasterPassword',
