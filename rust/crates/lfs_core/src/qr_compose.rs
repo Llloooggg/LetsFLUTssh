@@ -14,8 +14,8 @@
 //! Both halves go through the **same composer** so the v4 wire
 //! shape (key dedup grammar, manager-key metadata block,
 //! per-section keys + abbreviations) lives one place. Closes the
-//! recurring drift the F-arc caught once for `encodeSessionCompact`
-//! — every section is now contract-tied.
+//! recurring drift the helper-consolidation pass caught once for
+//! `encodeSessionCompact` — every section is now contract-tied.
 //!
 //! The composer is pure: no I/O, no DB, no FRB. Caller is
 //! responsible for resolving folder paths, listing manager-key
