@@ -51,6 +51,19 @@ class Connection {
   /// the exposure window" rather than "erase the secret".
   String? cachedPassphrase;
 
+  /// Per-attempt transient secret IDs the connect path staged into
+  /// the Rust `SecretStore`. Populated by
+  /// `ConnectionManager._authFromConfig` whenever the auth bytes
+  /// don't have a stable id (quick-connect, key-with-typed-passphrase,
+  /// empty-auth probe). Drained on terminal state (Connected /
+  /// Disconnected) by `_applyConnectionEvent` so the secrets are
+  /// dropped from `SecretStore` instead of accumulating across the
+  /// process lifetime.
+  ///
+  /// Cleared on `resetForReconnect` so a fresh attempt starts with
+  /// an empty list.
+  final Set<String> transientSecretIds = <String>{};
+
   /// Raw error from last connection attempt, null if no error.
   /// Use [localizeError] from `utils/format.dart` to display to user.
   Object? connectionError;
@@ -193,6 +206,10 @@ class Connection {
     _progressController = StreamController<ConnectionStep>.broadcast();
     _progressHistory.clear();
     connectionError = null;
+    // Old transient ids belonged to the prior attempt's
+    // SecretStore entries (already dropped on its terminal state);
+    // start the new attempt with an empty set.
+    transientSecretIds.clear();
   }
 
   /// Drop every reference this Connection owns to plaintext credentials

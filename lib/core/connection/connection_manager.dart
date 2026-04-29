@@ -184,7 +184,11 @@ class ConnectionManager {
     int generation,
   ) async {
     final effectiveConfig = _withCredentialOverlay(conn, config);
-    final auth = await _authFromConfig(effectiveConfig.auth, conn.sessionId);
+    final auth = await _authFromConfig(
+      effectiveConfig.auth,
+      conn.sessionId,
+      conn,
+    );
 
     // The actor expects the parent to be in `Connected` state — if
     // a Dart Connection is supplied as bastion, await its readiness
@@ -306,6 +310,10 @@ class ConnectionManager {
               'Connected: ${conn.label} (id=${conn.id})',
               name: 'Connection',
             );
+            // russh has read the per-attempt secrets via the Ref
+            // variants; drop the SecretStore entries so they don't
+            // accumulate across the process lifetime.
+            _evictTransientSecrets(conn);
             unawaited(_adoptConnectedSession(conn, generation, completer));
           case rust_bus.BusConnectionState.disconnected:
             conn.state = SSHConnectionState.disconnected;
@@ -315,6 +323,9 @@ class ConnectionManager {
               level: LogLevel.warn,
               error: conn.connectionError,
             );
+            // Failure path — drop the staged secrets too; the user
+            // will retype on the next attempt.
+            _evictTransientSecrets(conn);
             if (!completer.isCompleted) completer.complete();
         }
       case rust_bus.BusEvent_ConnectionProgress(:final step):
@@ -450,7 +461,11 @@ class ConnectionManager {
   /// `SshAuth` because there is nothing on disk to read; for that
   /// path we copy into a transient secret-store entry under a fresh
   /// UUID so the russh handshake itself receives a Ref variant.
-  Future<SshAuthMethod> _authFromConfig(SshAuth auth, String? sessionId) async {
+  Future<SshAuthMethod> _authFromConfig(
+    SshAuth auth,
+    String? sessionId,
+    Connection conn,
+  ) async {
     String? passphraseSecretId;
     if (sessionId != null) {
       try {
@@ -502,6 +517,10 @@ class ConnectionManager {
               id: passphraseSecretId,
               bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
             );
+            // Drop after this attempt — the typed-passphrase value
+            // is per-connection, not per-key, so it must not survive
+            // the connect handshake.
+            conn.transientSecretIds.add(passphraseSecretId);
           }
           return SshAuthPubkeyRef(
             'key.priv.${auth.keyId}',
@@ -519,8 +538,9 @@ class ConnectionManager {
     // Quick-connect / staging fallback — copy the bytes once into a
     // transient secret-store entry keyed by a fresh UUID and return
     // the matching Ref variant. The plaintext lifetime on the Dart
-    // heap shrinks to this scope; the entry is dropped after the
-    // connect attempt by `_evictTransientSecret`.
+    // heap shrinks to this scope; the entry is dropped from
+    // SecretStore by `_evictTransientSecrets` once the connect
+    // attempt reaches a terminal state (Connected / Disconnected).
     final transientId = const Uuid().v4();
     if (auth.keyData.isNotEmpty) {
       final keyId = 'conn.key.$transientId';
@@ -528,12 +548,14 @@ class ConnectionManager {
         id: keyId,
         bytes: Uint8List.fromList(auth.keyData.codeUnits),
       );
+      conn.transientSecretIds.add(keyId);
       if (auth.passphrase.isNotEmpty && passphraseSecretId == null) {
         passphraseSecretId = 'conn.passphrase.$transientId';
         await rust_app.secretsPut(
           id: passphraseSecretId,
           bytes: Uint8List.fromList(utf8.encode(auth.passphrase)),
         );
+        conn.transientSecretIds.add(passphraseSecretId);
       }
       return SshAuthPubkeyRef(keyId, passphraseSecretId: passphraseSecretId);
     }
@@ -543,6 +565,7 @@ class ConnectionManager {
         id: id,
         bytes: Uint8List.fromList(utf8.encode(auth.password)),
       );
+      conn.transientSecretIds.add(id);
       return SshAuthPasswordRef(id);
     }
     // Empty auth — stage an empty password as a transient secret
@@ -552,6 +575,7 @@ class ConnectionManager {
     // through the bus.
     final id = 'conn.password.$transientId';
     await rust_app.secretsPut(id: id, bytes: Uint8List(0));
+    conn.transientSecretIds.add(id);
     return SshAuthPasswordRef(id);
   }
 
@@ -595,6 +619,32 @@ class ConnectionManager {
             : config.auth.passphrase,
       ),
     );
+  }
+
+  /// Drop every per-attempt secret the connect path staged into
+  /// the Rust `SecretStore` (`conn.*.<uuid>` /
+  /// `key.passphrase.<keyId>` for the typed-passphrase case).
+  /// Idempotent — clears the tracking set even when individual
+  /// `secretsDrop` calls fail.
+  ///
+  /// Fire-and-forget: the FRB drop is non-blocking and the next
+  /// connect attempt immediately repopulates `transientSecretIds`
+  /// before re-staging. Logging the failure is enough.
+  void _evictTransientSecrets(Connection conn) {
+    if (conn.transientSecretIds.isEmpty) return;
+    final ids = List<String>.of(conn.transientSecretIds);
+    conn.transientSecretIds.clear();
+    for (final id in ids) {
+      unawaited(
+        rust_app.secretsDrop(id: id).catchError((Object e) {
+          AppLogger.instance.log(
+            'secretsDrop $id failed (transient cleanup): $e',
+            name: 'Connection',
+            level: LogLevel.warn,
+          );
+        }),
+      );
+    }
   }
 
   /// Whether a newer reconnect generation has superseded [generation].
