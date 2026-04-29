@@ -394,12 +394,25 @@ class AppConfig {
   String? get skippedVersion => behavior.skippedVersion;
 
   /// Validate config values. Returns error message or null.
+  ///
+  /// Routes through `lfs_core::config::AppConfig::validate` (FRB
+  /// sync) so the validation chain (terminal → ssh → ui → workers
+  /// → history) lives one place; falls back to the inline chain
+  /// for flutter_test contexts that don't load the FRB native lib.
   String? validate() {
-    return terminal.validate() ??
-        ssh.validate() ??
-        ui.validate() ??
-        (transferWorkers < 1 ? 'Transfer workers must be at least 1' : null) ??
-        (maxHistory < 0 ? 'Max history must be non-negative' : null);
+    try {
+      return rust_config.configAppConfigValidateJson(
+        inputJson: jsonEncode(toJson()),
+      );
+    } catch (_) {
+      return terminal.validate() ??
+          ssh.validate() ??
+          ui.validate() ??
+          (transferWorkers < 1
+              ? 'Transfer workers must be at least 1'
+              : null) ??
+          (maxHistory < 0 ? 'Max history must be non-negative' : null);
+    }
   }
 
   /// Return a copy with invalid values clamped to safe defaults.

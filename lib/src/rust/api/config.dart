@@ -54,3 +54,14 @@ String configAppConfigDefaultsJson() =>
 /// validator + Settings dropdown read the same Rust-side const.
 List<String> configSupportedLocales() =>
     RustLib.instance.api.crateApiConfigConfigSupportedLocales();
+
+/// Validate a JSON-encoded AppConfig. Returns `Some(message)` on
+/// the first failure (terminal → ssh → ui → workers → history)
+/// and `None` when every field is in range. Mirror of
+/// `AppConfig.validate` Dart-side; the returned message is an
+/// English placeholder that the Settings UI translates via the
+/// `app_*.arb` validation keys.
+String? configAppConfigValidateJson({required String inputJson}) => RustLib
+    .instance
+    .api
+    .crateApiConfigConfigAppConfigValidateJson(inputJson: inputJson);

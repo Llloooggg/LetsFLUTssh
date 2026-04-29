@@ -72,3 +72,16 @@ pub fn config_supported_locales() -> Vec<String> {
         .map(|s| (*s).to_string())
         .collect()
 }
+
+/// Validate a JSON-encoded AppConfig. Returns `Some(message)` on
+/// the first failure (terminal → ssh → ui → workers → history)
+/// and `None` when every field is in range. Mirror of
+/// `AppConfig.validate` Dart-side; the returned message is an
+/// English placeholder that the Settings UI translates via the
+/// `app_*.arb` validation keys.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_app_config_validate_json(input_json: String) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(&input_json).ok()?;
+    let cfg = AppConfig::from_json_value(&value);
+    cfg.validate().map(String::from)
+}

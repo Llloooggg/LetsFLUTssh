@@ -56,6 +56,24 @@ impl Default for TerminalConfig {
 const VALID_THEMES: &[&str] = &["dark", "light", "system"];
 
 impl TerminalConfig {
+    /// Validate config values, returning an English error message
+    /// when invalid or `None` when every field is within range.
+    /// Mirrors the Dart `validate()` method byte-for-byte; the
+    /// returned strings are translated UI-side via the
+    /// `app_*.arb` bundles' validation keys.
+    pub fn validate(&self) -> Option<&'static str> {
+        if !(6.0..=72.0).contains(&self.font_size) {
+            return Some("Font size must be 6-72");
+        }
+        if !VALID_THEMES.contains(&self.theme.as_str()) {
+            return Some("Theme must be one of: dark, light, system");
+        }
+        if self.scrollback < 100 {
+            return Some("Scrollback must be at least 100");
+        }
+        None
+    }
+
     /// Clamp / replace out-of-range values with defaults. Mirrors
     /// the Dart `sanitized()` rules byte-for-byte: font in `[6, 72]`,
     /// theme in the allow-list, scrollback floor at 100.
@@ -125,6 +143,20 @@ impl Default for SshDefaults {
 }
 
 impl SshDefaults {
+    /// Validate. Mirrors Dart `validate()`.
+    pub fn validate(&self) -> Option<&'static str> {
+        if self.keepalive_sec < 0 {
+            return Some("Keep-alive must be non-negative");
+        }
+        if !(1..=65_535).contains(&self.default_port) {
+            return Some("Port must be 1-65535");
+        }
+        if self.ssh_timeout_sec < 1 {
+            return Some("SSH timeout must be at least 1 second");
+        }
+        None
+    }
+
     #[must_use]
     pub fn sanitized(self) -> Self {
         let d = Self::default();
@@ -198,6 +230,23 @@ impl Default for UiConfig {
 }
 
 impl UiConfig {
+    /// Validate. Mirrors Dart `validate()`.
+    pub fn validate(&self) -> Option<&'static str> {
+        if self.toast_duration_ms < 500 {
+            return Some("Toast duration must be at least 500ms");
+        }
+        if self.window_width < 200.0 {
+            return Some("Window width must be at least 200");
+        }
+        if self.window_height < 200.0 {
+            return Some("Window height must be at least 200");
+        }
+        if !(0.5..=2.0).contains(&self.ui_scale) {
+            return Some("UI scale must be 0.5-2.0");
+        }
+        None
+    }
+
     #[must_use]
     pub fn sanitized(self) -> Self {
         let d = Self::default();
@@ -387,6 +436,28 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
+    /// Validate. Walks the sub-structs in order, returns the
+    /// first error message or `None` when every field is valid.
+    /// Mirrors the Dart `validate()` chain.
+    pub fn validate(&self) -> Option<&'static str> {
+        if let Some(e) = self.terminal.validate() {
+            return Some(e);
+        }
+        if let Some(e) = self.ssh.validate() {
+            return Some(e);
+        }
+        if let Some(e) = self.ui.validate() {
+            return Some(e);
+        }
+        if self.transfer_workers < 1 {
+            return Some("Transfer workers must be at least 1");
+        }
+        if self.max_history < 0 {
+            return Some("Max history must be non-negative");
+        }
+        None
+    }
+
     #[must_use]
     pub fn sanitized(self) -> Self {
         let d = Self::default();
@@ -500,6 +571,63 @@ fn read_security_config(json: &serde_json::Map<String, Value>) -> Option<Securit
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn terminal_validate_accepts_defaults() {
+        assert!(TerminalConfig::default().validate().is_none());
+    }
+
+    #[test]
+    fn terminal_validate_rejects_oversize_font() {
+        let t = TerminalConfig {
+            font_size: 200.0,
+            ..TerminalConfig::default()
+        };
+        assert!(t.validate().is_some());
+    }
+
+    #[test]
+    fn ssh_validate_rejects_zero_port() {
+        let s = SshDefaults {
+            default_port: 0,
+            ..SshDefaults::default()
+        };
+        assert!(s.validate().is_some());
+    }
+
+    #[test]
+    fn ui_validate_rejects_extreme_scale() {
+        let u = UiConfig {
+            ui_scale: 10.0,
+            ..UiConfig::default()
+        };
+        assert!(u.validate().is_some());
+    }
+
+    #[test]
+    fn app_config_validate_walks_sub_structs() {
+        // Bad font size in TerminalConfig surfaces as the first
+        // error from the AppConfig walk.
+        let cfg = AppConfig {
+            terminal: TerminalConfig {
+                font_size: 1.0,
+                ..TerminalConfig::default()
+            },
+            ..AppConfig::default()
+        };
+        let err = cfg.validate().unwrap();
+        assert!(err.contains("Font size"));
+    }
+
+    #[test]
+    fn app_config_validate_catches_negative_max_history() {
+        let cfg = AppConfig {
+            max_history: -1,
+            ..AppConfig::default()
+        };
+        let err = cfg.validate().unwrap();
+        assert!(err.contains("Max history"));
+    }
 
     #[test]
     fn terminal_defaults_match_dart() {
