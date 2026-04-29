@@ -1377,7 +1377,9 @@ void main() {
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
-            connectionsProvider.overrideWith((ref) => Stream.value([conn])),
+            connectionsProvider.overrideWith(
+              () => StaticConnectionsNotifier([conn]),
+            ),
           ],
           child: MaterialApp(
             localizationsDelegates: S.localizationsDelegates,
@@ -1423,7 +1425,9 @@ void main() {
               connectionManagerProvider.overrideWithValue(
                 ConnectionManager(knownHosts: KnownHostsManager()),
               ),
-              connectionsProvider.overrideWith((ref) => Stream.value([conn])),
+              connectionsProvider.overrideWith(
+                () => StaticConnectionsNotifier([conn]),
+              ),
             ],
             child: MaterialApp(
               localizationsDelegates: S.localizationsDelegates,

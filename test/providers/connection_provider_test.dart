@@ -33,12 +33,10 @@ void main() {
     test('connectionsProvider yields empty list initially', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final asyncValue = container.read(connectionsProvider);
-      // StreamProvider starts with loading, then first yield
-      expect(
-        asyncValue.whenOrNull(data: (d) => d, loading: () => <dynamic>[]),
-        isNotNull,
-      );
+      // NotifierProvider returns the list directly — no AsyncValue
+      // wrapping. The Notifier's build() seeds the state from the
+      // manager's empty `_connections` map.
+      expect(container.read(connectionsProvider), isEmpty);
     });
 
     test(
@@ -64,11 +62,9 @@ void main() {
         // Wait for onChange event to propagate through the await-for loop
         await Future.delayed(const Duration(milliseconds: 200));
 
-        final value = container.read(connectionsProvider);
-        value.whenData((connections) {
-          expect(connections, isNotEmpty);
-          expect(connections.first.label, 'Test');
-        });
+        final connections = container.read(connectionsProvider);
+        expect(connections, isNotEmpty);
+        expect(connections.first.label, 'Test');
       },
       skip:
           'connectAsync routes through the Rust connection actor + '

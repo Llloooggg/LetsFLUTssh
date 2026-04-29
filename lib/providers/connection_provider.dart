@@ -74,8 +74,8 @@ final foregroundActiveCountListenerProvider = Provider<void>((ref) {
 
 /// Reactive list of active connections.
 ///
-/// Hydrates from the manager's in-memory list and re-emits on
-/// every state change. Two trigger sources fold into one stream:
+/// State source is the manager's in-memory list. Two trigger
+/// sources push state updates through this Notifier:
 ///
 /// 1. `manager.onChange` — Dart-side mutations (a new Connection
 ///    enters the map via `connectAsync`, leaves via `disconnect`,
@@ -85,28 +85,53 @@ final foregroundActiveCountListenerProvider = Provider<void>((ref) {
 ///    transition (`ConnectionStateChanged`, `ConnectionRemoved`,
 ///    `ConnectionError`) that the workspace status dots track.
 ///
-/// The bus subscription is a forward-looking hedge: as the
-/// `ConnectionManager` retires in favour of a Rust-backed
-/// registry, more state changes will flow through the bus only
-/// without a Dart `onChange` ping. Listening here today means
-/// the eventual cutover doesn't need to walk every consumer.
-final connectionsProvider = StreamProvider<List<Connection>>((ref) async* {
-  final manager = ref.watch(connectionManagerProvider);
-  final controller = StreamController<void>.broadcast();
-  final dartSub = manager.onChange.listen((_) => controller.add(null));
-  final busSub = AppBus.instance
-      .subscribe(rust_bus.BusTopic.connection)
-      .listen((_) => controller.add(null));
-  ref.onDispose(() {
-    unawaited(dartSub.cancel());
-    unawaited(busSub.cancel());
-    unawaited(controller.close());
-  });
-  yield manager.connections;
-  await for (final _ in controller.stream) {
-    yield manager.connections;
+/// Consumers `ref.watch(connectionsProvider)` get the live
+/// `List<Connection>` directly — no `AsyncValue` wrapping. Tests
+/// inject a static list via [StaticConnectionsNotifier].
+class ConnectionsNotifier extends Notifier<List<Connection>> {
+  @override
+  List<Connection> build() {
+    final manager = ref.watch(connectionManagerProvider);
+    final dartSub = manager.onChange.listen((_) {
+      state = manager.connections;
+    });
+    StreamSubscription<rust_bus.BusEvent>? busSub;
+    // FRB-unreachable contexts (flutter_test) skip the bus
+    // subscription — the manager's own onChange stream covers
+    // every Dart-driven mutation, and there are no Rust-driven
+    // events to listen for without the native lib.
+    try {
+      busSub = AppBus.instance.subscribe(rust_bus.BusTopic.connection).listen((
+        _,
+      ) {
+        state = manager.connections;
+      });
+    } catch (_) {}
+    ref.onDispose(() {
+      unawaited(dartSub.cancel());
+      if (busSub != null) unawaited(busSub.cancel());
+    });
+    return manager.connections;
   }
-});
+}
+
+/// Test-only seam — overrides [connectionsProvider] with a static
+/// list. Tests pass a `List&lt;Connection&gt;` to the constructor and
+/// register the override via
+/// `connectionsProvider.overrideWith(() => StaticConnectionsNotifier(list))`.
+@visibleForTesting
+class StaticConnectionsNotifier extends ConnectionsNotifier {
+  StaticConnectionsNotifier(this._initial);
+  final List<Connection> _initial;
+
+  @override
+  List<Connection> build() => _initial;
+}
+
+final connectionsProvider =
+    NotifierProvider<ConnectionsNotifier, List<Connection>>(
+      ConnectionsNotifier.new,
+    );
 
 /// Projection of [connectionsProvider] into only the per-connection state
 /// the UI actually renders: which sessions are connected or connecting,
@@ -174,7 +199,7 @@ class ConnectionSummary {
 /// four observed fields changes — unrelated [Connection] mutations are
 /// dropped at this boundary so consumers don't rebuild.
 final connectionSummaryProvider = Provider<ConnectionSummary>((ref) {
-  final list = ref.watch(connectionsProvider).value ?? const [];
+  final list = ref.watch(connectionsProvider);
   if (list.isEmpty) return ConnectionSummary.empty;
 
   final connectedSessionIds = <String>{};

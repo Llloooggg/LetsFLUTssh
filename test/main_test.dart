@@ -76,7 +76,9 @@ void main() {
         connectionManagerProvider.overrideWithValue(
           ConnectionManager(knownHosts: KnownHostsManager()),
         ),
-        connectionsProvider.overrideWith((ref) => Stream.value(<Connection>[])),
+        connectionsProvider.overrideWith(
+          () => StaticConnectionsNotifier(<Connection>[]),
+        ),
         configStoreProvider.overrideWithValue(ConfigStore()),
         configProvider.overrideWith(
           config != null

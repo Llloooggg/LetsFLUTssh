@@ -62,12 +62,14 @@ void main() {
       overrides: [
         sessionStoreProvider.overrideWithValue(SessionStore()),
         sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
+        sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
         connectionManagerProvider.overrideWithValue(
           ConnectionManager(knownHosts: KnownHostsManager()),
         ),
-        connectionsProvider.overrideWith((ref) => Stream.value(<Connection>[])),
+        connectionsProvider.overrideWith(
+          () => StaticConnectionsNotifier(<Connection>[]),
+        ),
         configStoreProvider.overrideWithValue(ConfigStore()),
         configProvider.overrideWith(TestConfigNotifier.new),
         if (workspaceState != null)
@@ -357,13 +359,15 @@ void main() {
           overrides: [
             sessionStoreProvider.overrideWithValue(SessionStore()),
             sessionProvider.overrideWith(SessionNotifier.new),
-            sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
+            sessionsLoadingProvider.overrideWith(
+              IdleSessionsLoadingNotifier.new,
+            ),
             knownHostsProvider.overrideWithValue(KnownHostsManager()),
             connectionManagerProvider.overrideWithValue(
               ConnectionManager(knownHosts: KnownHostsManager()),
             ),
             connectionsProvider.overrideWith(
-              (ref) => Stream.value(<Connection>[]),
+              () => StaticConnectionsNotifier(<Connection>[]),
             ),
             configStoreProvider.overrideWithValue(ConfigStore()),
             configProvider.overrideWith(TestConfigNotifier.new),

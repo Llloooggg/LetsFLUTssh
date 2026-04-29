@@ -55,10 +55,9 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
     // Using a derived string avoids full workspace rebuild on unrelated
     // connection events (e.g. keep-alive pings, progress updates).
     ref.watch(
-      connectionsProvider.select((asyncValue) {
-        final conns = asyncValue.value ?? [];
-        return conns.map((c) => '${c.id}:${c.state.index}').join(',');
-      }),
+      connectionsProvider.select(
+        (conns) => conns.map((c) => '${c.id}:${c.state.index}').join(','),
+      ),
     );
 
     // Clean up stale keys.
