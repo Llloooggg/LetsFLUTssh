@@ -38,3 +38,30 @@ pub fn hardware_tier_vault_decode_linux_blob(
         sealed: b.sealed,
     })
 }
+
+/// Resolve the hardware-tier vault auth value for the
+/// (password, biometric) modifier combo. Returns `None` for an
+/// inconsistent request (`password=true` without `typed_password`,
+/// `biometric=true` without `fprintd_hash`); the empty `Vec` case
+/// (passwordless isolation) surfaces as `Some([])`.
+///
+/// Same auth-value grammar the Linux TPM seal + the Apple /
+/// Android / Windows method-channel plugins all derive against —
+/// having the resolver Rust-side keeps every platform's vault
+/// agreeing on the byte shape.
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_tier_vault_resolve_auth_value(
+    password: bool,
+    biometric: bool,
+    salt: Vec<u8>,
+    typed_password: Option<String>,
+    fprintd_hash: Option<Vec<u8>>,
+) -> Option<Vec<u8>> {
+    vault::resolve_auth_value(
+        password,
+        biometric,
+        &salt,
+        typed_password.as_deref(),
+        fprintd_hash.as_deref(),
+    )
+}

@@ -24,6 +24,8 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde_json::Value;
 
+use crate::crypto::hmac_sha256;
+
 /// Decoded blob payload — the salt + TPM-sealed DB-key bytes the
 /// vault read from `hardware_vault.bin`.
 #[derive(Debug, Clone)]
@@ -79,6 +81,50 @@ pub fn decode_linux_blob(blob: &str) -> Result<LinuxBlob, String> {
     Ok(LinuxBlob { salt, sealed })
 }
 
+/// Resolve the hardware-tier vault auth value for a (password,
+/// biometric) modifier combo. Mirrors the Dart
+/// `HardwareTierVault.resolveAuthValue` semantics:
+///
+/// * `password=false`, `biometric=false` → empty `Vec` (isolation-
+///   only; wrong callers still need TPM / Secure Enclave access,
+///   but there is no user-typed gate).
+/// * `password=true`, `biometric=false` → `HMAC(salt, typed_password)`.
+/// * `biometric=true` → `HMAC(salt, fprintd_hash)`. The `password`
+///   flag must also be true by the wizard invariant (biometric is a
+///   shortcut for entering the password, never its replacement),
+///   but the resolver itself treats biometric as the authoritative
+///   auth source when both are requested.
+///
+/// Returns `None` for an inconsistent request (`password=true`
+/// without `typed_password`, `biometric=true` without
+/// `fprintd_hash`). Callers surface `None` as "modifier resolution
+/// failed — treat as a cancelled unlock" so we never silently fall
+/// back to an empty auth.
+#[must_use]
+pub fn resolve_auth_value(
+    password: bool,
+    biometric: bool,
+    salt: &[u8],
+    typed_password: Option<&str>,
+    fprintd_hash: Option<&[u8]>,
+) -> Option<Vec<u8>> {
+    if biometric {
+        let hash = fprintd_hash?;
+        if hash.is_empty() {
+            return None;
+        }
+        return Some(hmac_sha256(salt, hash));
+    }
+    if password {
+        let pw = typed_password?;
+        if pw.is_empty() {
+            return None;
+        }
+        return Some(hmac_sha256(salt, pw.as_bytes()));
+    }
+    Some(Vec::new())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,5 +169,61 @@ mod tests {
         // A legitimate seal is never zero-length; a tampered file
         // with empty fields must not parse as a valid blob.
         assert!(decode_linux_blob(r#"{"salt":"","sealed":""}"#).is_err());
+    }
+
+    #[test]
+    fn resolve_passwordless_returns_empty_vec() {
+        // Isolation-only tier — caller expects an empty auth value,
+        // never `None`. Same auth bytes round-trip on every store /
+        // read pair so a passwordless seal always unseals
+        // passwordless.
+        let salt = vec![0x01u8; 32];
+        let v = resolve_auth_value(false, false, &salt, None, None);
+        assert_eq!(v, Some(Vec::new()));
+    }
+
+    #[test]
+    fn resolve_password_branch_hmacs_typed_secret() {
+        let salt = vec![0x02u8; 32];
+        let with_pw = resolve_auth_value(true, false, &salt, Some("hunter2"), None);
+        let manual = hmac_sha256(&salt, b"hunter2");
+        assert_eq!(with_pw, Some(manual));
+    }
+
+    #[test]
+    fn resolve_password_branch_rejects_missing_secret() {
+        let salt = vec![0x03u8; 32];
+        assert_eq!(resolve_auth_value(true, false, &salt, None, None), None);
+        assert_eq!(
+            resolve_auth_value(true, false, &salt, Some(""), None),
+            None,
+            "empty password is treated as a missing one — caller surfaces a cancelled unlock",
+        );
+    }
+
+    #[test]
+    fn resolve_biometric_branch_hmacs_fprintd_hash() {
+        let salt = vec![0x04u8; 32];
+        let hash = vec![0xAB; 32];
+        let v = resolve_auth_value(true, true, &salt, Some("ignored"), Some(&hash));
+        let manual = hmac_sha256(&salt, &hash);
+        assert_eq!(
+            v,
+            Some(manual),
+            "biometric overrides the typed password when both are present"
+        );
+    }
+
+    #[test]
+    fn resolve_biometric_branch_rejects_missing_hash() {
+        let salt = vec![0x05u8; 32];
+        assert_eq!(
+            resolve_auth_value(true, true, &salt, Some("hunter2"), None),
+            None,
+        );
+        assert_eq!(
+            resolve_auth_value(true, true, &salt, Some("hunter2"), Some(&[])),
+            None,
+        );
     }
 }

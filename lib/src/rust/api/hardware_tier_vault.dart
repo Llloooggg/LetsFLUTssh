@@ -30,6 +30,31 @@ DbHardwareTierLinuxBlob hardwareTierVaultDecodeLinuxBlob({
 }) => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultDecodeLinuxBlob(blob: blob);
 
+/// Resolve the hardware-tier vault auth value for the
+/// (password, biometric) modifier combo. Returns `None` for an
+/// inconsistent request (`password=true` without `typed_password`,
+/// `biometric=true` without `fprintd_hash`); the empty `Vec` case
+/// (passwordless isolation) surfaces as `Some([])`.
+///
+/// Same auth-value grammar the Linux TPM seal + the Apple /
+/// Android / Windows method-channel plugins all derive against —
+/// having the resolver Rust-side keeps every platform's vault
+/// agreeing on the byte shape.
+Uint8List? hardwareTierVaultResolveAuthValue({
+  required bool password,
+  required bool biometric,
+  required List<int> salt,
+  String? typedPassword,
+  Uint8List? fprintdHash,
+}) => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultResolveAuthValue(
+      password: password,
+      biometric: biometric,
+      salt: salt,
+      typedPassword: typedPassword,
+      fprintdHash: fprintdHash,
+    );
+
 /// FRB mirror of `lfs_core::security::hardware_tier_vault::LinuxBlob`.
 class DbHardwareTierLinuxBlob {
   final Uint8List salt;

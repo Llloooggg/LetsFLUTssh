@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import '_crypto_compat.dart';
@@ -356,6 +357,13 @@ class HardwareTierVault {
   /// Pure helper today; callers plumb it into `store` / `read` once
   /// the `SecurityTierModifiers` shape is fully consumed at the rekey
   /// / switcher layer.
+  ///
+  /// Routes through `lfs_core::security::hardware_tier_vault::
+  /// resolve_auth_value` (FRB sync) so the (password, biometric) →
+  /// auth-bytes contract lives one place across the Linux TPM
+  /// path + the per-platform method-channel vault plugins; falls
+  /// back to the inline branch when the FRB native lib is not
+  /// loaded (flutter_test).
   @visibleForTesting
   static Uint8List? resolveAuthValue({
     required bool password,
@@ -364,18 +372,29 @@ class HardwareTierVault {
     String? typedPassword,
     Uint8List? fprintdHash,
   }) {
-    if (biometric) {
-      if (fprintdHash == null || fprintdHash.isEmpty) return null;
-      return hmacSha256Compat(salt, fprintdHash);
-    }
-    if (password) {
-      if (typedPassword == null || typedPassword.isEmpty) return null;
-      return hmacSha256Compat(
-        salt,
-        Uint8List.fromList(utf8.encode(typedPassword)),
+    try {
+      final v = rust_vault.hardwareTierVaultResolveAuthValue(
+        password: password,
+        biometric: biometric,
+        salt: salt,
+        typedPassword: typedPassword,
+        fprintdHash: fprintdHash,
       );
+      return v == null ? null : Uint8List.fromList(v);
+    } catch (_) {
+      if (biometric) {
+        if (fprintdHash == null || fprintdHash.isEmpty) return null;
+        return hmacSha256Compat(salt, fprintdHash);
+      }
+      if (password) {
+        if (typedPassword == null || typedPassword.isEmpty) return null;
+        return hmacSha256Compat(
+          salt,
+          Uint8List.fromList(utf8.encode(typedPassword)),
+        );
+      }
+      return Uint8List(0);
     }
-    return Uint8List(0);
   }
 
   Uint8List _randomBytes(int n) {
