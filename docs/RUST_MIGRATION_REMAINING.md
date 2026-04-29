@@ -124,20 +124,26 @@ Sequence:
   (Plaintext is the only synchronous-resolve tier; Keychain /
   Hardware / Paranoid wait for their per-tier handler).
   `tier_machine_try_advance` FRB shim exposes the hook.
-- [ ] C9.1 (Dart wiring) — Dart subscribes to
-  `BusEvent::TierStateChanged`, dispatches
-  `unlock_requested` + `try_advance` on bootstrap for
-  Plaintext, runs `_injectDatabase()` on
-  `TierStateChanged(unlocked)`. Behind
-  `--dart-define=LFS_TIER_MACHINE_PLAINTEXT=true` until
-  smoke-tested on every desktop.
-- [ ] C9.2 — Keychain path (uses Decision 2 callbacks via
-  Decision 1).
-- [ ] C9.3 — Hardware path (uses C3 subprocess + Decision 2 for
-  per-platform vault plugins).
-- [ ] C9.4 — Paranoid path (uses C7 + master_password).
-- [ ] C9.5 — Retire Dart `SecurityInitController` after every
-  tier feature gate is on by default.
+- [x] C9.1 (Dart wiring) — Plaintext path observed by actor.
+  `_routePlaintextThroughTierMachine` calls `set_tier` +
+  `dispatch unlock_requested` + `try_advance`. Dart still owns
+  `_injectDatabase()`; the actor sees the cascade and the
+  `BusEvent::TierStateChanged` fans out to the diagnostic
+  observer.
+- [x] C9.2 — KeychainWithPassword + Keychain paths observed
+  by actor via `_emitTierUnlockStart` / `_emitTierUnlockResolved`
+  helpers. Failure discriminants map to `plugin_unavailable` /
+  `user_cancelled`.
+- [x] C9.3 — Hardware path observed. Failure discriminants
+  map to `plugin_unavailable` / `corruption` / `user_cancelled`.
+- [x] C9.4 — Paranoid path observed. Failure discriminant maps
+  to `user_cancelled` (master-password reset).
+- [ ] C9.5 — Retire Dart `SecurityInitController` orchestration
+  after the per-tier handlers themselves move into Rust under
+  per-tier feature gates. Pending — observation half is in,
+  the Rust-owned unlock work itself stays Dart-side until the
+  full per-tier handler cascade lands (needs the C2 / C3 / C5
+  full cutovers).
 
 Why: 1167 LOC `SecurityInitController` is the single most
 complex Dart orchestrator. Big-bang retire = all-eggs-one-basket
