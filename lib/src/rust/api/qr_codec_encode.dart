@@ -18,3 +18,41 @@ String qrCodecCompressToPayload({required String json}) => RustLib.instance.api
 /// the caller only renders a "fits in QR" gauge against a length.
 int qrCodecCompressToPayloadSize({required String json}) => RustLib.instance.api
     .crateApiQrCodecEncodeQrCodecCompressToPayloadSize(json: json);
+
+/// Build the v4 QR per-session compact map and return it as a
+/// JSON-encoded string. The Dart caller decodes it into a
+/// `Map<String, dynamic>` and inserts it under the outer
+/// payload's `"s"` array — same shape the production
+/// `lfs_core::archive::qr_export_payload` writer emits, so both
+/// halves of the in-memory and DB-backed encoders agree on the
+/// field-name grammar (`l` / `h` / `u` / `p` / `g` / `a` / `ki`
+/// / `mg` / `pw`).
+///
+/// `port == 22`, `auth_type == "password"`, empty `folder`, and
+/// missing `key_short` collapse out of the map (default-omit). The
+/// `pw` field is gated behind `include_passwords` because QR
+/// codes are camera-readable and silently embedding plaintext
+/// passwords would be a security regression.
+String qrCodecEncodeSessionCompact({
+  required String label,
+  required String host,
+  required String user,
+  required int port,
+  required String folder,
+  required String authType,
+  String? keyShort,
+  required bool isManager,
+  required bool includePasswords,
+  required String password,
+}) => RustLib.instance.api.crateApiQrCodecEncodeQrCodecEncodeSessionCompact(
+  label: label,
+  host: host,
+  user: user,
+  port: port,
+  folder: folder,
+  authType: authType,
+  keyShort: keyShort,
+  isManager: isManager,
+  includePasswords: includePasswords,
+  password: password,
+);

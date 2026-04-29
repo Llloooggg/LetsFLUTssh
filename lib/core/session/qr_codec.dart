@@ -519,23 +519,47 @@ int calculateExportPayloadSize(
 ///
 /// Used internally by [encodeExportPayload] and also available for
 /// size estimation in export dialogs.
+///
+/// Routes through `lfs_core::qr_codec_encode::encode_session_compact`
+/// (FRB sync) so the v4 field-name grammar
+/// (`l`/`h`/`u`/`p`/`g`/`a`/`ki`/`mg`/`pw`) lives one place across
+/// the in-memory encoder and the DB-backed
+/// `lfs_core::archive::qr_export_payload` writer. Falls back to the
+/// inline map build when the FRB native lib isn't loaded
+/// (flutter_test contexts that don't initialise `RustLib`).
 Map<String, dynamic> encodeSessionCompact(
   Session s, {
   String? keyId,
   bool isManagerKey = false,
   bool includePasswords = false,
 }) {
-  final m = <String, dynamic>{'l': s.label, 'h': s.host, 'u': s.user};
-  if (s.port != 22) m['p'] = s.port;
-  if (s.folder.isNotEmpty) m['g'] = s.folder;
-  if (s.authType != AuthType.password) m['a'] = s.authType.name;
-  if (keyId != null) m['ki'] = keyId;
-  if (isManagerKey) m['mg'] = 1;
-  // SECURITY: passwords stored in plaintext in QR payload — only enable when
-  // user explicitly opts in via includePasswords. QR codes can be scanned by
-  // anyone with camera access to the screen.
-  if (includePasswords && s.password.isNotEmpty) m['pw'] = s.password;
-  return m;
+  try {
+    final json = rust_qr.qrCodecEncodeSessionCompact(
+      label: s.label,
+      host: s.host,
+      user: s.user,
+      port: s.port,
+      folder: s.folder,
+      authType: s.authType.name,
+      keyShort: keyId,
+      isManager: isManagerKey,
+      includePasswords: includePasswords,
+      password: s.password,
+    );
+    return jsonDecode(json) as Map<String, dynamic>;
+  } catch (_) {
+    final m = <String, dynamic>{'l': s.label, 'h': s.host, 'u': s.user};
+    if (s.port != 22) m['p'] = s.port;
+    if (s.folder.isNotEmpty) m['g'] = s.folder;
+    if (s.authType != AuthType.password) m['a'] = s.authType.name;
+    if (keyId != null) m['ki'] = keyId;
+    if (isManagerKey) m['mg'] = 1;
+    // SECURITY: passwords stored in plaintext in QR payload — only enable when
+    // user explicitly opts in via includePasswords. QR codes can be scanned by
+    // anyone with camera access to the screen.
+    if (includePasswords && s.password.isNotEmpty) m['pw'] = s.password;
+    return m;
+  }
 }
 
 /// A session→tag or session→snippet link from the export payload.

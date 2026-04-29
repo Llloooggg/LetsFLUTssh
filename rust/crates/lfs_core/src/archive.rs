@@ -1758,12 +1758,17 @@ pub fn qr_export_payload(conn: &Connection, input: &QrExportInput) -> Result<Str
                 let is_manager = key_short
                     .map(|k| manager_shorts.contains(k))
                     .unwrap_or(false);
-                qr_session_compact(
-                    s,
+                crate::qr_codec_encode::encode_session_compact(
+                    &s.label,
+                    &s.host,
+                    &s.user,
+                    u16::try_from(s.port.max(0)).unwrap_or(u16::MAX),
                     &folder_path,
-                    key_short,
+                    &s.auth_type,
+                    key_short.map(String::as_str),
                     is_manager,
                     input.options.include_passwords,
+                    &s.password,
                 )
             })
             .collect();
@@ -1879,40 +1884,6 @@ pub fn qr_export_payload(conn: &Connection, input: &QrExportInput) -> Result<Str
     // size-estimator route through. Keeps the wire shape one
     // place across every producer.
     Ok(crate::qr_codec_encode::compress_to_payload(&json))
-}
-
-/// Compact per-session payload — same field names as Dart's
-/// `encodeSessionCompact`.
-fn qr_session_compact(
-    s: &sessions::SessionRow,
-    folder_path: &str,
-    key_short: Option<&String>,
-    is_manager: bool,
-    include_passwords: bool,
-) -> Value {
-    let mut m = serde_json::Map::new();
-    m.insert("l".into(), json!(s.label));
-    m.insert("h".into(), json!(s.host));
-    m.insert("u".into(), json!(s.user));
-    if s.port != 22 {
-        m.insert("p".into(), json!(s.port));
-    }
-    if !folder_path.is_empty() {
-        m.insert("g".into(), json!(folder_path));
-    }
-    if s.auth_type != "password" {
-        m.insert("a".into(), json!(s.auth_type));
-    }
-    if let Some(k) = key_short {
-        m.insert("ki".into(), json!(k));
-    }
-    if is_manager {
-        m.insert("mg".into(), json!(1));
-    }
-    if include_passwords && !s.password.is_empty() {
-        m.insert("pw".into(), json!(s.password));
-    }
-    Value::Object(m)
 }
 
 #[cfg(test)]
