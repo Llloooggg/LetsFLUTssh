@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -69,11 +71,37 @@ final foregroundActiveCountListenerProvider = Provider<void>((ref) {
 });
 
 /// Reactive list of active connections.
-/// Rebuilds when connections change.
+///
+/// Hydrates from the manager's in-memory list and re-emits on
+/// every state change. Two trigger sources fold into one stream:
+///
+/// 1. `manager.onChange` — Dart-side mutations (a new Connection
+///    enters the map via `connectAsync`, leaves via `disconnect`,
+///    or the workspace UI calls `notifyStateChanged` after a
+///    shell open / close that the bus does not see).
+/// 2. `BusTopic.connection` events — every Rust actor state
+///    transition (`ConnectionStateChanged`, `ConnectionRemoved`,
+///    `ConnectionError`) that the workspace status dots track.
+///
+/// The bus subscription is a forward-looking hedge: as the
+/// `ConnectionManager` retires in favour of a Rust-backed
+/// registry, more state changes will flow through the bus only
+/// without a Dart `onChange` ping. Listening here today means
+/// the eventual cutover doesn't need to walk every consumer.
 final connectionsProvider = StreamProvider<List<Connection>>((ref) async* {
   final manager = ref.watch(connectionManagerProvider);
+  final controller = StreamController<void>.broadcast();
+  final dartSub = manager.onChange.listen((_) => controller.add(null));
+  final busSub = AppBus.instance
+      .subscribe(rust_bus.BusTopic.connection)
+      .listen((_) => controller.add(null));
+  ref.onDispose(() {
+    unawaited(dartSub.cancel());
+    unawaited(busSub.cancel());
+    unawaited(controller.close());
+  });
   yield manager.connections;
-  await for (final _ in manager.onChange) {
+  await for (final _ in controller.stream) {
     yield manager.connections;
   }
 });

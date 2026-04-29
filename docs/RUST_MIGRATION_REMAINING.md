@@ -274,15 +274,16 @@ consolidations + schema mirrors + dedup-import composite):
   transaction; uses pre-hashed `list_metadata` to dedup by
   fingerprint without pulling PEMs through FRB.
 
-**Closed-enough as thin façades** — full retire would be churn:
+**Thin Dart façades that still need a final retire pass:**
 
 - B4 — `SessionStore` retire. The store is already a registry
   mirror (cache hydrates from `sessionsRegistrySnapshot`, bus
-  events trigger reload). Touching the ~25 call sites across
-  providers / dialogs / tests for marginal gain is not worth it.
+  events trigger reload). ~25 call sites across providers /
+  dialogs / tests need a final retire pass.
 - C1 — `MasterPasswordManager` retire. Already a thin façade;
-  `_basePath` resolution stays Dart because `getApplicationSupportDirectory`
-  is a `path_provider` plugin call.
+  `_basePath` resolution stays Dart because
+  `getApplicationSupportDirectory` is a `path_provider` plugin
+  call.
 - F3 — `_compileGlob` regex cache. Lives in the Dart fallback
   only; production already routes through `glob_matches`.
 
@@ -349,12 +350,10 @@ mutating DAOs notify on every successful write.
 - [x] B3 — `session_restore_snapshot` actor command (atomic
   delete-all + folder-tree rebuild + per-session insert in one
   transaction). Dart `restoreSnapshot` shrunk to one FRB call.
-- [ ] B4 — `SessionStore` retire **deferred**. The store is
-  already a registry mirror (cache hydrates from
-  `sessionsRegistrySnapshot`, bus events trigger reload). A full
-  retire would touch ~25 call sites across providers / dialogs /
-  tests; current shape is acceptable as a thin Dart façade. Revisit
-  if registry consumers diverge or the Dart cache drifts.
+- [ ] B4 — `SessionStore` retire. The store is already a
+  registry mirror (cache hydrates from
+  `sessionsRegistrySnapshot`, bus events trigger reload).
+  Touches ~25 call sites across providers / dialogs / tests.
 
 **Risk:** folder-cascade ordering bugs (rename + collapsed-set
 sync). Mitigate with property-based tests on the Rust side
@@ -447,11 +446,8 @@ Rust-side; transient SecretStore IDs evicted on terminal state.
   - [ ] A4.3 — `ConnectionManager` deletes;
     `connectionListProvider` becomes a pure `StreamProvider`
     sourcing from `connection_snapshot_all` + bus events.
-    Test-risk high — the workspace UI provider graph rebuilds
-    against the new shape.
-
-**Risk:** reconnect cascade through auto-lock relies on the
-in-memory credential cache. A1 must land first.
+    Workspace UI provider graph rebuilds against the new
+    shape.
 
 ## Arc C — Security tier stack
 
@@ -648,8 +644,7 @@ the persistence layer routes through Rust.
   preserved for flutter_test contexts.
 - [ ] D6.2 — Dart `ConfigNotifier` debounce timer ⇒ Rust
   actor's `tick_if_due`. Bus subscription instead of in-Notifier
-  state mutation. Pending — current Dart debounce works
-  correctly, refactor adds risk without adding safety.
+  state mutation.
 
 **Risk:** every config read crosses FRB. Mitigate by emitting
 `ConfigChanged` on writes only; reads return cached snapshot.
