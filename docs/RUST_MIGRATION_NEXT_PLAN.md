@@ -218,6 +218,17 @@ exposes the cache as a `StreamProvider` re-emitting on every
 `SessionsChanged` event; opt-in consumers read it without
 driving the store's lifecycle.
 
+**Mutating-path security fix.** `SessionStore.add` / `update` /
+`restoreSnapshot` were pushing the live caller-supplied
+`Session` straight into `_sessions` before the bus event re-
+hydrated from the registry snapshot — the snapshot's
+`dbSessionToSession` clears credentials by default but the
+optimistic update held plaintext during the gap.
+`Session.withoutCredentials()` strips plaintext while preserving
+(or computing) the `hasStoredX` markers; every cache write now
+uses the cleared copy so the in-memory list shape matches the
+post-bus state.
+
 Remaining for Step 3: cutover the mutating paths so the Dart
 store becomes a thin enqueue layer over Rust commands, then
 retire the store entirely once the StreamProvider mirror has
