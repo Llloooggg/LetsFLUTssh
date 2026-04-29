@@ -11,6 +11,7 @@ import 'app/app_toolbar.dart';
 import 'app/deep_link_wiring.dart';
 import 'app/host_key_prompt_listener.dart';
 import 'app/keychain_pepper_prompt_listener.dart';
+import 'app/tier_state_observer.dart';
 import 'app/global_error_dialog.dart';
 import 'app/import_flow.dart';
 import 'app/navigator_key.dart';
@@ -562,6 +563,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // path can flip to the Rust actor in a follow-up commit
     // without further wiring.
     KeychainPepperPromptListener.start();
+    // Diagnostic observer for tier_machine transitions — logs
+    // every Locked/Unlocking/Unlocked/Wiping flip a support
+    // trace can read back. Non-functional until C9.1+ wires
+    // production unlock through the actor.
+    TierStateObserver.start();
     // Activate the bus → foreground-service bridge. The provider's
     // body wires `ref.listen` against the active-count stream; the
     // act of reading it once installs the listener for the process
