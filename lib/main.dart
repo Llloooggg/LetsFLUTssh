@@ -294,7 +294,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       ref: ref,
       isMounted: () => mounted,
     );
-    _setupHostKeyCallbacks();
+    // Interactive passphrase prompt + TOFU host-key verification
+    // land through the Rust-side prompt-protocol arcs (russh's
+    // `check_server_key` already routes through the bus for
+    // `KnownHostPromptRequest`; the passphrase prompt follows the
+    // same shape). Until the russh layer fans out a
+    // `PassphrasePromptRequest` event there's nothing to wire
+    // here — the Rust transport surfaces `PassphraseIncorrect` /
+    // `PassphraseRequired` as connect errors which the workspace
+    // surfaces as a re-edit hint on the session row.
     _lifecycleListener = AppLifecycleListener(
       onRestart: _reloadSessions,
       onResume: _reloadSessions,
@@ -428,18 +436,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (!_securityController.isReady) return;
     AppLogger.instance.log('App resumed — reloading sessions', name: 'App');
     ref.read(sessionProvider.notifier).load();
-  }
-
-  void _setupHostKeyCallbacks() {
-    // Interactive passphrase prompt + TOFU host-key verification land
-    // through the Rust-side prompt-protocol arcs (russh's
-    // `check_server_key` already routes through the bus for
-    // `KnownHostPromptRequest`; the passphrase prompt follows the
-    // same shape). Until the russh layer fans out a
-    // `PassphrasePromptRequest` event there's nothing to wire here —
-    // the Rust transport surfaces `PassphraseIncorrect` /
-    // `PassphraseRequired` as connect errors which the workspace
-    // surfaces as a re-edit hint on the session row.
   }
 
   @override
