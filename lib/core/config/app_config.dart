@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import '../../src/rust/api/config.dart' as rust_config;
 import '../../utils/logger.dart'
     show LogLevel, logLevelFromJson, logLevelToJson;
 import '../security/security_bootstrap.dart' show SecurityCapabilities;
@@ -502,19 +505,35 @@ class AppConfig {
   );
 
   /// JSON stays flat for backward compatibility.
-  Map<String, dynamic> toJson() => {
-    ...terminal.toJson(),
-    ...ssh.toJson(),
-    ...ui.toJson(),
-    ...behavior.toJson(),
-    'transfer_workers': transferWorkers,
-    'max_history': maxHistory,
-    if (locale != null) 'locale': locale,
-    if (security != null) 'security_tier': _tierName(security!.tier),
-    if (security != null) 'security_modifiers': security!.modifiers.toJson(),
-    if (securityProbeCache != null)
-      'security_probe_cache': securityProbeCache!.toJson(),
-  };
+  ///
+  /// Production routes through `lfs_core::config::AppConfig` (FRB
+  /// sync) so the field-name set + default-omit grammar (locale /
+  /// security_tier / log_level only when set) lives one place
+  /// across the two encoders. Falls back to the inline composition
+  /// when the FRB native lib is not loaded (flutter_test).
+  Map<String, dynamic> toJson() {
+    final dartShape = <String, dynamic>{
+      ...terminal.toJson(),
+      ...ssh.toJson(),
+      ...ui.toJson(),
+      ...behavior.toJson(),
+      'transfer_workers': transferWorkers,
+      'max_history': maxHistory,
+      if (locale != null) 'locale': locale,
+      if (security != null) 'security_tier': _tierName(security!.tier),
+      if (security != null) 'security_modifiers': security!.modifiers.toJson(),
+      if (securityProbeCache != null)
+        'security_probe_cache': securityProbeCache!.toJson(),
+    };
+    try {
+      final canonical = rust_config.configAppConfigToJson(
+        inputJson: jsonEncode(dartShape),
+      );
+      return jsonDecode(canonical) as Map<String, dynamic>;
+    } catch (_) {
+      return dartShape;
+    }
+  }
 
   /// Portable JSON for `.lfs` archive export. Strips every field that
   /// describes the LOCAL machine's security setup — `security_tier`,
@@ -523,17 +542,24 @@ class AppConfig {
   /// exporter's tier / modifier shape. The security configuration is
   /// strictly per-install and is re-established through the wizard
   /// on each new device.
+  ///
+  /// Routes through `lfs_core::config::strip_for_export` (FRB sync)
+  /// so the strip-list lives one place; falls back to the inline
+  /// removal for flutter_test.
   Map<String, dynamic> toJsonForExport() {
     final json = toJson();
-    json.remove('security_tier');
-    json.remove('security_modifiers');
-    // Probe cache is strictly per-host — whether the target machine
-    // has a TPM / Secure Enclave / keychain the exporter had is
-    // never the right thing to inherit. Strip it so the importer
-    // reprobes on first launch instead.
-    json.remove('security_probe_cache');
-    json.remove('config_schema_version');
-    return json;
+    try {
+      final stripped = rust_config.configAppConfigStripForExport(
+        inputJson: jsonEncode(json),
+      );
+      return jsonDecode(stripped) as Map<String, dynamic>;
+    } catch (_) {
+      json.remove('security_tier');
+      json.remove('security_modifiers');
+      json.remove('security_probe_cache');
+      json.remove('config_schema_version');
+      return json;
+    }
   }
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {

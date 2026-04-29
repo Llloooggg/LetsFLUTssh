@@ -6,6 +6,7 @@ pub mod app;
 pub mod archive;
 pub mod archive_stage;
 pub mod bus;
+pub mod config;
 pub mod connection;
 pub mod crypto;
 pub mod db;
