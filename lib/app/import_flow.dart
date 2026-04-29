@@ -267,11 +267,10 @@ void _invalidateImportProviders(WidgetRef ref) {
 }
 
 /// Reload the in-memory caches the UI binds to. Rust apply
-/// writes directly through the DB — the Dart-side store lists
-/// (`SessionStore._sessions` etc) need a `load()` to pick up
-/// the new rows.
+/// writes directly through the DB — the Dart-side caches need
+/// a `load()` to pick up the new rows.
 Future<void> _refreshStores(WidgetRef ref) async {
-  await ref.read(sessionStoreProvider).load();
+  await ref.read(sessionProvider.notifier).load();
   await ref.read(tagStoreProvider).loadAll();
   await ref.read(snippetStoreProvider).loadAll();
 }

@@ -153,8 +153,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
 
   Future<void> _moveSelected(BuildContext context) async {
     if (!_ctrl.hasSelection) return;
-    final store = ref.read(sessionStoreProvider);
-    final allFolders = <String>{'', ...store.folders(), ...store.emptyFolders};
+    final notifier = ref.read(sessionProvider.notifier);
+    final allFolders = <String>{
+      '',
+      ...notifier.folders(),
+      ...notifier.emptyFolders,
+    };
 
     final selected = await AppDialog.show<String>(
       context,
@@ -477,9 +481,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
       tree: tree,
       connectedSessionIds: connState.connected,
       connectingSessionIds: connState.connecting,
-      collapsedFolders: ref.watch(sessionStoreProvider).collapsedFolders,
+      collapsedFolders: () {
+        // Watch sessionProvider so emptyFolders / collapsedFolders
+        // mutations (which bump state) re-trigger this builder.
+        ref.watch(sessionProvider);
+        return ref.read(sessionProvider.notifier).collapsedFolders;
+      }(),
       onToggleFolderCollapsed: (path) =>
-          ref.read(sessionStoreProvider).toggleFolderCollapsed(path),
+          ref.read(sessionProvider.notifier).toggleFolderCollapsed(path),
       selectMode: mobile && _ctrl.selectMode,
       selectedIds: _ctrl.selectedIds,
       onToggleSelected: _ctrl.toggleSelected,
@@ -754,8 +763,12 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     WidgetRef ref,
     Session session,
   ) async {
-    final store = ref.read(sessionStoreProvider);
-    final allFolders = <String>{'', ...store.folders(), ...store.emptyFolders};
+    final notifier = ref.read(sessionProvider.notifier);
+    final allFolders = <String>{
+      '',
+      ...notifier.folders(),
+      ...notifier.emptyFolders,
+    };
 
     final selected = await AppDialog.show<String>(
       context,
@@ -871,7 +884,7 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
             context,
             onTap: () {
               final folderId = ref
-                  .read(sessionStoreProvider)
+                  .read(sessionProvider.notifier)
                   .folderIdByPath(folderPath);
               if (folderId != null) {
                 TagAssignDialog.showForFolder(context, folderId: folderId);
@@ -1044,9 +1057,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   /// Collects all existing folder paths including implicit parent segments.
   /// E.g. "A/B/C" implies "A" and "A/B" also exist.
   Set<String> _collectAllFolderPaths(WidgetRef ref) {
-    final store = ref.read(sessionStoreProvider);
+    final notifier = ref.read(sessionProvider.notifier);
     final result = <String>{};
-    for (final g in [...store.folders(), ...store.emptyFolders]) {
+    for (final g in [...notifier.folders(), ...notifier.emptyFolders]) {
       final parts = g.split('/');
       for (var i = 1; i <= parts.length; i++) {
         result.add(parts.sublist(0, i).join('/'));
@@ -1197,8 +1210,9 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     WidgetRef ref,
     String folderPath,
   ) async {
-    final store = ref.read(sessionStoreProvider);
-    final sessionCount = store.countSessionsInFolder(folderPath);
+    final sessionCount = ref
+        .read(sessionProvider.notifier)
+        .countSessionsInFolder(folderPath);
     final folderName = folderPath.split('/').last;
 
     final confirmed = await ConfirmDialog.show(

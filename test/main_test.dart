@@ -22,7 +22,7 @@ import 'package:letsflutssh/providers/version_provider.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/app_icon_button.dart';
 
-import 'helpers/fake_session_store.dart';
+import 'helpers/fake_session_notifier.dart';
 import 'helpers/test_notifiers.dart';
 
 /// An UpdateNotifier that transitions from idle to updateAvailable
@@ -62,13 +62,8 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
-        sessionStoreProvider.overrideWithValue(
-          FakeSessionStore(sessions: sessions),
-        ),
         sessionProvider.overrideWith(
-          sessions != null
-              ? () => PrePopulatedSessionNotifier(sessions)
-              : SessionNotifier.new,
+          () => FakeSessionNotifier(sessions: sessions),
         ),
         sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),

@@ -1,10 +1,11 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/port_forwards_dao.dart';
 import 'package:letsflutssh/core/session/session.dart';
-import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/providers/session_provider.dart';
 
-// SessionStore reads/writes through FRB (`lfs_core.db`). flutter_test
+// SessionNotifier reads/writes through FRB (`lfs_core.db`). flutter_test
 // does not load the native bridge, so the persistence-asserting unit
 // tests that round-tripped through drift's in-memory DB no longer
 // apply — equivalent coverage moves to integration_test. Same
@@ -25,10 +26,13 @@ Session _makeSession({
 }
 
 void main() {
-  group('SessionStore (no-DB sentinels)', () {
-    test('load returns empty when DB is unreachable', () async {
-      final store = SessionStore();
-      expect(await store.load(), isEmpty);
+  group('SessionNotifier (no-DB sentinels)', () {
+    test('load resolves to empty when DB is unreachable', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(sessionProvider.notifier);
+      await notifier.load();
+      expect(container.read(sessionProvider), isEmpty);
     });
 
     test('loadPortForwards returns empty when DB is unreachable', () async {
@@ -36,11 +40,13 @@ void main() {
     });
 
     test('add validates input even without a DB', () async {
-      final store = SessionStore();
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(sessionProvider.notifier);
       // Empty host / user fails validate(); the throw should fire
       // before any FRB call so the test runner can observe it.
       expect(
-        () => store.add(
+        () => notifier.add(
           Session(
             id: 's1',
             label: 'broken',
@@ -54,10 +60,10 @@ void main() {
     });
   });
 
-  group('SessionStore.filterSessions (pure)', () {
+  group('filterSessions (pure)', () {
     test('returns input unchanged for empty query', () {
       final all = [_makeSession(id: 'a'), _makeSession(id: 'b')];
-      expect(SessionStore.filterSessions(all, ''), all);
+      expect(filterSessions(all, ''), all);
     });
 
     test('matches case-insensitively against label / folder / host / user', () {
@@ -65,8 +71,8 @@ void main() {
         _makeSession(id: 'a', label: 'Frontend Web', folder: 'Production/EU'),
         _makeSession(id: 'b', label: 'API Backend', folder: 'Production/US'),
       ];
-      expect(SessionStore.filterSessions(all, 'frontend').single.id, 'a');
-      expect(SessionStore.filterSessions(all, 'us').single.id, 'b');
+      expect(filterSessions(all, 'frontend').single.id, 'a');
+      expect(filterSessions(all, 'us').single.id, 'b');
     });
   });
 }

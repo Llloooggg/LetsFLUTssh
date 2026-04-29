@@ -298,8 +298,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     // Recorder only needs the label + the `record` extras flag — the
     // cached session model carries both without dragging the
     // credential columns onto the Dart heap.
-    final store = ref.read(sessionStoreProvider);
-    final session = store.get(sessionId);
+    final session = ref.read(sessionProvider.notifier).get(sessionId);
     if (session == null) return null;
     if (session.extrasBool('record') != true) return null;
     final dbKey = ref.read(securityStateProvider).encryptionKey;

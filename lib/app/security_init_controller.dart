@@ -1431,7 +1431,7 @@ class SecurityInitController {
     // Stores read/write through FRB into `lfs_core.db`; the unlock
     // handshake invalidates each store's in-memory cache so the next
     // read pulls fresh rows after the engine swap.
-    ref.read(sessionStoreProvider).invalidateCache();
+    ref.read(sessionProvider.notifier).invalidateCache();
     ref.read(keyStoreProvider).invalidateCache();
     ref.read(knownHostsProvider).invalidateCache();
     if (key != null) {

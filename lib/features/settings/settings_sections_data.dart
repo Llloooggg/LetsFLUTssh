@@ -332,7 +332,7 @@ class _ExportImportTile extends ConsumerWidget {
 
   Future<void> _showExportDialog(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
-    final store = ref.read(sessionStoreProvider);
+    final notifier = ref.read(sessionProvider.notifier);
 
     // Load counts for export dialog
     final keyStore = ref.read(keyStoreProvider);
@@ -355,7 +355,7 @@ class _ExportImportTile extends ConsumerWidget {
       context,
       data: UnifiedExportDialogData(
         sessions: sessions,
-        emptyFolders: store.emptyFolders,
+        emptyFolders: notifier.emptyFolders,
         config: ref.read(configProvider),
         knownHostsContent: knownHostsContent,
         managerKeys: managerKeys,
@@ -697,7 +697,7 @@ class _ExportImportTile extends ConsumerWidget {
         applySnippets: options.includeSnippets,
         applyKnownHosts: options.includeKnownHosts,
         refreshAfterImport: () async {
-          await ref.read(sessionStoreProvider).load();
+          await ref.read(sessionProvider.notifier).load();
           await ref.read(tagStoreProvider).loadAll();
           await ref.read(snippetStoreProvider).loadAll();
         },
@@ -778,7 +778,7 @@ class _ExportImportTile extends ConsumerWidget {
       final apply = await applyResultViaRust(
         importResult,
         refreshAfterImport: () async {
-          await ref.read(sessionStoreProvider).load();
+          await ref.read(sessionProvider.notifier).load();
           await ref.read(tagStoreProvider).loadAll();
           await ref.read(snippetStoreProvider).loadAll();
         },
@@ -854,7 +854,7 @@ class _QrExportTile extends ConsumerWidget {
 
   Future<void> _showQrExport(BuildContext context, WidgetRef ref) async {
     final sessions = ref.read(sessionProvider);
-    final store = ref.read(sessionStoreProvider);
+    final notifier = ref.read(sessionProvider.notifier);
 
     // Load counts for export dialog
     final keyStore = ref.read(keyStoreProvider);
@@ -877,7 +877,7 @@ class _QrExportTile extends ConsumerWidget {
       context,
       data: UnifiedExportDialogData(
         sessions: sessions,
-        emptyFolders: store.emptyFolders,
+        emptyFolders: notifier.emptyFolders,
         config: ref.read(configProvider),
         knownHostsContent: knownHostsContent,
         managerKeys: managerKeys,

@@ -6,7 +6,7 @@ import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 
 import 'fake_security.dart';
-import 'fake_session_store.dart';
+import 'fake_session_notifier.dart';
 import 'test_providers.dart';
 
 void main() {
@@ -24,7 +24,7 @@ void main() {
         final c = makeTestProviderContainer();
         addTearDown(c.dispose);
 
-        expect(c.read(sessionStoreProvider), isA<FakeSessionStore>());
+        expect(c.read(sessionProvider.notifier), isA<FakeSessionNotifier>());
         expect(
           c.read(masterPasswordProvider),
           isA<FakeMasterPasswordManager>(),

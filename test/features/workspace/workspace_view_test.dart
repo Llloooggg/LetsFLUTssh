@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/config_store.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/session/session_store.dart';
 import 'package:letsflutssh/core/ssh/known_hosts.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/features/tabs/tab_model.dart';
@@ -19,6 +18,7 @@ import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
+import '../../helpers/fake_session_notifier.dart';
 import '../../helpers/test_notifiers.dart';
 
 Connection _conn(
@@ -59,8 +59,7 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
-        sessionStoreProvider.overrideWithValue(SessionStore()),
-        sessionProvider.overrideWith(SessionNotifier.new),
+        sessionProvider.overrideWith(() => FakeSessionNotifier()),
         sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         knownHostsProvider.overrideWithValue(KnownHostsManager()),
         connectionsProvider.overrideWith(
@@ -353,8 +352,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(SessionStore()),
-            sessionProvider.overrideWith(SessionNotifier.new),
+            sessionProvider.overrideWith(() => FakeSessionNotifier()),
             sessionsLoadingProvider.overrideWith(
               IdleSessionsLoadingNotifier.new,
             ),

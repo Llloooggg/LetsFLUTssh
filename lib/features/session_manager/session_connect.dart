@@ -139,8 +139,9 @@ class SessionConnect {
       // session (no credentials on the heap) and let the connect
       // path stage secrets directly from the DB into the
       // SecretStore.
-      final store = ref.read(sessionStoreProvider);
-      bastionSession = store.get(current.viaSessionId!);
+      bastionSession = ref
+          .read(sessionProvider.notifier)
+          .get(current.viaSessionId!);
       if (bastionSession == null) {
         throw ProxyJumpBastionError(
           current.viaSessionId!,

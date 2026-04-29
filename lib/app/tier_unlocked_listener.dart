@@ -148,7 +148,7 @@ class TierUnlockedListener {
       // Invalidate Dart-side store caches so the next read
       // pulls fresh rows after the engine swap. Mirrors the
       // existing `_injectDatabase` pre-step.
-      _ref.read(sessionStoreProvider).invalidateCache();
+      _ref.read(sessionProvider.notifier).invalidateCache();
       _ref.read(keyStoreProvider).invalidateCache();
       _ref.read(knownHostsProvider).invalidateCache();
       if (key != null) {

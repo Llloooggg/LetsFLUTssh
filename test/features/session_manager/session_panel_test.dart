@@ -14,7 +14,7 @@ import 'package:letsflutssh/widgets/app_dialog.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
-import '../../helpers/fake_session_store.dart';
+import '../../helpers/fake_session_notifier.dart';
 import '../../helpers/test_notifiers.dart';
 
 void main() {
@@ -53,10 +53,6 @@ void main() {
     void Function(Session)? onSftpConnect,
   }) {
     final sessionList = sessions ?? testSessions;
-    final store = FakeSessionStore(
-      sessions: sessionList,
-      emptyFolders: emptyFolders,
-    );
     final tree = SessionTree.build(
       sessionList,
       emptyFolders: emptyFolders ?? const {},
@@ -64,9 +60,11 @@ void main() {
 
     return ProviderScope(
       overrides: [
-        sessionStoreProvider.overrideWithValue(store),
         sessionProvider.overrideWith(
-          () => PrePopulatedSessionNotifier(sessionList),
+          () => FakeSessionNotifier(
+            sessions: sessionList,
+            emptyFolders: emptyFolders,
+          ),
         ),
         sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
@@ -228,14 +226,10 @@ void main() {
       // cold-start flashes "your sessions are gone" before the load
       // resolves.
       final tree = SessionTree.build(const []);
-      final store = FakeSessionStore();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStoreProvider.overrideWithValue(store),
-            sessionProvider.overrideWith(
-              () => PrePopulatedSessionNotifier(const []),
-            ),
+            sessionProvider.overrideWith(() => FakeSessionNotifier()),
             // Default for sessionsLoadingProvider is already `true`,
             // but state the intent so the test fails loudly if that
             // default ever changes.
