@@ -154,12 +154,30 @@ Sequence:
   map to `plugin_unavailable` / `corruption` / `user_cancelled`.
 - [x] C9.4 — Paranoid path observed. Failure discriminant maps
   to `user_cancelled` (master-password reset).
-- [ ] C9.5 — Retire Dart `SecurityInitController` orchestration
-  after the per-tier handlers themselves move into Rust under
-  per-tier feature gates. Pending — observation half is in,
-  the Rust-owned unlock work itself stays Dart-side until the
-  full per-tier handler cascade lands (needs the C2 / C3 / C5
-  full cutovers).
+- [x] C9.5 — Per-tier unlock + first-launch handlers moved into
+  Rust orchestrators (`tier_unlock_orchestrator::{unlock,first_launch}_*`).
+  Each orchestrator stages the resolved DB key under
+  `TIER_UNLOCK_KEY_ID` + emits the tier_machine cascade; the
+  `TierUnlockedListener` Dart provider takes the bytes via
+  `secrets_take` on `BusEvent::TierStateChanged.unlocked` and
+  runs the post-unlock cascade (caches, drift open,
+  securityStateProvider, config persist). Plaintext discipline:
+  key bytes cross FRB exactly once per cascade (the
+  `secrets_take` round-trip), no longer through orchestrator
+  return values. Multi-attempt dialog tiers (L2/L3/Paranoid)
+  arm the listener with `onlyUnlocked: true` so per-attempt
+  `Locked` events from wrong-secret retries don't resolve the
+  wait; the dismiss path resolves explicitly via `cancelPending`.
+  Biometric fast-path uses `tier_unlock_biometric_commit` which
+  stages bytes + emits cascade in one shot, so the listener
+  runs uniformly for typed-secret and biometric paths. L3
+  first-launch uses a new `hardware_vault_seal_prompt` registry
+  mirroring the unlock-prompt shape. `SecurityInitController`
+  shrunk from ~1700 to ~1605 LOC; the residual surface is
+  Dart-side glue (lifecycle, migration runner, wizard,
+  corruption recovery, DB inject) that legitimately can't move
+  into Rust without dragging Drift, Riverpod, navigation, and
+  platform plugins along — full delete is unreasonable.
 
 Why: 1167 LOC `SecurityInitController` is the single most
 complex Dart orchestrator. Big-bang retire = all-eggs-one-basket
@@ -604,16 +622,19 @@ rather than one big-bang flip.
 
 - [~] C9.1 — Actor scaffold + state transitions + bus events.
   Done as C9.0 (per Decision 4).
-- [~] C9.2 — Compose master-password / keychain-gate / hardware-
-  vault / wipe orchestrators behind the actor. Done as C9.1-C9.4
-  observation half (per Decision 4); the per-tier handlers
-  themselves still live Dart-side until C9.5 lands.
+- [x] C9.2 — Per-tier orchestrators in Rust:
+  `tier_unlock_orchestrator::{unlock,first_launch}_*` for all
+  five tiers (Plaintext / Keychain / KeychainWithPassword /
+  Hardware / Paranoid). Each owns the per-tier verify (gate /
+  Argon2id / keychain Read/Write / hardware unseal/seal) +
+  cascade emission + SecretStore staging; the Dart side
+  consumes the cascade via `TierUnlockedListener`.
 - [~] C9.3 — `security_provider.dart` (462 LOC) → `StreamProvider`
   mirror. `security_bootstrap.dart` orchestration retires.
-  Pending — gated on C9.5 retire of `SecurityInitController`,
-  which itself waits for the per-tier handlers to move into
-  Rust. Capabilities cache + orchestrator (C5.1 + C5.2) already
-  cover the Settings-card subscription side.
+  Pending — capabilities cache + orchestrator (C5.1 + C5.2)
+  already cover the Settings-card subscription side; the
+  remaining work is the Riverpod-graph wiring against the
+  cascade events the per-tier orchestrators now publish.
 
 **Risk:** highest of the migration. The Decision 4 rolling
 keeps every step rollback-able; the residual C9.5 retire is
