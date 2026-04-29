@@ -34,6 +34,20 @@ String tierMachineSetTier({required String tierWireName}) => RustLib
 DbTierState? tierMachineDispatch({required DbTierEvent event}) =>
     RustLib.instance.api.crateApiTierMachineTierMachineDispatch(event: event);
 
+/// Per-tier handler hook — checks the current state + active
+/// tier and self-advances if the tier needs no external input.
+/// Returns the new state when an advance fired, `None`
+/// otherwise.
+///
+/// **C9.1.** Plaintext is the only tier that self-advances
+/// today; Dart calls this immediately after dispatching
+/// `unlock_requested` so the synchronous unlock path lands
+/// without waiting on a no-op prompt round-trip. Keychain /
+/// Hardware / Paranoid keep returning `None` until C9.2+ wires
+/// their per-tier handlers.
+DbTierState? tierMachineTryAdvance() =>
+    RustLib.instance.api.crateApiTierMachineTierMachineTryAdvance();
+
 /// FRB-side variant tag for `TierEvent`. Each event variant
 /// crosses with the discriminant + the per-variant payload. The
 /// Dart caller constructs one of these and dispatches via

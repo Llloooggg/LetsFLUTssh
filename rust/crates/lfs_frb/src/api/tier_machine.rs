@@ -152,3 +152,23 @@ pub fn tier_machine_dispatch(event: DbTierEvent) -> Result<Option<DbTierState>, 
     let mut g = machine_lock().lock().expect("tier machine poisoned");
     Ok(g.dispatch(&core).map(DbTierState::from))
 }
+
+/// Per-tier handler hook — checks the current state + active
+/// tier and self-advances if the tier needs no external input.
+/// Returns the new state when an advance fired, `None`
+/// otherwise.
+///
+/// **C9.1.** Plaintext is the only tier that self-advances
+/// today; Dart calls this immediately after dispatching
+/// `unlock_requested` so the synchronous unlock path lands
+/// without waiting on a no-op prompt round-trip. Keychain /
+/// Hardware / Paranoid keep returning `None` until C9.2+ wires
+/// their per-tier handlers.
+#[flutter_rust_bridge::frb(sync)]
+pub fn tier_machine_try_advance() -> Option<DbTierState> {
+    machine_lock()
+        .lock()
+        .expect("tier machine poisoned")
+        .try_advance()
+        .map(DbTierState::from)
+}

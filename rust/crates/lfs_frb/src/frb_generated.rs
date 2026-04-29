@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -797881939;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1163440786;
 
 // Section: executor
 
@@ -11847,6 +11847,36 @@ fn wire__crate__api__tier_machine__tier_machine_state_impl(
         },
     )
 }
+fn wire__crate__api__tier_machine__tier_machine_try_advance_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tier_machine_try_advance",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::tier_machine::tier_machine_try_advance())?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -16546,46 +16576,46 @@ fn pde_ffi_dispatcher_primary_impl(
         297 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
-        306 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-        307 => wire__crate__api__transfer__transfer_clear_history_impl(
+        307 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+        308 => wire__crate__api__transfer__transfer_clear_history_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        313 => {
+        314 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        314 => wire__crate__api__transfer__transfer_drop_terminal_impl(
+        315 => wire__crate__api__transfer__transfer_drop_terminal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        315 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
-        316 => wire__crate__api__transfer__transfer_snapshot_all_impl(
+        316 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
+        317 => wire__crate__api__transfer__transfer_snapshot_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        320 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
-        322 => wire__crate__api__update_http__update_download_to_file_impl(
+        321 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
+        323 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        323 => wire__crate__api__update_http__update_download_with_verification_impl(
+        324 => wire__crate__api__update_http__update_download_with_verification_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        324 => {
+        325 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
-        332 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+        333 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -16731,25 +16761,26 @@ fn pde_ffi_dispatcher_sync_impl(
 300 => wire__crate__api__tier_machine__tier_machine_dispatch_impl(ptr, rust_vec_len, data_len),
 301 => wire__crate__api__tier_machine__tier_machine_set_tier_impl(ptr, rust_vec_len, data_len),
 302 => wire__crate__api__tier_machine__tier_machine_state_impl(ptr, rust_vec_len, data_len),
-303 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
-304 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
-305 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
-308 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
-309 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
-310 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
-311 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
-312 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
-317 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-318 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
-319 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-321 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-325 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-326 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-327 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-328 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-329 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-330 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-331 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+303 => wire__crate__api__tier_machine__tier_machine_try_advance_impl(ptr, rust_vec_len, data_len),
+304 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
+305 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
+306 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
+309 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
+310 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
+311 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
+312 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
+313 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
+318 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+319 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
+320 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+322 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+326 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+327 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+328 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+329 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+330 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+331 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+332 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }

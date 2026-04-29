@@ -241,6 +241,34 @@ impl Machine {
     pub fn set_tier(&mut self, tier: SecurityTier) {
         self.tier = tier;
     }
+
+    /// Per-tier handler — checks if the current state has a tier
+    /// that can self-advance without external input. Returns the
+    /// new state if a self-advance fired.
+    ///
+    /// **C9.1 — Plaintext.** Plaintext tier has no secret, no
+    /// plugin call, no user prompt. From `Unlocking` it fires
+    /// `UnlockSucceeded` immediately — same shape the Dart
+    /// `_unlockByTier` switch used (`case SecurityTier.plaintext:
+    /// await _injectDatabase()`).
+    ///
+    /// **C9.2+ — other tiers.** Keychain / Hardware / Paranoid
+    /// stay stuck in `Unlocking` until their per-tier handler
+    /// (Decision 1 prompt protocol + Decision 2 plugin callback)
+    /// resolves. This function is a no-op for those tiers — the
+    /// actor waits on an explicit `UnlockSucceeded` /
+    /// `UnlockFailed` dispatch from the handler.
+    pub fn try_advance(&mut self) -> TransitionResult {
+        if self.state != TierState::Unlocking {
+            return None;
+        }
+        match self.tier {
+            SecurityTier::Plaintext => self.dispatch(&TierEvent::UnlockSucceeded),
+            // Other tiers wait for the per-tier handler to dispatch
+            // the resolution event.
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -418,6 +446,51 @@ mod tests {
         m.dispatch(&TierEvent::UnlockRequested).unwrap();
         m.dispatch(&fail()).unwrap();
         assert_eq!(m.state(), TierState::Locked);
+    }
+
+    #[test]
+    fn try_advance_plaintext_self_advances_to_unlocked() {
+        let mut m = Machine::new(SecurityTier::Plaintext);
+        m.dispatch(&TierEvent::UnlockRequested).unwrap();
+        assert_eq!(m.state(), TierState::Unlocking);
+        let next = m.try_advance().unwrap();
+        assert_eq!(next, TierState::Unlocked);
+        assert_eq!(m.state(), TierState::Unlocked);
+    }
+
+    #[test]
+    fn try_advance_other_tiers_waits_for_handler() {
+        for tier in [
+            SecurityTier::Keychain,
+            SecurityTier::KeychainWithPassword,
+            SecurityTier::Hardware,
+            SecurityTier::Paranoid,
+        ] {
+            let mut m = Machine::new(tier);
+            m.dispatch(&TierEvent::UnlockRequested).unwrap();
+            assert_eq!(m.state(), TierState::Unlocking);
+            // Non-plaintext tiers stay in Unlocking — the per-tier
+            // handler resolves through Decision 1's prompt
+            // protocol later.
+            assert_eq!(m.try_advance(), None);
+            assert_eq!(m.state(), TierState::Unlocking);
+        }
+    }
+
+    #[test]
+    fn try_advance_outside_unlocking_is_noop() {
+        // From Locked / Unlocked / Wiping there's nothing to
+        // advance from — the function returns None without
+        // mutating state.
+        let mut m = Machine::new(SecurityTier::Plaintext);
+        assert_eq!(m.try_advance(), None);
+        assert_eq!(m.state(), TierState::Locked);
+
+        m.dispatch(&TierEvent::UnlockRequested).unwrap();
+        m.dispatch(&TierEvent::UnlockSucceeded).unwrap();
+        assert_eq!(m.state(), TierState::Unlocked);
+        assert_eq!(m.try_advance(), None);
+        assert_eq!(m.state(), TierState::Unlocked);
     }
 
     #[test]
