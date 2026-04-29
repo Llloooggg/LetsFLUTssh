@@ -471,12 +471,15 @@ the typed outcome to fire the right callback.
 No dependencies on other steps; lands as small commits when each
 gate clears.
 
-- `core/transfer/conflict_resolver.dart` — **deferred to step 7
-  prompt protocol.** On second look the file is not pure logic;
-  it owns a `ConflictPrompt` callback that drives a UI dialog
-  and caches the user's "apply to all" decision. Moving Rust-side
-  needs the bus prompt-event protocol that step 7 (`known_hosts`)
-  ships first. Fold both prompt-protocol arcs into one rung.
+- ~~`core/transfer/conflict_resolver.dart` state machine~~ —
+  **DONE (state-machine half).** The cache + cancel grammar
+  moved to `lfs_core::transfer_conflict::BatchStateRegistry`
+  with FRB shims (`transfer_conflict_create / drop / cached /
+  is_cancelled / record_decision`). Dart wrapper allocates a
+  UUIDv4 handle, folds prompt outcomes through Rust, drops on
+  dispose. The prompt callback (UI dialog) stays Dart-side
+  until the bus prompt-protocol arc folds it into the
+  `known_hosts` shape.
 - `core/security/secret_buffer.dart` + `secure_ref.dart` — RAII
   helpers; the Dart wrappers retire once the security tier stack
   moves (step 9). Already routes to
