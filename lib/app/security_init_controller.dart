@@ -508,13 +508,74 @@ class SecurityInitController {
     }
   }
 
+  /// Set the active tier + emit `unlock_requested` so the
+  /// `tier_machine` actor + every observer sees the cascade
+  /// start. C9.2-C9.4 paths invoke this before their per-tier
+  /// async unlock work; the matching `_emitTierUnlockResolved`
+  /// fires when the work completes (or fails).
+  void _emitTierUnlockStart(String tierWireName) {
+    try {
+      rust_tier.tierMachineSetTier(tierWireName: tierWireName);
+      rust_tier.tierMachineDispatch(
+        event: const rust_tier.DbTierEvent(discriminant: 'unlock_requested'),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'tier_machine $tierWireName start failed: $e',
+        name: 'TierMachine',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Resolve the in-flight `unlock_requested` with success or
+  /// failure. Failure reasons map to `UnlockFailureReason` —
+  /// the Dart caller passes the discriminant; the typed payload
+  /// (plugin code / corruption detail) is best-effort empty
+  /// today. Future C9.x commits enrich the reason payloads.
+  void _emitTierUnlockResolved({
+    required bool succeeded,
+    String failureDiscriminant = 'wrong_secret',
+  }) {
+    try {
+      if (succeeded) {
+        rust_tier.tierMachineDispatch(
+          event: const rust_tier.DbTierEvent(discriminant: 'unlock_succeeded'),
+        );
+      } else {
+        rust_tier.tierMachineDispatch(
+          event: rust_tier.DbTierEvent(
+            discriminant: 'unlock_failed',
+            failReason: rust_tier.DbUnlockFailureReason(
+              discriminant: failureDiscriminant,
+              code: '',
+              detail: '',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'tier_machine resolve failed: $e',
+        name: 'TierMachine',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
   Future<void> _unlockParanoid(MasterPasswordManager manager) async {
     if (!isMounted()) return;
+    _emitTierUnlockStart('paranoid');
     final derivedKey = await _dialogs.showMasterPasswordUnlock(manager);
     if (derivedKey != null) {
       await _injectDatabase(key: derivedKey, level: SecurityTier.paranoid);
+      _emitTierUnlockResolved(succeeded: true);
       AppLogger.instance.log('Master password unlocked', name: 'App');
     } else {
+      _emitTierUnlockResolved(
+        succeeded: false,
+        failureDiscriminant: 'user_cancelled',
+      );
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
@@ -525,12 +586,18 @@ class SecurityInitController {
   }
 
   Future<void> _unlockKeychain(SecureKeyStorage keyStorage) async {
+    _emitTierUnlockStart('keychain');
     final keychainKey = await keyStorage.readKey();
     if (keychainKey != null) {
       await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
+      _emitTierUnlockResolved(succeeded: true);
       AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
       return;
     }
+    _emitTierUnlockResolved(
+      succeeded: false,
+      failureDiscriminant: 'plugin_unavailable',
+    );
     _credentialsWereReset = true;
     await _injectDatabase();
     AppLogger.instance.log(
