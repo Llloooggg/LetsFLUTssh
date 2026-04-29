@@ -34,6 +34,162 @@ E  — unified_export_controller live size estimate  (3–4 commits, anytime)
 F  — pure helpers                                  (~6 commits, background)
 ```
 
+## Architectural decisions (locked)
+
+Six load-bearing decisions that gate the remaining arcs. Locked
+on safety + best-practice priority — no field re-litigation,
+arcs land against these as written.
+
+### Decision 1 — Rust↔Dart prompt protocol
+
+**Locked: extend `KnownHostPromptRegistry` per-prompt-type.**
+
+Each prompt that needs Dart UI / Dart-plugin response gets:
+
+- `BusEvent::XxxPromptRequest { req_id, ...typed payload }`
+- FRB shim `xxx_prompt_response(req_id, ...typed response)`
+- Per-type `PromptRegistry<XxxRequest, XxxResponse>` actor with
+  `tokio::oneshot` per request
+
+Why: race-free single-shot resolution; compile-time typed
+contract per prompt (drift impossible); plaintext window stays
+the same as the existing Dart `flutter_secure_storage.read()`
+call; pattern already proven in production for the harder
+russh `check_server_key` handshake-blocking case.
+
+Rejected: generic JSON registry (loses compile-time safety) and
+FRB callback type (reentrancy / deadlock risk on mutex paths,
+already burned us in `connection_manager`).
+
+### Decision 2 — Platform plugin paths (keychain / biometric / hardware vault)
+
+**Locked: callback-up via Decision 1 for C2 / C5 / C6 /
+biometric.** Plugins stay Dart; Rust actor publishes
+`PluginRequest` event, Dart subscriber executes the
+`flutter_secure_storage` / `local_auth` / per-platform
+`MethodChannel` call, returns response via FRB.
+
+**C3 (TPM CLI) is the only exception — subprocess via
+Decision 3.** `tpm2-tools` is OS-installed binary, not a
+Flutter plugin; subprocess driver is a discrete plugin
+replacement that doesn't need a mature Rust crate.
+
+Why: plaintext discipline window doesn't grow (credential
+already lives in Dart heap during plugin call); audit
+perimeter stays put (existing plugins audited a year+);
+existing Dart tests for plugin paths keep working;
+per-plugin migration to native Rust crate stays open without
+blocking on full FFI matrix today.
+
+Rejected: native Rust plugins per platform (5 platforms × 2-4
+weeks of testing matrix the CI doesn't have); pure Dart with
+no actor (can't lift orchestration into the tier machine).
+
+### Decision 3 — Subprocess infra in `lfs_core`
+
+**Locked: `tokio::process::Command` directly in `lfs_core`,
+target-gated to Linux.**
+
+Add `tempfile` from `dev-dependencies` to `dependencies`;
+`tokio::process` is already pulled by `tokio` workspace dep.
+Subprocess driver lives in `lfs_core::security::tpm_subprocess`
+under `cfg(target_os = "linux")`.
+
+Why: `lfs_core` already spawns `std::process::Command` (see
+`path.rs:218` for `icacls` on Windows) — subprocess is an
+existing pattern, not a new category. `tempfile` provides
+auto-deleting `NamedTempFile` for the auth-value file the
+TPM driver writes (cleanup-on-crash discipline). Plaintext
+auth bytes never cross FRB.
+
+Rejected: separate `lfs_subprocess` crate (overengineering for
+single use case — YAGNI), Dart-side `Process.run` with Rust
+business logic over bus (extra plaintext FRB crossings, looser
+cleanup discipline).
+
+### Decision 4 — Tier state machine actor scope
+
+**Locked: scaffold-first + per-tier sub-machines under feature
+gate.**
+
+Sequence:
+- C9.0 — typed scaffold (state enum + event enum + transition
+  table + tests). Not wired to Dart — purely additive.
+- C9.1 — Plaintext path through actor under
+  `--dart-define=LFS_TIER_MACHINE_PLAINTEXT=true`. Default off;
+  feature gate flip in next commit.
+- C9.2 — Keychain path (uses Decision 2 callbacks via Decision 1).
+- C9.3 — Hardware path (uses C3 subprocess + Decision 2 for
+  per-platform vault plugins).
+- C9.4 — Paranoid path (uses C7 + master_password).
+- C9.5 — Retire Dart `SecurityInitController` after every tier
+  feature gate is on by default.
+
+Why: 1167 LOC `SecurityInitController` is the single most
+complex Dart orchestrator. Big-bang retire = all-eggs-one-basket
+risk on the unlock flow; one regression = users can't open
+their DB. Per-tier rolling lets each commit be retain-rollback-
+able with feature gate; tests script per tier with FakeAppBus.
+
+Rejected: big-bang full retire (risk profile incompatible with
+solo-dev / no-E2E-CI shape), parallel actor permanently
+coexisting (drift = anti-pattern).
+
+### Decision 5 — App config Store actor (D4-D6)
+
+**Locked: Rust actor owns debounce + atomic file I/O + bus
+event.**
+
+`lfs_core::config::Store` actor:
+- In-memory: current `AppConfig` + dirty flag
+- API: `get() -> AppConfig`, `update(updater)` (sync, schedules
+  300ms debounce), `flush() -> Future<()>`
+- Internal: `tokio::time::sleep` debounce, atomic write through
+  existing `lfs_core::path::write_bytes_atomic`, publish
+  `ConfigChanged` event after save
+- Dart `ConfigNotifier`: thin shim — `update` calls FRB,
+  subscribes to `ConfigChanged` for state refresh
+
+**D4-D6 ungated from C9.** Per Decision 4, C9 is rolling
+(per-tier feature gates), not one big arc. `AppConfig.security`
+already routes through Rust mirror (D1-D3 done), so D4-D6 can
+ship in parallel.
+
+Why: single source of truth for config + debounce + persistence;
+bus pattern uniformity (every other actor publishes
+`XxxChanged` after mutation — config should match); atomic
+write discipline already centralised; lost-write window on
+crash (300ms) is inherent to debounce, equal across all
+variants.
+
+Rejected: split debounce/persistence across Dart/Rust (drift
+risk on boundary), Dart-owned debounce + Rust per-save (loses
+cache, every set = full write).
+
+### Decision 6 — Export controller estimator retire (E)
+
+**Locked: extract `compose_qr_payload` shared helper Rust-side,
+estimator routes through it via typed FRB inputs.**
+
+Extract `compose_qr_payload(input: QrPayloadInput) -> Value`
+from `lfs_core::archive::qr_export_payload`. Production path
+pulls from DB → builds typed input → calls helper. Estimator
+path: Dart builds typed input via FRB → calls helper → returns
+size only. Same `QrPayloadInput` struct, both producers.
+
+Why: closes the recurring wire-shape drift (already burned us
+once on `encodeSessionCompact`, fixed in F-arc, but the
+pattern repeats for every section the estimator composes
+Dart-side); plaintext exposure window doesn't grow (estimator
+already sees password/key_data Dart-side for accurate sizing);
+sync FRB call is fast enough (< 10ms for 100 sessions); test
+discipline = one property-based test (random input → estimator
+size == production size).
+
+Rejected: DB-pull-per-toggle (UX regression — drag through
+5 checkboxes = 500ms lag), permanent split (drift risk
+indefinitely, F-arc proved this repeats).
+
 ## Tractable today vs needs-architectural-decision
 
 **Closed in the current arc** (composite actor commands + helper
