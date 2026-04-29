@@ -584,18 +584,38 @@ class SecurityInitController {
   }
 
   Future<void> _unlockKeychain(SecureKeyStorage keyStorage) async {
-    _emitTierUnlockStart('keychain');
-    final keychainKey = await keyStorage.readKey();
+    // Production routes through `tier_unlock_orchestrator::unlock_keychain`
+    // which dispatches the cascade events + reads the keychain
+    // slot via the prompt registry. Falls back to the inline
+    // Dart helper when the FRB native lib is not loaded
+    // (flutter_test contexts that don't bootstrap RustLib).
+    Uint8List? keychainKey;
+    var fellBack = false;
+    try {
+      final bytes = await rust_orch.tierUnlockKeychain();
+      keychainKey = bytes == null ? null : Uint8List.fromList(bytes);
+    } catch (e) {
+      AppLogger.instance.log(
+        'tier_unlock_keychain FRB unreachable, falling back to '
+        'Dart pipeline: $e',
+        name: 'App',
+      );
+      _emitTierUnlockStart('keychain');
+      keychainKey = await keyStorage.readKey();
+      fellBack = true;
+    }
     if (keychainKey != null) {
       await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
-      _emitTierUnlockResolved(succeeded: true);
+      if (fellBack) _emitTierUnlockResolved(succeeded: true);
       AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
       return;
     }
-    _emitTierUnlockResolved(
-      succeeded: false,
-      failureDiscriminant: 'plugin_unavailable',
-    );
+    if (fellBack) {
+      _emitTierUnlockResolved(
+        succeeded: false,
+        failureDiscriminant: 'plugin_unavailable',
+      );
+    }
     _credentialsWereReset = true;
     await _injectDatabase();
     AppLogger.instance.log(

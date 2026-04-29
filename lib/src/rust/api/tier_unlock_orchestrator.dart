@@ -15,3 +15,16 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// just fast-paths the cascade visibility.
 void tierUnlockPlaintext() =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockPlaintext();
+
+/// Keychain tier (L1) — read the DB encryption key from the OS
+/// keychain via the prompt registry; emit cascade events along
+/// the way; return the key bytes on success or `None` on
+/// missing entry / plugin error.
+///
+/// Async — round-trips through the bus to the Dart subscriber
+/// for the `flutter_secure_storage.read` call. The receiver
+/// completes as soon as the subscriber resolves the prompt;
+/// the FRB worker frees during the wait so the unlock dialog
+/// stays responsive.
+Future<Uint8List?> tierUnlockKeychain() =>
+    RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockKeychain();

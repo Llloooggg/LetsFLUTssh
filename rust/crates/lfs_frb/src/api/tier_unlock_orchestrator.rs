@@ -22,3 +22,17 @@ use lfs_core::security::tier_unlock_orchestrator;
 pub fn tier_unlock_plaintext() {
     tier_unlock_orchestrator::unlock_plaintext();
 }
+
+/// Keychain tier (L1) — read the DB encryption key from the OS
+/// keychain via the prompt registry; emit cascade events along
+/// the way; return the key bytes on success or `None` on
+/// missing entry / plugin error.
+///
+/// Async — round-trips through the bus to the Dart subscriber
+/// for the `flutter_secure_storage.read` call. The receiver
+/// completes as soon as the subscriber resolves the prompt;
+/// the FRB worker frees during the wait so the unlock dialog
+/// stays responsive.
+pub async fn tier_unlock_keychain() -> Option<Vec<u8>> {
+    tier_unlock_orchestrator::unlock_keychain().await
+}
