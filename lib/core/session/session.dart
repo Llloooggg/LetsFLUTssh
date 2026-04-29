@@ -131,6 +131,21 @@ class SessionAuth extends SshAuth {
     keyData,
     passphrase,
   );
+
+  /// Strip every plaintext credential, preserving the per-slot
+  /// `hasStoredX` markers (computed from the live values when not
+  /// already set). Used by `SessionStore` to push optimistic
+  /// cache entries that match the post-DAO snapshot shape — the
+  /// list view never holds plaintext between an upsert and the
+  /// `SessionsChanged` bus event landing.
+  SessionAuth withoutCredentials() => SessionAuth(
+    authType: authType,
+    keyId: keyId,
+    hasStoredPassword: hasStoredPassword || password.isNotEmpty,
+    hasStoredKeyData: hasStoredKeyData || keyData.isNotEmpty,
+    hasStoredPassphrase: hasStoredPassphrase || passphrase.isNotEmpty,
+    keyPath: keyPath,
+  );
 }
 
 /// SSH session model — stored as JSON, credentials in encrypted storage.
@@ -279,6 +294,13 @@ class Session {
       return null;
     }
   }
+
+  /// Sanitised copy of this session — plaintext credentials cleared,
+  /// `hasStoredX` markers preserved (or computed from the live
+  /// values when not already set). Cache writes use this so the
+  /// in-memory list never holds plaintext between an upsert and
+  /// the `SessionsChanged` bus event landing.
+  Session withoutCredentials() => copyWith(auth: auth.withoutCredentials());
 
   /// Display string: "label (user@host)" or "user@host" if no label.
   String get displayName =>

@@ -274,7 +274,12 @@ class SessionStore {
   Future<void> add(Session session) async {
     final error = session.validate();
     if (error != null) throw ArgumentError(error);
-    _sessions.add(session);
+    // Optimistic cache update — push a credential-cleared copy so
+    // the list view never holds plaintext between this insert and
+    // the `SessionsChanged` bus event re-hydrating from the
+    // registry snapshot (which itself uses
+    // `dbSessionToSession(.., withCredentials: false)`).
+    _sessions.add(session.withoutCredentials());
     try {
       final folderId = await resolveFolderPath(session.folder, _folderMap);
       await rust_db.dbSessionsUpsert(
@@ -294,7 +299,9 @@ class SessionStore {
     if (error != null) throw ArgumentError(error);
     final idx = _sessions.indexWhere((s) => s.id == session.id);
     if (idx < 0) throw ArgumentError('Session not found: ${session.id}');
-    _sessions[idx] = session;
+    // Same credential-clearing rule as `add` — the cache row never
+    // carries plaintext.
+    _sessions[idx] = session.withoutCredentials();
     try {
       final folderId = await resolveFolderPath(session.folder, _folderMap);
       await rust_db.dbSessionsUpsert(
@@ -718,9 +725,14 @@ class SessionStore {
     List<Session> sessions,
     Set<String> emptyFolders,
   ) async {
+    // Same credential-clearing rule as `add` / `update` — undo
+    // history snapshots may carry credential-bearing copies (the
+    // history snapshot is built off the live cache, which may have
+    // been hydrated with credentials by `loadWithCredentials` for a
+    // recent edit dialog). Restore must not re-introduce them.
     _sessions
       ..clear()
-      ..addAll(sessions);
+      ..addAll(sessions.map((s) => s.withoutCredentials()));
     _emptyFolders
       ..clear()
       ..addAll(emptyFolders);
