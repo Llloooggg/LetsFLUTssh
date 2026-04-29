@@ -118,6 +118,43 @@ void hardwareVaultUnlockPromptCancel({required String promptId}) => RustLib
       promptId: promptId,
     );
 
+/// First-launch L0 (Plaintext). Dispatches the cascade with an
+/// empty staged key so the listener opens the DB unencrypted via
+/// `ensureRustDbOpen(key: empty)`. Identical wire shape to
+/// `tier_unlock_plaintext` — first-launch and re-unlock converge
+/// on the same listener path.
+void tierFirstLaunchPlaintext() => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierFirstLaunchPlaintext();
+
+/// First-launch Paranoid. Runs `master_password::enable` (Argon2id
+/// + writes `credentials.kdf` + `credentials.verify`), stages the
+/// derived key + emits the cascade. Async — Argon2id is
+/// CPU-heavy and runs on `spawn_blocking`.
+Future<DbUnlockOutcome> tierFirstLaunchParanoid({required String password}) =>
+    RustLib.instance.api.crateApiTierUnlockOrchestratorTierFirstLaunchParanoid(
+      password: password,
+    );
+
+/// First-launch L1 (Keychain). Generates a fresh AES-GCM key,
+/// publishes a `KeychainOpPromptRequest { Write }` so the Dart
+/// subscriber writes it via `flutter_secure_storage`, stages
+/// the bytes + emits the cascade.
+Future<DbUnlockOutcome> tierFirstLaunchKeychain() => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierFirstLaunchKeychain();
+
+/// First-launch L2 (KeychainWithPassword). Sets the on-disk gate
+/// password (HMAC-SHA-256 salt + verifier files), generates a
+/// fresh AES-GCM key, writes it to the OS keychain via the Dart
+/// subscriber, stages + emits cascade. On a keychain write
+/// failure the gate is rolled back so a retry sees the
+/// "not configured" state.
+Future<DbUnlockOutcome> tierFirstLaunchKeychainWithPassword({
+  required String password,
+}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPassword(
+      password: password,
+    );
+
 /// Stage [`bytes`] in the SecretStore + emit the unlock cascade
 /// for [`tier_wire_name`] without running the per-tier verify
 /// step. Used by the biometric fast-path: the bytes come from

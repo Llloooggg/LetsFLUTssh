@@ -150,6 +150,48 @@ pub fn hardware_vault_unlock_prompt_cancel(prompt_id: String) {
     hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
 }
 
+/// First-launch L0 (Plaintext). Dispatches the cascade with an
+/// empty staged key so the listener opens the DB unencrypted via
+/// `ensureRustDbOpen(key: empty)`. Identical wire shape to
+/// `tier_unlock_plaintext` — first-launch and re-unlock converge
+/// on the same listener path.
+#[flutter_rust_bridge::frb(sync)]
+pub fn tier_first_launch_plaintext() {
+    tier_unlock_orchestrator::first_launch_plaintext();
+}
+
+/// First-launch Paranoid. Runs `master_password::enable`
+/// (Argon2id + writes `credentials.kdf` + `credentials.verify`),
+/// stages the derived key + emits the cascade. Async — Argon2id
+/// is CPU-heavy and runs on `spawn_blocking`.
+pub async fn tier_first_launch_paranoid(password: String) -> DbUnlockOutcome {
+    tier_unlock_orchestrator::first_launch_paranoid(password)
+        .await
+        .into()
+}
+
+/// First-launch L1 (Keychain). Generates a fresh AES-GCM key,
+/// publishes a `KeychainOpPromptRequest { Write }` so the Dart
+/// subscriber writes it via `flutter_secure_storage`, stages
+/// the bytes + emits the cascade.
+pub async fn tier_first_launch_keychain() -> DbUnlockOutcome {
+    tier_unlock_orchestrator::first_launch_keychain()
+        .await
+        .into()
+}
+
+/// First-launch L2 (KeychainWithPassword). Sets the on-disk gate
+/// password (HMAC-SHA-256 salt + verifier files), generates a
+/// fresh AES-GCM key, writes it to the OS keychain via the Dart
+/// subscriber, stages + emits cascade. On a keychain write
+/// failure the gate is rolled back so a retry sees the
+/// "not configured" state.
+pub async fn tier_first_launch_keychain_with_password(password: String) -> DbUnlockOutcome {
+    tier_unlock_orchestrator::first_launch_keychain_with_password(password)
+        .await
+        .into()
+}
+
 /// Stage [`bytes`] in the SecretStore + emit the unlock cascade
 /// for [`tier_wire_name`] without running the per-tier verify
 /// step. Used by the biometric fast-path: the bytes come from

@@ -414,6 +414,170 @@ pub async fn unlock_hardware(pin: Option<String>) -> UnlockOutcome {
     }
 }
 
+// ── First-launch orchestrators ─────────────────────────────────
+//
+// Symmetric with the unlock orchestrators above — instead of
+// recovering the DB key from on-disk state, they generate a fresh
+// key + persist it through the per-tier mechanism (Argon2id KDF,
+// OS keychain, hardware vault) + stage in the SecretStore + emit
+// the cascade. The Dart `TierUnlockedListener` runs the same
+// post-unlock cascade (caches, drift open, securityStateProvider,
+// config persist) for both paths so the Dart-side first-launch
+// helpers shrink to "dispatch + await listener".
+
+/// First-launch L0 (Plaintext). No secret, no plugin call. Stages
+/// the empty buffer + emits the cascade so the listener opens the
+/// DB unencrypted via `ensureRustDbOpen(key: empty)`.
+pub fn first_launch_plaintext() {
+    instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockRequested);
+    stage_key(&[]);
+    instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockSucceeded);
+}
+
+/// First-launch Paranoid. Runs `master_password::enable` (Argon2id +
+/// writes `credentials.kdf` + `credentials.verify` atomically) then
+/// stages the derived key + emits the cascade.
+pub async fn first_launch_paranoid(password: String) -> UnlockOutcome {
+    instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockRequested);
+    let result = tokio::task::spawn_blocking(move || {
+        let path = crate::security::master_password::pinned_support_dir();
+        crate::security::master_password::enable(
+            path,
+            &password,
+            &crate::security::master_password::KdfParams::defaults(),
+        )
+    })
+    .await;
+    let detail = match result {
+        Ok(Ok(bytes)) if !bytes.is_empty() => {
+            stage_key(&bytes);
+            instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockSucceeded);
+            return UnlockOutcome::Staged;
+        }
+        Ok(Ok(_)) => "master_password::enable returned empty key".into(),
+        Ok(Err(e)) => e,
+        Err(_) => "Argon2id task panicked".into(),
+    };
+    instance_dispatch(
+        SecurityTier::Paranoid,
+        &TierEvent::UnlockFailed {
+            reason: UnlockFailureReason::Corruption {
+                detail: detail.clone(),
+            },
+        },
+    );
+    UnlockOutcome::Corruption(detail)
+}
+
+/// First-launch L1 (Keychain). Generates a random AES-GCM key,
+/// publishes a `KeychainOpPromptRequest { Write }` so the Dart
+/// subscriber writes it via `flutter_secure_storage`, then stages
+/// the bytes + emits the cascade. On a write failure dispatches
+/// `UnlockFailed { PluginUnavailable }` so the caller falls back
+/// to plaintext.
+pub async fn first_launch_keychain() -> UnlockOutcome {
+    instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockRequested);
+    let key = crate::crypto::aes_gcm_random_key();
+    match write_to_keychain(&key).await {
+        Ok(()) => {
+            stage_key(&key);
+            instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
+            UnlockOutcome::Staged
+        }
+        Err(detail) => {
+            instance_dispatch(
+                SecurityTier::Keychain,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: detail.clone(),
+                    },
+                },
+            );
+            UnlockOutcome::PluginError(detail)
+        }
+    }
+}
+
+/// First-launch L2 (KeychainWithPassword). Sets the gate password
+/// (Rust-side actor writes the salt + verifier files), generates a
+/// random key, writes it to the OS keychain via the Dart
+/// subscriber, stages the bytes + emits the cascade.
+pub async fn first_launch_keychain_with_password(password: String) -> UnlockOutcome {
+    instance_dispatch(
+        SecurityTier::KeychainWithPassword,
+        &TierEvent::UnlockRequested,
+    );
+    let support_dir = crate::security::master_password::pinned_support_dir();
+    if let Err(detail) =
+        crate::security::keychain_password_gate_actor::set_password(support_dir, &password).await
+    {
+        instance_dispatch(
+            SecurityTier::KeychainWithPassword,
+            &TierEvent::UnlockFailed {
+                reason: UnlockFailureReason::Corruption {
+                    detail: detail.clone(),
+                },
+            },
+        );
+        return UnlockOutcome::Corruption(detail);
+    }
+    let key = crate::crypto::aes_gcm_random_key();
+    match write_to_keychain(&key).await {
+        Ok(()) => {
+            stage_key(&key);
+            instance_dispatch(
+                SecurityTier::KeychainWithPassword,
+                &TierEvent::UnlockSucceeded,
+            );
+            UnlockOutcome::Staged
+        }
+        Err(detail) => {
+            // Roll back the gate so a follow-up retry sees a
+            // fresh "not configured" state instead of stale
+            // verifier files keyed off a password that the user
+            // can't reproduce after the failed first-launch.
+            let _ = crate::security::keychain_password_gate_actor::clear(support_dir).await;
+            instance_dispatch(
+                SecurityTier::KeychainWithPassword,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: detail.clone(),
+                    },
+                },
+            );
+            UnlockOutcome::PluginError(detail)
+        }
+    }
+}
+
+/// Round-trip a `Write` through the keychain prompt registry.
+/// Returns `Ok(())` on success or `Err(plugin_code)` on failure.
+async fn write_to_keychain(bytes: &[u8]) -> Result<(), String> {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    let prompt_id = generate_prompt_id();
+    let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
+    crate::app::instance()
+        .bus
+        .publish(Event::KeychainOpPromptRequest {
+            prompt_id: prompt_id.clone(),
+            key: ENCRYPTION_KEY_SLOT.to_string(),
+            op_wire_name: KeychainOpKind::Write {
+                value_b64: STANDARD.encode(bytes),
+            }
+            .wire_name()
+            .to_string(),
+            value_b64: Some(STANDARD.encode(bytes)),
+        });
+    match receiver.await {
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(detail)) => Err(detail),
+        Err(_) => {
+            keychain_op_prompt::instance().cancel(&prompt_id);
+            Err("keychain_write_prompt_cancelled".into())
+        }
+    }
+}
+
 /// Stage [`bytes`] in the SecretStore + drive the tier machine
 /// `Locked → Unlocking → Unlocked` cascade for [`tier`] without
 /// going through a per-tier verify (gate / Argon2id /

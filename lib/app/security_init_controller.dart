@@ -1277,7 +1277,17 @@ class SecurityInitController {
       case SecurityTier.keychain:
         await _firstLaunchKeychain(result, keyStorage);
       case SecurityTier.plaintext:
-        await _injectDatabase();
+        final ok = await _runFirstLaunchOrchestrator(
+          tier: SecurityTier.plaintext,
+          dispatch: () async {
+            rust_orch.tierFirstLaunchPlaintext();
+            return true;
+          },
+        );
+        if (!ok) {
+          // Orchestrator unreachable — fall back to direct inject.
+          await _injectDatabase();
+        }
         AppLogger.instance.log(
           'First launch: plaintext mode (L0)',
           name: 'App',
@@ -1294,6 +1304,26 @@ class SecurityInitController {
       await _injectDatabase();
       return;
     }
+    final ok = await _runFirstLaunchOrchestrator(
+      tier: SecurityTier.paranoid,
+      modifiers: result.modifiers,
+      dispatch: () async {
+        final outcome = await rust_orch.tierFirstLaunchParanoid(
+          password: password,
+        );
+        return outcome is rust_orch.DbUnlockOutcome_Staged;
+      },
+    );
+    if (ok) {
+      AppLogger.instance.log(
+        'First launch: master password (Paranoid) enabled',
+        name: 'App',
+      );
+      return;
+    }
+    // Orchestrator unreachable / staging failed — fall back to the
+    // pure-Dart manager.enable path so flutter_test contexts (no FRB
+    // native lib) still resolve.
     final key = await manager.enable(password);
     await _injectDatabase(
       key: key,
@@ -1301,7 +1331,7 @@ class SecurityInitController {
       modifiers: result.modifiers,
     );
     AppLogger.instance.log(
-      'First launch: master password (Paranoid) enabled',
+      'First launch: master password (Paranoid) enabled (fallback)',
       name: 'App',
     );
   }
@@ -1314,6 +1344,23 @@ class SecurityInitController {
       await _injectDatabase();
       return;
     }
+    final ok = await _runFirstLaunchOrchestrator(
+      tier: SecurityTier.keychain,
+      modifiers: result.modifiers,
+      dispatch: () async {
+        final outcome = await rust_orch.tierFirstLaunchKeychain();
+        return outcome is rust_orch.DbUnlockOutcome_Staged;
+      },
+    );
+    if (ok) {
+      AppLogger.instance.log(
+        'First launch: keychain encryption enabled',
+        name: 'App',
+      );
+      return;
+    }
+    // Orchestrator unreachable / write failed — fall back to direct
+    // Dart pipeline so flutter_test contexts still resolve.
     final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await keyStorage.writeKey(key);
     if (stored) {
@@ -1323,7 +1370,7 @@ class SecurityInitController {
         modifiers: result.modifiers,
       );
       AppLogger.instance.log(
-        'First launch: keychain encryption enabled',
+        'First launch: keychain encryption enabled (fallback)',
         name: 'App',
       );
     } else {
@@ -1337,12 +1384,28 @@ class SecurityInitController {
   }
 
   Future<bool> _autoSetupKeychain(SecureKeyStorage keyStorage) async {
+    final ok = await _runFirstLaunchOrchestrator(
+      tier: SecurityTier.keychain,
+      dispatch: () async {
+        final outcome = await rust_orch.tierFirstLaunchKeychain();
+        return outcome is rust_orch.DbUnlockOutcome_Staged;
+      },
+    );
+    if (ok) {
+      AppLogger.instance.log(
+        'First launch: auto-selected T1 (keychain)',
+        name: 'App',
+      );
+      return true;
+    }
+    // Orchestrator unreachable / write failed — fall back to direct
+    // Dart pipeline.
     final key = rust_crypto.cryptoAesGcmRandomKey();
     final stored = await keyStorage.writeKey(key);
     if (stored) {
       await _injectDatabase(key: key, level: SecurityTier.keychain);
       AppLogger.instance.log(
-        'First launch: auto-selected T1 (keychain)',
+        'First launch: auto-selected T1 (keychain, fallback)',
         name: 'App',
       );
       return true;
@@ -1350,6 +1413,58 @@ class SecurityInitController {
     AppLogger.instance.log(
       'First launch: auto-select T1 keychain write rejected — '
       'leaving DB uninitialised for the wizard fallback',
+      name: 'App',
+      level: LogLevel.warn,
+    );
+    return false;
+  }
+
+  /// Pre-write the SecurityConfig so the listener's
+  /// `_persistSecurityTier` no-ops (existing modifiers match), arm
+  /// the listener, dispatch the first-launch orchestrator, await
+  /// the cascade. Returns true on success, false on orchestrator
+  /// failure / FRB unreachable so the caller takes the Dart-side
+  /// fallback.
+  Future<bool> _runFirstLaunchOrchestrator({
+    required SecurityTier tier,
+    SecurityTierModifiers? modifiers,
+    required Future<bool> Function() dispatch,
+  }) async {
+    final resolved = modifiers ?? SecurityTierModifiers.defaults;
+    final cfg = SecurityConfig(tier: tier, modifiers: resolved);
+    await ref
+        .read(configProvider.notifier)
+        .update((c) => c.copyWithSecurity(security: cfg));
+    final listener = ref.read(tierUnlockedListenerProvider)..start();
+    final unlockDone = listener.awaitNextUnlock();
+    bool staged;
+    try {
+      staged = await dispatch();
+    } catch (e) {
+      listener.cancelPending();
+      AppLogger.instance.log(
+        'First launch orchestrator FRB unreachable for $tier: $e',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+      return false;
+    }
+    if (!staged) {
+      listener.cancelPending();
+      AppLogger.instance.log(
+        'First launch orchestrator returned non-staged for $tier',
+        name: 'App',
+        level: LogLevel.warn,
+      );
+      return false;
+    }
+    final result = await unlockDone.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => TierUnlockOutcome.failed,
+    );
+    if (result == TierUnlockOutcome.unlocked) return true;
+    AppLogger.instance.log(
+      'First launch listener returned $result after Staged for $tier',
       name: 'App',
       level: LogLevel.warn,
     );
@@ -1379,6 +1494,25 @@ class SecurityInitController {
       await _injectDatabase();
       return;
     }
+    final ok = await _runFirstLaunchOrchestrator(
+      tier: SecurityTier.keychainWithPassword,
+      modifiers: modifiers,
+      dispatch: () async {
+        final outcome = await rust_orch.tierFirstLaunchKeychainWithPassword(
+          password: shortPassword,
+        );
+        return outcome is rust_orch.DbUnlockOutcome_Staged;
+      },
+    );
+    if (ok) {
+      AppLogger.instance.log(
+        'First launch: keychain+password (L2) enabled',
+        name: 'App',
+      );
+      return;
+    }
+    // Orchestrator unreachable / staging failed — fall back to the
+    // pure-Dart pipeline so flutter_test contexts still resolve.
     final gate = ref.read(keychainPasswordGateProvider);
     await gate.setPassword(shortPassword);
     final key = rust_crypto.cryptoAesGcmRandomKey();
@@ -1390,7 +1524,7 @@ class SecurityInitController {
         modifiers: modifiers,
       );
       AppLogger.instance.log(
-        'First launch: keychain+password (L2) enabled',
+        'First launch: keychain+password (L2) enabled (fallback)',
         name: 'App',
       );
       return;
