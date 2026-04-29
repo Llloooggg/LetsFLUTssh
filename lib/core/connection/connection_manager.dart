@@ -785,6 +785,10 @@ class ConnectionManager {
   void disconnectAll() {
     for (final conn in _connections.values) {
       conn.notifyExtensionsDisconnecting();
+      // Drop the per-attempt staged secrets — same rule as the
+      // single-disconnect path; the bus event won't fire for
+      // attempts the user is forcing down.
+      _evictTransientSecrets(conn);
       final transport = conn.transport;
       conn.transport = null;
       if (transport != null) {
