@@ -18,7 +18,6 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:letsflutssh/core/security/auto_lock_store.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
@@ -26,6 +25,7 @@ import 'package:letsflutssh/core/security/keychain_password_gate.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
+import 'package:letsflutssh/providers/auto_lock_provider.dart';
 
 class FakeMasterPasswordManager extends MasterPasswordManager {
   bool enabled;
@@ -259,25 +259,28 @@ class FakeBiometricKeyVault extends BiometricKeyVault {
   Future<Uint8List?> read() async => stored ? key : null;
 }
 
-/// In-memory AutoLockStore that never touches a DB.
+/// In-memory [AutoLockMinutesNotifier] that never touches the DB.
 ///
-/// The real store reads / writes through `AppDatabase.configDao`;
-/// tests that drive `_markSecurityReady` (which calls
-/// `autoLockMinutesProvider.load` → `AutoLockStore.load`) fail with
-/// "Can't re-open a database" when the controller closed the last
-/// DB the store was pointed at. Overriding with this fake keeps the
-/// minutes as a Dart field so `setDatabase` is a no-op and the load
-/// path is decoupled from the drift handle lifecycle.
-class FakeAutoLockStore extends AutoLockStore {
-  int minutes;
+/// The real notifier reads / writes through `lfs_core.db`; tests that
+/// drive `_markSecurityReady` (which calls `autoLockMinutesProvider
+/// .load`) would otherwise hit FRB and fail. Overriding with this
+/// fake keeps the minutes in `state` so the load path is decoupled
+/// from the FRB native lib.
+class FakeAutoLockNotifier extends AutoLockMinutesNotifier {
+  FakeAutoLockNotifier({this.initialMinutes = 0});
 
-  FakeAutoLockStore({this.minutes = 0});
+  final int initialMinutes;
 
   @override
-  Future<int> load() async => minutes;
+  int build() => initialMinutes;
 
   @override
-  Future<void> save(int value) async {
-    minutes = value;
+  Future<void> load() async {
+    state = initialMinutes;
+  }
+
+  @override
+  Future<void> set(int minutes) async {
+    state = minutes;
   }
 }

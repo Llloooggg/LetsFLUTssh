@@ -30,7 +30,6 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
-import 'package:letsflutssh/core/security/auto_lock_store.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
@@ -63,7 +62,7 @@ ProviderContainer makeTestProviderContainer({
   KeychainPasswordGate? keychainGate,
   BiometricAuth? biometricAuth,
   BiometricKeyVault? biometricVault,
-  AutoLockStore? autoLockStore,
+  FakeAutoLockNotifier? autoLockNotifier,
   List<Override> extraOverrides = const [],
 }) {
   return ProviderContainer(
@@ -76,7 +75,7 @@ ProviderContainer makeTestProviderContainer({
         keychainGate: keychainGate,
         biometricAuth: biometricAuth,
         biometricVault: biometricVault,
-        autoLockStore: autoLockStore,
+        autoLockNotifier: autoLockNotifier,
       ),
       ...extraOverrides,
     ],
@@ -94,7 +93,7 @@ List<Override> securityProviderOverrides({
   KeychainPasswordGate? keychainGate,
   BiometricAuth? biometricAuth,
   BiometricKeyVault? biometricVault,
-  AutoLockStore? autoLockStore,
+  FakeAutoLockNotifier? autoLockNotifier,
 }) {
   return [
     sessionProvider.overrideWith(
@@ -118,8 +117,8 @@ List<Override> securityProviderOverrides({
     biometricKeyVaultProvider.overrideWithValue(
       biometricVault ?? FakeBiometricKeyVault(),
     ),
-    autoLockStoreProvider.overrideWithValue(
-      autoLockStore ?? FakeAutoLockStore(),
+    autoLockMinutesProvider.overrideWith(
+      () => autoLockNotifier ?? FakeAutoLockNotifier(),
     ),
   ];
 }

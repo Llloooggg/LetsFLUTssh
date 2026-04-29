@@ -240,7 +240,8 @@ class UiConfig {
 /// Auto-lock timeout is NOT here — it lives in the encrypted DB
 /// (`AppConfigs.auto_lock_minutes`) so an attacker with plaintext-disk
 /// access cannot weaken the security control by editing a plaintext
-/// file. See [AutoLockStore].
+/// file. See [autoLockMinutesProvider] in
+/// `lib/providers/auto_lock_provider.dart`.
 // See [LogLevel] in utils/logger.dart — imported here so the
 // config-level serialisation stays the single source of truth for
 // the log-level enum encoding.

@@ -1,12 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/auto_lock_store.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
 
-// AutoLockStore reads/writes through FRB (`lfs_core.db`). flutter_test
-// does not load the native bridge, so the persistence-asserting tests
-// that round-tripped through drift's in-memory DB no longer apply.
-// Equivalent coverage moves to integration_test.
+// AutoLockMinutesNotifier reads/writes through FRB (`lfs_core.db`).
+// flutter_test does not load the native bridge, so the persistence-
+// asserting tests that round-tripped through drift's in-memory DB no
+// longer apply — equivalent coverage moves to integration_test.
 
 void main() {
   group('AutoLockMinutesNotifier', () {
@@ -18,35 +17,29 @@ void main() {
       // lock on the first frame after unlock.
       expect(container.read(autoLockMinutesProvider), 0);
     });
-  });
 
-  group('autoLockStoreProvider', () {
-    test('returns an AutoLockStore instance', () {
+    test('load resolves to 0 when DB is unreachable', () async {
+      // No FRB native lib in the unit-test runner → DB call throws →
+      // notifier catches and surfaces 0 (auto-lock disabled). Same
+      // behaviour fires before unlock at runtime.
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      expect(container.read(autoLockStoreProvider), isA<AutoLockStore>());
+      await container.read(autoLockMinutesProvider.notifier).load();
+      expect(container.read(autoLockMinutesProvider), 0);
     });
-  });
 
-  group('AutoLockStore', () {
     test(
-      'load returns 0 when DB is unreachable (locked / no native lib)',
+      'set is a no-op write but updates state when DB is unreachable',
       () async {
-        final store = AutoLockStore();
-        // No FRB native lib in the unit-test runner → DB call throws →
-        // store catches and surfaces 0 (auto-lock disabled). The same
-        // behaviour fires before unlock at runtime.
-        expect(await store.load(), 0);
+        // Saving without a DB must not throw — the setting survives in
+        // the local Notifier state, at which point the next `set()` after
+        // unlock persists it. Crashing here would turn a race between
+        // unlock and `set` into a fatal exception.
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        await container.read(autoLockMinutesProvider.notifier).set(30);
+        expect(container.read(autoLockMinutesProvider), 30);
       },
     );
-
-    test('save is a no-op when DB is unreachable', () async {
-      // Saving without a DB must not throw — the setting survives
-      // until the DB is available, at which point the next `set()`
-      // persists it. Crashing here would turn a race between unlock
-      // and setting save into a fatal exception.
-      final store = AutoLockStore();
-      await store.save(30);
-    });
   });
 }
