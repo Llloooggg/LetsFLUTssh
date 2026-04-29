@@ -202,11 +202,26 @@ empty / collapsed paths). The FRB DAO write paths
 (`db_sessions_*` / `db_folders_*`) reload the registry on every
 successful mutation; `sessions_registry_snapshot` /
 `sessions_registry_reload` expose the read side. Dart
-`SessionStore._doLoad` hydrates from the snapshot; the
-`sessionsRegistryViewProvider` Riverpod `StreamProvider` lets
-opt-in consumers read the canonical view without driving the
-store's lifecycle. Remaining: route every consumer through the
-provider, then retire the store.
+`SessionStore._doLoad` hydrates from the snapshot.
+
+**Registry read accessors hooked up.** `Registry` now exposes
+`filter_ids` / `count_in_folder` / `distinct_folders` /
+`ids_by_exact_folder` (cache-only, no DB round-trip). Every
+`SessionStore` read accessor (`search`, `countSessionsInFolder`,
+`folders`, `byFolder`) routes through the matching FRB shim;
+`filteredSessionsProvider` reads the registry's filter directly
+so the per-keystroke search bar pays one sync FRB call instead
+of rebuilding a `DbSearchableSession` projection per query.
+
+**Reactive consumer surface.** `sessionsRegistryViewProvider`
+exposes the cache as a `StreamProvider` re-emitting on every
+`SessionsChanged` event; opt-in consumers read it without
+driving the store's lifecycle.
+
+Remaining for Step 3: cutover the mutating paths so the Dart
+store becomes a thin enqueue layer over Rust commands, then
+retire the store entirely once the StreamProvider mirror has
+absorbed the in-memory cache + history facade.
 
 ### 4 — `connection_manager` → Rust
 
