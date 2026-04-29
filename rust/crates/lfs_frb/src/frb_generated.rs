@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -737517035;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -33890266;
 
 // Section: executor
 
@@ -13177,6 +13177,42 @@ fn wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(
         },
     )
 }
+fn wire__crate__api__tier_unlock_orchestrator__tier_unlock_biometric_commit_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "tier_unlock_biometric_commit",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_tier_wire_name = <String>::sse_decode(&mut deserializer);
+            let api_bytes = <Vec<u8>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::tier_unlock_orchestrator::tier_unlock_biometric_commit(
+                        api_tier_wire_name,
+                        api_bytes,
+                    ),
+                )?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__tier_unlock_orchestrator__tier_unlock_hardware_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -16943,6 +16979,39 @@ impl SseDecode for crate::api::tier_machine::DbUnlockFailureReason {
     }
 }
 
+impl SseDecode for crate::api::tier_unlock_orchestrator::DbUnlockOutcome {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Staged;
+            }
+            1 => {
+                return crate::api::tier_unlock_orchestrator::DbUnlockOutcome::WrongSecret;
+            }
+            2 => {
+                return crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Cancelled;
+            }
+            3 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::tier_unlock_orchestrator::DbUnlockOutcome::PluginError(
+                    var_field0,
+                );
+            }
+            4 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Corruption(
+                    var_field0,
+                );
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::api::migration::DbUnsupportedFutureVersion {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -18541,79 +18610,79 @@ fn pde_ffi_dispatcher_primary_impl(
         333 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
-        343 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_hardware_impl(
+        344 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_hardware_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        345 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_impl(
+        346 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        347 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_with_password_impl(
+        348 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_with_password_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        349 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_paranoid_impl(
+        350 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_paranoid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        352 => wire__crate__api__tpm__tpm_probe_impl(port, ptr, rust_vec_len, data_len),
-        353 => wire__crate__api__tpm__tpm_seal_impl(port, ptr, rust_vec_len, data_len),
-        354 => wire__crate__api__tpm__tpm_unseal_impl(port, ptr, rust_vec_len, data_len),
-        355 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-        356 => wire__crate__api__transfer__transfer_clear_history_impl(
+        353 => wire__crate__api__tpm__tpm_probe_impl(port, ptr, rust_vec_len, data_len),
+        354 => wire__crate__api__tpm__tpm_seal_impl(port, ptr, rust_vec_len, data_len),
+        355 => wire__crate__api__tpm__tpm_unseal_impl(port, ptr, rust_vec_len, data_len),
+        356 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+        357 => wire__crate__api__transfer__transfer_clear_history_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        362 => {
+        363 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        363 => wire__crate__api__transfer__transfer_drop_terminal_impl(
+        364 => wire__crate__api__transfer__transfer_drop_terminal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        364 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
-        365 => wire__crate__api__transfer__transfer_snapshot_all_impl(
+        365 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
+        366 => wire__crate__api__transfer__transfer_snapshot_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        369 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
-        371 => wire__crate__api__update_http__update_download_to_file_impl(
+        370 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
+        372 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        372 => wire__crate__api__update_http__update_download_with_verification_impl(
+        373 => wire__crate__api__update_http__update_download_with_verification_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        373 => {
+        374 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
-        382 => wire__crate__api__wipe_keychain__wipe_keychain_run_impl(
+        383 => wire__crate__api__wipe_keychain__wipe_keychain_run_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        383 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+        384 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -18792,28 +18861,29 @@ fn pde_ffi_dispatcher_sync_impl(
 340 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
 341 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
 342 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
-344 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_hardware_cancel_impl(ptr, rust_vec_len, data_len),
-346 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_cancel_impl(ptr, rust_vec_len, data_len),
-348 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_with_password_cancel_impl(ptr, rust_vec_len, data_len),
-350 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_paranoid_cancel_impl(ptr, rust_vec_len, data_len),
-351 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_plaintext_impl(ptr, rust_vec_len, data_len),
-357 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
-358 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
-359 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
-360 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
-361 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
-366 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-367 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
-368 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-370 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-374 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-375 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-376 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-377 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-378 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-379 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-380 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
-381 => wire__crate__api__wipe_keychain__wipe_keychain_managed_keys_impl(ptr, rust_vec_len, data_len),
+343 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_biometric_commit_impl(ptr, rust_vec_len, data_len),
+345 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_hardware_cancel_impl(ptr, rust_vec_len, data_len),
+347 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_cancel_impl(ptr, rust_vec_len, data_len),
+349 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_with_password_cancel_impl(ptr, rust_vec_len, data_len),
+351 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_paranoid_cancel_impl(ptr, rust_vec_len, data_len),
+352 => wire__crate__api__tier_unlock_orchestrator__tier_unlock_plaintext_impl(ptr, rust_vec_len, data_len),
+358 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
+359 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
+360 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
+361 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
+362 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
+367 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+368 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
+369 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+371 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+375 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+376 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+377 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+378 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+379 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+380 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+381 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+382 => wire__crate__api__wipe_keychain__wipe_keychain_managed_keys_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
@@ -21489,6 +21559,42 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::tier_machine::DbUnlockFailure
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tier_unlock_orchestrator::DbUnlockOutcome {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Staged => {
+                [0.into_dart()].into_dart()
+            }
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::WrongSecret => {
+                [1.into_dart()].into_dart()
+            }
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Cancelled => {
+                [2.into_dart()].into_dart()
+            }
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::PluginError(field0) => {
+                [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Corruption(field0) => {
+                [4.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tier_unlock_orchestrator::DbUnlockOutcome
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tier_unlock_orchestrator::DbUnlockOutcome>
+    for crate::api::tier_unlock_orchestrator::DbUnlockOutcome
+{
+    fn into_into_dart(self) -> crate::api::tier_unlock_orchestrator::DbUnlockOutcome {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::migration::DbUnsupportedFutureVersion {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -23386,6 +23492,34 @@ impl SseEncode for crate::api::tier_machine::DbUnlockFailureReason {
         <String>::sse_encode(self.discriminant, serializer);
         <String>::sse_encode(self.code, serializer);
         <String>::sse_encode(self.detail, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tier_unlock_orchestrator::DbUnlockOutcome {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Staged => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::WrongSecret => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Cancelled => {
+                <i32>::sse_encode(2, serializer);
+            }
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::PluginError(field0) => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::tier_unlock_orchestrator::DbUnlockOutcome::Corruption(field0) => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 

@@ -41,6 +41,14 @@ class TierUnlockedListener {
   StreamSubscription<rust_bus.BusEvent>? _sub;
   Completer<TierUnlockOutcome>? _pending;
 
+  /// When true, the in-flight `_pending` future ignores intermediate
+  /// `locked` terminal events (orchestrator emits one per failed
+  /// attempt in multi-attempt dialog tiers — L2/L3/Paranoid). Only
+  /// `unlocked` or an explicit [cancelPending] resolves the wait.
+  /// L0/L1 (single-shot) keep the default `false` so a missing
+  /// keychain entry surfaces as `locked` instead of hanging.
+  bool _onlyUnlocked = false;
+
   /// Subscribe to the tier topic. Idempotent — repeated calls
   /// re-bind to the same singleton.
   void start() {
@@ -73,7 +81,15 @@ class TierUnlockedListener {
   /// arm BEFORE dispatching the orchestrator (otherwise the
   /// event may fire before the await registers and the next
   /// arm picks up a stale completion).
-  Future<TierUnlockOutcome> awaitNextUnlock() {
+  ///
+  /// [onlyUnlocked]: ignore intermediate `locked` events. The
+  /// multi-attempt dialog tiers (L2/L3/Paranoid) re-enter the
+  /// orchestrator on every wrong-secret submit; each attempt
+  /// fires a paired `UnlockFailed` → `Locked` transition. The
+  /// caller awaits the FINAL `Unlocked` (set when the user
+  /// either submits a correct secret or dismisses the dialog
+  /// — dismiss routes through [cancelPending]).
+  Future<TierUnlockOutcome> awaitNextUnlock({bool onlyUnlocked = false}) {
     // Replace any in-flight wait — only one cascade at a time.
     final stale = _pending;
     if (stale != null && !stale.isCompleted) {
@@ -81,7 +97,18 @@ class TierUnlockedListener {
     }
     final next = Completer<TierUnlockOutcome>();
     _pending = next;
+    _onlyUnlocked = onlyUnlocked;
     return next.future;
+  }
+
+  /// Resolve the in-flight wait with `aborted`. Used by the
+  /// multi-attempt dialog dismiss path (user closed the dialog
+  /// without submitting a correct secret) — the listener was
+  /// armed with `onlyUnlocked: true` so the intermediate
+  /// `locked` events from per-attempt failures didn't resolve
+  /// it; the dismiss is the explicit signal.
+  void cancelPending() {
+    _resolvePending(TierUnlockOutcome.aborted);
   }
 
   void _onEvent(rust_bus.BusEvent event) {
@@ -90,6 +117,14 @@ class TierUnlockedListener {
       case 'unlocked':
         unawaited(_handleUnlocked());
       case 'locked':
+        if (_onlyUnlocked) {
+          // Multi-attempt dialog mode — caller is awaiting the
+          // FINAL unlocked. Wrong-secret per-attempt locks are
+          // intermediate; the dialog handles the retry UI and
+          // the dismiss path resolves explicitly via
+          // [cancelPending].
+          break;
+        }
         _resolvePending(TierUnlockOutcome.locked);
       case _:
         // Unlocking / Wiping — transient, no Dart-side work.
@@ -165,6 +200,7 @@ class TierUnlockedListener {
   void _resolvePending(TierUnlockOutcome outcome) {
     final pending = _pending;
     _pending = null;
+    _onlyUnlocked = false;
     if (pending != null && !pending.isCompleted) {
       pending.complete(outcome);
     }

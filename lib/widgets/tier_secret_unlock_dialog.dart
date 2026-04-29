@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/security/password_rate_limiter.dart';
+import '../core/security/tier_unlock_attempt.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
@@ -45,15 +46,17 @@ class TierSecretUnlockLabels {
 }
 
 /// Bundles the two biometric-unlock parameters so [show] stays under
-/// the S107 parameter-count threshold. `unlock` is the callback that
-/// returns the unwrapped DB key on success / null on cancel. When
-/// [autoTrigger] is true the dialog fires `unlock` on first frame;
-/// callers that already tried biometrics before opening the dialog
-/// (e.g. the startup `_unlockKeychainWithPassword` path) pass
-/// `autoTrigger: false` and rely on the retry button inside the
-/// dialog.
+/// the S107 parameter-count threshold. `unlock` returns `true` on a
+/// successful unseal (the caller has already staged the bytes in
+/// the SecretStore via `tier_unlock_biometric_commit` and emitted
+/// the unlock cascade — the dialog just closes and the caller
+/// awaits the listener). When [autoTrigger] is true the dialog
+/// fires `unlock` on first frame; callers that already tried
+/// biometrics before opening the dialog (e.g. the startup
+/// `_unlockKeychainWithPassword` path) pass `autoTrigger: false`
+/// and rely on the retry button inside the dialog.
 class TierSecretUnlockBiometric {
-  final Future<List<int>?> Function() unlock;
+  final Future<bool> Function() unlock;
   final bool autoTrigger;
 
   const TierSecretUnlockBiometric({
@@ -64,14 +67,22 @@ class TierSecretUnlockBiometric {
 
 /// Shared unlock-dialog shell for the tier-secret paths (L2 short
 /// password, L3 PIN). Owns the retry loop: the host supplies a
-/// [verify] callback that returns the resulting key (or null on
-/// mismatch); the dialog re-prompts on wrong input and pops with
-/// either the verified key or `null` when the user resets.
+/// [verify] callback that returns a [TierUnlockAttempt]; the dialog
+/// re-prompts on `wrongSecret`, closes on `staged` (success →
+/// pop(true) so the caller awaits the post-unlock listener cascade)
+/// or `error` (pop(false) so the caller falls back), and pops with
+/// `null` on dismissal / reset.
 ///
-/// Cooldown support is deliberate. `verify` may return null for
-/// "wrong secret" OR surface a blocking cooldown through
-/// [cooldownFn] — when set, the button is disabled + a countdown
-/// renders until the limiter clears.
+/// Plaintext discipline: the dialog never sees raw key bytes. The
+/// orchestrator stages them in the SecretStore on `staged`; the
+/// [TierUnlockedListener] takes them via `secrets_take` on the
+/// `BusEvent::TierStateChanged.unlocked` event and hands them to
+/// drift.
+///
+/// Cooldown support is deliberate. The dialog refuses to call
+/// [verify] while [rateLimiter] is locked, records `wrongSecret`
+/// as a failure + `staged` as a success, and renders a countdown
+/// over the submit button.
 class TierSecretUnlockDialog extends StatefulWidget {
   const TierSecretUnlockDialog({
     super.key,
@@ -84,14 +95,19 @@ class TierSecretUnlockDialog extends StatefulWidget {
 
   final TierSecretUnlockLabels labels;
 
-  /// Verify the entered secret and, on success, return the key to
-  /// inject. Null = wrong secret.
-  final Future<List<int>?> Function(String secret) verify;
+  /// Verify the entered secret. Returns the [TierUnlockAttempt]
+  /// shape that drives dialog UI: `staged` closes with success,
+  /// `wrongSecret` keeps the dialog open + decrements the limiter,
+  /// `error` closes with the failure signal so the caller falls
+  /// back to plaintext / corruption recovery, `cancelled` is
+  /// treated as "stay open" (the inner sub-prompt was dismissed
+  /// — the user can re-attempt).
+  final Future<TierUnlockAttempt> Function(String secret) verify;
 
   /// "Forgot password" / reset escape hatch. Returning void + the
-  /// caller popping with null is the signal to main.dart that the
-  /// user abandoned this tier and we should fall back to plaintext /
-  /// wipe.
+  /// caller popping with null is the signal to the controller that
+  /// the user abandoned this tier and we should fall back to
+  /// plaintext / wipe.
   final Future<void> Function()? onReset;
 
   /// Optional rate limiter. When provided, the dialog refuses to
@@ -106,15 +122,15 @@ class TierSecretUnlockDialog extends StatefulWidget {
   /// system biometric prompt without relaunching.
   final TierSecretUnlockBiometric? biometric;
 
-  static Future<List<int>?> show(
+  static Future<bool?> show(
     BuildContext context, {
     required TierSecretUnlockLabels labels,
-    required Future<List<int>?> Function(String) verify,
+    required Future<TierUnlockAttempt> Function(String) verify,
     Future<void> Function()? onReset,
     PasswordRateLimiter? rateLimiter,
     TierSecretUnlockBiometric? biometric,
   }) {
-    return showDialog<List<int>?>(
+    return showDialog<bool?>(
       context: context,
       barrierDismissible: false,
       builder: (_) => TierSecretUnlockDialog(
@@ -180,9 +196,9 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
       _bioError = null;
     });
     try {
-      final key = await cb();
+      final ok = await cb();
       if (!mounted) return;
-      if (key == null) {
+      if (!ok) {
         setState(() {
           _biometricInFlight = false;
           _bioError = S.of(context).biometricUnlockCancelled;
@@ -190,7 +206,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
         _focus.requestFocus();
         return;
       }
-      Navigator.of(context).pop(key);
+      Navigator.of(context).pop(true);
     } catch (e) {
       AppLogger.instance.log(
         'Tier-secret dialog biometric unlock threw: $e',
@@ -257,26 +273,40 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
       _busy = true;
       _wrong = false;
     });
-    final key = await widget.verify(secret);
+    final outcome = await widget.verify(secret);
     if (!mounted) return;
-    if (key == null) {
-      limiter?.recordFailure();
-      final status = limiter?.status();
-      setState(() {
-        _busy = false;
-        _wrong = true;
-        if (status != null) _cooldown = status;
-      });
-      if (status != null && status.isLocked) _startTicker();
-      _ctrl.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _ctrl.text.length,
-      );
-      _focus.requestFocus();
-      return;
+    switch (outcome) {
+      case TierUnlockAttempt.staged:
+        limiter?.recordSuccess();
+        Navigator.of(context).pop(true);
+      case TierUnlockAttempt.wrongSecret:
+        limiter?.recordFailure();
+        final status = limiter?.status();
+        setState(() {
+          _busy = false;
+          _wrong = true;
+          if (status != null) _cooldown = status;
+        });
+        if (status != null && status.isLocked) _startTicker();
+        _ctrl.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _ctrl.text.length,
+        );
+        _focus.requestFocus();
+      case TierUnlockAttempt.cancelled:
+        // Inner sub-prompt cancelled (e.g. hardware vault PIN
+        // sub-dialog). Outer dialog stays open — user can re-
+        // attempt by tapping submit again.
+        setState(() {
+          _busy = false;
+        });
+        _focus.requestFocus();
+      case TierUnlockAttempt.error:
+        // Plugin / hardware / corruption — close with the
+        // failure signal so the caller falls back to plaintext
+        // / corruption recovery.
+        Navigator.of(context).pop(false);
     }
-    limiter?.recordSuccess();
-    Navigator.of(context).pop(key);
   }
 
   /// Confirmation uses [AppDialog] so the body copy is selectable

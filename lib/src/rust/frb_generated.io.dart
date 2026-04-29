@@ -672,6 +672,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbUnlockFailureReason dco_decode_db_unlock_failure_reason(dynamic raw);
 
   @protected
+  DbUnlockOutcome dco_decode_db_unlock_outcome(dynamic raw);
+
+  @protected
   DbUnsupportedFutureVersion dco_decode_db_unsupported_future_version(
     dynamic raw,
   );
@@ -1678,6 +1681,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbUnlockFailureReason sse_decode_db_unlock_failure_reason(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbUnlockOutcome sse_decode_db_unlock_outcome(SseDeserializer deserializer);
 
   @protected
   DbUnsupportedFutureVersion sse_decode_db_unsupported_future_version(
@@ -2951,6 +2957,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_unlock_failure_reason(
     DbUnlockFailureReason self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_unlock_outcome(
+    DbUnlockOutcome self,
     SseSerializer serializer,
   );
 

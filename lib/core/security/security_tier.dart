@@ -44,6 +44,21 @@ enum SecurityTier {
   paranoid,
 }
 
+/// Wire-name conversions matching the Rust-side
+/// `lfs_core::security::SecurityTier` snake_case discriminants.
+/// Used by FRB shims that take a tier as a `String` argument
+/// (`tier_machine_set_tier`, `tier_unlock_biometric_commit`) so the
+/// Dart caller doesn't hand-roll the conversion at every call site.
+extension SecurityTierWireName on SecurityTier {
+  String get wireName => switch (this) {
+    SecurityTier.plaintext => 'plaintext',
+    SecurityTier.keychain => 'keychain',
+    SecurityTier.keychainWithPassword => 'keychain_with_password',
+    SecurityTier.hardware => 'hardware',
+    SecurityTier.paranoid => 'paranoid',
+  };
+}
+
 /// Orthogonal per-tier switches.
 ///
 /// The bank-style modifier shape that Phase E/F lands on: `password`

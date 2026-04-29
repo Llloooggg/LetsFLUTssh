@@ -10,6 +10,7 @@ import '../../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../../utils/logger.dart';
 import 'kdf_params.dart';
 import 'password_rate_limiter.dart';
+import 'tier_unlock_attempt.dart';
 
 /// Manages optional master password protection.
 ///
@@ -122,62 +123,65 @@ class MasterPasswordManager {
 
   /// Verify a password against the stored verifier.
   ///
-  /// Returns true if the password is correct.
-  ///
-  /// Prefer [verifyAndDerive] when the caller will immediately need
-  /// the derived key — that variant runs the KDF once instead of twice.
+  /// Returns true if the password is correct. No rate-limit gating,
+  /// no cascade — internal verify callers (settings password change
+  /// confirmation, tests) need the raw boolean without dragging the
+  /// unlock listener into a non-unlock flow.
   Future<bool> verify(String password) async {
     final derived = await verifyAndDerive(password);
     return derived != null;
   }
 
-  /// Single-KDF unlock: verify the password and, on success, return
-  /// the derived DB key; return null on wrong password.
+  /// Single-KDF derive: verify the password and, on success, return
+  /// the derived DB key; return null on wrong password. Hits the raw
+  /// `master_password_verify_and_derive` shim — no rate limiter, no
+  /// orchestrator cascade. Used by re-key flows (changePassword) and
+  /// settings-side password confirmation where the caller wants the
+  /// bytes for an immediate non-unlock action.
   ///
-  /// One Argon2id pass instead of two — the legacy Dart path called
-  /// `verify` then `deriveKey` back-to-back, both running KDF.
-  ///
-  /// When [useRateLimit] is on, also routes through the Paranoid
-  /// tier-unlock orchestrator (`tier_unlock_paranoid`) which
-  /// emits the `BusEvent::TierStateChanged` cascade alongside
-  /// the verify; this keeps the in-memory bystander limiter
-  /// gating the call (intentionally Dart-side per the model in
-  /// `password_rate_limiter.dart`) while the cascade fires once
-  /// per attempt for the `tier_machine` observers + the future
-  /// drift-open listener. Internal callers (changePassword,
-  /// tests) bypass both the limiter AND the orchestrator and
-  /// hit the raw `master_password_verify_and_derive` shim so a
-  /// re-key cycle never trips the cascade for a transition
-  /// that's not a user-driven unlock.
-  Future<Uint8List?> verifyAndDerive(
-    String password, {
-    bool useRateLimit = false,
-  }) async {
-    // Rate limit is opt-in for UI unlock paths (UnlockDialog,
-    // LockScreen). Internal call sites — changePassword, tests —
-    // keep the default false so a sequence of password verifications
-    // the user didn't type one by one never trips the bystander
-    // cooldown.
-    if (useRateLimit && _rateLimiter.status().isLocked) return null;
-
+  /// UI unlock paths (UnlockDialog, LockScreen) MUST NOT call this —
+  /// they use [unlockAttempt] which routes through the Paranoid
+  /// orchestrator (stages key + emits cascade) so the listener
+  /// pattern owns the post-unlock cascade.
+  Future<Uint8List?> verifyAndDerive(String password) async {
     await _getBasePath();
-    Uint8List? key;
     try {
-      final out = useRateLimit
-          ? await rust_orch.tierUnlockParanoid(password: password)
-          : await rust_mp.masterPasswordVerifyAndDerive(password: password);
-      key = out == null ? null : Uint8List.fromList(out);
+      final out = await rust_mp.masterPasswordVerifyAndDerive(
+        password: password,
+      );
+      return out == null ? null : Uint8List.fromList(out);
     } on AnyhowException catch (e) {
       throw MasterPasswordException(e.message);
     }
-    if (useRateLimit) {
-      if (key == null) {
-        _rateLimiter.recordFailure();
-      } else {
-        _rateLimiter.recordSuccess();
-      }
+  }
+
+  /// User-typed unlock attempt. Routes through the
+  /// `tier_unlock_paranoid` orchestrator which:
+  ///   1. dispatches `UnlockRequested` against `tier_machine`,
+  ///   2. runs Argon2id to derive the DB key,
+  ///   3. on success: stages the key under
+  ///      `tier_unlock_orchestrator::TIER_UNLOCK_KEY_ID` + dispatches
+  ///      `UnlockSucceeded` (the `TierUnlockedListener` takes the
+  ///      bytes via `secrets_take` on the cascade event),
+  ///   4. on wrong password / corruption: dispatches `UnlockFailed`.
+  ///
+  /// Returns the [TierUnlockAttempt] discriminant — bytes never
+  /// cross FRB on the return value (plaintext discipline). The
+  /// in-memory rate limiter still gates UI re-attempts; the real
+  /// brake against offline brute is the Argon2id wall-clock.
+  Future<TierUnlockAttempt> unlockAttempt(String password) async {
+    if (_rateLimiter.status().isLocked) {
+      return TierUnlockAttempt.wrongSecret;
     }
-    return key;
+    await _getBasePath();
+    final outcome = await rust_orch.tierUnlockParanoid(password: password);
+    final attempt = mapUnlockOutcome(outcome);
+    if (attempt == TierUnlockAttempt.staged) {
+      _rateLimiter.recordSuccess();
+    } else if (attempt == TierUnlockAttempt.wrongSecret) {
+      _rateLimiter.recordFailure();
+    }
+    return attempt;
   }
 
   /// Enable master password protection.

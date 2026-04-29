@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/master_password.dart';
 import '../core/security/password_rate_limiter.dart';
+import '../core/security/tier_unlock_attempt.dart';
 import '../core/security/wipe_all_service.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/config_provider.dart';
@@ -38,14 +38,16 @@ class UnlockDialog extends ConsumerStatefulWidget {
 
   const UnlockDialog({super.key, required this.manager});
 
-  /// Show the unlock dialog and return the derived key.
-  ///
-  /// Returns `null` if the user chose to reset (forgot password).
-  static Future<Uint8List?> show(
+  /// Show the unlock dialog. Returns `true` when the user submitted
+  /// the correct password (the Paranoid orchestrator staged the
+  /// derived key in the SecretStore + emitted the unlock cascade —
+  /// caller awaits the post-unlock listener), `null` on forgot-
+  /// password reset / dismiss.
+  static Future<bool?> show(
     BuildContext context, {
     required MasterPasswordManager manager,
   }) {
-    return showDialog<Uint8List>(
+    return showDialog<bool?>(
       context: context,
       barrierDismissible: false,
       animationStyle: AnimationStyle.noAnimation,
@@ -115,35 +117,39 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
       _wrongPassword = false;
     });
 
-    // Single Argon2id run: verify + derive in one isolate spawn so
-    // unlock latency is not doubled on mid-tier mobiles. `useRateLimit`
-    // is on because this is the user-typed unlock path — the
-    // in-memory limiter slows down anyone poking at the dialog by
-    // hand (real brake against offline brute is still Argon2id).
-    final key = await widget.manager.verifyAndDerive(
-      password,
-      useRateLimit: true,
-    );
+    // Single Argon2id run via the Paranoid orchestrator (`tier_
+    // unlock_paranoid`). Stages the derived key in the SecretStore
+    // + emits the cascade on success; the caller's `TierUnlockedListener`
+    // takes the bytes and runs the post-unlock injection. The
+    // in-memory rate limiter still gates UI re-attempts (real brake
+    // against offline brute remains Argon2id wall-clock).
+    final attempt = await widget.manager.unlockAttempt(password);
 
     if (!mounted) return;
 
-    if (key == null) {
-      final status = widget.manager.rateLimitStatus();
-      setState(() {
-        _busy = false;
-        _wrongPassword = true;
-        _cooldown = status;
-      });
-      if (status.isLocked) _startCooldownTicker();
-      _passwordCtrl.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _passwordCtrl.text.length,
-      );
-      _focusNode.requestFocus();
-      return;
+    switch (attempt) {
+      case TierUnlockAttempt.staged:
+        Navigator.of(context).pop(true);
+      case TierUnlockAttempt.wrongSecret:
+        final status = widget.manager.rateLimitStatus();
+        setState(() {
+          _busy = false;
+          _wrongPassword = true;
+          _cooldown = status;
+        });
+        if (status.isLocked) _startCooldownTicker();
+        _passwordCtrl.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _passwordCtrl.text.length,
+        );
+        _focusNode.requestFocus();
+      case TierUnlockAttempt.cancelled:
+      case TierUnlockAttempt.error:
+        // Corruption / KDF panic / inner cancel — close with
+        // failure signal so the caller routes through the
+        // forgot-password / corruption recovery branch.
+        Navigator.of(context).pop(null);
     }
-
-    Navigator.of(context).pop(key);
   }
 
   /// Forgot-password path routes through the same

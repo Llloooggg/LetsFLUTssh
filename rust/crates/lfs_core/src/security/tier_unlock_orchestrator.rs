@@ -39,6 +39,33 @@ use crate::security::SecurityTier;
 /// with the "no key" tier shape.
 pub const TIER_UNLOCK_KEY_ID: &str = "tier.unlock.key";
 
+/// Result of a per-tier unlock attempt. The bytes never cross
+/// FRB — `Staged` means the key sits in the SecretStore under
+/// [`TIER_UNLOCK_KEY_ID`] and the Dart [`TierUnlockedListener`]
+/// (subscribed to `BusTopic::Tier`) will take them via
+/// `secrets_take` on the same `TierStateChanged.unlocked` event
+/// the orchestrator just emitted.
+///
+/// The dialog tiers (L2/L3/Paranoid) interpret the variants for
+/// their UI:
+///   - `Staged` → close the dialog, the listener owns the rest.
+///   - `WrongSecret` → keep the dialog open, surface the
+///     wrong-password label, decrement the rate-limiter.
+///   - `Cancelled` → user dismissed an inner prompt (hardware
+///     vault PIN sub-dialog); the outer dialog stays open.
+///   - `PluginError` → unrecoverable plugin/hardware failure;
+///     close + fall back to plaintext.
+///   - `Corruption` → on-disk KDF/gate state unreadable; close
+///     + route through corruption recovery.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UnlockOutcome {
+    Staged,
+    WrongSecret,
+    Cancelled,
+    PluginError(String),
+    Corruption(String),
+}
+
 /// Stage the resolved key in the SecretStore under the
 /// canonical id so the Dart bus listener can take it. Called
 /// just before `UnlockSucceeded` dispatches; the listener's
@@ -81,23 +108,21 @@ pub fn unlock_plaintext() {
 }
 
 /// Keychain tier (L1) — read the DB encryption key from the OS
-/// keychain via the `keychain_op_prompt` registry, dispatch the
-/// cascade events along the way, return the key bytes (or
-/// `None` on missing-entry / plugin-error).
+/// keychain via the `keychain_op_prompt` registry, stage it
+/// under [`TIER_UNLOCK_KEY_ID`], dispatch the cascade.
 ///
 /// 1. Set tier to Keychain + dispatch `UnlockRequested`.
 /// 2. Publish `KeychainOpPromptRequest { key:
 ///    ENCRYPTION_KEY_SLOT, op: Read }`; the Dart subscriber
 ///    calls `flutter_secure_storage.read` and resolves.
-/// 3. On a hit, dispatch `UnlockSucceeded`; on miss, dispatch
-///    `UnlockFailed { PluginUnavailable }` so the caller can
-///    branch into the plaintext-fallback path.
+/// 3. On a hit, stage the bytes + dispatch `UnlockSucceeded`;
+///    on miss, dispatch `UnlockFailed { PluginUnavailable }`.
 ///
-/// Plaintext discipline: the key bytes cross FRB once on the
-/// return value (the Dart caller hands them straight to drift
-/// for the DB-open step). Same crossing as the Dart-era
-/// `SecureKeyStorage.readKey()` flow this replaces.
-pub async fn unlock_keychain() -> Option<Vec<u8>> {
+/// Plaintext discipline: the key bytes never cross FRB on the
+/// return value — the Dart [`TierUnlockedListener`] takes them
+/// out of the SecretStore on its `unlocked` handler. The
+/// caller branches on the [`UnlockOutcome`] discriminant only.
+pub async fn unlock_keychain() -> UnlockOutcome {
     instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockRequested);
 
     let prompt_id = generate_prompt_id();
@@ -115,10 +140,9 @@ pub async fn unlock_keychain() -> Option<Vec<u8>> {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
-            Some(bytes)
+            UnlockOutcome::Staged
         }
         Ok(_) => {
-            // Missing entry / plugin returned None.
             instance_dispatch(
                 SecurityTier::Keychain,
                 &TierEvent::UnlockFailed {
@@ -127,10 +151,9 @@ pub async fn unlock_keychain() -> Option<Vec<u8>> {
                     },
                 },
             );
-            None
+            UnlockOutcome::PluginError("missing_keychain_entry".into())
         }
         Err(_) => {
-            // Receiver dropped — Dart subscriber detached.
             keychain_op_prompt::instance().cancel(&prompt_id);
             instance_dispatch(
                 SecurityTier::Keychain,
@@ -140,7 +163,7 @@ pub async fn unlock_keychain() -> Option<Vec<u8>> {
                     },
                 },
             );
-            None
+            UnlockOutcome::PluginError("keychain_prompt_cancelled".into())
         }
     }
 }
@@ -164,7 +187,7 @@ pub async fn unlock_keychain() -> Option<Vec<u8>> {
 /// must have invoked `master_password_init` at app startup
 /// (the L2 gate shares the same support-dir pin since both
 /// store on-disk state under the same root).
-pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> {
+pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
     instance_dispatch(
         SecurityTier::KeychainWithPassword,
         &TierEvent::UnlockRequested,
@@ -181,10 +204,12 @@ pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> 
             instance_dispatch(
                 SecurityTier::KeychainWithPassword,
                 &TierEvent::UnlockFailed {
-                    reason: UnlockFailureReason::Corruption { detail },
+                    reason: UnlockFailureReason::Corruption {
+                        detail: detail.clone(),
+                    },
                 },
             );
-            return None;
+            return UnlockOutcome::Corruption(detail);
         }
     };
 
@@ -195,7 +220,7 @@ pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> 
                 reason: UnlockFailureReason::WrongSecret,
             },
         );
-        return None;
+        return UnlockOutcome::WrongSecret;
     }
 
     // Password verified — read the DB encryption key from the
@@ -220,7 +245,7 @@ pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> 
                 SecurityTier::KeychainWithPassword,
                 &TierEvent::UnlockSucceeded,
             );
-            Some(bytes)
+            UnlockOutcome::Staged
         }
         Ok(_) => {
             instance_dispatch(
@@ -231,7 +256,7 @@ pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> 
                     },
                 },
             );
-            None
+            UnlockOutcome::PluginError("missing_keychain_entry_after_verify".into())
         }
         Err(_) => {
             keychain_op_prompt::instance().cancel(&prompt_id);
@@ -243,7 +268,7 @@ pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> 
                     },
                 },
             );
-            None
+            UnlockOutcome::PluginError("keychain_prompt_cancelled".into())
         }
     }
 }
@@ -264,7 +289,7 @@ pub async fn unlock_keychain_with_password(password: String) -> Option<Vec<u8>> 
 /// `password` crosses FRB once on the way in; the key bytes
 /// cross once on the way out for the Dart caller to hand to
 /// drift.
-pub async fn unlock_paranoid(password: String) -> Option<Vec<u8>> {
+pub async fn unlock_paranoid(password: String) -> UnlockOutcome {
     instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockRequested);
 
     // Argon2id is CPU + memory heavy (400-1500ms wall-clock at
@@ -282,39 +307,39 @@ pub async fn unlock_paranoid(password: String) -> Option<Vec<u8>> {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockSucceeded);
-            Some(bytes)
+            UnlockOutcome::Staged
         }
         Ok(Ok(_)) => {
-            // verify_and_derive returned None — wrong password.
             instance_dispatch(
                 SecurityTier::Paranoid,
                 &TierEvent::UnlockFailed {
                     reason: UnlockFailureReason::WrongSecret,
                 },
             );
-            None
+            UnlockOutcome::WrongSecret
         }
         Ok(Err(detail)) => {
-            // KDF record corrupt or missing.
-            instance_dispatch(
-                SecurityTier::Paranoid,
-                &TierEvent::UnlockFailed {
-                    reason: UnlockFailureReason::Corruption { detail },
-                },
-            );
-            None
-        }
-        Err(_) => {
-            // spawn_blocking task panicked.
             instance_dispatch(
                 SecurityTier::Paranoid,
                 &TierEvent::UnlockFailed {
                     reason: UnlockFailureReason::Corruption {
-                        detail: "Argon2id task panicked".into(),
+                        detail: detail.clone(),
                     },
                 },
             );
-            None
+            UnlockOutcome::Corruption(detail)
+        }
+        Err(_) => {
+            let detail = "Argon2id task panicked".to_string();
+            instance_dispatch(
+                SecurityTier::Paranoid,
+                &TierEvent::UnlockFailed {
+                    reason: UnlockFailureReason::Corruption {
+                        detail: detail.clone(),
+                    },
+                },
+            );
+            UnlockOutcome::Corruption(detail)
         }
     }
 }
@@ -336,7 +361,7 @@ pub async fn unlock_paranoid(password: String) -> Option<Vec<u8>> {
 /// publishes a `HardwareVaultUnlockPromptRequest` and the
 /// `HardwareVaultUnlockPromptListener` Dart subscriber calls
 /// `HardwareTierVault.read(pin)` which fans out per-platform.
-pub async fn unlock_hardware(pin: Option<String>) -> Option<Vec<u8>> {
+pub async fn unlock_hardware(pin: Option<String>) -> UnlockOutcome {
     instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockRequested);
 
     let prompt_id = generate_prompt_id();
@@ -352,27 +377,27 @@ pub async fn unlock_hardware(pin: Option<String>) -> Option<Vec<u8>> {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockSucceeded);
-            Some(bytes)
+            UnlockOutcome::Staged
         }
         Ok(Ok(_)) => {
-            // Wrong PIN / user cancel / hardware-reported failure
-            // without recoverable detail.
             instance_dispatch(
                 SecurityTier::Hardware,
                 &TierEvent::UnlockFailed {
                     reason: UnlockFailureReason::WrongSecret,
                 },
             );
-            None
+            UnlockOutcome::WrongSecret
         }
         Ok(Err(detail)) => {
             instance_dispatch(
                 SecurityTier::Hardware,
                 &TierEvent::UnlockFailed {
-                    reason: UnlockFailureReason::PluginUnavailable { code: detail },
+                    reason: UnlockFailureReason::PluginUnavailable {
+                        code: detail.clone(),
+                    },
                 },
             );
-            None
+            UnlockOutcome::PluginError(detail)
         }
         Err(_) => {
             hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
@@ -384,9 +409,30 @@ pub async fn unlock_hardware(pin: Option<String>) -> Option<Vec<u8>> {
                     },
                 },
             );
-            None
+            UnlockOutcome::PluginError("hardware_vault_prompt_cancelled".into())
         }
     }
+}
+
+/// Stage [`bytes`] in the SecretStore + drive the tier machine
+/// `Locked → Unlocking → Unlocked` cascade for [`tier`] without
+/// going through a per-tier verify (gate / Argon2id /
+/// keychain-read / hardware unseal). Used by the biometric
+/// fast-path on L2/L3 — the bytes come from the OS-managed
+/// `BiometricKeyVault` (Dart-side flutter plugin), so the
+/// per-tier orchestrator's verify step is bypassed; the
+/// cascade still has to fire so the [`TierUnlockedListener`]
+/// runs the same post-unlock cascade (caches, drift open,
+/// config persist) as the typed-secret path.
+///
+/// Idempotent against the tier-machine state guards. Caller is
+/// responsible for ensuring the bytes really do unlock the DB
+/// (the biometric vault is keyed off the same DB key that the
+/// keychain / hardware vault stores).
+pub fn commit_biometric_unlock(tier: SecurityTier, bytes: &[u8]) {
+    instance_dispatch(tier, &TierEvent::UnlockRequested);
+    stage_key(bytes);
+    instance_dispatch(tier, &TierEvent::UnlockSucceeded);
 }
 
 /// Cancel an in-flight unlock attempt for [`tier`]. Dispatches

@@ -1,13 +1,11 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/tier_unlocked_listener.dart';
 import '../core/security/lock_state.dart';
-import '../core/security/security_tier.dart';
+import '../core/security/tier_unlock_attempt.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/master_password_provider.dart';
-import '../providers/security_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import 'app_button.dart';
@@ -17,13 +15,19 @@ import 'secure_screen_scope.dart';
 
 /// Full-screen lock overlay shown while [lockStateProvider] is true.
 ///
-/// Currently a Paranoid-only re-auth surface: `_releaseLock` pushes a
-/// master-password-derived key into [securityStateProvider] under
-/// `SecurityTier.paranoid`, and `_submitPassword` drives
-/// [MasterPasswordManager]. Biometric unlock is deliberately absent —
-/// Paranoid opts out of biometric by design (see ARCHITECTURE §3.6 →
-/// Biometric unlock for the rationale), so there is nothing to
-/// auto-trigger and no fingerprint affordance to render.
+/// Paranoid-only re-auth surface. `_submitPassword` drives
+/// [MasterPasswordManager.unlockAttempt] which routes through the
+/// `tier_unlock_paranoid` orchestrator: stage key in SecretStore +
+/// emit unlock cascade. The [TierUnlockedListener] takes the bytes
+/// on `BusEvent::TierStateChanged.unlocked` and re-runs the
+/// post-unlock cascade (caches, drift open, securityStateProvider,
+/// config persist); after the listener resolves we flip
+/// [lockStateProvider] off so the UI restores the workspace.
+///
+/// Biometric unlock is deliberately absent — Paranoid opts out of
+/// biometric by design (see ARCHITECTURE §3.6 → Biometric unlock for
+/// the rationale), so there is nothing to auto-trigger and no
+/// fingerprint affordance to render.
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key});
 
@@ -53,11 +57,6 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     super.dispose();
   }
 
-  void _releaseLock(Uint8List key) {
-    ref.read(securityStateProvider.notifier).set(SecurityTier.paranoid, key);
-    ref.read(lockStateProvider.notifier).unlock();
-  }
-
   Future<void> _submitPassword() async {
     if (_busy) return;
     final password = _pwCtrl.text;
@@ -67,30 +66,55 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       _wrong = false;
     });
     final manager = ref.read(masterPasswordProvider);
+    final listener = ref.read(tierUnlockedListenerProvider)..start();
+    final unlockDone = listener.awaitNextUnlock(onlyUnlocked: true);
     try {
-      // Single Argon2id: verify + derive in one isolate spawn.
-      // `useRateLimit` on — mid-session lock screen is a user-typed
-      // path and should slow down a passerby the same way the
-      // first-launch UnlockDialog does.
-      final key = await manager.verifyAndDerive(password, useRateLimit: true);
+      // Routes through `tier_unlock_paranoid` — single Argon2id,
+      // stages the derived key in the SecretStore + emits the
+      // unlock cascade. The `TierUnlockedListener` takes the bytes
+      // on the `unlocked` event and runs the post-unlock cascade
+      // (caches, drift open, securityStateProvider, config persist).
+      final attempt = await manager.unlockAttempt(password);
       if (!mounted) return;
-      if (key == null) {
-        setState(() {
-          _busy = false;
-          _wrong = true;
-        });
-        // Zero the prior string instead of a bare `clear()` — the
-        // wrong-password buffer is a secret the user just typed and
-        // we have no reason to let the interim `String` on the Dart
-        // heap wait for GC any longer than the accepted-password
-        // path does.
-        _pwCtrl.wipeAndClear();
-        _focusNode.requestFocus();
-        return;
+      switch (attempt) {
+        case TierUnlockAttempt.staged:
+          // Wait for the listener cascade to finish before flipping
+          // the lock-state flag — the workspace UI re-mounts on
+          // unlock and would otherwise hit a transient half-open DB.
+          // Best-effort timeout: under flutter_test the FRB native lib
+          // isn't loaded so the bus stream never delivers; flip lock
+          // state anyway so the UI doesn't strand.
+          await unlockDone.timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => TierUnlockOutcome.failed,
+          );
+          if (!mounted) return;
+          ref.read(lockStateProvider.notifier).unlock();
+        case TierUnlockAttempt.wrongSecret:
+          listener.cancelPending();
+          setState(() {
+            _busy = false;
+            _wrong = true;
+          });
+          // Zero the prior string instead of a bare `clear()` — the
+          // wrong-password buffer is a secret the user just typed
+          // and we have no reason to let the interim `String` on
+          // the Dart heap wait for GC any longer than the
+          // accepted-password path does.
+          _pwCtrl.wipeAndClear();
+          _focusNode.requestFocus();
+        case TierUnlockAttempt.cancelled:
+        case TierUnlockAttempt.error:
+          listener.cancelPending();
+          setState(() {
+            _busy = false;
+            _wrong = true;
+          });
+          _pwCtrl.wipeAndClear();
+          _focusNode.requestFocus();
       }
-      if (!mounted) return;
-      _releaseLock(key);
     } catch (e) {
+      listener.cancelPending();
       AppLogger.instance.log('Unlock failed: $e', name: 'LockScreen', error: e);
       if (mounted) {
         setState(() {

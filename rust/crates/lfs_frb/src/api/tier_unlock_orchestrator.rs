@@ -9,7 +9,42 @@
 //! Sync — every orchestrator is a chain of mutex-guarded
 //! transition-table lookups + bus publishes, sub-microsecond.
 
-use lfs_core::security::tier_unlock_orchestrator;
+use lfs_core::security::tier_unlock_orchestrator::{self, UnlockOutcome};
+
+/// FRB-mirrored result of a per-tier unlock attempt. Mirrors
+/// `lfs_core::security::tier_unlock_orchestrator::UnlockOutcome`
+/// for the codegen wire — the Dart caller branches on the
+/// discriminant only (key bytes never cross FRB on the return
+/// value; the `TierUnlockedListener` reads them out of the
+/// SecretStore via `secrets_take` on the cascade event).
+pub enum DbUnlockOutcome {
+    /// Key staged under `tier.unlock.key` + `UnlockSucceeded`
+    /// dispatched. Listener handles the post-unlock cascade.
+    Staged,
+    /// Wrong password / PIN. Dialog stays open for retry.
+    WrongSecret,
+    /// User cancelled an inner prompt (e.g. hardware vault PIN
+    /// sub-dialog). Outer dialog stays open.
+    Cancelled,
+    /// Plugin / hardware unrecoverable error. Carries the
+    /// machine-readable code for log + diagnostics.
+    PluginError(String),
+    /// On-disk KDF/gate state corrupt. Caller routes through
+    /// corruption recovery.
+    Corruption(String),
+}
+
+impl From<UnlockOutcome> for DbUnlockOutcome {
+    fn from(o: UnlockOutcome) -> Self {
+        match o {
+            UnlockOutcome::Staged => Self::Staged,
+            UnlockOutcome::WrongSecret => Self::WrongSecret,
+            UnlockOutcome::Cancelled => Self::Cancelled,
+            UnlockOutcome::PluginError(s) => Self::PluginError(s),
+            UnlockOutcome::Corruption(s) => Self::Corruption(s),
+        }
+    }
+}
 
 /// Plaintext tier — no secret, no plugin call, no user prompt.
 /// Dispatches `UnlockRequested` then `UnlockSucceeded` against
@@ -25,62 +60,55 @@ pub fn tier_unlock_plaintext() {
 
 /// Keychain tier (L1) — read the DB encryption key from the OS
 /// keychain via the prompt registry; emit cascade events along
-/// the way; return the key bytes on success or `None` on
-/// missing entry / plugin error.
+/// the way; stage the bytes in the SecretStore. Returns the
+/// outcome discriminant — bytes never cross FRB.
 ///
 /// Async — round-trips through the bus to the Dart subscriber
 /// for the `flutter_secure_storage.read` call. The receiver
 /// completes as soon as the subscriber resolves the prompt;
 /// the FRB worker frees during the wait so the unlock dialog
 /// stays responsive.
-pub async fn tier_unlock_keychain() -> Option<Vec<u8>> {
-    tier_unlock_orchestrator::unlock_keychain().await
+pub async fn tier_unlock_keychain() -> DbUnlockOutcome {
+    tier_unlock_orchestrator::unlock_keychain().await.into()
 }
 
 /// KeychainWithPassword tier (L2) — verify the typed user
 /// password through the on-disk gate, then read the DB
-/// encryption key from the OS keychain. Emits cascade events
-/// along the way; returns the key bytes on success or `None`
-/// on wrong password / missing keychain entry / cancelled
-/// prompt.
+/// encryption key from the OS keychain. Stages bytes in the
+/// SecretStore on success + returns the outcome.
 ///
 /// The Dart caller owns the unlock dialog UI (rate-limit
 /// countdown, biometric option); after the user submits the
 /// password the caller invokes this orchestrator to drive the
-/// verify + key-read + cascade emission in one FRB hop.
-pub async fn tier_unlock_keychain_with_password(password: String) -> Option<Vec<u8>> {
-    tier_unlock_orchestrator::unlock_keychain_with_password(password).await
+/// verify + key-read + cascade emission in one FRB hop. The
+/// dialog interprets `WrongSecret` as "keep open + decrement
+/// rate limiter"; `Staged` triggers dialog close + the
+/// post-unlock listener cascade.
+pub async fn tier_unlock_keychain_with_password(password: String) -> DbUnlockOutcome {
+    tier_unlock_orchestrator::unlock_keychain_with_password(password)
+        .await
+        .into()
 }
 
 /// Paranoid tier — derive the DB key from the typed master
-/// password via Argon2id; emit cascade events along the way;
-/// return the key bytes on success or `None` on a wrong
-/// password / corrupted KDF record.
-///
-/// The Dart caller owns the unlock dialog UI (rate-limit
-/// countdown, "forgot password" reset path); after the user
-/// submits the password the caller invokes this orchestrator
-/// to drive the verify + cascade emission in one FRB hop.
+/// password via Argon2id; stage in the SecretStore + emit
+/// cascade. Returns the outcome.
 ///
 /// Reads the support dir from the pinned singleton — caller
 /// must have invoked `master_password_init` at app startup.
-pub async fn tier_unlock_paranoid(password: String) -> Option<Vec<u8>> {
-    tier_unlock_orchestrator::unlock_paranoid(password).await
+pub async fn tier_unlock_paranoid(password: String) -> DbUnlockOutcome {
+    tier_unlock_orchestrator::unlock_paranoid(password)
+        .await
+        .into()
 }
 
 /// Hardware tier (L3) — fan out a hardware-vault-unlock prompt
 /// to the Dart subscriber + emit cascade events. `pin` is the
 /// typed user secret for the password modifier; pass `None`
-/// for the passwordless variant.
-///
-/// The Dart subscriber owns the platform call:
-/// `HardwareTierVault.read(pin)` fans out to `tpm2-tools` on
-/// Linux or the platform method channel on Apple / Android /
-/// Windows. This orchestrator emits the cascade (UnlockRequested
-/// → UnlockSucceeded / UnlockFailed) and returns the unsealed
-/// key bytes for the Dart caller to hand to drift.
-pub async fn tier_unlock_hardware(pin: Option<String>) -> Option<Vec<u8>> {
-    tier_unlock_orchestrator::unlock_hardware(pin).await
+/// for the passwordless variant. Stages the unsealed bytes in
+/// the SecretStore on success.
+pub async fn tier_unlock_hardware(pin: Option<String>) -> DbUnlockOutcome {
+    tier_unlock_orchestrator::unlock_hardware(pin).await.into()
 }
 
 /// Resolve a pending hardware-vault unlock with success bytes.
@@ -120,6 +148,33 @@ pub fn hardware_vault_unlock_prompt_resolve_error(prompt_id: String, message: St
 pub fn hardware_vault_unlock_prompt_cancel(prompt_id: String) {
     use lfs_core::security::hardware_vault_unlock_prompt;
     hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
+}
+
+/// Stage [`bytes`] in the SecretStore + emit the unlock cascade
+/// for [`tier_wire_name`] without running the per-tier verify
+/// step. Used by the biometric fast-path: the bytes come from
+/// the OS-managed `BiometricKeyVault` (Dart-side flutter
+/// plugin), so the orchestrator's verify is bypassed but the
+/// `TierUnlockedListener` still runs the post-unlock cascade
+/// (caches, drift open, config persist) off the staged key.
+///
+/// `tier_wire_name` is the same kebab-case wire name the
+/// `tier_machine` exposes (`keychain_with_password`,
+/// `hardware`, etc.). Returns `false` on an unrecognised wire
+/// name so the Dart caller can fall back to inline injection.
+#[flutter_rust_bridge::frb(sync)]
+pub fn tier_unlock_biometric_commit(tier_wire_name: String, bytes: Vec<u8>) -> bool {
+    use lfs_core::security::SecurityTier;
+    let tier = match tier_wire_name.as_str() {
+        "plaintext" => SecurityTier::Plaintext,
+        "keychain" => SecurityTier::Keychain,
+        "keychain_with_password" => SecurityTier::KeychainWithPassword,
+        "hardware" => SecurityTier::Hardware,
+        "paranoid" => SecurityTier::Paranoid,
+        _ => return false,
+    };
+    tier_unlock_orchestrator::commit_biometric_unlock(tier, &bytes);
+    true
 }
 
 /// Cancel an in-flight Keychain (L1) unlock attempt. Dispatches

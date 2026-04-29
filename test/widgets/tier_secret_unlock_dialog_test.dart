@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
+import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/tier_secret_unlock_dialog.dart';
 
@@ -10,12 +11,12 @@ Widget _wrap(Widget child) => MaterialApp(
   home: Scaffold(body: child),
 );
 
-Future<List<int>?> _openDialog(
+Future<bool?> _openDialog(
   WidgetTester tester, {
-  required Future<List<int>?> Function(String) verify,
+  required Future<TierUnlockAttempt> Function(String) verify,
   PasswordRateLimiter? rateLimiter,
 }) async {
-  List<int>? result;
+  bool? result;
   var opened = false;
   await tester.pumpWidget(
     _wrap(
@@ -50,18 +51,21 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('TierSecretUnlockDialog', () {
-    testWidgets('returns key when verify succeeds', (tester) async {
-      await _openDialog(tester, verify: (_) async => [1, 2, 3, 4]);
+    testWidgets('returns true when verify reports staged', (tester) async {
+      await _openDialog(tester, verify: (_) async => TierUnlockAttempt.staged);
       await tester.enterText(find.byType(TextField), 'ok');
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
       expect(find.text('Unlock'), findsNothing);
     });
 
-    testWidgets('shows wrong-secret label when verify returns null', (
+    testWidgets('shows wrong-secret label when verify returns wrongSecret', (
       tester,
     ) async {
-      await _openDialog(tester, verify: (_) async => null);
+      await _openDialog(
+        tester,
+        verify: (_) async => TierUnlockAttempt.wrongSecret,
+      );
       await tester.enterText(find.byType(TextField), 'bad');
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
@@ -77,7 +81,10 @@ void main() {
     // integration_test.
 
     testWidgets('renders the supplied labels', (tester) async {
-      await _openDialog(tester, verify: (_) async => null);
+      await _openDialog(
+        tester,
+        verify: (_) async => TierUnlockAttempt.wrongSecret,
+      );
       expect(find.text('L2 unlock'), findsOneWidget);
       expect(find.text('hint'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
@@ -101,7 +108,7 @@ void main() {
                       inputLabel: 'Password',
                       wrongSecretLabel: 'wrong',
                     ),
-                    verify: (_) async => null,
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
                     onReset: () async => resetCalls++,
                   );
                 },
@@ -127,7 +134,8 @@ void main() {
     );
 
     testWidgets('numeric + maxLength restrict the input', (tester) async {
-      List<int>? result;
+      bool? result;
+      String? observedSecret;
       await tester.pumpWidget(
         _wrap(
           Builder(
@@ -144,7 +152,10 @@ void main() {
                     numeric: true,
                     maxLength: 4,
                   ),
-                  verify: (typed) async => typed.codeUnits,
+                  verify: (typed) async {
+                    observedSecret = typed;
+                    return TierUnlockAttempt.staged;
+                  },
                 );
               },
             ),
@@ -160,7 +171,8 @@ void main() {
       expect(field.controller?.text, '1234');
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
-      expect(result, '1234'.codeUnits);
+      expect(observedSecret, '1234');
+      expect(result, isTrue);
     });
   });
 }

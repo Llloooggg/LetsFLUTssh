@@ -5,6 +5,10 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'tier_unlock_orchestrator.freezed.dart';
+
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`
 
 /// Plaintext tier — no secret, no plugin call, no user prompt.
 /// Dispatches `UnlockRequested` then `UnlockSucceeded` against
@@ -18,63 +22,55 @@ void tierUnlockPlaintext() =>
 
 /// Keychain tier (L1) — read the DB encryption key from the OS
 /// keychain via the prompt registry; emit cascade events along
-/// the way; return the key bytes on success or `None` on
-/// missing entry / plugin error.
+/// the way; stage the bytes in the SecretStore. Returns the
+/// outcome discriminant — bytes never cross FRB.
 ///
 /// Async — round-trips through the bus to the Dart subscriber
 /// for the `flutter_secure_storage.read` call. The receiver
 /// completes as soon as the subscriber resolves the prompt;
 /// the FRB worker frees during the wait so the unlock dialog
 /// stays responsive.
-Future<Uint8List?> tierUnlockKeychain() =>
+Future<DbUnlockOutcome> tierUnlockKeychain() =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockKeychain();
 
 /// KeychainWithPassword tier (L2) — verify the typed user
 /// password through the on-disk gate, then read the DB
-/// encryption key from the OS keychain. Emits cascade events
-/// along the way; returns the key bytes on success or `None`
-/// on wrong password / missing keychain entry / cancelled
-/// prompt.
+/// encryption key from the OS keychain. Stages bytes in the
+/// SecretStore on success + returns the outcome.
 ///
 /// The Dart caller owns the unlock dialog UI (rate-limit
 /// countdown, biometric option); after the user submits the
 /// password the caller invokes this orchestrator to drive the
-/// verify + key-read + cascade emission in one FRB hop.
-Future<Uint8List?> tierUnlockKeychainWithPassword({required String password}) =>
-    RustLib.instance.api
-        .crateApiTierUnlockOrchestratorTierUnlockKeychainWithPassword(
-          password: password,
-        );
+/// verify + key-read + cascade emission in one FRB hop. The
+/// dialog interprets `WrongSecret` as "keep open + decrement
+/// rate limiter"; `Staged` triggers dialog close + the
+/// post-unlock listener cascade.
+Future<DbUnlockOutcome> tierUnlockKeychainWithPassword({
+  required String password,
+}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierUnlockKeychainWithPassword(
+      password: password,
+    );
 
 /// Paranoid tier — derive the DB key from the typed master
-/// password via Argon2id; emit cascade events along the way;
-/// return the key bytes on success or `None` on a wrong
-/// password / corrupted KDF record.
-///
-/// The Dart caller owns the unlock dialog UI (rate-limit
-/// countdown, "forgot password" reset path); after the user
-/// submits the password the caller invokes this orchestrator
-/// to drive the verify + cascade emission in one FRB hop.
+/// password via Argon2id; stage in the SecretStore + emit
+/// cascade. Returns the outcome.
 ///
 /// Reads the support dir from the pinned singleton — caller
 /// must have invoked `master_password_init` at app startup.
-Future<Uint8List?> tierUnlockParanoid({required String password}) => RustLib
-    .instance
-    .api
-    .crateApiTierUnlockOrchestratorTierUnlockParanoid(password: password);
+Future<DbUnlockOutcome> tierUnlockParanoid({required String password}) =>
+    RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockParanoid(
+      password: password,
+    );
 
 /// Hardware tier (L3) — fan out a hardware-vault-unlock prompt
 /// to the Dart subscriber + emit cascade events. `pin` is the
 /// typed user secret for the password modifier; pass `None`
-/// for the passwordless variant.
-///
-/// The Dart subscriber owns the platform call:
-/// `HardwareTierVault.read(pin)` fans out to `tpm2-tools` on
-/// Linux or the platform method channel on Apple / Android /
-/// Windows. This orchestrator emits the cascade (UnlockRequested
-/// → UnlockSucceeded / UnlockFailed) and returns the unsealed
-/// key bytes for the Dart caller to hand to drift.
-Future<Uint8List?> tierUnlockHardware({String? pin}) => RustLib.instance.api
+/// for the passwordless variant. Stages the unsealed bytes in
+/// the SecretStore on success.
+Future<DbUnlockOutcome> tierUnlockHardware({String? pin}) => RustLib
+    .instance
+    .api
     .crateApiTierUnlockOrchestratorTierUnlockHardware(pin: pin);
 
 /// Resolve a pending hardware-vault unlock with success bytes.
@@ -122,6 +118,27 @@ void hardwareVaultUnlockPromptCancel({required String promptId}) => RustLib
       promptId: promptId,
     );
 
+/// Stage [`bytes`] in the SecretStore + emit the unlock cascade
+/// for [`tier_wire_name`] without running the per-tier verify
+/// step. Used by the biometric fast-path: the bytes come from
+/// the OS-managed `BiometricKeyVault` (Dart-side flutter
+/// plugin), so the orchestrator's verify is bypassed but the
+/// `TierUnlockedListener` still runs the post-unlock cascade
+/// (caches, drift open, config persist) off the staged key.
+///
+/// `tier_wire_name` is the same kebab-case wire name the
+/// `tier_machine` exposes (`keychain_with_password`,
+/// `hardware`, etc.). Returns `false` on an unrecognised wire
+/// name so the Dart caller can fall back to inline injection.
+bool tierUnlockBiometricCommit({
+  required String tierWireName,
+  required List<int> bytes,
+}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierUnlockBiometricCommit(
+      tierWireName: tierWireName,
+      bytes: bytes,
+    );
+
 /// Cancel an in-flight Keychain (L1) unlock attempt. Dispatches
 /// `UnlockFailed { UserCancelled }` so the tier machine flips
 /// back to `Locked`. Used by the Dart unlock-flow caller when
@@ -152,3 +169,29 @@ void tierUnlockHardwareCancel() => RustLib.instance.api
 /// before kicking off the wipe.
 void tierUnlockParanoidCancel() => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierUnlockParanoidCancel();
+
+@freezed
+sealed class DbUnlockOutcome with _$DbUnlockOutcome {
+  const DbUnlockOutcome._();
+
+  /// Key staged under `tier.unlock.key` + `UnlockSucceeded`
+  /// dispatched. Listener handles the post-unlock cascade.
+  const factory DbUnlockOutcome.staged() = DbUnlockOutcome_Staged;
+
+  /// Wrong password / PIN. Dialog stays open for retry.
+  const factory DbUnlockOutcome.wrongSecret() = DbUnlockOutcome_WrongSecret;
+
+  /// User cancelled an inner prompt (e.g. hardware vault PIN
+  /// sub-dialog). Outer dialog stays open.
+  const factory DbUnlockOutcome.cancelled() = DbUnlockOutcome_Cancelled;
+
+  /// Plugin / hardware unrecoverable error. Carries the
+  /// machine-readable code for log + diagnostics.
+  const factory DbUnlockOutcome.pluginError(String field0) =
+      DbUnlockOutcome_PluginError;
+
+  /// On-disk KDF/gate state corrupt. Caller routes through
+  /// corruption recovery.
+  const factory DbUnlockOutcome.corruption(String field0) =
+      DbUnlockOutcome_Corruption;
+}

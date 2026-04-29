@@ -3,45 +3,70 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/app/tier_unlocked_listener.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/lock_state.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
-import 'package:letsflutssh/core/security/security_tier.dart';
+import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/master_password_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/widgets/lock_screen.dart';
+
+/// Test-only listener that resolves `awaitNextUnlock` immediately
+/// with `unlocked`. The real listener subscribes to `AppBus` which
+/// requires the FRB native lib (not loaded in flutter_test); a real
+/// `awaitNextUnlock` future would never complete and the screen's
+/// 5s timeout uses real wall-clock that pumpAndSettle doesn't
+/// advance.
+class _ImmediateListener extends TierUnlockedListener {
+  _ImmediateListener(super.ref);
+
+  @override
+  void start() {}
+
+  @override
+  Future<TierUnlockOutcome> awaitNextUnlock({bool onlyUnlocked = false}) =>
+      Future.value(TierUnlockOutcome.unlocked);
+
+  @override
+  void cancelPending() {}
+
+  @override
+  void stop() {}
+}
 
 class _FakeMasterPassword extends MasterPasswordManager {
   _FakeMasterPassword({required this.expectedPassword, required this.keyBytes});
 
   final String expectedPassword;
   final Uint8List keyBytes;
-  int verifyAndDeriveCalls = 0;
+  int unlockAttemptCalls = 0;
 
   @override
-  Future<Uint8List?> verifyAndDerive(
-    String password, {
-    bool useRateLimit = false,
-  }) async {
-    verifyAndDeriveCalls++;
-    if (password != expectedPassword) return null;
-    return keyBytes;
+  Future<TierUnlockAttempt> unlockAttempt(String password) async {
+    unlockAttemptCalls++;
+    return password == expectedPassword
+        ? TierUnlockAttempt.staged
+        : TierUnlockAttempt.wrongSecret;
   }
 
   @override
-  Future<bool> verify(String password) async =>
-      (await verifyAndDerive(password)) != null;
+  Future<Uint8List?> verifyAndDerive(String password) async {
+    return password == expectedPassword ? keyBytes : null;
+  }
+
+  @override
+  Future<bool> verify(String password) async => password == expectedPassword;
 
   @override
   Future<Uint8List> deriveKey(String password) async {
-    final key = await verifyAndDerive(password);
-    if (key == null) {
+    if (password != expectedPassword) {
       throw const MasterPasswordException('wrong password');
     }
-    return key;
+    return keyBytes;
   }
 }
 
@@ -92,6 +117,9 @@ void main() {
           masterPasswordProvider.overrideWithValue(mp),
           biometricKeyVaultProvider.overrideWithValue(_NoBiometricVault()),
           biometricAuthProvider.overrideWithValue(_NoBiometricAuth()),
+          tierUnlockedListenerProvider.overrideWith(
+            (ref) => _ImmediateListener(ref),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -117,27 +145,25 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        mp.verifyAndDeriveCalls,
+        mp.unlockAttemptCalls,
         1,
         reason:
-            'unlock must run PBKDF2 exactly once — the old verify() + '
-            'deriveKey() pair doubled unlock latency on mobile',
+            'unlock must dispatch a single Paranoid orchestrator '
+            'attempt — the old verify() + deriveKey() pair doubled '
+            'unlock latency on mobile',
       );
       expect(
         container.read(lockStateProvider),
         false,
         reason: 'correct password must release the lock',
       );
-      expect(
-        container.read(securityStateProvider).level,
-        SecurityTier.paranoid,
-        reason: 'security level is promoted after unlock',
-      );
-      expect(
-        container.read(securityStateProvider).encryptionKey,
-        isNotNull,
-        reason: 'derived key must land in securityStateProvider',
-      );
+      // The post-unlock cascade (caches, drift open, securityStateProvider,
+      // config persist) lives in `TierUnlockedListener` — verified end-to-
+      // end in `tier_unlocked_listener_test.dart` and the integration
+      // suite. Under flutter_test the FRB native lib is not loaded so the
+      // bus stream never delivers the `unlocked` event; the lock screen's
+      // 5s timeout fires and flips lock state anyway so the UI doesn't
+      // strand.
     },
   );
 
@@ -153,6 +179,9 @@ void main() {
         masterPasswordProvider.overrideWithValue(mp),
         biometricKeyVaultProvider.overrideWithValue(_NoBiometricVault()),
         biometricAuthProvider.overrideWithValue(_NoBiometricAuth()),
+        tierUnlockedListenerProvider.overrideWith(
+          (ref) => _ImmediateListener(ref),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -174,7 +203,7 @@ void main() {
     await tester.tap(find.byWidgetPredicate((w) => w is AppButton));
     await tester.pumpAndSettle();
 
-    expect(mp.verifyAndDeriveCalls, 1);
+    expect(mp.unlockAttemptCalls, 1);
     expect(container.read(lockStateProvider), true);
 
     // The localised error label must appear. We don't pin the exact
@@ -193,6 +222,9 @@ void main() {
           masterPasswordProvider.overrideWithValue(mp),
           biometricKeyVaultProvider.overrideWithValue(_NoBiometricVault()),
           biometricAuthProvider.overrideWithValue(_NoBiometricAuth()),
+          tierUnlockedListenerProvider.overrideWith(
+            (ref) => _ImmediateListener(ref),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -215,9 +247,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        mp.verifyAndDeriveCalls,
+        mp.unlockAttemptCalls,
         0,
-        reason: 'empty input must not trigger a verify round-trip',
+        reason: 'empty input must not trigger an orchestrator round-trip',
       );
       expect(container.read(lockStateProvider), true);
     },
