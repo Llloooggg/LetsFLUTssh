@@ -45,6 +45,7 @@ pub mod update_metadata;
 pub mod update_signing;
 pub mod winbio;
 pub mod wipe;
+pub mod wizard_setup;
 
 /// FFI plumbing init — runs once when Dart loads the native blob.
 /// Sets up the FRB default user utils (panic hook, logging hook).

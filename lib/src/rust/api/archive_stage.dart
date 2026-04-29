@@ -76,9 +76,11 @@ class DbStagedKeyImport {
           createdAtMs == other.createdAtMs;
 }
 
-/// FRB mirror of `archive_stage::StagedSessionImport`. Field names
-/// + ordering match the Rust side exactly so the FRB-generated Dart
-/// DTO drops straight into the `_stageFromResult` call site.
+/// FRB mirror of `archive_stage::StagedSessionImport`.
+///
+/// Field names + ordering match the Rust side exactly so the
+/// FRB-generated Dart DTO drops straight into the
+/// `_stageFromResult` call site.
 class DbStagedSessionImport {
   final String id;
   final String label;

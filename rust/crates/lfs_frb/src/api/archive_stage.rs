@@ -11,9 +11,11 @@ use lfs_core::archive_stage::{
     self, StagedKeyImport, StagedSessionImport, StagedSnippetImport, StagedTagImport,
 };
 
-/// FRB mirror of `archive_stage::StagedSessionImport`. Field names
-/// + ordering match the Rust side exactly so the FRB-generated Dart
-/// DTO drops straight into the `_stageFromResult` call site.
+/// FRB mirror of `archive_stage::StagedSessionImport`.
+///
+/// Field names + ordering match the Rust side exactly so the
+/// FRB-generated Dart DTO drops straight into the
+/// `_stageFromResult` call site.
 #[derive(Debug, Clone)]
 pub struct DbStagedSessionImport {
     pub id: String,

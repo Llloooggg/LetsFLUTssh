@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../src/rust/api/security_capabilities.dart' as rust_caps;
+import '../../src/rust/api/wizard_setup.dart' as rust_wizard;
 import '../../utils/logger.dart';
 import '_crypto_compat.dart';
 import 'biometric_auth.dart';
@@ -314,49 +315,87 @@ class MappedSetupChoice {
 /// typed secret the current `_applyTierChange` cascade expects. The
 /// Phase F refactor will drop this adapter and let the wizard return
 /// `SecurityConfig` directly.
+///
+/// Routes through `lfs_core::security::map_wizard_choice` (FRB sync)
+/// so the choice grammar — which secret slot the typed secret routes
+/// into per tier, when keychain splits into the with-password
+/// variant — lives one place. Falls back to the inline switch for
+/// flutter_test contexts that don't load the FRB native lib.
 MappedSetupChoice mapWizardChoice({
   required WizardTier chosen,
   required bool password,
   required bool biometric,
   String? typedSecret,
 }) {
-  final modifiers = SecurityTierModifiers(
-    password: password,
-    biometric: biometric,
-    biometricShortcut: biometric,
-  );
-  switch (chosen) {
-    case WizardTier.plaintext:
-      return MappedSetupChoice(
-        tier: SecurityTier.plaintext,
-        modifiers: modifiers,
-      );
-    case WizardTier.keychain:
-      if (password) {
+  try {
+    final r = rust_wizard.securityMapWizardChoice(
+      tierWireName: chosen.name,
+      password: password,
+      biometric: biometric,
+      typedSecret: typedSecret,
+    );
+    final tier = SecurityTier.values.firstWhere(
+      (t) => _tierWireName(t) == r.tierWireName,
+      orElse: () => SecurityTier.plaintext,
+    );
+    return MappedSetupChoice(
+      tier: tier,
+      modifiers: SecurityTierModifiers(
+        password: r.password,
+        biometric: r.biometric,
+        biometricShortcut: r.biometricShortcut,
+      ),
+      masterPassword: r.masterPassword,
+      shortPassword: r.shortPassword,
+      pin: r.pin,
+    );
+  } catch (_) {
+    final modifiers = SecurityTierModifiers(
+      password: password,
+      biometric: biometric,
+      biometricShortcut: biometric,
+    );
+    switch (chosen) {
+      case WizardTier.plaintext:
         return MappedSetupChoice(
-          tier: SecurityTier.keychainWithPassword,
+          tier: SecurityTier.plaintext,
           modifiers: modifiers,
-          shortPassword: typedSecret,
         );
-      }
-      return MappedSetupChoice(
-        tier: SecurityTier.keychain,
-        modifiers: modifiers,
-      );
-    case WizardTier.hardware:
-      return MappedSetupChoice(
-        tier: SecurityTier.hardware,
-        modifiers: modifiers,
-        pin: typedSecret,
-      );
-    case WizardTier.paranoid:
-      return MappedSetupChoice(
-        tier: SecurityTier.paranoid,
-        modifiers: modifiers,
-        masterPassword: typedSecret,
-      );
+      case WizardTier.keychain:
+        if (password) {
+          return MappedSetupChoice(
+            tier: SecurityTier.keychainWithPassword,
+            modifiers: modifiers,
+            shortPassword: typedSecret,
+          );
+        }
+        return MappedSetupChoice(
+          tier: SecurityTier.keychain,
+          modifiers: modifiers,
+        );
+      case WizardTier.hardware:
+        return MappedSetupChoice(
+          tier: SecurityTier.hardware,
+          modifiers: modifiers,
+          pin: typedSecret,
+        );
+      case WizardTier.paranoid:
+        return MappedSetupChoice(
+          tier: SecurityTier.paranoid,
+          modifiers: modifiers,
+          masterPassword: typedSecret,
+        );
+    }
   }
 }
+
+String _tierWireName(SecurityTier t) => switch (t) {
+  SecurityTier.plaintext => 'plaintext',
+  SecurityTier.keychain => 'keychain',
+  SecurityTier.keychainWithPassword => 'keychain_with_password',
+  SecurityTier.hardware => 'hardware',
+  SecurityTier.paranoid => 'paranoid',
+};
 
 /// Normalised tier id the wizard radio-set exposes. Lives in bootstrap
 /// so tests can exercise [mapWizardChoice] without pulling the widget

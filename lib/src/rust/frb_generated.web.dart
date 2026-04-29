@@ -51,6 +51,7 @@ import 'api/update_signing.dart';
 import 'api/winbio.dart';
 import 'api/winbio/inner.dart';
 import 'api/wipe.dart';
+import 'api/wizard_setup.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -449,6 +450,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHostsImportSummary dco_decode_db_known_hosts_import_summary(
     dynamic raw,
   );
+
+  @protected
+  DbMappedSetupChoice dco_decode_db_mapped_setup_choice(dynamic raw);
 
   @protected
   DbMigrationReport dco_decode_db_migration_report(dynamic raw);
@@ -1240,6 +1244,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKnownHostsImportSummary sse_decode_db_known_hosts_import_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbMappedSetupChoice sse_decode_db_mapped_setup_choice(
     SseDeserializer deserializer,
   );
 
@@ -2235,6 +2244,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_known_hosts_import_summary(
     DbKnownHostsImportSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_mapped_setup_choice(
+    DbMappedSetupChoice self,
     SseSerializer serializer,
   );
 

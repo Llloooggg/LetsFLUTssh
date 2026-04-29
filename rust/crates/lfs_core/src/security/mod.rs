@@ -292,6 +292,98 @@ impl SecurityConfig {
     }
 }
 
+/// Wizard radio-set tier identifier. Mirrors the Dart `WizardTier`
+/// enum case-for-case. Lives in `security` (not in a separate
+/// `wizard` module) because the only consumer is the wizard-choice
+/// mapper that returns into the `SecurityTier` namespace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WizardTier {
+    Plaintext,
+    Keychain,
+    Hardware,
+    Paranoid,
+}
+
+/// Output of [`map_wizard_choice`] — a tier-machine-ready
+/// configuration plus the typed secret routed into whichever of
+/// `master_password` / `short_password` / `pin` the legacy
+/// `_applyTierChange` cascade expects for the chosen tier.
+///
+/// Only one of `master_password` / `short_password` / `pin` is ever
+/// `Some(_)` per call — the wizard never returns a configuration
+/// that asks two of those slots to coexist.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MappedSetupChoice {
+    pub tier: SecurityTier,
+    pub modifiers: SecurityTierModifiers,
+    pub master_password: Option<String>,
+    pub short_password: Option<String>,
+    pub pin: Option<String>,
+}
+
+/// Translate the wizard's (T0/T1/T2/Paranoid + password + biometric +
+/// typed secret) shape into the persistence-layer `SecurityTier` +
+/// typed secret the current `_applyTierChange` cascade expects.
+///
+/// Pure mapping — no I/O, no platform calls. Lives Rust-side so the
+/// tier-choice grammar (which slot the typed secret routes into,
+/// which tier variant is picked when password is on/off) stays one
+/// place across the Dart wizard + the in-flight tier machine. The
+/// `biometric_shortcut` field on `SecurityTierModifiers` mirrors
+/// `biometric` 1:1 here — same semantics as the Dart constructor's
+/// implicit `biometricShortcut: biometric`.
+#[must_use]
+pub fn map_wizard_choice(
+    chosen: WizardTier,
+    password: bool,
+    biometric: bool,
+    typed_secret: Option<String>,
+) -> MappedSetupChoice {
+    let modifiers = SecurityTierModifiers {
+        password,
+        biometric,
+        biometric_shortcut: biometric,
+        pin_length: SecurityTierModifiers::default().pin_length,
+    };
+    match chosen {
+        WizardTier::Plaintext => MappedSetupChoice {
+            tier: SecurityTier::Plaintext,
+            modifiers,
+            master_password: None,
+            short_password: None,
+            pin: None,
+        },
+        WizardTier::Keychain if password => MappedSetupChoice {
+            tier: SecurityTier::KeychainWithPassword,
+            modifiers,
+            master_password: None,
+            short_password: typed_secret,
+            pin: None,
+        },
+        WizardTier::Keychain => MappedSetupChoice {
+            tier: SecurityTier::Keychain,
+            modifiers,
+            master_password: None,
+            short_password: None,
+            pin: None,
+        },
+        WizardTier::Hardware => MappedSetupChoice {
+            tier: SecurityTier::Hardware,
+            modifiers,
+            master_password: None,
+            short_password: None,
+            pin: typed_secret,
+        },
+        WizardTier::Paranoid => MappedSetupChoice {
+            tier: SecurityTier::Paranoid,
+            modifiers,
+            master_password: typed_secret,
+            short_password: None,
+            pin: None,
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -488,5 +580,62 @@ mod tests {
             json.get("tier").and_then(|v| v.as_str()),
             Some("keychain_with_password")
         );
+    }
+
+    #[test]
+    fn map_wizard_choice_plaintext_carries_no_secret() {
+        let r = map_wizard_choice(WizardTier::Plaintext, false, false, None);
+        assert_eq!(r.tier, SecurityTier::Plaintext);
+        assert_eq!(r.master_password, None);
+        assert_eq!(r.short_password, None);
+        assert_eq!(r.pin, None);
+        assert!(!r.modifiers.password);
+        assert!(!r.modifiers.biometric);
+    }
+
+    #[test]
+    fn map_wizard_choice_keychain_picks_by_password_flag() {
+        let no_pw = map_wizard_choice(WizardTier::Keychain, false, false, None);
+        assert_eq!(no_pw.tier, SecurityTier::Keychain);
+        assert_eq!(no_pw.short_password, None);
+
+        let with_pw = map_wizard_choice(WizardTier::Keychain, true, false, Some("hunter2".into()));
+        assert_eq!(with_pw.tier, SecurityTier::KeychainWithPassword);
+        assert_eq!(with_pw.short_password, Some("hunter2".into()));
+        assert_eq!(with_pw.pin, None);
+        assert_eq!(with_pw.master_password, None);
+    }
+
+    #[test]
+    fn map_wizard_choice_hardware_routes_secret_into_pin_slot() {
+        let r = map_wizard_choice(WizardTier::Hardware, false, true, Some("123456".into()));
+        assert_eq!(r.tier, SecurityTier::Hardware);
+        assert_eq!(r.pin, Some("123456".into()));
+        assert_eq!(r.short_password, None);
+        assert_eq!(r.master_password, None);
+        assert!(r.modifiers.biometric);
+        assert!(r.modifiers.biometric_shortcut);
+    }
+
+    #[test]
+    fn map_wizard_choice_paranoid_routes_secret_into_master_slot() {
+        let r = map_wizard_choice(WizardTier::Paranoid, true, false, Some("longphrase".into()));
+        assert_eq!(r.tier, SecurityTier::Paranoid);
+        assert_eq!(r.master_password, Some("longphrase".into()));
+        assert_eq!(r.pin, None);
+        assert_eq!(r.short_password, None);
+    }
+
+    #[test]
+    fn map_wizard_choice_biometric_shortcut_mirrors_biometric() {
+        // Mirrors the Dart constructor's implicit
+        // `biometricShortcut: biometric` — same boolean lands on
+        // both fields. Catches accidental divergence if either
+        // field is rewired separately later.
+        for biometric in [false, true] {
+            let r = map_wizard_choice(WizardTier::Hardware, true, biometric, None);
+            assert_eq!(r.modifiers.biometric, biometric);
+            assert_eq!(r.modifiers.biometric_shortcut, biometric);
+        }
     }
 }
