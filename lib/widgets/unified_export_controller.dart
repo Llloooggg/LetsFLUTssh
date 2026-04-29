@@ -384,6 +384,11 @@ class UnifiedExportController extends ChangeNotifier {
   /// Size contribution of one credential type, measured against a
   /// baseline of sessions-only (no other credentials). Deflate
   /// compression makes these non-additive, so values are approximate.
+  ///
+  /// Routes both baseline + with-credential estimates through
+  /// `lfs_core::qr_compose` (FRB sync via `_qrEstimateSize`) so
+  /// the wire-shape contract is single-sourced; the delta is the
+  /// only Dart-side arithmetic.
   int _credentialExtraSize({
     required bool includePasswords,
     required bool includeEmbeddedKeys,
@@ -394,18 +399,18 @@ class UnifiedExportController extends ChangeNotifier {
         .withIncludePasswords(false)
         .withIncludeEmbeddedKeys(false)
         .withIncludeManagerKeys(false);
-    final baseline = calculateExportPayloadSize(
-      selectedSessions,
-      input: ExportPayloadInput(options: baselineOptions),
+    final baseline = _qrEstimateSize(
+      sessions: selectedSessions,
+      emptyFolders: const <String>{},
+      options: baselineOptions,
     );
-    final withCred = calculateExportPayloadSize(
-      selectedSessions,
-      input: ExportPayloadInput(
-        options: _options
-            .withIncludePasswords(includePasswords)
-            .withIncludeEmbeddedKeys(includeEmbeddedKeys)
-            .withIncludeManagerKeys(includeManagerKeys),
-      ),
+    final withCred = _qrEstimateSize(
+      sessions: selectedSessions,
+      emptyFolders: const <String>{},
+      options: _options
+          .withIncludePasswords(includePasswords)
+          .withIncludeEmbeddedKeys(includeEmbeddedKeys)
+          .withIncludeManagerKeys(includeManagerKeys),
     );
     return (withCred - baseline).clamp(0, withCred);
   }
@@ -425,21 +430,21 @@ class UnifiedExportController extends ChangeNotifier {
       includeEmbeddedKeys: false,
       includeManagerKeys: false,
     );
-    final baseline = calculateExportPayloadSize(
-      sessions,
-      input: const ExportPayloadInput(options: baselineOptions),
+    final baseline = _qrEstimateSize(
+      sessions: sessions,
+      emptyFolders: const <String>{},
+      options: baselineOptions,
     );
-    final withCred = calculateExportPayloadSize(
-      sessions,
-      input: ExportPayloadInput(
-        options: ExportOptions(
-          includeSessions: true,
-          includeConfig: false,
-          includeKnownHosts: false,
-          includePasswords: includePasswords,
-          includeEmbeddedKeys: includeEmbeddedKeys,
-          includeManagerKeys: includeManagerKeys,
-        ),
+    final withCred = _qrEstimateSize(
+      sessions: sessions,
+      emptyFolders: const <String>{},
+      options: ExportOptions(
+        includeSessions: true,
+        includeConfig: false,
+        includeKnownHosts: false,
+        includePasswords: includePasswords,
+        includeEmbeddedKeys: includeEmbeddedKeys,
+        includeManagerKeys: includeManagerKeys,
       ),
     );
     return (withCred - baseline).clamp(0, withCred);
@@ -525,9 +530,17 @@ class UnifiedExportController extends ChangeNotifier {
       includeEmbeddedKeys: false,
       includeManagerKeys: false,
     );
-    final baselineSize = calculateExportPayloadSize([
-      dummySession,
-    ], input: const ExportPayloadInput(options: baselineOptions));
+    // Baseline routes through `_qrEstimateSize` so the
+    // dummy-session shape matches the canonical Rust composer
+    // (Decision 6). The `withKeysSize` half stays Dart-built
+    // for now because the dummy-session + key-only payload is
+    // already minimal Dart composition that doesn't go through
+    // the encodeExportPayload pipeline.
+    final baselineSize = _qrEstimateSize(
+      sessions: [dummySession],
+      emptyFolders: const <String>{},
+      options: baselineOptions,
+    );
 
     return _cachedManagerKeysExtra = (withKeysSize - baselineSize).clamp(
       0,
@@ -557,12 +570,10 @@ class UnifiedExportController extends ChangeNotifier {
   int get configSize {
     if (_cachedConfigSize != null) return _cachedConfigSize!;
     if (data.config == null) return _cachedConfigSize = 0;
-    return _cachedConfigSize = calculateExportPayloadSize(
-      [],
-      input: ExportPayloadInput(
-        options: const ExportOptions(includeSessions: false),
-        config: data.config,
-      ),
+    return _cachedConfigSize = _qrEstimateSize(
+      sessions: const <Session>[],
+      emptyFolders: const <String>{},
+      options: const ExportOptions(includeSessions: false, includeConfig: true),
     );
   }
 
@@ -570,17 +581,13 @@ class UnifiedExportController extends ChangeNotifier {
     if (_cachedKnownHostsSize != null) return _cachedKnownHostsSize!;
     final content = data.knownHostsContent;
     if (content?.isNotEmpty != true) return _cachedKnownHostsSize = 0;
-    return _cachedKnownHostsSize = calculateExportPayloadSize(
-      [],
-      input: ExportPayloadInput(
-        options: const ExportOptions(
-          includeSessions: false,
-          includeConfig: false,
-          includePasswords: false,
-          includeEmbeddedKeys: false,
-          includeManagerKeys: false,
-        ),
-        knownHostsContent: content,
+    return _cachedKnownHostsSize = _qrEstimateSize(
+      sessions: const <Session>[],
+      emptyFolders: const <String>{},
+      options: const ExportOptions(
+        includeSessions: false,
+        includeConfig: false,
+        includeKnownHosts: true,
       ),
     );
   }
@@ -588,15 +595,13 @@ class UnifiedExportController extends ChangeNotifier {
   int get tagsSize {
     if (_cachedTagsSize != null) return _cachedTagsSize!;
     if (data.tags.isEmpty) return _cachedTagsSize = 0;
-    return _cachedTagsSize = calculateExportPayloadSize(
-      [],
-      input: ExportPayloadInput(
-        options: const ExportOptions(
-          includeSessions: false,
-          includeConfig: false,
-          includeTags: true,
-        ),
-        tags: data.tags,
+    return _cachedTagsSize = _qrEstimateSize(
+      sessions: const <Session>[],
+      emptyFolders: const <String>{},
+      options: const ExportOptions(
+        includeSessions: false,
+        includeConfig: false,
+        includeTags: true,
       ),
     );
   }
@@ -604,15 +609,13 @@ class UnifiedExportController extends ChangeNotifier {
   int get snippetsSize {
     if (_cachedSnippetsSize != null) return _cachedSnippetsSize!;
     if (data.snippets.isEmpty) return _cachedSnippetsSize = 0;
-    return _cachedSnippetsSize = calculateExportPayloadSize(
-      [],
-      input: ExportPayloadInput(
-        options: const ExportOptions(
-          includeSessions: false,
-          includeConfig: false,
-          includeSnippets: true,
-        ),
-        snippets: data.snippets,
+    return _cachedSnippetsSize = _qrEstimateSize(
+      sessions: const <Session>[],
+      emptyFolders: const <String>{},
+      options: const ExportOptions(
+        includeSessions: false,
+        includeConfig: false,
+        includeSnippets: true,
       ),
     );
   }
