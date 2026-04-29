@@ -34,60 +34,34 @@ class ConnectionManager {
   final _uuid = const Uuid();
 
   /// Per-connection generation counter — prevents stale reconnect
-  /// results. Routes through `lfs_core::connection::ConnectionRegistry`
-  /// (FRB sync) so the bump + check live one place; the Dart map
-  /// below is the flutter_test fallback for contexts that don't
-  /// load the FRB native lib.
-  final _connectGenerationFallback = <String, int>{};
-  bool _useRustGeneration = true;
-
+  /// results. Routed through `lfs_core::connection::ConnectionRegistry`
+  /// (FRB sync). FRB-unreachable contexts (flutter_test) swallow the
+  /// throw silently — no test exercises a real connect lifecycle, so
+  /// the generation guard is a no-op there.
   void _initGeneration(String id) {
-    if (_useRustGeneration) {
-      try {
-        rust_connection.connectionInitGeneration(id: id);
-        return;
-      } catch (_) {
-        _useRustGeneration = false;
-      }
-    }
-    _connectGenerationFallback[id] = 1;
+    try {
+      rust_connection.connectionInitGeneration(id: id);
+    } catch (_) {}
   }
 
   int _bumpGeneration(String id) {
-    if (_useRustGeneration) {
-      try {
-        return rust_connection.connectionBumpGeneration(id: id);
-      } catch (_) {
-        _useRustGeneration = false;
-      }
+    try {
+      return rust_connection.connectionBumpGeneration(id: id);
+    } catch (_) {
+      return 1;
     }
-    final next = (_connectGenerationFallback[id] ?? 0) + 1;
-    _connectGenerationFallback[id] = next;
-    return next;
   }
 
   void _dropGeneration(String id) {
-    if (_useRustGeneration) {
-      try {
-        rust_connection.connectionDropGeneration(id: id);
-        return;
-      } catch (_) {
-        _useRustGeneration = false;
-      }
-    }
-    _connectGenerationFallback.remove(id);
+    try {
+      rust_connection.connectionDropGeneration(id: id);
+    } catch (_) {}
   }
 
   void _clearGenerations() {
-    if (_useRustGeneration) {
-      try {
-        rust_connection.connectionClearGenerations();
-        return;
-      } catch (_) {
-        _useRustGeneration = false;
-      }
-    }
-    _connectGenerationFallback.clear();
+    try {
+      rust_connection.connectionClearGenerations();
+    } catch (_) {}
   }
 
   final KnownHostsManager knownHosts;
@@ -623,20 +597,18 @@ class ConnectionManager {
   // a freshly-cancelled subscription.
 
   /// Whether a newer reconnect generation has superseded [generation].
-  /// Routes through the Rust registry; falls back to the Dart map
-  /// for flutter_test contexts.
+  /// Routes through the Rust registry; FRB-unreachable contexts
+  /// (flutter_test) treat every generation as current so the
+  /// reconnect path doesn't short-circuit on the no-op stub.
   bool _isStaleGeneration(String id, int generation) {
-    if (_useRustGeneration) {
-      try {
-        return !rust_connection.connectionIsCurrentGeneration(
-          id: id,
-          generation: generation,
-        );
-      } catch (_) {
-        _useRustGeneration = false;
-      }
+    try {
+      return !rust_connection.connectionIsCurrentGeneration(
+        id: id,
+        generation: generation,
+      );
+    } catch (_) {
+      return false;
     }
-    return _connectGenerationFallback[id] != generation;
   }
 
   /// Reconnect an existing connection.
