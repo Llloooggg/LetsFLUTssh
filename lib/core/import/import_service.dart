@@ -226,163 +226,94 @@ rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
   );
 }
 
+/// Sessions / keys / tags / snippets all route through
+/// `lfs_core::archive_stage::stage_*_to_json` (FRB sync) — that's the
+/// only path. The Dart shape mirrors that previously lived alongside
+/// for flutter_test contexts retired with no test loss; the Rust
+/// stagers are the canonical wire format and any caller needing to
+/// stage in flutter_test must bootstrap RustLib like the integration
+/// suite does.
 String? _stageSessionsJson(List<Session> sessions) {
   if (sessions.isEmpty) return null;
-  try {
-    return rust_stage.archiveStageSessionsToJson(
-      rows: [
-        for (final s in sessions)
-          rust_stage.DbStagedSessionImport(
-            id: s.id,
-            label: s.label,
-            folder: s.folder,
-            host: s.host,
-            port: s.port,
-            user: s.user,
-            authType: s.authType.name,
-            password: s.password,
-            keyPath: s.keyPath,
-            keyData: s.keyData,
-            passphrase: s.passphrase,
-            keyId: s.keyId.isEmpty ? null : s.keyId,
-            extrasJson: s.extras.isEmpty ? '' : jsonEncode(s.extras),
-            viaSessionId: (s.viaSessionId == null || s.viaSessionId!.isEmpty)
-                ? null
-                : s.viaSessionId,
-            viaOverrideHost: s.viaOverride?.host,
-            viaOverridePort: s.viaOverride?.port,
-            viaOverrideUser: s.viaOverride?.user,
-            createdAtMs: s.createdAt.millisecondsSinceEpoch,
-            updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
-          ),
-      ],
-    );
-  } catch (_) {
-    return jsonEncode([for (final s in sessions) _sessionToJson(s)]);
-  }
+  return rust_stage.archiveStageSessionsToJson(
+    rows: [
+      for (final s in sessions)
+        rust_stage.DbStagedSessionImport(
+          id: s.id,
+          label: s.label,
+          folder: s.folder,
+          host: s.host,
+          port: s.port,
+          user: s.user,
+          authType: s.authType.name,
+          password: s.password,
+          keyPath: s.keyPath,
+          keyData: s.keyData,
+          passphrase: s.passphrase,
+          keyId: s.keyId.isEmpty ? null : s.keyId,
+          extrasJson: s.extras.isEmpty ? '' : jsonEncode(s.extras),
+          viaSessionId: (s.viaSessionId == null || s.viaSessionId!.isEmpty)
+              ? null
+              : s.viaSessionId,
+          viaOverrideHost: s.viaOverride?.host,
+          viaOverridePort: s.viaOverride?.port,
+          viaOverrideUser: s.viaOverride?.user,
+          createdAtMs: s.createdAt.millisecondsSinceEpoch,
+          updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
+        ),
+    ],
+  );
 }
 
 String? _stageKeysJson(List<SshKeyEntry> keys) {
   if (keys.isEmpty) return null;
-  try {
-    return rust_stage.archiveStageKeysToJson(
-      rows: [
-        for (final k in keys)
-          rust_stage.DbStagedKeyImport(
-            id: k.id,
-            label: k.label,
-            privateKey: k.privateKey,
-            publicKey: k.publicKey,
-            keyType: k.keyType,
-            isGenerated: k.isGenerated,
-            createdAtMs: k.createdAt.millisecondsSinceEpoch,
-          ),
-      ],
-    );
-  } catch (_) {
-    return jsonEncode([for (final k in keys) _keyToJson(k)]);
-  }
+  return rust_stage.archiveStageKeysToJson(
+    rows: [
+      for (final k in keys)
+        rust_stage.DbStagedKeyImport(
+          id: k.id,
+          label: k.label,
+          privateKey: k.privateKey,
+          publicKey: k.publicKey,
+          keyType: k.keyType,
+          isGenerated: k.isGenerated,
+          createdAtMs: k.createdAt.millisecondsSinceEpoch,
+        ),
+    ],
+  );
 }
 
 String? _stageTagsJson(List<Tag> tags) {
   if (tags.isEmpty) return null;
-  try {
-    return rust_stage.archiveStageTagsToJson(
-      rows: [
-        for (final t in tags)
-          rust_stage.DbStagedTagImport(
-            id: t.id,
-            name: t.name,
-            color: t.color,
-            createdAtMs: t.createdAt.millisecondsSinceEpoch,
-          ),
-      ],
-    );
-  } catch (_) {
-    return jsonEncode([for (final t in tags) _tagToJson(t)]);
-  }
+  return rust_stage.archiveStageTagsToJson(
+    rows: [
+      for (final t in tags)
+        rust_stage.DbStagedTagImport(
+          id: t.id,
+          name: t.name,
+          color: t.color,
+          createdAtMs: t.createdAt.millisecondsSinceEpoch,
+        ),
+    ],
+  );
 }
 
 String? _stageSnippetsJson(List<Snippet> snippets) {
   if (snippets.isEmpty) return null;
-  try {
-    return rust_stage.archiveStageSnippetsToJson(
-      rows: [
-        for (final s in snippets)
-          rust_stage.DbStagedSnippetImport(
-            id: s.id,
-            title: s.title,
-            command: s.command,
-            description: s.description,
-            createdAtMs: s.createdAt.millisecondsSinceEpoch,
-            updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
-          ),
-      ],
-    );
-  } catch (_) {
-    return jsonEncode([for (final s in snippets) _snippetToJson(s)]);
-  }
+  return rust_stage.archiveStageSnippetsToJson(
+    rows: [
+      for (final s in snippets)
+        rust_stage.DbStagedSnippetImport(
+          id: s.id,
+          title: s.title,
+          command: s.command,
+          description: s.description,
+          createdAtMs: s.createdAt.millisecondsSinceEpoch,
+          updatedAtMs: s.updatedAt.millisecondsSinceEpoch,
+        ),
+    ],
+  );
 }
-
-Map<String, Object?> _sessionToJson(Session s) {
-  final obj = <String, Object?>{
-    'id': s.id,
-    'label': s.label,
-    'folder': s.folder,
-    'host': s.host,
-    'port': s.port,
-    'user': s.user,
-    'auth_type': s.authType.name,
-    'password': s.password,
-    'key_path': s.keyPath,
-    'key_data': s.keyData,
-    'passphrase': s.passphrase,
-    'created_at': _isoUtc(s.createdAt),
-    'updated_at': _isoUtc(s.updatedAt),
-  };
-  if (s.keyId.isNotEmpty) {
-    obj['key_id'] = s.keyId;
-  }
-  if (s.extras.isNotEmpty) {
-    obj['extras'] = s.extras;
-  }
-  if (s.viaSessionId != null && s.viaSessionId!.isNotEmpty) {
-    obj['via_session_id'] = s.viaSessionId;
-  }
-  final ov = s.viaOverride;
-  if (ov != null) {
-    obj['via_override'] = {'host': ov.host, 'port': ov.port, 'user': ov.user};
-  }
-  return obj;
-}
-
-Map<String, Object?> _keyToJson(SshKeyEntry k) => {
-  'id': k.id,
-  'label': k.label,
-  'private_key': k.privateKey,
-  'public_key': k.publicKey,
-  'key_type': k.keyType,
-  'is_generated': k.isGenerated,
-  'created_at': _isoUtc(k.createdAt),
-};
-
-Map<String, Object?> _tagToJson(Tag t) => {
-  'id': t.id,
-  'name': t.name,
-  if (t.color != null) 'color': t.color,
-  'created_at': _isoUtc(t.createdAt),
-};
-
-Map<String, Object?> _snippetToJson(Snippet s) => {
-  'id': s.id,
-  'title': s.title,
-  'command': s.command,
-  'description': s.description,
-  'created_at': _isoUtc(s.createdAt),
-  'updated_at': _isoUtc(s.updatedAt),
-};
-
-String _isoUtc(DateTime dt) => dt.toUtc().toIso8601String();
 
 /// Thrown by [applyResultViaRust] in replace mode when the Rust apply
 /// fails and the surrounding sqlite transaction has rolled back the DB.
