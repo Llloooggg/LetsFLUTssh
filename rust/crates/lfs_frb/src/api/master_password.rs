@@ -2,9 +2,9 @@
 //!
 //! Sync where the underlying op is a stat / file-delete (`is_enabled`,
 //! `disable`, `reset`); async where Argon2id runs (`enable`,
-//! `verify_and_derive`, `change_password`, `derive_key_from_disk`).
-//! Each async call hops through `tokio::task::spawn_blocking` so the
-//! 400-1500ms wall-clock KDF cost frees the FRB worker.
+//! `verify_and_derive`, `change_password`). Each async call hops
+//! through `tokio::task::spawn_blocking` so the 400-1500ms wall-clock
+//! KDF cost frees the FRB worker.
 //!
 //! `support_dir` is the platform `getApplicationSupportDirectory()`
 //! path. Dart resolves it once at startup (via the `path_provider`
@@ -158,17 +158,6 @@ pub fn master_password_disable() -> Result<(), String> {
 #[flutter_rust_bridge::frb(sync)]
 pub fn master_password_reset() -> Result<(), String> {
     master_password::reset(support_dir())
-}
-
-/// Run the KDF against the on-disk salt + params and return the
-/// derived key without checking the verifier. Used when the caller
-/// already trusts the password and just needs the key.
-pub async fn master_password_derive_key(password: String) -> Result<Vec<u8>, String> {
-    tokio::task::spawn_blocking(move || {
-        master_password::derive_key_from_disk(support_dir(), &password)
-    })
-    .await
-    .map_err(|e| format!("master_password_derive_key task: {e}"))?
 }
 
 /// Single-KDF unlock: derive the key, decrypt-and-match the verifier,

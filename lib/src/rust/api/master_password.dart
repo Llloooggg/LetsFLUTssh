@@ -91,14 +91,6 @@ void masterPasswordDisable() =>
 void masterPasswordReset() =>
     RustLib.instance.api.crateApiMasterPasswordMasterPasswordReset();
 
-/// Run the KDF against the on-disk salt + params and return the
-/// derived key without checking the verifier. Used when the caller
-/// already trusts the password and just needs the key.
-Future<Uint8List> masterPasswordDeriveKey({required String password}) => RustLib
-    .instance
-    .api
-    .crateApiMasterPasswordMasterPasswordDeriveKey(password: password);
-
 /// Single-KDF unlock: derive the key, decrypt-and-match the verifier,
 /// return `Some(key)` on success or `None` on a wrong password.
 /// `Err` is reserved for "the tier is not enabled" / "files corrupt".
