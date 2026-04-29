@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/path.dart' as rust_path;
 import '../../utils/logger.dart';
 import '../../utils/platform.dart';
 import 'sftp_models.dart';
@@ -128,24 +129,33 @@ class LocalFS implements FileSystem {
     }
   }
 
-  /// Parse Windows `attrib` output and return lowercase names of hidden/system files.
+  /// Parse Windows `attrib` output and return lowercase names of
+  /// hidden/system files. Routes through
+  /// `lfs_core::path::parse_windows_attrib_output` so the
+  /// attribute-letter scan + the H/S filter live one place;
+  /// falls back to the inline regex-based parser when the FRB
+  /// native lib is not loaded.
   ///
   /// Each line has the format: "     A  SH  C:\path\file"
   /// Attribute letters: S=System, H=Hidden.
   static Set<String> parseAttribOutput(String output) {
-    final hidden = <String>{};
-    for (final line in output.split('\n')) {
-      final trimmed = line.trimRight();
-      if (trimmed.isEmpty) continue;
-      final attrEnd = trimmed.lastIndexOf(RegExp(r'[A-Z]  '));
-      if (attrEnd < 0) continue;
-      final attrs = trimmed.substring(0, attrEnd + 1).toUpperCase();
-      if (attrs.contains('H') || attrs.contains('S')) {
-        final fullPath = trimmed.substring(attrEnd + 3).trim();
-        hidden.add(p.windows.basename(fullPath).toLowerCase());
+    try {
+      return rust_path.pathParseWindowsAttribOutput(output: output).toSet();
+    } catch (_) {
+      final hidden = <String>{};
+      for (final line in output.split('\n')) {
+        final trimmed = line.trimRight();
+        if (trimmed.isEmpty) continue;
+        final attrEnd = trimmed.lastIndexOf(RegExp(r'[A-Z]  '));
+        if (attrEnd < 0) continue;
+        final attrs = trimmed.substring(0, attrEnd + 1).toUpperCase();
+        if (attrs.contains('H') || attrs.contains('S')) {
+          final fullPath = trimmed.substring(attrEnd + 3).trim();
+          hidden.add(p.windows.basename(fullPath).toLowerCase());
+        }
       }
+      return hidden;
     }
-    return hidden;
   }
 
   @override

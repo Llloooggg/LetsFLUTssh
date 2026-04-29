@@ -89,3 +89,17 @@ pub fn path_shorten_to_two_segments(path: String) -> String {
 pub fn path_sibling_candidate(path: String, n: u32, posix: bool) -> String {
     lfs_core::path::sibling_candidate(&path, n, posix)
 }
+
+/// Parse `cmd /c attrib *` output and return the lowercase
+/// basenames of files flagged Hidden (H) or System (S). Used by
+/// the Windows directory lister to filter the view to match
+/// what Explorer would hide. Pure parser — caller spawns the
+/// subprocess and feeds stdout here.
+#[flutter_rust_bridge::frb(sync)]
+pub fn path_parse_windows_attrib_output(output: String) -> Vec<String> {
+    let mut out: Vec<String> = lfs_core::path::parse_windows_attrib_output(&output)
+        .into_iter()
+        .collect();
+    out.sort();
+    out
+}

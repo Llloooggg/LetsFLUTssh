@@ -54,6 +54,55 @@ pub fn is_suspicious_path(path: &str) -> bool {
     normalized.split('/').any(|seg| seg == "..")
 }
 
+/// Parse Windows `attrib` command output and return the lowercase
+/// basename of every file flagged Hidden (H) or System (S). Used
+/// by `LocalFS.list` on Windows to filter the directory view to
+/// match what Explorer would hide. Caller spawns `cmd /c attrib *`
+/// and feeds stdout here; we own the pure parsing.
+///
+/// Each `attrib` line has the shape `"     A  SH  C:\path\file"`
+/// — a run of attribute letters then a space-padded gap then the
+/// full path. Attribute letters are uppercase ASCII; the row only
+/// fires when an `H` or `S` is present in the attribute run.
+///
+/// Output is lowercased to match the Dart caller's lookup-set
+/// convention.
+#[must_use]
+pub fn parse_windows_attrib_output(output: &str) -> std::collections::HashSet<String> {
+    let mut hidden: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for raw_line in output.split('\n') {
+        let trimmed = raw_line.trim_end();
+        if trimmed.is_empty() {
+            continue;
+        }
+        // Find the last `[A-Z]  ` (capital letter followed by two
+        // spaces) — that's the boundary between the attribute run
+        // and the path. Walk right-to-left so paths containing
+        // capitals don't false-match.
+        let bytes = trimmed.as_bytes();
+        let mut attr_end: Option<usize> = None;
+        if bytes.len() >= 3 {
+            for i in (0..bytes.len() - 2).rev() {
+                let c = bytes[i];
+                if c.is_ascii_uppercase() && bytes[i + 1] == b' ' && bytes[i + 2] == b' ' {
+                    attr_end = Some(i);
+                    break;
+                }
+            }
+        }
+        let Some(idx) = attr_end else { continue };
+        let attrs = trimmed[..=idx].to_ascii_uppercase();
+        if !attrs.contains('H') && !attrs.contains('S') {
+            continue;
+        }
+        let full_path = trimmed[idx + 3..].trim();
+        // Windows basename — split on `\` then take the tail.
+        let bn = full_path.rsplit(['\\', '/']).next().unwrap_or(full_path);
+        hidden.insert(bn.to_lowercase());
+    }
+    hidden
+}
+
 /// Generate the `n`-th `"stem (N)ext"` sibling-name candidate
 /// next to [`path`]. Used by the transfer-conflict resolver +
 /// the local + remote drag-into-existing flows: each attempt
@@ -377,6 +426,38 @@ mod tests {
             sibling_candidate(r"C:\Users\u\file.txt", 1, false),
             r"C:\Users\u\file (1).txt"
         );
+    }
+
+    #[test]
+    fn parse_attrib_finds_hidden_files() {
+        let out = "A    H  C:\\Users\\u\\hidden.txt\n\
+                   A       C:\\Users\\u\\visible.txt\n\
+                   A   S   C:\\Users\\u\\system.txt\n";
+        let result = parse_windows_attrib_output(out);
+        assert!(result.contains("hidden.txt"));
+        assert!(result.contains("system.txt"));
+        assert!(!result.contains("visible.txt"));
+    }
+
+    #[test]
+    fn parse_attrib_normalizes_to_lowercase() {
+        let out = "A    H  C:\\Users\\u\\HIDDEN.TXT\n";
+        let result = parse_windows_attrib_output(out);
+        assert!(result.contains("hidden.txt"));
+        assert!(!result.contains("HIDDEN.TXT"));
+    }
+
+    #[test]
+    fn parse_attrib_skips_blank_and_malformed_lines() {
+        let out = "\n\nblank line\nA   H  C:\\Users\\u\\real.txt\n";
+        let result = parse_windows_attrib_output(out);
+        assert_eq!(result.len(), 1);
+        assert!(result.contains("real.txt"));
+    }
+
+    #[test]
+    fn parse_attrib_handles_empty_input() {
+        assert!(parse_windows_attrib_output("").is_empty());
     }
 
     /// Tests mutate process-wide environment variables. Run them

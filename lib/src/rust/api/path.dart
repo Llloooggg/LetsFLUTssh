@@ -76,3 +76,13 @@ String pathSiblingCandidate({
   n: n,
   posix: posix,
 );
+
+/// Parse `cmd /c attrib *` output and return the lowercase
+/// basenames of files flagged Hidden (H) or System (S). Used by
+/// the Windows directory lister to filter the view to match
+/// what Explorer would hide. Pure parser — caller spawns the
+/// subprocess and feeds stdout here.
+List<String> pathParseWindowsAttribOutput({required String output}) => RustLib
+    .instance
+    .api
+    .crateApiPathPathParseWindowsAttribOutput(output: output);
