@@ -134,12 +134,7 @@ class InMemoryRateLimiter extends PasswordRateLimiter {
 
   @override
   RateLimitStatus status() {
-    if (_disposed) {
-      return const RateLimitStatus(
-        failureCount: 0,
-        cooldownRemaining: Duration.zero,
-      );
-    }
+    if (_disposed) return _zero;
     try {
       final s = rust_rate_limit.rateLimitStatus(id: _id);
       return RateLimitStatus(
@@ -154,10 +149,7 @@ class InMemoryRateLimiter extends PasswordRateLimiter {
         name: 'RateLimit',
         level: LogLevel.warn,
       );
-      return const RateLimitStatus(
-        failureCount: 0,
-        cooldownRemaining: Duration.zero,
-      );
+      return _zero;
     }
   }
 
@@ -215,10 +207,14 @@ class InMemoryRateLimiter extends PasswordRateLimiter {
 /// also possessing the keychain entry ends up with a detectable HMAC
 /// mismatch and is immediately thrown into max cooldown.
 ///
-/// Tamper path: [status] verifies the HMAC at load. On mismatch the
-/// failure counter is clamped to the schedule cap and `nextRetryAt`
-/// is set to `now + maxCooldown`. Legitimate writers always produce
-/// a valid HMAC, so a legit restart never trips this branch.
+/// **Backend selection.** Two implementations sit behind one façade:
+/// the Rust [`persisted_rate_limit_actor`] (production: tokio actor
+/// with periodic flush) and an inline Dart state-machine + per-write
+/// disk chain (flutter_test: FRB native lib not loaded). The choice
+/// is decided **once** at first init — a successful `actorInitOrGet`
+/// pins the Rust backend; any failure (or sync entry before init)
+/// falls into the Dart backend permanently. No mid-flight switching,
+/// no per-call probe.
 class PersistedRateLimiter extends PasswordRateLimiter {
   PersistedRateLimiter({
     required Uint8List hmacKey,
@@ -241,150 +237,98 @@ class PersistedRateLimiter extends PasswordRateLimiter {
   /// singleton registry.
   final String _id;
 
-  /// Set once `_initOnce` confirms the Rust actor loaded the
-  /// on-disk frame. Until then, [status] returns the safe zero
-  /// baseline so the unlock dialog renders no cooldown before the
-  /// load settles.
-  bool _initialised = false;
+  /// Resolved on first call. `null` means undecided — the next
+  /// `_ensureBackend` picks one (Rust if reachable, else Dart).
+  _Backend? _backend;
 
-  /// True when the Rust `persisted_rate_limit_actor` is reachable
-  /// (production). False when the FRB native lib is not loaded
-  /// (flutter_test) — the limiter falls back to an in-memory
-  /// state machine + per-instance disk write chain.
-  bool _useRust = true;
-
-  // ── Dart-fallback state (used when `_useRust == false`) ────────
-  _RateState? _cachedFallback;
-  bool _loadedFallback = false;
-  Future<void> _pendingSaveFallback = Future<void>.value();
-
-  /// Force a re-read on next status call. Drops the Rust actor's
-  /// cache + the Dart fallback cache.
+  /// Force a re-read on next status call. Drops both backend
+  /// caches; the next operation re-initialises.
   void invalidateCache() {
-    _initialised = false;
-    _cachedFallback = null;
-    _loadedFallback = false;
-    if (_useRust) {
+    final b = _backend;
+    if (b is _RustBackend) {
       try {
         rust_persisted_actor.persistedRateLimitActorClear(id: _id);
       } catch (_) {
-        // Actor unreachable — fallback path will re-load on
-        // next status call.
+        // Actor unreachable — backend gets re-resolved on next call.
       }
     }
+    _backend = null;
   }
 
-  /// Awaits any pending save. In Rust mode the actor schedules
-  /// writes via `tokio::spawn_blocking`; we yield twice to give
-  /// the worker thread a chance to drain. In fallback mode we
-  /// await the `_pendingSaveFallback` chain directly.
+  /// Awaits any pending save. Rust mode: the actor schedules writes
+  /// via `tokio::spawn_blocking`; we yield twice to give the worker
+  /// a chance to drain. Dart mode: await the in-memory chain.
   Future<void> awaitPendingSave() async {
-    if (_useRust) {
-      await Future<void>.value();
-      await Future<void>.value();
+    final b = _backend;
+    if (b is _DartBackend) {
+      await b.pendingSave;
     } else {
-      await _pendingSaveFallback;
+      await Future<void>.value();
+      await Future<void>.value();
     }
   }
 
   @override
   RateLimitStatus status() {
-    if (_useRust && _initialised) {
-      try {
-        return _toRateLimitStatus(
-          rust_persisted_actor.persistedRateLimitActorStatus(id: _id),
-        );
-      } catch (_) {
-        // Actor unreachable mid-flight — fall through to fallback.
-        _useRust = false;
-      }
+    final b = _backend;
+    if (b == null) {
+      // Init hasn't settled yet (sync caller hit before
+      // `statusAsync`). Return the safe baseline so the unlock
+      // dialog renders no cooldown — `statusAsync` resolves the
+      // backend and the next read shows the real state.
+      return _zero;
     }
-    if (_useRust && !_initialised) {
-      // Init hasn't settled yet (production caller didn't await
-      // statusAsync). Return the safe baseline so the unlock
-      // dialog renders no cooldown — the bus event will refresh
-      // it once init completes.
-      return const RateLimitStatus(
-        failureCount: 0,
-        cooldownRemaining: Duration.zero,
-      );
-    }
-    return _statusFallback();
+    return b.status(this);
   }
 
-  /// Async variant — loads the on-disk frame (HMAC-verified)
-  /// before snapshotting. The unlock dialog awaits this on open
-  /// so the post-restart cooldown countdown lands on the first
-  /// frame.
+  /// Async variant — loads the on-disk frame (HMAC-verified) before
+  /// snapshotting. The unlock dialog awaits this on open so the
+  /// post-restart cooldown countdown lands on the first frame.
   Future<RateLimitStatus> statusAsync() async {
-    await _ensureLoaded();
+    await _ensureBackend();
     return status();
   }
 
   @override
   void recordFailure() {
-    if (_useRust) {
-      if (!_initialised) {
-        // First-call probe: attempt the Rust path so a sync
-        // caller (test harness) gets either a Rust-side update
-        // or a fast fall-through to the inline state machine.
-        try {
-          rust_persisted_actor.persistedRateLimitActorRecordFailure(id: _id);
-          // Rust accepted the call — actor is reachable. Mark
-          // initialised so subsequent reads route through Rust
-          // even if the caller never awaits statusAsync.
-          _initialised = true;
-          return;
-        } catch (_) {
-          _useRust = false;
-        }
-      } else {
-        try {
-          rust_persisted_actor.persistedRateLimitActorRecordFailure(id: _id);
-          return;
-        } catch (e) {
-          _useRust = false;
-          AppLogger.instance.log(
-            'PersistedRateLimiter recordFailure rust path failed, '
-            'falling through to fallback: $e',
-            name: 'PersistedRateLimiter',
-          );
-        }
-      }
+    final b = _backend;
+    if (b != null) {
+      b.recordFailure(this);
+      return;
     }
-    _recordFailureFallback();
+    // First call before `statusAsync` settled — try the Rust actor
+    // direct (the call is itself the probe; success means Rust is
+    // reachable and accepted the failure; failure means we adopt
+    // the Dart backend permanently).
+    try {
+      rust_persisted_actor.persistedRateLimitActorRecordFailure(id: _id);
+      _backend = _RustBackend();
+    } catch (_) {
+      final dart = _DartBackend(_hmacKey, _stateFile);
+      _backend = dart;
+      dart.recordFailure(this);
+    }
   }
 
   @override
   void recordSuccess() {
-    if (_useRust) {
-      if (!_initialised) {
-        try {
-          rust_persisted_actor.persistedRateLimitActorRecordSuccess(id: _id);
-          _initialised = true;
-          return;
-        } catch (_) {
-          _useRust = false;
-        }
-      } else {
-        try {
-          rust_persisted_actor.persistedRateLimitActorRecordSuccess(id: _id);
-          return;
-        } catch (e) {
-          _useRust = false;
-          AppLogger.instance.log(
-            'PersistedRateLimiter recordSuccess rust path failed, '
-            'falling through to fallback: $e',
-            name: 'PersistedRateLimiter',
-          );
-        }
-      }
+    final b = _backend;
+    if (b != null) {
+      b.recordSuccess(this);
+      return;
     }
-    _recordSuccessFallback();
+    try {
+      rust_persisted_actor.persistedRateLimitActorRecordSuccess(id: _id);
+      _backend = _RustBackend();
+    } catch (_) {
+      final dart = _DartBackend(_hmacKey, _stateFile);
+      _backend = dart;
+      dart.recordSuccess(this);
+    }
   }
 
-  Future<void> _ensureLoaded() async {
-    if (_initialised || _loadedFallback) return;
+  Future<void> _ensureBackend() async {
+    if (_backend != null) return;
     File? file;
     try {
       file = await _stateFile();
@@ -394,154 +338,24 @@ class PersistedRateLimiter extends PasswordRateLimiter {
         filePath: file.path,
         hmacKey: _hmacKey,
       );
-      _initialised = true;
-      _useRust = true;
+      _backend = _RustBackend();
       return;
     } catch (_) {
       // Rust actor unreachable, or the path_provider plugin is not
-      // mocked (flutter_test contexts). Fall back to the inline
-      // Dart state machine + disk write chain so the limiter still
-      // functions in unit tests.
-      _useRust = false;
+      // mocked (flutter_test contexts). Fall back to the inline Dart
+      // backend so the limiter still functions in unit tests.
     }
+    final dart = _DartBackend(_hmacKey, _stateFile);
+    _backend = dart;
     if (file != null) {
-      await _ensureLoadedFallback(file);
-    } else {
-      // path_provider call failed before yielding a path — adopt
-      // the zero-state baseline so subsequent recordFailure calls
-      // still update the in-memory cache (writes will silently
-      // fail in the same way the Dart-only legacy branch did).
-      _cachedFallback = const _RateState(failureCount: 0);
-      _loadedFallback = true;
+      await dart.loadFromFile(file, this);
     }
-  }
-
-  // ── Dart fallback implementation ───────────────────────────────
-
-  RateLimitStatus _statusFallback() {
-    if (!_loadedFallback) {
-      return const RateLimitStatus(
-        failureCount: 0,
-        cooldownRemaining: Duration.zero,
-      );
-    }
-    final state = _cachedFallback;
-    if (state == null) {
-      return const RateLimitStatus(
-        failureCount: 0,
-        cooldownRemaining: Duration.zero,
-      );
-    }
-    return RateLimitStatus(
-      failureCount: state.failureCount,
-      cooldownRemaining: _cooldownRemaining(state.nextRetryAt),
-    );
-  }
-
-  void _recordFailureFallback() {
-    final current = _cachedFallback ?? const _RateState(failureCount: 0);
-    final cap = PasswordRateLimiter.backoffSchedule.length - 1;
-    final next = current.failureCount + 1;
-    final nextCount = next > cap ? cap : next;
-    final nextRetryAt = _nextRetryAfterFailure(nextCount);
-    final state = _RateState(failureCount: nextCount, nextRetryAt: nextRetryAt);
-    _cachedFallback = state;
-    _loadedFallback = true;
-    _unawaitedSaveFallback(state);
-  }
-
-  void _recordSuccessFallback() {
-    _cachedFallback = const _RateState(failureCount: 0);
-    _loadedFallback = true;
-    _unawaitedSaveFallback(_cachedFallback!);
-  }
-
-  void _unawaitedSaveFallback(_RateState state) {
-    _pendingSaveFallback = _pendingSaveFallback.catchError((_) {}).then((
-      _,
-    ) async {
-      try {
-        final file = await _stateFile();
-        await file.parent.create(recursive: true);
-        final bytes = persistedRateLimitEncodeCompat(
-          PersistedRateLimitState(
-            failureCount: state.failureCount,
-            nextRetryAtMillis: state.nextRetryAt?.millisecondsSinceEpoch,
-          ),
-          _hmacKey,
-        );
-        await file.writeAsBytes(bytes, flush: true);
-        await hardenFilePerms(file.path);
-      } catch (e) {
-        AppLogger.instance.log(
-          'PersistedRateLimiter fallback save failed: $e',
-          name: 'PersistedRateLimiter',
-        );
-      }
-    });
-  }
-
-  Future<void> _ensureLoadedFallback(File file) async {
-    if (_loadedFallback) return;
-    try {
-      if (!await file.exists()) {
-        _cachedFallback = const _RateState(failureCount: 0);
-        _loadedFallback = true;
-        return;
-      }
-      final raw = await file.readAsBytes();
-      final decoded = persistedRateLimitDecodeCompat(raw, _hmacKey);
-      if (decoded == null) {
-        _cachedFallback = _RateState(
-          failureCount: PasswordRateLimiter.backoffSchedule.length - 1,
-          nextRetryAt: _now().add(
-            Duration(seconds: PasswordRateLimiter.backoffSchedule.last),
-          ),
-        );
-      } else {
-        final cap = PasswordRateLimiter.backoffSchedule.length - 1;
-        final clamped = decoded.failureCount < 0
-            ? 0
-            : (decoded.failureCount > cap ? cap : decoded.failureCount);
-        _cachedFallback = _RateState(
-          failureCount: clamped,
-          nextRetryAt: decoded.nextRetryAtMillis == null
-              ? null
-              : DateTime.fromMillisecondsSinceEpoch(decoded.nextRetryAtMillis!),
-        );
-      }
-      _loadedFallback = true;
-    } catch (e) {
-      AppLogger.instance.log(
-        'PersistedRateLimiter fallback load failed: $e',
-        name: 'PersistedRateLimiter',
-      );
-      _cachedFallback = const _RateState(failureCount: 0);
-      _loadedFallback = true;
-    }
-  }
-
-  static RateLimitStatus _toRateLimitStatus(
-    rust_rate_limit.DbRateLimitStatus s,
-  ) {
-    final ms = s.cooldownRemainingMs.toInt();
-    return RateLimitStatus(
-      failureCount: s.failureCount.toInt(),
-      cooldownRemaining: ms > 0 ? Duration(milliseconds: ms) : Duration.zero,
-    );
   }
 
   static Future<File> _defaultStateFile() async {
     final dir = await getApplicationSupportDirectory();
     return File(p.join(dir.path, _fileName));
   }
-}
-
-class _RateState {
-  final int failureCount;
-  final DateTime? nextRetryAt;
-
-  const _RateState({required this.failureCount, this.nextRetryAt});
 }
 
 /// Thin software counter layered **on top of** the hardware rate
@@ -580,5 +394,154 @@ class HardwareRateLimiter extends PasswordRateLimiter {
   void recordSuccess() {
     _failureCount = 0;
     _nextRetryAt = null;
+  }
+}
+
+// ── Backend implementations ──────────────────────────────────────────
+
+const _zero = RateLimitStatus(
+  failureCount: 0,
+  cooldownRemaining: Duration.zero,
+);
+
+/// PersistedRateLimiter backend — production (Rust actor) or
+/// flutter_test (Dart in-memory + disk).
+abstract class _Backend {
+  RateLimitStatus status(PersistedRateLimiter outer);
+  void recordFailure(PersistedRateLimiter outer);
+  void recordSuccess(PersistedRateLimiter outer);
+}
+
+class _RustBackend extends _Backend {
+  @override
+  RateLimitStatus status(PersistedRateLimiter outer) {
+    try {
+      final s = rust_persisted_actor.persistedRateLimitActorStatus(
+        id: outer._id,
+      );
+      final ms = s.cooldownRemainingMs.toInt();
+      return RateLimitStatus(
+        failureCount: s.failureCount.toInt(),
+        cooldownRemaining: ms > 0 ? Duration(milliseconds: ms) : Duration.zero,
+      );
+    } catch (_) {
+      return _zero;
+    }
+  }
+
+  @override
+  void recordFailure(PersistedRateLimiter outer) {
+    try {
+      rust_persisted_actor.persistedRateLimitActorRecordFailure(id: outer._id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'PersistedRateLimiter Rust recordFailure failed: $e',
+        name: 'PersistedRateLimiter',
+      );
+    }
+  }
+
+  @override
+  void recordSuccess(PersistedRateLimiter outer) {
+    try {
+      rust_persisted_actor.persistedRateLimitActorRecordSuccess(id: outer._id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'PersistedRateLimiter Rust recordSuccess failed: $e',
+        name: 'PersistedRateLimiter',
+      );
+    }
+  }
+}
+
+class _DartBackend extends _Backend {
+  _DartBackend(this._hmacKey, this._stateFile);
+
+  final Uint8List _hmacKey;
+  final Future<File> Function() _stateFile;
+
+  int _failureCount = 0;
+  DateTime? _nextRetryAt;
+  bool _loaded = false;
+  Future<void> pendingSave = Future<void>.value();
+
+  Future<void> loadFromFile(File file, PersistedRateLimiter outer) async {
+    if (_loaded) return;
+    try {
+      if (!await file.exists()) {
+        _loaded = true;
+        return;
+      }
+      final raw = await file.readAsBytes();
+      final decoded = persistedRateLimitDecodeCompat(raw, _hmacKey);
+      if (decoded == null) {
+        // HMAC mismatch — clamp to max cooldown.
+        _failureCount = PasswordRateLimiter.backoffSchedule.length - 1;
+        _nextRetryAt = outer._now().add(
+          Duration(seconds: PasswordRateLimiter.backoffSchedule.last),
+        );
+      } else {
+        final cap = PasswordRateLimiter.backoffSchedule.length - 1;
+        _failureCount = decoded.failureCount.clamp(0, cap);
+        _nextRetryAt = decoded.nextRetryAtMillis == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(decoded.nextRetryAtMillis!);
+      }
+      _loaded = true;
+    } catch (e) {
+      AppLogger.instance.log(
+        'PersistedRateLimiter Dart load failed: $e',
+        name: 'PersistedRateLimiter',
+      );
+      _loaded = true;
+    }
+  }
+
+  @override
+  RateLimitStatus status(PersistedRateLimiter outer) {
+    if (!_loaded) return _zero;
+    return RateLimitStatus(
+      failureCount: _failureCount,
+      cooldownRemaining: outer._cooldownRemaining(_nextRetryAt),
+    );
+  }
+
+  @override
+  void recordFailure(PersistedRateLimiter outer) {
+    final cap = PasswordRateLimiter.backoffSchedule.length - 1;
+    final next = _failureCount + 1;
+    _failureCount = next > cap ? cap : next;
+    _nextRetryAt = outer._nextRetryAfterFailure(_failureCount);
+    _loaded = true;
+    _scheduleSave();
+  }
+
+  @override
+  void recordSuccess(PersistedRateLimiter outer) {
+    _failureCount = 0;
+    _nextRetryAt = null;
+    _loaded = true;
+    _scheduleSave();
+  }
+
+  void _scheduleSave() {
+    final snapshot = PersistedRateLimitState(
+      failureCount: _failureCount,
+      nextRetryAtMillis: _nextRetryAt?.millisecondsSinceEpoch,
+    );
+    pendingSave = pendingSave.catchError((_) {}).then((_) async {
+      try {
+        final file = await _stateFile();
+        await file.parent.create(recursive: true);
+        final bytes = persistedRateLimitEncodeCompat(snapshot, _hmacKey);
+        await file.writeAsBytes(bytes, flush: true);
+        await hardenFilePerms(file.path);
+      } catch (e) {
+        AppLogger.instance.log(
+          'PersistedRateLimiter Dart save failed: $e',
+          name: 'PersistedRateLimiter',
+        );
+      }
+    });
   }
 }
