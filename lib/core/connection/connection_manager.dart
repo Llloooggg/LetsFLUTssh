@@ -718,6 +718,10 @@ class ConnectionManager {
       name: 'Connection',
     );
     conn.notifyExtensionsDisconnecting();
+    // Drop any per-attempt secrets the connect path staged but
+    // didn't get to evict via the terminal-state path (e.g. an
+    // explicit disconnect during a still-connecting attempt).
+    _evictTransientSecrets(conn);
     final transport = conn.transport;
     conn.transport = null;
     conn.state = SSHConnectionState.disconnected;
