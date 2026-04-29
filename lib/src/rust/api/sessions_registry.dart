@@ -46,6 +46,15 @@ int sessionsRegistryCountInFolder({required String folderPath}) =>
       folderPath: folderPath,
     );
 
+/// Filter cached session ids by the four-field substring search
+/// predicate (label / folder / host / user, case-insensitive).
+/// Reads off the cached view; no Dart-side projection round-trip
+/// per query the way `sessions_filter` requires.
+List<String> sessionsRegistryFilterIds({required String query}) => RustLib
+    .instance
+    .api
+    .crateApiSessionsRegistrySessionsRegistryFilterIds(query: query);
+
 /// Snapshot of the Rust-side sessions / folders cache view.
 /// Mirrors `lfs_core::sessions::RegistryView` across the FRB
 /// boundary using the same `DbSession` / `DbFolder` types the

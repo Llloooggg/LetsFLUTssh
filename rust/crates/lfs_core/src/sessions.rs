@@ -150,6 +150,34 @@ impl Registry {
             .len()
     }
 
+    /// Filter cached session ids using the four-field substring
+    /// search predicate (label / folder / host / user, case-
+    /// insensitive). Reads off the cached view; no DB round-trip
+    /// and no Dart-side projection round-trip.
+    ///
+    /// Returns matched ids in the cache's natural order so the
+    /// Dart caller can re-key its display list against the
+    /// returned set without sorting.
+    #[must_use]
+    pub fn filter_ids(&self, query: &str) -> Vec<String> {
+        let view = self.inner.read().expect("registry view lock poisoned");
+        let projected: Vec<SearchableSession> = view
+            .sessions
+            .iter()
+            .map(|s| SearchableSession {
+                id: s.id.clone(),
+                label: s.label.clone(),
+                folder: match &s.folder_id {
+                    Some(fid) => folder_path::build_folder_path(fid, &view.folders),
+                    None => String::new(),
+                },
+                host: s.host.clone(),
+                user: s.user.clone(),
+            })
+            .collect();
+        filter_sessions(&projected, query)
+    }
+
     /// Count sessions whose folder path equals [`folder_path`] or
     /// sits under `{folder_path}/`. Empty path counts root-level
     /// sessions. Reads off the cached view — no DB round-trip.
@@ -607,6 +635,73 @@ mod tests {
         r.reload(&db).unwrap();
         r.reload(&db).unwrap();
         assert_eq!(r.session_count(), 0);
+    }
+
+    #[test]
+    fn registry_filter_ids_uses_four_field_predicate_against_cache() {
+        let db = build_in_memory_db();
+        db.with_conn(|c| {
+            crate::db::folders::upsert(
+                c,
+                &FolderRow {
+                    id: "f1".into(),
+                    name: "Production".into(),
+                    parent_id: None,
+                    sort_order: 0,
+                    collapsed: false,
+                    created_at_ms: 0,
+                },
+            )?;
+            for (id, label, folder, host, user) in [
+                ("a", "Frontend", Some("f1"), "alpha.example.com", "root"),
+                ("b", "Backend", None, "beta.example.com", "deploy"),
+            ] {
+                crate::db::sessions::upsert(
+                    c,
+                    &SessionRow {
+                        id: id.into(),
+                        label: label.into(),
+                        folder_id: folder.map(String::from),
+                        host: host.into(),
+                        port: 22,
+                        user: user.into(),
+                        auth_type: "password".into(),
+                        password: String::new(),
+                        key_path: String::new(),
+                        key_data: String::new(),
+                        key_id: None,
+                        passphrase: String::new(),
+                        sort_order: 0,
+                        notes: String::new(),
+                        last_connected_at_ms: None,
+                        extras: "{}".into(),
+                        via_session_id: None,
+                        via_host: None,
+                        via_port: None,
+                        via_user: None,
+                        created_at_ms: 0,
+                        updated_at_ms: 0,
+                    },
+                )?;
+            }
+            Ok::<_, Error>(())
+        })
+        .unwrap();
+
+        let r = Registry::new();
+        r.reload(&db).unwrap();
+
+        // Match by label.
+        assert_eq!(r.filter_ids("frontend"), vec!["a"]);
+        // Match by folder (only `a` is under Production).
+        assert_eq!(r.filter_ids("production"), vec!["a"]);
+        // Match by host substring.
+        assert_eq!(r.filter_ids("beta"), vec!["b"]);
+        // Match by user.
+        assert_eq!(r.filter_ids("deploy"), vec!["b"]);
+        // Empty query returns every id.
+        let all = r.filter_ids("");
+        assert!(all.contains(&"a".to_string()) && all.contains(&"b".to_string()));
     }
 
     #[test]

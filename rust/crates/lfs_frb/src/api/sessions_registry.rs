@@ -87,3 +87,14 @@ pub fn sessions_registry_count_in_folder(folder_path: String) -> u32 {
         .sessions_registry
         .count_in_folder(&folder_path) as u32
 }
+
+/// Filter cached session ids by the four-field substring search
+/// predicate (label / folder / host / user, case-insensitive).
+/// Reads off the cached view; no Dart-side projection round-trip
+/// per query the way `sessions_filter` requires.
+#[flutter_rust_bridge::frb(sync)]
+pub fn sessions_registry_filter_ids(query: String) -> Vec<String> {
+    lfs_core::app::instance()
+        .sessions_registry
+        .filter_ids(&query)
+}
