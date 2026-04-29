@@ -42,6 +42,7 @@ import 'api/snippet_template.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
 import 'api/threat_eval.dart';
+import 'api/tier_machine.dart';
 import 'api/tier_transition_marker.dart';
 import 'api/transfer.dart';
 import 'api/transfer_conflict.dart';
@@ -331,6 +332,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTag dco_decode_box_autoadd_db_tag(dynamic raw);
 
   @protected
+  DbTierEvent dco_decode_box_autoadd_db_tier_event(dynamic raw);
+
+  @protected
+  DbTierState dco_decode_box_autoadd_db_tier_state(dynamic raw);
+
+  @protected
+  DbUnlockFailureReason dco_decode_box_autoadd_db_unlock_failure_reason(
+    dynamic raw,
+  );
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -602,6 +614,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbThreatTier dco_decode_db_threat_tier(dynamic raw);
 
   @protected
+  DbTierEvent dco_decode_db_tier_event(dynamic raw);
+
+  @protected
+  DbTierState dco_decode_db_tier_state(dynamic raw);
+
+  @protected
   DbTransferKind dco_decode_db_transfer_kind(dynamic raw);
 
   @protected
@@ -609,6 +627,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTransferState dco_decode_db_transfer_state(dynamic raw);
+
+  @protected
+  DbUnlockFailureReason dco_decode_db_unlock_failure_reason(dynamic raw);
 
   @protected
   DbUnsupportedFutureVersion dco_decode_db_unsupported_future_version(
@@ -824,6 +845,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbStagedSecrets? dco_decode_opt_box_autoadd_db_staged_secrets(dynamic raw);
+
+  @protected
+  DbTierState? dco_decode_opt_box_autoadd_db_tier_state(dynamic raw);
+
+  @protected
+  DbUnlockFailureReason? dco_decode_opt_box_autoadd_db_unlock_failure_reason(
+    dynamic raw,
+  );
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -1163,6 +1192,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTag sse_decode_box_autoadd_db_tag(SseDeserializer deserializer);
+
+  @protected
+  DbTierEvent sse_decode_box_autoadd_db_tier_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbTierState sse_decode_box_autoadd_db_tier_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbUnlockFailureReason sse_decode_box_autoadd_db_unlock_failure_reason(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
@@ -1520,6 +1564,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbThreatTier sse_decode_db_threat_tier(SseDeserializer deserializer);
 
   @protected
+  DbTierEvent sse_decode_db_tier_event(SseDeserializer deserializer);
+
+  @protected
+  DbTierState sse_decode_db_tier_state(SseDeserializer deserializer);
+
+  @protected
   DbTransferKind sse_decode_db_transfer_kind(SseDeserializer deserializer);
 
   @protected
@@ -1529,6 +1579,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTransferState sse_decode_db_transfer_state(SseDeserializer deserializer);
+
+  @protected
+  DbUnlockFailureReason sse_decode_db_unlock_failure_reason(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbUnsupportedFutureVersion sse_decode_db_unsupported_future_version(
@@ -1802,6 +1857,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbStagedSecrets? sse_decode_opt_box_autoadd_db_staged_secrets(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbTierState? sse_decode_opt_box_autoadd_db_tier_state(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbUnlockFailureReason? sse_decode_opt_box_autoadd_db_unlock_failure_reason(
     SseDeserializer deserializer,
   );
 
@@ -2211,6 +2276,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_db_tag(DbTag self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_db_tier_event(
+    DbTierEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_tier_state(
+    DbTierState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_unlock_failure_reason(
+    DbUnlockFailureReason self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_i_64(
@@ -2678,6 +2761,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_threat_tier(DbThreatTier self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_tier_event(DbTierEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_tier_state(DbTierState self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_transfer_kind(
     DbTransferKind self,
     SseSerializer serializer,
@@ -2692,6 +2781,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_transfer_state(
     DbTransferState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_unlock_failure_reason(
+    DbUnlockFailureReason self,
     SseSerializer serializer,
   );
 
@@ -3036,6 +3131,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_staged_secrets(
     DbStagedSecrets? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_tier_state(
+    DbTierState? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_unlock_failure_reason(
+    DbUnlockFailureReason? self,
     SseSerializer serializer,
   );
 

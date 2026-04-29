@@ -40,6 +40,7 @@ pub mod snippet_template;
 pub mod ssh;
 pub mod ssh_config;
 pub mod threat_eval;
+pub mod tier_machine;
 pub mod tier_transition_marker;
 pub mod transfer;
 pub mod transfer_conflict;
