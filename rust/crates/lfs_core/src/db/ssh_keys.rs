@@ -181,6 +181,80 @@ pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     Ok(n)
 }
 
+/// Composite import — looks up an existing key by content
+/// fingerprint (public-key first, falling back to private-key);
+/// returns the existing id when a match is found. Otherwise mints
+/// a new id (when the proposed id collides with a stored key) and
+/// inserts a fresh row under a unique-suffixed label. All in one
+/// transaction.
+///
+/// Returns the id the caller should use downstream (existing or
+/// freshly inserted). Mirrors the Dart
+/// `KeyStore.importForMerge` orchestration; folding the steps
+/// Rust-side keeps the dedup-by-fingerprint + label-uniqueness +
+/// insert sequence atomic and lets the Dart caller drop to a
+/// single FRB call.
+pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Result<String, Error> {
+    use rand::RngCore;
+    let tx = conn
+        .transaction()
+        .map_err(|e| Error::Io(format!("ssh_keys import_for_merge tx: {e}")))?;
+
+    let public_target = crate::keys::normalized_text_fingerprint(&proposed.public_key);
+    let private_target = crate::keys::normalized_text_fingerprint(&proposed.private_key);
+
+    // Two-phase fingerprint lookup mirrors the Dart side: public
+    // wins (cheap, never touches private material); private is the
+    // fallback for stored rows that have no public key.
+    let metadata = list_metadata(&tx)?;
+    if !public_target.is_empty() {
+        if let Some(found) = metadata
+            .iter()
+            .find(|m| m.public_fingerprint == public_target)
+        {
+            return Ok(found.id.clone());
+        }
+    } else if !private_target.is_empty() {
+        if let Some(found) = metadata
+            .iter()
+            .find(|m| m.private_fingerprint == private_target)
+        {
+            return Ok(found.id.clone());
+        }
+    }
+
+    // No content match — insert a fresh row. Uniqueify the label
+    // against the live set, mint a new id when the proposed id
+    // collides with a stored key.
+    let labels: std::collections::HashSet<String> =
+        metadata.iter().map(|m| m.label.clone()).collect();
+    let new_label = crate::sessions::unique_label(&proposed.label, &labels);
+    let id_collision = metadata.iter().any(|m| m.id == proposed.id);
+    let new_id = if id_collision {
+        let mut bytes = [0u8; 16];
+        rand::rngs::OsRng.fill_bytes(&mut bytes);
+        bytes.iter().map(|b| format!("{b:02x}")).collect::<String>()
+    } else {
+        proposed.id.clone()
+    };
+
+    upsert(
+        &tx,
+        &SshKeyRow {
+            id: new_id.clone(),
+            label: new_label,
+            private_key: proposed.private_key.clone(),
+            public_key: proposed.public_key.clone(),
+            key_type: proposed.key_type.clone(),
+            is_generated: proposed.is_generated,
+            created_at_ms: proposed.created_at_ms,
+        },
+    )?;
+    tx.commit()
+        .map_err(|e| Error::Io(format!("ssh_keys import_for_merge commit: {e}")))?;
+    Ok(new_id)
+}
+
 /// Canonical secret-store id for a stored key's private PEM bytes.
 /// Mirrors the `sess.<slot>.<id>` pattern used by the sessions DAO.
 pub fn private_key_secret_id(key_id: &str) -> String {
@@ -208,4 +282,98 @@ pub fn stage_secret_into_store(conn: &Connection, key_id: &str) -> Result<bool, 
     let store = &crate::app::instance().secrets;
     store.put(&private_key_secret_id(key_id), pem.as_bytes());
     Ok(true)
+}
+
+#[cfg(test)]
+mod import_for_merge_tests {
+    use super::*;
+    use crate::db::{bootstrap_schema, Db};
+    use rusqlite::Connection as RusqliteConn;
+
+    fn db() -> Db {
+        let conn = RusqliteConn::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Db::from_raw_for_tests(conn)
+    }
+
+    fn key(id: &str, label: &str, public: &str, private: &str) -> SshKeyRow {
+        SshKeyRow {
+            id: id.into(),
+            label: label.into(),
+            private_key: private.into(),
+            public_key: public.into(),
+            key_type: "ed25519".into(),
+            is_generated: false,
+            created_at_ms: 0,
+        }
+    }
+
+    #[test]
+    fn import_for_merge_returns_existing_id_on_public_match() {
+        let db = db();
+        db.with_conn(|c| upsert(c, &key("existing", "lab", "PUB1\n", "PRIV1")))
+            .unwrap();
+        let proposed = key("imported", "Different label", "PUB1", "PRIV1");
+        let id = db
+            .with_conn_mut(|c| import_key_for_merge(c, &proposed))
+            .unwrap();
+        assert_eq!(id, "existing");
+        // Stored row count unchanged.
+        let rows = db.with_conn(list_all).unwrap();
+        assert_eq!(rows.len(), 1);
+    }
+
+    #[test]
+    fn import_for_merge_inserts_when_no_match() {
+        let db = db();
+        let proposed = key("imported-id", "lab", "PUB-NEW", "PRIV-NEW");
+        let id = db
+            .with_conn_mut(|c| import_key_for_merge(c, &proposed))
+            .unwrap();
+        assert_eq!(id, "imported-id");
+        let rows = db.with_conn(list_all).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].public_key, "PUB-NEW");
+    }
+
+    #[test]
+    fn import_for_merge_uniqueifies_label_against_taken_set() {
+        let db = db();
+        db.with_conn(|c| upsert(c, &key("e1", "Web", "PUB1", "PRIV1")))
+            .unwrap();
+        let proposed = key("imported", "Web", "PUB-DIFF", "PRIV-DIFF");
+        let id = db
+            .with_conn_mut(|c| import_key_for_merge(c, &proposed))
+            .unwrap();
+        let rows = db.with_conn(list_all).unwrap();
+        let inserted = rows.iter().find(|r| r.id == id).unwrap();
+        assert_eq!(inserted.label, "Web (copy)");
+    }
+
+    #[test]
+    fn import_for_merge_mints_new_id_on_id_collision() {
+        let db = db();
+        db.with_conn(|c| upsert(c, &key("collision", "Web", "PUB1", "PRIV1")))
+            .unwrap();
+        let proposed = key("collision", "Other", "PUB-NEW", "PRIV-NEW");
+        let id = db
+            .with_conn_mut(|c| import_key_for_merge(c, &proposed))
+            .unwrap();
+        assert_ne!(id, "collision");
+        let rows = db.with_conn(list_all).unwrap();
+        assert_eq!(rows.len(), 2);
+    }
+
+    #[test]
+    fn import_for_merge_falls_back_to_private_when_public_empty() {
+        let db = db();
+        db.with_conn(|c| upsert(c, &key("e1", "lab", "", "PRIV-MATCH")))
+            .unwrap();
+        let proposed = key("imported", "lab2", "", "PRIV-MATCH");
+        let id = db
+            .with_conn_mut(|c| import_key_for_merge(c, &proposed))
+            .unwrap();
+        assert_eq!(id, "e1");
+    }
 }

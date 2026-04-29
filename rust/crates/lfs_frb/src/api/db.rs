@@ -92,6 +92,27 @@ pub async fn db_ssh_keys_delete(id: String) -> Result<u32, String> {
         .map(|n| n as u32)
 }
 
+/// Composite import — Rust composes the dedup-by-fingerprint
+/// lookup (public-key first, falling back to private-key) +
+/// label-uniqueness + insert in one transaction. Returns the id
+/// the caller should use downstream — existing on a content
+/// match, freshly inserted otherwise.
+///
+/// Replaces the multi-step Dart `KeyStore.importForMerge`
+/// orchestration (loadAll + findIdByKeyMaterial + uniqueLabel +
+/// save) with a single FRB call that runs entirely inside one
+/// sqlite transaction.
+pub async fn db_ssh_keys_import_for_merge(proposed: DbSshKey) -> Result<String, String> {
+    let row: lfs_core::db::ssh_keys::SshKeyRow = proposed.into();
+    tokio::task::spawn_blocking(move || {
+        let db = require_db()?;
+        db.with_conn_mut(|c| lfs_core::db::ssh_keys::import_key_for_merge(c, &row))
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("db task: {e}"))?
+}
+
 /// Stage the stored key's private PEM bytes into the SecretStore
 /// under `key.priv.<id>`. Returns `true` when bytes landed in the
 /// store, `false` when the row is missing or the column is empty.

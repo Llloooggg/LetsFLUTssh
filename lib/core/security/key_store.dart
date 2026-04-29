@@ -305,7 +305,18 @@ class KeyStore {
   ///   happens to share the imported id. If the label already exists, a
   ///   "(copy)"/"(copy N)" suffix is appended — mirrors session
   ///   duplication semantics.
+  ///
+  /// Routes through `lfs_core::db::ssh_keys::import_key_for_merge`
+  /// (FRB async) so the dedup-by-fingerprint + label-uniqueness +
+  /// insert sequence runs as one sqlite transaction. Falls back to
+  /// the inline three-step composition when the FRB native lib
+  /// isn't loaded (flutter_test).
   Future<String> importForMerge(SshKeyEntry entry) async {
+    try {
+      return await rust_db.dbSshKeysImportForMerge(proposed: _toRow(entry));
+    } catch (_) {
+      // FRB unavailable — fall through to the Dart composition.
+    }
     final all = await loadAll();
     final existingId = await findIdByKeyMaterial(entry);
     if (existingId != null) return existingId;

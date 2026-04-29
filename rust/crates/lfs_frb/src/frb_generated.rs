@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -74525760;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 141146596;
 
 // Section: executor
 
@@ -5628,6 +5628,43 @@ fn wire__crate__api__db__db_ssh_keys_get_impl(
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok = crate::api::db::db_ssh_keys_get(api_id).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__db__db_ssh_keys_import_for_merge_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "db_ssh_keys_import_for_merge",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_proposed = <crate::api::db::DbSshKey>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::db::db_ssh_keys_import_for_merge(api_proposed).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -15641,281 +15678,287 @@ fn pde_ffi_dispatcher_primary_impl(
         131 => wire__crate__api__db__db_snippets_upsert_impl(port, ptr, rust_vec_len, data_len),
         132 => wire__crate__api__db__db_ssh_keys_delete_impl(port, ptr, rust_vec_len, data_len),
         133 => wire__crate__api__db__db_ssh_keys_get_impl(port, ptr, rust_vec_len, data_len),
-        134 => wire__crate__api__db__db_ssh_keys_list_all_impl(port, ptr, rust_vec_len, data_len),
-        135 => {
+        134 => wire__crate__api__db__db_ssh_keys_import_for_merge_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        135 => wire__crate__api__db__db_ssh_keys_list_all_impl(port, ptr, rust_vec_len, data_len),
+        136 => {
             wire__crate__api__db__db_ssh_keys_list_metadata_impl(port, ptr, rust_vec_len, data_len)
         }
-        136 => {
+        137 => {
             wire__crate__api__db__db_ssh_keys_stage_secret_impl(port, ptr, rust_vec_len, data_len)
         }
-        137 => wire__crate__api__db__db_ssh_keys_upsert_impl(port, ptr, rust_vec_len, data_len),
-        138 => wire__crate__api__db__db_tags_delete_impl(port, ptr, rust_vec_len, data_len),
-        139 => wire__crate__api__db__db_tags_delete_all_impl(port, ptr, rust_vec_len, data_len),
-        140 => wire__crate__api__db__db_tags_list_all_impl(port, ptr, rust_vec_len, data_len),
-        141 => {
+        138 => wire__crate__api__db__db_ssh_keys_upsert_impl(port, ptr, rust_vec_len, data_len),
+        139 => wire__crate__api__db__db_tags_delete_impl(port, ptr, rust_vec_len, data_len),
+        140 => wire__crate__api__db__db_tags_delete_all_impl(port, ptr, rust_vec_len, data_len),
+        141 => wire__crate__api__db__db_tags_list_all_impl(port, ptr, rust_vec_len, data_len),
+        142 => {
             wire__crate__api__db__db_tags_list_for_folder_impl(port, ptr, rust_vec_len, data_len)
         }
-        142 => {
+        143 => {
             wire__crate__api__db__db_tags_list_for_session_impl(port, ptr, rust_vec_len, data_len)
         }
-        143 => wire__crate__api__db__db_tags_upsert_impl(port, ptr, rust_vec_len, data_len),
-        144 => {
+        144 => wire__crate__api__db__db_tags_upsert_impl(port, ptr, rust_vec_len, data_len),
+        145 => {
             wire__crate__api__deeplink__deeplink_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        162 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
-        172 => {
+        163 => wire__crate__api__init_app_impl(port, ptr, rust_vec_len, data_len),
+        173 => {
             wire__crate__api__keys__keys_generate_ed25519_impl(port, ptr, rust_vec_len, data_len)
         }
-        173 => wire__crate__api__keys__keys_generate_rsa_impl(port, ptr, rust_vec_len, data_len),
-        174 => wire__crate__api__keys__keys_import_openssh_impl(port, ptr, rust_vec_len, data_len),
-        175 => wire__crate__api__keys__keys_import_ppk_impl(port, ptr, rust_vec_len, data_len),
-        183 => wire__crate__api__master_password__master_password_change_impl(
+        174 => wire__crate__api__keys__keys_generate_rsa_impl(port, ptr, rust_vec_len, data_len),
+        175 => wire__crate__api__keys__keys_import_openssh_impl(port, ptr, rust_vec_len, data_len),
+        176 => wire__crate__api__keys__keys_import_ppk_impl(port, ptr, rust_vec_len, data_len),
+        184 => wire__crate__api__master_password__master_password_change_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        184 => wire__crate__api__master_password__master_password_derive_key_impl(
+        185 => wire__crate__api__master_password__master_password_derive_key_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        186 => wire__crate__api__master_password__master_password_enable_impl(
+        187 => wire__crate__api__master_password__master_password_enable_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        189 => wire__crate__api__master_password__master_password_verify_and_derive_impl(
+        190 => wire__crate__api__master_password__master_password_verify_and_derive_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        190 => wire__crate__api__migration__migration_config_version_on_disk_impl(
+        191 => wire__crate__api__migration__migration_config_version_on_disk_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        191 => wire__crate__api__migration__migration_run_on_startup_impl(
+        192 => wire__crate__api__migration__migration_run_on_startup_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        211 => wire__crate__api__forward__port_forward_start_dynamic_impl(
+        212 => wire__crate__api__forward__port_forward_start_dynamic_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        212 => wire__crate__api__forward__port_forward_start_local_impl(
+        213 => wire__crate__api__forward__port_forward_start_local_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        213 => wire__crate__api__forward__port_forward_start_remote_impl(
+        214 => wire__crate__api__forward__port_forward_start_remote_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        214 => wire__crate__api__forward__port_forward_stop_dynamic_impl(
+        215 => wire__crate__api__forward__port_forward_stop_dynamic_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        215 => wire__crate__api__forward__port_forward_stop_local_impl(
+        216 => wire__crate__api__forward__port_forward_stop_local_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        216 => wire__crate__api__forward__port_forward_stop_remote_impl(
+        217 => wire__crate__api__forward__port_forward_stop_remote_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        220 => wire__crate__api__archive__qr_import_open_impl(port, ptr, rust_vec_len, data_len),
-        226 => wire__crate__api__recorder__recorder_close_impl(port, ptr, rust_vec_len, data_len),
-        227 => wire__crate__api__recorder__recorder_max_file_bytes_impl(
+        221 => wire__crate__api__archive__qr_import_open_impl(port, ptr, rust_vec_len, data_len),
+        227 => wire__crate__api__recorder__recorder_close_impl(port, ptr, rust_vec_len, data_len),
+        228 => wire__crate__api__recorder__recorder_max_file_bytes_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        228 => wire__crate__api__recorder__recorder_queue_enqueue_close_impl(
+        229 => wire__crate__api__recorder__recorder_queue_enqueue_close_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        229 => wire__crate__api__recorder__recorder_queue_enqueue_event_impl(
+        230 => wire__crate__api__recorder__recorder_queue_enqueue_event_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        230 => wire__crate__api__recorder__recorder_queue_enqueue_header_impl(
+        231 => wire__crate__api__recorder__recorder_queue_enqueue_header_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        231 => wire__crate__api__recorder__recorder_queue_enqueue_rotate_impl(
+        232 => wire__crate__api__recorder__recorder_queue_enqueue_rotate_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        232 => {
+        233 => {
             wire__crate__api__recorder__recorder_queue_spawn_impl(port, ptr, rust_vec_len, data_len)
         }
-        233 => wire__crate__api__recorder__recorder_record_event_impl(
+        234 => wire__crate__api__recorder__recorder_record_event_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        234 => wire__crate__api__recorder__recorder_record_header_impl(
+        235 => wire__crate__api__recorder__recorder_record_header_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        235 => {
+        236 => {
             wire__crate__api__recorder__recorder_register_impl(port, ptr, rust_vec_len, data_len)
         }
-        236 => {
+        237 => {
             wire__crate__api__recorder__recorder_rotate_to_impl(port, ptr, rust_vec_len, data_len)
         }
-        239 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
-        240 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
-        241 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
-        242 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
-        259 => wire__crate__api__sessions_registry__sessions_registry_reload_impl(
+        240 => wire__crate__api__app__secrets_clear_impl(port, ptr, rust_vec_len, data_len),
+        241 => wire__crate__api__app__secrets_drop_impl(port, ptr, rust_vec_len, data_len),
+        242 => wire__crate__api__app__secrets_has_impl(port, ptr, rust_vec_len, data_len),
+        243 => wire__crate__api__app__secrets_put_impl(port, ptr, rust_vec_len, data_len),
+        260 => wire__crate__api__sessions_registry__sessions_registry_reload_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        267 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
+        268 => wire__crate__api__forward__ssh_cancel_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        272 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
-        273 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
-        274 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
+        273 => wire__crate__api__ssh__ssh_connect_agent_impl(port, ptr, rust_vec_len, data_len),
+        274 => wire__crate__api__ssh__ssh_connect_password_impl(port, ptr, rust_vec_len, data_len),
+        275 => wire__crate__api__ssh__ssh_connect_password_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        275 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
+        276 => wire__crate__api__ssh__ssh_connect_password_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        276 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
-        277 => {
+        277 => wire__crate__api__ssh__ssh_connect_pubkey_impl(port, ptr, rust_vec_len, data_len),
+        278 => {
             wire__crate__api__ssh__ssh_connect_pubkey_cert_impl(port, ptr, rust_vec_len, data_len)
         }
-        278 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
+        279 => wire__crate__api__ssh__ssh_connect_pubkey_cert_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        279 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
+        280 => wire__crate__api__ssh__ssh_connect_pubkey_cert_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        280 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
+        281 => wire__crate__api__ssh__ssh_connect_pubkey_via_proxy_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        281 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
+        282 => wire__crate__api__ssh__ssh_connect_pubkey_with_secret_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        283 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
+        284 => wire__crate__api__forward__ssh_next_forwarded_connection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        284 => {
+        285 => {
             wire__crate__api__forward__ssh_open_direct_tcpip_impl(port, ptr, rust_vec_len, data_len)
         }
-        285 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
-        286 => wire__crate__api__forward__ssh_request_remote_forward_impl(
+        286 => wire__crate__api__sftp__ssh_open_sftp_impl(port, ptr, rust_vec_len, data_len),
+        287 => wire__crate__api__forward__ssh_request_remote_forward_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        287 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
-        288 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
-        289 => {
+        288 => wire__crate__api__sftp__ssh_sftp_create_impl(port, ptr, rust_vec_len, data_len),
+        289 => wire__crate__api__sftp__ssh_sftp_open_impl(port, ptr, rust_vec_len, data_len),
+        290 => {
             wire__crate__api__ssh__ssh_try_connect_password_impl(port, ptr, rust_vec_len, data_len)
         }
-        290 => {
+        291 => {
             wire__crate__api__ssh__ssh_try_connect_pubkey_impl(port, ptr, rust_vec_len, data_len)
         }
-        295 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
-        296 => wire__crate__api__transfer__transfer_clear_history_impl(
+        296 => wire__crate__api__transfer__transfer_cancel_impl(port, ptr, rust_vec_len, data_len),
+        297 => wire__crate__api__transfer__transfer_clear_history_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        302 => {
+        303 => {
             wire__crate__api__transfer__transfer_dispatch_impl(port, ptr, rust_vec_len, data_len)
         }
-        303 => wire__crate__api__transfer__transfer_drop_terminal_impl(
+        304 => wire__crate__api__transfer__transfer_drop_terminal_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        304 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
-        305 => wire__crate__api__transfer__transfer_snapshot_all_impl(
+        305 => wire__crate__api__transfer__transfer_enqueue_impl(port, ptr, rust_vec_len, data_len),
+        306 => wire__crate__api__transfer__transfer_snapshot_all_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        309 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
-        311 => wire__crate__api__update_http__update_download_to_file_impl(
+        310 => wire__crate__api__update_http__update_check_impl(port, ptr, rust_vec_len, data_len),
+        312 => wire__crate__api__update_http__update_download_to_file_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        312 => wire__crate__api__update_http__update_download_with_verification_impl(
+        313 => wire__crate__api__update_http__update_download_with_verification_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        313 => {
+        314 => {
             wire__crate__api__update_http__update_fetch_text_impl(port, ptr, rust_vec_len, data_len)
         }
-        321 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
+        322 => wire__crate__api__wipe__wipe_sweep_files_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -15957,119 +16000,119 @@ fn pde_ffi_dispatcher_sync_impl(
 68 => wire__crate__api__crypto__crypto_hmac_sha256_impl(ptr, rust_vec_len, data_len),
 69 => wire__crate__api__crypto__crypto_sha256_impl(ptr, rust_vec_len, data_len),
 70 => wire__crate__api__crypto__crypto_sha256_hex_impl(ptr, rust_vec_len, data_len),
-145 => wire__crate__api__folder_path__folder_all_paths_impl(ptr, rust_vec_len, data_len),
-146 => wire__crate__api__folder_path__folder_build_path_impl(ptr, rust_vec_len, data_len),
-147 => wire__crate__api__folder_path__folder_derive_collapsed_impl(ptr, rust_vec_len, data_len),
-148 => wire__crate__api__folder_path__folder_derive_empty_impl(ptr, rust_vec_len, data_len),
-149 => wire__crate__api__folder_path__folder_find_id_by_path_impl(ptr, rust_vec_len, data_len),
-150 => wire__crate__api__folder_path__folder_rename_paths_cascade_impl(ptr, rust_vec_len, data_len),
-151 => wire__crate__api__format__format_clock_hms_impl(ptr, rust_vec_len, data_len),
-152 => wire__crate__api__format__format_date_impl(ptr, rust_vec_len, data_len),
-153 => wire__crate__api__format__format_duration_impl(ptr, rust_vec_len, data_len),
-154 => wire__crate__api__format__format_duration_seconds_fractional_impl(ptr, rust_vec_len, data_len),
-155 => wire__crate__api__format__format_filesafe_iso_timestamp_impl(ptr, rust_vec_len, data_len),
-156 => wire__crate__api__format__format_size_impl(ptr, rust_vec_len, data_len),
-157 => wire__crate__api__format__format_size_iec_impl(ptr, rust_vec_len, data_len),
-158 => wire__crate__api__format__format_timestamp_minute_impl(ptr, rust_vec_len, data_len),
-159 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_decode_linux_blob_impl(ptr, rust_vec_len, data_len),
-160 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_encode_linux_blob_impl(ptr, rust_vec_len, data_len),
-161 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_resolve_auth_value_impl(ptr, rust_vec_len, data_len),
-163 => wire__crate__api__master_password__kdf_params_decode_impl(ptr, rust_vec_len, data_len),
-164 => wire__crate__api__master_password__kdf_params_encode_impl(ptr, rust_vec_len, data_len),
-165 => wire__crate__api__keychain_password_gate__keychain_gate_compute_hmac_impl(ptr, rust_vec_len, data_len),
-166 => wire__crate__api__keychain_password_gate__keychain_gate_decode_blob_impl(ptr, rust_vec_len, data_len),
-167 => wire__crate__api__keychain_password_gate__keychain_gate_encode_blob_impl(ptr, rust_vec_len, data_len),
-168 => wire__crate__api__keychain_password_gate__keychain_gate_random_seed_impl(ptr, rust_vec_len, data_len),
-169 => wire__crate__api__keychain_marker__keychain_marker_clear_impl(ptr, rust_vec_len, data_len),
-170 => wire__crate__api__keychain_marker__keychain_marker_exists_impl(ptr, rust_vec_len, data_len),
-171 => wire__crate__api__keychain_marker__keychain_marker_set_impl(ptr, rust_vec_len, data_len),
-176 => wire__crate__api__keys__keys_is_encrypted_pem_impl(ptr, rust_vec_len, data_len),
-177 => wire__crate__api__keys__keys_is_obvious_non_key_filename_impl(ptr, rust_vec_len, data_len),
-178 => wire__crate__api__keys__keys_looks_like_ppk_impl(ptr, rust_vec_len, data_len),
-179 => wire__crate__api__keys__keys_normalized_text_fingerprint_impl(ptr, rust_vec_len, data_len),
-180 => wire__crate__api__known_hosts_parser__known_hosts_is_hashed_line_impl(ptr, rust_vec_len, data_len),
-181 => wire__crate__api__known_hosts_parser__known_hosts_parse_line_impl(ptr, rust_vec_len, data_len),
-182 => wire__crate__api__log_sanitize__looks_sensitive_impl(ptr, rust_vec_len, data_len),
-185 => wire__crate__api__master_password__master_password_disable_impl(ptr, rust_vec_len, data_len),
-187 => wire__crate__api__master_password__master_password_is_enabled_impl(ptr, rust_vec_len, data_len),
-188 => wire__crate__api__master_password__master_password_reset_impl(ptr, rust_vec_len, data_len),
-192 => wire__crate__api__deeplink__parse_connect_uri_impl(ptr, rust_vec_len, data_len),
-193 => wire__crate__api__ssh_config__parse_openssh_config_impl(ptr, rust_vec_len, data_len),
-194 => wire__crate__api__ssh_config__parse_openssh_config_with_includes_impl(ptr, rust_vec_len, data_len),
-195 => wire__crate__api__path__path_basename_impl(ptr, rust_vec_len, data_len),
-196 => wire__crate__api__path__path_expand_tilde_impl(ptr, rust_vec_len, data_len),
-197 => wire__crate__api__path__path_harden_file_perms_impl(ptr, rust_vec_len, data_len),
-198 => wire__crate__api__path__path_is_suspicious_impl(ptr, rust_vec_len, data_len),
-199 => wire__crate__api__path__path_parse_windows_attrib_output_impl(ptr, rust_vec_len, data_len),
-200 => wire__crate__api__path__path_shorten_to_two_segments_impl(ptr, rust_vec_len, data_len),
-201 => wire__crate__api__path__path_sibling_candidate_impl(ptr, rust_vec_len, data_len),
-202 => wire__crate__api__path__path_write_bytes_atomic_impl(ptr, rust_vec_len, data_len),
-203 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_clear_impl(ptr, rust_vec_len, data_len),
-204 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_init_or_get_impl(ptr, rust_vec_len, data_len),
-205 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_record_failure_impl(ptr, rust_vec_len, data_len),
-206 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_record_success_impl(ptr, rust_vec_len, data_len),
-207 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_status_impl(ptr, rust_vec_len, data_len),
-208 => wire__crate__api__persisted_rate_limit__persisted_rate_limit_decode_impl(ptr, rust_vec_len, data_len),
-209 => wire__crate__api__persisted_rate_limit__persisted_rate_limit_encode_impl(ptr, rust_vec_len, data_len),
-210 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
-217 => wire__crate__api__qr_codec_encode__qr_codec_compress_to_payload_impl(ptr, rust_vec_len, data_len),
-218 => wire__crate__api__qr_codec_encode__qr_codec_compress_to_payload_size_impl(ptr, rust_vec_len, data_len),
-219 => wire__crate__api__qr_codec_encode__qr_codec_encode_session_compact_impl(ptr, rust_vec_len, data_len),
-221 => wire__crate__api__rate_limit__rate_limit_backoff_schedule_seconds_impl(ptr, rust_vec_len, data_len),
-222 => wire__crate__api__rate_limit__rate_limit_drop_impl(ptr, rust_vec_len, data_len),
-223 => wire__crate__api__rate_limit__rate_limit_record_failure_impl(ptr, rust_vec_len, data_len),
-224 => wire__crate__api__rate_limit__rate_limit_record_success_impl(ptr, rust_vec_len, data_len),
-225 => wire__crate__api__rate_limit__rate_limit_status_impl(ptr, rust_vec_len, data_len),
-237 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
-238 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
-243 => wire__crate__api__security_capabilities__security_capabilities_can_offer_biometric_modifier_impl(ptr, rust_vec_len, data_len),
-244 => wire__crate__api__security_capabilities__security_capabilities_from_json_impl(ptr, rust_vec_len, data_len),
-245 => wire__crate__api__security_capabilities__security_capabilities_to_json_impl(ptr, rust_vec_len, data_len),
-246 => wire__crate__api__security_config__security_config_from_json_impl(ptr, rust_vec_len, data_len),
-247 => wire__crate__api__security_config__security_config_to_json_impl(ptr, rust_vec_len, data_len),
-248 => wire__crate__api__wizard_setup__security_map_wizard_choice_impl(ptr, rust_vec_len, data_len),
-249 => wire__crate__api__security_config__security_tier_modifiers_from_json_impl(ptr, rust_vec_len, data_len),
-250 => wire__crate__api__security_config__security_tier_modifiers_to_json_impl(ptr, rust_vec_len, data_len),
-251 => wire__crate__api__sessions__sessions_count_in_folder_impl(ptr, rust_vec_len, data_len),
-252 => wire__crate__api__sessions__sessions_distinct_folders_impl(ptr, rust_vec_len, data_len),
-253 => wire__crate__api__sessions__sessions_filter_impl(ptr, rust_vec_len, data_len),
-254 => wire__crate__api__sessions_registry__sessions_registry_count_impl(ptr, rust_vec_len, data_len),
-255 => wire__crate__api__sessions_registry__sessions_registry_count_in_folder_impl(ptr, rust_vec_len, data_len),
-256 => wire__crate__api__sessions_registry__sessions_registry_distinct_folders_impl(ptr, rust_vec_len, data_len),
-257 => wire__crate__api__sessions_registry__sessions_registry_filter_ids_impl(ptr, rust_vec_len, data_len),
-258 => wire__crate__api__sessions_registry__sessions_registry_ids_by_exact_folder_impl(ptr, rust_vec_len, data_len),
-260 => wire__crate__api__sessions_registry__sessions_registry_snapshot_impl(ptr, rust_vec_len, data_len),
-261 => wire__crate__api__sessions__sessions_unique_label_impl(ptr, rust_vec_len, data_len),
-262 => wire__crate__api__sessions__sessions_validate_fields_impl(ptr, rust_vec_len, data_len),
-263 => wire__crate__api__sftp_models__sftp_mode_string_impl(ptr, rust_vec_len, data_len),
-264 => wire__crate__api__sftp_models__sftp_sort_file_entries_impl(ptr, rust_vec_len, data_len),
-265 => wire__crate__api__snippet_template__snippet_template_fill_unresolved_impl(ptr, rust_vec_len, data_len),
-266 => wire__crate__api__snippet_template__snippet_template_render_impl(ptr, rust_vec_len, data_len),
-268 => wire__crate__api__ssh_config__ssh_config_glob_matches_impl(ptr, rust_vec_len, data_len),
-269 => wire__crate__api__ssh_config__ssh_config_split_host_patterns_impl(ptr, rust_vec_len, data_len),
-270 => wire__crate__api__ssh_config__ssh_config_split_keyword_value_impl(ptr, rust_vec_len, data_len),
-271 => wire__crate__api__ssh_config__ssh_config_strip_comment_impl(ptr, rust_vec_len, data_len),
-282 => wire__crate__api__ssh__ssh_format_host_key_fingerprint_impl(ptr, rust_vec_len, data_len),
-291 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
-292 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
-293 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
-294 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
-297 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
-298 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
-299 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
-300 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
-301 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
-306 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
-307 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
-308 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
-310 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
-314 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
-315 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
-316 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
-317 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
-318 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
-319 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
-320 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
+146 => wire__crate__api__folder_path__folder_all_paths_impl(ptr, rust_vec_len, data_len),
+147 => wire__crate__api__folder_path__folder_build_path_impl(ptr, rust_vec_len, data_len),
+148 => wire__crate__api__folder_path__folder_derive_collapsed_impl(ptr, rust_vec_len, data_len),
+149 => wire__crate__api__folder_path__folder_derive_empty_impl(ptr, rust_vec_len, data_len),
+150 => wire__crate__api__folder_path__folder_find_id_by_path_impl(ptr, rust_vec_len, data_len),
+151 => wire__crate__api__folder_path__folder_rename_paths_cascade_impl(ptr, rust_vec_len, data_len),
+152 => wire__crate__api__format__format_clock_hms_impl(ptr, rust_vec_len, data_len),
+153 => wire__crate__api__format__format_date_impl(ptr, rust_vec_len, data_len),
+154 => wire__crate__api__format__format_duration_impl(ptr, rust_vec_len, data_len),
+155 => wire__crate__api__format__format_duration_seconds_fractional_impl(ptr, rust_vec_len, data_len),
+156 => wire__crate__api__format__format_filesafe_iso_timestamp_impl(ptr, rust_vec_len, data_len),
+157 => wire__crate__api__format__format_size_impl(ptr, rust_vec_len, data_len),
+158 => wire__crate__api__format__format_size_iec_impl(ptr, rust_vec_len, data_len),
+159 => wire__crate__api__format__format_timestamp_minute_impl(ptr, rust_vec_len, data_len),
+160 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_decode_linux_blob_impl(ptr, rust_vec_len, data_len),
+161 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_encode_linux_blob_impl(ptr, rust_vec_len, data_len),
+162 => wire__crate__api__hardware_tier_vault__hardware_tier_vault_resolve_auth_value_impl(ptr, rust_vec_len, data_len),
+164 => wire__crate__api__master_password__kdf_params_decode_impl(ptr, rust_vec_len, data_len),
+165 => wire__crate__api__master_password__kdf_params_encode_impl(ptr, rust_vec_len, data_len),
+166 => wire__crate__api__keychain_password_gate__keychain_gate_compute_hmac_impl(ptr, rust_vec_len, data_len),
+167 => wire__crate__api__keychain_password_gate__keychain_gate_decode_blob_impl(ptr, rust_vec_len, data_len),
+168 => wire__crate__api__keychain_password_gate__keychain_gate_encode_blob_impl(ptr, rust_vec_len, data_len),
+169 => wire__crate__api__keychain_password_gate__keychain_gate_random_seed_impl(ptr, rust_vec_len, data_len),
+170 => wire__crate__api__keychain_marker__keychain_marker_clear_impl(ptr, rust_vec_len, data_len),
+171 => wire__crate__api__keychain_marker__keychain_marker_exists_impl(ptr, rust_vec_len, data_len),
+172 => wire__crate__api__keychain_marker__keychain_marker_set_impl(ptr, rust_vec_len, data_len),
+177 => wire__crate__api__keys__keys_is_encrypted_pem_impl(ptr, rust_vec_len, data_len),
+178 => wire__crate__api__keys__keys_is_obvious_non_key_filename_impl(ptr, rust_vec_len, data_len),
+179 => wire__crate__api__keys__keys_looks_like_ppk_impl(ptr, rust_vec_len, data_len),
+180 => wire__crate__api__keys__keys_normalized_text_fingerprint_impl(ptr, rust_vec_len, data_len),
+181 => wire__crate__api__known_hosts_parser__known_hosts_is_hashed_line_impl(ptr, rust_vec_len, data_len),
+182 => wire__crate__api__known_hosts_parser__known_hosts_parse_line_impl(ptr, rust_vec_len, data_len),
+183 => wire__crate__api__log_sanitize__looks_sensitive_impl(ptr, rust_vec_len, data_len),
+186 => wire__crate__api__master_password__master_password_disable_impl(ptr, rust_vec_len, data_len),
+188 => wire__crate__api__master_password__master_password_is_enabled_impl(ptr, rust_vec_len, data_len),
+189 => wire__crate__api__master_password__master_password_reset_impl(ptr, rust_vec_len, data_len),
+193 => wire__crate__api__deeplink__parse_connect_uri_impl(ptr, rust_vec_len, data_len),
+194 => wire__crate__api__ssh_config__parse_openssh_config_impl(ptr, rust_vec_len, data_len),
+195 => wire__crate__api__ssh_config__parse_openssh_config_with_includes_impl(ptr, rust_vec_len, data_len),
+196 => wire__crate__api__path__path_basename_impl(ptr, rust_vec_len, data_len),
+197 => wire__crate__api__path__path_expand_tilde_impl(ptr, rust_vec_len, data_len),
+198 => wire__crate__api__path__path_harden_file_perms_impl(ptr, rust_vec_len, data_len),
+199 => wire__crate__api__path__path_is_suspicious_impl(ptr, rust_vec_len, data_len),
+200 => wire__crate__api__path__path_parse_windows_attrib_output_impl(ptr, rust_vec_len, data_len),
+201 => wire__crate__api__path__path_shorten_to_two_segments_impl(ptr, rust_vec_len, data_len),
+202 => wire__crate__api__path__path_sibling_candidate_impl(ptr, rust_vec_len, data_len),
+203 => wire__crate__api__path__path_write_bytes_atomic_impl(ptr, rust_vec_len, data_len),
+204 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_clear_impl(ptr, rust_vec_len, data_len),
+205 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_init_or_get_impl(ptr, rust_vec_len, data_len),
+206 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_record_failure_impl(ptr, rust_vec_len, data_len),
+207 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_record_success_impl(ptr, rust_vec_len, data_len),
+208 => wire__crate__api__persisted_rate_limit_actor__persisted_rate_limit_actor_status_impl(ptr, rust_vec_len, data_len),
+209 => wire__crate__api__persisted_rate_limit__persisted_rate_limit_decode_impl(ptr, rust_vec_len, data_len),
+210 => wire__crate__api__persisted_rate_limit__persisted_rate_limit_encode_impl(ptr, rust_vec_len, data_len),
+211 => wire__crate__api__ping_impl(ptr, rust_vec_len, data_len),
+218 => wire__crate__api__qr_codec_encode__qr_codec_compress_to_payload_impl(ptr, rust_vec_len, data_len),
+219 => wire__crate__api__qr_codec_encode__qr_codec_compress_to_payload_size_impl(ptr, rust_vec_len, data_len),
+220 => wire__crate__api__qr_codec_encode__qr_codec_encode_session_compact_impl(ptr, rust_vec_len, data_len),
+222 => wire__crate__api__rate_limit__rate_limit_backoff_schedule_seconds_impl(ptr, rust_vec_len, data_len),
+223 => wire__crate__api__rate_limit__rate_limit_drop_impl(ptr, rust_vec_len, data_len),
+224 => wire__crate__api__rate_limit__rate_limit_record_failure_impl(ptr, rust_vec_len, data_len),
+225 => wire__crate__api__rate_limit__rate_limit_record_success_impl(ptr, rust_vec_len, data_len),
+226 => wire__crate__api__rate_limit__rate_limit_status_impl(ptr, rust_vec_len, data_len),
+238 => wire__crate__api__log_sanitize__redact_secrets_impl(ptr, rust_vec_len, data_len),
+239 => wire__crate__api__log_sanitize__sanitize_error_message_impl(ptr, rust_vec_len, data_len),
+244 => wire__crate__api__security_capabilities__security_capabilities_can_offer_biometric_modifier_impl(ptr, rust_vec_len, data_len),
+245 => wire__crate__api__security_capabilities__security_capabilities_from_json_impl(ptr, rust_vec_len, data_len),
+246 => wire__crate__api__security_capabilities__security_capabilities_to_json_impl(ptr, rust_vec_len, data_len),
+247 => wire__crate__api__security_config__security_config_from_json_impl(ptr, rust_vec_len, data_len),
+248 => wire__crate__api__security_config__security_config_to_json_impl(ptr, rust_vec_len, data_len),
+249 => wire__crate__api__wizard_setup__security_map_wizard_choice_impl(ptr, rust_vec_len, data_len),
+250 => wire__crate__api__security_config__security_tier_modifiers_from_json_impl(ptr, rust_vec_len, data_len),
+251 => wire__crate__api__security_config__security_tier_modifiers_to_json_impl(ptr, rust_vec_len, data_len),
+252 => wire__crate__api__sessions__sessions_count_in_folder_impl(ptr, rust_vec_len, data_len),
+253 => wire__crate__api__sessions__sessions_distinct_folders_impl(ptr, rust_vec_len, data_len),
+254 => wire__crate__api__sessions__sessions_filter_impl(ptr, rust_vec_len, data_len),
+255 => wire__crate__api__sessions_registry__sessions_registry_count_impl(ptr, rust_vec_len, data_len),
+256 => wire__crate__api__sessions_registry__sessions_registry_count_in_folder_impl(ptr, rust_vec_len, data_len),
+257 => wire__crate__api__sessions_registry__sessions_registry_distinct_folders_impl(ptr, rust_vec_len, data_len),
+258 => wire__crate__api__sessions_registry__sessions_registry_filter_ids_impl(ptr, rust_vec_len, data_len),
+259 => wire__crate__api__sessions_registry__sessions_registry_ids_by_exact_folder_impl(ptr, rust_vec_len, data_len),
+261 => wire__crate__api__sessions_registry__sessions_registry_snapshot_impl(ptr, rust_vec_len, data_len),
+262 => wire__crate__api__sessions__sessions_unique_label_impl(ptr, rust_vec_len, data_len),
+263 => wire__crate__api__sessions__sessions_validate_fields_impl(ptr, rust_vec_len, data_len),
+264 => wire__crate__api__sftp_models__sftp_mode_string_impl(ptr, rust_vec_len, data_len),
+265 => wire__crate__api__sftp_models__sftp_sort_file_entries_impl(ptr, rust_vec_len, data_len),
+266 => wire__crate__api__snippet_template__snippet_template_fill_unresolved_impl(ptr, rust_vec_len, data_len),
+267 => wire__crate__api__snippet_template__snippet_template_render_impl(ptr, rust_vec_len, data_len),
+269 => wire__crate__api__ssh_config__ssh_config_glob_matches_impl(ptr, rust_vec_len, data_len),
+270 => wire__crate__api__ssh_config__ssh_config_split_host_patterns_impl(ptr, rust_vec_len, data_len),
+271 => wire__crate__api__ssh_config__ssh_config_split_keyword_value_impl(ptr, rust_vec_len, data_len),
+272 => wire__crate__api__ssh_config__ssh_config_strip_comment_impl(ptr, rust_vec_len, data_len),
+283 => wire__crate__api__ssh__ssh_format_host_key_fingerprint_impl(ptr, rust_vec_len, data_len),
+292 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
+293 => wire__crate__api__tier_transition_marker__tier_transition_marker_clear_impl(ptr, rust_vec_len, data_len),
+294 => wire__crate__api__tier_transition_marker__tier_transition_marker_read_impl(ptr, rust_vec_len, data_len),
+295 => wire__crate__api__tier_transition_marker__tier_transition_marker_write_impl(ptr, rust_vec_len, data_len),
+298 => wire__crate__api__transfer_conflict__transfer_conflict_cached_impl(ptr, rust_vec_len, data_len),
+299 => wire__crate__api__transfer_conflict__transfer_conflict_create_impl(ptr, rust_vec_len, data_len),
+300 => wire__crate__api__transfer_conflict__transfer_conflict_drop_impl(ptr, rust_vec_len, data_len),
+301 => wire__crate__api__transfer_conflict__transfer_conflict_is_cancelled_impl(ptr, rust_vec_len, data_len),
+302 => wire__crate__api__transfer_conflict__transfer_conflict_record_decision_impl(ptr, rust_vec_len, data_len),
+307 => wire__crate__api__update_metadata__update_asset_suffix_impl(ptr, rust_vec_len, data_len),
+308 => wire__crate__api__update_metadata__update_asset_url_for_platform_impl(ptr, rust_vec_len, data_len),
+309 => wire__crate__api__update_metadata__update_build_cumulative_changelog_impl(ptr, rust_vec_len, data_len),
+311 => wire__crate__api__update_metadata__update_compare_versions_impl(ptr, rust_vec_len, data_len),
+315 => wire__crate__api__update_metadata__update_is_trusted_release_asset_uri_impl(ptr, rust_vec_len, data_len),
+316 => wire__crate__api__update_metadata__update_parse_asset_version_impl(ptr, rust_vec_len, data_len),
+317 => wire__crate__api__update_metadata__update_parse_sha256_manifest_impl(ptr, rust_vec_len, data_len),
+318 => wire__crate__api__update_signing__update_verify_release_signature_impl(ptr, rust_vec_len, data_len),
+319 => wire__crate__api__winbio__winbio_count_units_impl(ptr, rust_vec_len, data_len),
+320 => wire__crate__api__wipe__wipe_has_any_state_impl(ptr, rust_vec_len, data_len),
+321 => wire__crate__api__wipe__wipe_has_pending_impl(ptr, rust_vec_len, data_len),
                         _ => unreachable!(),
                     }
 }
