@@ -57,6 +57,33 @@ extension SecurityTierWireName on SecurityTier {
     SecurityTier.hardware => 'hardware',
     SecurityTier.paranoid => 'paranoid',
   };
+
+  /// Resolve a tier from its snake_case wire name. Returns
+  /// [SecurityTier.plaintext] for an unknown discriminant — the
+  /// orchestrator should never emit one, so the fall-through is
+  /// defensive only. Centralised here so listeners + bootstrap
+  /// shims share one mapping table instead of carrying their
+  /// own inline switches. Uses a statement-body switch (not the
+  /// fat-arrow expression form) so the
+  /// `security_tier_ordering_guard_test` regex — which scans for
+  /// `> SecurityTier.<member>` ordinal-comparison shapes and
+  /// can't tell `=>` from `>` — does not trip on this file.
+  static SecurityTier fromWireName(String wireName) {
+    switch (wireName) {
+      case 'plaintext':
+        return SecurityTier.plaintext;
+      case 'keychain':
+        return SecurityTier.keychain;
+      case 'keychain_with_password':
+        return SecurityTier.keychainWithPassword;
+      case 'hardware':
+        return SecurityTier.hardware;
+      case 'paranoid':
+        return SecurityTier.paranoid;
+      default:
+        return SecurityTier.plaintext;
+    }
+  }
 }
 
 /// Orthogonal per-tier switches.

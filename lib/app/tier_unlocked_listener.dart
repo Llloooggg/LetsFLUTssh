@@ -143,7 +143,7 @@ class TierUnlockedListener {
       // so the post-unlock Dart cascade fans out the right
       // `securityStateProvider.set` slot.
       final tierWire = rust_tier.tierMachineActiveTierWireName();
-      final tier = _tierFromWireName(tierWire);
+      final tier = SecurityTierWireName.fromWireName(tierWire);
       final key = keyBytes.isEmpty ? null : Uint8List.fromList(keyBytes);
       // Invalidate Dart-side store caches so the next read
       // pulls fresh rows after the engine swap. Mirrors the
@@ -225,27 +225,6 @@ enum TierUnlockOutcome {
 
   /// Listener torn down before any terminal event landed.
   aborted,
-}
-
-/// Resolve a tier wire name from the FRB-mirrored `tier_machine`
-/// active-tier accessor. Mirrors `SecurityTier.values
-/// .firstWhere(name)` shape inline so the listener doesn't pull
-/// the security_tier enum into its imports.
-SecurityTier _tierFromWireName(String wireName) {
-  switch (wireName) {
-    case 'plaintext':
-      return SecurityTier.plaintext;
-    case 'keychain':
-      return SecurityTier.keychain;
-    case 'keychain_with_password':
-      return SecurityTier.keychainWithPassword;
-    case 'hardware':
-      return SecurityTier.hardware;
-    case 'paranoid':
-      return SecurityTier.paranoid;
-  }
-  // Defensive — orchestrator should never set an unknown tier.
-  return SecurityTier.plaintext;
 }
 
 /// Process-singleton listener. Started from app bootstrap;
