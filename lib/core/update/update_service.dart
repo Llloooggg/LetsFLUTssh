@@ -250,97 +250,38 @@ class UpdateService {
 
   Future<UpdateInfo> _checkForUpdateDart(String currentVersion) async {
     final body = await _fetch(apiUri);
-    final releases = jsonDecode(body);
-
-    // Support both array (releases list) and single object (legacy /latest)
-    final List<dynamic> releaseList;
-    if (releases is List) {
-      releaseList = releases;
-    } else if (releases is Map<String, dynamic>) {
-      releaseList = [releases];
-    } else {
-      releaseList = [];
-    }
-
-    if (releaseList.isEmpty) {
-      AppLogger.instance.log(
-        'Update check: release list empty — treating current build as latest',
-        name: 'UpdateService',
-      );
-      return UpdateInfo(
-        latestVersion: currentVersion,
+    final rust_update_http.DbUpdateInfo result;
+    try {
+      result = await rust_update_http.updateCheckFromBody(
+        body: body,
         currentVersion: currentVersion,
-        releaseUrl: 'https://github.com/$repo/releases/latest',
+        repo: repo,
       );
+    } catch (e) {
+      // Rust surfaces JSON parse failures as
+      // `io: update releases JSON parse: …`. Reshape to the
+      // FormatException callers expect — the parse-error contract
+      // is part of the Dart-facing surface and tests assert on it.
+      final msg = e.toString();
+      if (msg.contains('update releases JSON parse')) {
+        throw FormatException(msg);
+      }
+      rethrow;
     }
-
-    final latest = releaseList.first as Map<String, dynamic>;
-    final tagName = latest['tag_name'] as String? ?? '';
-    final version = tagName.startsWith('v') ? tagName.substring(1) : tagName;
-    final releaseUrl =
-        latest['html_url'] as String? ??
-        'https://github.com/$repo/releases/latest';
-    final assets = latest['assets'] as List<dynamic>? ?? [];
-
-    final assetUrl = assetUrlForPlatform(assets);
-    final assetDigest = digestForPlatform(assets);
-    final changelog = buildCumulativeChangelog(releaseList, currentVersion);
-
     final info = UpdateInfo(
-      latestVersion: version,
-      currentVersion: currentVersion,
-      releaseUrl: releaseUrl,
-      assetUrl: assetUrl,
-      assetDigest: assetDigest,
-      changelog: changelog,
+      latestVersion: result.latestVersion,
+      currentVersion: result.currentVersion,
+      releaseUrl: result.releaseUrl,
+      assetUrl: result.assetUrl,
+      assetDigest: result.assetDigest,
+      changelog: result.changelog,
     );
-
     AppLogger.instance.log(
-      'Update check: current=$currentVersion, latest=$version, hasUpdate=${info.hasUpdate}',
+      'Update check: current=$currentVersion, '
+      'latest=${info.latestVersion}, hasUpdate=${info.hasUpdate}',
       name: 'UpdateService',
     );
     return info;
-  }
-
-  /// Build changelog from all releases between current version and latest.
-  /// Routes through `lfs_core::update_metadata::build_cumulative_changelog`.
-  static String? buildCumulativeChangelog(
-    List<dynamic> releases,
-    String currentVersion,
-  ) {
-    final pairs = <rust_update.DbChangelogRelease>[];
-    for (final release in releases) {
-      if (release is! Map<String, dynamic>) continue;
-      final tag = release['tag_name'] as String? ?? '';
-      final body = release['body'] as String? ?? '';
-      pairs.add(rust_update.DbChangelogRelease(tag: tag, body: body));
-    }
-    return rust_update.updateBuildCumulativeChangelog(
-      releases: pairs,
-      currentVersion: currentVersion,
-    );
-  }
-
-  /// Extract SHA256 digest for the platform-matching asset.
-  static String? digestForPlatform(
-    List<dynamic> assets, {
-    String? platformOverride,
-  }) {
-    final platform = platformOverride ?? _hostPlatform();
-    final suffix = _assetSuffix(platform);
-    if (suffix == null) return null;
-    for (final asset in assets) {
-      if (asset is! Map<String, dynamic>) continue;
-      final name = asset['name'] as String? ?? '';
-      if (name.endsWith(suffix)) {
-        final digest = asset['digest'] as String?;
-        if (digest != null && digest.startsWith('sha256:')) {
-          return digest.substring(7);
-        }
-        return null;
-      }
-    }
-    return null;
   }
 
   /// Download the asset at [url] into [targetDir], returning the saved path.
@@ -738,33 +679,9 @@ class UpdateService {
     return rust_crypto.cryptoSha256Hex(bytes: bytes);
   }
 
-  /// Pick the right asset for the current platform from the release
-  /// assets via `lfs_core::update_metadata::asset_url_for_platform` —
-  /// the suffix-allowlist + asset-iteration grammar lives in Rust.
-  static String? assetUrlForPlatform(
-    List<dynamic> assets, {
-    String? platformOverride,
-  }) {
-    final platform = platformOverride ?? _hostPlatform();
-    final entries = <rust_update.DbReleaseAsset>[];
-    for (final asset in assets) {
-      if (asset is! Map<String, dynamic>) continue;
-      final name = asset['name'] as String? ?? '';
-      final url = asset['browser_download_url'] as String? ?? '';
-      if (name.isEmpty || url.isEmpty) continue;
-      entries.add(
-        rust_update.DbReleaseAsset(name: name, browserDownloadUrl: url),
-      );
-    }
-    return rust_update.updateAssetUrlForPlatform(
-      assets: entries,
-      platform: platform,
-    );
-  }
-
   /// Platforms we ship self-updatable binaries for. Anything else (iOS,
-  /// fuchsia, …) maps to `'unknown'` so [assetUrlForPlatform] returns null
-  /// instead of picking a random asset.
+  /// fuchsia, …) maps to `'unknown'` so the Rust orchestrator's asset
+  /// picker returns null instead of binding to a random suffix.
   static const _selfUpdatablePlatforms = {
     'linux',
     'windows',
@@ -776,11 +693,6 @@ class UpdateService {
     final os = Platform.operatingSystem;
     return _selfUpdatablePlatforms.contains(os) ? os : 'unknown';
   }
-
-  /// Map platform to expected asset filename suffix via
-  /// `lfs_core::update_metadata::asset_suffix`.
-  static String? _assetSuffix(String platform) =>
-      rust_update.updateAssetSuffix(platform: platform);
 
   /// Characters that must not appear in file paths passed to `cmd /c start`.
   static final _unsafePathChars = RegExp(r'[&|<>^%]');

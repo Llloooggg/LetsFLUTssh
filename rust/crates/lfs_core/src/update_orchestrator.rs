@@ -111,7 +111,24 @@ fn pick_asset_digest(assets: &[Value], suffix: &str) -> Option<String> {
 /// separate flow for that edge case.
 pub async fn check_for_update(current_version: &str, repo: &str) -> Result<UpdateInfo, Error> {
     let body = update_http::fetch_text(&api_url(repo)).await?;
-    let parsed: Value = serde_json::from_str(&body)
+    check_for_update_from_body(&body, current_version, repo)
+}
+
+/// Same orchestration walk as [`check_for_update`] but against a
+/// pre-fetched releases-API response body — caller owns the HTTP
+/// transport so flutter_test contexts can drive captured fixture
+/// bytes through the Rust parser without a real network round-trip.
+/// Returns a parse error only when the body is not valid JSON;
+/// every shape branch falls through to the same defaults
+/// `check_for_update` uses (empty list → echo current version,
+/// missing `tag_name` → empty version, missing `html_url` →
+/// `default_release_url`).
+pub fn check_for_update_from_body(
+    body: &str,
+    current_version: &str,
+    repo: &str,
+) -> Result<UpdateInfo, Error> {
+    let parsed: Value = serde_json::from_str(body)
         .map_err(|e| Error::Io(format!("update releases JSON parse: {e}")))?;
     let release_list: Vec<Value> = match parsed {
         Value::Array(arr) => arr,
@@ -523,5 +540,79 @@ mod tests {
             ..info.clone()
         };
         assert!(!same.has_update());
+    }
+
+    #[test]
+    fn from_body_empty_array_echoes_current_version() {
+        let info = check_for_update_from_body("[]", "1.0.0", "owner/repo").expect("parse");
+        assert_eq!(info.latest_version, "1.0.0");
+        assert_eq!(info.current_version, "1.0.0");
+        assert_eq!(
+            info.release_url,
+            "https://github.com/owner/repo/releases/latest"
+        );
+        assert!(info.asset_url.is_none());
+        assert!(info.asset_digest.is_none());
+        assert!(info.changelog.is_none());
+        assert!(!info.has_update());
+    }
+
+    #[test]
+    fn from_body_array_picks_first_release() {
+        let body = r#"[
+            {"tag_name":"v2.0.0","html_url":"https://example/r2","assets":[]},
+            {"tag_name":"v1.0.0","html_url":"https://example/r1","assets":[]}
+        ]"#;
+        let info = check_for_update_from_body(body, "1.0.0", "owner/repo").expect("parse");
+        assert_eq!(info.latest_version, "2.0.0");
+        assert!(info.has_update());
+    }
+
+    #[test]
+    fn from_body_single_object_treated_as_legacy_latest() {
+        let body = r#"{"tag_name":"v2.0.0","html_url":"https://example/r","assets":[]}"#;
+        let info = check_for_update_from_body(body, "1.0.0", "owner/repo").expect("parse");
+        assert_eq!(info.latest_version, "2.0.0");
+        assert_eq!(info.release_url, "https://example/r");
+    }
+
+    #[test]
+    fn from_body_missing_tag_name_yields_empty_version() {
+        let body = r#"[{"html_url":"https://example/r","assets":[]}]"#;
+        let info = check_for_update_from_body(body, "1.0.0", "owner/repo").expect("parse");
+        assert_eq!(info.latest_version, "");
+        assert!(!info.has_update());
+    }
+
+    #[test]
+    fn from_body_missing_html_url_falls_back_to_default() {
+        let body = r#"[{"tag_name":"v2.0.0","assets":[]}]"#;
+        let info = check_for_update_from_body(body, "1.0.0", "owner/repo").expect("parse");
+        assert_eq!(
+            info.release_url,
+            "https://github.com/owner/repo/releases/latest"
+        );
+    }
+
+    #[test]
+    fn from_body_missing_assets_yields_no_asset_url() {
+        let body = r#"[{"tag_name":"v2.0.0","html_url":"https://example/r"}]"#;
+        let info = check_for_update_from_body(body, "1.0.0", "owner/repo").expect("parse");
+        assert!(info.asset_url.is_none());
+        assert!(info.asset_digest.is_none());
+    }
+
+    #[test]
+    fn from_body_invalid_json_is_parse_error() {
+        let err = check_for_update_from_body("not json", "1.0.0", "owner/repo").unwrap_err();
+        assert!(format!("{err}").contains("update releases JSON parse"));
+    }
+
+    #[test]
+    fn from_body_non_array_non_object_falls_back_to_empty_list() {
+        // String / number / bool at the top level → treat as empty list.
+        let info = check_for_update_from_body("\"hi\"", "1.0.0", "owner/repo").expect("parse");
+        assert_eq!(info.latest_version, "1.0.0");
+        assert!(!info.has_update());
     }
 }

@@ -47,9 +47,11 @@ pub struct DbReleaseAsset {
 
 /// Pick the release asset URL whose `name` ends with the
 /// platform's expected suffix (`asset_suffix`). Returns `None` for
-/// unknown platforms or when no asset matches. Mirrors
-/// `UpdateService.assetUrlForPlatform` so the suffix-allowlist
-/// + asset-iteration grammar lives one place.
+/// unknown platforms or when no asset matches. Standalone FRB
+/// surface kept around for tests; the production update-check
+/// path goes through `update_check_from_body`, which calls the
+/// underlying `lfs_core::update_metadata::asset_url_for_platform`
+/// directly.
 #[flutter_rust_bridge::frb(sync)]
 pub fn update_asset_url_for_platform(
     assets: Vec<DbReleaseAsset>,

@@ -88,11 +88,11 @@ pub fn asset_suffix(platform: &str) -> Option<&'static str> {
 /// asset's `name` ends with the platform's suffix (or the
 /// platform itself has no self-update channel).
 ///
-/// Mirrors `UpdateService.assetUrlForPlatform` Dart-side. Lifts
-/// the asset-list iteration off the Dart heap so the same
-/// allowlist (`asset_suffix`) drives both sides; the FRB shim
-/// flattens the GitHub release JSON's `assets` array into the
-/// flat `(name, url)` list before crossing the boundary.
+/// Called from `update_orchestrator::check_for_update_from_body`
+/// after the Dart `UpdateService` hands the pre-fetched releases
+/// JSON across the FRB boundary; the same allowlist
+/// (`asset_suffix`) gates both the orchestrator's pick and the
+/// FRB shim that surfaces individual lookups for tests.
 pub fn asset_url_for_platform<'a, I>(assets: I, platform: &str) -> Option<String>
 where
     I: IntoIterator<Item = (&'a str, &'a str)>,

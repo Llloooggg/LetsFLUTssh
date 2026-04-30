@@ -45,6 +45,23 @@ Future<DbUpdateInfo> updateCheck({
   repo: repo,
 );
 
+/// Same orchestration walk as [`update_check`] but against a
+/// pre-fetched releases-API response body. The Dart-side
+/// `UpdateService._checkForUpdateDart` test seam fetches the body
+/// through an injected `HttpFetcher` (so unit tests can drive
+/// captured fixture bytes through the parser without a real
+/// network round-trip) and then routes through here so the
+/// JSON-shape walk + asset-suffix selection lives one place.
+Future<DbUpdateInfo> updateCheckFromBody({
+  required String body,
+  required String currentVersion,
+  required String repo,
+}) => RustLib.instance.api.crateApiUpdateHttpUpdateCheckFromBody(
+  body: body,
+  currentVersion: currentVersion,
+  repo: repo,
+);
+
 /// Download the asset at `url` into `target_dir`, verify its
 /// SHA-256 against `expected_digest` (when non-empty), then fetch +
 /// verify the signed manifest. Returns the typed

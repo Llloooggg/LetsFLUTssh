@@ -85,6 +85,28 @@ pub async fn update_check(current_version: String, repo: String) -> Result<DbUpd
         .map_err(|e| e.to_string())
 }
 
+/// Same orchestration walk as [`update_check`] but against a
+/// pre-fetched releases-API response body. The Dart-side
+/// `UpdateService._checkForUpdateDart` test seam fetches the body
+/// through an injected `HttpFetcher` (so unit tests can drive
+/// captured fixture bytes through the parser without a real
+/// network round-trip) and then routes through here so the
+/// JSON-shape walk + asset-suffix selection lives one place.
+pub fn update_check_from_body(
+    body: String,
+    current_version: String,
+    repo: String,
+) -> Result<DbUpdateInfo, String> {
+    let target_repo = if repo.is_empty() {
+        lfs_core::update_orchestrator::DEFAULT_REPO
+    } else {
+        repo.as_str()
+    };
+    lfs_core::update_orchestrator::check_for_update_from_body(&body, &current_version, target_repo)
+        .map(DbUpdateInfo::from)
+        .map_err(|e| e.to_string())
+}
+
 /// FRB mirror of `lfs_core::update_orchestrator::DownloadedAsset`.
 #[derive(Debug, Clone)]
 pub struct DbDownloadedAsset {
