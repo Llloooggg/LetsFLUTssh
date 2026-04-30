@@ -3,6 +3,7 @@ import 'dart:io';
 import 'cert_factory.dart';
 import 'codesigner.dart';
 import 'keychain.dart';
+import 'process_runner.dart';
 
 /// Outcome of a self-sign flow. Surfaces back to the UI so the wizard
 /// can show a tailored message + suggest the right next step.
@@ -156,11 +157,9 @@ class _DefaultKeychain implements Keychain {
   Keychain _lazy() => Keychain();
 
   @override
-  // ignore: invalid_use_of_visible_for_overriding_member
   String get keychainPath => _lazy().keychainPath;
   @override
-  // ignore: invalid_use_of_visible_for_overriding_member
-  get runner => _lazy().runner;
+  IProcessRunner get runner => _lazy().runner;
 
   @override
   Future<bool> hasCertificate(String commonName) =>

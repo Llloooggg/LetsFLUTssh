@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -67,8 +69,7 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
                   // "Enable Logging" defaults to info — the most
                   // verbose level we have, which writes every routine
                   // entry + warnings + errors.
-                  // ignore: unawaited_futures
-                  AppLogger.instance.setThreshold(LogLevel.info);
+                  unawaited(AppLogger.instance.setThreshold(LogLevel.info));
                   AppLogger.instance.log(
                     'Logging enabled after error: $errorType',
                     name: 'ErrorBoundary',

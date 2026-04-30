@@ -177,8 +177,7 @@ class ConfigNotifier extends Notifier<AppConfig> {
     // opens/closes the sink; the awaited load() path handles cold-
     // start init synchronously. Callers of update() should not pay for
     // the I/O of opening a sink file.
-    // ignore: unawaited_futures
-    AppLogger.instance.setThreshold(updated.logLevel);
+    unawaited(AppLogger.instance.setThreshold(updated.logLevel));
     _pendingConfig = updated;
     _pendingSaveCompleter ??= Completer<void>();
     final completer = _pendingSaveCompleter!;
