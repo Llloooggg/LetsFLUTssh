@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/config/app_config.dart';
@@ -518,8 +517,7 @@ class UnifiedExportController extends ChangeNotifier {
     // Route the deflate + base64url through `lfs_core::qr_codec_encode`
     // so size estimation here uses the same compressor parameters as
     // the production encode path (qr_codec.dart + Rust archive
-    // exporter). Falls back to package:archive Deflate when the FRB
-    // native lib isn't loaded (flutter_test).
+    // exporter).
     final withKeysSize = _payloadSize(json);
 
     const baselineOptions = ExportOptions(
@@ -548,24 +546,11 @@ class UnifiedExportController extends ChangeNotifier {
     );
   }
 
-  /// Deflate + base64url encoded byte count of [json]. Routes
-  /// through `lfs_core::qr_codec_encode::compress_to_payload_size`
-  /// in production; falls back to `package:archive` Deflate for
-  /// flutter_test contexts that don't load the FRB native lib.
-  /// Strips `=` padding to match the canonical no-pad wire shape.
-  int _payloadSize(String json) {
-    try {
-      return rust_qr.qrCodecCompressToPayloadSize(json: json);
-    } catch (_) {
-      final compressed = Deflate(utf8.encode(json)).getBytes();
-      final encoded = base64Url.encode(compressed);
-      var end = encoded.length;
-      while (end > 0 && encoded.codeUnitAt(end - 1) == 0x3D /* '=' */ ) {
-        end--;
-      }
-      return end;
-    }
-  }
+  /// Deflate + base64url encoded byte count of [json] via
+  /// `lfs_core::qr_codec_encode::compress_to_payload_size` —
+  /// `=` padding stripped to match the canonical no-pad wire shape.
+  int _payloadSize(String json) =>
+      rust_qr.qrCodecCompressToPayloadSize(json: json);
 
   int get configSize {
     if (_cachedConfigSize != null) return _cachedConfigSize!;
