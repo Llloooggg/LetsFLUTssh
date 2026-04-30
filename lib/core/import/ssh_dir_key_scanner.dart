@@ -60,22 +60,10 @@ class SshDirKeyScanner {
   }
 
   /// Routes through `lfs_core::keys::is_obvious_non_key_filename`
-  /// so the `*.pub` / `config` / `authorized_keys*` /
-  /// `known_hosts*` skip rule lives one place; falls back to the
-  /// inline branch list when the FRB native lib is not loaded.
-  static bool _isObviousNonKey(String name) {
-    try {
-      return rust_keys.keysIsObviousNonKeyFilename(filename: name);
-    } catch (_) {
-      if (name.endsWith('.pub')) return true;
-      if (name == 'config') return true;
-      if (name == 'authorized_keys' || name.startsWith('authorized_keys')) {
-        return true;
-      }
-      if (name.startsWith('known_hosts')) return true;
-      return false;
-    }
-  }
+  /// — the `*.pub` / `config` / `authorized_keys*` / `known_hosts*`
+  /// skip rule lives in Rust.
+  static bool _isObviousNonKey(String name) =>
+      rust_keys.keysIsObviousNonKeyFilename(filename: name);
 
   /// Routes through `KeyFileHelper.basename` so the
   /// Windows-separator normalization grammar lives one place
