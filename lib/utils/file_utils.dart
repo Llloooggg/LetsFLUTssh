@@ -1,23 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import '../src/rust/api/path.dart' as rust_path;
 import 'logger.dart';
-
-final _rng = Random();
 
 /// Atomic file write — writes to `<path>.tmp`, hardens to owner-
 /// only perms, then renames to the destination. A crash mid-flush
 /// leaves either the previous file content or the tmp file behind,
 /// never a torn destination.
 ///
-/// Routes through `lfs_core::path::write_bytes_atomic` in
-/// production so the on-disk perms contract lives one place. The
-/// FRB shim returns `Result<(), String>`; failures rethrow as the
-/// `AnyhowException` the caller already handles. Falls back to a
-/// pure-Dart write when the FRB native lib is missing
-/// (flutter_test contexts).
+/// Routes through `lfs_core::path::write_bytes_atomic`. The FRB
+/// shim returns `Result<(), String>`; failures rethrow as the
+/// `AnyhowException` the caller already handles.
 Future<void> writeFileAtomic(String path, String content) async {
   await writeBytesAtomic(path, utf8.encode(content));
 }
@@ -28,44 +22,8 @@ Future<void> writeFileAtomic(String path, String content) async {
 /// true)` ahead of this; the helper surfaces ENOENT loudly when
 /// the contract is broken).
 Future<void> writeBytesAtomic(String path, List<int> bytes) async {
-  final file = File(path);
-  await file.parent.create(recursive: true);
-  try {
-    rust_path.pathWriteBytesAtomic(path: path, bytes: bytes);
-    return;
-  } catch (e) {
-    // FRB native lib missing (flutter_test) or a runtime
-    // serialisation issue — fall back to direct Dart File I/O so
-    // the test surface keeps working. Production never reaches
-    // here because RustLib.init runs at app start.
-    AppLogger.instance.log(
-      'writeBytesAtomic Rust path failed, falling back: $e',
-      name: 'FileUtils',
-      level: LogLevel.warn,
-    );
-  }
-  await _writeBytesDartFallback(file, bytes);
-}
-
-Future<void> _writeBytesDartFallback(File file, List<int> bytes) async {
-  // Random tmp suffix mirrors the Rust path's collision-avoidance
-  // shape — concurrent writers to the same destination must not
-  // collide on the intermediate file.
-  final tmp = File('${file.path}.tmp${_rng.nextInt(1 << 30)}');
-  try {
-    await tmp.writeAsBytes(bytes);
-    await hardenFilePerms(tmp.path);
-    await tmp.rename(file.path);
-  } catch (e) {
-    AppLogger.instance.log(
-      'Atomic write fallback failed for ${file.path}: $e',
-      name: 'FileUtils',
-    );
-    try {
-      await tmp.delete();
-    } catch (_) {}
-    rethrow;
-  }
+  await File(path).parent.create(recursive: true);
+  rust_path.pathWriteBytesAtomic(path: path, bytes: bytes);
 }
 
 /// Single cross-cutting entry point for locking down permissions on a
@@ -75,8 +33,8 @@ Future<void> _writeBytesDartFallback(File file, List<int> bytes) async {
 /// support directory that could hold encryption keys, authentication
 /// material, rate-limit state, or any other integrity-sensitive blob.
 /// The atomic-write helpers above already call it on the `.tmp` file
-/// before rename via the Rust core (or via the Dart fallback); other
-/// paths (drift's SQLite WAL/SHM sidecars) must call this explicitly.
+/// before rename via the Rust core; other paths (drift's SQLite
+/// WAL/SHM sidecars) must call this explicitly.
 ///
 /// Unix: `chmod 600` (owner read/write only) — matches the OpenSSH
 /// expectation for every file under `~/.ssh/`.
@@ -86,47 +44,12 @@ Future<void> _writeBytesDartFallback(File file, List<int> bytes) async {
 /// Android) — the OS already enforces tighter access than `chmod 600`
 /// would.
 ///
-/// Routes through `lfs_core::path::harden_file_perms` in production
-/// so the chmod / icacls grammar lives one place. Falls back to a
-/// Dart subprocess shell-out for flutter_test contexts that don't
-/// load the FRB native lib.
+/// Routes through `lfs_core::path::harden_file_perms` — the chmod /
+/// icacls grammar lives in Rust. Best-effort: a chmod failure must
+/// never break a write.
 Future<void> hardenFilePerms(String path) async {
   try {
     rust_path.pathHardenFilePerms(path: path);
-    return;
-  } catch (e) {
-    AppLogger.instance.log(
-      'hardenFilePerms Rust path failed, falling back: $e',
-      name: 'FileUtils',
-      level: LogLevel.warn,
-    );
-  }
-  try {
-    if (Platform.isLinux || Platform.isMacOS) {
-      final result = await Process.run('chmod', ['600', path]);
-      if (result.exitCode != 0) {
-        AppLogger.instance.log(
-          'chmod 600 failed: ${result.stderr}',
-          name: 'FileUtils',
-        );
-      }
-    } else if (Platform.isWindows) {
-      final user = Platform.environment['USERNAME'] ?? '';
-      if (user.isEmpty) return;
-      // Remove inherited permissions, then grant current user full control.
-      final result = await Process.run('icacls', [
-        path,
-        '/inheritance:r',
-        '/grant:r',
-        '$user:(F)',
-      ]);
-      if (result.exitCode != 0) {
-        AppLogger.instance.log(
-          'icacls failed: ${result.stderr}',
-          name: 'FileUtils',
-        );
-      }
-    }
   } catch (e) {
     AppLogger.instance.log(
       'Failed to harden permissions: $e',

@@ -3,7 +3,15 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/utils/file_utils.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // writeFileAtomic / writeBytesAtomic / hardenFilePerms route
+  // through `lfs_core::path` — bootstrap FRB so the canonical Rust
+  // atomic-write + chmod path is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   late Directory tempDir;
 
   setUp(() {
@@ -122,18 +130,13 @@ void main() {
       () async {
         if (!Platform.isLinux && !Platform.isMacOS) return;
         // `/proc/1` exists but cannot contain new files for a regular
-        // user — writing there throws a FileSystemException inside
-        // `tmp.writeAsString`. The helper's catch must log + rethrow
-        // so the caller can surface the failure; the rollback
-        // `tmp.delete()` swallows its own error when the temp never
-        // existed. Without the rollback the test would fail with a
-        // stuck `.tmp*` file at the target path.
+        // user — writing there throws an unrecoverable I/O error.
+        // The Rust `path::write_bytes_atomic` rolls the tmp file
+        // back internally and rethrows as an AnyhowException so the
+        // caller can surface the failure.
         final bad =
             '/proc/1/letsflutssh-bogus-${DateTime.now().microsecondsSinceEpoch}.txt';
-        await expectLater(
-          writeFileAtomic(bad, 'ignored'),
-          throwsA(isA<FileSystemException>()),
-        );
+        await expectLater(writeFileAtomic(bad, 'ignored'), throwsA(anything));
       },
     );
 
@@ -141,10 +144,7 @@ void main() {
       if (!Platform.isLinux && !Platform.isMacOS) return;
       final bad =
           '/proc/1/letsflutssh-bogus-${DateTime.now().microsecondsSinceEpoch}.bin';
-      await expectLater(
-        writeBytesAtomic(bad, [1, 2, 3]),
-        throwsA(isA<FileSystemException>()),
-      );
+      await expectLater(writeBytesAtomic(bad, [1, 2, 3]), throwsA(anything));
     });
   });
 }

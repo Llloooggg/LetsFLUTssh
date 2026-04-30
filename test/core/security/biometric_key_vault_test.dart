@@ -9,6 +9,8 @@ import 'package:letsflutssh/core/security/linux/fprintd_client.dart';
 import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/linux_keychain_marker.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// Pure-Dart marker stand-in for tests. The production
 /// [LinuxKeychainMarker] now delegates each op across the FRB
 /// boundary into `lfs_core::security::keychain_marker`; under
@@ -36,6 +38,10 @@ class _InMemoryMarker extends LinuxKeychainMarker {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // BiometricKeyVault writes the salt blob via writeBytesAtomic
+  // which routes through `lfs_core::path::write_bytes_atomic` —
+  // bootstrap FRB so the canonical Rust write path is exercised.
+  setUpAll(requireFrbLoaded);
 
   late Map<String, String> fakeStore;
   late LinuxKeychainMarker marker;
