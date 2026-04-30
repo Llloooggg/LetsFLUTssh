@@ -32,6 +32,7 @@ import 'dart:io';
 
 import 'package:flutter_rust_bridge/src/platform_types/_io.dart';
 
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/src/rust/frb_generated.dart';
 
 bool _loaded = false;
@@ -49,6 +50,12 @@ Future<bool> ensureFrbLoaded() async {
   if (libPath == null) return false;
   try {
     await RustLib.init(externalLibrary: ExternalLibrary.open(libPath));
+    // Mirror production startup — `lfs_core::app::AppState` is a
+    // process singleton that downstream FRB calls (secrets / db /
+    // connection registry / transfer queue / etc.) panic against
+    // when missing. Production code calls this from `main.dart`
+    // immediately after `RustLib.init`.
+    rust_app.appInit();
     _loaded = true;
     return true;
   } catch (e) {

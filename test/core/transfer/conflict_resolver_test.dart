@@ -2,7 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:letsflutssh/core/transfer/conflict_resolver.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // BatchConflictResolver routes its cache + cancellation grammar
+  // through `lfs_core::transfer_conflict::BatchStateRegistry`.
+  setUpAll(requireFrbLoaded);
+
   group('BatchConflictResolver', () {
     test('forwards each call to the prompt when applyToAll is false', () async {
       final calls = <String>[];
