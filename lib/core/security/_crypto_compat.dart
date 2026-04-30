@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as dart_crypto;
@@ -8,7 +7,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
 
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwv;
-import '../../src/rust/api/keychain_password_gate.dart' as rust_gate;
 import '../../src/rust/api/persisted_rate_limit.dart' as rust_prl;
 import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
@@ -79,119 +77,6 @@ String sha256HexCompat(List<int> bytes) {
     return dart_crypto.sha256.convert(bytes).toString();
   }
 }
-
-/// L2 keychain-password-gate seed: random salt + pepper pair.
-class KeychainGateSeed {
-  final Uint8List salt;
-  final Uint8List pepper;
-  const KeychainGateSeed({required this.salt, required this.pepper});
-}
-
-/// L2 keychain-password-gate disk blob: salt + comparison HMAC the
-/// gate persists in `security_pass_hash.bin`.
-class KeychainGateBlob {
-  final Uint8List salt;
-  final Uint8List hmac;
-  const KeychainGateBlob({required this.salt, required this.hmac});
-}
-
-/// Generate the random salt + pepper pair the L2 gate seeds at
-/// `setPassword` time. Routes through
-/// `lfs_core::security::keychain_password_gate::random_salt_and_pepper`
-/// in production; falls back to `Random.secure()` 32-byte output in
-/// flutter_test contexts.
-KeychainGateSeed keychainGateRandomSeedCompat() {
-  try {
-    final s = rust_gate.keychainGateRandomSeed();
-    return KeychainGateSeed(salt: s.salt, pepper: s.pepper);
-  } catch (_) {
-    final rng = _testRng;
-    return KeychainGateSeed(
-      salt: Uint8List.fromList(List<int>.generate(32, (_) => rng.nextInt(256))),
-      pepper: Uint8List.fromList(
-        List<int>.generate(32, (_) => rng.nextInt(256)),
-      ),
-    );
-  }
-}
-
-/// `HMAC-SHA-256(pepper, salt || password_utf8)` — the gate's
-/// comparison HMAC. Routes through
-/// `lfs_core::security::keychain_password_gate::compute_gate_hmac`;
-/// the fallback path matches byte-for-byte via the existing
-/// `hmacSha256Compat` shared between production + test.
-Uint8List keychainGateComputeHmacCompat(
-  Uint8List pepper,
-  Uint8List salt,
-  String password,
-) {
-  try {
-    return rust_gate.keychainGateComputeHmac(
-      pepper: pepper,
-      salt: salt,
-      password: password,
-    );
-  } catch (_) {
-    final msg = BytesBuilder()
-      ..add(salt)
-      ..add(utf8.encode(password));
-    return hmacSha256Compat(pepper, msg.toBytes());
-  }
-}
-
-/// Encode the salt + hmac pair as the JSON envelope written to
-/// `security_pass_hash.bin`. Wire format:
-/// `{"salt":"<base64>","hmac":"<base64>"}`. The Rust path is
-/// canonical; the Dart fallback below produces the same bytes by
-/// construction.
-String keychainGateEncodeBlobCompat(Uint8List salt, Uint8List hmac) {
-  try {
-    return rust_gate.keychainGateEncodeBlob(salt: salt, hmac: hmac);
-  } catch (_) {
-    return jsonEncode({
-      'salt': base64.encode(salt),
-      'hmac': base64.encode(hmac),
-    });
-  }
-}
-
-/// Parse the on-disk JSON envelope. Returns null on any malformed
-/// shape (bad JSON / missing fields / non-string values / invalid
-/// base64 / empty decoded bytes); the gate's `verify` treats null
-/// as "wrong password" without surfacing the parse error.
-KeychainGateBlob? keychainGateDecodeBlobCompat(String blob) {
-  try {
-    final decoded = rust_gate.keychainGateDecodeBlob(blob: blob);
-    return KeychainGateBlob(salt: decoded.salt, hmac: decoded.hmac);
-  } on AnyhowException catch (_) {
-    return null;
-  } catch (_) {
-    // FRB native lib unavailable (test context) — parse Dart-side.
-    return _decodeBlobFallback(blob);
-  }
-}
-
-KeychainGateBlob? _decodeBlobFallback(String blob) {
-  try {
-    final decoded = jsonDecode(blob);
-    if (decoded is! Map<String, dynamic>) return null;
-    final saltB64 = decoded['salt'];
-    final hmacB64 = decoded['hmac'];
-    if (saltB64 is! String || hmacB64 is! String) return null;
-    final salt = base64.decode(saltB64);
-    final hmac = base64.decode(hmacB64);
-    if (salt.isEmpty || hmac.isEmpty) return null;
-    return KeychainGateBlob(salt: salt, hmac: hmac);
-  } catch (_) {
-    return null;
-  }
-}
-
-/// `Random.secure()` for the test-context fallback. Production
-/// never touches it (the FRB path returns first); allocating a
-/// single shared instance avoids paying the seeding cost per call
-/// in the test suite.
-final math.Random _testRng = math.Random.secure();
 
 /// L3 hardware-tier-vault Linux disk blob: salt + TPM-sealed
 /// DB-key bytes the vault persists in `hardware_vault.bin`.

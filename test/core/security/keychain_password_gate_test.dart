@@ -2,21 +2,31 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:letsflutssh/app/keychain_op_prompt_listener.dart';
+import 'package:letsflutssh/app/keychain_pepper_prompt_listener.dart';
 import 'package:letsflutssh/core/security/keychain_password_gate.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:path/path.dart' as p;
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // Intentionally NO `requireFrbLoaded` here — these tests exercise
-  // the Dart-pipeline fallback in setPassword/verify/clear that
-  // composes the disk blob inline. With FRB bootstrap the test
-  // would route through `keychain_password_gate_actor.set_password`,
-  // which publishes a `KeychainOpPromptRequest` bus event and awaits
-  // a Dart subscriber that this unit test isn't wiring up. The Dart
-  // fallback covers the same wire-byte format via the `_compat`
-  // helpers and is the path the test was designed for.
+  // Bootstrap FRB and start the production prompt listeners so the
+  // gate's Rust actor (`keychain_password_gate_actor::set_password`
+  // / `verify` / `clear`) can complete its keychain round-trip
+  // against the test's mock `flutter_secure_storage` instead of
+  // hanging on an unanswered `KeychainOpPromptRequest`.
+  setUpAll(() async {
+    await requireFrbLoaded();
+    KeychainOpPromptListener.start();
+    KeychainPepperPromptListener.start();
+  });
+
+  tearDownAll(() {
+    KeychainOpPromptListener.stop();
+    KeychainPepperPromptListener.stop();
+  });
 
   late Directory tempDir;
   late Map<String, String> fakeKeychain;
@@ -60,7 +70,6 @@ void main() {
   });
 
   KeychainPasswordGate newGate() => KeychainPasswordGate(
-    keychain: const FlutterSecureStorage(),
     hashFileFactory: () async => File('${tempDir.path}/security_pass_hash.bin'),
   );
 
@@ -152,7 +161,12 @@ void main() {
       await gate.setPassword('hunter2');
       final limiter = await gate.rateLimiter();
       expect(limiter, isNotNull);
-      limiter!.recordFailure();
+      // Force backend init via the async status path; the actor
+      // needs its file_path + hmac_key bound before the first
+      // recordFailure can land in a real slot (sync recordFailure
+      // on a cold limiter routes through a no-op probe path).
+      await (limiter! as PersistedRateLimiter).statusAsync();
+      limiter.recordFailure();
       limiter.recordFailure();
       // Any locked limiter reports a non-zero cooldown.
       expect(limiter.status().failureCount, greaterThanOrEqualTo(1));
@@ -208,9 +222,19 @@ void main() {
             });
 
         final gate = newGate();
+        // The Rust actor catches the PlatformException via the
+        // KeychainOpPromptListener, rolls back the disk hash, then
+        // throws an `L2 set_password: keychain write failed …;
+        // rolled back disk hash` anyhow error so the caller can
+        // surface the failure.
         await expectLater(
           () => gate.setPassword('hunter2'),
-          throwsA(isA<PlatformException>()),
+          throwsA(
+            predicate(
+              (e) => e.toString().contains('keychain write failed'),
+              'rejects with the L2 set_password rollback error',
+            ),
+          ),
         );
         expect(
           File('${tempDir.path}/security_pass_hash.bin').existsSync(),
@@ -235,7 +259,10 @@ void main() {
         final gate = newGate();
         await gate.setPassword('hunter2');
         final limiter1 = await gate.rateLimiter();
-        limiter1!.recordFailure();
+        // Init the actor before the first recordFailure (see the
+        // sibling rateLimiter test for the same pattern).
+        await (limiter1! as PersistedRateLimiter).statusAsync();
+        limiter1.recordFailure();
         limiter1.recordFailure();
         // Wait for the fire-and-forget save to land on disk.
         await (limiter1 as PersistedRateLimiter).awaitPendingSave();
