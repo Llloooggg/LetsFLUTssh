@@ -219,40 +219,31 @@ class UpdateService {
   ///
   /// Production routes through `lfs_core::update_orchestrator::check_for_update`
   /// (one FRB call replaces the GitHub JSON parse + asset selection +
-  /// changelog walk). The Dart fallback below mirrors the same logic
-  /// for flutter_test contexts that don't load the FRB native lib (or
-  /// for tests that inject a non-default [HttpFetcher] via the
-  /// constructor — the existence of an injected fetcher is signal that
-  /// the caller wants the Dart path).
+  /// changelog walk) and propagates any Rust-side failure to the caller.
+  /// Tests that inject a non-default [HttpFetcher] via the constructor
+  /// take the [_checkForUpdateDart] path, which drives the same parse
+  /// walk against captured fixture bytes.
   Future<UpdateInfo> checkForUpdate(String currentVersion) async {
     AppLogger.instance.log('Checking for updates...', name: 'UpdateService');
     if (identical(_fetch, defaultFetch)) {
-      try {
-        final result = await rust_update_http.updateCheck(
-          currentVersion: currentVersion,
-          repo: repo,
-        );
-        final info = UpdateInfo(
-          latestVersion: result.latestVersion,
-          currentVersion: result.currentVersion,
-          releaseUrl: result.releaseUrl,
-          assetUrl: result.assetUrl,
-          assetDigest: result.assetDigest,
-          changelog: result.changelog,
-        );
-        AppLogger.instance.log(
-          'Update check: current=$currentVersion, '
-          'latest=${info.latestVersion}, hasUpdate=${info.hasUpdate}',
-          name: 'UpdateService',
-        );
-        return info;
-      } catch (e) {
-        AppLogger.instance.log(
-          'updateCheck FRB failed; using Dart fallback: $e',
-          name: 'UpdateService',
-          level: LogLevel.warn,
-        );
-      }
+      final result = await rust_update_http.updateCheck(
+        currentVersion: currentVersion,
+        repo: repo,
+      );
+      final info = UpdateInfo(
+        latestVersion: result.latestVersion,
+        currentVersion: result.currentVersion,
+        releaseUrl: result.releaseUrl,
+        assetUrl: result.assetUrl,
+        assetDigest: result.assetDigest,
+        changelog: result.changelog,
+      );
+      AppLogger.instance.log(
+        'Update check: current=$currentVersion, '
+        'latest=${info.latestVersion}, hasUpdate=${info.hasUpdate}',
+        name: 'UpdateService',
+      );
+      return info;
     }
     return _checkForUpdateDart(currentVersion);
   }
@@ -324,34 +315,10 @@ class UpdateService {
       final body = release['body'] as String? ?? '';
       pairs.add(rust_update.DbChangelogRelease(tag: tag, body: body));
     }
-    try {
-      return rust_update.updateBuildCumulativeChangelog(
-        releases: pairs,
-        currentVersion: currentVersion,
-      );
-    } catch (_) {
-      return _buildCumulativeChangelogDart(pairs, currentVersion);
-    }
-  }
-
-  static String? _buildCumulativeChangelogDart(
-    List<rust_update.DbChangelogRelease> releases,
-    String currentVersion,
-  ) {
-    final buf = StringBuffer();
-    for (final release in releases) {
-      final tag = release.tag;
-      final ver = tag.startsWith('v') ? tag.substring(1) : tag;
-      if (UpdateInfo.compareVersions(ver, currentVersion) <= 0) break;
-      final body = release.body.trim();
-      if (body.isNotEmpty) {
-        if (buf.isNotEmpty) buf.writeln();
-        buf.writeln('## $tag');
-        buf.writeln(body);
-      }
-    }
-    final result = buf.toString().trim();
-    return result.isEmpty ? null : result;
+    return rust_update.updateBuildCumulativeChangelog(
+      releases: pairs,
+      currentVersion: currentVersion,
+    );
   }
 
   /// Extract SHA256 digest for the platform-matching asset.

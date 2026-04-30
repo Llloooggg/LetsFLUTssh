@@ -221,9 +221,7 @@ class ExportOptions {
 /// (FRB sync) so the v4 field-name grammar
 /// (`l`/`h`/`u`/`p`/`g`/`a`/`ki`/`mg`/`pw`) lives one place across
 /// the in-memory encoder and the DB-backed
-/// `lfs_core::archive::qr_export_payload` writer. Falls back to the
-/// inline map build when the FRB native lib isn't loaded
-/// (flutter_test contexts that don't initialise `RustLib`).
+/// `lfs_core::archive::qr_export_payload` writer.
 Map<String, dynamic> encodeSessionCompact(
   Session s, {
   String? keyId,

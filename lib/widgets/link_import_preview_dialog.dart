@@ -14,9 +14,8 @@ typedef LinkImportPreviewResult = ({ImportMode mode, ExportOptions options});
 /// payloads.
 ///
 /// Thin wrapper around [ImportPreviewDialog]: renders a link-title header
-/// and reads counts off the unified [LfsPreview] shape (built from either
-/// the Rust-staged handle's preview or the Dart fallback's
-/// [ExportPayloadData]).
+/// and reads counts off the [LfsPreview] shape built from the Rust-staged
+/// handle's preview.
 class LinkImportPreviewDialog extends StatelessWidget {
   final LfsPreview preview;
 

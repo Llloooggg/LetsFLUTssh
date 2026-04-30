@@ -22,16 +22,11 @@ import 'navigator_key.dart';
 
 /// Apply the QR deep-link / paste-link payload to the user's stores.
 ///
-/// Dispatches on the [QrDecodedSource] variant:
-///   * Rust source — staged handle id consumed by `applyOpenedHandle`,
-///     bytes never crossed the FRB boundary outwards.
-///   * Dart source — legacy fallback, applies via `applyResultViaRust`
-///     against the Dart-walked `ExportPayloadData` tree.
-///
-/// Both paths show the same `LinkImportPreviewDialog` and route the
-/// post-import toast through `addPostFrameCallback` (the deeplink
-/// pump may fire before a `BuildContext` with a Toast surface is
-/// mounted).
+/// The [QrDecodedSource] always carries a Rust-staged handle id consumed
+/// by `applyOpenedHandle` — payload bytes never cross the FRB boundary
+/// outwards. The post-import toast is routed through
+/// `addPostFrameCallback` because the deeplink pump may fire before a
+/// `BuildContext` with a Toast surface is mounted.
 Future<void> handleQrImport(WidgetRef ref, QrDecodedSource source) async {
   final ctx = navigatorKey.currentContext;
   if (ctx == null || !ctx.mounted) return;
