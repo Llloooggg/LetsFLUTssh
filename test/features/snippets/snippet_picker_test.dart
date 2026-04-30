@@ -9,6 +9,8 @@ import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/app_icon_button.dart';
 import 'package:letsflutssh/widgets/toast.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// In-memory fake for [SnippetsNotifier] — no database. Owns the
 /// session→snippet links so the picker's `sessionSnippetsProvider`
 /// override can resolve against the same state.
@@ -84,6 +86,12 @@ class FakeSnippetsNotifier extends SnippetsNotifier {
 }
 
 void main() {
+  // SnippetPicker calls `renderSnippet`, which routes through
+  // `lfs_core::snippet_template::render` — bootstrap FRB so the
+  // widget can render snippets without throwing.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   late FakeSnippetsNotifier fakeStore;
 
   final snippet1 = Snippet(id: 's1', title: 'List files', command: 'ls -la');

@@ -2,9 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/snippets/snippet_template.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 Snippet _s(String command) => Snippet(id: 'i', title: 't', command: command);
 
 void main() {
+  // renderSnippet routes through `lfs_core::snippet_template::render`
+  // — bootstrap FRB so the canonical Rust token grammar is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('renderSnippet', () {
     test('substitutes a single known token', () {
       final r = renderSnippet(_s('ssh {{host}}'), {'host': 'example.com'});
