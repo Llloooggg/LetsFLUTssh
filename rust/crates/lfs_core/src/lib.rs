@@ -31,6 +31,7 @@ pub mod deeplink;
 pub mod error;
 pub mod folder_path;
 pub mod format;
+pub mod host_info;
 pub mod keys;
 pub mod known_hosts;
 pub mod known_hosts_parser;

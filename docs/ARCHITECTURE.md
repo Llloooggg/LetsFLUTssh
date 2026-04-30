@@ -3642,11 +3642,36 @@ String get homeDirectory;
 
 bool get isMobilePlatform;     // Android || iOS
 bool get isDesktopPlatform;    // Linux || macOS || Windows
+bool get isMacosPlatform;      // macOS only — gates self-sign UI
 
 // Testing:
 @visibleForTesting bool? debugMobilePlatformOverride;
 @visibleForTesting bool? debugDesktopPlatformOverride;
+@visibleForTesting bool? debugIsMacosOverride;
+@visibleForTesting void debugResetPlatformCache();
 ```
+
+**Routing.** All four queries delegate to
+`lfs_core::host_info::*` over a sync FRB hop. `home_directory`
+performs the env-var lookup Rust-side
+(`EXTERNAL_STORAGE` on Android; `HOME` then `USERPROFILE`
+elsewhere). `is_mobile` / `is_desktop` / `is_macos` resolve
+to `cfg!(target_os = ...)` constants. Each result is cached
+on the Dart side after the first read — env vars don't move
+during a process lifetime, and the cfg booleans are
+compile-time constants.
+
+**Test-context fallback.** The three boolean predicates fall
+back to `dart:io` `Platform.isXyz` when FRB is not
+bootstrapped, so widget tests that don't call `RustLib.init`
+still resolve. The fallback can never disagree with the Rust
+answer (both forms are compile-time constants tied to the
+same binary target). `homeDirectory` has no such fallback —
+the env-var resolution is the part that earns its keep
+through Rust, so tests that exercise tilde expansion bootstrap
+FRB. The `debugResetPlatformCache()` seam exists so tests
+that toggle FRB load state mid-suite can drop the cached
+results.
 
 ### TerminalClipboard
 

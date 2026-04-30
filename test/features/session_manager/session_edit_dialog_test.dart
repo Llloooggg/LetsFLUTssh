@@ -14,12 +14,29 @@ import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/dropdown_select_button.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // `_buildSession` performs tilde expansion via `homeDirectory`,
+  // which now routes through `lfs_core::host_info` (FRB sync).
+  // Bootstrap once for the whole file.
+  setUpAll(requireFrbLoaded);
+
   SessionDialogResult? dialogResult;
 
   Widget buildApp({Session? session, String? defaultFolder}) {
     dialogResult = null;
     return ProviderScope(
+      overrides: [
+        // The dialog watches `sessionTagsProvider` (per-session
+        // family) and `sshKeysProvider` for chips/dropdowns. With
+        // FRB bootstrapped and no `lfs_core.db` in the test
+        // process, the live providers spin a
+        // CircularProgressIndicator forever — `pumpAndSettle`
+        // never settles. Stub them to immediate empty values.
+        sessionTagsProvider.overrideWith((ref, sessionId) async => <Tag>[]),
+        sshKeysProvider.overrideWith(() => _StubKeysNotifier(const [])),
+      ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
         supportedLocales: S.supportedLocales,

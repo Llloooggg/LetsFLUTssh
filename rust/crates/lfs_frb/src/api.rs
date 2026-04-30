@@ -18,6 +18,7 @@ pub mod db;
 pub mod deeplink;
 pub mod folder_path;
 pub mod format;
+pub mod host_info;
 pub mod forward;
 pub mod hardware_tier_vault;
 pub mod keychain_marker;

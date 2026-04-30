@@ -391,7 +391,7 @@ plain data — the Rust crate is shorter than the Dart wrapper.
 | `core/security/secret_buffer.dart` | 215 | `dart:ffi` to libc `mlock` / `munlock` / `madvise(MADV_DONTDUMP)` | `nix` / `libc` |
 | `core/security/process_hardening.dart` | 172 | `dart:ffi` to libc `prctl(PR_SET_DUMPABLE)` | `nix` / `libc` |
 | `core/security/libc_loader.dart` | 30 | retires after the two above | — |
-| `utils/platform.dart` | 44 | `Platform.environment['HOME' \| 'USERPROFILE' \| 'EXTERNAL_STORAGE']` | `directories` |
+| ~~`utils/platform.dart`~~ | ~~44~~ | ~~`Platform.environment['HOME' \| 'USERPROFILE' \| 'EXTERNAL_STORAGE']`~~ | done — `lfs_core::host_info` (`home_directory()` + cfg-gated `is_mobile/is_desktop/is_macos`); Dart wrapper caches first FRB read, falls back to `dart:io Platform.isXyz` for the booleans only when FRB is not bootstrapped (mathematically identical answer — same compile-time constants tied to the same binary target — so the fallback exists for widget-test ergonomics, not as a correctness divergence) |
 | ~~`core/session/session_tree.dart`~~ | ~~128~~ | ~~folder-tree builder (pure data)~~ | done — `lfs_core::session_tree` (forest builder + sort + recursive count); Dart class is now a thin FRB wrapper that re-binds the live `Session` handle to leaf nodes by id |
 | ~~`core/session/session_history.dart`~~ | ~~58~~ | ~~undo/redo snapshot stack (pure data)~~ | done — `lfs_core::session_history` (per-handle bounded LIFO actor); Dart class wraps the actor handle and serialises `SessionSnapshot` ↔ JSON bytes |
 | `core/single_instance/single_instance.dart` | 85 | flock-based single-instance gate | `fd-lock` |
@@ -769,9 +769,15 @@ one, ship it, then pick the next.
 3. `secret_buffer.dart` + `process_hardening.dart` +
    `libc_loader.dart` → `lfs_core::os_security` via `nix` /
    `libc`. Drops `dart:ffi` from the security module.
-4. `utils/platform.dart` `homeDirectory` → Rust via
+4. ~~`utils/platform.dart` `homeDirectory` → Rust via
    `directories` crate. Smoke-test Android `EXTERNAL_STORAGE`
-   resolution before flipping.
+   resolution before flipping.~~ Done — landed as
+   `lfs_core::host_info` with direct env-var resolution (not
+   the `directories` crate; Android wants `EXTERNAL_STORAGE`
+   specifically and the crate doesn't expose that bucket
+   cleanly). All four queries (`home_directory` /
+   `is_mobile` / `is_desktop` / `is_macos`) are sync FRB
+   shims; the Dart wrapper caches each result on first read.
 5. ~~`core/session/session_tree.dart` + `session_history.dart` +
    `core/single_instance/single_instance.dart` → Rust pure-data
    modules + `fd-lock` for the file lock.~~ Done — `session_history`
