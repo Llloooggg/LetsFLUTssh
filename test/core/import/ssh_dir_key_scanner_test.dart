@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/import/ssh_dir_key_scanner.dart';
 
@@ -102,6 +104,34 @@ void main() {
         pemByPath: {r'C:\Users\u\.ssh\id_rsa': 'PRIVATE KEY'},
       ).scan(r'C:\Users\u\.ssh');
       expect(result.single.suggestedLabel, 'id_rsa');
+    });
+  });
+
+  group('SshDirKeyScanner (production FRB path, no seams)', () {
+    // Exercises the no-seams branch — production code drops a real
+    // directory path on the scanner and the Rust core walks it. We
+    // stage a tempdir on disk so the assertion mirrors the prod flow.
+    test('reads PEM file from a real temp directory', () async {
+      final dir = await Directory.systemTemp.createTemp('lfs_scanner_test_');
+      try {
+        await File(
+          '${dir.path}/id_test',
+        ).writeAsString('-----BEGIN PRIVATE KEY-----\nbody\n');
+        await File('${dir.path}/id_test.pub').writeAsString('public stuff\n');
+        await File('${dir.path}/known_hosts').writeAsString('ignored\n');
+        final result = await SshDirKeyScanner().scan(dir.path);
+        expect(result.map((k) => k.suggestedLabel), ['id_test']);
+        expect(result.single.pem, contains('PRIVATE KEY'));
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    });
+
+    test('returns empty for missing directory', () async {
+      final result = await SshDirKeyScanner().scan(
+        '/path/does/not/exist/lfs_scanner_test',
+      );
+      expect(result, isEmpty);
     });
   });
 }

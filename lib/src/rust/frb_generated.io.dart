@@ -52,6 +52,7 @@ import 'api/sftp_models.dart';
 import 'api/snippet_template.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
+import 'api/ssh_dir_scan.dart';
 import 'api/threat_eval.dart';
 import 'api/tier_machine.dart';
 import 'api/tier_transition_marker.dart';
@@ -589,6 +590,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbRestoreSessionInput dco_decode_db_restore_session_input(dynamic raw);
 
   @protected
+  DbScannedKey dco_decode_db_scanned_key(dynamic raw);
+
+  @protected
   DbSearchableSession dco_decode_db_searchable_session(dynamic raw);
 
   @protected
@@ -791,6 +795,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbRestoreSessionInput> dco_decode_list_db_restore_session_input(
     dynamic raw,
   );
+
+  @protected
+  List<DbScannedKey> dco_decode_list_db_scanned_key(dynamic raw);
 
   @protected
   List<DbSearchableSession> dco_decode_list_db_searchable_session(dynamic raw);
@@ -1606,6 +1613,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbScannedKey sse_decode_db_scanned_key(SseDeserializer deserializer);
+
+  @protected
   DbSearchableSession sse_decode_db_searchable_session(
     SseDeserializer deserializer,
   );
@@ -1866,6 +1876,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbRestoreSessionInput> sse_decode_list_db_restore_session_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbScannedKey> sse_decode_list_db_scanned_key(
     SseDeserializer deserializer,
   );
 
@@ -2889,6 +2904,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_scanned_key(DbScannedKey self, SseSerializer serializer);
+
+  @protected
   void sse_encode_db_searchable_session(
     DbSearchableSession self,
     SseSerializer serializer,
@@ -3224,6 +3242,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_restore_session_input(
     List<DbRestoreSessionInput> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_scanned_key(
+    List<DbScannedKey> self,
     SseSerializer serializer,
   );
 

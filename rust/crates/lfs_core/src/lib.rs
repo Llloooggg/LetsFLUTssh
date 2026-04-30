@@ -56,6 +56,7 @@ pub mod sftp_models;
 pub mod snippet_template;
 pub mod ssh;
 pub mod ssh_config;
+pub mod ssh_dir_scan;
 pub mod threat_eval;
 pub mod threat_vocabulary;
 pub mod transfer;
