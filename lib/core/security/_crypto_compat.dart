@@ -1,51 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
-import '../../src/rust/api/persisted_rate_limit.dart' as rust_prl;
 import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../../src/rust/api/tier_transition_marker.dart' as rust_ttm;
-
-/// `PersistedRateLimiter` HMAC-authenticated state on disk.
-class PersistedRateLimitState {
-  final int failureCount;
-  final int? nextRetryAtMillis;
-  const PersistedRateLimitState({
-    required this.failureCount,
-    required this.nextRetryAtMillis,
-  });
-}
-
-/// Encode the limiter's state as the HMAC-authenticated frame
-/// written to `rate_limit_state.bin` via
-/// `lfs_core::security::persisted_rate_limit::encode`.
-Uint8List persistedRateLimitEncodeCompat(
-  PersistedRateLimitState state,
-  Uint8List hmacKey,
-) => rust_prl.persistedRateLimitEncode(
-  failureCount: state.failureCount,
-  nextRetryAtMillis: state.nextRetryAtMillis,
-  hmacKey: hmacKey,
-);
-
-/// Parse + HMAC-verify the on-disk frame via
-/// `lfs_core::security::persisted_rate_limit::decode`. Returns null
-/// on tamper / corruption / wrong key — the limiter's caller treats
-/// null as "no state on disk" without surfacing the parse error.
-PersistedRateLimitState? persistedRateLimitDecodeCompat(
-  Uint8List bytes,
-  Uint8List hmacKey,
-) {
-  final decoded = rust_prl.persistedRateLimitDecode(
-    bytes: bytes,
-    hmacKey: hmacKey,
-  );
-  if (decoded == null) return null;
-  return PersistedRateLimitState(
-    failureCount: decoded.failureCount,
-    nextRetryAtMillis: decoded.nextRetryAtMillis,
-  );
-}
 
 /// Read the `.tier-transition-pending` marker body from
 /// [supportDir], or null when absent. Routes through

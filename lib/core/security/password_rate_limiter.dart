@@ -6,12 +6,12 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/persisted_rate_limit.dart' as rust_prl;
 import '../../src/rust/api/persisted_rate_limit_actor.dart'
     as rust_persisted_actor;
 import '../../src/rust/api/rate_limit.dart' as rust_rate_limit;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
-import '_crypto_compat.dart';
 
 /// Exponential-backoff password rate limiter.
 ///
@@ -480,7 +480,10 @@ class _DartBackend extends _Backend {
         return;
       }
       final raw = await file.readAsBytes();
-      final decoded = persistedRateLimitDecodeCompat(raw, _hmacKey);
+      final decoded = rust_prl.persistedRateLimitDecode(
+        bytes: raw,
+        hmacKey: _hmacKey,
+      );
       if (decoded == null) {
         // HMAC mismatch — clamp to max cooldown.
         _failureCount = PasswordRateLimiter.backoffSchedule.length - 1;
@@ -532,15 +535,17 @@ class _DartBackend extends _Backend {
   }
 
   void _scheduleSave() {
-    final snapshot = PersistedRateLimitState(
-      failureCount: _failureCount,
-      nextRetryAtMillis: _nextRetryAt?.millisecondsSinceEpoch,
-    );
+    final snapshotFailureCount = _failureCount;
+    final snapshotRetryMillis = _nextRetryAt?.millisecondsSinceEpoch;
     pendingSave = pendingSave.catchError((_) {}).then((_) async {
       try {
         final file = await _stateFile();
         await file.parent.create(recursive: true);
-        final bytes = persistedRateLimitEncodeCompat(snapshot, _hmacKey);
+        final bytes = rust_prl.persistedRateLimitEncode(
+          failureCount: snapshotFailureCount,
+          nextRetryAtMillis: snapshotRetryMillis,
+          hmacKey: _hmacKey,
+        );
         await file.writeAsBytes(bytes, flush: true);
         await hardenFilePerms(file.path);
       } catch (e) {
