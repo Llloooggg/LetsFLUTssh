@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/wipe.dart' as rust_wipe;
@@ -61,12 +60,10 @@ class WipeReport {
 class WipeAllService {
   WipeAllService({
     Future<Directory> Function()? supportDirFactory,
-    FlutterSecureStorage? keychain,
     MethodChannel? hardwareVaultChannel,
     bool purgeKeychain = true,
     Future<void> Function()? credentialCacheEvict,
   }) : _supportDir = supportDirFactory ?? getApplicationSupportDirectory,
-       _keychain = keychain ?? const FlutterSecureStorage(),
        _hwChannel =
            hardwareVaultChannel ??
            const MethodChannel(_hardwareVaultChannelName),
@@ -76,7 +73,6 @@ class WipeAllService {
   static const _hardwareVaultChannelName = 'com.letsflutssh/hardware_vault';
 
   final Future<Directory> Function() _supportDir;
-  final FlutterSecureStorage _keychain;
   final MethodChannel _hwChannel;
   final bool _purgeKeychain;
 
@@ -198,14 +194,10 @@ class WipeAllService {
 
   /// Walk the canonical key list (versioned in Rust as
   /// `lfs_core::security::wipe_keychain::MANAGED_KEYS`) and ask
-  /// the keychain plugin to drop each. Routes through the Rust
-  /// actor by default — owns the audited key catalogue + a
-  /// per-key outcome report; falls back to the inline
-  /// `_keychain.deleteAll()` shape for flutter_test contexts
-  /// that don't load the FRB native lib.
-  ///
-  /// Per-key outcomes are logged so a partial failure (e.g. one
-  /// stuck Linux libsecret slot) is visible in a support trace
+  /// the keychain plugin to drop each via the Rust actor. The
+  /// audited key catalogue + the per-key outcome report live in
+  /// Rust; per-key failures (e.g. one stuck Linux libsecret slot)
+  /// are logged so partial wipe is visible in a support trace
   /// without having to re-run the wipe.
   Future<bool> _purgeKeychainStore() async {
     try {
@@ -220,16 +212,6 @@ class WipeAllService {
         }
       }
       return report.allSucceeded;
-    } catch (e) {
-      AppLogger.instance.log(
-        'WipeAllService.keychainPurge FRB unreachable, '
-        'falling back to deleteAll: $e',
-        name: 'WipeAllService',
-      );
-    }
-    try {
-      await _keychain.deleteAll();
-      return true;
     } catch (e) {
       AppLogger.instance.log(
         'WipeAllService: keychain purge skipped: $e',
