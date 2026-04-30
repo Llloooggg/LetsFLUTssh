@@ -307,21 +307,16 @@ class SessionRecorder {
 
   /// Routes through `lfs_core::format::format_filesafe_iso_timestamp`
   /// so the colon-replacement + fractional-drop grammar lives one
-  /// place. Falls back to the inline `replaceAll`/`split` chain
-  /// when the FRB native lib is not loaded.
+  /// place.
   static String _isoTimestamp() {
     final now = DateTime.now().toUtc();
-    try {
-      return rust_format.formatFilesafeIsoTimestamp(
-        year: now.year,
-        month: now.month,
-        day: now.day,
-        hour: now.hour,
-        minute: now.minute,
-        second: now.second,
-      );
-    } catch (_) {
-      return now.toIso8601String().replaceAll(':', '-').split('.').first;
-    }
+    return rust_format.formatFilesafeIsoTimestamp(
+      year: now.year,
+      month: now.month,
+      day: now.day,
+      hour: now.hour,
+      minute: now.minute,
+      second: now.second,
+    );
   }
 }
