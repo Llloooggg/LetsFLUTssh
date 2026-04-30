@@ -306,39 +306,13 @@ class UpdateService {
     onPhase?.call(UpdateDownloadPhase.downloading);
     if (identical(_download, defaultDownload) &&
         identical(_verifyArtifact, _defaultVerifyArtifact)) {
-      try {
-        return await _downloadAssetViaRust(
-          url: url,
-          targetDir: targetDir,
-          expectedDigest: expectedDigest,
-          onProgress: onProgress,
-          onPhase: onPhase,
-        );
-      } catch (e) {
-        // Network / IO / signature failures intentionally propagate
-        // out — the caller (UpdateNotifier) maps them to error
-        // toasts. Only fall back to the legacy Dart path when the
-        // FRB native lib is genuinely unavailable; treat that as a
-        // missing-binding signal so flutter_test contexts still work.
-        if (e is! StateError &&
-            e is! InvalidReleaseSignatureException &&
-            e is! ReleaseManifestUnavailableException) {
-          AppLogger.instance.log(
-            'updateDownloadWithVerification FRB call failed; '
-            'falling back to dart:io: $e',
-            name: 'UpdateService',
-            level: LogLevel.warn,
-          );
-          return _downloadAssetDart(
-            uri: uri,
-            targetDir: targetDir,
-            expectedDigest: expectedDigest,
-            onProgress: onProgress,
-            onPhase: onPhase,
-          );
-        }
-        rethrow;
-      }
+      return _downloadAssetViaRust(
+        url: url,
+        targetDir: targetDir,
+        expectedDigest: expectedDigest,
+        onProgress: onProgress,
+        onPhase: onPhase,
+      );
     }
     return _downloadAssetDart(
       uri: uri,
