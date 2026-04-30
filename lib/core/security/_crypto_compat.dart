@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -342,65 +341,26 @@ PersistedRateLimitState? _decodePersistedRateLimitFallback(
   }
 }
 
-/// Marker file name used by both the Rust + Dart-fallback paths.
-/// Mirror of `lfs_core::security::tier_transition_marker::MARKER_FILE_NAME`.
-const String _tierTransitionMarkerFileName = '.tier-transition-pending';
-
 /// Read the `.tier-transition-pending` marker body from
-/// [supportDir], or null when absent. Production routes through
-/// `lfs_core::security::tier_transition_marker::read`; flutter_test
-/// contexts that don't load the FRB native lib fall back to direct
-/// File I/O at the same path.
+/// [supportDir], or null when absent. Routes through
+/// `lfs_core::security::tier_transition_marker::read`.
 String? tierTransitionMarkerReadCompat(String supportDir) {
-  try {
-    return rust_ttm.tierTransitionMarkerRead(supportDir: supportDir);
-  } catch (_) {
-    final file = File('$supportDir/$_tierTransitionMarkerFileName');
-    if (!file.existsSync()) return null;
-    try {
-      return file.readAsStringSync();
-    } catch (_) {
-      return null;
-    }
-  }
+  return rust_ttm.tierTransitionMarkerRead(supportDir: supportDir);
 }
 
 /// Write the `.tier-transition-pending` marker with [payload] as
-/// its body. Production routes through Rust (atomic + 0600 hardened);
-/// the Dart fallback writes directly + chmods via the file_utils
-/// helper to match the production perms.
+/// its body. Routes through Rust — atomic + 0600 hardened.
 Future<void> tierTransitionMarkerWriteCompat(
   String supportDir,
   String payload,
 ) async {
-  try {
-    rust_ttm.tierTransitionMarkerWrite(
-      supportDir: supportDir,
-      payload: payload,
-    );
-  } catch (_) {
-    final dir = Directory(supportDir);
-    if (!dir.existsSync()) dir.createSync(recursive: true);
-    final path = '$supportDir/$_tierTransitionMarkerFileName';
-    final file = File(path);
-    file.writeAsStringSync(payload, flush: true);
-  }
+  rust_ttm.tierTransitionMarkerWrite(supportDir: supportDir, payload: payload);
 }
 
 /// Drop the `.tier-transition-pending` marker. Idempotent on a
-/// missing file. Production routes through Rust; the fallback path
-/// deletes via `dart:io`.
+/// missing file. Routes through Rust.
 void tierTransitionMarkerClearCompat(String supportDir) {
-  try {
-    rust_ttm.tierTransitionMarkerClear(supportDir: supportDir);
-  } catch (_) {
-    final file = File('$supportDir/$_tierTransitionMarkerFileName');
-    if (file.existsSync()) {
-      try {
-        file.deleteSync();
-      } catch (_) {}
-    }
-  }
+  rust_ttm.tierTransitionMarkerClear(supportDir: supportDir);
 }
 
 /// Snapshot of the parsed `security_probe_cache` block. Mirror of
@@ -428,9 +388,7 @@ class CapabilitiesSnapshot {
 
 /// Encode the security-capabilities snapshot as the JSON map the
 /// wizard persists inside `config.json::security_probe_cache`.
-/// Production routes through `lfs_core::security::capabilities`;
-/// flutter_test contexts that don't load the FRB native lib fall
-/// back to a Dart literal that produces the same field set.
+/// Routes through `lfs_core::security::capabilities`.
 Map<String, dynamic> securityCapabilitiesToJsonCompat({
   required bool keychainAvailable,
   required bool hardwareVaultAvailable,
@@ -467,16 +425,18 @@ Map<String, dynamic> securityCapabilitiesToJsonCompat({
 /// Parse a `security_probe_cache` JSON snapshot. Returns null on
 /// any malformed shape (non-object root, unknown enum case, missing
 /// required strings) so the wizard caller falls through to "no
-/// cache" and reprobes. Mirror of the Dart `SecurityCapabilities.fromJson`
-/// strictness — bool fields default to `false` when missing or
-/// non-bool, every other field type-checks fail-closed.
+/// cache" and reprobes. Same dual-path rationale as
+/// [securityCapabilitiesToJsonCompat] — `probeCapabilities` uses
+/// injected fakes that the Rust orchestrator bypasses, so the
+/// fallback stays.
 CapabilitiesSnapshot? securityCapabilitiesFromJsonCompat(
   Map<String, dynamic>? json,
 ) {
   if (json == null) return null;
   try {
-    final str = jsonEncode(json);
-    final decoded = rust_caps.securityCapabilitiesFromJson(json: str);
+    final decoded = rust_caps.securityCapabilitiesFromJson(
+      json: jsonEncode(json),
+    );
     if (decoded == null) return null;
     return CapabilitiesSnapshot(
       keychainAvailable: decoded.keychainAvailable,
@@ -531,10 +491,7 @@ class SecurityConfigSnapshot {
 
 /// Encode the `SecurityConfig` blob persisted under
 /// `config.json::security`. Routes through
-/// `lfs_core::security::SecurityConfig::to_json_value` in
-/// production; fallback path produces the same nested map shape so
-/// flutter_test cases relying on the literal `{tier, modifiers}`
-/// envelope keep working without bootstrapping the FRB native lib.
+/// `lfs_core::security::SecurityConfig::to_json_value`.
 Map<String, dynamic> securityConfigToJsonCompat({
   required String tierWireName,
   required bool password,

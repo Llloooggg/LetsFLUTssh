@@ -4,8 +4,15 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/settings/security_tier_switcher.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // The tier-transition marker read/write compat helpers route
+  // through `lfs_core::security::tier_transition_marker` for the
+  // 0600-hardened atomic write. Bootstrap FRB so the switcher
+  // exercises the canonical Rust path.
+  setUpAll(requireFrbLoaded);
 
   late Directory tempDir;
   late SecurityTierSwitcher switcher;
