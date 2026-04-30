@@ -12,6 +12,8 @@ import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 class _FakeStorage implements FlutterSecureStorage {
   @override
   Future<void> write({
@@ -79,6 +81,10 @@ Widget _wrap(Widget child) => MaterialApp(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // SecuritySetupDialog embeds PasswordStrengthMeter, which routes
+  // through `lfs_core::password_strength` — bootstrap FRB so the
+  // dialog can build.
+  setUpAll(requireFrbLoaded);
 
   Future<void> openDialog(
     WidgetTester tester, {
