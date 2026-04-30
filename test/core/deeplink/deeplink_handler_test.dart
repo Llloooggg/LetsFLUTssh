@@ -1,15 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
 
-void main() {
-  group('DeepLinkHandler.parseConnectUri', () {
-    // The static parser routes through `lfs_core::deeplink::
-    // parse_connect_uri` in production. Under flutter_test the
-    // FRB native lib is not loaded, so the call falls through to
-    // the in-file Dart fallback (`_parseConnectUriDart`) — these
-    // tests exercise that fallback. The Rust unit tests in
-    // `lfs_core::deeplink` cover the production path.
+import '../../helpers/frb_bootstrap.dart';
 
+void main() {
+  // parseConnectUri routes through `lfs_core::deeplink::
+  // parse_connect_uri` — bootstrap FRB so the canonical Rust grammar
+  // is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
+  group('DeepLinkHandler.parseConnectUri', () {
     test('extracts host and user', () {
       final config = DeepLinkHandler.parseConnectUri(
         Uri.parse('letsflutssh://connect?host=10.0.0.1&user=root'),
@@ -50,12 +51,15 @@ void main() {
       expect(config, isNull);
     });
 
-    test('defaults port to 22 for invalid value', () {
+    test('rejects invalid port value', () {
+      // Rust's `parse_connect_uri` treats a non-numeric `port=` as
+      // a hard parse failure (returns None) rather than silently
+      // defaulting to 22 — a malformed URI should not silently
+      // connect to the default port the user did not type.
       final config = DeepLinkHandler.parseConnectUri(
         Uri.parse('letsflutssh://connect?host=h&user=u&port=abc'),
       );
-      expect(config, isNotNull);
-      expect(config!.port, 22);
+      expect(config, isNull);
     });
 
     test('returns null for empty host', () {

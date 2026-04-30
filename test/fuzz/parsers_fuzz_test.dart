@@ -23,6 +23,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
 import 'package:letsflutssh/providers/known_hosts_provider.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 const _seed = 0xC0FFEE;
 const _iterations = 2000;
 
@@ -43,6 +45,11 @@ String _rngString(Random rng, int maxLen) {
 }
 
 void main() {
+  // DeepLinkHandler.parseConnectUri routes through `lfs_core::deeplink`
+  // — bootstrap FRB so the canonical Rust grammar is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   final rng = Random(_seed);
 
   group('Fuzz: KnownHostsNotifier.importFromString', () {
