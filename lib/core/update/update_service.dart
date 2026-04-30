@@ -900,49 +900,27 @@ class UpdateService {
   // Default HTTP implementations (dart:io)
   // ---------------------------------------------------------------------------
 
-  static Future<String> defaultFetch(Uri url) async {
-    // Production: route through `lfs_core::update_http::fetch_text`.
-    // The Rust client uses rustls + system CAs, the same trust
-    // anchor used today (no SPKI pins configured), and the same
-    // trusted-host allowlist gates both request and redirects.
-    // When SPKI pinning gets re-introduced, it lands Rust-side as
-    // a custom `rustls::ServerCertVerifier` in
-    // `lfs_core::update_http`, not as a Dart-side
-    // `badCertificateCallback`.
-    try {
-      return await rust_update_http.updateFetchText(url: url.toString());
-    } catch (e) {
-      // Fallback for flutter_test / fresh-checkout contexts where
-      // the FRB native lib isn't loaded. The Dart implementation
-      // mirrors the same posture (system CA + trusted-host check).
-      AppLogger.instance.log(
-        'updateFetchText FRB call failed; falling back to dart:io: $e',
-        name: 'UpdateService',
-        level: LogLevel.warn,
-      );
-      return _defaultFetchDart(url);
-    }
-  }
+  /// Fetch a UTF-8 body via `lfs_core::update_http::fetch_text`.
+  /// The Rust client uses rustls + system CAs and gates requests +
+  /// redirects through the trusted-host allowlist; SPKI pinning,
+  /// when re-introduced, lands as a custom
+  /// `rustls::ServerCertVerifier` in the same crate.
+  static Future<String> defaultFetch(Uri url) =>
+      rust_update_http.updateFetchText(url: url.toString());
 
-  static Future<String> _defaultFetchDart(Uri url) async {
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(url);
-      request.headers.set('Accept', 'application/vnd.github.v3+json');
-      request.headers.set('User-Agent', 'LetsFLUTssh-UpdateChecker');
-      final response = await request.close();
-      if (response.statusCode != 200) {
-        throw HttpException(
-          'GitHub API returned ${response.statusCode}',
-          uri: url,
-        );
-      }
-      return await response.transform(utf8.decoder).join();
-    } finally {
-      client.close();
-    }
-  }
-
+  /// Download a release asset via
+  /// `lfs_core::update_http::download_to_file`. Per-chunk progress
+  /// is published onto the bus as `BusEvent::UpdateDownloadProgress`;
+  /// subscribe to the `Update` topic for the duration of this
+  /// download and forward ticks to [onProgress] so the UI's
+  /// determinate progress bar keeps moving. Ed25519 manifest
+  /// verification still runs Dart-side via `_defaultVerifyArtifact`
+  /// after the download lands.
+  ///
+  /// The URL trust check (host allowlist + redirect-target gate)
+  /// runs Rust-side too — the Dart pre-check below is defence in
+  /// depth that lets the wrapper fail fast without opening an HTTP
+  /// client.
   static Future<void> defaultDownload(
     Uri url,
     String savePath,
@@ -951,13 +929,6 @@ class UpdateService {
     if (!isTrustedReleaseAssetUri(url)) {
       throw StateError('Untrusted update download URL: $url');
     }
-    // Production: route through `lfs_core::update_http::download_to_file`.
-    // Per-chunk progress is published onto the bus as
-    // `BusEvent::UpdateDownloadProgress`; subscribe to the
-    // `Update` topic for the duration of this download and forward
-    // ticks to `onProgress` so the UI's determinate progress bar
-    // keeps moving. Ed25519 manifest verification still runs Dart-
-    // side via `_defaultVerifyArtifact` after the download lands.
     final urlString = url.toString();
     StreamSubscription<rust_bus.BusEvent>? sub;
     try {
@@ -978,94 +949,8 @@ class UpdateService {
         url: urlString,
         targetPath: savePath,
       );
-    } catch (e) {
-      AppLogger.instance.log(
-        'updateDownloadToFile FRB call failed; falling back to dart:io: $e',
-        name: 'UpdateService',
-        level: LogLevel.warn,
-      );
-      await sub?.cancel();
-      sub = null;
-      await _defaultDownloadDart(url, savePath, onProgress);
-      return;
     } finally {
       await sub?.cancel();
-    }
-  }
-
-  static Future<void> _defaultDownloadDart(
-    Uri url,
-    String savePath,
-    void Function(int received, int total)? onProgress,
-  ) async {
-    const maxRedirects = 10;
-    final client = HttpClient();
-    try {
-      var requestUri = url;
-      var redirectCount = 0;
-      while (true) {
-        final request = await client.getUrl(requestUri);
-        request.headers.set('User-Agent', 'LetsFLUTssh-UpdateChecker');
-        final response = await request.close();
-
-        final redirect = await _handleRedirect(requestUri, response);
-        if (redirect != null) {
-          redirectCount++;
-          if (redirectCount > maxRedirects) {
-            throw StateError('Too many redirects ($maxRedirects)');
-          }
-          requestUri = redirect;
-          continue;
-        }
-
-        if (response.statusCode != 200) {
-          throw HttpException(
-            'Download failed with status ${response.statusCode}',
-            uri: requestUri,
-          );
-        }
-
-        await _writeToFile(response, savePath, onProgress);
-        return;
-      }
-    } finally {
-      client.close();
-    }
-  }
-
-  static Future<Uri?> _handleRedirect(
-    Uri requestUri,
-    HttpClientResponse response,
-  ) async {
-    if (response.statusCode < 300 || response.statusCode >= 400) return null;
-    final location = response.headers.value('location');
-    if (location == null) return null;
-    await response.drain<void>();
-    final next = requestUri.resolve(location);
-    if (!isTrustedReleaseAssetUri(next)) {
-      throw StateError('Untrusted update download redirect: $next');
-    }
-    return next;
-  }
-
-  static Future<void> _writeToFile(
-    HttpClientResponse response,
-    String savePath,
-    void Function(int received, int total)? onProgress,
-  ) async {
-    final total = response.contentLength;
-    var received = 0;
-    final file = File(savePath);
-    await file.parent.create(recursive: true);
-    final sink = file.openWrite();
-    try {
-      await for (final chunk in response) {
-        sink.add(chunk);
-        received += chunk.length;
-        onProgress?.call(received, total);
-      }
-    } finally {
-      await sink.close();
     }
   }
 }

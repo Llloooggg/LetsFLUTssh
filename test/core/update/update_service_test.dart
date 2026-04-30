@@ -1455,8 +1455,25 @@ void main() {
   //     - >10 redirects -> StateError 'Too many redirects' (cycle guard).
   //     - 3xx -> untrusted target -> StateError 'Untrusted … redirect'.
   //     - Non-redirect non-200 -> HttpException with the status code.
+  // The Dart-implemented `_defaultFetchDart` / `_defaultDownloadDart`
+  // shims that this group used to exercise via `HttpOverrides` are
+  // gone — `defaultFetch` / `defaultDownload` now route straight to
+  // Rust's `update_http` (rustls + system CAs + trusted-host gate)
+  // which doesn't honour Dart's `HttpOverrides`. The HTTP-level
+  // semantics (200 / non-200 / redirect handling / per-chunk
+  // progress / 10-redirect cap) are unit-tested in
+  // `lfs_core::update_http::tests` and exercised end-to-end in
+  // integration_test against a real server.
+  //
+  // The URL-trust-check fail-fast (`refuses untrusted URL without
+  // opening the client`) stays live below — it's a pure Dart guard
+  // that runs before any HTTP client is constructed.
   group('UpdateService default HTTP implementations', () {
+    const httpSkip =
+        'Rust update_http; covered in lfs_core unit + integration tests';
+
     test(
+      skip: httpSkip,
       'defaultFetch returns UTF-8 body on 200 with expected headers',
       () async {
         final recorded = <Uri>[];
@@ -1480,26 +1497,30 @@ void main() {
       },
     );
 
-    test('defaultFetch throws HttpException on non-200 status', () async {
-      final overrides = _FakeHttpOverrides(
-        (_) => _FakeResponse(503, body: utf8.encode('upstream down')),
-      );
-
-      await HttpOverrides.runWithHttpOverrides(() async {
-        await expectLater(
-          UpdateService.defaultFetch(
-            Uri.parse('https://api.github.com/repos/x/releases'),
-          ),
-          throwsA(
-            isA<HttpException>().having(
-              (e) => e.message,
-              'message',
-              contains('503'),
-            ),
-          ),
+    test(
+      skip: httpSkip,
+      'defaultFetch throws HttpException on non-200 status',
+      () async {
+        final overrides = _FakeHttpOverrides(
+          (_) => _FakeResponse(503, body: utf8.encode('upstream down')),
         );
-      }, overrides);
-    });
+
+        await HttpOverrides.runWithHttpOverrides(() async {
+          await expectLater(
+            UpdateService.defaultFetch(
+              Uri.parse('https://api.github.com/repos/x/releases'),
+            ),
+            throwsA(
+              isA<HttpException>().having(
+                (e) => e.message,
+                'message',
+                contains('503'),
+              ),
+            ),
+          );
+        }, overrides);
+      },
+    );
 
     test(
       'defaultDownload refuses untrusted URL without opening the client',
@@ -1581,6 +1602,7 @@ void main() {
     );
 
     test(
+      skip: httpSkip,
       'defaultDownload follows a trusted redirect and writes the final body',
       () async {
         final tempDir = await Directory.systemTemp.createTemp('dl_test_');
@@ -1624,6 +1646,7 @@ void main() {
     );
 
     test(
+      skip: httpSkip,
       'defaultDownload throws StateError when redirect target is untrusted',
       // Spec: GitHub's download CDN sometimes 302s; if a bug or MITM ever
       // redirects us off-platform, we must refuse rather than happily
@@ -1657,45 +1680,50 @@ void main() {
       },
     );
 
-    test('defaultDownload aborts after more than 10 redirects', () async {
-      // Spec: cycle guard. Hand out a trusted 302 that points back to itself
-      // 11 times; the 11th attempt must raise StateError 'Too many
-      // redirects' instead of looping forever.
-      var count = 0;
-      final overrides = _FakeHttpOverrides((_) {
-        count++;
-        return _FakeResponse(
-          302,
-          headers: {
-            'location':
-                'https://objects.githubusercontent.com/cycle/pkg.AppImage',
-          },
-        );
-      });
+    test(
+      skip: httpSkip,
+      'defaultDownload aborts after more than 10 redirects',
+      () async {
+        // Spec: cycle guard. Hand out a trusted 302 that points back to itself
+        // 11 times; the 11th attempt must raise StateError 'Too many
+        // redirects' instead of looping forever.
+        var count = 0;
+        final overrides = _FakeHttpOverrides((_) {
+          count++;
+          return _FakeResponse(
+            302,
+            headers: {
+              'location':
+                  'https://objects.githubusercontent.com/cycle/pkg.AppImage',
+            },
+          );
+        });
 
-      await HttpOverrides.runWithHttpOverrides(() async {
-        await expectLater(
-          UpdateService.defaultDownload(
-            Uri.parse(
-              'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/pkg.AppImage',
+        await HttpOverrides.runWithHttpOverrides(() async {
+          await expectLater(
+            UpdateService.defaultDownload(
+              Uri.parse(
+                'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/pkg.AppImage',
+              ),
+              '/tmp/nowhere',
+              null,
             ),
-            '/tmp/nowhere',
-            null,
-          ),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              contains('Too many redirects'),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('Too many redirects'),
+              ),
             ),
-          ),
-        );
-      }, overrides);
+          );
+        }, overrides);
 
-      expect(count, 11);
-    });
+        expect(count, 11);
+      },
+    );
 
     test(
+      skip: httpSkip,
       'defaultDownload throws HttpException on non-200 non-redirect',
       () async {
         final overrides = _FakeHttpOverrides(
