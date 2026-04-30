@@ -1,15 +1,9 @@
-@Skip(
-  'parseOpenSshConfig routes block resolution through '
-  'lfs_core::ssh_config; flutter_test does not load the FRB native lib. '
-  'Equivalent fuzzing lives in the Rust unit tests — re-enable once a '
-  'flutter_test bootstrap that calls RustLib.init lands.',
-)
-library;
-
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/ssh/openssh_config_parser.dart';
+
+import '../helpers/frb_bootstrap.dart';
 
 /// Fuzz tests for the OpenSSH config parser.
 ///
@@ -17,6 +11,11 @@ import 'package:letsflutssh/core/ssh/openssh_config_parser.dart';
 /// from the app's perspective (can be hand-edited, truncated, corrupted).
 /// Must never throw unhandled exceptions.
 void main() {
+  // parseOpenSshConfig routes through `lfs_core::ssh_config` —
+  // bootstrap FRB so the fuzz inputs hit the canonical Rust grammar.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('parseOpenSshConfig fuzz', () {
     test('empty / whitespace / single chars do not crash', () {
       for (final input in ['', ' ', '\n', '\r\n', '\t', '#', '=', '"']) {

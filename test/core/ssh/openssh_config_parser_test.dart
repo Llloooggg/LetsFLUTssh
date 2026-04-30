@@ -1,16 +1,17 @@
-@Skip(
-  'parseOpenSshConfig routes block resolution through '
-  'lfs_core::ssh_config; flutter_test does not load the FRB native lib. '
-  'The parser is unit-tested in rust/crates/lfs_core/src/ssh_config.rs — '
-  're-enable once a flutter_test bootstrap that calls RustLib.init lands.',
-)
-library;
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart' show AuthType;
 import 'package:letsflutssh/core/ssh/openssh_config_parser.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // parseOpenSshConfig routes block resolution through
+  // `lfs_core::ssh_config` — bootstrap FRB so the canonical Rust
+  // grammar (glob, comment, keyword=value, host patterns) is
+  // exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('parseOpenSshConfig', () {
     test('empty input returns empty list', () {
       expect(parseOpenSshConfig(''), isEmpty);

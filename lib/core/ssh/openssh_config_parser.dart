@@ -238,147 +238,26 @@ String? _defaultIncludeReader(String path) {
   }
 }
 
-/// Compiled globs keyed by raw pattern (Dart fallback only — used
-/// when the FRB native lib is not loaded in flutter_test). OpenSSH
-/// config rarely declares more than a handful of distinct
-/// `Host` patterns, so the cache stays tiny for the life of the
-/// process.
-final _globRegexCache = <String, RegExp>{};
+/// Minimal OpenSSH-style glob via `lfs_core::ssh_config::glob_matches`:
+/// `*` matches any run (including empty), `?` matches exactly one
+/// char, everything else is literal. Case-sensitive.
+bool _globMatches(String pattern, String text) =>
+    rust_ssh_config.sshConfigGlobMatches(pattern: pattern, text: text);
 
-RegExp _compileGlob(String pattern) {
-  final regex = StringBuffer('^');
-  for (final c in pattern.split('')) {
-    if (c == '*') {
-      regex.write('.*');
-    } else if (c == '?') {
-      regex.write('.');
-    } else {
-      regex.write(RegExp.escape(c));
-    }
-  }
-  regex.write(r'$');
-  return RegExp(regex.toString());
-}
+/// Routes through `lfs_core::ssh_config::strip_comment` — quote-aware
+/// `#` removal.
+String _stripComment(String line) =>
+    rust_ssh_config.sshConfigStripComment(line: line);
 
-/// Minimal OpenSSH-style glob: `*` matches any run (including empty), `?`
-/// matches exactly one char, everything else is literal. Case-sensitive.
-/// Routes through `lfs_core::ssh_config::glob_matches` so the grammar
-/// lives one place; the cached `RegExp` translation below is the
-/// flutter_test fallback.
-bool _globMatches(String pattern, String text) {
-  try {
-    return rust_ssh_config.sshConfigGlobMatches(pattern: pattern, text: text);
-  } catch (_) {
-    final compiled = _globRegexCache.putIfAbsent(
-      pattern,
-      () => _compileGlob(pattern),
-    );
-    return compiled.hasMatch(text);
-  }
-}
-
-/// Routes through `lfs_core::ssh_config::strip_comment` so the
-/// quote-aware comment grammar lives one place; falls back to the
-/// inline scan when the FRB native lib is not loaded.
-String _stripComment(String line) {
-  try {
-    return rust_ssh_config.sshConfigStripComment(line: line);
-  } catch (_) {
-    var inQuotes = false;
-    for (var i = 0; i < line.length; i++) {
-      final c = line[i];
-      if (c == '"') inQuotes = !inQuotes;
-      if (c == '#' && !inQuotes) return line.substring(0, i);
-    }
-    return line;
-  }
-}
-
-/// Matches the first whitespace character; pre-compiled so the
-/// per-line [_splitKeywordValue] scan does not recompile the regex on
-/// every config line. Used only by the Dart fallback below — the
-/// Rust-canonical path lives in
-/// `lfs_core::ssh_config::split_keyword_value`.
-final _whitespaceRegex = RegExp(r'\s');
-
-/// Routes through `lfs_core::ssh_config::split_keyword_value` so
-/// the `keyword value` / `keyword = value` grammar (with quoting)
-/// lives one place; falls back to the inline scan when the FRB
-/// native lib is not loaded.
+/// Routes through `lfs_core::ssh_config::split_keyword_value` for the
+/// `keyword value` / `keyword = value` grammar (with quoting).
 (String?, String?) _splitKeywordValue(String line) {
-  try {
-    final pair = rust_ssh_config.sshConfigSplitKeywordValue(line: line);
-    if (pair == null) return (null, null);
-    return (pair.$1, pair.$2);
-  } catch (_) {
-    // OpenSSH allows `keyword value` or `keyword = value`.
-    final eqIdx = line.indexOf('=');
-    final spaceMatch = _whitespaceRegex.firstMatch(line);
-    final spaceIdx = spaceMatch?.start ?? -1;
-
-    int sepIdx;
-    if (eqIdx < 0) {
-      sepIdx = spaceIdx;
-    } else if (spaceIdx < 0) {
-      sepIdx = eqIdx;
-    } else {
-      sepIdx = eqIdx < spaceIdx ? eqIdx : spaceIdx;
-    }
-    if (sepIdx < 0) return (null, null);
-
-    final keyword = line.substring(0, sepIdx).trim();
-    var rest = line.substring(sepIdx + 1).trim();
-    if (rest.startsWith('=')) rest = rest.substring(1).trim();
-    if (keyword.isEmpty || rest.isEmpty) return (null, null);
-    return (keyword, _unquote(rest));
-  }
+  final pair = rust_ssh_config.sshConfigSplitKeywordValue(line: line);
+  if (pair == null) return (null, null);
+  return (pair.$1, pair.$2);
 }
 
-/// Routes through `lfs_core::ssh_config::unquote` (FRB sync) so
-/// the OpenSSH-grammar quote-stripping rule lives one place.
-/// Falls back to the inline pure-Dart implementation for the
-/// flutter_test contexts that don't load the FRB native lib.
-String _unquote(String value) {
-  try {
-    return rust_ssh_config.sshConfigUnquote(value: value);
-  } catch (_) {
-    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
-      return value.substring(1, value.length - 1);
-    }
-    return value;
-  }
-}
-
-List<String> _splitHostPatterns(String value) {
-  try {
-    return rust_ssh_config.sshConfigSplitHostPatterns(value: value);
-  } catch (_) {
-    return _splitHostPatternsDart(value);
-  }
-}
-
-/// Pure-Dart fallback — same grammar as
-/// `lfs_core::ssh_config::split_host_patterns`. Used by
-/// flutter_test contexts that don't load the FRB native lib.
-List<String> _splitHostPatternsDart(String value) {
-  final result = <String>[];
-  final buf = StringBuffer();
-  var inQuotes = false;
-  for (var i = 0; i < value.length; i++) {
-    final c = value[i];
-    if (c == '"') {
-      inQuotes = !inQuotes;
-      continue;
-    }
-    if (!inQuotes && (c == ' ' || c == '\t')) {
-      if (buf.isNotEmpty) {
-        result.add(buf.toString());
-        buf.clear();
-      }
-      continue;
-    }
-    buf.write(c);
-  }
-  if (buf.isNotEmpty) result.add(buf.toString());
-  return result;
-}
+/// Routes through `lfs_core::ssh_config::split_host_patterns` —
+/// whitespace-separated, quote-aware tokenisation.
+List<String> _splitHostPatterns(String value) =>
+    rust_ssh_config.sshConfigSplitHostPatterns(value: value);
