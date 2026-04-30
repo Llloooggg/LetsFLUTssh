@@ -8,7 +8,15 @@ import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/marquee_mixin.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // FileRow renders byte sizes via `formatSize`, which routes
+  // through `lfs_core::format` — bootstrap FRB so the widget can
+  // build without throwing.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   final now = DateTime(2024, 1, 15, 10, 30);
 
   Widget buildApp(Widget child) {
@@ -48,7 +56,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'doc.pdf', path: '/doc.pdf', size: 2048, modTime: now, isDir: false),
+            entry: FileEntry(
+              name: 'doc.pdf',
+              path: '/doc.pdf',
+              size: 2048,
+              modTime: now,
+              isDir: false,
+            ),
             isSelected: false,
             onTap: () {},
             onCtrlTap: () {},
@@ -64,7 +78,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'mydir', path: '/mydir', size: 0, modTime: now, isDir: true),
+            entry: FileEntry(
+              name: 'mydir',
+              path: '/mydir',
+              size: 0,
+              modTime: now,
+              isDir: true,
+            ),
             isSelected: false,
             onTap: () {},
             onCtrlTap: () {},
@@ -102,7 +122,14 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'file.txt', path: '/file.txt', size: 100, modTime: now, isDir: false, owner: 'root'),
+            entry: FileEntry(
+              name: 'file.txt',
+              path: '/file.txt',
+              size: 100,
+              modTime: now,
+              isDir: false,
+              owner: 'root',
+            ),
             isSelected: false,
             onTap: () {},
             onCtrlTap: () {},
@@ -114,11 +141,20 @@ void main() {
       expect(find.text('root'), findsOneWidget);
     });
 
-    testWidgets('does not render owner column when owner is empty', (tester) async {
+    testWidgets('does not render owner column when owner is empty', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'file.txt', path: '/file.txt', size: 100, modTime: now, isDir: false, owner: ''),
+            entry: FileEntry(
+              name: 'file.txt',
+              path: '/file.txt',
+              size: 100,
+              modTime: now,
+              isDir: false,
+              owner: '',
+            ),
             isSelected: false,
             onTap: () {},
             onCtrlTap: () {},
@@ -137,7 +173,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'ctrl.txt', path: '/ctrl.txt', size: 0, modTime: now, isDir: false),
+            entry: FileEntry(
+              name: 'ctrl.txt',
+              path: '/ctrl.txt',
+              size: 0,
+              modTime: now,
+              isDir: false,
+            ),
             isSelected: false,
             onTap: () => normalTapped = true,
             onCtrlTap: () => ctrlTapped = true,
@@ -164,7 +206,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'click.txt', path: '/click.txt', size: 0, modTime: now, isDir: false),
+            entry: FileEntry(
+              name: 'click.txt',
+              path: '/click.txt',
+              size: 0,
+              modTime: now,
+              isDir: false,
+            ),
             isSelected: false,
             onTap: () => tapped = true,
             onCtrlTap: () {},
@@ -185,7 +233,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'dblclick.txt', path: '/dblclick.txt', size: 0, modTime: now, isDir: false),
+            entry: FileEntry(
+              name: 'dblclick.txt',
+              path: '/dblclick.txt',
+              size: 0,
+              modTime: now,
+              isDir: false,
+            ),
             isSelected: false,
             onTap: () {},
             onCtrlTap: () {},
@@ -229,7 +283,9 @@ void main() {
       );
       // All column Text widgets should have ellipsis overflow
       final texts = tester.widgetList<Text>(find.byType(Text));
-      final ellipsisTexts = texts.where((t) => t.overflow == TextOverflow.ellipsis);
+      final ellipsisTexts = texts.where(
+        (t) => t.overflow == TextOverflow.ellipsis,
+      );
       // name(1) + size(1) + modified(1) + mode(1) + owner(1) = 5
       expect(ellipsisTexts.length, 5);
     });
@@ -238,7 +294,14 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'file.txt', path: '/file.txt', size: 1024, mode: 0x1A4, modTime: now, isDir: false),
+            entry: FileEntry(
+              name: 'file.txt',
+              path: '/file.txt',
+              size: 1024,
+              mode: 0x1A4,
+              modTime: now,
+              isDir: false,
+            ),
             isSelected: false,
             sizeWidth: 55,
             modifiedWidth: 105,
@@ -280,14 +343,24 @@ void main() {
           ),
         ),
       );
-      expect(find.byTooltip('very_long_filename_that_overflows.txt'), findsOneWidget);
+      expect(
+        find.byTooltip('very_long_filename_that_overflows.txt'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('columns hidden when width is zero', (tester) async {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'file.txt', path: '/file.txt', size: 1024, mode: 0x1A4, modTime: now, isDir: false),
+            entry: FileEntry(
+              name: 'file.txt',
+              path: '/file.txt',
+              size: 1024,
+              mode: 0x1A4,
+              modTime: now,
+              isDir: false,
+            ),
             isSelected: false,
             sizeWidth: 0,
             modifiedWidth: 0,
@@ -310,7 +383,13 @@ void main() {
       await tester.pumpWidget(
         buildApp(
           FileRow(
-            entry: FileEntry(name: 'selected.txt', path: '/selected.txt', size: 0, modTime: now, isDir: false),
+            entry: FileEntry(
+              name: 'selected.txt',
+              path: '/selected.txt',
+              size: 0,
+              modTime: now,
+              isDir: false,
+            ),
             isSelected: true,
             onTap: () {},
             onCtrlTap: () {},
@@ -328,7 +407,9 @@ void main() {
 
   group('MenuRow', () {
     testWidgets('renders icon and text', (tester) async {
-      await tester.pumpWidget(buildApp(const MenuRow(icon: Icons.delete, text: 'Delete')));
+      await tester.pumpWidget(
+        buildApp(const MenuRow(icon: Icons.delete, text: 'Delete')),
+      );
       expect(find.byIcon(Icons.delete), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
     });
@@ -336,19 +417,39 @@ void main() {
 
   group('MarqueePainter', () {
     test('shouldRepaint returns true when start changes', () {
-      final p1 = MarqueePainter(start: const Offset(0, 0), end: const Offset(100, 100), color: Colors.blue);
-      final p2 = MarqueePainter(start: const Offset(10, 0), end: const Offset(100, 100), color: Colors.blue);
+      final p1 = MarqueePainter(
+        start: const Offset(0, 0),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
+      final p2 = MarqueePainter(
+        start: const Offset(10, 0),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
       expect(p1.shouldRepaint(p2), isTrue);
     });
 
     test('shouldRepaint returns true when end changes', () {
-      final p1 = MarqueePainter(start: const Offset(0, 0), end: const Offset(100, 100), color: Colors.blue);
-      final p2 = MarqueePainter(start: const Offset(0, 0), end: const Offset(200, 200), color: Colors.blue);
+      final p1 = MarqueePainter(
+        start: const Offset(0, 0),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
+      final p2 = MarqueePainter(
+        start: const Offset(0, 0),
+        end: const Offset(200, 200),
+        color: Colors.blue,
+      );
       expect(p1.shouldRepaint(p2), isTrue);
     });
 
     test('shouldRepaint returns false when same', () {
-      final p1 = MarqueePainter(start: const Offset(0, 0), end: const Offset(100, 100), color: Colors.blue);
+      final p1 = MarqueePainter(
+        start: const Offset(0, 0),
+        end: const Offset(100, 100),
+        color: Colors.blue,
+      );
       final p2 = MarqueePainter(
         start: const Offset(0, 0),
         end: const Offset(100, 100),
@@ -360,11 +461,22 @@ void main() {
 
   group('PaneDragData', () {
     test('stores source pane id and entries', () {
-      final entries = [FileEntry(name: 'a.txt', path: '/a.txt', size: 100, modTime: now, isDir: false)];
+      final entries = [
+        FileEntry(
+          name: 'a.txt',
+          path: '/a.txt',
+          size: 100,
+          modTime: now,
+          isDir: false,
+        ),
+      ];
       const data = PaneDragData(sourcePaneId: 'left', entries: []);
       expect(data.sourcePaneId, 'left');
 
-      final dataWithEntries = PaneDragData(sourcePaneId: 'right', entries: entries);
+      final dataWithEntries = PaneDragData(
+        sourcePaneId: 'right',
+        entries: entries,
+      );
       expect(dataWithEntries.entries.length, 1);
       expect(dataWithEntries.entries.first.name, 'a.txt');
     });

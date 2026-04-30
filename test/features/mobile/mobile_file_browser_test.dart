@@ -16,6 +16,7 @@ import 'package:letsflutssh/utils/format.dart'; // used by MobileFileList tests
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 import '../../helpers/fake_transfers_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
 
 /// Stub `RemoteSftpFs` for the mobile-browser tests — every method
 /// is a no-op. The browser code never reaches into the SFTP layer
@@ -155,6 +156,12 @@ List<FileEntry> testEntries() => [
 ];
 
 void main() {
+  // formatSize routes through `lfs_core::format::format_size` —
+  // bootstrap FRB so the file-list rendering tests can format byte
+  // sizes via the canonical Rust path.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('MobileFileBrowser — widget rendering', () {
     testWidgets('shows loading state while connection is connecting', (
       tester,

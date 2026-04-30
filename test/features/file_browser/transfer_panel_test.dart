@@ -9,6 +9,7 @@ import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
 
 import '../../helpers/fake_transfers_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
 
 Widget _buildTestWidget({
   FakeTransfersNotifier? manager,
@@ -43,6 +44,12 @@ Widget _buildTestWidget({
 }
 
 void main() {
+  // TransferPanel renders byte sizes / durations via Rust
+  // `lfs_core::format` — bootstrap FRB so the widget can build
+  // without throwing.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   late FakeTransfersNotifier manager;
 
   setUp(() {

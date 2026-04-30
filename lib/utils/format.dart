@@ -16,59 +16,25 @@ import '../l10n/app_localizations.dart';
 import '../src/rust/api/format.dart' as rust_format;
 import 'sanitize.dart';
 
-/// Format byte size to human-readable string. Routes through
-/// `lfs_core::format::format_size` so the B / KB / MB / GB ladder
-/// (with the canonical decimal places — 1 for KB/MB, 2 for GB)
-/// lives one place; falls back to the equivalent inline ladder
-/// for flutter_test contexts that don't load the FRB native lib.
-String formatSize(int bytes) {
-  try {
-    return rust_format.formatSize(bytes: bytes);
-  } catch (_) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-  }
-}
+/// Format byte size to human-readable string via
+/// `lfs_core::format::format_size` — the B / KB / MB / GB ladder
+/// (1 decimal place for KB/MB, 2 for GB) lives in Rust.
+String formatSize(int bytes) => rust_format.formatSize(bytes: bytes);
 
-/// Format DateTime to short timestamp `YYYY-MM-DD HH:MM`. Routes
-/// through `lfs_core::format::format_timestamp_minute` so the
-/// padding grammar lives one place; falls back to the inline
-/// concatenation when the FRB native lib is not loaded.
-String formatTimestamp(DateTime dt) {
-  try {
-    return rust_format.formatTimestampMinute(
-      year: dt.year,
-      month: dt.month,
-      day: dt.day,
-      hour: dt.hour,
-      minute: dt.minute,
-    );
-  } catch (_) {
-    return '${dt.year}-${_pad(dt.month)}-${_pad(dt.day)} '
-        '${_pad(dt.hour)}:${_pad(dt.minute)}';
-  }
-}
+/// Format DateTime to short timestamp `YYYY-MM-DD HH:MM` via
+/// `lfs_core::format::format_timestamp_minute`.
+String formatTimestamp(DateTime dt) => rust_format.formatTimestampMinute(
+  year: dt.year,
+  month: dt.month,
+  day: dt.day,
+  hour: dt.hour,
+  minute: dt.minute,
+);
 
-/// Format Duration to human-readable string. Routes through
-/// `lfs_core::format::format_duration` so the ms / s / m / h
-/// granularity lives one place; falls back to the inline ladder
-/// for flutter_test contexts that don't load the FRB native lib.
-String formatDuration(Duration d) {
-  try {
-    return rust_format.formatDuration(millis: d.inMilliseconds);
-  } catch (_) {
-    if (d.inSeconds < 1) return '${d.inMilliseconds}ms';
-    if (d.inMinutes < 1) return '${d.inSeconds}s';
-    if (d.inHours < 1) return '${d.inMinutes}m ${d.inSeconds % 60}s';
-    return '${d.inHours}h ${d.inMinutes % 60}m';
-  }
-}
-
-String _pad(int n) => n.toString().padLeft(2, '0');
+/// Format Duration to human-readable string via
+/// `lfs_core::format::format_duration` — ms / s / m / h granularity.
+String formatDuration(Duration d) =>
+    rust_format.formatDuration(millis: d.inMilliseconds);
 
 /// Build a human-readable summary of an [ImportSummary] for the success
 /// toast. Leads with the localized "Imported N sessions" string and appends

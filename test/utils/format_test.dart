@@ -12,7 +12,15 @@ import 'package:letsflutssh/l10n/app_localizations_en.dart';
 import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/utils/format.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // formatSize / formatTimestamp / formatDuration route through
+  // `lfs_core::format` — bootstrap FRB so the canonical Rust
+  // formatters are exercised by these tests.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('formatSize', () {
     test('bytes', () {
       expect(formatSize(0), '0 B');

@@ -12,6 +12,8 @@ import 'package:letsflutssh/features/file_browser/file_pane.dart';
 import 'package:letsflutssh/features/file_browser/file_row.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// In-memory file system for testing.
 class _MockFS implements FileSystem {
   final Map<String, List<FileEntry>> dirs;
@@ -79,6 +81,12 @@ Listener _findFilePaneListener(WidgetTester tester) {
 }
 
 void main() {
+  // FilePane renders FileRow which formats byte sizes via Rust
+  // `lfs_core::format::format_size` — bootstrap FRB so the widget
+  // can build without throwing.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   final now = DateTime(2024, 1, 1);
 
   Widget buildApp({
