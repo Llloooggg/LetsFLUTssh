@@ -61,6 +61,31 @@ pub fn parse_openssh_config(content: String) -> Vec<DbOpenSshHostEntry> {
         .collect()
 }
 
+/// Parse OpenSSH config content + resolve `Include` directives
+/// against the real filesystem. Glob tokens (`config.d/*`) walk
+/// the parent directory; per-file size capped at 1 MiB; cycle
+/// detection via a visited set; `max_include_depth` bounds
+/// recursion. Production callers route through here so the
+/// filesystem walk lives Rust-side; tests that need to inject
+/// canned content stay on
+/// [`parse_openssh_config_with_includes`] which takes a
+/// path → content map.
+#[flutter_rust_bridge::frb(sync)]
+pub fn parse_openssh_config_resolving(
+    content: String,
+    base_dir: String,
+    max_include_depth: u32,
+) -> Vec<DbOpenSshHostEntry> {
+    lfs_core::ssh_config::parse_openssh_config_with_fs(
+        &content,
+        &base_dir,
+        max_include_depth as usize,
+    )
+    .into_iter()
+    .map(DbOpenSshHostEntry::from)
+    .collect()
+}
+
 /// Same as [`parse_openssh_config`] but resolves `Include`
 /// directives against [`includes`] — Dart pre-reads each
 /// referenced file (handling glob expansion + filesystem walks

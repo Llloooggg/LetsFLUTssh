@@ -1,8 +1,7 @@
 import 'dart:convert' show LineSplitter;
-import 'dart:io';
+import 'dart:io' show Platform;
 
 import '../../src/rust/api/ssh_config.dart' as rust_ssh_config;
-import '../../utils/logger.dart';
 import '../../utils/platform.dart';
 import '../session/session.dart' show AuthType;
 
@@ -38,9 +37,11 @@ class OpenSshConfigEntry {
 }
 
 /// Reader that returns the contents of a file referenced by an `Include`
-/// directive, or null when the file does not exist / cannot be read. Injected
-/// for test isolation — tests pass a canned in-memory map instead of hitting
-/// the real filesystem.
+/// directive, or null when the file does not exist / cannot be read.
+/// **Test-only** — production calls go through the Rust resolver which
+/// performs real filesystem reads + glob enumeration directly. Unit
+/// tests that want to inject canned content build a `path → content`
+/// map and pass [parseOpenSshConfig] the corresponding [includeReader].
 typedef IncludeReader = String? Function(String path);
 
 /// Parse OpenSSH config file contents into a list of concrete host entries.
@@ -49,27 +50,41 @@ typedef IncludeReader = String? Function(String path);
 /// own entries, but their directives do cascade onto every concrete host
 /// whose alias matches the pattern, using OpenSSH's first-value-wins rule.
 ///
-/// `Include` directives are expanded against [includeReader] (defaults to the
-/// real filesystem). The `baseDir` argument anchors relative paths — defaults
-/// to `~/.ssh`, matching `ssh_config(5)` semantics. Recursion is bounded by
-/// [maxIncludeDepth] to stop pathological configs (`Include ./config`) from
-/// stack-overflowing. Negation patterns (`!`) are treated as non-matching.
-/// Unknown directives are ignored silently.
+/// `Include` directives are expanded Rust-side. Production callers leave
+/// [includeReader] null and the resolver performs real filesystem reads
+/// + glob enumeration via `lfs_core::ssh_config::parse_openssh_config_with_fs`.
+/// Unit tests pass an in-memory map through [includeReader] so they
+/// don't need to stage files on disk; that path routes through the
+/// existing `parse_openssh_config_with_includes` which takes a
+/// path → content map (no glob expansion — provide the resolved paths
+/// the test cares about). Recursion is bounded by [maxIncludeDepth].
 List<OpenSshConfigEntry> parseOpenSshConfig(
   String content, {
   IncludeReader? includeReader,
   String? baseDir,
   int maxIncludeDepth = 8,
 }) {
-  final reader = includeReader ?? _defaultIncludeReader;
   final base = baseDir ?? _defaultSshDir();
-  final expanded = _expandIncludes(content, reader, base, maxIncludeDepth, {});
-  // Hand the fully-expanded content (no remaining Include directives)
-  // to the Rust parser. Dart owns the filesystem walk so per-platform
-  // home semantics — Android's `EXTERNAL_STORAGE` fallback, in
-  // particular — stay where they belong. Block resolution + wildcard
-  // cascading + PreferredAuthentications mapping live Rust-side now.
-  final rustEntries = rust_ssh_config.parseOpensshConfig(content: expanded);
+  final List<rust_ssh_config.DbOpenSshHostEntry> rustEntries;
+  if (includeReader == null) {
+    rustEntries = rust_ssh_config.parseOpensshConfigResolving(
+      content: content,
+      baseDir: base,
+      maxIncludeDepth: maxIncludeDepth,
+    );
+  } else {
+    rustEntries = rust_ssh_config.parseOpensshConfigWithIncludes(
+      content: content,
+      baseDir: base,
+      includes: _collectIncludeMap(
+        content,
+        includeReader,
+        base,
+        maxIncludeDepth,
+      ),
+      maxIncludeDepth: maxIncludeDepth,
+    );
+  }
   return [for (final e in rustEntries) _fromRustEntry(e)];
 }
 
@@ -92,172 +107,78 @@ OpenSshConfigEntry _fromRustEntry(rust_ssh_config.DbOpenSshHostEntry e) {
   );
 }
 
-/// Expand `Include` directives into a single config string. Matches OpenSSH
-/// behaviour: relative paths resolve against [baseDir] (typically `~/.ssh`);
-/// absolute paths pass through; glob patterns (`*`, `?`) expand to matching
-/// files. Nested includes are honoured up to [remainingDepth] levels.
-String _expandIncludes(
+/// Walk the include tree recursively via [reader], collecting every
+/// path the reader is asked for into a `path → content` map. Used only
+/// by the test path: production goes through Rust's real-fs resolver
+/// which doesn't need this enumeration step. Each include token
+/// resolves to a single canonical path (tilde / relative-anchor handled
+/// the same way the Rust parser does — no glob walk because the Dart
+/// side doesn't have a filesystem to walk in tests). The visited set
+/// prevents `Include loop.conf` infinite loops.
+Map<String, String> _collectIncludeMap(
+  String content,
+  IncludeReader reader,
+  String baseDir,
+  int maxDepth,
+) {
+  final out = <String, String>{};
+  final visited = <String>{};
+  _collectIncludeMapInto(content, reader, baseDir, maxDepth, visited, out);
+  return out;
+}
+
+void _collectIncludeMapInto(
   String content,
   IncludeReader reader,
   String baseDir,
   int remainingDepth,
   Set<String> visited,
+  Map<String, String> out,
 ) {
-  if (remainingDepth <= 0) {
-    AppLogger.instance.log(
-      'Include depth limit reached — further includes ignored',
-      name: 'SshConfigParser',
-    );
-    return content;
-  }
-  final buffer = StringBuffer();
+  if (remainingDepth <= 0) return;
   for (final rawLine in const LineSplitter().convert(content)) {
-    final expansion = _maybeExpandIncludeLine(
-      rawLine,
-      reader,
-      baseDir,
-      remainingDepth,
-      visited,
-    );
-    if (expansion == null) {
-      buffer.writeln(rawLine);
-    } else {
-      buffer.write(expansion);
-    }
-  }
-  return buffer.toString();
-}
-
-/// Returns the expanded content for [rawLine] if it is a valid `Include`
-/// directive, otherwise null so the caller can pass the line through
-/// unchanged. Blank lines, comments, and non-Include directives all return
-/// null — only a well-formed `Include <tokens>` line produces expansion
-/// output.
-String? _maybeExpandIncludeLine(
-  String rawLine,
-  IncludeReader reader,
-  String baseDir,
-  int remainingDepth,
-  Set<String> visited,
-) {
-  final line = _stripComment(rawLine).trim();
-  if (line.isEmpty) return null;
-  final (keyword, value) = _splitKeywordValue(line);
-  if (keyword == null || value == null || keyword.toLowerCase() != 'include') {
-    return null;
-  }
-  return _expandIncludeTokens(value, reader, baseDir, remainingDepth, visited);
-}
-
-/// Resolve and concatenate every file referenced by a single `Include`
-/// directive. Each whitespace-separated token is a pattern — e.g.
-/// `Include config.d/* extra`. The contents of every matched file are
-/// emitted inline so host blocks read as if they were written in place.
-String _expandIncludeTokens(
-  String value,
-  IncludeReader reader,
-  String baseDir,
-  int remainingDepth,
-  Set<String> visited,
-) {
-  final buffer = StringBuffer();
-  for (final token in _splitHostPatterns(value)) {
-    for (final resolved in _resolveIncludePaths(token, baseDir)) {
+    final line = rust_ssh_config.sshConfigStripComment(line: rawLine).trim();
+    if (line.isEmpty) continue;
+    final pair = rust_ssh_config.sshConfigSplitKeywordValue(line: line);
+    if (pair == null) continue;
+    if (pair.$1.toLowerCase() != 'include') continue;
+    for (final token in rust_ssh_config.sshConfigSplitHostPatterns(
+      value: pair.$2,
+    )) {
+      final resolved = _resolveSingleIncludePath(token, baseDir);
       if (!visited.add(resolved)) continue;
-      final included = reader(resolved);
-      if (included == null) continue;
-      buffer.writeln(
-        _expandIncludes(included, reader, baseDir, remainingDepth - 1, visited),
+      final body = reader(resolved);
+      if (body == null) continue;
+      out[resolved] = body;
+      _collectIncludeMapInto(
+        body,
+        reader,
+        baseDir,
+        remainingDepth - 1,
+        visited,
+        out,
       );
     }
   }
-  return buffer.toString();
 }
 
-/// Resolve one include pattern to the concrete files it matches.
-///
-/// `~` expands to the user home. Relative paths are anchored at [baseDir].
-/// Globs use [_globMatches] on the basename so nested globs like `**` are
-/// NOT supported — same limitation as OpenSSH 7.x.
-List<String> _resolveIncludePaths(String pattern, String baseDir) {
-  var resolved = pattern;
-  if (resolved == '~') resolved = homeDirectory;
-  if (resolved.startsWith('~/')) {
-    resolved = '$homeDirectory${resolved.substring(1)}';
-  } else if (!_isAbsolutePath(resolved)) {
-    resolved = '$baseDir${Platform.pathSeparator}$resolved';
-  }
-  if (!resolved.contains('*') && !resolved.contains('?')) return [resolved];
-  return _globFiles(resolved);
+/// Mirrors `lfs_core::ssh_config::resolve_include_paths` (non-glob
+/// variant) for the test-only include map collector. Tilde expansion
+/// uses the Dart-side `homeDirectory` so test contexts that haven't
+/// bootstrapped FRB still resolve. Globs are out of scope — the test
+/// path expects fully-resolved paths in its canned map.
+String _resolveSingleIncludePath(String pattern, String baseDir) {
+  if (pattern == '~') return homeDirectory;
+  if (pattern.startsWith('~/')) return '$homeDirectory${pattern.substring(1)}';
+  if (_isAbsolutePath(pattern)) return pattern;
+  return '$baseDir${Platform.pathSeparator}$pattern';
 }
 
 bool _isAbsolutePath(String path) {
   if (path.startsWith('/')) return true;
-  // Windows drive letter (`C:\...`) or UNC path.
   if (path.length >= 2 && path[1] == ':') return true;
   if (path.startsWith(r'\\')) return true;
   return false;
 }
 
-/// List every real file that matches a glob like `~/.ssh/config.d/*`.
-/// Only the basename portion is globbed; the parent directory must exist.
-List<String> _globFiles(String pattern) {
-  final normalized = pattern.replaceAll('\\', '/');
-  final idx = normalized.lastIndexOf('/');
-  if (idx < 0) return const [];
-  final dirPath = pattern.substring(0, idx);
-  final basePattern = normalized.substring(idx + 1);
-  try {
-    final dir = Directory(dirPath);
-    if (!dir.existsSync()) return const [];
-    final matches = <String>[];
-    for (final entry in dir.listSync(followLinks: false)) {
-      if (entry is! File) continue;
-      final name = entry.path.split(Platform.pathSeparator).last;
-      if (_globMatches(basePattern, name)) matches.add(entry.path);
-    }
-    matches.sort();
-    return matches;
-  } catch (_) {
-    return const [];
-  }
-}
-
 String _defaultSshDir() => '$homeDirectory${Platform.pathSeparator}.ssh';
-
-String? _defaultIncludeReader(String path) {
-  try {
-    final file = File(path);
-    if (!file.existsSync()) return null;
-    // Match the single-file size limit used elsewhere in the import flow —
-    // an include that ships megabytes of text is almost certainly malicious.
-    if (file.lengthSync() > 1024 * 1024) return null;
-    return file.readAsStringSync();
-  } catch (_) {
-    return null;
-  }
-}
-
-/// Minimal OpenSSH-style glob via `lfs_core::ssh_config::glob_matches`:
-/// `*` matches any run (including empty), `?` matches exactly one
-/// char, everything else is literal. Case-sensitive.
-bool _globMatches(String pattern, String text) =>
-    rust_ssh_config.sshConfigGlobMatches(pattern: pattern, text: text);
-
-/// Routes through `lfs_core::ssh_config::strip_comment` — quote-aware
-/// `#` removal.
-String _stripComment(String line) =>
-    rust_ssh_config.sshConfigStripComment(line: line);
-
-/// Routes through `lfs_core::ssh_config::split_keyword_value` for the
-/// `keyword value` / `keyword = value` grammar (with quoting).
-(String?, String?) _splitKeywordValue(String line) {
-  final pair = rust_ssh_config.sshConfigSplitKeywordValue(line: line);
-  if (pair == null) return (null, null);
-  return (pair.$1, pair.$2);
-}
-
-/// Routes through `lfs_core::ssh_config::split_host_patterns` —
-/// whitespace-separated, quote-aware tokenisation.
-List<String> _splitHostPatterns(String value) =>
-    rust_ssh_config.sshConfigSplitHostPatterns(value: value);

@@ -65,15 +65,66 @@ pub fn parse_openssh_config(
     base_dir: &str,
     max_include_depth: usize,
 ) -> Vec<HostEntry> {
+    let normalised = normalise_line_endings(content);
     let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
     let expanded = expand_includes(
-        content,
+        &normalised,
         include_reader,
         base_dir,
         max_include_depth,
         &mut visited,
     );
-    let blocks = parse_blocks(&expanded);
+    parse_expanded(&expanded)
+}
+
+/// Convert CRLF and bare-CR line endings to LF.
+///
+/// Rust's `str::lines()` only splits on `\n` (with optional preceding
+/// `\r`); a config file written on classic Mac OS or pasted from
+/// Windows-without-trailing-LF would otherwise collapse onto a
+/// single line. The Dart caller used to handle this through
+/// `LineSplitter` (which understands bare `\r`); now that the parser
+/// owns the full pipeline we normalise at the entry point so the
+/// downstream walkers don't have to think about it.
+fn normalise_line_endings(content: &str) -> String {
+    if !content.contains('\r') {
+        return content.to_string();
+    }
+    content.replace("\r\n", "\n").replace('\r', "\n")
+}
+
+/// Per-file size cap for `Include` expansion. Mirrors the Dart
+/// default — a multi-megabyte include is almost certainly a
+/// hostile config trying to run the parser out of memory; better
+/// to silently skip.
+const MAX_INCLUDE_FILE_BYTES: u64 = 1024 * 1024;
+
+/// Variant of [`parse_openssh_config`] that performs real
+/// filesystem reads + glob enumeration for `Include` directives.
+/// The Dart `parseOpenSshConfig` no longer needs to maintain its
+/// own glob walker / file reader — this is the single entry point
+/// for the production import path.
+///
+/// Glob support matches `ssh_config(5)`'s OpenSSH 7.x behaviour:
+/// `*` and `?` in the basename portion of an include token expand
+/// against the parent directory; nested `**` is NOT supported.
+/// Individual files exceeding [`MAX_INCLUDE_FILE_BYTES`] are
+/// skipped silently. Cycle detection + the `max_include_depth`
+/// budget mirror the existing reader-driven path.
+pub fn parse_openssh_config_with_fs(
+    content: &str,
+    base_dir: &str,
+    max_include_depth: usize,
+) -> Vec<HostEntry> {
+    let normalised = normalise_line_endings(content);
+    let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let expanded =
+        expand_includes_with_fs(&normalised, base_dir, max_include_depth, &mut visited);
+    parse_expanded(&expanded)
+}
+
+fn parse_expanded(expanded: &str) -> Vec<HostEntry> {
+    let blocks = parse_blocks(expanded);
 
     let mut wildcard_blocks: Vec<&RawBlock> = Vec::new();
     let mut concrete: Vec<(usize, &str)> = Vec::new();
@@ -323,6 +374,134 @@ fn expand_includes(
         }
     }
     buf
+}
+
+/// Real-filesystem variant of [`expand_includes`]. Walks the
+/// parent directory for glob tokens, reads each matched file
+/// directly, and recurses with a hard cap on per-file size. Used
+/// by [`parse_openssh_config_with_fs`]; the test-seam variant
+/// (`expand_includes` + `IncludeReader`) keeps a separate path so
+/// unit tests can inject canned content without touching disk.
+fn expand_includes_with_fs(
+    content: &str,
+    base_dir: &str,
+    remaining: usize,
+    visited: &mut std::collections::HashSet<String>,
+) -> String {
+    if remaining == 0 {
+        return content.to_string();
+    }
+    let mut buf = String::new();
+    for raw_line in content.lines() {
+        let stripped = strip_comment(raw_line);
+        let line = stripped.trim();
+        let mut expanded = false;
+        if !line.is_empty() {
+            if let Some((kw, value)) = split_keyword_value(line) {
+                if kw.eq_ignore_ascii_case("include") {
+                    for token in split_host_patterns(&value) {
+                        for resolved in resolve_include_paths_with_fs(&token, base_dir) {
+                            if !visited.insert(resolved.clone()) {
+                                continue;
+                            }
+                            if let Some(included) = read_include_file(&resolved) {
+                                buf.push_str(&expand_includes_with_fs(
+                                    &included,
+                                    base_dir,
+                                    remaining - 1,
+                                    visited,
+                                ));
+                                buf.push('\n');
+                            }
+                        }
+                    }
+                    expanded = true;
+                }
+            }
+        }
+        if !expanded {
+            buf.push_str(raw_line);
+            buf.push('\n');
+        }
+    }
+    buf
+}
+
+/// Resolve one include token — possibly containing `*` / `?` —
+/// to the concrete files it matches under `base_dir`. Tilde
+/// expansion + relative-path anchoring mirror
+/// [`resolve_include_paths`]; glob walking lists the parent
+/// directory and filters basenames via [`glob_matches`].
+fn resolve_include_paths_with_fs(pattern: &str, base_dir: &str) -> Vec<String> {
+    let mut resolved = pattern.to_string();
+    if resolved == "~" {
+        resolved = crate::path::expand_tilde("~");
+    } else if resolved.starts_with("~/") {
+        resolved = crate::path::expand_tilde(&resolved);
+    } else if !is_absolute_path(&resolved) {
+        let sep = if cfg!(windows) { '\\' } else { '/' };
+        resolved = format!("{base_dir}{sep}{resolved}");
+    }
+    if !resolved.contains('*') && !resolved.contains('?') {
+        return vec![resolved];
+    }
+    glob_files(&resolved)
+}
+
+/// Enumerate concrete files matching a `~/.ssh/config.d/*` style
+/// pattern. The directory walk follows OpenSSH 7.x semantics —
+/// only the basename is globbed, the parent directory must
+/// exist literally. Returns sorted absolute paths; missing or
+/// unreadable directories silently produce an empty list so a
+/// stale Include doesn't break the whole import.
+fn glob_files(pattern: &str) -> Vec<String> {
+    let normalised = pattern.replace('\\', "/");
+    let Some(idx) = normalised.rfind('/') else {
+        return Vec::new();
+    };
+    let dir_path = &pattern[..idx];
+    let base_pattern = &normalised[idx + 1..];
+    let read_dir = match std::fs::read_dir(dir_path) {
+        Ok(rd) => rd,
+        Err(_) => return Vec::new(),
+    };
+    let mut matches = Vec::new();
+    for entry in read_dir.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if !file_type.is_file() {
+            continue;
+        }
+        let path = entry.path();
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        if glob_matches(base_pattern, &name) {
+            if let Some(p) = path.to_str() {
+                matches.push(p.to_string());
+            }
+        }
+    }
+    matches.sort();
+    matches
+}
+
+/// Read an include file, capping at [`MAX_INCLUDE_FILE_BYTES`].
+/// `None` covers all of: file missing, permission denied, file
+/// too large (almost always a hostile config), and read errors.
+/// Mirrors the Dart `_defaultIncludeReader` exactly so behaviour
+/// stays identical after the migration.
+fn read_include_file(path: &str) -> Option<String> {
+    let metadata = std::fs::metadata(path).ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    if metadata.len() > MAX_INCLUDE_FILE_BYTES {
+        return None;
+    }
+    std::fs::read_to_string(path).ok()
 }
 
 fn resolve_include_paths(pattern: &str, base_dir: &str) -> Vec<String> {
@@ -692,5 +871,134 @@ mod tests {
         let cfg = "Host alias\n";
         let entries = parse_openssh_config(cfg, &no_includes, "/cfg", 8);
         assert_eq!(entries[0].effective_host(), "alias");
+    }
+
+    // ---- with_fs include resolution ---------------------------------
+
+    fn temp_dir(label: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or_default();
+        let pid = std::process::id();
+        let dir = std::env::temp_dir().join(format!("lfs_ssh_cfg_test_{label}_{pid}_{nanos}"));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        dir
+    }
+
+    fn write_file(dir: &std::path::Path, name: &str, content: &str) -> String {
+        let path = dir.join(name);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("mkdir -p");
+        }
+        std::fs::write(&path, content).expect("write include");
+        path.to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn with_fs_expands_relative_include() {
+        let dir = temp_dir("rel_include");
+        write_file(
+            &dir,
+            "extra.conf",
+            "Host remote\n    HostName remote.example.com\n    User admin\n",
+        );
+        let main = "Host local\n    HostName local.example.com\nInclude extra.conf\n";
+        let entries =
+            parse_openssh_config_with_fs(main, dir.to_string_lossy().as_ref(), 8);
+        let hosts: std::collections::HashSet<_> = entries.iter().map(|e| e.host.as_str()).collect();
+        assert!(hosts.contains("local"));
+        assert!(hosts.contains("remote"));
+        let remote = entries.iter().find(|e| e.host == "remote").unwrap();
+        assert_eq!(remote.user.as_deref(), Some("admin"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn with_fs_glob_expands_to_multiple_files() {
+        let dir = temp_dir("glob");
+        let sub = dir.join("config.d");
+        std::fs::create_dir_all(&sub).expect("mkdir config.d");
+        write_file(&sub, "01-a.conf", "Host a\n    HostName a-host\n");
+        write_file(&sub, "02-b.conf", "Host b\n    HostName b-host\n");
+        // Distractor that shouldn't match `*.conf`.
+        write_file(&sub, "ignore.txt", "Host nope\n    HostName nope\n");
+        let main = "Include config.d/*.conf\n";
+        let entries =
+            parse_openssh_config_with_fs(main, dir.to_string_lossy().as_ref(), 8);
+        let hosts: std::collections::HashSet<_> = entries.iter().map(|e| e.host.as_str()).collect();
+        assert!(hosts.contains("a"));
+        assert!(hosts.contains("b"));
+        assert!(!hosts.contains("nope"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn with_fs_self_referencing_include_terminates() {
+        let dir = temp_dir("loop");
+        write_file(
+            &dir,
+            "loop.conf",
+            "Host looped\n    HostName l\nInclude loop.conf\n",
+        );
+        let entries = parse_openssh_config_with_fs(
+            "Include loop.conf\n",
+            dir.to_string_lossy().as_ref(),
+            8,
+        );
+        let hosts: Vec<_> = entries.iter().map(|e| e.host.as_str()).collect();
+        assert_eq!(hosts, vec!["looped"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn with_fs_missing_include_silently_skipped() {
+        let dir = temp_dir("missing");
+        let entries = parse_openssh_config_with_fs(
+            "Host a\n    HostName a\nInclude does_not_exist.conf\n",
+            dir.to_string_lossy().as_ref(),
+            8,
+        );
+        let hosts: Vec<_> = entries.iter().map(|e| e.host.as_str()).collect();
+        assert_eq!(hosts, vec!["a"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn with_fs_oversized_include_skipped() {
+        let dir = temp_dir("oversized");
+        // Cap is 1 MiB; write 1.5 MiB so the file is rejected.
+        let large = "Host big\n    HostName big\n".repeat(80_000);
+        assert!(large.len() as u64 > MAX_INCLUDE_FILE_BYTES);
+        write_file(&dir, "big.conf", &large);
+        let entries = parse_openssh_config_with_fs(
+            "Host a\n    HostName a\nInclude big.conf\n",
+            dir.to_string_lossy().as_ref(),
+            8,
+        );
+        let hosts: Vec<_> = entries.iter().map(|e| e.host.as_str()).collect();
+        assert_eq!(hosts, vec!["a"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn with_fs_max_depth_caps_recursion() {
+        let dir = temp_dir("depth");
+        write_file(&dir, "a.conf", "Host a\n    HostName a\nInclude b.conf\n");
+        write_file(&dir, "b.conf", "Host b\n    HostName b\nInclude c.conf\n");
+        write_file(&dir, "c.conf", "Host c\n    HostName c\n");
+        // Depth 1 → only `a` is read; the deeper Include lines are
+        // emitted as raw text (parser ignores Include directives in
+        // the body) so b and c never land.
+        let entries = parse_openssh_config_with_fs(
+            "Include a.conf\n",
+            dir.to_string_lossy().as_ref(),
+            1,
+        );
+        let hosts: std::collections::HashSet<_> = entries.iter().map(|e| e.host.as_str()).collect();
+        assert!(hosts.contains("a"));
+        assert!(!hosts.contains("b"));
+        assert!(!hosts.contains("c"));
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
