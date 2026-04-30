@@ -396,24 +396,22 @@ class AppConfig {
 
   /// Validate config values. Returns error message or null.
   ///
-  /// Routes through `lfs_core::config::AppConfig::validate` (FRB
-  /// sync) so the validation chain (terminal → ssh → ui → workers
-  /// → history) lives one place; falls back to the inline chain
-  /// for flutter_test contexts that don't load the FRB native lib.
+  /// Stays Dart-side: the Rust counterpart
+  /// `config_app_config_validate_json` runs `from_json_value` first,
+  /// which `.sanitized()`s out-of-range values during parse, so the
+  /// validator can't ever observe a failing case. Until the Rust
+  /// validator takes raw JSON without the sanitising parse, the
+  /// per-sub-struct chain below is the source of truth.
+  ///
+  /// No production caller exercises this path today (settings UI
+  /// uses Form-level validators on individual inputs); the test
+  /// suite documents the per-field contract.
   String? validate() {
-    try {
-      return rust_config.configAppConfigValidateJson(
-        inputJson: jsonEncode(toJson()),
-      );
-    } catch (_) {
-      return terminal.validate() ??
-          ssh.validate() ??
-          ui.validate() ??
-          (transferWorkers < 1
-              ? 'Transfer workers must be at least 1'
-              : null) ??
-          (maxHistory < 0 ? 'Max history must be non-negative' : null);
-    }
+    return terminal.validate() ??
+        ssh.validate() ??
+        ui.validate() ??
+        (transferWorkers < 1 ? 'Transfer workers must be at least 1' : null) ??
+        (maxHistory < 0 ? 'Max history must be non-negative' : null);
   }
 
   /// Return a copy with invalid values clamped to safe defaults.
@@ -520,11 +518,11 @@ class AppConfig {
 
   /// JSON stays flat for backward compatibility.
   ///
-  /// Production routes through `lfs_core::config::AppConfig` (FRB
-  /// sync) so the field-name set + default-omit grammar (locale /
-  /// security_tier / log_level only when set) lives one place
-  /// across the two encoders. Falls back to the inline composition
-  /// when the FRB native lib is not loaded (flutter_test).
+  /// Routes through `lfs_core::config::AppConfig` (FRB sync) — the
+  /// field-name set + default-omit grammar (locale / security_tier
+  /// / log_level only when set) lives one place across the two
+  /// encoders. Tests that exercise the encoder bootstrap FRB via
+  /// `requireFrbLoaded()`.
   Map<String, dynamic> toJson() {
     final dartShape = <String, dynamic>{
       ...terminal.toJson(),
@@ -539,14 +537,10 @@ class AppConfig {
       if (securityProbeCache != null)
         'security_probe_cache': securityProbeCache!.toJson(),
     };
-    try {
-      final canonical = rust_config.configAppConfigToJson(
-        inputJson: jsonEncode(dartShape),
-      );
-      return jsonDecode(canonical) as Map<String, dynamic>;
-    } catch (_) {
-      return dartShape;
-    }
+    final canonical = rust_config.configAppConfigToJson(
+      inputJson: jsonEncode(dartShape),
+    );
+    return jsonDecode(canonical) as Map<String, dynamic>;
   }
 
   /// Portable JSON for `.lfs` archive export. Strips every field that
@@ -558,42 +552,24 @@ class AppConfig {
   /// on each new device.
   ///
   /// Routes through `lfs_core::config::strip_for_export` (FRB sync)
-  /// so the strip-list lives one place; falls back to the inline
-  /// removal for flutter_test.
+  /// — the strip-list lives one place.
   Map<String, dynamic> toJsonForExport() {
-    final json = toJson();
-    try {
-      final stripped = rust_config.configAppConfigStripForExport(
-        inputJson: jsonEncode(json),
-      );
-      return jsonDecode(stripped) as Map<String, dynamic>;
-    } catch (_) {
-      json.remove('security_tier');
-      json.remove('security_modifiers');
-      json.remove('security_probe_cache');
-      json.remove('config_schema_version');
-      return json;
-    }
+    final stripped = rust_config.configAppConfigStripForExport(
+      inputJson: jsonEncode(toJson()),
+    );
+    return jsonDecode(stripped) as Map<String, dynamic>;
   }
 
   /// Parse `config.json` JSON into a typed `AppConfig`. Routes
   /// through `lfs_core::config::AppConfig::from_json_value` (FRB
-  /// sync) so the canonical sanitize pipeline (clamp out-of-range
+  /// sync) — the canonical sanitize pipeline (clamp out-of-range
   /// values to defaults, fall through unknown locale to `null`,
-  /// fall through unknown tier to `null`) lives one place. Falls
-  /// back to the inline factory when the FRB native lib is not
-  /// loaded (flutter_test).
+  /// fall through unknown tier to `null`) lives one place.
   factory AppConfig.fromJson(Map<String, dynamic> json) {
-    Map<String, dynamic> resolved = json;
-    try {
-      final canonical = rust_config.configAppConfigSanitizeJson(
-        inputJson: jsonEncode(json),
-      );
-      resolved = jsonDecode(canonical) as Map<String, dynamic>;
-    } catch (_) {
-      // Fall through to the Dart factory below — flutter_test
-      // contexts that don't bring up RustLib hit this branch.
-    }
+    final canonical = rust_config.configAppConfigSanitizeJson(
+      inputJson: jsonEncode(json),
+    );
+    final resolved = jsonDecode(canonical) as Map<String, dynamic>;
     const d = AppConfig.defaults;
     return AppConfig(
       terminal: TerminalConfig.fromJson(resolved),

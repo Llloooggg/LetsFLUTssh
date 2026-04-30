@@ -3,7 +3,15 @@ import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/utils/logger.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // AppConfig.toJson / fromJson / validate / sanitized route through
+  // `lfs_core::config::AppConfig` — the Dart facade carries no
+  // fallback. Tests must bootstrap the FRB native lib.
+  setUpAll(requireFrbLoaded);
+
   // ===== TerminalConfig =====
   group('TerminalConfig', () {
     group('defaults', () {

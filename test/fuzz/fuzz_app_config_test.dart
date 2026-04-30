@@ -3,12 +3,20 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 /// Fuzz tests for [AppConfig.fromJson] and sub-config parsers.
 ///
 /// Verifies that no malformed config JSON can crash the parser.
 /// All fromJson methods must either return a valid object or throw
 /// a predictable type error — never an unhandled exception.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // AppConfig.fromJson routes through `lfs_core::config::AppConfig
+  // ::from_json_value`. Bootstrap FRB so the fuzz inputs hit the
+  // real Rust parser.
+  setUpAll(requireFrbLoaded);
+
   group('Fuzz TerminalConfig.fromJson', () {
     final rng = Random(42);
 

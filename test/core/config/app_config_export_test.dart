@@ -2,7 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // AppConfig.toJson{,ForExport} / fromJson route through Rust;
+  // the Dart facade no longer carries a fallback. Bootstrap FRB.
+  setUpAll(requireFrbLoaded);
+
   group('AppConfig.toJsonForExport', () {
     test('strips per-machine security metadata', () {
       final cfg = AppConfig.defaults.copyWithSecurity(

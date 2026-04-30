@@ -6,8 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // ConfigNotifier persistence routes through `loadAppConfigFromDisk`
+  // / `_saveAppConfigToDisk`, which encode via `AppConfig.toJson` →
+  // Rust canonical encoder. Bootstrap FRB so the round-trip survives.
+  setUpAll(requireFrbLoaded);
   late Directory tempDir;
 
   setUp(() {

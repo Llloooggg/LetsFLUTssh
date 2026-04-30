@@ -8,6 +8,8 @@ import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/widgets/unified_export_controller.dart';
 import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 /// Pure-logic tests for [UnifiedExportController]. No widget tree —
 /// driving the controller directly exercises the selection / option /
 /// preset / cache-invalidation rules that the dialog's build() relies
@@ -71,6 +73,11 @@ UnifiedExportController _ctrl({
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // Controller's payload-size cache calls AppConfig.toJson which
+  // routes through the Rust canonical encoder. Bootstrap FRB.
+  setUpAll(requireFrbLoaded);
+
   group('UnifiedExportController — initial state', () {
     test('QR mode initial options mirror "Sessions only" without keys', () {
       final c = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);

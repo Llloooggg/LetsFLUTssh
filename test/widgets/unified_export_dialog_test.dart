@@ -10,7 +10,14 @@ import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // Dialog renders against `AppConfig.defaults.toJson()` which routes
+  // through the Rust canonical encoder. Bootstrap FRB so the
+  // serialise step survives in flutter_test.
+  setUpAll(requireFrbLoaded);
   late Directory tempDir;
 
   setUp(() {
