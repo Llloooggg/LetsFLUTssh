@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:archive/archive.dart';
-
 import '../../src/rust/api/qr_codec_encode.dart' as rust_qr;
 import '../../utils/logger.dart';
 import '../security/ssh_key.dart';
@@ -345,32 +343,12 @@ String encodeExportPayload(
   return encoded;
 }
 
-/// Deflate + base64url encode the JSON payload via the canonical
-/// Rust path; falls back to `package:archive` Deflate +
-/// `base64Url.encode` for flutter_test contexts that don't load the
-/// FRB native lib (same Rust-canonical / Dart-fallback pattern as
-/// the security stack's compat wrappers).
-///
-/// Wire-shape parity: production Rust + the deeplink decoder both
-/// use `URL_SAFE_NO_PAD`. `dart:convert`'s `base64Url.encode` adds
-/// `=` padding by default; strip it so a payload produced by
-/// either path round-trips through `qr_codec_decode::decode_payload`.
-String _compressToPayload(String json) {
-  try {
-    return rust_qr.qrCodecCompressToPayload(json: json);
-  } catch (_) {
-    final compressed = Deflate(utf8.encode(json)).getBytes();
-    return _stripBase64Padding(base64Url.encode(compressed));
-  }
-}
-
-String _stripBase64Padding(String encoded) {
-  var end = encoded.length;
-  while (end > 0 && encoded.codeUnitAt(end - 1) == 0x3D /* '=' */ ) {
-    end--;
-  }
-  return encoded.substring(0, end);
-}
+/// Deflate + base64url encode the JSON payload via
+/// `lfs_core::qr_codec::compress_to_payload` — production Rust +
+/// the deeplink decoder both use `URL_SAFE_NO_PAD` so payloads
+/// round-trip through `qr_codec_decode::decode_payload`.
+String _compressToPayload(String json) =>
+    rust_qr.qrCodecCompressToPayload(json: json);
 
 /// For "all manager keys" mode, add keys not referenced by any session.
 void _addAllManagerKeys(
@@ -533,33 +511,24 @@ Map<String, dynamic> encodeSessionCompact(
   bool isManagerKey = false,
   bool includePasswords = false,
 }) {
-  try {
-    final json = rust_qr.qrCodecEncodeSessionCompact(
-      label: s.label,
-      host: s.host,
-      user: s.user,
-      port: s.port,
-      folder: s.folder,
-      authType: s.authType.name,
-      keyShort: keyId,
-      isManager: isManagerKey,
-      includePasswords: includePasswords,
-      password: s.password,
-    );
-    return jsonDecode(json) as Map<String, dynamic>;
-  } catch (_) {
-    final m = <String, dynamic>{'l': s.label, 'h': s.host, 'u': s.user};
-    if (s.port != 22) m['p'] = s.port;
-    if (s.folder.isNotEmpty) m['g'] = s.folder;
-    if (s.authType != AuthType.password) m['a'] = s.authType.name;
-    if (keyId != null) m['ki'] = keyId;
-    if (isManagerKey) m['mg'] = 1;
-    // SECURITY: passwords stored in plaintext in QR payload — only enable when
-    // user explicitly opts in via includePasswords. QR codes can be scanned by
-    // anyone with camera access to the screen.
-    if (includePasswords && s.password.isNotEmpty) m['pw'] = s.password;
-    return m;
-  }
+  // SECURITY: passwords stored in plaintext in QR payload — only
+  // enable when user explicitly opts in via includePasswords. QR
+  // codes can be scanned by anyone with camera access to the
+  // screen. The opt-in gate lives Rust-side in
+  // `lfs_core::qr_codec::encode_session_compact`.
+  final json = rust_qr.qrCodecEncodeSessionCompact(
+    label: s.label,
+    host: s.host,
+    user: s.user,
+    port: s.port,
+    folder: s.folder,
+    authType: s.authType.name,
+    keyShort: keyId,
+    isManager: isManagerKey,
+    includePasswords: includePasswords,
+    password: s.password,
+  );
+  return jsonDecode(json) as Map<String, dynamic>;
 }
 
 /// A session→tag or session→snippet link from the export payload.

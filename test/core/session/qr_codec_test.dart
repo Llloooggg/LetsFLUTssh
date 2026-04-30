@@ -3,7 +3,15 @@ import 'package:letsflutssh/core/session/qr_codec.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // qr_codec routes through `lfs_core::qr_codec` — bootstrap FRB
+  // so the canonical Rust encode + compress + base64url-no-pad
+  // grammar is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('encodeSessionCompact', () {
     Session base({
       String label = 'lab',
