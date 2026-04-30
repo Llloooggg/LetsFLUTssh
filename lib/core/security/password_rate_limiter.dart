@@ -256,15 +256,22 @@ class PersistedRateLimiter extends PasswordRateLimiter {
   }
 
   /// Awaits any pending save. Rust mode: the actor schedules writes
-  /// via `tokio::spawn_blocking`; we yield twice to give the worker
-  /// a chance to drain. Dart mode: await the in-memory chain.
+  /// via `tokio::spawn_blocking` on the FRB tokio runtime; the
+  /// short delay covers the worker dispatch + sync `std::fs::write`
+  /// latency. Dart mode: await the in-memory chain.
+  ///
+  /// 50 ms is empirical — flutter_test runs the FRB worker on the
+  /// same machine the test is running on, so the Tokio handoff +
+  /// disk write completes well within this window. If a future
+  /// machine reliably misses, bump it; a proper Rust-side
+  /// `actor_flush` FRB call is the long-term fix but requires
+  /// rebuilding codegen.
   Future<void> awaitPendingSave() async {
     final b = _backend;
     if (b is _DartBackend) {
       await b.pendingSave;
     } else {
-      await Future<void>.value();
-      await Future<void>.value();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
     }
   }
 

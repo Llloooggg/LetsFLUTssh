@@ -54,6 +54,8 @@ String _releasesArray(List<Map<String, dynamic>> releases) =>
     jsonEncode(releases);
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   // ===========================================================================
   // UpdateInfo.compareVersions
   // ===========================================================================

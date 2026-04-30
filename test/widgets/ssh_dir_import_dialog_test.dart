@@ -304,9 +304,7 @@ void main() {
                 hostsPreview: null,
                 keys: [key],
                 folderLabel: '.ssh 2026-04-15',
-                existingKeyFingerprints: {
-                  privateKeyFingerprint(key.pem),
-                },
+                existingKeyFingerprints: {privateKeyFingerprint(key.pem)},
               ),
             ),
           ),

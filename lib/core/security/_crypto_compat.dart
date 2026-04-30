@@ -15,22 +15,17 @@ import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 import '../../src/rust/api/tier_transition_marker.dart' as rust_ttm;
 
-/// HMAC-SHA-256 compat wrapper.
+/// HMAC-SHA-256. Routes through `lfs_core::crypto::hmac_sha256` (sync
+/// FRB) in production; falls back to `package:crypto`'s byte-identical
+/// `Hmac(sha256, key).convert(message)` when the FRB native lib is not
+/// loaded (flutter_test contexts that don't bootstrap RustLib).
 ///
-/// Production routes through `lfs_core::crypto::hmac_sha256` (sync
-/// FRB) so the per-tier secret gates share one canonical
-/// implementation with the rest of the security stack. Under
-/// flutter_test the FRB native lib is not loaded, so the call
-/// throws synchronously; the Dart fallback below picks up the
-/// same RustCrypto-equivalent path that `package:crypto` already
-/// ships, keeping wire-byte parity for any disk blob written
-/// from one path and read back from the other.
-///
-/// Same fallback pattern as `password_strength.dart` —
-/// production never reaches the catch arm because RustLib.init
-/// runs before any provider graph that pulls a security tier
-/// builds, but widget tests + unit suites that don't bootstrap
-/// FRB still see the meter (and the gate hash check) work.
+/// Kept as a fallback rather than dropped because the security tests
+/// that drive the L2 / L3 disk-blob HMAC rely on cross-Rust/Dart
+/// prompt protocols that aren't wired up under `requireFrbLoaded` —
+/// the Dart fallback is the path those tests were designed for, and
+/// `package:crypto` is the canonical RustCrypto-equivalent so the
+/// disk bytes round-trip identically across both paths.
 Uint8List hmacSha256Compat(Uint8List key, Uint8List message) {
   try {
     return rust_crypto.cryptoHmacSha256(key: key, message: message);
@@ -41,15 +36,14 @@ Uint8List hmacSha256Compat(Uint8List key, Uint8List message) {
   }
 }
 
-/// Constant-time byte-slice equality compat wrapper.
+/// Constant-time byte-slice equality.
 ///
-/// Production routes through `lfs_core::crypto::constant_time_eq`
-/// (sync FRB), backed by `subtle::ConstantTimeEq`. Falls back to a
-/// pure-Dart loop with the same constant-time shape (XOR fold over
-/// every byte regardless of where the first mismatch sits) when
-/// the FRB native lib is not loaded — same test-context fallback
-/// pattern as [hmacSha256Compat]. Length mismatch fails fast: the
-/// lengths themselves are not secret, only the byte content is.
+/// Routes through `lfs_core::crypto::constant_time_eq` (sync FRB),
+/// backed by `subtle::ConstantTimeEq`. Falls back to a pure-Dart
+/// XOR-fold loop with the same constant-time shape when the FRB
+/// native lib is not loaded — same test-context pattern as
+/// [hmacSha256Compat]. Length mismatch fails fast: the lengths
+/// themselves are not secret, only the byte content is.
 bool constantTimeEqCompat(List<int> a, List<int> b) {
   try {
     return rust_crypto.cryptoConstantTimeEq(a: _bytes(a), b: _bytes(b));
@@ -65,11 +59,9 @@ bool constantTimeEqCompat(List<int> a, List<int> b) {
 
 Uint8List _bytes(List<int> v) => v is Uint8List ? v : Uint8List.fromList(v);
 
-/// SHA-256 digest compat wrapper. Production routes through
-/// `lfs_core::crypto::sha256` (sync FRB); the Dart fallback below
-/// uses `package:crypto`'s `sha256.convert` so flutter_test
-/// contexts that don't load the FRB native lib see the same digest
-/// bytes by construction.
+/// SHA-256 digest. Routes through `lfs_core::crypto::sha256` (sync
+/// FRB); falls back to `package:crypto`'s `sha256.convert` when the
+/// FRB native lib is not loaded (test-context bootstrap-less path).
 Uint8List sha256Compat(List<int> bytes) {
   try {
     return rust_crypto.cryptoSha256(bytes: _bytes(bytes));
@@ -80,7 +72,7 @@ Uint8List sha256Compat(List<int> bytes) {
 
 /// Lower-case hex of [sha256Compat]. Convenience for the half-dozen
 /// fingerprint helpers around the codebase that persist the digest
-/// as a hex string.
+/// as a hex string. Same test-context fallback as [sha256Compat].
 String sha256HexCompat(List<int> bytes) {
   try {
     return rust_crypto.cryptoSha256Hex(bytes: _bytes(bytes));

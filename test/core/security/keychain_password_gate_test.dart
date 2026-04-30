@@ -9,6 +9,14 @@ import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // Intentionally NO `requireFrbLoaded` here — these tests exercise
+  // the Dart-pipeline fallback in setPassword/verify/clear that
+  // composes the disk blob inline. With FRB bootstrap the test
+  // would route through `keychain_password_gate_actor.set_password`,
+  // which publishes a `KeychainOpPromptRequest` bus event and awaits
+  // a Dart subscriber that this unit test isn't wiring up. The Dart
+  // fallback covers the same wire-byte format via the `_compat`
+  // helpers and is the path the test was designed for.
 
   late Directory tempDir;
   late Map<String, String> fakeKeychain;

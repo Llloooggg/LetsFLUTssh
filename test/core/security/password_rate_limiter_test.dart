@@ -4,7 +4,11 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
 
   group('HardwareRateLimiter', () {
     test('follows the shared backoff schedule on failures', () {
@@ -61,6 +65,13 @@ void main() {
     test('recordFailure persists and survives restart', () async {
       final clock = DateTime(2026, 1, 1, 12, 0, 0);
       final first = await makeLimiter(now: () => clock);
+      // statusAsync triggers `_ensureBackend` which calls
+      // `init_or_get(state_file_path)` against the Rust actor — the
+      // sync probe path in `recordFailure` doesn't know the file
+      // path, so without this prologue the actor records in-memory
+      // but never persists. Same shape as the production unlock
+      // dialog, which awaits statusAsync on first frame.
+      await first.statusAsync();
       first.recordFailure();
       first.recordFailure();
       // Allow the fire-and-forget save to flush.
@@ -76,6 +87,7 @@ void main() {
     test('recordSuccess persists reset', () async {
       final clock = DateTime(2026, 1, 1, 12, 0, 0);
       final first = await makeLimiter(now: () => clock);
+      await first.statusAsync();
       first.recordFailure();
       first.recordSuccess();
       await first.awaitPendingSave();
@@ -89,6 +101,7 @@ void main() {
     test('tampered state file is detected and forces max cooldown', () async {
       final clock = DateTime(2026, 1, 1, 12, 0, 0);
       final first = await makeLimiter(now: () => clock);
+      await first.statusAsync();
       first.recordFailure();
       await first.awaitPendingSave();
 
@@ -104,6 +117,7 @@ void main() {
     test('wrong hmac key (e.g. password cycled) fails tamper check', () async {
       final clock = DateTime(2026, 1, 1, 12, 0, 0);
       final first = await makeLimiter(now: () => clock);
+      await first.statusAsync();
       first.recordFailure();
       await first.awaitPendingSave();
 
