@@ -9,7 +9,6 @@
 #include "win32_window.h"
 
 class HardwareVaultPlugin;
-class ClipboardSecurePlugin;
 class SessionLockPlugin;
 
 // A window that does nothing but host a Flutter view.
@@ -37,10 +36,9 @@ class FlutterWindow : public Win32Window {
   // as a member so its MethodChannel binding outlives OnCreate().
   std::unique_ptr<HardwareVaultPlugin> hardware_vault_;
 
-  // Clipboard writer that opts out of Win+V clipboard history and
-  // Microsoft cloud sync on every copy. Member so the method channel
-  // stays registered for the lifetime of the window.
-  std::unique_ptr<ClipboardSecurePlugin> clipboard_secure_;
+  // ClipboardSecurePlugin retired — secure_clipboard now routes
+  // through `lfs_os_security::secure_clipboard` (Win32 OpenClipboard
+  // + RegisterClipboardFormatW for the cloud / history opt-out).
 
   // WTS session-change subscription — fires the Dart-side auto-lock
   // whenever the workstation locks (Win+L, Ctrl+Alt+Del → Lock, GPO

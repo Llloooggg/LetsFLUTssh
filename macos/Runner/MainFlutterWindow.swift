@@ -9,7 +9,11 @@ class MainFlutterWindow: NSWindow {
   // The Swift plugin file stays on disk until the next Xcode
   // pbxproj cleanup so this commit doesn't have to touch the
   // project file.
-  private let clipboardSecure = ClipboardSecurePlugin()
+  // ClipboardSecurePlugin retired — secure_clipboard now routes
+  // through `lfs_os_security::secure_clipboard` (objc2-app-kit
+  // → NSPasteboard with transient/concealed marker types). The
+  // Swift plugin file stays on disk pending an Xcode pbxproj
+  // cleanup so this commit doesn't have to touch the project file.
   private let sessionLock = SessionLockPlugin()
 
   override func awakeFromNib() {
@@ -20,7 +24,6 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     hardwareVault.register(with: flutterViewController.engine.binaryMessenger)
-    clipboardSecure.register(with: flutterViewController.engine.binaryMessenger)
     sessionLock.register(with: flutterViewController.engine.binaryMessenger)
 
     // Minimum window size to prevent layout overflow.

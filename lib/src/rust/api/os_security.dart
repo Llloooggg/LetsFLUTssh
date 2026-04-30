@@ -59,6 +59,18 @@ void osSecurityReleaseSingleInstance({required BigInt handleId}) => RustLib
 void osSecurityExcludeFromBackup({required String path}) => RustLib.instance.api
     .crateApiOsSecurityOsSecurityExcludeFromBackup(path: path);
 
+/// Write `text` to the system clipboard with the per-platform
+/// "do not sync / do not history" flags applied in the same write
+/// session — Win cloud-clipboard opt-out, macOS NSPasteboard
+/// transient/concealed types, iOS UIPasteboard.localOnly. Linux
+/// uses arboard for the basic write. Android isn't covered here
+/// (the Dart wrapper short-circuits to its existing
+/// MethodChannel for `EXTRA_IS_SENSITIVE` before invoking).
+void osSecuritySetSecureClipboard({required String text}) => RustLib
+    .instance
+    .api
+    .crateApiOsSecurityOsSecuritySetSecureClipboard(text: text);
+
 /// Per-step result reported by [`os_security_apply_startup_hardening`].
 /// `code` carries the underlying syscall return code (0 = POSIX
 /// success). `error` is `None` on success.

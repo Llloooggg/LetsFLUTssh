@@ -255,4 +255,5 @@ mod tests {
 }
 
 pub mod backup_exclusion;
+pub mod secure_clipboard;
 pub mod single_instance;

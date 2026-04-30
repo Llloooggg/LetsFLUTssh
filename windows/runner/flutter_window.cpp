@@ -3,7 +3,10 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
-#include "clipboard_secure_plugin.h"
+// clipboard_secure_plugin retired — secure_clipboard now routes
+// through `lfs_os_security::secure_clipboard` (Win32 OpenClipboard
+// + RegisterClipboardFormatW for the cloud / history opt-out).
+// The .cpp / .h files stay on disk pending a CMakeLists cleanup.
 #include "hardware_vault_plugin.h"
 #include "session_lock_plugin.h"
 
@@ -30,8 +33,6 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   hardware_vault_ =
       std::make_unique<HardwareVaultPlugin>(flutter_controller_->engine());
-  clipboard_secure_ =
-      std::make_unique<ClipboardSecurePlugin>(flutter_controller_->engine());
   session_lock_ =
       std::make_unique<SessionLockPlugin>(flutter_controller_->engine());
   session_lock_->Attach(GetHandle());

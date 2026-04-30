@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/services.dart';
 
+import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../utils/logger.dart';
 
 /// Platform-aware clipboard writer that opts the payload out of cloud
@@ -36,34 +37,56 @@ import '../../utils/logger.dart';
 ///   that honour it) hides the preview in the clipboard toast and
 ///   tells launchers not to cache the content.
 /// * **Linux** — nothing to opt out of; X11 and Wayland have no cloud
-///   clipboard default. Falls through to [Clipboard.setData].
+///   clipboard default. Falls through to arboard via Rust.
 ///
-/// Channel: `com.letsflutssh/clipboard_secure`, method `setSecureText`
-/// taking `{text: String}` and returning `bool`. If the channel is
-/// missing (test harness, platform not yet wired), the call falls
-/// through to the stock Flutter clipboard — a best-effort write is
-/// better than refusing to copy.
+/// Routing:
+/// * **Android** — keeps the `com.letsflutssh/clipboard_secure`
+///   MethodChannel (the `EXTRA_IS_SENSITIVE` flag needs the platform
+///   `ClipboardManager` API). The Dart wrapper short-circuits here.
+/// * **All other targets** — single FRB call into
+///   `lfs_os_security::secure_clipboard::set_secure_text`. The Rust
+///   side does the per-platform sensitive-flag dance in the same
+///   write session as the text, so a watcher can't see the string
+///   without the marker.
 class SecureClipboard {
-  SecureClipboard({MethodChannel? channel, bool? hasNativePlugin})
-    : _channel = channel ?? const MethodChannel(_channelName),
-      _hasNativePlugin = hasNativePlugin ?? !Platform.isLinux;
+  SecureClipboard({MethodChannel? channel, bool? isAndroidPlatform})
+    : _channel = channel ?? const MethodChannel(_androidChannelName),
+      _isAndroidPlatform = isAndroidPlatform ?? Platform.isAndroid;
 
-  static const _channelName = 'com.letsflutssh/clipboard_secure';
+  static const _androidChannelName = 'com.letsflutssh/clipboard_secure';
 
   final MethodChannel _channel;
-  final bool _hasNativePlugin;
+  final bool _isAndroidPlatform;
 
   /// Write [text] to the system clipboard with the per-platform
   /// cloud / history opt-out flags applied. Falls back to
-  /// [Clipboard.setData] on Linux and on any platform where the
-  /// native plugin is unavailable.
+  /// [Clipboard.setData] when both the Rust path and the Android
+  /// MethodChannel fail — a best-effort write is better than
+  /// refusing to copy.
   Future<void> setText(String text) async {
-    if (await _tryNative(text)) return;
+    if (_isAndroidPlatform) {
+      if (await _tryAndroidNative(text)) return;
+    } else if (_tryRustNative(text)) {
+      return;
+    }
     await Clipboard.setData(ClipboardData(text: text));
   }
 
-  Future<bool> _tryNative(String text) async {
-    if (!_hasNativePlugin) return false;
+  bool _tryRustNative(String text) {
+    try {
+      rust_os.osSecuritySetSecureClipboard(text: text);
+      return true;
+    } catch (e) {
+      AppLogger.instance.log(
+        'SecureClipboard Rust write failed, falling back: $e',
+        name: 'SecureClipboard',
+        level: LogLevel.warn,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> _tryAndroidNative(String text) async {
     try {
       await _channel.invokeMethod<bool>('setSecureText', {'text': text});
       return true;
@@ -71,7 +94,7 @@ class SecureClipboard {
       return false;
     } catch (e) {
       AppLogger.instance.log(
-        'SecureClipboard native write failed, falling back: $e',
+        'SecureClipboard Android channel write failed, falling back: $e',
         name: 'SecureClipboard',
         level: LogLevel.warn,
       );

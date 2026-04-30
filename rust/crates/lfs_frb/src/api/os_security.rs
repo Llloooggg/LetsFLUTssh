@@ -77,3 +77,15 @@ pub fn os_security_release_single_instance(handle_id: u64) {
 pub fn os_security_exclude_from_backup(path: String) -> Result<(), String> {
     lfs_os_security::backup_exclusion::exclude_from_backup(&path)
 }
+
+/// Write `text` to the system clipboard with the per-platform
+/// "do not sync / do not history" flags applied in the same write
+/// session — Win cloud-clipboard opt-out, macOS NSPasteboard
+/// transient/concealed types, iOS UIPasteboard.localOnly. Linux
+/// uses arboard for the basic write. Android isn't covered here
+/// (the Dart wrapper short-circuits to its existing
+/// MethodChannel for `EXTRA_IS_SENSITIVE` before invoking).
+#[flutter_rust_bridge::frb(sync)]
+pub fn os_security_set_secure_clipboard(text: String) -> Result<(), String> {
+    lfs_os_security::secure_clipboard::set_secure_text(&text)
+}
