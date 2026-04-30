@@ -78,40 +78,16 @@ class UpdateInfo {
   /// True when the remote version is strictly newer.
   bool get hasUpdate => compareVersions(latestVersion, currentVersion) > 0;
 
-  /// Compare two semver strings. Returns positive if [a] > [b].
-  /// Routes through `lfs_core::update_metadata::compare_versions`
-  /// — canonical implementation. Dart fallback fires only in
-  /// flutter_test contexts that don't load the FRB native lib.
+  /// Compare two semver strings via
+  /// `lfs_core::update_metadata::compare_versions` — returns positive
+  /// if [a] > [b].
   static int compareVersions(String a, String b) {
-    try {
-      final ord = rust_update.updateCompareVersions(a: a, b: b);
-      return switch (ord) {
-        rust_update.DbVersionOrder.less => -1,
-        rust_update.DbVersionOrder.equal => 0,
-        rust_update.DbVersionOrder.greater => 1,
-      };
-    } catch (_) {
-      return _compareVersionsDart(a, b);
-    }
-  }
-
-  static int _compareVersionsDart(String a, String b) {
-    final pa = _parseVersion(a);
-    final pb = _parseVersion(b);
-    for (var i = 0; i < 3; i++) {
-      final diff = pa[i] - pb[i];
-      if (diff != 0) return diff;
-    }
-    return 0;
-  }
-
-  static List<int> _parseVersion(String v) {
-    final cleaned = v.startsWith('v') ? v.substring(1) : v;
-    final parts = cleaned.split('.');
-    return List.generate(3, (i) {
-      if (i < parts.length) return int.tryParse(parts[i]) ?? 0;
-      return 0;
-    });
+    final ord = rust_update.updateCompareVersions(a: a, b: b);
+    return switch (ord) {
+      rust_update.DbVersionOrder.less => -1,
+      rust_update.DbVersionOrder.equal => 0,
+      rust_update.DbVersionOrder.greater => 1,
+    };
   }
 
   @override

@@ -7,6 +7,8 @@ import 'package:letsflutssh/core/update/update_service.dart';
 import 'package:letsflutssh/providers/update_provider.dart';
 import 'package:letsflutssh/providers/version_provider.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 /// Stub UpdateService that resolves immediately with fixed results.
 class _StubUpdateService extends UpdateService {
   final UpdateInfo Function(String version) onCheck;
@@ -74,6 +76,9 @@ void _clearPathProviderMock() {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // UpdateInfo.compareVersions routes through `lfs_core::update_metadata`
+  // — bootstrap FRB.
+  setUpAll(requireFrbLoaded);
 
   group('UpdateState', () {
     test('default status is idle', () {
