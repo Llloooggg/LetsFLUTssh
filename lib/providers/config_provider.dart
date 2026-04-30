@@ -9,7 +9,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/config/app_config.dart';
 import '../src/rust/api/config.dart' as rust_config;
-import '../utils/file_utils.dart';
 import '../utils/logger.dart';
 
 const _configFileName = 'config.json';
@@ -74,24 +73,13 @@ Future<LoadedAppConfig> loadAppConfigFromDisk() async {
 Future<void> _bootstrapRustStore(String supportDir) async {
   // Bootstrap the Rust `lfs_core::config_store::Store` actor against
   // the same directory so subsequent save() calls land on disk through
-  // the Rust atomic-write + bus-event path. Best-effort — flutter_test
-  // contexts that don't load the FRB native lib continue to use the
-  // inline file-write fallback in [_saveAppConfigToDisk].
-  try {
-    rust_config.configStoreInit(supportDir: supportDir);
-  } catch (e) {
-    AppLogger.instance.log(
-      'config_store_init unreachable, falling back to '
-      'Dart file writes: $e',
-      name: 'ConfigStore',
-    );
-  }
+  // the Rust atomic-write + bus-event path.
+  rust_config.configStoreInit(supportDir: supportDir);
 }
 
 Future<void> _saveAppConfigToDisk(AppConfig config) async {
   final dir = await getApplicationSupportDirectory();
   await _bootstrapRustStore(dir.path);
-  final filePath = p.join(dir.path, _configFileName);
   // Stamp the current schema version on every write so the Rust
   // migration runner on the next launch can detect any version other
   // than the current `SchemaVersions::CONFIG` (defined in
@@ -103,27 +91,14 @@ Future<void> _saveAppConfigToDisk(AppConfig config) async {
     'config_schema_version': 1,
     ...config.toJson(),
   };
-  // Production routes through `lfs_core::config_store::Store` — the
-  // actor owns the in-memory snapshot, 300 ms debounce, atomic write
-  // through `write_bytes_atomic`, and the bus event publication.
-  // Fallback to the inline `writeFileAtomic` for flutter_test contexts
-  // that don't load the FRB native lib.
-  try {
-    rust_config.configStoreSetJson(newJson: jsonEncode(payload));
-    // Force the pending state to disk — explicit save semantic ("save
-    // now"), not a debounced write. The Notifier's `update` debounce
-    // path will fold into the actor when the actor takes over.
-    rust_config.configStoreFlush();
-    return;
-  } catch (e) {
-    AppLogger.instance.log(
-      'config_store_set_json unreachable, falling back to '
-      'Dart file write: $e',
-      name: 'ConfigStore',
-    );
-  }
-  final content = const JsonEncoder.withIndent('  ').convert(payload);
-  await writeFileAtomic(filePath, content);
+  // Routes through `lfs_core::config_store::Store` — the actor owns
+  // the in-memory snapshot, 300 ms debounce, atomic write through
+  // `write_bytes_atomic`, and the bus event publication. The
+  // `flush()` after `set_json` forces the pending state to disk on
+  // an explicit save semantic ("save now") rather than letting the
+  // actor's own debounce window absorb it.
+  rust_config.configStoreSetJson(newJson: jsonEncode(payload));
+  rust_config.configStoreFlush();
 }
 
 /// App config state — initial value comes from

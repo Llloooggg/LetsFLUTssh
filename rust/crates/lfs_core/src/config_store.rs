@@ -222,8 +222,18 @@ pub fn instance() -> &'static Store {
 /// Idempotent — repeated calls are no-ops; the ticker spawns
 /// at most once per process. Cancellation happens implicitly at
 /// process exit; no manual teardown needed.
+///
+/// Skips the spawn (and stays armed for a later call) when no
+/// Tokio runtime is reachable from the calling thread — this
+/// happens for sync FRB calls outside the FRB worker pool and
+/// in unit tests that drive ticks manually. Without this guard
+/// the call would panic with "there is no reactor running",
+/// which is what the Dart-side silent fallback used to absorb.
 pub fn start_background_ticker() {
     static TICKER_STARTED: OnceLock<()> = OnceLock::new();
+    if tokio::runtime::Handle::try_current().is_err() {
+        return;
+    }
     if TICKER_STARTED.set(()).is_err() {
         return;
     }
