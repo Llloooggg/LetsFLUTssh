@@ -42,6 +42,7 @@ import 'api/rate_limit.dart';
 import 'api/recorder.dart';
 import 'api/security_capabilities.dart';
 import 'api/security_config.dart';
+import 'api/session_history.dart';
 import 'api/sessions.dart';
 import 'api/sessions_registry.dart';
 import 'api/sftp.dart';
@@ -329,6 +330,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSession dco_decode_box_autoadd_db_session(dynamic raw);
 
   @protected
+  DbSessionHistorySnapshot dco_decode_box_autoadd_db_session_history_snapshot(
+    dynamic raw,
+  );
+
+  @protected
   DbSessionMetadata dco_decode_box_autoadd_db_session_metadata(dynamic raw);
 
   @protected
@@ -602,6 +608,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession dco_decode_db_session(dynamic raw);
+
+  @protected
+  DbSessionHistorySnapshot dco_decode_db_session_history_snapshot(dynamic raw);
 
   @protected
   DbSessionMetadata dco_decode_db_session_metadata(dynamic raw);
@@ -901,6 +910,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession? dco_decode_opt_box_autoadd_db_session(dynamic raw);
+
+  @protected
+  DbSessionHistorySnapshot?
+  dco_decode_opt_box_autoadd_db_session_history_snapshot(dynamic raw);
 
   @protected
   DbSshKey? dco_decode_opt_box_autoadd_db_ssh_key(dynamic raw);
@@ -1236,6 +1249,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession sse_decode_box_autoadd_db_session(SseDeserializer deserializer);
+
+  @protected
+  DbSessionHistorySnapshot sse_decode_box_autoadd_db_session_history_snapshot(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbSessionMetadata sse_decode_box_autoadd_db_session_metadata(
@@ -1601,6 +1619,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession sse_decode_db_session(SseDeserializer deserializer);
+
+  @protected
+  DbSessionHistorySnapshot sse_decode_db_session_history_snapshot(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbSessionMetadata sse_decode_db_session_metadata(
@@ -1980,6 +2003,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSession? sse_decode_opt_box_autoadd_db_session(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSessionHistorySnapshot?
+  sse_decode_opt_box_autoadd_db_session_history_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -2378,6 +2407,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_session(
     DbSession self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_session_history_snapshot(
+    DbSessionHistorySnapshot self,
     SseSerializer serializer,
   );
 
@@ -2857,6 +2892,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_session(DbSession self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_session_history_snapshot(
+    DbSessionHistorySnapshot self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_session_metadata(
@@ -3340,6 +3381,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_session(
     DbSession? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_session_history_snapshot(
+    DbSessionHistorySnapshot? self,
     SseSerializer serializer,
   );
 

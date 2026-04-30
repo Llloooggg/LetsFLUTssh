@@ -167,6 +167,17 @@ class FakeSessionNotifier extends SessionNotifier {
     state = state.where((s) => !ids.contains(s.id)).toList();
   }
 
+  // Undo/redo no-ops so widget tests can fire `Ctrl+Z` / `Ctrl+Y`
+  // shortcuts without dragging in the Rust-side `SessionHistory`
+  // actor. The production `SessionNotifier.undo` / `redo` route
+  // through `lfs_core::session_history` (FRB sync); test seams
+  // bypass that surface entirely.
+  @override
+  Future<bool> undo() async => false;
+
+  @override
+  Future<bool> redo() async => false;
+
   @override
   Future<void> moveMultiple(Set<String> ids, String newFolder) async {
     final next = <Session>[];

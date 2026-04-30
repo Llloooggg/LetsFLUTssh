@@ -40,6 +40,7 @@ pub mod rate_limit;
 pub mod recorder;
 pub mod security_capabilities;
 pub mod security_config;
+pub mod session_history;
 pub mod sessions;
 pub mod sessions_registry;
 pub mod sftp;

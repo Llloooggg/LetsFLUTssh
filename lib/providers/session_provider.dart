@@ -57,7 +57,13 @@ class SessionsLoadingNotifier extends Notifier<bool> {
 }
 
 class SessionNotifier extends Notifier<List<Session>> {
-  final SessionHistory _history = SessionHistory();
+  // Lazy — `SessionHistory()` constructor calls into the Rust
+  // actor, which requires `RustLib` to be initialised. Test seams
+  // (`FakeSessionNotifier`) override `build()` and never read the
+  // history surface, so they avoid the FRB hop entirely. The
+  // production path lazily mints the actor on first access via
+  // [_historyOrInit].
+  SessionHistory? _history;
   final Set<String> _emptyFolders = {};
   final Set<String> _collapsedFolders = {};
   Map<String, rust_db.DbFolder> _folderMap = {};
@@ -90,17 +96,25 @@ class SessionNotifier extends Notifier<List<Session>> {
     ref.onDispose(() {
       unawaited(_busSub?.cancel());
       _busSub = null;
+      _history?.dispose();
+      _history = null;
     });
     return [];
   }
+
+  /// Lazily mint the Rust-side history actor. First call hits the
+  /// FRB boundary; subsequent calls reuse the handle. Test seams
+  /// that override `build` without touching undo/redo never reach
+  /// this getter, so they don't need FRB loaded.
+  SessionHistory _historyOrInit() => _history ??= SessionHistory();
 
   // ── Public read accessors ────────────────────────────────────────
 
   Set<String> get emptyFolders => Set.unmodifiable(_emptyFolders);
   Set<String> get collapsedFolders => Set.unmodifiable(_collapsedFolders);
 
-  bool get canUndo => _history.canUndo;
-  bool get canRedo => _history.canRedo;
+  bool get canUndo => _history?.canUndo ?? false;
+  bool get canRedo => _history?.canRedo ?? false;
 
   /// Resolve a folder path string to its DB folder ID.
   /// Returns null if the path is empty or not found.
@@ -758,7 +772,7 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   /// Run an undoable store operation: snapshot state, execute, sync.
   Future<T> _runUndoable<T>(String op, Future<T> Function() fn) async {
-    _history.pushUndo(_snapshot(op));
+    _historyOrInit().pushUndo(_snapshot(op));
     try {
       return await fn();
     } catch (e) {
@@ -773,7 +787,7 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   Future<bool> undo() async {
     final current = _snapshot('current');
-    final restored = _history.undo(current);
+    final restored = _historyOrInit().undo(current);
     if (restored == null) return false;
     await _restoreSnapshot(restored.sessions, restored.emptyFolders);
     return true;
@@ -781,7 +795,7 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   Future<bool> redo() async {
     final current = _snapshot('current');
-    final restored = _history.redo(current);
+    final restored = _historyOrInit().redo(current);
     if (restored == null) return false;
     await _restoreSnapshot(restored.sessions, restored.emptyFolders);
     return true;

@@ -1,6 +1,15 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import '../../src/rust/api/session_history.dart' as rust_history;
 import 'session.dart';
 
 /// Snapshot of session state for undo/redo.
+///
+/// Pure Dart value class — UI / Riverpod consumers read `sessions`,
+/// `emptyFolders` and `description` directly. Persistence to the
+/// Rust-side stack happens through `_encode` / `_decode` on the
+/// [SessionHistory] boundary; the Rust actor stores opaque bytes.
 class SessionSnapshot {
   final List<Session> sessions;
   final Set<String> emptyFolders;
@@ -14,45 +23,118 @@ class SessionSnapshot {
 }
 
 /// Undo/redo history stack for session operations.
+///
+/// State machine ownership lives in `lfs_core::session_history`
+/// (FRB sync). This Dart class is a thin handle wrapper:
+/// `SessionHistory()` mints a Rust-side actor on construction;
+/// method calls round-trip through FRB; the only Dart-side
+/// concern is `SessionSnapshot` ↔ JSON-bytes serialisation since
+/// the Rust actor stores opaque blobs.
+///
+/// Pair every `SessionHistory()` with a [dispose] when the owning
+/// notifier tears down — otherwise the actor handle leaks for the
+/// lifetime of the process.
 class SessionHistory {
-  final List<SessionSnapshot> _undoStack = [];
-  final List<SessionSnapshot> _redoStack = [];
+  late final BigInt _handleId;
+  bool _disposed = false;
 
-  static const _maxHistory = 50;
+  SessionHistory() {
+    _handleId = rust_history.sessionHistoryCreate();
+  }
 
-  bool get canUndo => _undoStack.isNotEmpty;
-  bool get canRedo => _redoStack.isNotEmpty;
+  bool get canUndo {
+    if (_disposed) return false;
+    return rust_history.sessionHistoryCanUndo(handleId: _handleId);
+  }
 
-  String? get undoDescription =>
-      _undoStack.isNotEmpty ? _undoStack.last.description : null;
-  String? get redoDescription =>
-      _redoStack.isNotEmpty ? _redoStack.last.description : null;
+  bool get canRedo {
+    if (_disposed) return false;
+    return rust_history.sessionHistoryCanRedo(handleId: _handleId);
+  }
+
+  String? get undoDescription {
+    if (_disposed) return null;
+    return rust_history.sessionHistoryUndoDescription(handleId: _handleId);
+  }
+
+  String? get redoDescription {
+    if (_disposed) return null;
+    return rust_history.sessionHistoryRedoDescription(handleId: _handleId);
+  }
 
   /// Save current state before a destructive operation.
   void pushUndo(SessionSnapshot snapshot) {
-    _undoStack.add(snapshot);
-    if (_undoStack.length > _maxHistory) {
-      _undoStack.removeAt(0);
-    }
-    _redoStack.clear();
+    if (_disposed) return;
+    rust_history.sessionHistoryPushUndo(
+      handleId: _handleId,
+      description: snapshot.description,
+      blob: _encode(snapshot),
+    );
   }
 
-  /// Pop the last undo snapshot and push current state onto redo stack.
+  /// Pop the last undo snapshot and push current state onto redo
+  /// stack.
   SessionSnapshot? undo(SessionSnapshot currentState) {
-    if (!canUndo) return null;
-    _redoStack.add(currentState);
-    return _undoStack.removeLast();
+    if (_disposed) return null;
+    final result = rust_history.sessionHistoryUndo(
+      handleId: _handleId,
+      currentDescription: currentState.description,
+      currentBlob: _encode(currentState),
+    );
+    if (result == null) return null;
+    return _decode(result.blob, result.description);
   }
 
-  /// Pop the last redo snapshot and push current state onto undo stack.
+  /// Pop the last redo snapshot and push current state onto undo
+  /// stack.
   SessionSnapshot? redo(SessionSnapshot currentState) {
-    if (!canRedo) return null;
-    _undoStack.add(currentState);
-    return _redoStack.removeLast();
+    if (_disposed) return null;
+    final result = rust_history.sessionHistoryRedo(
+      handleId: _handleId,
+      currentDescription: currentState.description,
+      currentBlob: _encode(currentState),
+    );
+    if (result == null) return null;
+    return _decode(result.blob, result.description);
   }
 
   void clear() {
-    _undoStack.clear();
-    _redoStack.clear();
+    if (_disposed) return;
+    rust_history.sessionHistoryClear(handleId: _handleId);
+  }
+
+  /// Drop the Rust-side actor. Idempotent. Call from the owning
+  /// notifier's `dispose` so the per-handle state evicts from the
+  /// process registry.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    rust_history.sessionHistoryDrop(handleId: _handleId);
+  }
+
+  static Uint8List _encode(SessionSnapshot snapshot) {
+    final json = {
+      'sessions': snapshot.sessions
+          .map((s) => s.toJsonWithCredentials())
+          .toList(),
+      'emptyFolders': snapshot.emptyFolders.toList(),
+      'description': snapshot.description,
+    };
+    return Uint8List.fromList(utf8.encode(jsonEncode(json)));
+  }
+
+  static SessionSnapshot _decode(Uint8List blob, String description) {
+    final json = jsonDecode(utf8.decode(blob)) as Map<String, dynamic>;
+    final sessions = (json['sessions'] as List<dynamic>)
+        .map((e) => Session.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final folders = (json['emptyFolders'] as List<dynamic>)
+        .map((e) => e as String)
+        .toSet();
+    return SessionSnapshot(
+      sessions: sessions,
+      emptyFolders: folders,
+      description: description,
+    );
   }
 }
