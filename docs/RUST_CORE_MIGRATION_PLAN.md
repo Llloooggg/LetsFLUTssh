@@ -392,8 +392,8 @@ plain data — the Rust crate is shorter than the Dart wrapper.
 | `core/security/process_hardening.dart` | 172 | `dart:ffi` to libc `prctl(PR_SET_DUMPABLE)` | `nix` / `libc` |
 | `core/security/libc_loader.dart` | 30 | retires after the two above | — |
 | `utils/platform.dart` | 44 | `Platform.environment['HOME' \| 'USERPROFILE' \| 'EXTERNAL_STORAGE']` | `directories` |
-| `core/session/session_tree.dart` | 128 | folder-tree builder (pure data) | `lfs_core::session::tree` |
-| `core/session/session_history.dart` | 58 | undo/redo snapshot stack (pure data) | `lfs_core::session::history` |
+| ~~`core/session/session_tree.dart`~~ | ~~128~~ | ~~folder-tree builder (pure data)~~ | done — `lfs_core::session_tree` (forest builder + sort + recursive count); Dart class is now a thin FRB wrapper that re-binds the live `Session` handle to leaf nodes by id |
+| ~~`core/session/session_history.dart`~~ | ~~58~~ | ~~undo/redo snapshot stack (pure data)~~ | done — `lfs_core::session_history` (per-handle bounded LIFO actor); Dart class wraps the actor handle and serialises `SessionSnapshot` ↔ JSON bytes |
 | `core/single_instance/single_instance.dart` | 85 | flock-based single-instance gate | `fd-lock` |
 
 Acceptance criteria:
@@ -772,9 +772,16 @@ one, ship it, then pick the next.
 4. `utils/platform.dart` `homeDirectory` → Rust via
    `directories` crate. Smoke-test Android `EXTERNAL_STORAGE`
    resolution before flipping.
-5. `core/session/session_tree.dart` + `session_history.dart` +
+5. ~~`core/session/session_tree.dart` + `session_history.dart` +
    `core/single_instance/single_instance.dart` → Rust pure-data
-   modules + `fd-lock` for the file lock.
+   modules + `fd-lock` for the file lock.~~ Done — `session_history`
+   landed as `lfs_core::session_history` (per-handle actor),
+   `session_tree` landed as `lfs_core::session_tree` (immutable
+   forest builder); `single_instance` rewritten on `libc::flock`
+   (POSIX) / `LockFileEx` (Windows) inside `lfs_os_security`
+   (the `fd-lock` plan was rejected — its `fcntl(F_SETLK)` lock
+   namespace doesn't see Dart's `RandomAccessFile.lock`/`flock()`
+   on Linux, so cross-process contention silently passed).
 
 ### Parallel — test debt sweep (any time)
 

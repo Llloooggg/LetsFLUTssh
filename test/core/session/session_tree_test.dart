@@ -3,7 +3,14 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // SessionTree.build now routes through `lfs_core::session_tree`
+  // (FRB sync). Bootstrap the native lib so the structural logic
+  // exercises the real Rust implementation.
+  setUpAll(requireFrbLoaded);
+
   group('SessionTree', () {
     test('empty list produces empty tree', () {
       final tree = SessionTree.build([]);

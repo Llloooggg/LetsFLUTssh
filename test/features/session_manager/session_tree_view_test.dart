@@ -10,7 +10,13 @@ import 'package:letsflutssh/utils/platform.dart';
 import 'package:letsflutssh/widgets/threshold_draggable.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // SessionTree.build now routes through `lfs_core::session_tree`
+  // (FRB sync). Bootstrap once for the whole file.
+  setUpAll(requireFrbLoaded);
+
   late List<Session> sessions;
   late List<SessionTreeNode> tree;
 

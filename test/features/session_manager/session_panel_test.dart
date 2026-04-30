@@ -6,18 +6,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/session/session_tree.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/core/security/ssh_key.dart';
+import 'package:letsflutssh/core/tags/tag.dart';
 import 'package:letsflutssh/features/session_manager/session_panel.dart';
 import 'package:letsflutssh/features/session_manager/session_tree_view.dart';
+import 'package:letsflutssh/providers/key_provider.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
+import 'package:letsflutssh/providers/tag_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/app_dialog.dart';
 import 'package:letsflutssh/utils/platform.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
 import '../../helpers/fake_session_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/test_notifiers.dart';
 
 void main() {
+  // SessionTree.build now routes through `lfs_core::session_tree`
+  // (FRB sync). Bootstrap once for the whole file.
+  setUpAll(requireFrbLoaded);
+
   late List<Session> testSessions;
 
   setUp(() {
@@ -69,6 +78,14 @@ void main() {
         sessionsLoadingProvider.overrideWith(IdleSessionsLoadingNotifier.new),
         sessionSearchProvider.overrideWith(SessionSearchNotifier.new),
         filteredSessionTreeProvider.overrideWithValue(tree),
+        // SessionEditDialog watches these via FRB / DB. With FRB
+        // bootstrap landed (so the tree builder can run) the live
+        // providers would otherwise spin a CircularProgressIndicator
+        // forever in `pumpAndSettle` because the test process has
+        // no `lfs_core.db` to read from. Stub them out with empty
+        // immediate values.
+        sessionTagsProvider.overrideWith((ref, sessionId) async => <Tag>[]),
+        sshKeysProvider.overrideWith(_EmptySshKeysNotifier.new),
       ],
       child: MaterialApp(
         localizationsDelegates: S.localizationsDelegates,
@@ -1192,6 +1209,14 @@ void main() {
 
         await tester.tap(find.text('Save & Connect'));
         await tester.pumpAndSettle();
+        // `_handleDialogResult` awaits `_syncForwards` → `loadPortForwards`,
+        // which is a real FRB DB call now that the bootstrap is wired in.
+        // The cross-thread completion lands outside the Dart microtask queue
+        // `pumpAndSettle` drains, so let real time pass before the assertion.
+        await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pumpAndSettle();
 
         expect(connected, isNotNull);
         expect(connected!.host, 'test.com');
@@ -1281,6 +1306,14 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save & Connect'));
+      await tester.pumpAndSettle();
+      // `_handleDialogResult` awaits `_syncForwards` → `loadPortForwards`,
+      // which is a real FRB DB call now that the bootstrap is wired in.
+      // The cross-thread completion lands outside the Dart microtask queue
+      // `pumpAndSettle` drains, so let real time pass before the assertion.
+      await tester.runAsync(
+        () async => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
       await tester.pumpAndSettle();
 
       expect(connected, isNotNull);
@@ -3392,4 +3425,15 @@ void main() {
       },
     );
   });
+}
+
+/// Stand-in for [SshKeysNotifier] that resolves to an empty list
+/// without hitting the Rust DB. The session-edit dialog reads the
+/// key list to populate its dropdown; the test scope doesn't have
+/// an `lfs_core.db` so the live notifier would surface a
+/// `loadAllSafe` failure (or, worse, hang `pumpAndSettle` while
+/// the AsyncValue is `loading`).
+class _EmptySshKeysNotifier extends SshKeysNotifier {
+  @override
+  Future<List<SshKeyEntry>> build() async => const <SshKeyEntry>[];
 }

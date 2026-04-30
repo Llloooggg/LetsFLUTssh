@@ -43,6 +43,7 @@ import 'api/recorder.dart';
 import 'api/security_capabilities.dart';
 import 'api/security_config.dart';
 import 'api/session_history.dart';
+import 'api/session_tree.dart';
 import 'api/sessions.dart';
 import 'api/sessions_registry.dart';
 import 'api/sftp.dart';
@@ -619,6 +620,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSessionRegistryView dco_decode_db_session_registry_view(dynamic raw);
 
   @protected
+  DbSessionTreeInput dco_decode_db_session_tree_input(dynamic raw);
+
+  @protected
+  DbSessionTreeNode dco_decode_db_session_tree_node(dynamic raw);
+
+  @protected
   DbSftpBookmark dco_decode_db_sftp_bookmark(dynamic raw);
 
   @protected
@@ -789,6 +796,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSession> dco_decode_list_db_session(dynamic raw);
+
+  @protected
+  List<DbSessionTreeInput> dco_decode_list_db_session_tree_input(dynamic raw);
+
+  @protected
+  List<DbSessionTreeNode> dco_decode_list_db_session_tree_node(dynamic raw);
 
   @protected
   List<DbSftpBookmark> dco_decode_list_db_sftp_bookmark(dynamic raw);
@@ -1636,6 +1649,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSessionTreeInput sse_decode_db_session_tree_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSessionTreeNode sse_decode_db_session_tree_node(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSftpBookmark sse_decode_db_sftp_bookmark(SseDeserializer deserializer);
 
   @protected
@@ -1852,6 +1875,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbSession> sse_decode_list_db_session(SseDeserializer deserializer);
+
+  @protected
+  List<DbSessionTreeInput> sse_decode_list_db_session_tree_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbSessionTreeNode> sse_decode_list_db_session_tree_node(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbSftpBookmark> sse_decode_list_db_sftp_bookmark(
@@ -2912,6 +2945,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_session_tree_input(
+    DbSessionTreeInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_session_tree_node(
+    DbSessionTreeNode self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_sftp_bookmark(
     DbSftpBookmark self,
     SseSerializer serializer,
@@ -3190,6 +3235,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_session(
     List<DbSession> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_session_tree_input(
+    List<DbSessionTreeInput> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_session_tree_node(
+    List<DbSessionTreeNode> self,
     SseSerializer serializer,
   );
 

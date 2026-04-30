@@ -605,21 +605,41 @@ class SessionNotifier {
 
 ```dart
 class SessionTree {
-  static List<SessionTreeNode> build(List<Session> sessions, List<String> emptyFolders);
+  static List<SessionTreeNode> build(List<Session> sessions, {Set<String> emptyFolders = const {}});
   // Builds hierarchy: "Production/Web/nginx" → [Production] → [Web] → [nginx]
-  // Empty folders are included in the tree
+  // Empty folders are materialised even without sessions.
 }
 
 class SessionTreeNode {
   final String name;
-  final String path;         // full path from root
-  final Session? session;    // null for folders
+  final String fullPath;       // full path from root
+  final Session? session;      // null for folders
   final List<SessionTreeNode> children;
+  bool expanded;               // UI-only, mutated by the sidebar
+  final int sessionCount;      // recursive count of session leaves under this subtree
 
   bool get isGroup => session == null;
   bool get isSession => session != null;
 }
 ```
+
+**Where the structural logic lives.** The folder collapsing,
+sort order (folders before sessions, case-insensitive within
+each kind), and recursive `sessionCount` precomputation are owned
+by `lfs_core::session_tree::build` (Rust). The Dart `SessionTree`
+class is a thin FRB wrapper: it hands a flat list of
+`(id, label, folder, displayName)` records over to Rust, gets
+back the immutable forest, and re-binds the live `Session`
+handle to each leaf by id (Rust never sees the full session
+record — it works in terms of session ids).
+
+**Why Rust-owned.** Rationale follows the same principle as
+`session_history` — keeping structural session-domain logic
+next to the database row types in `lfs_core::sessions` lets
+future `lfs_cli` / `lfs_tauri` consumers reuse the builder
+without reimplementing the sort and folder-prefix rules. The
+Dart wrapper only carries presentation concerns (the `expanded`
+flag the sidebar mutates as the user clicks chevrons).
 
 ---
 
