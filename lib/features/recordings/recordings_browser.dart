@@ -147,40 +147,15 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
     return '<deleted> ${sessionId.substring(0, 8)}';
   }
 
-  /// Routes through `lfs_core::format::format_size_iec` so the
-  /// IEC-prefix grammar (B / KiB / MiB / GiB) lives one place;
-  /// falls back to the inline ladder when the FRB native lib is
-  /// not loaded.
-  String _formatSize(int bytes) {
-    try {
-      return rust_format.formatSizeIec(bytes: bytes);
-    } catch (_) {
-      if (bytes < 1024) return '$bytes B';
-      if (bytes < 1024 * 1024) {
-        return '${(bytes / 1024).toStringAsFixed(1)} KiB';
-      }
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
-    }
-  }
+  /// Format byte size with IEC prefixes (B / KiB / MiB / GiB) via
+  /// `lfs_core::format::format_size_iec`.
+  String _formatSize(int bytes) => rust_format.formatSizeIec(bytes: bytes);
 
-  /// Routes through
-  /// `lfs_core::format::format_duration_seconds_fractional` so
-  /// the recordings duration shape (fractional sub-minute,
-  /// padded sub-hour, padded above-hour) lives one place; falls
-  /// back to the inline ladder for flutter_test contexts that
-  /// don't load the FRB native lib.
-  String _formatDuration(double seconds) {
-    try {
-      return rust_format.formatDurationSecondsFractional(seconds: seconds);
-    } catch (_) {
-      if (seconds < 60) return '${seconds.toStringAsFixed(1)}s';
-      final m = (seconds / 60).floor();
-      final s = (seconds - m * 60).floor();
-      if (m < 60) return '${m}m ${s.toString().padLeft(2, '0')}s';
-      final h = (m / 60).floor();
-      return '${h}h ${(m - h * 60).toString().padLeft(2, '0')}m';
-    }
-  }
+  /// Format the recording duration shape (fractional sub-minute,
+  /// padded sub-hour, padded above-hour) via
+  /// `lfs_core::format::format_duration_seconds_fractional`.
+  String _formatDuration(double seconds) =>
+      rust_format.formatDurationSecondsFractional(seconds: seconds);
 
   @override
   Widget build(BuildContext context) {
