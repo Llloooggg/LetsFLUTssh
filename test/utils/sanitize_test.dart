@@ -1,7 +1,15 @@
 import 'package:letsflutssh/utils/sanitize.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // redactSecrets / sanitizeErrorMessage route through
+  // `lfs_core::log_sanitize` — bootstrap FRB so the canonical Rust
+  // PEM + base64 + IP/user@host/path scrubber is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('redactSecrets', () {
     test('strips OpenSSH PEM private key blocks', () {
       const input =

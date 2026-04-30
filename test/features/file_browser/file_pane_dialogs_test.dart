@@ -6,6 +6,8 @@ import 'package:letsflutssh/features/file_browser/file_browser_controller.dart';
 import 'package:letsflutssh/features/file_browser/file_pane_dialogs.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// In-memory file system for testing dialogs.
 class _MockFS implements FileSystem {
   final List<String> createdDirs = [];
@@ -29,7 +31,8 @@ class _MockFS implements FileSystem {
   Future<void> removeDir(String path) async => removedDirs.add(path);
 
   @override
-  Future<void> rename(String oldPath, String newPath) async => renames.add((oldPath, newPath));
+  Future<void> rename(String oldPath, String newPath) async =>
+      renames.add((oldPath, newPath));
   @override
   Future<int> dirSize(String path) async => 0;
 }
@@ -65,7 +68,8 @@ class _ErrorRenameFS implements FileSystem {
   @override
   Future<void> removeDir(String path) async {}
   @override
-  Future<void> rename(String oldPath, String newPath) async => throw Exception('rename failed');
+  Future<void> rename(String oldPath, String newPath) async =>
+      throw Exception('rename failed');
   @override
   Future<int> dirSize(String path) async => 0;
 }
@@ -89,6 +93,12 @@ class _ErrorDeleteFS implements FileSystem {
 }
 
 void main() {
+  // FilePaneDialogs operations log via AppLogger which routes
+  // through `lfs_core::log_sanitize` + format helpers — bootstrap
+  // FRB so the canonical Rust pipeline runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('FilePaneDialogs.showNewFolder', () {
     testWidgets('shows dialog with text field', (tester) async {
       final fs = _MockFS();
@@ -189,7 +199,13 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      final entry = FileEntry(name: 'old.txt', path: '/test/old.txt', size: 100, modTime: DateTime.now(), isDir: false);
+      final entry = FileEntry(
+        name: 'old.txt',
+        path: '/test/old.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -198,7 +214,8 @@ void main() {
           home: Builder(
             builder: (context) {
               return ElevatedButton(
-                onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
+                onPressed: () =>
+                    FilePaneDialogs.showRename(context, ctrl, entry),
                 child: const Text('Go'),
               );
             },
@@ -222,7 +239,13 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      final entry = FileEntry(name: 'old.txt', path: '/test/old.txt', size: 100, modTime: DateTime.now(), isDir: false);
+      final entry = FileEntry(
+        name: 'old.txt',
+        path: '/test/old.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -231,7 +254,8 @@ void main() {
           home: Builder(
             builder: (context) {
               return ElevatedButton(
-                onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
+                onPressed: () =>
+                    FilePaneDialogs.showRename(context, ctrl, entry),
                 child: const Text('Go'),
               );
             },
@@ -361,7 +385,13 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      final entry = FileEntry(name: 'old.txt', path: '/test/old.txt', size: 100, modTime: DateTime.now(), isDir: false);
+      final entry = FileEntry(
+        name: 'old.txt',
+        path: '/test/old.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -371,7 +401,8 @@ void main() {
             body: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
+                  onPressed: () =>
+                      FilePaneDialogs.showRename(context, ctrl, entry),
                   child: const Text('Go'),
                 );
               },
@@ -415,7 +446,8 @@ void main() {
           home: Builder(
             builder: (context) {
               return ElevatedButton(
-                onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
+                onPressed: () =>
+                    FilePaneDialogs.showRename(context, ctrl, entry),
                 child: const Text('Go'),
               );
             },
@@ -439,7 +471,13 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      final entry = FileEntry(name: 'old.txt', path: '/test/old.txt', size: 100, modTime: DateTime.now(), isDir: false);
+      final entry = FileEntry(
+        name: 'old.txt',
+        path: '/test/old.txt',
+        size: 100,
+        modTime: DateTime.now(),
+        isDir: false,
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -448,7 +486,8 @@ void main() {
           home: Builder(
             builder: (context) {
               return ElevatedButton(
-                onPressed: () => FilePaneDialogs.showRename(context, ctrl, entry),
+                onPressed: () =>
+                    FilePaneDialogs.showRename(context, ctrl, entry),
                 child: const Text('Go'),
               );
             },
@@ -490,7 +529,8 @@ void main() {
             body: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
                   child: const Text('Go'),
                 );
               },
@@ -534,7 +574,8 @@ void main() {
             body: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
                   child: const Text('Go'),
                 );
               },
@@ -563,8 +604,20 @@ void main() {
       await ctrl.navigateTo('/test', addToHistory: false);
 
       final entries = [
-        FileEntry(name: 'a.txt', path: '/test/a.txt', size: 10, modTime: DateTime.now(), isDir: false),
-        FileEntry(name: 'b.txt', path: '/test/b.txt', size: 20, modTime: DateTime.now(), isDir: false),
+        FileEntry(
+          name: 'a.txt',
+          path: '/test/a.txt',
+          size: 10,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
+        FileEntry(
+          name: 'b.txt',
+          path: '/test/b.txt',
+          size: 20,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
       ];
 
       await tester.pumpWidget(
@@ -575,7 +628,8 @@ void main() {
             body: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, entries),
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, entries),
                   child: const Text('Go'),
                 );
               },
@@ -621,7 +675,8 @@ void main() {
           home: Builder(
             builder: (context) {
               return ElevatedButton(
-                onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                onPressed: () =>
+                    FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
                 child: const Text('Go'),
               );
             },
@@ -643,8 +698,20 @@ void main() {
       await ctrl.navigateTo('/test', addToHistory: false);
 
       final entries = [
-        FileEntry(name: 'a.txt', path: '/test/a.txt', size: 10, modTime: DateTime.now(), isDir: false),
-        FileEntry(name: 'b.txt', path: '/test/b.txt', size: 20, modTime: DateTime.now(), isDir: false),
+        FileEntry(
+          name: 'a.txt',
+          path: '/test/a.txt',
+          size: 10,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
+        FileEntry(
+          name: 'b.txt',
+          path: '/test/b.txt',
+          size: 20,
+          modTime: DateTime.now(),
+          isDir: false,
+        ),
       ];
 
       await tester.pumpWidget(
@@ -654,7 +721,8 @@ void main() {
           home: Builder(
             builder: (context) {
               return ElevatedButton(
-                onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, entries),
+                onPressed: () =>
+                    FilePaneDialogs.confirmDelete(context, ctrl, entries),
                 child: const Text('Go'),
               );
             },
@@ -691,7 +759,8 @@ void main() {
             body: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
                   child: const Text('Go'),
                 );
               },
@@ -718,7 +787,13 @@ void main() {
       final ctrl = FilePaneController(fs: fs, label: 'Test');
       await ctrl.navigateTo('/test', addToHistory: false);
 
-      final entry = FileEntry(name: 'mydir', path: '/test/mydir', size: 0, modTime: DateTime.now(), isDir: true);
+      final entry = FileEntry(
+        name: 'mydir',
+        path: '/test/mydir',
+        size: 0,
+        modTime: DateTime.now(),
+        isDir: true,
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -728,7 +803,8 @@ void main() {
             body: Builder(
               builder: (context) {
                 return ElevatedButton(
-                  onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                  onPressed: () =>
+                      FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
                   child: const Text('Go'),
                 );
               },
@@ -770,7 +846,8 @@ void main() {
           home: Builder(
             builder: (context) {
               return ElevatedButton(
-                onPressed: () => FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
+                onPressed: () =>
+                    FilePaneDialogs.confirmDelete(context, ctrl, [entry]),
                 child: const Text('Go'),
               );
             },

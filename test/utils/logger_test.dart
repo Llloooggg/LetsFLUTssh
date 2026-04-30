@@ -4,8 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/utils/logger.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // AppLogger.log routes sanitize + format through `lfs_core` —
+  // bootstrap FRB so the file-sink path runs the canonical Rust
+  // pipeline.
+  setUpAll(requireFrbLoaded);
 
   late Directory tempDir;
 

@@ -3,7 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/app/global_error_dialog.dart';
 import 'package:letsflutssh/utils/logger.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // AppLogger.setThreshold opens the file sink, which routes log
+  // messages through `lfs_core::log_sanitize` + format helpers —
+  // bootstrap FRB so the canonical pipeline runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   // The crash-boundary dialog is the last thing a user sees before the
   // app either recovers or they have to file a bug. The contract pinned
   // here:

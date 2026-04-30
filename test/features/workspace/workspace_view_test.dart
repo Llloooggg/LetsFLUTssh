@@ -18,6 +18,7 @@ import 'package:letsflutssh/providers/session_provider.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 
 import '../../helpers/fake_session_notifier.dart';
+import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/test_notifiers.dart';
 
 Connection _conn(
@@ -50,6 +51,12 @@ TabEntry _tab({
 }
 
 void main() {
+  // WorkspaceView renders widgets that log via AppLogger which
+  // routes through `lfs_core::log_sanitize` + format helpers —
+  // bootstrap FRB so the canonical Rust pipeline runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   Widget buildWorkspaceView({
     WorkspaceState? workspaceState,
     VoidCallback? onActivated,

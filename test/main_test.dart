@@ -22,6 +22,7 @@ import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/app_icon_button.dart';
 
 import 'helpers/fake_session_notifier.dart';
+import 'helpers/frb_bootstrap.dart';
 import 'helpers/test_notifiers.dart';
 
 /// An UpdateNotifier that transitions from idle to updateAvailable
@@ -41,6 +42,10 @@ class _DelayedUpdateNotifier extends UpdateNotifier {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // AppLogger paths through `lfs_core::log_sanitize` / format —
+  // bootstrap FRB so logged messages exercise the canonical Rust
+  // pipeline.
+  setUpAll(requireFrbLoaded);
 
   setUp(() {
     plat.debugDesktopPlatformOverride = true;

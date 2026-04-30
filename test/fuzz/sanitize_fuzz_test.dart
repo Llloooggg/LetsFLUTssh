@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/utils/sanitize.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 /// Property-based fuzz suite for [redactSecrets] + [sanitizeErrorMessage].
 ///
 /// Drives 10k pseudo-random payloads — a mix of well-formed secrets,
@@ -24,6 +26,11 @@ import 'package:letsflutssh/utils/sanitize.dart';
 ///
 /// Seed is fixed so a CI failure reproduces locally via the same suite.
 void main() {
+  // sanitize routes through `lfs_core::log_sanitize` — bootstrap
+  // FRB so 10k fuzz inputs hit the canonical Rust pipeline.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   const iterations = 10000;
 
   const seed = 0xDEADBEEF;
