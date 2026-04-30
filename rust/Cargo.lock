@@ -1763,11 +1763,14 @@ name = "lfs_os_security"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "futures-util",
  "libc",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
  "objc2-ui-kit",
+ "tokio",
+ "zbus",
 ]
 
 [[package]]

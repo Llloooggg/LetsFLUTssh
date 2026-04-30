@@ -83,11 +83,11 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
-  // Route systemd-logind session-lock signals into the Dart-side
-  // auto-lock path. Ownership mirrors the rest of the application:
-  // the plugin is created here and freed in dispose.
-  self->session_lock_plugin =
-      session_lock_plugin_new(FL_PLUGIN_REGISTRY(view));
+  // Linux session-lock subscription retired — logind Lock signal
+  // is now consumed Rust-side via
+  // `lfs_os_security::session_lock_listener` (zbus). The .cc / .h
+  // files stay on disk pending a CMakeLists cleanup.
+  self->session_lock_plugin = nullptr;
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

@@ -89,3 +89,27 @@ pub fn os_security_exclude_from_backup(path: String) -> Result<(), String> {
 pub fn os_security_set_secure_clipboard(text: String) -> Result<(), String> {
     lfs_os_security::secure_clipboard::set_secure_text(&text)
 }
+
+/// Subscribe to OS session-lock events. Yields one `()` per OS
+/// lock transition. Currently fires on Linux only (logind via
+/// zbus); macOS + Windows keep their existing native plugins
+/// because both are window/run-loop bound. The Dart caller
+/// short-circuits before invoking on platforms where the Rust
+/// listener is a no-op.
+pub async fn os_security_session_lock_subscribe(
+    sink: crate::frb_generated::StreamSink<()>,
+) -> Result<(), String> {
+    let mut rx = lfs_os_security::session_lock_listener::subscribe();
+    loop {
+        match rx.recv().await {
+            Ok(()) => {
+                if sink.add(()).is_err() {
+                    break;
+                }
+            }
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+        }
+    }
+    Ok(())
+}

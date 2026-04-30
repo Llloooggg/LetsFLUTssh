@@ -256,4 +256,5 @@ mod tests {
 
 pub mod backup_exclusion;
 pub mod secure_clipboard;
+pub mod session_lock_listener;
 pub mod single_instance;

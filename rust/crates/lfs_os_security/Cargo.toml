@@ -20,10 +20,22 @@ crate-type = ["rlib"]
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }
 
+# Linux-only deps:
+#   - `arboard` for the desktop clipboard write (X11 + Wayland;
+#     no cloud-clipboard concern, per-platform sensitive flag is
+#     a no-op here).
+#   - `zbus` + `futures-util` + `tokio` for the logind session-
+#     lock subscription. zbus is the workspace-shared crate; the
+#     duplicate target table keeps the cfg gate explicit.
+[target.'cfg(target_os = "linux")'.dependencies]
+arboard = { version = "3", default-features = false }
+zbus = { workspace = true }
+futures-util = { workspace = true }
+tokio = { workspace = true }
+
 # Apple-only deps for `backup_exclusion` (NSURL.setResourceValues:
-# isExcludedFromBackup), `secure_clipboard` (NSPasteboard /
-# UIPasteboard) and `session_lock_listener` (CGSession*
-# notifications). Cfg-gated so Linux / Windows builds skip the
+# isExcludedFromBackup) and `secure_clipboard` (NSPasteboard /
+# UIPasteboard). Cfg-gated so Linux / Windows builds skip the
 # whole objc2 crate tree.
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 objc2 = "0.6"
@@ -34,13 +46,6 @@ objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem
 
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2-ui-kit = { version = "0.3", features = ["UIPasteboard"] }
-
-# Linux-only — arboard for the desktop clipboard write. The
-# crate handles X11 + Wayland transparently. No cloud-clipboard
-# concern on Linux so the per-platform sensitive flag is a no-op
-# here.
-[target.'cfg(target_os = "linux")'.dependencies]
-arboard = { version = "3", default-features = false }
 
 # Lints — allow unsafe for the FFI shims, deny everything else.
 [lints.rust]

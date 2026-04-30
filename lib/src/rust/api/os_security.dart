@@ -71,6 +71,15 @@ void osSecuritySetSecureClipboard({required String text}) => RustLib
     .api
     .crateApiOsSecurityOsSecuritySetSecureClipboard(text: text);
 
+/// Subscribe to OS session-lock events. Yields one `()` per OS
+/// lock transition. Currently fires on Linux only (logind via
+/// zbus); macOS + Windows keep their existing native plugins
+/// because both are window/run-loop bound. The Dart caller
+/// short-circuits before invoking on platforms where the Rust
+/// listener is a no-op.
+Stream<void> osSecuritySessionLockSubscribe() =>
+    RustLib.instance.api.crateApiOsSecurityOsSecuritySessionLockSubscribe();
+
 /// Per-step result reported by [`os_security_apply_startup_hardening`].
 /// `code` carries the underlying syscall return code (0 = POSIX
 /// success). `error` is `None` on success.
