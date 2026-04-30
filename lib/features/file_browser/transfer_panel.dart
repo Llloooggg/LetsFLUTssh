@@ -700,21 +700,11 @@ class _HistoryRow extends StatelessWidget {
     return parts.join('\n');
   }
 
-  /// Shorten a path to just the last 2 segments for display.
-  /// Routes through `lfs_core::path::shorten_to_two_segments` so
-  /// the abbreviation grammar lives one place; falls back to the
-  /// inline version when the FRB native lib is not loaded.
-  static String _shortenPath(String path) {
-    try {
-      return rust_path.pathShortenToTwoSegments(path: path);
-    } catch (_) {
-      if (path.isEmpty) return '';
-      final normalized = path.replaceAll('\\', '/');
-      final parts = normalized.split('/').where((p) => p.isNotEmpty).toList();
-      if (parts.length <= 2) return normalized;
-      return '.../${parts.sublist(parts.length - 2).join('/')}';
-    }
-  }
+  /// Shorten a path to just the last 2 segments for display via
+  /// `lfs_core::path::shorten_to_two_segments` — abbreviation
+  /// grammar lives in Rust.
+  static String _shortenPath(String path) =>
+      rust_path.pathShortenToTwoSegments(path: path);
 }
 
 /// Row for an active or queued transfer.
