@@ -374,19 +374,7 @@ class TransfersNotifier extends Notifier<TransfersState> {
       s == rust_transfer.DbTransferState.queued ||
       s == rust_transfer.DbTransferState.running;
 
-  /// Routes through `lfs_core::path::basename` so the
-  /// Windows-separator normalisation grammar lives one place;
-  /// falls back to the inline cross-separator scan when the FRB
-  /// native lib is not loaded.
-  static String _displayName(String path) {
-    try {
-      return rust_path.pathBasename(path: path);
-    } catch (_) {
-      final unix = path.lastIndexOf('/');
-      final win = path.lastIndexOf('\\');
-      final idx = unix > win ? unix : win;
-      if (idx < 0 || idx == path.length - 1) return path;
-      return path.substring(idx + 1);
-    }
-  }
+  /// Extract the filename portion of [path], normalising Windows
+  /// separators via `lfs_core::path::basename`.
+  static String _displayName(String path) => rust_path.pathBasename(path: path);
 }
