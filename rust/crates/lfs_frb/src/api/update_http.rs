@@ -87,7 +87,7 @@ pub async fn update_check(current_version: String, repo: String) -> Result<DbUpd
 
 /// Same orchestration walk as [`update_check`] but against a
 /// pre-fetched releases-API response body. The Dart-side
-/// `UpdateService._checkForUpdateDart` test seam fetches the body
+/// `UpdateService.checkForUpdate` test seam fetches the body
 /// through an injected `HttpFetcher` (so unit tests can drive
 /// captured fixture bytes through the parser without a real
 /// network round-trip) and then routes through here so the

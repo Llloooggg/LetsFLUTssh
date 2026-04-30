@@ -217,56 +217,40 @@ class UpdateService {
 
   /// Query GitHub for the latest release and compare with [currentVersion].
   ///
-  /// Production routes through `lfs_core::update_orchestrator::check_for_update`
-  /// (one FRB call replaces the GitHub JSON parse + asset selection +
-  /// changelog walk) and propagates any Rust-side failure to the caller.
-  /// Tests that inject a non-default [HttpFetcher] via the constructor
-  /// take the [_checkForUpdateDart] path, which drives the same parse
-  /// walk against captured fixture bytes.
+  /// The orchestration walk (asset suffix selection, JSON shape
+  /// detection, changelog assembly) lives Rust-side in
+  /// `lfs_core::update_orchestrator`. Production with the default
+  /// fetcher delegates the HTTP fetch to Rust too; tests injecting a
+  /// custom [HttpFetcher] keep the transport on the Dart side and
+  /// hand the pre-fetched body to `update_check_from_body` so the
+  /// same parser still runs.
   Future<UpdateInfo> checkForUpdate(String currentVersion) async {
     AppLogger.instance.log('Checking for updates...', name: 'UpdateService');
-    if (identical(_fetch, defaultFetch)) {
-      final result = await rust_update_http.updateCheck(
-        currentVersion: currentVersion,
-        repo: repo,
-      );
-      final info = UpdateInfo(
-        latestVersion: result.latestVersion,
-        currentVersion: result.currentVersion,
-        releaseUrl: result.releaseUrl,
-        assetUrl: result.assetUrl,
-        assetDigest: result.assetDigest,
-        changelog: result.changelog,
-      );
-      AppLogger.instance.log(
-        'Update check: current=$currentVersion, '
-        'latest=${info.latestVersion}, hasUpdate=${info.hasUpdate}',
-        name: 'UpdateService',
-      );
-      return info;
-    }
-    return _checkForUpdateDart(currentVersion);
-  }
-
-  Future<UpdateInfo> _checkForUpdateDart(String currentVersion) async {
-    final body = await _fetch(apiUri);
     final rust_update_http.DbUpdateInfo result;
-    try {
-      result = await rust_update_http.updateCheckFromBody(
-        body: body,
+    if (identical(_fetch, defaultFetch)) {
+      result = await rust_update_http.updateCheck(
         currentVersion: currentVersion,
         repo: repo,
       );
-    } catch (e) {
-      // Rust surfaces JSON parse failures as
-      // `io: update releases JSON parse: …`. Reshape to the
-      // FormatException callers expect — the parse-error contract
-      // is part of the Dart-facing surface and tests assert on it.
-      final msg = e.toString();
-      if (msg.contains('update releases JSON parse')) {
-        throw FormatException(msg);
+    } else {
+      final body = await _fetch(apiUri);
+      try {
+        result = await rust_update_http.updateCheckFromBody(
+          body: body,
+          currentVersion: currentVersion,
+          repo: repo,
+        );
+      } catch (e) {
+        // Rust surfaces JSON parse failures as
+        // `io: update releases JSON parse: …`. Reshape to the
+        // FormatException callers expect — the parse-error contract
+        // is part of the Dart-facing surface and tests assert on it.
+        final msg = e.toString();
+        if (msg.contains('update releases JSON parse')) {
+          throw FormatException(msg);
+        }
+        rethrow;
       }
-      rethrow;
     }
     final info = UpdateInfo(
       latestVersion: result.latestVersion,
