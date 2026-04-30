@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/keys.dart' as rust_keys;
-import '_crypto_compat.dart';
 
 /// Supported SSH key types for generation.
 enum SshKeyType {
@@ -118,39 +115,20 @@ class KeyStoreException implements Exception {
   String toString() => 'KeyStoreException: $message';
 }
 
-/// SHA-256 hex of a normalized public key (OpenSSH single-line form).
-/// Used as a content-addressable id for deduplicating imported manager
-/// keys without running the hash over private material.
-///
-/// Public keys are normalized by trimming surrounding whitespace and
-/// collapsing CRLF — the key-type prefix and base64 body are stable
-/// enough that this matches OpenSSH's own dedup behaviour. Routes
-/// through `lfs_core::keys::normalized_text_fingerprint` so the
-/// normalize-then-hash grammar lives one place.
-String publicKeyFingerprint(String publicKey) {
-  try {
-    return rust_keys.keysNormalizedTextFingerprint(text: publicKey);
-  } catch (_) {
-    final normalized = publicKey.replaceAll('\r\n', '\n').trim();
-    if (normalized.isEmpty) return '';
-    return _sha256Hex(utf8.encode(normalized));
-  }
-}
+/// SHA-256 hex of a normalized public key (OpenSSH single-line form)
+/// via `lfs_core::keys::normalized_text_fingerprint`. Used as a
+/// content-addressable id for deduplicating imported manager keys
+/// without running the hash over private material. Normalization
+/// (trim, collapse CRLF) happens Rust-side.
+String publicKeyFingerprint(String publicKey) =>
+    rust_keys.keysNormalizedTextFingerprint(text: publicKey);
 
-/// SHA-256 hex of a normalized private key PEM. Retained only as a
+/// SHA-256 hex of a normalized private key PEM via
+/// `lfs_core::keys::normalized_text_fingerprint`. Retained only as a
 /// fallback for entries that lack an extracted public half. Prefer
 /// [publicKeyFingerprint] everywhere else.
-String privateKeyFingerprint(String privateKey) {
-  try {
-    return rust_keys.keysNormalizedTextFingerprint(text: privateKey);
-  } catch (_) {
-    final normalized = privateKey.replaceAll('\r\n', '\n').trim();
-    if (normalized.isEmpty) return '';
-    return _sha256Hex(utf8.encode(normalized));
-  }
-}
-
-String _sha256Hex(List<int> bytes) => sha256HexCompat(bytes);
+String privateKeyFingerprint(String privateKey) =>
+    rust_keys.keysNormalizedTextFingerprint(text: privateKey);
 
 /// Generate a new SSH key pair. Async — keygen runs on the Rust
 /// core's blocking pool. Ed25519 returns near-instant; RSA can take

@@ -10,7 +10,15 @@ import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/ssh_dir_import_dialog.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  // privateKeyFingerprint routes through `lfs_core::keys` —
+  // bootstrap FRB so the canonical Rust normalize+sha256 grammar
+  // is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   OpenSshConfigImportPreview makeHostsPreview({
     int hosts = 2,
     List<String> missingKeys = const [],
@@ -536,16 +544,26 @@ void main() {
         await tester.tap(find.text('h1'));
         await tester.pump();
 
-        await tester.tap(find.text('Import Data'));
-        await tester.pumpAndSettle();
+        // Import Data triggers async `importSshKey` which awaits a
+        // Rust spawn_blocking via FRB. Real-time scheduling is needed
+        // for the Tokio worker future to wake the Dart side — fakeAsync
+        // never advances real wall-clock, so wrap the tap + drain in
+        // `runAsync`.
+        await tester.runAsync(() async {
+          await tester.tap(find.text('Import Data'));
+          await tester.pump();
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pump();
+        });
 
         expect(result, isNotNull);
         expect(result!.mode, ImportMode.merge);
         expect(result!.sessions.map((s) => s.label), ['h0']);
         expect(result!.emptyFolders, {'imported-folder'});
-        // The key's PEM is "bogus…" so KeyStore.importKey may reject it as
-        // unparseable (caught and skipped per L296-299). Assert the length
-        // reflects only successfully-imported keys — not a crash.
+        // The key's PEM is "bogus…" so KeyStore.importKey rejects it
+        // as unparseable (caught and skipped per L296-299). Assert
+        // the length reflects only successfully-imported keys — not
+        // a crash.
         expect(result!.managerKeys.length, lessThanOrEqualTo(1));
       },
     );
