@@ -5,8 +5,8 @@ import 'dart:typed_data';
 
 import 'package:dbus/dbus.dart';
 
+import '../../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../../utils/logger.dart';
-import '../_crypto_compat.dart';
 
 /// Thin async wrapper around the `net.reactivated.Fprint` system-bus
 /// API exposed by the `fprintd` daemon. Lives in the Linux-only
@@ -99,7 +99,9 @@ class FprintdClient {
       final fingers = response.values.first.asStringArray().toList()..sort();
       if (fingers.isEmpty) return null;
       final joined = fingers.join(':');
-      return sha256Compat(utf8.encode(joined));
+      return rust_crypto.cryptoSha256(
+        bytes: Uint8List.fromList(utf8.encode(joined)),
+      );
     } catch (e) {
       AppLogger.instance.log(
         'fprintd getEnrolmentHash failed: $e',

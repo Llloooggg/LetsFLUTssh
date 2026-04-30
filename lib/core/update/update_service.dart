@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../security/_crypto_compat.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/update_http.dart' as rust_update_http;
 import '../../src/rust/api/update_metadata.dart' as rust_update;
 import '../../src/rust/api/update_signing.dart' as rust_update_signing;
@@ -764,10 +764,11 @@ class UpdateService {
     return;
   }
 
-  /// Compute SHA256 hex digest of a file.
+  /// Compute SHA256 hex digest of a file via
+  /// `lfs_core::crypto::sha256_hex`.
   static Future<String> computeFileSha256(String path) async {
     final bytes = await File(path).readAsBytes();
-    return sha256HexCompat(bytes);
+    return rust_crypto.cryptoSha256Hex(bytes: bytes);
   }
 
   /// Pick the right asset for the current platform from the release

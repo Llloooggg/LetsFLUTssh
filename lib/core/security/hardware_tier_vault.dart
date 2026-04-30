@@ -7,10 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
-import '_crypto_compat.dart';
 import 'linux/tpm_client.dart';
 
 /// Hardware-bound DB-key vault for L3 (Hardware + PIN) tier.
@@ -180,7 +180,10 @@ class HardwareTierVault {
 
         final file = await _stateFile();
         await file.parent.create(recursive: true);
-        final blob = hardwareTierEncodeLinuxBlobCompat(salt, sealed);
+        final blob = rust_vault.hardwareTierVaultEncodeLinuxBlob(
+          salt: salt,
+          sealed: sealed,
+        );
         // Atomic write — a crash mid-flush on direct `writeAsBytes`
         // could leave `hardware_vault.bin` half-written, bricking the
         // tier (unseal path reads the JSON and throws on malformed
@@ -231,8 +234,16 @@ class HardwareTierVault {
         if (!await file.exists()) return null;
 
         final raw = await file.readAsBytes();
-        final decoded = hardwareTierDecodeLinuxBlobCompat(utf8.decode(raw));
-        if (decoded == null) return null;
+        final rust_vault.DbHardwareTierLinuxBlob decoded;
+        try {
+          decoded = rust_vault.hardwareTierVaultDecodeLinuxBlob(
+            blob: utf8.decode(raw),
+          );
+        } catch (_) {
+          // Disk blob unparseable / corrupt — caller routes back to
+          // password unlock.
+          return null;
+        }
 
         final authValue = _deriveAuth(pin, decoded.salt);
         return _tpm.unseal(decoded.sealed, authValue: authValue);
@@ -331,7 +342,10 @@ class HardwareTierVault {
   /// so a vault sealed passwordless always unseals passwordless.
   Uint8List _deriveAuth(String? pin, Uint8List salt) {
     if (pin == null || pin.isEmpty) return Uint8List(0);
-    return hmacSha256Compat(salt, Uint8List.fromList(utf8.encode(pin)));
+    return rust_crypto.cryptoHmacSha256(
+      key: salt,
+      message: Uint8List.fromList(utf8.encode(pin)),
+    );
   }
 
   /// Resolve the TPM / hw-vault auth value for a (password, biometric)
