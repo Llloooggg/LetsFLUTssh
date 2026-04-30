@@ -1,9 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 
 import '../core/security/ssh_key.dart';
 import '../src/rust/api/db.dart' as rust_db;
-import '../src/rust/api/sessions.dart' as rust_sess;
 import '../utils/logger.dart';
 
 /// All stored SSH keys, sorted by createdAt descending. Loaded from
@@ -212,36 +210,9 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
   ///
   /// Routes through `lfs_core::db::ssh_keys::import_key_for_merge`
   /// (FRB async) so the dedup-by-fingerprint + label-uniqueness +
-  /// insert sequence runs as one sqlite transaction. Falls back to
-  /// the inline three-step composition when the FRB native lib
-  /// isn't loaded (flutter_test).
-  Future<String> importForMerge(SshKeyEntry entry) async {
-    try {
-      return await rust_db.dbSshKeysImportForMerge(proposed: _toRow(entry));
-    } catch (_) {
-      // FRB unavailable — fall through to the Dart composition.
-    }
-    final all = await loadAll();
-    final existingId = await findIdByKeyMaterial(entry);
-    if (existingId != null) return existingId;
-
-    final labels = all.values.map((e) => e.label).toSet();
-    final takenIds = all.keys.toSet();
-    final newLabel = _uniqueLabel(entry.label, labels);
-    final newId = takenIds.contains(entry.id) ? const Uuid().v4() : entry.id;
-
-    final deduped = SshKeyEntry(
-      id: newId,
-      label: newLabel,
-      privateKey: entry.privateKey,
-      publicKey: entry.publicKey,
-      keyType: entry.keyType,
-      createdAt: entry.createdAt,
-      isGenerated: entry.isGenerated,
-    );
-    await save(deduped);
-    return newId;
-  }
+  /// insert sequence runs as one sqlite transaction.
+  Future<String> importForMerge(SshKeyEntry entry) =>
+      rust_db.dbSshKeysImportForMerge(proposed: _toRow(entry));
 
   /// Import an OpenSSH PEM-armored private key. Returns the created
   /// entry — the caller decides whether to persist via [save] /
@@ -250,28 +221,6 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
   /// ref (config importer, ssh-dir wizard) can hit the same parser.
   Future<SshKeyEntry> importKey(String pem, String label) =>
       importSshKey(pem, label);
-
-  /// Routes through `lfs_core::sessions::unique_label` so the
-  /// `(copy)` / `(copy N)` dedup grammar lives one place. Falls back
-  /// to the equivalent inline loop in flutter_test contexts that
-  /// don't bootstrap the FRB native lib.
-  static String _uniqueLabel(String base, Set<String> taken) {
-    try {
-      return rust_sess.sessionsUniqueLabel(
-        base: base,
-        taken: taken.toList(growable: false),
-      );
-    } catch (_) {
-      if (base.isEmpty || !taken.contains(base)) return base;
-      final copy = '$base (copy)';
-      if (!taken.contains(copy)) return copy;
-      var n = 2;
-      while (taken.contains('$base (copy $n)')) {
-        n++;
-      }
-      return '$base (copy $n)';
-    }
-  }
 
   static SshKeyEntry _fromRow(rust_db.DbSshKey r) => SshKeyEntry(
     id: r.id,
