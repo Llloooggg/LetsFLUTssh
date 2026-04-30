@@ -112,7 +112,11 @@ class KeychainPasswordGate {
       if (!await file.exists()) return null;
       final raw = await file.readAsBytes();
       final decoded = rust_gate.keychainGateDecodeBlob(blob: utf8.decode(raw));
-      return PersistedRateLimiter(hmacKey: decoded.hmac);
+      final stateFile = File(p.join(file.parent.path, 'rate_limit_state.bin'));
+      return PersistedRateLimiter(
+        hmacKey: decoded.hmac,
+        stateFileFactory: () async => stateFile,
+      );
     } on AnyhowException catch (_) {
       // Disk blob unparseable — caller treats null as "no rate
       // limiter available, fall through to wrong-password path".
