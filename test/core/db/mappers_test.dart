@@ -2,12 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/db/mappers.dart';
 import 'package:letsflutssh/src/rust/api/db.dart' as rust_db;
 
+import '../../helpers/frb_bootstrap.dart';
+
 // Mappers operate on FRB DTO types instead of drift's row classes.
-// The pure-Dart helpers (`dbSessionToSession` folder-path resolution
-// + `_buildFolderPath` orphan handling) test without any DB; the
-// cache-first `resolveFolderPath` does call FRB when it has to
-// insert, which is not loadable here — that path moves to
-// integration_test.
+// The folder-path resolution helpers route through `lfs_core::
+// folder_path` — bootstrap FRB so the canonical Rust path is what
+// the unit tests exercise. The cache-first `resolveFolderPath` does
+// call FRB when it has to insert, which moves to integration_test.
 
 rust_db.DbFolder _folder(String id, String name, String? parentId) =>
     rust_db.DbFolder(
@@ -46,6 +47,9 @@ rust_db.DbSession _session({required String? folderId, String extras = '{}'}) =>
     );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('dbSessionToSession folder path resolution', () {
     test('builds nested path from intact parent chain', () {
       final folders = {
