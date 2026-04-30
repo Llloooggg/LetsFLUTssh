@@ -153,7 +153,7 @@ class SecurityConfigSnapshot {
 }
 
 /// Encode the `SecurityConfig` blob persisted under
-/// `config.json::security`. Routes through
+/// `config.json::security` via
 /// `lfs_core::security::SecurityConfig::to_json_value`.
 Map<String, dynamic> securityConfigToJsonCompat({
   required String tierWireName,
@@ -162,104 +162,41 @@ Map<String, dynamic> securityConfigToJsonCompat({
   required bool biometricShortcut,
   required int pinLength,
 }) {
-  try {
-    final str = rust_sec_cfg.securityConfigToJson(
-      tierWireName: tierWireName,
-      password: password,
-      biometric: biometric,
-      biometricShortcut: biometricShortcut,
-      pinLength: pinLength,
-    );
-    return jsonDecode(str) as Map<String, dynamic>;
-  } catch (_) {
-    return {
-      'tier': tierWireName,
-      'modifiers': {
-        'password': password,
-        'biometric': biometric,
-        'biometric_shortcut': biometricShortcut,
-        'pin_length': pinLength,
-      },
-    };
-  }
-}
-
-/// Parse the `SecurityConfig` JSON object. Mirrors the Rust
-/// permissive fallback: an unknown / missing tier string falls
-/// through to plaintext + default modifiers so the wizard caller
-/// routes through the setup flow rather than silently picking an
-/// unintended tier.
-SecurityConfigSnapshot securityConfigFromJsonCompat(Map<String, dynamic> json) {
-  try {
-    final str = jsonEncode(json);
-    final decoded = rust_sec_cfg.securityConfigFromJson(json: str);
-    if (decoded != null) {
-      return SecurityConfigSnapshot(
-        tierWireName: decoded.tierWireName,
-        password: decoded.password,
-        biometric: decoded.biometric,
-        biometricShortcut: decoded.biometricShortcut,
-        pinLength: decoded.pinLength,
-      );
-    }
-  } catch (_) {
-    // FRB unavailable — fall through to the Dart parse below.
-  }
-  return _securityConfigFallback(json);
-}
-
-SecurityConfigSnapshot _securityConfigFallback(Map<String, dynamic> json) {
-  final tierStr = json['tier'];
-  final tierWire = (tierStr is String && _knownTierWireName(tierStr))
-      ? tierStr
-      : 'plaintext';
-  final modifiersJson = json['modifiers'];
-  final modifiers = modifiersJson is Map<String, dynamic>
-      ? _modifiersFallback(modifiersJson)
-      : const _ModifiersResolved.defaults();
-  return SecurityConfigSnapshot(
-    tierWireName: tierWire,
-    password: modifiers.password,
-    biometric: modifiers.biometric,
-    biometricShortcut: modifiers.biometricShortcut,
-    pinLength: modifiers.pinLength,
-  );
-}
-
-_ModifiersResolved _modifiersFallback(Map<String, dynamic> json) {
-  final biometricShortcut = json['biometric_shortcut'] as bool? ?? false;
-  final rawPin = (json['pin_length'] as num?)?.toInt() ?? 6;
-  return _ModifiersResolved(
-    password: json['password'] as bool? ?? false,
-    // `biometric` falls back to `biometric_shortcut` on legacy v1
-    // configs (matches the Dart `SecurityTierModifiers.fromJson`).
-    biometric: json['biometric'] as bool? ?? biometricShortcut,
+  final str = rust_sec_cfg.securityConfigToJson(
+    tierWireName: tierWireName,
+    password: password,
+    biometric: biometric,
     biometricShortcut: biometricShortcut,
-    pinLength: rawPin < 4 || rawPin > 8 ? 6 : rawPin,
+    pinLength: pinLength,
+  );
+  return jsonDecode(str) as Map<String, dynamic>;
+}
+
+/// Parse the `SecurityConfig` JSON object via
+/// `lfs_core::security::SecurityConfig::from_json_value`. The Rust
+/// parser is permissively accepting: an unknown / missing tier
+/// string falls through to plaintext + default modifiers so the
+/// wizard caller routes through the setup flow rather than silently
+/// picking an unintended tier.
+SecurityConfigSnapshot securityConfigFromJsonCompat(Map<String, dynamic> json) {
+  final str = jsonEncode(json);
+  final decoded = rust_sec_cfg.securityConfigFromJson(json: str);
+  if (decoded == null) {
+    // Wire-shape rejected outright — synthesise the plaintext
+    // default that the wizard re-prompts against.
+    return const SecurityConfigSnapshot(
+      tierWireName: 'plaintext',
+      password: false,
+      biometric: false,
+      biometricShortcut: false,
+      pinLength: 6,
+    );
+  }
+  return SecurityConfigSnapshot(
+    tierWireName: decoded.tierWireName,
+    password: decoded.password,
+    biometric: decoded.biometric,
+    biometricShortcut: decoded.biometricShortcut,
+    pinLength: decoded.pinLength,
   );
 }
-
-class _ModifiersResolved {
-  final bool password;
-  final bool biometric;
-  final bool biometricShortcut;
-  final int pinLength;
-  const _ModifiersResolved({
-    required this.password,
-    required this.biometric,
-    required this.biometricShortcut,
-    required this.pinLength,
-  });
-  const _ModifiersResolved.defaults()
-    : password = false,
-      biometric = false,
-      biometricShortcut = false,
-      pinLength = 6;
-}
-
-bool _knownTierWireName(String s) =>
-    s == 'plaintext' ||
-    s == 'keychain' ||
-    s == 'keychain_with_password' ||
-    s == 'hardware' ||
-    s == 'paranoid';

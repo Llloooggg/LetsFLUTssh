@@ -1,7 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // SecurityConfig.toJson / fromJson route through
+  // `lfs_core::security::SecurityConfig` — bootstrap FRB so the
+  // canonical wire-format encode + permissive decode are exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('SecurityTier enum', () {
     test('carries all five named tiers', () {
       // Freezes the tier vocabulary. Adding or removing a tier without
