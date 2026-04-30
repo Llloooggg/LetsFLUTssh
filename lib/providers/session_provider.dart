@@ -547,33 +547,21 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   /// Count sessions whose folder equals [folderPath] or sits under
   /// `{folderPath}/`. Routes through the Rust registry's
-  /// `sessions_registry_count_in_folder` when the FRB native lib
-  /// is loaded — that path reads off the cached view, no folder-
-  /// list projection per call. Falls back to the projecting
-  /// `sessions::count_in_folder` shim and finally to the inline
-  /// scan for flutter_test contexts that bring up neither.
+  /// `sessions_registry_count_in_folder` first (cached view, no
+  /// per-call projection); falls back to the projecting
+  /// `sessions::count_in_folder` shim when the registry hasn't
+  /// been synced yet (typical unit-test path — registry empty but
+  /// the Notifier's `state` carries the live session list).
   int countSessionsInFolder(String folderPath) {
     try {
       return rust_registry.sessionsRegistryCountInFolder(
         folderPath: folderPath,
       );
     } catch (_) {
-      // Registry path unreachable — fall through to the
-      // projecting shim, then the inline scan.
-    }
-    try {
       return rust_sess.sessionsCountInFolder(
         sessionFolders: state.map((s) => s.folder).toList(growable: false),
         folderPath: folderPath,
       );
-    } catch (_) {
-      if (folderPath.isEmpty) {
-        return state.where((s) => s.folder.isEmpty).length;
-      }
-      final prefix = '$folderPath/';
-      return state
-          .where((s) => s.folder == folderPath || s.folder.startsWith(prefix))
-          .length;
     }
   }
 
@@ -758,30 +746,17 @@ class SessionNotifier extends Notifier<List<Session>> {
 
   /// Distinct, sorted list of named folders referenced by any
   /// session in the cache. Routes through the Rust registry's
-  /// `sessions_registry_distinct_folders` (cache read, no Dart-
-  /// side projection per call) when the FRB native lib is
-  /// loaded; falls back to the projecting `distinctFolders`
-  /// shim and finally to the inline pipeline for flutter_test
-  /// contexts.
+  /// `sessions_registry_distinct_folders` first (cache read, no
+  /// per-call projection); falls back to the projecting
+  /// `sessions::distinct_folders` shim when the registry hasn't
+  /// been synced yet (typical unit-test path).
   List<String> folders() {
     try {
       return rust_registry.sessionsRegistryDistinctFolders();
     } catch (_) {
-      // Registry path unreachable — fall through to the
-      // projecting shim, then the inline pipeline.
-    }
-    try {
       return rust_sess.sessionsDistinctFolders(
         sessionFolders: state.map((s) => s.folder).toList(growable: false),
       );
-    } catch (_) {
-      final g = state
-          .map((s) => s.folder)
-          .where((g) => g.isNotEmpty)
-          .toSet()
-          .toList();
-      g.sort();
-      return g;
     }
   }
 
