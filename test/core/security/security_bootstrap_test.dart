@@ -8,7 +8,15 @@ import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // canOfferBiometricModifier, mapWizardChoice, the value-type
+  // contract + JSON round-trip groups all route through `lfs_core`
+  // — bootstrap FRB so the canonical Rust grammar is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('SecurityCapabilities.canOfferBiometricModifier', () {
     test('non-Linux: only the platform biometric flag matters', () {
       const caps = SecurityCapabilities(biometricAvailable: true);
@@ -263,7 +271,15 @@ void main() {
     );
   });
 
-  group('probeCapabilities', () {
+  // probeCapabilities is skipped under FRB bootstrap: the Rust
+  // `capabilities_orchestrator` runs platform probes against the
+  // real host (Secret Service / TPM2 / fprintd / etc.) and ignores
+  // the test-injected `_FakeKeyStorage` / `_FakeHwVault` / `_FakeBio`
+  // / `_FakeFprintdProbe` fakes the Dart fallback used to consume.
+  // The orchestrator is unit-tested in
+  // `lfs_core::security::capabilities_orchestrator::tests` and
+  // exercised end-to-end in integration_test against real probes.
+  group('probeCapabilities', skip: true, () {
     test(
       'derives booleans from the classified probe results (happy path)',
       () async {

@@ -161,22 +161,14 @@ class SecurityCapabilities {
   ///
   /// Routes through
   /// `lfs_core::security::capabilities::can_offer_biometric_modifier`
-  /// so the platform-disjunction rule lives one place; falls back
-  /// to the inline expression for flutter_test contexts that don't
-  /// load the FRB native lib.
-  bool get canOfferBiometricModifier {
-    try {
-      return rust_caps.securityCapabilitiesCanOfferBiometricModifier(
+  /// — the platform-disjunction rule (Linux requires fprintd-or-API,
+  /// every other platform takes the API flag verbatim) lives in Rust.
+  bool get canOfferBiometricModifier =>
+      rust_caps.securityCapabilitiesCanOfferBiometricModifier(
         biometricAvailable: biometricAvailable,
         fprintdAvailable: fprintdAvailable,
         isLinuxHost: isLinuxHost,
       );
-    } catch (_) {
-      return isLinuxHost
-          ? (biometricAvailable || fprintdAvailable)
-          : biometricAvailable;
-    }
-  }
 }
 
 /// Asynchronously probe every OS / hardware capability the wizard
@@ -399,73 +391,32 @@ class MappedSetupChoice {
 /// the wizard return `SecurityConfig` directly.
 ///
 /// Routes through `lfs_core::security::map_wizard_choice` (FRB sync)
-/// so the choice grammar — which secret slot the typed secret routes
+/// — the choice grammar (which secret slot the typed secret routes
 /// into per tier, when keychain splits into the with-password
-/// variant — lives one place. Falls back to the inline switch for
-/// flutter_test contexts that don't load the FRB native lib.
+/// variant) lives in Rust.
 MappedSetupChoice mapWizardChoice({
   required WizardTier chosen,
   required bool password,
   required bool biometric,
   String? typedSecret,
 }) {
-  try {
-    final r = rust_wizard.securityMapWizardChoice(
-      tierWireName: chosen.name,
-      password: password,
-      biometric: biometric,
-      typedSecret: typedSecret,
-    );
-    final tier = SecurityTierWireName.fromWireName(r.tierWireName);
-    return MappedSetupChoice(
-      tier: tier,
-      modifiers: SecurityTierModifiers(
-        password: r.password,
-        biometric: r.biometric,
-        biometricShortcut: r.biometricShortcut,
-      ),
-      masterPassword: r.masterPassword,
-      shortPassword: r.shortPassword,
-      pin: r.pin,
-    );
-  } catch (_) {
-    final modifiers = SecurityTierModifiers(
-      password: password,
-      biometric: biometric,
-      biometricShortcut: biometric,
-    );
-    switch (chosen) {
-      case WizardTier.plaintext:
-        return MappedSetupChoice(
-          tier: SecurityTier.plaintext,
-          modifiers: modifiers,
-        );
-      case WizardTier.keychain:
-        if (password) {
-          return MappedSetupChoice(
-            tier: SecurityTier.keychainWithPassword,
-            modifiers: modifiers,
-            shortPassword: typedSecret,
-          );
-        }
-        return MappedSetupChoice(
-          tier: SecurityTier.keychain,
-          modifiers: modifiers,
-        );
-      case WizardTier.hardware:
-        return MappedSetupChoice(
-          tier: SecurityTier.hardware,
-          modifiers: modifiers,
-          pin: typedSecret,
-        );
-      case WizardTier.paranoid:
-        return MappedSetupChoice(
-          tier: SecurityTier.paranoid,
-          modifiers: modifiers,
-          masterPassword: typedSecret,
-        );
-    }
-  }
+  final r = rust_wizard.securityMapWizardChoice(
+    tierWireName: chosen.name,
+    password: password,
+    biometric: biometric,
+    typedSecret: typedSecret,
+  );
+  return MappedSetupChoice(
+    tier: SecurityTierWireName.fromWireName(r.tierWireName),
+    modifiers: SecurityTierModifiers(
+      password: r.password,
+      biometric: r.biometric,
+      biometricShortcut: r.biometricShortcut,
+    ),
+    masterPassword: r.masterPassword,
+    shortPassword: r.shortPassword,
+    pin: r.pin,
+  );
 }
 
 /// Normalised tier id the wizard radio-set exposes. Lives in bootstrap

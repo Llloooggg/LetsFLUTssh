@@ -50,8 +50,8 @@ class CapabilitiesSnapshot {
 }
 
 /// Encode the security-capabilities snapshot as the JSON map the
-/// wizard persists inside `config.json::security_probe_cache`.
-/// Routes through `lfs_core::security::capabilities`.
+/// wizard persists inside `config.json::security_probe_cache` via
+/// `lfs_core::security::capabilities`.
 Map<String, dynamic> securityCapabilitiesToJsonCompat({
   required bool keychainAvailable,
   required bool hardwareVaultAvailable,
@@ -61,78 +61,39 @@ Map<String, dynamic> securityCapabilitiesToJsonCompat({
   required String keychainProbeWireName,
   required String hardwareProbeCode,
 }) {
-  try {
-    final str = rust_caps.securityCapabilitiesToJson(
-      keychainAvailable: keychainAvailable,
-      hardwareVaultAvailable: hardwareVaultAvailable,
-      biometricAvailable: biometricAvailable,
-      fprintdAvailable: fprintdAvailable,
-      isLinuxHost: isLinuxHost,
-      keychainProbeWireName: keychainProbeWireName,
-      hardwareProbeCode: hardwareProbeCode,
-    );
-    return jsonDecode(str) as Map<String, dynamic>;
-  } catch (_) {
-    return {
-      'keychain_available': keychainAvailable,
-      'hardware_vault_available': hardwareVaultAvailable,
-      'biometric_available': biometricAvailable,
-      'fprintd_available': fprintdAvailable,
-      'is_linux_host': isLinuxHost,
-      'keychain_probe': keychainProbeWireName,
-      'hardware_probe_code': hardwareProbeCode,
-    };
-  }
+  final str = rust_caps.securityCapabilitiesToJson(
+    keychainAvailable: keychainAvailable,
+    hardwareVaultAvailable: hardwareVaultAvailable,
+    biometricAvailable: biometricAvailable,
+    fprintdAvailable: fprintdAvailable,
+    isLinuxHost: isLinuxHost,
+    keychainProbeWireName: keychainProbeWireName,
+    hardwareProbeCode: hardwareProbeCode,
+  );
+  return jsonDecode(str) as Map<String, dynamic>;
 }
 
-/// Parse a `security_probe_cache` JSON snapshot. Returns null on
-/// any malformed shape (non-object root, unknown enum case, missing
-/// required strings) so the wizard caller falls through to "no
-/// cache" and reprobes. Same dual-path rationale as
-/// [securityCapabilitiesToJsonCompat] — `probeCapabilities` uses
-/// injected fakes that the Rust orchestrator bypasses, so the
-/// fallback stays.
+/// Parse a `security_probe_cache` JSON snapshot via
+/// `lfs_core::security::capabilities`. Returns null on any malformed
+/// shape (non-object root, unknown enum case, missing required
+/// strings) so the wizard caller falls through to "no cache" and
+/// reprobes.
 CapabilitiesSnapshot? securityCapabilitiesFromJsonCompat(
   Map<String, dynamic>? json,
 ) {
   if (json == null) return null;
-  try {
-    final decoded = rust_caps.securityCapabilitiesFromJson(
-      json: jsonEncode(json),
-    );
-    if (decoded == null) return null;
-    return CapabilitiesSnapshot(
-      keychainAvailable: decoded.keychainAvailable,
-      hardwareVaultAvailable: decoded.hardwareVaultAvailable,
-      biometricAvailable: decoded.biometricAvailable,
-      fprintdAvailable: decoded.fprintdAvailable,
-      isLinuxHost: decoded.isLinuxHost,
-      keychainProbeWireName: decoded.keychainProbeWireName,
-      hardwareProbeCode: decoded.hardwareProbeCode,
-    );
-  } catch (_) {
-    return _securityCapabilitiesFallback(json);
-  }
-}
-
-CapabilitiesSnapshot? _securityCapabilitiesFallback(Map<String, dynamic> json) {
-  final probeName = json['keychain_probe'];
-  if (probeName is! String) return null;
-  if (probeName != 'available' &&
-      probeName != 'linuxNoSecretService' &&
-      probeName != 'probeFailed') {
-    return null;
-  }
-  final hardwareCode = json['hardware_probe_code'];
-  if (hardwareCode is! String) return null;
+  final decoded = rust_caps.securityCapabilitiesFromJson(
+    json: jsonEncode(json),
+  );
+  if (decoded == null) return null;
   return CapabilitiesSnapshot(
-    keychainAvailable: json['keychain_available'] == true,
-    hardwareVaultAvailable: json['hardware_vault_available'] == true,
-    biometricAvailable: json['biometric_available'] == true,
-    fprintdAvailable: json['fprintd_available'] == true,
-    isLinuxHost: json['is_linux_host'] == true,
-    keychainProbeWireName: probeName,
-    hardwareProbeCode: hardwareCode,
+    keychainAvailable: decoded.keychainAvailable,
+    hardwareVaultAvailable: decoded.hardwareVaultAvailable,
+    biometricAvailable: decoded.biometricAvailable,
+    fprintdAvailable: decoded.fprintdAvailable,
+    isLinuxHost: decoded.isLinuxHost,
+    keychainProbeWireName: decoded.keychainProbeWireName,
+    hardwareProbeCode: decoded.hardwareProbeCode,
   );
 }
 
