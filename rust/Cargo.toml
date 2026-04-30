@@ -136,6 +136,9 @@ regex = "1"
 # features are off so we don't drag the `async-io` (smol-based)
 # alternative in alongside.
 zbus = { version = "5", default-features = false, features = ["tokio"] }
+# UUID generation for the Rust-side import orchestrators that
+# mint Session / SshKeyEntry ids. v4 is the only feature we use.
+uuid = { version = "1", default-features = false, features = ["v4"] }
 # `StreamExt` on the zbus signal stream + serde derive paths the
 # fprintd shim's verify cycle uses.
 futures-util = { version = "0.3", default-features = false }

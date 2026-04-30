@@ -47,6 +47,7 @@ regex = { workspace = true }
 # so the dep tree stays pure-Rust (no openssl system link).
 reqwest = { workspace = true }
 futures-util = { workspace = true }
+uuid = { workspace = true }
 
 # Linux-only D-Bus client for the fprintd shim under
 # `platform::linux::fprintd`. Gated per-target so non-Linux builds

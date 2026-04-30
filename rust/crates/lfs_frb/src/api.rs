@@ -29,6 +29,7 @@ pub mod keychain_pepper_prompt;
 pub mod keys;
 pub mod known_hosts_parser;
 pub mod local_fs;
+pub mod openssh_config_import;
 pub mod log_sanitize;
 pub mod master_password;
 pub mod migration;

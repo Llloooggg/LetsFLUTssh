@@ -34,6 +34,7 @@ import 'api/local_fs.dart';
 import 'api/log_sanitize.dart';
 import 'api/master_password.dart';
 import 'api/migration.dart';
+import 'api/openssh_config_import.dart';
 import 'api/os_security.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
@@ -530,6 +531,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbOpenSshHostEntry dco_decode_db_open_ssh_host_entry(dynamic raw);
 
   @protected
+  DbOpenSshImportKey dco_decode_db_open_ssh_import_key(dynamic raw);
+
+  @protected
+  DbOpenSshImportPreview dco_decode_db_open_ssh_import_preview(dynamic raw);
+
+  @protected
+  DbOpenSshImportSession dco_decode_db_open_ssh_import_session(dynamic raw);
+
+  @protected
   DbParsedHostEntry dco_decode_db_parsed_host_entry(dynamic raw);
 
   @protected
@@ -767,6 +777,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbOpenSshHostEntry> dco_decode_list_db_open_ssh_host_entry(dynamic raw);
+
+  @protected
+  List<DbOpenSshImportKey> dco_decode_list_db_open_ssh_import_key(dynamic raw);
+
+  @protected
+  List<DbOpenSshImportSession> dco_decode_list_db_open_ssh_import_session(
+    dynamic raw,
+  );
 
   @protected
   List<DbParsedHostEntry> dco_decode_list_db_parsed_host_entry(dynamic raw);
@@ -1536,6 +1554,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbOpenSshImportKey sse_decode_db_open_ssh_import_key(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbOpenSshImportPreview sse_decode_db_open_ssh_import_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbOpenSshImportSession sse_decode_db_open_ssh_import_session(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbParsedHostEntry sse_decode_db_parsed_host_entry(
     SseDeserializer deserializer,
   );
@@ -1845,6 +1878,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbOpenSshHostEntry> sse_decode_list_db_open_ssh_host_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbOpenSshImportKey> sse_decode_list_db_open_ssh_import_key(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbOpenSshImportSession> sse_decode_list_db_open_ssh_import_session(
     SseDeserializer deserializer,
   );
 
@@ -2811,6 +2854,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_open_ssh_import_key(
+    DbOpenSshImportKey self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_open_ssh_import_preview(
+    DbOpenSshImportPreview self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_open_ssh_import_session(
+    DbOpenSshImportSession self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_parsed_host_entry(
     DbParsedHostEntry self,
     SseSerializer serializer,
@@ -3218,6 +3279,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_open_ssh_host_entry(
     List<DbOpenSshHostEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_open_ssh_import_key(
+    List<DbOpenSshImportKey> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_open_ssh_import_session(
+    List<DbOpenSshImportSession> self,
     SseSerializer serializer,
   );
 
