@@ -770,44 +770,28 @@ class UpdateService {
     return sha256HexCompat(bytes);
   }
 
-  /// Pick the right asset for the current platform from the release assets.
-  ///
-  /// Routes through `lfs_core::update_metadata::asset_url_for_platform`
-  /// (FRB sync) so the suffix-allowlist + asset-iteration grammar
-  /// lives one place; falls back to the inline scan for
-  /// flutter_test contexts that don't load the FRB native lib.
+  /// Pick the right asset for the current platform from the release
+  /// assets via `lfs_core::update_metadata::asset_url_for_platform` —
+  /// the suffix-allowlist + asset-iteration grammar lives in Rust.
   static String? assetUrlForPlatform(
     List<dynamic> assets, {
     String? platformOverride,
   }) {
     final platform = platformOverride ?? _hostPlatform();
-    try {
-      final entries = <rust_update.DbReleaseAsset>[];
-      for (final asset in assets) {
-        if (asset is! Map<String, dynamic>) continue;
-        final name = asset['name'] as String? ?? '';
-        final url = asset['browser_download_url'] as String? ?? '';
-        if (name.isEmpty || url.isEmpty) continue;
-        entries.add(
-          rust_update.DbReleaseAsset(name: name, browserDownloadUrl: url),
-        );
-      }
-      return rust_update.updateAssetUrlForPlatform(
-        assets: entries,
-        platform: platform,
+    final entries = <rust_update.DbReleaseAsset>[];
+    for (final asset in assets) {
+      if (asset is! Map<String, dynamic>) continue;
+      final name = asset['name'] as String? ?? '';
+      final url = asset['browser_download_url'] as String? ?? '';
+      if (name.isEmpty || url.isEmpty) continue;
+      entries.add(
+        rust_update.DbReleaseAsset(name: name, browserDownloadUrl: url),
       );
-    } catch (_) {
-      final suffix = _assetSuffix(platform);
-      if (suffix == null) return null;
-      for (final asset in assets) {
-        if (asset is! Map<String, dynamic>) continue;
-        final name = asset['name'] as String? ?? '';
-        if (name.endsWith(suffix)) {
-          return asset['browser_download_url'] as String?;
-        }
-      }
-      return null;
     }
+    return rust_update.updateAssetUrlForPlatform(
+      assets: entries,
+      platform: platform,
+    );
   }
 
   /// Platforms we ship self-updatable binaries for. Anything else (iOS,
@@ -825,26 +809,10 @@ class UpdateService {
     return _selfUpdatablePlatforms.contains(os) ? os : 'unknown';
   }
 
-  /// Map platform to expected asset filename suffix. Routes
-  /// through `lfs_core::update_metadata::asset_suffix`.
-  static String? _assetSuffix(String platform) {
-    try {
-      return rust_update.updateAssetSuffix(platform: platform);
-    } catch (_) {
-      switch (platform) {
-        case 'linux':
-          return '-linux-x64.AppImage';
-        case 'windows':
-          return '-windows-x64-setup.exe';
-        case 'macos':
-          return '-macos-universal.dmg';
-        case 'android':
-          return '-android-arm64.apk';
-        default:
-          return null; // iOS — no self-update
-      }
-    }
-  }
+  /// Map platform to expected asset filename suffix via
+  /// `lfs_core::update_metadata::asset_suffix`.
+  static String? _assetSuffix(String platform) =>
+      rust_update.updateAssetSuffix(platform: platform);
 
   /// Characters that must not appear in file paths passed to `cmd /c start`.
   static final _unsafePathChars = RegExp(r'[&|<>^%]');
