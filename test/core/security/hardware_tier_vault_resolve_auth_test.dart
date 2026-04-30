@@ -5,7 +5,15 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // resolveAuthValue routes through `lfs_core::security::hardware_tier_vault`
+  // — bootstrap FRB so the canonical Rust HMAC + isolation grammar is
+  // exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   final salt = Uint8List.fromList(List.generate(32, (i) => i));
 
   Uint8List hmac(List<int> message) =>

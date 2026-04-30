@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
 import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// Fake TPM: seal prepends a fixed marker + auth-value-hex so
 /// unseal can assert it saw the same auth. Good enough to validate
 /// the vault's salt + PIN-HMAC contract without a real TPM.
@@ -43,6 +45,9 @@ class _FakeTpm implements TpmClient {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // resolveAuthValue routes through `lfs_core::security::hardware_tier_vault`
+  // — bootstrap FRB so HMAC + isolation grammar works.
+  setUpAll(requireFrbLoaded);
 
   late Directory tempDir;
 

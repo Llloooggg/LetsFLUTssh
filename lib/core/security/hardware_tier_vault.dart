@@ -361,9 +361,7 @@ class HardwareTierVault {
   /// Routes through `lfs_core::security::hardware_tier_vault::
   /// resolve_auth_value` (FRB sync) so the (password, biometric) →
   /// auth-bytes contract lives one place across the Linux TPM
-  /// path + the per-platform method-channel vault plugins; falls
-  /// back to the inline branch when the FRB native lib is not
-  /// loaded (flutter_test).
+  /// path + the per-platform method-channel vault plugins.
   @visibleForTesting
   static Uint8List? resolveAuthValue({
     required bool password,
@@ -372,29 +370,14 @@ class HardwareTierVault {
     String? typedPassword,
     Uint8List? fprintdHash,
   }) {
-    try {
-      final v = rust_vault.hardwareTierVaultResolveAuthValue(
-        password: password,
-        biometric: biometric,
-        salt: salt,
-        typedPassword: typedPassword,
-        fprintdHash: fprintdHash,
-      );
-      return v == null ? null : Uint8List.fromList(v);
-    } catch (_) {
-      if (biometric) {
-        if (fprintdHash == null || fprintdHash.isEmpty) return null;
-        return hmacSha256Compat(salt, fprintdHash);
-      }
-      if (password) {
-        if (typedPassword == null || typedPassword.isEmpty) return null;
-        return hmacSha256Compat(
-          salt,
-          Uint8List.fromList(utf8.encode(typedPassword)),
-        );
-      }
-      return Uint8List(0);
-    }
+    final v = rust_vault.hardwareTierVaultResolveAuthValue(
+      password: password,
+      biometric: biometric,
+      salt: salt,
+      typedPassword: typedPassword,
+      fprintdHash: fprintdHash,
+    );
+    return v == null ? null : Uint8List.fromList(v);
   }
 
   Uint8List _randomBytes(int n) {
