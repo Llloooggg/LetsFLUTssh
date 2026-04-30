@@ -68,3 +68,12 @@ pub fn os_security_acquire_single_instance(path: String) -> Result<u64, String> 
 pub fn os_security_release_single_instance(handle_id: u64) {
     lfs_os_security::single_instance::release(handle_id);
 }
+
+/// Set `NSURLIsExcludedFromBackupKey = true` on the directory at
+/// `path` so iCloud Backup / iTunes / Time Machine skip it.
+/// No-op on Linux / Windows / Android. Returns the underlying
+/// Foundation error string when the call fails on Apple.
+#[flutter_rust_bridge::frb(sync)]
+pub fn os_security_exclude_from_backup(path: String) -> Result<(), String> {
+    lfs_os_security::backup_exclusion::exclude_from_backup(&path)
+}

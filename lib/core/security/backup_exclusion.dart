@@ -1,8 +1,8 @@
 import 'dart:io' show Directory, Platform;
 
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../utils/logger.dart';
 
 /// Opt the app-support directory out of Apple's backup paths.
@@ -31,21 +31,25 @@ import '../../utils/logger.dart';
 /// is handled at the manifest level via `data_extraction_rules.xml`;
 /// Linux and Windows have no OS-level cloud-backup default the app
 /// needs to opt out of.
+///
+/// Routes through `lfs_os_security::backup_exclusion::exclude_from_backup`
+/// (objc2 → `NSURL.setResourceValue:forKey:NSURLIsExcludedFromBackupKey`).
+/// The Rust function is a documented no-op on non-Apple targets, so the
+/// Dart [_isApplePlatform] gate is a startup-path short-circuit only,
+/// not a correctness guard.
 class BackupExclusion {
   BackupExclusion({
-    MethodChannel? channel,
     bool? isApplePlatform,
     Future<Directory> Function()? supportDir,
-  }) : _channel = channel ?? const MethodChannel(_channelName),
-       _isApplePlatform =
+    void Function(String path)? excludeImpl,
+  }) : _isApplePlatform =
            isApplePlatform ?? (Platform.isIOS || Platform.isMacOS),
-       _supportDir = supportDir ?? getApplicationSupportDirectory;
+       _supportDir = supportDir ?? getApplicationSupportDirectory,
+       _excludeImpl = excludeImpl ?? _defaultExcludeImpl;
 
-  static const _channelName = 'com.letsflutssh/backup_exclusion';
-
-  final MethodChannel _channel;
   final bool _isApplePlatform;
   final Future<Directory> Function() _supportDir;
+  final void Function(String path) _excludeImpl;
 
   /// Flag the app-support directory so Apple backup paths skip it.
   /// Resolves to a no-op on non-Apple platforms.
@@ -53,14 +57,16 @@ class BackupExclusion {
     if (!_isApplePlatform) return;
     try {
       final dir = await _supportDir();
-      await _channel.invokeMethod<void>('excludeFromBackup', {
-        'path': dir.path,
-      });
+      _excludeImpl(dir.path);
     } catch (e) {
       AppLogger.instance.log(
         'BackupExclusion.applyOnStartup failed: $e',
         name: 'BackupExclusion',
       );
     }
+  }
+
+  static void _defaultExcludeImpl(String path) {
+    rust_os.osSecurityExcludeFromBackup(path: path);
   }
 }

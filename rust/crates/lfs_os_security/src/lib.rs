@@ -254,4 +254,5 @@ mod tests {
     }
 }
 
+pub mod backup_exclusion;
 pub mod single_instance;

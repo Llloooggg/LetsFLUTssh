@@ -52,6 +52,13 @@ void osSecurityReleaseSingleInstance({required BigInt handleId}) => RustLib
     .api
     .crateApiOsSecurityOsSecurityReleaseSingleInstance(handleId: handleId);
 
+/// Set `NSURLIsExcludedFromBackupKey = true` on the directory at
+/// `path` so iCloud Backup / iTunes / Time Machine skip it.
+/// No-op on Linux / Windows / Android. Returns the underlying
+/// Foundation error string when the call fails on Apple.
+void osSecurityExcludeFromBackup({required String path}) => RustLib.instance.api
+    .crateApiOsSecurityOsSecurityExcludeFromBackup(path: path);
+
 /// Per-step result reported by [`os_security_apply_startup_hardening`].
 /// `code` carries the underlying syscall return code (0 = POSIX
 /// success). `error` is `None` on success.

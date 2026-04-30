@@ -13,14 +13,18 @@ import UIKit
   }
 
   private let hardwareVault = HardwareVaultPlugin()
-  private let backupExclusion = BackupExclusionPlugin()
+  // BackupExclusionPlugin retired — backup_exclusion now routes
+  // through `lfs_os_security::backup_exclusion` (objc2 →
+  // NSURL.setResourceValue:forKey:NSURLIsExcludedFromBackupKey).
+  // The Swift plugin file stays on disk until the next Xcode
+  // pbxproj cleanup so this commit doesn't have to touch the
+  // project file.
   private let clipboardSecure = ClipboardSecurePlugin()
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     registerQrScanner(with: engineBridge)
     registerHardwareVault(with: engineBridge)
-    registerBackupExclusion(with: engineBridge)
     registerClipboardSecure(with: engineBridge)
   }
 
@@ -29,13 +33,6 @@ import UIKit
       forPlugin: "com.letsflutssh.hardware_vault",
     )?.messenger() else { return }
     hardwareVault.register(with: messenger)
-  }
-
-  private func registerBackupExclusion(with engineBridge: FlutterImplicitEngineBridge) {
-    guard let messenger = engineBridge.pluginRegistry.registrar(
-      forPlugin: "com.letsflutssh.backup_exclusion",
-    )?.messenger() else { return }
-    backupExclusion.register(with: messenger)
   }
 
   private func registerClipboardSecure(with engineBridge: FlutterImplicitEngineBridge) {
