@@ -352,21 +352,10 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     }
   }
 
-  /// Routes through `lfs_core::format::format_date` so the
-  /// `YYYY-MM-DD` grammar lives one place; falls back to the
-  /// inline pad-and-concat when the FRB native lib is not loaded.
-  String _formatDate(DateTime dt) {
-    try {
-      return rust_format.formatDate(
-        year: dt.year,
-        month: dt.month,
-        day: dt.day,
-      );
-    } catch (_) {
-      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}'
-          '-${dt.day.toString().padLeft(2, '0')}';
-    }
-  }
+  /// Format a date as `YYYY-MM-DD` via
+  /// `lfs_core::format::format_date`.
+  String _formatDate(DateTime dt) =>
+      rust_format.formatDate(year: dt.year, month: dt.month, day: dt.day);
 }
 
 /// Dialog wrapper for standalone use (mobile settings).
