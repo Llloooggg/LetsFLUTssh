@@ -24,6 +24,7 @@ import 'api/deeplink.dart';
 import 'api/folder_path.dart';
 import 'api/format.dart';
 import 'api/forward.dart';
+import 'api/fprintd.dart';
 import 'api/hardware_tier_vault.dart';
 import 'api/host_info.dart';
 import 'api/keychain_marker.dart';

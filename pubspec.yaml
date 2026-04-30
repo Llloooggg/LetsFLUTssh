@@ -76,7 +76,6 @@ dependencies:
   # Biometric authentication (Face ID / Touch ID / fingerprint) for the
   # optional biometric unlock of master-password mode.
   local_auth: ^3.0.1
-  dbus: ^0.7.12
   lfs_frb:
     path: rust_builder
 
