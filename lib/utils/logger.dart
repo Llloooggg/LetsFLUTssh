@@ -32,23 +32,15 @@ import 'sanitize.dart';
 ///   disk. Red tint + left border.
 enum LogLevel { info, warn, error }
 
-/// Routes through `lfs_core::format::format_clock_hms` so the
-/// `HH:MM:SS` padding grammar lives one place; falls back to the
-/// inline pad-and-concat when the FRB native lib is not loaded
-/// (logger init runs before RustLib in some test contexts).
-String _formatHmsForLog(DateTime now) {
-  try {
-    return rust_format.formatClockHms(
-      hour: now.hour,
-      minute: now.minute,
-      second: now.second,
-    );
-  } catch (_) {
-    return '${now.hour.toString().padLeft(2, '0')}:'
-        '${now.minute.toString().padLeft(2, '0')}:'
-        '${now.second.toString().padLeft(2, '0')}';
-  }
-}
+/// Format the log timestamp prefix as `HH:MM:SS` via
+/// `lfs_core::format::format_clock_hms`. Only called from inside
+/// AppLogger.log's threshold-gated write path, so unbootstrapped
+/// tests that never enable file logging never reach this code.
+String _formatHmsForLog(DateTime now) => rust_format.formatClockHms(
+  hour: now.hour,
+  minute: now.minute,
+  second: now.second,
+);
 
 String _levelChar(LogLevel l) => switch (l) {
   LogLevel.info => 'I',
@@ -225,23 +217,13 @@ class AppLogger {
   /// perms before this hook is best-effort tightened; we do not want
   /// a chmod failure to block logging.
   ///
-  /// Routes through `lfs_core::path::harden_file_perms` in production
-  /// so the chmod / icacls grammar lives one place; falls back to a
-  /// direct subprocess shell-out when the FRB native lib is not
-  /// loaded (logger initialisation runs early enough that RustLib
-  /// may not be ready yet).
+  /// Routes through `lfs_core::path::harden_file_perms` —
+  /// the chmod / icacls grammar lives in Rust. Best-effort: a
+  /// chmod failure must never break logging.
   Future<void> _restrictPermissions(String path) async {
     if (Platform.isWindows) return;
     try {
       rust_path.pathHardenFilePerms(path: path);
-      return;
-    } catch (_) {
-      // FRB native lib not loaded yet (early-boot logger init) or
-      // a runtime serialisation issue — fall through to the direct
-      // chmod so log file hardening still happens.
-    }
-    try {
-      await Process.run('chmod', ['600', path]);
     } catch (_) {
       // Best-effort. Logger hardening must never break logging.
     }
