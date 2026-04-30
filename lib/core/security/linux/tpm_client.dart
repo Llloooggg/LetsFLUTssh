@@ -2,11 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:path/path.dart' as p;
-
 import '../../../src/rust/api/tpm.dart' as rust_tpm;
-import '../../../utils/file_utils.dart';
-import '../../../utils/logger.dart';
 
 /// Classified TPM probe outcome — surfaces the reason the probe
 /// failed so the Settings UI can render an actionable hint instead
@@ -111,99 +107,28 @@ class TpmClient {
   /// card's unavailable reason.
   ///
   /// Routes through `lfs_core::platform::linux::tpm::probe` (FRB
-  /// async, runs the spawn on the blocking pool). Falls back to
-  /// the inline Dart `Process.run` pipeline below when the FRB
-  /// native lib is not loaded — flutter_test contexts that don't
-  /// bootstrap `RustLib` keep working against the existing test
-  /// harness without needing to load the native blob.
+  /// async, runs the spawn on the blocking pool). The Rust path is
+  /// authoritative — it shells out to the same `tpm2-tools`
+  /// binaries and reads the same `/dev/tpmrm0` device node a Dart
+  /// implementation would.
   Future<TpmProbeResult> probe() async {
     if (!Platform.isLinux) return TpmProbeResult.wrongPlatform;
-    try {
-      final r = await rust_tpm.tpmProbe(
-        binary: _binary,
-        device: _tpmDevice,
-        timeoutMs: BigInt.from(_timeout.inMilliseconds),
-      );
-      switch (r) {
-        case rust_tpm.DbTpmProbeResult.available:
-          return TpmProbeResult.available;
-        case rust_tpm.DbTpmProbeResult.deviceNodeMissing:
-          return TpmProbeResult.deviceNodeMissing;
-        case rust_tpm.DbTpmProbeResult.binaryMissing:
-          return TpmProbeResult.binaryMissing;
-        case rust_tpm.DbTpmProbeResult.probeFailed:
-          return TpmProbeResult.probeFailed;
-        case rust_tpm.DbTpmProbeResult.notLinux:
-          return TpmProbeResult.wrongPlatform;
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'TpmClient.probe FRB unreachable, falling back to Dart '
-        'pipeline: $e',
-        name: 'TpmClient',
-      );
-    }
-    if (!await File(_tpmDevice).exists()) {
-      return TpmProbeResult.deviceNodeMissing;
-    }
-    try {
-      final getcap = await Process.run(_binary, const [
-        'getcap',
-        '-l',
-      ], runInShell: false).timeout(_timeout);
-      if (getcap.exitCode != 0) {
-        AppLogger.instance.log(
-          'tpm2 getcap exit=${getcap.exitCode} stderr=${getcap.stderr}',
-          name: 'TpmClient',
-        );
-        return TpmProbeResult.probeFailed;
-      }
-      // Real key-create round-trip on top of the capability query —
-      // `getcap` only reads TPM properties and can succeed on a host
-      // where `/dev/tpmrm0` permissions allow read but not write
-      // (uncommon but observed on hardened sandboxes). The full
-      // `createprimary` exercises the same path as `seal`, so a
-      // probe success here is a strict guarantee that downstream
-      // sealing will not fail with a permissions / lockout error.
-      // Best-effort cleanup: a stranded primary handle costs nothing
-      // (TPM resource manager flushes it when the parent context
-      // closes anyway) and the work dir is wiped via the same helper
-      // `seal` uses.
-      final workDir = await Directory.systemTemp.createTemp('lfs-tpm-probe-');
-      try {
-        final ctx = p.join(workDir.path, 'probe.ctx');
-        final create = await Process.run(_binary, [
-          'createprimary',
-          '-Q',
-          '-C',
-          'o',
-          '-c',
-          ctx,
-        ], runInShell: false).timeout(_timeout);
-        if (create.exitCode != 0) {
-          AppLogger.instance.log(
-            'tpm2 createprimary probe exit=${create.exitCode} '
-            'stderr=${create.stderr}',
-            name: 'TpmClient',
-          );
-          return TpmProbeResult.probeFailed;
-        }
-      } finally {
-        await _wipeDir(workDir);
-      }
-      return TpmProbeResult.available;
-    } on ProcessException catch (e) {
-      // `tpm2` binary missing → Process.start fails with errno 2
-      // before the timeout fires. Classify explicitly so the UI can
-      // steer the user at an `apt install tpm2-tools` hint.
-      if (e.errorCode == 2 || e.message.contains('No such file')) {
+    final r = await rust_tpm.tpmProbe(
+      binary: _binary,
+      device: _tpmDevice,
+      timeoutMs: BigInt.from(_timeout.inMilliseconds),
+    );
+    switch (r) {
+      case rust_tpm.DbTpmProbeResult.available:
+        return TpmProbeResult.available;
+      case rust_tpm.DbTpmProbeResult.deviceNodeMissing:
+        return TpmProbeResult.deviceNodeMissing;
+      case rust_tpm.DbTpmProbeResult.binaryMissing:
         return TpmProbeResult.binaryMissing;
-      }
-      AppLogger.instance.log('tpm2 probe process error: $e', name: 'TpmClient');
-      return TpmProbeResult.probeFailed;
-    } catch (e) {
-      AppLogger.instance.log('tpm2 probe failed: $e', name: 'TpmClient');
-      return TpmProbeResult.probeFailed;
+      case rust_tpm.DbTpmProbeResult.probeFailed:
+        return TpmProbeResult.probeFailed;
+      case rust_tpm.DbTpmProbeResult.notLinux:
+        return TpmProbeResult.wrongPlatform;
     }
   }
 
@@ -218,78 +143,17 @@ class TpmClient {
     Uint8List secret, {
     required Uint8List authValue,
   }) async {
-    if (secret.length > 128) {
-      AppLogger.instance.log(
-        'tpm2 seal rejected: secret longer than 128 bytes',
-        name: 'TpmClient',
-      );
-      return null;
-    }
+    if (secret.length > 128) return null;
     try {
-      final out = await rust_tpm.tpmSeal(
+      return await rust_tpm.tpmSeal(
         secret: secret,
         authValue: authValue,
         binary: _binary,
         device: _tpmDevice,
         timeoutMs: BigInt.from(_timeout.inMilliseconds),
       );
-      return out;
-    } catch (e) {
-      AppLogger.instance.log(
-        'TpmClient.seal FRB path failed, falling back to Dart '
-        'pipeline: $e',
-        name: 'TpmClient',
-      );
-    }
-    final workDir = await Directory.systemTemp.createTemp('lfs-tpm-seal-');
-    try {
-      final primary = p.join(workDir.path, 'primary.ctx');
-      final pubPath = p.join(workDir.path, 'sealed.pub');
-      final privPath = p.join(workDir.path, 'sealed.priv');
-      final secretPath = p.join(workDir.path, 'secret.bin');
-      await File(secretPath).writeAsBytes(secret, flush: true);
-      // tpm2-tools auth value routed through `file:<path>` instead of
-      // the inline `hex:<hex>` form so the HMAC never crosses argv.
-      // /proc/<pid>/cmdline is readable cross-UID depending on the
-      // kernel hidepid mount option (default hidepid=0 on many
-      // distros) — the auth value is the exact bytes an attacker
-      // needs to unseal the blob, so any exposure there bypasses the
-      // Dart-side cooldown entirely (TPM lockout is still intact).
-      // `_wipeDir` zero-overwrites every file in workDir before
-      // delete, so the auth file is self-cleaning.
-      final authArg = await _writeAuthFile(workDir, authValue);
-      final createPrimary = await _runTpm([
-        'createprimary',
-        '-Q',
-        '-C',
-        'o',
-        '-c',
-        primary,
-      ]);
-      if (!createPrimary) return null;
-      final create = await _runTpm([
-        'create',
-        '-Q',
-        '-C',
-        primary,
-        '-u',
-        pubPath,
-        '-r',
-        privPath,
-        '-i',
-        secretPath,
-        '-p',
-        authArg,
-      ]);
-      if (!create) return null;
-      final pub = await File(pubPath).readAsBytes();
-      final priv = await File(privPath).readAsBytes();
-      return _pack(pub, priv);
-    } catch (e) {
-      AppLogger.instance.log('tpm2 seal failed: $e', name: 'TpmClient');
+    } catch (_) {
       return null;
-    } finally {
-      await _wipeDir(workDir);
     }
   }
 
@@ -301,191 +165,15 @@ class TpmClient {
     required Uint8List authValue,
   }) async {
     try {
-      final out = await rust_tpm.tpmUnseal(
+      return await rust_tpm.tpmUnseal(
         blob: blob,
         authValue: authValue,
         binary: _binary,
         device: _tpmDevice,
         timeoutMs: BigInt.from(_timeout.inMilliseconds),
       );
-      return out;
-    } catch (e) {
-      AppLogger.instance.log(
-        'TpmClient.unseal FRB path failed, falling back to Dart '
-        'pipeline: $e',
-        name: 'TpmClient',
-      );
-    }
-    final unpacked = _unpack(blob);
-    if (unpacked == null) return null;
-    final (pub, priv) = unpacked;
-    final workDir = await Directory.systemTemp.createTemp('lfs-tpm-unseal-');
-    try {
-      final primary = p.join(workDir.path, 'primary.ctx');
-      final pubPath = p.join(workDir.path, 'sealed.pub');
-      final privPath = p.join(workDir.path, 'sealed.priv');
-      final loadedCtx = p.join(workDir.path, 'loaded.ctx');
-      await File(pubPath).writeAsBytes(pub, flush: true);
-      await File(privPath).writeAsBytes(priv, flush: true);
-      // See `seal` — auth value via `file:<path>` so the HMAC never
-      // crosses argv / /proc/<pid>/cmdline.
-      final authArg = await _writeAuthFile(workDir, authValue);
-      final createPrimary = await _runTpm([
-        'createprimary',
-        '-Q',
-        '-C',
-        'o',
-        '-c',
-        primary,
-      ]);
-      if (!createPrimary) return null;
-      final load = await _runTpm([
-        'load',
-        '-Q',
-        '-C',
-        primary,
-        '-u',
-        pubPath,
-        '-r',
-        privPath,
-        '-c',
-        loadedCtx,
-      ]);
-      if (!load) return null;
-      // `stdoutEncoding: null` forces `Process.run` to deliver stdout as
-      // raw `List<int>` instead of decoding through `systemEncoding`
-      // (UTF-8 on Linux). `tpm2 unseal` writes the sealed secret — a
-      // random binary blob — to stdout; a UTF-8 decode pass would
-      // substitute U+FFFD for every invalid sequence, permanently
-      // losing bytes. An earlier `stdout.codeUnits` fallback on the
-      // String branch only masked the symptom: the String was already
-      // corrupt by the time we saw it.
-      final result = await Process.run(_binary, [
-        'unseal',
-        '-Q',
-        '-c',
-        loadedCtx,
-        '-p',
-        authArg,
-      ], stdoutEncoding: null).timeout(_timeout);
-      if (result.exitCode != 0) {
-        AppLogger.instance.log(
-          'tpm2 unseal exit=${result.exitCode} stderr=${result.stderr}',
-          name: 'TpmClient',
-        );
-        return null;
-      }
-      final stdout = result.stdout;
-      if (stdout is List<int>) return Uint8List.fromList(stdout);
-      return null;
-    } catch (e) {
-      AppLogger.instance.log('tpm2 unseal failed: $e', name: 'TpmClient');
-      return null;
-    } finally {
-      await _wipeDir(workDir);
-    }
-  }
-
-  Future<bool> _runTpm(List<String> args) async {
-    final result = await Process.run(
-      _binary,
-      args,
-      runInShell: false,
-    ).timeout(_timeout);
-    if (result.exitCode != 0) {
-      AppLogger.instance.log(
-        'tpm2 ${args.first} exit=${result.exitCode} stderr=${result.stderr}',
-        name: 'TpmClient',
-      );
-      return false;
-    }
-    return true;
-  }
-
-  Future<void> _wipeDir(Directory dir) async {
-    try {
-      // Best-effort overwrite of every file before unlink so the
-      // sealed-but-transient plaintext (`secret.bin` during seal) is
-      // not merely marked free on whatever filesystem `/tmp` lives on.
-      if (await dir.exists()) {
-        await for (final entity in dir.list(followLinks: false)) {
-          if (entity is File) {
-            try {
-              final length = await entity.length();
-              await entity.writeAsBytes(Uint8List(length), flush: true);
-            } catch (_) {}
-          }
-        }
-        await dir.delete(recursive: true);
-      }
-    } catch (e) {
-      AppLogger.instance.log('tpm temp wipe failed: $e', name: 'TpmClient');
-    }
-  }
-
-  /// Write [authValue] to a freshly-named file under [dir] and return
-  /// the tpm2-tools `file:<path>` argument pointing at it. The file
-  /// uses 0600 perms before the path is returned. The caller's
-  /// `_wipeDir` zero-overwrites and unlinks the file when the seal /
-  /// unseal flow tears down [dir].
-  Future<String> _writeAuthFile(Directory dir, Uint8List authValue) async {
-    final path = p.join(dir.path, 'auth.bin');
-    final file = File(path);
-    await file.writeAsBytes(authValue, flush: true);
-    // The auth value gates every TPM unseal — keep its on-disk
-    // perms locked to owner-only. Routes through the canonical
-    // `lfs_core::path::harden_file_perms` helper; falls back to
-    // direct chmod for the rare flutter_test path that wires this
-    // through without bootstrapping the FRB native lib.
-    try {
-      hardenFilePerms(path);
     } catch (_) {
-      if (Platform.isLinux || Platform.isMacOS) {
-        await Process.run('chmod', ['600', path]);
-      }
+      return null;
     }
-    return 'file:$path';
-  }
-
-  static Uint8List _pack(Uint8List pub, Uint8List priv) {
-    final out = BytesBuilder(copy: false);
-    out.add(_u32(pub.length));
-    out.add(pub);
-    out.add(_u32(priv.length));
-    out.add(priv);
-    return out.toBytes();
-  }
-
-  static (Uint8List pub, Uint8List priv)? _unpack(Uint8List blob) {
-    if (blob.length < 8) return null;
-    var offset = 0;
-    int readU32() {
-      final v =
-          (blob[offset] << 24) |
-          (blob[offset + 1] << 16) |
-          (blob[offset + 2] << 8) |
-          blob[offset + 3];
-      offset += 4;
-      return v;
-    }
-
-    final pubLen = readU32();
-    if (offset + pubLen > blob.length) return null;
-    final pub = Uint8List.sublistView(blob, offset, offset + pubLen);
-    offset += pubLen;
-    if (offset + 4 > blob.length) return null;
-    final privLen = readU32();
-    if (offset + privLen > blob.length) return null;
-    final priv = Uint8List.sublistView(blob, offset, offset + privLen);
-    return (pub, priv);
-  }
-
-  static Uint8List _u32(int v) {
-    return Uint8List.fromList([
-      (v >> 24) & 0xff,
-      (v >> 16) & 0xff,
-      (v >> 8) & 0xff,
-      v & 0xff,
-    ]);
   }
 }
