@@ -4,8 +4,13 @@ import 'package:letsflutssh/core/security/secure_clipboard.dart';
 import 'package:letsflutssh/utils/terminal_clipboard.dart';
 import 'package:xterm/xterm.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // _looksSensitive routes through `lfs_core::log_sanitize` —
+  // bootstrap FRB so the canonical Rust heuristic is exercised.
+  setUpAll(requireFrbLoaded);
 
   late Terminal terminal;
   late TerminalController controller;

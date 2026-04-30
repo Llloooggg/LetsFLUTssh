@@ -79,21 +79,11 @@ class TerminalClipboard {
 
   /// Heuristic: looks-like-a-secret content gets a clipboard auto-wipe.
   /// Triggers on PEM-style markers and long base64 runs (the same
-  /// shapes `redactSecrets` strips from logs). Routes through
+  /// shapes `redactSecrets` strips from logs) via
   /// `lfs_core::log_sanitize::looks_sensitive` so the redactor +
-  /// auto-wipe agree on what counts as "do not let this leak";
-  /// flutter_test contexts that don't load the FRB native lib fall
-  /// back to the original Dart heuristic.
-  static bool _looksSensitive(String text) {
-    try {
-      return rust_san.looksSensitive(text: text);
-    } catch (_) {
-      if (text.contains('-----BEGIN') && text.contains('PRIVATE KEY')) {
-        return true;
-      }
-      return RegExp(r'[A-Za-z0-9+/=]{200,}').hasMatch(text);
-    }
-  }
+  /// auto-wipe agree on what counts as "do not let this leak".
+  static bool _looksSensitive(String text) =>
+      rust_san.looksSensitive(text: text);
 
   /// Test-only accessor for the sensitivity heuristic.
   @visibleForTesting
