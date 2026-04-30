@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:letsflutssh/app/security_dialog_prompter.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
-import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/widgets/db_corrupt_dialog.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
@@ -91,10 +90,7 @@ class FakeSecurityDialogPrompter implements SecurityDialogPrompter {
   });
 
   @override
-  Future<SecuritySetupResult> showFirstLaunchWizard(
-    BuildContext ctx, {
-    required SecureKeyStorage keyStorage,
-  }) async {
+  Future<SecuritySetupResult> showFirstLaunchWizard(BuildContext ctx) async {
     wizardCalls++;
     return wizardResult;
   }

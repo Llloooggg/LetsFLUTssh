@@ -2,8 +2,6 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 
-import '../core/security/hardware_tier_vault.dart';
-import '../core/security/secure_key_storage.dart';
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
@@ -71,8 +69,6 @@ class SecuritySetupResult {
 /// — the per-tier info popups from the v1 wizard are replaced by
 /// this single matrix so the user reads one source of truth.
 class SecuritySetupDialog extends StatefulWidget {
-  final SecureKeyStorage keyStorage;
-  final HardwareTierVault hardwareVault;
   final SecurityTier? currentTier;
 
   /// DI hook — when non-null the wizard skips the platform capability
@@ -91,8 +87,6 @@ class SecuritySetupDialog extends StatefulWidget {
 
   const SecuritySetupDialog({
     super.key,
-    required this.keyStorage,
-    required this.hardwareVault,
     this.currentTier,
     this.capabilitiesOverride,
     this.dismissible = false,
@@ -100,8 +94,6 @@ class SecuritySetupDialog extends StatefulWidget {
 
   static Future<SecuritySetupResult> show(
     BuildContext context, {
-    required SecureKeyStorage keyStorage,
-    HardwareTierVault? hardwareVault,
     SecurityTier? currentTier,
     SecurityCapabilities? capabilitiesOverride,
     bool dismissible = false,
@@ -110,8 +102,6 @@ class SecuritySetupDialog extends StatefulWidget {
       context: context,
       barrierDismissible: dismissible,
       builder: (_) => SecuritySetupDialog(
-        keyStorage: keyStorage,
-        hardwareVault: hardwareVault ?? HardwareTierVault(),
         currentTier: currentTier,
         capabilitiesOverride: capabilitiesOverride,
         dismissible: dismissible,
@@ -157,12 +147,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   }
 
   Future<void> _probe() async {
-    final caps =
-        widget.capabilitiesOverride ??
-        await probeCapabilities(
-          keyStorage: widget.keyStorage,
-          hardwareVault: widget.hardwareVault,
-        );
+    final caps = widget.capabilitiesOverride ?? await probeCapabilities();
     if (!mounted) return;
     setState(() {
       _caps = caps;

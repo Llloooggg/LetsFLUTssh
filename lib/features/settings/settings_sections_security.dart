@@ -823,12 +823,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       // Show tier-switch wizard with keychain + hardware forced off
       // so the user can only pick T0 / Paranoid. Same reduced shape
       // as the first-launch decline path.
-      final keyStorage = ref.read(secureKeyStorageProvider);
-      final hw = ref.read(hardwareTierVaultProvider);
-      final baseCaps = await probeCapabilities(
-        keyStorage: keyStorage,
-        hardwareVault: hw,
-      );
+      final baseCaps = await probeCapabilities();
       if (!mounted) return;
       final forcedCaps = baseCaps.copyWith(
         keychainAvailable: false,
@@ -836,8 +831,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       );
       final result = await SecuritySetupDialog.show(
         context,
-        keyStorage: keyStorage,
-        hardwareVault: hw,
         currentTier: ref.read(configProvider).security?.tier,
         capabilitiesOverride: forcedCaps,
         dismissible: true,

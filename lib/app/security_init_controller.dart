@@ -1023,10 +1023,7 @@ class SecurityInitController {
 
     final fallbackCtx = navigatorKey.currentContext;
     if (fallbackCtx == null || !fallbackCtx.mounted) return;
-    final result = await _dialogs.showFirstLaunchWizard(
-      fallbackCtx,
-      keyStorage: keyStorage,
-    );
+    final result = await _dialogs.showFirstLaunchWizard(fallbackCtx);
     if (!isMounted()) return;
     await _applyFirstLaunchWizardResult(
       result: result,

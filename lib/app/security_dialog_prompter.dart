@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../core/security/master_password.dart';
 import '../core/security/password_rate_limiter.dart';
-import '../core/security/secure_key_storage.dart';
 import '../core/security/tier_unlock_attempt.dart';
 import '../widgets/db_corrupt_dialog.dart';
 import '../widgets/security_setup_dialog.dart';
@@ -34,10 +33,7 @@ abstract class SecurityDialogPrompter {
   /// [SecuritySetupDialog.show]; tests return a canned [SecuritySetupResult]
   /// so the downstream `_applyFirstLaunchWizardResult` fan-out is
   /// exercisable without touching the widget tree.
-  Future<SecuritySetupResult> showFirstLaunchWizard(
-    BuildContext ctx, {
-    required SecureKeyStorage keyStorage,
-  });
+  Future<SecuritySetupResult> showFirstLaunchWizard(BuildContext ctx);
 
   /// Corruption-recovery dialog. Production wraps [showDbCorruptDialog].
   /// Returns [DbCorruptChoice.exitApp] on null-navigator in production —
@@ -84,10 +80,8 @@ class ProductionSecurityDialogPrompter implements SecurityDialogPrompter {
   const ProductionSecurityDialogPrompter();
 
   @override
-  Future<SecuritySetupResult> showFirstLaunchWizard(
-    BuildContext ctx, {
-    required SecureKeyStorage keyStorage,
-  }) => SecuritySetupDialog.show(ctx, keyStorage: keyStorage);
+  Future<SecuritySetupResult> showFirstLaunchWizard(BuildContext ctx) =>
+      SecuritySetupDialog.show(ctx);
 
   @override
   Future<DbCorruptChoice> showDbCorrupt() => showDbCorruptDialog();

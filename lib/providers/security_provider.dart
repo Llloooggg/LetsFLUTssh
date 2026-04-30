@@ -84,10 +84,7 @@ final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
 ) async {
   final cached = ref.read(configProvider).securityProbeCache;
   if (cached != null) return cached;
-  final fresh = await probeCapabilities(
-    keyStorage: ref.read(secureKeyStorageProvider),
-    hardwareVault: ref.read(hardwareTierVaultProvider),
-  );
+  final fresh = await probeCapabilities();
   // Persist the snapshot so the next cold start returns from the
   // `cached != null` branch above. `update` is awaited so the save
   // is durable before the provider settles — a crash between probe

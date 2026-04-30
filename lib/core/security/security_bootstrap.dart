@@ -1,14 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../src/rust/api/capabilities_cache.dart' as rust_cache;
 import '../../src/rust/api/capabilities_orchestrator.dart' as rust_orch;
 import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../src/rust/api/wizard_setup.dart' as rust_wizard;
 import '../../utils/logger.dart';
-import 'biometric_auth.dart';
-import 'hardware_tier_vault.dart';
-import 'linux/fprintd_client.dart';
 import 'secure_key_storage.dart';
 import 'security_tier.dart';
 
@@ -179,177 +175,47 @@ class SecurityCapabilities {
 }
 
 /// Asynchronously probe every OS / hardware capability the wizard
-/// needs. Returns a [SecurityCapabilities] with sensible defaults on
-/// any probe failure so a stuck D-Bus call (common on Linux test
-/// boxes) never leaves the user staring at a spinner.
+/// needs.
 ///
-/// Production path routes through
-/// `lfs_core::security::capabilities_orchestrator::run` (FRB
-/// async): the orchestrator fans out the four probes
-/// concurrently via `tokio::join!`, applies a 5 s per-probe
-/// timeout, composes the snapshot, pushes it through the
-/// `capabilities_cache` actor, and returns it. The Dart
-/// subscribers (`BiometricProbePromptListener`,
-/// `KeychainProbePromptListener`,
-/// `HardwareVaultProbePromptListener`) execute the platform
-/// plugin calls under the orchestrator's prompts. The inline
-/// Dart pipeline below stays in place as the flutter_test
-/// fallback (no FRB native lib loaded) and as the canonical
-/// reference implementation that the orchestrator mirrors.
+/// Routes through `lfs_core::security::capabilities_orchestrator::run`
+/// (FRB async): the orchestrator fans out the four probes concurrently
+/// via `tokio::join!`, applies a 5 s per-probe timeout, composes the
+/// snapshot, pushes it through the `capabilities_cache` actor, and
+/// returns it. Platform plugin calls (keychain probe, biometric
+/// availability, fprintd enrolment, hardware-vault detail) reach the
+/// orchestrator through the prompt subscribers
+/// (`BiometricProbePromptListener`, `KeychainProbePromptListener`,
+/// `HardwareVaultProbePromptListener`).
+///
+/// Errors propagate directly — the previous Dart-mirror pipeline was
+/// retired so a Rust-side failure is no longer silently masked by a
+/// shadow probe with different semantics.
 Future<SecurityCapabilities> probeCapabilities({
-  required SecureKeyStorage keyStorage,
-  required HardwareTierVault hardwareVault,
-  BiometricAuth? biometricAuth,
-  FprintdClient? fprintdClient,
   bool? isLinuxHostOverride,
 }) async {
   final linux = isLinuxHostOverride ?? Platform.isLinux;
-  final bio = biometricAuth ?? BiometricAuth();
-  final fprintd = fprintdClient ?? FprintdClient();
-
-  // Try the Rust orchestrator first. The orchestrator already
-  // pushes the snapshot through `capabilities_cache::Cache::set`
-  // for us; we still rebuild the typed Dart enum + write the
-  // greppable log line below so a support trace from the FRB
-  // path looks identical to the Dart fallback path.
-  try {
-    final snap = await rust_orch.capabilitiesProbeRun(isLinuxHost: linux);
-    final probe = KeyringProbeResult.values
-        .where((v) => v.name == snap.keychainProbeWireName)
-        .firstOrNull;
-    if (probe != null) {
-      final caps = SecurityCapabilities(
-        keychainAvailable: snap.keychainAvailable,
-        hardwareVaultAvailable: snap.hardwareVaultAvailable,
-        biometricAvailable: snap.biometricAvailable,
-        fprintdAvailable: snap.fprintdAvailable,
-        isLinuxHost: snap.isLinuxHost,
-        keychainProbe: probe,
-        hardwareProbeCode: snap.hardwareProbeCode,
-      );
-      AppLogger.instance.log(
-        'Capabilities (orchestrator): keychain=${caps.keychainProbe.name} '
-        'hardware=${caps.hardwareProbeCode} '
-        'biometric=${caps.biometricAvailable} '
-        'fprintd=${caps.fprintdAvailable}',
-        name: 'SecurityBootstrap',
-      );
-      return caps;
-    }
-    AppLogger.instance.log(
-      'Capabilities orchestrator returned unknown wire name '
-      '"${snap.keychainProbeWireName}" — falling back to Dart pipeline',
-      name: 'SecurityBootstrap',
-    );
-  } catch (e) {
-    AppLogger.instance.log(
-      'Capabilities orchestrator FRB unreachable, falling back '
-      'to Dart pipeline: $e',
-      name: 'SecurityBootstrap',
-    );
-  }
-
-  Future<T> safely<T>(Future<T> Function() fn, T fallback, String probe) async {
-    try {
-      return await fn();
-    } catch (e) {
-      // Log the miss so a support trace shows which capability
-      // probe timed out / threw — silent fallbacks used to leave
-      // the wizard's tier list looking "unexpectedly small" on
-      // boxes where D-Bus stalls or a plugin is misregistered.
-      AppLogger.instance.log(
-        'Capability probe "$probe" failed (defaulting): $e',
-        name: 'SecurityBootstrap',
-      );
-      return fallback;
-    }
-  }
-
-  // Single probe per capability — deep probes are expensive (real
-  // SE / Keystore / TPM round-trip) so every duplicate call shows
-  // up as a UI stutter when Settings opens. `hardwareVault.probeDetail`
-  // already runs the same round-trip as `hardwareVault.isAvailable`,
-  // so we skip the separate `isAvailable` call and derive the bool
-  // from the reason code; same trick for keychain, where `probe()`
-  // returns a classified enum and the bool is "probe says available".
-  AppLogger.instance.log(
-    'Probing security capabilities (linuxHost=$linux)',
-    name: 'SecurityBootstrap',
-  );
-
-  final results = await Future.wait<Object>([
-    safely(keyStorage.probe, KeyringProbeResult.probeFailed, 'keychain'),
-    safely(
-      () async {
-        final res = await bio.availability();
-        return res == null;
-      },
-      false,
-      'biometric',
-    ),
-    linux
-        ? safely(
-            () async {
-              final hash = await fprintd.getEnrolmentHash();
-              return hash != null && hash.isNotEmpty;
-            },
-            false,
-            'fprintd',
-          )
-        : Future.value(false),
-    // Raw platform-specific hardware-vault reason code. Carried as a
-    // string so `core/security` does not need to import the
-    // `HardwareProbeDetail` enum from the providers layer (which
-    // would invert the dependency direction); the wizard + Settings
-    // code at the widgets/providers layer map the code back to an
-    // enum + localised reason copy.
-    safely(hardwareVault.probeDetail, 'unknown', 'hardware'),
-  ]);
-
-  final keyringProbe = results[0] as KeyringProbeResult;
-  final hardwareCode = results[3] as String;
+  final snap = await rust_orch.capabilitiesProbeRun(isLinuxHost: linux);
+  final probe =
+      KeyringProbeResult.values
+          .where((v) => v.name == snap.keychainProbeWireName)
+          .firstOrNull ??
+      KeyringProbeResult.probeFailed;
   final caps = SecurityCapabilities(
-    keychainAvailable: keyringProbe == KeyringProbeResult.available,
-    hardwareVaultAvailable: hardwareCode == 'available',
-    biometricAvailable: results[1] as bool,
-    fprintdAvailable: results[2] as bool,
-    isLinuxHost: linux,
-    keychainProbe: keyringProbe,
-    hardwareProbeCode: hardwareCode,
+    keychainAvailable: snap.keychainAvailable,
+    hardwareVaultAvailable: snap.hardwareVaultAvailable,
+    biometricAvailable: snap.biometricAvailable,
+    fprintdAvailable: snap.fprintdAvailable,
+    isLinuxHost: snap.isLinuxHost,
+    keychainProbe: probe,
+    hardwareProbeCode: snap.hardwareProbeCode,
   );
-  // Flat, greppable one-liner so a support trace pins which branches
-  // the wizard went down. No user strings in here — enum names and
-  // booleans only — so the sanitizer has nothing to do.
   AppLogger.instance.log(
-    'Capabilities: keychain=${caps.keychainProbe.name} '
-    'hardware=${caps.hardwareProbeCode} biometric=${caps.biometricAvailable} '
+    'Capabilities (orchestrator): keychain=${caps.keychainProbe.name} '
+    'hardware=${caps.hardwareProbeCode} '
+    'biometric=${caps.biometricAvailable} '
     'fprintd=${caps.fprintdAvailable}',
     name: 'SecurityBootstrap',
   );
-  // Push the freshly-probed snapshot into the Rust-side cache so
-  // `BusTopic.securityCapabilities` subscribers (Settings security
-  // cards) re-render off the canonical snapshot without a
-  // follow-up FRB round-trip. Best-effort — flutter_test contexts
-  // that don't load the FRB native lib hit the catch and the test
-  // harness keeps reading `caps` directly.
-  try {
-    rust_cache.securityCapabilitiesSet(
-      snapshot: rust_cache.DbSecurityCapabilitiesSnapshot(
-        keychainAvailable: caps.keychainAvailable,
-        hardwareVaultAvailable: caps.hardwareVaultAvailable,
-        biometricAvailable: caps.biometricAvailable,
-        fprintdAvailable: caps.fprintdAvailable,
-        isLinuxHost: caps.isLinuxHost,
-        keychainProbeWireName: caps.keychainProbe.name,
-        hardwareProbeCode: caps.hardwareProbeCode,
-      ),
-    );
-  } catch (e) {
-    AppLogger.instance.log(
-      'capabilities_cache.set FRB unreachable (non-fatal): $e',
-      name: 'SecurityBootstrap',
-    );
-  }
   return caps;
 }
 

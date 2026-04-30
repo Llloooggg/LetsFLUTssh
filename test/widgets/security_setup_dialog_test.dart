@@ -1,77 +1,11 @@
-import 'dart:io' show File;
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/hardware_tier_vault.dart';
-import 'package:letsflutssh/core/security/linux/tpm_client.dart';
-import 'package:letsflutssh/core/security/secure_key_storage.dart';
 import 'package:letsflutssh/core/security/security_bootstrap.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/widgets/security_setup_dialog.dart';
 
 import '../helpers/frb_bootstrap.dart';
-
-class _FakeStorage implements FlutterSecureStorage {
-  @override
-  Future<void> write({
-    required String key,
-    required String? value,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {}
-
-  @override
-  Future<String?> read({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async => null;
-
-  @override
-  Future<void> delete({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {}
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeTpm implements TpmClient {
-  @override
-  Future<bool> isAvailable() async => true;
-
-  @override
-  Future<Uint8List?> seal(
-    Uint8List secret, {
-    required Uint8List authValue,
-  }) async => Uint8List.fromList([...authValue, ...secret]);
-
-  @override
-  Future<Uint8List?> unseal(
-    Uint8List blob, {
-    required Uint8List authValue,
-  }) async => blob;
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
 
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,
@@ -90,24 +24,13 @@ void main() {
     WidgetTester tester, {
     required SecurityCapabilities caps,
   }) async {
-    final keyStorage = SecureKeyStorage(storage: _FakeStorage());
-    final hardwareVault = HardwareTierVault(
-      tpmClient: _FakeTpm(),
-      stateFileFactory: () async => File('/tmp/ignored_hw_vault.bin'),
-    );
-
     await tester.pumpWidget(
       _wrap(
         Builder(
           builder: (ctx) => TextButton(
             child: const Text('Open'),
             onPressed: () async {
-              await SecuritySetupDialog.show(
-                ctx,
-                keyStorage: keyStorage,
-                hardwareVault: hardwareVault,
-                capabilitiesOverride: caps,
-              );
+              await SecuritySetupDialog.show(ctx, capabilitiesOverride: caps);
             },
           ),
         ),
