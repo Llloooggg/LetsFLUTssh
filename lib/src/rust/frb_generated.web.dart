@@ -34,6 +34,7 @@ import 'api/known_hosts_parser.dart';
 import 'api/log_sanitize.dart';
 import 'api/master_password.dart';
 import 'api/migration.dart';
+import 'api/os_security.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
 import 'api/persisted_rate_limit.dart';
@@ -461,6 +462,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFolder dco_decode_db_folder(dynamic raw);
 
   @protected
+  DbHardeningStep dco_decode_db_hardening_step(dynamic raw);
+
+  @protected
   DbHardwareTierLinuxBlob dco_decode_db_hardware_tier_linux_blob(dynamic raw);
 
   @protected
@@ -715,6 +719,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbFolder> dco_decode_list_db_folder(dynamic raw);
+
+  @protected
+  List<DbHardeningStep> dco_decode_list_db_hardening_step(dynamic raw);
 
   @protected
   List<DbKeychainKeyWipe> dco_decode_list_db_keychain_key_wipe(dynamic raw);
@@ -1400,6 +1407,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbFolder sse_decode_db_folder(SseDeserializer deserializer);
 
   @protected
+  DbHardeningStep sse_decode_db_hardening_step(SseDeserializer deserializer);
+
+  @protected
   DbHardwareTierLinuxBlob sse_decode_db_hardware_tier_linux_blob(
     SseDeserializer deserializer,
   );
@@ -1730,6 +1740,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbFolder> sse_decode_list_db_folder(SseDeserializer deserializer);
+
+  @protected
+  List<DbHardeningStep> sse_decode_list_db_hardening_step(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbKeychainKeyWipe> sse_decode_list_db_keychain_key_wipe(
@@ -2585,6 +2600,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_folder(DbFolder self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_hardening_step(
+    DbHardeningStep self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_hardware_tier_linux_blob(
     DbHardwareTierLinuxBlob self,
     SseSerializer serializer,
@@ -3018,6 +3039,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_db_folder(List<DbFolder> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_db_hardening_step(
+    List<DbHardeningStep> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_db_keychain_key_wipe(

@@ -1690,10 +1690,18 @@ dependencies = [
  "anyhow",
  "flutter_rust_bridge",
  "lfs_core",
+ "lfs_os_security",
  "libloading",
  "rand 0.8.6",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "lfs_os_security"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/lfs_core", "crates/lfs_frb"]
+members = ["crates/lfs_core", "crates/lfs_frb", "crates/lfs_os_security"]
 resolver = "2"
 
 [workspace.package]
