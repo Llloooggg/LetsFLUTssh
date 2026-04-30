@@ -418,10 +418,10 @@ Most of these have a direct Rust crate replacement.
 | `core/security/session_lock_listener.dart` | 88 | `MethodChannel` for screen-lock events | `objc2` (macOS `CGSession*`) + `windows-rs` (`WTSRegisterSessionNotification`) + zbus (Linux logind) |
 | `core/security/backup_exclusion.dart` | 66 | `MethodChannel` for `NSURLIsExcludedFromBackupKey` | `objc2` Foundation |
 | `core/security/linux/fprintd_client.dart` | 248 | Dart `dbus` package → fprintd D-Bus | `zbus` crate |
-| `core/sftp/file_system.dart` (LocalFS) | 200 | `dart:io` `File` / `Directory` ops | `tokio::fs` |
-| `core/ssh/openssh_config_parser.dart` (Include expansion) | ~150 | filesystem walk + glob + tilde expansion | `lfs_core::ssh_config::parse_with_includes` |
+| ~~`core/sftp/file_system.dart`~~ (LocalFS) | ~~200~~ | ~~`dart:io` `File` / `Directory` ops~~ | done — `lfs_core::fs::local` (`list / mkdir / remove / remove_dir / rename / dir_size`) on `tokio::fs`; `windows_hidden_names` runs `attrib` via `tokio::process`; Dart side keeps only `initialDir` because that path uses `path_provider` (iOS sandbox / Android scoped storage) — no clean Rust analog |
+| ~~`core/ssh/openssh_config_parser.dart`~~ (Include expansion) | ~~150~~ | ~~filesystem walk + glob + tilde expansion~~ | done — `lfs_core::ssh_config::parse_openssh_config_with_fs` owns the recursion + cycle detection + glob walk + 1 MiB per-file cap + CR/CRLF normalisation; the Dart parser is now a single FRB call (test seam still routes through `parse_openssh_config_with_includes` for canned-map injection) |
 | `core/import/openssh_config_importer.dart` | 249 | orchestrates parsed entries → `ImportResult` | `lfs_core::import::ssh_config` |
-| `core/import/ssh_dir_key_scanner.dart` | 95 | directory scanner with `keysIsObviousNonKeyFilename` | `lfs_core::import::ssh_dir_scan` |
+| ~~`core/import/ssh_dir_key_scanner.dart`~~ | ~~95~~ | ~~directory scanner with `keysIsObviousNonKeyFilename`~~ | done — `lfs_core::ssh_dir_scan::scan` owns the directory walk + non-key filename filter + 32 KiB per-file cap + PEM / PPK detection (PPK→PEM conversion via `lfs_core::keys::import_ppk`); Dart wrapper keeps the `listDir` / `readPem` test seams for the existing in-memory unit suite |
 | `core/sftp/sftp_fs.dart` (recursive walks) | ~300 | `uploadDir` / `downloadDir` / `removeDir` recursion on top of leaf ops | `lfs_core::sftp::recursive_walk` |
 
 Acceptance criteria:
@@ -811,12 +811,24 @@ one, ship it, then pick the next.
 10. `session_lock_listener` → `objc2` / `windows-rs` / zbus.
 11. `backup_exclusion` → `objc2` Foundation `xattr`.
 12. `linux/fprintd_client` → `zbus`.
-13. `core/sftp/file_system.dart` LocalFS → `tokio::fs` in
-    `lfs_core::fs::local`.
-14. OpenSSH config Include resolution + `openssh_config_importer`
-    + `ssh_dir_key_scanner` → `lfs_core::import::ssh_config`.
+13. ~~`core/sftp/file_system.dart` LocalFS → `tokio::fs` in
+    `lfs_core::fs::local`.~~ Done — module landed with all
+    six fs ops (`list`, `mkdir`, `remove`, `remove_dir`,
+    `rename`, `dir_size`) plus `windows_hidden_names`; Dart
+    keeps only `initialDir` (Flutter `path_provider` dep).
+14. ~~OpenSSH config Include resolution + `ssh_dir_key_scanner` →
+    `lfs_core::import::ssh_config`.~~ Done — Include + glob
+    walk lives in `lfs_core::ssh_config::parse_openssh_config_with_fs`;
+    `~/.ssh` directory scan lives in `lfs_core::ssh_dir_scan::scan`.
+    `openssh_config_importer` (orchestration glue → ImportResult)
+    deferred — its surface is mostly Dart-domain types
+    (`Session`, `SshKeyEntry`, `ImportResult`); migrating it
+    requires duplicating those types Rust-side, which adds
+    FRB ceremony without a measurable correctness or perf win.
 15. SFTP recursive walks (`uploadDir` / `downloadDir` /
-    `removeDir`) → `lfs_core::sftp::recursive_walk`.
+    `removeDir`) → `lfs_core::sftp::recursive_walk`. Needs
+    FRB Stream + cancellation wiring for progress callbacks
+    — pre-req work before the move itself.
 
 ### Bundle size — single tweak arc (after Tier 2)
 
