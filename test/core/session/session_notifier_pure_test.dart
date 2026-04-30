@@ -5,6 +5,8 @@ import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/providers/session_provider.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 // SessionNotifier reads/writes through FRB (`lfs_core.db`). flutter_test
 // does not load the native bridge, so the persistence-asserting unit
 // tests that round-tripped through drift's in-memory DB no longer
@@ -26,6 +28,11 @@ Session _makeSession({
 }
 
 void main() {
+  // Session.validate (called by SessionNotifier.add) routes through
+  // `lfs_core::sessions` — bootstrap FRB so the validation path runs.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('SessionNotifier (no-DB sentinels)', () {
     test('load resolves to empty when DB is unreachable', () async {
       final container = ProviderContainer();

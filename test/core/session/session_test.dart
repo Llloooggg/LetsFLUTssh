@@ -2,7 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // Session.validate routes through `lfs_core::sessions` —
+  // bootstrap FRB so the canonical Rust field-validation grammar is
+  // exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('Session', () {
     test('validate requires host', () {
       final s = Session(

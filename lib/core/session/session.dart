@@ -268,31 +268,21 @@ class Session {
       user.trim().isNotEmpty &&
       hasCredentials;
 
-  /// Validate minimum required fields for storage. Returns error message or null.
+  /// Validate minimum required fields for storage via
+  /// `lfs_core::sessions::validate_session_fields` — the storable-field
+  /// grammar (host / port-range / user) lives in Rust. Returns error
+  /// message or null.
   ///
   /// Unlike [isValid], this does NOT require credentials — a session can be
   /// stored without credentials and completed later. Use [isValid] to check
   /// if the session is ready to connect.
   String? validate() {
-    // Routes through `lfs_core::sessions::validate_session_fields`
-    // so the storable-field grammar (host / port-range / user) lives
-    // one place. Falls back to the equivalent inline checks when
-    // the FRB native lib is not loaded (flutter_test contexts that
-    // don't bootstrap RustLib) so unit tests still see the same
-    // rejection messages by construction.
-    try {
-      final port16 = (port < 0 || port > 65535) ? 0 : port;
-      return rust_sess.sessionsValidateFields(
-        host: host,
-        port: port16,
-        user: user,
-      );
-    } catch (_) {
-      if (host.trim().isEmpty) return 'Host is required';
-      if (port < 1 || port > 65535) return 'Port must be 1-65535';
-      if (user.trim().isEmpty) return 'Username is required';
-      return null;
-    }
+    final port16 = (port < 0 || port > 65535) ? 0 : port;
+    return rust_sess.sessionsValidateFields(
+      host: host,
+      port: port16,
+      user: user,
+    );
   }
 
   /// Sanitised copy of this session — plaintext credentials cleared,
