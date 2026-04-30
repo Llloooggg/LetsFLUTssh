@@ -30,12 +30,13 @@ import 'password_rate_limiter.dart';
 /// guessing across process restarts without trying to protect
 /// against offline attack.
 ///
-/// Wire format + HMAC composition + salt/pepper generation live in
-/// `lfs_core::security::keychain_password_gate` so the on-disk
-/// envelope shape stays in sync with future bumps. This Dart class
-/// orchestrates the file I/O + keychain plugin calls; the
-/// crypto-shaped operations route through the compat wrappers in
-/// `_crypto_compat.dart`.
+/// Wire format + HMAC composition + salt/pepper generation +
+/// disk I/O all live in
+/// `lfs_core::security::keychain_password_gate_actor`. This Dart
+/// class is a thin façade — the actor publishes
+/// `KeychainOpPromptRequest` events when it needs the keychain
+/// plugin (Dart-only territory), and `KeychainOpPromptListener`
+/// answers them against `flutter_secure_storage`.
 class KeychainPasswordGate {
   KeychainPasswordGate({Future<File> Function()? hashFileFactory})
     : _hashFile = hashFileFactory ?? _defaultHashFile;

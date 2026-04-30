@@ -1,4 +1,6 @@
-import '_crypto_compat.dart';
+import 'dart:convert';
+
+import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 
 /// Named security tiers.
 ///
@@ -241,37 +243,35 @@ class SecurityConfig {
     modifiers: modifiers ?? this.modifiers,
   );
 
-  /// Wire shape lives Rust-side in
-  /// `lfs_core::security::SecurityConfig::to_json_value`. The Dart
-  /// facade routes through the compat wrapper in
-  /// `_crypto_compat.dart` so production gets the Rust-canonical
-  /// JSON encode while flutter_test contexts that don't load the
-  /// FRB native lib see the same map shape via the Dart fallback.
-  Map<String, dynamic> toJson() => securityConfigToJsonCompat(
-    tierWireName: tier.wireName,
-    password: modifiers.password,
-    biometric: modifiers.biometric,
-    biometricShortcut: modifiers.biometricShortcut,
-    pinLength: modifiers.pinLength,
-  );
+  /// Encode the SecurityConfig blob persisted under
+  /// `config.json::security` via
+  /// `lfs_core::security::SecurityConfig::to_json_value`.
+  Map<String, dynamic> toJson() {
+    final str = rust_sec_cfg.securityConfigToJson(
+      tierWireName: tier.wireName,
+      password: modifiers.password,
+      biometric: modifiers.biometric,
+      biometricShortcut: modifiers.biometricShortcut,
+      pinLength: modifiers.pinLength,
+    );
+    return jsonDecode(str) as Map<String, dynamic>;
+  }
 
-  /// Decode mirrors the Rust permissive fallback: an unknown /
+  /// Decode via `lfs_core::security::SecurityConfig::from_json_value`.
+  /// The Rust parser is permissively accepting: an unknown /
   /// missing tier string falls through to `plaintext` so the caller
   /// routes into the wizard rather than silently picking an
-  /// unintended tier. The fall-through is in
-  /// [SecurityTierWireName.fromWireName] — null / unknown both land
-  /// on `plaintext` so the caller sees `SecurityConfig.defaults`
-  /// and routes into the wizard rather than silently picking an
   /// unintended tier.
   factory SecurityConfig.fromJson(Map<String, dynamic> json) {
-    final snap = securityConfigFromJsonCompat(json);
+    final decoded = rust_sec_cfg.securityConfigFromJson(json: jsonEncode(json));
+    if (decoded == null) return SecurityConfig.defaults;
     return SecurityConfig(
-      tier: SecurityTierWireName.fromWireName(snap.tierWireName),
+      tier: SecurityTierWireName.fromWireName(decoded.tierWireName),
       modifiers: SecurityTierModifiers(
-        password: snap.password,
-        biometric: snap.biometric,
-        biometricShortcut: snap.biometricShortcut,
-        pinLength: snap.pinLength,
+        password: decoded.password,
+        biometric: decoded.biometric,
+        biometricShortcut: decoded.biometricShortcut,
+        pinLength: decoded.pinLength,
       ),
     );
   }

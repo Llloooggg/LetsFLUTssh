@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import '../../src/rust/api/capabilities_cache.dart' as rust_cache;
@@ -5,7 +6,6 @@ import '../../src/rust/api/capabilities_orchestrator.dart' as rust_orch;
 import '../../src/rust/api/security_capabilities.dart' as rust_caps;
 import '../../src/rust/api/wizard_setup.dart' as rust_wizard;
 import '../../utils/logger.dart';
-import '_crypto_compat.dart';
 import 'biometric_auth.dart';
 import 'hardware_tier_vault.dart';
 import 'linux/fprintd_client.dart';
@@ -99,34 +99,41 @@ class SecurityCapabilities {
   /// cost on every launch. The Recheck button + destructive security
   /// paths clear this cache so the next read reprobes.
   ///
-  /// Wire-format owner is `lfs_core::security::capabilities`; this
-  /// Dart facade rebuilds the field set into a `Map<String, dynamic>`
-  /// for the existing `app_config.dart` consumers.
-  Map<String, dynamic> toJson() => securityCapabilitiesToJsonCompat(
-    keychainAvailable: keychainAvailable,
-    hardwareVaultAvailable: hardwareVaultAvailable,
-    biometricAvailable: biometricAvailable,
-    fprintdAvailable: fprintdAvailable,
-    isLinuxHost: isLinuxHost,
-    keychainProbeWireName: keychainProbe.name,
-    hardwareProbeCode: hardwareProbeCode,
-  );
+  /// Wire-format owner is `lfs_core::security::capabilities` —
+  /// this Dart facade decodes the canonical JSON string into a
+  /// `Map<String, dynamic>` for the existing `app_config.dart`
+  /// consumers.
+  Map<String, dynamic> toJson() {
+    final str = rust_caps.securityCapabilitiesToJson(
+      keychainAvailable: keychainAvailable,
+      hardwareVaultAvailable: hardwareVaultAvailable,
+      biometricAvailable: biometricAvailable,
+      fprintdAvailable: fprintdAvailable,
+      isLinuxHost: isLinuxHost,
+      keychainProbeWireName: keychainProbe.name,
+      hardwareProbeCode: hardwareProbeCode,
+    );
+    return jsonDecode(str) as Map<String, dynamic>;
+  }
 
   static SecurityCapabilities? fromJson(Map<String, dynamic>? json) {
-    final snap = securityCapabilitiesFromJsonCompat(json);
-    if (snap == null) return null;
+    if (json == null) return null;
+    final decoded = rust_caps.securityCapabilitiesFromJson(
+      json: jsonEncode(json),
+    );
+    if (decoded == null) return null;
     final probe = KeyringProbeResult.values
-        .where((v) => v.name == snap.keychainProbeWireName)
+        .where((v) => v.name == decoded.keychainProbeWireName)
         .firstOrNull;
     if (probe == null) return null;
     return SecurityCapabilities(
-      keychainAvailable: snap.keychainAvailable,
-      hardwareVaultAvailable: snap.hardwareVaultAvailable,
-      biometricAvailable: snap.biometricAvailable,
-      fprintdAvailable: snap.fprintdAvailable,
-      isLinuxHost: snap.isLinuxHost,
+      keychainAvailable: decoded.keychainAvailable,
+      hardwareVaultAvailable: decoded.hardwareVaultAvailable,
+      biometricAvailable: decoded.biometricAvailable,
+      fprintdAvailable: decoded.fprintdAvailable,
+      isLinuxHost: decoded.isLinuxHost,
       keychainProbe: probe,
-      hardwareProbeCode: snap.hardwareProbeCode,
+      hardwareProbeCode: decoded.hardwareProbeCode,
     );
   }
 

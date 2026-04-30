@@ -3,8 +3,8 @@ import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
 
-import '../../core/security/_crypto_compat.dart';
 import '../../src/rust/api/app.dart' as rust_app;
+import '../../src/rust/api/tier_transition_marker.dart' as rust_ttm;
 import '../../utils/logger.dart';
 
 /// Atomic tier-switch helper.
@@ -27,8 +27,8 @@ import '../../utils/logger.dart';
 /// File-format ownership for the marker lives Rust-side in
 /// `lfs_core::security::tier_transition_marker`. This Dart class
 /// keeps the orchestration order + the per-tier callbacks + the DB
-/// rekey hook; the marker I/O delegates through the compat
-/// wrappers in `_crypto_compat.dart`.
+/// rekey hook; the marker I/O delegates straight to the
+/// `tier_transition_marker_*` FRB shims.
 class SecurityTierSwitcher {
   final Future<String> Function() _supportDir;
   final Uint8List Function() _keyFactory;
@@ -70,7 +70,7 @@ class SecurityTierSwitcher {
   Future<String?> readPendingMarker() async {
     try {
       final dir = await _supportDir();
-      return tierTransitionMarkerReadCompat(dir);
+      return rust_ttm.tierTransitionMarkerRead(supportDir: dir);
     } catch (e) {
       AppLogger.instance.log(
         'Tier switch marker read failed: $e',
@@ -83,7 +83,7 @@ class SecurityTierSwitcher {
   Future<void> clearMarker() async {
     try {
       final dir = await _supportDir();
-      tierTransitionMarkerClearCompat(dir);
+      rust_ttm.tierTransitionMarkerClear(supportDir: dir);
     } catch (e) {
       AppLogger.instance.log(
         'Tier switch marker clear failed: $e',
@@ -119,7 +119,10 @@ class SecurityTierSwitcher {
 
     // 1 + 2. Write marker.
     final dir = await _supportDir();
-    await tierTransitionMarkerWriteCompat(dir, targetMarkerPayload);
+    rust_ttm.tierTransitionMarkerWrite(
+      supportDir: dir,
+      payload: targetMarkerPayload,
+    );
 
     // 3. Atomic rekey. On failure the DB is still under the old key
     //    and the marker points at the unfinished target — startup
