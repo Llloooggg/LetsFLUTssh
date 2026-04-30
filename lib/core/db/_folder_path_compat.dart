@@ -46,31 +46,6 @@ Set<String> folderAllPathsCompat(Map<String, rust_db.DbFolder> folderMap) {
       .toSet();
 }
 
-/// Derive the set of folder paths that have no sessions pointing at
-/// them — the "empty folders" the UI renders even when no session
-/// lives under them.
-Set<String> folderDeriveEmptyCompat(
-  Map<String, rust_db.DbFolder> folderMap,
-  Set<String> usedFolderIds,
-) {
-  return rust_fp
-      .folderDeriveEmpty(
-        folders: folderMap.values.toList(growable: false),
-        usedFolderIds: usedFolderIds.toList(growable: false),
-      )
-      .toSet();
-}
-
-/// Derive the set of folder paths whose row carries the `collapsed`
-/// flag. The UI uses this to render the collapsed-triangle marker.
-Set<String> folderDeriveCollapsedCompat(
-  Map<String, rust_db.DbFolder> folderMap,
-) {
-  return rust_fp
-      .folderDeriveCollapsed(folders: folderMap.values.toList(growable: false))
-      .toSet();
-}
-
 /// Apply a folder rename across [paths]: exact matches move; entries
 /// under `{oldPath}/` have the prefix rewritten. Result preserves
 /// the input collection's iteration shape (Set in → Set out).

@@ -160,54 +160,24 @@ class SessionNotifier extends Notifier<List<Session>> {
   Future<List<Session>> _doLoad() async {
     final loaded = <Session>[];
     try {
-      // Hydrate from the Rust-side `sessions::Registry` snapshot when
-      // the FRB native lib is available — the registry is kept in sync
-      // by the FRB DAO write paths so the snapshot reflects the latest
-      // committed state without an extra DAO round-trip from Dart.
-      // `sessionsRegistryReload` forces an initial pull from disk on
-      // first load (the registry starts empty). Falls back to the
-      // explicit DAO walk below for the flutter_test surface that
-      // doesn't bootstrap RustLib.
-      var hydratedFromRegistry = false;
-      try {
-        await rust_registry.sessionsRegistryReload();
-        final view = rust_registry.sessionsRegistrySnapshot();
-        _folderMap = buildFolderMap(view.folders);
-        loaded.addAll(
-          view.sessions.map((s) => dbSessionToSession(s, _folderMap)),
-        );
-        _emptyFolders
-          ..clear()
-          ..addAll(view.emptyFolders);
-        _collapsedFolders
-          ..clear()
-          ..addAll(view.collapsedFolders);
-        hydratedFromRegistry = true;
-      } catch (e) {
-        AppLogger.instance.log(
-          'SessionNotifier registry hydration failed, falling back to DAO walk: $e',
-          name: 'SessionNotifier',
-          level: LogLevel.warn,
-        );
-      }
-
-      if (!hydratedFromRegistry) {
-        final folders = await rust_db.dbFoldersListAll();
-        _folderMap = buildFolderMap(folders);
-        final dbSessions = await rust_db.dbSessionsListAll();
-        loaded.addAll(dbSessions.map((s) => dbSessionToSession(s, _folderMap)));
-
-        final usedFolderIds = dbSessions
-            .map((s) => s.folderId)
-            .whereType<String>()
-            .toSet();
-        _emptyFolders
-          ..clear()
-          ..addAll(folderDeriveEmptyCompat(_folderMap, usedFolderIds));
-        _collapsedFolders
-          ..clear()
-          ..addAll(folderDeriveCollapsedCompat(_folderMap));
-      }
+      // Hydrate from the Rust-side `sessions::Registry` snapshot. The
+      // registry is kept in sync by the FRB DAO write paths so the
+      // snapshot reflects the latest committed state without an extra
+      // DAO round-trip from Dart; `sessionsRegistryReload` forces an
+      // initial pull from disk on first load (the registry starts
+      // empty).
+      await rust_registry.sessionsRegistryReload();
+      final view = rust_registry.sessionsRegistrySnapshot();
+      _folderMap = buildFolderMap(view.folders);
+      loaded.addAll(
+        view.sessions.map((s) => dbSessionToSession(s, _folderMap)),
+      );
+      _emptyFolders
+        ..clear()
+        ..addAll(view.emptyFolders);
+      _collapsedFolders
+        ..clear()
+        ..addAll(view.collapsedFolders);
 
       AppLogger.instance.log(
         'Loaded ${loaded.length} sessions, ${_folderMap.length} folders',
