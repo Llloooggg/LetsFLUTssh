@@ -55,6 +55,7 @@ These apply to every response without re-reading:
 - **Skip `make analyze` / `make test` for doc-only commits** — if the staged diff touches no `.dart` files and no `pubspec.yaml`, don't run analyzer or tests manually. The pre-commit hook runs `make check` automatically; running it first on a Markdown-only change is wasted loop time.
 - **Cross-platform verification** — Android change → also iOS; Windows change → also Linux + macOS.
 - **Best practices by default** — push back on hacky solutions, propose best-practice alternatives.
+- **Three pillars: ideal code, security, optimality.** When weighing a migration / refactor / cleanup item, *never* skip with "cost > benefit" / "more work" / "good enough". The bar to skip is "moving it makes the system *worse*" (regression in safety, measurably worse perf, or the replacement *cannot exist*). Inconvenience is not the bar. Rewrite from scratch when the ideal demands it. Full rule: [AGENT_RULES § Three Pillars](docs/AGENT_RULES.md#three-pillars--ideal-code-security-optimality).
 - **Think systemically** — consider full scope and side effects, not just the literal instruction.
 - **Ask before guessing UI placement** — if ambiguous, ask once upfront.
 - **Every change ships with docs + tests + translations** — incomplete commit otherwise.

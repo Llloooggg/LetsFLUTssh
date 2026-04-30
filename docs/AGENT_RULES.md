@@ -8,6 +8,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 
 | I'm about to... | Read this section |
 |---|---|
+| Skip a migration / refactor item with "cost > benefit" / "more work" / "good enough" | [§ Three Pillars — Ideal Code, Security, Optimality](#three-pillars--ideal-code-security-optimality) — no, you cannot. Inconvenience is not a skip reason; rewrite from scratch when the ideal demands |
 | Edit code in any module | [§ Docs First — Read Before, Fix Drift, Update After](#docs-first--read-before-fix-drift-update-after) + map the module to its ARCHITECTURE § via [Within ARCHITECTURE.md nav](#within-architecturemd) |
 | Write a commit message / bump version | [§ Commits & Versioning](#commits--versioning) + [§ Plan-Item IDs Stay Internal](#plan-item-ids-stay-internal) |
 | Open a PR / merge to main | [§ Branching & Release Flow](#branching--release-flow) |
@@ -161,6 +162,28 @@ This rule binds every code edit **and every plan**, not just "big" ones. "Forgot
 | Security scope change | Update SECURITY.md |
 
 ## Conventions
+
+### Three Pillars — Ideal Code, Security, Optimality
+
+The project's three locked priorities are **ideal code, security, optimality**. Every migration / refactor / cleanup decision weighs against those three — and only those three. "More work" / "tests would need rewriting" / "the existing path works" / "cost > benefit" are **not valid grounds to skip an item**. The bar to skip a migration / refactor / consolidation is one of:
+
+1. **Moving it makes the system *worse*** — measurable safety regression, measurable perf regression, or a measurable consistency regression.
+2. **The replacement cannot exist** — the target language / framework genuinely lacks the primitive (e.g. Riverpod is Dart-only — no Rust analogue exists; `BuildContext` cannot live outside Flutter).
+3. **The user explicitly authorised the skip** — for that specific item, in this conversation, and the rationale captured in the migration plan or commit history.
+
+Anything else — "this is convenient as-is", "tests would need a rewrite", "FRB roundtrip looks expensive" — is **not a skip reason**. Rewrite from scratch when the ideal demands it. The user has authorised the spend.
+
+**Examples that violate this rule:**
+
+- *"Moving session_tree to Rust would require rebuilding the FRB tree on every UI rebuild — cost > benefit."* No. The cost is the work; the benefit is single-source-of-truth + Rust safety on tree-mutation logic. The pillars say move it.
+- *"Session_history has no security gain from Rust."* No. Ideal code (one place owns state machines) is its own pillar. The lack of a *second* benefit doesn't excuse skipping.
+- *"single_instance.dart already works through Dart `RandomAccessFile.lock`."* No. "Already works" is the floor, not the ceiling. If a Rust crate (`fd-lock`, etc.) gives a better-audited / more-portable / more-consistent path, take it.
+
+**When this rule binds the conversation:** any time the user uses one of the batch-mode signals — `до идеала` (to the ideal), `три кита` (three pillars), `идеал кода`, `even from scratch`, `добиваем` (let's finish it off), `Делаем` (let's do it), or any equivalent paraphrase in any language. Once the signal lands, default to "go end-to-end, don't ask, emit one combined summary at the arc end". Don't pause to re-litigate the cost/benefit on individual items — the user has already decided.
+
+**When this rule does *not* bind:** a one-off bug fix or a feature add that is not a migration / refactor / consolidation arc. The pillars apply to the general direction; they don't compel rewriting unrelated code that happens to be touched.
+
+This rule overrides the `Don't add features beyond what the task requires` line in CLAUDE.md / [§ Don't Escalate Working Baselines](#dont-escalate-working-baselines) for migration / refactor work specifically. When the user is in pillars-mode, aggressive completionism is the right posture.
 
 ### Self-Contained Binary — End-User Installs Nothing
 **The released app must run with zero manual setup beyond extracting / installing the bundle.** Never introduce a feature that hard-requires the end-user to install something on their OS first.

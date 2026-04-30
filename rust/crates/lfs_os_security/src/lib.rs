@@ -175,11 +175,7 @@ fn ptrace_deny_attach() -> HardeningStep {
     }
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "android",
-    target_os = "macos",
-))]
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "macos",))]
 fn setrlimit_core_zero() -> HardeningStep {
     // RLIMIT_CORE = 4 on both Linux and macOS (matches Dart-era
     // const).
