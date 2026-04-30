@@ -49,3 +49,22 @@ pub fn os_security_lock_memory(addr: usize, len: usize) -> bool {
 pub fn os_security_unlock_memory(addr: usize, len: usize) {
     lfs_os_security::unlock_memory(addr, len);
 }
+
+/// Acquire an exclusive advisory file lock for the
+/// single-instance guard. Creates `path` if missing, writes the
+/// current PID for diagnostics, and returns an opaque handle id
+/// the caller passes back to [`os_security_release_single_instance`].
+///
+/// Returns the handle wrapped in `Result` — the `Err` arm carries
+/// a human-readable reason: lock contention (another instance is
+/// running), file open denied, parent directory missing, etc.
+#[flutter_rust_bridge::frb(sync)]
+pub fn os_security_acquire_single_instance(path: String) -> Result<u64, String> {
+    lfs_os_security::single_instance::acquire(&path)
+}
+
+/// Release the lock for [`HandleId`]. Idempotent.
+#[flutter_rust_bridge::frb(sync)]
+pub fn os_security_release_single_instance(handle_id: u64) {
+    lfs_os_security::single_instance::release(handle_id);
+}

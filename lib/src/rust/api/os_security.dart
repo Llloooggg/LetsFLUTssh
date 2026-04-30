@@ -33,6 +33,25 @@ void osSecurityUnlockMemory({required BigInt addr, required BigInt len}) =>
       len: len,
     );
 
+/// Acquire an exclusive advisory file lock for the
+/// single-instance guard. Creates `path` if missing, writes the
+/// current PID for diagnostics, and returns an opaque handle id
+/// the caller passes back to [`os_security_release_single_instance`].
+///
+/// Returns the handle wrapped in `Result` — the `Err` arm carries
+/// a human-readable reason: lock contention (another instance is
+/// running), file open denied, parent directory missing, etc.
+BigInt osSecurityAcquireSingleInstance({required String path}) => RustLib
+    .instance
+    .api
+    .crateApiOsSecurityOsSecurityAcquireSingleInstance(path: path);
+
+/// Release the lock for [`HandleId`]. Idempotent.
+void osSecurityReleaseSingleInstance({required BigInt handleId}) => RustLib
+    .instance
+    .api
+    .crateApiOsSecurityOsSecurityReleaseSingleInstance(handleId: handleId);
+
 /// Per-step result reported by [`os_security_apply_startup_hardening`].
 /// `code` carries the underlying syscall return code (0 = POSIX
 /// success). `error` is `None` on success.

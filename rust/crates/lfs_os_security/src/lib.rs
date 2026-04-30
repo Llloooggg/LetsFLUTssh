@@ -1,10 +1,10 @@
-//! Process-hardening + memory-lock helpers.
+//! Process-hardening + memory-lock + single-instance helpers.
 //!
 //! Per-OS FFI lives here (not in `lfs_core`) so the core stays
 //! `unsafe_code = "forbid"`. This crate's public surface is a
 //! small set of safe-to-call functions — `apply_startup_hardening`,
-//! `lock_memory`, `unlock_memory`. The unsafe blocks are
-//! auditable in one place.
+//! `lock_memory`, `unlock_memory`, plus the `single_instance`
+//! file-lock module. The unsafe blocks are auditable in one place.
 //!
 //! ## Hardening goals
 //!
@@ -253,3 +253,5 @@ mod tests {
         unlock_memory(addr, buf.len());
     }
 }
+
+pub mod single_instance;

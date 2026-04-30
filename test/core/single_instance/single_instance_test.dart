@@ -4,7 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/single_instance/single_instance.dart';
 import 'package:letsflutssh/utils/platform.dart' as plat;
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // Single-instance lock now routes through
+  // `lfs_os_security::single_instance` (FRB sync). Bootstrap the
+  // native lib so `acquire` reaches the real `fd-lock` path.
+  setUpAll(requireFrbLoaded);
+
   late Directory tmpDir;
 
   setUp(() {
@@ -36,37 +43,22 @@ void main() {
       await lock.release();
     });
 
-    test('second process cannot acquire lock', () async {
-      final lock = SingleInstance(lockDir: tmpDir.path);
-      expect(await lock.acquire(), isTrue);
+    test('second SingleInstance cannot acquire same lock', () async {
+      final first = SingleInstance(lockDir: tmpDir.path);
+      expect(await first.acquire(), isTrue);
 
-      // Spawn a child process that tries to exclusively lock the same file.
-      // POSIX fcntl locks are per-process, so we must use a real subprocess.
-      final lockPath = '${tmpDir.path}${Platform.pathSeparator}app.lock'.replaceAll(r'\', '/');
-      final scriptPath = '${tmpDir.path}${Platform.pathSeparator}try_lock.dart'.replaceAll(r'\', '/');
-      File(scriptPath).writeAsStringSync(
-        'import "dart:io";\n'
-        'void main() async {\n'
-        '  final raf = await File("$lockPath").open(mode: FileMode.write);\n'
-        '  try {\n'
-        '    await raf.lock(FileLock.exclusive);\n'
-        '    await raf.unlock();\n'
-        '    await raf.close();\n'
-        '    exit(0);\n'
-        '  } catch (_) {\n'
-        '    await raf.close();\n'
-        '    exit(1);\n'
-        '  }\n'
-        '}\n',
-      );
+      // Second instance against the same dir → Rust returns lock
+      // contention; the Dart `acquire` catches and reports false.
+      // Cross-process semantics are covered by
+      // `lfs_os_security::single_instance::tests` Rust-side; this
+      // test asserts the FRB shim faithfully surfaces the
+      // lock-held-elsewhere shape to the Dart caller.
+      final second = SingleInstance(lockDir: tmpDir.path);
+      expect(await second.acquire(), isFalse);
+      expect(second.isAcquired, isFalse);
 
-      // Use `dart run` (not Platform.resolvedExecutable which may be
-      // the Flutter test harness).
-      final result = await Process.run('dart', ['run', scriptPath]);
-      expect(result.exitCode, 1, reason: 'child process should fail to acquire lock');
-
-      await lock.release();
-    }, timeout: const Timeout(Duration(seconds: 60)));
+      await first.release();
+    });
 
     test('acquire succeeds after first releases', () async {
       final first = SingleInstance(lockDir: tmpDir.path);
