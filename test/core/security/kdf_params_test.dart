@@ -3,7 +3,16 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/kdf_params.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // KdfParams.encode/decode route through
+  // `lfs_core::security::master_password::KdfParams` — bootstrap FRB
+  // so the canonical Rust wire format and sanity-cap validator are
+  // exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('KdfParams.encode/decode', () {
     test('round-trips production defaults', () {
       final encoded = KdfParams.productionDefaults.encode();

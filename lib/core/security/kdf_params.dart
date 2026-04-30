@@ -62,57 +62,31 @@ class KdfParams {
   /// calls write these. Old files keep whatever they were encoded with.
   static const KdfParams productionDefaults = KdfParams.argon2id();
 
-  /// Serialize algorithm ID + params. Excludes the salt — the file layout
-  /// places it after this block.
-  ///
-  /// Routes through `lfs_core::security::master_password::KdfParams::encode`
-  /// (FRB sync) so the on-disk wire format lives one place; falls back
-  /// to the equivalent `ByteData.setUint32` block when the FRB native
-  /// lib is not loaded.
+  /// Serialize algorithm ID + params via
+  /// `lfs_core::security::master_password::KdfParams::encode` (FRB
+  /// sync). Excludes the salt — the file layout places it after this
+  /// block.
   Uint8List encode() {
     switch (algorithm) {
       case KdfAlgorithm.argon2id:
-        try {
-          return rust_mp.kdfParamsEncode(
-            memoryKib: memoryKiB,
-            iterations: iterations,
-            parallelism: parallelism,
-          );
-        } catch (_) {
-          final b = ByteData(10);
-          b.setUint8(0, algorithm.id);
-          b.setUint32(1, memoryKiB);
-          b.setUint32(5, iterations);
-          b.setUint8(9, parallelism);
-          return b.buffer.asUint8List();
-        }
+        return rust_mp.kdfParamsEncode(
+          memoryKib: memoryKiB,
+          iterations: iterations,
+          parallelism: parallelism,
+        );
     }
   }
 
-  /// Sanity ceilings for Argon2id params. A legitimate header writes
-  /// production defaults (46 MiB, 2 iters, 1 lane); future profile
-  /// bumps would at most double those. The upper bounds exist to
-  /// defuse a crafted `credentials.kdf` that asks for absurd costs —
-  /// 4 GiB of memory, a million iterations — which would wedge the
-  /// unlock isolate rather than fail cleanly. 1 GiB / 16 iters / 8
-  /// lanes gives ~20× headroom over today's production profile, well
-  /// past any plausible security bump, while keeping a single
-  /// malicious header from turning into an OOM on unlock.
-  static const int _argon2idMaxMemoryKiB = 1024 * 1024; // 1 GiB
-  static const int _argon2idMaxIterations = 16;
-  static const int _argon2idMaxParallelism = 8;
-
   /// Deserialize algorithm + params starting at [bytes]. Throws
   /// [FormatException] on unknown algorithm ID, truncated buffer, or
-  /// params outside the sanity ceilings documented above.
-  ///
-  /// Returns the parsed params; callers pass [bytes.sublist(0,
-  /// encodedLength)] back to `encode()` for round-trip.
+  /// params outside the Rust-side sanity ceilings (1 GiB / 16 iters /
+  /// 8 lanes — ~20× over today's production profile, defuses a
+  /// crafted header from OOM-ing the unlock isolate).
   ///
   /// Routes through `lfs_core::security::master_password::KdfParams::decode`
-  /// so the validator (algo-id + sanity ceilings) lives one place;
-  /// falls back to the inline scan when the FRB native lib is not
-  /// loaded.
+  /// so the validator lives one place; the catch translates the
+  /// Rust-side anyhow error into the [FormatException] shape callers
+  /// already match against.
   static KdfParams decode(Uint8List bytes) {
     try {
       final p = rust_mp.kdfParamsDecode(bytes: bytes);
@@ -123,71 +97,14 @@ class KdfParams {
         parallelism: p.parallelism,
       );
     } catch (e) {
-      // Rust path returned an Err or the FRB native lib isn't
-      // loaded — fall through to the inline parser. Production
-      // never reaches this branch because RustLib.init runs at
-      // app start.
-      if (e is FormatException) rethrow;
-      // Surface the Rust-side error message as a FormatException
-      // so the catch-arm below + the inline parser stay
-      // exception-shape-compatible. AnyhowException stringifies
-      // as `anyhow_exception "<msg>"` — strip the wrapping if
-      // present.
+      // AnyhowException stringifies as `anyhow_exception "<msg>"`.
+      // Pull the canonical "KdfParams: …" tail back out so the
+      // user-facing exception matches the contract documented
+      // above.
       final msg = e.toString();
-      if (msg.contains('KdfParams:')) {
-        // Rust validator rejected the bytes — preserve the
-        // canonical message.
-        final idx = msg.indexOf('KdfParams:');
-        final tail = msg.substring(idx).replaceAll(RegExp(r'"$'), '');
-        throw FormatException(tail);
-      }
-    }
-    if (bytes.isEmpty) {
-      throw const FormatException('KdfParams: empty input');
-    }
-    final algo = KdfAlgorithm.fromId(bytes[0]);
-    if (algo == null) {
-      throw FormatException(
-        'KdfParams: unknown algorithm id 0x'
-        '${bytes[0].toRadixString(16).padLeft(2, '0')}',
-      );
-    }
-    switch (algo) {
-      case KdfAlgorithm.argon2id:
-        if (bytes.length < 10) {
-          throw const FormatException('KdfParams: truncated Argon2id params');
-        }
-        final b = ByteData.sublistView(bytes, 0, 10);
-        final mem = b.getUint32(1);
-        final iters = b.getUint32(5);
-        final par = b.getUint8(9);
-        if (mem == 0 || iters == 0 || par == 0) {
-          throw const FormatException('KdfParams: Argon2id params must be > 0');
-        }
-        if (mem > _argon2idMaxMemoryKiB) {
-          throw FormatException(
-            'KdfParams: Argon2id memory $mem KiB exceeds sanity cap '
-            '$_argon2idMaxMemoryKiB KiB',
-          );
-        }
-        if (iters > _argon2idMaxIterations) {
-          throw FormatException(
-            'KdfParams: Argon2id iterations $iters exceeds sanity cap '
-            '$_argon2idMaxIterations',
-          );
-        }
-        if (par > _argon2idMaxParallelism) {
-          throw FormatException(
-            'KdfParams: Argon2id parallelism $par exceeds sanity cap '
-            '$_argon2idMaxParallelism',
-          );
-        }
-        return KdfParams._(
-          algorithm: algo,
-          memoryKiB: mem,
-          iterations: iters,
-          parallelism: par,
-        );
+      final idx = msg.indexOf('KdfParams:');
+      if (idx < 0) rethrow;
+      throw FormatException(msg.substring(idx).replaceAll(RegExp(r'"$'), ''));
     }
   }
 
