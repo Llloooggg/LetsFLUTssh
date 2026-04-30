@@ -29,6 +29,7 @@ import 'api/keychain_password_gate.dart';
 import 'api/keychain_pepper_prompt.dart';
 import 'api/keys.dart';
 import 'api/known_hosts_parser.dart';
+import 'api/local_fs.dart';
 import 'api/log_sanitize.dart';
 import 'api/master_password.dart';
 import 'api/migration.dart';
@@ -507,6 +508,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbLocalFileEntry dco_decode_db_local_file_entry(dynamic raw);
+
+  @protected
   DbMappedSetupChoice dco_decode_db_mapped_setup_choice(dynamic raw);
 
   @protected
@@ -747,6 +751,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbKnownHost> dco_decode_list_db_known_host(dynamic raw);
+
+  @protected
+  List<DbLocalFileEntry> dco_decode_list_db_local_file_entry(dynamic raw);
 
   @protected
   List<DbMigrationStep> dco_decode_list_db_migration_step(dynamic raw);
@@ -1494,6 +1501,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbLocalFileEntry sse_decode_db_local_file_entry(SseDeserializer deserializer);
+
+  @protected
   DbMappedSetupChoice sse_decode_db_mapped_setup_choice(
     SseDeserializer deserializer,
   );
@@ -1808,6 +1818,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DbKnownHost> sse_decode_list_db_known_host(SseDeserializer deserializer);
+
+  @protected
+  List<DbLocalFileEntry> sse_decode_list_db_local_file_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<DbMigrationStep> sse_decode_list_db_migration_step(
@@ -2745,6 +2760,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_local_file_entry(
+    DbLocalFileEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_mapped_setup_choice(
     DbMappedSetupChoice self,
     SseSerializer serializer,
@@ -3158,6 +3179,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_known_host(
     List<DbKnownHost> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_local_file_entry(
+    List<DbLocalFileEntry> self,
     SseSerializer serializer,
   );
 

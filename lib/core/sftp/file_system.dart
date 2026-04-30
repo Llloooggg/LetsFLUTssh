@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/local_fs.dart' as rust_local_fs;
 import '../../src/rust/api/path.dart' as rust_path;
 import '../../utils/logger.dart';
 import '../../utils/platform.dart';
@@ -21,7 +21,12 @@ abstract class FileSystem {
   Future<int> dirSize(String path);
 }
 
-/// Local file system implementation using dart:io.
+/// Local file system implementation.
+///
+/// File operations route through `lfs_core::fs::local` (FRB
+/// async); the Dart side keeps only [initialDir] because that
+/// path uses `path_provider` (iOS sandbox / Android scoped
+/// storage), which has no clean Rust analog.
 class LocalFS implements FileSystem {
   @override
   Future<String> initialDir() async {
@@ -78,84 +83,61 @@ class LocalFS implements FileSystem {
 
   @override
   Future<List<FileEntry>> list(String path) async {
-    final dir = Directory(path);
-    if (!await dir.exists()) {
-      throw FileSystemException('Directory not found', path);
+    final List<rust_local_fs.DbLocalFileEntry> rows;
+    try {
+      rows = await rust_local_fs.localFsList(path: path);
+    } catch (e) {
+      // Match the prior Dart shape so callers that catch
+      // FileSystemException keep working. FRB surfaces
+      // `Result<_, String>` errors as either an `AnyhowException`
+      // or a plain `String`-bearing exception depending on
+      // codec; a single broad catch unifies both.
+      throw FileSystemException(_describeError(e), path);
     }
 
-    // On Windows, collect hidden/system file names to filter out.
     final hiddenNames = Platform.isWindows
-        ? await _windowsHiddenNames(path)
+        ? (await rust_local_fs.localFsWindowsHiddenNames(
+            dir: path,
+          )).map((n) => n.toLowerCase()).toSet()
         : const <String>{};
 
     final entries = <FileEntry>[];
-    await for (final entity in dir.list()) {
-      final name = p.basename(entity.path);
-      if (hiddenNames.contains(name.toLowerCase())) continue;
-      final stat = await entity.stat();
+    for (final row in rows) {
+      if (hiddenNames.contains(row.name.toLowerCase())) continue;
       entries.add(
         FileEntry(
-          name: name,
-          path: entity.path,
-          size: stat.size,
-          mode: stat.mode,
-          modTime: stat.modified,
-          isDir: stat.type == FileSystemEntityType.directory,
+          name: row.name,
+          path: row.path,
+          size: row.size.toInt(),
+          mode: row.mode,
+          modTime: DateTime.fromMillisecondsSinceEpoch(
+            row.modTimeUnixMs.toInt(),
+          ),
+          isDir: row.isDir,
         ),
       );
     }
-
     sortFileEntries(entries);
     return entries;
   }
 
-  /// Run `attrib` on [dirPath] and return lowercase names of hidden/system files.
-  static Future<Set<String>> _windowsHiddenNames(String dirPath) async {
-    try {
-      final result = await Process.run(
-        'cmd',
-        ['/c', 'attrib', '*'],
-        workingDirectory: dirPath,
-        stdoutEncoding: const SystemEncoding(),
-      );
-      if (result.exitCode != 0) return {};
-      return parseAttribOutput(result.stdout as String);
-    } catch (e) {
-      AppLogger.instance.log(
-        'attrib command failed for $dirPath: $e',
-        name: 'LocalFS',
-      );
-      return {};
-    }
-  }
-
   /// Parse Windows `attrib` output and return lowercase names of
-  /// hidden/system files via `lfs_core::path::parse_windows_attrib_output`
-  /// — the attribute-letter scan + the H/S filter live in Rust.
-  ///
-  /// Each line has the format: "     A  SH  C:\path\file"
-  /// Attribute letters: S=System, H=Hidden.
+  /// hidden/system files via `lfs_core::path::parse_windows_attrib_output`.
+  /// Kept as a static for the existing Dart-facing tests; production
+  /// callers route through [list] which hits Rust directly.
   static Set<String> parseAttribOutput(String output) =>
       rust_path.pathParseWindowsAttribOutput(output: output).toSet();
 
   @override
   Future<void> mkdir(String path) async {
     AppLogger.instance.log('Creating directory: $path', name: 'LocalFS');
-    await Directory(path).create(recursive: true);
+    await rust_local_fs.localFsMkdir(path: path);
   }
 
   @override
   Future<void> remove(String path) async {
-    final type = await FileSystemEntity.type(path);
-    AppLogger.instance.log(
-      'Removing ${type == FileSystemEntityType.directory ? 'directory' : 'file'}: $path',
-      name: 'LocalFS',
-    );
-    if (type == FileSystemEntityType.directory) {
-      await Directory(path).delete(recursive: true);
-    } else {
-      await File(path).delete();
-    }
+    AppLogger.instance.log('Removing: $path', name: 'LocalFS');
+    await rust_local_fs.localFsRemove(path: path);
   }
 
   @override
@@ -164,37 +146,31 @@ class LocalFS implements FileSystem {
       'Removing directory recursively: $path',
       name: 'LocalFS',
     );
-    await Directory(path).delete(recursive: true);
+    await rust_local_fs.localFsRemoveDir(path: path);
   }
 
   @override
   Future<int> dirSize(String path) async {
-    int total = 0;
-    final dir = Directory(path);
-    if (!await dir.exists()) return 0;
-    await for (final entity in dir.list(recursive: true)) {
-      if (entity is File) {
-        try {
-          total += await entity.length();
-        } catch (e) {
-          AppLogger.instance.log(
-            'Inaccessible file ${entity.path}: $e',
-            name: 'LocalFS',
-          );
-        }
-      }
-    }
-    return total;
+    final size = await rust_local_fs.localFsDirSize(path: path);
+    return size.toInt();
   }
 
   @override
   Future<void> rename(String oldPath, String newPath) async {
     AppLogger.instance.log('Renaming: $oldPath → $newPath', name: 'LocalFS');
-    final type = await FileSystemEntity.type(oldPath);
-    if (type == FileSystemEntityType.directory) {
-      await Directory(oldPath).rename(newPath);
-    } else {
-      await File(oldPath).rename(newPath);
-    }
+    await rust_local_fs.localFsRename(oldPath: oldPath, newPath: newPath);
+  }
+
+  /// Pull a one-line message out of the FRB error envelope so the
+  /// `FileSystemException("Directory not found", path)` shape stays
+  /// human-readable in the file_browser error toasts.
+  static String _describeError(Object e) {
+    final s = e.toString();
+    // FRB throws a wrapper class whose toString includes the full
+    // message we passed back from Rust; trim a leading
+    // "AnyhowException: " when present so the toast doesn't show it.
+    const prefix = 'AnyhowException: ';
+    if (s.startsWith(prefix)) return s.substring(prefix.length);
+    return s;
   }
 }
