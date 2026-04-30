@@ -25,6 +25,7 @@ import 'package:letsflutssh/utils/platform.dart' as plat;
 import 'package:letsflutssh/widgets/toast.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+import '../../helpers/frb_bootstrap.dart';
 import '../../helpers/test_notifiers.dart';
 
 /// _SecuritySection.build() reads secureKeyStorageProvider, biometricAuth-
@@ -193,6 +194,10 @@ class _StubFilePickerPlatform extends FilePickerPlatform
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // SettingsScreen renders security widgets that call `evaluate()`,
+  // which routes through `lfs_core::threat_vocabulary` — bootstrap
+  // FRB so the screen can build.
+  setUpAll(requireFrbLoaded);
 
   late Directory tempDir;
 

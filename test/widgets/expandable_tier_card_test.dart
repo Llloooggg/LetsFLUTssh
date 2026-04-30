@@ -5,6 +5,8 @@ import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/app_button.dart';
 import 'package:letsflutssh/widgets/expandable_tier_card.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: S.localizationsDelegates,
   supportedLocales: S.supportedLocales,
@@ -21,6 +23,12 @@ Future<void> _noop({
 }) async {}
 
 void main() {
+  // ExpandableTierCard renders threat rows via `evaluate()`, which
+  // routes through `lfs_core::threat_vocabulary` — bootstrap FRB so
+  // the card can build.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('ExpandableTierCard', () {
     testWidgets('expands and collapses on header tap', (tester) async {
       await tester.pumpWidget(

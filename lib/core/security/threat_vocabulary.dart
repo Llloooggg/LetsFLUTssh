@@ -203,24 +203,19 @@ class ThreatModel {
 /// Pure function — no I/O, no locale lookups, no platform probes.
 /// Every UI surface consumes this map and renders ✓ / ✗ per threat.
 Map<SecurityThreat, ThreatStatus> evaluate(ThreatModel model) {
-  try {
-    final rows = rust_threat.threatEvaluate(
-      tier: switch (model.tier) {
-        ThreatTier.plaintext => rust_threat.DbThreatTier.plaintext,
-        ThreatTier.keychain => rust_threat.DbThreatTier.keychain,
-        ThreatTier.hardware => rust_threat.DbThreatTier.hardware,
-        ThreatTier.paranoid => rust_threat.DbThreatTier.paranoid,
-      },
-      password: model.password,
-      biometric: model.biometric,
-    );
-    return {
-      for (final r in rows)
-        _threatFromRust(r.threat): _statusFromRust(r.status),
-    };
-  } catch (_) {
-    return _evaluateDart(model);
-  }
+  final rows = rust_threat.threatEvaluate(
+    tier: switch (model.tier) {
+      ThreatTier.plaintext => rust_threat.DbThreatTier.plaintext,
+      ThreatTier.keychain => rust_threat.DbThreatTier.keychain,
+      ThreatTier.hardware => rust_threat.DbThreatTier.hardware,
+      ThreatTier.paranoid => rust_threat.DbThreatTier.paranoid,
+    },
+    password: model.password,
+    biometric: model.biometric,
+  );
+  return {
+    for (final r in rows) _threatFromRust(r.threat): _statusFromRust(r.status),
+  };
 }
 
 SecurityThreat _threatFromRust(rust_threat.DbSecurityThreat t) => switch (t) {
@@ -241,54 +236,3 @@ ThreatStatus _statusFromRust(rust_threat.DbThreatStatus s) => switch (s) {
   rust_threat.DbThreatStatus.protects => ThreatStatus.protects,
   rust_threat.DbThreatStatus.doesNotProtect => ThreatStatus.doesNotProtect,
 };
-
-/// Tiny Dart mirror for flutter_test contexts that don't load
-/// the FRB native lib. Production never reaches it.
-Map<SecurityThreat, ThreatStatus> _evaluateDart(ThreatModel model) {
-  final hasUserSecret =
-      model.tier == ThreatTier.paranoid ||
-      (model.password &&
-          (model.tier == ThreatTier.keychain ||
-              model.tier == ThreatTier.hardware));
-
-  ThreatStatus yes(bool condition) =>
-      condition ? ThreatStatus.protects : ThreatStatus.doesNotProtect;
-
-  return <SecurityThreat, ThreatStatus>{
-    SecurityThreat.coldDiskTheft: yes(model.tier != ThreatTier.plaintext),
-    // Keyring file exfiltration splits T1 from T2 regardless of
-    // password: T1 relies on an OS keychain file that a disk attacker
-    // can read; T2 relies on a hw module that refuses key export.
-    // Paranoid does not use the keychain at all so the ✓ is trivial.
-    SecurityThreat.keyringFileTheft: yes(
-      model.tier == ThreatTier.hardware ||
-          model.tier == ThreatTier.paranoid ||
-          (model.tier == ThreatTier.keychain && model.password),
-    ),
-    // Offline brute force: ✓ only when a user password is set.
-    // Symmetric across T1 and T2 — both tiers need the password
-    // modifier to turn the brute-force threat into an Argon2id
-    // wall-clock problem. Without a password the threat vector is
-    // formally N/A, but we render ✗ to keep the binary contract and
-    // because the same disk attacker wins via the keyring-file-theft
-    // row above on T1 (even though not on T2 — the hw-isolation
-    // advantage lives in keyringFileTheft, not here).
-    SecurityThreat.offlineBruteForce: yes(hasUserSecret),
-    SecurityThreat.bystanderUnlockedMachine: yes(hasUserSecret),
-    // Live RAM forensics on a locked machine + OS kernel / keychain
-    // breach: Paranoid derives the key per unlock and zeroises
-    // after use; T2 relies on chip opacity (key never leaves the
-    // TPM / Secure Enclave / StrongBox, sealed blob on disk is
-    // meaningless without the physical chip + auth value). T1
-    // fails both because the keychain daemon is a separate process
-    // whose memory / on-disk file sit outside our wipe.
-    SecurityThreat.liveRamForensicsLocked: yes(
-      model.tier == ThreatTier.paranoid ||
-          (model.tier == ThreatTier.hardware && model.password),
-    ),
-    SecurityThreat.osKernelOrKeychainBreach: yes(
-      model.tier == ThreatTier.paranoid ||
-          (model.tier == ThreatTier.hardware && model.password),
-    ),
-  };
-}

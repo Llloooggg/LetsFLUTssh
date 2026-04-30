@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/security_comparison_table.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 Widget _wrap(Widget child, {Locale locale = const Locale('en')}) {
   return MaterialApp(
     locale: locale,
@@ -28,6 +30,12 @@ Widget _wrap(Widget child, {Locale locale = const Locale('en')}) {
 }
 
 void main() {
+  // SecurityComparisonTable calls `evaluate()` per cell, which routes
+  // through `lfs_core::threat_vocabulary` — bootstrap FRB so the
+  // table can build.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('SecurityComparisonTable', () {
     testWidgets('renders all 8 column headers (en)', (tester) async {
       await tester.pumpWidget(_wrap(const SizedBox()));

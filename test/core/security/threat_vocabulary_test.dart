@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/threat_vocabulary.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 /// Golden JSON of the canonical truth table. Binary protects /
 /// doesNotProtect — no weak/strong-password notes, no "not applicable"
 /// marker; the evaluator returns a straight yes-or-no per threat per
@@ -96,6 +98,11 @@ const Map<String, ThreatModel> _models = {
 };
 
 void main() {
+  // evaluate() routes through `lfs_core::threat_vocabulary::evaluate`
+  // — bootstrap FRB so the canonical Rust truth table is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('evaluate()', () {
     test('T0 plaintext defeats no threats', () {
       final m = evaluate(const ThreatModel(tier: ThreatTier.plaintext));

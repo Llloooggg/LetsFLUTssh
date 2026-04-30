@@ -6,7 +6,15 @@ import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/widgets/dropdown_select_button.dart';
 import '''package:letsflutssh/l10n/app_localizations.dart''';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // QuickConnectDialog embeds ExpandableTierCard which calls
+  // `evaluate()` from `lfs_core::threat_vocabulary` — bootstrap FRB
+  // so the dialog can build.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   SSHConfig? dialogResult;
 
   Widget buildApp() {
