@@ -1,7 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/import/ssh_dir_key_scanner.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // SshDirKeyScanner uses KeyFileHelper.basename / isSuspiciousPath
+  // which now route through `lfs_core::path` — bootstrap FRB.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('SshDirKeyScanner', () {
     SshDirKeyScanner scannerWith({
       required List<String> files,

@@ -58,17 +58,9 @@ class KeyFileHelper {
   /// the import dispatcher to route .ppk before falling through to
   /// PEM detection. Cheap — first-line peek only. Routes through
   /// `lfs_core::keys::looks_like_ppk` so the v2 / v3 header set
-  /// lives one place; falls back to the inline header check when
-  /// the FRB native lib is not loaded.
-  static bool _looksLikePpk(String text) {
-    try {
-      return rust_keys.keysLooksLikePpk(text: text);
-    } catch (_) {
-      final t = text.trimLeft();
-      return t.startsWith('PuTTY-User-Key-File-2:') ||
-          t.startsWith('PuTTY-User-Key-File-3:');
-    }
-  }
+  /// lives in Rust.
+  static bool _looksLikePpk(String text) =>
+      rust_keys.keysLooksLikePpk(text: text);
 
   /// Whether [pem] is a password-protected private key.
   ///
@@ -89,18 +81,8 @@ class KeyFileHelper {
       rust_keys.keysIsEncryptedPem(pem: pem);
 
   /// Extract the filename portion of [path], normalising Windows
-  /// separators. Routes through `lfs_core::path::basename` so the
-  /// grammar lives one place; falls back to the inline scan when
-  /// the FRB native lib is not loaded.
-  static String basename(String path) {
-    try {
-      return rust_path.pathBasename(path: path);
-    } catch (_) {
-      final normalized = path.replaceAll('\\', '/');
-      final idx = normalized.lastIndexOf('/');
-      return idx < 0 ? normalized : normalized.substring(idx + 1);
-    }
-  }
+  /// separators via `lfs_core::path::basename`.
+  static String basename(String path) => rust_path.pathBasename(path: path);
 
   /// Reject paths that contain `..` segments — a maliciously crafted
   /// `~/.ssh/config` could point `IdentityFile` at `~/../../etc/shadow` or
@@ -109,15 +91,6 @@ class KeyFileHelper {
   /// allowed — only traversal segments inside a path are rejected.
   /// Routes through `lfs_core::path::is_suspicious_path` for one
   /// canonical traversal-detection grammar across the codebase.
-  static bool isSuspiciousPath(String path) {
-    try {
-      return rust_path.pathIsSuspicious(path: path);
-    } catch (_) {
-      final normalized = path.replaceAll('\\', '/');
-      for (final segment in normalized.split('/')) {
-        if (segment == '..') return true;
-      }
-      return false;
-    }
-  }
+  static bool isSuspiciousPath(String path) =>
+      rust_path.pathIsSuspicious(path: path);
 }

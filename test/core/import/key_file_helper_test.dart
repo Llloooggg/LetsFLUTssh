@@ -3,7 +3,15 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/import/key_file_helper.dart';
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // KeyFileHelper routes basename / isSuspiciousPath / _looksLikePpk
+  // (via tryReadPemKey) through `lfs_core::{path, keys}` — bootstrap
+  // FRB so the canonical Rust grammar is exercised.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   group('KeyFileHelper', () {
     late Directory tmpDir;
 
