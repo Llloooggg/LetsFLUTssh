@@ -46,19 +46,19 @@ use objc2_foundation::NSString;
 pub fn set_secure_text(text: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
-        return linux_set_text(text);
+        linux_set_text(text)
     }
     #[cfg(target_os = "macos")]
     {
-        return macos_set_secure_text(text);
+        macos_set_secure_text(text)
     }
     #[cfg(target_os = "ios")]
     {
-        return ios_set_secure_text(text);
+        ios_set_secure_text(text)
     }
     #[cfg(target_os = "windows")]
     {
-        return windows_set_secure_text(text);
+        windows_set_secure_text(text)
     }
     #[cfg(not(any(
         target_os = "linux",
