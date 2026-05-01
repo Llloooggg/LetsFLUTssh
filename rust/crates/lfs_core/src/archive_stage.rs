@@ -28,38 +28,7 @@
 
 use serde_json::{json, Value};
 
-/// Ms-precision UTC timestamp → `YYYY-MM-DDTHH:MM:SS.sssZ`. Mirrors
-/// `archive::format_iso8601_utc`; duplicated here to keep the
-/// staging module self-contained without making the formatter
-/// `pub(crate)`-leaky into the rest of the crate.
-fn format_iso8601_utc(ms: i64) -> String {
-    let secs_total = ms.div_euclid(1000);
-    let millis = ms.rem_euclid(1000) as u32;
-    let (year, month, day, hh, mm, ss) = unix_to_civil(secs_total);
-    format!("{year:04}-{month:02}-{day:02}T{hh:02}:{mm:02}:{ss:02}.{millis:03}Z")
-}
-
-/// Howard Hinnant's date algorithm — same body as the private one in
-/// `archive.rs`. Pure integer arithmetic, leap-second-free, handles
-/// the negative-seconds branch around the 1970 boundary.
-fn unix_to_civil(secs: i64) -> (i64, u32, u32, u32, u32, u32) {
-    let days = secs.div_euclid(86_400);
-    let time_of_day = secs.rem_euclid(86_400) as u32;
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    let year = if m <= 2 { y + 1 } else { y };
-    let hh = time_of_day / 3600;
-    let mm = (time_of_day % 3600) / 60;
-    let ss = time_of_day % 60;
-    (year, m, d, hh, mm, ss)
-}
+use crate::archive::iso8601::format_iso8601_utc;
 
 /// Single-session staging input. Field names match the JSON shape
 /// the apply driver parses (`folder` is a path string, not a
