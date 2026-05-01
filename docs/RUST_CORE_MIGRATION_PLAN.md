@@ -594,23 +594,19 @@ Each file below is >1 000 LOC of human-written code; readability
 Effort per file: 0.5–1 day each, low-risk. Tests stay green
 because the surface doesn't change — only file boundaries move.
 
-### Test debt — skipped tests sweep (~18 tests)
+### Test debt — skipped tests sweep
 
-Every skipped test today carries the rationale "Rust covered;
-flutter_test runner has no FRB native lib". Three categories:
+Status (2026-05): 18 → 9 skips. Sweep of the recoverable skips
+landed via `requireFrbLoaded`; the remaining 9 all sit on
+infrastructure the unit-test harness cannot stand up.
 
-| File | Count | Disposition |
+| File | Skips | Disposition |
 |---|---|---|
-| `test/core/update/update_service_test.dart` | 7 | Move to `integration_test/` or delete (`lfs_core::update_orchestrator::tests` covers parse + asset selection + signed-manifest verify) |
-| `test/core/session/session_recorder_test.dart` | 6 | Move to `integration_test/` (recorder open/write/close + encrypted variant; `lfs_core::recorder::queue::tests` covers the ring-buffer + worker) |
-| `test/features/recordings/recording_reader_test.dart` | 3 | Move to `integration_test/` (HKDF + AES-GCM round-trip; `lfs_core::crypto::tests` covers KAT) |
-| `test/providers/connection_provider_test.dart` | 1 | Investigate — single skip, may be obsolete |
-| `test/features/mobile/mobile_shell_test.dart:823` | 1 | `skip: true` with no rationale string — investigate, likely obsolete after Apr-2026 grind |
-
-Action: one consolidated arc — move every legitimate skip to
-`integration_test/`, delete every redundant skip, document
-remaining skips with bus-event-shape rationale. Brings the test
-output back to a clean signal.
+| ~~`test/core/session/session_recorder_test.dart`~~ | ~~6~~ → 0 | done — `requireFrbLoaded` boots the real recorder; 4 round-trip tests + 1 close-idempotency + 1 non-ASCII payload all unskipped. The 6th (encrypted-mode round-trip) was an empty placeholder pointing at the reader test below — deleted. |
+| ~~`test/features/recordings/recording_reader_test.dart`~~ | ~~3~~ → 0 | done — cast roundtrip + encrypted roundtrip + readMeta dimensions all unskipped under `requireFrbLoaded`. |
+| `test/core/update/update_service_test.dart` | 7 | retained — tests verify that Dart `HttpOverrides` intercepts our HTTP, which the Rust update_http path doesn't honour by design. Coverage lives in `lfs_core::update_orchestrator::tests` + `update_http`; moving to `integration_test/` would need a real HTTP server. Deletion candidate when the `defaultFetch` / `defaultDownload` Dart fallbacks retire. |
+| `test/providers/connection_provider_test.dart` | 1 | retained with tightened rationale — `connectAsync` needs `db_init` + SecretStore staging in addition to FRB; integration_test/ is the right home. |
+| `test/features/mobile/mobile_shell_test.dart:823` | 1 | retained — SFTP-from-context-menu nav needs a live Rust connection-registry session (the fake handle doesn't resolve). Coverage lives in `integration_test/`. |
 
 ---
 
