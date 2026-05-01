@@ -1237,7 +1237,13 @@ class AesGcm {
 
 #### SecureKeyStorage
 
-Thin wrapper around `flutter_secure_storage` for OS keychain access. All methods catch exceptions and return null/false — graceful fallback to plaintext or master-password mode.
+Thin Dart wrapper that dispatches OS keychain access by platform:
+
+* **Desktop + Apple (Linux / macOS / iOS / Windows)** — production routes through `lfs_os_security::secure_key_storage` via FRB. Linux uses libsecret over `secret-service` (D-Bus → gnome-keyring / KWallet). Apple goes through `security-framework` plus a raw `SecItemAdd` for the biometric path with `SecAccessControl` + `kSecAccessControlBiometryCurrentSet`. Windows uses extern `CredReadW` / `CredWriteW` / `CredDeleteW`.
+* **Android** — keeps `flutter_secure_storage`'s `EncryptedSharedPreferences` until the AndroidKeystore JNI bridge lands (deferred under the Tier 3 Android JNI ledger in RUST_CORE_MIGRATION_PLAN.md — Three Pillars "moves makes worse" gate: replacing a battle-tested plugin with our own Kotlin shim + JNI surface is unaudited churn).
+* **Tests** — passing a non-null `FlutterSecureStorage` into the constructor forces the legacy mock path so the unit suite can drive in-memory fakes against the same surface.
+
+All methods catch exceptions and return null/false — graceful fallback to plaintext or master-password mode.
 
 ```dart
 class SecureKeyStorage {
