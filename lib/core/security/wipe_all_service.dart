@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwvault;
 import '../../src/rust/api/wipe.dart' as rust_wipe;
 import '../../src/rust/api/wipe_keychain.dart' as rust_wipe_kc;
 import '../../utils/logger.dart';
@@ -163,8 +164,12 @@ class WipeAllService {
 
     // 2. Native hw-vault: primary + biometric overlay. Swallow errors;
     //    a missing channel (desktop Linux, missing plugin) is a no-op.
-    final nativeCleared = await _invokeNative('clear');
-    final overlayCleared = await _invokeNative('clearBiometricPassword');
+    //    Apple routes through Rust (`lfs_os_security::hardware_tier_vault`)
+    //    so the same wipe semantics apply when the Swift plugin isn't
+    //    in the call path. Other MethodChannel platforms (Android /
+    //    Windows) keep the native invocation.
+    final nativeCleared = await _clearNativePrimary();
+    final overlayCleared = await _clearNativeBiometricOverlay();
 
     // 3. OS secure storage (keychain / Credential Manager / keyring /
     //    EncryptedSharedPrefs depending on platform).
@@ -190,6 +195,50 @@ class WipeAllService {
       );
       return false;
     }
+  }
+
+  /// Drop the primary hw-vault. On Apple this runs through
+  /// `lfs_os_security::hardware_tier_vault::clear` (deletes the SE
+  /// primary key + the on-disk envelope + the biometric overlay);
+  /// on other MethodChannel platforms it stays on the native
+  /// `clear` handler.
+  Future<bool> _clearNativePrimary() async {
+    if (Platform.isMacOS || Platform.isIOS) {
+      try {
+        final dir = await getApplicationSupportDirectory();
+        await rust_hwvault.hardwareTierVaultAppleClear(supportDir: dir.path);
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'WipeAllService: Apple Rust clear skipped: $e',
+          name: 'WipeAllService',
+        );
+        return false;
+      }
+    }
+    return _invokeNative('clear');
+  }
+
+  /// Drop the biometric overlay (key + file). Apple routes through
+  /// the Rust `clear_biometric_password`; other platforms keep the
+  /// native `clearBiometricPassword` handler.
+  Future<bool> _clearNativeBiometricOverlay() async {
+    if (Platform.isMacOS || Platform.isIOS) {
+      try {
+        final dir = await getApplicationSupportDirectory();
+        await rust_hwvault.hardwareTierVaultAppleClearBiometricPassword(
+          supportDir: dir.path,
+        );
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'WipeAllService: Apple Rust clearBiometric skipped: $e',
+          name: 'WipeAllService',
+        );
+        return false;
+      }
+    }
+    return _invokeNative('clearBiometricPassword');
   }
 
   /// Walk the canonical key list (versioned in Rust as

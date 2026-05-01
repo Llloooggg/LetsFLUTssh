@@ -13,6 +13,23 @@ import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import 'linux/tpm_client.dart';
 
+/// True when the Apple primary vault + biometric overlay should
+/// route through `lfs_os_security::hardware_tier_vault` instead of
+/// the `com.letsflutssh/hardware_vault` Swift plugin. macOS + iOS
+/// share the same SE-backed wrap path on top of `objc2` +
+/// `security-framework-sys`. Linux keeps the TPM2 path; Windows +
+/// Android keep their MethodChannel plugins.
+///
+/// **Verification status.** The Rust impl is shipped as a 1:1
+/// port of `HardwareVaultPlugin.swift` but the build host is
+/// Linux WSL — no real macOS / iOS device verification has been
+/// done. The Swift plugin stays in the bundle as the rollback
+/// surface; flip [_useRustHardwareVault] back to false at runtime
+/// (or revert this constant to false) if a verification regression
+/// shows up. Once a real device confirms parity, the Swift plugin
+/// retires.
+bool _useRustHardwareVault = Platform.isMacOS || Platform.isIOS;
+
 /// Hardware-bound DB-key vault for L3 (Hardware + PIN) tier.
 ///
 /// The DB key is sealed inside a hardware module under an auth value
@@ -90,10 +107,14 @@ class HardwareTierVault {
 
   /// True when the current platform can host the Hardware tier
   /// *today*. Linux returns true iff `/dev/tpmrm0` is accessible
-  /// and `tpm2-tools` is installed; other platforms ask their
-  /// native plugin.
+  /// and `tpm2-tools` is installed; Apple goes through the Rust
+  /// SE round-trip probe via `lfs_os_security`; other
+  /// MethodChannel platforms ask their native plugin.
   Future<bool> isAvailable() async {
     if (Platform.isLinux) return _tpm.isAvailable();
+    if (_useRustHardwareVault) {
+      return rust_vault.hardwareTierVaultAppleIsAvailable();
+    }
     if (_usesMethodChannel) {
       try {
         final result = await _channel.invokeMethod<bool>('isAvailable');
@@ -121,6 +142,9 @@ class HardwareTierVault {
   /// and never enters this method — the TPM CLI is local, richer,
   /// and does not round-trip through a method channel.
   Future<String> probeDetail() async {
+    if (_useRustHardwareVault) {
+      return rust_vault.hardwareTierVaultAppleProbeDetail();
+    }
     if (!_usesMethodChannel) return 'unknown';
     try {
       final result = await _channel.invokeMethod<String>('probeDetail');
@@ -143,6 +167,14 @@ class HardwareTierVault {
       if (Platform.isLinux) {
         final file = await _stateFile();
         return file.exists();
+      }
+      if (_useRustHardwareVault) {
+        // Salt file is the Dart-owned half of the unseal contract,
+        // same as the MethodChannel branch — both halves required.
+        final saltFile = await _saltFile();
+        if (!await saltFile.exists()) return false;
+        final dir = await getApplicationSupportDirectory();
+        return rust_vault.hardwareTierVaultAppleIsStored(supportDir: dir.path);
       }
       if (_usesMethodChannel) {
         final saltFile = await _saltFile();
@@ -193,6 +225,26 @@ class HardwareTierVault {
         // the new one does, never a torn file.
         await writeBytesAtomic(file.path, utf8.encode(blob));
         return true;
+      }
+      if (_useRustHardwareVault) {
+        try {
+          final dir = await getApplicationSupportDirectory();
+          await rust_vault.hardwareTierVaultAppleStore(
+            supportDir: dir.path,
+            dbKey: dbKey,
+            pinHmac: authValue,
+          );
+          // Rust side persisted the wrapped key; Dart keeps the salt
+          // so the unseal path can re-derive the HMAC gate.
+          await _writeSaltFile(salt);
+          return true;
+        } catch (e) {
+          AppLogger.instance.log(
+            'HardwareTierVault.store (Rust): $e',
+            name: 'HardwareTierVault',
+          );
+          return false;
+        }
       }
       if (_usesMethodChannel) {
         final ok =
@@ -248,6 +300,24 @@ class HardwareTierVault {
         final authValue = _deriveAuth(pin, decoded.salt);
         return _tpm.unseal(decoded.sealed, authValue: authValue);
       }
+      if (_useRustHardwareVault) {
+        try {
+          final salt = await _readSaltFile();
+          if (salt == null) return null;
+          final authValue = _deriveAuth(pin, salt);
+          final dir = await getApplicationSupportDirectory();
+          return await rust_vault.hardwareTierVaultAppleRead(
+            supportDir: dir.path,
+            pinHmac: authValue,
+          );
+        } catch (e) {
+          AppLogger.instance.log(
+            'HardwareTierVault.read (Rust): $e',
+            name: 'HardwareTierVault',
+          );
+          return null;
+        }
+      }
       if (_usesMethodChannel) {
         final salt = await _readSaltFile();
         if (salt == null) return null;
@@ -275,6 +345,25 @@ class HardwareTierVault {
       if (Platform.isLinux) {
         final file = await _stateFile();
         if (await file.exists()) await file.delete();
+        return;
+      }
+      if (_useRustHardwareVault) {
+        try {
+          final dir = await getApplicationSupportDirectory();
+          await rust_vault.hardwareTierVaultAppleClear(supportDir: dir.path);
+        } catch (e) {
+          // Best-effort — the salt file is authoritative for "is
+          // stored", so failing the Rust-side clear still degrades
+          // safely into "locked out". Log so a support trace points
+          // at a stale native-side blob the next tier-switch has to
+          // tolerate.
+          AppLogger.instance.log(
+            'HardwareTierVault.clear (Rust) failed (salt delete continues): $e',
+            name: 'HardwareTierVault',
+          );
+        }
+        final saltFile = await _saltFile();
+        if (await saltFile.exists()) await saltFile.delete();
         return;
       }
       if (_usesMethodChannel) {
