@@ -447,7 +447,7 @@ crates with explicit cipher policies.
 | ~~`core/security/secure_key_storage.dart`~~ | ~~376~~ | desktop done, Android pending — `lfs_os_security::secure_key_storage` covers Linux (`secret-service` crate, D-Bus → libsecret / gnome-keyring / KWallet), Apple (`security-framework` + raw `SecItemAdd` for the biometric path with `SecAccessControl` + `kSecAccessControlBiometryCurrentSet`), Windows (raw `CredReadW`/`CredWriteW`/`CredDeleteW` extern). The Dart wrapper routes those platforms through FRB; **Android stays on `flutter_secure_storage`** until the AndroidKeystore JNI bridge lands. **Apple / Windows verification pending on actual hardware.** |
 | ~~`core/security/biometric_key_vault.dart`~~ | ~~255~~ | done on Apple, deferred on Win/Android — Apple now routes through the proper `SecAccessControl`-bound Rust path so the `biometryCurrentSet` enrolment-change invariant is preserved; Linux keeps the TPM seal first + libsecret-marker fallback (TPM is strictly stronger backing); Android + Windows keep `flutter_secure_storage` (Android until the JNI bridge lands; Windows because Credential Manager has no biometric-bound storage class — Windows Hello protection lives in the hardware-vault plugin). |
 | ~~`core/security/biometric_auth.dart`~~ | ~~314~~ | Linux + Apple + Windows done, Android pending — Linux uses `FprintdClient` (Tier 2 `lfs_core::platform::linux::fprintd`), Apple uses `lfs_os_security::biometric_auth` (LAContext via `objc2-local-authentication`; `evaluatePolicy` reply block bridged to a tokio oneshot via `block2::RcBlock`), Windows uses the `windows` crate (`UserConsentVerifier::CheckAvailabilityAsync` + `RequestVerificationAsync`). Apple LAError codes (-6 / -7 / -8) and Windows `UserConsentVerifierAvailability` variants both map to the same `BiometricUnavailableReason` the Settings UI consumes. **Android remains on `local_auth`** — `BiometricPrompt` requires a JNI bridge with Java-side hooks. **Apple + Windows verification pending on actual hardware.** |
-| `core/security/wipe_all_service.dart` | 223 | mostly already Rust-routed via `lfs_core::security::wipe` (file sweep + crash marker) and `lfs_core::wipe_keychain` (keychain purge). Remaining Dart-side concern is the `com.letsflutssh/hardware_vault` MethodChannel call — Tier 4 territory once the hw-vault plugin retires. |
+| ~~`core/security/wipe_all_service.dart`~~ | ~~223~~ | done — file sweep + crash marker live in `lfs_core::security::wipe`, keychain purge lives in `lfs_core::wipe_keychain`. The Dart class is pure orchestration around three FRB calls plus an in-process credential-cache flush (Riverpod-bound, intentionally Dart-side) and the `com.letsflutssh/hardware_vault` MethodChannel call (Tier 4 territory — retires when the hw-vault plugin migrates). |
 
 Pre-conditions:
 
@@ -470,6 +470,30 @@ Acceptance criteria:
   (smaller — fewer plugin maintainers).
 - Per-platform integration test that exercises the unlock cascade
   end-to-end against a real keychain on each desktop CI runner.
+
+#### Tier 3 — Android JNI bridge ledger (deferred with rationale)
+
+The remaining "drop `flutter_secure_storage` / `local_auth`
+from `pubspec.yaml`" gates on Android JNI work. **Skipped per
+Three Pillars "moving makes worse"** unless explicitly green-lit:
+
+* Replacing `flutter_secure_storage`'s
+  `EncryptedSharedPreferences` Kotlin path with our own
+  Kotlin shim + `jni`-crate Rust calls = swapping a
+  battle-tested third-party plugin for our own less-audited
+  Kotlin + JNI signature-tracking. AndroidKeystore is a
+  Java-first API; no real Rust ownership is gained — only the
+  surface area moves.
+* Replacing `local_auth`'s `BiometricPrompt` Kotlin path with
+  the same JNI surgery has the same shape.
+
+When ramped, both share the same scaffolding cost: Kotlin
+shim in `android/app/src/main/kotlin/...`, JavaVM handle
+cached at MainActivity.onCreate, `cargo-ndk` cross-compile
+wiring. Each is its own focused arc requiring an Android dev
+loop + a real device for verification — neither blind-codable
+in a single pass without producing JNI signature mismatches
+that surface only at runtime.
 
 ### Tier 4 — Heavy native ports (~1 600 LOC, 3–4 weeks, **only on explicit go-ahead**)
 
