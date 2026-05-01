@@ -58,11 +58,16 @@ void main() {
         expect(connections, isNotEmpty);
         expect(connections.first.label, 'Test');
       },
+      // requireFrbLoaded alone isn't enough — connectAsync also
+      // calls `connectionPrepareAuth` which needs the Rust DB
+      // initialised + SecretStore staging. Re-enabling here would
+      // need a `db_init` call against a tempdir + SecretStore probe-
+      // key seed before the connect. Move to integration_test/ when
+      // that scaffolding lands. Investigated 2026-05; the original
+      // "no FRB native lib" rationale was incomplete.
       skip:
-          'connectAsync routes through the Rust connection actor + '
-          'SecretStore staging; flutter_test does not load the FRB native '
-          'lib. Re-enable once a flutter_test bootstrap that calls '
-          'RustLib.init lands.',
+          'connectAsync needs db_init + SecretStore staging in addition '
+          'to FRB; integration_test/ is the right home.',
     );
 
     test(
