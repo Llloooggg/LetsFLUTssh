@@ -1585,24 +1585,16 @@ are exercised by `make rust-test` on Linux but the macOS /
 iOS Foundation/UIKit dispatch has only been compile-checked
 via the iOS unsigned-compile lane (Wave 5c).
 
-**Phase 7 — `pubspec.yaml` dep removal (pending, ~30 min).**
+**Phase 7 — `pubspec.yaml` dep removal ✅ landed.**
+`flutter_secure_storage: ^10.0.0` + `local_auth: ^3.0.1` removed
+from `pubspec.yaml`; `flutter pub get` refreshed `pubspec.lock`
+(11 packages dropped — both directs plus their per-platform
+implementations: `flutter_secure_storage_{linux,macos,platform_interface,web,windows}`,
+`local_auth_{android,darwin,platform_interface,windows}`).
 
-Final phase — only safe to run after every preceding phase
-lands and `grep -r` confirms no remaining import.
-
-Concrete actions:
-
-1. `pubspec.yaml`:
-   - Remove `flutter_secure_storage: ^10.0.0`.
-   - Remove `local_auth: ^3.0.1`.
-2. `flutter pub get` — refreshes `pubspec.lock`.
-3. `make analyze` + `make test` to confirm no surviving import
-   slipped through.
-4. Stage `pubspec.yaml` + `pubspec.lock` together — single
-   commit.
-
-Acceptance: `flutter pub deps | grep -E '(flutter_secure_storage|local_auth)'`
-returns zero hits.
+Verified: `make analyze` clean, `make test` (3142 tests, 5
+skipped) green. `flutter pub deps | grep -E '(flutter_secure_storage|local_auth)'`
+returns zero hits — direct + dev + transitive trees all clean.
 
 **Total cleanup arc effort: ~15-20 hours** of careful work
 across phases 3-7. Each phase produces 1-3 commits (orchestrator
