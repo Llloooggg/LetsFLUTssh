@@ -219,8 +219,10 @@ class ConfigNotifier extends Notifier<AppConfig> {
 
   /// Disk-write seam: subclasses (test spies that count `save` calls)
   /// override this to wrap or replace the persistence step. Production
-  /// delegates to the top-level [_saveAppConfigToDisk] which routes
-  /// through the Rust actor with a Dart-write fallback.
+  /// delegates to the top-level [_saveAppConfigToDisk] which goes
+  /// through the Rust `config_store::Store` actor (atomic write +
+  /// 300 ms debounce + bus event) — no Dart-side write fallback,
+  /// the actor is the only writer.
   @visibleForTesting
   @protected
   Future<void> persist(AppConfig config) => _saveAppConfigToDisk(config);
