@@ -200,7 +200,6 @@ fn remove_dir_recursive_inner<'a>(
 // Tail of the `impl Sftp` block re-opens here so the rest of
 // the file (open / create / mkdir helpers) stays unchanged.
 impl Sftp {
-
     /// Open a file for reading. Returns a streaming handle whose
     /// `read_chunk` pumps bytes one window at a time so multi-GB
     /// transfers stay bounded in memory.
@@ -259,7 +258,16 @@ impl Sftp {
     ) -> Result<(), Error> {
         let total_files = count_local_files(std::path::Path::new(local_dir)).await;
         let mut counter: u64 = 0;
-        upload_dir_inner(self, local_dir, remote_dir, total_files, &mut counter, progress, 0).await
+        upload_dir_inner(
+            self,
+            local_dir,
+            remote_dir,
+            total_files,
+            &mut counter,
+            progress,
+            0,
+        )
+        .await
     }
 
     /// Recursively download `remote_dir` into `local_dir`. Mirror
@@ -275,8 +283,16 @@ impl Sftp {
     ) -> Result<(), Error> {
         let total_files = count_remote_files(self, remote_dir, 0).await;
         let mut counter: u64 = 0;
-        download_dir_inner(self, remote_dir, local_dir, total_files, &mut counter, progress, 0)
-            .await
+        download_dir_inner(
+            self,
+            remote_dir,
+            local_dir,
+            total_files,
+            &mut counter,
+            progress,
+            0,
+        )
+        .await
     }
 }
 
@@ -296,7 +312,9 @@ pub struct TransferProgressEvent {
 const TRANSFER_CHUNK_SIZE: usize = 65536;
 
 async fn count_local_files(dir: &std::path::Path) -> u64 {
-    fn walk(p: std::path::PathBuf) -> std::pin::Pin<Box<dyn std::future::Future<Output = u64> + Send>> {
+    fn walk(
+        p: std::path::PathBuf,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = u64> + Send>> {
         Box::pin(async move {
             let mut rd = match tokio::fs::read_dir(&p).await {
                 Ok(rd) => rd,
@@ -304,7 +322,9 @@ async fn count_local_files(dir: &std::path::Path) -> u64 {
             };
             let mut total: u64 = 0;
             while let Ok(Some(entry)) = rd.next_entry().await {
-                let Ok(metadata) = entry.metadata().await else { continue };
+                let Ok(metadata) = entry.metadata().await else {
+                    continue;
+                };
                 if metadata.is_dir() {
                     total = total.saturating_add(walk(entry.path()).await);
                 } else {
@@ -373,7 +393,9 @@ fn upload_dir_inner<'a>(
             .await
             .map_err(|e| Error::Io(format!("read_dir entry: {e}")))?
         {
-            let Ok(metadata) = entry.metadata().await else { continue };
+            let Ok(metadata) = entry.metadata().await else {
+                continue;
+            };
             let name = entry.file_name().to_string_lossy().into_owned();
             let local_child = entry.path().to_string_lossy().into_owned();
             let remote_child = format!("{}/{}", remote_dir.trim_end_matches('/'), name);
@@ -443,11 +465,7 @@ fn download_dir_inner<'a>(
         let mut subdirs: Vec<(String, String)> = Vec::new();
         for entry in entries {
             let remote_child = format!("{trimmed}/{}", entry.name);
-            let local_child = format!(
-                "{}/{}",
-                local_dir.trim_end_matches('/'),
-                entry.name
-            );
+            let local_child = format!("{}/{}", local_dir.trim_end_matches('/'), entry.name);
             if entry.is_dir {
                 subdirs.push((remote_child, local_child));
             } else {

@@ -125,7 +125,11 @@ mod tests {
     #[test]
     fn pem_file_is_picked_up() {
         let dir = temp_dir("pem_only");
-        write_file(&dir, "id_ed25519", b"-----BEGIN PRIVATE KEY-----\nbody\n-----END PRIVATE KEY-----\n");
+        write_file(
+            &dir,
+            "id_ed25519",
+            b"-----BEGIN PRIVATE KEY-----\nbody\n-----END PRIVATE KEY-----\n",
+        );
         let result = scan(dir.to_string_lossy().as_ref());
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].suggested_label, "id_ed25519");
@@ -166,7 +170,11 @@ mod tests {
     #[test]
     fn non_pem_garbage_is_omitted() {
         let dir = temp_dir("garbage");
-        write_file(&dir, "real_key", b"-----BEGIN PRIVATE KEY-----\nbody\n-----END PRIVATE KEY-----\n");
+        write_file(
+            &dir,
+            "real_key",
+            b"-----BEGIN PRIVATE KEY-----\nbody\n-----END PRIVATE KEY-----\n",
+        );
         write_file(&dir, "garbage", b"this is just some text\n");
         write_file(&dir, "another", b"\xff\xfe\x00\x01binary\xee\xee");
         let result = scan(dir.to_string_lossy().as_ref());

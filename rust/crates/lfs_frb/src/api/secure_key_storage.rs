@@ -46,10 +46,7 @@ pub async fn secure_storage_read_biometric(
     map_read(lfs_os_security::secure_key_storage::read_biometric(&alias).await)
 }
 
-pub async fn secure_storage_write_biometric(
-    alias: String,
-    value: Vec<u8>,
-) -> Result<(), String> {
+pub async fn secure_storage_write_biometric(alias: String, value: Vec<u8>) -> Result<(), String> {
     map_unit(lfs_os_security::secure_key_storage::write_biometric(&alias, &value).await)
 }
 

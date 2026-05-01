@@ -109,7 +109,11 @@ pub fn build_preview(
         if resolution.encrypted {
             encrypted.push(entry.host.clone());
         }
-        sessions.push(build_session_for_entry(entry, &resolution.key_id, folder_label));
+        sessions.push(build_session_for_entry(
+            entry,
+            &resolution.key_id,
+            folder_label,
+        ));
     }
 
     ImportPreview {
@@ -303,8 +307,7 @@ mod tests {
     fn host_without_identity_file_uses_password_auth() {
         let dir = temp_dir("no_identity");
         let config = "Host my-host\n    HostName 10.0.0.1\n    User deploy\n    Port 2222\n";
-        let preview =
-            build_preview(config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
+        let preview = build_preview(config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
         assert_eq!(preview.sessions.len(), 1);
         let s = &preview.sessions[0];
         assert_eq!(s.label, "my-host");
@@ -325,8 +328,7 @@ mod tests {
             "Host my-host\n    HostName 10.0.0.1\n    IdentityFile {}/does_not_exist\n",
             dir.to_string_lossy()
         );
-        let preview =
-            build_preview(&config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
+        let preview = build_preview(&config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
         assert_eq!(preview.hosts_with_missing_keys, vec!["my-host"]);
         assert!(preview.hosts_with_encrypted_keys.is_empty());
         std::fs::remove_dir_all(&dir).ok();
@@ -336,8 +338,7 @@ mod tests {
     fn suspicious_identity_path_is_skipped() {
         let dir = temp_dir("suspicious");
         let config = "Host my-host\n    HostName 10.0.0.1\n    IdentityFile ../etc/shadow\n";
-        let preview =
-            build_preview(config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
+        let preview = build_preview(config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
         // The single IdentityFile is rejected → marked missing.
         assert_eq!(preview.hosts_with_missing_keys, vec!["my-host"]);
         std::fs::remove_dir_all(&dir).ok();
@@ -352,14 +353,21 @@ mod tests {
         let config = format!(
             "Host host-a\n    HostName a.example.com\n    IdentityFile {key_path}\n\nHost host-b\n    HostName b.example.com\n    IdentityFile {key_path}\n"
         );
-        let preview =
-            build_preview(&config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
+        let preview = build_preview(&config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
         // Stub PEM doesn't actually parse via russh — so this test
         // expects "missing" rather than dedup. The real assertion:
         // both hosts agree on outcome (both missing OR both share
         // a key id when the PEM is well-formed).
-        let host_a = preview.sessions.iter().find(|s| s.label == "host-a").unwrap();
-        let host_b = preview.sessions.iter().find(|s| s.label == "host-b").unwrap();
+        let host_a = preview
+            .sessions
+            .iter()
+            .find(|s| s.label == "host-a")
+            .unwrap();
+        let host_b = preview
+            .sessions
+            .iter()
+            .find(|s| s.label == "host-b")
+            .unwrap();
         assert_eq!(host_a.key_id, host_b.key_id);
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -371,8 +379,7 @@ mod tests {
         let config = format!(
             "Host my-host\n    HostName 10.0.0.1\n    IdentityFile {key_path}\n    PreferredAuthentications password\n"
         );
-        let preview =
-            build_preview(&config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
+        let preview = build_preview(&config, "Imports", "", dir.to_string_lossy().as_ref(), 8);
         let s = &preview.sessions[0];
         // PreferredAuthentications said password — that wins over
         // the implicit "IdentityFile present → key" branch.

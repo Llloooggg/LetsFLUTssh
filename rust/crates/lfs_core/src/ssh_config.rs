@@ -118,8 +118,7 @@ pub fn parse_openssh_config_with_fs(
 ) -> Vec<HostEntry> {
     let normalised = normalise_line_endings(content);
     let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let expanded =
-        expand_includes_with_fs(&normalised, base_dir, max_include_depth, &mut visited);
+    let expanded = expand_includes_with_fs(&normalised, base_dir, max_include_depth, &mut visited);
     parse_expanded(&expanded)
 }
 
@@ -904,8 +903,7 @@ mod tests {
             "Host remote\n    HostName remote.example.com\n    User admin\n",
         );
         let main = "Host local\n    HostName local.example.com\nInclude extra.conf\n";
-        let entries =
-            parse_openssh_config_with_fs(main, dir.to_string_lossy().as_ref(), 8);
+        let entries = parse_openssh_config_with_fs(main, dir.to_string_lossy().as_ref(), 8);
         let hosts: std::collections::HashSet<_> = entries.iter().map(|e| e.host.as_str()).collect();
         assert!(hosts.contains("local"));
         assert!(hosts.contains("remote"));
@@ -924,8 +922,7 @@ mod tests {
         // Distractor that shouldn't match `*.conf`.
         write_file(&sub, "ignore.txt", "Host nope\n    HostName nope\n");
         let main = "Include config.d/*.conf\n";
-        let entries =
-            parse_openssh_config_with_fs(main, dir.to_string_lossy().as_ref(), 8);
+        let entries = parse_openssh_config_with_fs(main, dir.to_string_lossy().as_ref(), 8);
         let hosts: std::collections::HashSet<_> = entries.iter().map(|e| e.host.as_str()).collect();
         assert!(hosts.contains("a"));
         assert!(hosts.contains("b"));
@@ -941,11 +938,8 @@ mod tests {
             "loop.conf",
             "Host looped\n    HostName l\nInclude loop.conf\n",
         );
-        let entries = parse_openssh_config_with_fs(
-            "Include loop.conf\n",
-            dir.to_string_lossy().as_ref(),
-            8,
-        );
+        let entries =
+            parse_openssh_config_with_fs("Include loop.conf\n", dir.to_string_lossy().as_ref(), 8);
         let hosts: Vec<_> = entries.iter().map(|e| e.host.as_str()).collect();
         assert_eq!(hosts, vec!["looped"]);
         std::fs::remove_dir_all(&dir).ok();
@@ -990,11 +984,8 @@ mod tests {
         // Depth 1 → only `a` is read; the deeper Include lines are
         // emitted as raw text (parser ignores Include directives in
         // the body) so b and c never land.
-        let entries = parse_openssh_config_with_fs(
-            "Include a.conf\n",
-            dir.to_string_lossy().as_ref(),
-            1,
-        );
+        let entries =
+            parse_openssh_config_with_fs("Include a.conf\n", dir.to_string_lossy().as_ref(), 1);
         let hosts: std::collections::HashSet<_> = entries.iter().map(|e| e.host.as_str()).collect();
         assert!(hosts.contains("a"));
         assert!(!hosts.contains("b"));

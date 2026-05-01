@@ -60,10 +60,7 @@ mod platform_impl {
             if ok {
                 Ok(())
             } else {
-                let code = error
-                    .as_ref()
-                    .map(|e| e.code())
-                    .unwrap_or(0);
+                let code = error.as_ref().map(|e| e.code()).unwrap_or(0);
                 // LAError codes (Apple-defined): -6 =
                 // touchIDNotAvailable, -7 = touchIDNotEnrolled,
                 // -8 = passcodeNotSet. Same values for Face ID
@@ -77,9 +74,7 @@ mod platform_impl {
                             .as_ref()
                             .map(|e| e.localizedDescription().to_string())
                             .unwrap_or_default();
-                        BiometricUnavailableReason::Probe(format!(
-                            "LAError {other}: {desc}"
-                        ))
+                        BiometricUnavailableReason::Probe(format!("LAError {other}: {desc}"))
                     }
                 })
             }
@@ -159,14 +154,12 @@ mod platform_impl {
     use super::{AvailabilityResult, BiometricUnavailableReason};
     use windows::core::HSTRING;
     use windows::Security::Credentials::UI::{
-        UserConsentVerificationResult, UserConsentVerifier,
-        UserConsentVerifierAvailability,
+        UserConsentVerificationResult, UserConsentVerifier, UserConsentVerifierAvailability,
     };
 
     pub(super) async fn check_availability() -> AvailabilityResult {
         let availability = tokio::task::spawn_blocking(|| {
-            UserConsentVerifier::CheckAvailabilityAsync()
-                .and_then(|op| op.get())
+            UserConsentVerifier::CheckAvailabilityAsync().and_then(|op| op.get())
         })
         .await
         .map_err(|e| BiometricUnavailableReason::Probe(format!("tokio join: {e}")))?
@@ -195,8 +188,7 @@ mod platform_impl {
     pub(super) async fn authenticate(reason: &str) -> bool {
         let message: HSTRING = reason.into();
         let result = tokio::task::spawn_blocking(move || {
-            UserConsentVerifier::RequestVerificationAsync(&message)
-                .and_then(|op| op.get())
+            UserConsentVerifier::RequestVerificationAsync(&message).and_then(|op| op.get())
         })
         .await;
         match result {
@@ -255,11 +247,8 @@ mod tests {
         // hanging or panicking. The 2 s timeout caps any UI
         // prompt that might fire on a real device under
         // CI; we only assert "future resolved", not the value.
-        let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(2),
-            authenticate("test"),
-        )
-        .await
-        .unwrap_or(false);
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(2), authenticate("test"))
+            .await
+            .unwrap_or(false);
     }
 }

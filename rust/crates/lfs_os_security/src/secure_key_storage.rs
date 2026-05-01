@@ -405,9 +405,7 @@ mod platform_impl {
         // class + service + account.
         let _ = raw_delete(alias);
 
-        let status = unsafe {
-            SecItemAdd(dict.as_concrete_TypeRef(), std::ptr::null_mut())
-        };
+        let status = unsafe { SecItemAdd(dict.as_concrete_TypeRef(), std::ptr::null_mut()) };
         if status != 0 {
             return Err(SecureStorageError::Backend(format!(
                 "SecItemAdd failed: OSStatus {status}"
@@ -444,8 +442,7 @@ mod platform_impl {
         let dict = CFDictionary::from_CFType_pairs(&pairs);
 
         let mut out: core_foundation_sys::base::CFTypeRef = std::ptr::null();
-        let status =
-            unsafe { SecItemCopyMatching(dict.as_concrete_TypeRef(), &mut out) };
+        let status = unsafe { SecItemCopyMatching(dict.as_concrete_TypeRef(), &mut out) };
         if status == errSecItemNotFound {
             return Ok(None);
         }
@@ -520,7 +517,12 @@ mod platform_impl {
     }
 
     extern "system" {
-        fn CredReadW(target: LPCWSTR, cred_type: DWORD, flags: DWORD, out: *mut *mut Credential) -> BOOL;
+        fn CredReadW(
+            target: LPCWSTR,
+            cred_type: DWORD,
+            flags: DWORD,
+            out: *mut *mut Credential,
+        ) -> BOOL;
         fn CredWriteW(cred: *const Credential, flags: DWORD) -> BOOL;
         fn CredDeleteW(target: LPCWSTR, cred_type: DWORD, flags: DWORD) -> BOOL;
         fn CredFree(buf: *mut c_void);
@@ -624,7 +626,9 @@ mod platform_impl {
                 if err == 1168 {
                     return Ok(());
                 }
-                return Err(SecureStorageError::Backend(format!("CredDeleteW err={err}")));
+                return Err(SecureStorageError::Backend(format!(
+                    "CredDeleteW err={err}"
+                )));
             }
             Ok(())
         })

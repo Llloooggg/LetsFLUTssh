@@ -122,8 +122,8 @@ fn macos_set_secure_text(text: &str) -> Result<(), String> {
 
 #[cfg(target_os = "ios")]
 fn ios_set_secure_text(text: &str) -> Result<(), String> {
+    use objc2_foundation::{NSArray, NSDate, NSDictionary, NSNumber};
     use objc2_ui_kit::UIPasteboard;
-    use objc2_foundation::{NSArray, NSDictionary, NSDate, NSNumber};
     // SAFETY: UIPasteboard.setItems:options: is a standard public
     // selector. Lifetimes scoped to the unsafe block.
     unsafe {
@@ -135,7 +135,9 @@ fn ios_set_secure_text(text: &str) -> Result<(), String> {
         let item: objc2::rc::Retained<NSDictionary<NSString, objc2::runtime::AnyObject>> =
             NSDictionary::from_retained_objects(
                 &[&*item_key],
-                &[objc2::rc::Retained::cast_unchecked::<objc2::runtime::AnyObject>(body)],
+                &[objc2::rc::Retained::cast_unchecked::<
+                    objc2::runtime::AnyObject,
+                >(body)],
             );
         let items = NSArray::from_retained_slice(&[item]);
 
