@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
@@ -15,7 +14,6 @@ import '../../core/snippets/snippet.dart';
 import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
 import '../../src/rust/api/archive.dart' as rust_archive;
-import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../utils/logger.dart';
 
 /// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM
@@ -53,18 +51,14 @@ class ExportImport {
   static const _saltLen = 32;
   static const _ivLen = 12;
 
-  /// Header magic + single supported version byte (Argon2id).
-  static const List<int> _encHeaderMagic = [0x4C, 0x46, 0x53, 0x45]; // 'LFSE'
-  static const int _encVersionArgon2id = 0x02;
-
   /// Upper bound on the fixed part of the Argon2id header
   /// (magic + version + KdfParams). Used by preflight size estimation;
   /// the actual length depends on KdfParams.encodedLength at write time.
   static const int _argon2idHeaderMaxLen = 4 + 1 + 16;
 
-  /// Default Argon2id profile used when [export] is called without an
-  /// explicit `kdfParams`. Mutable so the test bootstrap can drop cost
-  /// to the Argon2id minimum, keeping the suite fast.
+  /// Default Argon2id profile used when [exportViaRust] is called
+  /// without an explicit `kdfParams`. Mutable so the test bootstrap
+  /// can drop cost to the Argon2id minimum, keeping the suite fast.
   @visibleForTesting
   static KdfParams defaultKdfParams = KdfParams.productionDefaults;
 
@@ -261,89 +255,6 @@ class ExportImport {
     return outputPath;
   }
 
-  /// Legacy in-Dart archive composer. Retained for the test suite
-  /// (round-tripping `_buildArchive` against the Dart import path)
-  /// and for callers that still need the explicit `LfsExportInput`
-  /// shape. Production export goes through [exportViaRust] so
-  /// plaintext credentials stay Rust-side.
-  ///
-  /// Returns the file path of the created archive.
-  static Future<String> export({
-    required String masterPassword,
-    required LfsExportInput input,
-    required String outputPath,
-    ProgressReporter? progress,
-    S? l10n,
-    KdfParams? kdfParams,
-  }) async {
-    progress?.phase(l10n?.progressCollectingData ?? 'Collecting data…');
-    final archive = _buildArchive(input);
-
-    // Encode ZIP
-    final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
-    AppLogger.instance.log(
-      'Export: ZIP archive ${zipBytes.length} bytes, '
-      '${input.sessions.length} sessions, '
-      'config=${input.options.includeConfig}, '
-      'knownHosts='
-      '${input.options.includeKnownHosts && input.knownHostsContent != null}',
-      name: 'ExportImport',
-    );
-
-    // Empty password → write the raw ZIP unencrypted. The user has already
-    // acknowledged the risk via the export dialog's confirmation step; the
-    // file carries every saved credential in plain text.
-    final Uint8List encrypted;
-    if (masterPassword.isEmpty) {
-      progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
-      encrypted = zipBytes;
-      AppLogger.instance.log(
-        'Export: wrote unencrypted archive ${encrypted.length} bytes',
-        name: 'ExportImport',
-      );
-    } else {
-      // Encrypt with master password (runs in isolate — Argon2id is
-      // CPU + memory-heavy). Capture params in the main isolate so the
-      // value crosses the Isolate boundary without the worker re-reading
-      // the mutable global default.
-      progress?.phase(l10n?.progressEncrypting ?? 'Encrypting…');
-      final params = kdfParams ?? defaultKdfParams;
-      // _encryptWithPassword is async itself: KDF inside Isolate.run,
-      // GCM via FRB on the root isolate. No outer Isolate.run.
-      encrypted = await _encryptWithPassword(zipBytes, masterPassword, params);
-      AppLogger.instance.log(
-        'Export: encrypted ${encrypted.length} bytes',
-        name: 'ExportImport',
-      );
-    }
-
-    // Write atomically: flush to "<outputPath>.tmp", then rename. If the write
-    // fails mid-way (I/O error, out of space, process killed), we don't leave
-    // a half-formed .lfs next to a usable old one — users could pick it up,
-    // type the master password, and get a decrypt error. rename(2) is atomic
-    // on a single filesystem; on mobile/SAF the temp sits in the same dir so
-    // this holds.
-    progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
-    final file = File(outputPath);
-    await file.parent.create(recursive: true);
-    final tmp = File('$outputPath.tmp');
-    try {
-      await tmp.writeAsBytes(encrypted, flush: true);
-      await tmp.rename(outputPath);
-    } catch (e) {
-      if (await tmp.exists()) {
-        try {
-          await tmp.delete();
-        } catch (_) {
-          // Best-effort cleanup; original error is what the user needs.
-        }
-      }
-      rethrow;
-    }
-
-    return outputPath;
-  }
-
   /// Build the ZIP archive in memory from [input].
   static Archive _buildArchive(LfsExportInput input) {
     final archive = Archive();
@@ -516,95 +427,6 @@ class ExportImport {
   static void _addTextFile(Archive archive, String name, String text) {
     final bytes = utf8.encode(text);
     archive.addFile(ArchiveFile(name, bytes.length, bytes));
-  }
-
-  /// Encrypt bytes with an Argon2id-derived key (AES-256-GCM).
-  /// Writes the v3 header: `[LFSE 4][0x02 1][KdfParams N][salt 32][iv 12][ct+tag]`.
-  ///
-  /// Argon2id KDF runs inside an [Isolate.run] (CPU + memory-heavy);
-  /// AES-GCM lives in `lfs_core::crypto` and is awaited on the root
-  /// isolate (FRB bindings are tied there). The derived key crosses
-  /// the isolate boundary as a regular [Uint8List] — the SecretBuffer
-  /// page-lock that used to wrap it does not survive an isolate hop,
-  /// and dropping the isolate already releases its heap.
-  static Future<Uint8List> _encryptWithPassword(
-    Uint8List data,
-    String password,
-    KdfParams params,
-  ) async {
-    final random = Random.secure();
-    final salt = Uint8List.fromList(
-      List.generate(_saltLen, (_) => random.nextInt(256)),
-    );
-    final iv = Uint8List.fromList(
-      List.generate(_ivLen, (_) => random.nextInt(256)),
-    );
-
-    final derivedKey = await _deriveArgon2idAsync(password, salt, params);
-    try {
-      final ct = await rust_crypto.cryptoAesGcmEncryptRaw(
-        key: derivedKey,
-        nonce: iv,
-        plaintext: data,
-        aad: Uint8List(0),
-      );
-      final paramsBytes = params.encode();
-      final header = <int>[
-        ..._encHeaderMagic,
-        _encVersionArgon2id,
-        ...paramsBytes,
-      ];
-      return Uint8List.fromList([...header, ...salt, ...iv, ...ct]);
-    } finally {
-      // Best-effort scrub. Dart Uint8List is mutable; overwriting the
-      // bytes drops the only reference we control before GC reclaims.
-      for (var i = 0; i < derivedKey.length; i++) {
-        derivedKey[i] = 0;
-      }
-    }
-  }
-
-  /// Argon2id derivation via the Rust core's blocking pool.
-  /// Returns plain bytes; caller scrubs the buffer after use.
-  static Future<Uint8List> _deriveArgon2idAsync(
-    String password,
-    Uint8List salt,
-    KdfParams params,
-  ) async {
-    final out = await rust_crypto.cryptoArgon2IdDerive(
-      password: Uint8List.fromList(utf8.encode(password)),
-      salt: salt,
-      memoryKib: params.memoryKiB,
-      iterations: params.iterations,
-      parallelism: params.parallelism,
-      length: 32,
-    );
-    return Uint8List.fromList(out);
-  }
-
-  /// Build an archive with an unknown version byte. Used only by tests
-  /// that assert the rejection path — the header layout is well-formed
-  /// but the version byte is not [_encVersionArgon2id], so the Rust
-  /// reader rejects it before any cipher runs.
-  @visibleForTesting
-  static Uint8List encryptInvalidVersionForTesting(
-    Uint8List data, {
-    required int versionByte,
-  }) {
-    final random = Random.secure();
-    final salt = Uint8List.fromList(
-      List.generate(_saltLen, (_) => random.nextInt(256)),
-    );
-    final iv = Uint8List.fromList(
-      List.generate(_ivLen, (_) => random.nextInt(256)),
-    );
-    return Uint8List.fromList([
-      ..._encHeaderMagic,
-      versionByte,
-      ...salt,
-      ...iv,
-      ...data,
-    ]);
   }
 }
 
