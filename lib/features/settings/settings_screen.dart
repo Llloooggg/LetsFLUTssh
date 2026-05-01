@@ -77,6 +77,9 @@ part 'settings_logging.dart';
 part 'settings_sections_data.dart';
 part 'settings_sections_preferences.dart';
 part 'settings_sections_security.dart';
+part 'settings_sections_security_apply.dart';
+part 'settings_sections_security_biometric.dart';
+part 'settings_sections_security_macos.dart';
 part 'settings_sections_updates.dart';
 part 'settings_widgets.dart';
 
