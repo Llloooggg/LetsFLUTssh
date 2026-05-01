@@ -1391,6 +1391,85 @@ externally blocked):**
 - SLSA L4 — needs hermetic builders we cannot stand up
   inside GitHub-hosted runners.
 
+### Cleanup arc — retire Dart fallback paths (2026-05)
+
+After Tier 3 + Tier 4 + Android JNI + NI-1 + NI-3 all landed,
+the codebase still carried Dart-side fallback paths through
+`flutter_secure_storage` + `local_auth` + native plugins
+(`HardwareVaultPlugin.swift`, `SessionLockPlugin.*`, etc).
+This arc retires them in numbered phases — feature branch
+work, no per-phase release pressure.
+
+**Phase 1 — `_useRustHardwareVault` flag drop ✅ landed.**
+Generic FRB endpoints `hardware_tier_vault_*` route through
+the cfg-dispatched Rust public API. Apple + Android always
+use Rust now; Windows MethodChannel kept until Win Tier 4
+Rust port lands; Linux keeps `TpmClient` (with NI-1 native
+backend opt-in via env). `wipe_all_service` updated to
+match.
+
+**Phase 2 — `BiometricKeyVault` `flutter_secure_storage`
+retire ✅ landed.** Apple + Android + Windows always go
+through `lfs_os_security::secure_key_storage::*_biometric`
+via FRB. Linux keeps TPM seal first + libsecret-via-Rust
+fallback (Rust `secret-service` crate). Dropped `_storage`
+field, `_useRustBiometric` flag, `iosOptions` /
+`macOsOptions` constants. Test surgery: 4 fake-storage
+round-trip tests retired (covered Rust-side), 2 libsecret-
+fallback tests skipped with pointer to Rust integration
+tests, Apple SecAccessControl-options assertions removed.
+
+**Phase 3 — `SecureKeyStorage` legacy storage retire
+(pending).** Drop `_legacyStorage` field + `_storage`
+fallback getter from `secure_key_storage.dart`. Add Android
+to `_useRust`. Test surgery: existing tests inject fake
+FlutterSecureStorage; needs rewrite to FRB-bootstrapped
+real keystore round-trip OR mocking at FRB level.
+
+**Phase 4 — `BiometricAuth` `local_auth` retire
+(pending).** `biometric_auth.dart` routes Android +
+macOS + iOS + Windows through `lfs_os_security::biometric_auth`
+via FRB. Drop `local_auth` import + plugin. Linux already
+on FprintdClient (Rust path).
+
+**Phase 5 — Rust prompt-protocol bus events retire
+(pending).** Refactor `tier_unlock_orchestrator` +
+`keychain_password_gate_actor` + `capabilities_orchestrator`
+to call `lfs_os_security::secure_key_storage` /
+`biometric_auth` directly instead of publishing
+`KeychainOpPromptRequest` / `BiometricProbePromptRequest` /
+`KeychainPepperPromptRequest`. Remove the bus event types
+from `lfs_core::bus`. Delete the FRB shim functions
+`keychain_op_prompt_*`, `biometric_probe_prompt_*`,
+`keychain_pepper_prompt_*`. Delete the Dart listeners
+`keychain_op_prompt_listener.dart`,
+`biometric_probe_prompt_listener.dart`,
+`keychain_pepper_prompt_listener.dart`.
+
+**Phase 6 — Native plugin file deletion (pending).**
+Delete `macos/Runner/HardwareVaultPlugin.swift`,
+`macos/Runner/SessionLockPlugin.swift`,
+`macos/Runner/ClipboardSecurePlugin.swift`,
+`ios/Runner/HardwareVaultPlugin.swift`,
+`ios/Runner/ClipboardSecurePlugin.swift`,
+`android/.../HardwareVaultPlugin.kt`,
+`linux/runner/session_lock_plugin.{cc,h}`,
+`windows/runner/session_lock_plugin.{cpp,h}`.
+Update `macos/Runner/MainFlutterWindow.swift`,
+`windows/runner/flutter_window.cpp`,
+`MainActivity.kt` to drop the plugin registrations.
+
+**Keep**: `windows/runner/hardware_vault_plugin.{cpp,h}`
+(Win Tier 4 Rust port not yet done; this is the canonical
+Windows path, not a fallback).
+`android/.../ClipboardSecurePlugin.kt`
+(Android-specific `ClipDescription.EXTRA_IS_SENSITIVE`
+flag, planned § Tier 2 to stay on MethodChannel).
+
+**Phase 7 — `pubspec.yaml` dep removal (pending).**
+Drop `flutter_secure_storage` + `local_auth` after every
+phase above lands.
+
 ### Non-ideal items — promote to ideal (parallel arc)
 
 23. ~~**NI-1**: Linux TPM2 → `tss-esapi` crate.~~ Native
