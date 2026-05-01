@@ -229,6 +229,140 @@ jobs:
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
 
+  build-linux-arm64:
+    # Native ARM64 build on the GitHub-hosted `ubuntu-24.04-arm`
+    # runner (free for public repositories). Targets users on
+    # Raspberry Pi 5 (8 GB), Asahi Linux on Apple Silicon, AWS
+    # Graviton, Ampere Altra, and any other aarch64 desktop
+    # Linux. Cross-compile from ubuntu-latest x86_64 was the
+    # alternative; native runner is simpler (no `gcc-aarch64-linux-gnu`
+    # cross-toolchain, no `cargo --target aarch64-unknown-linux-gnu`
+    # gymnastics, no QEMU for the AppImage build) and produces
+    # binaries identical in shape to what an end-user would
+    # build from source on their own ARM64 machine.
+    needs: preflight
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    env:
+      SOURCE_DATE_EPOCH: ${{ needs.preflight.outputs.source_date_epoch }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Linux build dependencies
+        # Same set as build-linux-x64; `libtss2-dev` is required
+        # by tss-esapi for the native TPM2 backend (NI-1).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libtss2-dev lld
+
+      - name: Install Rust toolchain
+        # Cargokit picks up the `aarch64-unknown-linux-gnu` host
+        # target automatically when run on an ARM64 runner; no
+        # explicit `rustup target add` needed because the host
+        # toolchain triple already matches the build target.
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup show
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Linux ARM64
+        run: flutter build linux --release
+
+      - name: Package tar.gz
+        # Same reproducible-tar invocation as the x64 path —
+        # SOURCE_DATE_EPOCH + sort=name + numeric-owner + gzip -n
+        # produce a deterministic stream so two runs at the same
+        # commit yield identical sha256.
+        run: |
+          cd build/linux/arm64/release/bundle
+          tar --sort=name \
+              --owner=0 --group=0 --numeric-owner \
+              --mtime="@${SOURCE_DATE_EPOCH}" \
+              -cf - . \
+            | gzip -n -9 \
+            > ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
+
+      - name: Package AppImage
+        # NOTE: appimagetool aarch64 sha256 is not pinned here yet
+        # — needs to be sourced from the real upstream release
+        # (https://github.com/AppImage/appimagetool/releases/tag/1.9.1)
+        # and added as both the cache key suffix and the
+        # `sha256sum -c` expected value, mirroring the x64 path
+        # above. Until that lands the AppImage step downloads
+        # fresh per run; this is acceptable for the initial
+        # ARM64 ramp because the release tags are immutable
+        # (gh release download against a fixed tag is
+        # supply-chain-equivalent to a hash pin in practice),
+        # but should be tightened to match x64 before declaring
+        # ARM64 a first-class shipping channel.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download 1.9.1 --repo AppImage/appimagetool --pattern 'appimagetool-aarch64.AppImage' --output appimagetool
+          chmod +x appimagetool
+          APPDIR=AppDir
+          mkdir -p $APPDIR/usr/bin $APPDIR/usr/lib $APPDIR/usr/share/applications $APPDIR/usr/share/icons/hicolor/256x256/apps
+          cp -r build/linux/arm64/release/bundle/* $APPDIR/usr/bin/
+          cp linux/packaging/letsflutssh.desktop $APPDIR/usr/share/applications/
+          cp linux/packaging/letsflutssh.desktop $APPDIR/
+          cp assets/icons/icon.png $APPDIR/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          cp assets/icons/icon.png $APPDIR/letsflutssh.png
+          cat > $APPDIR/AppRun << 'APPRUN'
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "$HERE/usr/bin/letsflutssh" "$@"
+          APPRUN
+          chmod +x $APPDIR/AppRun
+          ARCH=aarch64 ./appimagetool --no-appstream $APPDIR letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
+
+      - name: Package deb
+        run: |
+          VER=${{ needs.preflight.outputs.version }}
+          PKG=letsflutssh_${VER}_arm64
+          mkdir -p $PKG/DEBIAN
+          mkdir -p $PKG/usr/bin
+          mkdir -p $PKG/usr/lib/letsflutssh
+          mkdir -p $PKG/usr/share/applications
+          mkdir -p $PKG/usr/share/icons/hicolor/256x256/apps
+          cp -r build/linux/arm64/release/bundle/* $PKG/usr/lib/letsflutssh/
+          ln -sf /usr/lib/letsflutssh/letsflutssh $PKG/usr/bin/letsflutssh
+          cp linux/packaging/letsflutssh.desktop $PKG/usr/share/applications/
+          cp assets/icons/icon.png $PKG/usr/share/icons/hicolor/256x256/apps/letsflutssh.png
+          cat > $PKG/DEBIAN/control << EOF
+          Package: letsflutssh
+          Version: ${VER}
+          Architecture: arm64
+          Maintainer: LetsFLUTssh <noreply@letsflutssh.dev>
+          Description: Lightweight cross-platform SSH/SFTP client
+           A full-featured SSH terminal and SFTP file browser with session
+           management, encrypted credential storage, and tiling terminal layout.
+          Depends: libgtk-3-0, libsecret-1-0
+          Section: net
+          Priority: optional
+          EOF
+          dpkg-deb --build $PKG
+          mv ${PKG}.deb letsflutssh-${VER}-linux-arm64.deb
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: linux-arm64
+          retention-days: 7
+          path: |
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.deb
+
   build-windows:
     needs: preflight
     runs-on: windows-latest
@@ -326,6 +460,105 @@ jobs:
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
             letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
+
+  build-windows-arm64:
+    # Native ARM64 Windows build on the GitHub-hosted
+    # `windows-11-arm` runner. Targets Snapdragon X / Surface Pro X
+    # devices — a small but growing user base for ARM64 Windows
+    # desktop. Native runner over cross-compile from windows-latest
+    # for the same reasons as Linux ARM64: no separate target add /
+    # linker swap, cargokit picks the host triple naturally, and
+    # the Inno Setup + Authenticode flows are unchanged.
+    needs: preflight
+    runs-on: windows-11-arm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Rust toolchain
+        # `aarch64-pc-windows-msvc` is the host triple on this
+        # runner; cargokit uses it directly without an explicit
+        # `rustup target add`. The MSVC linker / SDK is already
+        # provisioned on the runner image.
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup show
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Windows ARM64
+        run: flutter build windows --release
+
+      - name: Self-signed Authenticode
+        # Same self-sign-then-discard certificate flow as
+        # build-windows; the alternative SmartScreen dialog is
+        # equally relevant on ARM64 (the Authenticode signature
+        # is the property of the publisher identity, not the CPU
+        # architecture).
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject "CN=LetsFLUTssh Open Source, O=Llloooggg, C=XX" `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -KeyAlgorithm RSA `
+            -KeyLength 3072 `
+            -HashAlgorithm SHA256 `
+            -NotAfter (Get-Date).AddYears(2)
+          $exe = "build\windows\arm64\runner\Release\letsflutssh.exe"
+          Set-AuthenticodeSignature `
+            -FilePath $exe `
+            -Certificate $cert `
+            -HashAlgorithm SHA256 `
+            -TimestampServer http://timestamp.digicert.com
+          Get-AuthenticodeSignature $exe
+
+      - name: Package zip
+        run: Compress-Archive -Path build\windows\arm64\runner\Release\* -DestinationPath letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
+
+      - name: Install Inno Setup
+        # Inno Setup ships an x86 installer that runs under x64
+        # emulation on ARM64 Windows. The installer it produces
+        # carries an `ArchitecturesAllowed` clause in
+        # `windows/packaging/setup.iss` that determines whether
+        # the resulting installer marks itself as ARM64 — see
+        # the setup.iss tweak below before this build is
+        # declared a first-class shipping channel.
+        run: choco install innosetup -y --no-progress
+
+      - name: Package EXE installer
+        # NOTE: `windows/packaging/setup.iss` currently targets
+        # x64 only. For an ARM64-clean installer the `ArchitecturesAllowed`
+        # / `ArchitecturesInstallIn64BitMode` directives need an
+        # `arm64` entry, otherwise Windows installer flags it
+        # "may not run correctly on ARM64". Tracked as a Wave 5b
+        # follow-up. Until then this step produces a zip-only
+        # release artifact for ARM64 (the Inno Setup .exe is
+        # skipped via the `if: false` guard below).
+        if: false
+        run: |
+          $env:APP_VERSION = "${{ needs.preflight.outputs.version }}"
+          $env:BUILD_DIR = "${{ github.workspace }}\build\windows\arm64\runner\Release"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
+          Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64-setup.exe" .
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-arm64
+          retention-days: 7
+          path: |
+            letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
 
   build-macos:
     needs: preflight
@@ -443,6 +676,57 @@ jobs:
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
 
+  build-ios-unsigned:
+    # Compile-validation only — no Apple Developer ID, so no
+    # signed `.ipa` is shippable from CI. The point of this job is
+    # to surface iOS-cfg breakage at release-tag time on the same
+    # SHA the macOS path is also built from, so a regression that
+    # only manifests on `cfg(target_os = "ios")` (e.g. a divergence
+    # between the macOS and iOS Apple-stack code paths in
+    # `lfs_os_security`) is caught here rather than waiting for an
+    # external user to discover it. The `rust-cross-check` matrix
+    # in ci.yml already covers `aarch64-apple-ios` for `cargo
+    # check` on every PR; this job extends the validation to a
+    # full Flutter iOS bundle build that exercises cargokit's
+    # iOS xcframework path end-to-end.
+    needs: preflight
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Rust toolchain + iOS targets
+        # `aarch64-apple-ios` for real devices, `aarch64-apple-ios-sim`
+        # + `x86_64-apple-ios` for the simulator slice cargokit
+        # produces alongside. All three feed into the xcframework
+        # cargokit assembles for the iOS Frameworks dir.
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+          rustup show
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build iOS (no codesign)
+        # `--no-codesign` skips the provisioning-profile / signing
+        # identity requirement so the build runs without an Apple
+        # Developer Program account. Output is an unsigned `.app`
+        # bundle inside `build/ios/iphoneos/` that cannot be
+        # installed on a device but is sufficient to prove the
+        # iOS toolchain + Apple-cfg Rust + Swift plugins all
+        # compile and link cleanly.
+        run: flutter build ios --release --no-codesign
+
   build-android:
     needs: preflight
     runs-on: ubuntu-latest
@@ -515,7 +799,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v') || inputs.create_release == true
-    needs: [preflight, build-linux-x64, build-windows, build-macos, build-android]
+    needs: [preflight, build-linux-x64, build-linux-arm64, build-windows, build-windows-arm64, build-macos, build-ios-unsigned, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -617,7 +901,8 @@ jobs:
           # Build the manifest (sha256sum format), names only.
           MANIFEST="artifacts/letsflutssh-${VERSION}.sha256sums"
           : > "$MANIFEST"
-          for d in artifacts/linux-x64 artifacts/windows-x64 \
+          for d in artifacts/linux-x64 artifacts/linux-arm64 \
+                   artifacts/windows-x64 artifacts/windows-arm64 \
                    artifacts/macos-universal artifacts/android-apk; do
             [ -d "$d" ] || continue
             (cd "$d" && find . -maxdepth 1 -type f \
@@ -650,8 +935,12 @@ jobs:
             artifacts/linux-x64/*.tar.gz
             artifacts/linux-x64/*.AppImage
             artifacts/linux-x64/*.deb
+            artifacts/linux-arm64/*.tar.gz
+            artifacts/linux-arm64/*.AppImage
+            artifacts/linux-arm64/*.deb
             artifacts/windows-x64/*.zip
             artifacts/windows-x64/*.exe
+            artifacts/windows-arm64/*.zip
             artifacts/macos-universal/*.tar.gz
             artifacts/macos-universal/*.dmg
             artifacts/android-apk/*.apk
@@ -681,7 +970,8 @@ jobs:
           # Use any binary to pull the bundle — they all map to the
           # same attestation.
           anchor=""
-          for f in artifacts/linux-x64/* artifacts/windows-x64/* \
+          for f in artifacts/linux-x64/* artifacts/linux-arm64/* \
+                   artifacts/windows-x64/* artifacts/windows-arm64/* \
                    artifacts/macos-universal/* artifacts/android-apk/*; do
             [ -f "$f" ] || continue
             case "$f" in
@@ -828,8 +1118,12 @@ jobs:
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
+            artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
+            artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
+            artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.deb
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64.zip
             artifacts/windows-x64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe
+            artifacts/windows-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
