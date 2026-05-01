@@ -233,6 +233,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<BusEvent> dco_decode_StreamSink_bus_event_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<DbTransferProgress>
+  dco_decode_StreamSink_db_transfer_progress_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<SshShellEvent> dco_decode_StreamSink_ssh_shell_event_Sse(
     dynamic raw,
   );
@@ -706,6 +710,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTransferKind dco_decode_db_transfer_kind(dynamic raw);
 
   @protected
+  DbTransferProgress dco_decode_db_transfer_progress(dynamic raw);
+
+  @protected
   DbTransferSnapshot dco_decode_db_transfer_snapshot(dynamic raw);
 
   @protected
@@ -1160,6 +1167,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<BusEvent> sse_decode_StreamSink_bus_event_Sse(
     SseDeserializer deserializer,
   );
+
+  @protected
+  RustStreamSink<DbTransferProgress>
+  sse_decode_StreamSink_db_transfer_progress_Sse(SseDeserializer deserializer);
 
   @protected
   RustStreamSink<SshShellEvent> sse_decode_StreamSink_ssh_shell_event_Sse(
@@ -1789,6 +1800,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTransferKind sse_decode_db_transfer_kind(SseDeserializer deserializer);
 
   @protected
+  DbTransferProgress sse_decode_db_transfer_progress(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbTransferSnapshot sse_decode_db_transfer_snapshot(
     SseDeserializer deserializer,
   );
@@ -2353,6 +2369,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_bus_event_Sse(
     RustStreamSink<BusEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_db_transfer_progress_Sse(
+    RustStreamSink<DbTransferProgress> self,
     SseSerializer serializer,
   );
 
@@ -3162,6 +3184,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_transfer_kind(
     DbTransferKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_transfer_progress(
+    DbTransferProgress self,
     SseSerializer serializer,
   );
 

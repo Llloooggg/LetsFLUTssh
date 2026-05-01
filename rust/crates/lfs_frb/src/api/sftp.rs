@@ -11,6 +11,17 @@ use flutter_rust_bridge::frb;
 
 use crate::api::ssh::SshSession;
 
+/// Per-file progress event emitted by [`SshSftp::upload_dir`] /
+/// [`SshSftp::download_dir`]. The Dart caller wraps each event
+/// into the existing `TransferProgress` Flutter-side model.
+#[derive(Debug, Clone)]
+pub struct DbTransferProgress {
+    pub file_name: String,
+    pub total_files: u64,
+    pub done_files: u64,
+    pub is_upload: bool,
+}
+
 /// Live SFTP client tied to a single `SshSession`. Drop on the Dart
 /// side closes the underlying channel; russh tears it down even
 /// without an explicit `close`.
@@ -146,6 +157,78 @@ impl SshSftp {
             .remove_dir_recursive(&path)
             .await
             .map_err(|e| e.to_string())
+    }
+
+    /// Recursively upload a local directory tree into a remote
+    /// path. The walker (in `lfs_core::sftp`) handles mkdir +
+    /// per-file streaming + depth cap; this shim forwards the
+    /// per-file completion event to `sink`. Dart cancellation
+    /// (subscription cancelled) closes the sink → the next
+    /// progress emission fails → the walker returns
+    /// `Error::Cancelled`.
+    pub async fn upload_dir(
+        &self,
+        local_dir: String,
+        remote_dir: String,
+        sink: crate::frb_generated::StreamSink<DbTransferProgress>,
+    ) -> Result<(), String> {
+        let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let cancelled_cb = cancelled.clone();
+        let result = self
+            .inner
+            .upload_dir(&local_dir, &remote_dir, &move |evt| {
+                if cancelled_cb.load(std::sync::atomic::Ordering::SeqCst) {
+                    return false;
+                }
+                let ok = sink
+                    .add(DbTransferProgress {
+                        file_name: evt.file_name,
+                        total_files: evt.total_files,
+                        done_files: evt.done_files,
+                        is_upload: evt.is_upload,
+                    })
+                    .is_ok();
+                if !ok {
+                    cancelled_cb.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+                ok
+            })
+            .await;
+        result.map_err(|e| e.to_string())
+    }
+
+    /// Recursively download a remote directory tree into a local
+    /// path. Mirror of [`upload_dir`] — same cancellation +
+    /// progress contract.
+    pub async fn download_dir(
+        &self,
+        remote_dir: String,
+        local_dir: String,
+        sink: crate::frb_generated::StreamSink<DbTransferProgress>,
+    ) -> Result<(), String> {
+        let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let cancelled_cb = cancelled.clone();
+        let result = self
+            .inner
+            .download_dir(&remote_dir, &local_dir, &move |evt| {
+                if cancelled_cb.load(std::sync::atomic::Ordering::SeqCst) {
+                    return false;
+                }
+                let ok = sink
+                    .add(DbTransferProgress {
+                        file_name: evt.file_name,
+                        total_files: evt.total_files,
+                        done_files: evt.done_files,
+                        is_upload: evt.is_upload,
+                    })
+                    .is_ok();
+                if !ok {
+                    cancelled_cb.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+                ok
+            })
+            .await;
+        result.map_err(|e| e.to_string())
     }
 
     /// Resolve a path against the server's working directory.

@@ -407,6 +407,64 @@ class RustSftpFs extends RemoteSftpFs {
     }
   }
 
+  /// Recursive directory upload — the walker, the per-file
+  /// streaming and the depth cap all live Rust-side now. The
+  /// Dart caller subscribes to the FRB Stream for per-file
+  /// completion events; cancelling the subscription propagates
+  /// cooperative cancellation to the Rust walker which bails at
+  /// the next yield point.
+  @override
+  Future<void> uploadDir(
+    String localDir,
+    String remoteDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {
+    try {
+      final stream = _sftp.uploadDir(localDir: localDir, remoteDir: remoteDir);
+      await for (final evt in stream) {
+        onProgress?.call(
+          TransferProgress(
+            fileName: evt.fileName,
+            totalBytes: evt.totalFiles.toInt(),
+            doneBytes: evt.doneFiles.toInt(),
+            isUpload: true,
+            isCompleted: evt.doneFiles >= evt.totalFiles,
+          ),
+        );
+      }
+    } catch (e) {
+      throw SFTPError.wrap(e, 'uploadDir', remoteDir);
+    }
+  }
+
+  /// Recursive directory download — same shape as [uploadDir].
+  @override
+  Future<void> downloadDir(
+    String remoteDir,
+    String localDir,
+    void Function(TransferProgress)? onProgress,
+  ) async {
+    try {
+      final stream = _sftp.downloadDir(
+        remoteDir: remoteDir,
+        localDir: localDir,
+      );
+      await for (final evt in stream) {
+        onProgress?.call(
+          TransferProgress(
+            fileName: evt.fileName,
+            totalBytes: evt.totalFiles.toInt(),
+            doneBytes: evt.doneFiles.toInt(),
+            isUpload: false,
+            isCompleted: evt.doneFiles >= evt.totalFiles,
+          ),
+        );
+      }
+    } catch (e) {
+      throw SFTPError.wrap(e, 'downloadDir', remoteDir);
+    }
+  }
+
   @override
   Future<void> rename(String oldPath, String newPath) async {
     try {

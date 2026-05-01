@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'ssh.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// Open an SFTP subsystem on a fresh channel of the given session.
 /// Multiple SFTP clients can coexist on one SSH session — each call
@@ -34,6 +34,14 @@ abstract class SshSftp implements RustOpaqueInterface {
   /// Resolve a path against the server's working directory.
   /// Expands `~` / relative paths the remote shell would resolve.
   Future<String> canonicalize({required String path});
+
+  /// Recursively download a remote directory tree into a local
+  /// path. Mirror of [`upload_dir`] — same cancellation +
+  /// progress contract.
+  Stream<DbTransferProgress> downloadDir({
+    required String remoteDir,
+    required String localDir,
+  });
 
   /// List a directory.
   Future<List<SftpDirEntry>> list({required String path});
@@ -67,6 +75,18 @@ abstract class SshSftp implements RustOpaqueInterface {
   /// Stat a path without resolving symlinks.
   Future<SftpFileMetadata> statSymlink({required String path});
 
+  /// Recursively upload a local directory tree into a remote
+  /// path. The walker (in `lfs_core::sftp`) handles mkdir +
+  /// per-file streaming + depth cap; this shim forwards the
+  /// per-file completion event to `sink`. Dart cancellation
+  /// (subscription cancelled) closes the sink → the next
+  /// progress emission fails → the walker returns
+  /// `Error::Cancelled`.
+  Stream<DbTransferProgress> uploadDir({
+    required String localDir,
+    required String remoteDir,
+  });
+
   /// Overwrite a small file with `data`.
   Future<void> writeFile({required String path, required List<int> data});
 }
@@ -88,6 +108,40 @@ abstract class SshSftpFile implements RustOpaqueInterface {
 
   /// Write the entire `data` slice at the current cursor.
   Future<void> writeAll({required List<int> data});
+}
+
+/// Per-file progress event emitted by [`SshSftp::upload_dir`] /
+/// [`SshSftp::download_dir`]. The Dart caller wraps each event
+/// into the existing `TransferProgress` Flutter-side model.
+class DbTransferProgress {
+  final String fileName;
+  final BigInt totalFiles;
+  final BigInt doneFiles;
+  final bool isUpload;
+
+  const DbTransferProgress({
+    required this.fileName,
+    required this.totalFiles,
+    required this.doneFiles,
+    required this.isUpload,
+  });
+
+  @override
+  int get hashCode =>
+      fileName.hashCode ^
+      totalFiles.hashCode ^
+      doneFiles.hashCode ^
+      isUpload.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbTransferProgress &&
+          runtimeType == other.runtimeType &&
+          fileName == other.fileName &&
+          totalFiles == other.totalFiles &&
+          doneFiles == other.doneFiles &&
+          isUpload == other.isUpload;
 }
 
 /// One directory entry surfaced by `SshSftp::list`.

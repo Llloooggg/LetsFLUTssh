@@ -238,6 +238,300 @@ impl Sftp {
             .await
             .map_err(|e| Error::Io(format!("sftp canonicalize: {e}")))
     }
+
+    /// Recursively upload `local_dir` into `remote_dir`. Walks the
+    /// local tree depth-first, mkdir-ing each remote directory
+    /// (best-effort — already-existing dirs are tolerated) and
+    /// streaming each file in 64 KiB chunks. Per-file completion
+    /// fires through `progress`; the closure returns `false` to
+    /// signal cancellation, in which case the walk aborts at the
+    /// next yield point with [`Error::Cancelled`].
+    ///
+    /// First-pass shape: sequential file-by-file walk. The
+    /// pre-Tier-2 Dart walker pumped 4 files per directory level
+    /// in parallel; that optimisation lands as a follow-up once
+    /// the cancellation-safe JoinSet shape is wired.
+    pub async fn upload_dir(
+        &self,
+        local_dir: &str,
+        remote_dir: &str,
+        progress: &(dyn Fn(TransferProgressEvent) -> bool + Send + Sync),
+    ) -> Result<(), Error> {
+        let total_files = count_local_files(std::path::Path::new(local_dir)).await;
+        let mut counter: u64 = 0;
+        upload_dir_inner(self, local_dir, remote_dir, total_files, &mut counter, progress, 0).await
+    }
+
+    /// Recursively download `remote_dir` into `local_dir`. Mirror
+    /// of [`upload_dir`]: lists the remote, mkdir-s each local
+    /// directory (`tokio::fs::create_dir_all`), streams each file
+    /// in 64 KiB chunks, fires per-file progress through the
+    /// closure. Same cancellation contract.
+    pub async fn download_dir(
+        &self,
+        remote_dir: &str,
+        local_dir: &str,
+        progress: &(dyn Fn(TransferProgressEvent) -> bool + Send + Sync),
+    ) -> Result<(), Error> {
+        let total_files = count_remote_files(self, remote_dir, 0).await;
+        let mut counter: u64 = 0;
+        download_dir_inner(self, remote_dir, local_dir, total_files, &mut counter, progress, 0)
+            .await
+    }
+}
+
+/// Per-file completion event emitted by [`Sftp::upload_dir`] /
+/// [`Sftp::download_dir`]. The Dart wrapper wraps these as
+/// `TransferProgress` for the existing UI surface.
+#[derive(Debug, Clone)]
+pub struct TransferProgressEvent {
+    pub file_name: String,
+    pub total_files: u64,
+    pub done_files: u64,
+    pub is_upload: bool,
+}
+
+/// Per-file streaming chunk size — matches russh-sftp's default
+/// packet window. Same constant the prior Dart walker used.
+const TRANSFER_CHUNK_SIZE: usize = 65536;
+
+async fn count_local_files(dir: &std::path::Path) -> u64 {
+    fn walk(p: std::path::PathBuf) -> std::pin::Pin<Box<dyn std::future::Future<Output = u64> + Send>> {
+        Box::pin(async move {
+            let mut rd = match tokio::fs::read_dir(&p).await {
+                Ok(rd) => rd,
+                Err(_) => return 0,
+            };
+            let mut total: u64 = 0;
+            while let Ok(Some(entry)) = rd.next_entry().await {
+                let Ok(metadata) = entry.metadata().await else { continue };
+                if metadata.is_dir() {
+                    total = total.saturating_add(walk(entry.path()).await);
+                } else {
+                    total = total.saturating_add(1);
+                }
+            }
+            total
+        })
+    }
+    walk(dir.to_path_buf()).await
+}
+
+fn count_remote_files<'a>(
+    sftp: &'a Sftp,
+    path: &'a str,
+    depth: usize,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = u64> + Send + 'a>> {
+    Box::pin(async move {
+        if depth >= SFTP_MAX_RECURSION_DEPTH {
+            return 0;
+        }
+        let entries = match sftp.list(path).await {
+            Ok(v) => v,
+            Err(_) => return 0,
+        };
+        let trimmed = path.trim_end_matches('/');
+        let mut total: u64 = 0;
+        for entry in entries {
+            let child = format!("{trimmed}/{}", entry.name);
+            if entry.is_dir {
+                total = total.saturating_add(count_remote_files(sftp, &child, depth + 1).await);
+            } else {
+                total = total.saturating_add(1);
+            }
+        }
+        total
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn upload_dir_inner<'a>(
+    sftp: &'a Sftp,
+    local_dir: &'a str,
+    remote_dir: &'a str,
+    total_files: u64,
+    counter: &'a mut u64,
+    progress: &'a (dyn Fn(TransferProgressEvent) -> bool + Send + Sync),
+    depth: usize,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
+    Box::pin(async move {
+        if depth >= SFTP_MAX_RECURSION_DEPTH {
+            return Err(Error::Io(format!(
+                "sftp upload_dir: max depth ({SFTP_MAX_RECURSION_DEPTH}) exceeded at {local_dir}"
+            )));
+        }
+        // mkdir is best-effort — directory may already exist on the remote.
+        let _ = sftp.mkdir(remote_dir).await;
+
+        let mut rd = tokio::fs::read_dir(local_dir)
+            .await
+            .map_err(|e| Error::Io(format!("read_dir {local_dir}: {e}")))?;
+        let mut files: Vec<(String, String)> = Vec::new();
+        let mut subdirs: Vec<(String, String)> = Vec::new();
+        while let Some(entry) = rd
+            .next_entry()
+            .await
+            .map_err(|e| Error::Io(format!("read_dir entry: {e}")))?
+        {
+            let Ok(metadata) = entry.metadata().await else { continue };
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let local_child = entry.path().to_string_lossy().into_owned();
+            let remote_child = format!("{}/{}", remote_dir.trim_end_matches('/'), name);
+            if metadata.is_dir() {
+                subdirs.push((local_child, remote_child));
+            } else if metadata.is_file() {
+                files.push((local_child, remote_child));
+            }
+        }
+
+        for (local_path, remote_path) in files {
+            stream_upload_file(sftp, &local_path, &remote_path).await?;
+            *counter = counter.saturating_add(1);
+            let name = std::path::Path::new(&local_path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            let cont = progress(TransferProgressEvent {
+                file_name: name,
+                total_files,
+                done_files: *counter,
+                is_upload: true,
+            });
+            if !cont {
+                return Err(Error::Cancelled);
+            }
+        }
+        for (local_child, remote_child) in subdirs {
+            upload_dir_inner(
+                sftp,
+                &local_child,
+                &remote_child,
+                total_files,
+                counter,
+                progress,
+                depth + 1,
+            )
+            .await?;
+        }
+        Ok(())
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn download_dir_inner<'a>(
+    sftp: &'a Sftp,
+    remote_dir: &'a str,
+    local_dir: &'a str,
+    total_files: u64,
+    counter: &'a mut u64,
+    progress: &'a (dyn Fn(TransferProgressEvent) -> bool + Send + Sync),
+    depth: usize,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
+    Box::pin(async move {
+        if depth >= SFTP_MAX_RECURSION_DEPTH {
+            return Err(Error::Io(format!(
+                "sftp download_dir: max depth ({SFTP_MAX_RECURSION_DEPTH}) exceeded at {remote_dir}"
+            )));
+        }
+        tokio::fs::create_dir_all(local_dir)
+            .await
+            .map_err(|e| Error::Io(format!("create_dir_all {local_dir}: {e}")))?;
+        let entries = sftp.list(remote_dir).await?;
+        let trimmed = remote_dir.trim_end_matches('/');
+        let mut files: Vec<(String, String)> = Vec::new();
+        let mut subdirs: Vec<(String, String)> = Vec::new();
+        for entry in entries {
+            let remote_child = format!("{trimmed}/{}", entry.name);
+            let local_child = format!(
+                "{}/{}",
+                local_dir.trim_end_matches('/'),
+                entry.name
+            );
+            if entry.is_dir {
+                subdirs.push((remote_child, local_child));
+            } else {
+                files.push((remote_child, local_child));
+            }
+        }
+
+        for (remote_path, local_path) in files {
+            stream_download_file(sftp, &remote_path, &local_path).await?;
+            *counter = counter.saturating_add(1);
+            let name = std::path::Path::new(&local_path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            let cont = progress(TransferProgressEvent {
+                file_name: name,
+                total_files,
+                done_files: *counter,
+                is_upload: false,
+            });
+            if !cont {
+                return Err(Error::Cancelled);
+            }
+        }
+        for (remote_child, local_child) in subdirs {
+            download_dir_inner(
+                sftp,
+                &remote_child,
+                &local_child,
+                total_files,
+                counter,
+                progress,
+                depth + 1,
+            )
+            .await?;
+        }
+        Ok(())
+    })
+}
+
+async fn stream_upload_file(sftp: &Sftp, local_path: &str, remote_path: &str) -> Result<(), Error> {
+    let mut local = tokio::fs::File::open(local_path)
+        .await
+        .map_err(|e| Error::Io(format!("open {local_path}: {e}")))?;
+    let remote = sftp.create(remote_path).await?;
+    let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+    loop {
+        let n = local
+            .read(&mut buf)
+            .await
+            .map_err(|e| Error::Io(format!("local read {local_path}: {e}")))?;
+        if n == 0 {
+            break;
+        }
+        remote.write_all(&buf[..n]).await?;
+    }
+    Ok(())
+}
+
+async fn stream_download_file(
+    sftp: &Sftp,
+    remote_path: &str,
+    local_path: &str,
+) -> Result<(), Error> {
+    let remote = sftp.open(remote_path).await?;
+    let mut local = tokio::fs::File::create(local_path)
+        .await
+        .map_err(|e| Error::Io(format!("create {local_path}: {e}")))?;
+    loop {
+        let chunk = remote.read_chunk(TRANSFER_CHUNK_SIZE).await?;
+        if chunk.is_empty() {
+            break;
+        }
+        local
+            .write_all(&chunk)
+            .await
+            .map_err(|e| Error::Io(format!("local write {local_path}: {e}")))?;
+    }
+    local
+        .flush()
+        .await
+        .map_err(|e| Error::Io(format!("local flush {local_path}: {e}")))?;
+    Ok(())
 }
 
 /// Streaming SFTP file handle. Wraps russh-sftp's `File` (which

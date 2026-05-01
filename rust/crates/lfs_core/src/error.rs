@@ -44,6 +44,13 @@ pub enum Error {
 
     #[error("timeout")]
     Timeout,
+
+    /// Operation was cancelled cooperatively — typically a long-
+    /// running walker (recursive SFTP transfer, archive build)
+    /// noticed its progress callback returned `false` and stopped
+    /// at the next yield point.
+    #[error("cancelled")]
+    Cancelled,
 }
 
 impl From<russh::Error> for Error {
