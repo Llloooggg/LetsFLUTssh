@@ -620,17 +620,20 @@ Performance + footprint items, separate from migration. Run
 `cargo build --timings` + a profiling pass before committing
 any of these — measure twice.
 
-### Bundle size — `liblfs_frb.so` = 19 MiB (release)
+### Bundle size — `liblfs_frb.so` (release)
 
-Heavy for a single shared object. Quick wins in `rust/Cargo.toml`
-under `[profile.release]`:
+Pre-tighten baseline: 20 MiB. After applying the documented
+quick wins (`strip = "symbols"` + `panic = "abort"` on top of
+the existing `lto = "fat"` + `codegen-units = 1` + `opt-level = 3`):
+**16.6 MiB**, ~17% saved (3.4 MiB).
 
 ```toml
 [profile.release]
-strip = true                 # drop debug symbols
-lto = "fat"                  # whole-program LTO
-codegen-units = 1            # slower link, smaller binary
-panic = "abort"              # if no production catch_unwind
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+strip = "symbols"           # drop debug + symbol tables
+panic = "abort"             # drop unwinding tables / landing pads
 ```
 
 Heavy deps by `cargo tree -p lfs_core --depth 1` (for context):
@@ -639,8 +642,25 @@ Heavy deps by `cargo tree -p lfs_core --depth 1` (for context):
 without a feature loss. The optimization is on the build profile,
 not the dep set.
 
-Target: pin a measured baseline (current 19 MiB) + a goal
-(< 14 MiB after strip + LTO + codegen-units = 1).
+Plan target was < 14 MiB; we landed at 16.6 MiB. The gap is the
+new objc2 / security-framework / arboard / secret-service / windows
+dep tree the Tier 2 + Tier 3 native migrations brought in
+(none on the original 19 MiB baseline). Further shrinking would
+need (a) feature-gating zbus down (currently `default-features = false +
+features = ["tokio"]` is the minimum set for fprintd + logind); (b)
+considering `opt-level = "z"` (smaller code at the cost of speed —
+needs profiling on the SSH cipher hot path before flipping); (c)
+splitting the cdylib so per-platform features ship only what they
+need (cargo workspaces don't make this easy without separate adapter
+crates per platform). All three are individual focused arcs.
+
+`panic = "abort"` trade-off: a panic anywhere in our Rust code
+or a transitive dep aborts the process instead of unwinding into
+Dart's catch handlers. Acceptable because every `Result<_, Error>`
+boundary is explicit; panics in our code only fire on programming
+errors (poisoned mutex, debug-only integer overflow); the user-
+visible "what changed" between graceful failure and hard abort is
+the same thing they'd see if the OOM killer fired.
 
 ### Hot-path candidates (need profiling, not assumption)
 

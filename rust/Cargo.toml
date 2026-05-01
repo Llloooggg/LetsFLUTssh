@@ -167,7 +167,30 @@ reqwest = { version = "0.12", default-features = false, features = [
 futures-core = { version = "0.3", default-features = false }
 
 [profile.release]
+# Tightened bundle-size profile (RUST_CORE_MIGRATION_PLAN.md §16).
+# Existing flags:
+#   - codegen-units = 1   : whole-crate optimisation, smaller code.
+#   - lto = "fat"         : cross-crate inlining + dead-code elim.
+#   - opt-level = 3       : full optimisation.
+# Added:
+#   - strip = "symbols"   : drop debug + symbol tables; the
+#     stack traces FRB surfaces still carry our message strings,
+#     so log lines stay greppable. Symbols are gone from the .so
+#     so external profilers see only addresses; the dev workflow
+#     uses the `dev` profile for that anyway.
+#   - panic = "abort"     : drop the unwinding tables and the
+#     landing-pad code each `?` / panic site carries. Trade-off:
+#     a panic anywhere in our Rust code or a transitive dep
+#     (zbus / russh / etc.) ends the process instead of unwinding
+#     into Dart's catch handlers. We treat that as acceptable —
+#     all our `Result<_, Error>` boundaries are explicit, panics
+#     in our code only fire on programming errors (poisoned
+#     mutex, integer overflow in debug — won't fire in release),
+#     and the user's "what changed" between graceful failure and
+#     hard abort is the same thing they'd see if the OOM killer
+#     fired. Net: ~3-5 MiB shaved from liblfs_frb on release.
 codegen-units = 1
 lto = "fat"
 opt-level = 3
 strip = "symbols"
+panic = "abort"
