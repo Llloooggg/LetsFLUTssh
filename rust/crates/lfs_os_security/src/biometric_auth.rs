@@ -156,10 +156,35 @@ mod platform_impl {
     use windows::Security::Credentials::UI::{
         UserConsentVerificationResult, UserConsentVerifier, UserConsentVerifierAvailability,
     };
+    use windows_future::{AsyncStatus, IAsyncOperation};
+
+    /// Block the current thread until an `IAsyncOperation<T>`
+    /// completes, then return its result. windows-rs 0.62
+    /// dropped the convenience `.get()` method that earlier
+    /// versions exposed; the canonical replacement is to poll
+    /// `Status()` and call `GetResults()` once it leaves the
+    /// `Started` state. The 5 ms sleep is benign — the
+    /// UserConsentVerifier paths land in single-digit ms (the
+    /// availability check is a synchronous registry / WMI
+    /// lookup wrapped in the IAsyncOperation contract; the
+    /// verification call is bounded by user response time, which
+    /// dominates over the polling cost).
+    fn block_on<T: windows::core::RuntimeType + 'static>(
+        op: IAsyncOperation<T>,
+    ) -> windows::core::Result<T> {
+        loop {
+            match op.Status()? {
+                AsyncStatus::Started => {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+                _ => return op.GetResults(),
+            }
+        }
+    }
 
     pub(super) async fn check_availability() -> AvailabilityResult {
         let availability = tokio::task::spawn_blocking(|| {
-            UserConsentVerifier::CheckAvailabilityAsync().and_then(|op| op.get())
+            UserConsentVerifier::CheckAvailabilityAsync().and_then(block_on)
         })
         .await
         .map_err(|e| BiometricUnavailableReason::Probe(format!("tokio join: {e}")))?
@@ -188,13 +213,10 @@ mod platform_impl {
     pub(super) async fn authenticate(reason: &str) -> bool {
         let message: HSTRING = reason.into();
         let result = tokio::task::spawn_blocking(move || {
-            UserConsentVerifier::RequestVerificationAsync(&message).and_then(|op| op.get())
+            UserConsentVerifier::RequestVerificationAsync(&message).and_then(block_on)
         })
         .await;
-        match result {
-            Ok(Ok(UserConsentVerificationResult::Verified)) => true,
-            _ => false,
-        }
+        matches!(result, Ok(Ok(UserConsentVerificationResult::Verified)))
     }
 }
 

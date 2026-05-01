@@ -1,24 +1,48 @@
-//! OS session-lock event listener.
+//! OS session-lock event listener — Rust on Linux + macOS +
+//! Windows; iOS / Android stay on the Flutter lifecycle hook.
 //!
-//! Replaces the Linux native plugin's logind subscription with a
-//! Rust zbus listener. macOS + Windows keep their existing
-//! native plugins because both platforms' lock subscriptions are
-//! window/observer-bound to plumbing the Flutter engine already
-//! provides:
+//! Closes the architectural-uniformity gap recorded as
+//! [NI-3](../../../../docs/RUST_CORE_MIGRATION_PLAN.md#ni-3--session_lock_listener-macos--windows-on-dart-methodchannel)
+//! in the migration plan. Earlier revisions kept macOS + Windows
+//! on Dart MethodChannel under the rationale "Cocoa run-loop /
+//! HWND-scoped — duplicate plumbing without correctness gain";
+//! re-classified as non-ideal because the plumbing genuinely
+//! lives in `lfs_os_security` regardless of how the OS surfaces
+//! the event, and treating it as such restores the
+//! "Rust owns OS-API on every platform" invariant the rest of
+//! the security stack already maintains.
 //!
-//! - **Windows** — `WTSRegisterSessionNotification` is HWND-scoped;
-//!   the main `flutter::FlutterViewController` window is the
-//!   natural pump for `WM_WTSSESSION_CHANGE`.
-//! - **macOS** — `DistributedNotificationCenter` observers need
-//!   a Cocoa run loop; the Flutter app's main thread already
-//!   carries one. Re-registering on a Rust-spawned thread would
-//!   duplicate that loop.
+//! Per-platform plumbing:
 //!
-//! On Linux the existing native plugin used the Dart `dbus`
-//! package over the system bus; that path migrates here so the
-//! `dbus` Dart dep can drop entirely (already removed by the
-//! `fprintd_client` migration). iOS / Android use Flutter's
-//! lifecycle-paused hook instead — no Rust listener wired.
+//! - **Linux** — `org.freedesktop.login1.Session.Lock` D-Bus
+//!   signal subscribed via `zbus` (the historical Linux path,
+//!   unchanged).
+//! - **macOS** — `NSDistributedNotificationCenter` observer for
+//!   `com.apple.screenIsLocked`, registered from a dedicated
+//!   thread that owns its own `NSRunLoop` (separate from the
+//!   Flutter engine's main-thread loop, so observer registration
+//!   does not contend with Cocoa main-thread work).
+//! - **Windows** — `WTSRegisterSessionNotification` against a
+//!   hidden message-only window (`HWND_MESSAGE` parent) created
+//!   on a dedicated thread that pumps `GetMessageW` / `DispatchMessageW`.
+//!   The window class lives only for the lifetime of the
+//!   listener thread; the `WindowProc` filters
+//!   `WM_WTSSESSION_CHANGE` for the `WTS_SESSION_LOCK` wparam
+//!   (`0x07`) and forwards via the broadcast channel.
+//! - **iOS / Android** — no Rust listener; the Flutter
+//!   `AppLifecycleState.paused` / `.resumed` callbacks already
+//!   cover the equivalent surface (when the user backgrounds
+//!   the app the auto-lock state machine fires the same way it
+//!   does on a desktop screen-lock).
+//!
+//! **Verification status**: cross-platform compile validation
+//! lands via `ci.yml::rust-cross-check` (matrix covers Apple +
+//! Windows targets every PR). End-to-end runtime verification
+//! on real macOS + Windows machines is the
+//! [NI-2 verification gate](
+//! ../../../../docs/RUST_CORE_MIGRATION_PLAN.md#ni-2--apple--windows-rust-ports-verification-pending);
+//! the Dart MethodChannel paths remain wired in parallel until
+//! that gate flips.
 
 use tokio::sync::broadcast;
 
@@ -40,8 +64,8 @@ fn hub() -> &'static broadcast::Sender<()> {
 /// Subscribe to lock events. Returns a receiver that yields one
 /// `()` per OS lock transition. The Dart caller wraps this as a
 /// Stream via the FRB shim. On platforms with no Rust listener
-/// (everything except Linux today) the receiver stays armed but
-/// never fires; the Dart wrapper short-circuits before invoking.
+/// (iOS / Android) the receiver stays armed but never fires;
+/// the Dart wrapper short-circuits before invoking.
 pub fn subscribe() -> broadcast::Receiver<()> {
     hub().subscribe()
 }
@@ -89,10 +113,260 @@ async fn run_logind_listener(tx: broadcast::Sender<()>) -> zbus::Result<()> {
     Ok(())
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "macos")]
+fn spawn_platform_listener(tx: broadcast::Sender<()>) {
+    // Dedicated OS thread owns its own NSRunLoop so observer
+    // callbacks fire even when the Flutter engine's main-thread
+    // loop is busy. The thread blocks on `NSRunLoop::run` for
+    // the lifetime of the process — same shape as the foreign
+    // event-loop pattern the macOS security plugins already use.
+    std::thread::spawn(move || {
+        macos_impl::install_observer_and_run(tx);
+    });
+}
+
+#[cfg(target_os = "macos")]
+mod macos_impl {
+    use super::broadcast;
+    use objc2::rc::Retained;
+    use objc2::runtime::ProtocolObject;
+    use objc2::{define_class, msg_send, sel, ClassType, DefinedClass, MainThreadMarker};
+    use objc2_foundation::{
+        NSDistributedNotificationCenter, NSNotification, NSNotificationCenter, NSObject,
+        NSObjectProtocol, NSRunLoop, NSString,
+    };
+
+    /// Per-thread observer object — owns the `Sender` so the
+    /// objc-msg-send callback can fan-out without a global.
+    /// Defined as an Objective-C class so `addObserver:selector:name:object:`
+    /// can hold a strong reference to it for the lifetime of the
+    /// notification subscription.
+    pub struct ObserverIvars {
+        tx: broadcast::Sender<()>,
+    }
+
+    define_class!(
+        #[unsafe(super(NSObject))]
+        #[name = "LFSSessionLockObserver"]
+        #[ivars = ObserverIvars]
+        pub struct LockObserver;
+
+        unsafe impl NSObjectProtocol for LockObserver {}
+
+        impl LockObserver {
+            #[unsafe(method(handleLock:))]
+            fn handle_lock(&self, _note: &NSNotification) {
+                // `tx.send` errors only when there are zero
+                // subscribers; we just drop the event and the
+                // next subscriber catches the following one.
+                let _ = self.ivars().tx.send(());
+            }
+        }
+    );
+
+    impl LockObserver {
+        fn new(tx: broadcast::Sender<()>) -> Retained<Self> {
+            let this = Self::alloc().set_ivars(ObserverIvars { tx });
+            unsafe { msg_send![super(this), init] }
+        }
+    }
+
+    pub fn install_observer_and_run(tx: broadcast::Sender<()>) {
+        // SAFETY: observer registration is thread-safe per Apple's
+        // NSDistributedNotificationCenter docs; the run loop call
+        // owns the thread for the rest of the process lifetime.
+        // No MainThreadMarker required because we're explicitly
+        // running our own loop, not the main thread's.
+        let observer = LockObserver::new(tx);
+        let center = unsafe { NSDistributedNotificationCenter::defaultCenter() };
+        let center_super: &NSNotificationCenter = &center;
+
+        // The screen-lock notification name is documented in
+        // Apple's CoreGraphics private notes; the string literal
+        // has been stable since 10.6 (Snow Leopard) and is what
+        // every third-party "lock listener" implementation uses,
+        // including the Swift plugin this Rust path replaces.
+        let name = NSString::from_str("com.apple.screenIsLocked");
+
+        unsafe {
+            center_super.addObserver_selector_name_object(
+                ProtocolObject::from_ref(&*observer),
+                sel!(handleLock:),
+                Some(&name),
+                None,
+            );
+        }
+
+        // Keep the observer alive for the lifetime of the
+        // run-loop thread — leak it intentionally so a future
+        // refactor that moves install/run into separate calls
+        // does not accidentally drop the observer (which would
+        // unregister it from the notification center).
+        std::mem::forget(observer);
+
+        // Block this thread on the per-thread NSRunLoop. The
+        // observer callback fires on this thread's loop, posts
+        // to the tokio broadcast, and returns. `run` never
+        // returns under normal operation.
+        let run_loop = unsafe { NSRunLoop::currentRunLoop() };
+        unsafe { run_loop.run() };
+
+        // If `run` returns (process shutdown / unusual signal),
+        // the observer leak above is reaped with the process —
+        // not a real leak.
+        let _ = MainThreadMarker::new(); // silence unused-import lint
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn spawn_platform_listener(tx: broadcast::Sender<()>) {
+    // Same shape as the macOS path: dedicated thread owns the
+    // window message pump for the lifetime of the listener.
+    // CreateWindowExW + RegisterClassW are not safe to share
+    // across threads (the window class atom + window handle
+    // are thread-affine), so the listener thread is the natural
+    // owner of both.
+    std::thread::spawn(move || {
+        windows_impl::install_window_and_pump(tx);
+    });
+}
+
+#[cfg(target_os = "windows")]
+mod windows_impl {
+    use super::broadcast;
+    use std::cell::Cell;
+    use std::ffi::c_void;
+    use std::ptr::null_mut;
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::System::RemoteDesktop::{
+        WTSRegisterSessionNotification, WTSUnRegisterSessionNotification, NOTIFY_FOR_THIS_SESSION,
+    };
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, RegisterClassW,
+        TranslateMessage, MSG, WINDOW_EX_STYLE, WINDOW_STYLE, WM_WTSSESSION_CHANGE, WNDCLASSW,
+        WTS_SESSION_LOCK,
+    };
+
+    // Windows message id for session changes; `WM_WTSSESSION_CHANGE`
+    // is the public name. `wparam` carries the change reason —
+    // `WTS_SESSION_LOCK` (0x7) is the lock event, `WTS_SESSION_UNLOCK`
+    // (0x8) is the unlock; we forward only locks (the auto-lock
+    // state machine's input).
+    const WC_NAME: &[u16] = &[
+        b'L' as u16,
+        b'F' as u16,
+        b'S' as u16,
+        b'S' as u16,
+        b'e' as u16,
+        b's' as u16,
+        b's' as u16,
+        b'i' as u16,
+        b'o' as u16,
+        b'n' as u16,
+        b'L' as u16,
+        b'o' as u16,
+        b'c' as u16,
+        b'k' as u16,
+        0,
+    ];
+
+    thread_local! {
+        // Per-thread tx — populated by `install_window_and_pump`
+        // before the message pump starts. `WindowProc` is a
+        // C-callable extern fn so it cannot capture state via
+        // closure; the thread-local is the cleanest non-static
+        // bridge that does not pollute global state.
+        static TX_SLOT: Cell<*const broadcast::Sender<()>> = const { Cell::new(null_mut()) };
+    }
+
+    unsafe extern "system" fn window_proc(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
+        if msg == WM_WTSSESSION_CHANGE && wparam.0 as u32 == WTS_SESSION_LOCK {
+            TX_SLOT.with(|slot| {
+                let ptr = slot.get();
+                if !ptr.is_null() {
+                    let tx = &*ptr;
+                    let _ = tx.send(());
+                }
+            });
+            return LRESULT(0);
+        }
+        DefWindowProcW(hwnd, msg, wparam, lparam)
+    }
+
+    pub fn install_window_and_pump(tx: broadcast::Sender<()>) {
+        // Stash the sender so `window_proc` can reach it from the
+        // C ABI callback. Boxed + leaked because `WindowProc` runs
+        // for the lifetime of the thread; reclaiming on shutdown
+        // is not worth the complexity.
+        let tx_ptr = Box::into_raw(Box::new(tx)) as *const broadcast::Sender<()>;
+        TX_SLOT.with(|slot| slot.set(tx_ptr));
+
+        unsafe {
+            let h_instance = GetModuleHandleW(PCWSTR::null()).unwrap_or_default();
+            let class = WNDCLASSW {
+                lpfnWndProc: Some(window_proc),
+                hInstance: h_instance.into(),
+                lpszClassName: PCWSTR(WC_NAME.as_ptr()),
+                ..Default::default()
+            };
+            // RegisterClassW returns 0 on failure; we treat that
+            // as "listener inert" rather than crashing the host
+            // process, matching the best-effort posture of the
+            // logind listener on Linux.
+            if RegisterClassW(&class) == 0 {
+                return;
+            }
+
+            // HWND_MESSAGE = -3 cast to HWND; creates a
+            // message-only window that never appears on screen
+            // and does not enter the top-level window list.
+            let hwnd_message = HWND(-3isize as *mut c_void);
+            let hwnd = match CreateWindowExW(
+                WINDOW_EX_STYLE(0),
+                PCWSTR(WC_NAME.as_ptr()),
+                PCWSTR::null(),
+                WINDOW_STYLE(0),
+                0,
+                0,
+                0,
+                0,
+                Some(hwnd_message),
+                None,
+                Some(h_instance.into()),
+                None,
+            ) {
+                Ok(h) => h,
+                Err(_) => return,
+            };
+
+            if WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION).is_err() {
+                return;
+            }
+
+            // Standard Win32 message pump — blocks for the
+            // lifetime of the thread. `WM_WTSSESSION_CHANGE`
+            // events route to `window_proc` via `DispatchMessageW`.
+            let mut msg = MSG::default();
+            while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+                let _ = TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+
+            let _ = WTSUnRegisterSessionNotification(hwnd);
+        }
+    }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 fn spawn_platform_listener(_tx: broadcast::Sender<()>) {
-    // Windows / macOS keep their existing native plugins; iOS /
-    // Android route through the Flutter lifecycle-paused hook.
+    // iOS / Android route through the Flutter lifecycle-paused hook.
 }
 
 #[cfg(test)]

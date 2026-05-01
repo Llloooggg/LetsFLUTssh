@@ -702,47 +702,53 @@ until ramped.
 
 ### NI-3 — `session_lock_listener` macOS / Windows on Dart MethodChannel
 
-**Current**: Linux migrated to
-`lfs_os_security::session_lock_listener` (zbus →
-`org.freedesktop.login1.Session.Lock` signal stream). macOS
-+ Windows kept on Dart MethodChannel + native plugin
-(`NSDistributedNotificationCenter` observer on macOS;
-`WTSRegisterSessionNotification` on Windows).
+**Status**: **Rust paths landed (2026-05) for all three desktop
+platforms; Dart MethodChannel kept in parallel until
+real-device verification (NI-2 gate) flips them off.**
 
-**Ideal**: full uniformity — `lfs_os_security` owns the
-listener on all five platforms, Dart subscribes to a single
-FRB Stream identical across desktop OSes.
+**Current**: `lfs_os_security::session_lock_listener` covers
+Linux + macOS + Windows behind a single `subscribe()` →
+`broadcast::Receiver<()>` API. iOS / Android stay on the
+Flutter `AppLifecycleState.paused` hook (no Rust listener
+needed — the OS lifecycle event already fires the same way
+desktop screen-lock does):
 
-**Why the original "skip" reasoning was wrong**: the rejected
-rationale was "duplicate plumbing without correctness/perf
-gain". This conflates **convenience** (Flutter engine
-already pumps a Cocoa run loop / Win32 message loop) with
-**architectural value** (single source of truth across
-platforms). By Three Pillars, uniformity is itself a value:
-fewer concept-mappings to hold in head, smaller audit
-surface, every retire-the-Dart-plugin arc gets simpler.
+- **Linux** — `zbus` subscription to
+  `org.freedesktop.login1.Session.Lock` (unchanged).
+- **macOS** — dedicated thread owns its own `NSRunLoop`,
+  registers an `NSDistributedNotificationCenter` observer
+  for `com.apple.screenIsLocked` via an `objc2`-defined
+  `LFSSessionLockObserver` class. Observer callback
+  forwards on the broadcast channel; the `NSRunLoop::run`
+  loop holds the thread for the process lifetime so
+  callbacks fire reliably without contending with the
+  Flutter engine's main-thread loop.
+- **Windows** — dedicated thread creates a hidden
+  message-only window (`HWND_MESSAGE` parent), registers
+  `WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION)`,
+  and pumps `GetMessageW` / `DispatchMessageW`. The
+  `WindowProc` filters `WM_WTSSESSION_CHANGE` for
+  `WTS_SESSION_LOCK` (wparam `0x07`) and forwards on the
+  broadcast channel via a thread-local `Sender` pointer.
 
-**Implementation sketch**:
-- macOS: `objc2` bridge to `NSDistributedNotificationCenter`
-  with `addObserver:selector:name:object:` — register from a
-  Rust thread that owns its own `NSRunLoop`-driven dispatcher,
-  forward notifications via `tokio::sync::broadcast` → FRB
-  Stream. The Flutter engine's run loop is not needed for
-  observer registration; it is needed to *deliver* the
-  callback, but the observer can post into a tokio channel
-  from any thread.
-- Windows: register a hidden `HWND` from a Rust thread,
-  pump `WTS_SESSION_LOCK` / `WTS_SESSION_UNLOCK` through a
-  `WindowProc` we own, forward to the same broadcast pattern.
+**Side effect — Windows-cfg pre-existing breakage caught**:
+the rust-cross-check matrix (CI Wave 1) compile-validates
+`lfs_os_security::biometric_auth` on Windows MSVC for the
+first time. The pre-existing `op.get()` calls on
+`IAsyncOperation<T>` (windows-rs 0.62 dropped that
+convenience method) failed to compile. Fixed in the same
+arc with a `block_on` helper that polls
+`IAsyncOperation::Status` and calls `GetResults` once the
+operation leaves the `Started` state — the canonical
+windows-rs 0.62 sync-block pattern. `windows-future = "0.3"`
+added as a direct dep to surface `IAsyncOperation` +
+`AsyncStatus`.
 
-**Cost (honest)**: ~250 LOC of additional Rust per platform
-(observer setup, callback bridge, broadcast forward, FRB
-Stream wiring). The native plugin code deletes (~150 LOC of
-Swift + ~150 LOC of C# / C++).
-
-**Status**: deferred but planned. Lowest priority of the
-three NI items — the current Dart MethodChannel is genuinely
-boring and works.
+**Verification status**: cross-platform compile validation
+lands via the rust-cross-check matrix every PR. End-to-end
+runtime verification on real macOS + Windows is the NI-2
+gate; the Dart MethodChannel paths remain wired in
+parallel until that gate flips.
 
 ---
 
@@ -1341,11 +1347,19 @@ externally blocked):**
     `BiometricVaultPlugin.swift`,
     `SecureKeyStoragePlugin.swift` and Windows equivalents)
     and drop the `_useRustHardwareVault` flag.
-25. **NI-3**: `session_lock_listener` macOS + Windows →
+25. ~~**NI-3**: `session_lock_listener` macOS + Windows →
     `objc2` (`NSDistributedNotificationCenter`) + Win32
-    hidden HWND with our own `WindowProc`. Forwards through
+    hidden HWND with our own `WindowProc`.~~ Landed
+    (2026-05). macOS observer registers on a dedicated
+    `NSRunLoop` thread; Windows hidden message-only window
+    on a dedicated `GetMessageW` pump. Forwards via
     `tokio::sync::broadcast` → FRB Stream identical to the
-    Linux path. Native plugin code retires.
+    Linux logind path. Side fix: `biometric_auth.rs` Windows
+    `op.get()` migrated to a `block_on` helper polling
+    `IAsyncOperation::Status` (the windows-rs 0.62 canonical
+    sync-block pattern); `windows-future = "0.3"` added as a
+    direct dep. Native plugin retires once NI-2 verifies the
+    Rust paths on real Mac + Win hardware.
 
 ### Final — close the migration
 

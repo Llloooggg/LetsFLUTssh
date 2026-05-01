@@ -21,10 +21,32 @@ crate-type = ["rlib"]
 libc = { version = "0.2", default-features = false }
 
 # Windows-only — WinRT bindings for Windows Hello biometric
-# auth. `Security_Credentials_UI` covers UserConsentVerifier
-# (the API the Hello prompt fires through).
+# auth (`Security_Credentials_UI` covers UserConsentVerifier,
+# the API the Hello prompt fires through) plus the Win32
+# surface needed by `session_lock_listener` to register an
+# `WTSRegisterSessionNotification` callback against a hidden
+# message-only window.
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62", features = ["Security_Credentials_UI", "Foundation"] }
+windows = { version = "0.62", features = [
+    "Security_Credentials_UI",
+    "Foundation",
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_System_RemoteDesktop",
+    "Win32_UI_WindowsAndMessaging",
+] }
+# `IAsyncOperation` + `AsyncStatus` live in `windows-future` (a
+# sibling crate to `windows-core`); the `windows` umbrella crate
+# does not re-export them. Required by `biometric_auth`'s
+# UserConsentVerifier sync-block helper to poll completion of
+# the WinRT IAsyncOperation contract without dragging in a
+# heavyweight executor.
+windows-future = "0.3"
+# Tokio is needed on Windows too for the broadcast channel that
+# `session_lock_listener` uses to fan-out lock events to FRB
+# subscribers — same channel pattern as the Linux logind path.
+tokio = { workspace = true }
 
 # Linux-only deps:
 #   - `arboard` for the desktop clipboard write (X11 + Wayland;
@@ -51,7 +73,15 @@ secret-service = { version = "5", default-features = false, features = ["rt-toki
 # skip the whole objc2 crate tree.
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSError", "NSValue", "NSNotification", "NSData", "NSArray", "NSDictionary"] }
+# `NSDistributedNotificationCenter` + `NSRunLoop` features added
+# for the macOS `session_lock_listener` path — the observer that
+# fires on `com.apple.screenIsLocked` lives in NSDistributedNotificationCenter
+# and the per-thread NSRunLoop pumps the callback. iOS does not
+# expose distributed notifications (sandboxed apps can't observe
+# system-wide events), so the listener is a no-op there — but the
+# compile gate is shared with macOS via this dep block, so the
+# features land regardless.
+objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSError", "NSValue", "NSNotification", "NSData", "NSArray", "NSDictionary", "NSDistributedNotificationCenter", "NSRunLoop", "NSDate", "NSObjCRuntime"] }
 security-framework = { version = "3", default-features = false }
 security-framework-sys = { version = "2", default-features = false }
 core-foundation = { version = "0.10", default-features = false }
@@ -59,6 +89,10 @@ core-foundation-sys = { version = "0.8", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
+# Tokio is needed on macOS too for the broadcast channel that
+# `session_lock_listener` uses to fan-out lock events to FRB
+# subscribers.
+tokio = { workspace = true }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2-ui-kit = { version = "0.3", features = ["UIPasteboard"] }

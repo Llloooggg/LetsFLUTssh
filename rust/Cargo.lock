@@ -1864,6 +1864,7 @@ dependencies = [
  "security-framework-sys",
  "tokio",
  "windows",
+ "windows-future",
  "zbus",
 ]
 
