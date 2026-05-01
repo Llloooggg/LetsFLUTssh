@@ -27,19 +27,27 @@ libc = { version = "0.2", default-features = false }
 #   - `zbus` + `futures-util` + `tokio` for the logind session-
 #     lock subscription. zbus is the workspace-shared crate; the
 #     duplicate target table keeps the cfg gate explicit.
+#   - `secret-service` for the Linux libsecret backend powering
+#     `secure_key_storage` (Tier 3 — drops the
+#     flutter_secure_storage Linux dependency on libsecret-via-
+#     plugin in favour of native Rust D-Bus).
 [target.'cfg(target_os = "linux")'.dependencies]
 arboard = { version = "3", default-features = false }
 zbus = { workspace = true }
 futures-util = { workspace = true }
 tokio = { workspace = true }
+secret-service = { version = "5", default-features = false, features = ["rt-tokio-crypto-rust"] }
 
 # Apple-only deps for `backup_exclusion` (NSURL.setResourceValues:
-# isExcludedFromBackup) and `secure_clipboard` (NSPasteboard /
-# UIPasteboard). Cfg-gated so Linux / Windows builds skip the
-# whole objc2 crate tree.
+# isExcludedFromBackup), `secure_clipboard` (NSPasteboard /
+# UIPasteboard) and `secure_key_storage` (Apple Keychain via
+# security-framework). Cfg-gated so Linux / Windows builds
+# skip the whole objc2 crate tree.
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSURL", "NSString", "NSError", "NSValue", "NSNotification", "NSData", "NSArray", "NSDictionary"] }
+security-framework = { version = "3", default-features = false }
+security-framework-sys = { version = "2", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }

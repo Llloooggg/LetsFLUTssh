@@ -444,7 +444,7 @@ crates with explicit cipher policies.
 
 | File | LOC | Replacement |
 |---|---|---|
-| `core/security/secure_key_storage.dart` | 376 | `security-framework` (iOS / macOS) + `wincred` (Win) + `secret-service` (Linux libsecret) + JNI bridge to AndroidKeystore (Android) |
+| ~~`core/security/secure_key_storage.dart`~~ | ~~376~~ | partially done — desktop platforms covered by `lfs_os_security::secure_key_storage`: Linux uses the `secret-service` crate (D-Bus → libsecret / gnome-keyring / KWallet), Apple uses `security-framework` (`SecItemAdd`/`SecItemCopyMatching` against `kSecClassGenericPassword`), Windows uses raw `CredReadW`/`CredWriteW`/`CredDeleteW` extern. The Dart wrapper routes those platforms through FRB; **Android stays on `flutter_secure_storage`** until the AndroidKeystore JNI bridge lands. The biometric ACL on Apple is currently a plain entry under a `.biometric` alias suffix — proper `SecAccessControl` with `biometryCurrentSet` flags is a next-step addition (`security-framework` 3.x exposes `SecAccessControl::create_with_flags`). **Verification pending on macOS / iOS / Windows hardware.** |
 | `core/security/biometric_key_vault.dart` | 255 | same stack + biometric ACL bound at storage layer |
 | `core/security/biometric_auth.dart` | 314 | `objc2` (LAContext on iOS / macOS) + `windows-rs` (Windows Hello) + JNI (BiometricPrompt) — Tier-2 `FprintdClient` covers Linux |
 | `core/security/wipe_all_service.dart` | 223 | hooks on the new keychain stack via the Rust storage crate's iter / clear surface |

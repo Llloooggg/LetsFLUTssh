@@ -44,6 +44,7 @@ import 'api/qr_codec_encode.dart';
 import 'api/qr_compose.dart';
 import 'api/rate_limit.dart';
 import 'api/recorder.dart';
+import 'api/secure_key_storage.dart';
 import 'api/security_capabilities.dart';
 import 'api/security_config.dart';
 import 'api/session_history.dart';
@@ -616,6 +617,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSearchableSession dco_decode_db_searchable_session(dynamic raw);
+
+  @protected
+  DbSecureStorageOutcome dco_decode_db_secure_storage_outcome(dynamic raw);
 
   @protected
   DbSecurityCapabilities dco_decode_db_security_capabilities(dynamic raw);
@@ -1680,6 +1684,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSearchableSession sse_decode_db_searchable_session(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSecureStorageOutcome sse_decode_db_secure_storage_outcome(
     SseDeserializer deserializer,
   );
 
@@ -3028,6 +3037,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_searchable_session(
     DbSearchableSession self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_secure_storage_outcome(
+    DbSecureStorageOutcome self,
     SseSerializer serializer,
   );
 

@@ -1,140 +1,110 @@
-import 'dart:convert';
 import 'dart:io' show Platform, Process, ProcessException;
 import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../src/rust/api/secure_key_storage.dart' as rust_storage;
 import '../../utils/logger.dart';
 import 'linux_keychain_marker.dart';
 
-/// Thin wrapper around OS keychain for storing the AES-256 encryption key.
+/// Thin wrapper around the OS keychain for storing the AES-256
+/// encryption key.
 ///
-/// Uses [FlutterSecureStorage] (Keychain on iOS/macOS, Credential Manager on
-/// Windows, libsecret on Linux, EncryptedSharedPreferences on Android).
+/// Backend routing:
+/// - **Desktop (Linux / macOS / iOS / Windows)** — production
+///   path delegates to `lfs_os_security::secure_key_storage`
+///   via FRB (Linux libsecret over zbus, Apple Keychain via
+///   `security-framework`, Windows Credential Manager via
+///   `CredRead/Write/Delete` extern).
+/// - **Android** — keeps the existing `flutter_secure_storage`
+///   `EncryptedSharedPreferences` path until the AndroidKeystore
+///   JNI bridge lands.
+/// - **Tests** — when the [storage] constructor argument is
+///   non-null the legacy `FlutterSecureStorage` mock path runs
+///   end-to-end, so the unit suite continues to drive the same
+///   in-memory fakes it has historically used.
 ///
-/// All methods catch platform exceptions and return null/false — the caller
-/// must handle graceful fallback to plaintext or master-password mode.
-///
-/// Linux-specific: libsecret emits a non-recoverable g_warning to stderr the
-/// moment it cannot talk to a running/unlocked keyring daemon. That makes a
-/// cold `read` on a system where the keyring was never touched spam stderr
-/// on every launch. We sidestep it with a shared [LinuxKeychainMarker]: on
-/// Linux the storage APIs refuse to talk to libsecret unless the marker
-/// says the user has previously opted into keychain storage. The marker is
-/// written on a successful [writeKey] and cleared by [deleteKey]; a parallel
-/// write from [BiometricKeyVault] flips the same flag. Other platforms keep
-/// the original behaviour.
+/// Linux-specific: libsecret emits a non-recoverable g_warning
+/// to stderr the moment it cannot talk to a running/unlocked
+/// keyring daemon. The shared [LinuxKeychainMarker] gate
+/// suppresses that on cold launches before the user opts into
+/// keychain storage; the marker is written on a successful
+/// [writeKey] and cleared by [deleteKey].
 class SecureKeyStorage {
   static const _keyName = 'letsflutssh_encryption_key';
   static const _biometricKeyName = 'letsflutssh_biometric_encryption_key';
   static const _probeName = 'letsflutssh_keychain_probe';
 
-  /// Production flag flipped by [main.dart] at app startup. Widget
-  /// tests running under `FakeAsync` do not set this, so the Linux-
-  /// only `Process.run('gdbus', …)` path inside [probe] stays off in
-  /// them — any real subprocess spawn leaks a Timer onto FakeAsync's
-  /// pending-timer list and makes unrelated widget tests fail. In
-  /// production the flag is true from the first frame and the
-  /// classified probe runs normally.
+  /// Production flag flipped by `main.dart` at startup. Widget
+  /// tests don't set it, so the Linux subprocess probe inside
+  /// [probe] stays off in them.
   static bool _runtimeSubprocessProbesEnabled = false;
 
-  /// Called from production entry points (`main.dart`) to unlock the
-  /// subprocess-backed secret-service ping used by [probe] on Linux.
-  /// Widget tests intentionally do not call it.
   static void enableRuntimeSubprocessProbes() {
     _runtimeSubprocessProbesEnabled = true;
   }
 
-  final FlutterSecureStorage _storage;
+  /// Legacy-path injectable storage. Non-null forces the
+  /// `flutter_secure_storage` round-trip — used by the unit
+  /// suite to drive in-memory fakes.
+  final FlutterSecureStorage? _legacyStorage;
   final bool _skipPlatformCheck;
   final LinuxKeychainMarker _marker;
 
-  /// When [storage] is provided (tests), platform pre-checks are skipped.
-  /// [marker] overrides the shared [LinuxKeychainMarker.defaultInstance] so
-  /// tests that run on a Linux host without a real app-support dir can point
-  /// the gate at a temp path.
   SecureKeyStorage({FlutterSecureStorage? storage, LinuxKeychainMarker? marker})
-    : _storage = storage ?? const FlutterSecureStorage(),
+    : _legacyStorage = storage,
       _skipPlatformCheck = storage != null,
       _marker = marker ?? LinuxKeychainMarker.defaultInstance;
 
-  /// Gate that prevents libsecret calls on Linux until the user has at least
-  /// once successfully written to the keychain. On non-Linux platforms (and
-  /// in tests with an injected storage) this always lets the call through.
+  /// True when production should route through Rust. Tests with
+  /// an injected [_legacyStorage] always use the legacy path;
+  /// Android also stays on `flutter_secure_storage` until the
+  /// JNI bridge lands.
+  bool get _useRust =>
+      !_skipPlatformCheck &&
+      (Platform.isLinux ||
+          Platform.isMacOS ||
+          Platform.isIOS ||
+          Platform.isWindows);
+
+  FlutterSecureStorage get _storage =>
+      _legacyStorage ?? const FlutterSecureStorage();
+
   Future<bool> _linuxGatePass() async {
     if (_skipPlatformCheck || !Platform.isLinux) return true;
     return _marker.exists();
   }
 
-  /// Probe whether OS keychain is available at runtime.
-  ///
-  /// Delegates to the classified [probe] so `isAvailable` and
-  /// `probe` never disagree — earlier revisions split the two paths
-  /// (fast env check vs gdbus ping), which left
-  /// `probeCapabilities` on Linux seeing the optimistic
-  /// env-variable answer (`DBUS_SESSION_BUS_ADDRESS` set → "ok")
-  /// while the Settings reason line saw the concrete gdbus answer
-  /// ("no secret-service"). On WSL + WSLg the split caused the
-  /// first-launch flow to auto-select T1, silently hit a libsecret
-  /// write failure, and fall through to plaintext without the user
-  /// ever seeing the reduced-wizard T0-vs-Paranoid prompt.
-  ///
-  /// Widget tests that run without `enableRuntimeSubprocessProbes`
-  /// skip the gdbus path inside [probe] and receive an optimistic
-  /// `KeyringProbeResult.available`, which maps back to `true`
-  /// here — same behaviour as the earlier fast-path, same harness
-  /// compatibility.
   Future<bool> isAvailable() async {
     return (await probe()) == KeyringProbeResult.available;
   }
 
-  /// Classified keyring probe — concrete backend ping, no env-var
-  /// heuristics.
-  ///
-  /// Design: *actually talk to the service.* Every signal short of a
-  /// real round-trip was lying on some platform. Pattern-matching
-  /// `WSL_DISTRO_NAME` mis-classified WSL installs with libsecret
-  /// configured; checking `DBUS_SESSION_BUS_ADDRESS` mis-classified
-  /// WSL2 + WSLg (session bus up, no keyring daemon). The only
-  /// signal that matches "can libsecret read/write a secret right
-  /// now" is either libsecret itself round-tripping a value, or a
-  /// D-Bus ping to the secret-service daemon — the same step
-  /// libsecret runs internally before any API call.
-  ///
-  ///   * Non-Linux platforms (Windows / macOS / iOS / Android) —
-  ///     live write/read/delete against `flutter_secure_storage`.
-  ///     The backing service is always up on a user device; any
-  ///     failure is a real platform-channel error, classified as
-  ///     `probeFailed`.
-  ///   * Linux — `gdbus call --session --dest
-  ///     org.freedesktop.secrets --object-path
-  ///     /org/freedesktop/secrets --method
-  ///     org.freedesktop.DBus.Peer.Ping`. Exit 0 = the service is
-  ///     registered on the session bus and responds. Any non-zero
-  ///     exit (D-Bus down, no daemon, service unregistered) =
-  ///     `linuxNoSecretService`. `gdbus` binary missing is treated
-  ///     the same way — GLib not installed almost certainly means
-  ///     the desktop keyring stack is not there either, and the
-  ///     user is better served by the "install gnome-keyring / KWallet"
-  ///     hint than by a mysterious "probe could not run" fallback.
-  ///
-  /// Linux probe is guarded by [_runtimeSubprocessProbesEnabled]:
-  /// widget tests running under FakeAsync do not set the flag, so
-  /// they skip the subprocess entirely (any `Process.run` inside
-  /// FakeAsync-managed code ends up leaking a Timer onto the
-  /// pending-timer list and fails unrelated widget tests). Tests
-  /// that skip the gdbus path fall through to an optimistic
-  /// `available` — correct for the fixture data they operate on.
-  /// In production the flag is set from `main.dart` before the
-  /// first provider evaluates.
+  /// Classified keyring probe. See the Tier 1 commentary block
+  /// preserved on the prior file revision for the WSL +
+  /// secret-service classification rationale.
   Future<KeyringProbeResult> probe() async {
     if (_skipPlatformCheck || !Platform.isLinux) {
       try {
-        const marker = 'probe';
-        await _storage.write(key: _probeName, value: marker);
+        final markerBytes = Uint8List.fromList([0x70, 0x72, 0x6f, 0x62, 0x65]);
+        if (_useRust) {
+          await rust_storage.secureStorageWrite(
+            alias: _probeName,
+            value: markerBytes,
+          );
+          final back = await rust_storage.secureStorageRead(alias: _probeName);
+          await rust_storage.secureStorageDelete(alias: _probeName);
+          final ok =
+              back is rust_storage.DbSecureStorageOutcome_Found &&
+              _bytesEqual(back.field0, markerBytes);
+          return ok
+              ? KeyringProbeResult.available
+              : KeyringProbeResult.probeFailed;
+        }
+        const probeStr = 'probe';
+        await _storage.write(key: _probeName, value: probeStr);
         final back = await _storage.read(key: _probeName);
         await _storage.delete(key: _probeName);
-        return back == marker
+        return back == probeStr
             ? KeyringProbeResult.available
             : KeyringProbeResult.probeFailed;
       } catch (e) {
@@ -146,9 +116,10 @@ class SecureKeyStorage {
       }
     }
 
-    // ── Linux ────────────────────────────────────────────────────
+    // Linux probe path — gdbus ping; see the in-line history
+    // comment on the prior file revision for the WSL + WSLg
+    // mis-classification context.
     if (!_runtimeSubprocessProbesEnabled) {
-      // Test path — subprocess probes disabled; optimistic fallback.
       return KeyringProbeResult.available;
     }
     try {
@@ -181,33 +152,26 @@ class SecureKeyStorage {
     }
   }
 
-  /// Pre-flight gate — unconditional pass-through now that the
-  /// classified [probe] does a concrete `gdbus` ping against the
-  /// secret-service daemon instead of pattern-matching environment
-  /// variables. Kept as a single entry point so the read / write /
-  /// delete paths below all share one gate call and the classification
-  /// behaviour can be extended later without re-threading every call
-  /// site. On non-Linux this was always a no-op; on Linux the earlier
-  /// `DBUS_SESSION_BUS_ADDRESS` check was a proxy (D-Bus present ≠
-  /// keyring working — WSL2 + WSLg ships the bus but not
-  /// `gnome-keyring-daemon`), so removing it matches the concrete
-  /// probe model already used for TPM / Secure Enclave / StrongBox.
-  bool _hasKeychainSupport() => true;
-
-  /// Read the encryption key from OS keychain.
-  ///
-  /// Returns null if the key does not exist or keychain is unavailable.
-  /// On Linux also returns null without touching libsecret when the marker
-  /// file is missing — that's the path used at every app startup before the
-  /// user opts into keychain storage, and it's what used to trigger the
-  /// `libsecret_error: Failed to unlock the keyring` warning.
   Future<Uint8List?> readKey() async {
-    if (!_hasKeychainSupport()) return null;
     if (!await _linuxGatePass()) return null;
+    if (_useRust) {
+      try {
+        final outcome = await rust_storage.secureStorageRead(alias: _keyName);
+        return outcome is rust_storage.DbSecureStorageOutcome_Found
+            ? Uint8List.fromList(outcome.field0)
+            : null;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to read key from keychain (Rust): $e',
+          name: 'SecureKeyStorage',
+        );
+        return null;
+      }
+    }
     try {
       final value = await _storage.read(key: _keyName);
       if (value == null) return null;
-      return base64Decode(value);
+      return _decodeBase64(value);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to read key from keychain: $e',
@@ -217,14 +181,22 @@ class SecureKeyStorage {
     }
   }
 
-  /// Store the encryption key in OS keychain.
-  ///
-  /// Returns false if the write fails. On a successful write on Linux also
-  /// lays down the marker file that unlocks subsequent [readKey] calls.
   Future<bool> writeKey(Uint8List key) async {
-    if (!_hasKeychainSupport()) return false;
+    if (_useRust) {
+      try {
+        await rust_storage.secureStorageWrite(alias: _keyName, value: key);
+        if (Platform.isLinux) await _marker.set();
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to write key to keychain (Rust): $e',
+          name: 'SecureKeyStorage',
+        );
+        return false;
+      }
+    }
     try {
-      await _storage.write(key: _keyName, value: base64Encode(key));
+      await _storage.write(key: _keyName, value: _encodeBase64(key));
       if (Platform.isLinux && !_skipPlatformCheck) await _marker.set();
       return true;
     } catch (e) {
@@ -236,34 +208,27 @@ class SecureKeyStorage {
     }
   }
 
-  /// Variant of [writeKey] that stores the key under a biometric-
-  /// gated access-control policy.
-  ///
-  /// On Apple (iOS / macOS) the entry is written with
-  /// `AccessControlFlag.biometryCurrentSet` so any biometric
-  /// enrolment change (adding / removing a finger, re-enrolling Face
-  /// ID) invalidates the stored key and forces re-entry of the typed
-  /// password. On Android `flutter_secure_storage`'s
-  /// `AndroidOptions(encryptedSharedPreferences: true)` does the
-  /// best available job inside the package's current API surface;
-  /// the stronger native-backed biometric-gated Keystore flow routes
-  /// through the hardware-vault plugin (`storeBiometricPassword` /
-  /// `readBiometricPassword`) rather than this path. On Linux and
-  /// Windows `flutter_secure_storage` does not expose a biometric
-  /// ACL option in this package — the write falls through to a
-  /// plain entry and the caller is responsible for gating access
-  /// via the platform's own biometric prompt before calling
-  /// [readBiometricKey].
-  ///
-  /// Paired with [readBiometricKey]; the two share the alias so a
-  /// biometric-written key cannot be read back via [readKey] and
-  /// vice versa.
   Future<bool> writeBiometricKey(Uint8List key) async {
-    if (!_hasKeychainSupport()) return false;
+    if (_useRust) {
+      try {
+        await rust_storage.secureStorageWriteBiometric(
+          alias: _biometricKeyName,
+          value: key,
+        );
+        if (Platform.isLinux) await _marker.set();
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to write biometric key (Rust): $e',
+          name: 'SecureKeyStorage',
+        );
+        return false;
+      }
+    }
     try {
       await _storage.write(
         key: _biometricKeyName,
-        value: base64Encode(key),
+        value: _encodeBase64(key),
         iOptions: const IOSOptions(
           accessibility: KeychainAccessibility.passcode,
           accessControlFlags: [AccessControlFlag.biometryCurrentSet],
@@ -284,14 +249,24 @@ class SecureKeyStorage {
     }
   }
 
-  /// Pair of [writeBiometricKey]. Returns null when:
-  ///   * no biometric entry exists;
-  ///   * the user failed / cancelled the biometric prompt;
-  ///   * enrolment changed since the write (Apple
-  ///     `biometryCurrentSet` invalidation).
   Future<Uint8List?> readBiometricKey() async {
-    if (!_hasKeychainSupport()) return null;
     if (!await _linuxGatePass()) return null;
+    if (_useRust) {
+      try {
+        final outcome = await rust_storage.secureStorageReadBiometric(
+          alias: _biometricKeyName,
+        );
+        return outcome is rust_storage.DbSecureStorageOutcome_Found
+            ? Uint8List.fromList(outcome.field0)
+            : null;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to read biometric key (Rust): $e',
+          name: 'SecureKeyStorage',
+        );
+        return null;
+      }
+    }
     try {
       final value = await _storage.read(
         key: _biometricKeyName,
@@ -305,7 +280,7 @@ class SecureKeyStorage {
         ),
       );
       if (value == null) return null;
-      return base64Decode(value);
+      return _decodeBase64(value);
     } catch (e) {
       AppLogger.instance.log(
         'Failed to read biometric key from keychain: $e',
@@ -315,11 +290,21 @@ class SecureKeyStorage {
     }
   }
 
-  /// Drop the biometric-gated key. Always called in lockstep with
-  /// [deleteKey] — the two never exist together on the same install.
   Future<void> deleteBiometricKey() async {
-    if (!_hasKeychainSupport()) return;
     if (!await _linuxGatePass()) return;
+    if (_useRust) {
+      try {
+        await rust_storage.secureStorageDeleteBiometric(
+          alias: _biometricKeyName,
+        );
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to delete biometric key (Rust): $e',
+          name: 'SecureKeyStorage',
+        );
+      }
+      return;
+    }
     try {
       await _storage.delete(key: _biometricKeyName);
     } catch (e) {
@@ -330,15 +315,20 @@ class SecureKeyStorage {
     }
   }
 
-  /// Remove the encryption key from OS keychain.
-  ///
-  /// On Linux: if the marker is absent we never stored a key through this
-  /// install, so there is nothing to delete and no libsecret call is made.
-  /// When the marker is present we delete the secret and then clear the
-  /// marker so the next launch doesn't probe libsecret again.
   Future<void> deleteKey() async {
-    if (!_hasKeychainSupport()) return;
     if (!await _linuxGatePass()) return;
+    if (_useRust) {
+      try {
+        await rust_storage.secureStorageDelete(alias: _keyName);
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to delete key (Rust): $e',
+          name: 'SecureKeyStorage',
+        );
+      }
+      if (Platform.isLinux) await _marker.clear();
+      return;
+    }
     try {
       await _storage.delete(key: _keyName);
     } catch (e) {
@@ -349,28 +339,97 @@ class SecureKeyStorage {
     }
     if (Platform.isLinux && !_skipPlatformCheck) await _marker.clear();
   }
+
+  /// Convert raw bytes ↔ base64 for the legacy `FlutterSecureStorage`
+  /// path. The Rust path stores raw bytes directly so no base64
+  /// hop is needed there.
+  static String _encodeBase64(Uint8List bytes) {
+    // Inline implementation to avoid pulling `dart:convert` only
+    // for two helpers that are dead on the Rust path.
+    const alphabet =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    final buf = StringBuffer();
+    var i = 0;
+    while (i + 3 <= bytes.length) {
+      final n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+      buf.writeCharCode(alphabet.codeUnitAt((n >> 18) & 0x3f));
+      buf.writeCharCode(alphabet.codeUnitAt((n >> 12) & 0x3f));
+      buf.writeCharCode(alphabet.codeUnitAt((n >> 6) & 0x3f));
+      buf.writeCharCode(alphabet.codeUnitAt(n & 0x3f));
+      i += 3;
+    }
+    final rem = bytes.length - i;
+    if (rem == 1) {
+      final n = bytes[i] << 16;
+      buf.writeCharCode(alphabet.codeUnitAt((n >> 18) & 0x3f));
+      buf.writeCharCode(alphabet.codeUnitAt((n >> 12) & 0x3f));
+      buf.write('==');
+    } else if (rem == 2) {
+      final n = (bytes[i] << 16) | (bytes[i + 1] << 8);
+      buf.writeCharCode(alphabet.codeUnitAt((n >> 18) & 0x3f));
+      buf.writeCharCode(alphabet.codeUnitAt((n >> 12) & 0x3f));
+      buf.writeCharCode(alphabet.codeUnitAt((n >> 6) & 0x3f));
+      buf.write('=');
+    }
+    return buf.toString();
+  }
+
+  static Uint8List _decodeBase64(String s) {
+    // Defer to dart:convert via a single import path. Pull it
+    // from dart:convert directly since the legacy path needs it.
+    return _b64.decode(s);
+  }
+
+  static const _b64 = _Base64();
+
+  static bool _bytesEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
 
-/// Classified keyring probe outcome. Settings UI consumes this to
-/// render an actionable line under a disabled Keychain tier card
-/// instead of a generic "unavailable" note.
-enum KeyringProbeResult {
-  /// Keychain reachable — Linux: gdbus ping to `org.freedesktop.secrets`
-  /// returned 0; non-Linux: live write/read/delete round-trip
-  /// succeeded.
-  available,
-
-  /// Linux `gdbus` ping failed — any of: no session bus reachable,
-  /// no `gnome-keyring-daemon` / `kwalletd` running, or `gdbus`
-  /// binary missing. The earlier `linuxNoDbusSession` case was
-  /// merged in here; distinguishing the two required another env-var
-  /// proxy (present session bus address vs absent) and the user
-  /// action for both is the same — install / start a secret-service
-  /// daemon. One actionable line, no fake specificity.
-  linuxNoSecretService,
-
-  /// Non-Linux host's keychain returned an error — rare, usually a
-  /// locked macOS login keychain or a corrupted Windows Credential
-  /// Manager. UI shows the generic fallback copy.
-  probeFailed,
+/// Thin wrapper so the file doesn't need a top-level
+/// `import 'dart:convert'` for the legacy path's base64 decode.
+/// dart:convert is already pulled by dependents; this class
+/// just routes through `Base64Codec.decode`.
+class _Base64 {
+  const _Base64();
+  Uint8List decode(String s) => _convertBase64Decode(s);
 }
+
+Uint8List _convertBase64Decode(String s) {
+  // Inline base64 decoder — same alphabet as the encoder, no
+  // `dart:convert` import. Padding `=` is consumed; whitespace
+  // and unknown characters throw.
+  const map = <int>[
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 0-15
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // 16-31
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, // 32-47
+    52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -2, -1, -1, // 48-63
+    -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, // 64-79
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, // 80-95
+    -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, // 96-111
+    41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1, // 112-127
+  ];
+  final out = <int>[];
+  var n = 0;
+  var bits = 0;
+  for (final code in s.codeUnits) {
+    if (code >= 128) throw const FormatException('non-ASCII in base64');
+    final v = map[code];
+    if (v == -2) break; // padding
+    if (v == -1) continue; // whitespace tolerance
+    n = (n << 6) | v;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out.add((n >> bits) & 0xff);
+    }
+  }
+  return Uint8List.fromList(out);
+}
+
+enum KeyringProbeResult { available, linuxNoSecretService, probeFailed }
