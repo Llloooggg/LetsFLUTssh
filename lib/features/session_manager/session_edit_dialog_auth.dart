@@ -1,0 +1,402 @@
+part of 'session_edit_dialog.dart';
+
+/// Auth-tab UI — password / key-store / inline-PEM / passphrase
+/// fields plus the picker + drop-target helpers. Lives as an
+/// extension on the dialog state so the helpers reach the per-field
+/// controllers (`_passwordCtrl`, `_keyDataCtrl`, …) and the dirty-bit
+/// flags directly without going through a public surface; `part of`
+/// joins the file into the same library so library-private names
+/// stay reachable.
+extension _AuthTab on _SessionEditDialogState {
+  Widget _buildAuthTab() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_authError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _authError!,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: AppFonts.xs,
+                  color: AppTheme.red,
+                ),
+              ),
+            ),
+          ),
+        _buildPasswordField(),
+        const SizedBox(height: 16),
+        _buildOrDivider(),
+        const SizedBox(height: 16),
+        ..._buildKeyFields(),
+      ],
+    );
+  }
+
+  Widget _buildOrDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: AppTheme.borderLight)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            S.of(context).authOrDivider,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: AppFonts.xs,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+              color: AppTheme.fgFaint,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: AppTheme.borderLight)),
+      ],
+    );
+  }
+
+  Widget _buildPasswordField() {
+    final hasStored = widget.session?.auth.hasStoredPassword ?? false;
+    return StyledFormField(
+      label: S.of(context).password,
+      controller: _passwordCtrl,
+      hint: hasStored ? S.of(context).savedTypeToChange : '••••••••',
+      obscure: _obscurePassword,
+      suffixIcon: GestureDetector(
+        onTap: () => rebuild(() => _obscurePassword = !_obscurePassword),
+        child: Icon(
+          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+          size: 12,
+          color: AppTheme.fgFaint,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildKeyFields() {
+    return [
+      _buildKeyStoreSelector(),
+      const SizedBox(height: 12),
+      if (!_hasStoreKey) ...[
+        _buildKeyPathField(),
+        const SizedBox(height: 8),
+        _buildPemToggle(),
+        if (_showKeyText) _buildPemTextField(),
+        const SizedBox(height: 12),
+      ],
+      _buildPassphraseField(),
+    ];
+  }
+
+  Widget _buildKeyStoreSelector() {
+    final s = S.of(context);
+    final keys = ref.watch(sshKeysProvider);
+
+    return keys.when(
+      data: (keyList) {
+        if (keyList.isEmpty && !_hasStoreKey) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _hasStoreKey
+                      ? _buildSelectedKeyChip()
+                      : _buildKeyPickerButton(s, keyList),
+                ),
+              ],
+            ),
+            if (_hasStoreKey)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _buildOrDividerLabel(),
+                    style: TextStyle(
+                      fontSize: AppFonts.xs,
+                      color: AppTheme.fgFaint,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+
+  String _buildOrDividerLabel() =>
+      '${S.of(context).selectFromKeyStore}: $_selectedKeyLabel';
+
+  Widget _buildKeyPickerButton(S s, List<SshKeyEntry> keyList) {
+    return DropdownSelectButton(
+      icon: Icons.vpn_key,
+      label: s.selectFromKeyStore,
+      onTap: keyList.isEmpty ? null : () => _showKeyPicker(keyList),
+    );
+  }
+
+  Widget _buildSelectedKeyChip() {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.accent.withValues(alpha: 0.1),
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.accent.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.vpn_key, size: 16, color: AppTheme.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _selectedKeyLabel,
+              style: AppFonts.inter(
+                fontSize: AppFonts.sm,
+                color: AppTheme.fg,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          AppIconButton(
+            icon: Icons.close,
+            onTap: () => rebuild(() {
+              _selectedKeyId = '';
+              _selectedKeyLabel = '';
+            }),
+            tooltip: S.of(context).clearKeyFile,
+            size: 18,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showKeyPicker(List<SshKeyEntry> keys) async {
+    final selected = await showDialog<SshKeyEntry>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(S.of(context).selectFromKeyStore),
+        children: keys
+            .map(
+              (k) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, k),
+                child: ListTile(
+                  leading: Icon(
+                    Icons.vpn_key,
+                    size: 16,
+                    color: k.isGenerated ? AppTheme.accent : AppTheme.fgDim,
+                  ),
+                  title: Text(k.label),
+                  subtitle: Text(
+                    k.keyType,
+                    style: TextStyle(fontSize: AppFonts.xs),
+                  ),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (selected != null && mounted) {
+      rebuild(() {
+        _selectedKeyId = selected.id;
+        _selectedKeyLabel = selected.label;
+        // Clear manual key fields when selecting from store
+        _keyPathCtrl.clear();
+        _keyDataCtrl.clear();
+        _showKeyText = false;
+      });
+    }
+  }
+
+  Future<void> _pickKeyFile() async {
+    final result = await FilePicker.pickFiles(
+      dialogTitle: S.of(context).selectKeyFile,
+      allowMultiple: false,
+      type: FileType.any,
+    );
+    if (!mounted) return;
+    if (result == null || result.files.single.path == null) return;
+    final path = result.files.single.path!;
+    final pemContent = await KeyFileHelper.tryReadPemKey(path);
+    if (pemContent != null) {
+      rebuild(() {
+        _keyDataCtrl.text = pemContent;
+        _showKeyText = true;
+      });
+    } else {
+      rebuild(() => _keyPathCtrl.text = path);
+    }
+  }
+
+  Widget _buildKeyPathField() {
+    final hasKey = _keyPathCtrl.text.trim().isNotEmpty;
+    final fileName = hasKey ? p.basename(_keyPathCtrl.text.trim()) : null;
+
+    final button = DropdownSelectButton(
+      icon: hasKey ? Icons.vpn_key : Icons.folder_open,
+      label: fileName ?? S.of(context).selectKeyFile,
+      onTap: _pickKeyFile,
+      showChevron: false,
+    );
+
+    final row = Row(
+      children: [
+        Expanded(child: button),
+        if (hasKey)
+          AppIconButton(
+            icon: Icons.close,
+            onTap: () => rebuild(() => _keyPathCtrl.clear()),
+            tooltip: S.of(context).clearKeyFile,
+            size: 18,
+          ),
+      ],
+    );
+
+    if (!isDesktopPlatform) return row;
+
+    return DropTarget(
+      onDragEntered: (_) => rebuild(() => _keyDragging = true),
+      onDragExited: (_) => rebuild(() => _keyDragging = false),
+      onDragDone: (details) async {
+        rebuild(() => _keyDragging = false);
+        final files = details.files;
+        if (files.isNotEmpty) {
+          final path = files.first.path;
+          final pemContent = await KeyFileHelper.tryReadPemKey(path);
+          if (pemContent != null) {
+            rebuild(() {
+              _keyDataCtrl.text = pemContent;
+              _showKeyText = true;
+            });
+            return;
+          }
+          rebuild(() => _keyPathCtrl.text = path);
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          border: _keyDragging
+              ? Border.all(color: AppTheme.accent, width: 2)
+              : null,
+          borderRadius: AppTheme.radiusSm,
+        ),
+        child: _keyDragging
+            ? SizedBox(
+                height: AppTheme.itemHeightLg,
+                child: Center(
+                  child: Text(
+                    S.of(context).dropKeyFileHere,
+                    style: TextStyle(color: AppTheme.accent),
+                  ),
+                ),
+              )
+            : row,
+      ),
+    );
+  }
+
+  Widget _buildPemToggle() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: AppButton(
+        label: _showKeyText
+            ? S.of(context).hidePemText
+            : S.of(context).pastePemKeyText,
+        icon: _showKeyText
+            ? Icons.keyboard_arrow_up
+            : Icons.keyboard_arrow_down,
+        onTap: () => rebuild(() => _showKeyText = !_showKeyText),
+        dense: true,
+      ),
+    );
+  }
+
+  Widget _buildPemTextField() {
+    final hasStored = widget.session?.auth.hasStoredKeyData ?? false;
+    return TextFormField(
+      controller: _keyDataCtrl,
+      decoration: InputDecoration(
+        hintText: hasStored
+            ? S.of(context).savedTypeToChange
+            : S.of(context).hintPemKey,
+        hintStyle: AppFonts.mono(
+          fontSize: AppFonts.xs,
+          color: AppTheme.fgFaint,
+        ),
+        filled: true,
+        fillColor: AppTheme.bg3,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        border: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: AppTheme.radiusSm,
+          borderSide: BorderSide(color: AppTheme.accent),
+        ),
+      ),
+      maxLines: 5,
+      // PEM body is a private key — force every IME "learn what
+      // the user typed" knob off so pasted / typed key material
+      // does not end up in the OS autocorrect / predictive-text /
+      // spellcheck personalised-learning dictionary. Multi-line,
+      // so `obscureText` is not an option; the hardening flags are.
+      autocorrect: false,
+      enableSuggestions: false,
+      enableIMEPersonalizedLearning: false,
+      smartDashesType: SmartDashesType.disabled,
+      smartQuotesType: SmartQuotesType.disabled,
+      textCapitalization: TextCapitalization.none,
+      style: AppFonts.mono(fontSize: AppFonts.xs),
+    );
+  }
+
+  Widget _buildPassphraseField() {
+    final hasStored = widget.session?.auth.hasStoredPassphrase ?? false;
+    return StyledFormField(
+      label: S.of(context).keyPassphrase,
+      controller: _passphraseCtrl,
+      hint: hasStored
+          ? S.of(context).savedTypeToChange
+          : S.of(context).hintOptional,
+      obscure: _obscurePassphrase,
+      suffixIcon: GestureDetector(
+        onTap: () => rebuild(() => _obscurePassphrase = !_obscurePassphrase),
+        child: Icon(
+          _obscurePassphrase ? Icons.visibility : Icons.visibility_off,
+          size: 12,
+          color: AppTheme.fgFaint,
+        ),
+      ),
+      validator: (v) {
+        if (v != null && v.isNotEmpty) {
+          final hasKey =
+              _keyPathCtrl.text.trim().isNotEmpty ||
+              _keyDataCtrl.text.trim().isNotEmpty;
+          if (!hasKey) return S.of(context).provideKeyFirst;
+        }
+        return null;
+      },
+    );
+  }
+}
