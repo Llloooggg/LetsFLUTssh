@@ -1,8 +1,6 @@
 import 'dart:async' show TimeoutException;
 import 'dart:io' show Platform;
 
-import 'package:local_auth/local_auth.dart';
-
 import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../utils/logger.dart';
 import 'linux/fprintd_client.dart';
@@ -14,7 +12,7 @@ import 'windows/winbio_probe.dart';
 /// that tells the user what to fix — instead of just hiding the
 /// option and leaving them guessing.
 enum BiometricUnavailableReason {
-  /// OS has no biometric backend at all, or `local_auth` threw.
+  /// OS has no biometric backend at all, or the platform probe threw.
   platformUnsupported,
 
   /// Device reports no biometric hardware (most Windows desktops,
@@ -59,17 +57,27 @@ enum BiometricBackingLevel {
 /// from mis-using `null` vs `false` as overlapping "no" states.
 typedef BiometricAvailability = BiometricUnavailableReason?;
 
-/// Thin wrapper around [LocalAuthentication] for the optional biometric
-/// unlock on T1+password and T2+password. Paranoid does not expose a
-/// biometric shortcut by design — see ARCHITECTURE §3.6 → Biometric
-/// unlock for the rationale.
+/// Thin wrapper around the platform biometric backend for the optional
+/// biometric unlock on T1+password and T2+password. Paranoid does not
+/// expose a biometric shortcut by design — see ARCHITECTURE §3.6 →
+/// Biometric unlock for the rationale.
 ///
 /// **Threat model**: biometrics is a UX shortcut, not a new cryptographic
 /// layer — the tier's user-typed secret is the real gate, the biometric
 /// slot only decides whether to reveal the cached key without requiring
 /// the user to retype.
+///
+/// Routing:
+/// - **Apple (iOS + macOS) / Windows / Android** — Rust crate
+///   `lfs_os_security::biometric_auth` over FRB. Apple uses
+///   `LAContext` via objc2; Windows uses `UserConsentVerifier`;
+///   Android calls `BiometricPrompt` directly via JNI. Same
+///   `BiometricUnavailableReason` shape on every backend.
+/// - **Linux** — direct fprintd D-Bus walk through [FprintdClient]
+///   so the UI can distinguish daemon-missing / reader-absent /
+///   no-finger-enrolled instead of collapsing them into a generic
+///   "unsupported".
 class BiometricAuth {
-  final LocalAuthentication _auth;
   final FprintdClient _fprintd;
   final TpmClient _tpm;
   final WinBioProbe _winbio;
@@ -94,12 +102,10 @@ class BiometricAuth {
   bool _backingLevelProbed = false;
 
   BiometricAuth({
-    LocalAuthentication? auth,
     FprintdClient? fprintdClient,
     TpmClient? tpmClient,
     WinBioProbe? winbioProbe,
-  }) : _auth = auth ?? LocalAuthentication(),
-       _fprintd = fprintdClient ?? FprintdClient(),
+  }) : _fprintd = fprintdClient ?? FprintdClient(),
        _tpm = tpmClient ?? TpmClient(),
        _winbio = winbioProbe ?? const WinBioProbe();
 
@@ -130,17 +136,18 @@ class BiometricAuth {
   /// software. iOS / macOS report [BiometricBackingLevel.hardware]
   /// unconditionally — Secure Enclave binding is enforced via
   /// `SecAccessControl` with `.biometryCurrentSet`. Android rides on
-  /// `flutter_secure_storage`'s default EncryptedSharedPreferences
-  /// until a dedicated Keystore + `BiometricPrompt.CryptoObject`
-  /// plugin lands, so the level is reported as
-  /// [BiometricBackingLevel.software] today. Windows is reported as
-  /// software here; the hw-vault plugin's `backingLevel` method call
-  /// returns `hardware_tpm` when CNG's Platform Crypto Provider
-  /// backed the primary key, and the Settings UI prefers that more
-  /// specific answer when T2 is the active tier. Linux upgrades to
-  /// hardware whenever a TPM2 device + `tpm2-tools`
-  /// binary are both reachable — otherwise the fprintd + libsecret
-  /// path is honestly labelled software.
+  /// `lfs_os_security::android::keystore` which gates wrap-keys with
+  /// `setUserAuthenticationRequired` + `setIsStrongBoxBacked` when
+  /// available, so the level is reported as
+  /// [BiometricBackingLevel.software] here and the L3 hw-vault
+  /// surfaces the more specific StrongBox answer separately.
+  /// Windows is reported as software; the hw-vault probe returns
+  /// `hardware_tpm` when CNG's Platform Crypto Provider backed the
+  /// primary key, and the Settings UI prefers that more specific
+  /// answer when T2 is the active tier. Linux upgrades to hardware
+  /// whenever a TPM2 device + `tpm2-tools` binary are both reachable
+  /// — otherwise the fprintd + libsecret path is honestly labelled
+  /// software.
   Future<BiometricBackingLevel?> backingLevel() async {
     if (_backingLevelProbed) return _cachedBackingLevel;
     final level = await _probeBackingLevel();
@@ -168,24 +175,15 @@ class BiometricAuth {
   /// null when biometric unlock is ready to use, or a
   /// [BiometricUnavailableReason] describing why it isn't.
   ///
-  /// Windows caveat: `canCheckBiometrics` + a non-empty
-  /// `getAvailableBiometrics` only signal that Windows Hello is
-  /// configured — which is satisfied by a PIN alone. Two safeguards
-  /// apply:
-  ///
-  ///   1. The enrolled list is filtered for a real bio type
-  ///      (fingerprint, face, iris, strong). A PIN-only Hello device
-  ///      therefore falls to [BiometricUnavailableReason.notEnrolled].
-  ///   2. An extra `winbio.dll` probe enumerates the *physical*
-  ///      biometric sensors attached to the host — local_auth has
-  ///      been observed returning `BiometricType.strong` on Hello
-  ///      PIN-only setups depending on the build, so the Dart-side
-  ///      filter alone isn't enough. Zero units → the hardware isn't
-  ///      there; the toggle must not light up, regardless of what
-  ///      UserConsentVerifier claims. The probe is a straight
-  ///      `WinBioEnumBiometricUnits(factor=FINGERPRINT|FACIAL|IRIS)`
-  ///      + `WinBioFree` — no prompts, no side effects, runs on every
-  ///      Windows SKU we ship to.
+  /// Windows caveat: the Rust `UserConsentVerifier` probe answers
+  /// "ready" the moment Windows Hello is configured — which is
+  /// satisfied by a PIN alone. An extra `winbio.dll` probe enumerates
+  /// the *physical* biometric sensors attached to the host so a
+  /// PIN-only Hello setup demotes to [BiometricUnavailableReason.noSensor]
+  /// instead of lighting up the toggle. The probe is a straight
+  /// `WinBioEnumBiometricUnits(factor=FINGERPRINT|FACIAL|IRIS)` +
+  /// `WinBioFree` — no prompts, no side effects, runs on every
+  /// Windows SKU we ship to.
   Future<BiometricAvailability> availability() async {
     if (_availabilityProbed) return _cachedAvailability;
     // Coalesce concurrent callers — Settings rebuild + a connect
@@ -207,27 +205,15 @@ class BiometricAuth {
 
   Future<BiometricAvailability> _runAvailabilityProbe() async {
     if (Platform.isLinux) return _linuxAvailability();
-    if (Platform.isMacOS || Platform.isIOS || Platform.isWindows) {
-      return _rustAvailability();
-    }
-    // Android stays on local_auth's
-    // canCheckBiometrics + getAvailableBiometrics until the
-    // BiometricPrompt JNI bridge lands.
-    try {
-      final supported = await _auth.isDeviceSupported();
-      if (!supported) return BiometricUnavailableReason.noSensor;
-      final canCheck = await _auth.canCheckBiometrics;
-      if (!canCheck) return BiometricUnavailableReason.notEnrolled;
-      final enrolled = await _auth.getAvailableBiometrics();
-      final hasRealBiometric = enrolled.any(
-        (t) =>
-            t == BiometricType.fingerprint ||
-            t == BiometricType.face ||
-            t == BiometricType.iris ||
-            t == BiometricType.strong,
-      );
-      if (!hasRealBiometric) return BiometricUnavailableReason.notEnrolled;
-      if (Platform.isWindows) {
+    if (Platform.isMacOS ||
+        Platform.isIOS ||
+        Platform.isWindows ||
+        Platform.isAndroid) {
+      final result = await _rustAvailability();
+      if (result == null && Platform.isWindows) {
+        // PIN-only Hello setups satisfy UserConsentVerifier even
+        // when no physical biometric sensor is attached. Demote to
+        // noSensor so the toggle stays dark.
         final units = await _winbio.countBiometricUnits();
         if (units == 0) {
           AppLogger.instance.log(
@@ -238,23 +224,19 @@ class BiometricAuth {
           return BiometricUnavailableReason.noSensor;
         }
       }
-      return null;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Biometric availability probe failed: $e',
-        name: 'BiometricAuth',
-      );
-      return BiometricUnavailableReason.platformUnsupported;
+      return result;
     }
+    return BiometricUnavailableReason.platformUnsupported;
   }
 
-  /// Apple / Windows availability via the platform's biometric
-  /// availability probe — routes through
+  /// Apple / Windows / Android availability via the platform's
+  /// biometric availability probe — routes through
   /// `lfs_os_security::biometric_auth`. Apple uses
   /// `LAContext.canEvaluatePolicy`; Windows uses
-  /// `UserConsentVerifier.CheckAvailabilityAsync`. Both map
-  /// platform-specific status codes to the same structured
-  /// `BiometricUnavailableReason` the Settings UI renders.
+  /// `UserConsentVerifier.CheckAvailabilityAsync`; Android calls
+  /// `BiometricManager.canAuthenticate(BIOMETRIC_STRONG)` via JNI.
+  /// Each maps platform-specific status codes to the same
+  /// structured `BiometricUnavailableReason` the Settings UI renders.
   Future<BiometricAvailability> _rustAvailability() async {
     try {
       final result = await rust_os.osSecurityBiometricAvailability();
@@ -270,7 +252,7 @@ class BiometricAuth {
           BiometricUnavailableReason.systemServiceMissing,
         rust_os.DbBiometricAvailability_Probe(:final field0) => () {
           AppLogger.instance.log(
-            'Apple biometric probe error: $field0',
+            'Biometric probe error: $field0',
             name: 'BiometricAuth',
           );
           return BiometricUnavailableReason.platformUnsupported;
@@ -278,7 +260,7 @@ class BiometricAuth {
       };
     } catch (e) {
       AppLogger.instance.log(
-        'Apple biometric availability (Rust) failed: $e',
+        'Biometric availability (Rust) failed: $e',
         name: 'BiometricAuth',
       );
       return BiometricUnavailableReason.platformUnsupported;
@@ -289,22 +271,25 @@ class BiometricAuth {
   /// and falling the caller back to the password field. 45 s is well
   /// past a normal fingerprint/face unlock (<5 s) but short enough
   /// that a hung prompt doesn't look like a frozen app. After Android
-  /// Doze / App-Standby releases the process, `local_auth`'s
-  /// `authenticate` sometimes never completes — the platform channel
-  /// silently drops the reply while the native prompt is still
-  /// visible. Without this cap the Dart future hangs forever and the
-  /// lock screen appears frozen on resume.
+  /// Doze / App-Standby releases the process, the platform call
+  /// sometimes never completes — the system prompt is still visible
+  /// but the underlying Promise/Future never resolves. Without this
+  /// cap the Dart future hangs forever and the lock screen appears
+  /// frozen on resume.
   static const Duration _authTimeout = Duration(seconds: 45);
 
   /// Prompt the user for biometric confirmation. Returns true on success,
   /// false on cancel / fail / unavailable / timeout. [reason] is shown
   /// in the system prompt where the platform surfaces it (Android
-  /// dialog, iOS Face ID overlay). Ignored on Linux — `fprintd`
-  /// renders its own prompt via whatever reader the kernel exposes;
-  /// we only await the terminal `VerifyStatus` signal.
+  /// dialog, iOS Face ID overlay, Windows Hello banner). Ignored on
+  /// Linux — `fprintd` renders its own prompt via whatever reader the
+  /// kernel exposes; we only await the terminal `VerifyStatus` signal.
   Future<bool> authenticate(String reason) async {
     if (Platform.isLinux) return _fprintd.verify();
-    if (Platform.isMacOS || Platform.isIOS || Platform.isWindows) {
+    if (Platform.isMacOS ||
+        Platform.isIOS ||
+        Platform.isWindows ||
+        Platform.isAndroid) {
       try {
         return await rust_os
             .osSecurityBiometricAuthenticate(reason: reason)
@@ -325,29 +310,7 @@ class BiometricAuth {
         return false;
       }
     }
-    try {
-      return await _auth
-          .authenticate(
-            localizedReason: reason,
-            biometricOnly: true,
-            persistAcrossBackgrounding: true,
-          )
-          .timeout(_authTimeout);
-    } on TimeoutException {
-      AppLogger.instance.log(
-        'Biometric authenticate timed out after '
-        '${_authTimeout.inSeconds}s; falling back to password prompt',
-        name: 'BiometricAuth',
-        level: LogLevel.warn,
-      );
-      return false;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Biometric authenticate failed: $e',
-        name: 'BiometricAuth',
-      );
-      return false;
-    }
+    return false;
   }
 
   /// Linux availability probe: walks the [FprintdClient] ladder so the

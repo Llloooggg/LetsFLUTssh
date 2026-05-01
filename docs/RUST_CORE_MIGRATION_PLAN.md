@@ -1448,41 +1448,31 @@ the two legacy prompt-listener files
 `lib/app/keychain_op_prompt_listener.dart`) which Phase 5
 will retire alongside the bus-event prompt protocol.
 
-**Phase 4 — `BiometricAuth` `local_auth` retire
-(pending, ~2 hours).**
+**Phase 4 — `BiometricAuth` `local_auth` retire ✅ landed.**
+`lib/core/security/biometric_auth.dart` no longer imports
+`local_auth`; the constructor's `auth: LocalAuthentication?`
+parameter is gone and the `LocalAuthentication` field with it.
+Apple + Windows + Android route through
+`rust_os.osSecurityBiometricAvailability` /
+`osSecurityBiometricAuthenticate` (which dispatches in Rust
+via `lfs_os_security::biometric_auth` cfg-arms — `LAContext`
+on Apple, `UserConsentVerifier` on Windows, JNI to
+`BiometricManager` + `BiometricPrompt` on Android). Linux
+keeps the direct fprintd D-Bus walk via [FprintdClient] so
+the daemon-missing / reader-absent / no-finger-enrolled
+distinction stays visible to the Settings UI. The Windows
+PIN-only Hello demotion to `noSensor` via [WinBioProbe]
+moved into the post-Rust check inside `_runAvailabilityProbe`.
 
-Goal: `lib/core/security/biometric_auth.dart` routes through
-FRB on every platform that needs OS biometric API. `local_auth`
-package retires.
+Updated the FRB doc comment in `lfs_frb::api::os_security` to
+drop the stale "Windows / Android stay on local_auth Dart-side
+until their Rust impls land" line; ran `make rust-codegen` +
+`make rust-build` to refresh the generated Dart binding.
 
-Concrete actions:
-
-1. Verify the `lfs_os_security::biometric_auth` Rust module
-   covers all 4 needed platforms (Linux already does via
-   FprintdClient; Apple via LAContext; Windows via
-   UserConsentVerifier; Android via BiometricPrompt JNI).
-   All four landed in earlier phases — this phase just rewires
-   the Dart call site.
-
-2. `lib/core/security/biometric_auth.dart`:
-   - Drop `import 'package:local_auth/local_auth.dart'`.
-   - Replace internal `LocalAuthentication` instance with FRB
-     calls: `rust_biometric.biometricAuthCheckAvailability()` /
-     `rust_biometric.biometricAuthAuthenticate(reason)`.
-   - The existing Rust public API in
-     `lfs_os_security::biometric_auth` already provides both —
-     verify FRB adapter `lfs_frb::api::biometric_auth` exposes
-     them (it currently exposes `biometric_probe_*` for the
-     prompt-protocol path; may need a fresh generic wrapper).
-
-3. `test/core/security/biometric_auth_test.dart`: same
-   surgery shape as Phase 2 — drop `local_auth` mocking,
-   skip Dart-side biometric round-trip tests with pointer to
-   the existing `lfs_os_security::biometric_auth::tests` Rust
-   module (already covers the LAError-code mapping invariants).
-
-Acceptance: `grep -r local_auth lib/ pubspec.yaml` returns
-zero hits.
+Verified: `make analyze` clean, full test suite (3155 tests)
+green. `grep -r local_auth lib/` returns zero hits — the
+`local_auth: ^3.0.1` pubspec entry stays put until Phase 7
+sweeps both retired packages in one commit.
 
 **Phase 5 — Rust prompt-protocol bus events retire
 (pending, ~4-6 hours, highest-risk phase).**

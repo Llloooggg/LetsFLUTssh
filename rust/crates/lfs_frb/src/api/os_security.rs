@@ -101,10 +101,14 @@ pub enum DbBiometricAvailability {
     Probe(String),
 }
 
-/// Probe the platform's biometric backend. Apple uses LAContext
-/// via objc2; Linux short-circuits (the Dart wrapper routes
-/// Linux through fprintd directly). Windows / Android stay on
-/// `local_auth` Dart-side until their Rust impls land.
+/// Probe the platform's biometric backend. Apple uses
+/// `LAContext.canEvaluatePolicy` via objc2; Windows uses
+/// `UserConsentVerifier.CheckAvailabilityAsync` via the
+/// `windows` crate; Android calls `BiometricManager.canAuthenticate`
+/// via JNI. Linux short-circuits — the Dart wrapper routes Linux
+/// through fprintd directly so the daemon-missing /
+/// reader-absent / no-finger-enrolled distinction stays visible
+/// to the Settings UI.
 #[flutter_rust_bridge::frb]
 pub async fn os_security_biometric_availability() -> DbBiometricAvailability {
     match lfs_os_security::biometric_auth::check_availability().await {

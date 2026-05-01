@@ -73,10 +73,14 @@ void osSecuritySetSecureClipboard({required String text}) => RustLib
     .api
     .crateApiOsSecurityOsSecuritySetSecureClipboard(text: text);
 
-/// Probe the platform's biometric backend. Apple uses LAContext
-/// via objc2; Linux short-circuits (the Dart wrapper routes
-/// Linux through fprintd directly). Windows / Android stay on
-/// `local_auth` Dart-side until their Rust impls land.
+/// Probe the platform's biometric backend. Apple uses
+/// `LAContext.canEvaluatePolicy` via objc2; Windows uses
+/// `UserConsentVerifier.CheckAvailabilityAsync` via the
+/// `windows` crate; Android calls `BiometricManager.canAuthenticate`
+/// via JNI. Linux short-circuits — the Dart wrapper routes Linux
+/// through fprintd directly so the daemon-missing /
+/// reader-absent / no-finger-enrolled distinction stays visible
+/// to the Settings UI.
 Future<DbBiometricAvailability> osSecurityBiometricAvailability() =>
     RustLib.instance.api.crateApiOsSecurityOsSecurityBiometricAvailability();
 
