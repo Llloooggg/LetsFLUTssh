@@ -1,0 +1,34 @@
+# WinGet en-US locale manifest. Sibling to .installer.yaml +
+# .yaml; the three together form a single winget package
+# submission.
+
+PackageIdentifier: Llloooggg.LetsFLUTssh
+PackageVersion: 0.0.0
+PackageLocale: en-US
+Publisher: Llloooggg
+PublisherUrl: https://github.com/Llloooggg
+PublisherSupportUrl: https://github.com/Llloooggg/LetsFLUTssh/issues
+PackageName: LetsFLUTssh
+PackageUrl: https://github.com/Llloooggg/LetsFLUTssh
+License: Apache-2.0
+LicenseUrl: https://github.com/Llloooggg/LetsFLUTssh/blob/main/LICENSE
+Copyright: Copyright (c) 2024-2026 Llloooggg
+ShortDescription: Lightweight cross-platform SSH/SFTP client.
+Description: |-
+  LetsFLUTssh is a full-featured SSH terminal and SFTP file
+  browser with session management, encrypted credential storage
+  (AES-GCM with Argon2id KDF, optional TPM2 / Secure Enclave /
+  TPM-backed Windows Hello binding), and tiling terminal layout.
+  Open-source alternative to Xshell / Termius. Backed by russh
+  (pure-Rust SSH transport) — no OpenSSH-shell-out, no historical
+  CVE pattern.
+Tags:
+  - ssh
+  - sftp
+  - terminal
+  - flutter
+  - rust
+  - cross-platform
+ReleaseNotesUrl: https://github.com/Llloooggg/LetsFLUTssh/releases/tag/v0.0.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

@@ -1,0 +1,35 @@
+# WinGet installer manifest for the Microsoft Store of CLIs.
+#
+# Publish (per release):
+#   1. Update `PackageVersion` + each `InstallerSha256` from the
+#      release manifest (.sha256sums file)
+#   2. Submit a PR to https://github.com/microsoft/winget-pkgs
+#      under manifests/l/Llloooggg/LetsFLUTssh/<version>/
+#      with all three YAMLs (this file + .yaml + .locale.en-US.yaml)
+#   3. Pass the winget validation pipeline (manifest schema,
+#      installer hash check, install round-trip on the validation
+#      VMs)
+#
+# **Status**: draft template — needs validation against the
+# current winget manifest schema (validate via
+# `winget validate manifests/l/Llloooggg/LetsFLUTssh/<v>/`)
+# before first PR. The schema version pin below is best-effort
+# from memory; Microsoft bumps it periodically.
+
+PackageIdentifier: Llloooggg.LetsFLUTssh
+PackageVersion: 0.0.0
+InstallerType: inno
+Scope: user
+ReleaseDate: 2026-05-01
+
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/Llloooggg/LetsFLUTssh/releases/download/v0.0.0/letsflutssh-0.0.0-windows-x64-setup.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+  # ARM64 installer is not yet shipped — Wave 5b ships
+  # windows-arm64.zip only until the Inno Setup script grows an
+  # `arm64` ArchitecturesAllowed entry. Add an `Architecture: arm64`
+  # block here once the .exe lands.
+
+ManifestType: installer
+ManifestVersion: 1.6.0
