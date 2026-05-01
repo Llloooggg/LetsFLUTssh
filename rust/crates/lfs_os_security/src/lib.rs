@@ -262,6 +262,15 @@ pub mod secure_key_storage;
 pub mod session_lock_listener;
 pub mod single_instance;
 
+// macOS-only — Tier 4 code-signing pipeline (`openssl` /
+// `security` / `codesign` shell-out) + atomic installer
+// (`hdiutil` / `rsync` shell-out). Cfg-gated via inner module
+// attribute, so non-macOS targets see empty modules.
+#[cfg(target_os = "macos")]
+pub mod macos_installer;
+#[cfg(target_os = "macos")]
+pub mod macos_signing;
+
 // Android-only — direct JNI to platform Java APIs
 // (`java.security.KeyStore`, `androidx.biometric.BiometricPrompt`).
 // See `android::keystore` status block for the verification gate.

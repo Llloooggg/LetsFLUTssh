@@ -249,17 +249,27 @@ mod apple {
     use core_foundation::error::CFError;
     use core_foundation::number::CFNumber;
     use core_foundation::string::CFString;
+    use core_foundation_sys::string::CFStringRef;
     use security_framework::access_control::{ProtectionMode, SecAccessControl};
     use security_framework_sys::access_control::{
         kSecAccessControlBiometryCurrentSet, kSecAccessControlPrivateKeyUsage,
     };
     use security_framework_sys::base::{errSecItemNotFound, SecKeyRef};
     use security_framework_sys::item::{
-        kSecAttrAccessControl, kSecAttrApplicationTag, kSecAttrIsPermanent, kSecAttrKeyClass,
-        kSecAttrKeyClassPrivate, kSecAttrKeySizeInBits, kSecAttrKeyType,
-        kSecAttrKeyTypeECSECPrimeRandom, kSecAttrTokenID, kSecAttrTokenIDSecureEnclave, kSecClass,
-        kSecClassKey, kSecPrivateKeyAttrs, kSecReturnRef,
+        kSecAttrAccessControl, kSecAttrIsPermanent, kSecAttrKeyClass, kSecAttrKeyClassPrivate,
+        kSecAttrKeySizeInBits, kSecAttrKeyType, kSecAttrKeyTypeECSECPrimeRandom, kSecAttrTokenID,
+        kSecAttrTokenIDSecureEnclave, kSecClass, kSecClassKey, kSecPrivateKeyAttrs, kSecReturnRef,
     };
+
+    // `kSecAttrApplicationTag` isn't exported by
+    // security-framework-sys 2.17 (only `kSecAttrApplicationLabel`
+    // ships). The symbol is exported by `Security.framework` so
+    // `extern "C"` resolution links at run time. Same pattern
+    // `secure_key_storage::platform_impl` uses for
+    // `kSecMatchLimitOne`.
+    extern "C" {
+        static kSecAttrApplicationTag: CFStringRef;
+    }
     use security_framework_sys::key::{
         kSecKeyAlgorithmECIESEncryptionCofactorVariableIVX963SHA256AESGCM,
         kSecKeyOperationTypeDecrypt, kSecKeyOperationTypeEncrypt, SecKeyCopyPublicKey,
@@ -295,10 +305,14 @@ mod apple {
     /// `WhenPasscodeSetThisDeviceOnly` so the entry never syncs and
     /// never persists past a passcode unset.
     fn build_access_control(extra_flags: u64) -> Result<SecAccessControl, HardwareVaultError> {
+        // `CFOptionFlags` is a usize on 64-bit darwin; the OR
+        // happens in u64 space so the call site is independent
+        // of the host pointer width, then we narrow to the
+        // platform-native `CFOptionFlags`.
         let flags = (kSecAccessControlPrivateKeyUsage as u64) | extra_flags;
         SecAccessControl::create_with_protection(
             Some(ProtectionMode::AccessibleWhenPasscodeSetThisDeviceOnly),
-            flags,
+            flags as core_foundation_sys::base::CFOptionFlags,
         )
         .map_err(|e| HardwareVaultError::Backend(format!("SecAccessControl: {e}")))
     }
@@ -579,10 +593,14 @@ mod apple {
             )
         };
         if key.is_null() {
+            // `CFError::code()` returns `CFIndex` (= isize on
+            // 64-bit). The errSecMissingEntitlement constant
+            // is the i32 the OS surfaces; cast both sides
+            // through i64 for a portable compare.
             let mut code: i64 = 0;
             if !err.is_null() {
                 let owned = unsafe { CFError::wrap_under_create_rule(err) };
-                code = owned.code();
+                code = owned.code() as i64;
             }
             if code == ERR_SEC_MISSING_ENTITLEMENT as i64 {
                 return HardwareProbeReason::AppleSigningIdentityMissing;
@@ -783,7 +801,7 @@ mod apple_la {
     use objc2::msg_send;
     use objc2::rc::Retained;
     use objc2_foundation::NSError;
-    use objc2_local_authentication::{LAContext, LAErrorCode, LAPolicy};
+    use objc2_local_authentication::{LAContext, LAError, LAPolicy};
 
     /// Outcome of `LAContext.canEvaluatePolicy(.deviceOwnerAuthentication)`.
     pub(super) enum DeviceOwnerProbe {
@@ -794,7 +812,12 @@ mod apple_la {
     }
 
     pub(super) fn can_evaluate_device_owner() -> DeviceOwnerProbe {
-        let ctx: Retained<LAContext> = LAContext::new();
+        // SAFETY: `LAContext::new` is marked unsafe in
+        // objc2-local-authentication 0.3 because it returns an
+        // unbound autoreleased instance — fine for our use, we
+        // hold the `Retained<>` for the rest of the function and
+        // drop it deterministically on return.
+        let ctx: Retained<LAContext> = unsafe { LAContext::new() };
         let mut err: Option<Retained<NSError>> = None;
         let can: bool = unsafe {
             msg_send![
@@ -813,12 +836,15 @@ mod apple_la {
         // exposes the same numbers across SDK versions, but the
         // enum import is internal API in some bindings.
         let raw = err.code();
-        if raw == LAErrorCode::PasscodeNotSet.0 as isize {
+        if raw == LAError::PasscodeNotSet.0 {
             return DeviceOwnerProbe::PasscodeNotSet;
         }
-        if raw == LAErrorCode::BiometryNotAvailable.0 as isize
-            || raw == LAErrorCode::TouchIDNotAvailable.0 as isize
-        {
+        // `LAError::TouchIDNotAvailable` is just a deprecated
+        // alias for `LAError::BiometryNotAvailable` (same -6
+        // value); the comparison is now a no-op but kept for
+        // clarity that the raw OS value covers both legacy
+        // Touch ID and modern Face ID failure paths.
+        if raw == LAError::BiometryNotAvailable.0 {
             return DeviceOwnerProbe::BiometryNotAvailable;
         }
         DeviceOwnerProbe::Other

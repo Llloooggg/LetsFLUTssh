@@ -129,8 +129,7 @@ fn spawn_platform_listener(tx: broadcast::Sender<()>) {
 mod macos_impl {
     use super::broadcast;
     use objc2::rc::Retained;
-    use objc2::runtime::ProtocolObject;
-    use objc2::{define_class, msg_send, sel, ClassType, DefinedClass, MainThreadMarker};
+    use objc2::{define_class, msg_send, sel, AnyThread, DefinedClass};
     use objc2_foundation::{
         NSDistributedNotificationCenter, NSNotification, NSNotificationCenter, NSObject,
         NSObjectProtocol, NSRunLoop, NSString,
@@ -178,7 +177,7 @@ mod macos_impl {
         // No MainThreadMarker required because we're explicitly
         // running our own loop, not the main thread's.
         let observer = LockObserver::new(tx);
-        let center = unsafe { NSDistributedNotificationCenter::defaultCenter() };
+        let center = NSDistributedNotificationCenter::defaultCenter();
         let center_super: &NSNotificationCenter = &center;
 
         // The screen-lock notification name is documented in
@@ -189,8 +188,16 @@ mod macos_impl {
         let name = NSString::from_str("com.apple.screenIsLocked");
 
         unsafe {
+            // `addObserver_selector_name_object` takes
+            // `&AnyObject` for the observer (NSNotificationCenter
+            // wants any class instance, not a typed protocol
+            // object). Cast through the LockObserver's super
+            // class chain — it inherits from NSObject which is
+            // an AnyObject.
+            use objc2::runtime::AnyObject;
+            let observer_any: &AnyObject = (*observer).as_ref();
             center_super.addObserver_selector_name_object(
-                ProtocolObject::from_ref(&*observer),
+                observer_any,
                 sel!(handleLock:),
                 Some(&name),
                 None,
@@ -208,13 +215,12 @@ mod macos_impl {
         // observer callback fires on this thread's loop, posts
         // to the tokio broadcast, and returns. `run` never
         // returns under normal operation.
-        let run_loop = unsafe { NSRunLoop::currentRunLoop() };
-        unsafe { run_loop.run() };
+        let run_loop = NSRunLoop::currentRunLoop();
+        run_loop.run();
 
         // If `run` returns (process shutdown / unusual signal),
         // the observer leak above is reaped with the process —
         // not a real leak.
-        let _ = MainThreadMarker::new(); // silence unused-import lint
     }
 }
 

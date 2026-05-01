@@ -246,17 +246,28 @@ mod platform_impl {
     use core_foundation::dictionary::CFDictionary;
     use core_foundation::number::CFNumber;
     use core_foundation::string::CFString;
+    use core_foundation_sys::base::CFOptionFlags;
+    use core_foundation_sys::string::CFStringRef;
     use security_framework::access_control::{ProtectionMode, SecAccessControl};
     use security_framework::passwords::{
         delete_generic_password, get_generic_password, set_generic_password,
     };
-    use security_framework_sys::access_control::SecAccessControlCreateFlags;
+    use security_framework_sys::access_control::kSecAccessControlBiometryCurrentSet;
     use security_framework_sys::base::errSecItemNotFound;
     use security_framework_sys::item::{
         kSecAttrAccessControl, kSecAttrAccount, kSecAttrService, kSecClass,
-        kSecClassGenericPassword, kSecMatchLimit, kSecMatchLimitOne, kSecReturnData, kSecValueData,
+        kSecClassGenericPassword, kSecMatchLimit, kSecReturnData, kSecValueData,
     };
     use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
+
+    // `kSecMatchLimitOne` isn't bound by security-framework-sys
+    // 2.17 (only `kSecMatchLimit` + `kSecMatchLimitAll` ship).
+    // Declare it ourselves — the symbol is exported by
+    // `Security.framework` which security-framework-sys already
+    // links, so linkage resolves at run time.
+    extern "C" {
+        static kSecMatchLimitOne: CFStringRef;
+    }
 
     pub(super) async fn read(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
         // security-framework's high-level `get_generic_password`
@@ -369,9 +380,15 @@ mod platform_impl {
     /// changes invalidate; the device must have a passcode set;
     /// the entry never syncs to other devices.
     fn build_access_control() -> Result<SecAccessControl, SecureStorageError> {
+        // `CFOptionFlags` (u64) — pass the bare constant. The
+        // `kSecAccessControlBiometryCurrentSet` value (1 << 3)
+        // ties the entry to the *current* biometric enrolment;
+        // any add/remove/re-enrolment of a finger or face
+        // invalidates the stored value.
+        let flags: CFOptionFlags = kSecAccessControlBiometryCurrentSet;
         SecAccessControl::create_with_protection(
             Some(ProtectionMode::AccessibleWhenPasscodeSetThisDeviceOnly),
-            SecAccessControlCreateFlags::BIOMETRY_CURRENT_SET.bits(),
+            flags,
         )
         .map_err(|e| SecureStorageError::Backend(format!("SecAccessControl: {e}")))
     }

@@ -1248,9 +1248,29 @@ one, ship it, then pick the next.
 21. **Decision required before starting**: take on each Tier-4
     item only when the security or audit story justifies the
     ongoing cost. Per-item evaluation.
-22. If yes (per item): `platform/macos/code_signing` /
-    `macos_installer` / `foreground_service` / `qr_scanner` /
-    `android_storage_permission`.
+22. ~~`platform/macos/code_signing`~~ + ~~`macos_installer`~~ —
+    landed (2026-05) as `lfs_os_security::macos_signing` +
+    `lfs_os_security::macos_installer`. `tokio::process::Command`
+    wraps over `openssl` (cert generation), `security` (keychain
+    + trust DB), `codesign` (inside-out re-sign with leaf-first
+    ordering for dylibs → frameworks → xpc/appex → outer
+    bundle), `hdiutil` (atomic DMG mount/detach), `rsync`
+    (staged copy). Same call topology as the prior Dart
+    `IProcessRunner` abstraction. cfg-gated to
+    `target_os = "macos"`; rust-cross-check matrix validates
+    against `aarch64-apple-darwin` + `x86_64-apple-darwin` on
+    every PR. Side effect: this commit also fixed pre-existing
+    macOS-cfg compile errors in `secure_key_storage::apple`,
+    `hardware_tier_vault::apple`, `biometric_auth::apple`, and
+    the `session_lock_listener::macos_impl` from NI-3
+    (security-framework-sys 2.17 dropped some symbols, objc2
+    0.6 made `LAContext::new` unsafe, etc.). Apple-cfg compile
+    is now green for the first time.
+23. Remaining Tier 4 items stay opt-in per Three Pillars
+    "moving makes worse": `foreground_service` (lifecycle-
+    bound to MainActivity, JNI duplicates Flutter plugin
+    layer), `qr_scanner` + `android_storage_permission` (tiny
+    shims, FFI cost > Rust gain).
 
 ### CI maximum — full hygiene buildout (parallel arc)
 

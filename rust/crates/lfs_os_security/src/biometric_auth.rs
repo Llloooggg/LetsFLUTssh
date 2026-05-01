@@ -50,33 +50,29 @@ mod platform_impl {
         // SAFETY: `LAContext::new` returns a fresh autoreleased
         // instance; `canEvaluatePolicy` reads the device's
         // biometric state without prompting the user.
+        // objc2-local-authentication 0.3 returns
+        // `Result<(), Retained<NSError>>` directly — no
+        // out-pointer + bool dance like older revisions.
         let result = tokio::task::spawn_blocking(|| unsafe {
             let ctx: Retained<LAContext> = LAContext::new();
-            let mut error: Option<Retained<NSError>> = None;
-            let ok = ctx.canEvaluatePolicy_error(
-                LAPolicy::DeviceOwnerAuthenticationWithBiometrics,
-                Some(&mut error),
-            );
-            if ok {
-                Ok(())
-            } else {
-                let code = error.as_ref().map(|e| e.code()).unwrap_or(0);
-                // LAError codes (Apple-defined): -6 =
-                // touchIDNotAvailable, -7 = touchIDNotEnrolled,
-                // -8 = passcodeNotSet. Same values for Face ID
-                // (Apple kept the touchID names for ABI compat).
-                Err(match code {
-                    -6 => BiometricUnavailableReason::NoSensor,
-                    -7 => BiometricUnavailableReason::NotEnrolled,
-                    -8 => BiometricUnavailableReason::SystemServiceMissing,
-                    other => {
-                        let desc = error
-                            .as_ref()
-                            .map(|e| e.localizedDescription().to_string())
-                            .unwrap_or_default();
-                        BiometricUnavailableReason::Probe(format!("LAError {other}: {desc}"))
-                    }
-                })
+            match ctx.canEvaluatePolicy_error(LAPolicy::DeviceOwnerAuthenticationWithBiometrics) {
+                Ok(()) => Ok(()),
+                Err(error) => {
+                    let code = error.code();
+                    // LAError codes (Apple-defined): -6 =
+                    // touchIDNotAvailable, -7 = touchIDNotEnrolled,
+                    // -8 = passcodeNotSet. Same values for Face ID
+                    // (Apple kept the touchID names for ABI compat).
+                    Err(match code {
+                        -6 => BiometricUnavailableReason::NoSensor,
+                        -7 => BiometricUnavailableReason::NotEnrolled,
+                        -8 => BiometricUnavailableReason::SystemServiceMissing,
+                        other => {
+                            let desc = error.localizedDescription().to_string();
+                            BiometricUnavailableReason::Probe(format!("LAError {other}: {desc}"))
+                        }
+                    })
+                }
             }
         })
         .await;
