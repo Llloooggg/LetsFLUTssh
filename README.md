@@ -48,7 +48,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 | **macOS** | 10.15+ (Intel + Apple Silicon) | occasionally tested |
 | **iOS** | 13.0+ | not built |
 
-¹ Windows 10 RTM launches, but the optional biometric-unlock path (Windows Hello via `local_auth`) needs Windows 10 version **1809 (build 17763)** or newer because it calls into WinRT Hello APIs introduced in that release.
+¹ Windows 10 RTM launches, but the optional biometric-unlock path (Windows Hello via `Windows.Security.Credentials.UI.UserConsentVerifier`, called directly from Rust through the `windows` crate) needs Windows 10 version **1809 (build 17763)** or newer because it calls into WinRT Hello APIs introduced in that release.
 
 ## Installation
 
@@ -91,7 +91,7 @@ cd letsflutssh && ./letsflutssh
 > fprintd-enroll
 > ```
 >
-> Optional (upgrades the biometric-unlock backing from software to TPM2-hardware): `tpm2-tools` if your machine has a TPM2 chip (`ls /dev/tpmrm0` → exists). The Settings biometric row labels itself `Hardware-backed` when both TPM2 and `fprintd` are available; any biometric-enrolment change invalidates the sealed blob the next time around (equivalent to Apple's `biometryCurrentSet`).
+> Optional (upgrades the biometric-unlock backing from software to TPM2-hardware): a TPM 2.0 chip (`ls /dev/tpmrm0` → exists) plus **either** `tpm2-tools` (the historical subprocess path, still the default) **or** `libtss2-dev` (for the native `tss-esapi` Rust backend, opt-in via `LFS_TPM_BACKEND=native` env var). Both backends produce byte-identical sealed envelopes — choose the subprocess path for simplicity, the native path for lower per-operation latency. The Settings biometric row labels itself `Hardware-backed` when both TPM2 and `fprintd` are available; any biometric-enrolment change invalidates the sealed blob the next time around (equivalent to Apple's `biometryCurrentSet`).
 >
 > ```bash
 > # Debian / Ubuntu / Mint
