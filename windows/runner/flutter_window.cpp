@@ -3,12 +3,16 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
-// clipboard_secure_plugin retired — secure_clipboard now routes
-// through `lfs_os_security::secure_clipboard` (Win32 OpenClipboard
-// + RegisterClipboardFormatW for the cloud / history opt-out).
-// The .cpp / .h files stay on disk pending a CMakeLists cleanup.
+// session_lock_plugin + clipboard_secure_plugin retired —
+// session lock now lives Rust-side under
+// `lfs_os_security::session_lock_listener::windows_impl` (WTS
+// notifications via the `windows` crate), and secure_clipboard
+// routes through `lfs_os_security::secure_clipboard` (Win32
+// OpenClipboard + RegisterClipboardFormatW for the cloud /
+// history opt-out). Only `hardware_vault_plugin` survives — the
+// Windows L3 (CNG / Platform Crypto Provider) port is a
+// separate follow-up arc.
 #include "hardware_vault_plugin.h"
-#include "session_lock_plugin.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -33,9 +37,6 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   hardware_vault_ =
       std::make_unique<HardwareVaultPlugin>(flutter_controller_->engine());
-  session_lock_ =
-      std::make_unique<SessionLockPlugin>(flutter_controller_->engine());
-  session_lock_->Attach(GetHandle());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -51,9 +52,6 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
-  if (session_lock_) {
-    session_lock_->Detach();
-  }
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -65,14 +63,6 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
-  // Session-change (workstation lock) routing runs before Flutter's
-  // generic handler: the session lock plugin consumes
-  // WM_WTSSESSION_CHANGE and leaves every other message to the
-  // regular path.
-  if (session_lock_ && session_lock_->HandleMessage(message, wparam)) {
-    return 0;
-  }
-
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

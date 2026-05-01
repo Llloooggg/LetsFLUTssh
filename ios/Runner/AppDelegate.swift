@@ -12,24 +12,17 @@ import UIKit
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  private let hardwareVault = HardwareVaultPlugin()
-  // BackupExclusionPlugin + ClipboardSecurePlugin retired — both
-  // now route through `lfs_os_security` (objc2-foundation /
-  // objc2-ui-kit). The Swift plugin files stay on disk pending
-  // an Xcode pbxproj cleanup so this commit doesn't touch the
-  // project file.
+  // Every previously-registered native plugin
+  // (HardwareVaultPlugin / BackupExclusionPlugin /
+  // ClipboardSecurePlugin) now lives Rust-side under
+  // `lfs_os_security` (Apple cfg-arms via objc2-foundation /
+  // objc2-ui-kit). The Dart wrappers route through FRB instead
+  // of MethodChannel, so AppDelegate only owns the iOS-specific
+  // QR-scan presenter that genuinely needs UIKit access.
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     registerQrScanner(with: engineBridge)
-    registerHardwareVault(with: engineBridge)
-  }
-
-  private func registerHardwareVault(with engineBridge: FlutterImplicitEngineBridge) {
-    guard let messenger = engineBridge.pluginRegistry.registrar(
-      forPlugin: "com.letsflutssh.hardware_vault",
-    )?.messenger() else { return }
-    hardwareVault.register(with: messenger)
   }
 
   private func registerQrScanner(with engineBridge: FlutterImplicitEngineBridge) {

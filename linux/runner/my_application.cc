@@ -6,12 +6,14 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
-#include "session_lock_plugin.h"
+
+// Linux session-lock listener now runs Rust-side under
+// `lfs_os_security::session_lock_listener` (zbus subscription to
+// `org.freedesktop.login1.Session.Lock`). No GTK plugin needed.
 
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
-  SessionLockPlugin* session_lock_plugin;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -83,12 +85,6 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
-  // Linux session-lock subscription retired — logind Lock signal
-  // is now consumed Rust-side via
-  // `lfs_os_security::session_lock_listener` (zbus). The .cc / .h
-  // files stay on disk pending a CMakeLists cleanup.
-  self->session_lock_plugin = nullptr;
-
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -134,10 +130,6 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
-  if (self->session_lock_plugin != nullptr) {
-    session_lock_plugin_free(self->session_lock_plugin);
-    self->session_lock_plugin = nullptr;
-  }
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }

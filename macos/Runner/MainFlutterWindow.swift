@@ -1,21 +1,19 @@
 import Cocoa
 import FlutterMacOS
 
+// All previously-registered platform plugins have moved Rust-side
+// under `lfs_os_security`:
+//
+// * HardwareVaultPlugin            → `lfs_os_security::hardware_tier_vault::apple`
+// * SessionLockPlugin              → `lfs_os_security::session_lock_listener::macos_impl`
+// * ClipboardSecurePlugin          → `lfs_os_security::secure_clipboard::apple`
+// * BackupExclusionPlugin          → `lfs_os_security::backup_exclusion`
+//
+// The Dart wrappers route every call through FRB → `lfs_frb::api::*`,
+// so this file no longer needs to instantiate / register any Swift
+// MethodChannel handler. `RegisterGeneratedPlugins` still wires the
+// pub.dev plugins (file_picker etc.) the project depends on.
 class MainFlutterWindow: NSWindow {
-  private let hardwareVault = HardwareVaultPlugin()
-  // BackupExclusionPlugin retired — backup_exclusion now routes
-  // through `lfs_os_security::backup_exclusion` (objc2 →
-  // NSURL.setResourceValue:forKey:NSURLIsExcludedFromBackupKey).
-  // The Swift plugin file stays on disk until the next Xcode
-  // pbxproj cleanup so this commit doesn't have to touch the
-  // project file.
-  // ClipboardSecurePlugin retired — secure_clipboard now routes
-  // through `lfs_os_security::secure_clipboard` (objc2-app-kit
-  // → NSPasteboard with transient/concealed marker types). The
-  // Swift plugin file stays on disk pending an Xcode pbxproj
-  // cleanup so this commit doesn't have to touch the project file.
-  private let sessionLock = SessionLockPlugin()
-
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -23,8 +21,6 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
-    hardwareVault.register(with: flutterViewController.engine.binaryMessenger)
-    sessionLock.register(with: flutterViewController.engine.binaryMessenger)
 
     // Minimum window size to prevent layout overflow.
     self.contentMinSize = NSSize(width: 480, height: 360)

@@ -13,14 +13,15 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 // FlutterFragmentActivity (instead of FlutterActivity) is required by
-// local_auth's BiometricPrompt, which hosts its UI inside a Fragment.
+// `androidx.biometric.BiometricPrompt` (consumed Rust-side via JNI in
+// `lfs_os_security::android::biometric`); the prompt hosts its UI
+// inside a Fragment and crashes on a plain FlutterActivity.
 class MainActivity : FlutterFragmentActivity() {
     private val permissionChannel = "com.letsflutssh/permissions"
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private val secureScreenChannel = "com.letsflutssh/secure_screen"
     private var pendingResult: MethodChannel.Result? = null
     private var pendingScanResult: MethodChannel.Result? = null
-    private var hardwareVault: HardwareVaultPlugin? = null
     private var clipboardSecure: ClipboardSecurePlugin? = null
 
     // Refcount for FLAG_SECURE — a nested SecureScreenScope (e.g. an
@@ -68,14 +69,11 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
 
-        // L3 hardware-backed vault. The plugin owns its own
-        // MethodChannel name (`HardwareVaultPlugin.CHANNEL`) so the
-        // registration stays self-contained here.
-        val hwChannel = MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            HardwareVaultPlugin.CHANNEL
-        )
-        hardwareVault = HardwareVaultPlugin(this).also { it.register(hwChannel) }
+        // L3 hardware-backed vault is owned Rust-side now —
+        // `lfs_os_security::android::hardware_vault` calls into
+        // `java.security.KeyStore` provider `"AndroidKeyStore"`
+        // directly via JNI. The Dart `HardwareTierVault` wrapper
+        // routes Android through FRB, no MethodChannel involved.
 
         val clipboardChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

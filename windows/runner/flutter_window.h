@@ -9,7 +9,6 @@
 #include "win32_window.h"
 
 class HardwareVaultPlugin;
-class SessionLockPlugin;
 
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
@@ -34,17 +33,9 @@ class FlutterWindow : public Win32Window {
 
   // L3 hardware vault (Windows Hello / KeyCredentialManager). Lives
   // as a member so its MethodChannel binding outlives OnCreate().
+  // Last MethodChannel-bound surface on Windows; the CNG / Platform
+  // Crypto Provider Rust port is a separate follow-up arc.
   std::unique_ptr<HardwareVaultPlugin> hardware_vault_;
-
-  // ClipboardSecurePlugin retired — secure_clipboard now routes
-  // through `lfs_os_security::secure_clipboard` (Win32 OpenClipboard
-  // + RegisterClipboardFormatW for the cloud / history opt-out).
-
-  // WTS session-change subscription — fires the Dart-side auto-lock
-  // whenever the workstation locks (Win+L, Ctrl+Alt+Del → Lock, GPO
-  // enforced lock). Must live on this window because the WTS
-  // subscription is HWND-scoped.
-  std::unique_ptr<SessionLockPlugin> session_lock_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

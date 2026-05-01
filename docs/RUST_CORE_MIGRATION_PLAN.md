@@ -1519,12 +1519,14 @@ tests + lfs_frb + lfs_os_security suites). `grep -r
 KeychainOpPromptRequest rust/ lib/` returns zero hits, same
 for the other two variants and the listener / registry names.
 
-**Phase 6 — Native plugin file deletion (pending, ~2 hours).**
+**Phase 6 — Native plugin file deletion ✅ landed.**
 
-Goal: every native plugin file whose role is now covered
-end-to-end by Rust gets deleted. Plugin registrant entries
-in `MainFlutterWindow.swift` / `flutter_window.cpp` /
-`MainActivity.kt` get removed.
+Every native plugin whose role is covered end-to-end by Rust
+got deleted, registrants stripped, and CMake source lists +
+Xcode pbxproj entries cleaned up. The Apple Xcode pbxproj
+references (4 lines × 4 sections each on macos / ios) were
+removed via UUID-targeted sed so a follow-up `xcodebuild`
+doesn't trip on missing files.
 
 Files to delete:
 
@@ -1574,6 +1576,14 @@ matrix `cargo check`) succeeds without dangling references.
 `grep -rn "HardwareVaultPlugin\|SessionLockPlugin\|ClipboardSecurePlugin"`
 returns only the Windows hardware_vault + Android clipboard
 files plus their registrant entries.
+
+Verified post-deletion: `make analyze` clean, `make test`
+(3142 tests, 5 skipped) green. Apple builds remain
+verification-pending (NI-2) — the Rust hardware_tier_vault
++ secure_clipboard + session_lock_listener Apple cfg-arms
+are exercised by `make rust-test` on Linux but the macOS /
+iOS Foundation/UIKit dispatch has only been compile-checked
+via the iOS unsigned-compile lane (Wave 5c).
 
 **Phase 7 — `pubspec.yaml` dep removal (pending, ~30 min).**
 
