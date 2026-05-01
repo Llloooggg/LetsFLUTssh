@@ -1419,56 +1419,34 @@ round-trip tests retired (covered Rust-side), 2 libsecret-
 fallback tests skipped with pointer to Rust integration
 tests, Apple SecAccessControl-options assertions removed.
 
-**Phase 3 — `SecureKeyStorage` legacy storage retire
-(pending, ~3 hours).**
+**Phase 3 — `SecureKeyStorage` legacy storage retire ✅ landed.**
+`lib/core/security/secure_key_storage.dart` is now a pure FRB
+wrapper. No `flutter_secure_storage` import, no `_legacyStorage`
+injection point, no `_skipPlatformCheck` flag, no
+`_useRust` gate — every platform (incl. Android via JNI to
+AndroidKeyStore) routes through `lfs_os_security::secure_key_storage::*`.
+Constructor reduced to `SecureKeyStorage({LinuxKeychainMarker? marker})`.
+Base64 encode/decode helpers + `_Base64` shim deleted (Rust
+stores raw bytes). `_linuxGatePass` retains the `Platform.isLinux`
+marker check as the cold-launch libsecret guard.
 
-Goal: `lib/core/security/secure_key_storage.dart` becomes a
-pure FRB wrapper. No `flutter_secure_storage` import, no
-`_legacyStorage` injection point, all 5 platforms route
-through `lfs_os_security::secure_key_storage::*` via FRB.
+Test surgery: `test/core/security/secure_key_storage_test.dart`
+shrunk to the two Dart-side surface assertions
+(`KeyringProbeResult` enum vocabulary + `enableRuntimeSubprocessProbes`
+idempotency); the round-trip / probe / delete coverage now
+lives Rust-side under `lfs_os_security::secure_key_storage::tests`.
+`test/features/settings/settings_logging_test.dart` dropped its
+`_FakeFlutterSecureStorage` class + the `flutter_secure_storage`
+import; `secureKeyStorageProvider` is now overridden with
+`FakeSecureKeyStorage(available: false)` from the shared
+`helpers/fake_security.dart` module.
 
-Concrete actions:
-
-1. `lib/core/security/secure_key_storage.dart`:
-   - Drop `import 'package:flutter_secure_storage/...'`.
-   - Drop `final FlutterSecureStorage? _legacyStorage` field.
-   - Drop `_storage` getter, `_skipPlatformCheck` flag.
-   - Drop the `else` branches that call `_storage.read/write/delete/containsKey`.
-   - Constructor signature: `SecureKeyStorage({LinuxKeychainMarker? marker})`
-     — drop `storage:` param.
-   - `_useRust` getter → always `true` (delete the field; inline
-     the `Platform.isLinux || ...` checks where needed for
-     platform-gating, e.g. `_linuxGatePass` keeps `Platform.isLinux`
-     branch).
-   - `_runtimeSubprocessProbesEnabled` static + `enableRuntimeSubprocessProbes`
-     remain — Linux-specific gdbus probe is independent of the
-     FRB Rust path and stays as the cold-launch availability check.
-
-2. `test/core/security/secure_key_storage_test.dart`:
-   - Drop `setMockMethodCallHandler('plugins.it_nomads.com/flutter_secure_storage', ...)`
-     setup + teardown.
-   - Existing tests that called `SecureKeyStorage(storage: fakeStorage)`
-     either:
-     a. Migrate to FRB-bootstrapped real-backend round-trip
-        (works on Linux dev machines + CI runner with `dbus-run-session`
-        wrapping the test invocation; for macOS/Windows runners,
-        the real OS keychain accepts the writes).
-     b. Skip with `skip: 'Moved to lfs_os_security::secure_key_storage::tests
-        Rust-side after flutter_secure_storage retire'` and add the
-        equivalent assertion to the existing Rust unit-test module.
-   - Linux marker / probe / "platform check" tests stay as-is —
-     they assert Dart-side behaviour orthogonal to the storage
-     backend.
-
-3. `test/features/settings/settings_logging_test.dart` +
-   any other test using `SecureKeyStorage(storage: ...)` —
-   drop the `storage:` arg (already done for biometric_key_vault
-   per Phase 2; sweep remaining call sites).
-
-Acceptance: `make analyze` clean, `make test` green (with
-some tests in skip status pointing to Rust coverage),
-`grep -r flutter_secure_storage lib/` returns only the legacy
-listener files (Phase 5 will sweep those).
+Verified: `make analyze` clean, full test suite (3155 tests)
+green. `grep -r flutter_secure_storage lib/` now returns only
+the two legacy prompt-listener files
+(`lib/app/keychain_pepper_prompt_listener.dart`,
+`lib/app/keychain_op_prompt_listener.dart`) which Phase 5
+will retire alongside the bus-event prompt protocol.
 
 **Phase 4 — `BiometricAuth` `local_auth` retire
 (pending, ~2 hours).**
