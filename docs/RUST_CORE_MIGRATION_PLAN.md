@@ -849,11 +849,24 @@ one, ship it, then pick the next.
 
 ### Soon — Phase 6 Tier 2 (3–5 days)
 
-9. Clipboard stack (`secure_clipboard` + `clipboard_secret`) →
-   `arboard` crate; Android sensitive-flag stays MethodChannel.
-10. `session_lock_listener` → `objc2` / `windows-rs` / zbus.
-11. `backup_exclusion` → `objc2` Foundation `xattr`.
-12. `linux/fprintd_client` → `zbus`.
+9. ~~Clipboard stack (`secure_clipboard` + `clipboard_secret`) →
+   `arboard` crate; Android sensitive-flag stays MethodChannel.~~
+   Done (2026-05) — `lfs_os_security::secure_clipboard` covers
+   Linux (arboard), macOS (NSPasteboard transient/concealed),
+   iOS (UIPasteboard.localOnly), Windows (raw OpenClipboard +
+   RegisterClipboardFormatW for cloud/history opt-out).
+10. ~~`session_lock_listener` → `objc2` / `windows-rs` / zbus.~~
+    Done (2026-05) — Linux logind Session.Lock via zbus +
+    tokio::sync::broadcast in `lfs_os_security::session_lock_listener`.
+    macOS / Windows kept on existing native plugins (window /
+    run-loop bound).
+11. ~~`backup_exclusion` → `objc2` Foundation `xattr`.~~ Done
+    (2026-05) — Apple `NSURL.setResourceValue` with
+    `NSURLIsExcludedFromBackupKey` via objc2 in
+    `lfs_os_security::backup_exclusion`.
+12. ~~`linux/fprintd_client` → `zbus`.~~ Done (2026-05) — zbus
+    proxy lives in `lfs_core::platform::linux::fprintd`; the Dart
+    `FprintdClient` shim routes through FRB.
 13. ~~`core/sftp/file_system.dart` LocalFS → `tokio::fs` in
     `lfs_core::fs::local`.~~ Done — module landed with all
     six fs ops (`list`, `mkdir`, `remove`, `remove_dir`,
@@ -863,15 +876,18 @@ one, ship it, then pick the next.
     `lfs_core::import::ssh_config`.~~ Done — Include + glob
     walk lives in `lfs_core::ssh_config::parse_openssh_config_with_fs`;
     `~/.ssh` directory scan lives in `lfs_core::ssh_dir_scan::scan`.
-    `openssh_config_importer` (orchestration glue → ImportResult)
-    deferred — its surface is mostly Dart-domain types
-    (`Session`, `SshKeyEntry`, `ImportResult`); migrating it
-    requires duplicating those types Rust-side, which adds
-    FRB ceremony without a measurable correctness or perf win.
-15. SFTP recursive walks (`uploadDir` / `downloadDir` /
-    `removeDir`) → `lfs_core::sftp::recursive_walk`. Needs
-    FRB Stream + cancellation wiring for progress callbacks
-    — pre-req work before the move itself.
+    `openssh_config_importer` orchestration glue (the in-memory
+    preview path → `ImportPreview`) also landed in
+    `lfs_core::import::openssh_config::build_preview` — now used
+    by the Dart importer through FRB.
+15. ~~SFTP recursive walks (`uploadDir` / `downloadDir` /
+    `removeDir`) → `lfs_core::sftp::recursive_walk`.~~ Done —
+    `lfs_core::sftp` exposes `Sftp::remove_dir_recursive`,
+    `Sftp::upload_dir`, and `Sftp::download_dir` with sync
+    callback closure for per-file progress + cancellation; the
+    65 KiB chunking lives in `stream_upload_file` /
+    `stream_download_file`. Cooperative cancel through
+    `AtomicBool` propagated via the FRB closure.
 
 ### Bundle size — single tweak arc (after Tier 2)
 
@@ -882,15 +898,16 @@ one, ship it, then pick the next.
 
 ### Strategic gate — Phase 6 Tier 3 (1–2 weeks)
 
-17. **Decision required before starting**: do we drop
-    `flutter_secure_storage` + `local_auth` from `pubspec.yaml`?
-    Pros: full control of cipher policy, smaller plugin
-    attack surface, FIPS-validated suites. Cons: per-platform
-    crate audit, CI matrix expansion (macOS / Windows / Android
-    runners), ongoing maintenance of native bindings.
-18. If yes: `secure_key_storage` + `biometric_key_vault` +
+17. ~~**Decision required before starting**: do we drop
+    `flutter_secure_storage` + `local_auth` from `pubspec.yaml`?~~
+    Decided: yes for desktop / Apple, deferred for Android (see
+    Tier 3 ledger above).
+18. ~~`secure_key_storage` + `biometric_key_vault` +
     `biometric_auth` + `wipe_all_service` → `security-framework`
-    / `wincred` / `secret-service` / `objc2` / `windows-rs` / JNI.
+    / `wincred` / `secret-service` / `objc2` / `windows-rs` / JNI.~~
+    Done on desktop + Apple (2026-05) — see Tier 3 table above for
+    the per-file split. Android stays on flutter_secure_storage /
+    local_auth pending JNI bridge work.
 
 ### Strategic gate — Phase 6 Tier 4 (3–4 weeks, opt-in per item)
 
