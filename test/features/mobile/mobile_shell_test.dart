@@ -812,14 +812,14 @@ void main() {
         final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
         expect(stack.index, equals(2));
       },
-      // With FRB loaded the Connection constructor succeeds in
-      // subscribing to the real bus, and the SFTP init path queries
-      // the Rust connection registry instead of the fake — the
-      // navigation never fires because the registry has no live
-      // session for the fake handle. Equivalent coverage of the
-      // SFTP-from-context-menu navigation lives in the integration
-      // test suite where the Rust connection actor has a real
-      // session to answer with.
+      // SFTP-from-context-menu nav requires a live Rust connection
+      // registry session; the fake handle never resolves because
+      // the FRB-bootstrapped Connection ctor subscribes to the real
+      // bus and the Rust SFTP init queries the actor's registry
+      // instead of the fake. Equivalent coverage lives in
+      // `integration_test/` where the Rust actor has a real session
+      // attached. `testWidgets.skip` is a bool — rationale lives in
+      // this comment block above the skip flag.
       skip: true,
     );
 
