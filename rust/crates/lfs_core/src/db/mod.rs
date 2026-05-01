@@ -1,18 +1,19 @@
 //! SQLite + SQLCipher database handle.
 //!
 //! Opens an encrypted sqlite file under `bundled-sqlcipher`
-//! (SQLCipher 4.x, AES-256-CBC). **Important cipher caveat**: the
-//! drift+sqlite3_flutter_libs side runs SQLite3MultipleCiphers with
-//! its built-in default scheme (ChaCha20-Poly1305), NOT real
-//! SQLCipher. The two cipher families are wire-incompatible —
-//! rusqlite cannot read drift's existing `db.sqlite` directly. While
-//! both engines coexist:
-//!   1. Rust opens a separate file (`lfs_core.db`) alongside drift's,
-//!      keyed off the same master key.
-//!   2. A one-shot migration helper reads each drift table through
-//!      drift, writes the matching rusqlite tables.
-//!   3. Once all DAOs flip to the Rust file, drift retires and its
-//!      file is deleted.
+//! (SQLCipher 4.x, AES-256-CBC + HMAC-SHA512, 256 000 PBKDF2-SHA512
+//! iterations off the `PRAGMA key` value). The page-cipher key the
+//! caller hands in is the 32-byte master DB key produced by
+//! Argon2id (Paranoid) / pulled out of the OS keychain (T1) /
+//! unsealed from the hardware vault (T2); SQLCipher itself does
+//! not see Argon2id, only the final 32 bytes.
+//!
+//! **Schema versioning.** [`bootstrap_schema`] writes
+//! `PRAGMA user_version = SCHEMA_VERSION` on every fresh open,
+//! and the next schema bump bumps that constant + adds a
+//! `match user_version { ... }` arm with the migration step. The
+//! v1 floor is "what drift used to ship", recorded so a future
+//! `ALTER TABLE` migration has a real anchor to read off.
 //!
 //! Threading: every DB call hops to `tokio::task::spawn_blocking`
 //! inside the FRB adapter. This struct is Send + Sync (the inner
@@ -178,13 +179,45 @@ impl Db {
     }
 }
 
-/// Create every table the DAOs expect, idempotently. Mirrors the
-/// drift schema column-for-column. The data migration tool reads
-/// from drift's `db.sqlite` (via Dart) and writes through these
-/// tables; once that lands the drift Daos retire.
+/// Current on-disk schema revision. Stamped into the DB via
+/// `PRAGMA user_version` on bootstrap so a future schema bump can
+/// branch on the read-back value to decide whether to run a
+/// migration step. Bump this constant + extend
+/// [`bootstrap_schema`] with a `match` arm whenever the schema
+/// changes. v1 is "what drift used to ship before the rusqlite
+/// port", recorded explicitly so a future ALTER TABLE has a
+/// real anchor.
+pub const SCHEMA_VERSION: i32 = 1;
+
+/// Create every table the DAOs expect, idempotently, and stamp
+/// `PRAGMA user_version = SCHEMA_VERSION` on the file. Tables are
+/// `CREATE IF NOT EXISTS` so the call is safe to re-run on every
+/// open; the version stamp is unconditional so the value reflects
+/// the running build's expectation, not the on-disk legacy.
 pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
     conn.execute_batch(SCHEMA_SQL)
-        .map_err(|e| Error::Io(format!("bootstrap schema: {e}")))
+        .map_err(|e| Error::Io(format!("bootstrap schema: {e}")))?;
+    conn.pragma_update(None, "user_version", SCHEMA_VERSION)
+        .map_err(|e| Error::Io(format!("bootstrap schema: stamp user_version: {e}")))?;
+    Ok(())
+}
+
+/// Read the on-disk schema revision. Returns `0` for a freshly
+/// initialised DB that hasn't been bootstrapped yet (SQLite
+/// default for `user_version`); after [`bootstrap_schema`] it
+/// returns [`SCHEMA_VERSION`]. Currently used only by the
+/// bootstrap idempotency test; production runs no longer branch
+/// on `user_version` because the v1 floor is universal — the
+/// next schema bump will surface the first real consumer.
+#[cfg(test)]
+fn read_schema_version(conn: &Connection) -> Result<i32, Error> {
+    let mut value: i32 = 0;
+    conn.pragma_query(None, "user_version", |row| {
+        value = row.get::<_, i32>(0)?;
+        Ok(())
+    })
+    .map_err(|e| Error::Io(format!("read user_version: {e}")))?;
+    Ok(value)
 }
 
 const SCHEMA_SQL: &str = r#"
@@ -333,6 +366,23 @@ mod tests {
         };
         let n = db.schema_object_count().unwrap();
         assert!(n >= 1, "schema_object_count was {n}");
+    }
+
+    /// Bootstrap stamps `user_version = SCHEMA_VERSION` on a fresh
+    /// DB and is idempotent on re-bootstrap.
+    #[test]
+    fn bootstrap_stamps_user_version() {
+        let conn = Connection::open_in_memory().unwrap();
+        assert_eq!(
+            read_schema_version(&conn).unwrap(),
+            0,
+            "fresh DB starts at user_version 0",
+        );
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+        // Re-running bootstrap leaves the stamp at the same value.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
 
     /// Bootstrap schema + ssh_keys round-trip on an in-memory DB.

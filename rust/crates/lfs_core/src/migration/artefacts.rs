@@ -16,10 +16,16 @@ use super::{Artefact, SchemaVersions};
 ///
 /// The file is plain JSON. The schema version is tracked via a top-
 /// level `config_schema_version` field inside the JSON itself —
-/// stamped by the config writer on every write. A missing field, a
-/// non-integer value, or malformed JSON is treated as corrupt
-/// (returns `Err`); the runner surfaces the fatal error to the
-/// caller which routes the user through the reset dialog.
+/// stamped by the config writer on every write since the v1 cutover.
+/// **Pre-cutover installs wrote `config.json` with no version field
+/// at all**, so a missing `config_schema_version` on a JSON object
+/// that otherwise parses cleanly is treated as v1 (the implicit
+/// pre-stamp version). Without this fallback an upgrade from any
+/// pre-cutover install would land on the reset dialog with the
+/// user's settings intact on disk but unreachable.
+///
+/// A non-integer value or malformed JSON is still corrupt → `Err`
+/// → caller surfaces the reset dialog.
 pub struct ConfigArtefact;
 
 impl ConfigArtefact {
@@ -55,8 +61,11 @@ impl Artefact for ConfigArtefact {
                     Self::VERSION_FIELD
                 )
             }),
-            _ => Err(format!(
-                "{}: missing or non-integer {}",
+            // Missing field on a parseable JSON object = pre-cutover
+            // install. Implicit v1.
+            None => Ok(1),
+            Some(_) => Err(format!(
+                "{}: non-integer {}",
                 Self::FILE_NAME,
                 Self::VERSION_FIELD
             )),
@@ -117,12 +126,31 @@ mod tests {
         assert_eq!(ConfigArtefact.read_version(dir.path()).unwrap(), 1);
     }
 
+    /// Pre-cutover installs wrote `config.json` with no version
+    /// field. The artefact must report that as v1 so the upgrade
+    /// path doesn't trigger a reset that would wipe the user's
+    /// settings out from under them.
     #[test]
-    fn config_missing_version_field_is_fatal() {
+    fn config_missing_version_field_is_implicit_v1() {
         let dir = TempDir::new().unwrap();
         fs::write(dir.path().join("config.json"), br#"{"theme": "dark"}"#).unwrap();
+        assert_eq!(ConfigArtefact.read_version(dir.path()).unwrap(), 1);
+    }
+
+    /// Non-integer value in the version field is still fatal — that
+    /// can only mean a corrupted writer or a deliberate tamper, not
+    /// a legitimate pre-cutover install (which would have no field
+    /// at all, not a string in its place).
+    #[test]
+    fn config_non_integer_version_field_is_fatal() {
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{"config_schema_version": "v1"}"#,
+        )
+        .unwrap();
         let err = ConfigArtefact.read_version(dir.path()).unwrap_err();
-        assert!(err.contains("missing"));
+        assert!(err.contains("non-integer"));
     }
 
     #[test]
