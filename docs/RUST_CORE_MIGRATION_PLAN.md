@@ -588,7 +588,7 @@ Each file below is >1 000 LOC of human-written code; readability
 | `lib/features/session_manager/session_edit_dialog.dart` | 1 358 | per-tab widgets (auth / advanced / port-forwards / snippets) |
 | `lib/features/session_manager/session_panel.dart` | 1 264 | tree-view section + folder-actions section + bulk-ops section |
 | `lib/widgets/expandable_tier_card.dart` | 1 120 | per-tier card variants |
-| `rust/crates/lfs_core/src/archive.rs` | **2 362** | `archive::{encrypt, decrypt, apply, manifest, qr_compose}` submodules |
+| `rust/crates/lfs_core/src/archive/` | mod.rs **2 034** + qr_compose.rs 332 | qr_compose split landed (2026-05); remaining `encrypt / decrypt / apply / manifest` slices share helpers (time formatters, build_*_value JSON builders, ApplyOptions/Result types) and want focused commits each rather than one big mechanical move |
 | `rust/crates/lfs_core/src/ssh/mod.rs` | 1 608 | acceptable (central SSH module — refactor only if a clean split appears) |
 
 Effort per file: 0.5–1 day each, low-risk. Tests stay green
