@@ -78,6 +78,117 @@ pub fn apply_startup_hardening() -> Vec<HardeningStep> {
     steps
 }
 
+/// Detect whether a debugger is currently attached to the
+/// process. Best-effort runtime probe — orthogonal to the
+/// startup-time `apply_startup_hardening` (which BLOCKS new
+/// attaches), this answers "is something already attached
+/// right now?".
+///
+/// Per-platform probe:
+/// - **Linux / Android** — parse `/proc/self/status` for the
+///   `TracerPid:` line. Non-zero TracerPid means `ptrace(PT_ATTACH)`
+///   succeeded against us (despite `PR_SET_PTRACER, 0`, which
+///   only restricts NEW attaches — a parent debugger or
+///   `setcap cap_sys_ptrace+ep` binary still gets through).
+/// - **macOS** — `sysctl({CTL_KERN, KERN_PROC, KERN_PROC_PID,
+///   getpid()})` returns `kinfo_proc` with `kp_proc.p_flag &
+///   P_TRACED`. The Apple-recommended runtime detection;
+///   `ptrace(PT_DENY_ATTACH)` BLOCKS attach, this READS the
+///   current state.
+/// - **Windows** — `IsDebuggerPresent()` (kernel32.dll). Standard
+///   Win32 anti-debug primitive.
+/// - **iOS** — same `sysctl` shape as macOS. Apple gates app-
+///   store apps from `ptrace`; this detection still catches
+///   Xcode debugger attached to a development build.
+///
+/// **Caveats** (well-known to anti-debug practitioners):
+/// - Casual `gdb` / `lldb` attach is detected; sophisticated
+///   attackers replace `/proc/self/status` reads via `LD_PRELOAD`
+///   or hook `IsDebuggerPresent` in-place.
+/// - This is one signal of many; pair with timing-anomaly
+///   checks for higher confidence (not implemented here —
+///   timing checks have false-positive rates that hurt
+///   battery-throttled mobile devices).
+/// - NEVER auto-terminate from this signal. Call sites should
+///   surface to telemetry and let policy decide (e.g. lock
+///   sensitive tiers immediately, require fresh unlock).
+pub fn is_being_debugged() -> bool {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        let status = match std::fs::read_to_string("/proc/self/status") {
+            Ok(s) => s,
+            // /proc unreadable → can't tell. Assume worst-case
+            // false rather than asserting we're clean.
+            Err(_) => return false,
+        };
+        for line in status.lines() {
+            if let Some(rest) = line.strip_prefix("TracerPid:") {
+                let pid: i32 = rest.trim().parse().unwrap_or(0);
+                return pid != 0;
+            }
+        }
+        false
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        // SAFETY: `sysctl` is a read-only kernel query; the
+        // returned `kinfo_proc` is a fixed-size struct stamped
+        // by the kernel. We pass our own buffer + length pair;
+        // the kernel does not retain the pointer.
+        use std::mem;
+        const CTL_KERN: libc::c_int = 1;
+        const KERN_PROC: libc::c_int = 14;
+        const KERN_PROC_PID: libc::c_int = 1;
+        const P_TRACED: i32 = 0x800;
+        // `kinfo_proc` is large + Apple-private; we only need
+        // the `p_flag` field's offset within `kp_proc.p_flag`.
+        // The struct layout is stable (Apple ABI); the offset
+        // for p_flag inside kinfo_proc is 32 bytes on every
+        // 64-bit Darwin since 10.4. Hard-code the offset rather
+        // than depend on bindgen.
+        let mut info = [0u8; 648]; // sizeof(kinfo_proc) on darwin64
+        let mut size: libc::size_t = info.len();
+        let mib: [libc::c_int; 4] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, unsafe {
+            libc::getpid()
+        }];
+        let rc = unsafe {
+            libc::sysctl(
+                mib.as_ptr() as *mut libc::c_int,
+                mib.len() as libc::c_uint,
+                info.as_mut_ptr() as *mut libc::c_void,
+                &mut size,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+        if rc != 0 {
+            return false;
+        }
+        // p_flag is at offset 32 inside kinfo_proc.kp_proc on
+        // 64-bit darwin; read as i32 little-endian.
+        if size < 36 {
+            return false;
+        }
+        let bytes: [u8; 4] = match info[32..36].try_into() {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
+        let flags = i32::from_le_bytes(bytes);
+        let _ = mem::size_of::<libc::c_int>();
+        (flags & P_TRACED) != 0
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        extern "system" {
+            fn IsDebuggerPresent() -> i32;
+        }
+        // SAFETY: Win32 query, no arguments, returns BOOL.
+        unsafe { IsDebuggerPresent() != 0 }
+    }
+}
+
 /// Page-lock `len` bytes at `addr` in RAM so the OS doesn't page
 /// them out to swap or hibernation. Returns `true` on success.
 /// `mlock` (POSIX) returns 0 on success; `VirtualLock` (Windows)
@@ -213,6 +324,13 @@ fn set_error_mode() -> HardeningStep {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn is_being_debugged_returns_without_panic() {
+        // Real value depends on test runner — assertion-free,
+        // we only verify the call returns at all.
+        let _ = is_being_debugged();
+    }
 
     #[test]
     fn apply_startup_hardening_returns_steps() {
