@@ -57,6 +57,18 @@ objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2-ui-kit = { version = "0.3", features = ["UIPasteboard"] }
 
+# Apple-only — LAContext for `biometric_auth`. block2 wraps the
+# reply block evaluatePolicy fires on completion; we bridge it
+# to a tokio oneshot channel so the Rust caller awaits a
+# Future. objc2-local-authentication provides typed bindings to
+# LAContext + LAPolicy.
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.objc2-local-authentication]
+version = "0.3"
+features = ["LAContext", "LAError"]
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies.block2]
+version = "0.6"
+
 # Lints — allow unsafe for the FFI shims, deny everything else.
 [lints.rust]
 unsafe_code = "allow"

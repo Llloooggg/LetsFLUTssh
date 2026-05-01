@@ -90,6 +90,55 @@ pub fn os_security_set_secure_clipboard(text: String) -> Result<(), String> {
     lfs_os_security::secure_clipboard::set_secure_text(&text)
 }
 
+#[derive(Debug, Clone)]
+pub enum DbBiometricAvailability {
+    /// `Ok` mapped to this variant — biometrics ready.
+    Available,
+    PlatformUnsupported,
+    NoSensor,
+    NotEnrolled,
+    SystemServiceMissing,
+    Probe(String),
+}
+
+/// Probe the platform's biometric backend. Apple uses LAContext
+/// via objc2; Linux short-circuits (the Dart wrapper routes
+/// Linux through fprintd directly). Windows / Android stay on
+/// `local_auth` Dart-side until their Rust impls land.
+#[flutter_rust_bridge::frb]
+pub async fn os_security_biometric_availability() -> DbBiometricAvailability {
+    match lfs_os_security::biometric_auth::check_availability().await {
+        Ok(()) => DbBiometricAvailability::Available,
+        Err(reason) => match reason {
+            lfs_os_security::biometric_auth::BiometricUnavailableReason::PlatformUnsupported => {
+                DbBiometricAvailability::PlatformUnsupported
+            }
+            lfs_os_security::biometric_auth::BiometricUnavailableReason::NoSensor => {
+                DbBiometricAvailability::NoSensor
+            }
+            lfs_os_security::biometric_auth::BiometricUnavailableReason::NotEnrolled => {
+                DbBiometricAvailability::NotEnrolled
+            }
+            lfs_os_security::biometric_auth::BiometricUnavailableReason::SystemServiceMissing => {
+                DbBiometricAvailability::SystemServiceMissing
+            }
+            lfs_os_security::biometric_auth::BiometricUnavailableReason::Probe(msg) => {
+                DbBiometricAvailability::Probe(msg)
+            }
+        },
+    }
+}
+
+/// Show the OS biometric prompt with the localised reason text.
+/// Resolves to `true` only on a successful authenticate; every
+/// failure mode (cancel / no-match / hardware error / timeout /
+/// platform-unsupported) maps to `false` so the Dart caller has
+/// one branch to handle.
+#[flutter_rust_bridge::frb]
+pub async fn os_security_biometric_authenticate(reason: String) -> bool {
+    lfs_os_security::biometric_auth::authenticate(&reason).await
+}
+
 /// Subscribe to OS session-lock events. Yields one `()` per OS
 /// lock transition. Currently fires on Linux only (logind via
 /// zbus); macOS + Windows keep their existing native plugins

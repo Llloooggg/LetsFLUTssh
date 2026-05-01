@@ -5,8 +5,10 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'os_security.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
 
 /// Apply whatever startup hardening the current platform supports.
 /// Idempotent — re-running a process where hardening already
@@ -71,6 +73,23 @@ void osSecuritySetSecureClipboard({required String text}) => RustLib
     .api
     .crateApiOsSecurityOsSecuritySetSecureClipboard(text: text);
 
+/// Probe the platform's biometric backend. Apple uses LAContext
+/// via objc2; Linux short-circuits (the Dart wrapper routes
+/// Linux through fprintd directly). Windows / Android stay on
+/// `local_auth` Dart-side until their Rust impls land.
+Future<DbBiometricAvailability> osSecurityBiometricAvailability() =>
+    RustLib.instance.api.crateApiOsSecurityOsSecurityBiometricAvailability();
+
+/// Show the OS biometric prompt with the localised reason text.
+/// Resolves to `true` only on a successful authenticate; every
+/// failure mode (cancel / no-match / hardware error / timeout /
+/// platform-unsupported) maps to `false` so the Dart caller has
+/// one branch to handle.
+Future<bool> osSecurityBiometricAuthenticate({required String reason}) =>
+    RustLib.instance.api.crateApiOsSecurityOsSecurityBiometricAuthenticate(
+      reason: reason,
+    );
+
 /// Subscribe to OS session-lock events. Yields one `()` per OS
 /// lock transition. Currently fires on Linux only (logind via
 /// zbus); macOS + Windows keep their existing native plugins
@@ -79,6 +98,25 @@ void osSecuritySetSecureClipboard({required String text}) => RustLib
 /// listener is a no-op.
 Stream<void> osSecuritySessionLockSubscribe() =>
     RustLib.instance.api.crateApiOsSecurityOsSecuritySessionLockSubscribe();
+
+@freezed
+sealed class DbBiometricAvailability with _$DbBiometricAvailability {
+  const DbBiometricAvailability._();
+
+  /// `Ok` mapped to this variant — biometrics ready.
+  const factory DbBiometricAvailability.available() =
+      DbBiometricAvailability_Available;
+  const factory DbBiometricAvailability.platformUnsupported() =
+      DbBiometricAvailability_PlatformUnsupported;
+  const factory DbBiometricAvailability.noSensor() =
+      DbBiometricAvailability_NoSensor;
+  const factory DbBiometricAvailability.notEnrolled() =
+      DbBiometricAvailability_NotEnrolled;
+  const factory DbBiometricAvailability.systemServiceMissing() =
+      DbBiometricAvailability_SystemServiceMissing;
+  const factory DbBiometricAvailability.probe(String field0) =
+      DbBiometricAvailability_Probe;
+}
 
 /// Per-step result reported by [`os_security_apply_startup_hardening`].
 /// `code` carries the underlying syscall return code (0 = POSIX

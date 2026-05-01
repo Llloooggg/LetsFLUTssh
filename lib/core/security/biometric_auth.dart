@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:local_auth/local_auth.dart';
 
+import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../utils/logger.dart';
 import 'linux/fprintd_client.dart';
 import 'linux/tpm_client.dart';
@@ -206,6 +207,11 @@ class BiometricAuth {
 
   Future<BiometricAvailability> _runAvailabilityProbe() async {
     if (Platform.isLinux) return _linuxAvailability();
+    if (Platform.isMacOS || Platform.isIOS) return _appleAvailability();
+    // Windows + Android stay on local_auth's
+    // canCheckBiometrics + getAvailableBiometrics until the
+    // WinRT KeyCredentialManager / JNI BiometricPrompt arcs
+    // land.
     try {
       final supported = await _auth.isDeviceSupported();
       if (!supported) return BiometricUnavailableReason.noSensor;
@@ -241,6 +247,42 @@ class BiometricAuth {
     }
   }
 
+  /// Apple availability via `LAContext.canEvaluatePolicy` —
+  /// routes through `lfs_os_security::biometric_auth`. The Rust
+  /// side maps LAError codes (-6 / -7 / -8) to the same
+  /// structured reasons the Dart enum uses, so the Settings UI
+  /// renders the right tooltip without re-parsing the error
+  /// string.
+  Future<BiometricAvailability> _appleAvailability() async {
+    try {
+      final result = await rust_os.osSecurityBiometricAvailability();
+      return switch (result) {
+        rust_os.DbBiometricAvailability_Available() => null,
+        rust_os.DbBiometricAvailability_PlatformUnsupported() =>
+          BiometricUnavailableReason.platformUnsupported,
+        rust_os.DbBiometricAvailability_NoSensor() =>
+          BiometricUnavailableReason.noSensor,
+        rust_os.DbBiometricAvailability_NotEnrolled() =>
+          BiometricUnavailableReason.notEnrolled,
+        rust_os.DbBiometricAvailability_SystemServiceMissing() =>
+          BiometricUnavailableReason.systemServiceMissing,
+        rust_os.DbBiometricAvailability_Probe(:final field0) => () {
+          AppLogger.instance.log(
+            'Apple biometric probe error: $field0',
+            name: 'BiometricAuth',
+          );
+          return BiometricUnavailableReason.platformUnsupported;
+        }(),
+      };
+    } catch (e) {
+      AppLogger.instance.log(
+        'Apple biometric availability (Rust) failed: $e',
+        name: 'BiometricAuth',
+      );
+      return BiometricUnavailableReason.platformUnsupported;
+    }
+  }
+
   /// How long to wait for the system biometric prompt before giving up
   /// and falling the caller back to the password field. 45 s is well
   /// past a normal fingerprint/face unlock (<5 s) but short enough
@@ -260,6 +302,27 @@ class BiometricAuth {
   /// we only await the terminal `VerifyStatus` signal.
   Future<bool> authenticate(String reason) async {
     if (Platform.isLinux) return _fprintd.verify();
+    if (Platform.isMacOS || Platform.isIOS) {
+      try {
+        return await rust_os
+            .osSecurityBiometricAuthenticate(reason: reason)
+            .timeout(_authTimeout);
+      } on TimeoutException {
+        AppLogger.instance.log(
+          'Apple biometric authenticate timed out after '
+          '${_authTimeout.inSeconds}s; falling back to password prompt',
+          name: 'BiometricAuth',
+          level: LogLevel.warn,
+        );
+        return false;
+      } catch (e) {
+        AppLogger.instance.log(
+          'Apple biometric authenticate (Rust) failed: $e',
+          name: 'BiometricAuth',
+        );
+        return false;
+      }
+    }
     try {
       return await _auth
           .authenticate(
