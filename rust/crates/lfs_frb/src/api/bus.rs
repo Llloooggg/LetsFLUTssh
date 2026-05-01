@@ -222,10 +222,6 @@ pub enum BusEvent {
     /// Tier state machine transitioned. `state_wire_name` is
     /// `locked` / `unlocking` / `unlocked` / `wiping`.
     TierStateChanged { state_wire_name: String },
-    /// L2 gate needs the keychain pepper bytes — Dart
-    /// subscriber executes flutter_secure_storage.read, then
-    /// dispatches the response command back.
-    KeychainPepperPromptRequest { prompt_id: String },
     /// Connection actor needs a password / passphrase for the
     /// saved session — Dart subscriber renders the dialog,
     /// dispatches the response command back. `kind_wire_name`
@@ -235,11 +231,6 @@ pub enum BusEvent {
         session_id: String,
         kind_wire_name: String,
     },
-    /// Capabilities cache needs the biometric-availability
-    /// answer — Dart subscriber executes
-    /// `local_auth.canCheckBiometrics` + enrolment check,
-    /// dispatches the typed response back.
-    BiometricProbePromptRequest { prompt_id: String },
     /// Capabilities orchestrator needs the OS-keychain
     /// reachability answer. Dart subscriber pings the platform
     /// keychain and dispatches the `KeyringProbeResult` wire
@@ -274,18 +265,6 @@ pub enum BusEvent {
         prompt_id: String,
         db_key: Vec<u8>,
         pin: Option<String>,
-    },
-    /// Generic keychain op — Dart subscriber branches on
-    /// `op_wire_name` (`"read" | "contains" | "write" | "delete"`)
-    /// and executes the matching `flutter_secure_storage` call.
-    /// `value_b64` carries the base64-encoded payload for the
-    /// write op, `null` otherwise. Resolved via
-    /// `keychain_op_prompt_resolve*` shims.
-    KeychainOpPromptRequest {
-        prompt_id: String,
-        key: String,
-        op_wire_name: String,
-        value_b64: Option<String>,
     },
     /// Security capabilities cache snapshot updated. `json` is
     /// the freshly-cached snapshot in the `lfs_core::security::
@@ -451,9 +430,6 @@ impl BusEvent {
             lfs_core::bus::Event::TierStateChanged { state_wire_name } => {
                 BusEvent::TierStateChanged { state_wire_name }
             }
-            lfs_core::bus::Event::KeychainPepperPromptRequest { prompt_id } => {
-                BusEvent::KeychainPepperPromptRequest { prompt_id }
-            }
             lfs_core::bus::Event::CredentialPromptRequest {
                 prompt_id,
                 session_id,
@@ -463,9 +439,6 @@ impl BusEvent {
                 session_id,
                 kind_wire_name,
             },
-            lfs_core::bus::Event::BiometricProbePromptRequest { prompt_id } => {
-                BusEvent::BiometricProbePromptRequest { prompt_id }
-            }
             lfs_core::bus::Event::KeychainProbePromptRequest { prompt_id } => {
                 BusEvent::KeychainProbePromptRequest { prompt_id }
             }
@@ -483,17 +456,6 @@ impl BusEvent {
                 prompt_id,
                 db_key,
                 pin,
-            },
-            lfs_core::bus::Event::KeychainOpPromptRequest {
-                prompt_id,
-                key,
-                op_wire_name,
-                value_b64,
-            } => BusEvent::KeychainOpPromptRequest {
-                prompt_id,
-                key,
-                op_wire_name,
-                value_b64,
             },
             lfs_core::bus::Event::SecurityCapabilitiesChanged { json } => {
                 BusEvent::SecurityCapabilitiesChanged { json }

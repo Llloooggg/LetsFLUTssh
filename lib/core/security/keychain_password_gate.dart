@@ -6,9 +6,8 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../src/rust/api/keychain_op_prompt.dart' as rust_op_gate;
 import '../../src/rust/api/keychain_password_gate.dart' as rust_gate;
-import '../../src/rust/api/keychain_pepper_prompt.dart' as rust_pepper_gate;
+import '../../src/rust/api/keychain_password_gate_actor.dart' as rust_actor;
 import '../../utils/logger.dart';
 import 'password_rate_limiter.dart';
 
@@ -33,10 +32,10 @@ import 'password_rate_limiter.dart';
 /// Wire format + HMAC composition + salt/pepper generation +
 /// disk I/O all live in
 /// `lfs_core::security::keychain_password_gate_actor`. This Dart
-/// class is a thin façade — the actor publishes
-/// `KeychainOpPromptRequest` events when it needs the keychain
-/// plugin (Dart-only territory), and `KeychainOpPromptListener`
-/// answers them against `flutter_secure_storage`.
+/// class is a thin façade — the actor calls
+/// `lfs_os_security::secure_key_storage::*` directly for the
+/// keychain pepper round-trip, so no Dart-side bus listener is
+/// in the unlock path.
 class KeychainPasswordGate {
   KeychainPasswordGate({Future<File> Function()? hashFileFactory})
     : _hashFile = hashFileFactory ?? _defaultHashFile;
@@ -56,7 +55,7 @@ class KeychainPasswordGate {
   /// `flutter_secure_storage.containsKey` round-trip live in Rust.
   Future<bool> isConfigured() async {
     final file = await _hashFile();
-    return rust_op_gate.keychainPasswordGateIsConfigured(
+    return rust_actor.keychainPasswordGateIsConfigured(
       supportDir: file.parent.path,
     );
   }
@@ -76,7 +75,7 @@ class KeychainPasswordGate {
   Future<void> setPassword(String password) async {
     final file = await _hashFile();
     await file.parent.create(recursive: true);
-    await rust_op_gate.keychainPasswordGateSetPassword(
+    await rust_actor.keychainPasswordGateSetPassword(
       supportDir: file.parent.path,
       password: password,
     );
@@ -92,7 +91,7 @@ class KeychainPasswordGate {
   /// Decision-1 prompt round-trip + HMAC compare live in Rust.
   Future<bool> verify(String password) async {
     final file = await _hashFile();
-    return rust_pepper_gate.keychainPasswordGateVerify(
+    return rust_actor.keychainPasswordGateVerify(
       supportDir: file.parent.path,
       password: password,
     );
@@ -137,6 +136,6 @@ class KeychainPasswordGate {
   /// and on breaking-change reset.
   Future<void> clear() async {
     final file = await _hashFile();
-    await rust_op_gate.keychainPasswordGateClear(supportDir: file.parent.path);
+    await rust_actor.keychainPasswordGateClear(supportDir: file.parent.path);
   }
 }

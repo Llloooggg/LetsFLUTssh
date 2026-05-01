@@ -14,6 +14,13 @@ publish = false
 crate-type = ["rlib"]
 
 [dependencies]
+# OS-bound abstractions — keychain (libsecret/SecItem/CredMan/AndroidKeyStore),
+# biometric backends (LAContext/UserConsentVerifier/BiometricPrompt/fprintd),
+# clipboard, session lock. lfs_core orchestrators call these directly so the
+# Rust security stack composes end-to-end without bouncing through Dart bus
+# subscribers. Stays a one-way edge: lfs_os_security never depends on lfs_core
+# (its `unsafe_code = "forbid"` boundary lives downstream).
+lfs_os_security = { path = "../lfs_os_security" }
 russh = { workspace = true }
 # Direct dep solely to enable the `ppk` feature on the forked
 # ssh-key crate that russh pulls transitively. See workspace

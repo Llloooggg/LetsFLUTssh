@@ -170,14 +170,6 @@ pub enum Event {
     /// subscribers branch without parsing an enum across FRB.
     TierStateChanged { state_wire_name: String },
 
-    /// Keychain pepper read request — fired by the L2 gate actor
-    /// when it needs the `letsflutssh_l2_pepper` value from
-    /// flutter_secure_storage. Dart subscriber executes the
-    /// keychain read, then dispatches the response command which
-    /// resolves the awaiting Rust handler through
-    /// `lfs_core::security::keychain_pepper_prompt::PromptRegistry`.
-    KeychainPepperPromptRequest { prompt_id: String },
-
     /// Connection credential prompt — fired by the connection
     /// actor when a saved session needs a password / passphrase
     /// the SecretStore doesn't already carry. `kind_wire_name`
@@ -190,13 +182,6 @@ pub enum Event {
         session_id: String,
         kind_wire_name: String,
     },
-
-    /// Biometric capability probe — fired by the
-    /// SecurityCapabilities cache actor when it needs to know
-    /// whether `local_auth.canCheckBiometrics` returns true on
-    /// this host. Dart subscriber executes the plugin call,
-    /// dispatches the typed response back.
-    BiometricProbePromptRequest { prompt_id: String },
 
     /// Keychain-reachability probe — fired by the capabilities
     /// orchestrator. Dart subscriber pings the OS
@@ -246,21 +231,6 @@ pub enum Event {
         db_key: Vec<u8>,
         pin: Option<String>,
     },
-    /// Generic keychain op prompt — fired by Rust actors that
-    /// need to perform a `flutter_secure_storage` write / delete
-    /// / contains call (the read path uses the dedicated
-    /// `KeychainPepperPromptRequest`). `op_wire_name` is one of
-    /// `"read" | "contains" | "write" | "delete"`; `value_b64`
-    /// carries the base64-encoded payload for the write op,
-    /// `None` otherwise. Resolved through
-    /// `lfs_core::security::keychain_op_prompt::PromptRegistry`.
-    KeychainOpPromptRequest {
-        prompt_id: String,
-        key: String,
-        op_wire_name: String,
-        value_b64: Option<String>,
-    },
-
     /// Security capabilities snapshot updated — fired by
     /// `lfs_core::security::capabilities_cache::Cache::set` when
     /// the new snapshot differs from the cached one, and by
@@ -415,14 +385,11 @@ impl Event {
             Event::SessionsChanged => EventTopic::Sessions,
             Event::ConfigChanged { .. } => EventTopic::Config,
             Event::TierStateChanged { .. } => EventTopic::Tier,
-            Event::KeychainPepperPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::CredentialPromptRequest { .. } => EventTopic::SecurityPrompt,
-            Event::BiometricProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KeychainProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultUnlockPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultSealPromptRequest { .. } => EventTopic::SecurityPrompt,
-            Event::KeychainOpPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::SecurityCapabilitiesChanged { .. } => EventTopic::SecurityCapabilities,
             Event::KnownHostPromptRequest { .. } | Event::KnownHostPromptResolved { .. } => {
                 EventTopic::KnownHosts

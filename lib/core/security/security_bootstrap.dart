@@ -181,11 +181,13 @@ class SecurityCapabilities {
 /// (FRB async): the orchestrator fans out the four probes concurrently
 /// via `tokio::join!`, applies a 5 s per-probe timeout, composes the
 /// snapshot, pushes it through the `capabilities_cache` actor, and
-/// returns it. Platform plugin calls (keychain probe, biometric
-/// availability, fprintd enrolment, hardware-vault detail) reach the
-/// orchestrator through the prompt subscribers
-/// (`BiometricProbePromptListener`, `KeychainProbePromptListener`,
-/// `HardwareVaultProbePromptListener`).
+/// returns it. The biometric availability probe runs in-process
+/// via `lfs_os_security::biometric_auth::check_availability` (or
+/// the Linux fprintd D-Bus walk for Linux hosts). Keychain probe +
+/// hardware-vault detail still reach the orchestrator through Dart
+/// subscribers (`KeychainProbePromptListener`,
+/// `HardwareVaultProbePromptListener`) until those probes also
+/// land Rust-side.
 ///
 /// Errors propagate directly — the previous Dart-mirror pipeline was
 /// retired so a Rust-side failure is no longer silently masked by a

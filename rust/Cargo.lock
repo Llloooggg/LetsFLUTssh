@@ -1845,6 +1845,7 @@ dependencies = [
  "hkdf",
  "hmac",
  "internal-russh-forked-ssh-key",
+ "lfs_os_security",
  "rand 0.8.6",
  "regex",
  "reqwest",

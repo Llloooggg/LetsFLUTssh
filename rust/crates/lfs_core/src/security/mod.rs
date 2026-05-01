@@ -17,7 +17,6 @@
 
 use std::collections::BTreeMap;
 
-pub mod biometric_probe_prompt;
 pub mod capabilities;
 pub mod capabilities_cache;
 pub mod capabilities_orchestrator;
@@ -27,10 +26,8 @@ pub mod hardware_vault_probe_prompt;
 pub mod hardware_vault_seal_prompt;
 pub mod hardware_vault_unlock_prompt;
 pub mod keychain_marker;
-pub mod keychain_op_prompt;
 pub mod keychain_password_gate;
 pub mod keychain_password_gate_actor;
-pub mod keychain_pepper_prompt;
 pub mod keychain_probe_prompt;
 pub mod master_password;
 pub mod persisted_rate_limit;

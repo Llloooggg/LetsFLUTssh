@@ -1474,83 +1474,50 @@ green. `grep -r local_auth lib/` returns zero hits — the
 `local_auth: ^3.0.1` pubspec entry stays put until Phase 7
 sweeps both retired packages in one commit.
 
-**Phase 5 — Rust prompt-protocol bus events retire
-(pending, ~4-6 hours, highest-risk phase).**
+**Phase 5 — Rust prompt-protocol bus events retire ✅ landed.**
+The L2 keychain-password actor + tier-unlock orchestrator +
+capabilities orchestrator now call
+`lfs_os_security::secure_key_storage` /
+`lfs_os_security::biometric_auth` directly. `lfs_core` grew an
+`lfs_os_security` workspace dep (one-way edge — the OS crate
+keeps `unsafe_code = "forbid"` boundaries on the downstream
+side); every keychain / biometric-probe round-trip is now an
+in-process function call instead of a bus publish + Dart
+subscriber + FRB resolve.
 
-Goal: `lfs_os_security::secure_key_storage` / `biometric_auth`
-called directly from Rust orchestrators instead of through
-the bus prompt protocol that historically routed through Dart
-listeners. The bus event types + FRB shim functions + Dart
-listeners all retire.
+Bus surface shrunk by 3 variants
+(`KeychainPepperPromptRequest`, `BiometricProbePromptRequest`,
+`KeychainOpPromptRequest`) on both `lfs_core::bus::Event` and
+the FRB-side `BusEvent` mirror. Three `lfs_core::security::*`
+prompt-registry modules + their FRB shims + Dart-generated
+wrappers all deleted. Replaced with one fresh FRB shim
+`lfs_frb::api::keychain_password_gate_actor` exposing the four
+async verbs (`is_configured` / `set_password` / `clear` /
+`verify`); the Dart `KeychainPasswordGate` façade now imports
+that module instead of the retired `keychain_op_prompt` /
+`keychain_pepper_prompt` namespaces.
 
-Concrete actions:
+Dart-side: deleted three listener files
+(`keychain_op_prompt_listener.dart`,
+`keychain_pepper_prompt_listener.dart`,
+`biometric_probe_prompt_listener.dart`), dropped their
+`.start()` calls from `main_screen.dart` + the imports from
+`main.dart`. The `wipe_keychain` Rust report enum lost its
+`Cancelled` variant — direct calls can't cancel mid-flight, so
+the only outcomes are `Deleted` / `Failed { detail }`.
 
-1. **Rust orchestrator refactor** (in this order — each is its
-   own commit):
+Test surgery: `test/core/security/keychain_password_gate_test.dart`
+shrunk to a single skipped placeholder pointing at the existing
+Rust integration coverage (`lfs_core::security::keychain_password_gate_actor::tests`
++ `lfs_os_security::secure_key_storage::tests`). The earlier
+Dart test file mocked the retired `flutter_secure_storage`
+MethodChannel through the bus listener — no longer reachable.
 
-   1.1. `lfs_core::security::keychain_password_gate_actor` —
-        currently publishes `Event::KeychainPepperPromptRequest`
-        and awaits `keychain_pepper_prompt_resolve`. Replace
-        with a direct call to
-        `lfs_os_security::secure_key_storage::read` /
-        `write` / `delete` (whichever the actor was using to
-        fetch the pepper) and remove the
-        `PromptRegistry<KeychainPepperPromptRequest, ...>`
-        actor wiring.
-
-   1.2. `lfs_core::security::tier_unlock_orchestrator` —
-        currently publishes `Event::KeychainOpPromptRequest`
-        from L2 unlock + provisioning + tier-switch paths
-        (3 publish sites). Replace each with
-        `lfs_os_security::secure_key_storage::read/write/delete`.
-        Wrap the now-direct-call in `tokio::task::spawn_blocking`
-        if the orchestrator runs on the FRB worker thread.
-
-   1.3. `lfs_core::security::capabilities_orchestrator` —
-        currently publishes `Event::BiometricProbePromptRequest`.
-        Replace with
-        `lfs_os_security::biometric_auth::check_availability().await`.
-
-2. **Bus event type removal** (after step 1):
-   - `lfs_core::bus::Event` — remove three variants:
-     `KeychainOpPromptRequest`, `KeychainPepperPromptRequest`,
-     `BiometricProbePromptRequest`. Plus the matching
-     resolve-event variants if any.
-   - `lfs_core::bus::EventTopic` — verify no other variant
-     stays as the only `SecurityPrompt` user; if so, drop
-     `SecurityPrompt` topic too.
-   - `lfs_frb::api::bus` — drop the FRB-side mirror enums.
-
-3. **FRB shim function removal**:
-   - `lfs_frb::api::keychain_op_prompt` — delete file entirely.
-   - `lfs_frb::api::keychain_pepper_prompt` — delete entirely.
-   - `lfs_frb::api::biometric_probe_prompt` — delete entirely.
-   - Update `lfs_frb::api` `mod` declarations.
-
-4. **Run `make rust-codegen`** — regenerates
-   `lib/src/rust/frb_generated.dart` + per-API Dart wrappers.
-   Cargo.lock + Dart binding files commit alongside the
-   removal.
-
-5. **Dart listener deletion**:
-   - `lib/app/keychain_op_prompt_listener.dart` — delete.
-   - `lib/app/keychain_pepper_prompt_listener.dart` — delete.
-   - `lib/app/biometric_probe_prompt_listener.dart` — delete.
-   - `lib/main_screen.dart` (or wherever the `.start()` calls
-     live) — drop the listener bootstrap calls.
-   - `lib/app/global_error_dialog.dart` / equivalent error
-     surfacers — verify no stale references.
-
-Acceptance: `grep -r KeychainOpPromptRequest rust/ lib/`
-returns zero hits; same for `KeychainPepperPromptRequest`,
-`BiometricProbePromptRequest`. `make analyze` + `make test`
-+ `make rust-test` all green.
-
-**Risk note**: this is the highest-risk phase because it
-touches hot orchestrator paths (L2 unlock + provisioning).
-Test the security tier flow end-to-end on Linux before merge.
-After merge, verify on Apple + Win + Android during the
-NI-2 device-test pass.
+Verified: `make analyze` clean, `make test` (3142 tests, 5
+skipped) green, `make rust-test` green (19 lfs_core unit
+tests + lfs_frb + lfs_os_security suites). `grep -r
+KeychainOpPromptRequest rust/ lib/` returns zero hits, same
+for the other two variants and the listener / registry names.
 
 **Phase 6 — Native plugin file deletion (pending, ~2 hours).**
 

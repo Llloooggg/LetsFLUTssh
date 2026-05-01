@@ -57,10 +57,6 @@ pub async fn wipe_keychain_run() -> DbKeychainWipeReport {
                     failed += 1;
                     format!("failed: {detail}")
                 }
-                wipe_keychain::KeyWipeOutcome::Cancelled => {
-                    failed += 1;
-                    "cancelled".to_string()
-                }
             };
             DbKeychainKeyWipe { key, status }
         })

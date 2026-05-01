@@ -336,13 +336,6 @@ sealed class BusEvent with _$BusEvent {
   const factory BusEvent.tierStateChanged({required String stateWireName}) =
       BusEvent_TierStateChanged;
 
-  /// L2 gate needs the keychain pepper bytes — Dart
-  /// subscriber executes flutter_secure_storage.read, then
-  /// dispatches the response command back.
-  const factory BusEvent.keychainPepperPromptRequest({
-    required String promptId,
-  }) = BusEvent_KeychainPepperPromptRequest;
-
   /// Connection actor needs a password / passphrase for the
   /// saved session — Dart subscriber renders the dialog,
   /// dispatches the response command back. `kind_wire_name`
@@ -352,14 +345,6 @@ sealed class BusEvent with _$BusEvent {
     required String sessionId,
     required String kindWireName,
   }) = BusEvent_CredentialPromptRequest;
-
-  /// Capabilities cache needs the biometric-availability
-  /// answer — Dart subscriber executes
-  /// `local_auth.canCheckBiometrics` + enrolment check,
-  /// dispatches the typed response back.
-  const factory BusEvent.biometricProbePromptRequest({
-    required String promptId,
-  }) = BusEvent_BiometricProbePromptRequest;
 
   /// Capabilities orchestrator needs the OS-keychain
   /// reachability answer. Dart subscriber pings the platform
@@ -403,19 +388,6 @@ sealed class BusEvent with _$BusEvent {
     required Uint8List dbKey,
     String? pin,
   }) = BusEvent_HardwareVaultSealPromptRequest;
-
-  /// Generic keychain op — Dart subscriber branches on
-  /// `op_wire_name` (`"read" | "contains" | "write" | "delete"`)
-  /// and executes the matching `flutter_secure_storage` call.
-  /// `value_b64` carries the base64-encoded payload for the
-  /// write op, `null` otherwise. Resolved via
-  /// `keychain_op_prompt_resolve*` shims.
-  const factory BusEvent.keychainOpPromptRequest({
-    required String promptId,
-    required String key,
-    required String opWireName,
-    String? valueB64,
-  }) = BusEvent_KeychainOpPromptRequest;
 
   /// Security capabilities cache snapshot updated. `json` is
   /// the freshly-cached snapshot in the `lfs_core::security::

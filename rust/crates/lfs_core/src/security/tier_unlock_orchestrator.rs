@@ -16,15 +16,18 @@
 //! to drift.
 //!
 //! Per-tier orchestrators land one-by-one. Plaintext is the
-//! simplest (no secret); each subsequent tier adds a layer of
-//! Dart-plugin coordination via the existing typed prompt
-//! registries (`credential_prompt`, `keychain_op_prompt`,
-//! `biometric_probe_prompt`, etc.).
+//! simplest (no secret); subsequent tiers compose with the OS
+//! keychain / biometric stack directly via
+//! [`lfs_os_security::secure_key_storage`] +
+//! [`lfs_os_security::biometric_auth`] for the L1/L2 paths, and
+//! with the still-Dart-side hardware-vault prompt registries
+//! (`hardware_vault_unlock_prompt`, `hardware_vault_seal_prompt`)
+//! for L3 — the latter own platform-bound surfaces (Hello PIN
+//! sub-dialog, Touch ID prompt) that have to drive Flutter UI.
 
 use crate::bus::Event;
 use crate::security::hardware_vault_seal_prompt;
 use crate::security::hardware_vault_unlock_prompt;
-use crate::security::keychain_op_prompt::{self, KeychainOpKind};
 use crate::security::tier_machine::{instance_dispatch, TierEvent, UnlockFailureReason};
 use crate::security::SecurityTier;
 
@@ -108,16 +111,17 @@ pub fn unlock_plaintext() {
     instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockSucceeded);
 }
 
-/// Keychain tier (L1) — read the DB encryption key from the OS
-/// keychain via the `keychain_op_prompt` registry, stage it
-/// under [`TIER_UNLOCK_KEY_ID`], dispatch the cascade.
+/// Keychain tier (L1) — read the DB encryption key directly from
+/// the OS keychain via [`lfs_os_security::secure_key_storage`],
+/// stage it under [`TIER_UNLOCK_KEY_ID`], dispatch the cascade.
 ///
 /// 1. Set tier to Keychain + dispatch `UnlockRequested`.
-/// 2. Publish `KeychainOpPromptRequest { key:
-///    ENCRYPTION_KEY_SLOT, op: Read }`; the Dart subscriber
-///    calls `flutter_secure_storage.read` and resolves.
+/// 2. Call `secure_key_storage::read(ENCRYPTION_KEY_SLOT)` —
+///    cfg-dispatched per platform (libsecret on Linux, SecItem on
+///    Apple, CredRead on Windows, AndroidKeyStore JNI on Android).
 /// 3. On a hit, stage the bytes + dispatch `UnlockSucceeded`;
-///    on miss, dispatch `UnlockFailed { PluginUnavailable }`.
+///    on miss / backend error, dispatch
+///    `UnlockFailed { PluginUnavailable }`.
 ///
 /// Plaintext discipline: the key bytes never cross FRB on the
 /// return value — the Dart [`TierUnlockedListener`] takes them
@@ -126,19 +130,10 @@ pub fn unlock_plaintext() {
 pub async fn unlock_keychain() -> UnlockOutcome {
     instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockRequested);
 
-    let prompt_id = generate_prompt_id();
-    let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
-    crate::app::instance()
-        .bus
-        .publish(Event::KeychainOpPromptRequest {
-            prompt_id: prompt_id.clone(),
-            key: ENCRYPTION_KEY_SLOT.to_string(),
-            op_wire_name: KeychainOpKind::Read.wire_name().to_string(),
-            value_b64: None,
-        });
+    let read_outcome = lfs_os_security::secure_key_storage::read(ENCRYPTION_KEY_SLOT).await;
 
-    match receiver.await {
-        Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+    match read_outcome {
+        Ok(Some(bytes)) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
             UnlockOutcome::Staged
@@ -154,17 +149,15 @@ pub async fn unlock_keychain() -> UnlockOutcome {
             );
             UnlockOutcome::PluginError("missing_keychain_entry".into())
         }
-        Err(_) => {
-            keychain_op_prompt::instance().cancel(&prompt_id);
+        Err(e) => {
+            let code = format!("keychain_read_failed: {e}");
             instance_dispatch(
                 SecurityTier::Keychain,
                 &TierEvent::UnlockFailed {
-                    reason: UnlockFailureReason::PluginUnavailable {
-                        code: "keychain_prompt_cancelled".into(),
-                    },
+                    reason: UnlockFailureReason::PluginUnavailable { code: code.clone() },
                 },
             );
-            UnlockOutcome::PluginError("keychain_prompt_cancelled".into())
+            UnlockOutcome::PluginError(code)
         }
     }
 }
@@ -224,23 +217,10 @@ pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
         return UnlockOutcome::WrongSecret;
     }
 
-    // Password verified — read the DB encryption key from the
-    // OS keychain via the same prompt registry the L1 path
-    // uses. The Dart subscriber base64-decodes back to raw
-    // bytes before resolving.
-    let prompt_id = generate_prompt_id();
-    let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
-    crate::app::instance()
-        .bus
-        .publish(Event::KeychainOpPromptRequest {
-            prompt_id: prompt_id.clone(),
-            key: ENCRYPTION_KEY_SLOT.to_string(),
-            op_wire_name: KeychainOpKind::Read.wire_name().to_string(),
-            value_b64: None,
-        });
-
-    match receiver.await {
-        Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+    // Password verified — read the DB encryption key directly
+    // from the OS keychain.
+    match lfs_os_security::secure_key_storage::read(ENCRYPTION_KEY_SLOT).await {
+        Ok(Some(bytes)) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(
                 SecurityTier::KeychainWithPassword,
@@ -259,17 +239,15 @@ pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
             );
             UnlockOutcome::PluginError("missing_keychain_entry_after_verify".into())
         }
-        Err(_) => {
-            keychain_op_prompt::instance().cancel(&prompt_id);
+        Err(e) => {
+            let code = format!("keychain_read_failed: {e}");
             instance_dispatch(
                 SecurityTier::KeychainWithPassword,
                 &TierEvent::UnlockFailed {
-                    reason: UnlockFailureReason::PluginUnavailable {
-                        code: "keychain_prompt_cancelled".into(),
-                    },
+                    reason: UnlockFailureReason::PluginUnavailable { code: code.clone() },
                 },
             );
-            UnlockOutcome::PluginError("keychain_prompt_cancelled".into())
+            UnlockOutcome::PluginError(code)
         }
     }
 }
@@ -471,8 +449,8 @@ pub async fn first_launch_paranoid(password: String) -> UnlockOutcome {
 }
 
 /// First-launch L1 (Keychain). Generates a random AES-GCM key,
-/// publishes a `KeychainOpPromptRequest { Write }` so the Dart
-/// subscriber writes it via `flutter_secure_storage`, then stages
+/// writes it directly to the OS keychain via
+/// [`lfs_os_security::secure_key_storage::write`], then stages
 /// the bytes + emits the cascade. On a write failure dispatches
 /// `UnlockFailed { PluginUnavailable }` so the caller falls back
 /// to plaintext.
@@ -602,32 +580,12 @@ pub async fn first_launch_hardware(pin: Option<String>) -> UnlockOutcome {
     outcome
 }
 
-/// Round-trip a `Write` through the keychain prompt registry.
+/// Direct keychain write via [`lfs_os_security::secure_key_storage`].
 /// Returns `Ok(())` on success or `Err(plugin_code)` on failure.
 async fn write_to_keychain(bytes: &[u8]) -> Result<(), String> {
-    use base64::{engine::general_purpose::STANDARD, Engine as _};
-    let prompt_id = generate_prompt_id();
-    let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
-    crate::app::instance()
-        .bus
-        .publish(Event::KeychainOpPromptRequest {
-            prompt_id: prompt_id.clone(),
-            key: ENCRYPTION_KEY_SLOT.to_string(),
-            op_wire_name: KeychainOpKind::Write {
-                value_b64: STANDARD.encode(bytes),
-            }
-            .wire_name()
-            .to_string(),
-            value_b64: Some(STANDARD.encode(bytes)),
-        });
-    match receiver.await {
-        Ok(Ok(_)) => Ok(()),
-        Ok(Err(detail)) => Err(detail),
-        Err(_) => {
-            keychain_op_prompt::instance().cancel(&prompt_id);
-            Err("keychain_write_prompt_cancelled".into())
-        }
-    }
+    lfs_os_security::secure_key_storage::write(ENCRYPTION_KEY_SLOT, bytes)
+        .await
+        .map_err(|e| format!("keychain_write_failed: {e}"))
 }
 
 /// Stage [`bytes`] in the SecretStore + drive the tier machine

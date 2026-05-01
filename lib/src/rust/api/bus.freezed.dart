@@ -1125,7 +1125,7 @@ extension BusEventPatterns on BusEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_ConnectionActiveCountChanged value)?  connectionActiveCountChanged,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,TResult Function( BusEvent_KnownHostsChanged value)?  knownHostsChanged,TResult Function( BusEvent_SessionsChanged value)?  sessionsChanged,TResult Function( BusEvent_ConfigChanged value)?  configChanged,TResult Function( BusEvent_TierStateChanged value)?  tierStateChanged,TResult Function( BusEvent_KeychainPepperPromptRequest value)?  keychainPepperPromptRequest,TResult Function( BusEvent_CredentialPromptRequest value)?  credentialPromptRequest,TResult Function( BusEvent_BiometricProbePromptRequest value)?  biometricProbePromptRequest,TResult Function( BusEvent_KeychainProbePromptRequest value)?  keychainProbePromptRequest,TResult Function( BusEvent_HardwareVaultProbePromptRequest value)?  hardwareVaultProbePromptRequest,TResult Function( BusEvent_HardwareVaultUnlockPromptRequest value)?  hardwareVaultUnlockPromptRequest,TResult Function( BusEvent_HardwareVaultSealPromptRequest value)?  hardwareVaultSealPromptRequest,TResult Function( BusEvent_KeychainOpPromptRequest value)?  keychainOpPromptRequest,TResult Function( BusEvent_SecurityCapabilitiesChanged value)?  securityCapabilitiesChanged,TResult Function( BusEvent_KnownHostPromptRequest value)?  knownHostPromptRequest,TResult Function( BusEvent_KnownHostPromptResolved value)?  knownHostPromptResolved,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( BusEvent_Echoed value)?  echoed,TResult Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult Function( BusEvent_ConnectionError value)?  connectionError,TResult Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult Function( BusEvent_ConnectionActiveCountChanged value)?  connectionActiveCountChanged,TResult Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,TResult Function( BusEvent_KnownHostsChanged value)?  knownHostsChanged,TResult Function( BusEvent_SessionsChanged value)?  sessionsChanged,TResult Function( BusEvent_ConfigChanged value)?  configChanged,TResult Function( BusEvent_TierStateChanged value)?  tierStateChanged,TResult Function( BusEvent_CredentialPromptRequest value)?  credentialPromptRequest,TResult Function( BusEvent_KeychainProbePromptRequest value)?  keychainProbePromptRequest,TResult Function( BusEvent_HardwareVaultProbePromptRequest value)?  hardwareVaultProbePromptRequest,TResult Function( BusEvent_HardwareVaultUnlockPromptRequest value)?  hardwareVaultUnlockPromptRequest,TResult Function( BusEvent_HardwareVaultSealPromptRequest value)?  hardwareVaultSealPromptRequest,TResult Function( BusEvent_SecurityCapabilitiesChanged value)?  securityCapabilitiesChanged,TResult Function( BusEvent_KnownHostPromptRequest value)?  knownHostPromptRequest,TResult Function( BusEvent_KnownHostPromptResolved value)?  knownHostPromptResolved,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -1155,15 +1155,12 @@ return updateDownloadCompleted(_that);case BusEvent_KnownHostsChanged() when kno
 return knownHostsChanged(_that);case BusEvent_SessionsChanged() when sessionsChanged != null:
 return sessionsChanged(_that);case BusEvent_ConfigChanged() when configChanged != null:
 return configChanged(_that);case BusEvent_TierStateChanged() when tierStateChanged != null:
-return tierStateChanged(_that);case BusEvent_KeychainPepperPromptRequest() when keychainPepperPromptRequest != null:
-return keychainPepperPromptRequest(_that);case BusEvent_CredentialPromptRequest() when credentialPromptRequest != null:
-return credentialPromptRequest(_that);case BusEvent_BiometricProbePromptRequest() when biometricProbePromptRequest != null:
-return biometricProbePromptRequest(_that);case BusEvent_KeychainProbePromptRequest() when keychainProbePromptRequest != null:
+return tierStateChanged(_that);case BusEvent_CredentialPromptRequest() when credentialPromptRequest != null:
+return credentialPromptRequest(_that);case BusEvent_KeychainProbePromptRequest() when keychainProbePromptRequest != null:
 return keychainProbePromptRequest(_that);case BusEvent_HardwareVaultProbePromptRequest() when hardwareVaultProbePromptRequest != null:
 return hardwareVaultProbePromptRequest(_that);case BusEvent_HardwareVaultUnlockPromptRequest() when hardwareVaultUnlockPromptRequest != null:
 return hardwareVaultUnlockPromptRequest(_that);case BusEvent_HardwareVaultSealPromptRequest() when hardwareVaultSealPromptRequest != null:
-return hardwareVaultSealPromptRequest(_that);case BusEvent_KeychainOpPromptRequest() when keychainOpPromptRequest != null:
-return keychainOpPromptRequest(_that);case BusEvent_SecurityCapabilitiesChanged() when securityCapabilitiesChanged != null:
+return hardwareVaultSealPromptRequest(_that);case BusEvent_SecurityCapabilitiesChanged() when securityCapabilitiesChanged != null:
 return securityCapabilitiesChanged(_that);case BusEvent_KnownHostPromptRequest() when knownHostPromptRequest != null:
 return knownHostPromptRequest(_that);case BusEvent_KnownHostPromptResolved() when knownHostPromptResolved != null:
 return knownHostPromptResolved(_that);case _:
@@ -1184,7 +1181,7 @@ return knownHostPromptResolved(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_ConnectionActiveCountChanged value)  connectionActiveCountChanged,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,required TResult Function( BusEvent_RecorderStarted value)  recorderStarted,required TResult Function( BusEvent_RecorderStopped value)  recorderStopped,required TResult Function( BusEvent_RecorderBytesWritten value)  recorderBytesWritten,required TResult Function( BusEvent_RecorderRotateRequested value)  recorderRotateRequested,required TResult Function( BusEvent_TransferTaskAdded value)  transferTaskAdded,required TResult Function( BusEvent_TransferTaskState value)  transferTaskState,required TResult Function( BusEvent_TransferTaskProgress value)  transferTaskProgress,required TResult Function( BusEvent_TransferTaskError value)  transferTaskError,required TResult Function( BusEvent_PortForwardRegistered value)  portForwardRegistered,required TResult Function( BusEvent_PortForwardStatus value)  portForwardStatus,required TResult Function( BusEvent_PortForwardRemoved value)  portForwardRemoved,required TResult Function( BusEvent_UpdateDownloadProgress value)  updateDownloadProgress,required TResult Function( BusEvent_UpdateVerifyingStarted value)  updateVerifyingStarted,required TResult Function( BusEvent_UpdateDownloadCompleted value)  updateDownloadCompleted,required TResult Function( BusEvent_KnownHostsChanged value)  knownHostsChanged,required TResult Function( BusEvent_SessionsChanged value)  sessionsChanged,required TResult Function( BusEvent_ConfigChanged value)  configChanged,required TResult Function( BusEvent_TierStateChanged value)  tierStateChanged,required TResult Function( BusEvent_KeychainPepperPromptRequest value)  keychainPepperPromptRequest,required TResult Function( BusEvent_CredentialPromptRequest value)  credentialPromptRequest,required TResult Function( BusEvent_BiometricProbePromptRequest value)  biometricProbePromptRequest,required TResult Function( BusEvent_KeychainProbePromptRequest value)  keychainProbePromptRequest,required TResult Function( BusEvent_HardwareVaultProbePromptRequest value)  hardwareVaultProbePromptRequest,required TResult Function( BusEvent_HardwareVaultUnlockPromptRequest value)  hardwareVaultUnlockPromptRequest,required TResult Function( BusEvent_HardwareVaultSealPromptRequest value)  hardwareVaultSealPromptRequest,required TResult Function( BusEvent_KeychainOpPromptRequest value)  keychainOpPromptRequest,required TResult Function( BusEvent_SecurityCapabilitiesChanged value)  securityCapabilitiesChanged,required TResult Function( BusEvent_KnownHostPromptRequest value)  knownHostPromptRequest,required TResult Function( BusEvent_KnownHostPromptResolved value)  knownHostPromptResolved,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( BusEvent_Echoed value)  echoed,required TResult Function( BusEvent_ConnectionStateChanged value)  connectionStateChanged,required TResult Function( BusEvent_ConnectionProgress value)  connectionProgress,required TResult Function( BusEvent_ConnectionError value)  connectionError,required TResult Function( BusEvent_ConnectionRemoved value)  connectionRemoved,required TResult Function( BusEvent_ConnectionActiveCountChanged value)  connectionActiveCountChanged,required TResult Function( BusEvent_AutoLockLocked value)  autoLockLocked,required TResult Function( BusEvent_AutoLockUnlocked value)  autoLockUnlocked,required TResult Function( BusEvent_AutoLockTimeoutChanged value)  autoLockTimeoutChanged,required TResult Function( BusEvent_RecorderStarted value)  recorderStarted,required TResult Function( BusEvent_RecorderStopped value)  recorderStopped,required TResult Function( BusEvent_RecorderBytesWritten value)  recorderBytesWritten,required TResult Function( BusEvent_RecorderRotateRequested value)  recorderRotateRequested,required TResult Function( BusEvent_TransferTaskAdded value)  transferTaskAdded,required TResult Function( BusEvent_TransferTaskState value)  transferTaskState,required TResult Function( BusEvent_TransferTaskProgress value)  transferTaskProgress,required TResult Function( BusEvent_TransferTaskError value)  transferTaskError,required TResult Function( BusEvent_PortForwardRegistered value)  portForwardRegistered,required TResult Function( BusEvent_PortForwardStatus value)  portForwardStatus,required TResult Function( BusEvent_PortForwardRemoved value)  portForwardRemoved,required TResult Function( BusEvent_UpdateDownloadProgress value)  updateDownloadProgress,required TResult Function( BusEvent_UpdateVerifyingStarted value)  updateVerifyingStarted,required TResult Function( BusEvent_UpdateDownloadCompleted value)  updateDownloadCompleted,required TResult Function( BusEvent_KnownHostsChanged value)  knownHostsChanged,required TResult Function( BusEvent_SessionsChanged value)  sessionsChanged,required TResult Function( BusEvent_ConfigChanged value)  configChanged,required TResult Function( BusEvent_TierStateChanged value)  tierStateChanged,required TResult Function( BusEvent_CredentialPromptRequest value)  credentialPromptRequest,required TResult Function( BusEvent_KeychainProbePromptRequest value)  keychainProbePromptRequest,required TResult Function( BusEvent_HardwareVaultProbePromptRequest value)  hardwareVaultProbePromptRequest,required TResult Function( BusEvent_HardwareVaultUnlockPromptRequest value)  hardwareVaultUnlockPromptRequest,required TResult Function( BusEvent_HardwareVaultSealPromptRequest value)  hardwareVaultSealPromptRequest,required TResult Function( BusEvent_SecurityCapabilitiesChanged value)  securityCapabilitiesChanged,required TResult Function( BusEvent_KnownHostPromptRequest value)  knownHostPromptRequest,required TResult Function( BusEvent_KnownHostPromptResolved value)  knownHostPromptResolved,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
@@ -1214,15 +1211,12 @@ return updateDownloadCompleted(_that);case BusEvent_KnownHostsChanged():
 return knownHostsChanged(_that);case BusEvent_SessionsChanged():
 return sessionsChanged(_that);case BusEvent_ConfigChanged():
 return configChanged(_that);case BusEvent_TierStateChanged():
-return tierStateChanged(_that);case BusEvent_KeychainPepperPromptRequest():
-return keychainPepperPromptRequest(_that);case BusEvent_CredentialPromptRequest():
-return credentialPromptRequest(_that);case BusEvent_BiometricProbePromptRequest():
-return biometricProbePromptRequest(_that);case BusEvent_KeychainProbePromptRequest():
+return tierStateChanged(_that);case BusEvent_CredentialPromptRequest():
+return credentialPromptRequest(_that);case BusEvent_KeychainProbePromptRequest():
 return keychainProbePromptRequest(_that);case BusEvent_HardwareVaultProbePromptRequest():
 return hardwareVaultProbePromptRequest(_that);case BusEvent_HardwareVaultUnlockPromptRequest():
 return hardwareVaultUnlockPromptRequest(_that);case BusEvent_HardwareVaultSealPromptRequest():
-return hardwareVaultSealPromptRequest(_that);case BusEvent_KeychainOpPromptRequest():
-return keychainOpPromptRequest(_that);case BusEvent_SecurityCapabilitiesChanged():
+return hardwareVaultSealPromptRequest(_that);case BusEvent_SecurityCapabilitiesChanged():
 return securityCapabilitiesChanged(_that);case BusEvent_KnownHostPromptRequest():
 return knownHostPromptRequest(_that);case BusEvent_KnownHostPromptResolved():
 return knownHostPromptResolved(_that);}
@@ -1239,7 +1233,7 @@ return knownHostPromptResolved(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_ConnectionActiveCountChanged value)?  connectionActiveCountChanged,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult? Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult? Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult? Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult? Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult? Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult? Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult? Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult? Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult? Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult? Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult? Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult? Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult? Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult? Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,TResult? Function( BusEvent_KnownHostsChanged value)?  knownHostsChanged,TResult? Function( BusEvent_SessionsChanged value)?  sessionsChanged,TResult? Function( BusEvent_ConfigChanged value)?  configChanged,TResult? Function( BusEvent_TierStateChanged value)?  tierStateChanged,TResult? Function( BusEvent_KeychainPepperPromptRequest value)?  keychainPepperPromptRequest,TResult? Function( BusEvent_CredentialPromptRequest value)?  credentialPromptRequest,TResult? Function( BusEvent_BiometricProbePromptRequest value)?  biometricProbePromptRequest,TResult? Function( BusEvent_KeychainProbePromptRequest value)?  keychainProbePromptRequest,TResult? Function( BusEvent_HardwareVaultProbePromptRequest value)?  hardwareVaultProbePromptRequest,TResult? Function( BusEvent_HardwareVaultUnlockPromptRequest value)?  hardwareVaultUnlockPromptRequest,TResult? Function( BusEvent_HardwareVaultSealPromptRequest value)?  hardwareVaultSealPromptRequest,TResult? Function( BusEvent_KeychainOpPromptRequest value)?  keychainOpPromptRequest,TResult? Function( BusEvent_SecurityCapabilitiesChanged value)?  securityCapabilitiesChanged,TResult? Function( BusEvent_KnownHostPromptRequest value)?  knownHostPromptRequest,TResult? Function( BusEvent_KnownHostPromptResolved value)?  knownHostPromptResolved,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( BusEvent_Echoed value)?  echoed,TResult? Function( BusEvent_ConnectionStateChanged value)?  connectionStateChanged,TResult? Function( BusEvent_ConnectionProgress value)?  connectionProgress,TResult? Function( BusEvent_ConnectionError value)?  connectionError,TResult? Function( BusEvent_ConnectionRemoved value)?  connectionRemoved,TResult? Function( BusEvent_ConnectionActiveCountChanged value)?  connectionActiveCountChanged,TResult? Function( BusEvent_AutoLockLocked value)?  autoLockLocked,TResult? Function( BusEvent_AutoLockUnlocked value)?  autoLockUnlocked,TResult? Function( BusEvent_AutoLockTimeoutChanged value)?  autoLockTimeoutChanged,TResult? Function( BusEvent_RecorderStarted value)?  recorderStarted,TResult? Function( BusEvent_RecorderStopped value)?  recorderStopped,TResult? Function( BusEvent_RecorderBytesWritten value)?  recorderBytesWritten,TResult? Function( BusEvent_RecorderRotateRequested value)?  recorderRotateRequested,TResult? Function( BusEvent_TransferTaskAdded value)?  transferTaskAdded,TResult? Function( BusEvent_TransferTaskState value)?  transferTaskState,TResult? Function( BusEvent_TransferTaskProgress value)?  transferTaskProgress,TResult? Function( BusEvent_TransferTaskError value)?  transferTaskError,TResult? Function( BusEvent_PortForwardRegistered value)?  portForwardRegistered,TResult? Function( BusEvent_PortForwardStatus value)?  portForwardStatus,TResult? Function( BusEvent_PortForwardRemoved value)?  portForwardRemoved,TResult? Function( BusEvent_UpdateDownloadProgress value)?  updateDownloadProgress,TResult? Function( BusEvent_UpdateVerifyingStarted value)?  updateVerifyingStarted,TResult? Function( BusEvent_UpdateDownloadCompleted value)?  updateDownloadCompleted,TResult? Function( BusEvent_KnownHostsChanged value)?  knownHostsChanged,TResult? Function( BusEvent_SessionsChanged value)?  sessionsChanged,TResult? Function( BusEvent_ConfigChanged value)?  configChanged,TResult? Function( BusEvent_TierStateChanged value)?  tierStateChanged,TResult? Function( BusEvent_CredentialPromptRequest value)?  credentialPromptRequest,TResult? Function( BusEvent_KeychainProbePromptRequest value)?  keychainProbePromptRequest,TResult? Function( BusEvent_HardwareVaultProbePromptRequest value)?  hardwareVaultProbePromptRequest,TResult? Function( BusEvent_HardwareVaultUnlockPromptRequest value)?  hardwareVaultUnlockPromptRequest,TResult? Function( BusEvent_HardwareVaultSealPromptRequest value)?  hardwareVaultSealPromptRequest,TResult? Function( BusEvent_SecurityCapabilitiesChanged value)?  securityCapabilitiesChanged,TResult? Function( BusEvent_KnownHostPromptRequest value)?  knownHostPromptRequest,TResult? Function( BusEvent_KnownHostPromptResolved value)?  knownHostPromptResolved,}){
 final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
@@ -1269,15 +1263,12 @@ return updateDownloadCompleted(_that);case BusEvent_KnownHostsChanged() when kno
 return knownHostsChanged(_that);case BusEvent_SessionsChanged() when sessionsChanged != null:
 return sessionsChanged(_that);case BusEvent_ConfigChanged() when configChanged != null:
 return configChanged(_that);case BusEvent_TierStateChanged() when tierStateChanged != null:
-return tierStateChanged(_that);case BusEvent_KeychainPepperPromptRequest() when keychainPepperPromptRequest != null:
-return keychainPepperPromptRequest(_that);case BusEvent_CredentialPromptRequest() when credentialPromptRequest != null:
-return credentialPromptRequest(_that);case BusEvent_BiometricProbePromptRequest() when biometricProbePromptRequest != null:
-return biometricProbePromptRequest(_that);case BusEvent_KeychainProbePromptRequest() when keychainProbePromptRequest != null:
+return tierStateChanged(_that);case BusEvent_CredentialPromptRequest() when credentialPromptRequest != null:
+return credentialPromptRequest(_that);case BusEvent_KeychainProbePromptRequest() when keychainProbePromptRequest != null:
 return keychainProbePromptRequest(_that);case BusEvent_HardwareVaultProbePromptRequest() when hardwareVaultProbePromptRequest != null:
 return hardwareVaultProbePromptRequest(_that);case BusEvent_HardwareVaultUnlockPromptRequest() when hardwareVaultUnlockPromptRequest != null:
 return hardwareVaultUnlockPromptRequest(_that);case BusEvent_HardwareVaultSealPromptRequest() when hardwareVaultSealPromptRequest != null:
-return hardwareVaultSealPromptRequest(_that);case BusEvent_KeychainOpPromptRequest() when keychainOpPromptRequest != null:
-return keychainOpPromptRequest(_that);case BusEvent_SecurityCapabilitiesChanged() when securityCapabilitiesChanged != null:
+return hardwareVaultSealPromptRequest(_that);case BusEvent_SecurityCapabilitiesChanged() when securityCapabilitiesChanged != null:
 return securityCapabilitiesChanged(_that);case BusEvent_KnownHostPromptRequest() when knownHostPromptRequest != null:
 return knownHostPromptRequest(_that);case BusEvent_KnownHostPromptResolved() when knownHostPromptResolved != null:
 return knownHostPromptResolved(_that);case _:
@@ -1297,7 +1288,7 @@ return knownHostPromptResolved(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function( PlatformInt64 count)?  connectionActiveCountChanged,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult Function( String id,  String path)?  recorderStarted,TResult Function( String id)?  recorderStopped,TResult Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult Function( String id)?  transferTaskAdded,TResult Function( String id,  BusTaskState state)?  transferTaskState,TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult Function( String id,  String detail)?  transferTaskError,TResult Function( String id)?  portForwardRegistered,TResult Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult Function( String id)?  portForwardRemoved,TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult Function( String url)?  updateVerifyingStarted,TResult Function( String url,  String path)?  updateDownloadCompleted,TResult Function()?  knownHostsChanged,TResult Function()?  sessionsChanged,TResult Function( String json)?  configChanged,TResult Function( String stateWireName)?  tierStateChanged,TResult Function( String promptId)?  keychainPepperPromptRequest,TResult Function( String promptId,  String sessionId,  String kindWireName)?  credentialPromptRequest,TResult Function( String promptId)?  biometricProbePromptRequest,TResult Function( String promptId)?  keychainProbePromptRequest,TResult Function( String promptId)?  hardwareVaultProbePromptRequest,TResult Function( String promptId,  String? pin)?  hardwareVaultUnlockPromptRequest,TResult Function( String promptId,  Uint8List dbKey,  String? pin)?  hardwareVaultSealPromptRequest,TResult Function( String promptId,  String key,  String opWireName,  String? valueB64)?  keychainOpPromptRequest,TResult Function( String json)?  securityCapabilitiesChanged,TResult Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)?  knownHostPromptRequest,TResult Function( String promptId,  bool accepted)?  knownHostPromptResolved,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String payload)?  echoed,TResult Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult Function( String id,  BusProgressStep step)?  connectionProgress,TResult Function( String id,  String detail)?  connectionError,TResult Function( String id)?  connectionRemoved,TResult Function( PlatformInt64 count)?  connectionActiveCountChanged,TResult Function()?  autoLockLocked,TResult Function()?  autoLockUnlocked,TResult Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult Function( String id,  String path)?  recorderStarted,TResult Function( String id)?  recorderStopped,TResult Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult Function( String id)?  transferTaskAdded,TResult Function( String id,  BusTaskState state)?  transferTaskState,TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult Function( String id,  String detail)?  transferTaskError,TResult Function( String id)?  portForwardRegistered,TResult Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult Function( String id)?  portForwardRemoved,TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult Function( String url)?  updateVerifyingStarted,TResult Function( String url,  String path)?  updateDownloadCompleted,TResult Function()?  knownHostsChanged,TResult Function()?  sessionsChanged,TResult Function( String json)?  configChanged,TResult Function( String stateWireName)?  tierStateChanged,TResult Function( String promptId,  String sessionId,  String kindWireName)?  credentialPromptRequest,TResult Function( String promptId)?  keychainProbePromptRequest,TResult Function( String promptId)?  hardwareVaultProbePromptRequest,TResult Function( String promptId,  String? pin)?  hardwareVaultUnlockPromptRequest,TResult Function( String promptId,  Uint8List dbKey,  String? pin)?  hardwareVaultSealPromptRequest,TResult Function( String json)?  securityCapabilitiesChanged,TResult Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)?  knownHostPromptRequest,TResult Function( String promptId,  bool accepted)?  knownHostPromptResolved,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
@@ -1326,15 +1317,12 @@ return updateDownloadCompleted(_that.url,_that.path);case BusEvent_KnownHostsCha
 return knownHostsChanged();case BusEvent_SessionsChanged() when sessionsChanged != null:
 return sessionsChanged();case BusEvent_ConfigChanged() when configChanged != null:
 return configChanged(_that.json);case BusEvent_TierStateChanged() when tierStateChanged != null:
-return tierStateChanged(_that.stateWireName);case BusEvent_KeychainPepperPromptRequest() when keychainPepperPromptRequest != null:
-return keychainPepperPromptRequest(_that.promptId);case BusEvent_CredentialPromptRequest() when credentialPromptRequest != null:
-return credentialPromptRequest(_that.promptId,_that.sessionId,_that.kindWireName);case BusEvent_BiometricProbePromptRequest() when biometricProbePromptRequest != null:
-return biometricProbePromptRequest(_that.promptId);case BusEvent_KeychainProbePromptRequest() when keychainProbePromptRequest != null:
+return tierStateChanged(_that.stateWireName);case BusEvent_CredentialPromptRequest() when credentialPromptRequest != null:
+return credentialPromptRequest(_that.promptId,_that.sessionId,_that.kindWireName);case BusEvent_KeychainProbePromptRequest() when keychainProbePromptRequest != null:
 return keychainProbePromptRequest(_that.promptId);case BusEvent_HardwareVaultProbePromptRequest() when hardwareVaultProbePromptRequest != null:
 return hardwareVaultProbePromptRequest(_that.promptId);case BusEvent_HardwareVaultUnlockPromptRequest() when hardwareVaultUnlockPromptRequest != null:
 return hardwareVaultUnlockPromptRequest(_that.promptId,_that.pin);case BusEvent_HardwareVaultSealPromptRequest() when hardwareVaultSealPromptRequest != null:
-return hardwareVaultSealPromptRequest(_that.promptId,_that.dbKey,_that.pin);case BusEvent_KeychainOpPromptRequest() when keychainOpPromptRequest != null:
-return keychainOpPromptRequest(_that.promptId,_that.key,_that.opWireName,_that.valueB64);case BusEvent_SecurityCapabilitiesChanged() when securityCapabilitiesChanged != null:
+return hardwareVaultSealPromptRequest(_that.promptId,_that.dbKey,_that.pin);case BusEvent_SecurityCapabilitiesChanged() when securityCapabilitiesChanged != null:
 return securityCapabilitiesChanged(_that.json);case BusEvent_KnownHostPromptRequest() when knownHostPromptRequest != null:
 return knownHostPromptRequest(_that.promptId,_that.host,_that.port,_that.keyType,_that.fingerprint,_that.kind);case BusEvent_KnownHostPromptResolved() when knownHostPromptResolved != null:
 return knownHostPromptResolved(_that.promptId,_that.accepted);case _:
@@ -1355,7 +1343,7 @@ return knownHostPromptResolved(_that.promptId,_that.accepted);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function( PlatformInt64 count)  connectionActiveCountChanged,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,required TResult Function( String id,  String path)  recorderStarted,required TResult Function( String id)  recorderStopped,required TResult Function( String id,  BigInt totalBytes)  recorderBytesWritten,required TResult Function( String id,  BigInt bytesWritten)  recorderRotateRequested,required TResult Function( String id)  transferTaskAdded,required TResult Function( String id,  BusTaskState state)  transferTaskState,required TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)  transferTaskProgress,required TResult Function( String id,  String detail)  transferTaskError,required TResult Function( String id)  portForwardRegistered,required TResult Function( String id,  BusRuleStatus status,  String? detail)  portForwardStatus,required TResult Function( String id)  portForwardRemoved,required TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)  updateDownloadProgress,required TResult Function( String url)  updateVerifyingStarted,required TResult Function( String url,  String path)  updateDownloadCompleted,required TResult Function()  knownHostsChanged,required TResult Function()  sessionsChanged,required TResult Function( String json)  configChanged,required TResult Function( String stateWireName)  tierStateChanged,required TResult Function( String promptId)  keychainPepperPromptRequest,required TResult Function( String promptId,  String sessionId,  String kindWireName)  credentialPromptRequest,required TResult Function( String promptId)  biometricProbePromptRequest,required TResult Function( String promptId)  keychainProbePromptRequest,required TResult Function( String promptId)  hardwareVaultProbePromptRequest,required TResult Function( String promptId,  String? pin)  hardwareVaultUnlockPromptRequest,required TResult Function( String promptId,  Uint8List dbKey,  String? pin)  hardwareVaultSealPromptRequest,required TResult Function( String promptId,  String key,  String opWireName,  String? valueB64)  keychainOpPromptRequest,required TResult Function( String json)  securityCapabilitiesChanged,required TResult Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)  knownHostPromptRequest,required TResult Function( String promptId,  bool accepted)  knownHostPromptResolved,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String payload)  echoed,required TResult Function( String id,  BusConnectionState state)  connectionStateChanged,required TResult Function( String id,  BusProgressStep step)  connectionProgress,required TResult Function( String id,  String detail)  connectionError,required TResult Function( String id)  connectionRemoved,required TResult Function( PlatformInt64 count)  connectionActiveCountChanged,required TResult Function()  autoLockLocked,required TResult Function()  autoLockUnlocked,required TResult Function( PlatformInt64 minutes)  autoLockTimeoutChanged,required TResult Function( String id,  String path)  recorderStarted,required TResult Function( String id)  recorderStopped,required TResult Function( String id,  BigInt totalBytes)  recorderBytesWritten,required TResult Function( String id,  BigInt bytesWritten)  recorderRotateRequested,required TResult Function( String id)  transferTaskAdded,required TResult Function( String id,  BusTaskState state)  transferTaskState,required TResult Function( String id,  BigInt bytesDone,  BigInt bytesTotal)  transferTaskProgress,required TResult Function( String id,  String detail)  transferTaskError,required TResult Function( String id)  portForwardRegistered,required TResult Function( String id,  BusRuleStatus status,  String? detail)  portForwardStatus,required TResult Function( String id)  portForwardRemoved,required TResult Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)  updateDownloadProgress,required TResult Function( String url)  updateVerifyingStarted,required TResult Function( String url,  String path)  updateDownloadCompleted,required TResult Function()  knownHostsChanged,required TResult Function()  sessionsChanged,required TResult Function( String json)  configChanged,required TResult Function( String stateWireName)  tierStateChanged,required TResult Function( String promptId,  String sessionId,  String kindWireName)  credentialPromptRequest,required TResult Function( String promptId)  keychainProbePromptRequest,required TResult Function( String promptId)  hardwareVaultProbePromptRequest,required TResult Function( String promptId,  String? pin)  hardwareVaultUnlockPromptRequest,required TResult Function( String promptId,  Uint8List dbKey,  String? pin)  hardwareVaultSealPromptRequest,required TResult Function( String json)  securityCapabilitiesChanged,required TResult Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)  knownHostPromptRequest,required TResult Function( String promptId,  bool accepted)  knownHostPromptResolved,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed():
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged():
@@ -1384,15 +1372,12 @@ return updateDownloadCompleted(_that.url,_that.path);case BusEvent_KnownHostsCha
 return knownHostsChanged();case BusEvent_SessionsChanged():
 return sessionsChanged();case BusEvent_ConfigChanged():
 return configChanged(_that.json);case BusEvent_TierStateChanged():
-return tierStateChanged(_that.stateWireName);case BusEvent_KeychainPepperPromptRequest():
-return keychainPepperPromptRequest(_that.promptId);case BusEvent_CredentialPromptRequest():
-return credentialPromptRequest(_that.promptId,_that.sessionId,_that.kindWireName);case BusEvent_BiometricProbePromptRequest():
-return biometricProbePromptRequest(_that.promptId);case BusEvent_KeychainProbePromptRequest():
+return tierStateChanged(_that.stateWireName);case BusEvent_CredentialPromptRequest():
+return credentialPromptRequest(_that.promptId,_that.sessionId,_that.kindWireName);case BusEvent_KeychainProbePromptRequest():
 return keychainProbePromptRequest(_that.promptId);case BusEvent_HardwareVaultProbePromptRequest():
 return hardwareVaultProbePromptRequest(_that.promptId);case BusEvent_HardwareVaultUnlockPromptRequest():
 return hardwareVaultUnlockPromptRequest(_that.promptId,_that.pin);case BusEvent_HardwareVaultSealPromptRequest():
-return hardwareVaultSealPromptRequest(_that.promptId,_that.dbKey,_that.pin);case BusEvent_KeychainOpPromptRequest():
-return keychainOpPromptRequest(_that.promptId,_that.key,_that.opWireName,_that.valueB64);case BusEvent_SecurityCapabilitiesChanged():
+return hardwareVaultSealPromptRequest(_that.promptId,_that.dbKey,_that.pin);case BusEvent_SecurityCapabilitiesChanged():
 return securityCapabilitiesChanged(_that.json);case BusEvent_KnownHostPromptRequest():
 return knownHostPromptRequest(_that.promptId,_that.host,_that.port,_that.keyType,_that.fingerprint,_that.kind);case BusEvent_KnownHostPromptResolved():
 return knownHostPromptResolved(_that.promptId,_that.accepted);}
@@ -1409,7 +1394,7 @@ return knownHostPromptResolved(_that.promptId,_that.accepted);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function( PlatformInt64 count)?  connectionActiveCountChanged,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult? Function( String id,  String path)?  recorderStarted,TResult? Function( String id)?  recorderStopped,TResult? Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult? Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult? Function( String id)?  transferTaskAdded,TResult? Function( String id,  BusTaskState state)?  transferTaskState,TResult? Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult? Function( String id,  String detail)?  transferTaskError,TResult? Function( String id)?  portForwardRegistered,TResult? Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult? Function( String id)?  portForwardRemoved,TResult? Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult? Function( String url)?  updateVerifyingStarted,TResult? Function( String url,  String path)?  updateDownloadCompleted,TResult? Function()?  knownHostsChanged,TResult? Function()?  sessionsChanged,TResult? Function( String json)?  configChanged,TResult? Function( String stateWireName)?  tierStateChanged,TResult? Function( String promptId)?  keychainPepperPromptRequest,TResult? Function( String promptId,  String sessionId,  String kindWireName)?  credentialPromptRequest,TResult? Function( String promptId)?  biometricProbePromptRequest,TResult? Function( String promptId)?  keychainProbePromptRequest,TResult? Function( String promptId)?  hardwareVaultProbePromptRequest,TResult? Function( String promptId,  String? pin)?  hardwareVaultUnlockPromptRequest,TResult? Function( String promptId,  Uint8List dbKey,  String? pin)?  hardwareVaultSealPromptRequest,TResult? Function( String promptId,  String key,  String opWireName,  String? valueB64)?  keychainOpPromptRequest,TResult? Function( String json)?  securityCapabilitiesChanged,TResult? Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)?  knownHostPromptRequest,TResult? Function( String promptId,  bool accepted)?  knownHostPromptResolved,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String payload)?  echoed,TResult? Function( String id,  BusConnectionState state)?  connectionStateChanged,TResult? Function( String id,  BusProgressStep step)?  connectionProgress,TResult? Function( String id,  String detail)?  connectionError,TResult? Function( String id)?  connectionRemoved,TResult? Function( PlatformInt64 count)?  connectionActiveCountChanged,TResult? Function()?  autoLockLocked,TResult? Function()?  autoLockUnlocked,TResult? Function( PlatformInt64 minutes)?  autoLockTimeoutChanged,TResult? Function( String id,  String path)?  recorderStarted,TResult? Function( String id)?  recorderStopped,TResult? Function( String id,  BigInt totalBytes)?  recorderBytesWritten,TResult? Function( String id,  BigInt bytesWritten)?  recorderRotateRequested,TResult? Function( String id)?  transferTaskAdded,TResult? Function( String id,  BusTaskState state)?  transferTaskState,TResult? Function( String id,  BigInt bytesDone,  BigInt bytesTotal)?  transferTaskProgress,TResult? Function( String id,  String detail)?  transferTaskError,TResult? Function( String id)?  portForwardRegistered,TResult? Function( String id,  BusRuleStatus status,  String? detail)?  portForwardStatus,TResult? Function( String id)?  portForwardRemoved,TResult? Function( String url,  BigInt writtenBytes,  BigInt? totalBytes)?  updateDownloadProgress,TResult? Function( String url)?  updateVerifyingStarted,TResult? Function( String url,  String path)?  updateDownloadCompleted,TResult? Function()?  knownHostsChanged,TResult? Function()?  sessionsChanged,TResult? Function( String json)?  configChanged,TResult? Function( String stateWireName)?  tierStateChanged,TResult? Function( String promptId,  String sessionId,  String kindWireName)?  credentialPromptRequest,TResult? Function( String promptId)?  keychainProbePromptRequest,TResult? Function( String promptId)?  hardwareVaultProbePromptRequest,TResult? Function( String promptId,  String? pin)?  hardwareVaultUnlockPromptRequest,TResult? Function( String promptId,  Uint8List dbKey,  String? pin)?  hardwareVaultSealPromptRequest,TResult? Function( String json)?  securityCapabilitiesChanged,TResult? Function( String promptId,  String host,  PlatformInt64 port,  String keyType,  String fingerprint,  BusKnownHostPromptKind kind)?  knownHostPromptRequest,TResult? Function( String promptId,  bool accepted)?  knownHostPromptResolved,}) {final _that = this;
 switch (_that) {
 case BusEvent_Echoed() when echoed != null:
 return echoed(_that.payload);case BusEvent_ConnectionStateChanged() when connectionStateChanged != null:
@@ -1438,15 +1423,12 @@ return updateDownloadCompleted(_that.url,_that.path);case BusEvent_KnownHostsCha
 return knownHostsChanged();case BusEvent_SessionsChanged() when sessionsChanged != null:
 return sessionsChanged();case BusEvent_ConfigChanged() when configChanged != null:
 return configChanged(_that.json);case BusEvent_TierStateChanged() when tierStateChanged != null:
-return tierStateChanged(_that.stateWireName);case BusEvent_KeychainPepperPromptRequest() when keychainPepperPromptRequest != null:
-return keychainPepperPromptRequest(_that.promptId);case BusEvent_CredentialPromptRequest() when credentialPromptRequest != null:
-return credentialPromptRequest(_that.promptId,_that.sessionId,_that.kindWireName);case BusEvent_BiometricProbePromptRequest() when biometricProbePromptRequest != null:
-return biometricProbePromptRequest(_that.promptId);case BusEvent_KeychainProbePromptRequest() when keychainProbePromptRequest != null:
+return tierStateChanged(_that.stateWireName);case BusEvent_CredentialPromptRequest() when credentialPromptRequest != null:
+return credentialPromptRequest(_that.promptId,_that.sessionId,_that.kindWireName);case BusEvent_KeychainProbePromptRequest() when keychainProbePromptRequest != null:
 return keychainProbePromptRequest(_that.promptId);case BusEvent_HardwareVaultProbePromptRequest() when hardwareVaultProbePromptRequest != null:
 return hardwareVaultProbePromptRequest(_that.promptId);case BusEvent_HardwareVaultUnlockPromptRequest() when hardwareVaultUnlockPromptRequest != null:
 return hardwareVaultUnlockPromptRequest(_that.promptId,_that.pin);case BusEvent_HardwareVaultSealPromptRequest() when hardwareVaultSealPromptRequest != null:
-return hardwareVaultSealPromptRequest(_that.promptId,_that.dbKey,_that.pin);case BusEvent_KeychainOpPromptRequest() when keychainOpPromptRequest != null:
-return keychainOpPromptRequest(_that.promptId,_that.key,_that.opWireName,_that.valueB64);case BusEvent_SecurityCapabilitiesChanged() when securityCapabilitiesChanged != null:
+return hardwareVaultSealPromptRequest(_that.promptId,_that.dbKey,_that.pin);case BusEvent_SecurityCapabilitiesChanged() when securityCapabilitiesChanged != null:
 return securityCapabilitiesChanged(_that.json);case BusEvent_KnownHostPromptRequest() when knownHostPromptRequest != null:
 return knownHostPromptRequest(_that.promptId,_that.host,_that.port,_that.keyType,_that.fingerprint,_that.kind);case BusEvent_KnownHostPromptResolved() when knownHostPromptResolved != null:
 return knownHostPromptResolved(_that.promptId,_that.accepted);case _:
@@ -3136,72 +3118,6 @@ as String,
 /// @nodoc
 
 
-class BusEvent_KeychainPepperPromptRequest extends BusEvent {
-  const BusEvent_KeychainPepperPromptRequest({required this.promptId}): super._();
-  
-
- final  String promptId;
-
-/// Create a copy of BusEvent
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$BusEvent_KeychainPepperPromptRequestCopyWith<BusEvent_KeychainPepperPromptRequest> get copyWith => _$BusEvent_KeychainPepperPromptRequestCopyWithImpl<BusEvent_KeychainPepperPromptRequest>(this, _$identity);
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_KeychainPepperPromptRequest&&(identical(other.promptId, promptId) || other.promptId == promptId));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,promptId);
-
-@override
-String toString() {
-  return 'BusEvent.keychainPepperPromptRequest(promptId: $promptId)';
-}
-
-
-}
-
-/// @nodoc
-abstract mixin class $BusEvent_KeychainPepperPromptRequestCopyWith<$Res> implements $BusEventCopyWith<$Res> {
-  factory $BusEvent_KeychainPepperPromptRequestCopyWith(BusEvent_KeychainPepperPromptRequest value, $Res Function(BusEvent_KeychainPepperPromptRequest) _then) = _$BusEvent_KeychainPepperPromptRequestCopyWithImpl;
-@useResult
-$Res call({
- String promptId
-});
-
-
-
-
-}
-/// @nodoc
-class _$BusEvent_KeychainPepperPromptRequestCopyWithImpl<$Res>
-    implements $BusEvent_KeychainPepperPromptRequestCopyWith<$Res> {
-  _$BusEvent_KeychainPepperPromptRequestCopyWithImpl(this._self, this._then);
-
-  final BusEvent_KeychainPepperPromptRequest _self;
-  final $Res Function(BusEvent_KeychainPepperPromptRequest) _then;
-
-/// Create a copy of BusEvent
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? promptId = null,}) {
-  return _then(BusEvent_KeychainPepperPromptRequest(
-promptId: null == promptId ? _self.promptId : promptId // ignore: cast_nullable_to_non_nullable
-as String,
-  ));
-}
-
-
-}
-
-/// @nodoc
-
-
 class BusEvent_CredentialPromptRequest extends BusEvent {
   const BusEvent_CredentialPromptRequest({required this.promptId, required this.sessionId, required this.kindWireName}): super._();
   
@@ -3262,72 +3178,6 @@ class _$BusEvent_CredentialPromptRequestCopyWithImpl<$Res>
 promptId: null == promptId ? _self.promptId : promptId // ignore: cast_nullable_to_non_nullable
 as String,sessionId: null == sessionId ? _self.sessionId : sessionId // ignore: cast_nullable_to_non_nullable
 as String,kindWireName: null == kindWireName ? _self.kindWireName : kindWireName // ignore: cast_nullable_to_non_nullable
-as String,
-  ));
-}
-
-
-}
-
-/// @nodoc
-
-
-class BusEvent_BiometricProbePromptRequest extends BusEvent {
-  const BusEvent_BiometricProbePromptRequest({required this.promptId}): super._();
-  
-
- final  String promptId;
-
-/// Create a copy of BusEvent
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$BusEvent_BiometricProbePromptRequestCopyWith<BusEvent_BiometricProbePromptRequest> get copyWith => _$BusEvent_BiometricProbePromptRequestCopyWithImpl<BusEvent_BiometricProbePromptRequest>(this, _$identity);
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_BiometricProbePromptRequest&&(identical(other.promptId, promptId) || other.promptId == promptId));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,promptId);
-
-@override
-String toString() {
-  return 'BusEvent.biometricProbePromptRequest(promptId: $promptId)';
-}
-
-
-}
-
-/// @nodoc
-abstract mixin class $BusEvent_BiometricProbePromptRequestCopyWith<$Res> implements $BusEventCopyWith<$Res> {
-  factory $BusEvent_BiometricProbePromptRequestCopyWith(BusEvent_BiometricProbePromptRequest value, $Res Function(BusEvent_BiometricProbePromptRequest) _then) = _$BusEvent_BiometricProbePromptRequestCopyWithImpl;
-@useResult
-$Res call({
- String promptId
-});
-
-
-
-
-}
-/// @nodoc
-class _$BusEvent_BiometricProbePromptRequestCopyWithImpl<$Res>
-    implements $BusEvent_BiometricProbePromptRequestCopyWith<$Res> {
-  _$BusEvent_BiometricProbePromptRequestCopyWithImpl(this._self, this._then);
-
-  final BusEvent_BiometricProbePromptRequest _self;
-  final $Res Function(BusEvent_BiometricProbePromptRequest) _then;
-
-/// Create a copy of BusEvent
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? promptId = null,}) {
-  return _then(BusEvent_BiometricProbePromptRequest(
-promptId: null == promptId ? _self.promptId : promptId // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -3598,78 +3448,6 @@ class _$BusEvent_HardwareVaultSealPromptRequestCopyWithImpl<$Res>
 promptId: null == promptId ? _self.promptId : promptId // ignore: cast_nullable_to_non_nullable
 as String,dbKey: null == dbKey ? _self.dbKey : dbKey // ignore: cast_nullable_to_non_nullable
 as Uint8List,pin: freezed == pin ? _self.pin : pin // ignore: cast_nullable_to_non_nullable
-as String?,
-  ));
-}
-
-
-}
-
-/// @nodoc
-
-
-class BusEvent_KeychainOpPromptRequest extends BusEvent {
-  const BusEvent_KeychainOpPromptRequest({required this.promptId, required this.key, required this.opWireName, this.valueB64}): super._();
-  
-
- final  String promptId;
- final  String key;
- final  String opWireName;
- final  String? valueB64;
-
-/// Create a copy of BusEvent
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$BusEvent_KeychainOpPromptRequestCopyWith<BusEvent_KeychainOpPromptRequest> get copyWith => _$BusEvent_KeychainOpPromptRequestCopyWithImpl<BusEvent_KeychainOpPromptRequest>(this, _$identity);
-
-
-
-@override
-bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BusEvent_KeychainOpPromptRequest&&(identical(other.promptId, promptId) || other.promptId == promptId)&&(identical(other.key, key) || other.key == key)&&(identical(other.opWireName, opWireName) || other.opWireName == opWireName)&&(identical(other.valueB64, valueB64) || other.valueB64 == valueB64));
-}
-
-
-@override
-int get hashCode => Object.hash(runtimeType,promptId,key,opWireName,valueB64);
-
-@override
-String toString() {
-  return 'BusEvent.keychainOpPromptRequest(promptId: $promptId, key: $key, opWireName: $opWireName, valueB64: $valueB64)';
-}
-
-
-}
-
-/// @nodoc
-abstract mixin class $BusEvent_KeychainOpPromptRequestCopyWith<$Res> implements $BusEventCopyWith<$Res> {
-  factory $BusEvent_KeychainOpPromptRequestCopyWith(BusEvent_KeychainOpPromptRequest value, $Res Function(BusEvent_KeychainOpPromptRequest) _then) = _$BusEvent_KeychainOpPromptRequestCopyWithImpl;
-@useResult
-$Res call({
- String promptId, String key, String opWireName, String? valueB64
-});
-
-
-
-
-}
-/// @nodoc
-class _$BusEvent_KeychainOpPromptRequestCopyWithImpl<$Res>
-    implements $BusEvent_KeychainOpPromptRequestCopyWith<$Res> {
-  _$BusEvent_KeychainOpPromptRequestCopyWithImpl(this._self, this._then);
-
-  final BusEvent_KeychainOpPromptRequest _self;
-  final $Res Function(BusEvent_KeychainOpPromptRequest) _then;
-
-/// Create a copy of BusEvent
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? promptId = null,Object? key = null,Object? opWireName = null,Object? valueB64 = freezed,}) {
-  return _then(BusEvent_KeychainOpPromptRequest(
-promptId: null == promptId ? _self.promptId : promptId // ignore: cast_nullable_to_non_nullable
-as String,key: null == key ? _self.key : key // ignore: cast_nullable_to_non_nullable
-as String,opWireName: null == opWireName ? _self.opWireName : opWireName // ignore: cast_nullable_to_non_nullable
-as String,valueB64: freezed == valueB64 ? _self.valueB64 : valueB64 // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

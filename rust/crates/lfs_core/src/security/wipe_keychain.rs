@@ -1,15 +1,15 @@
 //! Catastrophic-reset keychain purge — the OS-secure-storage half
 //! of "wipe every piece of app state this install holds".
 //!
-//! Owns the canonical [`MANAGED_KEYS`] list (every flutter_secure_
-//! storage slot the app writes) and an actor command that fans
-//! out a `KeychainOpKind::Delete` prompt per key, returning a
-//! per-key outcome report. Pairs with
+//! Owns the canonical [`MANAGED_KEYS`] list (every keychain slot
+//! the app writes) and an actor command that issues a delete per
+//! key directly through [`lfs_os_security::secure_key_storage`],
+//! returning a per-key outcome report. Pairs with
 //! [`crate::security::wipe`] (the file-half sweep) and the Dart
 //! `WipeAllService.wipeAll` orchestrator.
 //!
-//! Why a canonical list rather than `flutter_secure_storage.deleteAll`:
-//! the Dart-era `deleteAll()` is a black box — any platform-side
+//! Why a canonical list rather than `*::delete_all`: the platform
+//! "delete everything" surface is a black box — any platform-side
 //! behavioural drift (Android EncryptedSharedPrefs deleting only
 //! the current scope, Linux libsecret being prefix-matched, etc.)
 //! is invisible until a forgotten key surfaces in a forensic dump.
@@ -21,9 +21,6 @@
 //! pepper / DB-key bytes across FRB; only the key names cross.
 
 use serde_json::{json, Value};
-
-use crate::bus::Event;
-use crate::security::keychain_op_prompt::{self, KeychainOpKind};
 
 /// Every flutter_secure_storage slot the app writes. New keys MUST
 /// be added here so the wipe stays total. The list is versioned
@@ -51,16 +48,13 @@ pub const MANAGED_KEYS: &[&str] = &[
 /// the report.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeyWipeOutcome {
-    /// Dart subscriber dispatched the delete and reported success.
+    /// Backend reported success.
     Deleted,
-    /// Dart subscriber dispatched the delete and reported a plugin
-    /// error. The wipe continues with the next key — best-effort
-    /// is preferable to abort-on-first-failure for the wipe path.
+    /// Backend reported an error (libsecret unreachable, keychain
+    /// locked, JNI exception, etc.). The wipe continues with the
+    /// next key — best-effort is preferable to abort-on-first-failure
+    /// for the wipe path.
     Failed { detail: String },
-    /// Prompt was cancelled before resolution (Dart subscriber
-    /// detached, app shutdown mid-flight). Counted as failure for
-    /// reporting symmetry; the orphaned receiver is dropped.
-    Cancelled,
 }
 
 impl KeyWipeOutcome {
@@ -69,44 +63,23 @@ impl KeyWipeOutcome {
     }
 }
 
-/// UUIDv4-shaped prompt id. Mirrors the same id-shape every other
-/// prompt registry uses.
-fn generate_prompt_id() -> String {
-    use rand::RngCore;
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// Walk [`MANAGED_KEYS`] and dispatch a `Delete` prompt per key.
-/// Returns a `(key, outcome)` pair per slot; caller surfaces the
-/// per-key result in the `WipeReport`.
+/// Walk [`MANAGED_KEYS`] and issue a delete per key directly via
+/// [`lfs_os_security::secure_key_storage::delete`]. Returns a
+/// `(key, outcome)` pair per slot; caller surfaces the per-key
+/// result in the `WipeReport`.
 ///
-/// Prompts run sequentially rather than in parallel — the
-/// flutter_secure_storage plugin on some platforms (Linux libsecret
-/// in particular) serialises requests internally, so concurrent
-/// dispatch buys nothing and a serial loop keeps the bus traffic
-/// readable in a support trace.
+/// Deletes run sequentially rather than in parallel — the
+/// libsecret backend on Linux serialises requests internally, so
+/// concurrent dispatch buys nothing and a serial loop keeps the
+/// trace readable in a support archive.
 pub async fn run() -> Vec<(String, KeyWipeOutcome)> {
     let mut report = Vec::with_capacity(MANAGED_KEYS.len());
     for key in MANAGED_KEYS {
-        let prompt_id = generate_prompt_id();
-        let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
-        crate::app::instance()
-            .bus
-            .publish(Event::KeychainOpPromptRequest {
-                prompt_id: prompt_id.clone(),
-                key: (*key).to_string(),
-                op_wire_name: KeychainOpKind::Delete.wire_name().to_string(),
-                value_b64: None,
-            });
-        let outcome = match receiver.await {
-            Ok(Ok(_)) => KeyWipeOutcome::Deleted,
-            Ok(Err(msg)) => KeyWipeOutcome::Failed { detail: msg },
-            Err(_) => {
-                keychain_op_prompt::instance().cancel(&prompt_id);
-                KeyWipeOutcome::Cancelled
-            }
+        let outcome = match lfs_os_security::secure_key_storage::delete(key).await {
+            Ok(()) => KeyWipeOutcome::Deleted,
+            Err(e) => KeyWipeOutcome::Failed {
+                detail: e.to_string(),
+            },
         };
         report.push(((*key).to_string(), outcome));
     }
@@ -124,7 +97,6 @@ pub fn report_to_json(report: &[(String, KeyWipeOutcome)]) -> Value {
         let s = match outcome {
             KeyWipeOutcome::Deleted => "deleted".to_string(),
             KeyWipeOutcome::Failed { detail } => format!("failed: {detail}"),
-            KeyWipeOutcome::Cancelled => "cancelled".to_string(),
         };
         map.insert(key.clone(), json!(s));
     }
@@ -162,11 +134,9 @@ mod tests {
         let report = vec![
             ("a".into(), KeyWipeOutcome::Deleted),
             ("b".into(), KeyWipeOutcome::Failed { detail: "x".into() }),
-            ("c".into(), KeyWipeOutcome::Cancelled),
         ];
         let v = report_to_json(&report);
         assert_eq!(v.get("a").and_then(|x| x.as_str()), Some("deleted"));
         assert_eq!(v.get("b").and_then(|x| x.as_str()), Some("failed: x"));
-        assert_eq!(v.get("c").and_then(|x| x.as_str()), Some("cancelled"));
     }
 }

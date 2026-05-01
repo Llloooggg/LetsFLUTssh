@@ -23,7 +23,7 @@ use std::time::Duration;
 use crate::bus::Event;
 use crate::security::capabilities::{KeyringProbeResult, SecurityCapabilities};
 use crate::security::capabilities_cache::Cache;
-use crate::security::{biometric_probe_prompt, hardware_vault_probe_prompt, keychain_probe_prompt};
+use crate::security::{hardware_vault_probe_prompt, keychain_probe_prompt};
 
 /// Hard upper bound for any single probe round-trip. Stuck
 /// D-Bus calls / unresponsive native plugins fall back to the
@@ -97,19 +97,22 @@ pub async fn run(is_linux_host: bool) -> SecurityCapabilities {
 }
 
 async fn run_biometric_probe() -> bool {
-    let prompt_id = generate_prompt_id();
-    let receiver = biometric_probe_prompt::instance().register(prompt_id.clone());
-    crate::app::instance()
-        .bus
-        .publish(Event::BiometricProbePromptRequest {
-            prompt_id: prompt_id.clone(),
-        });
-    match tokio::time::timeout(PROBE_TIMEOUT, receiver).await {
-        Ok(Ok(resp)) => resp.available,
-        _ => {
-            biometric_probe_prompt::instance().cancel(&prompt_id);
-            false
-        }
+    // Linux still goes through `lfs_core::platform::linux::fprintd`
+    // separately via `run_fprintd_probe` so the daemon-missing /
+    // reader-absent / no-finger-enrolled distinction stays visible.
+    // Apple / Windows / Android route through
+    // `lfs_os_security::biometric_auth::check_availability` which
+    // wraps LAContext / UserConsentVerifier / BiometricManager
+    // (JNI). A timeout collapses a stuck native probe to "not
+    // available" rather than blocking the wizard's spinner.
+    match tokio::time::timeout(
+        PROBE_TIMEOUT,
+        lfs_os_security::biometric_auth::check_availability(),
+    )
+    .await
+    {
+        Ok(Ok(())) => true,
+        _ => false,
     }
 }
 

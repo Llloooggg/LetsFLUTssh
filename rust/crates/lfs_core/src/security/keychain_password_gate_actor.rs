@@ -5,33 +5,24 @@
 //!    support dir.
 //! 2. Decode the `{salt, hmac}` envelope via
 //!    [`crate::security::keychain_password_gate::decode_disk_blob`].
-//! 3. Publish a `BusEvent::KeychainPepperPromptRequest` and
-//!    await the response via
-//!    [`crate::security::keychain_pepper_prompt::PromptRegistry`].
-//!    The Dart subscriber executes the
-//!    `flutter_secure_storage.read('letsflutssh_l2_pepper')`
-//!    call — keychain access stays Dart-side because the
-//!    Flutter plugin already audits that entry point.
+//! 3. Fetch the keychain pepper directly via
+//!    [`lfs_os_security::secure_key_storage::read`] — every
+//!    target platform routes through the same Rust dispatch
+//!    (libsecret on Linux, SecItem on Apple, CredRead on
+//!    Windows, AndroidKeyStore JNI on Android).
 //! 4. Compute `HMAC(pepper, salt, password)` and compare in
 //!    constant time against the stored HMAC.
 //!
 //! Returns `Ok(true)` on a match, `Ok(false)` on every other
 //! outcome (file missing / corrupt blob / pepper missing /
-//! HMAC mismatch / cancelled prompt). `Err` is reserved for
-//! infrastructure failures the caller can't recover from
-//! (filesystem read errors); callers route everything else
-//! through the rate limiter.
+//! HMAC mismatch). `Err` is reserved for infrastructure failures
+//! the caller can't recover from (filesystem read errors).
 
 use std::path::Path;
 
-use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
-
-use crate::bus::Event;
-use crate::security::keychain_op_prompt::{self, KeychainOpKind};
 use crate::security::keychain_password_gate::{
     compute_gate_hmac, decode_disk_blob, encode_disk_blob, random_salt_and_pepper,
 };
-use crate::security::keychain_pepper_prompt;
 
 /// Storage key for the keychain pepper. Mirrors the Dart-era
 /// `KeychainPasswordGate._pepperKey` const — both implementations
@@ -51,26 +42,8 @@ const RATE_LIMIT_STATE_FILE: &str = "rate_limit_state.bin";
 /// `_hashFileName` const.
 const HASH_FILE_NAME: &str = "security_pass_hash.bin";
 
-/// Generate a UUIDv4 prompt id for the keychain pepper request.
-/// Mirrors the same id-shape every other prompt registry uses.
-fn generate_prompt_id() -> String {
-    use rand::RngCore;
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
 /// Verify the L2 password against the on-disk hash + the
 /// keychain pepper. Returns `Ok(true)` on match.
-///
-/// Caller is the FRB async shim that drives the verify from
-/// the Dart unlock dialog. The Dart subscriber for
-/// `BusEvent::KeychainPepperPromptRequest` is responsible for
-/// dispatching the typed response within the dialog's
-/// timeout window — if the await drops without a response
-/// (subscriber detached, dialog dismissed mid-flight), this
-/// function returns `Ok(false)` so the rate-limit path
-/// counts the attempt.
 pub async fn verify_password(support_dir: &Path, password: &str) -> Result<bool, String> {
     // Step 1: read the disk hash. Missing file = gate not
     // configured = no match (caller still records as a failure
@@ -92,28 +65,14 @@ pub async fn verify_password(support_dir: &Path, password: &str) -> Result<bool,
         Err(_) => return Ok(false),
     };
 
-    // Step 3: prompt registry round-trip — Dart subscriber
-    // performs the `flutter_secure_storage.read('letsflutssh_l2_pepper')`
-    // call after seeing the bus event.
-    let prompt_id = generate_prompt_id();
-    let receiver = keychain_pepper_prompt::instance().register(prompt_id.clone());
-    crate::app::instance()
-        .bus
-        .publish(Event::KeychainPepperPromptRequest {
-            prompt_id: prompt_id.clone(),
-        });
-    let pepper = match receiver.await {
+    // Step 3: fetch the keychain pepper. A backend error or
+    // missing entry both collapse to Ok(false) — the rate limiter
+    // counts the attempt and the caller routes through the L0
+    // fallback. `Err` here is reserved for the disk read above.
+    let pepper = match lfs_os_security::secure_key_storage::read(PEPPER_KEY).await {
         Ok(Some(bytes)) if !bytes.is_empty() => bytes,
-        Ok(_) => return Ok(false), // None or empty = pepper missing.
-        Err(_) => {
-            // Sender dropped without resolving — Dart subscriber
-            // tore down the dialog. Cancel the registry entry to
-            // avoid orphaning, then count as a wrong-password
-            // outcome so the rate limiter doesn't permit a free
-            // retry.
-            keychain_pepper_prompt::instance().cancel(&prompt_id);
-            return Ok(false);
-        }
+        Ok(_) => return Ok(false),
+        Err(_) => return Ok(false),
     };
 
     // Step 4: HMAC + constant-time compare. The pepper +
@@ -127,43 +86,25 @@ pub async fn verify_password(support_dir: &Path, password: &str) -> Result<bool,
 /// True when the gate is configured on this install — the disk
 /// hash exists AND the keychain holds the pepper.
 ///
-/// Composes a disk presence check + a [`KeychainOpKind::Contains`]
-/// prompt round-trip; the Dart subscriber executes
-/// `flutter_secure_storage.containsKey(PEPPER_KEY)` and resolves
-/// via the prompt registry.
-///
 /// Returns `Ok(false)` on any non-fatal miss (file absent, pepper
-/// absent, prompt cancelled, plugin error). The L0 fallback path
-/// already treats the gate as not-configured in any of those
-/// cases — surfacing `Err` would only force the caller to map it
-/// back to the same false branch.
+/// absent, backend error). The L0 fallback path already treats
+/// the gate as not-configured in any of those cases — surfacing
+/// `Err` would only force the caller to map it back to the same
+/// false branch.
 pub async fn is_configured(support_dir: &Path) -> Result<bool, String> {
     if !support_dir.join(HASH_FILE_NAME).exists() {
         return Ok(false);
     }
-    let prompt_id = generate_prompt_id();
-    let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
-    crate::app::instance()
-        .bus
-        .publish(Event::KeychainOpPromptRequest {
-            prompt_id: prompt_id.clone(),
-            key: PEPPER_KEY.to_string(),
-            op_wire_name: KeychainOpKind::Contains.wire_name().to_string(),
-            value_b64: None,
-        });
-    match receiver.await {
-        Ok(Ok(Some(_))) => Ok(true),
-        Ok(_) => Ok(false),
-        Err(_) => {
-            keychain_op_prompt::instance().cancel(&prompt_id);
-            Ok(false)
-        }
+    match lfs_os_security::secure_key_storage::read(PEPPER_KEY).await {
+        Ok(Some(bytes)) => Ok(!bytes.is_empty()),
+        Ok(None) => Ok(false),
+        Err(_) => Ok(false),
     }
 }
 
 /// Configure the gate with `password`. Generates a fresh salt +
 /// pepper, computes the HMAC, atomically writes the disk hash,
-/// then asks Dart to write the pepper to the keychain. On Dart
+/// then writes the pepper directly to the OS keychain. On
 /// keychain-write failure rolls back the disk hash so the next
 /// `is_configured` returns false rather than leaving a half-
 /// configured gate that perma-rejects the correct password.
@@ -196,29 +137,8 @@ pub async fn set_password(support_dir: &Path, password: &str) -> Result<(), Stri
     crate::path::write_bytes_atomic(&hash_path, blob.as_bytes())
         .map_err(|e| format!("L2 set_password: atomic write: {e}"))?;
 
-    // Now hand the pepper to the keychain via the Dart subscriber.
-    let pepper_b64 = B64.encode(&pepper);
-    let prompt_id = generate_prompt_id();
-    let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
-    crate::app::instance()
-        .bus
-        .publish(Event::KeychainOpPromptRequest {
-            prompt_id: prompt_id.clone(),
-            key: PEPPER_KEY.to_string(),
-            op_wire_name: "write".to_string(),
-            value_b64: Some(pepper_b64),
-        });
-    let dart_result = receiver.await;
-    let write_outcome: Result<(), String> = match dart_result {
-        Ok(Ok(_)) => Ok(()),
-        Ok(Err(msg)) => Err(msg),
-        Err(_) => {
-            keychain_op_prompt::instance().cancel(&prompt_id);
-            Err("keychain write prompt cancelled".to_string())
-        }
-    };
-
-    if let Err(write_err) = write_outcome {
+    // Now hand the pepper to the keychain.
+    if let Err(write_err) = lfs_os_security::secure_key_storage::write(PEPPER_KEY, &pepper).await {
         // Rollback: delete the disk hash so `is_configured`
         // returns false and the next open routes through the
         // wizard instead of perma-rejecting the correct password.
@@ -254,7 +174,7 @@ pub async fn set_password(support_dir: &Path, password: &str) -> Result<(), Stri
 
 /// Drop every artifact the gate writes — disk hash + keychain
 /// pepper. Best-effort: a filesystem error on the disk side or a
-/// plugin error on the keychain side surfaces as `Err` so the
+/// keychain error on the keychain side surfaces as `Err` so the
 /// caller can log, but each step runs independently of the
 /// other (a disk-delete failure does not block the keychain
 /// purge).
@@ -268,23 +188,8 @@ pub async fn clear(support_dir: &Path) -> Result<(), String> {
         }
     }
 
-    let prompt_id = generate_prompt_id();
-    let receiver = keychain_op_prompt::instance().register(prompt_id.clone());
-    crate::app::instance()
-        .bus
-        .publish(Event::KeychainOpPromptRequest {
-            prompt_id: prompt_id.clone(),
-            key: PEPPER_KEY.to_string(),
-            op_wire_name: "delete".to_string(),
-            value_b64: None,
-        });
-    match receiver.await {
-        Ok(Ok(_)) => {}
-        Ok(Err(msg)) => errors.push(format!("keychain delete: {msg}")),
-        Err(_) => {
-            keychain_op_prompt::instance().cancel(&prompt_id);
-            errors.push("keychain delete: prompt cancelled".into());
-        }
+    if let Err(e) = lfs_os_security::secure_key_storage::delete(PEPPER_KEY).await {
+        errors.push(format!("keychain delete: {e}"));
     }
 
     if errors.is_empty() {
@@ -303,7 +208,9 @@ mod tests {
     use tempfile::TempDir;
 
     /// Set up a fresh L2 gate config on disk + return the pepper
-    /// the test will inject as the keychain response.
+    /// the test stand-in would inject — kept for shape parity
+    /// with the prior actor tests even though the post-bus rewrite
+    /// no longer surfaces the pepper through a registry.
     fn setup_gate(dir: &Path, password: &str) -> Vec<u8> {
         let (salt, pepper) = random_salt_and_pepper();
         let hmac = compute_gate_hmac(&pepper, &salt, password);
@@ -327,98 +234,29 @@ mod tests {
         assert!(!result);
     }
 
+    /// Backend-pepper-missing path: a fresh hash file is on disk
+    /// but `lfs_os_security::secure_key_storage::read(PEPPER_KEY)`
+    /// returns `Ok(None)`. Result must collapse to `Ok(false)` so
+    /// the rate limiter records the attempt; the function must not
+    /// surface the keychain miss as `Err`.
+    ///
+    /// Test runs without bootstrapping a keychain — the call returns
+    /// `Ok(None)` in the libsecret CI fallback and on hosts with no
+    /// matching alias. Either way the asserted invariant holds.
     #[tokio::test]
-    async fn verify_returns_false_when_pepper_response_is_none() {
+    async fn verify_returns_false_when_pepper_absent() {
         let dir = TempDir::new().unwrap();
         let _pepper = setup_gate(dir.path(), "hunter2");
-        // Spawn verify in background; race a None response into
-        // the registry as the subscriber would when the keychain
-        // entry is missing.
-        let handle = tokio::spawn(async move {
-            let dir = dir;
-            verify_password(dir.path(), "hunter2").await
-        });
-        // Give the verify a chance to register its prompt.
-        tokio::task::yield_now().await;
-        // Resolve every pending prompt with None (subscriber
-        // says "keychain entry missing").
-        // We don't know the prompt id from here; iterate until
-        // pending_count drains. In a real test scenario the
-        // subscriber would pick the id from the bus event.
-        let mut tries = 0;
-        while keychain_pepper_prompt::instance().pending_count() == 0 && tries < 100 {
-            tokio::task::yield_now().await;
-            tries += 1;
-        }
-        // Resolve via cancel — sender dropped without a value,
-        // verify treats that as wrong-password.
-        // Actually we need to inspect the pending id. The
-        // simplest path: drop the receiver (cancel) and let
-        // verify time out its await with Err(_) → Ok(false).
-        // The registry doesn't expose pending ids by design;
-        // we cancel via a known-id that doesn't exist (no-op)
-        // and rely on the spawn's Drop closing the receiver
-        // when the spawned future completes. Instead just check
-        // the verify returns Ok(false) once the await fires.
-        //
-        // For this test we assert that the verify is at least
-        // pending; the None-response path is exercised in the
-        // direct PromptRegistry tests.
-        assert!(!handle.is_finished());
-        // Cleanup: cancel any pending entries so other tests
-        // don't see leftover state.
-        // Without a public `pending_ids()` we just drop the
-        // handle; verify will exit Ok(false) when its receiver
-        // is cancelled by drop.
-        handle.abort();
+        let result = verify_password(dir.path(), "hunter2").await.unwrap();
+        assert!(!result);
     }
 
-    /// Constant-time comparison detail — when the pepper +
-    /// salt + password reconstruct the stored hmac, verify
-    /// returns true. Uses the registry's `resolve` directly
-    /// instead of dancing around the prompt id.
+    /// `is_configured` short-circuits to `false` on a fresh dir
+    /// (no hash file).
     #[tokio::test]
-    async fn verify_returns_true_for_correct_password_via_resolve_race() {
+    async fn is_configured_false_when_no_hash_file() {
         let dir = TempDir::new().unwrap();
-        let pepper = setup_gate(dir.path(), "hunter2");
-        let dir_path = dir.path().to_path_buf();
-        let pepper_clone = pepper.clone();
-        // Run a background race that resolves any pending
-        // prompt with the correct pepper. Production wires the
-        // Dart subscriber to do this off the bus event; this
-        // test stands in for that subscriber.
-        let resolver = tokio::spawn(async move {
-            // Yield until a prompt registers, then resolve it.
-            // We don't know the prompt id from here; the
-            // PromptRegistry doesn't expose pending ids by
-            // design, so this test only covers the wrong-input
-            // branch. The correct-input branch is exercised
-            // through the direct PromptRegistry round-trip
-            // tests + verify_password's Step 4 HMAC equality
-            // (which depends on the Step 3 bytes — covered by
-            // the existing `compute_gate_hmac` tests).
-            let _pepper = pepper_clone;
-        });
-        // Just confirm the verify path runs without panicking
-        // on the happy path setup — the actual response wiring
-        // is covered by the PromptRegistry tests + the direct
-        // HMAC compare tests in `keychain_password_gate`.
-        let handle = tokio::spawn(async move {
-            // Cancel quickly so the test doesn't hang.
-            let dir = dir_path;
-            let result = tokio::time::timeout(
-                std::time::Duration::from_millis(50),
-                verify_password(&dir, "hunter2"),
-            )
-            .await;
-            // Either timeout (no resolver wired) or Ok(false)
-            // when the receiver is dropped — both confirm the
-            // verify path is alive.
-            match result {
-                Ok(Ok(_)) | Ok(Err(_)) | Err(_) => true,
-            }
-        });
-        let _ = resolver.await;
-        handle.abort();
+        let result = is_configured(dir.path()).await.unwrap();
+        assert!(!result);
     }
 }

@@ -22,22 +22,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     super.initState();
     wireDeepLinks(_deepLinkHandler, ref);
     HostKeyPromptListener.start();
-    // L2 keychain-pepper prompt subscriber. Wires the
-    // Decision-1 prompt round-trip the Rust
-    // `keychain_password_gate_actor::verify_password` actor
-    // depends on; the Dart `KeychainPasswordGate.verify` Dart
-    // path can flip to the Rust actor in a follow-up commit
-    // without further wiring.
-    KeychainPepperPromptListener.start();
-    // Generic keychain op subscriber — handles the L2 setPassword
-    // / clear / isConfigured composite actor commands' write /
-    // delete / contains prompts. Same audit perimeter as the
-    // pepper-read listener; the op kind is multiplexed by
-    // `op_wire_name` on the bus event.
-    KeychainOpPromptListener.start();
-    // Biometric capability probe subscriber — drives the
-    // capabilities cache actor's local_auth round-trip.
-    BiometricProbePromptListener.start();
     // Keychain reachability probe subscriber — drives the
     // capabilities orchestrator's keychain-ping round-trip.
     KeychainProbePromptListener.start();
