@@ -1267,18 +1267,20 @@ Landed in initial increment:
   source URL, attached to the release as
   `letsflutssh-<version>.rust-sbom.cdx.tar.gz`.
 
-Wave 3 follow-ups (deferred — verification gate):
+Wave 3 follow-ups:
 
-- **Cosign keyless signing** alongside the existing Ed25519
-  manifest signature. OIDC-rooted Rekor transparency-log
-  entry, no private key, signer identity =
+- ~~**Cosign keyless signing** alongside the existing Ed25519
+  manifest signature.~~ Landed (2026-05) —
+  `sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1`
+  pinned to the verified upstream release SHA + cosign
+  binary `v3.0.6` pinned via the action's `cosign-release`
+  input. Output is a Sigstore-format
+  `letsflutssh-<v>.sha256sums.cosign-bundle` (signature +
+  certificate + Rekor transparency-log entry in one blob,
+  ready for `cosign verify-blob --bundle …`). Two-anchor
+  signing achieved: Ed25519 for in-app updater, cosign
+  keyless for public verifiability via GitHub OIDC identity
   `https://github.com/<repo>/.github/workflows/build-release.yml@<ref>`.
-  Two-anchor signing (Ed25519 for in-app updater +
-  cosign for public auditability) means a single key
-  compromise cannot forge a release. Deferred until the
-  `sigstore/cosign-installer` action SHA is pinned to a
-  specific verified release per the project's
-  pin-everything convention.
 - **Dart SBOM** alongside the Rust one. No published-and-
   pinnable CycloneDX tool exists for Dart pub today; GitHub's
   automatic dependency graph derives the same data from

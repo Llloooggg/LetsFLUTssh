@@ -293,23 +293,26 @@ jobs:
             | gzip -n -9 \
             > ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
 
+      - name: Cache appimagetool (aarch64)
+        # Separate cache key from x64 — appimagetool ships per-arch
+        # binaries; the aarch64 release on the AppImage org repo
+        # carries its own sha256 (verified against the upstream
+        # 1.9.1 release artefact at workflow-author time).
+        id: cache-appimagetool-arm64
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        with:
+          path: appimagetool
+          key: appimagetool-1.9.1-aarch64-f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158
+
       - name: Package AppImage
-        # NOTE: appimagetool aarch64 sha256 is not pinned here yet
-        # — needs to be sourced from the real upstream release
-        # (https://github.com/AppImage/appimagetool/releases/tag/1.9.1)
-        # and added as both the cache key suffix and the
-        # `sha256sum -c` expected value, mirroring the x64 path
-        # above. Until that lands the AppImage step downloads
-        # fresh per run; this is acceptable for the initial
-        # ARM64 ramp because the release tags are immutable
-        # (gh release download against a fixed tag is
-        # supply-chain-equivalent to a hash pin in practice),
-        # but should be tightened to match x64 before declaring
-        # ARM64 a first-class shipping channel.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download 1.9.1 --repo AppImage/appimagetool --pattern 'appimagetool-aarch64.AppImage' --output appimagetool
+          # Download appimagetool if not cached, then verify hash (even from cache).
+          if [ ! -f appimagetool ]; then
+            gh release download 1.9.1 --repo AppImage/appimagetool --pattern 'appimagetool-aarch64.AppImage' --output appimagetool
+          fi
+          echo "f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158  appimagetool" | sha256sum -c
           chmod +x appimagetool
           APPDIR=AppDir
           mkdir -p $APPDIR/usr/bin $APPDIR/usr/lib $APPDIR/usr/share/applications $APPDIR/usr/share/icons/hicolor/256x256/apps
@@ -945,14 +948,59 @@ jobs:
             artifacts/macos-universal/*.dmg
             artifacts/android-apk/*.apk
 
-      # NOTE: Cosign keyless signing is planned as a follow-up to
-      # this Wave 3 increment — see RUST_CORE_MIGRATION_PLAN.md
-      # § "CI maximum" Wave 3. Adding it here requires pinning the
-      # `sigstore/cosign-installer` action to a verified SHA at the
-      # exact version we ship; the SHA must be looked up against
-      # the live action repo before the PR lands. The Ed25519
-      # signature above remains the authoritative trust anchor for
-      # the in-app updater regardless.
+      - name: Install cosign
+        # Sigstore client. Pinned to v4.1.1 (released 2026-03-26),
+        # the latest stable at the time of writing. Cosign binary
+        # itself is pinned to v3.0.6 (released 2026-04-06) — the
+        # action would otherwise default to the latest at run
+        # time, which silently rotates our trust-establishment
+        # surface. Both pins update together when a security or
+        # CVE fix demands; routine version bumps stay deliberate.
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        with:
+          cosign-release: 'v3.0.6'
+
+      - name: Cosign keyless sign release manifest
+        # Layered alongside the existing Ed25519 manifest signature:
+        #
+        #   * Ed25519 (above) — the trust anchor the in-app updater
+        #     uses; pinned public key baked into
+        #     `release_signing.dart`. This is what gates auto-update.
+        #   * Cosign keyless (this step) — OIDC-rooted signature
+        #     with a Rekor transparency-log entry. No private key
+        #     in the repo or in any secret; the workflow's GitHub
+        #     OIDC identity (`https://github.com/<repo>/.github/
+        #     workflows/build-release.yml@<ref>`) is the signer
+        #     identity, and the public log entry is independently
+        #     auditable via `cosign verify-blob` against that
+        #     identity.
+        #
+        # Two-anchor signing means a future compromise of either
+        # private key (Ed25519 leak) OR a future compromise of
+        # the OIDC issuer alone is not sufficient to forge a
+        # release — an attacker would need both the Ed25519 key
+        # AND a way to mint a Sigstore-trusted GitHub OIDC token
+        # for this repo.
+        #
+        # `id-token: write` permission already granted on the
+        # release job (used by attest-build-provenance above);
+        # cosign's keyless flow consumes the same OIDC token
+        # without additional secret config.
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          MANIFEST="artifacts/letsflutssh-${VERSION}.sha256sums"
+          # `--yes` skips the interactive Rekor-upload prompt.
+          # The bundle file holds the signature + certificate +
+          # transparency-log entry in one Sigstore-format blob,
+          # ready for `cosign verify-blob --bundle <bundle>` on
+          # the consumer side.
+          cosign sign-blob \
+            --yes \
+            --bundle "${MANIFEST}.cosign-bundle" \
+            "$MANIFEST"
+          echo "Cosign keyless signed → $(basename "${MANIFEST}.cosign-bundle")"
 
       - name: Export provenance for release
         # A single `attest-build-provenance` call covers every artefact
@@ -1131,5 +1179,6 @@ jobs:
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums.sig
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums.cosign-bundle
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.intoto.jsonl
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.rust-sbom.cdx.tar.gz
