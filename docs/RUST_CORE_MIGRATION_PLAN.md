@@ -588,7 +588,7 @@ Each file below is >1 000 LOC of human-written code; readability
 | `lib/features/session_manager/session_edit_dialog.dart` | 1 358 | per-tab widgets (auth / advanced / port-forwards / snippets) |
 | `lib/features/session_manager/session_panel.dart` | 1 264 | tree-view section + folder-actions section + bulk-ops section |
 | `lib/widgets/expandable_tier_card.dart` | 1 120 | per-tier card variants |
-| `rust/crates/lfs_core/src/archive/` | mod.rs **2 034** + qr_compose.rs 332 | qr_compose split landed (2026-05); remaining `encrypt / decrypt / apply / manifest` slices share helpers (time formatters, build_*_value JSON builders, ApplyOptions/Result types) and want focused commits each rather than one big mechanical move |
+| `rust/crates/lfs_core/src/archive/` | mod.rs **895** + apply.rs 850 + qr_compose.rs 359 + envelope.rs 226 + iso8601.rs 156 | done (2026-05) — four focused submodules: `qr_compose` (QR-share payload), `envelope` (LFSE Argon2id+AES-GCM wrapper + import-time KDF caps), `iso8601` (timestamp helpers shared with `archive_stage`, eliminating the duplicate Howard-Hinnant body), `apply` (whole import-apply driver: ImportMode, ApplyOptions, ApplyResult, run_apply, run_replace_clear, per-kind apply_* helpers). `mod.rs` now scopes to the export composer + `parse_pending_import` / `read_archive_to_pending`. |
 | `rust/crates/lfs_core/src/ssh/mod.rs` | 1 608 | acceptable (central SSH module — refactor only if a clean split appears) |
 
 Effort per file: 0.5–1 day each, low-risk. Tests stay green
@@ -838,8 +838,9 @@ one, ship it, then pick the next.
 
 ### Parallel — refactor backlog (any time, low risk)
 
-7. Split `rust/crates/lfs_core/src/archive.rs` (2 362 LOC) into
-   `archive::{encrypt, decrypt, apply, manifest, qr_compose}`.
+7. ~~Split `rust/crates/lfs_core/src/archive.rs` (2 362 LOC) into
+   focused submodules.~~ Done (2026-05) — see split-modules row in
+   the oversized-files table above.
 8. Split the four oversized Dart files (`security_init_controller`,
    `settings_sections_security`, `session_edit_dialog`,
    `session_panel`) — one file per arc, surface unchanged.
