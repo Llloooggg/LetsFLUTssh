@@ -78,6 +78,116 @@ pub fn hardware_tier_vault_resolve_auth_value(
     )
 }
 
+// ---- Unified per-OS dispatch -------------------------------------
+//
+// Generic functions that route through `lfs_os_security::hardware_tier_vault`'s
+// cfg-dispatched public API: Apple targets land on `apple::*`,
+// Android targets land on `crate::android::hardware_vault::*`,
+// every other target returns a `PlatformUnsupported` error. The
+// Dart side calls these uniformly and only branches per-platform
+// for the genuinely-different paths (Linux TPM2 via `TpmClient`,
+// Windows hardware_vault MethodChannel until a Win Tier 4 Rust
+// port lands).
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_tier_vault_is_available() -> bool {
+    lfs_os_security::hardware_tier_vault::is_available()
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_tier_vault_probe_detail() -> String {
+    lfs_os_security::hardware_tier_vault::probe_detail()
+        .wire_name()
+        .to_string()
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_tier_vault_is_stored(support_dir: String) -> bool {
+    lfs_os_security::hardware_tier_vault::is_stored(&support_dir)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_tier_vault_is_biometric_password_stored(support_dir: String) -> bool {
+    lfs_os_security::hardware_tier_vault::is_biometric_password_stored(&support_dir)
+}
+
+pub async fn hardware_tier_vault_store(
+    support_dir: String,
+    db_key: Vec<u8>,
+    pin_hmac: Vec<u8>,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_os_security::hardware_tier_vault::store(&support_dir, &db_key, &pin_hmac)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("hw_vault store join: {e}"))?
+}
+
+pub async fn hardware_tier_vault_read(
+    support_dir: String,
+    pin_hmac: Vec<u8>,
+) -> Result<Option<Vec<u8>>, String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_os_security::hardware_tier_vault::read(&support_dir, &pin_hmac)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("hw_vault read join: {e}"))?
+}
+
+pub async fn hardware_tier_vault_clear(support_dir: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_os_security::hardware_tier_vault::clear(&support_dir).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("hw_vault clear join: {e}"))?
+}
+
+pub async fn hardware_tier_vault_store_biometric_password(
+    support_dir: String,
+    password_bytes: Vec<u8>,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_os_security::hardware_tier_vault::store_biometric_password(
+            &support_dir,
+            &password_bytes,
+        )
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("hw_vault store_bio_pw join: {e}"))?
+}
+
+pub async fn hardware_tier_vault_read_biometric_password(
+    support_dir: String,
+) -> Result<Option<Vec<u8>>, String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_os_security::hardware_tier_vault::read_biometric_password(&support_dir)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("hw_vault read_bio_pw join: {e}"))?
+}
+
+pub async fn hardware_tier_vault_clear_biometric_password(
+    support_dir: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_os_security::hardware_tier_vault::clear_biometric_password(&support_dir)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("hw_vault clear_bio_pw join: {e}"))?
+}
+
+// ---- Apple Secure Enclave path (legacy — to be retired) ----------
+//
+// Kept for now because the Dart side may still call them during the
+// cleanup transition; new call sites should use the unified
+// `hardware_tier_vault_*` functions above. Once every Dart call site
+// is migrated these `_apple_*` flavours can be deleted.
+
 // ---- Apple Secure Enclave path -----------------------------------
 
 /// Apple-side `isAvailable` probe — runs an LAContext +

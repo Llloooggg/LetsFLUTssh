@@ -55,6 +55,69 @@ Uint8List? hardwareTierVaultResolveAuthValue({
       fprintdHash: fprintdHash,
     );
 
+bool hardwareTierVaultIsAvailable() => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultIsAvailable();
+
+String hardwareTierVaultProbeDetail() => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultProbeDetail();
+
+bool hardwareTierVaultIsStored({required String supportDir}) => RustLib
+    .instance
+    .api
+    .crateApiHardwareTierVaultHardwareTierVaultIsStored(supportDir: supportDir);
+
+bool hardwareTierVaultIsBiometricPasswordStored({required String supportDir}) =>
+    RustLib.instance.api
+        .crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored(
+          supportDir: supportDir,
+        );
+
+Future<void> hardwareTierVaultStore({
+  required String supportDir,
+  required List<int> dbKey,
+  required List<int> pinHmac,
+}) => RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultStore(
+  supportDir: supportDir,
+  dbKey: dbKey,
+  pinHmac: pinHmac,
+);
+
+Future<Uint8List?> hardwareTierVaultRead({
+  required String supportDir,
+  required List<int> pinHmac,
+}) => RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultRead(
+  supportDir: supportDir,
+  pinHmac: pinHmac,
+);
+
+Future<void> hardwareTierVaultClear({required String supportDir}) => RustLib
+    .instance
+    .api
+    .crateApiHardwareTierVaultHardwareTierVaultClear(supportDir: supportDir);
+
+Future<void> hardwareTierVaultStoreBiometricPassword({
+  required String supportDir,
+  required List<int> passwordBytes,
+}) => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultStoreBiometricPassword(
+      supportDir: supportDir,
+      passwordBytes: passwordBytes,
+    );
+
+Future<Uint8List?> hardwareTierVaultReadBiometricPassword({
+  required String supportDir,
+}) => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultReadBiometricPassword(
+      supportDir: supportDir,
+    );
+
+Future<void> hardwareTierVaultClearBiometricPassword({
+  required String supportDir,
+}) => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword(
+      supportDir: supportDir,
+    );
+
 /// Apple-side `isAvailable` probe — runs an LAContext +
 /// `SecKeyCreateRandomKey` round-trip through the Secure Enclave.
 /// Returns `false` on non-Apple targets (Linux uses the TPM2 path,

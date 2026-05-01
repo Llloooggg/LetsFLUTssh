@@ -197,48 +197,57 @@ class WipeAllService {
     }
   }
 
-  /// Drop the primary hw-vault. On Apple this runs through
-  /// `lfs_os_security::hardware_tier_vault::clear` (deletes the SE
-  /// primary key + the on-disk envelope + the biometric overlay);
-  /// on other MethodChannel platforms it stays on the native
-  /// `clear` handler.
+  /// Drop the primary hw-vault. On Apple + Android this runs
+  /// through the unified Rust dispatch in
+  /// `lfs_os_security::hardware_tier_vault::clear` (deletes SE
+  /// primary key + on-disk envelope + biometric overlay on Apple;
+  /// AndroidKeyStore wrap key + bin file + biometric overlay on
+  /// Android). Windows still goes through the
+  /// `com.letsflutssh/hardware_vault` MethodChannel until the
+  /// Win Tier 4 Rust port lands.
   Future<bool> _clearNativePrimary() async {
-    if (Platform.isMacOS || Platform.isIOS) {
+    if (Platform.isMacOS || Platform.isIOS || Platform.isAndroid) {
       try {
         final dir = await getApplicationSupportDirectory();
-        await rust_hwvault.hardwareTierVaultAppleClear(supportDir: dir.path);
+        await rust_hwvault.hardwareTierVaultClear(supportDir: dir.path);
         return true;
       } catch (e) {
         AppLogger.instance.log(
-          'WipeAllService: Apple Rust clear skipped: $e',
+          'WipeAllService: Rust hw-vault clear failed: $e',
           name: 'WipeAllService',
         );
         return false;
       }
     }
-    return _invokeNative('clear');
+    if (Platform.isWindows) {
+      return _invokeNative('clear');
+    }
+    return false;
   }
 
-  /// Drop the biometric overlay (key + file). Apple routes through
-  /// the Rust `clear_biometric_password`; other platforms keep the
-  /// native `clearBiometricPassword` handler.
+  /// Drop the biometric overlay (key + file). Apple + Android route
+  /// through the Rust `clear_biometric_password`; Windows keeps the
+  /// MethodChannel `clearBiometricPassword` handler.
   Future<bool> _clearNativeBiometricOverlay() async {
-    if (Platform.isMacOS || Platform.isIOS) {
+    if (Platform.isMacOS || Platform.isIOS || Platform.isAndroid) {
       try {
         final dir = await getApplicationSupportDirectory();
-        await rust_hwvault.hardwareTierVaultAppleClearBiometricPassword(
+        await rust_hwvault.hardwareTierVaultClearBiometricPassword(
           supportDir: dir.path,
         );
         return true;
       } catch (e) {
         AppLogger.instance.log(
-          'WipeAllService: Apple Rust clearBiometric skipped: $e',
+          'WipeAllService: Rust hw-vault clearBiometric failed: $e',
           name: 'WipeAllService',
         );
         return false;
       }
     }
-    return _invokeNative('clearBiometricPassword');
+    if (Platform.isWindows) {
+      return _invokeNative('clearBiometricPassword');
+    }
+    return false;
   }
 
   /// Walk the canonical key list (versioned in Rust as
