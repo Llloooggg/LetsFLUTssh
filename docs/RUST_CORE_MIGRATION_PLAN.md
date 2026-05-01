@@ -502,7 +502,7 @@ that surface only at runtime.
 
 | File | LOC | Replacement | Risk |
 |---|---|---|---|
-| `core/security/hardware_tier_vault.dart` | 404 | rewrite the per-platform `HardwareVaultPlugin.{swift,kt,cpp}` natives in Rust via `objc2` + Security framework / `windows-rs` + TBS API / JNI StrongBox | Apple ACL drift; Android JNI maintenance; Windows TBS edge-cases |
+| `core/security/hardware_tier_vault.dart` | 404 | **Apple done (2026-05) — verification pending.** `lfs_os_security::hardware_tier_vault` ports the SE primary key (`ECIESEncryptionCofactorVariableIVX963SHA256AESGCM` wrap, `WhenPasscodeSet` + `PrivateKeyUsage` ACL) + biometric overlay key (`BiometryCurrentSet`) + on-disk envelope (length-prefixed, chmod 0600) byte-for-byte from `HardwareVaultPlugin.swift`. Probe surfaces `macosSigningIdentityMissing` (-34018) classified separately. Dart `HardwareTierVault` routes Apple through FRB instead of MethodChannel; Swift plugin stays as rollback until a real Mac confirms parity. Windows + Android still on MethodChannel (TBS API + StrongBox JNI = separate per-platform arcs with their own real-device verification gates). |
 | `platform/macos/code_signing/{cert_factory,codesigner,keychain,process_runner,resign_service}.dart` | 715 | `tokio::process::Command` over `openssl` / `security` / `codesign` / `hdiutil` / `rsync` | macOS-only; CI needs a real macOS runner |
 | `platform/macos/installer/macos_installer.dart` | 212 | `tokio::process::Command` for atomic DMG install + relaunch | same as above |
 | `core/connection/foreground_service.dart` | 191 | direct JNI Android service (drop `flutter_foreground_task`) | Android lifecycle ownership; foreground-service permission model breaks on Doze |
