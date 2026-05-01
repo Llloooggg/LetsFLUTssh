@@ -229,14 +229,27 @@ mod platform_impl {
     }
 }
 
-// ── Apple (security-framework) ────────────────────────────────
+// ── Apple (security-framework + raw SecItemAdd for ACL) ──────
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod platform_impl {
     use super::{SecureStorageError, SERVICE_NAME};
+    use core_foundation::base::{CFType, TCFType};
+    use core_foundation::data::CFData;
+    use core_foundation::dictionary::CFDictionary;
+    use core_foundation::number::CFNumber;
+    use core_foundation::string::CFString;
+    use security_framework::access_control::{ProtectionMode, SecAccessControl};
     use security_framework::passwords::{
         delete_generic_password, get_generic_password, set_generic_password,
     };
+    use security_framework_sys::access_control::SecAccessControlCreateFlags;
+    use security_framework_sys::base::errSecItemNotFound;
+    use security_framework_sys::item::{
+        kSecAttrAccessControl, kSecAttrAccount, kSecAttrService, kSecClass,
+        kSecClassGenericPassword, kSecMatchLimit, kSecMatchLimitOne, kSecReturnData, kSecValueData,
+    };
+    use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
 
     pub(super) async fn read(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
         // security-framework's high-level `get_generic_password`
@@ -262,15 +275,18 @@ mod platform_impl {
     }
 
     pub(super) async fn read_biometric(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
-        // The biometric variant uses the same Keychain API; the
-        // ACL is enforced at read time by SecItemCopyMatching
-        // when the access control was set on the item. The
-        // typed `security-framework` `passwords::*` helpers
-        // don't expose the ACL, but the read path above works
-        // for both — Apple invalidates the read and surfaces
-        // an error when the biometryCurrentSet condition fails,
-        // and we map that to `NotFound` for the caller.
-        read(&format!("{alias}.biometric")).await
+        // SecItemCopyMatching honours the ACL recorded on the
+        // matched entry — Apple prompts the user for biometry
+        // before returning the bytes, then surfaces
+        // errSecAuthFailed if the user cancelled or the
+        // enrolment changed since the write. We map both into
+        // "no entry" so the Dart caller routes through the
+        // master-password prompt instead of surfacing a raw
+        // OSStatus to the UI.
+        let alias_owned = biometric_alias(alias);
+        tokio::task::spawn_blocking(move || raw_read(&alias_owned))
+            .await
+            .map_err(|e| SecureStorageError::Backend(format!("join: {e}")))?
     }
 
     pub(super) async fn write(
@@ -279,24 +295,28 @@ mod platform_impl {
         biometric: bool,
     ) -> Result<(), SecureStorageError> {
         let alias_owned = if biometric {
-            format!("{alias}.biometric")
+            biometric_alias(alias)
         } else {
             alias.to_string()
         };
         let value_owned = value.to_vec();
         tokio::task::spawn_blocking(move || {
-            // First-pass: high-level `set_generic_password` does
-            // a plain SecItemAdd / SecItemUpdate. Biometric ACL
-            // gating relies on the read-time prompt that fires
-            // when the typed account is restricted via
-            // SecAccessControl. Setting the ACL requires the
-            // raw `SecItemAdd` call with a `kSecAttrAccessControl`
-            // attribute — `security-framework` 3.x exposes
-            // `SecAccessControl::create_with_flags` for this;
-            // wired in the Tier 3 follow-up that lands the
-            // biometric-bound writes on Apple.
-            set_generic_password(SERVICE_NAME, &alias_owned, &value_owned)
-                .map_err(|e| SecureStorageError::Backend(e.to_string()))
+            if biometric {
+                // Biometric path uses raw SecItemAdd with a
+                // SecAccessControl that ties the entry to the
+                // *current* biometric enrolment — adding /
+                // removing / re-enrolling a finger or face
+                // invalidates the stored value. Same invariant
+                // the Dart-era
+                // `AccessControlFlag.biometryCurrentSet` had.
+                raw_write_with_biometric_acl(&alias_owned, &value_owned)
+            } else {
+                // Non-biometric path: the high-level helper
+                // wraps SecItemAdd with the default
+                // accessibility (`AccessibleWhenUnlocked`).
+                set_generic_password(SERVICE_NAME, &alias_owned, &value_owned)
+                    .map_err(|e| SecureStorageError::Backend(e.to_string()))
+            }
         })
         .await
         .map_err(|e| SecureStorageError::Backend(format!("join: {e}")))?
@@ -304,11 +324,14 @@ mod platform_impl {
 
     pub(super) async fn delete(alias: &str, biometric: bool) -> Result<(), SecureStorageError> {
         let alias_owned = if biometric {
-            format!("{alias}.biometric")
+            biometric_alias(alias)
         } else {
             alias.to_string()
         };
         tokio::task::spawn_blocking(move || {
+            // The high-level `delete_generic_password` works for
+            // both the ACL-bound and plain entries — SecItemDelete
+            // doesn't require unlock to drop the row.
             match delete_generic_password(SERVICE_NAME, &alias_owned) {
                 Ok(()) => Ok(()),
                 Err(e) => {
@@ -323,6 +346,145 @@ mod platform_impl {
         })
         .await
         .map_err(|e| SecureStorageError::Backend(format!("join: {e}")))?
+    }
+
+    fn biometric_alias(alias: &str) -> String {
+        // A distinct account suffix keeps the ACL-bound entry
+        // separate from the plain one — SecItem keys on
+        // `(class, service, account)`, so two entries with the
+        // same alias can't coexist.
+        format!("{alias}.biometric")
+    }
+
+    /// Build a `SecAccessControl` with `BIOMETRY_CURRENT_SET` and
+    /// `WHEN_PASSCODE_SET_THIS_DEVICE_ONLY` — the strictest pair
+    /// the existing Dart options used. Biometric enrolment
+    /// changes invalidate; the device must have a passcode set;
+    /// the entry never syncs to other devices.
+    fn build_access_control() -> Result<SecAccessControl, SecureStorageError> {
+        SecAccessControl::create_with_protection(
+            Some(ProtectionMode::AccessibleWhenPasscodeSetThisDeviceOnly),
+            SecAccessControlCreateFlags::BIOMETRY_CURRENT_SET.bits(),
+        )
+        .map_err(|e| SecureStorageError::Backend(format!("SecAccessControl: {e}")))
+    }
+
+    /// SAFETY: every `kSec*` symbol referenced via
+    /// `wrap_under_get_rule` is a static dictionary key constant
+    /// exported by Security.framework; the framework owns those
+    /// CFStrings for the process lifetime, so the borrowed-key
+    /// pattern is correct. CFDictionary + value owners are
+    /// constructed on the stack and live across the SecItemAdd
+    /// call.
+    fn raw_write_with_biometric_acl(alias: &str, data: &[u8]) -> Result<(), SecureStorageError> {
+        let acl = build_access_control()?;
+
+        let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
+        let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
+        let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
+        let value_key = unsafe { CFString::wrap_under_get_rule(kSecValueData) };
+        let acl_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccessControl) };
+        let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+
+        let svc = CFString::new(SERVICE_NAME);
+        let acc = CFString::new(alias);
+        let val = CFData::from_buffer(data);
+
+        let pairs: Vec<(CFString, CFType)> = vec![
+            (class_key, class.into_CFType()),
+            (service_key, svc.into_CFType()),
+            (account_key, acc.into_CFType()),
+            (value_key, val.into_CFType()),
+            (acl_key, acl.into_CFType()),
+        ];
+        let dict = CFDictionary::from_CFType_pairs(&pairs);
+
+        // Best-effort delete first so SecItemAdd doesn't bounce
+        // on `errSecDuplicateItem`. The delete query mirrors
+        // the add minus the value + ACL — SecItemDelete keys on
+        // class + service + account.
+        let _ = raw_delete(alias);
+
+        let status = unsafe {
+            SecItemAdd(dict.as_concrete_TypeRef(), std::ptr::null_mut())
+        };
+        if status != 0 {
+            return Err(SecureStorageError::Backend(format!(
+                "SecItemAdd failed: OSStatus {status}"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Raw SecItemCopyMatching for the biometric-ACL alias. The
+    /// `kSecAttrAccessControl` is recorded on the entry; we
+    /// don't have to re-specify it here — the OS reads the
+    /// stored ACL and prompts the user for biometry on its own
+    /// when the row matches.
+    fn raw_read(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
+        let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
+        let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+        let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
+        let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
+        let return_data_key = unsafe { CFString::wrap_under_get_rule(kSecReturnData) };
+        let match_limit_key = unsafe { CFString::wrap_under_get_rule(kSecMatchLimit) };
+        let match_limit_one = unsafe { CFString::wrap_under_get_rule(kSecMatchLimitOne) };
+
+        let svc = CFString::new(SERVICE_NAME);
+        let acc = CFString::new(alias);
+        let one = CFNumber::from(1i32);
+
+        let pairs: Vec<(CFString, CFType)> = vec![
+            (class_key, class.into_CFType()),
+            (service_key, svc.into_CFType()),
+            (account_key, acc.into_CFType()),
+            (return_data_key, one.into_CFType()),
+            (match_limit_key, match_limit_one.into_CFType()),
+        ];
+        let dict = CFDictionary::from_CFType_pairs(&pairs);
+
+        let mut out: core_foundation_sys::base::CFTypeRef = std::ptr::null();
+        let status =
+            unsafe { SecItemCopyMatching(dict.as_concrete_TypeRef(), &mut out) };
+        if status == errSecItemNotFound {
+            return Ok(None);
+        }
+        if status != 0 || out.is_null() {
+            // Any non-success (user cancel / biometric failure /
+            // enrolment changed) maps to "no entry" so the Dart
+            // caller routes through the master-password prompt.
+            return Ok(None);
+        }
+        let data: CFData = unsafe {
+            CFData::wrap_under_create_rule(out as *const core_foundation_sys::data::__CFData)
+        };
+        Ok(Some(data.bytes().to_vec()))
+    }
+
+    fn raw_delete(alias: &str) -> Result<(), SecureStorageError> {
+        let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
+        let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+        let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
+        let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
+
+        let svc = CFString::new(SERVICE_NAME);
+        let acc = CFString::new(alias);
+
+        let pairs: Vec<(CFString, CFType)> = vec![
+            (class_key, class.into_CFType()),
+            (service_key, svc.into_CFType()),
+            (account_key, acc.into_CFType()),
+        ];
+        let dict = CFDictionary::from_CFType_pairs(&pairs);
+
+        let status = unsafe { SecItemDelete(dict.as_concrete_TypeRef()) };
+        if status == 0 || status == errSecItemNotFound {
+            Ok(())
+        } else {
+            Err(SecureStorageError::Backend(format!(
+                "SecItemDelete failed: OSStatus {status}"
+            )))
+        }
     }
 }
 

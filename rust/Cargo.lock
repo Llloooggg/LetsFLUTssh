@@ -1822,6 +1822,8 @@ name = "lfs_os_security"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "core-foundation",
+ "core-foundation-sys",
  "futures-util",
  "libc",
  "objc2",

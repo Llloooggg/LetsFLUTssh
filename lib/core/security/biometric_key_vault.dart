@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'linux_keychain_marker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/secure_key_storage.dart' as rust_storage;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import 'linux/fprintd_client.dart';
@@ -105,25 +106,40 @@ class BiometricKeyVault {
   }
 
   /// True if a biometric-protected DB key is currently stashed.
+  ///
+  /// Apple platforms (iOS / macOS) probe via
+  /// `lfs_os_security::secure_key_storage::read_biometric` —
+  /// SecItemCopyMatching surfaces the row's existence without
+  /// triggering the biometric prompt when the entry is absent
+  /// (the OS only prompts on a hit). Linux first checks the
+  /// TPM-sealed file, then the libsecret-marker-gated fallback;
+  /// Windows + Android stay on `flutter_secure_storage`.
   Future<bool> isStored() async {
     if (Platform.isLinux) {
       try {
         final file = await _linuxSealFileFactory();
         if (await file.exists()) return true;
       } catch (e) {
-        // Linux file probe failure falls through to the native-
-        // keychain path; logging the miss surfaces an FS permission
-        // regression on the support dir.
         AppLogger.instance.log(
           'BiometricKeyVault.isStored: Linux seal-file probe failed: $e',
           name: 'BiometricKeyVault',
         );
       }
-      // Don't probe libsecret on Linux until the marker confirms the
-      // keyring daemon was reachable at least once — otherwise
-      // containsKey spams stderr with g_warning every launch on WSL
-      // / containers / minimal desktops without a keyring daemon.
       if (!await _marker.exists()) return false;
+    }
+    if (_useRustBiometric) {
+      try {
+        final outcome = await rust_storage.secureStorageReadBiometric(
+          alias: _keyName,
+        );
+        return outcome is rust_storage.DbSecureStorageOutcome_Found;
+      } catch (e) {
+        AppLogger.instance.log(
+          'BiometricKeyVault.isStored (Rust): $e',
+          name: 'BiometricKeyVault',
+        );
+        return false;
+      }
     }
     try {
       return await _storage.containsKey(key: _keyName);
@@ -138,16 +154,36 @@ class BiometricKeyVault {
 
   /// Stash the DB [key] in platform secure storage. Returns false on
   /// failure (unsupported platform, keychain unavailable, etc.).
+  ///
+  /// Apple write goes through
+  /// `lfs_os_security::secure_key_storage::write_biometric`,
+  /// which performs raw `SecItemAdd` with a `SecAccessControl`
+  /// carrying `kSecAccessControlBiometryCurrentSet`. Same
+  /// invariant the Dart-era `AccessControlFlag.biometryCurrentSet`
+  /// had: any biometric enrolment change invalidates the stored
+  /// key.
   Future<bool> store(Uint8List key) async {
     if (Platform.isLinux) {
       final sealed = await _linuxSeal(key);
       if (sealed) return true;
-      // TPM not available / enrolment missing → software fallback.
+    }
+    if (_useRustBiometric) {
+      try {
+        await rust_storage.secureStorageWriteBiometric(
+          alias: _keyName,
+          value: key,
+        );
+        return true;
+      } catch (e) {
+        AppLogger.instance.log(
+          'BiometricKeyVault.store (Rust): $e',
+          name: 'BiometricKeyVault',
+        );
+        return false;
+      }
     }
     try {
       await _storage.write(key: _keyName, value: base64Encode(key));
-      // Flag libsecret as reachable so future isStored / read calls
-      // can touch it without the cold-run warning.
       if (Platform.isLinux) await _marker.set();
       return true;
     } catch (e) {
@@ -166,11 +202,24 @@ class BiometricKeyVault {
     if (Platform.isLinux) {
       final unsealed = await _linuxUnseal();
       if (unsealed != null) return unsealed;
-      // Fall through to libsecret in case the vault was written
-      // before TPM support was wired, or the TPM became unusable.
-      // Marker gates the fallthrough — no marker = no prior libsecret
-      // success = skip to avoid the cold-run g_warning spam.
       if (!await _marker.exists()) return null;
+    }
+    if (_useRustBiometric) {
+      try {
+        final outcome = await rust_storage.secureStorageReadBiometric(
+          alias: _keyName,
+        );
+        if (outcome is rust_storage.DbSecureStorageOutcome_Found) {
+          return Uint8List.fromList(outcome.field0);
+        }
+        return null;
+      } catch (e) {
+        AppLogger.instance.log(
+          'BiometricKeyVault.read (Rust): $e',
+          name: 'BiometricKeyVault',
+        );
+        return null;
+      }
     }
     try {
       final value = await _storage.read(key: _keyName);
@@ -199,15 +248,33 @@ class BiometricKeyVault {
         );
       }
     }
-    try {
-      await _storage.delete(key: _keyName);
-    } catch (e) {
-      AppLogger.instance.log(
-        'BiometricKeyVault.clear failed: $e',
-        name: 'BiometricKeyVault',
-      );
+    if (_useRustBiometric) {
+      try {
+        await rust_storage.secureStorageDeleteBiometric(alias: _keyName);
+      } catch (e) {
+        AppLogger.instance.log(
+          'BiometricKeyVault.clear (Rust): $e',
+          name: 'BiometricKeyVault',
+        );
+      }
+    } else {
+      try {
+        await _storage.delete(key: _keyName);
+      } catch (e) {
+        AppLogger.instance.log(
+          'BiometricKeyVault.clear failed: $e',
+          name: 'BiometricKeyVault',
+        );
+      }
     }
   }
+
+  /// True when production should route the biometric write/read
+  /// through `lfs_os_security` (Apple proper SecAccessControl).
+  /// Linux still uses the TPM seal path first; Android +
+  /// Windows stay on `flutter_secure_storage` until the JNI
+  /// bridge / Windows Hello-bound storage land.
+  bool get _useRustBiometric => Platform.isMacOS || Platform.isIOS;
 
   Future<bool> _linuxSeal(Uint8List key) async {
     try {
