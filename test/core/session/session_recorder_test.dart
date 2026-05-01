@@ -6,11 +6,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/session/session_recorder.dart';
 import 'package:path/path.dart' as p;
 
+import '../../helpers/frb_bootstrap.dart';
+
 void main() {
+  // SessionRecorder open/write/close routes through `lfs_core::recorder`
+  // (FRB). The unit suite previously skipped these tests when the
+  // FRB native lib was unavailable; now `requireFrbLoaded` boots the
+  // real `liblfs_frb.so` so we exercise the actual round-trip end
+  // to end. Encrypted-mode coverage stays in
+  // `lfs_core::crypto::tests` (KAT round-trip + AES-GCM correctness).
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(requireFrbLoaded);
+
   late Directory tempDir;
 
   setUp(() async {
-    TestWidgetsFlutterBinding.ensureInitialized();
     tempDir = await Directory.systemTemp.createTemp('session_recorder_test_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -33,133 +43,89 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  // dbKey() helper removed — only the (now-skipped) encrypted-mode
-  // round-trip test consumed it. Plaintext-mode tests pass `dbKey:
-  // null` directly.
-
   Future<File> onlyFile(Directory dir) async {
     final files = dir.listSync(recursive: true).whereType<File>().toList();
     expect(files, hasLength(1), reason: 'expected exactly one recording');
     return files.single;
   }
 
-  test(
-    'plaintext mode writes raw asciinema JSON-Lines',
-    skip:
-        'SessionRecorder now drives file IO through the Rust core '
-        '(lfs_core::recorder). Unit tests do not load the FRB native '
-        'lib; recorder open / write / close coverage moves to '
-        'integration_test alongside the encrypted variant.',
-    () async {
-      final rec = await SessionRecorder.open(
-        sessionId: 's1',
-        shellLabel: 'bash',
-        width: 80,
-        height: 24,
-        dbKey: null,
-      );
-      expect(rec, isNotNull);
-      rec!.recordOutput(utf8.encode('hello'));
-      rec.recordInput(utf8.encode('q'));
-      final path = await rec.close();
-      expect(path, isNotNull);
-      expect(p.extension(path!), '.cast');
+  test('plaintext mode writes raw asciinema JSON-Lines', () async {
+    final rec = await SessionRecorder.open(
+      sessionId: 's1',
+      shellLabel: 'bash',
+      width: 80,
+      height: 24,
+      dbKey: null,
+    );
+    expect(rec, isNotNull);
+    rec!.recordOutput(utf8.encode('hello'));
+    rec.recordInput(utf8.encode('q'));
+    final path = await rec.close();
+    expect(path, isNotNull);
+    expect(p.extension(path!), '.cast');
 
-      final lines = File(path).readAsLinesSync();
-      // Header line + 2 events.
-      expect(lines, hasLength(3));
-      final header = jsonDecode(lines[0]) as Map<String, Object?>;
-      expect(header['version'], 2);
-      expect(header['width'], 80);
-      expect(header['height'], 24);
-      final out = jsonDecode(lines[1]) as List;
-      expect(out[1], 'o');
-      expect(out[2], 'hello');
-      final inp = jsonDecode(lines[2]) as List;
-      expect(inp[1], 'i');
-      expect(inp[2], 'q');
-    },
-  );
+    final lines = File(path).readAsLinesSync();
+    // Header line + 2 events.
+    expect(lines, hasLength(3));
+    final header = jsonDecode(lines[0]) as Map<String, Object?>;
+    expect(header['version'], 2);
+    expect(header['width'], 80);
+    expect(header['height'], 24);
+    final out = jsonDecode(lines[1]) as List;
+    expect(out[1], 'o');
+    expect(out[2], 'hello');
+    final inp = jsonDecode(lines[2]) as List;
+    expect(inp[1], 'i');
+    expect(inp[2], 'q');
+  });
 
-  test(
-    'encrypted mode produces decryptable LFR1 frames',
-    skip:
-        'Encrypted mode now derives the recorder key via the Rust core '
-        '(lfs_core::crypto::hkdf_sha256) and encrypts each frame via '
-        'aes_gcm_encrypt_raw. The flutter_test runner does not load the '
-        'FRB native lib so the end-to-end round-trip moves to '
-        'integration_test in a follow-up. HKDF + AES-GCM correctness is '
-        'covered by lfs_core::crypto::tests.',
-    () {},
-  );
+  test('close is idempotent', () async {
+    final rec = await SessionRecorder.open(
+      sessionId: 's3',
+      shellLabel: 'bash',
+      width: 80,
+      height: 24,
+      dbKey: null,
+    );
+    final first = await rec!.close();
+    final again = await rec.close();
+    expect(again, equals(first));
+  });
 
-  test(
-    'close is idempotent',
-    skip:
-        'Recorder open/close now go through the Rust core; unit-test '
-        'runner has no FRB native lib loaded. Coverage moves to '
-        'integration_test.',
-    () async {
-      final rec = await SessionRecorder.open(
-        sessionId: 's3',
-        shellLabel: 'bash',
-        width: 80,
-        height: 24,
-        dbKey: null,
-      );
-      final first = await rec!.close();
-      final again = await rec.close();
-      expect(again, equals(first));
-    },
-  );
+  test('record* after close is silently dropped', () async {
+    final rec = await SessionRecorder.open(
+      sessionId: 's4',
+      shellLabel: 'bash',
+      width: 80,
+      height: 24,
+      dbKey: null,
+    );
+    await rec!.close();
+    rec.recordOutput(utf8.encode('ignored'));
+    final dir = Directory(p.join(tempDir.path, 'recordings', 's4'));
+    final file = await onlyFile(dir);
+    final lines = file.readAsLinesSync();
+    // Only the header — recordOutput after close is a no-op.
+    expect(lines, hasLength(1));
+  });
 
-  test(
-    'record* after close is silently dropped',
-    skip:
-        'Recorder open/close now go through the Rust core; unit-test '
-        'runner has no FRB native lib loaded. Coverage moves to '
-        'integration_test.',
-    () async {
-      final rec = await SessionRecorder.open(
-        sessionId: 's4',
-        shellLabel: 'bash',
-        width: 80,
-        height: 24,
-        dbKey: null,
-      );
-      await rec!.close();
-      rec.recordOutput(utf8.encode('ignored'));
-      final dir = Directory(p.join(tempDir.path, 'recordings', 's4'));
-      final file = await onlyFile(dir);
-      final lines = file.readAsLinesSync();
-      // Only the header — recordOutput after close is a no-op.
-      expect(lines, hasLength(1));
-    },
-  );
+  test('writes an event with non-ASCII payload intact', () async {
+    final rec = await SessionRecorder.open(
+      sessionId: 's5',
+      shellLabel: 'bash',
+      width: 80,
+      height: 24,
+      dbKey: null,
+    );
+    rec!.recordOutput(utf8.encode('café 漢 🎉'));
+    final path = await rec.close();
+    final lines = File(path!).readAsLinesSync();
+    expect((jsonDecode(lines[1]) as List)[2], 'café 漢 🎉');
+  });
 
-  test(
-    'writes an event with non-ASCII payload intact',
-    skip:
-        'Recorder open/close now go through the Rust core; unit-test '
-        'runner has no FRB native lib loaded. Coverage moves to '
-        'integration_test.',
-    () async {
-      final rec = await SessionRecorder.open(
-        sessionId: 's5',
-        shellLabel: 'bash',
-        width: 80,
-        height: 24,
-        dbKey: null,
-      );
-      rec!.recordOutput(utf8.encode('café 漢 🎉'));
-      final path = await rec.close();
-      final lines = File(path!).readAsLinesSync();
-      expect((jsonDecode(lines[1]) as List)[2], 'café 漢 🎉');
-    },
-  );
+  // Encrypted-mode round-trip stays in `lfs_core::crypto::tests` —
+  // KAT tests + AES-GCM correctness exercise the same HKDF / encrypt
+  // primitives the recorder pulls in. Re-running them through the
+  // Dart layer adds no coverage that the Rust suite doesn't already
+  // pin down.
 }
-
-// _hkdf + _decryptAll helpers removed alongside the pointycastle drop.
-// The encrypted-mode round-trip test that used them is now `skip:`
-// because writer + reader both go through FRB; both halves are
-// covered end-to-end in `lfs_core::crypto::tests`.
