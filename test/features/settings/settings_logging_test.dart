@@ -265,9 +265,7 @@ void main() {
           SecureKeyStorage(storage: fakeStorage),
         ),
         biometricAuthProvider.overrideWithValue(_FakeBiometricAuth()),
-        biometricKeyVaultProvider.overrideWithValue(
-          BiometricKeyVault(storage: fakeStorage),
-        ),
+        biometricKeyVaultProvider.overrideWithValue(BiometricKeyVault()),
       ],
       child: MaterialApp(
         locale: const Locale('en'),

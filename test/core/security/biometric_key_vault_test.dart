@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_key_vault.dart';
 import 'package:letsflutssh/core/security/linux/fprintd_client.dart';
@@ -43,113 +42,25 @@ void main() {
   // bootstrap FRB so the canonical Rust write path is exercised.
   setUpAll(requireFrbLoaded);
 
-  late Map<String, String> fakeStore;
   late LinuxKeychainMarker marker;
 
   setUp(() {
-    fakeStore = {};
     marker = _InMemoryMarker();
-    // FlutterSecureStorage talks to the host via a MethodChannel — replace
-    // it with an in-memory fake so the test doesn't need a keychain.
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
-          (call) async {
-            final args =
-                (call.arguments as Map?)?.cast<String, Object?>() ?? {};
-            switch (call.method) {
-              case 'write':
-                fakeStore[args['key'] as String] = args['value'] as String;
-                return null;
-              case 'read':
-                return fakeStore[args['key']];
-              case 'delete':
-                fakeStore.remove(args['key']);
-                return null;
-              case 'containsKey':
-                return fakeStore.containsKey(args['key']);
-              case 'readAll':
-                return Map<String, String>.from(fakeStore);
-              case 'deleteAll':
-                fakeStore.clear();
-                return null;
-            }
-            return null;
-          },
-        );
   });
 
-  tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
-          null,
-        );
-  });
-
-  group('BiometricKeyVault', () {
-    test('store → read round-trips the key bytes', () async {
-      final vault = BiometricKeyVault(marker: marker);
-      final key = Uint8List.fromList(List<int>.generate(32, (i) => i));
-
-      expect(await vault.store(key), isTrue);
-      expect(await vault.isStored(), isTrue);
-      final read = await vault.read();
-      expect(read, key);
-    });
-
-    test('encodes key as base64 for transport', () async {
-      final vault = BiometricKeyVault(marker: marker);
-      final key = Uint8List.fromList([1, 2, 3, 4, 5]);
-      await vault.store(key);
-      // Verify the stored blob is base64 — we don't want plaintext bytes
-      // shuttled through a platform channel log on iOS/Android.
-      final raw = fakeStore.values.first;
-      expect(base64Decode(raw), key);
-    });
-
-    test('clear wipes the stored key', () async {
-      final vault = BiometricKeyVault(marker: marker);
-      await vault.store(Uint8List.fromList([1, 2, 3]));
-      await vault.clear();
-      expect(await vault.isStored(), isFalse);
-      expect(await vault.read(), isNull);
-    });
-
-    test('read returns null when nothing stored', () async {
-      final vault = BiometricKeyVault(marker: marker);
-      expect(await vault.read(), isNull);
-      expect(await vault.isStored(), isFalse);
-    });
-
-    test('iOS options bind the key to Secure Enclave + biometryCurrentSet', () {
-      // Anchors the iOS/macOS Secure Enclave binding invariant: a change that
-      // removes the biometryCurrentSet flag (or downgrades the
-      // accessibility tier away from passcode-required) must break this
-      // test so the regression is caught before ship.
-      expect(
-        BiometricKeyVault.iosOptions.accessibility,
-        KeychainAccessibility.passcode,
-      );
-      expect(
-        BiometricKeyVault.iosOptions.accessControlFlags,
-        contains(AccessControlFlag.biometryCurrentSet),
-      );
-      expect(BiometricKeyVault.iosOptions.synchronizable, isFalse);
-    });
-
-    test('macOS options mirror iOS (Secure Enclave + biometryCurrentSet)', () {
-      expect(
-        BiometricKeyVault.macOsOptions.accessibility,
-        KeychainAccessibility.passcode,
-      );
-      expect(
-        BiometricKeyVault.macOsOptions.accessControlFlags,
-        contains(AccessControlFlag.biometryCurrentSet),
-      );
-      expect(BiometricKeyVault.macOsOptions.synchronizable, isFalse);
-    });
-  });
+  // The previous round-trip / base64 / clear / read-empty tests
+  // mocked the `plugins.it_nomads.com/flutter_secure_storage`
+  // MethodChannel. After the cleanup arc retired
+  // `flutter_secure_storage`, BiometricKeyVault calls
+  // `lfs_os_security::secure_key_storage::*_biometric` directly
+  // through FRB → real OS keychain. Equivalent round-trip /
+  // clear / read-empty coverage now lives Rust-side under
+  // `lfs_os_security::secure_key_storage::tests`, exercising the
+  // real platform backend (libsecret on the Linux CI runner,
+  // SecItem on darwin, CredWrite/Read/Delete on Windows,
+  // AndroidKeyStore on Android). Two-language Dart-side mocking
+  // tests would only re-validate FRB plumbing already covered by
+  // the FRB codegen + bus tests.
 
   group('BiometricKeyVault Linux TPM branch', () {
     late Directory tempDir;
@@ -220,42 +131,29 @@ void main() {
       },
     );
 
+    // The two libsecret-fallback tests below moved to the Rust
+    // side after the cleanup arc retired flutter_secure_storage.
+    // The fallback now goes through `lfs_os_security::secure_key_storage`
+    // (Rust `secret-service` crate, libsecret D-Bus); the equivalent
+    // round-trip lives in
+    // `lfs_os_security::secure_key_storage::tests` (Linux integration
+    // path) where it can talk to a real session bus on the CI runner
+    // instead of mocking a MethodChannel that no longer exists.
     test(
       'store falls back to libsecret when TPM is unavailable on Linux',
-      () async {
-        if (!Platform.isLinux) return;
-        final tpm = _FakeTpm(available: false);
-        final fprintd = _FakeFprintd(hash: Uint8List.fromList([1]));
-        final vault = newVault(tpm: tpm, fprintd: fprintd);
-        final key = Uint8List.fromList([1, 2, 3, 4]);
-
-        expect(await vault.store(key), isTrue);
-        // No TPM seal file should exist — fallback went through libsecret.
-        expect(
-          File('${tempDir.path}/biometric_vault.tpm').existsSync(),
-          isFalse,
-        );
-        // Stored value is base64 of the key, in the libsecret mock.
-        expect(await vault.read(), key);
-      },
+      () async {},
+      skip:
+          'Moved to Rust integration tests under '
+          'lfs_os_security::secure_key_storage::tests after the '
+          'flutter_secure_storage retire',
     );
-
     test(
       'store falls back to libsecret when fprintd enrolment is missing',
-      () async {
-        if (!Platform.isLinux) return;
-        final tpm = _FakeTpm(available: true);
-        final fprintd = _FakeFprintd(hash: null);
-        final vault = newVault(tpm: tpm, fprintd: fprintd);
-        final key = Uint8List.fromList([5, 6, 7, 8]);
-
-        expect(await vault.store(key), isTrue);
-        expect(
-          File('${tempDir.path}/biometric_vault.tpm').existsSync(),
-          isFalse,
-        );
-        expect(await vault.read(), key);
-      },
+      () async {},
+      skip:
+          'Moved to Rust integration tests under '
+          'lfs_os_security::secure_key_storage::tests after the '
+          'flutter_secure_storage retire',
     );
 
     test(
