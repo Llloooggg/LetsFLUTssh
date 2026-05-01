@@ -21,10 +21,17 @@ use serde_json::{json, Value};
 use crate::db::{folders, sessions, snippets, ssh_keys, tags};
 use crate::error::Error;
 
-// `build_folder_paths` + `build_known_hosts` + `QR_FORMAT_VERSION`
-// are private helpers in `archive/mod.rs` — re-exported through
-// `pub(super)` visibility so this submodule can pull them in.
-use super::{build_folder_paths, build_known_hosts, QR_FORMAT_VERSION};
+// `build_folder_paths` + `build_known_hosts` are private helpers
+// in `archive/mod.rs`, exposed via `pub(super)` visibility so this
+// submodule can pull them in.
+use super::{build_folder_paths, build_known_hosts};
+
+/// Wire-format version stamped into the QR payload's `v` field.
+/// Mirrors `_currentFormatVersion` in `lib/core/session/qr_codec.dart`
+/// — bump there and here in lockstep. Lives next to the only call
+/// site (`build_qr_export_json`) since the constant is QR-specific
+/// and bumping it does not touch the `.lfs` archive format.
+const QR_FORMAT_VERSION: i64 = 4;
 
 #[derive(Debug, Clone, Default)]
 pub struct QrExportOptions {
