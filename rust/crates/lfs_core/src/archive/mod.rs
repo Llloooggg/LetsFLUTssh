@@ -27,17 +27,21 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read, Write};
 
-use rand::rngs::OsRng;
-use rand::RngCore;
 use rusqlite::Connection;
 use serde_json::{json, Value};
-use zeroize::Zeroizing;
 use zip::write::SimpleFileOptions;
 use zip::ZipArchive;
 
-use crate::crypto::{aes_gcm_decrypt_raw, aes_gcm_encrypt_raw, argon2id_derive};
 use crate::db::{folders, known_hosts, sessions, snippets, ssh_keys, tags};
 use crate::error::Error;
+
+pub mod envelope;
+pub mod qr_compose;
+
+pub use envelope::decrypt_archive_with_password;
+pub use qr_compose::{qr_export_payload, qr_export_payload_size, QrExportInput, QrExportOptions};
+
+use envelope::{encrypt_with_password, ENC_HEADER_MAGIC};
 
 /// Wire-format version stamped into the QR payload's `v` field.
 /// Mirrors `_currentFormatVersion` in `lib/core/session/qr_codec.dart`
@@ -187,28 +191,6 @@ impl Default for ImportRegistry {
         Self::new()
     }
 }
-
-/// LFSE encrypted-archive magic (`'L','F','S','E'`).
-const ENC_HEADER_MAGIC: [u8; 4] = [0x4C, 0x46, 0x53, 0x45];
-/// Version byte for the Argon2id + AES-GCM envelope.
-const ENC_VERSION_ARGON2ID: u8 = 0x02;
-/// Algorithm id for Argon2id in the embedded KdfParams block.
-const KDF_ALGO_ARGON2ID: u8 = 0x01;
-const SALT_LEN: usize = 32;
-const IV_LEN: usize = 12;
-const AES_KEY_LEN: u32 = 32;
-
-/// Hard ceiling on the Argon2id memory cost we are willing to honour
-/// from an untrusted archive header. Desktop = 1 GiB; mobile drops
-/// to 512 MiB so the OOM killer on a 2 GB-baseline phone does not
-/// terminate the process before the KDF returns. Exceeding any cap
-/// rejects the archive as malformed before the KDF runs.
-#[cfg(any(target_os = "android", target_os = "ios"))]
-const MAX_IMPORT_MEMORY_KIB: u32 = 512 * 1024;
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-const MAX_IMPORT_MEMORY_KIB: u32 = 1024 * 1024;
-const MAX_IMPORT_ITERATIONS: u32 = 20;
-const MAX_IMPORT_PARALLELISM: u32 = 16;
 
 /// What sections the caller wants in the archive. Mirrors the bool
 /// fields on `ExportOptions` Dart-side; the orchestrator only emits
@@ -677,100 +659,6 @@ fn write_text_entry(
     zw.write_all(text.as_bytes())
         .map_err(|e| Error::Io(format!("zip write {name}: {e}")))?;
     Ok(())
-}
-
-fn encrypt_with_password(
-    zip_bytes: &[u8],
-    password: &str,
-    memory_kib: u32,
-    iterations: u32,
-    parallelism: u32,
-) -> Result<Vec<u8>, Error> {
-    let mut salt = [0u8; SALT_LEN];
-    let mut iv = [0u8; IV_LEN];
-    OsRng.fill_bytes(&mut salt);
-    OsRng.fill_bytes(&mut iv);
-
-    let derived = Zeroizing::new(argon2id_derive(
-        password.as_bytes(),
-        &salt,
-        memory_kib,
-        iterations,
-        parallelism,
-        AES_KEY_LEN,
-    )?);
-    let ct = aes_gcm_encrypt_raw(&derived, &iv, zip_bytes, &[])?;
-
-    // Header layout — must match the Dart reader byte-for-byte:
-    //   magic (4) || version (1) || KdfParams (10) || salt (32) || iv (12) || ct
-    let mut out = Vec::with_capacity(4 + 1 + 10 + SALT_LEN + IV_LEN + ct.len());
-    out.extend_from_slice(&ENC_HEADER_MAGIC);
-    out.push(ENC_VERSION_ARGON2ID);
-    // KdfParams.encode() — Argon2id only.
-    out.push(KDF_ALGO_ARGON2ID);
-    out.extend_from_slice(&memory_kib.to_be_bytes());
-    out.extend_from_slice(&iterations.to_be_bytes());
-    out.push(parallelism.min(u8::MAX as u32) as u8);
-    out.extend_from_slice(&salt);
-    out.extend_from_slice(&iv);
-    out.extend_from_slice(&ct);
-    Ok(out)
-}
-
-/// Reverse of [`encrypt_with_password`]. Takes the LFSE envelope
-/// produced by export, returns the inner ZIP bytes. Errors on
-/// magic / version mismatch, malformed KdfParams, or AES-GCM tag
-/// failure (wrong password).
-pub fn decrypt_archive_with_password(envelope: &[u8], password: &str) -> Result<Vec<u8>, Error> {
-    if envelope.len() < 4 + 1 + 10 + SALT_LEN + IV_LEN {
-        return Err(Error::Crypto("archive envelope too short".to_string()));
-    }
-    if envelope[..4] != ENC_HEADER_MAGIC {
-        return Err(Error::Crypto("not an LFSE archive".to_string()));
-    }
-    if envelope[4] != ENC_VERSION_ARGON2ID {
-        return Err(Error::Crypto(format!(
-            "unsupported envelope version 0x{:02x}",
-            envelope[4]
-        )));
-    }
-    let mut cursor = 5usize;
-    if envelope[cursor] != KDF_ALGO_ARGON2ID {
-        return Err(Error::Crypto(format!(
-            "unsupported kdf algorithm 0x{:02x}",
-            envelope[cursor]
-        )));
-    }
-    cursor += 1;
-    let memory_kib = u32::from_be_bytes(envelope[cursor..cursor + 4].try_into().unwrap());
-    cursor += 4;
-    let iterations = u32::from_be_bytes(envelope[cursor..cursor + 4].try_into().unwrap());
-    cursor += 4;
-    let parallelism = envelope[cursor] as u32;
-    cursor += 1;
-    if memory_kib > MAX_IMPORT_MEMORY_KIB
-        || iterations > MAX_IMPORT_ITERATIONS
-        || parallelism > MAX_IMPORT_PARALLELISM
-    {
-        return Err(Error::Crypto(format!(
-            "Argon2id params exceed import caps (m={memory_kib}, t={iterations}, p={parallelism})"
-        )));
-    }
-    let salt = &envelope[cursor..cursor + SALT_LEN];
-    cursor += SALT_LEN;
-    let iv = &envelope[cursor..cursor + IV_LEN];
-    cursor += IV_LEN;
-    let ct = &envelope[cursor..];
-
-    let derived = Zeroizing::new(argon2id_derive(
-        password.as_bytes(),
-        salt,
-        memory_kib,
-        iterations,
-        parallelism,
-        AES_KEY_LEN,
-    )?);
-    aes_gcm_decrypt_raw(&derived, iv, ct, &[])
 }
 
 /// Read every entry in the ZIP and pack the recognised JSON /
@@ -1568,15 +1456,6 @@ fn unix_to_civil(secs: i64) -> (i64, u32, u32, u32, u32, u32) {
     (year, m, d, hh, mm, ss)
 }
 
-
-// QR-share payload composer extracted to a focused submodule —
-// the qr_compose path doesn't share helpers with the .lfs zip
-// pipeline beyond `build_folder_paths` / `build_known_hosts` /
-// `QR_FORMAT_VERSION`. Public surface re-exports below keep
-// callers' `crate::archive::*` imports unchanged.
-pub mod qr_compose;
-pub use qr_compose::{qr_export_payload, qr_export_payload_size, QrExportInput, QrExportOptions};
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1730,42 +1609,6 @@ mod tests {
         let zip = build_test_zip(&[("sessions.json", "[]")]);
         let (_pending, schema) = parse_pending_import(&zip).expect("parse");
         assert_eq!(schema, 0);
-    }
-
-    #[test]
-    fn encrypt_decrypt_round_trip_with_correct_password() {
-        let zip = build_test_zip(&[("sessions.json", r#"[{"label":"prod"}]"#)]);
-        // Argon2id parameters tuned tiny so the test runs in a few ms.
-        let enc = encrypt_with_password(&zip, "hunter2", 16, 1, 1).expect("encrypt");
-        assert_eq!(&enc[..4], &ENC_HEADER_MAGIC);
-        let plaintext = decrypt_archive_with_password(&enc, "hunter2").expect("decrypt");
-        assert_eq!(plaintext, zip);
-    }
-
-    #[test]
-    fn decrypt_with_wrong_password_fails() {
-        let zip = build_test_zip(&[("sessions.json", "[]")]);
-        let enc = encrypt_with_password(&zip, "hunter2", 16, 1, 1).expect("encrypt");
-        let err = decrypt_archive_with_password(&enc, "wrong").unwrap_err();
-        assert!(matches!(err, Error::Crypto(_)));
-    }
-
-    #[test]
-    fn decrypt_rejects_wrong_magic() {
-        let mut bytes = encrypt_with_password(b"\x50\x4b\x03\x04", "p", 16, 1, 1).unwrap();
-        bytes[0] = 0xFF;
-        let err = decrypt_archive_with_password(&bytes, "p").unwrap_err();
-        let s = err.to_string();
-        assert!(s.contains("not an LFSE archive"), "got: {s}");
-    }
-
-    #[test]
-    fn decrypt_rejects_unknown_version() {
-        let zip = build_test_zip(&[("manifest.json", "{}")]);
-        let mut enc = encrypt_with_password(&zip, "p", 16, 1, 1).unwrap();
-        enc[4] = 0x99;
-        let err = decrypt_archive_with_password(&enc, "p").unwrap_err();
-        assert!(err.to_string().contains("unsupported envelope version"));
     }
 
     fn fresh_db() -> Connection {
@@ -2012,12 +1855,6 @@ mod tests {
             let back = civil_to_unix_ms(y, mo, d, hh, mm, ss) + millis;
             assert_eq!(back, ms, "round-trip failed for ms={ms}");
         }
-    }
-
-    #[test]
-    fn decrypt_rejects_short_envelope() {
-        let err = decrypt_archive_with_password(&[0u8; 10], "p").unwrap_err();
-        assert!(err.to_string().contains("too short"));
     }
 
     #[test]
