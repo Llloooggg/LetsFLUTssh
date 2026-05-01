@@ -795,20 +795,33 @@ one, ship it, then pick the next.
 
 ### Now — must-fix (CLAUDE.md compliance)
 
-1. **Drop the two `// ignore: invalid_use_of_visible_for_overriding_member`** in
+1. ~~**Drop the two `// ignore: invalid_use_of_visible_for_overriding_member`** in
    `lib/platform/macos/code_signing/resign_service.dart`. Restructure
    `_DefaultKeychain` so the linter is satisfied without the
-   suppression.
-2. **Replace the two `// ignore: unawaited_futures`** in
+   suppression.~~ Done — file no longer carries any
+   `// ignore:` directives.
+2. ~~**Replace the two `// ignore: unawaited_futures`** in
    `lib/app/global_error_dialog.dart` and
    `lib/providers/config_provider.dart` with explicit
-   `unawaited(...)` calls.
+   `unawaited(...)` calls.~~ Done — both files are
+   suppression-free; remaining `// ignore:` directives in `lib/`
+   live only inside generated artefacts (`lib/src/rust/*.freezed.dart`,
+   `lib/l10n/*.dart`) which the codegen owns.
 
 ### Next — Phase 6 Tier 1 (1–2 days, free wins)
 
-3. `secret_buffer.dart` + `process_hardening.dart` +
+3. ~~`secret_buffer.dart` + `process_hardening.dart` +
    `libc_loader.dart` → `lfs_core::os_security` via `nix` /
-   `libc`. Drops `dart:ffi` from the security module.
+   `libc`. Drops `dart:ffi` from the security module.~~ Done in
+   substance — `libc_loader.dart` deleted, `process_hardening.dart`
+   shrunk to a 60-LOC façade over
+   `osSecurityApplyStartupHardening` (FRB sync), `secret_buffer.dart`
+   keeps a thin Dart-side `dart:ffi` wrapper because the
+   `NativeFinalizer` GC backstop has no Rust analogue and
+   migrating the buffer ownership to Rust would force every
+   `bytes` accessor through an FFI copy that defeats the
+   in-place-zero discipline. The two `lock_memory` /
+   `unlock_memory` calls already route through `lfs_os_security`.
 4. ~~`utils/platform.dart` `homeDirectory` → Rust via
    `directories` crate. Smoke-test Android `EXTERNAL_STORAGE`
    resolution before flipping.~~ Done — landed as
