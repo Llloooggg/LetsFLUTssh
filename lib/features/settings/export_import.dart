@@ -282,13 +282,13 @@ class ExportImport {
 
   static void _addSessions(Archive archive, LfsExportInput input) {
     if (!input.options.includeSessions) return;
-    _addJsonFile(
+    _addRawJson(
       archive,
       _sessionsFile,
       input.sessions.map((s) => s.toJsonWithCredentials()).toList(),
     );
     if (input.emptyFolders.isNotEmpty) {
-      _addJsonFile(archive, _emptyFoldersFile, input.emptyFolders.toList());
+      _addRawJson(archive, _emptyFoldersFile, input.emptyFolders.toList());
     }
   }
 
@@ -296,7 +296,7 @@ class ExportImport {
     if (!input.options.hasManagerKeys || input.managerKeyEntries.isEmpty) {
       return;
     }
-    _addJsonFile(
+    _addRawJson(
       archive,
       _keysFile,
       input.managerKeyEntries
@@ -332,7 +332,7 @@ class ExportImport {
 
   static void _addTags(Archive archive, LfsExportInput input) {
     if (!input.options.includeTags || input.tags.isEmpty) return;
-    _addJsonFile(
+    _addRawJson(
       archive,
       _tagsFile,
       input.tags
@@ -347,7 +347,7 @@ class ExportImport {
           .toList(),
     );
     if (input.sessionTags.isNotEmpty) {
-      _addJsonFile(
+      _addRawJson(
         archive,
         _sessionTagsFile,
         input.sessionTags
@@ -356,7 +356,7 @@ class ExportImport {
       );
     }
     if (input.folderTags.isNotEmpty) {
-      _addJsonFile(
+      _addRawJson(
         archive,
         _folderTagsFile,
         input.folderTags
@@ -368,7 +368,7 @@ class ExportImport {
 
   static void _addSnippets(Archive archive, LfsExportInput input) {
     if (!input.options.includeSnippets || input.snippets.isEmpty) return;
-    _addJsonFile(
+    _addRawJson(
       archive,
       _snippetsFile,
       input.snippets
@@ -385,7 +385,7 @@ class ExportImport {
           .toList(),
     );
     if (input.sessionSnippets.isNotEmpty) {
-      _addJsonFile(
+      _addRawJson(
         archive,
         _sessionSnippetsFile,
         input.sessionSnippets
@@ -406,12 +406,6 @@ class ExportImport {
     final archive = _buildArchive(input);
     final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
     return zipBytes.length + _argon2idHeaderMaxLen + _saltLen + _ivLen + 16;
-  }
-
-  // --- Crypto helpers ---
-
-  static void _addJsonFile(Archive archive, String name, List<dynamic> data) {
-    _addRawJson(archive, name, data);
   }
 
   /// Encode any JSON-serializable value to pretty-printed UTF-8 bytes and
