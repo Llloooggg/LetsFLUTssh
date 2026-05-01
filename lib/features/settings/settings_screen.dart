@@ -75,6 +75,7 @@ import 'settings_logging_parser.dart';
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';
 part 'settings_sections_data.dart';
+part 'settings_sections_data_export_import.dart';
 part 'settings_sections_preferences.dart';
 part 'settings_sections_security.dart';
 part 'settings_sections_security_apply.dart';
