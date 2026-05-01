@@ -47,6 +47,10 @@
 //! Windows + Android keep their MethodChannel plugins.
 
 use std::fmt;
+// `Path` is used only by the Apple-side file-name helpers below;
+// cfg-gate so Android (which has its own `crate::android::hardware_vault`
+// path resolution) doesn't fail with an unused-import warning.
+#[cfg(not(target_os = "android"))]
 use std::path::Path;
 
 /// Classified outcome of [`probe_detail`]. Mirrors the Dart
@@ -183,13 +187,20 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     diff == 0
 }
 
+// Apple-side filenames. On Android the parallel constants live
+// in `crate::android::hardware_vault` (different files) so these
+// helpers stay cfg-gated to non-Android desktops + iOS.
+#[cfg(not(target_os = "android"))]
 const VAULT_FILE_NAME: &str = "hardware_vault_apple.bin";
+#[cfg(not(target_os = "android"))]
 const BIO_PASSWORD_FILE_NAME: &str = "hardware_vault_password_overlay_apple.bin";
 
+#[cfg(not(target_os = "android"))]
 fn vault_file_path(support_dir: &str) -> std::path::PathBuf {
     Path::new(support_dir).join(VAULT_FILE_NAME)
 }
 
+#[cfg(not(target_os = "android"))]
 fn bio_password_file_path(support_dir: &str) -> std::path::PathBuf {
     Path::new(support_dir).join(BIO_PASSWORD_FILE_NAME)
 }
@@ -201,13 +212,27 @@ fn bio_password_file_path(support_dir: &str) -> std::path::PathBuf {
 /// companion file is checked Dart-side because the Dart layer owns
 /// the salt's lifecycle (it's the per-install random seed).
 pub fn is_stored(support_dir: &str) -> bool {
-    vault_file_path(support_dir).exists()
+    #[cfg(target_os = "android")]
+    {
+        return crate::android::hardware_vault::is_stored(support_dir);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        vault_file_path(support_dir).exists()
+    }
 }
 
 /// True when the biometric-overlay password file exists. Same
 /// existence-check semantics as [`is_stored`].
 pub fn is_biometric_password_stored(support_dir: &str) -> bool {
-    bio_password_file_path(support_dir).exists()
+    #[cfg(target_os = "android")]
+    {
+        return crate::android::hardware_vault::is_biometric_password_stored(support_dir);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        bio_password_file_path(support_dir).exists()
+    }
 }
 
 // ---- Apple impl ----------------------------------------------------
@@ -807,7 +832,12 @@ pub fn is_available() -> bool {
     apple::is_available()
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(target_os = "android")]
+pub fn is_available() -> bool {
+    crate::android::hardware_vault::is_available()
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn is_available() -> bool {
     false
 }
@@ -817,7 +847,21 @@ pub fn probe_detail() -> HardwareProbeReason {
     apple::probe_detail()
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(target_os = "android")]
+pub fn probe_detail() -> HardwareProbeReason {
+    if crate::android::hardware_vault::is_available() {
+        HardwareProbeReason::Available
+    } else {
+        // Android-side cause discovery (e.g. no StrongBox HAL,
+        // BouncyCastle provider missing) is best surfaced via
+        // the existing Settings probe-detail strings; we
+        // collapse to a generic "unavailable" until a richer
+        // BiometricManager.canAuthenticate-style classifier lands.
+        HardwareProbeReason::AppleGeneric
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn probe_detail() -> HardwareProbeReason {
     HardwareProbeReason::PlatformUnsupported
 }
@@ -827,7 +871,12 @@ pub fn store(support_dir: &str, db_key: &[u8], pin_hmac: &[u8]) -> Result<(), Ha
     apple::store(support_dir, db_key, pin_hmac)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(target_os = "android")]
+pub fn store(support_dir: &str, db_key: &[u8], pin_hmac: &[u8]) -> Result<(), HardwareVaultError> {
+    crate::android::hardware_vault::store(support_dir, db_key, pin_hmac)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn store(
     _support_dir: &str,
     _db_key: &[u8],
@@ -841,7 +890,12 @@ pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, Hardw
     apple::read(support_dir, pin_hmac)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(target_os = "android")]
+pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, HardwareVaultError> {
+    crate::android::hardware_vault::read(support_dir, pin_hmac)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn read(_support_dir: &str, _pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, HardwareVaultError> {
     Err(HardwareVaultError::PlatformUnsupported)
 }
@@ -851,7 +905,12 @@ pub fn clear(support_dir: &str) -> Result<(), HardwareVaultError> {
     apple::clear(support_dir)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(target_os = "android")]
+pub fn clear(support_dir: &str) -> Result<(), HardwareVaultError> {
+    crate::android::hardware_vault::clear(support_dir)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn clear(_support_dir: &str) -> Result<(), HardwareVaultError> {
     Err(HardwareVaultError::PlatformUnsupported)
 }
@@ -864,7 +923,15 @@ pub fn store_biometric_password(
     apple::store_biometric_password(support_dir, password_bytes)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(target_os = "android")]
+pub fn store_biometric_password(
+    support_dir: &str,
+    password_bytes: &[u8],
+) -> Result<(), HardwareVaultError> {
+    crate::android::hardware_vault::store_biometric_password(support_dir, password_bytes)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn store_biometric_password(
     _support_dir: &str,
     _password_bytes: &[u8],
@@ -877,7 +944,12 @@ pub fn read_biometric_password(support_dir: &str) -> Result<Option<Vec<u8>>, Har
     apple::read_biometric_password(support_dir)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(target_os = "android")]
+pub fn read_biometric_password(support_dir: &str) -> Result<Option<Vec<u8>>, HardwareVaultError> {
+    crate::android::hardware_vault::read_biometric_password(support_dir)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn read_biometric_password(_support_dir: &str) -> Result<Option<Vec<u8>>, HardwareVaultError> {
     Err(HardwareVaultError::PlatformUnsupported)
 }
@@ -887,7 +959,12 @@ pub fn clear_biometric_password(support_dir: &str) -> Result<(), HardwareVaultEr
     apple::clear_biometric_password(support_dir)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(target_os = "android")]
+pub fn clear_biometric_password(support_dir: &str) -> Result<(), HardwareVaultError> {
+    crate::android::hardware_vault::clear_biometric_password(support_dir)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
 pub fn clear_biometric_password(_support_dir: &str) -> Result<(), HardwareVaultError> {
     Err(HardwareVaultError::PlatformUnsupported)
 }

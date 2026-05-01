@@ -176,7 +176,7 @@ frontend crate. Verified by CI.
 | Tail-end Dart retire — Phase 6 Tier 1 (host_info, session_tree, single_instance) | DONE | `lfs_core::host_info`, `lfs_core::session_tree`, `lfs_os_security::single_instance` |
 | Tail-end Dart retire — Phase 6 Tier 2 (clipboard, session_lock, backup_excl, fprintd, LocalFS, ssh_config Include, SFTP recursive) | DONE | `lfs_os_security::*`, `lfs_core::fs::local`, `lfs_core::ssh_config`, `lfs_core::sftp::recursive_walk` |
 | Tail-end Dart retire — Phase 6 Tier 3 desktop + Apple (secure key storage, biometric vault, biometric auth, wipe service) | DONE | `lfs_os_security::secure_key_storage`, `lfs_os_security::biometric_auth`, `lfs_core::security::wipe`, `lfs_core::wipe_keychain` |
-| **Tail-end Dart retire — Phase 6 Tier 3 Android JNI** | **PLANNED** | direct JNI to platform Java APIs (no Kotlin shim); gated on Android dev-loop only — see [Tier 3 Android JNI bridge ledger](#tier-3--android-jni-bridge-ledger-planned-approach) |
+| **Tail-end Dart retire — Phase 6 Tier 3 Android JNI** | **DONE — runtime-verification pending** | direct JNI to `java.security.KeyStore` / `androidx.biometric.BiometricPrompt` landed in `lfs_os_security::android`; method-ID resolution + StrongBox availability + prompt UX gated on real-device pass — see [Tier 3 Android JNI bridge ledger](#tier-3--android-jni-bridge-ledger-planned-approach) |
 | **Tail-end Dart retire — Phase 6 Tier 4 native ports** | **OPT-IN** | per-item Three Pillars evaluation, see Tier 4 § |
 | **Non-ideal items (TPM2 subprocess, Apple/Windows verification, session_lock_listener mac/win)** | **PLANNED** | see [Non-ideal items § NI-1..3](#non-ideal-items--planned-to-ideal) |
 
@@ -1186,34 +1186,62 @@ one, ship it, then pick the next.
     Logistical gate only: needs a real Android device or
     emulator + Android Studio for breakpoint debugging during
     JNI signature bring-up.
-20. When ramped (per file, in this order — easiest to hardest):
-    a. `secure_key_storage` — JNI to `java.security.KeyStore`
-       provider `"AndroidKeyStore"` (smallest surface, most
-       documented signatures). **Foundation landed (2026-05)**:
-       `lfs_os_security::android::jni_bootstrap` exposes
-       `Java_com_llloooggg_letsflutssh_LfsJniBootstrap_register`,
-       called once from `MainActivity.onCreate` via the tiny
-       `LfsJniBootstrap` Kotlin object. Captures the JavaVM
-       into a process-wide `OnceLock<JavaVM>`. The Android
-       NDK target (`aarch64-linux-android`) is in the
-       rust-cross-check matrix so PR-time compile validation
-       fires on every change. **Per-operation JNI call
-       sequences (`KeyStore.getInstance`, `KeyGenerator`,
-       `Cipher.init`, …) are scaffolded with TODO blocks** in
-       `lfs_os_security::android::keystore`; the actual
-       method-ID-resolution work is gated on Android dev-loop
-       (real device or emulator + Android Studio for runtime
-       JNI signature verification).
-    b. `biometric_auth` — JNI to `androidx.biometric.BiometricPrompt`
-       (lifecycle-bound to `FragmentActivity` — cargokit's
-       `JNI_OnLoad` plus a `MainActivity` reference cached
-       from a Dart-side bootstrap call).
-    c. `biometric_key_vault` — composes (a) + (b) once both land.
-    d. `hardware_tier_vault` Android — extends (a) with
-       `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)`
-       on supported devices (API 28+).
-    Each ships with a real-device parity test before the
-    corresponding Dart plugin gets dropped from `pubspec.yaml`.
+20. ~~When ramped (per file, in this order — easiest to hardest):~~
+    All four landed (2026-05) as compile-validated JNI
+    implementations against the live `java.security.KeyStore`
+    + `androidx.biometric.BiometricPrompt` APIs. Runtime
+    correctness is the NI-2 verification gate; the Dart
+    `flutter_secure_storage` / `local_auth` MethodChannel paths
+    remain wired in parallel until that gate flips.
+
+    a. ~~`secure_key_storage`~~ — `lfs_os_security::android::keystore`.
+       AES-256-GCM wrapping key in AndroidKeyStore + wrapped
+       value bytes in 0600 file under `getFilesDir()`.
+       Biometric variant uses
+       `setUserAuthenticationValidityDurationSeconds(60)`
+       (cross-API time-bound auth window — pairs with the
+       Dart-side `BiometricKeyVault.unlock`'s preceding
+       `biometric::authenticate` call).
+    b. ~~`biometric_auth`~~ — `lfs_os_security::android::biometric`.
+       `BiometricManager.canAuthenticate(BIOMETRIC_STRONG)` for
+       the availability probe; `BiometricPrompt.authenticate`
+       posted from a Rust background thread to the main looper
+       via the tiny `LfsBiometricCallback` Kotlin object that
+       routes the three callback methods back into Rust through
+       `extern "system"` entry points keyed on a per-prompt
+       `requestId`. Pure adapter Kotlin — no business logic
+       held there.
+    c. ~~`biometric_key_vault`~~ — composes (a) + (b) at the
+       Dart `BiometricKeyVault` call site (Dart wrapper calls
+       `biometric::authenticate` then `secure_key_storage::write_biometric`
+       / `read_biometric`, both routed to the Android JNI path).
+       No separate Rust composer needed — the time-bound auth
+       window in (a) means the cipher op succeeds without a
+       second prompt.
+    d. ~~`hardware_tier_vault`~~ Android —
+       `lfs_os_security::android::hardware_vault`. StrongBox-
+       backed wrapping key (`setIsStrongBoxBacked(true)`,
+       falls back silently on `StrongBoxUnavailableException`
+       to TEE-backed). PIN HMAC frame in three length-
+       prefixed blobs at `<support_dir>/hardware_vault_android.bin`;
+       constant-time PIN-HMAC compare via `subtle::ConstantTimeEq`
+       before unwrap. Biometric overlay at
+       `<support_dir>/hardware_vault_android_bio.bin` under a
+       distinct biometric-bound wrap key alias.
+
+    JavaVM bootstrap: `LfsJniBootstrap.register(activity)`
+    Kotlin object called from `MainActivity.onCreate` captures
+    `JavaVM`, the FragmentActivity reference (for
+    `BiometricPrompt`), and the Application context (for
+    `getFilesDir`) into process-wide `OnceLock`s.
+
+    Each component ships with a real-device parity test before
+    the corresponding Dart plugin gets dropped from
+    `pubspec.yaml`. The compile-only validation via the
+    rust-cross-check matrix's `aarch64-linux-android` +
+    `armv7-linux-androideabi` targets fires on every PR; method-
+    ID-resolution + StrongBox-availability + biometric prompt
+    UX all need integration testing on hardware.
 
 ### Strategic gate — Phase 6 Tier 4 (3–4 weeks, opt-in per item)
 

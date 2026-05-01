@@ -38,16 +38,19 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // JavaVM bootstrap for the lfs_os_security Android JNI
-        // path. Cargokit-loaded `liblfs_frb.so` comes in via
-        // `dart:ffi` (not `System.loadLibrary`), so the standard
-        // `JNI_OnLoad` callback never fires; calling
-        // `LfsJniBootstrap.register()` here captures the JavaVM
-        // into a process-wide OnceLock that
+        // JavaVM + activity + Application context bootstrap for
+        // the lfs_os_security Android JNI path. Cargokit-loaded
+        // `liblfs_frb.so` comes in via `dart:ffi` (not
+        // `System.loadLibrary`), so the standard `JNI_OnLoad`
+        // callback never fires; calling
+        // `LfsJniBootstrap.register(this)` here captures the
+        // three handles (JavaVM, FragmentActivity for
+        // BiometricPrompt, Application context for getFilesDir
+        // etc.) into process-wide OnceLocks that
         // `lfs_os_security::android::*` reads on every JNI call.
         // Idempotent — safe to call again on MainActivity
-        // recreation.
-        LfsJniBootstrap.register()
+        // recreation; the OnceLocks ignore second-write attempts.
+        LfsJniBootstrap.register(this)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, permissionChannel)
             .setMethodCallHandler { call, result ->

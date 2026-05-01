@@ -1,12 +1,9 @@
-//! Native OS keychain wrapper.
+//! Native OS keychain wrapper — covers all five platforms with
+//! direct calls into the platform-canonical secure-storage API.
 //!
 //! Replaces the `flutter_secure_storage` Dart plugin's backend
-//! on the desktop platforms (Linux libsecret, Apple Keychain,
-//! Windows Credential Manager). Android stays on the existing
-//! `EncryptedSharedPreferences` plugin path because the
-//! AndroidKeystore JNI bridge needs Java-side hooks the Rust
-//! crate ecosystem doesn't ship with — that's a follow-up
-//! commit, gated on a JNI scaffold landing in `android/app/src/main/kotlin/`.
+//! end-to-end (no MethodChannel hop, no plugin maintainer in the
+//! call chain).
 //!
 //! Public surface mirrors the Dart `SecureKeyStorage` shape
 //! verb-for-verb: `read` / `write` / `delete` for the plain
@@ -14,10 +11,13 @@
 //! `write_biometric` / `delete_biometric` for the biometric-
 //! ACL-gated variant. The biometric ACL only has teeth on
 //! Apple (SecAccessControl with `biometryCurrentSet` →
-//! enrolment changes invalidate the entry); on Linux + Windows
-//! the biometric variant is a plain entry under a different
-//! alias since libsecret / Credential Manager don't expose a
-//! biometric-bound storage class.
+//! enrolment changes invalidate the entry) and Android (the
+//! AndroidKeyStore key carries `setUserAuthenticationRequired(true)`,
+//! so the unwrap cipher op fails outside a recent biometric
+//! prompt window); on Linux + Windows the biometric variant
+//! is a plain entry under a different alias since libsecret
+//! / Credential Manager don't expose a biometric-bound
+//! storage class.
 //!
 //! Platforms covered here:
 //!
@@ -32,10 +32,17 @@
 //! - **Windows** — direct `CredReadW` / `CredWriteW` /
 //!   `CredDeleteW` via `extern "system"`. Target name format
 //!   matches the Dart plugin so existing entries survive.
-//! - **Android** — function returns
-//!   [`SecureStorageError::PlatformUnsupported`]. The Dart
-//!   wrapper short-circuits to the existing
-//!   `flutter_secure_storage` MethodChannel.
+//! - **Android** — direct JNI to `java.security.KeyStore`
+//!   provider `"AndroidKeyStore"` via [`crate::android::keystore`].
+//!   Wrapping AES-256-GCM key in AndroidKeyStore + wrapped
+//!   value bytes in a 0600 file under `getFilesDir()`. The
+//!   AndroidKeyStore alias prefix matches `flutter_secure_storage`
+//!   so existing wrap-key entries survive (the wrapped value
+//!   file regenerates on the first JNI write — different
+//!   storage layout than the plugin's SharedPreferences).
+//!   **Verification status**: code compiles via the rust-cross-check
+//!   matrix (`aarch64-linux-android`); runtime correctness is
+//!   the NI-2 hardware-verification gate.
 
 use std::fmt;
 
@@ -637,13 +644,39 @@ mod platform_impl {
     }
 }
 
-// ── Android & every other target ──────────────────────────────
+// ── Android — direct JNI to AndroidKeyStore ──────────────────
+
+#[cfg(target_os = "android")]
+mod platform_impl {
+    use super::SecureStorageError;
+    use crate::android::keystore;
+
+    pub(super) async fn read(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
+        keystore::read(alias).await
+    }
+    pub(super) async fn read_biometric(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
+        keystore::read_biometric(alias).await
+    }
+    pub(super) async fn write(
+        alias: &str,
+        value: &[u8],
+        biometric: bool,
+    ) -> Result<(), SecureStorageError> {
+        keystore::write(alias, value, biometric).await
+    }
+    pub(super) async fn delete(alias: &str, biometric: bool) -> Result<(), SecureStorageError> {
+        keystore::delete(alias, biometric).await
+    }
+}
+
+// ── Every other target (no desktop OS, no Android) ──────────
 
 #[cfg(not(any(
     target_os = "linux",
     target_os = "macos",
     target_os = "ios",
-    target_os = "windows"
+    target_os = "windows",
+    target_os = "android"
 )))]
 mod platform_impl {
     use super::SecureStorageError;

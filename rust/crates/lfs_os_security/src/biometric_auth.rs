@@ -233,19 +233,55 @@ mod _linux_doc {
     // reached in production.
 }
 
-// ── Android & every other target ─────────────────────────────
+// ── Android — direct JNI to androidx.biometric.BiometricPrompt ──
+
+#[cfg(target_os = "android")]
+mod platform_impl {
+    use super::{AvailabilityResult, BiometricUnavailableReason};
+    use crate::android::biometric;
+
+    pub(super) async fn check_availability() -> AvailabilityResult {
+        match biometric::can_authenticate().await {
+            Ok(0) => Ok(()), // BIOMETRIC_SUCCESS
+            Ok(1) => Err(BiometricUnavailableReason::Probe(
+                "device hardware busy".into(),
+            )),
+            Ok(11) => Err(BiometricUnavailableReason::NotEnrolled), // BIOMETRIC_ERROR_NONE_ENROLLED
+            Ok(12) => Err(BiometricUnavailableReason::NoSensor),    // BIOMETRIC_ERROR_NO_HARDWARE
+            Ok(15) => Err(BiometricUnavailableReason::NotEnrolled), // BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED
+            Ok(other) => Err(BiometricUnavailableReason::Probe(format!(
+                "BiometricManager.canAuthenticate = {other}"
+            ))),
+            Err(e) => Err(BiometricUnavailableReason::Probe(e)),
+        }
+    }
+
+    pub(super) async fn authenticate(reason: &str) -> bool {
+        // The Dart side already localises `reason` per-locale;
+        // we hand it to BiometricPrompt verbatim as the prompt
+        // subtitle. The title is a fixed app-name fallback —
+        // the prompt always shows the requesting app's name in
+        // the UI regardless.
+        let title = "Unlock";
+        matches!(
+            biometric::authenticate(title, reason).await,
+            biometric::BiometricResult::Succeeded,
+        )
+    }
+}
+
+// ── Every other target (no Android, no desktop) ──────────────
 
 #[cfg(not(any(
     target_os = "linux",
     target_os = "macos",
     target_os = "ios",
-    target_os = "windows"
+    target_os = "windows",
+    target_os = "android"
 )))]
 mod platform_impl {
     use super::{AvailabilityResult, BiometricUnavailableReason};
     pub(super) async fn check_availability() -> AvailabilityResult {
-        // Android stays on `local_auth` Dart-side until the
-        // BiometricPrompt JNI bridge lands.
         Err(BiometricUnavailableReason::PlatformUnsupported)
     }
     pub(super) async fn authenticate(_reason: &str) -> bool {

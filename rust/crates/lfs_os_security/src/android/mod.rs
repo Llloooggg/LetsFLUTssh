@@ -25,5 +25,8 @@
 //! the Dart `flutter_secure_storage` / `local_auth` plugin paths
 //! remain wired in parallel until that gate flips.
 
+pub mod biometric;
+pub mod hardware_vault;
 pub mod jni_bootstrap;
+pub mod jni_helpers;
 pub mod keystore;

@@ -24,6 +24,10 @@ crate-type = ["rlib"]
 # regardless of which OS-specific listener is wired underneath.
 [dependencies]
 tokio = { workspace = true }
+# `subtle::ConstantTimeEq` for the PIN-HMAC compare in
+# `hardware_tier_vault` (Android JNI path) and any future
+# constant-time equality call sites the OS-side adds.
+subtle = { workspace = true }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }

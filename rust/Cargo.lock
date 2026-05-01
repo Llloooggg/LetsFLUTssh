@@ -1898,6 +1898,7 @@ dependencies = [
  "secret-service",
  "security-framework",
  "security-framework-sys",
+ "subtle",
  "tokio",
  "windows",
  "windows-future",
