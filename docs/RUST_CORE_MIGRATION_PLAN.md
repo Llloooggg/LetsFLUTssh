@@ -165,7 +165,7 @@ frontend crate. Verified by CI.
 | Update orchestrator (GitHub parse + signed-manifest verify) | DONE | `lfs_core::update_orchestrator` |
 | OpenSSH config grammar (parse + glob + comment + tokenise) | DONE | `lfs_core::ssh_config` |
 | Log sanitiser (PEM / IP / `user@host` / paths) | DONE | `lfs_core::log_sanitize` |
-| TPM seal / unseal (Linux subprocess) | DONE | `lfs_core::platform::linux::tpm` |
+| TPM seal / unseal (Linux subprocess) | DONE — non-ideal, see [NI-1](#ni-1--linux-tpm2-via-subprocess-shell-out) | `lfs_core::platform::linux::tpm` |
 | Hardware-vault disk-blob format + auth resolver | DONE | `lfs_core::security::hardware_tier_vault` |
 | Capabilities orchestrator + cache + prompt registries | DONE | `lfs_core::security::capabilities_orchestrator` |
 | Tier state machine (per-tier sub-machines, prompt protocol) | DONE | `lfs_core::security::tier_machine` |
@@ -176,7 +176,9 @@ frontend crate. Verified by CI.
 | Tail-end Dart retire — Phase 6 Tier 1 (host_info, session_tree, single_instance) | DONE | `lfs_core::host_info`, `lfs_core::session_tree`, `lfs_os_security::single_instance` |
 | Tail-end Dart retire — Phase 6 Tier 2 (clipboard, session_lock, backup_excl, fprintd, LocalFS, ssh_config Include, SFTP recursive) | DONE | `lfs_os_security::*`, `lfs_core::fs::local`, `lfs_core::ssh_config`, `lfs_core::sftp::recursive_walk` |
 | Tail-end Dart retire — Phase 6 Tier 3 desktop + Apple (secure key storage, biometric vault, biometric auth, wipe service) | DONE | `lfs_os_security::secure_key_storage`, `lfs_os_security::biometric_auth`, `lfs_core::security::wipe`, `lfs_core::wipe_keychain` |
-| **Tail-end Dart retire — Phase 6 Tier 3 Android JNI + Tier 4 native ports** | **OPT-IN** | gated on user decision (see Tier 3 ledger + Tier 4 §) |
+| **Tail-end Dart retire — Phase 6 Tier 3 Android JNI** | **PLANNED** | direct JNI to platform Java APIs (no Kotlin shim); gated on Android dev-loop only — see [Tier 3 Android JNI bridge ledger](#tier-3--android-jni-bridge-ledger-planned-approach) |
+| **Tail-end Dart retire — Phase 6 Tier 4 native ports** | **OPT-IN** | per-item Three Pillars evaluation, see Tier 4 § |
+| **Non-ideal items (TPM2 subprocess, Apple/Windows verification, session_lock_listener mac/win)** | **PLANNED** | see [Non-ideal items § NI-1..3](#non-ideal-items--planned-to-ideal) |
 
 ---
 
@@ -418,7 +420,7 @@ Most of these have a direct Rust crate replacement.
 | File | LOC | Replaces / consolidates | Path |
 |---|---|---|---|
 | ~~`core/security/secure_clipboard.dart` + `clipboard_secret.dart`~~ | ~~180~~ | ~~`MethodChannel` to per-platform clipboard plugins~~ | done — `lfs_os_security::secure_clipboard::set_secure_text` covers Linux (arboard), macOS (NSPasteboard transient/concealed via objc2-app-kit), Windows (Win32 OpenClipboard + RegisterClipboardFormatW for cloud / history opt-out via raw extern), iOS (UIPasteboard.localOnly + expirationDate via objc2-ui-kit). Android keeps the `EXTRA_IS_SENSITIVE` MethodChannel. **Verification pending on macOS / iOS / Windows hardware.** |
-| ~~`core/security/session_lock_listener.dart`~~ | ~~88~~ | ~~`MethodChannel` for screen-lock events~~ | partially done — Linux migrated to `lfs_os_security::session_lock_listener` (zbus → `org.freedesktop.login1.Session.Lock`, FRB Stream forwards). macOS + Windows keep their existing native plugins because `WTSRegisterSessionNotification` is HWND-scoped and `NSDistributedNotificationCenter` needs the Cocoa run loop the Flutter engine already pumps — re-implementing both in Rust would duplicate plumbing without a correctness or perf gain. iOS / Android remain no-ops (lifecycle hook covers). |
+| ~~`core/security/session_lock_listener.dart`~~ | ~~88~~ | ~~`MethodChannel` for screen-lock events~~ | Linux done, macOS/Windows non-ideal — Linux migrated to `lfs_os_security::session_lock_listener` (zbus → `org.freedesktop.login1.Session.Lock`, FRB Stream forwards). macOS + Windows kept on Dart MethodChannel by an earlier decision since reclassified as **non-ideal** — see [NI-3](#ni-3--session_lock_listener-macos--windows-on-dart-methodchannel) for the planned `objc2` / `windows-rs` migration. iOS / Android remain no-ops (lifecycle hook covers). |
 | ~~`core/security/backup_exclusion.dart`~~ | ~~66~~ | ~~`MethodChannel` for `NSURLIsExcludedFromBackupKey`~~ | done — `lfs_os_security::backup_exclusion::exclude_from_backup` (objc2 + objc2-foundation; cfg-gated to Apple targets, no-op elsewhere). The Swift plugin file stays on disk pending an Xcode pbxproj cleanup; the property + register call dropped from MainFlutterWindow / AppDelegate. **Verification pending on actual macOS / iOS hardware.** |
 | ~~`core/security/linux/fprintd_client.dart`~~ | ~~248~~ | ~~Dart `dbus` package → fprintd D-Bus~~ | done — wired Dart `FprintdClient` to the existing `lfs_core::platform::linux::fprintd` (zbus, signal stream for Verify) via FRB shim; dropped `dbus` package from `pubspec.yaml`. |
 | ~~`core/sftp/file_system.dart`~~ (LocalFS) | ~~200~~ | ~~`dart:io` `File` / `Directory` ops~~ | done — `lfs_core::fs::local` (`list / mkdir / remove / remove_dir / rename / dir_size`) on `tokio::fs`; `windows_hidden_names` runs `attrib` via `tokio::process`; Dart side keeps only `initialDir` because that path uses `path_provider` (iOS sandbox / Android scoped storage) — no clean Rust analog |
@@ -447,9 +449,9 @@ crates with explicit cipher policies.
 
 | File | LOC | Replacement |
 |---|---|---|
-| ~~`core/security/secure_key_storage.dart`~~ | ~~376~~ | desktop done, Android pending — `lfs_os_security::secure_key_storage` covers Linux (`secret-service` crate, D-Bus → libsecret / gnome-keyring / KWallet), Apple (`security-framework` + raw `SecItemAdd` for the biometric path with `SecAccessControl` + `kSecAccessControlBiometryCurrentSet`), Windows (raw `CredReadW`/`CredWriteW`/`CredDeleteW` extern). The Dart wrapper routes those platforms through FRB; **Android stays on `flutter_secure_storage`** until the AndroidKeystore JNI bridge lands. **Apple / Windows verification pending on actual hardware.** |
-| ~~`core/security/biometric_key_vault.dart`~~ | ~~255~~ | done on Apple, deferred on Win/Android — Apple now routes through the proper `SecAccessControl`-bound Rust path so the `biometryCurrentSet` enrolment-change invariant is preserved; Linux keeps the TPM seal first + libsecret-marker fallback (TPM is strictly stronger backing); Android + Windows keep `flutter_secure_storage` (Android until the JNI bridge lands; Windows because Credential Manager has no biometric-bound storage class — Windows Hello protection lives in the hardware-vault plugin). |
-| ~~`core/security/biometric_auth.dart`~~ | ~~314~~ | Linux + Apple + Windows done, Android pending — Linux uses `FprintdClient` (Tier 2 `lfs_core::platform::linux::fprintd`), Apple uses `lfs_os_security::biometric_auth` (LAContext via `objc2-local-authentication`; `evaluatePolicy` reply block bridged to a tokio oneshot via `block2::RcBlock`), Windows uses the `windows` crate (`UserConsentVerifier::CheckAvailabilityAsync` + `RequestVerificationAsync`). Apple LAError codes (-6 / -7 / -8) and Windows `UserConsentVerifierAvailability` variants both map to the same `BiometricUnavailableReason` the Settings UI consumes. **Android remains on `local_auth`** — `BiometricPrompt` requires a JNI bridge with Java-side hooks. **Apple + Windows verification pending on actual hardware.** |
+| ~~`core/security/secure_key_storage.dart`~~ | ~~376~~ | desktop + Apple done, Android JNI planned — `lfs_os_security::secure_key_storage` covers Linux (`secret-service` crate, D-Bus → libsecret / gnome-keyring / KWallet), Apple (`security-framework` + raw `SecItemAdd` for the biometric path with `SecAccessControl` + `kSecAccessControlBiometryCurrentSet`), Windows (raw `CredReadW`/`CredWriteW`/`CredDeleteW` extern). The Dart wrapper routes those platforms through FRB; **Android stays on `flutter_secure_storage`** until the direct-JNI to `java.security.KeyStore` (provider `"AndroidKeyStore"`) lands per the [Tier 3 Android JNI bridge ledger](#tier-3--android-jni-bridge-ledger-planned-approach). **Apple / Windows verification pending on actual hardware.** |
+| ~~`core/security/biometric_key_vault.dart`~~ | ~~255~~ | done on Apple, Win/Android planned — Apple now routes through the proper `SecAccessControl`-bound Rust path so the `biometryCurrentSet` enrolment-change invariant is preserved; Linux keeps the TPM seal first + libsecret-marker fallback (TPM is strictly stronger backing); Android stays on `flutter_secure_storage` until the direct-JNI to `BiometricPrompt`-gated `KeyStore` keys lands; Windows keeps `flutter_secure_storage` (Credential Manager has no biometric-bound storage class — Windows Hello protection lives in the hardware-vault plugin). |
+| ~~`core/security/biometric_auth.dart`~~ | ~~314~~ | Linux + Apple + Windows done, Android JNI planned — Linux uses `FprintdClient` (Tier 2 `lfs_core::platform::linux::fprintd`), Apple uses `lfs_os_security::biometric_auth` (LAContext via `objc2-local-authentication`; `evaluatePolicy` reply block bridged to a tokio oneshot via `block2::RcBlock`), Windows uses the `windows` crate (`UserConsentVerifier::CheckAvailabilityAsync` + `RequestVerificationAsync`). Apple LAError codes (-6 / -7 / -8) and Windows `UserConsentVerifierAvailability` variants both map to the same `BiometricUnavailableReason` the Settings UI consumes. **Android remains on `local_auth`** until direct-JNI to `androidx.biometric.BiometricPrompt` lands per the planned-approach ledger. **Apple + Windows verification pending on actual hardware.** |
 | ~~`core/security/wipe_all_service.dart`~~ | ~~223~~ | done — file sweep + crash marker live in `lfs_core::security::wipe`, keychain purge lives in `lfs_core::wipe_keychain`. The Dart class is pure orchestration around three FRB calls plus an in-process credential-cache flush (Riverpod-bound, intentionally Dart-side) and the `com.letsflutssh/hardware_vault` MethodChannel call (Tier 4 territory — retires when the hw-vault plugin migrates). |
 
 Pre-conditions:
@@ -474,35 +476,93 @@ Acceptance criteria:
 - Per-platform integration test that exercises the unlock cascade
   end-to-end against a real keychain on each desktop CI runner.
 
-#### Tier 3 — Android JNI bridge ledger (deferred with rationale)
+#### Tier 3 — Android JNI bridge ledger (planned approach)
 
 The remaining "drop `flutter_secure_storage` / `local_auth`
-from `pubspec.yaml`" gates on Android JNI work. **Skipped per
-Three Pillars "moving makes worse"** unless explicitly green-lit:
+from `pubspec.yaml`" gates on Android JNI work. **Approved
+approach: direct JNI to platform Java APIs, no Kotlin shim.**
 
-* Replacing `flutter_secure_storage`'s
-  `EncryptedSharedPreferences` Kotlin path with our own
-  Kotlin shim + `jni`-crate Rust calls = swapping a
-  battle-tested third-party plugin for our own less-audited
-  Kotlin + JNI signature-tracking. AndroidKeystore is a
-  Java-first API; no real Rust ownership is gained — only the
-  surface area moves.
-* Replacing `local_auth`'s `BiometricPrompt` Kotlin path with
-  the same JNI surgery has the same shape.
+Earlier revisions of this section rejected the move on the
+grounds that "AndroidKeystore is Java-first, replacing
+`flutter_secure_storage` with our own Kotlin shim adds audit
+surface without buying Rust ownership". That reasoning held
+**only for the Kotlin-shim variant** — and there is a
+strictly better option:
 
-When ramped, both share the same scaffolding cost: Kotlin
-shim in `android/app/src/main/kotlin/...`, JavaVM handle
-cached at MainActivity.onCreate, `cargo-ndk` cross-compile
-wiring. Each is its own focused arc requiring an Android dev
-loop + a real device for verification — neither blind-codable
-in a single pass without producing JNI signature mismatches
-that surface only at runtime.
+`java.security.KeyStore` (with the `"AndroidKeyStore"`
+provider) IS the OS-level crypto API on Android — same
+status as `SecItemAdd` on macOS, `CredWriteW` on Windows,
+or libsecret D-Bus on Linux. It happens to live in the JVM
+because Android exposes its system services through Java
+class contracts; that is a calling-convention difference,
+not an architectural one. The `jni` Rust crate calls these
+classes directly — no Kotlin in the call chain.
+
+**Architecture, mirroring the other four platforms:**
+
+| Platform | OS-API | How Rust talks to it |
+|---|---|---|
+| Linux | libsecret / D-Bus | `secret-service` crate |
+| macOS / iOS | `SecItemAdd` etc. | `security-framework-sys` + `objc2` |
+| Windows | `CredWriteW` etc. | `extern "system"` via `windows-sys` |
+| **Android** | **`java.security.KeyStore` (provider `"AndroidKeyStore"`)** | **`jni` crate, direct method calls** |
+
+Same applies to:
+
+- `androidx.biometric.BiometricPrompt` for `biometric_auth`
+- `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)`
+  for `hardware_tier_vault` (StrongBox-backed keys are still
+  surfaced through the same `java.security.KeyStore` API)
+
+**Why this restores the Three-Pillars math:**
+
+- **No Kotlin shim** — we do not add a hand-written Kotlin
+  layer that would be ours to audit. JNI calls go straight to
+  Android-platform classes that already carry Google's
+  long-term API contract (stable since API 1 for `KeyStore`,
+  since API 28 for `BiometricPrompt`).
+- **Single source of truth** — the `lfs_os_security` crate
+  becomes the only owner of OS-level security calls across
+  all five platforms; Dart shrinks to a thin FRB wrapper as
+  on every other platform.
+- **Audit surface shrinks** — drop `flutter_secure_storage`
+  + `local_auth` deps (third-party Kotlin maintained by
+  another team) and replace with `jni` calls auditable line
+  by line in our own Rust source.
+- **Cargokit already builds Android targets** — the existing
+  `build-release.yml::build-android` job installs
+  `cargo-ndk` and the `aarch64-linux-android` /
+  `armv7-linux-androideabi` / `x86_64-linux-android` /
+  `i686-linux-android` Rust targets, then builds
+  `liblfs_frb.so` per ABI. The infrastructure is already in
+  place; this work adds Rust source, not build plumbing.
+
+**Cost (honest):**
+
+- **`jni` crate boilerplate** — cached `JMethodID` /
+  `JFieldID` lookups at first call, `JNIEnv` lifetime tracking
+  per call. Standard pattern; the `jni` crate's docs walk it
+  through. Not unique risk.
+- **Real-device verification gate** — JNI signature mismatches
+  surface only at runtime, so the test loop must include an
+  actual Android device or emulator. Same gate as Apple SE
+  verification carries today.
+- **JavaVM handle plumbing** — JNI calls need a `JavaVM`
+  handle, captured once at `JNI_OnLoad` and cached for the
+  process lifetime. Cargokit's Android template emits a
+  `JNI_OnLoad` entry point already; we extend it to stash the
+  handle in a `OnceLock<JavaVM>` for `lfs_os_security` to read.
+
+**Status: approved, deferred until Android dev-loop available
+(device or emulator + Android Studio for breakpoint debugging
+during JNI signature bring-up).** Not blocking the rest of
+Phase 6.
 
 ### Tier 4 — Heavy native ports (~1 600 LOC, 3–4 weeks, **only on explicit go-ahead**)
 
 | File | LOC | Replacement | Risk |
 |---|---|---|---|
-| `core/security/hardware_tier_vault.dart` | 404 | **Apple done (2026-05) — verification pending.** `lfs_os_security::hardware_tier_vault` ports the SE primary key (`ECIESEncryptionCofactorVariableIVX963SHA256AESGCM` wrap, `WhenPasscodeSet` + `PrivateKeyUsage` ACL) + biometric overlay key (`BiometryCurrentSet`) + on-disk envelope (length-prefixed, chmod 0600) byte-for-byte from `HardwareVaultPlugin.swift`. Probe surfaces `macosSigningIdentityMissing` (-34018) classified separately. Dart `HardwareTierVault` routes Apple through FRB instead of MethodChannel; Swift plugin stays as rollback until a real Mac confirms parity. Windows + Android still on MethodChannel (TBS API + StrongBox JNI = separate per-platform arcs with their own real-device verification gates). |
+| `core/security/hardware_tier_vault.dart` | 404 | **Apple done (2026-05) — verification pending.** `lfs_os_security::hardware_tier_vault` ports the SE primary key (`ECIESEncryptionCofactorVariableIVX963SHA256AESGCM` wrap, `WhenPasscodeSet` + `PrivateKeyUsage` ACL) + biometric overlay key (`BiometryCurrentSet`) + on-disk envelope (length-prefixed, chmod 0600) byte-for-byte from `HardwareVaultPlugin.swift`. Probe surfaces `macosSigningIdentityMissing` (-34018) classified separately. Dart `HardwareTierVault` routes Apple through FRB instead of MethodChannel; Swift plugin stays as rollback until a real Mac confirms parity. Windows still on MethodChannel (TBS API has no Rust crate; separate per-platform arc). Android still on MethodChannel — planned to migrate via direct JNI to `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)` + `java.security.KeyStore`, no Kotlin shim, per the planned-approach ledger. |
 | `platform/macos/code_signing/{cert_factory,codesigner,keychain,process_runner,resign_service}.dart` | 715 | `tokio::process::Command` over `openssl` / `security` / `codesign` / `hdiutil` / `rsync` | macOS-only; CI needs a real macOS runner |
 | `platform/macos/installer/macos_installer.dart` | 212 | `tokio::process::Command` for atomic DMG install + relaunch | same as above |
 | `core/connection/foreground_service.dart` | 191 | direct JNI Android service (drop `flutter_foreground_task`) | Android lifecycle ownership; foreground-service permission model breaks on Doze |
@@ -528,6 +588,142 @@ Acceptance criteria (per item, when ramped):
   target OS confirms parity.
 - Threat-model section updated for any change in the
   trusted-code surface.
+
+---
+
+## Non-ideal items — planned to ideal
+
+Honest accounting of every place where the current Rust
+backend is "good enough" rather than "ideal" by Three Pillars
+math. None of these are blocking, but each one is a debt — by
+the rule "the bar to skip is moving makes the system worse,
+inconvenience is not the bar", every item below has been
+re-classified from "skipped" to "deferred but planned".
+
+### NI-1 — Linux TPM2 via subprocess shell-out
+
+**Current**: `lfs_core::platform::linux::tpm` shells out to
+`tpm2-tools` CLI binaries (`tpm2_create`, `tpm2_load`,
+`tpm2_unseal`, …) through `tokio::process::Command`. The
+`TpmClient` Dart shim was retired in Phase 3, but the
+subprocess pipeline survived the move into Rust.
+
+**Ideal**: `tss-esapi` Rust crate — official Rust bindings
+to TSS2 (Trusted Software Stack), opens `/dev/tpm0` directly
+through the TCTI ABI. No `fork()` / `exec()` per call, no
+CLI parsing, type-safe `KeyType` / `Auth` / `Tpm2BData`
+structs.
+
+**Why it is debt**: same shape as the Android JNI
+re-classification — we picked "convenient enough"
+(subprocess) over "ideal" (direct TSS2). Three Pillars math:
+moving to `tss-esapi` is **strictly better** (no
+process-spawn overhead per seal/unseal, no CLI quoting bugs,
+type-safe), so "easier" is not a valid skip reason.
+
+**Cost (honest)**:
+- `tss-esapi` requires `tss2-dev` headers + dynamic link to
+  `libtss2-esys.so` at build time — adds Linux build dep
+  alongside `libsecret-1-dev` (already required).
+- Cargokit Linux build needs the TSS2 dev package available
+  in the runner image (`apt-get install libtss2-dev` step in
+  `build-release.yml::build-linux-x64`).
+- Same disk-shape contract — the seal/unseal byte format the
+  TPM produces is identical regardless of caller, so the
+  on-disk envelope (`hardware_vault.bin`) and the migration
+  framework do not change.
+
+**Status**: deferred until a focused arc, planned via
+`tss-esapi`. Not blocking.
+
+### NI-2 — Apple + Windows Rust ports verification-pending
+
+**Current**: Apple stack (`hardware_tier_vault::apple`,
+`secure_key_storage::apple`, `biometric_auth::apple`,
+`secure_clipboard::apple`, `backup_exclusion`) + Windows
+stack (`secure_key_storage::windows`,
+`biometric_auth::windows`) — written, compile-checked on
+ubuntu-latest only, **never run on real hardware**. The
+Swift / Kotlin native plugins remain in place as rollback
+behind `_useRustHardwareVault` / equivalent flags.
+
+**Ideal**: every "done" status promoted from "compile-checks
+on Linux" to "verified end-to-end on a real Mac / iPhone /
+Windows machine". The Swift / native plugin scaffolding then
+deletes outright.
+
+**Why it is debt**: by Three Pillars math, "verified
+working" is part of done. Code that compiles but has never
+executed against the real OS-API is not done — it is
+*plausible*. Shipping plausible-but-unverified security code
+violates the safety pillar even when the code is correct on
+review.
+
+**Cost (honest)**:
+- Apple verification: needs a real Mac with iCloud signed in
+  (Secure Enclave is gated on a passcode being set + Apple
+  ID enrolment for the SE key creation to succeed). `is_available()`
+  returns `false` on a non-enrolled Mac, so a CI runner alone
+  is insufficient — manual single-pass verification by the
+  maintainer suffices.
+- iOS verification: real iPhone + the user's own Apple ID,
+  built through `flutter build ios --release` with a
+  development provisioning profile (no App Store needed for
+  installation onto the maintainer's own device).
+- Windows verification: real Windows machine with Windows
+  Hello enrolled (Hello biometric APIs gate on the device
+  having an enrolled face / fingerprint). VM with passthrough
+  is insufficient — Hello probes for the actual TPM-attached
+  biometric sensor.
+
+**Status**: gated on hardware access. CI Wave 1
+(`rust-cross-check` matrix) closes the *compile-validation*
+gap on every PR; the *runtime-verification* gap stays manual
+until ramped.
+
+### NI-3 — `session_lock_listener` macOS / Windows on Dart MethodChannel
+
+**Current**: Linux migrated to
+`lfs_os_security::session_lock_listener` (zbus →
+`org.freedesktop.login1.Session.Lock` signal stream). macOS
++ Windows kept on Dart MethodChannel + native plugin
+(`NSDistributedNotificationCenter` observer on macOS;
+`WTSRegisterSessionNotification` on Windows).
+
+**Ideal**: full uniformity — `lfs_os_security` owns the
+listener on all five platforms, Dart subscribes to a single
+FRB Stream identical across desktop OSes.
+
+**Why the original "skip" reasoning was wrong**: the rejected
+rationale was "duplicate plumbing without correctness/perf
+gain". This conflates **convenience** (Flutter engine
+already pumps a Cocoa run loop / Win32 message loop) with
+**architectural value** (single source of truth across
+platforms). By Three Pillars, uniformity is itself a value:
+fewer concept-mappings to hold in head, smaller audit
+surface, every retire-the-Dart-plugin arc gets simpler.
+
+**Implementation sketch**:
+- macOS: `objc2` bridge to `NSDistributedNotificationCenter`
+  with `addObserver:selector:name:object:` — register from a
+  Rust thread that owns its own `NSRunLoop`-driven dispatcher,
+  forward notifications via `tokio::sync::broadcast` → FRB
+  Stream. The Flutter engine's run loop is not needed for
+  observer registration; it is needed to *deliver* the
+  callback, but the observer can post into a tokio channel
+  from any thread.
+- Windows: register a hidden `HWND` from a Rust thread,
+  pump `WTS_SESSION_LOCK` / `WTS_SESSION_UNLOCK` through a
+  `WindowProc` we own, forward to the same broadcast pattern.
+
+**Cost (honest)**: ~250 LOC of additional Rust per platform
+(observer setup, callback bridge, broadcast forward, FRB
+Stream wiring). The native plugin code deletes (~150 LOC of
+Swift + ~150 LOC of C# / C++).
+
+**Status**: deferred but planned. Lowest priority of the
+three NI items — the current Dart MethodChannel is genuinely
+boring and works.
 
 ---
 
@@ -717,15 +913,19 @@ Tier 2   (pure logic + small platform consolidation, parallel batches)
    ↓
 Tier 3   (security plugins → native Rust crates)
    ↓
-[strategic gate — JNI maintenance buy-in?]
+[strategic gate — Android dev-loop available?]
+   ↓
+Tier 3 Android JNI (direct java.security.KeyStore / BiometricPrompt)
    ↓
 Tier 4   (per-item, only with explicit justification)
 ```
 
-Tier 1 and Tier 2 land regardless. The decision points before
-Tier 3 / Tier 4 are real — neither is forced by the
-"Flutter renders, Rust thinks" north star alone, both have
-ongoing-cost trade-offs that need a deliberate yes.
+Tier 1 and Tier 2 land regardless. The decision point before
+Tier 3 Android is logistical (real device or emulator + Android
+Studio for breakpoint debugging during JNI bring-up), not
+architectural — the approach itself is locked: direct JNI to
+platform Java APIs, no Kotlin shim. Tier 4 stays per-item with
+its own ongoing-cost trade-off justification.
 
 ---
 
@@ -767,12 +967,21 @@ Cross-cutting:
    plugins enforce. Mitigation: audit per-platform before drop;
    patch upstream if needed; keep the Dart plugin path behind a
    feature flag during rollout.
-2. **JNI maintenance cost** — every Android JNI surface (Tier 3
-   AndroidKeystore + biometric, Tier 4 foreground service /
-   storage permission) is one more place where Google's Java
-   API breakage flows directly into our build. Mitigation: only
-   take it on if the security or audit story justifies the
-   ongoing cost. Tier 4 explicitly is opt-in.
+2. **JNI signature drift** — every direct-JNI call to a
+   `java.security.KeyStore` / `androidx.biometric.BiometricPrompt`
+   method names a Java method by literal string + JNI signature
+   (e.g. `"getInstance"` `"(Ljava/lang/String;)Ljava/security/KeyStore;"`).
+   When Google rotates an API name or signature in a future
+   Android release the failure surfaces only at runtime on the
+   target API level, not at compile time. Mitigation: lookup
+   table + cached `JMethodID` keyed on a single resolution pass
+   at `JNI_OnLoad`; integration tests run against the API levels
+   the app's `minSdkVersion` and `targetSdkVersion` declare; CI
+   matrix grows an Android emulator runner once the JNI work
+   ramps. Tier 4 native-Android items (`foreground_service`,
+   `qr_scanner`, `android_storage_permission`) remain explicitly
+   opt-in regardless — they are tiny shims where FFI cost
+   dominates Rust gain even with the direct-JNI approach.
 3. **CI runner coverage** — Tier 3 + Tier 4 require Linux + macOS
    + Windows + Android runners with real keychain / biometric
    APIs. Today the CI has Linux only. Mitigation: stage Tier 3
@@ -939,16 +1148,182 @@ one, ship it, then pick the next.
     the per-file split. Android stays on flutter_secure_storage /
     local_auth pending JNI bridge work.
 
+### Strategic gate — Phase 6 Tier 3 Android JNI (1 week, gated on dev-loop)
+
+19. ~~**Decision required before starting**: do we take on JNI
+    maintenance for the Android-only paths?~~ **Decided
+    (2026-05): yes — direct JNI to platform Java APIs (no
+    Kotlin shim) is the planned approach.** Restores
+    cross-platform uniformity (Rust owns OS-API call on all 5
+    platforms) and treats `java.security.KeyStore` as the
+    Android equivalent of `SecItemAdd` / `CredWriteW`. See
+    [Tier 3 Android JNI bridge ledger](#tier-3--android-jni-bridge-ledger-planned-approach).
+    Logistical gate only: needs a real Android device or
+    emulator + Android Studio for breakpoint debugging during
+    JNI signature bring-up.
+20. When ramped (per file, in this order — easiest to hardest):
+    a. `secure_key_storage` — JNI to `java.security.KeyStore`
+       provider `"AndroidKeyStore"` (smallest surface, most
+       documented signatures).
+    b. `biometric_auth` — JNI to `androidx.biometric.BiometricPrompt`
+       (lifecycle-bound to `FragmentActivity` — cargokit's
+       `JNI_OnLoad` plus a `MainActivity` reference cached
+       from a Dart-side bootstrap call).
+    c. `biometric_key_vault` — composes (a) + (b) once both land.
+    d. `hardware_tier_vault` Android — extends (a) with
+       `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)`
+       on supported devices (API 28+).
+    Each ships with a real-device parity test before the
+    corresponding Dart plugin gets dropped from `pubspec.yaml`.
+
 ### Strategic gate — Phase 6 Tier 4 (3–4 weeks, opt-in per item)
 
-19. **Decision required before starting**: do we take on JNI
-    maintenance for the Android-only paths? Per-item evaluation.
-20. If yes (per item): `hardware_tier_vault` /
-    `platform/macos/code_signing` / `macos_installer` /
-    `foreground_service` / `qr_scanner` /
+21. **Decision required before starting**: take on each Tier-4
+    item only when the security or audit story justifies the
+    ongoing cost. Per-item evaluation.
+22. If yes (per item): `platform/macos/code_signing` /
+    `macos_installer` / `foreground_service` / `qr_scanner` /
     `android_storage_permission`.
+
+### CI maximum — full hygiene buildout (parallel arc)
+
+Every CI gap that prevents the project from being "ideal" by
+the Three Pillars rule, in execution waves. Each wave is a
+self-contained commit set; waves below depend only on the
+ones above.
+
+**Wave 1 — cfg-gated Rust compile coverage on every PR.**
+`ci.yml::rust-cross-check` matrix job that runs `cargo check
+--workspace --all-targets --target <T>` per target:
+
+- `aarch64-apple-darwin` (macos-latest)
+- `x86_64-apple-darwin` (macos-latest)
+- `aarch64-apple-ios` (macos-latest) — iOS Apple-cfg validates
+  here; we cannot ship an .ipa without an Apple Dev account but
+  compile-validation already catches every type / API drift in
+  the iOS path.
+- `x86_64-pc-windows-msvc` (windows-latest)
+- `aarch64-linux-android` + `armv7-linux-androideabi` (ubuntu
+  via cargo-ndk) — gates the upcoming JNI work.
+
+Why: today `rust-ci` only runs on `ubuntu-latest`. The Apple
+hardware-vault Rust port (~700 LOC under `cfg(any(target_os
+= "macos", target_os = "ios"))`) is never compile-checked on
+PR — failure surfaces only on release tag through
+`build-release.yml::build-macos`. Same for any future
+Windows-cfg / Android-cfg code.
+
+**Wave 2 — Rust quality gates parity with Dart.**
+
+- `cargo-llvm-cov --workspace --lcov` step in `rust-ci`,
+  artifact `rust-lcov.info`, uploaded to SonarCloud alongside
+  the Dart `lcov.info`.
+- `cargo machete` — fails on unused workspace dependencies.
+- `Cargo.lock` parity — `cargo update --workspace --locked`
+  + `git diff --exit-code` (mirrors the existing ARB parity
+  check).
+- MSRV pin in `rust/rust-toolchain.toml` (currently `channel
+  = "stable"` without a minor pin → runner-image rotation can
+  silently break).
+
+**Wave 3 — supply-chain hardening.**
+
+Landed in initial increment:
+
+- Weekly `cargo deny check advisories` cron in
+  `.github/workflows/rust-audit.yml` — catches CVE drift in
+  RustSec between dependency-bump PRs. Same `rust/deny.toml`
+  config as `ci.yml::rust-ci`'s on-PR check, narrows the
+  unnoticed-CVE window from "next dependency-bump PR" to "one
+  week worst-case".
+- Rust SBOM via `cargo cyclonedx` in
+  `build-release.yml::release` — every transitive crate
+  (russh, tokio, RustCrypto family, …) with version, license,
+  source URL, attached to the release as
+  `letsflutssh-<version>.rust-sbom.cdx.tar.gz`.
+
+Wave 3 follow-ups (deferred — verification gate):
+
+- **Cosign keyless signing** alongside the existing Ed25519
+  manifest signature. OIDC-rooted Rekor transparency-log
+  entry, no private key, signer identity =
+  `https://github.com/<repo>/.github/workflows/build-release.yml@<ref>`.
+  Two-anchor signing (Ed25519 for in-app updater +
+  cosign for public auditability) means a single key
+  compromise cannot forge a release. Deferred until the
+  `sigstore/cosign-installer` action SHA is pinned to a
+  specific verified release per the project's
+  pin-everything convention.
+- **Dart SBOM** alongside the Rust one. No published-and-
+  pinnable CycloneDX tool exists for Dart pub today; GitHub's
+  automatic dependency graph derives the same data from
+  `pubspec.lock`. Add a sibling step here when a stable
+  Dart cyclonedx tool ships.
+
+**Wave 4 — reproducibility verification.**
+
+- Nightly cron job that builds Linux artefacts (`tar.gz` /
+  `.deb` / `.AppImage`) twice on the same SHA + diffs sha256.
+  On mismatch, runs `diffoscope` and uploads its report. The
+  build-release.yml comments today *claim* Linux is byte-
+  identical across runs; nothing currently verifies it.
+
+**Wave 5 — platform expansion (release artefacts).** Each
+sub-item is its own independent arc; none gate the others.
+
+- `aarch64-unknown-linux-gnu` (Linux ARM64 — RPi 5, Asahi,
+  Graviton, Ampere). Cross-compile via the runner's
+  `gcc-aarch64-linux-gnu` toolchain plus `cargo --target`.
+- `aarch64-pc-windows-msvc` (Windows ARM64 — Surface Pro X,
+  Snapdragon X). Cross-compile from `windows-latest`.
+- iOS unsigned `.ipa` (compile-only, no distribution) — same
+  Apple-stack as macOS, gated on an Apple Dev account for
+  actual install but compile validation already catches every
+  type drift.
+
+**Wave 6 — distribution channels (PRs into external repos).**
+
+- Snap manifest → publish to Snap Store.
+- Flatpak manifest → submit to Flathub.
+- Homebrew cask → PR to `homebrew/homebrew-cask`.
+- WinGet manifest → PR to `microsoft/winget-pkgs`.
+
+These are not in our repo's CI but in third-party flows; each
+wave-6 item requires a separate manifest + maintainer review
+on the external side.
+
+**Out of scope (Three Pillars "moving makes worse" or
+externally blocked):**
+
+- macOS notarization — needs Apple Developer Program ($99/yr).
+- Windows EV cert — $300+/yr + Yubikey HSM. Self-signed
+  Authenticode is the best zero-cost option.
+- iOS App Store distribution — same as notarization.
+- SLSA L4 — needs hermetic builders we cannot stand up
+  inside GitHub-hosted runners.
+
+### Non-ideal items — promote to ideal (parallel arc)
+
+23. **NI-1**: Linux TPM2 → `tss-esapi` crate. Drop the
+    `tpm2-tools` subprocess shell-out in
+    `lfs_core::platform::linux::tpm`; talk to `/dev/tpm0`
+    directly through TSS2. Adds `libtss2-dev` to
+    `build-release.yml::build-linux-x64` and the
+    `Install Linux build dependencies` step in `ci.yml`.
+24. **NI-2**: Apple + Windows real-device verification gate.
+    Single-pass manual verification per platform by the
+    maintainer; once green, delete the parallel native
+    plugins (`HardwareVaultPlugin.swift`,
+    `BiometricVaultPlugin.swift`,
+    `SecureKeyStoragePlugin.swift` and Windows equivalents)
+    and drop the `_useRustHardwareVault` flag.
+25. **NI-3**: `session_lock_listener` macOS + Windows →
+    `objc2` (`NSDistributedNotificationCenter`) + Win32
+    hidden HWND with our own `WindowProc`. Forwards through
+    `tokio::sync::broadcast` → FRB Stream identical to the
+    Linux path. Native plugin code retires.
 
 ### Final — close the migration
 
-21. Delete this file. Backend is fully in Rust; remaining Dart
+26. Delete this file. Backend is fully in Rust; remaining Dart
     is widgets + Riverpod + permanent platform glue.
