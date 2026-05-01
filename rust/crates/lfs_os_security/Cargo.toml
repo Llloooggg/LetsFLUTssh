@@ -20,6 +20,12 @@ crate-type = ["rlib"]
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }
 
+# Windows-only — WinRT bindings for Windows Hello biometric
+# auth. `Security_Credentials_UI` covers UserConsentVerifier
+# (the API the Hello prompt fires through).
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = ["Security_Credentials_UI", "Foundation"] }
+
 # Linux-only deps:
 #   - `arboard` for the desktop clipboard write (X11 + Wayland;
 #     no cloud-clipboard concern, per-platform sensitive flag is

@@ -152,19 +152,86 @@ mod platform_impl {
     }
 }
 
-// ── Windows / Android / other ────────────────────────────────
+// ── Windows (UserConsentVerifier via WinRT) ──────────────────
+
+#[cfg(target_os = "windows")]
+mod platform_impl {
+    use super::{AvailabilityResult, BiometricUnavailableReason};
+    use windows::core::HSTRING;
+    use windows::Security::Credentials::UI::{
+        UserConsentVerificationResult, UserConsentVerifier,
+        UserConsentVerifierAvailability,
+    };
+
+    pub(super) async fn check_availability() -> AvailabilityResult {
+        let availability = tokio::task::spawn_blocking(|| {
+            UserConsentVerifier::CheckAvailabilityAsync()
+                .and_then(|op| op.get())
+        })
+        .await
+        .map_err(|e| BiometricUnavailableReason::Probe(format!("tokio join: {e}")))?
+        .map_err(|e| BiometricUnavailableReason::Probe(format!("CheckAvailability: {e}")))?;
+
+        match availability {
+            UserConsentVerifierAvailability::Available => Ok(()),
+            UserConsentVerifierAvailability::DeviceNotPresent => {
+                Err(BiometricUnavailableReason::NoSensor)
+            }
+            UserConsentVerifierAvailability::NotConfiguredForUser => {
+                Err(BiometricUnavailableReason::NotEnrolled)
+            }
+            UserConsentVerifierAvailability::DisabledByPolicy => {
+                Err(BiometricUnavailableReason::SystemServiceMissing)
+            }
+            UserConsentVerifierAvailability::DeviceBusy => {
+                Err(BiometricUnavailableReason::Probe("device busy".into()))
+            }
+            other => Err(BiometricUnavailableReason::Probe(format!(
+                "UserConsentVerifierAvailability {other:?}"
+            ))),
+        }
+    }
+
+    pub(super) async fn authenticate(reason: &str) -> bool {
+        let message: HSTRING = reason.into();
+        let result = tokio::task::spawn_blocking(move || {
+            UserConsentVerifier::RequestVerificationAsync(&message)
+                .and_then(|op| op.get())
+        })
+        .await;
+        match result {
+            Ok(Ok(UserConsentVerificationResult::Verified)) => true,
+            _ => false,
+        }
+    }
+}
+
+// ── Linux: routes through Tier 2 fprintd via Dart wrapper ────
+
+#[cfg(target_os = "linux")]
+#[allow(dead_code)]
+mod _linux_doc {
+    // The Dart `BiometricAuth` short-circuits on
+    // `Platform.isLinux` and calls `FprintdClient.verify()`
+    // directly. The stub below in `mod platform_impl` exists
+    // for the symmetry of `check_availability` /
+    // `authenticate` returning a sensible default — never
+    // reached in production.
+}
+
+// ── Android & every other target ─────────────────────────────
 
 #[cfg(not(any(
     target_os = "linux",
     target_os = "macos",
-    target_os = "ios"
+    target_os = "ios",
+    target_os = "windows"
 )))]
 mod platform_impl {
     use super::{AvailabilityResult, BiometricUnavailableReason};
     pub(super) async fn check_availability() -> AvailabilityResult {
-        // Windows + Android stay on `local_auth` Dart-side
-        // until the WinRT KeyCredentialManager / JNI
-        // BiometricPrompt arcs land.
+        // Android stays on `local_auth` Dart-side until the
+        // BiometricPrompt JNI bridge lands.
         Err(BiometricUnavailableReason::PlatformUnsupported)
     }
     pub(super) async fn authenticate(_reason: &str) -> bool {

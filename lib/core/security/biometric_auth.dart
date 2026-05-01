@@ -207,11 +207,12 @@ class BiometricAuth {
 
   Future<BiometricAvailability> _runAvailabilityProbe() async {
     if (Platform.isLinux) return _linuxAvailability();
-    if (Platform.isMacOS || Platform.isIOS) return _appleAvailability();
-    // Windows + Android stay on local_auth's
+    if (Platform.isMacOS || Platform.isIOS || Platform.isWindows) {
+      return _rustAvailability();
+    }
+    // Android stays on local_auth's
     // canCheckBiometrics + getAvailableBiometrics until the
-    // WinRT KeyCredentialManager / JNI BiometricPrompt arcs
-    // land.
+    // BiometricPrompt JNI bridge lands.
     try {
       final supported = await _auth.isDeviceSupported();
       if (!supported) return BiometricUnavailableReason.noSensor;
@@ -247,13 +248,14 @@ class BiometricAuth {
     }
   }
 
-  /// Apple availability via `LAContext.canEvaluatePolicy` —
-  /// routes through `lfs_os_security::biometric_auth`. The Rust
-  /// side maps LAError codes (-6 / -7 / -8) to the same
-  /// structured reasons the Dart enum uses, so the Settings UI
-  /// renders the right tooltip without re-parsing the error
-  /// string.
-  Future<BiometricAvailability> _appleAvailability() async {
+  /// Apple / Windows availability via the platform's biometric
+  /// availability probe — routes through
+  /// `lfs_os_security::biometric_auth`. Apple uses
+  /// `LAContext.canEvaluatePolicy`; Windows uses
+  /// `UserConsentVerifier.CheckAvailabilityAsync`. Both map
+  /// platform-specific status codes to the same structured
+  /// `BiometricUnavailableReason` the Settings UI renders.
+  Future<BiometricAvailability> _rustAvailability() async {
     try {
       final result = await rust_os.osSecurityBiometricAvailability();
       return switch (result) {
@@ -302,14 +304,14 @@ class BiometricAuth {
   /// we only await the terminal `VerifyStatus` signal.
   Future<bool> authenticate(String reason) async {
     if (Platform.isLinux) return _fprintd.verify();
-    if (Platform.isMacOS || Platform.isIOS) {
+    if (Platform.isMacOS || Platform.isIOS || Platform.isWindows) {
       try {
         return await rust_os
             .osSecurityBiometricAuthenticate(reason: reason)
             .timeout(_authTimeout);
       } on TimeoutException {
         AppLogger.instance.log(
-          'Apple biometric authenticate timed out after '
+          'Native biometric authenticate timed out after '
           '${_authTimeout.inSeconds}s; falling back to password prompt',
           name: 'BiometricAuth',
           level: LogLevel.warn,
@@ -317,7 +319,7 @@ class BiometricAuth {
         return false;
       } catch (e) {
         AppLogger.instance.log(
-          'Apple biometric authenticate (Rust) failed: $e',
+          'Native biometric authenticate (Rust) failed: $e',
           name: 'BiometricAuth',
         );
         return false;
