@@ -1,22 +1,39 @@
-//! TPM2 sealing / unsealing via the `tpm2-tools` CLI.
+//! TPM2 sealing / unsealing — two backends behind the same
+//! public surface (`probe` / `seal` / `unseal`).
 //!
-//! Mirrors the Dart `core/security/linux/TpmClient` flow
-//! step-for-step. Every spawn lands in
-//! `Directory::systemTemp.createTemp` (`std::env::temp_dir`),
-//! the sealed-secret bytes write to a 0600 file inside that
-//! dir, the auth value goes through `file:<path>` rather than
-//! `hex:<hex>` argv to keep the HMAC out of `/proc/<pid>/cmdline`,
-//! and every file in the work dir is zero-overwritten before
-//! unlink so the on-disk plaintext window is bounded.
+//! 1. **Subprocess (default)** — historical path, shells out to
+//!    the `tpm2-tools` CLI binaries (`tpm2 createprimary`,
+//!    `tpm2 create`, `tpm2 load`, `tpm2 unseal`). Each spawn
+//!    lands in `Directory::systemTemp.createTemp`
+//!    (`std::env::temp_dir`); the sealed-secret bytes write to
+//!    a 0600 file inside that dir; the auth value goes through
+//!    `file:<path>` rather than `hex:<hex>` argv to keep the
+//!    HMAC out of `/proc/<pid>/cmdline`; every file in the
+//!    work dir is zero-overwritten before unlink so the
+//!    on-disk plaintext window is bounded. Verified-working
+//!    against real TPM hardware in the field.
 //!
-//! **Path choice — shell-out vs. libtss2 FFI.** `tpm2-tools`
-//! covers the same ESAPI path libtss2 exposes; the seal/unseal
-//! flow runs once per unlock so the few-hundred-ms process
-//! spawn cost is irrelevant against the user-perceived unlock
-//! latency. FFI to libtss2 would be multi-week work for no
-//! measurable user-facing benefit on a rare-path flow.
+//! 2. **Native (opt-in via `LFS_TPM_BACKEND=native`)** — direct
+//!    `libtss2-esys` calls through the `tss-esapi` crate, see
+//!    [`super::tpm_native`]. No fork, no temp files for the
+//!    `-u/-r` blob handoff, type-safe `TPMT_PUBLIC` /
+//!    `TPMT_SENSITIVE_CREATE` building. The on-disk envelope
+//!    bytes are byte-identical to the subprocess path because
+//!    both go through the same `Tss2_MU_TPM2B_*` marshalling
+//!    inside libtss2; an envelope sealed under one backend
+//!    unseals correctly under the other. Closes NI-1 in
+//!    `RUST_CORE_MIGRATION_PLAN.md`. Stays opt-in until the
+//!    real-device verification gate ([NI-2](
+//!    ../../../../docs/RUST_CORE_MIGRATION_PLAN.md#ni-2--apple--windows-rust-ports-verification-pending))
+//!    flips it to default-on.
 //!
-//! Async-free by construction: the caller drives `tpm2`
+//! Backend selection: [`TpmConfig::default`] reads the
+//! `LFS_TPM_BACKEND` env var once at config construction; the
+//! caller may also set `cfg.backend` directly. Public API
+//! (`probe`, `seal`, `unseal`) dispatches based on `cfg.backend`,
+//! so call sites stay backend-agnostic.
+//!
+//! Async-free by construction: the caller drives both backends
 //! through a tokio `spawn_blocking` (matching the rest of
 //! lfs_core's blocking-IO pattern); we do not own the runtime.
 
@@ -55,6 +72,38 @@ pub enum TpmProbeResult {
     ProbeFailed,
 }
 
+/// Which seal/unseal implementation to dispatch to. Default is
+/// [`TpmBackend::Subprocess`] (verified-working tpm2-tools
+/// shell-out); set to [`TpmBackend::Native`] to opt into the
+/// direct-libtss2 path while it is verification-pending.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TpmBackend {
+    /// Spawn `tpm2 ...` per operation; on-disk envelope bytes
+    /// produced by `tpm2 create -u/-r`. The historical default;
+    /// stays the default until NI-2 verifies the native path on
+    /// real TPM hardware.
+    Subprocess,
+    /// Direct calls into `libtss2-esys` via the `tss-esapi`
+    /// crate; see [`super::tpm_native`]. Byte-compatible with
+    /// the subprocess envelope at the marshalling layer (both
+    /// go through `Tss2_MU_TPM2B_*` inside libtss2).
+    Native,
+}
+
+impl Default for TpmBackend {
+    fn default() -> Self {
+        // Env-var opt-in is read here so a single `TpmConfig::default`
+        // call captures the user's choice for the lifetime of the
+        // resulting config. Recognised values: `native` (case-
+        // insensitive) flips to the native path; anything else
+        // (including unset) keeps the subprocess default.
+        match std::env::var("LFS_TPM_BACKEND") {
+            Ok(v) if v.eq_ignore_ascii_case("native") => TpmBackend::Native,
+            _ => TpmBackend::Subprocess,
+        }
+    }
+}
+
 /// Configurable knobs — tests inject a fake binary path /
 /// device path, production uses [`DEFAULT_BINARY`] +
 /// [`DEFAULT_DEVICE`].
@@ -63,6 +112,10 @@ pub struct TpmConfig {
     pub binary: String,
     pub device: String,
     pub timeout: Duration,
+    /// Implementation backend — set via env var by default
+    /// ([`TpmBackend::default`]); the FRB layer or tests can
+    /// override programmatically.
+    pub backend: TpmBackend,
 }
 
 impl Default for TpmConfig {
@@ -71,6 +124,7 @@ impl Default for TpmConfig {
             binary: DEFAULT_BINARY.to_string(),
             device: DEFAULT_DEVICE.to_string(),
             timeout: DEFAULT_TIMEOUT,
+            backend: TpmBackend::default(),
         }
     }
 }
@@ -81,6 +135,13 @@ impl Default for TpmConfig {
 /// a strict guarantee that downstream sealing will not fail
 /// with a permissions / lockout error.
 pub fn probe(cfg: &TpmConfig) -> TpmProbeResult {
+    if cfg.backend == TpmBackend::Native {
+        return super::tpm_native::probe(cfg);
+    }
+    probe_subprocess(cfg)
+}
+
+fn probe_subprocess(cfg: &TpmConfig) -> TpmProbeResult {
     if !Path::new(&cfg.device).exists() {
         return TpmProbeResult::DeviceNodeMissing;
     }
@@ -105,6 +166,13 @@ pub fn probe(cfg: &TpmConfig) -> TpmProbeResult {
 /// `auth_value` as the unseal password. Returns the packed
 /// `[u32 BE pub_len][pub][u32 BE priv_len][priv]` blob.
 pub fn seal(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
+    if cfg.backend == TpmBackend::Native {
+        return super::tpm_native::seal(cfg, secret, auth_value);
+    }
+    seal_subprocess(cfg, secret, auth_value)
+}
+
+fn seal_subprocess(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
     if secret.len() > MAX_SEAL_BYTES {
         return Err(Error::Crypto(format!(
             "tpm seal rejected: secret {} bytes > {}",
@@ -155,6 +223,13 @@ pub fn seal(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>
 /// `verify-match`; format mismatch / wrong auth / missing TPM
 /// all produce `Err`.
 pub fn unseal(cfg: &TpmConfig, blob: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
+    if cfg.backend == TpmBackend::Native {
+        return super::tpm_native::unseal(cfg, blob, auth_value);
+    }
+    unseal_subprocess(cfg, blob, auth_value)
+}
+
+fn unseal_subprocess(cfg: &TpmConfig, blob: &[u8], auth_value: &[u8]) -> Result<Vec<u8>, Error> {
     let (pub_bytes, priv_bytes) =
         unpack(blob).ok_or_else(|| Error::Crypto("tpm unseal: malformed blob".to_string()))?;
     let work = WorkDir::new("lfs-tpm-unseal-")?;
@@ -418,6 +493,7 @@ mod tests {
             binary: "tpm2".into(),
             device: "/nonexistent/tpm-test-node".into(),
             timeout: Duration::from_secs(2),
+            backend: TpmBackend::Subprocess,
         };
         assert_eq!(probe(&cfg), TpmProbeResult::DeviceNodeMissing);
     }
@@ -431,8 +507,30 @@ mod tests {
             binary: "/nonexistent/tpm2-binary-test".into(),
             device: "/dev/null".into(),
             timeout: Duration::from_secs(2),
+            backend: TpmBackend::Subprocess,
         };
         assert_eq!(probe(&cfg), TpmProbeResult::BinaryMissing);
+    }
+
+    #[test]
+    fn backend_default_reads_env() {
+        // Saved + restored to keep test cases independent.
+        let prev = std::env::var("LFS_TPM_BACKEND").ok();
+        // SAFETY rationale: env mutation in tests is the
+        // standard Rust pattern; lfs_core's `unsafe_code = "forbid"`
+        // doesn't apply here because `set_var` / `remove_var`
+        // are not unsafe in std.
+        std::env::set_var("LFS_TPM_BACKEND", "native");
+        assert_eq!(TpmBackend::default(), TpmBackend::Native);
+        std::env::set_var("LFS_TPM_BACKEND", "Native");
+        assert_eq!(TpmBackend::default(), TpmBackend::Native);
+        std::env::set_var("LFS_TPM_BACKEND", "subprocess");
+        assert_eq!(TpmBackend::default(), TpmBackend::Subprocess);
+        std::env::remove_var("LFS_TPM_BACKEND");
+        assert_eq!(TpmBackend::default(), TpmBackend::Subprocess);
+        if let Some(v) = prev {
+            std::env::set_var("LFS_TPM_BACKEND", v);
+        }
     }
 
     #[test]

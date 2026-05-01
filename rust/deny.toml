@@ -63,6 +63,15 @@ allow = [
   "CDLA-Permissive-2.0",
   "CC0-1.0",
   "0BSD",
+  # Boost Software License 1.0 — permissive (no copyleft, no
+  # attribution-in-binary requirement, OSI/FSF-approved). Carried
+  # by `clipboard-win` + `error-code` (DoumanAsh), pulled
+  # transitively via `arboard` for the Windows clipboard backend
+  # in `lfs_os_security::secure_clipboard`. Reviewed: terms are
+  # broadly equivalent to MIT — copyright notice must remain in
+  # the source distribution, no further obligations on binary
+  # redistribution.
+  "BSL-1.0",
 ]
 confidence-threshold = 0.93
 

@@ -602,39 +602,58 @@ re-classified from "skipped" to "deferred but planned".
 
 ### NI-1 — Linux TPM2 via subprocess shell-out
 
-**Current**: `lfs_core::platform::linux::tpm` shells out to
-`tpm2-tools` CLI binaries (`tpm2_create`, `tpm2_load`,
-`tpm2_unseal`, …) through `tokio::process::Command`. The
-`TpmClient` Dart shim was retired in Phase 3, but the
-subprocess pipeline survived the move into Rust.
+**Status**: **native backend landed (2026-05) behind
+`LFS_TPM_BACKEND=native` env-var opt-in; subprocess remains
+the verified-working default until real-TPM verification
+(NI-2 gate) flips it.**
 
-**Ideal**: `tss-esapi` Rust crate — official Rust bindings
-to TSS2 (Trusted Software Stack), opens `/dev/tpm0` directly
-through the TCTI ABI. No `fork()` / `exec()` per call, no
-CLI parsing, type-safe `KeyType` / `Auth` / `Tpm2BData`
-structs.
+**Current**: `lfs_core::platform::linux::tpm` exposes both
+backends behind a unified public surface (`probe` / `seal` /
+`unseal`). [`TpmConfig::backend`] selects which path runs:
 
-**Why it is debt**: same shape as the Android JNI
-re-classification — we picked "convenient enough"
-(subprocess) over "ideal" (direct TSS2). Three Pillars math:
-moving to `tss-esapi` is **strictly better** (no
-process-spawn overhead per seal/unseal, no CLI quoting bugs,
-type-safe), so "easier" is not a valid skip reason.
+- `TpmBackend::Subprocess` (default) — historical
+  `tpm2-tools` shell-out; spawns `tpm2 createprimary` /
+  `tpm2 create` / `tpm2 load` / `tpm2 unseal` per operation;
+  every seal-secret bytes write to a 0600 file inside an
+  RAII work dir; auth values pass through `file:<path>`
+  rather than `hex:<hex>` argv to keep the HMAC out of
+  `/proc/<pid>/cmdline`. Verified-working in the field.
+- `TpmBackend::Native` (opt-in) — direct calls into
+  `libtss2-esys` through the `tss-esapi` crate. Module
+  [`lfs_core::platform::linux::tpm_native`]: no fork, no
+  temp files, type-safe `TPMT_PUBLIC` /
+  `TPMT_SENSITIVE_CREATE` building.
 
-**Cost (honest)**:
-- `tss-esapi` requires `tss2-dev` headers + dynamic link to
-  `libtss2-esys.so` at build time — adds Linux build dep
-  alongside `libsecret-1-dev` (already required).
-- Cargokit Linux build needs the TSS2 dev package available
-  in the runner image (`apt-get install libtss2-dev` step in
-  `build-release.yml::build-linux-x64`).
-- Same disk-shape contract — the seal/unseal byte format the
-  TPM produces is identical regardless of caller, so the
-  on-disk envelope (`hardware_vault.bin`) and the migration
-  framework do not change.
+**Byte-compat invariant**: both backends produce the same
+on-disk envelope shape (`[u32 BE pub_len][pub][u32 BE
+priv_len][priv]`) holding `TPM2B_PUBLIC` + `TPM2B_PRIVATE`
+marshalled bytes. The native path uses tss-esapi's
+`PublicBuffer::marshall` for the public side (calls
+`Tss2_MU_TPM2B_PUBLIC_Marshal` internally — same function
+tpm2-tools uses) and a hand-rolled `[u16 BE size][bytes]`
+TPM2B layout for the private side (tss-esapi 7.7 has no
+`PrivateBuffer` analogue; the layout is the simplest one
+in the TCG spec, kept in safe Rust to honour
+`unsafe_code = "forbid"`). Primary template
+([`build_primary_template`]) mirrors `tpm2 createprimary
+-C o`'s default field-for-field — RSA 2048, SHA-256 name
+hash, AES-128-CFB symmetric, restricted decryption key with
+the standard ObjectAttributes — so the TPM-derived primary
+key is byte-identical regardless of which backend created
+the envelope.
 
-**Status**: deferred until a focused arc, planned via
-`tss-esapi`. Not blocking.
+**Build dep**: `libtss2-dev` added to `ci.yml`,
+`build-release.yml::build-linux-x64`, and
+`reproducibility-check.yml` Linux deps step. The native
+module is compiled into every Linux release build (so a
+future flip needs no rebuild) but stays inert at runtime
+unless `LFS_TPM_BACKEND=native` is set.
+
+**Verification gate (NI-2 territory)**: real-TPM end-to-end
+test must confirm a sealed envelope round-trips between
+the two backends (subprocess seal → native unseal, and
+vice versa) before the env-var opt-in flips to
+default-on and the subprocess path retires.
 
 ### NI-2 — Apple + Windows Rust ports verification-pending
 
@@ -1304,12 +1323,17 @@ externally blocked):**
 
 ### Non-ideal items — promote to ideal (parallel arc)
 
-23. **NI-1**: Linux TPM2 → `tss-esapi` crate. Drop the
-    `tpm2-tools` subprocess shell-out in
-    `lfs_core::platform::linux::tpm`; talk to `/dev/tpm0`
-    directly through TSS2. Adds `libtss2-dev` to
-    `build-release.yml::build-linux-x64` and the
-    `Install Linux build dependencies` step in `ci.yml`.
+23. ~~**NI-1**: Linux TPM2 → `tss-esapi` crate.~~ Native
+    backend landed (2026-05) as `TpmBackend::Native` in
+    `lfs_core::platform::linux::tpm_native`; opt-in via
+    `LFS_TPM_BACKEND=native` env var. Subprocess remains
+    default until real-TPM verification (NI-2 gate) flips
+    it. `libtss2-dev` added to `ci.yml`,
+    `build-release.yml::build-linux-x64`, and
+    `reproducibility-check.yml` Linux deps. `BSL-1.0`
+    added to `deny.toml` allow-list (pre-existing
+    `arboard`/`clipboard-win` dependency surfaced when the
+    deny gate started firing in CI).
 24. **NI-2**: Apple + Windows real-device verification gate.
     Single-pass manual verification per platform by the
     maintainer; once green, delete the parallel native

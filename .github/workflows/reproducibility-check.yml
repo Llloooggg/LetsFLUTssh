@@ -53,9 +53,12 @@ jobs:
           cache: true
 
       - name: Install Linux build dependencies
+        # `libtss2-dev` mirrors the build-release.yml + ci.yml Linux
+        # deps — required by `tss-esapi` for the native TPM2 backend
+        # (NI-1).
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev lld diffoscope-minimal
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libtss2-dev lld diffoscope-minimal
 
       - name: Install Rust toolchain
         # Cargokit compiles `liblfs_frb.so` during `flutter build linux`;

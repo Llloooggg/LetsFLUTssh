@@ -4,3 +4,4 @@
 
 pub mod fprintd;
 pub mod tpm;
+pub mod tpm_native;

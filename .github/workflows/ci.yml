@@ -39,9 +39,14 @@ jobs:
           cache: true
 
       - name: Install Linux build dependencies
+        # `libtss2-dev` is required by `tss-esapi` (Rust bindings to
+        # the TSS2 ESAPI library) under
+        # `lfs_core::platform::linux::tpm_native` — the native TPM2
+        # backend that replaces the historical `tpm2-tools` subprocess
+        # shell-out (NI-1, see RUST_CORE_MIGRATION_PLAN.md).
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev
+          sudo apt-get install -y libsecret-1-dev libtss2-dev
 
       - name: Install dependencies
         run: make deps
