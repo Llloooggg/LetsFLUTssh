@@ -1189,7 +1189,21 @@ one, ship it, then pick the next.
 20. When ramped (per file, in this order — easiest to hardest):
     a. `secure_key_storage` — JNI to `java.security.KeyStore`
        provider `"AndroidKeyStore"` (smallest surface, most
-       documented signatures).
+       documented signatures). **Foundation landed (2026-05)**:
+       `lfs_os_security::android::jni_bootstrap` exposes
+       `Java_com_llloooggg_letsflutssh_LfsJniBootstrap_register`,
+       called once from `MainActivity.onCreate` via the tiny
+       `LfsJniBootstrap` Kotlin object. Captures the JavaVM
+       into a process-wide `OnceLock<JavaVM>`. The Android
+       NDK target (`aarch64-linux-android`) is in the
+       rust-cross-check matrix so PR-time compile validation
+       fires on every change. **Per-operation JNI call
+       sequences (`KeyStore.getInstance`, `KeyGenerator`,
+       `Cipher.init`, …) are scaffolded with TODO blocks** in
+       `lfs_os_security::android::keystore`; the actual
+       method-ID-resolution work is gated on Android dev-loop
+       (real device or emulator + Android Studio for runtime
+       JNI signature verification).
     b. `biometric_auth` — JNI to `androidx.biometric.BiometricPrompt`
        (lifecycle-bound to `FragmentActivity` — cargokit's
        `JNI_OnLoad` plus a `MainActivity` reference cached
@@ -1365,5 +1379,11 @@ externally blocked):**
 
 ### Final — close the migration
 
-26. Delete this file. Backend is fully in Rust; remaining Dart
-    is widgets + Riverpod + permanent platform glue.
+26. When the backend is fully in Rust and remaining Dart is
+    widgets + Riverpod + permanent platform glue, this plan
+    transitions from "live tracker" to "historical record".
+    The `RUST_CORE_MIGRATION_PLAN.md` file stays in the repo
+    as the audit trail of how every architectural decision
+    landed; status flips on individual rows freeze in place
+    rather than being deleted. Per-component status moves
+    forward in `ARCHITECTURE.md` §3.14 from then on.

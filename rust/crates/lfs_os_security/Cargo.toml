@@ -17,6 +17,14 @@ crate-type = ["rlib"]
 # `unlock_memory(addr, len)`. The unsafe blocks are auditable
 # in one place.
 
+# Cross-target dependencies — present on every platform.
+# Tokio sits here (rather than in per-cfg blocks below) because
+# `session_lock_listener` imports `tokio::sync::broadcast`
+# unconditionally to fan-out lock events to FRB subscribers,
+# regardless of which OS-specific listener is wired underneath.
+[dependencies]
+tokio = { workspace = true }
+
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }
 
@@ -43,10 +51,18 @@ windows = { version = "0.62", features = [
 # the WinRT IAsyncOperation contract without dragging in a
 # heavyweight executor.
 windows-future = "0.3"
-# Tokio is needed on Windows too for the broadcast channel that
-# `session_lock_listener` uses to fan-out lock events to FRB
-# subscribers — same channel pattern as the Linux logind path.
-tokio = { workspace = true }
+
+# Android-only deps:
+#   - `jni` for direct calls into platform Java APIs
+#     (`java.security.KeyStore` provider `"AndroidKeyStore"`,
+#     `androidx.biometric.BiometricPrompt`, etc.) per the Tier 3
+#     Android JNI plan. No Kotlin shim — the JavaVM handle is
+#     captured once at process start via the `Java_…_register`
+#     extern function below + `MainActivity.onCreate` calls into
+#     it; thereafter every JNI call attaches the current thread
+#     to the captured VM.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.21", default-features = false }
 
 # Linux-only deps:
 #   - `arboard` for the desktop clipboard write (X11 + Wayland;
@@ -63,7 +79,6 @@ tokio = { workspace = true }
 arboard = { version = "3", default-features = false }
 zbus = { workspace = true }
 futures-util = { workspace = true }
-tokio = { workspace = true }
 secret-service = { version = "5", default-features = false, features = ["rt-tokio-crypto-rust"] }
 
 # Apple-only deps for `backup_exclusion` (NSURL.setResourceValues:
@@ -89,10 +104,6 @@ core-foundation-sys = { version = "0.8", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
-# Tokio is needed on macOS too for the broadcast channel that
-# `session_lock_listener` uses to fan-out lock events to FRB
-# subscribers.
-tokio = { workspace = true }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2-ui-kit = { version = "0.3", features = ["UIPasteboard"] }

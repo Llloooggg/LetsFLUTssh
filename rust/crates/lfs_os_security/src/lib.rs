@@ -261,3 +261,9 @@ pub mod secure_clipboard;
 pub mod secure_key_storage;
 pub mod session_lock_listener;
 pub mod single_instance;
+
+// Android-only — direct JNI to platform Java APIs
+// (`java.security.KeyStore`, `androidx.biometric.BiometricPrompt`).
+// See `android::keystore` status block for the verification gate.
+#[cfg(target_os = "android")]
+pub mod android;
