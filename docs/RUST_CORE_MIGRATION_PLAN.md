@@ -1420,55 +1420,260 @@ fallback tests skipped with pointer to Rust integration
 tests, Apple SecAccessControl-options assertions removed.
 
 **Phase 3 — `SecureKeyStorage` legacy storage retire
-(pending).** Drop `_legacyStorage` field + `_storage`
-fallback getter from `secure_key_storage.dart`. Add Android
-to `_useRust`. Test surgery: existing tests inject fake
-FlutterSecureStorage; needs rewrite to FRB-bootstrapped
-real keystore round-trip OR mocking at FRB level.
+(pending, ~3 hours).**
+
+Goal: `lib/core/security/secure_key_storage.dart` becomes a
+pure FRB wrapper. No `flutter_secure_storage` import, no
+`_legacyStorage` injection point, all 5 platforms route
+through `lfs_os_security::secure_key_storage::*` via FRB.
+
+Concrete actions:
+
+1. `lib/core/security/secure_key_storage.dart`:
+   - Drop `import 'package:flutter_secure_storage/...'`.
+   - Drop `final FlutterSecureStorage? _legacyStorage` field.
+   - Drop `_storage` getter, `_skipPlatformCheck` flag.
+   - Drop the `else` branches that call `_storage.read/write/delete/containsKey`.
+   - Constructor signature: `SecureKeyStorage({LinuxKeychainMarker? marker})`
+     — drop `storage:` param.
+   - `_useRust` getter → always `true` (delete the field; inline
+     the `Platform.isLinux || ...` checks where needed for
+     platform-gating, e.g. `_linuxGatePass` keeps `Platform.isLinux`
+     branch).
+   - `_runtimeSubprocessProbesEnabled` static + `enableRuntimeSubprocessProbes`
+     remain — Linux-specific gdbus probe is independent of the
+     FRB Rust path and stays as the cold-launch availability check.
+
+2. `test/core/security/secure_key_storage_test.dart`:
+   - Drop `setMockMethodCallHandler('plugins.it_nomads.com/flutter_secure_storage', ...)`
+     setup + teardown.
+   - Existing tests that called `SecureKeyStorage(storage: fakeStorage)`
+     either:
+     a. Migrate to FRB-bootstrapped real-backend round-trip
+        (works on Linux dev machines + CI runner with `dbus-run-session`
+        wrapping the test invocation; for macOS/Windows runners,
+        the real OS keychain accepts the writes).
+     b. Skip with `skip: 'Moved to lfs_os_security::secure_key_storage::tests
+        Rust-side after flutter_secure_storage retire'` and add the
+        equivalent assertion to the existing Rust unit-test module.
+   - Linux marker / probe / "platform check" tests stay as-is —
+     they assert Dart-side behaviour orthogonal to the storage
+     backend.
+
+3. `test/features/settings/settings_logging_test.dart` +
+   any other test using `SecureKeyStorage(storage: ...)` —
+   drop the `storage:` arg (already done for biometric_key_vault
+   per Phase 2; sweep remaining call sites).
+
+Acceptance: `make analyze` clean, `make test` green (with
+some tests in skip status pointing to Rust coverage),
+`grep -r flutter_secure_storage lib/` returns only the legacy
+listener files (Phase 5 will sweep those).
 
 **Phase 4 — `BiometricAuth` `local_auth` retire
-(pending).** `biometric_auth.dart` routes Android +
-macOS + iOS + Windows through `lfs_os_security::biometric_auth`
-via FRB. Drop `local_auth` import + plugin. Linux already
-on FprintdClient (Rust path).
+(pending, ~2 hours).**
+
+Goal: `lib/core/security/biometric_auth.dart` routes through
+FRB on every platform that needs OS biometric API. `local_auth`
+package retires.
+
+Concrete actions:
+
+1. Verify the `lfs_os_security::biometric_auth` Rust module
+   covers all 4 needed platforms (Linux already does via
+   FprintdClient; Apple via LAContext; Windows via
+   UserConsentVerifier; Android via BiometricPrompt JNI).
+   All four landed in earlier phases — this phase just rewires
+   the Dart call site.
+
+2. `lib/core/security/biometric_auth.dart`:
+   - Drop `import 'package:local_auth/local_auth.dart'`.
+   - Replace internal `LocalAuthentication` instance with FRB
+     calls: `rust_biometric.biometricAuthCheckAvailability()` /
+     `rust_biometric.biometricAuthAuthenticate(reason)`.
+   - The existing Rust public API in
+     `lfs_os_security::biometric_auth` already provides both —
+     verify FRB adapter `lfs_frb::api::biometric_auth` exposes
+     them (it currently exposes `biometric_probe_*` for the
+     prompt-protocol path; may need a fresh generic wrapper).
+
+3. `test/core/security/biometric_auth_test.dart`: same
+   surgery shape as Phase 2 — drop `local_auth` mocking,
+   skip Dart-side biometric round-trip tests with pointer to
+   the existing `lfs_os_security::biometric_auth::tests` Rust
+   module (already covers the LAError-code mapping invariants).
+
+Acceptance: `grep -r local_auth lib/ pubspec.yaml` returns
+zero hits.
 
 **Phase 5 — Rust prompt-protocol bus events retire
-(pending).** Refactor `tier_unlock_orchestrator` +
-`keychain_password_gate_actor` + `capabilities_orchestrator`
-to call `lfs_os_security::secure_key_storage` /
-`biometric_auth` directly instead of publishing
-`KeychainOpPromptRequest` / `BiometricProbePromptRequest` /
-`KeychainPepperPromptRequest`. Remove the bus event types
-from `lfs_core::bus`. Delete the FRB shim functions
-`keychain_op_prompt_*`, `biometric_probe_prompt_*`,
-`keychain_pepper_prompt_*`. Delete the Dart listeners
-`keychain_op_prompt_listener.dart`,
-`biometric_probe_prompt_listener.dart`,
-`keychain_pepper_prompt_listener.dart`.
+(pending, ~4-6 hours, highest-risk phase).**
 
-**Phase 6 — Native plugin file deletion (pending).**
-Delete `macos/Runner/HardwareVaultPlugin.swift`,
-`macos/Runner/SessionLockPlugin.swift`,
-`macos/Runner/ClipboardSecurePlugin.swift`,
-`ios/Runner/HardwareVaultPlugin.swift`,
-`ios/Runner/ClipboardSecurePlugin.swift`,
-`android/.../HardwareVaultPlugin.kt`,
-`linux/runner/session_lock_plugin.{cc,h}`,
-`windows/runner/session_lock_plugin.{cpp,h}`.
-Update `macos/Runner/MainFlutterWindow.swift`,
-`windows/runner/flutter_window.cpp`,
-`MainActivity.kt` to drop the plugin registrations.
+Goal: `lfs_os_security::secure_key_storage` / `biometric_auth`
+called directly from Rust orchestrators instead of through
+the bus prompt protocol that historically routed through Dart
+listeners. The bus event types + FRB shim functions + Dart
+listeners all retire.
 
-**Keep**: `windows/runner/hardware_vault_plugin.{cpp,h}`
-(Win Tier 4 Rust port not yet done; this is the canonical
-Windows path, not a fallback).
-`android/.../ClipboardSecurePlugin.kt`
-(Android-specific `ClipDescription.EXTRA_IS_SENSITIVE`
-flag, planned § Tier 2 to stay on MethodChannel).
+Concrete actions:
 
-**Phase 7 — `pubspec.yaml` dep removal (pending).**
-Drop `flutter_secure_storage` + `local_auth` after every
-phase above lands.
+1. **Rust orchestrator refactor** (in this order — each is its
+   own commit):
+
+   1.1. `lfs_core::security::keychain_password_gate_actor` —
+        currently publishes `Event::KeychainPepperPromptRequest`
+        and awaits `keychain_pepper_prompt_resolve`. Replace
+        with a direct call to
+        `lfs_os_security::secure_key_storage::read` /
+        `write` / `delete` (whichever the actor was using to
+        fetch the pepper) and remove the
+        `PromptRegistry<KeychainPepperPromptRequest, ...>`
+        actor wiring.
+
+   1.2. `lfs_core::security::tier_unlock_orchestrator` —
+        currently publishes `Event::KeychainOpPromptRequest`
+        from L2 unlock + provisioning + tier-switch paths
+        (3 publish sites). Replace each with
+        `lfs_os_security::secure_key_storage::read/write/delete`.
+        Wrap the now-direct-call in `tokio::task::spawn_blocking`
+        if the orchestrator runs on the FRB worker thread.
+
+   1.3. `lfs_core::security::capabilities_orchestrator` —
+        currently publishes `Event::BiometricProbePromptRequest`.
+        Replace with
+        `lfs_os_security::biometric_auth::check_availability().await`.
+
+2. **Bus event type removal** (after step 1):
+   - `lfs_core::bus::Event` — remove three variants:
+     `KeychainOpPromptRequest`, `KeychainPepperPromptRequest`,
+     `BiometricProbePromptRequest`. Plus the matching
+     resolve-event variants if any.
+   - `lfs_core::bus::EventTopic` — verify no other variant
+     stays as the only `SecurityPrompt` user; if so, drop
+     `SecurityPrompt` topic too.
+   - `lfs_frb::api::bus` — drop the FRB-side mirror enums.
+
+3. **FRB shim function removal**:
+   - `lfs_frb::api::keychain_op_prompt` — delete file entirely.
+   - `lfs_frb::api::keychain_pepper_prompt` — delete entirely.
+   - `lfs_frb::api::biometric_probe_prompt` — delete entirely.
+   - Update `lfs_frb::api` `mod` declarations.
+
+4. **Run `make rust-codegen`** — regenerates
+   `lib/src/rust/frb_generated.dart` + per-API Dart wrappers.
+   Cargo.lock + Dart binding files commit alongside the
+   removal.
+
+5. **Dart listener deletion**:
+   - `lib/app/keychain_op_prompt_listener.dart` — delete.
+   - `lib/app/keychain_pepper_prompt_listener.dart` — delete.
+   - `lib/app/biometric_probe_prompt_listener.dart` — delete.
+   - `lib/main_screen.dart` (or wherever the `.start()` calls
+     live) — drop the listener bootstrap calls.
+   - `lib/app/global_error_dialog.dart` / equivalent error
+     surfacers — verify no stale references.
+
+Acceptance: `grep -r KeychainOpPromptRequest rust/ lib/`
+returns zero hits; same for `KeychainPepperPromptRequest`,
+`BiometricProbePromptRequest`. `make analyze` + `make test`
++ `make rust-test` all green.
+
+**Risk note**: this is the highest-risk phase because it
+touches hot orchestrator paths (L2 unlock + provisioning).
+Test the security tier flow end-to-end on Linux before merge.
+After merge, verify on Apple + Win + Android during the
+NI-2 device-test pass.
+
+**Phase 6 — Native plugin file deletion (pending, ~2 hours).**
+
+Goal: every native plugin file whose role is now covered
+end-to-end by Rust gets deleted. Plugin registrant entries
+in `MainFlutterWindow.swift` / `flutter_window.cpp` /
+`MainActivity.kt` get removed.
+
+Files to delete:
+
+| File | Replaced by |
+|---|---|
+| `macos/Runner/HardwareVaultPlugin.swift` | `lfs_os_security::hardware_tier_vault::apple` |
+| `macos/Runner/SessionLockPlugin.swift` | `lfs_os_security::session_lock_listener::macos_impl` |
+| `macos/Runner/ClipboardSecurePlugin.swift` | `lfs_os_security::secure_clipboard::apple` |
+| `ios/Runner/HardwareVaultPlugin.swift` | same Apple-cfg path as macOS |
+| `ios/Runner/ClipboardSecurePlugin.swift` | same Apple-cfg path |
+| `android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt` | `lfs_os_security::android::hardware_vault` |
+| `linux/runner/session_lock_plugin.{cc,h}` | `lfs_os_security::session_lock_listener` (Linux logind) |
+| `windows/runner/session_lock_plugin.{cpp,h}` | `lfs_os_security::session_lock_listener::windows_impl` |
+
+Plugin registrant cleanup:
+
+- `macos/Runner/MainFlutterWindow.swift` — remove
+  `HardwareVaultPlugin().register(with:)`,
+  `SessionLockPlugin().register(with:)`,
+  `ClipboardSecurePlugin().register(with:)` calls.
+- `windows/runner/flutter_window.cpp` — remove
+  `RegisterPlugins(...)` entries for `HardwareVaultPlugin`
+  + `SessionLockPlugin`. Keep `hardware_vault_plugin` (the
+  CNG one for Windows L3 — Win Tier 4 Rust port pending).
+- `android/app/.../MainActivity.kt` — remove
+  `hardwareVault = HardwareVaultPlugin(this).also { it.register(hwChannel) }`.
+  Keep `clipboardSecure = ClipboardSecurePlugin(...)` (Android
+  EXTRA_IS_SENSITIVE flag stays on MethodChannel per Tier 2 plan).
+- `windows/CMakeLists.txt` — remove `session_lock_plugin.{cpp,h}`
+  from sources list. Keep `hardware_vault_plugin.{cpp,h}`.
+- `linux/CMakeLists.txt` — remove `session_lock_plugin.{cc,h}`
+  from sources list.
+
+**Keep** (intentional non-deletes):
+
+- `windows/runner/hardware_vault_plugin.{cpp,h}` — Win Tier 4
+  Rust port (CNG/NCrypt via `windows` crate) is a separate
+  follow-up arc; until it lands this is the canonical Windows
+  path, not a fallback.
+- `android/app/.../ClipboardSecurePlugin.kt` — the
+  `ClipDescription.EXTRA_IS_SENSITIVE` flag is Android-specific
+  (Android 13+) and the plan §Tier 2 explicitly keeps it on
+  MethodChannel.
+
+Acceptance: each platform's `flutter build` (or cross-check
+matrix `cargo check`) succeeds without dangling references.
+`grep -rn "HardwareVaultPlugin\|SessionLockPlugin\|ClipboardSecurePlugin"`
+returns only the Windows hardware_vault + Android clipboard
+files plus their registrant entries.
+
+**Phase 7 — `pubspec.yaml` dep removal (pending, ~30 min).**
+
+Final phase — only safe to run after every preceding phase
+lands and `grep -r` confirms no remaining import.
+
+Concrete actions:
+
+1. `pubspec.yaml`:
+   - Remove `flutter_secure_storage: ^10.0.0`.
+   - Remove `local_auth: ^3.0.1`.
+2. `flutter pub get` — refreshes `pubspec.lock`.
+3. `make analyze` + `make test` to confirm no surviving import
+   slipped through.
+4. Stage `pubspec.yaml` + `pubspec.lock` together — single
+   commit.
+
+Acceptance: `flutter pub deps | grep -E '(flutter_secure_storage|local_auth)'`
+returns zero hits.
+
+**Total cleanup arc effort: ~15-20 hours** of careful work
+across phases 3-7. Each phase produces 1-3 commits (orchestrator
+refactor + test surgery + native deletion + registrant cleanup
+are all naturally separate commits). Phase 5 is the highest-risk
+because it refactors hot orchestrator paths; phases 3 / 4 / 6 / 7
+are mechanical.
+
+**Why not finish in one session**: the Rust orchestrator
+refactor in Phase 5 needs careful unit-test coverage for the
+new direct-call paths (currently tests exercise the bus event
+publish/respond cycle). Doing it under time pressure risks
+race conditions in the L2 unlock flow which is the most
+security-critical code path in the app. Better to do Phase 5
+as its own focused arc with proper end-to-end test pass on
+Linux before merge.
 
 ### Non-ideal items — promote to ideal (parallel arc)
 
