@@ -95,6 +95,9 @@ jobs:
           path: |
             lib/**
             test/**
+            rust/crates/**
+            rust/Cargo.toml
+            rust/Cargo.lock
             pubspec.yaml
             pubspec.lock
             sonar-project.properties
@@ -175,8 +178,11 @@ jobs:
   rust-ci:
     # Rust security/transport core (rust/) — see ARCHITECTURE.md §3.14.
     # Runs alongside the Dart `ci` job; the cache + light test surface
-    # at sub-phase 1.x makes this cheap. Once mobile cross-compile
-    # pipelines land at 1.6 we'll add a matrix here.
+    # at sub-phase 1.x makes this cheap. Cross-target compile coverage
+    # (Apple / Windows / Android / iOS) lives in `rust-cross-check`
+    # below; this job stays ubuntu-latest for the full clippy + test +
+    # deny pipeline so the heavyweight gates run once on the canonical
+    # host.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -186,9 +192,17 @@ jobs:
           fetch-depth: 1
 
       - name: Install Rust toolchain
+        # Toolchain version is pinned in `rust/rust-toolchain.toml`
+        # (channel = "1.95.0"); rustup auto-installs that version
+        # on the first cargo invocation in `working-directory: rust`,
+        # so we do not need to specify a version here. Keeping the
+        # explicit `rustup toolchain install` pre-step lets us also
+        # add the rustfmt + clippy components for the active
+        # toolchain in one shot.
+        working-directory: rust
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt,clippy
-          rustup default stable
+          rustup show active-toolchain
+          rustup component add rustfmt clippy
 
       - name: Cache cargo registry + workspace target
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
@@ -198,7 +212,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             rust/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -228,3 +242,149 @@ jobs:
         #   bans       — duplicate-version warnings, wildcard requirements denied
         working-directory: rust
         run: cargo deny --all-features check
+
+      - name: Cargo.lock parity
+        # Mirrors the existing `flutter gen-l10n` parity check above:
+        # if a contributor bumps a Cargo.toml entry without committing
+        # the regenerated Cargo.lock, this fails. `--workspace` so the
+        # check covers every member crate; `--locked` so cargo refuses
+        # to mutate the lock if a fresh resolve would diverge — the
+        # combination of those two plus `git diff --exit-code` is the
+        # idiomatic Rust-side equivalent of `npm ci`'s lock check.
+        working-directory: rust
+        run: |
+          cargo update --workspace --locked
+          if ! git diff --quiet -- Cargo.lock; then
+            echo "::error::rust/Cargo.lock is out of sync with rust/Cargo.toml. Run \`cargo update --workspace\` and commit the result." >&2
+            git diff -- Cargo.lock | head -100 >&2 || true
+            exit 1
+          fi
+
+      - name: Install cargo-machete
+        # Pinned for reproducibility — same rationale as cargo-deny:
+        # a future machete release rotating into our quality gate
+        # without a deliberate bump is a silent risk.
+        run: cargo install --locked --version 0.7.0 cargo-machete
+
+      - name: cargo machete (unused dependencies)
+        # Catches dependencies declared in any workspace member's
+        # Cargo.toml that are never `use`d in source. Each entry in
+        # Cargo.toml is build-time + audit cost; unused ones add
+        # both for nothing. `--with-metadata` reads `cargo metadata`
+        # for transitive resolution, more accurate than the lexical
+        # default.
+        working-directory: rust
+        run: cargo machete --with-metadata
+
+      - name: Install cargo-llvm-cov
+        # Coverage tool of choice for Rust workspaces — uses the
+        # source-based `-C instrument-coverage` LLVM facility, which
+        # is more accurate than line-based fallbacks (tarpaulin) and
+        # supports cfg-gated code paths properly.
+        run: cargo install --locked --version 0.6.20 cargo-llvm-cov
+
+      - name: cargo llvm-cov (workspace coverage → lcov)
+        # Outputs `rust-lcov.info` in lcov.info format identical to
+        # the Dart side, so `ci-sonarcloud.yml` can pass both files
+        # to the Sonar scanner via the same `sonar.coverageReportPaths`
+        # mechanism. `--all-features` ensures cfg-gated branches show
+        # up in coverage rather than being silently elided.
+        working-directory: rust
+        run: cargo llvm-cov --workspace --all-features --locked --lcov --output-path ../rust-lcov.info
+
+      - name: Upload Rust coverage artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rust-coverage
+          path: rust-lcov.info
+          retention-days: 1
+
+  rust-cross-check:
+    # Cross-target compile validation for cfg-gated Rust code paths
+    # the canonical `rust-ci` (ubuntu-latest) never sees. Runs `cargo
+    # check --workspace --all-targets` per target on its native
+    # runner — clippy + test stay in `rust-ci` because they catch
+    # 95 % of bugs at lower latency on a single host. This job's job
+    # is to ensure that, e.g., a dependency bump that breaks
+    # `cfg(any(target_os = "macos", target_os = "ios"))` code in
+    # `lfs_os_security::hardware_tier_vault::apple` (~700 LOC of
+    # Apple-cfg Rust) surfaces on the PR check, not on the next
+    # release tag through `build-release.yml`.
+    #
+    # Targets covered:
+    #   - Apple desktop + iOS  (macos-latest)
+    #   - Windows MSVC         (windows-latest)
+    #   - Android NDK ABIs     (ubuntu-latest via cargo-ndk)
+    #
+    # Linux x86_64 host is already covered by `rust-ci` above.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple desktop + iOS — Apple-cfg Rust (Secure Enclave,
+          # SecItemAdd, LAContext, NSPasteboard, etc.) only compiles
+          # under cfg(any(target_os = "macos", target_os = "ios")).
+          - { runner: macos-latest,   target: aarch64-apple-darwin,    label: macos-arm64 }
+          - { runner: macos-latest,   target: x86_64-apple-darwin,     label: macos-x64   }
+          - { runner: macos-latest,   target: aarch64-apple-ios,       label: ios-arm64   }
+          # Windows MSVC — Windows-cfg Rust (CredWriteW,
+          # UserConsentVerifier, hidden HWND for session-lock when
+          # NI-3 lands).
+          - { runner: windows-latest, target: x86_64-pc-windows-msvc,  label: windows-x64 }
+          # Android NDK ABIs — gates the upcoming Tier 3 Android JNI
+          # work (java.security.KeyStore + BiometricPrompt direct
+          # calls). Cargokit already builds these targets at release
+          # time; this job catches breakage on every PR.
+          - { runner: ubuntu-latest,  target: aarch64-linux-android,   label: android-arm64, ndk: true }
+          - { runner: ubuntu-latest,  target: armv7-linux-androideabi, label: android-arm,   ndk: true }
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust toolchain + target
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add ${{ matrix.target }}
+          rustup show
+
+      - name: Install cargo-ndk (Android only)
+        # `cargo-ndk` knows where the NDK headers live and forwards
+        # the right sysroot / linker flags to cargo per ABI. Pinned
+        # alongside the version used in build-release.yml::build-android
+        # so PR-time check matches release-time build.
+        if: matrix.ndk == true
+        run: cargo install --locked --version 4.1.2 cargo-ndk
+
+      - name: Cache cargo registry + workspace target
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            rust/target/
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-
+
+      - name: cargo check (${{ matrix.label }})
+        # `--all-targets` keeps test / example / bench code in scope
+        # so a cfg-gated test module that references a renamed FFI
+        # symbol still triggers the failure here. `--locked` so the
+        # check resolves against the committed Cargo.lock — the same
+        # lock parity the upcoming Wave 2 check enforces.
+        working-directory: rust
+        shell: bash
+        run: |
+          if [ "${{ matrix.ndk }}" = "true" ]; then
+            cargo ndk --target ${{ matrix.target }} -- check --workspace --all-targets --locked
+          else
+            cargo check --workspace --all-targets --target ${{ matrix.target }} --locked
+          fi

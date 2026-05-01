@@ -1,0 +1,140 @@
+name: Reproducibility Check
+
+# Nightly job that builds the Linux release artefacts twice on the
+# same SHA and diffs sha256. The build-release.yml comments claim
+# "two runs of the same commit produce byte-identical output" via
+# SOURCE_DATE_EPOCH + reproducible-tar flags + `gzip -n`; nothing
+# in the existing pipeline actually verifies that claim.
+#
+# A silent regression — e.g. a future packaging-step change that
+# leaks a wall-clock timestamp into the tarball, or a dep upgrade
+# that switches a build script's output ordering — would slip
+# through every release until a downstream user trying to
+# reproduce reports the mismatch. This job catches it inside one
+# nightly cycle.
+#
+# Linux only: macOS uses BSD tar without `--mtime` + hdiutil for
+# the .dmg (catalog metadata baked per run), Windows uses
+# powershell Compress-Archive (no reproducibility primitives at
+# all). Both are documented as non-reproducible in build-release.yml.
+# Verifying what is *claimed* is the goal here.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Tuesday 06:00 UTC — staggered one day off the security
+    # cluster (Mon 06:00) so a noisy reproducibility-fail does
+    # not crowd out the security-triage attention budget.
+    - cron: '0 6 * * 2'
+
+permissions: read-all
+
+jobs:
+  linux-reproducibility:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Pin the build clock so both runs use the identical
+      # SOURCE_DATE_EPOCH — release builds derive this from the
+      # HEAD commit's committer-date, but we want determinism
+      # against a fixed value here so a "pass" means "same
+      # SOURCE_DATE_EPOCH → same bytes" and not "we got lucky
+      # with two different epochs landing on the same payload".
+      SOURCE_DATE_EPOCH: '1700000000'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev lld diffoscope-minimal
+
+      - name: Install Rust toolchain
+        # Cargokit compiles `liblfs_frb.so` during `flutter build linux`;
+        # toolchain pin is honoured via rust-toolchain.toml.
+        working-directory: rust
+        run: rustup show active-toolchain
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Linux x64 (run 1)
+        run: flutter build linux --release
+
+      - name: Package tar.gz (run 1)
+        run: |
+          cd build/linux/x64/release/bundle
+          tar --sort=name \
+              --owner=0 --group=0 --numeric-owner \
+              --mtime="@${SOURCE_DATE_EPOCH}" \
+              -cf - . \
+            | gzip -n -9 \
+            > "${{ github.workspace }}/run1.tar.gz"
+          sha256sum "${{ github.workspace }}/run1.tar.gz"
+
+      - name: Clean build dir for second run
+        # `flutter clean` wipes `build/` so the second pass is a
+        # fresh build, not a no-op rebuild on cached artefacts.
+        # If we did not clean, an incremental rebuild would
+        # produce identical output trivially — the test would
+        # always pass without proving anything about repro
+        # determinism.
+        run: flutter clean
+
+      - name: Build Linux x64 (run 2)
+        run: flutter build linux --release
+
+      - name: Package tar.gz (run 2)
+        run: |
+          cd build/linux/x64/release/bundle
+          tar --sort=name \
+              --owner=0 --group=0 --numeric-owner \
+              --mtime="@${SOURCE_DATE_EPOCH}" \
+              -cf - . \
+            | gzip -n -9 \
+            > "${{ github.workspace }}/run2.tar.gz"
+          sha256sum "${{ github.workspace }}/run2.tar.gz"
+
+      - name: Diff sha256 (the actual gate)
+        id: diff
+        run: |
+          set -e
+          H1=$(sha256sum run1.tar.gz | awk '{print $1}')
+          H2=$(sha256sum run2.tar.gz | awk '{print $1}')
+          echo "Run 1 sha256: $H1"
+          echo "Run 2 sha256: $H2"
+          if [ "$H1" = "$H2" ]; then
+            echo "Reproducibility verified ✓"
+            echo "match=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Reproducibility broken — sha256 differs across runs"
+            echo "match=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Diffoscope detail report (on mismatch)
+        # Only runs when the diff step set match=false (which means
+        # we already exited 1 — but `if: failure()` re-enters this
+        # step to produce the diagnostic. The report is uploaded as
+        # an artifact so it is inspectable without re-running CI.
+        if: failure() && steps.diff.outputs.match == 'false'
+        run: |
+          diffoscope --html diffoscope-report.html run1.tar.gz run2.tar.gz || true
+          # diffoscope exits 1 when it finds a diff; we expect that
+          # here, so swallow it to let the upload step run.
+
+      - name: Upload diffoscope report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: diffoscope-report
+          path: diffoscope-report.html
+          retention-days: 14

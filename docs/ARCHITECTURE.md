@@ -2186,9 +2186,11 @@ The first lines of defence beyond Rust's safe-by-default ownership / borrow rule
 - **`subtle::ConstantTimeEq`** for crypto-material equality (MAC compares, hash compares) — never `==` for anything an attacker could time. `subtle` lives in `[workspace.dependencies]` ahead of need; first concrete use lands at 1.4 alongside the PPK HMAC verify.
 - Workspace dep pinning in `[workspace.dependencies]` — every cross-crate version bump touches one place, so a `cargo audit` finding has one knob to twist.
 
-#### CI gates (rust-ci job)
+#### CI gates (rust-ci + rust-cross-check jobs)
 
-The `.github/workflows/ci.yml::rust-ci` job runs on every PR and push, alongside the existing Dart `ci` job:
+Two complementary Rust jobs run on every PR and push, alongside the existing Dart `ci` job:
+
+**`rust-ci` (ubuntu-latest)** — heavyweight gates on the canonical host:
 
 | Step | Gate |
 |---|---|
@@ -2196,6 +2198,16 @@ The `.github/workflows/ci.yml::rust-ci` job runs on every PR and push, alongside
 | `cargo clippy --workspace --all-targets --locked -- -D warnings` | Lint, deny warnings |
 | `cargo test --workspace --locked` | Unit + integration tests (currently 5 in `lfs_core::ssh::tests`) |
 | `cargo deny --all-features check` | Three sub-gates from [`rust/deny.toml`](../rust/deny.toml): RustSec advisory database (CVE), license allow-list (no copyleft surprises), bans (wildcard requirements denied, multiple-versions warned) |
+
+**`rust-cross-check` (matrix)** — cfg-gated compile validation across every target the workspace ships to. Without this, code under `cfg(any(target_os = "macos", target_os = "ios"))` (Apple Secure Enclave, LAContext, NSPasteboard) or `cfg(target_os = "windows")` (CredWriteW, UserConsentVerifier) only compiles at release-tag time through `build-release.yml` — meaning a dependency bump that breaks one of those paths would auto-merge into `main` and surface only when cutting a release. The matrix runs `cargo check --workspace --all-targets --locked` (clippy + test stay in `rust-ci` to keep latency low; this job's job is the compile-validation breadth, not depth):
+
+| Target | Runner | Why |
+|---|---|---|
+| `aarch64-apple-darwin` | macos-latest | Apple Silicon Mac path |
+| `x86_64-apple-darwin` | macos-latest | Intel Mac path (universal binary other half) |
+| `aarch64-apple-ios` | macos-latest | iOS path — same Apple-cfg code, no .ipa shipped today but compile-validates every type drift |
+| `x86_64-pc-windows-msvc` | windows-latest | Windows-cfg paths |
+| `aarch64-linux-android` + `armv7-linux-androideabi` | ubuntu-latest via `cargo-ndk` | Gates the upcoming Tier 3 Android JNI work; cargokit already builds these at release time |
 
 Dependabot tracks `rust/Cargo.lock` (`.github/dependabot.yml` `cargo` ecosystem entry) and opens monthly bump PRs alongside the existing pub / github-actions / gitsubmodule schedules.
 

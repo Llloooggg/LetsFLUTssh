@@ -52,6 +52,25 @@ jobs:
           run-id: ${{ env.CI_RUN_ID }}
           github-token: ${{ github.token }}
 
+      - name: Download Rust coverage artifact
+        # `rust-lcov.info` is produced by `cargo llvm-cov` in the
+        # rust-ci job. Pulled here so `sonar-project.properties`
+        # can hand it to the scanner via the community-Rust
+        # `sonar.community.rust.lcov.reportPaths` key — Rust
+        # coverage shows up alongside Dart in the same project.
+        # Continue-on-error: a CI run that pre-dates the
+        # rust-coverage artifact (older commits, hotfix branches)
+        # should still produce a Sonar scan with Dart-only data
+        # rather than failing outright.
+        if: env.CI_RUN_ID != ''
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: rust-coverage
+          path: .
+          run-id: ${{ env.CI_RUN_ID }}
+          github-token: ${{ github.token }}
+
       - name: Setup Flutter
         if: env.CI_RUN_ID != ''
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2

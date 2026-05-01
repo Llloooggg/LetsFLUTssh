@@ -521,6 +521,48 @@ jobs:
         with:
           path: artifacts
 
+      - name: Generate Rust SBOM (CycloneDX)
+        # Software Bill of Materials for the Rust workspace in
+        # CycloneDX 1.5 JSON format — every transitive crate (russh,
+        # tokio, RustCrypto family, …) with version, license, source
+        # URL. Attached to the release as
+        # `letsflutssh-<version>.rust-sbom.cdx.json`.
+        #
+        # Modern supply-chain tools (Dependency-Track, Trivy SBOM
+        # scan, GitHub's own dependency graph) consume this format
+        # directly, so a downstream user can answer "does this
+        # release ship a vulnerable version of <crate>?" without
+        # re-running cargo against our lockfile.
+        #
+        # The Dart-side SBOM is not generated here — Dart's pub
+        # ecosystem does not have a maintained CycloneDX tool with
+        # a published-and-pinnable version on pub.dev today.
+        # Pubspec dependency tree is already exposed through
+        # GitHub's automatic dependency graph
+        # (https://github.com/Llloooggg/LetsFLUTssh/network/dependencies)
+        # which derives the same data from `pubspec.lock`. If a
+        # cyclonedx-dart tool stabilises later, add a sibling step
+        # here.
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Pinned version for reproducibility (same rationale as
+          # cargo-deny / cargo-llvm-cov / cargo-machete).
+          cargo install --locked --version 0.5.7 cargo-cyclonedx
+          (cd rust && cargo cyclonedx --all --format json)
+          # cargo-cyclonedx writes per-crate `bom.json` files next
+          # to each crate's Cargo.toml; collect them under one
+          # release artefact.
+          mkdir -p sbom
+          find rust/crates -maxdepth 2 -name 'bom.json' -print0 \
+            | while IFS= read -r -d '' f; do
+                crate=$(basename "$(dirname "$f")")
+                cp "$f" "sbom/${crate}.cdx.json"
+              done
+          tar czf "artifacts/letsflutssh-${VERSION}.rust-sbom.cdx.tar.gz" -C sbom .
+          echo "Rust SBOM bundle → letsflutssh-${VERSION}.rust-sbom.cdx.tar.gz ($(du -h "artifacts/letsflutssh-${VERSION}.rust-sbom.cdx.tar.gz" | cut -f1))"
+
       - name: Sign release artefacts (Ed25519)
         # Single signature per release:
         #
@@ -604,6 +646,15 @@ jobs:
             artifacts/macos-universal/*.tar.gz
             artifacts/macos-universal/*.dmg
             artifacts/android-apk/*.apk
+
+      # NOTE: Cosign keyless signing is planned as a follow-up to
+      # this Wave 3 increment — see RUST_CORE_MIGRATION_PLAN.md
+      # § "CI maximum" Wave 3. Adding it here requires pinning the
+      # `sigstore/cosign-installer` action to a verified SHA at the
+      # exact version we ship; the SHA must be looked up against
+      # the live action repo before the PR lands. The Ed25519
+      # signature above remains the authoritative trust anchor for
+      # the in-app updater regardless.
 
       - name: Export provenance for release
         # A single `attest-build-provenance` call covers every artefact
@@ -778,3 +829,4 @@ jobs:
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums.sig
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.intoto.jsonl
+            artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.rust-sbom.cdx.tar.gz
