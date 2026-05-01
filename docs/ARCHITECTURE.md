@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [1. High-Level Overview](#1-high-level-overview)
+  - [1.1 Cross-language responsibility split](#11-cross-language-responsibility-split)
 - [2. Module Map](#2-module-map)
 - [3. Core Modules](#3-core-modules)
   - [3.1 SSH (`core/ssh/`)](#31-ssh-coressh)
@@ -95,6 +96,76 @@ Order of preference when a feature needs OS capability: **bundle it** (e.g. SQLi
 - **DAO + Store layering** — every persisted entity has the same `Store → DAO` shape ([§11](#11-persistence--storage)); a new entity follows the existing template, not its own ad-hoc pattern.
 
 The practical upshot: before adding a widget, helper, style constant, or store, search `lib/widgets/`, `lib/theme/`, and `lib/core/**` for an existing equivalent; if behaviour is close but not identical, extend the shared primitive (add a parameter) rather than fork it. Local one-offs are allowed only when the shared pattern genuinely doesn't fit, and the reason should be obvious from the code.
+
+### 1.1 Cross-language responsibility split
+
+The repo splits across three languages (Dart, Rust, native Kotlin / Swift / C++) by **what each layer is allowed to own**, not by what's convenient. This split is load-bearing for both the security model ([§3.6](#36-security--encryption-coresecurity)) and the architecture invariant from the migration plan ("Flutter renders, Rust thinks").
+
+```mermaid
+flowchart TD
+    subgraph Dart["<b>Dart / Flutter</b> (lib/)"]
+        widgets2["Widgets, dialogs, screens<br/>xterm.dart terminal renderer<br/>Localization (15 ARB files)<br/>Theme, navigation"]
+        riverpod2["Riverpod state<br/>(UI-bound only:<br/>selection, loading, errors —<br/>NEVER plaintext secrets)"]
+        listeners2["Bus prompt listeners<br/>(subscriptions to Rust Streams)"]
+        password2["SecurePasswordField<br/>(zeroize on dispose)"]
+        plumbingShim["Thin IPC shims:<br/>QR scanner / Storage permission /<br/>Foreground service hosting"]
+    end
+
+    subgraph Rust["<b>Rust</b> (rust/crates/)"]
+        core2["<b>lfs_core</b><br/>SSH+SFTP (russh)<br/>Cryptography (RustCrypto family)<br/>SecretStore (sole plaintext owner)<br/>DB (rusqlite + SQLCipher)<br/>State machines (tier / auto-lock / orchestrators)<br/>Persisted state (sessions, config, known_hosts, …)<br/>Update orchestrator + .lfs/QR codec<br/>OpenSSH config parser, log sanitizer"]
+        ossec2["<b>lfs_os_security</b><br/>OS-API calls for all 5 platforms:<br/>keystore / biometric / hardware vault /<br/>session lock listener / clipboard /<br/>backup exclusion / single-instance<br/>Process hardening + anti-debug<br/>macOS code-signing pipeline"]
+        frb2["<b>lfs_frb</b><br/>Type-safe Dart↔Rust bridge<br/>(no business logic — adapter only)"]
+    end
+
+    subgraph Native["<b>Native plumbing</b> (Kotlin / Swift / C++)<br/>NO business logic — entry-point glue only"]
+        kotlin2["Android Kotlin:<br/>LfsJniBootstrap (JavaVM handoff)<br/>LfsBiometricCallback (callback adapter)<br/>MainActivity (Flutter host)<br/>QrScannerActivity (CameraX UI)"]
+        swift2["iOS / macOS Swift:<br/>QR scanner (AVCaptureSession UI)<br/>Hardware/SessionLock (LEGACY — retire post NI-2)"]
+        cpp2["Windows C++:<br/>hardware_vault_plugin (CNG/NCrypt)<br/>session_lock_plugin (LEGACY)"]
+    end
+
+    Dart -- "FRB calls" --> Rust
+    Rust -- "FRB streams" --> Dart
+    Rust -- "JNI / objc2 / extern \"C\"" --> Native
+    Native -- "callbacks via extern fn" --> Rust
+    Native -- "OS components<br/>(Service / FragmentActivity / etc.)" --> OSAPIs[("OS APIs")]
+    Rust -- "direct OS-API calls" --> OSAPIs
+```
+
+**Decision tree** for "where does this code go?":
+
+| Question | Layer |
+|---|---|
+| Pixels on screen? | **Dart** widgets |
+| "What does the UI show right now?" | **Dart** Riverpod state |
+| OS-API call? | **Rust** through a maintained crate (`security-framework` / `windows` / `jni` / `zbus` / `objc2`) |
+| Parsing untrusted bytes? | **Rust** (always — memory-safety perimeter) |
+| Touches secrets? | **Rust** SecretStore (always — Phase 4 plaintext-discipline boundary, [§3.6](#36-security--encryption-coresecurity)) |
+| Persisted to disk? | **Rust** through atomic-write + chmod 0600 (`lfs_core::path::write_bytes_atomic`) |
+| OS requires a JVM/UIKit class instance (Service / FragmentActivity / AVCaptureSession host)? | **Native shim** + JNI/objc2 callback into Rust |
+| Native UI surface (camera preview, file picker)? | **Native** plugin → Dart wrapper → bytes flow into Rust for parsing |
+
+**What "plumbing only" means in the native layer.** Native shims do *transitions*, not *decisions*:
+
+- `LfsJniBootstrap.register(activity)` — hands a JavaVM handle to Rust, period.
+- `LfsBiometricCallback.onAuthenticationSucceeded(reqId)` — forwards the event to a Rust `extern "system"` fn keyed on a per-prompt request id; doesn't decide what success means.
+- `QrScannerActivity` — shows the camera, returns the scanned string back to Dart→Rust.
+- Android `Service` (via `flutter_foreground_task`) — hosts the persistent-notification component; doesn't know what SSH is.
+
+What native code does **NOT** contain: cryptography, key management, business decisions, persisted state, parsing of untrusted bytes. Anything in those categories belongs in Rust.
+
+**Trace of one secret** (master password → unlock):
+
+1. User types in `SecurePasswordField` (Dart) — controller wipes on dispose, no autocorrect / IME-learning / smart quotes.
+2. Submit triggers a single FRB call `unlock_with_password(password)`.
+3. Rust receives bytes, immediately wraps in `Zeroizing<Vec<u8>>`, hands to `SecretStore`.
+4. `SecretStore::derive_kek()` runs Argon2id KDF; password bytes drop + Zeroize-clear.
+5. KEK decrypts DB key from `credentials.kdf`; KEK drops + Zeroize-clear.
+6. DB key lives in `mlock`-pinned Rust memory until a lock event.
+7. Lock event (idle / OS lock / explicit) → DB key drop + Zeroize, `mlock` release, SQLCipher handle close, `SessionCredentialCache` evict.
+
+Plaintext password exists in Dart heap on the order of milliseconds between steps 1 and 3, then everything is in Rust until the end of life. Per the Phase 4 invariant, this is the minimum possible exposure window for the chosen UX (typed master password).
+
+**Rationale for keeping Riverpod in Dart** despite the "Rust owns logic" principle: state management = reactive subscription of UI to changes. Moving Riverpod to Rust would mean every `ref.watch(provider)` is an FRB hop (~50 µs each) — at 60 FPS × hundreds of `watch`es per frame this destroys the Flutter perf model. Riverpod state holds *handles* (session ids, UUIDs) and *flags* (is-loading, last-error), never plaintext credentials, so the security-via-Rust-ownership argument doesn't apply. See [§4 State Management](#4-state-management--riverpod) for the Riverpod patterns; see [§3.6 Security & Encryption](#36-security--encryption-coresecurity) for the plaintext-discipline boundary.
 
 ---
 
