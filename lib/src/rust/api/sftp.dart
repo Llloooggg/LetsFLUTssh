@@ -48,6 +48,13 @@ abstract class SshSftp implements RustOpaqueInterface {
   /// Remove an empty directory.
   Future<void> removeDir({required String path});
 
+  /// Recursively delete a remote directory tree. The walk is
+  /// owned by `lfs_core::sftp::Sftp::remove_dir_recursive` so
+  /// the Dart caller pays one FRB roundtrip instead of N
+  /// (one per file + one per directory). Hard depth cap of
+  /// 100 mirrors the prior Dart `sftpMaxRecursionDepth`.
+  Future<void> removeDirRecursive({required String path});
+
   /// Remove a regular file.
   Future<void> removeFile({required String path});
 

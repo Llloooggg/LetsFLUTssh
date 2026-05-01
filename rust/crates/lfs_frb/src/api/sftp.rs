@@ -136,6 +136,18 @@ impl SshSftp {
             .map_err(|e| e.to_string())
     }
 
+    /// Recursively delete a remote directory tree. The walk is
+    /// owned by `lfs_core::sftp::Sftp::remove_dir_recursive` so
+    /// the Dart caller pays one FRB roundtrip instead of N
+    /// (one per file + one per directory). Hard depth cap of
+    /// 100 mirrors the prior Dart `sftpMaxRecursionDepth`.
+    pub async fn remove_dir_recursive(&self, path: String) -> Result<(), String> {
+        self.inner
+            .remove_dir_recursive(&path)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
     /// Resolve a path against the server's working directory.
     /// Expands `~` / relative paths the remote shell would resolve.
     pub async fn canonicalize(&self, path: String) -> Result<String, String> {

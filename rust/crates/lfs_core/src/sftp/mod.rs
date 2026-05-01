@@ -148,6 +148,59 @@ impl Sftp {
             .map_err(|e| Error::Io(format!("sftp remove_dir: {e}")))
     }
 
+    /// Recursively delete a remote directory. Walks the tree
+    /// depth-first, removing files and empty directories, then
+    /// drops [`path`] itself. Mirrors the Dart
+    /// `RemoteSftpFs.removeDir` walker — caps depth at
+    /// [`SFTP_MAX_RECURSION_DEPTH`] so a cyclic symlink or
+    /// pathologically deep tree fails fast instead of blowing
+    /// the stack.
+    ///
+    /// Cancellation: every `await` is a Tokio yield point so a
+    /// caller `tokio::select!`-ing this against a cancellation
+    /// signal can drop the future cleanly. The active `await`
+    /// completes; the next iteration of the for-loop never
+    /// starts.
+    pub async fn remove_dir_recursive(&self, path: &str) -> Result<(), Error> {
+        remove_dir_recursive_inner(self, path, 0).await
+    }
+}
+
+/// Hard recursion cap — matches the Dart `sftpMaxRecursionDepth`
+/// (100). Guards against cyclic symlinks + pathologically deep
+/// trees.
+pub const SFTP_MAX_RECURSION_DEPTH: usize = 100;
+
+fn remove_dir_recursive_inner<'a>(
+    sftp: &'a Sftp,
+    path: &'a str,
+    depth: usize,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
+    Box::pin(async move {
+        if depth >= SFTP_MAX_RECURSION_DEPTH {
+            return Err(Error::Io(format!(
+                "sftp remove_dir_recursive: max depth ({SFTP_MAX_RECURSION_DEPTH}) exceeded at {path}"
+            )));
+        }
+        let entries = sftp.list(path).await?;
+        let trimmed = path.trim_end_matches('/');
+        for entry in entries {
+            let child = format!("{trimmed}/{}", entry.name);
+            if entry.is_dir {
+                remove_dir_recursive_inner(sftp, &child, depth + 1).await?;
+            } else {
+                sftp.remove_file(&child).await?;
+            }
+        }
+        sftp.remove_dir(path).await?;
+        Ok(())
+    })
+}
+
+// Tail of the `impl Sftp` block re-opens here so the rest of
+// the file (open / create / mkdir helpers) stays unchanged.
+impl Sftp {
+
     /// Open a file for reading. Returns a streaming handle whose
     /// `read_chunk` pumps bytes one window at a time so multi-GB
     /// transfers stay bounded in memory.

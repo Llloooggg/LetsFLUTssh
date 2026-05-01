@@ -393,6 +393,20 @@ class RustSftpFs extends RemoteSftpFs {
     }
   }
 
+  /// Override the abstract default — the recursive walk now lives
+  /// in `lfs_core::sftp::Sftp::remove_dir_recursive` so the Dart
+  /// caller pays one FRB roundtrip instead of N (one per file +
+  /// one per directory). Same depth cap as the prior Dart-side
+  /// walker (100).
+  @override
+  Future<void> removeDir(String path) async {
+    try {
+      await _sftp.removeDirRecursive(path: path);
+    } catch (e) {
+      throw SFTPError.wrap(e, 'removeDir', path);
+    }
+  }
+
   @override
   Future<void> rename(String oldPath, String newPath) async {
     try {
