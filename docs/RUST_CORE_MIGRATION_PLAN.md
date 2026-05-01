@@ -583,10 +583,10 @@ Each file below is >1 000 LOC of human-written code; readability
 
 | File | LOC | Suggested split |
 |---|---|---|
-| `lib/app/security_init_controller.dart` | 1 535 | per-tier sub-controllers (L1 / L2 / L3 / Paranoid) + corruption flow + first-launch flow as separate files |
-| `lib/features/settings/settings_sections_security.dart` | 1 394 | tier-card builder + hw-vault remove flow + key-rotate flow as separate widgets |
-| `lib/features/session_manager/session_edit_dialog.dart` | 1 358 | per-tab widgets (auth / advanced / port-forwards / snippets) |
-| `lib/features/session_manager/session_panel.dart` | 1 264 | tree-view section + folder-actions section + bulk-ops section |
+| `lib/app/security_init_controller.dart` | **696** + 432 (unlock) + 440 (first-launch) | done (2026-05) — per-tier unlock flows (L1 / L2 / L3 / Paranoid + L2/L3 dialog scaffolding) and the first-launch wizard (per-tier appliers + macOS self-sign offer + orchestrator dispatch) live in two `extension on SecurityInitController` part siblings. SecurityInitController is a regular class, no setState wrapper needed. Main keeps the bootstrap → migration → init → corruption-recovery spine + the public API + the shared `_injectDatabase` / `_tryBiometricCommit` helpers. |
+| `lib/features/settings/settings_sections_security.dart` | **784** + 248 (apply) + 194 (biometric) + 192 (macos) | done (2026-05) — tier-apply pipeline, biometric capture / pending-toggle flow, and the macOS keychain enable/remove block each in their own `extension on _SecuritySectionState` part sibling. Adds a `rebuild(VoidCallback)` wrapper on the State so the extensions go through it instead of touching protected `setState`. Main keeps `build` / `_buildTierCard` / the biometric-spec + auto-lock-row resolvers + `onSelectTier` + `_rerunTierProbes` + `_tierName` + the helper widgets `_AutoLockTile` / `_DisabledDropdownTrigger`. |
+| `lib/features/session_manager/session_edit_dialog.dart` | **606** + 178 (connection) + 402 (auth) + 205 (options) | done (2026-05) — per-tab UI in three `extension on _SessionEditDialogState` part siblings (connection / auth / options). Adds a `rebuild(VoidCallback)` wrapper on the State so the extensions go through it instead of `setState`. Main keeps the dialog scaffold (build / header / tab bar / footer), state + lifecycle (initState / dispose / _loadForwards / _resolveKeyLabel), the Save pipeline (_buildSession / _validateAuth / _tabWithFirstError / _save), and `_requiredValidator`. |
+| `lib/features/session_manager/session_panel.dart` | **550** + 329 (session-actions) + 406 (folder-actions) + 326 (widgets) | done (2026-05) — session context menu + dialog flows and folder context menu + dialog flows in two `extension on SessionPanelState` part siblings, on top of the existing `session_panel_widgets.dart` part. Main keeps build / lifecycle / shortcut bindings / bulk-ops / sidebar layout — no public surface change, the `@visibleForTesting` getters stay where the tests expect them. |
 | `lib/widgets/expandable_tier_card.dart` | **685** + 145 + 187 + 144 (parts) | done (2026-05) — seven private helper widgets (_Header / _CurrentBadge / _ThreatListFixed / _ThreatLine / _UnavailableReason / _ModifierRow / _PasswordPair) live in three `part` siblings (header / threats / inputs), same pattern as `settings_screen.dart`. Public API unchanged. The remaining 685 LOC is the State + per-tier branching, which the original "per-tier card variants" slice would split into separate stateful widgets; deferred until the State logic stabilises further. |
 | `rust/crates/lfs_core/src/archive/` | mod.rs **477** + apply.rs 850 + compose.rs 461 + qr_compose.rs 366 + envelope.rs 226 + iso8601.rs 156 | done (2026-05) — five focused submodules: `compose` (export side: ExportOptions/Input + build_zip + per-entity build_*_value helpers + manifest writer), `qr_compose` (QR-share payload), `envelope` (LFSE Argon2id+AES-GCM wrapper + import-time KDF caps), `iso8601` (timestamp helpers shared with `archive_stage`, eliminating the duplicate Howard-Hinnant body), `apply` (whole import-apply driver). `mod.rs` now scopes to the pending-import types + `parse_pending_import` / `read_archive_to_pending` + the two pub(super) DB-aggregate helpers (build_known_hosts / build_folder_paths) that both compose and qr_compose embed. |
 | `rust/crates/lfs_core/src/ssh/mod.rs` | 1 608 | acceptable (central SSH module — refactor only if a clean split appears) |
@@ -841,9 +841,11 @@ one, ship it, then pick the next.
 7. ~~Split `rust/crates/lfs_core/src/archive.rs` (2 362 LOC) into
    focused submodules.~~ Done (2026-05) — see split-modules row in
    the oversized-files table above.
-8. Split the four oversized Dart files (`security_init_controller`,
+8. ~~Split the four oversized Dart files (`security_init_controller`,
    `settings_sections_security`, `session_edit_dialog`,
-   `session_panel`) — one file per arc, surface unchanged.
+   `session_panel`) — one file per arc, surface unchanged.~~ Done
+   (2026-05) — all four landed alongside `expandable_tier_card`;
+   see the oversized-files table above for the per-file layout.
 
 ### Soon — Phase 6 Tier 2 (3–5 days)
 
