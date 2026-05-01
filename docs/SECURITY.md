@@ -169,20 +169,36 @@ wizard and Settings surface the active backing level as a subtitle
 ("Backing: Hardware / TEE / Secure Enclave / software") so users see
 exactly what they are relying on.
 
-| Platform | T1 backing | T2 backing |
-|---|---|---|
-| iOS | Keychain → Secure Enclave | Secure Enclave (direct) |
-| macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs |
-| Android | EncryptedSharedPreferences → Keystore (StrongBox / TEE) | Keystore direct (StrongBox / TEE) |
-| Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 |
-| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct via `tpm2-tools` |
+| Platform | T1 backing | T2 backing | Rust ownership |
+|---|---|---|---|
+| iOS | Keychain → Secure Enclave | Secure Enclave (direct) | `lfs_os_security::secure_key_storage` + `hardware_tier_vault::apple` (`security-framework` + `objc2`) |
+| macOS | Keychain → Secure Enclave (T2 chip / Apple Silicon) or software-only on older Intel | Secure Enclave (direct); T2 unavailable on older Intel Macs | same as iOS — shared Apple-cfg Rust path |
+| Android | AES-256-GCM wrap key in AndroidKeyStore (TEE / StrongBox), wrapped value bytes in 0600 file under `getFilesDir()` | StrongBox-backed AES-256-GCM key with PIN-HMAC frame envelope, falls back to TEE on `StrongBoxUnavailableException` | `lfs_os_security::android::keystore` + `android::hardware_vault` (direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"`, no Kotlin shim) |
+| Windows | Credential Manager → DPAPI (TPM-bound when available) | CNG / NCrypt direct → TPM 2.0 | `lfs_os_security::secure_key_storage::windows` (`extern "system"` to `CredReadW` / `CredWriteW`); hardware-vault still on MethodChannel |
+| Linux | libsecret → **software-only** (no TPM integration in `libsecret`) | TPM 2.0 direct: subprocess `tpm2-tools` (default) **or** native `tss-esapi` via `LFS_TPM_BACKEND=native` env opt-in | `lfs_os_security::secure_key_storage::linux` (`secret-service` crate); `lfs_core::platform::linux::tpm` + `tpm_native` (subprocess + native dual backend, byte-compatible envelope) |
 
 **Linux notes.** T1 on Linux is the weakest default across the
 matrix because `libsecret` does not integrate with TPM. Users who
 want hardware binding on Linux should pick T2 (requires a TPM 2.0 +
-`tpm2-tools`; install snippet in the main README). The biometric
-modifier on Linux flows through `fprintd` and requires at least one
-enrolled finger.
+either `tpm2-tools` or `libtss2-dev` for the native backend; install
+snippet in the main README). The biometric modifier on Linux flows
+through `fprintd` and requires at least one enrolled finger. The
+`tss-esapi` native backend ([`lfs_core::platform::linux::tpm_native`](
+../rust/crates/lfs_core/src/platform/linux/tpm_native.rs)) talks
+directly to `/dev/tpm0` through the TSS2 ABI — no per-operation
+`fork()` + temp-file plumbing — and produces byte-identical sealed
+envelopes to the subprocess path so the two paths interoperate
+seamlessly.
+
+**Android notes.** The AndroidKeyStore wrap key is generated via
+direct JNI to `java.security.KeyStore` (no Kotlin business-logic
+shim — the Kotlin side carries only the JavaVM bootstrap object
+`LfsJniBootstrap` and the `BiometricPrompt` callback adapter
+`LfsBiometricCallback`, both pure plumbing). Biometric variant uses
+`setUserAuthenticationValidityDurationSeconds(60)` for cross-API
+time-bound auth. StrongBox-backed wrap keys (`setIsStrongBoxBacked(true)`,
+API 28+) are requested for the L3 hardware tier; failure
+silently falls back to TEE.
 
 ## Orthogonal modifiers
 
@@ -230,11 +246,17 @@ architecture.
 - **Auto-lock** — idle-timer lock + mobile lifecycle-paused lock +
   OS workstation-lock hook. Any tier with a typed secret arms the
   timer (Paranoid + any tier with the password modifier). Locking
-  the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock) routes through
-  `SessionLockListener` — Windows WTS, macOS
-  `NSDistributedNotificationCenter`, Linux systemd-logind D-Bus — so
-  the in-app lock fires even when the user hasn't been idle long
-  enough to trip the timer. **Every lock unconditionally wipes the
+  the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock) routes through the
+  Rust path `lfs_os_security::session_lock_listener` —
+  Windows hidden message-only window subscribing to
+  `WTSRegisterSessionNotification`, macOS dedicated `NSRunLoop`
+  thread observing `NSDistributedNotificationCenter`
+  `com.apple.screenIsLocked`, Linux zbus subscription to
+  `org.freedesktop.login1.Session.Lock`. All three forward via a
+  shared `tokio::sync::broadcast` to a single FRB Stream, so the
+  Dart side has one subscription regardless of OS. The in-app
+  lock fires even when the user hasn't been idle long enough to
+  trip the timer. **Every lock unconditionally wipes the
   DB key and closes the drift / SQLite3MultipleCiphers handle**,
   zeroing both the Dart-side `SecretBuffer` and the C-layer
   page-cipher cache (the live cipher is ChaCha20-Poly1305).
@@ -253,7 +275,11 @@ architecture.
   and biometric-stored passwords live in FFI-allocated buffers
   locked into physical RAM with `mlock` (POSIX) or `VirtualLock`
   (Windows), zeroed and unlocked on dispose. They cannot page to
-  swap or hibernate.
+  swap or hibernate. The Rust side adds `Zeroizing<Vec<u8>>` for
+  every transient cleartext copy held in `lfs_core::security::SecretStore`
+  (the only cached-plaintext owner per Phase 4 boundary contract);
+  drop = byte-clear regardless of whether the buffer was page-locked,
+  belt-and-braces against accidental compiler-side copy elision.
 - **Hardened password entry** — every secret-entry field goes
   through `SecurePasswordField`, which forces `autocorrect`,
   `enableSuggestions`, `enableIMEPersonalizedLearning`, smart-quote
@@ -283,6 +309,14 @@ architecture.
   `CAP_SYS_PTRACE`), `ptrace(PT_DENY_ATTACH)` on macOS,
   `SetErrorMode` / mitigation policies on Windows (suppresses WER
   crash dumps that would otherwise contain the cipher key).
+  Complementary runtime probe `lfs_os_security::is_being_debugged()`
+  reads the *current* tracer state (Linux `/proc/self/status` →
+  TracerPid, macOS `sysctl` → `P_TRACED`, Windows
+  `IsDebuggerPresent`) — startup hardening BLOCKS new attaches,
+  the runtime probe READS the current attach state for callers to
+  feed into security policy (e.g. lock sensitive tiers immediately,
+  require fresh unlock). Caller policy is intentionally not
+  auto-terminate: the probe returns bool, UI decides response.
 - **Clipboard hygiene** — password / token / passphrase copies
   route through `SecureClipboard.setText`, which declares the
   per-OS "don't sync, don't history" markers in the same system
