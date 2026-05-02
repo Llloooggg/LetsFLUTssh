@@ -31,8 +31,8 @@ part 'security_setup_dialog_widgets.dart';
 /// Carries both the legacy (tier + typed-secret-field) shape and the
 /// new bank-style (tier + modifiers) shape. Downstream call sites
 /// still read the legacy fields (`masterPassword`, `shortPassword`,
-/// `pin`); the `modifiers` field is populated for code paths that
-/// already consume the new shape (Phase F wiring).
+/// `pin`); the `modifiers` field is populated for the call sites
+/// that consume the bank-style shape directly.
 class SecuritySetupResult {
   /// Tier picked by the user. `plaintext` is the fallback when the
   /// wizard never resolves (barrier-dismiss on desktop shutdown).
@@ -632,4 +632,3 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     return 'libsecret';
   }
 }
-

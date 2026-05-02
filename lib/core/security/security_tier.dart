@@ -88,17 +88,16 @@ extension SecurityTierWireName on SecurityTier {
   }
 }
 
-/// Orthogonal per-tier switches.
+/// Orthogonal per-tier switches — the bank-style modifier shape:
+/// `password` and `biometric` are the two orthogonal switches the
+/// wizard presents. `biometric` requires `password` (biometric is a
+/// shortcut for entering the password, never its replacement).
 ///
-/// The bank-style modifier shape that Phase E/F lands on: `password`
-/// and `biometric` are the two orthogonal switches the wizard
-/// presents. `biometric` requires `password` (biometric is a shortcut
-/// for entering the password, never its replacement).
-///
-/// `biometricShortcut` + `pinLength` are retained for the transition
-/// window: existing persisted configs carry those fields, and some
-/// call sites still read them. `biometricShortcut` is kept in sync
-/// with `biometric` by the wizard so both readers see the same flag.
+/// `biometricShortcut` + `pinLength` are retained for backward
+/// compatibility: existing persisted configs carry those fields, and
+/// some call sites still read them. `biometricShortcut` is kept in
+/// sync with `biometric` by the wizard so both readers see the same
+/// flag.
 class SecurityTierModifiers {
   /// User-typed password gate on the unlock path. Bank-style primary
   /// auth. Structurally irrelevant on `plaintext`; on `paranoid` the
@@ -113,8 +112,8 @@ class SecurityTierModifiers {
   final bool biometric;
 
   /// Deprecated alias for [biometric]. Kept so existing call sites
-  /// that read `biometricShortcut` continue to work until Phase F
-  /// rewrites them. The wizard keeps both fields in sync on write.
+  /// that still read `biometricShortcut` continue to work; the
+  /// wizard keeps both fields in sync on write.
   final bool biometricShortcut;
 
   /// PIN length for the hardware tier in the v1 model (4-6 digits).

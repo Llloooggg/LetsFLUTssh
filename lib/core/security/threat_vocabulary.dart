@@ -104,11 +104,10 @@ enum ThreatStatus {
 enum ThreatTier { plaintext, keychain, hardware, paranoid }
 
 /// Input to [evaluate]. Encapsulates the bank-style modifier shape
-/// (password + biometric) that the 3-tier model lands in after the
-/// Phase F settings rewrite. Biometric is structurally a shortcut
-/// for entering the password; evaluator treats it as equivalent to
-/// "password on" for truth-table purposes and uses the `biometric`
-/// flag only for UI hints.
+/// (password + biometric) the 3-tier model uses. Biometric is
+/// structurally a shortcut for entering the password; evaluator
+/// treats it as equivalent to "password on" for truth-table
+/// purposes and uses the `biometric` flag only for UI hints.
 class ThreatModel {
   final ThreatTier tier;
   final bool password;

@@ -45,8 +45,7 @@ dependencies:
   # SHA-256 digest helper. Used for KeyStore fingerprints, known_hosts
   # SHA256:fingerprint, update-feed checksum, and SPKI pinning. The
   # AES-GCM / HKDF / Ed25519 / Argon2id / PPK surface that used to
-  # live in pointycastle moved to `lfs_core::crypto` + `lfs_core::keys`
-  # (Phases 2.1 / 2.2 / 2.4 / 2.6).
+  # live in pointycastle moved to `lfs_core::crypto` + `lfs_core::keys`.
   crypto: ^3.0.5
 
   # Archive (pure Dart ZIP)
