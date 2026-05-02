@@ -54,6 +54,9 @@ Session dbSessionToSession(
     extras: _decodeExtras(db.extras),
     viaSessionId: db.viaSessionId,
     viaOverride: _decodeOverride(db.viaHost, db.viaPort, db.viaUser),
+    notes: db.notes,
+    sortOrder: db.sortOrder,
+    lastConnectedAtMs: db.lastConnectedAtMs,
   );
 }
 
@@ -106,9 +109,9 @@ rust_db.DbSession sessionToRustRow(Session s, {required String? folderId}) {
     keyData: s.keyData,
     keyId: s.keyId.isEmpty ? null : s.keyId,
     passphrase: s.passphrase,
-    sortOrder: 0,
-    notes: '',
-    lastConnectedAtMs: null,
+    sortOrder: s.sortOrder,
+    notes: s.notes,
+    lastConnectedAtMs: s.lastConnectedAtMs,
     extras: jsonEncode(s.extras),
     viaSessionId: s.viaSessionId,
     viaHost: usingSavedBastion ? null : s.viaOverride?.host,

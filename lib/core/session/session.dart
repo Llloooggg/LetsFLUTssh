@@ -182,6 +182,22 @@ class Session {
   /// non-null. See [ProxyJumpOverride] for the unit-set rule.
   final ProxyJumpOverride? viaOverride;
 
+  /// User-facing free-form note. Persisted in `Sessions.notes`
+  /// (default: empty). Round-tripped through every save path —
+  /// edits to other fields must NOT clobber it.
+  final String notes;
+
+  /// Manual sort order within a folder. Lower values appear first;
+  /// equal values fall back to alphabetic by `label`. Zero means
+  /// "unspecified" (the row uses default ordering). Persisted in
+  /// `Sessions.sort_order`.
+  final int sortOrder;
+
+  /// Wall-clock timestamp of the most recent successful connect, in
+  /// milliseconds since epoch. `null` if the session has never been
+  /// connected. Persisted in `Sessions.last_connected_at`.
+  final int? lastConnectedAtMs;
+
   Session({
     String? id,
     required this.label,
@@ -193,6 +209,9 @@ class Session {
     Map<String, Object?>? extras,
     this.viaSessionId,
     this.viaOverride,
+    this.notes = '',
+    this.sortOrder = 0,
+    this.lastConnectedAtMs,
   }) : id = id ?? const Uuid().v4(),
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now(),
@@ -329,6 +348,9 @@ class Session {
     Map<String, Object?>? extras,
     Object? viaSessionId = _unsetVia,
     Object? viaOverride = _unsetVia,
+    String? notes,
+    int? sortOrder,
+    Object? lastConnectedAtMs = _unsetVia,
   }) {
     return Session(
       id: id,
@@ -345,6 +367,11 @@ class Session {
       viaOverride: identical(viaOverride, _unsetVia)
           ? this.viaOverride
           : viaOverride as ProxyJumpOverride?,
+      notes: notes ?? this.notes,
+      sortOrder: sortOrder ?? this.sortOrder,
+      lastConnectedAtMs: identical(lastConnectedAtMs, _unsetVia)
+          ? this.lastConnectedAtMs
+          : lastConnectedAtMs as int?,
     );
   }
 
@@ -387,6 +414,9 @@ class Session {
     if (extras.isNotEmpty) 'extras': extras,
     if (viaSessionId != null) 'via_session_id': viaSessionId,
     if (viaOverride != null) 'via_override': viaOverride!.toJson(),
+    if (notes.isNotEmpty) 'notes': notes,
+    if (sortOrder != 0) 'sort_order': sortOrder,
+    if (lastConnectedAtMs != null) 'last_connected_at_ms': lastConnectedAtMs,
   };
 
   /// Serialize with secrets — for encrypted export only.
@@ -408,6 +438,9 @@ class Session {
           auth == other.auth &&
           viaSessionId == other.viaSessionId &&
           viaOverride == other.viaOverride &&
+          notes == other.notes &&
+          sortOrder == other.sortOrder &&
+          lastConnectedAtMs == other.lastConnectedAtMs &&
           _extrasEqual(extras, other.extras);
 
   @override
@@ -419,6 +452,9 @@ class Session {
     auth,
     viaSessionId,
     viaOverride,
+    notes,
+    sortOrder,
+    lastConnectedAtMs,
     // Map.hashCode is identity-based — fold the entries instead so
     // two sessions with logically equal `extras` hash equal too.
     Object.hashAllUnordered(
@@ -470,6 +506,9 @@ class Session {
               json['via_override'] as Map<String, dynamic>,
             )
           : null,
+      notes: json['notes'] as String? ?? '',
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+      lastConnectedAtMs: (json['last_connected_at_ms'] as num?)?.toInt(),
     );
   }
 

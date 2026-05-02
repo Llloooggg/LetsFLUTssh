@@ -288,8 +288,8 @@ class SessionNotifier extends Notifier<List<Session>> {
           authType: session.auth.authType.name,
           keyPath: session.auth.keyPath,
           keyId: session.keyId.isEmpty ? null : session.keyId,
-          sortOrder: 0,
-          notes: '',
+          sortOrder: session.sortOrder,
+          notes: session.notes,
           extras: jsonEncode(session.extras),
           viaSessionId: session.viaSessionId,
           viaHost: session.viaSessionId != null
@@ -696,9 +696,9 @@ class SessionNotifier extends Notifier<List<Session>> {
               keyData: s.keyData,
               keyId: s.keyId.isEmpty ? null : s.keyId,
               passphrase: s.passphrase,
-              sortOrder: 0,
-              notes: '',
-              lastConnectedAtMs: null,
+              sortOrder: s.sortOrder,
+              notes: s.notes,
+              lastConnectedAtMs: s.lastConnectedAtMs,
               extras: s.extras.isEmpty ? '' : jsonEncode(s.extras),
               viaSessionId: (s.viaSessionId == null || s.viaSessionId!.isEmpty)
                   ? null

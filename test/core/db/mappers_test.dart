@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/db/mappers.dart';
+import 'package:letsflutssh/core/session/session.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/src/rust/api/db.dart' as rust_db;
 
 import '../../helpers/frb_bootstrap.dart';
@@ -97,6 +99,34 @@ void main() {
       final folders = {'a': _folder('a', 'Production', null)};
       expect(findFolderIdByPath('', folders), isNull);
       expect(findFolderIdByPath('Nope', folders), isNull);
+    });
+  });
+
+  // Regression: `sessionToRustRow` used to hard-code
+  // `sortOrder: 0`, `notes: ''`, `lastConnectedAtMs: null`, so
+  // every save through `add` / `update` clobbered any non-zero
+  // value previously stored Rust-side. `notes` is user-authored
+  // content; the bug was destructive on every edit. Round-trip is
+  // now total and the round-trip test pins it.
+  group('Session ↔ DbSession round-trip preserves metadata', () {
+    test('sortOrder, notes, lastConnectedAtMs survive sessionToRustRow → '
+        'dbSessionToSession', () {
+      final original = Session(
+        id: 's1',
+        label: 'web-prod',
+        server: const ServerAddress(host: 'h', port: 22, user: 'u'),
+        notes: 'capacity-tuning notes from the user',
+        sortOrder: 42,
+        lastConnectedAtMs: 1714579200000,
+      );
+      final dbRow = sessionToRustRow(original, folderId: null);
+      expect(dbRow.notes, original.notes);
+      expect(dbRow.sortOrder, original.sortOrder);
+      expect(dbRow.lastConnectedAtMs, original.lastConnectedAtMs);
+      final restored = dbSessionToSession(dbRow, const {});
+      expect(restored.notes, original.notes);
+      expect(restored.sortOrder, original.sortOrder);
+      expect(restored.lastConnectedAtMs, original.lastConnectedAtMs);
     });
   });
 }
