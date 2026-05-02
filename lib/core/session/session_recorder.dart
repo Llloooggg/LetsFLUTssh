@@ -83,6 +83,15 @@ class SessionRecorder {
   /// reported on-disk path so [close] returns the freshest value.
   StreamSubscription<rust_bus.BusEvent>? _busSub;
 
+  /// Resolved when the Rust worker emits `RecorderStopped` for our
+  /// id. [close] awaits it (with a timeout) so the on-disk file is
+  /// fully sealed before the caller proceeds — without this, the
+  /// trailing bytes after the close enqueue could still be in the
+  /// worker's mailbox when [close] returned, producing a truncated
+  /// recording on a fast disconnect. ARCH §3.13 promised this; the
+  /// pre-fix implementation only awaited the enqueue-close future.
+  final Completer<void> _stoppedCompleter = Completer<void>();
+
   /// Set by [close]; subsequent record calls become no-ops so the
   /// shell teardown's last bytes do not throw on a closed sink.
   bool _closed = false;
@@ -190,6 +199,18 @@ class SessionRecorder {
   /// Flush queued frames and close the file. Returns the path of the
   /// last written file so callers (UI delete actions, settings) can
   /// reference it.
+  ///
+  /// Waits for `BusEvent_RecorderStopped` before completing so the
+  /// on-disk file is fully sealed by the time the caller acts on
+  /// the returned path (delete / display / export). The previous
+  /// implementation only awaited the enqueue future, which let
+  /// every event still in the worker's mailbox race the file
+  /// close on a fast shell teardown — ARCH §3.13 documented the
+  /// flush guarantee but the code did not enforce it.
+  ///
+  /// A 2 s timeout protects callers from hanging if the Rust
+  /// worker has crashed; on timeout the path is returned but
+  /// trailing bytes may be missing.
   Future<String?> close() async {
     if (_closed) return _currentPath;
     _closed = true;
@@ -199,6 +220,16 @@ class SessionRecorder {
       AppLogger.instance.log(
         'recorderQueueEnqueueClose failed: $e',
         name: 'Recorder',
+      );
+    }
+    try {
+      await _stoppedCompleter.future.timeout(const Duration(seconds: 2));
+    } on TimeoutException {
+      AppLogger.instance.log(
+        'SessionRecorder close: RecorderStopped did not arrive within 2s — '
+        'tail bytes may be missing on the final recording',
+        name: 'Recorder',
+        level: LogLevel.warn,
       );
     }
     await _busSub?.cancel();
@@ -256,16 +287,22 @@ class SessionRecorder {
     );
   }
 
-  /// Handler for the per-id recorder topic. Two events matter
+  /// Handler for the per-id recorder topic. Three events matter
   /// here: `RecorderRotateRequested` triggers a fresh-file
   /// rotation; `RecorderStarted` (re-emitted by `rotate_to`)
-  /// updates our cached `_currentPath`.
+  /// updates our cached `_currentPath`; `RecorderStopped` resolves
+  /// the close-flush guard so [close] returns only after the
+  /// worker has actually drained its mailbox and sealed the file.
   void _onBusEvent(rust_bus.BusEvent event) {
     switch (event) {
       case rust_bus.BusEvent_RecorderRotateRequested():
         unawaited(_rotate());
       case rust_bus.BusEvent_RecorderStarted(:final path):
         _currentPath = path;
+      case rust_bus.BusEvent_RecorderStopped():
+        if (!_stoppedCompleter.isCompleted) {
+          _stoppedCompleter.complete();
+        }
       case _:
         break;
     }
