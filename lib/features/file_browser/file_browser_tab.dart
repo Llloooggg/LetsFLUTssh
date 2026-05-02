@@ -14,6 +14,8 @@ import '../../widgets/app_empty_state.dart';
 import '../../widgets/connection_progress.dart';
 import '../../core/connection/connection.dart';
 import '../../core/sftp/sftp_models.dart';
+import '../../core/transfer/conflict_resolver.dart';
+import '../../core/transfer/unique_name.dart';
 import 'file_browser_controller.dart';
 import 'file_pane.dart';
 import 'sftp_browser_mixin.dart';
@@ -271,21 +273,95 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
   /// (which is owned Rust-side and SFTP-only); the file-system copy
   /// runs inline on the UI isolate. Best-effort: a partial dir copy
   /// surfaces as a logged warning, the user can re-drop to retry.
+  ///
+  /// Routes every file destination through [buildConflictResolver]
+  /// so a drop that overlaps an existing target prompts the same
+  /// `FileConflictDialog` the SFTP transfer paths use — without
+  /// this the OS drop silently overwrote the target with no UI.
+  /// Symlinks in the dropped tree are skipped so a malicious drop
+  /// can't follow a link out of the user's chosen destination.
   void _osDropToLocal(List<String> paths) {
+    if (_localCtrl == null) return;
+    if (paths.isEmpty) return;
+    final resolver = buildConflictResolver(showApplyToAll: paths.length > 1);
+    unawaited(_runLocalDropBatch(paths: paths, resolver: resolver));
+  }
+
+  Future<void> _runLocalDropBatch({
+    required List<String> paths,
+    required BatchConflictResolver resolver,
+  }) async {
     final local = _localCtrl;
     if (local == null) return;
-    for (final srcPath in paths) {
-      final name = p.basename(srcPath);
-      final targetPath = p.join(local.currentPath, name);
-      final isDir = FileSystemEntity.isDirectorySync(srcPath);
-      unawaited(
-        _runLocalDrop(
+    try {
+      for (final srcPath in paths) {
+        if (resolver.isCancelled) break;
+        if (!mounted) return;
+        final name = p.basename(srcPath);
+        final type = FileSystemEntity.typeSync(srcPath, followLinks: false);
+        if (type == FileSystemEntityType.notFound) continue;
+        if (type == FileSystemEntityType.link) {
+          AppLogger.instance.log(
+            'Refusing OS drop of symlink source: $srcPath',
+            name: 'FileBrowser',
+            level: LogLevel.warn,
+          );
+          continue;
+        }
+        final isDir = type == FileSystemEntityType.directory;
+        final initialTarget = p.join(local.currentPath, name);
+        final resolvedTarget = await _resolveLocalDropConflict(
+          targetPath: initialTarget,
+          isDir: isDir,
+          resolver: resolver,
+        );
+        if (resolvedTarget == null) continue;
+        await _runLocalDrop(
           srcPath: srcPath,
-          targetPath: targetPath,
+          targetPath: resolvedTarget,
           isDir: isDir,
           name: name,
-        ),
+        );
+      }
+    } finally {
+      resolver.dispose();
+    }
+  }
+
+  /// Returns the local-FS path to copy into, or `null` when the user
+  /// chose to skip / cancel. A pre-existing symlink at the target is
+  /// hard-rejected (no overwrite-via-symlink) so the conflict dialog
+  /// does not become a vehicle for following an attacker-supplied
+  /// link out of the user's chosen directory.
+  Future<String?> _resolveLocalDropConflict({
+    required String targetPath,
+    required bool isDir,
+    required BatchConflictResolver resolver,
+  }) async {
+    final type = FileSystemEntity.typeSync(targetPath, followLinks: false);
+    if (type == FileSystemEntityType.notFound) return targetPath;
+    if (type == FileSystemEntityType.link) {
+      AppLogger.instance.log(
+        'Refusing local drop onto pre-existing symlink: $targetPath',
+        name: 'FileBrowser',
+        level: LogLevel.warn,
       );
+      return null;
+    }
+    final action = await resolver.resolve(targetPath, isRemote: false);
+    switch (action) {
+      case ConflictAction.skip:
+      case ConflictAction.cancel:
+        return null;
+      case ConflictAction.keepBoth:
+        return uniqueSiblingName(
+          targetPath,
+          (path) async =>
+              FileSystemEntity.typeSync(path, followLinks: false) !=
+              FileSystemEntityType.notFound,
+        );
+      case ConflictAction.replace:
+        return targetPath;
     }
   }
 
@@ -340,7 +416,13 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
       throw StateError('Maximum recursion depth ($_maxCopyDepth) exceeded');
     }
     await dst.create(recursive: true);
-    await for (final entity in src.list()) {
+    // `followLinks: false` so a symlink-to-directory inside the
+    // dropped tree is NOT traversed — a benign loop or a hostile
+    // link to /etc would otherwise resolve into the recursion. The
+    // SFTP upload walker (`transfer_helpers._enqueueUploadDir`) already
+    // uses the same flag; the OS-drop path was the inconsistent one.
+    await for (final entity in src.list(followLinks: false)) {
+      if (entity is Link) continue;
       final name = p.basename(entity.path);
       if (entity is File) {
         await entity.copy(p.join(dst.path, name));

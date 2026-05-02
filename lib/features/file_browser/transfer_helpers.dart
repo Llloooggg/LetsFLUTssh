@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../core/sftp/sftp_fs.dart';
@@ -190,7 +191,21 @@ class TransferHelpers {
     final entries = await sftp.list(remoteDir);
     for (final remoteEntry in entries) {
       final base = remoteEntry.name;
-      if (base == '.' || base == '..') continue;
+      if (!_isSafeRemoteEntryName(base)) {
+        // SFTP server-supplied names are untrusted bytes — a hostile
+        // remote returning `name: "../../../etc/cron.d/x"` (or a
+        // backslash on Windows, an embedded NUL anywhere, or a leading
+        // `.` traversal segment) used to flow straight into `p.join`,
+        // which does NOT normalise — the resulting `localPath` could
+        // land outside the user-chosen download directory. Reject the
+        // entry instead. See P7.2 in `docs/_audit/REPORT.md`.
+        AppLogger.instance.log(
+          'Skipping remote entry with unsafe name <name> in $remoteDir',
+          name: 'Transfer',
+          level: LogLevel.warn,
+        );
+        continue;
+      }
       final remoteChild = p.posix.join(remoteDir, base);
       final localChild = p.join(localDir, base);
       if (remoteEntry.isDir) {
@@ -290,6 +305,37 @@ class TransferHelpers {
 
   static Future<bool> _localExists(String path) async {
     return FileSystemEntity.typeSync(path) != FileSystemEntityType.notFound;
+  }
+
+  /// Reject SFTP-supplied filenames that could escape the user-chosen
+  /// download directory after `p.join`. `p.join` concatenates without
+  /// normalising — a name carrying path separators, traversal
+  /// segments, or NUL bytes lands the file at an attacker-chosen
+  /// destination. Single dots are filesystem self-references and
+  /// would mostly no-op, but rejecting them keeps the predicate
+  /// simple and the file pane's listing intuitive.
+  ///
+  /// Visible-for-testing so the regression test can pin every
+  /// rejection branch (separators, dotdot prefix, embedded NUL,
+  /// empty names, surrounding whitespace).
+  @visibleForTesting
+  static bool isSafeRemoteEntryName(String name) =>
+      _isSafeRemoteEntryName(name);
+
+  static bool _isSafeRemoteEntryName(String name) {
+    if (name.isEmpty) return false;
+    if (name == '.' || name == '..') return false;
+    // Reject any path-separator embedded in the name. Both POSIX and
+    // Windows separators rejected so a Windows-shaped server name
+    // cannot drift through the POSIX-only check.
+    if (name.contains('/') || name.contains('\\')) return false;
+    // Reject embedded NUL — most filesystems treat these as
+    // terminators and would silently truncate the path.
+    if (name.contains(' ')) return false;
+    // Trim test catches names that round-trip through whitespace
+    // canonicalisation differently across platforms.
+    if (name.trim().isEmpty) return false;
+    return true;
   }
 
   static _LocalSnapshot? _snapshotLocal(String path) {

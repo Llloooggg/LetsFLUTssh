@@ -122,7 +122,7 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final sftp = sftpResult?.filesystem;
     final remote = sftpResult?.remoteCtrl;
     if (sftp == null || remote == null || entries.isEmpty) return;
-    final resolver = _buildResolver(showApplyToAll: entries.length > 1);
+    final resolver = buildConflictResolver(showApplyToAll: entries.length > 1);
     try {
       for (final entry in entries) {
         if (resolver.isCancelled) break;
@@ -149,7 +149,7 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final sftp = sftpResult?.filesystem;
     final local = sftpResult?.localCtrl;
     if (sftp == null || local == null || entries.isEmpty) return;
-    final resolver = _buildResolver(showApplyToAll: entries.length > 1);
+    final resolver = buildConflictResolver(showApplyToAll: entries.length > 1);
     try {
       for (final entry in entries) {
         if (resolver.isCancelled) break;
@@ -169,7 +169,7 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     }
   }
 
-  BatchConflictResolver _buildResolver({required bool showApplyToAll}) {
+  BatchConflictResolver buildConflictResolver({required bool showApplyToAll}) {
     return BatchConflictResolver((path, {bool isRemote = false}) async {
       if (!mounted) return const ConflictDecision(ConflictAction.cancel);
       return FileConflictDialog.show(
