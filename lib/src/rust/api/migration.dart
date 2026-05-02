@@ -14,6 +14,12 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// `SecurityInitController` to detect a config below the current
 /// schema floor *after* the migration runner has already walked
 /// every chain it knows about.
+///
+/// Async + `spawn_blocking` — the read touches the filesystem and
+/// must not stall the FRB worker thread. The earlier sync shape
+/// happened to work because Dart only calls this once at startup,
+/// but a future test that drives the path from inside an event
+/// loop would block.
 Future<int> migrationConfigVersionOnDisk({required String supportDir}) =>
     RustLib.instance.api.crateApiMigrationMigrationConfigVersionOnDisk(
       supportDir: supportDir,
@@ -25,6 +31,15 @@ Future<int> migrationConfigVersionOnDisk({required String supportDir}) =>
 /// [`DbMigrationReport`]. The Dart caller surfaces any non-no-op
 /// failure via the corrupt-data dialog and refuses to start the
 /// unlock flow.
+///
+/// Async + `spawn_blocking` — the runner walks every artefact's
+/// on-disk chain (read + parse + maybe-rewrite per artefact);
+/// keeping it sync would block the FRB worker thread for the
+/// duration. Today the chain is short on healthy installs (every
+/// artefact is at the current version, no work to do), but a
+/// migration that touches several artefacts could run for tens
+/// of milliseconds and that is unbounded enough to deserve the
+/// spawn_blocking wrapper.
 Future<DbMigrationReport> migrationRunOnStartup({required String supportDir}) =>
     RustLib.instance.api.crateApiMigrationMigrationRunOnStartup(
       supportDir: supportDir,

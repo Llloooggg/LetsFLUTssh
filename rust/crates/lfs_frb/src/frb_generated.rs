@@ -9706,7 +9706,7 @@ fn wire__crate__api__migration__migration_config_version_on_disk_impl(
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "migration_config_version_on_disk",
             port: Some(port_),
@@ -9724,12 +9724,17 @@ fn wire__crate__api__migration__migration_config_version_on_disk_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let output_ok =
-                        crate::api::migration::migration_config_version_on_disk(api_support_dir)?;
-                    Ok(output_ok)
-                })())
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let output_ok = crate::api::migration::migration_config_version_on_disk(
+                            api_support_dir,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
             }
         },
     )
@@ -9740,7 +9745,7 @@ fn wire__crate__api__migration__migration_run_on_startup_impl(
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "migration_run_on_startup",
             port: Some(port_),
@@ -9758,13 +9763,16 @@ fn wire__crate__api__migration__migration_run_on_startup_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_support_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::migration::migration_run_on_startup(api_support_dir),
-                    )?;
-                    Ok(output_ok)
-                })())
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok = Result::<_, ()>::Ok(
+                            crate::api::migration::migration_run_on_startup(api_support_dir).await,
+                        )?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
             }
         },
     )

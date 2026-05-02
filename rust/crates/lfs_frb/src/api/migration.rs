@@ -40,10 +40,20 @@ pub struct DbMigrationReport {
 /// `SecurityInitController` to detect a config below the current
 /// schema floor *after* the migration runner has already walked
 /// every chain it knows about.
-pub fn migration_config_version_on_disk(support_dir: String) -> Result<i32, String> {
-    use lfs_core::migration::artefacts::ConfigArtefact;
-    use lfs_core::migration::Artefact;
-    ConfigArtefact.read_version(std::path::Path::new(&support_dir))
+///
+/// Async + `spawn_blocking` — the read touches the filesystem and
+/// must not stall the FRB worker thread. The earlier sync shape
+/// happened to work because Dart only calls this once at startup,
+/// but a future test that drives the path from inside an event
+/// loop would block.
+pub async fn migration_config_version_on_disk(support_dir: String) -> Result<i32, String> {
+    tokio::task::spawn_blocking(move || {
+        use lfs_core::migration::artefacts::ConfigArtefact;
+        use lfs_core::migration::Artefact;
+        ConfigArtefact.read_version(std::path::Path::new(&support_dir))
+    })
+    .await
+    .map_err(|e| format!("config-version task: {e}"))?
 }
 
 /// Run every registered artefact's migration chain against the
@@ -52,30 +62,53 @@ pub fn migration_config_version_on_disk(support_dir: String) -> Result<i32, Stri
 /// [`DbMigrationReport`]. The Dart caller surfaces any non-no-op
 /// failure via the corrupt-data dialog and refuses to start the
 /// unlock flow.
-pub fn migration_run_on_startup(support_dir: String) -> DbMigrationReport {
-    let registry = lfs_core::migration::build_app_registry();
-    let report = lfs_core::migration::run_on_startup(std::path::Path::new(&support_dir), &registry);
-    DbMigrationReport {
-        steps: report
-            .steps
-            .into_iter()
-            .map(|s| DbMigrationStep {
-                artefact_id: s.artefact_id,
-                from_version: s.from_version,
-                to_version: s.to_version,
-                succeeded: s.succeeded,
-                error: s.error,
-            })
-            .collect(),
-        future_versions: report
-            .future_versions
-            .into_iter()
-            .map(|f| DbUnsupportedFutureVersion {
-                artefact_id: f.artefact_id,
-                on_disk_version: f.on_disk_version,
-                known_target_version: f.known_target_version,
-            })
-            .collect(),
-        fatal_error: report.fatal_error,
-    }
+///
+/// Async + `spawn_blocking` — the runner walks every artefact's
+/// on-disk chain (read + parse + maybe-rewrite per artefact);
+/// keeping it sync would block the FRB worker thread for the
+/// duration. Today the chain is short on healthy installs (every
+/// artefact is at the current version, no work to do), but a
+/// migration that touches several artefacts could run for tens
+/// of milliseconds and that is unbounded enough to deserve the
+/// spawn_blocking wrapper.
+pub async fn migration_run_on_startup(support_dir: String) -> DbMigrationReport {
+    tokio::task::spawn_blocking(move || {
+        let registry = lfs_core::migration::build_app_registry();
+        let report =
+            lfs_core::migration::run_on_startup(std::path::Path::new(&support_dir), &registry);
+        DbMigrationReport {
+            steps: report
+                .steps
+                .into_iter()
+                .map(|s| DbMigrationStep {
+                    artefact_id: s.artefact_id,
+                    from_version: s.from_version,
+                    to_version: s.to_version,
+                    succeeded: s.succeeded,
+                    error: s.error,
+                })
+                .collect(),
+            future_versions: report
+                .future_versions
+                .into_iter()
+                .map(|f| DbUnsupportedFutureVersion {
+                    artefact_id: f.artefact_id,
+                    on_disk_version: f.on_disk_version,
+                    known_target_version: f.known_target_version,
+                })
+                .collect(),
+            fatal_error: report.fatal_error,
+        }
+    })
+    .await
+    // The closure above is panic-free (lfs_core::migration::run_on_startup
+    // already swallows per-artefact panics into report.fatal_error). On
+    // the unlikely off-chance that spawn_blocking itself surfaces a
+    // JoinError, return a synthetic fatal-error report rather than
+    // bubbling the panic across FRB.
+    .unwrap_or_else(|e| DbMigrationReport {
+        steps: Vec::new(),
+        future_versions: Vec::new(),
+        fatal_error: Some(format!("migration runner task: {e}")),
+    })
 }
