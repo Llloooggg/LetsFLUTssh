@@ -9,6 +9,7 @@ import 'l10n/app_localizations.dart';
 import 'app/already_running_app.dart';
 import 'app/app_toolbar.dart';
 import 'app/deep_link_wiring.dart';
+import 'app/fatal_error_app.dart';
 import 'app/host_key_prompt_listener.dart';
 import 'app/hardware_vault_probe_prompt_listener.dart';
 import 'app/hardware_vault_seal_prompt_listener.dart';
@@ -197,10 +198,14 @@ Future<void> _mainBody() async {
   // Rust security/transport core — load the bundled native blob and
   // verify the Dart bindings match. See ARCHITECTURE.md §3.14 +
   // docs/RUST_CORE_MIGRATION_PLAN.md. Every SSH/SFTP/keypair/crypto
-  // call routes through here; failure to load is fatal in practice
-  // (the first connect attempt would crash on the missing FRB
-  // bindings). The catch arm exists so the smoke ping doesn't
-  // tank app startup if the version probe itself misbehaves.
+  // call routes through here; failure to load is fatal — without
+  // the core, every subsequent FRB call throws, and the migration
+  // runner interprets those throws as a corrupt-DB signal. That
+  // routes the user into `DbCorruptDialog` whose "Reset and start
+  // fresh" button calls `WipeAllService.wipeAll()` — destroying
+  // their data because of what is usually a transient packaging
+  // issue. Bail out to a dedicated fatal screen instead so the
+  // wipe path is unreachable.
   try {
     await RustLib.init();
     // Initialise the AppState singleton in lfs_core. Subsequent
@@ -212,12 +217,23 @@ Future<void> _mainBody() async {
       name: 'RustCore',
     );
   } catch (e, st) {
-    AppLogger.instance.log(
-      'Rust core failed to load: $e',
+    await AppLogger.instance.logCritical(
+      'Rust core failed to load — bailing to fatal screen: $e',
       name: 'RustCore',
       error: e,
       stackTrace: st,
     );
+    runApp(
+      const FatalErrorApp(
+        summary: 'LetsFLUTssh cannot start.',
+        detail:
+            'The bundled native core failed to load. This usually means the '
+            'application bundle is incomplete or incompatible with this '
+            'platform. Reinstalling the app should restore it. Your saved '
+            'sessions and data are not affected.',
+      ),
+    );
+    return;
   }
 
   // Disable core dumps and ptrace attach as early as possible — before any
@@ -274,4 +290,3 @@ Future<void> _mainBody() async {
     ),
   );
 }
-
