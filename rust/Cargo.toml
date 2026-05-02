@@ -144,8 +144,10 @@ uuid = { version = "1", default-features = false, features = ["v4"] }
 futures-util = { version = "0.3", default-features = false }
 serde = { version = "1", default-features = false }
 # Cross-platform dynamic library loader. Used by
-# `lfs_frb::api::winbio` (Windows-only) to mirror the Dart
-# `DynamicLibrary.open('winbio.dll')` shape.
+# `lfs_os_security::winbio` (Windows-only) to dynamic-load
+# `winbio.dll` so the crate still builds on Windows hosts
+# where `winbio.lib` is absent — the unit count probe degrades
+# to `0` rather than producing a link error.
 libloading = "0.8"
 # HTTP client for the auto-update fetch path
 # (`lfs_core::update_http`). `rustls-tls` keeps the dep tree

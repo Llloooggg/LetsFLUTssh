@@ -105,15 +105,14 @@ async fn run_biometric_probe() -> bool {
     // wraps LAContext / UserConsentVerifier / BiometricManager
     // (JNI). A timeout collapses a stuck native probe to "not
     // available" rather than blocking the wizard's spinner.
-    match tokio::time::timeout(
-        PROBE_TIMEOUT,
-        lfs_os_security::biometric_auth::check_availability(),
+    matches!(
+        tokio::time::timeout(
+            PROBE_TIMEOUT,
+            lfs_os_security::biometric_auth::check_availability(),
+        )
+        .await,
+        Ok(Ok(()))
     )
-    .await
-    {
-        Ok(Ok(())) => true,
-        _ => false,
-    }
 }
 
 async fn run_keychain_probe() -> KeyringProbeResult {

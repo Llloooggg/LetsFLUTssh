@@ -40,7 +40,12 @@ libc = { version = "0.2", default-features = false }
 # the API the Hello prompt fires through) plus the Win32
 # surface needed by `session_lock_listener` to register an
 # `WTSRegisterSessionNotification` callback against a hidden
-# message-only window.
+# message-only window. `libloading` is the dynamic loader the
+# `winbio` module uses to resolve `WinBioEnumBiometricUnits`
+# at runtime (we avoid linking winbio.lib directly so the
+# build still succeeds on Windows hosts where the SDK lib is
+# absent — the unit count probe degrades to `0` instead of a
+# link error).
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = [
     "Security_Credentials_UI",
@@ -51,6 +56,7 @@ windows = { version = "0.62", features = [
     "Win32_System_RemoteDesktop",
     "Win32_UI_WindowsAndMessaging",
 ] }
+libloading = { workspace = true }
 # `IAsyncOperation` + `AsyncStatus` live in `windows-future` (a
 # sibling crate to `windows-core`); the `windows` umbrella crate
 # does not re-export them. Required by `biometric_auth`'s

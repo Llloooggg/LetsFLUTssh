@@ -379,6 +379,9 @@ pub mod secure_clipboard;
 pub mod secure_key_storage;
 pub mod session_lock_listener;
 pub mod single_instance;
+// Cross-platform shape (`-1` outside Windows); real FFI behind
+// a target_os gate inside the module.
+pub mod winbio;
 
 // macOS-only — Tier 4 code-signing pipeline (`openssl` /
 // `security` / `codesign` shell-out) + atomic installer

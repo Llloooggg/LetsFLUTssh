@@ -467,9 +467,7 @@ impl RecorderRegistry {
             // Same chmod 0600 harden the initial-register path
             // applies — every rotation creates a fresh file at
             // umask-default mode otherwise.
-            if let Err(msg) =
-                crate::path::harden_file_perms(std::path::Path::new(&new_path))
-            {
+            if let Err(msg) = crate::path::harden_file_perms(std::path::Path::new(&new_path)) {
                 return Err(Error::Io(format!(
                     "recorder rotate harden {new_path}: {msg}"
                 )));

@@ -30,11 +30,6 @@ rand = "0.8"
 # `config.json`. Same crate `lfs_core` already pins.
 serde_json = { workspace = true }
 
-# Windows-only dynamic loader for the WinBio probe surface
-# (`api::winbio`). Skipped on every other build target.
-[target.'cfg(target_os = "windows")'.dependencies]
-libloading = { workspace = true }
-
 # FRB's `cargo expand` step injects `--cfg frb_expand` to drive its
 # macro expansion. Whitelist that single cfg so `clippy -D warnings`
 # does not trip over the otherwise-unknown gate. Do not blanket-allow

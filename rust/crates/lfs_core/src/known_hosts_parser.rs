@@ -207,10 +207,7 @@ mod tests {
     fn ipv6_default_port_keeps_brackets() {
         // A bracketed IPv6 host with no port falls through to the
         // default-22 path — brackets must still be preserved.
-        assert_eq!(
-            normalise_host_spec("[::1]"),
-            Some("[::1]:22".to_string()),
-        );
+        assert_eq!(normalise_host_spec("[::1]"), Some("[::1]:22".to_string()),);
     }
 
     #[test]

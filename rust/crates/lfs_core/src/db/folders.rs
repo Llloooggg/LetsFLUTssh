@@ -176,11 +176,7 @@ pub fn update_name_parent(
 /// by [`update_name_parent`] to reject reparent operations that
 /// would create a cycle. Bounded by the number of folder rows so
 /// pre-existing on-disk cycles can't make this loop forever.
-fn is_descendant_of(
-    conn: &Connection,
-    candidate: &str,
-    ancestor: &str,
-) -> Result<bool, Error> {
+fn is_descendant_of(conn: &Connection, candidate: &str, ancestor: &str) -> Result<bool, Error> {
     let mut current: Option<String> = Some(candidate.to_string());
     let mut hops: u32 = 0;
     let max_hops: u32 = 65_536;

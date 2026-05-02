@@ -26,10 +26,7 @@ fn pool_arc() -> Arc<WorkerPool> {
     // valid Arc), so reusing the inner value is sound. The
     // alternative `.expect(...)` would propagate a panic across the
     // FRB worker thread, corrupting Dart-side Futures.
-    let mut slot = app
-        .transfer_pool
-        .lock()
-        .unwrap_or_else(|p| p.into_inner());
+    let mut slot = app.transfer_pool.lock().unwrap_or_else(|p| p.into_inner());
     if slot.is_none() {
         let executor = Arc::new(SftpTaskExecutor);
         *slot = Some(Arc::new(WorkerPool::spawn(executor, DEFAULT_WORKER_COUNT)));
