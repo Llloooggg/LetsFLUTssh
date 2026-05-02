@@ -92,6 +92,7 @@ class TerminalPane extends ConsumerStatefulWidget {
 class TerminalPaneState extends ConsumerState<TerminalPane> {
   late final Terminal _terminal;
   late final TerminalController _terminalController;
+  late final void Function() _scrubFn;
   ShellConnection? _shellConn;
   StreamSubscription<ConnectionStep>? _progressSub;
   Map<AppShortcut, VoidCallback>? _shortcuts;
@@ -153,10 +154,16 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     super.initState();
     _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
     _terminalController = TerminalController();
-    // Register with the scrubber so auto-lock wipes this terminal's
-    // scrollback alongside the DB key. Dispose removes us from the
-    // registry so stale pointers do not linger.
-    TerminalScrubber.instance.register(_terminal);
+    // Register a scrub callback with the scrubber so auto-lock /
+    // wipe paths reset this terminal's scrollback alongside the
+    // DB key. Holding a closure (not the Terminal) keeps the
+    // scrubber UI-package-free. Dispose removes the same closure
+    // so stale pointers do not linger.
+    _scrubFn = () {
+      _terminal.buffer.clear();
+      _terminal.setCursor(0, 0);
+    };
+    TerminalScrubber.instance.register(_scrubFn);
     HardwareKeyboard.instance.addHandler(_onShiftToggle);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _connectAndOpenShell();
@@ -321,7 +328,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
   @override
   void dispose() {
-    TerminalScrubber.instance.unregister(_terminal);
+    TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
     HardwareKeyboard.instance.removeHandler(_onShiftToggle);
     _broadcastUnsubscribe?.call();

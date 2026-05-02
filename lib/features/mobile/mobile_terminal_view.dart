@@ -57,6 +57,7 @@ class MobileTerminalView extends ConsumerStatefulWidget {
 
 class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
   late final Terminal _terminal;
+  late final void Function() _scrubFn;
   late final TerminalController _terminalController;
 
   /// Shared with the copy overlay. Passing a `ScrollController`
@@ -127,7 +128,11 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
     super.initState();
     final config = ref.read(configProvider);
     _terminal = Terminal(maxLines: config.scrollback);
-    TerminalScrubber.instance.register(_terminal);
+    _scrubFn = () {
+      _terminal.buffer.clear();
+      _terminal.setCursor(0, 0);
+    };
+    TerminalScrubber.instance.register(_scrubFn);
     _terminalController = TerminalController();
     // Hard-block xterm's built-in touch selection (long-press → word,
     // finger-drag → character select). xterm's [TerminalGestureHandler]
@@ -258,7 +263,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
   @override
   void dispose() {
-    TerminalScrubber.instance.unregister(_terminal);
+    TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
     _shellConn?.close();
     _insetSettleTimer?.cancel();
