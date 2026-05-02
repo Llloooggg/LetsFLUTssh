@@ -5,6 +5,8 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'tier_machine.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `into_core`, `into_core`, `machine_lock`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`
@@ -30,7 +32,9 @@ String tierMachineSetTier({required String tierWireName}) => RustLib
 
 /// Apply a transition. Returns the new state on success, `None`
 /// when the event is invalid for the current state (caller logs
-/// + drops). `Err` for an unknown event discriminant.
+/// + drops). The tagged enum eliminates the previous
+/// "unknown discriminant" failure mode — every variant maps to a
+/// concrete `TierEvent` at the FRB type-system level.
 DbTierState? tierMachineDispatch({required DbTierEvent event}) =>
     RustLib.instance.api.crateApiTierMachineTierMachineDispatch(event: event);
 
@@ -48,67 +52,33 @@ DbTierState? tierMachineDispatch({required DbTierEvent event}) =>
 DbTierState? tierMachineTryAdvance() =>
     RustLib.instance.api.crateApiTierMachineTierMachineTryAdvance();
 
-/// FRB-side variant tag for `TierEvent`. Each event variant
-/// crosses with the discriminant + the per-variant payload. The
-/// Dart caller constructs one of these and dispatches via
-/// [`tier_machine_dispatch`].
-class DbTierEvent {
-  /// One of `unlock_requested` / `unlock_succeeded` /
-  /// `unlock_failed` / `lock_requested` / `wiped`.
-  final String discriminant;
+@freezed
+sealed class DbTierEvent with _$DbTierEvent {
+  const DbTierEvent._();
 
-  /// Populated only when discriminant == "unlock_failed".
-  final DbUnlockFailureReason? failReason;
-
-  const DbTierEvent({required this.discriminant, this.failReason});
-
-  @override
-  int get hashCode => discriminant.hashCode ^ failReason.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DbTierEvent &&
-          runtimeType == other.runtimeType &&
-          discriminant == other.discriminant &&
-          failReason == other.failReason;
+  const factory DbTierEvent.unlockRequested() = DbTierEvent_UnlockRequested;
+  const factory DbTierEvent.unlockSucceeded() = DbTierEvent_UnlockSucceeded;
+  const factory DbTierEvent.unlockFailed({
+    required DbUnlockFailureReason reason,
+  }) = DbTierEvent_UnlockFailed;
+  const factory DbTierEvent.lockRequested() = DbTierEvent_LockRequested;
+  const factory DbTierEvent.wiped() = DbTierEvent_Wiped;
 }
 
 /// FRB mirror of `lfs_core::security::tier_machine::TierState`.
 enum DbTierState { locked, unlocking, unlocked, wiping }
 
-/// FRB mirror of `UnlockFailureReason`. The `code` /
-/// `detail` / `discriminant` strings carry the per-variant
-/// payload; the discriminant is the variant tag the Dart caller
-/// branches on.
-class DbUnlockFailureReason {
-  /// One of `wrong_secret` / `plugin_unavailable` /
-  /// `user_cancelled` / `corruption`.
-  final String discriminant;
+@freezed
+sealed class DbUnlockFailureReason with _$DbUnlockFailureReason {
+  const DbUnlockFailureReason._();
 
-  /// Plugin-classifier code (only populated when
-  /// discriminant == "plugin_unavailable").
-  final String code;
-
-  /// Free-form detail (only populated when
-  /// discriminant == "corruption").
-  final String detail;
-
-  const DbUnlockFailureReason({
-    required this.discriminant,
-    required this.code,
-    required this.detail,
-  });
-
-  @override
-  int get hashCode => discriminant.hashCode ^ code.hashCode ^ detail.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is DbUnlockFailureReason &&
-          runtimeType == other.runtimeType &&
-          discriminant == other.discriminant &&
-          code == other.code &&
-          detail == other.detail;
+  const factory DbUnlockFailureReason.wrongSecret() =
+      DbUnlockFailureReason_WrongSecret;
+  const factory DbUnlockFailureReason.pluginUnavailable({
+    required String code,
+  }) = DbUnlockFailureReason_PluginUnavailable;
+  const factory DbUnlockFailureReason.userCancelled() =
+      DbUnlockFailureReason_UserCancelled;
+  const factory DbUnlockFailureReason.corruption({required String detail}) =
+      DbUnlockFailureReason_Corruption;
 }

@@ -46,61 +46,57 @@ impl From<TierState> for DbTierState {
     }
 }
 
-/// FRB mirror of `UnlockFailureReason`. The `code` /
-/// `detail` / `discriminant` strings carry the per-variant
-/// payload; the discriminant is the variant tag the Dart caller
-/// branches on.
+/// FRB mirror of `lfs_core::security::tier_machine::UnlockFailureReason`.
+/// FRB codegen emits a sealed Dart class with one subclass per
+/// variant; replaces the earlier `discriminant: String` +
+/// untyped `code` / `detail` shape that the same file's
+/// `DbTierState` always avoided.
 #[derive(Debug, Clone)]
-pub struct DbUnlockFailureReason {
-    /// One of `wrong_secret` / `plugin_unavailable` /
-    /// `user_cancelled` / `corruption`.
-    pub discriminant: String,
-    /// Plugin-classifier code (only populated when
-    /// discriminant == "plugin_unavailable").
-    pub code: String,
-    /// Free-form detail (only populated when
-    /// discriminant == "corruption").
-    pub detail: String,
+pub enum DbUnlockFailureReason {
+    WrongSecret,
+    PluginUnavailable { code: String },
+    UserCancelled,
+    Corruption { detail: String },
 }
 
 impl DbUnlockFailureReason {
     fn into_core(self) -> UnlockFailureReason {
-        match self.discriminant.as_str() {
-            "plugin_unavailable" => UnlockFailureReason::PluginUnavailable { code: self.code },
-            "user_cancelled" => UnlockFailureReason::UserCancelled,
-            "corruption" => UnlockFailureReason::Corruption {
-                detail: self.detail,
-            },
-            _ => UnlockFailureReason::WrongSecret,
+        match self {
+            DbUnlockFailureReason::WrongSecret => UnlockFailureReason::WrongSecret,
+            DbUnlockFailureReason::PluginUnavailable { code } => {
+                UnlockFailureReason::PluginUnavailable { code }
+            }
+            DbUnlockFailureReason::UserCancelled => UnlockFailureReason::UserCancelled,
+            DbUnlockFailureReason::Corruption { detail } => {
+                UnlockFailureReason::Corruption { detail }
+            }
         }
     }
 }
 
-/// FRB-side variant tag for `TierEvent`. Each event variant
-/// crosses with the discriminant + the per-variant payload. The
-/// Dart caller constructs one of these and dispatches via
-/// [`tier_machine_dispatch`].
+/// FRB mirror of `lfs_core::security::tier_machine::TierEvent`.
+/// Tagged enum — Dart pattern-matches on the FRB-generated
+/// sealed class instead of branching on a string discriminant.
 #[derive(Debug, Clone)]
-pub struct DbTierEvent {
-    /// One of `unlock_requested` / `unlock_succeeded` /
-    /// `unlock_failed` / `lock_requested` / `wiped`.
-    pub discriminant: String,
-    /// Populated only when discriminant == "unlock_failed".
-    pub fail_reason: Option<DbUnlockFailureReason>,
+pub enum DbTierEvent {
+    UnlockRequested,
+    UnlockSucceeded,
+    UnlockFailed { reason: DbUnlockFailureReason },
+    LockRequested,
+    Wiped,
 }
 
 impl DbTierEvent {
-    fn into_core(self) -> Option<TierEvent> {
-        Some(match self.discriminant.as_str() {
-            "unlock_requested" => TierEvent::UnlockRequested,
-            "unlock_succeeded" => TierEvent::UnlockSucceeded,
-            "unlock_failed" => TierEvent::UnlockFailed {
-                reason: self.fail_reason?.into_core(),
+    fn into_core(self) -> TierEvent {
+        match self {
+            DbTierEvent::UnlockRequested => TierEvent::UnlockRequested,
+            DbTierEvent::UnlockSucceeded => TierEvent::UnlockSucceeded,
+            DbTierEvent::UnlockFailed { reason } => TierEvent::UnlockFailed {
+                reason: reason.into_core(),
             },
-            "lock_requested" => TierEvent::LockRequested,
-            "wiped" => TierEvent::Wiped,
-            _ => return None,
-        })
+            DbTierEvent::LockRequested => TierEvent::LockRequested,
+            DbTierEvent::Wiped => TierEvent::Wiped,
+        }
     }
 }
 
@@ -142,14 +138,14 @@ pub fn tier_machine_set_tier(tier_wire_name: String) -> Result<String, String> {
 
 /// Apply a transition. Returns the new state on success, `None`
 /// when the event is invalid for the current state (caller logs
-/// + drops). `Err` for an unknown event discriminant.
+/// + drops). The tagged enum eliminates the previous
+/// "unknown discriminant" failure mode — every variant maps to a
+/// concrete `TierEvent` at the FRB type-system level.
 #[flutter_rust_bridge::frb(sync)]
-pub fn tier_machine_dispatch(event: DbTierEvent) -> Result<Option<DbTierState>, String> {
-    let core = event
-        .into_core()
-        .ok_or_else(|| "unknown event discriminant".to_string())?;
+pub fn tier_machine_dispatch(event: DbTierEvent) -> Option<DbTierState> {
+    let core = event.into_core();
     let mut g = machine_lock().lock().unwrap_or_else(|p| p.into_inner());
-    Ok(g.dispatch(&core).map(DbTierState::from))
+    g.dispatch(&core).map(DbTierState::from)
 }
 
 /// Per-tier handler hook — checks the current state + active

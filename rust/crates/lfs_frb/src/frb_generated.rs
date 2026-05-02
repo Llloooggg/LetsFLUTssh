@@ -15147,8 +15147,10 @@ fn wire__crate__api__tier_machine__tier_machine_dispatch_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_event = <crate::api::tier_machine::DbTierEvent>::sse_decode(&mut deserializer);
             deserializer.end();
-            transform_result_sse::<_, String>((move || {
-                let output_ok = crate::api::tier_machine::tier_machine_dispatch(api_event)?;
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::tier_machine::tier_machine_dispatch(api_event),
+                )?;
                 Ok(output_ok)
             })())
         },
@@ -18375,16 +18377,38 @@ impl SseDecode for crate::api::auth_compose::DbPrepareAuthInput {
 impl SseDecode for crate::api::auth_compose::DbPreparedAuth {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_kind = <String>::sse_decode(deserializer);
-        let mut var_primarySecretId = <String>::sse_decode(deserializer);
-        let mut var_passphraseSecretId = <Option<String>>::sse_decode(deserializer);
+        let mut var_auth = <crate::api::auth_compose::DbPreparedAuthRef>::sse_decode(deserializer);
         let mut var_transientSecretIds = <Vec<String>>::sse_decode(deserializer);
         return crate::api::auth_compose::DbPreparedAuth {
-            kind: var_kind,
-            primary_secret_id: var_primarySecretId,
-            passphrase_secret_id: var_passphraseSecretId,
+            auth: var_auth,
             transient_secret_ids: var_transientSecretIds,
         };
+    }
+}
+
+impl SseDecode for crate::api::auth_compose::DbPreparedAuthRef {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_secretId = <String>::sse_decode(deserializer);
+                return crate::api::auth_compose::DbPreparedAuthRef::Password {
+                    secret_id: var_secretId,
+                };
+            }
+            1 => {
+                let mut var_keySecretId = <String>::sse_decode(deserializer);
+                let mut var_passphraseSecretId = <Option<String>>::sse_decode(deserializer);
+                return crate::api::auth_compose::DbPreparedAuthRef::Pubkey {
+                    key_secret_id: var_keySecretId,
+                    passphrase_secret_id: var_passphraseSecretId,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -19301,13 +19325,29 @@ impl SseDecode for crate::api::threat_eval::DbThreatTier {
 impl SseDecode for crate::api::tier_machine::DbTierEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_discriminant = <String>::sse_decode(deserializer);
-        let mut var_failReason =
-            <Option<crate::api::tier_machine::DbUnlockFailureReason>>::sse_decode(deserializer);
-        return crate::api::tier_machine::DbTierEvent {
-            discriminant: var_discriminant,
-            fail_reason: var_failReason,
-        };
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::tier_machine::DbTierEvent::UnlockRequested;
+            }
+            1 => {
+                return crate::api::tier_machine::DbTierEvent::UnlockSucceeded;
+            }
+            2 => {
+                let mut var_reason =
+                    <crate::api::tier_machine::DbUnlockFailureReason>::sse_decode(deserializer);
+                return crate::api::tier_machine::DbTierEvent::UnlockFailed { reason: var_reason };
+            }
+            3 => {
+                return crate::api::tier_machine::DbTierEvent::LockRequested;
+            }
+            4 => {
+                return crate::api::tier_machine::DbTierEvent::Wiped;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -19412,14 +19452,30 @@ impl SseDecode for crate::api::transfer::DbTransferState {
 impl SseDecode for crate::api::tier_machine::DbUnlockFailureReason {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_discriminant = <String>::sse_decode(deserializer);
-        let mut var_code = <String>::sse_decode(deserializer);
-        let mut var_detail = <String>::sse_decode(deserializer);
-        return crate::api::tier_machine::DbUnlockFailureReason {
-            discriminant: var_discriminant,
-            code: var_code,
-            detail: var_detail,
-        };
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::tier_machine::DbUnlockFailureReason::WrongSecret;
+            }
+            1 => {
+                let mut var_code = <String>::sse_decode(deserializer);
+                return crate::api::tier_machine::DbUnlockFailureReason::PluginUnavailable {
+                    code: var_code,
+                };
+            }
+            2 => {
+                return crate::api::tier_machine::DbUnlockFailureReason::UserCancelled;
+            }
+            3 => {
+                let mut var_detail = <String>::sse_decode(deserializer);
+                return crate::api::tier_machine::DbUnlockFailureReason::Corruption {
+                    detail: var_detail,
+                };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -20395,19 +20451,6 @@ impl SseDecode for Option<crate::api::tier_machine::DbTierState> {
             return Some(<crate::api::tier_machine::DbTierState>::sse_decode(
                 deserializer,
             ));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<crate::api::tier_machine::DbUnlockFailureReason> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(
-                <crate::api::tier_machine::DbUnlockFailureReason>::sse_decode(deserializer),
-            );
         } else {
             return None;
         }
@@ -22731,9 +22774,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::auth_compose::DbPrepareAuthIn
 impl flutter_rust_bridge::IntoDart for crate::api::auth_compose::DbPreparedAuth {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.kind.into_into_dart().into_dart(),
-            self.primary_secret_id.into_into_dart().into_dart(),
-            self.passphrase_secret_id.into_into_dart().into_dart(),
+            self.auth.into_into_dart().into_dart(),
             self.transient_secret_ids.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -22747,6 +22788,39 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::auth_compose::DbPreparedAuth>
     for crate::api::auth_compose::DbPreparedAuth
 {
     fn into_into_dart(self) -> crate::api::auth_compose::DbPreparedAuth {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::auth_compose::DbPreparedAuthRef {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::auth_compose::DbPreparedAuthRef::Password { secret_id } => {
+                [0.into_dart(), secret_id.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::auth_compose::DbPreparedAuthRef::Pubkey {
+                key_secret_id,
+                passphrase_secret_id,
+            } => [
+                1.into_dart(),
+                key_secret_id.into_into_dart().into_dart(),
+                passphrase_secret_id.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::auth_compose::DbPreparedAuthRef
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::auth_compose::DbPreparedAuthRef>
+    for crate::api::auth_compose::DbPreparedAuthRef
+{
+    fn into_into_dart(self) -> crate::api::auth_compose::DbPreparedAuthRef {
         self
     }
 }
@@ -23869,11 +23943,18 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::threat_eval::DbThreatTier>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::tier_machine::DbTierEvent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.discriminant.into_into_dart().into_dart(),
-            self.fail_reason.into_into_dart().into_dart(),
-        ]
-        .into_dart()
+        match self {
+            crate::api::tier_machine::DbTierEvent::UnlockRequested => [0.into_dart()].into_dart(),
+            crate::api::tier_machine::DbTierEvent::UnlockSucceeded => [1.into_dart()].into_dart(),
+            crate::api::tier_machine::DbTierEvent::UnlockFailed { reason } => {
+                [2.into_dart(), reason.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::tier_machine::DbTierEvent::LockRequested => [3.into_dart()].into_dart(),
+            crate::api::tier_machine::DbTierEvent::Wiped => [4.into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -24033,12 +24114,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::transfer::DbTransferState>
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::tier_machine::DbUnlockFailureReason {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.discriminant.into_into_dart().into_dart(),
-            self.code.into_into_dart().into_dart(),
-            self.detail.into_into_dart().into_dart(),
-        ]
-        .into_dart()
+        match self {
+            crate::api::tier_machine::DbUnlockFailureReason::WrongSecret => {
+                [0.into_dart()].into_dart()
+            }
+            crate::api::tier_machine::DbUnlockFailureReason::PluginUnavailable { code } => {
+                [1.into_dart(), code.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::tier_machine::DbUnlockFailureReason::UserCancelled => {
+                [2.into_dart()].into_dart()
+            }
+            crate::api::tier_machine::DbUnlockFailureReason::Corruption { detail } => {
+                [3.into_dart(), detail.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
@@ -25442,10 +25534,31 @@ impl SseEncode for crate::api::auth_compose::DbPrepareAuthInput {
 impl SseEncode for crate::api::auth_compose::DbPreparedAuth {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.kind, serializer);
-        <String>::sse_encode(self.primary_secret_id, serializer);
-        <Option<String>>::sse_encode(self.passphrase_secret_id, serializer);
+        <crate::api::auth_compose::DbPreparedAuthRef>::sse_encode(self.auth, serializer);
         <Vec<String>>::sse_encode(self.transient_secret_ids, serializer);
+    }
+}
+
+impl SseEncode for crate::api::auth_compose::DbPreparedAuthRef {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::auth_compose::DbPreparedAuthRef::Password { secret_id } => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(secret_id, serializer);
+            }
+            crate::api::auth_compose::DbPreparedAuthRef::Pubkey {
+                key_secret_id,
+                passphrase_secret_id,
+            } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(key_secret_id, serializer);
+                <Option<String>>::sse_encode(passphrase_secret_id, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -26044,11 +26157,27 @@ impl SseEncode for crate::api::threat_eval::DbThreatTier {
 impl SseEncode for crate::api::tier_machine::DbTierEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.discriminant, serializer);
-        <Option<crate::api::tier_machine::DbUnlockFailureReason>>::sse_encode(
-            self.fail_reason,
-            serializer,
-        );
+        match self {
+            crate::api::tier_machine::DbTierEvent::UnlockRequested => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::tier_machine::DbTierEvent::UnlockSucceeded => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::api::tier_machine::DbTierEvent::UnlockFailed { reason } => {
+                <i32>::sse_encode(2, serializer);
+                <crate::api::tier_machine::DbUnlockFailureReason>::sse_encode(reason, serializer);
+            }
+            crate::api::tier_machine::DbTierEvent::LockRequested => {
+                <i32>::sse_encode(3, serializer);
+            }
+            crate::api::tier_machine::DbTierEvent::Wiped => {
+                <i32>::sse_encode(4, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -26152,9 +26281,25 @@ impl SseEncode for crate::api::transfer::DbTransferState {
 impl SseEncode for crate::api::tier_machine::DbUnlockFailureReason {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.discriminant, serializer);
-        <String>::sse_encode(self.code, serializer);
-        <String>::sse_encode(self.detail, serializer);
+        match self {
+            crate::api::tier_machine::DbUnlockFailureReason::WrongSecret => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::tier_machine::DbUnlockFailureReason::PluginUnavailable { code } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(code, serializer);
+            }
+            crate::api::tier_machine::DbUnlockFailureReason::UserCancelled => {
+                <i32>::sse_encode(2, serializer);
+            }
+            crate::api::tier_machine::DbUnlockFailureReason::Corruption { detail } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(detail, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -26918,16 +27063,6 @@ impl SseEncode for Option<crate::api::tier_machine::DbTierState> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::tier_machine::DbTierState>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<crate::api::tier_machine::DbUnlockFailureReason> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <crate::api::tier_machine::DbUnlockFailureReason>::sse_encode(value, serializer);
         }
     }
 }

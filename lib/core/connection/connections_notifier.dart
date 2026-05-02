@@ -533,19 +533,15 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       ),
     );
     conn.transientSecretIds.addAll(prepared.transientSecretIds);
-    switch (prepared.kind) {
-      case 'password':
-        return SshAuthPasswordRef(prepared.primarySecretId);
-      case 'pubkey':
-        return SshAuthPubkeyRef(
-          prepared.primarySecretId,
-          passphraseSecretId: prepared.passphraseSecretId,
-        );
-      default:
-        throw StateError(
-          'connection_prepare_auth returned unknown kind "${prepared.kind}"',
-        );
-    }
+    return switch (prepared.auth) {
+      rust_auth.DbPreparedAuthRef_Password(:final secretId) =>
+        SshAuthPasswordRef(secretId),
+      rust_auth.DbPreparedAuthRef_Pubkey(
+        :final keySecretId,
+        :final passphraseSecretId,
+      ) =>
+        SshAuthPubkeyRef(keySecretId, passphraseSecretId: passphraseSecretId),
+    };
   }
 
   /// Overlay [Connection.cachedPassphrase] onto [config] when set —

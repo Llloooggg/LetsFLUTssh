@@ -565,6 +565,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPreparedAuth dco_decode_db_prepared_auth(dynamic raw);
 
   @protected
+  DbPreparedAuthRef dco_decode_db_prepared_auth_ref(dynamic raw);
+
+  @protected
   DbQrExportInput dco_decode_db_qr_export_input(dynamic raw);
 
   @protected
@@ -984,11 +987,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTierState? dco_decode_opt_box_autoadd_db_tier_state(dynamic raw);
-
-  @protected
-  DbUnlockFailureReason? dco_decode_opt_box_autoadd_db_unlock_failure_reason(
-    dynamic raw,
-  );
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -1617,6 +1615,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPreparedAuth sse_decode_db_prepared_auth(SseDeserializer deserializer);
 
   @protected
+  DbPreparedAuthRef sse_decode_db_prepared_auth_ref(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbQrExportInput sse_decode_db_qr_export_input(SseDeserializer deserializer);
 
   @protected
@@ -2168,11 +2171,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbTierState? sse_decode_opt_box_autoadd_db_tier_state(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  DbUnlockFailureReason? sse_decode_opt_box_autoadd_db_unlock_failure_reason(
     SseDeserializer deserializer,
   );
 
@@ -2950,6 +2948,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_prepared_auth_ref(
+    DbPreparedAuthRef self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_qr_export_input(
     DbQrExportInput self,
     SseSerializer serializer,
@@ -3656,12 +3660,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_tier_state(
     DbTierState? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_box_autoadd_db_unlock_failure_reason(
-    DbUnlockFailureReason? self,
     SseSerializer serializer,
   );
 

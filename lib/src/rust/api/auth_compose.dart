@@ -5,8 +5,10 @@
 
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'auth_compose.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// Compose the credential overlay + return the typed ref the
 /// connect actor dispatches against. Every secret byte stages
@@ -53,23 +55,9 @@ class DbPrepareAuthInput {
           passphrase == other.passphrase;
 }
 
-/// Discriminator for [`DbPreparedAuth`]. The `kind` field
-/// branches the Dart caller into the matching `SshAuth*Ref`
-/// variant — `"password"` carries `secret_id`, `"pubkey"`
-/// carries `key_secret_id` + optional `passphrase_secret_id`.
 class DbPreparedAuth {
-  /// `"password"` or `"pubkey"`.
-  final String kind;
-
-  /// For `"password"`: the SecretStore id of the staged
-  /// password. For `"pubkey"`: the SecretStore id of the
-  /// staged private-key PEM.
-  final String primarySecretId;
-
-  /// For `"pubkey"` only — `Some(id)` when a passphrase was
-  /// staged alongside the key, `None` otherwise. Always
-  /// `None` for `"password"`.
-  final String? passphraseSecretId;
+  /// Tagged auth ref — Dart pattern-matches on the variant.
+  final DbPreparedAuthRef auth;
 
   /// Every SecretStore id the caller must drop after the
   /// connect attempt settles. Empty when every staged secret
@@ -77,27 +65,33 @@ class DbPreparedAuth {
   /// manager-key without a typed passphrase).
   final List<String> transientSecretIds;
 
-  const DbPreparedAuth({
-    required this.kind,
-    required this.primarySecretId,
-    this.passphraseSecretId,
-    required this.transientSecretIds,
-  });
+  const DbPreparedAuth({required this.auth, required this.transientSecretIds});
 
   @override
-  int get hashCode =>
-      kind.hashCode ^
-      primarySecretId.hashCode ^
-      passphraseSecretId.hashCode ^
-      transientSecretIds.hashCode;
+  int get hashCode => auth.hashCode ^ transientSecretIds.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is DbPreparedAuth &&
           runtimeType == other.runtimeType &&
-          kind == other.kind &&
-          primarySecretId == other.primarySecretId &&
-          passphraseSecretId == other.passphraseSecretId &&
+          auth == other.auth &&
           transientSecretIds == other.transientSecretIds;
+}
+
+@freezed
+sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
+  const DbPreparedAuthRef._();
+
+  /// Password auth — `secret_id` points at the staged password.
+  const factory DbPreparedAuthRef.password({required String secretId}) =
+      DbPreparedAuthRef_Password;
+
+  /// Pubkey auth — `key_secret_id` points at the staged private
+  /// key PEM. `passphrase_secret_id` is `Some(id)` when a
+  /// passphrase was staged alongside; `None` for unencrypted keys.
+  const factory DbPreparedAuthRef.pubkey({
+    required String keySecretId,
+    String? passphraseSecretId,
+  }) = DbPreparedAuthRef_Pubkey;
 }

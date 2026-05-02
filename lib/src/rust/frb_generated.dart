@@ -15383,7 +15383,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_db_tier_state,
-          decodeErrorData: sse_decode_String,
+          decodeErrorData: null,
         ),
         constMeta: kCrateApiTierMachineTierMachineDispatchConstMeta,
         argValues: [event],
@@ -18450,14 +18450,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbPreparedAuth dco_decode_db_prepared_auth(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return DbPreparedAuth(
-      kind: dco_decode_String(arr[0]),
-      primarySecretId: dco_decode_String(arr[1]),
-      passphraseSecretId: dco_decode_opt_String(arr[2]),
-      transientSecretIds: dco_decode_list_String(arr[3]),
+      auth: dco_decode_db_prepared_auth_ref(arr[0]),
+      transientSecretIds: dco_decode_list_String(arr[1]),
     );
+  }
+
+  @protected
+  DbPreparedAuthRef dco_decode_db_prepared_auth_ref(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return DbPreparedAuthRef_Password(secretId: dco_decode_String(raw[1]));
+      case 1:
+        return DbPreparedAuthRef_Pubkey(
+          keySecretId: dco_decode_String(raw[1]),
+          passphraseSecretId: dco_decode_opt_String(raw[2]),
+        );
+      default:
+        throw Exception('unreachable');
+    }
   }
 
   @protected
@@ -19159,13 +19173,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbTierEvent dco_decode_db_tier_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return DbTierEvent(
-      discriminant: dco_decode_String(arr[0]),
-      failReason: dco_decode_opt_box_autoadd_db_unlock_failure_reason(arr[1]),
-    );
+    switch (raw[0]) {
+      case 0:
+        return const DbTierEvent_UnlockRequested();
+      case 1:
+        return const DbTierEvent_UnlockSucceeded();
+      case 2:
+        return DbTierEvent_UnlockFailed(
+          reason: dco_decode_box_autoadd_db_unlock_failure_reason(raw[1]),
+        );
+      case 3:
+        return const DbTierEvent_LockRequested();
+      case 4:
+        return const DbTierEvent_Wiped();
+      default:
+        throw Exception('unreachable');
+    }
   }
 
   @protected
@@ -19228,14 +19251,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbUnlockFailureReason dco_decode_db_unlock_failure_reason(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return DbUnlockFailureReason(
-      discriminant: dco_decode_String(arr[0]),
-      code: dco_decode_String(arr[1]),
-      detail: dco_decode_String(arr[2]),
-    );
+    switch (raw[0]) {
+      case 0:
+        return const DbUnlockFailureReason_WrongSecret();
+      case 1:
+        return DbUnlockFailureReason_PluginUnavailable(
+          code: dco_decode_String(raw[1]),
+        );
+      case 2:
+        return const DbUnlockFailureReason_UserCancelled();
+      case 3:
+        return DbUnlockFailureReason_Corruption(
+          detail: dco_decode_String(raw[1]),
+        );
+      default:
+        throw Exception('unreachable');
+    }
   }
 
   @protected
@@ -19810,16 +19841,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbTierState? dco_decode_opt_box_autoadd_db_tier_state(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_db_tier_state(raw);
-  }
-
-  @protected
-  DbUnlockFailureReason? dco_decode_opt_box_autoadd_db_unlock_failure_reason(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null
-        ? null
-        : dco_decode_box_autoadd_db_unlock_failure_reason(raw);
   }
 
   @protected
@@ -21669,16 +21690,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbPreparedAuth sse_decode_db_prepared_auth(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_kind = sse_decode_String(deserializer);
-    final var_primarySecretId = sse_decode_String(deserializer);
-    final var_passphraseSecretId = sse_decode_opt_String(deserializer);
+    final var_auth = sse_decode_db_prepared_auth_ref(deserializer);
     final var_transientSecretIds = sse_decode_list_String(deserializer);
     return DbPreparedAuth(
-      kind: var_kind,
-      primarySecretId: var_primarySecretId,
-      passphraseSecretId: var_passphraseSecretId,
+      auth: var_auth,
       transientSecretIds: var_transientSecretIds,
     );
+  }
+
+  @protected
+  DbPreparedAuthRef sse_decode_db_prepared_auth_ref(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    final tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        final var_secretId = sse_decode_String(deserializer);
+        return DbPreparedAuthRef_Password(secretId: var_secretId);
+      case 1:
+        final var_keySecretId = sse_decode_String(deserializer);
+        final var_passphraseSecretId = sse_decode_opt_String(deserializer);
+        return DbPreparedAuthRef_Pubkey(
+          keySecretId: var_keySecretId,
+          passphraseSecretId: var_passphraseSecretId,
+        );
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -22566,14 +22606,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbTierEvent sse_decode_db_tier_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_discriminant = sse_decode_String(deserializer);
-    final var_failReason = sse_decode_opt_box_autoadd_db_unlock_failure_reason(
-      deserializer,
-    );
-    return DbTierEvent(
-      discriminant: var_discriminant,
-      failReason: var_failReason,
-    );
+
+    final tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return const DbTierEvent_UnlockRequested();
+      case 1:
+        return const DbTierEvent_UnlockSucceeded();
+      case 2:
+        final var_reason = sse_decode_box_autoadd_db_unlock_failure_reason(
+          deserializer,
+        );
+        return DbTierEvent_UnlockFailed(reason: var_reason);
+      case 3:
+        return const DbTierEvent_LockRequested();
+      case 4:
+        return const DbTierEvent_Wiped();
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -22655,14 +22706,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_discriminant = sse_decode_String(deserializer);
-    final var_code = sse_decode_String(deserializer);
-    final var_detail = sse_decode_String(deserializer);
-    return DbUnlockFailureReason(
-      discriminant: var_discriminant,
-      code: var_code,
-      detail: var_detail,
-    );
+
+    final tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return const DbUnlockFailureReason_WrongSecret();
+      case 1:
+        final var_code = sse_decode_String(deserializer);
+        return DbUnlockFailureReason_PluginUnavailable(code: var_code);
+      case 2:
+        return const DbUnlockFailureReason_UserCancelled();
+      case 3:
+        final var_detail = sse_decode_String(deserializer);
+        return DbUnlockFailureReason_Corruption(detail: var_detail);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -23652,19 +23711,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_db_tier_state(deserializer));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
-  DbUnlockFailureReason? sse_decode_opt_box_autoadd_db_unlock_failure_reason(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_db_unlock_failure_reason(deserializer));
     } else {
       return null;
     }
@@ -25481,10 +25527,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.kind, serializer);
-    sse_encode_String(self.primarySecretId, serializer);
-    sse_encode_opt_String(self.passphraseSecretId, serializer);
+    sse_encode_db_prepared_auth_ref(self.auth, serializer);
     sse_encode_list_String(self.transientSecretIds, serializer);
+  }
+
+  @protected
+  void sse_encode_db_prepared_auth_ref(
+    DbPreparedAuthRef self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case DbPreparedAuthRef_Password(secretId: final secretId):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(secretId, serializer);
+      case DbPreparedAuthRef_Pubkey(
+        keySecretId: final keySecretId,
+        passphraseSecretId: final passphraseSecretId,
+      ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(keySecretId, serializer);
+        sse_encode_opt_String(passphraseSecretId, serializer);
+    }
   }
 
   @protected
@@ -26095,11 +26159,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_db_tier_event(DbTierEvent self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.discriminant, serializer);
-    sse_encode_opt_box_autoadd_db_unlock_failure_reason(
-      self.failReason,
-      serializer,
-    );
+    switch (self) {
+      case DbTierEvent_UnlockRequested():
+        sse_encode_i_32(0, serializer);
+      case DbTierEvent_UnlockSucceeded():
+        sse_encode_i_32(1, serializer);
+      case DbTierEvent_UnlockFailed(reason: final reason):
+        sse_encode_i_32(2, serializer);
+        sse_encode_box_autoadd_db_unlock_failure_reason(reason, serializer);
+      case DbTierEvent_LockRequested():
+        sse_encode_i_32(3, serializer);
+      case DbTierEvent_Wiped():
+        sse_encode_i_32(4, serializer);
+    }
   }
 
   @protected
@@ -26170,9 +26242,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.discriminant, serializer);
-    sse_encode_String(self.code, serializer);
-    sse_encode_String(self.detail, serializer);
+    switch (self) {
+      case DbUnlockFailureReason_WrongSecret():
+        sse_encode_i_32(0, serializer);
+      case DbUnlockFailureReason_PluginUnavailable(code: final code):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(code, serializer);
+      case DbUnlockFailureReason_UserCancelled():
+        sse_encode_i_32(2, serializer);
+      case DbUnlockFailureReason_Corruption(detail: final detail):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(detail, serializer);
+    }
   }
 
   @protected
@@ -27072,19 +27153,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_db_tier_state(self, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_opt_box_autoadd_db_unlock_failure_reason(
-    DbUnlockFailureReason? self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_db_unlock_failure_reason(self, serializer);
     }
   }
 

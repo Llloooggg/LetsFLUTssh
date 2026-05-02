@@ -36,22 +36,29 @@ impl From<DbPrepareAuthInput> for auth_compose::PrepareAuthInput {
     }
 }
 
-/// Discriminator for [`DbPreparedAuth`]. The `kind` field
-/// branches the Dart caller into the matching `SshAuth*Ref`
-/// variant — `"password"` carries `secret_id`, `"pubkey"`
-/// carries `key_secret_id` + optional `passphrase_secret_id`.
+/// FRB-tagged enum mirroring `lfs_core::connection::auth_compose::PreparedAuthRef`.
+/// FRB codegen emits a sealed Dart class with `_Password` /
+/// `_Pubkey` subclasses; the caller pattern-matches instead of
+/// branching on a string discriminant. Replaces an earlier
+/// `DbPreparedAuth { kind: String, … }` shape that was the only
+/// remaining stringly-typed FRB enum in the auth surface.
+#[derive(Debug, Clone)]
+pub enum DbPreparedAuthRef {
+    /// Password auth — `secret_id` points at the staged password.
+    Password { secret_id: String },
+    /// Pubkey auth — `key_secret_id` points at the staged private
+    /// key PEM. `passphrase_secret_id` is `Some(id)` when a
+    /// passphrase was staged alongside; `None` for unencrypted keys.
+    Pubkey {
+        key_secret_id: String,
+        passphrase_secret_id: Option<String>,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct DbPreparedAuth {
-    /// `"password"` or `"pubkey"`.
-    pub kind: String,
-    /// For `"password"`: the SecretStore id of the staged
-    /// password. For `"pubkey"`: the SecretStore id of the
-    /// staged private-key PEM.
-    pub primary_secret_id: String,
-    /// For `"pubkey"` only — `Some(id)` when a passphrase was
-    /// staged alongside the key, `None` otherwise. Always
-    /// `None` for `"password"`.
-    pub passphrase_secret_id: Option<String>,
+    /// Tagged auth ref — Dart pattern-matches on the variant.
+    pub auth: DbPreparedAuthRef,
     /// Every SecretStore id the caller must drop after the
     /// connect attempt settles. Empty when every staged secret
     /// belongs to a longer-lived owner (saved-session or
@@ -61,22 +68,21 @@ pub struct DbPreparedAuth {
 
 impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
     fn from(p: auth_compose::PreparedAuth) -> Self {
-        match p.auth {
-            auth_compose::PreparedAuthRef::Password { secret_id } => DbPreparedAuth {
-                kind: "password".into(),
-                primary_secret_id: secret_id,
-                passphrase_secret_id: None,
-                transient_secret_ids: p.transient_secret_ids,
-            },
+        let auth = match p.auth {
+            auth_compose::PreparedAuthRef::Password { secret_id } => {
+                DbPreparedAuthRef::Password { secret_id }
+            }
             auth_compose::PreparedAuthRef::Pubkey {
                 key_secret_id,
                 passphrase_secret_id,
-            } => DbPreparedAuth {
-                kind: "pubkey".into(),
-                primary_secret_id: key_secret_id,
+            } => DbPreparedAuthRef::Pubkey {
+                key_secret_id,
                 passphrase_secret_id,
-                transient_secret_ids: p.transient_secret_ids,
             },
+        };
+        DbPreparedAuth {
+            auth,
+            transient_secret_ids: p.transient_secret_ids,
         }
     }
 }
