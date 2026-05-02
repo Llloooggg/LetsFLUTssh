@@ -22,11 +22,9 @@ crate-type = ["rlib"]
 # `session_lock_listener` imports `tokio::sync::broadcast`
 # unconditionally to fan-out lock events to FRB subscribers,
 # regardless of which OS-specific listener is wired underneath.
-# `process` feature is needed by `macos_signing` /
-# `macos_installer` (subprocess-based code-signing pipeline);
-# `sync` is needed by everyone else for broadcast / oneshot.
+# `sync` is needed by everyone for broadcast / oneshot.
 [dependencies]
-tokio = { workspace = true, features = ["sync", "process", "io-util"] }
+tokio = { workspace = true, features = ["sync", "io-util"] }
 # `subtle::ConstantTimeEq` for the PIN-HMAC compare in
 # `hardware_tier_vault` (Android JNI path) and any future
 # constant-time equality call sites the OS-side adds.
@@ -117,12 +115,6 @@ core-foundation-sys = { version = "0.8", default-features = false }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
-# Tier 4 macOS code-signing pipeline (`macos_signing` +
-# `macos_installer`). `rand` for the per-call tempdir suffix
-# (no `mkdtemp` in std); `thiserror` for the typed
-# `SignError` / `InstallError` enums those modules expose.
-rand = "0.8"
-thiserror = { workspace = true }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2-ui-kit = { version = "0.3", features = ["UIPasteboard"] }

@@ -1287,34 +1287,45 @@ one, ship it, then pick the next.
     item only when the security or audit story justifies the
     ongoing cost. Per-item evaluation.
 22. **`platform/macos/code_signing` + `macos_installer` —
-    Rust modules shipped, FRB-wiring outstanding.**
+    Dart-side retained, Rust scaffold retired.**
+
+    The Rust modules `lfs_os_security::macos_signing` +
+    `lfs_os_security::macos_installer` shipped at the original
+    port time but never crossed the FRB boundary; the runtime
+    path on macOS stayed on `lib/platform/macos/code_signing/`
+    (pre-port Dart `IProcessRunner` abstraction). Both
+    implementations were `Process.run` / `tokio::process::Command`
+    wrappers around the same external binaries (`openssl` /
+    `security` / `codesign` / `hdiutil` / `rsync`), so the
+    Rust port added no security or correctness delta over the
+    Dart version — just 987 LOC of unwired scaffold.
+
+    **Decision (2026-05): retire the Rust scaffold.** Dart
+    side is the canonical implementation. The
     `lfs_os_security::macos_signing` + `lfs_os_security::macos_installer`
-    contain the full pipeline (`tokio::process::Command` over
-    `openssl` for cert generation, `security` for keychain +
-    trust DB, `codesign` for inside-out re-sign with leaf-first
-    ordering, `hdiutil` for atomic DMG mount/detach, `rsync`
-    for staged copy — same call topology as the prior Dart
-    `IProcessRunner` abstraction). cfg-gated to
-    `target_os = "macos"`; rust-cross-check matrix validates
-    against `aarch64-apple-darwin` + `x86_64-apple-darwin` on
-    every PR.
+    modules + their dedicated test suites + the `process` /
+    `rand` / `thiserror` deps the modules pulled in are
+    deleted from the workspace. Rationale per Three Pillars:
+    "moving makes the system worse" doesn't apply here — both
+    layers shell out to the same external binaries, the Rust
+    port had no measurable safety / perf / functionality win
+    that wiring it through FRB would unlock, and the Dart side
+    works in production today.
 
-    **Status: shipped-but-unwired.** The runtime path on macOS
-    still goes through `lib/platform/macos/code_signing/` (the
-    pre-port Dart implementation) because the Rust modules are
-    not exposed across FRB. Either expose them as
-    `lfs_frb::api::macos_signing` + `_installer` and retire the
-    Dart side, or revise this entry to mark the Rust modules
-    as scaffold-only. Both options are viable; pick before
-    the next macOS release cut.
+    If a future revisit decides the Rust path is worth the
+    FRB-exposure work (streaming `tokio::io::AsyncRead` of
+    `codesign` / `hdiutil` stderr surfaces a structured progress
+    UI rather than the current "subprocess output dumped into
+    a log" Dart path), it lands as a fresh port — the deleted
+    modules can be recovered from git history if needed.
 
-    Side effect of the original landing commit: pre-existing
-    macOS-cfg compile errors in `secure_key_storage::apple`,
-    `hardware_tier_vault::apple`, `biometric_auth::apple`, and
-    `session_lock_listener::macos_impl` got fixed
-    (security-framework-sys 2.17 dropped some symbols, objc2
-    0.6 made `LAContext::new` unsafe, etc.). Apple-cfg compile
-    is now green even with the FRB exposure outstanding.
+    Side effect of the **original** landing commit (still
+    intact): pre-existing macOS-cfg compile errors in
+    `secure_key_storage::apple`, `hardware_tier_vault::apple`,
+    `biometric_auth::apple`, and `session_lock_listener::macos_impl`
+    got fixed (security-framework-sys 2.17 dropped some symbols,
+    objc2 0.6 made `LAContext::new` unsafe, etc.). Apple-cfg
+    compile stays green.
 23. Remaining Tier 4 items stay opt-in per Three Pillars
     "moving makes worse": `foreground_service` (lifecycle-
     bound to MainActivity, JNI duplicates Flutter plugin
