@@ -2019,7 +2019,7 @@ class UpdateService {
 
 Supporting Rust modules:
 
-- **`lfs_core::update_signing`** (`rust/crates/lfs_core/src/update_signing.rs`) — holds the pinned Ed25519 public keys as a `&[[u8; 32]]` array. The verifier accepts a signature that validates against **any** pinned key, so the array can hold a current + previous pair during a rotation. **Today the array carries a single production key** — the historical "current + backup" claim describes the supported shape, not the live state. Adding a backup slot is a follow-up; until then, a leak of the lone pinned key forces a wider recovery playbook (release a fresh build with the new pin shipped through a side-channel announcement, then have users re-install). See [`SECURITY.md`](SECURITY.md) for the rotation playbook.
+- **`lfs_core::update_signing`** (`rust/crates/lfs_core/src/update_signing.rs`) — holds two named pin slots: `PRIMARY_PUBLIC_KEY` (always set; current production key) and `BACKUP_PUBLIC_KEY: Option<[u8; 32]>` (`None` today; populated during a planned rotation). The `pinned_public_keys()` iterator yields the primary first, then the backup if set, so a hot release continues to verify off the primary without paying for a backup-key check on the happy path. See the crate-level docstring for the rotation ceremony and [`SECURITY.md`](SECURITY.md) for the wider recovery playbook.
 - **`lfs_core::update_http`** (`rust/crates/lfs_core/src/update_http.rs`) — the rusty HTTP client used to fetch the Releases JSON + the artefact / signature pair. Relies on the system CA chain through `rustls-platform-verifier`; **no SPKI pinning is wired today**. The earlier Dart `cert_pinning.dart` had a populated-on-demand SPKI pin map (empty by default, fall back to system CA); the Rust port has not yet exposed an equivalent knob. The Ed25519 signature on every artefact is the load-bearing integrity check; SPKI pinning would be a defence-in-depth layer against a DNS / CA compromise of `api.github.com` / `objects.githubusercontent.com`. Slated as a follow-up.
 - **`InvalidReleaseSignatureException`** — thrown from
   `UpdateService.downloadAsset` when the signature check fails. Distinct
@@ -4633,10 +4633,12 @@ On the client, `UpdateService.downloadAsset`:
    disk corruption and "attacker replaced only the binary" on its own)
 3. Delegates to `ReleaseArtifactVerifier`, which fetches `<asset>.sig`
    and calls into `lfs_core::update_signing::verify_release_signature`
-   (FRB) — Ed25519 verify against the `PINNED_PUBLIC_KEYS` array. The
-   verifier accepts a signature against **any** entry, so the array
-   shape supports a current + previous pair during a key rotation.
-   Today the array carries a single production key.
+   (FRB) — Ed25519 verify against `PRIMARY_PUBLIC_KEY` and the optional
+   `BACKUP_PUBLIC_KEY` (when set). The verifier accepts a signature
+   that validates against either pin — the rotation slot lets a
+   maintainer ship an interim release that trusts both keys before
+   cutting over to the new primary. Today `BACKUP_PUBLIC_KEY` is
+   `None`; only the primary is trusted.
 4. Any failure deletes both the binary and the sig, throws
    `InvalidReleaseSignatureException`. The install step never runs on
    an unverified artefact.
@@ -4650,7 +4652,7 @@ from a private key held offline by the maintainer and verified by a
 public key compiled into the binary; the updater does not consult any
 online service at verify time.
 
-**Rotation:** the verifier accepts a signature against any element of the `PINNED_PUBLIC_KEYS` array in `lfs_core::update_signing`, so the shape supports a current + previous pair during a rotation. **Today the array carries a single production key.** A leak forces the wider recovery playbook (release a fresh build under the new pin, announce it through the side-channel documented in [`SECURITY.md`](SECURITY.md), prompt installed builds to re-install). Adding a backup slot to make the rotation hot-swappable is a follow-up.
+**Rotation:** `lfs_core::update_signing` exposes `PRIMARY_PUBLIC_KEY` (always set) plus `BACKUP_PUBLIC_KEY: Option<[u8; 32]>` (`None` today). The verifier accepts a signature against either pin, which gives the maintainer a hot-swappable rotation: ship an interim release that adds the new pubkey under the backup slot, then cut over to the new primary in the next release while keeping the old primary as the backup as a deprecation grace window, then drop the backup once installs have caught up. The crate-level docstring on `update_signing.rs` lays out the full day-N / day-N+1 / day-N+2 sequence. A genuine compromise that pre-dates a backup pin still falls back to the manual-reinstall recovery playbook documented in [`SECURITY.md`](SECURITY.md).
 
 **SPKI pinning (planned — not wired today):** the Dart-era updater shipped with an off-by-default `CertPinning` knob — `badCertificateCallback` on the HTTP client, ASN.1-extract the `SubjectPublicKeyInfo`, SHA-256 the DER bytes, compare against a per-host pin set, fall back to system-CA validation when the pin map was empty. The Rust port (`lfs_core::update_http`) has not yet exposed an equivalent. The Ed25519 release signature is the load-bearing integrity check; SPKI pinning is the defence-in-depth layer for a DNS / CA compromise scenario. Re-introducing the knob is a follow-up; until then the update channel relies on system-CA validation + the offline-signed manifest.
 

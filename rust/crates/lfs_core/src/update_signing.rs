@@ -11,47 +11,94 @@
 //! verify time, so the updater works even if Sigstore / a CA /
 //! DNS is compromised.
 //!
-//! ## Single-pin layout
+//! ## Pin layout — current + optional backup
 //!
-//! We embed **one** release-signing public key. CI signs with the
-//! matching private key, held in the `RELEASE_SIGNING_KEY` GitHub
-//! secret plus an offline copy in the maintainer's password manager.
+//! The verifier accepts a signature that validates against
+//! [`PRIMARY_PUBLIC_KEY`] **or** [`BACKUP_PUBLIC_KEY`] (when
+//! the latter is `Some`). Both keys are baked into the binary;
+//! signatures come fetched alongside each release artefact via
+//! the GitHub Releases API. No external service is consulted
+//! at verify time, so the updater works even if Sigstore / a CA
+//! / DNS is compromised.
 //!
-//! If the private key ever leaks, the auto-update channel is
-//! effectively dead for existing installs — any new release would
-//! have to be signed by a key the app already trusts, and the
-//! only pinned key is now the compromised one. The recovery path
-//! is to publish a new release branch with a fresh pubkey pair
-//! and ask users to reinstall manually from the website. There is
-//! no key-rotation ceremony.
+//! ### How rotation works
 //!
-//! This is a deliberate simplification: a backup pin buys one
-//! rotation at the cost of permanent ceremony (generate a second
-//! key, keep it offline, embed it, document the rotation flow).
-//! For a solo-dev repo where "dump the install and grab the
-//! fresh one" is a reasonable incident playbook, the single-pin
-//! design removes the whole two-key maintenance burden.
+//! Day 0 — only `PRIMARY_PUBLIC_KEY` is set; `BACKUP_PUBLIC_KEY`
+//! is `None`. CI signs with the matching primary private key
+//! (held in `RELEASE_SIGNING_KEY` secret + an offline copy in
+//! the maintainer's password manager).
+//!
+//! Day N (planned rotation) — generate a fresh keypair offline,
+//! ship a release that embeds the fresh pubkey as
+//! `BACKUP_PUBLIC_KEY = Some([...])` while still signing with
+//! the primary. Users who auto-update get the new build, which
+//! now trusts both keys.
+//!
+//! Day N+1 (cutover) — flip CI to sign with the new private key
+//! and ship the next release with `PRIMARY_PUBLIC_KEY` swapped
+//! to the new pubkey + `BACKUP_PUBLIC_KEY = None` (or set to
+//! the *previous* primary as a deprecation grace window). Stale
+//! installs that skipped the day-N release land on the new
+//! release, find the new primary key untrusted, but trust the
+//! still-pinned previous primary as `BACKUP_PUBLIC_KEY` — they
+//! follow the upgrade through.
+//!
+//! Day N+2 (full rotation complete) — drop the old key by
+//! shipping the next release with `BACKUP_PUBLIC_KEY = None`.
+//!
+//! This sequence buys a hot-swappable rotation without bricking
+//! the auto-update channel. Without the backup slot, a leaked
+//! primary key forces a "publish from a fresh branch + manual
+//! reinstall" recovery playbook documented in `SECURITY.md`.
+//!
+//! ### Compromise recovery
+//!
+//! If the primary key leaks **before** a backup pin lands — or
+//! the leak invalidates trust in the backup too — the auto-
+//! update channel cannot deliver a trustworthy fix to existing
+//! installs. The recovery path is the manual reinstall flow in
+//! [`SECURITY.md`](../../../../SECURITY.md): publish a fresh
+//! release branch under a brand-new pubkey, announce the change
+//! via the side-channel pinned in the README, and surface a
+//! "please reinstall" notice through whatever non-update path
+//! still works (about-screen check, website banner). The
+//! `BACKUP_PUBLIC_KEY` slot exists to keep that fire drill rare,
+//! not to replace it.
 
 use crate::crypto::ed25519_verify;
 
-/// Trusted Ed25519 release-signing public keys. Raw 32 bytes of
-/// the Edwards-curve public point each, captured with:
+/// Primary trusted Ed25519 release-signing public key. Raw 32
+/// bytes of the Edwards-curve public point, captured with:
 ///
 /// ```text
 /// openssl pkey -in release-key-current.pem -pubout -outform DER | tail -c 32
 /// ```
 ///
-/// One entry today; a slice so a future hardened-rotation path
-/// can pin two keys (current + previous) without changing this
-/// API shape.
-pub const PINNED_PUBLIC_KEYS: &[[u8; 32]] = &[
+/// CI signs every release artefact with the matching private key.
+pub const PRIMARY_PUBLIC_KEY: [u8; 32] = [
     // Current — `release-key-current.pem` (generated 2026-04-17)
-    [
-        0x15, 0x6a, 0x7d, 0x78, 0xe6, 0x28, 0x52, 0xbd, 0x3e, 0xf8, 0x60, 0x71, 0x7f, 0xcb, 0x8d,
-        0xde, 0xad, 0x1b, 0x2d, 0x75, 0xe3, 0x86, 0x95, 0x8f, 0xec, 0x3c, 0xa8, 0x12, 0x30, 0x57,
-        0x32, 0x03,
-    ],
+    0x15, 0x6a, 0x7d, 0x78, 0xe6, 0x28, 0x52, 0xbd, 0x3e, 0xf8, 0x60, 0x71, 0x7f, 0xcb, 0x8d, 0xde,
+    0xad, 0x1b, 0x2d, 0x75, 0xe3, 0x86, 0x95, 0x8f, 0xec, 0x3c, 0xa8, 0x12, 0x30, 0x57, 0x32, 0x03,
 ];
+
+/// Optional backup Ed25519 release-signing public key. `None`
+/// today — populated during a planned rotation to give existing
+/// installs a hot-swappable upgrade path (see crate-level docs).
+///
+/// The verifier accepts a signature against this key in addition
+/// to [`PRIMARY_PUBLIC_KEY`]. When set to `Some`, exactly one of
+/// the two keys must validate — both fail-closed via
+/// [`crate::crypto::ed25519_verify`]'s `verify_strict` semantics.
+pub const BACKUP_PUBLIC_KEY: Option<[u8; 32]> = None;
+
+/// Aggregate of every currently-trusted release-signing key.
+/// Returns the active set as an iterator so a future rotation
+/// step that needs to inspect both pins (rotation-ceremony
+/// helper, key-fingerprint diagnostic) doesn't have to re-walk
+/// the conditional logic.
+pub fn pinned_public_keys() -> impl Iterator<Item = [u8; 32]> {
+    std::iter::once(PRIMARY_PUBLIC_KEY).chain(BACKUP_PUBLIC_KEY)
+}
 
 /// Verify `signature` (raw 64-byte Ed25519 signature) over `message`
 /// against any pinned public key. Returns `true` only on a valid
@@ -65,9 +112,7 @@ pub fn verify_release_signature(message: &[u8], signature: &[u8]) -> bool {
     if signature.len() != 64 {
         return false;
     }
-    PINNED_PUBLIC_KEYS
-        .iter()
-        .any(|pk| ed25519_verify(pk, message, signature))
+    pinned_public_keys().any(|pk| ed25519_verify(&pk, message, signature))
 }
 
 #[cfg(test)]
@@ -90,8 +135,29 @@ mod tests {
 
     #[test]
     fn pinned_keys_each_thirty_two_bytes() {
-        for pk in PINNED_PUBLIC_KEYS {
+        for pk in pinned_public_keys() {
             assert_eq!(pk.len(), 32);
+        }
+    }
+
+    #[test]
+    fn primary_key_is_listed_first() {
+        // Iterator order matters for the `any()` short-circuit:
+        // production releases sign with the primary, so the
+        // primary check must come first to avoid a wasted
+        // backup verification on every successful update.
+        assert_eq!(pinned_public_keys().next(), Some(PRIMARY_PUBLIC_KEY));
+    }
+
+    #[test]
+    fn backup_slot_appends_when_set() {
+        // White-box: when BACKUP_PUBLIC_KEY is None the iterator
+        // yields exactly one entry; when it's Some it yields two.
+        // The current production constant is None.
+        let count = pinned_public_keys().count();
+        match BACKUP_PUBLIC_KEY {
+            None => assert_eq!(count, 1),
+            Some(_) => assert_eq!(count, 2),
         }
     }
 }
