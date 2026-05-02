@@ -21,15 +21,44 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
 
   @override
   Future<List<SshKeyEntry>> build() async {
-    // `loadAllSafe` (not `loadAll`) — first-frame reads happen
-    // before unlock has put a usable key in the FRB native lib;
-    // the prior FutureProvider used the sentinel-empty path so
-    // the sidebar didn't surface a KeyStoreException as the
-    // cold-start visible error.
-    final map = await loadAllSafe();
-    return map.values.toList()
+    // Metadata-only view: every Riverpod watcher of
+    // [sshKeysProvider] gets a credential-stripped list (no PEM
+    // private bytes pulled into the Dart heap on every list
+    // refresh, no stale GC-roots once the cache is invalidated).
+    // The UI consumers (key picker, key manager list, settings
+    // export tile) only need label / type / fingerprints / dates;
+    // the rare paths that genuinely need the PEM bytes (e.g.
+    // archive export staging, dedup-by-private-fingerprint) call
+    // [loadAll] / [get] explicitly. `loadAllMetadata` returns an
+    // empty map on FRB failure — same sentinel-empty contract
+    // [loadAllSafe] used to provide.
+    Map<String, SshKeyMetadata> map;
+    try {
+      map = await loadAllMetadata();
+    } on KeyStoreException catch (e) {
+      AppLogger.instance.log(
+        'sshKeysProvider build: returning empty list — $e',
+        name: 'SshKeysNotifier',
+      );
+      map = const {};
+    }
+    return map.values.map(_metadataToStrippedEntry).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
+
+  /// Project a [SshKeyMetadata] row into a [SshKeyEntry] with the
+  /// `privateKey` cleared. UI watchers see the same shape as before;
+  /// the Dart heap never holds the PEM bytes for keys nobody is
+  /// actively using.
+  static SshKeyEntry _metadataToStrippedEntry(SshKeyMetadata m) => SshKeyEntry(
+    id: m.id,
+    label: m.label,
+    privateKey: '',
+    publicKey: m.publicKey,
+    keyType: m.keyType,
+    createdAt: m.createdAt,
+    isGenerated: m.isGenerated,
+  );
 
   /// Drop the in-memory cache. Called from the unlock handshake so
   /// the next read pulls fresh rows after the DB switches behind us.
