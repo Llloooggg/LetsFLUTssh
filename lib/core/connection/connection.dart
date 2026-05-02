@@ -157,30 +157,36 @@ class Connection {
 
   /// Bus-driven state-machine hook. The Rust connection actor
   /// publishes a `ConnectionStateChanged` event for every
-  /// transition; this listener mirrors the relevant Dart-side
-  /// state (transport adoption + transient-secret eviction)
-  /// without requiring the manager to mediate.
+  /// transition; this listener owns the Dart-side `state` field
+  /// + the per-state side effects (transport adoption,
+  /// transient-secret eviction). The manager's per-attempt sub
+  /// also subscribes for the connect-attempt envelope (logging,
+  /// error capture), but state ownership lives here so a
+  /// per-attempt sub being cancelled in `_doConnect.finally`
+  /// does not race the final `Connected` / `Disconnected` event
+  /// — Connection's `_busSub` lives for the Connection's full
+  /// lifetime and catches every transition reliably.
   ///
-  /// `Connecting` → no Dart-side mutation needed (the manager
-  /// flips the `state` field directly when it kicks off the
-  /// connect attempt; a redundant write here would just race).
+  /// `Connecting` → mirror state on the Dart object.
   ///
-  /// `Connected` → fetch the live russh session via FRB, wrap
-  /// it in `RustTransport.adopt`, fire the connected hook, drop
-  /// any per-attempt transient secrets the connect path staged.
+  /// `Connected` → flip state, fetch the live russh session via
+  /// FRB, wrap it in `RustTransport.adopt`, fire the connected
+  /// hook, drop any per-attempt transient secrets the connect
+  /// path staged.
   ///
-  /// `Disconnected` → clear the adopted transport + drop staged
-  /// transient secrets so the next reconnect starts clean.
+  /// `Disconnected` → flip state, clear the adopted transport +
+  /// drop staged transient secrets so the next reconnect starts
+  /// clean.
   void _onBusStateChanged(rust_bus.BusConnectionState state) {
     switch (state) {
       case rust_bus.BusConnectionState.connecting:
-        // No-op — manager-side flow flips the Dart `state`
-        // field at the same edge.
-        break;
+        this.state = SSHConnectionState.connecting;
       case rust_bus.BusConnectionState.connected:
+        this.state = SSHConnectionState.connected;
         unawaited(_adoptSession());
         _evictTransientSecrets();
       case rust_bus.BusConnectionState.disconnected:
+        this.state = SSHConnectionState.disconnected;
         transport = null;
         _evictTransientSecrets();
     }
