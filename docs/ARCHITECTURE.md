@@ -488,7 +488,7 @@ class RemoteFS implements FileSystem { ... }   // wraps RustSftpFs; dirSize capp
 | File | Class | Purpose |
 |------|-------|---------|
 | `providers/transfer_provider.dart` | `TransfersNotifier` | Task queue, parallel workers, history, cancellation |
-| `transfer_task.dart` | `TransferTask`, `TransferDirection`, `HistoryEntry` | Task model, direction enum, history entry |
+| `transfer_task.dart` | `TransferDirection`, `HistoryEntry`, `ActiveEntry` | Direction enum, history-row model (terminal task summary), active-row model (in-flight task UI snapshot). The earlier `TransferTask` Dart model was retired — the live task object lives Rust-side in `lfs_core::transfer::WorkerPool` and surfaces as `ActiveEntry` snapshots in the UI. |
 | `conflict_resolver.dart` | `ConflictAction`, `ConflictDecision`, `BatchConflictResolver` | User decision for destination-exists conflicts, with "apply to all remaining" caching across a batch |
 | `unique_name.dart` | `uniqueSiblingName()` | Compute a non-colliding destination path (`file.txt` → `file (1).txt`) for the "Keep both" conflict action |
 
@@ -504,24 +504,36 @@ class RemoteFS implements FileSystem { ... }   // wraps RustSftpFs; dirSize capp
 - Streams: `onChange → UI updates`, `onHistoryChange → history`
 
 ```dart
-class TransfersNotifier {
-  TransfersNotifier({int parallelism = 2, int maxHistory = 500, Duration taskTimeout = 30 min});
+class TransfersNotifier extends Notifier<TransferState> {
+  // Parallelism + maxHistory + taskTimeout live on the Rust side
+  // (lfs_core::transfer::WorkerPool + retention policy); the Dart
+  // notifier mirrors snapshots only.
 
-  String enqueue(TransferTask task);          // returns task ID
-  void cancel(String taskId);
-  void cancelAll();
-  void clearHistory();
+  Future<void> enqueue({
+    required TransferDirection direction,
+    required String sessionId,
+    required String remotePath,
+    required String localPath,
+    int bytesTotal = 0,
+  });
+  // Routes to lfs_frb::api::transfer::transfer_enqueue; the Rust
+  // worker pool owns the live task object and emits per-chunk
+  // BusEvent::TransferTaskProgress + lifecycle events that the
+  // notifier subscribes to.
 
-  Stream<void> get onChange;                  // broadcasts on any state change
+  Future<void> cancel(String taskId);
+  Future<void> cancelAll();
+  Future<void> clearHistory();
+
   List<ActiveEntry> get activeEntries;        // running + queued tasks with progress
   List<HistoryEntry> get history;             // completed/failed/cancelled
   ({int running, int queued}) get status;
 }
 ```
 
-**Cancellation:** Marks the task as cancelled via `_cancelledIds` set; on the next progress callback invocation the flag is checked and CancelException is thrown. Timeout also adds to `_cancelledIds` for cooperative cancellation.
+**Cancellation:** routes through `lfs_frb::api::transfer::transfer_cancel`; the Rust worker checks the cancel flag at every chunk boundary and aborts cooperatively. Timeout shares the same path — the Rust pool's deadline timer enqueues the cancel.
 
-**Queue processing:** `_processQueue` returns void and fires tasks via `unawaited()` — errors are caught internally per-task.
+**Queue processing:** owned by `lfs_core::transfer::WorkerPool` (a tokio task pool). Dart's notifier is a passive mirror that re-emits when `BusEvent::TransferTask*` lands.
 
 **Task lifecycle**:
 
@@ -4085,13 +4097,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    ui["UI → sessionProvider.add(session)"]
-    ui --> add["SessionNotifier.add(session)<br/>Adds to list → SessionNotifier.save()"]
-    add --> meta["sessions.json<br/>metadata, atomic write"]
-    add --> creds["credentials.enc<br/>AES-256-GCM, atomic write"]
-    ui --> hist["SessionHistory.push(snapshot)<br/>undo support"]
-    ui --> st["state = [...state, session]"]
-    st --> rc["sessionTreeProvider recomputes<br/>filteredSessionsProvider recomputes<br/>UI rebuilds"]
+    ui["UI → sessionsProvider.notifier.add(session)"]
+    ui --> add["SessionNotifier.add(session)<br/>Calls db_sessions_upsert via FRB"]
+    add --> rust["lfs_core::db::sessions::upsert<br/>WriteAheadLog row → SQLCipher commit"]
+    rust --> evt["BusEvent::SessionsChanged"]
+    evt --> reload["SessionNotifier reload from db_sessions_list"]
+    reload --> rc["sessionTreeProvider recomputes<br/>filteredSessionsProvider recomputes<br/>UI rebuilds"]
+    ui -.-> hist["SessionHistory.push(snapshot)<br/>undo support — Dart-only"]
 ```
 
 ### 9.4 File Transfer Flow
@@ -4099,15 +4111,20 @@ flowchart TD
 ```mermaid
 flowchart TD
     drag["User drags file between panes"]
-    drag --> fa["FileActions.transfer(source, target, direction)<br/>Creates TransferTask(name, direction, paths, size, run)<br/>run wraps SFTPService.uploadFile/downloadFile"]
-    fa --> enq["transferManager.enqueue(task)<br/>Adds to queue<br/>If workers &lt; max → starts a worker"]
-    enq --> w["Worker:<br/>task.state = running<br/>task.run(progressCallback)"]
-    w --> cb["progressCallback checks:<br/>cancelled? → CancelException<br/>timeout? → TimeoutException<br/>updates progress %"]
-    cb --> r{outcome}
-    r -->|success| ok["HistoryEntry(completed)"]
-    r -->|failure| err["HistoryEntry(failed, error)"]
-    ok --> strm["Streams → UI updates (TransferPanel)"]
-    err --> strm
+    drag --> fa["FileActions.transfer(source, target, direction)"]
+    fa --> enq["TransfersNotifier.enqueue() →<br/>lfs_frb::api::transfer::transfer_enqueue"]
+    enq --> pool["lfs_core::transfer::WorkerPool<br/>tokio task per active worker"]
+    pool --> exec["SftpTaskExecutor:<br/>spawn russh-sftp upload/download<br/>cooperative cancel-flag check per chunk"]
+    exec --> evt["BusEvent::TransferTaskProgress<br/>(per chunk; coalesced inside actor)"]
+    evt --> activedart["TransfersNotifier rebuilds ActiveEntry"]
+    activedart --> ui["TransferPanel rebuilds"]
+    exec --> r{outcome}
+    r -->|success| done["BusEvent::TransferTaskCompleted → HistoryEntry"]
+    r -->|cancelled| canc["BusEvent::TransferTaskCancelled → HistoryEntry"]
+    r -->|failure| err["BusEvent::TransferTaskFailed → HistoryEntry(error)"]
+    done --> ui
+    canc --> ui
+    err --> ui
 ```
 
 ---
@@ -4196,18 +4213,41 @@ FileEntry {
 }
 ```
 
-### TransferTask
+### Transfer rows
 
 ```dart
-TransferTask {
-  name: String            // display name
-  direction: TransferDirection  // upload | download
-  sourcePath: String
-  targetPath: String
-  sizeBytes: int
-  run: Future<void> Function(ProgressCallback)
-  // Note: id, state, progress are managed by TransfersNotifier (ActiveEntry wrapper),
-  // not stored on TransferTask itself
+enum TransferDirection { upload, download }
+
+// Live task — surfaced by TransfersNotifier.activeEntries; the
+// authoritative task object lives Rust-side in
+// lfs_core::transfer::WorkerPool. ActiveEntry is the Dart-side
+// snapshot that the bus subscription rebuilds per progress event.
+class ActiveEntry {
+  final String id;
+  final TransferDirection direction;
+  final String name;
+  final String sourcePath;
+  final String targetPath;
+  final int    bytesTotal;     // 0 if unknown
+  final int    bytesDone;
+  final TransferState state;   // queued | running | cancelling
+}
+
+// Terminal-state task — populated when a task completes / fails /
+// gets cancelled. Replaced the earlier TransferTask Dart class
+// that mixed live + history state.
+class HistoryEntry {
+  final String id;
+  final TransferDirection direction;
+  final String name;
+  final String sourcePath;
+  final String targetPath;
+  final int    bytesTotal;
+  final int    bytesDone;
+  final DateTime startedAt;
+  final DateTime? endedAt;
+  final TransferOutcome outcome;  // completed | cancelled | failed
+  final String? errorMessage;
 }
 ```
 
