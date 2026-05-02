@@ -42,20 +42,14 @@ impl SshForwardChannel {
 }
 
 /// Start a Rust-driven `-L` local forward listener against the
-/// supplied connection actor. Binds `bind_host:bind_port`,
-/// resolves the active russh `Session` via the connection
-/// registry, and spawns the accept loop that relays each accepted
-/// socket through a fresh `direct-tcpip` channel to
-/// `target_host:target_port`.
+/// supplied connection actor. Returns the actual bound port
+/// (matters when the caller passes `0` to let the OS pick).
+/// Status events flow onto the bus through the registered rule id.
 ///
-/// Returns the actual bound port (matters when the caller passes
-/// `0` to let the OS pick). Status events (`Listening` / `Error`)
-/// flow onto the bus through the registered rule id; the Dart UI
-/// subscribes there as usual.
-///
-/// `connection_id` must point at a `Connected` actor — without
-/// a live session the russh handle is gone and the listener task
-/// would fail every accept.
+/// All orchestration (resolve session, build factory, bind addr,
+/// spawn listener, store handle) lives in
+/// `lfs_core::portforward::driver::start_local`. The shim is a
+/// pass-through so the adapter stays free of business logic.
 pub async fn port_forward_start_local(
     rule_id: String,
     connection_id: String,
@@ -64,44 +58,17 @@ pub async fn port_forward_start_local(
     target_host: String,
     target_port: u32,
 ) -> Result<u32, String> {
-    use std::net::SocketAddr;
-
-    let app = lfs_core::app::instance();
-    let actor_handle = app
-        .connections
-        .get(&connection_id)
-        .ok_or_else(|| format!("connection {connection_id} not registered"))?;
-    let session = {
-        let actor = actor_handle
-            .lock()
-            .map_err(|_| "connection actor mutex poisoned".to_string())?;
-        actor
-            .clone_session()
-            .ok_or_else(|| format!("connection {connection_id} has no live session"))?
-    };
-
-    let bind_str = format!("{bind_host}:{bind_port}");
-    let bind_addr: SocketAddr = bind_str
-        .parse()
-        .map_err(|e| format!("invalid bind address {bind_str}: {e}"))?;
-
-    let factory: std::sync::Arc<dyn lfs_core::portforward::driver::ChannelFactory> =
-        std::sync::Arc::new(lfs_core::portforward::driver::DirectTcpipFactory::new(
-            session,
-            target_host,
-            target_port as u16,
-        ));
-    let reporter: std::sync::Arc<dyn lfs_core::portforward::driver::StatusReporter> =
-        std::sync::Arc::new(lfs_core::portforward::driver::AppStatusReporter::new(
-            rule_id.clone(),
-        ));
-
-    let handle = lfs_core::portforward::driver::spawn_listener(bind_addr, factory, reporter)
-        .await
-        .map_err(|e| e.to_string())?;
-    let bound_port = handle.bound_addr().port() as u32;
-    app.port_forwards.store_listener(&rule_id, handle);
-    Ok(bound_port)
+    lfs_core::portforward::driver::start_local(
+        rule_id,
+        connection_id,
+        bind_host,
+        bind_port,
+        target_host,
+        target_port as u16,
+    )
+    .await
+    .map(|p| p as u32)
+    .map_err(|e| e.to_string())
 }
 
 /// Stop a listener spawned by [`port_forward_start_local`].
@@ -109,60 +76,22 @@ pub async fn port_forward_start_local(
 /// (which aborts the accept loop and closes the listener
 /// socket). Returns `true` when a handle was actually stopped.
 pub async fn port_forward_stop_local(rule_id: String) -> Result<bool, String> {
-    let app = lfs_core::app::instance();
-    Ok(app.port_forwards.stop_listener(&rule_id).is_some())
+    Ok(lfs_core::portforward::driver::stop_listener(&rule_id))
 }
 
 /// Start a Rust-driven `-D` SOCKS5 dynamic-forward listener
-/// against the supplied connection actor. Binds
-/// `bind_host:bind_port`, resolves the active russh `Session`
-/// via the connection registry, and spawns the accept loop that
-/// runs the SOCKS5 CONNECT handshake (RFC 1928, NO_AUTH only)
-/// per accepted socket and bridges it through a fresh
-/// `direct-tcpip` channel to the target the client asked for.
-///
-/// Returns the actual bound port (matters when the caller
-/// passes `0` to let the OS pick). Status events (`Listening` /
-/// `Error`) flow onto the bus through the registered rule id;
-/// the Dart UI subscribes there as usual.
+/// against the supplied connection actor. Same shape as
+/// [`port_forward_start_local`] minus the target tuple.
 pub async fn port_forward_start_dynamic(
     rule_id: String,
     connection_id: String,
     bind_host: String,
     bind_port: u32,
 ) -> Result<u32, String> {
-    use std::net::SocketAddr;
-
-    let app = lfs_core::app::instance();
-    let actor_handle = app
-        .connections
-        .get(&connection_id)
-        .ok_or_else(|| format!("connection {connection_id} not registered"))?;
-    let session = {
-        let actor = actor_handle
-            .lock()
-            .map_err(|_| "connection actor mutex poisoned".to_string())?;
-        actor
-            .clone_session()
-            .ok_or_else(|| format!("connection {connection_id} has no live session"))?
-    };
-
-    let bind_str = format!("{bind_host}:{bind_port}");
-    let bind_addr: SocketAddr = bind_str
-        .parse()
-        .map_err(|e| format!("invalid bind address {bind_str}: {e}"))?;
-
-    let reporter: std::sync::Arc<dyn lfs_core::portforward::driver::StatusReporter> =
-        std::sync::Arc::new(lfs_core::portforward::driver::AppStatusReporter::new(
-            rule_id.clone(),
-        ));
-
-    let handle = lfs_core::portforward::driver::spawn_socks5_listener(bind_addr, session, reporter)
+    lfs_core::portforward::driver::start_dynamic(rule_id, connection_id, bind_host, bind_port)
         .await
-        .map_err(|e| e.to_string())?;
-    let bound_port = handle.bound_addr().port() as u32;
-    app.port_forwards.store_listener(&rule_id, handle);
-    Ok(bound_port)
+        .map(|p| p as u32)
+        .map_err(|e| e.to_string())
 }
 
 /// Stop a SOCKS5 listener spawned by
@@ -170,21 +99,13 @@ pub async fn port_forward_start_dynamic(
 /// [`port_forward_stop_local`] — both share the registry's
 /// listener handle slot.
 pub async fn port_forward_stop_dynamic(rule_id: String) -> Result<bool, String> {
-    let app = lfs_core::app::instance();
-    Ok(app.port_forwards.stop_listener(&rule_id).is_some())
+    Ok(lfs_core::portforward::driver::stop_listener(&rule_id))
 }
 
 /// Start a Rust-driven `-R` remote-forward against the supplied
-/// connection actor. Asks the server to listen on
-/// `bind_host:bind_port` (pass `0` to let the server pick),
-/// registers a route through the session-level dispatcher, and
-/// spawns the bridge task that opens a fresh local TCP connection
-/// to `target_host:target_port` per inbound forwarded connection.
-///
-/// Returns the actual bound port the server accepted (servers may
-/// substitute their own when the caller asked for 0). Status
-/// events (`Listening` / `Error`) flow onto the bus through the
-/// registered rule id; the Dart UI subscribes there as usual.
+/// connection actor. Returns the actual bound port the server
+/// accepted (servers may substitute their own when the caller
+/// asked for 0).
 pub async fn port_forward_start_remote(
     rule_id: String,
     connection_id: String,
@@ -193,38 +114,16 @@ pub async fn port_forward_start_remote(
     target_host: String,
     target_port: u32,
 ) -> Result<u32, String> {
-    let app = lfs_core::app::instance();
-    let actor_handle = app
-        .connections
-        .get(&connection_id)
-        .ok_or_else(|| format!("connection {connection_id} not registered"))?;
-    let session = {
-        let actor = actor_handle
-            .lock()
-            .map_err(|_| "connection actor mutex poisoned".to_string())?;
-        actor
-            .clone_session()
-            .ok_or_else(|| format!("connection {connection_id} has no live session"))?
-    };
-
-    let reporter: std::sync::Arc<dyn lfs_core::portforward::driver::StatusReporter> =
-        std::sync::Arc::new(lfs_core::portforward::driver::AppStatusReporter::new(
-            rule_id.clone(),
-        ));
-
-    let handle = lfs_core::portforward::driver::spawn_remote_forward(
-        session,
+    lfs_core::portforward::driver::start_remote(
+        rule_id,
+        connection_id,
         bind_host,
         bind_port,
         target_host,
         target_port as u16,
-        reporter,
     )
     .await
-    .map_err(|e| e.to_string())?;
-    let bound_port = handle.bound_port();
-    app.port_forwards.store_remote_forward(&rule_id, handle);
-    Ok(bound_port)
+    .map_err(|e| e.to_string())
 }
 
 /// Stop a `-R` handle spawned by [`port_forward_start_remote`].
@@ -232,8 +131,7 @@ pub async fn port_forward_start_remote(
 /// session-level route, and asks the server to stop listening).
 /// Idempotent on a missing rule id.
 pub async fn port_forward_stop_remote(rule_id: String) -> Result<bool, String> {
-    let app = lfs_core::app::instance();
-    Ok(app.port_forwards.stop_remote_forward(&rule_id))
+    Ok(lfs_core::portforward::driver::stop_remote(&rule_id))
 }
 
 /// Open a direct-tcpip channel. `host_to_connect` / `port_to_connect`

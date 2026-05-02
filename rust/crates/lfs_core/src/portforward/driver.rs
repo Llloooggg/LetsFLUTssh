@@ -530,6 +530,128 @@ async fn bridge_forward_to_local_tcp(
     Ok(())
 }
 
+// ── High-level orchestration helpers ─────────────────────────────────
+// These resolve a connection_id → live session via the registry, build
+// the matching factory + reporter, spawn the listener, and store the
+// returned handle in the AppState's port_forwards registry. The FRB
+// adapter uses them as one-line shims; before they existed each
+// adapter site repeated the same multi-step composition (≈30 LOC),
+// which the audit (G16, ARCH-HIGH) flagged as orchestration leaking
+// into the bridge layer.
+
+fn resolve_active_session(connection_id: &str) -> Result<Arc<crate::ssh::Session>, Error> {
+    crate::app::instance()
+        .connections
+        .connected_session(connection_id)
+        .ok_or_else(|| Error::Io(format!("connection {connection_id} has no live session")))
+}
+
+fn parse_bind_addr(bind_host: &str, bind_port: u32) -> Result<SocketAddr, Error> {
+    let bind_str = format!("{bind_host}:{bind_port}");
+    bind_str
+        .parse::<SocketAddr>()
+        .map_err(|e| Error::Io(format!("invalid bind address {bind_str}: {e}")))
+}
+
+/// Start a `-L` local-forward listener against the connection
+/// actor identified by `connection_id`. Resolves the live russh
+/// session, builds a [`DirectTcpipFactory`] + [`AppStatusReporter`],
+/// spawns the accept loop, and stores the returned
+/// [`ListenerHandle`] under `rule_id` in
+/// `AppState::port_forwards`. Returns the actually-bound port
+/// (matters when the caller passed `0`).
+pub async fn start_local(
+    rule_id: String,
+    connection_id: String,
+    bind_host: String,
+    bind_port: u32,
+    target_host: String,
+    target_port: u16,
+) -> Result<u16, Error> {
+    let session = resolve_active_session(&connection_id)?;
+    let bind_addr = parse_bind_addr(&bind_host, bind_port)?;
+    let factory: Arc<dyn ChannelFactory> =
+        Arc::new(DirectTcpipFactory::new(session, target_host, target_port));
+    let reporter: Arc<dyn StatusReporter> = Arc::new(AppStatusReporter::new(rule_id.clone()));
+    let handle = spawn_listener(bind_addr, factory, reporter).await?;
+    let bound = handle.bound_addr().port();
+    crate::app::instance()
+        .port_forwards
+        .store_listener(&rule_id, handle);
+    Ok(bound)
+}
+
+/// Start a `-D` SOCKS5 dynamic-forward listener. Same shape as
+/// [`start_local`] minus the target tuple — the SOCKS5 client
+/// supplies the target per accepted socket.
+pub async fn start_dynamic(
+    rule_id: String,
+    connection_id: String,
+    bind_host: String,
+    bind_port: u32,
+) -> Result<u16, Error> {
+    let session = resolve_active_session(&connection_id)?;
+    let bind_addr = parse_bind_addr(&bind_host, bind_port)?;
+    let reporter: Arc<dyn StatusReporter> = Arc::new(AppStatusReporter::new(rule_id.clone()));
+    let handle = spawn_socks5_listener(bind_addr, session, reporter).await?;
+    let bound = handle.bound_addr().port();
+    crate::app::instance()
+        .port_forwards
+        .store_listener(&rule_id, handle);
+    Ok(bound)
+}
+
+/// Start a `-R` remote-forward against the connection actor.
+/// Asks the server to listen on `bind_host:bind_port` (passing
+/// 0 lets the server pick) and bridges every inbound forwarded
+/// connection to a fresh local TCP socket on
+/// `target_host:target_port`. Returns the bound port the server
+/// actually picked.
+pub async fn start_remote(
+    rule_id: String,
+    connection_id: String,
+    bind_host: String,
+    bind_port: u32,
+    target_host: String,
+    target_port: u16,
+) -> Result<u32, Error> {
+    let session = resolve_active_session(&connection_id)?;
+    let reporter: Arc<dyn StatusReporter> = Arc::new(AppStatusReporter::new(rule_id.clone()));
+    let handle = spawn_remote_forward(
+        session,
+        bind_host,
+        bind_port,
+        target_host,
+        target_port,
+        reporter,
+    )
+    .await?;
+    let bound = handle.bound_port();
+    crate::app::instance()
+        .port_forwards
+        .store_remote_forward(&rule_id, handle);
+    Ok(bound)
+}
+
+/// Stop a `-L` or `-D` listener spawned by [`start_local`] or
+/// [`start_dynamic`]. Idempotent on a missing rule id; returns
+/// `true` when a listener was actually stopped.
+pub fn stop_listener(rule_id: &str) -> bool {
+    crate::app::instance()
+        .port_forwards
+        .stop_listener(rule_id)
+        .is_some()
+}
+
+/// Stop a `-R` handle spawned by [`start_remote`]. Aborts the
+/// bridge task, withdraws the session-level route, and asks the
+/// server to stop listening. Idempotent on a missing rule id.
+pub fn stop_remote(rule_id: &str) -> bool {
+    crate::app::instance()
+        .port_forwards
+        .stop_remote_forward(rule_id)
+}
+
 /// Bidirectional copy between an accepted [`TcpStream`] and an
 /// upstream channel reader / writer pair. Each direction runs
 /// to completion: client shutting down the write side
