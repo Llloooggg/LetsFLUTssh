@@ -62,6 +62,17 @@ class RecordingReader {
   static const _hkdfInfo = 'letsflutssh-recording-v1';
   static const List<int> _expectedMagic = [0x4C, 0x46, 0x52, 0x31];
 
+  /// Per-frame plaintext-length cap for `.lfsr` envelopes. The
+  /// recorder writes asciinema-v2 event lines, where the largest
+  /// realistic frame is a paste-storm worth of bytes — well under
+  /// 16 MiB. The header was a 4-byte uint32 with no sanity check,
+  /// so a malformed / hostile file with `0xffffffff` pulled a 4 GiB
+  /// allocation in the runtime before the AEAD failure had a
+  /// chance to fire. Cap the read at a value that fits every
+  /// realistic recording with room to spare and rejects anything
+  /// larger as a `RecordingFormatException`.
+  static const int _maxFramePlaintextBytes = 16 * 1024 * 1024;
+
   /// Walk a `.cast` plaintext recording. The first event is the
   /// asciinema header (a JSON object); subsequent events are
   /// `[t, dir, data]` arrays.
@@ -108,9 +119,21 @@ class RecordingReader {
         final ptLen = ByteData.sublistView(
           lenBytes,
         ).getUint32(0, Endian.little);
+        if (ptLen > _maxFramePlaintextBytes) {
+          throw RecordingFormatException(
+            'Frame plaintext length $ptLen exceeds cap '
+            '$_maxFramePlaintextBytes — refusing to allocate',
+          );
+        }
         final nonce = raf.readSync(12);
+        if (nonce.length < 12) {
+          throw const RecordingFormatException('Truncated nonce');
+        }
         // ciphertext = plaintext-len + 16 (GCM tag)
         final ct = raf.readSync(ptLen + 16);
+        if (ct.length < ptLen + 16) {
+          throw const RecordingFormatException('Truncated ciphertext frame');
+        }
         final pt = await rust_crypto.cryptoAesGcmDecryptRaw(
           key: key,
           nonce: nonce,

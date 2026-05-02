@@ -122,4 +122,35 @@ void main() {
     );
     expect(meta, isNull);
   });
+
+  // Regression: the per-frame `uint32` length prefix was read
+  // straight into
+  // `raf.readSync(ptLen + 16)` with no sanity cap. A malformed
+  // `.lfsr` planted under the recordings dir with `0xffffffff` as
+  // the first frame length would pull a 4 GiB allocation before
+  // the AEAD failure had a chance to fire — local DoS just by
+  // opening the recordings panel. The reader now rejects any frame
+  // whose declared plaintext length exceeds the per-frame cap.
+  test('rejects oversized frame length prefix without allocating', () async {
+    final f = File(p.join(tempDir.path, 'oversized.lfsr'));
+    final bytes = <int>[
+      // Magic + version.
+      0x4C, 0x46, 0x52, 0x31, 0x01,
+      // Frame length prefix = 0xffffffff (4 GiB) — well past the
+      // 16 MiB cap. The reader must throw before reading further.
+      0xFF, 0xFF, 0xFF, 0xFF,
+    ];
+    await f.writeAsBytes(bytes);
+    final meta = await RecordingReader.readMeta(
+      f,
+      encrypted: true,
+      dbKey: Uint8List(32),
+    );
+    // readMeta wraps every error as Ok(None) so the panel can list
+    // the file with a delete button. The bound-check is what we're
+    // really asserting — without the cap the await above would
+    // attempt a multi-GB allocation and either OOM the test
+    // process or hang.
+    expect(meta, isNull);
+  });
 }

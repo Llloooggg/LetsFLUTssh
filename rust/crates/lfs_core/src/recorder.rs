@@ -248,6 +248,14 @@ impl RecorderRegistry {
             .append(true)
             .open(&path)
             .map_err(|e| Error::Io(format!("recorder open {path}: {e}")))?;
+        // Harden the file mode to 0600 immediately after open so a
+        // crash mid-record does not leave plaintext terminal output
+        // (or the encrypted envelope) at the umask-default mode —
+        // typically 0644 on Linux, group/world-readable on multi-
+        // user hosts. See ARCH §3.13 file-mode invariant.
+        if let Err(msg) = crate::path::harden_file_perms(std::path::Path::new(&path)) {
+            return Err(Error::Io(format!("recorder harden {path}: {msg}")));
+        }
         let encrypted = key.is_some();
         let mut bytes_written: u64 = 0;
         if encrypted {
@@ -456,6 +464,16 @@ impl RecorderRegistry {
                 .append(true)
                 .open(&new_path)
                 .map_err(|e| Error::Io(format!("recorder rotate open {new_path}: {e}")))?;
+            // Same chmod 0600 harden the initial-register path
+            // applies — every rotation creates a fresh file at
+            // umask-default mode otherwise.
+            if let Err(msg) =
+                crate::path::harden_file_perms(std::path::Path::new(&new_path))
+            {
+                return Err(Error::Io(format!(
+                    "recorder rotate harden {new_path}: {msg}"
+                )));
+            }
             let mut bytes_written: u64 = 0;
             if actor.encrypted {
                 file.write_all(&LFR_MAGIC)
@@ -642,6 +660,55 @@ mod tests {
         let on_disk = std::fs::read(&path).expect("read");
         assert!(on_disk.is_empty());
         let _ = std::fs::remove_file(&path);
+    }
+
+    /// Regression: the recorder used to open files at the
+    /// umask-default mode (0644 on most Linux
+    /// installs), leaving plaintext terminal output (or its
+    /// envelope) group/world-readable on multi-user hosts. ARCH
+    /// §3.13 requires `chmod 0600` on every recording — the open
+    /// path now hardens immediately after creating the file.
+    #[cfg(unix)]
+    #[test]
+    fn register_with_io_hardens_file_to_owner_only_perms() {
+        use std::os::unix::fs::PermissionsExt;
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path = tempfile_path("perm");
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), None, &bus)
+            .expect("register");
+        let perms = std::fs::metadata(&path).expect("stat").permissions();
+        assert_eq!(
+            perms.mode() & 0o777,
+            0o600,
+            "recorder file mode must be 0600, got {:o}",
+            perms.mode() & 0o777,
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Same chmod 0600 invariant for the rotated-file path. A
+    /// rotation creates a new file at umask-default mode otherwise.
+    #[cfg(unix)]
+    #[test]
+    fn rotate_to_hardens_file_to_owner_only_perms() {
+        use std::os::unix::fs::PermissionsExt;
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let initial = tempfile_path("rotpre");
+        let rotated = tempfile_path("rotpost");
+        reg.register_with_io("r1".into(), "s1".into(), initial.clone(), None, &bus)
+            .expect("register");
+        reg.rotate_to("r1", rotated.clone(), &bus).expect("rotate");
+        let perms = std::fs::metadata(&rotated).expect("stat").permissions();
+        assert_eq!(
+            perms.mode() & 0o777,
+            0o600,
+            "rotated recorder file mode must be 0600, got {:o}",
+            perms.mode() & 0o777,
+        );
+        let _ = std::fs::remove_file(&initial);
+        let _ = std::fs::remove_file(&rotated);
     }
 
     #[test]
