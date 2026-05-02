@@ -718,8 +718,20 @@ mod tests {
     use super::*;
     use crate::security::tier_machine::{instance, TierState};
 
+    /// All three tests in this module mutate the process-singleton
+    /// tier-machine + rate-limiter registry. cargo's default
+    /// multi-threaded test runner would interleave dispatches and
+    /// race assertions; serialise here so each scenario sees a
+    /// quiescent global state. Parallelism stays on for the rest
+    /// of the suite.
+    fn serial() -> std::sync::MutexGuard<'static, ()> {
+        static M: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        M.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
     #[test]
     fn unlock_plaintext_self_advances_to_unlocked() {
+        let _guard = serial();
         // Drive the singleton through the cascade. Other tests
         // in this binary touch the same singleton so we don't
         // assert from any starting state — only that the final
@@ -742,6 +754,7 @@ mod tests {
     /// `WrongSecret`.
     #[tokio::test]
     async fn unlock_keychain_with_password_short_circuits_when_limiter_locked() {
+        let _guard = serial();
         let _ = crate::app::init();
         let limiters = &crate::app::instance().rate_limiters;
 
@@ -773,6 +786,7 @@ mod tests {
     /// neither of which is `WrongSecret` returning fast.
     #[tokio::test]
     async fn unlock_paranoid_short_circuits_when_limiter_locked() {
+        let _guard = serial();
         let _ = crate::app::init();
         let limiters = &crate::app::instance().rate_limiters;
 

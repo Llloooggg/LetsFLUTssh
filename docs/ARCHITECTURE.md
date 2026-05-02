@@ -990,7 +990,7 @@ Cached plaintext credentials (DB key, session passwords, key passphrases, staged
 
 Two more secret-id namespaces ride on the same store: `key.priv.<keyId>` for staged manager-key PEM bytes (populated by `db_ssh_keys_stage_secret` on the connect path) and `conn.<slot>.<uuid>` for transient quick-connect bytes (lifetime bounded by the in-flight connect attempt). The connect path emits `SshAuthPasswordRef(secretId)` / `SshAuthPubkeyRef(secretId, passphraseSecretId)` so russh fetches the bytes inside Rust without ever crossing the FRB boundary.
 
-`SecurityStateNotifier` no longer owns the DB key directly — it hands the 32-byte derived key to `dbInit(key)` over FRB once per unlock, and the key lives inside Rust until `dbClose()` zeroes the cached SQLCipher state on auto-lock or a tier switch. The legacy Dart `SecretBuffer` (page-locked native memory with `mlock` / `VirtualLock`) was retired alongside drift — pinning the bytes in Dart became redundant once they stopped crossing the FRB boundary outbound.
+`SecurityStateNotifier` no longer owns the DB key as the primary residence. The 32-byte derived key flows: unlock orchestrator stages it under the canonical SecretStore id → Dart's tier-unlocked listener calls `secrets_take(id)` → the bytes briefly cross FRB → Dart wraps them in a `SecretBuffer` (mlock / VirtualLock-pinned page) → hands them to `dbInit(key)` → `SecretBuffer.dispose()` zeroes the page. The Rust-side `SecretStore` entry is gone after the take; the SQLCipher key lives inside Rust until `dbClose()` zeroes the cached page-cipher state on auto-lock or a tier switch. `SecretBuffer` still exists for that narrow Dart-heap residency window plus the `SecurePasswordField` typed-secret mirror, but is no longer the primary holder of the long-lived DB key — that role moved entirely Rust-side.
 
 **Bytes-don't-cross invariant — current state.** Every credential path keeps plaintext bytes on the Rust side of the FRB boundary. Connect / edit / duplicate / bulk listing paths read credentials only via SecretStore staging or pre-hashed metadata. `.lfs` archive composition runs entirely Rust-side via `db_export_archive` / `lfs_core::archive::export_archive`: the orchestrator reads sessions / ssh_keys / tags / snippets / session_tags / folder_tags / session_snippets / known_hosts straight from `lfs_core.db`, builds the manifest + per-entry JSON inside Rust, ZIPs in Stored mode, and applies the Argon2id + AES-GCM envelope before returning the encrypted bytes to Dart for atomic write. The QR-export deeplink path still goes through `SshKeysNotifier.loadAll()` for embedded-key payloads — QR is even rarer than `.lfs` and the codec path is the next slice if the question reopens.
 
@@ -4270,6 +4270,14 @@ All files live in the platform's app-support directory (see **Location** below).
 | `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs, `config_schema_version`. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout lives in the encrypted DB, not here | First config save |
 | `credentials.kdf` | No | `'LFKD'` magic + version + KdfParams + 32-byte salt | Argon2id salt + params for master-password key derivation. Presence = master password is enabled | Master password setup |
 | `credentials.verify` | No | AES-256-GCM | Encrypted known-plaintext blob — used to verify the entered master password matches | Master password setup |
+| `credentials.key` | AES-256-GCM (under master-password-derived KEK) | Length-prefixed envelope | The 32-byte DB encryption key, wrapped under the master-password-derived KEK. Lets the verify path reuse the same Argon2id pass for both verify + key resolution rather than running it twice | Master password setup; rewritten on every tier switch |
+| `keychain_enabled` | No | Marker file (presence) | Sentinel for the L1 keychain-backed tier — written when the L1 setup wizard finishes, removed on tier downgrade or wipe | L1 enable |
+| `rate_limit_state.bin` | HMAC-SHA256-authenticated framing | `{failureCount, nextRetryAtMillis}` blob | Persisted L2 password-gate rate-limit counters. Survives process restart so a relaunch can't reset the cooldown | First L2 failure |
+| `security_pass_hash.bin` | No | Argon2id salt + verifier | L2 keychain-password gate hash + per-install pepper handle. Verifies the short-password the keychain unlock prompt collects | L2+password setup |
+| `hardware_vault_*.bin` | Hardware-backed wrap | Per-platform envelope | Hardware-vault sealed DB-key blob (one per platform — Apple / Android / Windows / Linux + per-platform overlay variants). See [§3.6 L3 hardware vault](#l3-hardware-vault-hardwaretiervault) for the per-platform shape | L3 enable |
+| `.tier-transition-pending` | No | JSON | Crash-recovery marker written before a tier-switch rekey. Absence = previous tier switch completed cleanly; presence on startup signals an interrupted switch and routes through the recovery path | Every tier switch (cleared on success) |
+| `.wipe-pending` | No | Empty file | Crash-recovery marker written before a wipe sweep starts. Presence on startup re-runs the sweep idempotently | Wipe start (cleared on success) |
+| `migration_history.json` | No | JSON | Legacy migration framework journal — kept in [`MANAGED_FILES`](../rust/crates/lfs_core/src/security/wipe.rs) for cleanup; no longer written by the current Rust runner | Pre-port installs only |
 | `logs/letsflutssh.log` | No | Text | App debug log (rotates at 5 MB, keeps 3 rotated copies). Disabled by default | First log write after user enables logging |
 | `logs/letsflutssh.log.1`…`.3` | No | Text | Rotated log files | After log rotation |
 | `app.lock` | No | PID text | Single-instance lock — exclusive `RandomAccessFile.lock`. OS releases on process exit | Each app start (desktop only) |
@@ -4487,15 +4495,17 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 
 ## 13. Security Model
 
-### Three-level encryption
+### Tier matrix
 
-All data stores support three security levels (see §3.6):
+The full per-tier model lives in [§3.6 Three-Tier + Paranoid Model](#three-tier--paranoid-model). The summary at this scope:
 
-| Level | Key source | Database encryption |
-|-------|-----------|---------------------|
-| Plaintext | None | `letsflutssh.db` — opened via rusqlite/SQLCipher with no `PRAGMA key` |
-| Keychain | OS keychain via `lfs_os_security::secure_key_storage` (libsecret / SecItem / CredMan / AndroidKeyStore JNI) | `letsflutssh.db` — SQLCipher 4.x (`PRAGMA key`) |
-| Master Password | Argon2id-derived | `letsflutssh.db` — SQLCipher 4.x (`PRAGMA key`) + `credentials.kdf` + `credentials.verify` |
+| Tier | Key source | Database encryption | On-disk artefacts |
+|---|---|---|---|
+| **Plaintext (T0)** | None | `letsflutssh.db` — opened via rusqlite/SQLCipher with no `PRAGMA key` | `letsflutssh.db` |
+| **Keychain (T1)** | OS keychain via `lfs_os_security::secure_key_storage` (Apple SecItem / Linux libsecret / Windows CredMan / Android Keystore JNI) | `letsflutssh.db` — SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `keychain_enabled` |
+| **Keychain + password (L2)** | OS keychain + L2 password gate (Argon2id verifier with HMAC-bound rate-limiter) | SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `security_pass_hash.bin`, `rate_limit_state.bin`, `keychain_enabled` |
+| **Hardware (L3)** | Hardware-sealed wrap (TPM 2.0 / Secure Enclave / AndroidKeyStore strongbox / CNG TPM) | SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `hardware_vault_*.bin`, optional overlay (.password_overlay) |
+| **Paranoid** | Argon2id-derived from master password — never stored in the OS | SQLCipher 4.x (`PRAGMA key`) + `credentials.kdf` + `credentials.verify` + `credentials.key` | `letsflutssh.db`, three `credentials.*` files |
 
 Encryption is applied at the database level via SQLCipher 4.x (AES-256-CBC + HMAC-SHA512) — a single encrypted DB file replaces the old per-store AES-256-GCM files.
 
@@ -4576,10 +4586,12 @@ On the client, `UpdateService.downloadAsset`:
 1. Downloads the binary under `<targetDir>/`
 2. Validates the SHA-256 from the Releases JSON (secondary — catches
    disk corruption and "attacker replaced only the binary" on its own)
-3. Delegates to `ReleaseArtifactVerifier`, which by default
-   fetches `<asset>.sig` and calls `ReleaseSigning.verifyFile` —
-   Ed25519 verify against **two** pinned public keys (current + backup).
-   Either key matches → accept.
+3. Delegates to `ReleaseArtifactVerifier`, which fetches `<asset>.sig`
+   and calls into `lfs_core::update_signing::verify_release_signature`
+   (FRB) — Ed25519 verify against the `PINNED_PUBLIC_KEYS` array. The
+   verifier accepts a signature against **any** entry, so the array
+   shape supports a current + previous pair during a key rotation.
+   Today the array carries a single production key.
 4. Any failure deletes both the binary and the sig, throws
    `InvalidReleaseSignatureException`. The install step never runs on
    an unverified artefact.
