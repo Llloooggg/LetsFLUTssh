@@ -660,22 +660,10 @@ pub async fn connection_connect(id: String, args: BusConnectArgs) -> Result<(), 
 pub async fn connection_get_session(
     id: String,
 ) -> Result<Option<crate::api::ssh::SshSession>, String> {
-    let app = lfs_core::app::instance();
-    let Some(actor_handle) = app.connections.get(&id) else {
-        return Ok(None);
-    };
-    let arc = {
-        // Recover from a poisoned lock — a panic across the FRB
-        // worker corrupts every in-flight Dart Future, while a
-        // recovered actor at worst returns stale state for one
-        // call.
-        let actor = actor_handle.lock().unwrap_or_else(|p| p.into_inner());
-        if actor.state != lfs_core::connection::ConnectionState::Connected {
-            return Ok(None);
-        }
-        actor.clone_session()
-    };
-    Ok(arc.map(crate::api::ssh::SshSession::from_arc))
+    Ok(lfs_core::app::instance()
+        .connections
+        .connected_session(&id)
+        .map(crate::api::ssh::SshSession::from_arc))
 }
 
 /// Dispatch a typed command. Single entry point Dart calls for

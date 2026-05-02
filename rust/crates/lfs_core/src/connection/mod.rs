@@ -268,6 +268,26 @@ impl ConnectionRegistry {
         self.lock().by_id.get(id).cloned()
     }
 
+    /// Return the live `Arc<Session>` for `id` only when the actor
+    /// is currently in `Connected` state. Used by FRB shims that
+    /// need to drive channel operations against the actor's russh
+    /// session without holding the per-actor mutex across an
+    /// `await`. `None` covers both "no actor under id" and "actor
+    /// exists but isn't connected" — the caller folds them into
+    /// the same retry-or-skip branch.
+    ///
+    /// Recovers from a poisoned per-actor mutex via `into_inner`
+    /// rather than panicking — matches the FFI-safety discipline
+    /// the FRB adapters apply at every lock site.
+    pub fn connected_session(&self, id: &str) -> Option<Arc<Session>> {
+        let handle = self.get(id)?;
+        let actor = handle.lock().unwrap_or_else(|p| p.into_inner());
+        if actor.state != ConnectionState::Connected {
+            return None;
+        }
+        actor.clone_session()
+    }
+
     pub fn remove(&self, id: &str) -> Option<Arc<Mutex<ConnectionActor>>> {
         let mut g = self.lock();
         let handle = g.by_id.remove(id);
