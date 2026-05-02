@@ -7,6 +7,7 @@ import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwvault;
 import '../../src/rust/api/wipe.dart' as rust_wipe;
 import '../../src/rust/api/wipe_keychain.dart' as rust_wipe_kc;
 import '../../utils/logger.dart';
+import 'terminal_scrubber.dart';
 
 /// Report returned by [WipeAllService.wipeAll]. Callers log it and
 /// surface failures via the UI; partial failure is tolerated — the
@@ -145,6 +146,23 @@ class WipeAllService {
     } catch (e) {
       AppLogger.instance.log(
         'WipeAllService: credential-cache evict threw: $e',
+        name: 'WipeAllService',
+      );
+    }
+
+    // 0.5. Scrub every active xterm scrollback. A reset that wipes
+    //      the on-disk session record while leaving the user's
+    //      recently-typed commands visible in an open terminal
+    //      defeats the point — the buffer outlives the deletion
+    //      until the tab itself is closed (which the wipe path
+    //      does not force). AutoLockDetector already calls
+    //      TerminalScrubber.scrubAll on lock; the wipe path was the
+    //      missing peer.
+    try {
+      TerminalScrubber.instance.scrubAll();
+    } catch (e) {
+      AppLogger.instance.log(
+        'WipeAllService: terminal scrub threw: $e',
         name: 'WipeAllService',
       );
     }

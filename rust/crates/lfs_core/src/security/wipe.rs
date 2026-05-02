@@ -40,7 +40,14 @@ pub const MANAGED_FILES: &[&str] = &[
     ".tier-transition-pending",
     "keychain_enabled",
     "rate_limit_state.bin",
-    // Biometric / hw overlay blobs
+    // Biometric / hw overlay blobs. Filename grammar:
+    //   - Android (post-Rust port): hardware_vault_android_bio.bin
+    //     (matches lfs_os_security::android::hardware_vault::VAULT_FILE_BIO).
+    //   - Pre-port Android filename kept here so a wipe cleans up
+    //     installs that upgraded across the rename.
+    //   - Apple / Windows: pre-port filename, retained until the
+    //     respective ports rename their on-disk artefact.
+    "hardware_vault_android_bio.bin",
     "hardware_vault_password_overlay_android.bin",
     "hardware_vault_password_overlay_apple.bin",
     "hardware_vault_password_overlay_windows.bin",
@@ -85,6 +92,7 @@ pub const ORPHAN_PROBE_FILES: &[&str] = &[
     ".tier-transition-pending",
     "keychain_enabled",
     "rate_limit_state.bin",
+    "hardware_vault_android_bio.bin",
     "hardware_vault_password_overlay_android.bin",
     "hardware_vault_password_overlay_apple.bin",
     "hardware_vault_password_overlay_windows.bin",
@@ -142,12 +150,19 @@ pub fn has_any_state(support_dir: &Path) -> bool {
 /// parity:
 ///   1. Write the `.wipe-pending` marker so a mid-wipe crash leaves a
 ///      trace.
-///   2. Best-effort delete each managed file. One stuck entry does
+///   2. Drop every cached secret out of the process-singleton
+///      [`crate::secrets::SecretStore`]. The Dart caller used to
+///      pass a `credentialCacheEvict: VoidCallback?` hook for this,
+///      which silently skipped the clear when the caller forgot to
+///      pass it. Doing it here closes the gap so a wipe always
+///      drops the in-RAM plaintext too — file-on-disk and
+///      memory-cached state cleared in lockstep.
+///   3. Best-effort delete each managed file. One stuck entry does
 ///      not abort the sweep — the file lands in `failed_files`.
-///   3. Wipe the `logs/` subdirectory entry-by-entry. A "reset all"
+///   4. Wipe the `logs/` subdirectory entry-by-entry. A "reset all"
 ///      that leaves session-name traces in logs defeats the point;
 ///      per-entry failure is non-fatal.
-///   4. Clear the `.wipe-pending` marker.
+///   5. Clear the `.wipe-pending` marker.
 pub fn sweep_files(support_dir: &Path) -> FileSweepReport {
     let mut deleted = Vec::new();
     let mut failed = Vec::new();
@@ -155,7 +170,11 @@ pub fn sweep_files(support_dir: &Path) -> FileSweepReport {
     // 1. Marker first.
     let _ = write_pending_marker(support_dir);
 
-    // 2. Files.
+    // 2. SecretStore — every cached plaintext credential the running
+    //    process has staged. Idempotent on an empty store.
+    crate::app::instance().secrets.clear();
+
+    // 3. Files.
     for name in MANAGED_FILES {
         let path = support_dir.join(name);
         if !path.exists() {
@@ -167,10 +186,10 @@ pub fn sweep_files(support_dir: &Path) -> FileSweepReport {
         }
     }
 
-    // 3. Logs.
+    // 4. Logs.
     let _ = wipe_logs_dir(support_dir);
 
-    // 4. Clear the marker.
+    // 5. Clear the marker.
     let _ = clear_pending_marker(support_dir);
 
     FileSweepReport {
