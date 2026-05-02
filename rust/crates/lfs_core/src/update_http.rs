@@ -19,10 +19,22 @@
 //! # TLS posture
 //!
 //! `rustls-tls` keeps the dep tree pure-Rust (no openssl system
-//! link). Cert pinning (SPKI hash check) is a separate follow-up
-//! that wraps a custom `rustls::ServerCertVerifier`; for the
-//! initial port the system-CA chain — same trust anchor any
-//! browser uses — gates the channel.
+//! link). The HTTP client wires
+//! [`crate::update_pinning::LfsPinningVerifier`] into rustls so
+//! every TLS handshake on this code path runs:
+//!
+//! 1. Standard chain validation against the bundled webpki-roots
+//!    (same trust anchor any browser uses).
+//! 2. A SPKI pin check for hostnames present in
+//!    [`crate::update_pinning::PINNED_HOSTS`].
+//!
+//! `PINNED_HOSTS` is empty today — the pinning verifier is a
+//! transparent pass-through to the inner WebPki check, so
+//! security parity with the pre-pinning configuration is
+//! preserved. A maintainer adding a host pin enables the second
+//! check on the next build without touching this module. See the
+//! `update_pinning` crate-level docs for the maintainer pipeline
+//! that captures the current SPKI digest.
 
 use std::path::Path;
 use std::time::Duration;
@@ -143,11 +155,13 @@ pub async fn download_to_file(
 }
 
 fn build_client() -> Result<reqwest::Client, Error> {
+    let tls = crate::update_pinning::build_pinning_tls_config()
+        .map_err(|e| Error::Io(format!("update http TLS config: {e}")))?;
     reqwest::Client::builder()
         .timeout(REQUEST_TIMEOUT)
         .redirect(reqwest::redirect::Policy::limited(MAX_REDIRECTS))
         .user_agent(format!("letsflutssh-update/{}", env!("CARGO_PKG_VERSION")))
-        .use_rustls_tls()
+        .use_preconfigured_tls(tls)
         .build()
         .map_err(|e| Error::Io(format!("update http client build: {e}")))
 }

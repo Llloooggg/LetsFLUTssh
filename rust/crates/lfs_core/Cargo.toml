@@ -53,6 +53,13 @@ regex = { workspace = true }
 # channel's manifest + asset download path. Kept on rustls-tls
 # so the dep tree stays pure-Rust (no openssl system link).
 reqwest = { workspace = true }
+# Custom rustls verifier for the SPKI pinning gate
+# (`lfs_core::update_pinning`). reqwest pulls rustls + webpki-roots
+# transitively via the rustls-tls feature; we just declare them
+# directly so the verifier's call sites compile against a stable
+# version pin rather than reqwest's transient.
+rustls = { version = "0.23", default-features = false, features = ["std", "ring"] }
+webpki-roots = "1"
 futures-util = { workspace = true }
 uuid = { workspace = true }
 
