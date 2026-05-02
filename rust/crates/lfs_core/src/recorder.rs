@@ -747,7 +747,7 @@ mod tests {
         let nonce = &on_disk[9..21];
         let ct = &on_disk[21..];
         let pt = crate::crypto::aes_gcm_decrypt_raw(&key, nonce, ct, &[]).expect("decrypt");
-        assert_eq!(pt, payload);
+        assert_eq!(pt.as_slice(), payload);
         let _ = std::fs::remove_file(&path);
     }
 

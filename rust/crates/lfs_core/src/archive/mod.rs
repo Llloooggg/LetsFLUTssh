@@ -313,15 +313,19 @@ pub fn read_archive_to_pending(
     password: &str,
 ) -> Result<(PendingImport, ImportPreview), Error> {
     let bytes = std::fs::read(path).map_err(|e| Error::Io(format!("import read {path}: {e}")))?;
-    let zip_bytes = if bytes.len() >= 4 && bytes[..4] == ENC_HEADER_MAGIC {
-        decrypt_archive_with_password(&bytes, password)?
-    } else if bytes.len() >= 4 && &bytes[..4] == b"PK\x03\x04" {
-        bytes
-    } else {
-        return Err(Error::Io(format!(
-            "{path}: not an LFSE archive or ZIP file"
-        )));
-    };
+    let zip_bytes: zeroize::Zeroizing<Vec<u8>> =
+        if bytes.len() >= 4 && bytes[..4] == ENC_HEADER_MAGIC {
+            decrypt_archive_with_password(&bytes, password)?
+        } else if bytes.len() >= 4 && &bytes[..4] == b"PK\x03\x04" {
+            // Plaintext ZIP — wrap so the buffer drops zeroized for
+            // symmetry with the decrypted branch (cheap, harmless,
+            // keeps the type uniform).
+            zeroize::Zeroizing::new(bytes)
+        } else {
+            return Err(Error::Io(format!(
+                "{path}: not an LFSE archive or ZIP file"
+            )));
+        };
     let (pending, schema_version) = parse_pending_import(&zip_bytes)?;
     let preview = pending.preview(schema_version);
     Ok((pending, preview))

@@ -117,7 +117,7 @@ pub async fn master_password_enable(
     params: DbKdfParams,
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
-        master_password::enable(support_dir(), &password, &params.into())
+        master_password::enable(support_dir(), &password, &params.into()).map(|z| z.to_vec())
     })
     .await
     .map_err(|e| format!("master_password_enable task: {e}"))?
@@ -139,6 +139,7 @@ pub async fn master_password_change(
             &new_password,
             &params.into(),
         )
+        .map(|z| z.to_vec())
     })
     .await
     .map_err(|e| format!("master_password_change task: {e}"))?
@@ -168,6 +169,7 @@ pub async fn master_password_verify_and_derive(
 ) -> Result<Option<Vec<u8>>, String> {
     tokio::task::spawn_blocking(move || {
         master_password::verify_and_derive(support_dir(), &password)
+            .map(|opt| opt.map(|z| z.to_vec()))
     })
     .await
     .map_err(|e| format!("master_password_verify task: {e}"))?

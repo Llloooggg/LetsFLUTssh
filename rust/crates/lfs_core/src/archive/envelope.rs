@@ -76,14 +76,14 @@ pub(super) fn encrypt_with_password(
     OsRng.fill_bytes(&mut salt);
     OsRng.fill_bytes(&mut iv);
 
-    let derived = Zeroizing::new(argon2id_derive(
+    let derived = argon2id_derive(
         password.as_bytes(),
         &salt,
         memory_kib,
         iterations,
         parallelism,
         AES_KEY_LEN,
-    )?);
+    )?;
     let ct = aes_gcm_encrypt_raw(&derived, &iv, zip_bytes, &[])?;
 
     let mut out = Vec::with_capacity(4 + 1 + 10 + SALT_LEN + IV_LEN + ct.len());
@@ -105,7 +105,10 @@ pub(super) fn encrypt_with_password(
 /// magic / version mismatch, malformed KdfParams, KDF parameters
 /// that exceed the import caps, or AES-GCM tag failure (wrong
 /// password / corruption).
-pub fn decrypt_archive_with_password(envelope: &[u8], password: &str) -> Result<Vec<u8>, Error> {
+pub fn decrypt_archive_with_password(
+    envelope: &[u8],
+    password: &str,
+) -> Result<Zeroizing<Vec<u8>>, Error> {
     if envelope.len() < 4 + 1 + 10 + SALT_LEN + IV_LEN {
         return Err(Error::Crypto("archive envelope too short".to_string()));
     }
@@ -146,14 +149,14 @@ pub fn decrypt_archive_with_password(envelope: &[u8], password: &str) -> Result<
     cursor += IV_LEN;
     let ct = &envelope[cursor..];
 
-    let derived = Zeroizing::new(argon2id_derive(
+    let derived = argon2id_derive(
         password.as_bytes(),
         salt,
         memory_kib,
         iterations,
         parallelism,
         AES_KEY_LEN,
-    )?);
+    )?;
     aes_gcm_decrypt_raw(&derived, iv, ct, &[])
 }
 
@@ -172,7 +175,7 @@ mod tests {
         let enc = encrypt_with_password(SAMPLE_PAYLOAD, "hunter2", 16, 1, 1).expect("encrypt");
         assert_eq!(&enc[..4], &ENC_HEADER_MAGIC);
         let plaintext = decrypt_archive_with_password(&enc, "hunter2").expect("decrypt");
-        assert_eq!(plaintext, SAMPLE_PAYLOAD);
+        assert_eq!(plaintext.as_slice(), SAMPLE_PAYLOAD);
     }
 
     #[test]

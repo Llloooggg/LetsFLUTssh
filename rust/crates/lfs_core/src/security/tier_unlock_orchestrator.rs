@@ -543,7 +543,12 @@ pub async fn first_launch_hardware(pin: Option<String>) -> UnlockOutcome {
         .bus
         .publish(Event::HardwareVaultSealPromptRequest {
             prompt_id: prompt_id.clone(),
-            db_key: key.clone(),
+            // The seal-prompt event still carries the plaintext DB key
+            // across the broadcast bus — the bus-event redesign is the
+            // separate sub-arc that replaces this with a SecretRef
+            // handle. Until then `(*key).clone()` is needed to satisfy
+            // the `Vec<u8>` field; `key` is now `Zeroizing<Vec<u8>>`.
+            db_key: (*key).clone(),
             pin,
         });
     let outcome = match receiver.await {

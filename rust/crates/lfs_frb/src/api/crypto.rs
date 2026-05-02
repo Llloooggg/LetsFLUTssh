@@ -15,8 +15,17 @@ pub async fn crypto_hkdf_sha256(
     length: u32,
 ) -> Result<Vec<u8>, String> {
     let length_usize = length as usize;
+    // `lfs_core::crypto::hkdf_sha256` now returns
+    // `Zeroizing<Vec<u8>>` so the derived bytes drop scrubbed on
+    // the Rust side; the FRB boundary still hands the bytes to
+    // Dart as a plain `Vec<u8>` (the caller's heap is unaccounted
+    // for in the Zeroize discipline). Replacing the inbound /
+    // outbound shape with a SecretRef handle is the separate sub-
+    // arc that finishes the boundary contract.
     tokio::task::spawn_blocking(move || {
-        lfs_core::crypto::hkdf_sha256(&ikm, &salt, &info, length_usize).map_err(|e| e.to_string())
+        lfs_core::crypto::hkdf_sha256(&ikm, &salt, &info, length_usize)
+            .map(|z| z.to_vec())
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("hkdf task: {e}"))?
@@ -88,7 +97,10 @@ pub async fn crypto_ed25519_verify(
 /// Synchronous — the call is a single OS getrandom round-trip.
 #[flutter_rust_bridge::frb(sync)]
 pub fn crypto_aes_gcm_random_key() -> Vec<u8> {
-    lfs_core::crypto::aes_gcm_random_key()
+    // Rust-side buffer is `Zeroizing<Vec<u8>>` and drops scrubbed
+    // when this function returns; the bytes still cross the FRB
+    // boundary plaintext until the SecretRef migration lands.
+    lfs_core::crypto::aes_gcm_random_key().to_vec()
 }
 
 /// AES-256-GCM encrypt with a fresh random nonce. Returns the wire
@@ -108,7 +120,9 @@ pub async fn crypto_aes_gcm_encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> Result<
 /// tag all return a typed error.
 pub async fn crypto_aes_gcm_decrypt(key: Vec<u8>, data: Vec<u8>) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
-        lfs_core::crypto::aes_gcm_decrypt(&key, &data).map_err(|e| e.to_string())
+        lfs_core::crypto::aes_gcm_decrypt(&key, &data)
+            .map(|z| z.to_vec())
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("aes-gcm decrypt task: {e}"))?
@@ -140,6 +154,7 @@ pub async fn crypto_aes_gcm_decrypt_raw(
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
         lfs_core::crypto::aes_gcm_decrypt_raw(&key, &nonce, &ciphertext, &aad)
+            .map(|z| z.to_vec())
             .map_err(|e| e.to_string())
     })
     .await
@@ -167,6 +182,7 @@ pub async fn crypto_argon2id_derive(
             parallelism,
             length,
         )
+        .map(|z| z.to_vec())
         .map_err(|e| e.to_string())
     })
     .await

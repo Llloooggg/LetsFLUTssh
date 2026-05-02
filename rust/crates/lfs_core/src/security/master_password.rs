@@ -35,6 +35,7 @@ use std::path::Path;
 
 use rand::rngs::OsRng;
 use rand::RngCore;
+use zeroize::Zeroizing;
 
 use crate::crypto;
 
@@ -227,7 +228,11 @@ pub fn is_enabled(support_dir: &Path) -> bool {
 /// KDF record + verifier files atomically, and return the derived
 /// key. The caller re-encrypts SessionStore / KeyStore /
 /// KnownHostsManager with this key.
-pub fn enable(support_dir: &Path, password: &str, params: &KdfParams) -> Result<Vec<u8>, String> {
+pub fn enable(
+    support_dir: &Path,
+    password: &str,
+    params: &KdfParams,
+) -> Result<Zeroizing<Vec<u8>>, String> {
     let mut salt = [0u8; SALT_LENGTH];
     OsRng.fill_bytes(&mut salt);
     let key = derive_key(password, &salt, params)?;
@@ -246,7 +251,7 @@ pub fn change_password(
     old_password: &str,
     new_password: &str,
     params: &KdfParams,
-) -> Result<Vec<u8>, String> {
+) -> Result<Zeroizing<Vec<u8>>, String> {
     if verify_and_derive(support_dir, old_password)?.is_none() {
         return Err("Current password is incorrect".into());
     }
@@ -282,7 +287,10 @@ pub fn reset(support_dir: &Path) -> Result<(), String> {
 /// Run the KDF against the on-disk salt + params and return the
 /// derived key without checking the verifier. Used when the caller
 /// needs a key to encrypt new data and already trusts the password.
-pub fn derive_key_from_disk(support_dir: &Path, password: &str) -> Result<Vec<u8>, String> {
+pub fn derive_key_from_disk(
+    support_dir: &Path,
+    password: &str,
+) -> Result<Zeroizing<Vec<u8>>, String> {
     let record = read_kdf_record(support_dir)?;
     derive_key(password, &record.salt, &record.params)
 }
@@ -292,7 +300,10 @@ pub fn derive_key_from_disk(support_dir: &Path, password: &str) -> Result<Vec<u8
 /// `Err` is reserved for "the tier is not enabled" / "files are
 /// corrupt". One Argon2id pass instead of two — the legacy Dart path
 /// ran KDF inside both `verify` and `deriveKey`.
-pub fn verify_and_derive(support_dir: &Path, password: &str) -> Result<Option<Vec<u8>>, String> {
+pub fn verify_and_derive(
+    support_dir: &Path,
+    password: &str,
+) -> Result<Option<Zeroizing<Vec<u8>>>, String> {
     let record = read_kdf_record(support_dir)?;
     let verifier_path = support_dir.join(VERIFIER_FILE_NAME);
     if !verifier_path.exists() {
@@ -314,7 +325,11 @@ fn read_kdf_record(support_dir: &Path) -> Result<KdfRecord, String> {
     decode_kdf_record(&bytes)
 }
 
-fn derive_key(password: &str, salt: &[u8], params: &KdfParams) -> Result<Vec<u8>, String> {
+fn derive_key(
+    password: &str,
+    salt: &[u8],
+    params: &KdfParams,
+) -> Result<Zeroizing<Vec<u8>>, String> {
     crypto::argon2id_derive(
         password.as_bytes(),
         salt,
@@ -335,7 +350,7 @@ fn verify_against_verifier(key: &[u8], verifier: &[u8]) -> bool {
         return false;
     }
     match crypto::aes_gcm_decrypt(key, verifier) {
-        Ok(pt) => pt == VERIFIER_PLAINTEXT,
+        Ok(pt) => crypto::constant_time_eq(&pt, VERIFIER_PLAINTEXT),
         Err(_) => false,
     }
 }

@@ -21,6 +21,7 @@ use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
+use zeroize::Zeroizing;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -40,14 +41,19 @@ pub const AES_GCM_TAG_LEN: usize = 16;
 /// `length` is the byte count to expand to — capped at 8160
 /// (255 * 32) by the spec; the helper rejects anything larger so the
 /// caller does not silently get a truncated key.
-pub fn hkdf_sha256(ikm: &[u8], salt: &[u8], info: &[u8], length: usize) -> Result<Vec<u8>, Error> {
+pub fn hkdf_sha256(
+    ikm: &[u8],
+    salt: &[u8],
+    info: &[u8],
+    length: usize,
+) -> Result<Zeroizing<Vec<u8>>, Error> {
     if length == 0 || length > 255 * 32 {
         return Err(Error::Crypto(format!(
             "hkdf-sha256 length {length} out of range (1..=8160)"
         )));
     }
     let hk = Hkdf::<Sha256>::new(Some(salt), ikm);
-    let mut out = vec![0u8; length];
+    let mut out = Zeroizing::new(vec![0u8; length]);
     hk.expand(info, &mut out)
         .map_err(|e| Error::Crypto(format!("hkdf expand: {e}")))?;
     Ok(out)
@@ -160,8 +166,8 @@ pub fn ed25519_verify(public_key: &[u8], message: &[u8], signature: &[u8]) -> bo
 /// Generate a fresh random 32-byte AES-256 key. Uses `OsRng` —
 /// the same source [`aes_gcm_encrypt`] uses for its nonces.
 /// Sized at [`AES_GCM_KEY_LEN`] = 32 bytes.
-pub fn aes_gcm_random_key() -> Vec<u8> {
-    let mut key = vec![0u8; AES_GCM_KEY_LEN];
+pub fn aes_gcm_random_key() -> Zeroizing<Vec<u8>> {
+    let mut key = Zeroizing::new(vec![0u8; AES_GCM_KEY_LEN]);
     rand::rngs::OsRng.fill_bytes(&mut key);
     key
 }
@@ -186,7 +192,7 @@ pub fn aes_gcm_encrypt(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, Error> {
 /// Decrypt the inverse of [aes_gcm_encrypt]: input is
 /// `nonce || ciphertext || tag`. GCM tag is verified — bad tag /
 /// wrong key / truncated input all surface as `Error::Crypto`.
-pub fn aes_gcm_decrypt(key: &[u8], data: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn aes_gcm_decrypt(key: &[u8], data: &[u8]) -> Result<Zeroizing<Vec<u8>>, Error> {
     if data.len() < AES_GCM_IV_LEN + AES_GCM_TAG_LEN {
         return Err(Error::Crypto(format!(
             "aes-gcm input too short ({} bytes; need ≥ {})",
@@ -198,6 +204,7 @@ pub fn aes_gcm_decrypt(key: &[u8], data: &[u8]) -> Result<Vec<u8>, Error> {
     let nonce = Nonce::from_slice(&data[..AES_GCM_IV_LEN]);
     cipher
         .decrypt(nonce, &data[AES_GCM_IV_LEN..])
+        .map(Zeroizing::new)
         .map_err(|e| Error::Crypto(format!("aes-gcm decrypt: {e}")))
 }
 
@@ -236,7 +243,7 @@ pub fn aes_gcm_decrypt_raw(
     nonce: &[u8],
     ciphertext: &[u8],
     aad: &[u8],
-) -> Result<Vec<u8>, Error> {
+) -> Result<Zeroizing<Vec<u8>>, Error> {
     if nonce.len() != AES_GCM_IV_LEN {
         return Err(Error::Crypto(format!(
             "aes-gcm nonce length {} (expected {AES_GCM_IV_LEN})",
@@ -259,6 +266,7 @@ pub fn aes_gcm_decrypt_raw(
                 aad,
             },
         )
+        .map(Zeroizing::new)
         .map_err(|e| Error::Crypto(format!("aes-gcm decrypt-raw: {e}")))
 }
 
@@ -274,7 +282,7 @@ pub fn argon2id_derive(
     iterations: u32,
     parallelism: u32,
     length: u32,
-) -> Result<Vec<u8>, Error> {
+) -> Result<Zeroizing<Vec<u8>>, Error> {
     let length_usize = length as usize;
     if length_usize == 0 || length_usize > 64 * 1024 * 1024 {
         return Err(Error::Crypto(format!(
@@ -284,7 +292,7 @@ pub fn argon2id_derive(
     let params = Params::new(memory_kib, iterations, parallelism, Some(length_usize))
         .map_err(|e| Error::Crypto(format!("argon2id params: {e}")))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut out = vec![0u8; length_usize];
+    let mut out = Zeroizing::new(vec![0u8; length_usize]);
     argon2
         .hash_password_into(password, salt, &mut out)
         .map_err(|e| Error::Crypto(format!("argon2id derive: {e}")))?;
@@ -316,7 +324,7 @@ mod tests {
         let expected = hex_decode(
             "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865",
         );
-        assert_eq!(okm, expected);
+        assert_eq!(okm.as_slice(), expected.as_slice());
     }
 
     #[test]
@@ -371,7 +379,7 @@ mod tests {
         let ct2 = aes_gcm_encrypt(&key, plaintext).expect("encrypt");
         assert_ne!(ct, ct2);
         let pt = aes_gcm_decrypt(&key, &ct).expect("decrypt");
-        assert_eq!(pt, plaintext);
+        assert_eq!(pt.as_slice(), plaintext);
     }
 
     #[test]
@@ -399,7 +407,7 @@ mod tests {
         let pt = b"recorder frame payload";
         let ct = aes_gcm_encrypt_raw(&key, &nonce, pt, aad).unwrap();
         let dec = aes_gcm_decrypt_raw(&key, &nonce, &ct, aad).unwrap();
-        assert_eq!(dec, pt);
+        assert_eq!(dec.as_slice(), pt);
         // Wrong AAD must fail.
         assert!(aes_gcm_decrypt_raw(&key, &nonce, &ct, b"other-context").is_err());
     }
