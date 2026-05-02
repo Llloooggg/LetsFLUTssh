@@ -718,11 +718,13 @@ class Connection {
   final String label;
   SSHConfig sshConfig;       // mutable — refreshed from session store on reconnect
   final String? sessionId;   // links back to saved Session (null for quick-connect)
-  final KnownHostsNotifier knownHosts;  // for host key verification
-  SSHConnection? sshConnection;
+  SshTransport? transport;   // engine-agnostic transport (today: RustTransport); set on successful connect
   SSHConnectionState state;  // disconnected | connecting | connected
   Object? connectionError;
   String? cachedPassphrase;  // interactively entered, reused on reconnect
+  final Set<String> transientSecretIds; // SecretStore ids the connect path staged; drained on terminal state
+  Connection? bastion;       // pinned bastion hop for ProxyJump (lifecycle cascades)
+  bool internal;             // true for manager-created bastion hops; UI hides them
 
   Stream<ConnectionStep> progressStream;  // broadcasts steps during connect
   List<ConnectionStep> progressHistory;   // buffered for late subscribers
@@ -755,7 +757,7 @@ abstract class ConnectionExtension {
 }
 ```
 
-**Hook order on a successful connect.** `_doConnect` fires `notifyExtensionsConnected()` only after `conn.sshConnection` has been assigned and `state == connected`, so an extension that reaches into `connection.sshConnection!.client` cannot race the assignment.
+**Hook order on a successful connect.** `_doConnect` fires `notifyExtensionsConnected()` only after `conn.transport` has been assigned and `state == connected`, so an extension that reaches into `connection.transport!` cannot race the assignment.
 
 **Hook order on reconnect.** `reconnect()` fires the disconnecting hook *before* it tears down the transport (extensions need the live `SSHClient` to close their channels cleanly), then `notifyExtensionsReconnecting()` after `resetForReconnect()` has reset progress state, then `_doConnect` runs and fires `notifyExtensionsConnected()` again on success. The same disconnecting hook covers the explicit `disconnect()` and `disconnectAll()` paths, so extensions only see one teardown contract regardless of how the transport ended.
 
@@ -781,33 +783,35 @@ stateDiagram-v2
 #### ConnectionsNotifier
 
 ```dart
-class ConnectionsNotifier {
-  ConnectionsNotifier({
-    required KnownHostsNotifier knownHosts,
-    SSHConnectionFactory? connectionFactory,
-    ActiveCountCallback? onActiveCountChanged,  // notifies foreground service
-  });
+class ConnectionsNotifier extends Notifier<List<Connection>> {
+  // Construction is via NotifierProvider; no required ctor args.
+  // sessionCredentialCacheProvider is read inside build().
+  // FRB-unreachable contexts (flutter_test) skip the bus subscription.
 
   PassphrasePromptCallback? onPassphraseRequired;  // set by UI layer (main.dart)
 
   Connection connectAsync(SSHConfig config, {String? label, String? sessionId});
   // Returns Connection immediately in state=connecting. SSH handshake runs in background.
-  // _doConnect injects cachedPassphrase into config and wires onPassphraseRequired
-  // onto the SSHConnection before connect(). If user checks "remember", the passphrase
-  // is stored in Connection.cachedPassphrase for automatic reuse on reconnect.
+  // _doConnect resolves saved-session credentials through the FRB
+  // SecretStore staging path (db_sessions_stage_secrets +
+  // db_ssh_keys_stage_secret); the resulting SecretStore ids land in
+  // SshConnectRequest's SshAuth*Ref shape, never the bytes. Quick-connect
+  // / typed-passphrase paths use transient ids under conn.<slot>.<uuid>
+  // and add them to Connection.transientSecretIds for cleanup on
+  // terminal state. cachedPassphrase covers the interactive retry path.
   void disconnect(String connectionId);
   void disconnectAll();  // also completes pending ready futures for in-progress connections
 
   List<Connection> get connections;
-  Stream<List<Connection>> get onChange;
 
-  // Reconnect race prevention: per-connection generation counter (_connectGeneration).
-  // _doConnect checks its generation is still current before applying results.
-  // Rapid reconnects increment the counter, making in-flight results stale.
+  // Reconnect race prevention: per-connection generation counter routed
+  // through lfs_core::connection::ConnectionRegistry (FRB sync). Rapid
+  // reconnects bump the counter; _doConnect short-circuits if its
+  // generation is no longer current.
 }
 ```
 
-**onDisconnect identity guard.** The per-transport `onDisconnect` callback fires when the underlying `SSHConnection` observes a socket close — including the "stale cleanup" path where a superseded generation calls `disconnect()` on its own transport. Because all generations of a single reconnect cycle share one `Connection` object, a naive callback that unconditionally writes `conn.sshConnection = null` + `conn.state = disconnected` can clobber a *newer* generation's already-live transport once the late OS close of the stale one fires. The callback therefore starts with an identity guard (`if (conn.sshConnection != sshConn) return;`) so only the currently-active transport can flip the shared Connection into disconnected state. The guard is load-bearing together with the generation counter: the counter stops stale *success* paths from writing `conn.sshConnection`, the guard stops stale *disconnect* paths from wiping it. Removing either opens the same UI symptom ("connection flashes disconnected after reconnect while actually live").
+**onDisconnect identity guard.** The per-transport `onDisconnect` callback fires when the underlying `SshTransport` observes a socket close — including the "stale cleanup" path where a superseded generation calls `disconnect()` on its own transport. Because all generations of a single reconnect cycle share one `Connection` object, a naive callback that unconditionally writes `conn.transport = null` + `conn.state = disconnected` can clobber a *newer* generation's already-live transport once the late OS close of the stale one fires. The callback therefore starts with an identity guard (`if (conn.transport != observedTransport) return;`) so only the currently-active transport can flip the shared Connection into disconnected state. The guard is load-bearing together with the generation counter: the counter stops stale *success* paths from writing `conn.transport`, the guard stops stale *disconnect* paths from wiping it. Removing either opens the same UI symptom ("connection flashes disconnected after reconnect while actually live").
 
 #### ForegroundServiceManager (Android only)
 
@@ -2320,7 +2324,7 @@ Independent provider groups:
 
 ```mermaid
 flowchart LR
-    cmp["connectionManagerProvider"] --> cp1["connectionsProvider<br/>(StreamProvider)"]
+    cmp["connectionManagerProvider"] --> cp1["connectionsProvider<br/>(NotifierProvider&lt;ConnectionsNotifier, List&lt;Connection&gt;&gt;)"]
     tmp["transferManagerProvider"] --> tp1["activeTransfersProvider"]
     tmp --> tp2["transferHistoryProvider"]
     tmp --> tp3["transferStatusProvider"]
@@ -2350,8 +2354,7 @@ flowchart LR
 | `tagsProvider` | FutureProvider | tagStoreProvider | All tags |
 | `sessionTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a session |
 | `folderTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a folder |
-| `connectionsProvider.notifier` | Provider | knownHostsProvider | ConnectionsNotifier singleton |
-| `connectionsProvider` | StreamProvider | connectionManagerProvider | Real-time connection list |
+| `connectionsProvider` | NotifierProvider&lt;ConnectionsNotifier, List&lt;Connection&gt;&gt; | — | Live connection list. The notifier subscribes to `BusTopic::Connection` so every Rust-side state transition (`ConnectionStateChanged` / `ConnectionRemoved` / `ConnectionError`) re-emits without polling. `connectionsProvider.notifier` exposes the notifier for command-shaped methods (connect / disconnect / reconnect). `StaticConnectionsNotifier` is the test seam. |
 | `transfersProvider.notifier` | Provider | — | TransfersNotifier singleton |
 | `activeTransfersProvider` | StreamProvider | transferManagerProvider | Active/queued tasks |
 | `transferHistoryProvider` | StreamProvider | transferManagerProvider | Completed transfer history |
@@ -3602,12 +3605,14 @@ Top-right `Overlay`-based toast shown once after the first-launch auto-setup lan
 
 ```dart
 TierSecretUnlockDialog.show(context, {
-  required String title,
-  required Future<Uint8List?> Function(String secret) verify,
-  required String wrongMessage,
-}) → Future<Uint8List?>
+  required TierSecretUnlockLabels labels,
+  required Future<TierUnlockAttempt> Function(String secret) verify,
+  VoidCallback? onReset,
+  PasswordRateLimiter? rateLimiter,
+  BiometricSpec? biometric,
+}) → Future<TierUnlockAttempt>
 ```
-Shared L2 (short password) / L3 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns the resulting key (or null on wrong secret); the dialog handles the cooldown back-off and the "wrong, try again" copy.
+Shared L2 (short password) / L3 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns a typed `TierUnlockAttempt` outcome — `staged` (the unlock orchestrator put the resolved key in SecretStore), `wrongSecret` (kept open + decrements the limiter), `error` (closes with failure for plaintext / corruption fallback), or `cancelled` (inner sub-prompt dismissed, dialog stays open). The dialog never sees raw key bytes; the [`TierUnlockedListener`](../lib/app/tier_unlocked_listener.dart) takes them via `secrets_take` off the `TierStateChanged.unlocked` bus event and hands them to drift. Cooldown back-off is wired through the `rateLimiter` parameter.
 
 ### TierResetDialog
 
