@@ -77,9 +77,22 @@ pub fn parse_line(line: &str) -> Vec<ParsedHostEntry> {
 }
 
 /// Convert a single OpenSSH host-spec or LetsFLUTssh internal
-/// `host:port` into the canonical `host:port` shape. Returns
-/// `None` on malformed input (empty, missing closing bracket, port
-/// out of 1..=65535, unbracketed IPv6, …).
+/// `host:port` into the canonical wire form. Returns `None` on
+/// malformed input (empty, missing closing bracket, port out of
+/// 1..=65535, unbracketed IPv6, …).
+///
+/// Output grammar:
+///   - IPv6 host (any `:` in the host part) → `[host]:port`
+///   - Anything else → `host:port`
+///
+/// Preserving brackets for IPv6 is load-bearing: the prior
+/// implementation stripped the brackets and emitted `::1:2222`
+/// which the consuming `split_host_port` (right-most-`:`) then
+/// re-parsed as `host=":1", port=2222`. Stored TOFU rows for IPv6
+/// hosts could never be matched at connect time. The canonical
+/// form is now unambiguous and `split_host_port` strips the
+/// brackets back off when populating the `(host, port)` columns
+/// so the DB schema stays unchanged.
 pub fn normalise_host_spec(spec: &str) -> Option<String> {
     let s = spec.trim();
     if s.is_empty() {
@@ -94,14 +107,14 @@ pub fn normalise_host_spec(spec: &str) -> Option<String> {
         }
         let tail = &rest[close + 1..];
         if tail.is_empty() {
-            return Some(format!("{host}:22"));
+            return Some(format_canonical(host, 22));
         }
         let port_str = tail.strip_prefix(':')?;
         let port: u32 = port_str.parse().ok()?;
         if !(1..=65535).contains(&port) {
             return None;
         }
-        return Some(format!("{host}:{port}"));
+        return Some(format_canonical(host, port));
     }
     // Bare IPv6 without brackets is illegal in OpenSSH — drop
     // anything with multiple `:`.
@@ -115,9 +128,17 @@ pub fn normalise_host_spec(spec: &str) -> Option<String> {
         if host.is_empty() || !(1..=65535).contains(&port) {
             return None;
         }
-        return Some(format!("{host}:{port}"));
+        return Some(format_canonical(host, port));
     }
-    Some(format!("{s}:22"))
+    Some(format_canonical(s, 22))
+}
+
+fn format_canonical(host: &str, port: u32) -> String {
+    if host.contains(':') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
 }
 
 /// True when [`line`] is an OpenSSH hashed-known-hosts entry
@@ -173,8 +194,31 @@ mod tests {
 
     #[test]
     fn parses_bracketed_ipv6() {
+        // IPv6 hosts round-trip with brackets preserved so the
+        // consuming `split_host_port` can recover the host and
+        // port unambiguously. The previous behaviour emitted
+        // `::1:2222` which then re-parsed as `host=":1", port=2222`
+        // and orphaned every IPv6 TOFU row at connect time.
         let got = parse_line("[::1]:2222 ssh-ed25519 BBBB");
-        assert_eq!(got, vec![entry("::1:2222", "ssh-ed25519", "BBBB")]);
+        assert_eq!(got, vec![entry("[::1]:2222", "ssh-ed25519", "BBBB")]);
+    }
+
+    #[test]
+    fn ipv6_default_port_keeps_brackets() {
+        // A bracketed IPv6 host with no port falls through to the
+        // default-22 path — brackets must still be preserved.
+        assert_eq!(
+            normalise_host_spec("[::1]"),
+            Some("[::1]:22".to_string()),
+        );
+    }
+
+    #[test]
+    fn ipv4_host_remains_unbracketed() {
+        assert_eq!(
+            normalise_host_spec("[127.0.0.1]:2222"),
+            Some("127.0.0.1:2222".to_string()),
+        );
     }
 
     #[test]

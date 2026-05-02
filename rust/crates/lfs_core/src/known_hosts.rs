@@ -242,16 +242,38 @@ pub fn prompt_kind_for(result: &HostCheckResult) -> Option<KnownHostPromptKind> 
     }
 }
 
+/// Split the canonical wire-format `host:port` (or `[ipv6]:port`)
+/// into the `(host, port)` pair populated into `known_hosts.host`
+/// and `known_hosts.port` columns. Brackets are stripped on the
+/// IPv6 branch so the DB row stores the bare host literal — a
+/// connect-time lookup for `host="::1", port=2222` (russh hands us
+/// the unbracketed form) hits the right row. See
+/// [`crate::known_hosts_parser::normalise_host_spec`] for the
+/// matching writer.
 fn split_host_port(spec: &str) -> Option<(String, i64)> {
-    let (host, port_str) = spec.rsplit_once(':')?;
-    if host.is_empty() {
+    let (host_part, port_str) = if let Some(rest) = spec.strip_prefix('[') {
+        // Bracketed IPv6 — `[host]:port`. The right-most `]` ends
+        // the host segment; the tail must be `:port`. Do NOT use
+        // `rsplit_once(':')` here — IPv6 literals contain colons
+        // and the rightmost one inside the brackets would beat
+        // the port separator.
+        let close = rest.find(']')?;
+        let host = &rest[..close];
+        let tail = &rest[close + 1..];
+        let port_str = tail.strip_prefix(':')?;
+        (host.to_string(), port_str)
+    } else {
+        let (host, port_str) = spec.rsplit_once(':')?;
+        (host.to_string(), port_str)
+    };
+    if host_part.is_empty() {
         return None;
     }
     let port: i64 = port_str.parse().ok()?;
     if !(1..=65535).contains(&port) {
         return None;
     }
-    Some((host.to_string(), port))
+    Some((host_part, port))
 }
 
 #[cfg(test)]
@@ -269,5 +291,28 @@ mod tests {
         assert_eq!(split_host_port("noport"), None);
         assert_eq!(split_host_port("h:0"), None);
         assert_eq!(split_host_port("h:70000"), None);
+    }
+
+    #[test]
+    fn split_host_port_ipv6_bracketed() {
+        // Regression: `[::1]:2222` must round-trip as `(::1, 2222)`.
+        // Pre-fix the writer emitted `::1:2222` and `rsplit_once(':')`
+        // produced `(":1", 2222)` — orphaning every IPv6 known-hosts
+        // row at connect time.
+        assert_eq!(
+            split_host_port("[::1]:2222"),
+            Some(("::1".to_string(), 2222))
+        );
+        assert_eq!(
+            split_host_port("[2001:db8::1]:22"),
+            Some(("2001:db8::1".to_string(), 22))
+        );
+    }
+
+    #[test]
+    fn split_host_port_ipv6_rejects_unclosed_bracket() {
+        assert_eq!(split_host_port("[::1:2222"), None);
+        assert_eq!(split_host_port("[::1]"), None);
+        assert_eq!(split_host_port("[::1]:abc"), None);
     }
 }
