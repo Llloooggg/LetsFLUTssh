@@ -287,6 +287,9 @@ mod tests {
 
     #[test]
     fn sweep_deletes_present_files_and_skips_absent() {
+        // sweep_files clears the app's SecretStore — AppState
+        // must be initialized so that singleton resolves.
+        let _ = crate::app::init();
         let dir = TempDir::new().unwrap();
         std::fs::write(dir.path().join("credentials.kdf"), [1u8]).unwrap();
         std::fs::write(dir.path().join("letsflutssh.db"), [2u8]).unwrap();
@@ -303,6 +306,7 @@ mod tests {
 
     #[test]
     fn sweep_writes_then_clears_pending_marker() {
+        let _ = crate::app::init();
         let dir = TempDir::new().unwrap();
         let report = sweep_files(dir.path());
         // No managed files present, but the sweep still ran the
@@ -314,6 +318,7 @@ mod tests {
 
     #[test]
     fn sweep_wipes_logs_dir_contents() {
+        let _ = crate::app::init();
         let dir = TempDir::new().unwrap();
         let logs = dir.path().join("logs");
         std::fs::create_dir(&logs).unwrap();
@@ -336,6 +341,119 @@ mod tests {
             assert!(
                 MANAGED_FILES.contains(name),
                 "{name} in ORPHAN_PROBE_FILES but not MANAGED_FILES"
+            );
+        }
+    }
+
+    /// Reflection-style coverage tripwire: every on-disk artefact
+    /// the workspace writes under `support_dir` must appear in
+    /// [`MANAGED_FILES`]. Each entry below references the
+    /// canonical filename constant from its owning module — when
+    /// a future commit renames or adds an artefact, the test
+    /// fails until [`MANAGED_FILES`] is updated to match.
+    ///
+    /// Filenames without a `pub const` source (legacy
+    /// `migration_history.json`, the drift-owned `letsflutssh.db`
+    /// family) are listed as raw literals; those strings live
+    /// only inside [`MANAGED_FILES`] today, so the test pins
+    /// the canonical spelling here too.
+    ///
+    /// Directly addresses the audit's wipe-completeness gap
+    /// (the `hardware_vault_password_overlay_android.bin` →
+    /// `hardware_vault_android_bio.bin` Android-port rename
+    /// that left an orphan file untouched by the sweep until
+    /// the canonical name was added).
+    #[test]
+    fn every_known_artefact_is_in_managed_files() {
+        // Markers + small state files
+        let known: &[&str] = &[
+            crate::security::tier_transition_marker::MARKER_FILE_NAME,
+            crate::security::keychain_marker::MARKER_FILE_NAME,
+            // Rate-limit on-disk state for the L2 keychain gate.
+            "rate_limit_state.bin",
+            // L2 password verifier hash.
+            "security_pass_hash.bin",
+            // KDF + verifier + key for the Paranoid tier.
+            crate::security::master_password::KDF_FILE_NAME,
+            crate::security::master_password::VERIFIER_FILE_NAME,
+            crate::security::master_password::KEY_FILE_NAME,
+            // Persisted user config + migration journal.
+            crate::config_store::FILE_NAME,
+            "migration_history.json",
+            // Drift-owned SQLCipher DB + sidecars.
+            "letsflutssh.db",
+            "letsflutssh.db-wal",
+            "letsflutssh.db-shm",
+            "letsflutssh.db-journal",
+        ];
+
+        for name in known {
+            assert!(
+                MANAGED_FILES.contains(name),
+                "wipe coverage gap: {name} is written by the codebase but missing from MANAGED_FILES — \
+                 update wipe.rs and ORPHAN_PROBE_FILES (if appropriate) so the sweep cleans it"
+            );
+        }
+
+        // Hardware-vault artefacts are cfg-gated — the constant
+        // visibility flips per target. Reference the canonical
+        // names directly so the test runs on every host.
+        let vault_files: &[&str] = &[
+            // lfs_os_security::hardware_tier_vault — Apple/iOS path
+            "hardware_vault_apple.bin",
+            "hardware_vault_password_overlay_apple.bin",
+            // lfs_os_security::android::hardware_vault — Android path
+            "hardware_vault_android.bin",
+            "hardware_vault_android_bio.bin",
+            // Pre-port / cross-platform overlays kept managed so
+            // upgrade-from-old-install wipes still land cleanly.
+            "hardware_vault_password_overlay_android.bin",
+            "hardware_vault_password_overlay_windows.bin",
+            "hardware_vault.bin",
+            "hardware_vault_ios.bin",
+            "hardware_vault_macos.bin",
+            "hardware_vault_windows.bin",
+            "hardware_vault_linux.bin",
+            "hardware_vault_salt.bin",
+        ];
+
+        for name in vault_files {
+            assert!(
+                MANAGED_FILES.contains(name),
+                "wipe coverage gap: hardware-vault artefact {name} missing from MANAGED_FILES"
+            );
+        }
+
+        // Cross-check: when running on Apple/Linux/Windows
+        // targets the public Apple constants should still match
+        // the literal we list above. Tripwire for an accidental
+        // const rename in lfs_os_security::hardware_tier_vault.
+        #[cfg(not(target_os = "android"))]
+        {
+            assert_eq!(
+                lfs_os_security::hardware_tier_vault::VAULT_FILE_NAME,
+                "hardware_vault_apple.bin",
+                "Apple vault filename const drifted from MANAGED_FILES"
+            );
+            assert_eq!(
+                lfs_os_security::hardware_tier_vault::BIO_PASSWORD_FILE_NAME,
+                "hardware_vault_password_overlay_apple.bin",
+                "Apple bio-overlay filename const drifted from MANAGED_FILES"
+            );
+        }
+
+        // Same belt-and-braces for Android.
+        #[cfg(target_os = "android")]
+        {
+            assert_eq!(
+                lfs_os_security::android::hardware_vault::VAULT_FILE,
+                "hardware_vault_android.bin",
+                "Android vault filename const drifted from MANAGED_FILES"
+            );
+            assert_eq!(
+                lfs_os_security::android::hardware_vault::VAULT_FILE_BIO,
+                "hardware_vault_android_bio.bin",
+                "Android bio-vault filename const drifted from MANAGED_FILES"
             );
         }
     }

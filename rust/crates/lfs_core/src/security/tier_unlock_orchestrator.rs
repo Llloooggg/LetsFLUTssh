@@ -724,10 +724,80 @@ mod tests {
         // in this binary touch the same singleton so we don't
         // assert from any starting state — only that the final
         // state is Unlocked under the Plaintext tier.
+        let _ = crate::app::init();
         unlock_plaintext();
         let m = instance();
         let g = m.lock().expect("tier machine mutex");
         assert_eq!(g.state(), TierState::Unlocked);
         assert_eq!(g.tier(), SecurityTier::Plaintext);
+    }
+
+    /// Bypass-prevention regression: when the in-memory limiter
+    /// for `tier_unlock.keychain_with_password` is locked, the
+    /// orchestrator must short-circuit to `WrongSecret` before
+    /// it ever calls into `pinned_support_dir()` (which would
+    /// panic in tests because no support dir is pinned). If the
+    /// rate-limit gate ever regresses out of the orchestrator,
+    /// this test panics on the missing pin instead of returning
+    /// `WrongSecret`.
+    #[tokio::test]
+    async fn unlock_keychain_with_password_short_circuits_when_limiter_locked() {
+        let _ = crate::app::init();
+        let limiters = &crate::app::instance().rate_limiters;
+
+        // Drive enough record_failure calls to exhaust the
+        // backoff schedule (10 entries; index >=1 arms a non-
+        // zero cooldown, so a single failure is enough). Use
+        // a fresh id-suffix to avoid bleed between tests in
+        // this binary.
+        for _ in 0..crate::rate_limit::BACKOFF_SCHEDULE.len() {
+            limiters.record_failure(L2_UNLOCK_LIMITER_ID);
+        }
+        assert!(
+            limiters.status(L2_UNLOCK_LIMITER_ID).is_locked(),
+            "limiter must be locked before invoking the orchestrator"
+        );
+
+        let outcome = unlock_keychain_with_password("any-wrong-password".into()).await;
+        assert_eq!(outcome, UnlockOutcome::WrongSecret);
+
+        // Cleanup so subsequent tests in this binary that touch
+        // the L2 limiter start fresh.
+        limiters.record_success(L2_UNLOCK_LIMITER_ID);
+    }
+
+    /// Mirror of the above for the Paranoid tier. Argon2id is
+    /// the only attacker brake without the limiter; if the
+    /// `is_locked` short-circuit regresses, this test would
+    /// pay the KDF cost (or panic on missing pinned support_dir),
+    /// neither of which is `WrongSecret` returning fast.
+    #[tokio::test]
+    async fn unlock_paranoid_short_circuits_when_limiter_locked() {
+        let _ = crate::app::init();
+        let limiters = &crate::app::instance().rate_limiters;
+
+        for _ in 0..crate::rate_limit::BACKOFF_SCHEDULE.len() {
+            limiters.record_failure(PARANOID_UNLOCK_LIMITER_ID);
+        }
+        assert!(
+            limiters.status(PARANOID_UNLOCK_LIMITER_ID).is_locked(),
+            "Paranoid limiter must be locked before invoking the orchestrator"
+        );
+
+        let started = std::time::Instant::now();
+        let outcome = unlock_paranoid("any-wrong-password".into()).await;
+        let elapsed = started.elapsed();
+        assert_eq!(outcome, UnlockOutcome::WrongSecret);
+        // Belt-and-braces — Argon2id at production params costs
+        // 400-1500 ms; a short-circuit returns in <10 ms. If we
+        // somehow took the verify path despite the lock, the
+        // wall-clock would expose it even before the missing-pin
+        // panic surfaces.
+        assert!(
+            elapsed < std::time::Duration::from_millis(100),
+            "short-circuit took too long: {elapsed:?}"
+        );
+
+        limiters.record_success(PARANOID_UNLOCK_LIMITER_ID);
     }
 }

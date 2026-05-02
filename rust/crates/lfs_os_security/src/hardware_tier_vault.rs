@@ -189,11 +189,14 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 
 // Apple-side filenames. On Android the parallel constants live
 // in `crate::android::hardware_vault` (different files) so these
-// helpers stay cfg-gated to non-Android desktops + iOS.
+// helpers stay cfg-gated to non-Android desktops + iOS. Exposed
+// `pub` so `lfs_core::security::wipe`'s coverage tests can
+// cross-reference the canonical filename without copy-pasting a
+// string literal that drifts.
 #[cfg(not(target_os = "android"))]
-const VAULT_FILE_NAME: &str = "hardware_vault_apple.bin";
+pub const VAULT_FILE_NAME: &str = "hardware_vault_apple.bin";
 #[cfg(not(target_os = "android"))]
-const BIO_PASSWORD_FILE_NAME: &str = "hardware_vault_password_overlay_apple.bin";
+pub const BIO_PASSWORD_FILE_NAME: &str = "hardware_vault_password_overlay_apple.bin";
 
 #[cfg(not(target_os = "android"))]
 fn vault_file_path(support_dir: &str) -> std::path::PathBuf {

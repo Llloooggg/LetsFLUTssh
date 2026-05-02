@@ -67,8 +67,12 @@ use crate::hardware_tier_vault::HardwareVaultError;
 
 const VAULT_ALIAS: &str = "lfs.hardware_tier_vault.l3";
 const VAULT_ALIAS_BIO: &str = "lfs.hardware_tier_vault.l3.bio";
-const VAULT_FILE: &str = "hardware_vault_android.bin";
-const VAULT_FILE_BIO: &str = "hardware_vault_android_bio.bin";
+// Filenames exposed `pub` so `lfs_core::security::wipe`'s
+// coverage tests can cross-reference the canonical strings
+// without copy-pasting a literal that drifts when one side
+// renames.
+pub const VAULT_FILE: &str = "hardware_vault_android.bin";
+pub const VAULT_FILE_BIO: &str = "hardware_vault_android_bio.bin";
 const GCM_TAG_BITS: i32 = 128;
 
 fn map_err<S: AsRef<str>>(msg: S) -> HardwareVaultError {

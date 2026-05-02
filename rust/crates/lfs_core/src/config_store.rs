@@ -33,8 +33,11 @@ use crate::path::write_bytes_atomic;
 const DEBOUNCE: Duration = Duration::from_millis(300);
 
 /// File name under `support_dir` the actor reads + writes.
-/// Matches the Dart `ConfigStore._fileName` const.
-const FILE_NAME: &str = "config.json";
+/// Matches the Dart `ConfigStore._fileName` const. Exposed
+/// `pub` so the wipe-coverage regression test in
+/// `security::wipe::tests` can cross-reference the canonical
+/// string rather than copy-pasting a literal that drifts.
+pub const FILE_NAME: &str = "config.json";
 
 /// Per-actor state guarded by the singleton's Mutex.
 #[derive(Debug)]
