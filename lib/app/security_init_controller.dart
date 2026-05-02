@@ -622,19 +622,23 @@ class SecurityInitController {
     SecurityTierModifiers? modifiers,
   }) async {
     if (_disposed) return;
+    if (key != null) {
+      ref.read(securityStateProvider.notifier).set(level, key);
+    }
+    // Open the Rust-owned sqlite handle BEFORE invalidating provider
+    // caches. The invalidate triggers a rebuild that calls back into
+    // `lfs_core.db` (`db_sessions_list_all`, `db_ssh_keys_list_metadata`,
+    // `db_known_hosts_list`); calling those before `ensureRustDbOpen`
+    // returns produces a "db not initialized" error and the providers
+    // fall back to empty state. The rebuild has to land AFTER the
+    // sqlite handle is up so the first read pulls real rows.
+    await ensureRustDbOpen(key: key);
     // Stores read/write through FRB into `lfs_core.db`; the unlock
     // handshake invalidates each store's in-memory cache so the next
     // read pulls fresh rows after the engine swap.
     ref.read(sessionProvider.notifier).invalidateCache();
     ref.read(sshKeysProvider.notifier).invalidateCache();
     ref.read(knownHostsProvider.notifier).invalidateCache();
-    if (key != null) {
-      ref.read(securityStateProvider.notifier).set(level, key);
-    }
-    // Open the Rust-owned sqlite handle, keyed off the same master
-    // key the tier-derivation step just produced. Failures degrade
-    // silently — see ensureRustDbOpen.
-    await ensureRustDbOpen(key: key);
     await _persistSecurityTier(level, modifiers);
   }
 
