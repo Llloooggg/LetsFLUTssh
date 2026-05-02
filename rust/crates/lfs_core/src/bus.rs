@@ -89,6 +89,13 @@ pub enum EventTopic {
     /// Subscribers (wizard dialog, Settings security cards)
     /// re-render against the canonical snapshot without polling.
     SecurityCapabilities,
+    /// Rust-core log fan-out — every `lfs_core::app_log::log!`
+    /// call publishes here so the Dart `AppLogger` subscriber
+    /// can forward the line into the same on-disk file the rest
+    /// of the app's logging routes through. Without this, Rust
+    /// failures inside catch-arms / panics caught by FRB would
+    /// disappear silently.
+    CoreLog,
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -351,6 +358,32 @@ pub enum Event {
     /// awaiting handler. Subscribers (the russh handler that fired
     /// the request) match on `prompt_id`.
     KnownHostPromptResolved { prompt_id: String, accepted: bool },
+
+    /// Rust-core log line. Published by `lfs_core::app_log::log!`
+    /// at every internal log site so the Dart `AppLogger`
+    /// subscriber can fold the line into the on-disk
+    /// `letsflutssh.log`. Topic: [`EventTopic::CoreLog`].
+    ///
+    /// `level`: `"info"` / `"warn"` / `"error"`.
+    /// `name`: short tag (module / subsystem) — same shape Dart
+    /// passes via `AppLogger.log(name: …)`.
+    /// `message`: the line body. Sanitization is the publisher's
+    /// responsibility; the bus does not re-sanitize.
+    CoreLog {
+        level: CoreLogLevel,
+        name: String,
+        message: String,
+    },
+}
+
+/// Severity tag for [`Event::CoreLog`]. Mirrors the Dart
+/// `LogLevel` enum case-for-case so the FRB shim can map without
+/// branching on a discriminant string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CoreLogLevel {
+    Info,
+    Warn,
+    Error,
 }
 
 /// Distinguish the two TOFU prompt shapes:
@@ -396,6 +429,7 @@ impl Event {
             Event::SessionsChanged => EventTopic::Sessions,
             Event::ConfigChanged { .. } => EventTopic::Config,
             Event::TierStateChanged { .. } => EventTopic::Tier,
+            Event::CoreLog { .. } => EventTopic::CoreLog,
             Event::CredentialPromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::KeychainProbePromptRequest { .. } => EventTopic::SecurityPrompt,
             Event::HardwareVaultProbePromptRequest { .. } => EventTopic::SecurityPrompt,

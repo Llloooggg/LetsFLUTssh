@@ -17483,6 +17483,16 @@ impl SseDecode for crate::api::bus::BusEvent {
                     accepted: var_accepted,
                 };
             }
+            35 => {
+                let mut var_levelWireName = <String>::sse_decode(deserializer);
+                let mut var_name = <String>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::api::bus::BusEvent::CoreLog {
+                    level_wire_name: var_levelWireName,
+                    name: var_name,
+                    message: var_message,
+                };
+            }
             _ => {
                 unimplemented!("");
             }
@@ -17576,6 +17586,7 @@ impl SseDecode for crate::api::bus::BusTopic {
             11 => crate::api::bus::BusTopic::Tier,
             12 => crate::api::bus::BusTopic::SecurityPrompt,
             13 => crate::api::bus::BusTopic::SecurityCapabilities,
+            14 => crate::api::bus::BusTopic::CoreLog,
             _ => unreachable!("Invalid variant for BusTopic: {}", inner),
         };
     }
@@ -21582,6 +21593,17 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
                 accepted.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::api::bus::BusEvent::CoreLog {
+                level_wire_name,
+                name,
+                message,
+            } => [
+                35.into_dart(),
+                level_wire_name.into_into_dart().into_dart(),
+                name.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -21720,6 +21742,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusTopic {
             Self::Tier => 11.into_dart(),
             Self::SecurityPrompt => 12.into_dart(),
             Self::SecurityCapabilities => 13.into_dart(),
+            Self::CoreLog => 14.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -24862,6 +24885,16 @@ impl SseEncode for crate::api::bus::BusEvent {
                 <String>::sse_encode(prompt_id, serializer);
                 <bool>::sse_encode(accepted, serializer);
             }
+            crate::api::bus::BusEvent::CoreLog {
+                level_wire_name,
+                name,
+                message,
+            } => {
+                <i32>::sse_encode(35, serializer);
+                <String>::sse_encode(level_wire_name, serializer);
+                <String>::sse_encode(name, serializer);
+                <String>::sse_encode(message, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -24966,6 +24999,7 @@ impl SseEncode for crate::api::bus::BusTopic {
                 crate::api::bus::BusTopic::Tier => 11,
                 crate::api::bus::BusTopic::SecurityPrompt => 12,
                 crate::api::bus::BusTopic::SecurityCapabilities => 13,
+                crate::api::bus::BusTopic::CoreLog => 14,
                 _ => {
                     unimplemented!("");
                 }

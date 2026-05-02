@@ -24,6 +24,10 @@ pub enum BusTopic {
     Tier,
     SecurityPrompt,
     SecurityCapabilities,
+    /// Rust-core log fan-out. Dart `AppLogger` subscribes here +
+    /// folds every line into the same on-disk `letsflutssh.log`
+    /// the Dart-side calls write through.
+    CoreLog,
 }
 
 impl From<BusTopic> for lfs_core::bus::EventTopic {
@@ -43,6 +47,7 @@ impl From<BusTopic> for lfs_core::bus::EventTopic {
             BusTopic::Tier => lfs_core::bus::EventTopic::Tier,
             BusTopic::SecurityPrompt => lfs_core::bus::EventTopic::SecurityPrompt,
             BusTopic::SecurityCapabilities => lfs_core::bus::EventTopic::SecurityCapabilities,
+            BusTopic::CoreLog => lfs_core::bus::EventTopic::CoreLog,
         }
     }
 }
@@ -291,6 +296,18 @@ pub enum BusEvent {
     /// awaiting handler. Diagnostic only (the matching handler
     /// already woke); UI may use it to dismiss any lingering toast.
     KnownHostPromptResolved { prompt_id: String, accepted: bool },
+
+    /// Rust-core log line. Dart `AppLogger` subscribes to
+    /// [`BusTopic::CoreLog`] and folds the line into
+    /// `letsflutssh.log`. `level_wire_name` is one of
+    /// `"info"` / `"warn"` / `"error"` so the Dart shim maps it
+    /// onto its own `LogLevel` enum without an extra translation
+    /// table.
+    CoreLog {
+        level_wire_name: String,
+        name: String,
+        message: String,
+    },
 }
 
 /// FRB mirror of `lfs_core::bus::KnownHostPromptKind`.
@@ -485,6 +502,19 @@ impl BusEvent {
             } => BusEvent::KnownHostPromptResolved {
                 prompt_id,
                 accepted,
+            },
+            lfs_core::bus::Event::CoreLog {
+                level,
+                name,
+                message,
+            } => BusEvent::CoreLog {
+                level_wire_name: match level {
+                    lfs_core::bus::CoreLogLevel::Info => "info".to_string(),
+                    lfs_core::bus::CoreLogLevel::Warn => "warn".to_string(),
+                    lfs_core::bus::CoreLogLevel::Error => "error".to_string(),
+                },
+                name,
+                message,
             },
         }
     }

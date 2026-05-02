@@ -17774,6 +17774,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           promptId: dco_decode_String(raw[1]),
           accepted: dco_decode_bool(raw[2]),
         );
+      case 35:
+        return BusEvent_CoreLog(
+          levelWireName: dco_decode_String(raw[1]),
+          name: dco_decode_String(raw[2]),
+          message: dco_decode_String(raw[3]),
+        );
       default:
         throw Exception('unreachable');
     }
@@ -20887,6 +20893,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return BusEvent_KnownHostPromptResolved(
           promptId: var_promptId,
           accepted: var_accepted,
+        );
+      case 35:
+        final var_levelWireName = sse_decode_String(deserializer);
+        final var_name = sse_decode_String(deserializer);
+        final var_message = sse_decode_String(deserializer);
+        return BusEvent_CoreLog(
+          levelWireName: var_levelWireName,
+          name: var_name,
+          message: var_message,
         );
       default:
         throw UnimplementedError('');
@@ -24899,6 +24914,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(34, serializer);
         sse_encode_String(promptId, serializer);
         sse_encode_bool(accepted, serializer);
+      case BusEvent_CoreLog(
+        levelWireName: final levelWireName,
+        name: final name,
+        message: final message,
+      ):
+        sse_encode_i_32(35, serializer);
+        sse_encode_String(levelWireName, serializer);
+        sse_encode_String(name, serializer);
+        sse_encode_String(message, serializer);
     }
   }
 

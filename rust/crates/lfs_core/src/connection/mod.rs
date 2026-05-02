@@ -28,21 +28,14 @@ pub mod auth_compose;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-/// `LFS_CONNECT_TRACE=1` flips on a per-step stderr trace through the
-/// connect driver. Off by default — a maintainer chasing a connect
-/// hang sets the env var on the run, captures stderr, then turns it
-/// back off. The env probe is cached on first read so the per-step
-/// branch is a static-bool check after that.
-fn connect_trace_enabled() -> bool {
-    static FLAG: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *FLAG.get_or_init(|| std::env::var_os("LFS_CONNECT_TRACE").is_some())
-}
-
+/// Connect-driver trace lines. Route through
+/// [`crate::app_log`] so every step lands in `letsflutssh.log`
+/// the same as Dart-side logs — no env var, no stderr dance.
+/// `info!` rung; the user's log threshold is what gates whether
+/// the line actually hits disk.
 macro_rules! trace_connect {
     ($($arg:tt)*) => {
-        if $crate::connection::connect_trace_enabled() {
-            eprintln!("[lfs_core] {}", format_args!($($arg)*));
-        }
+        $crate::app_log_info!("CoreConnect", $($arg)*);
     };
 }
 

@@ -10,20 +10,14 @@ import 'ssh.dart';
 // These functions are ignored because they are not marked as `pub`: `from_core`
 
 /// Start a Rust-driven `-L` local forward listener against the
-/// supplied connection actor. Binds `bind_host:bind_port`,
-/// resolves the active russh `Session` via the connection
-/// registry, and spawns the accept loop that relays each accepted
-/// socket through a fresh `direct-tcpip` channel to
-/// `target_host:target_port`.
+/// supplied connection actor. Returns the actual bound port
+/// (matters when the caller passes `0` to let the OS pick).
+/// Status events flow onto the bus through the registered rule id.
 ///
-/// Returns the actual bound port (matters when the caller passes
-/// `0` to let the OS pick). Status events (`Listening` / `Error`)
-/// flow onto the bus through the registered rule id; the Dart UI
-/// subscribes there as usual.
-///
-/// `connection_id` must point at a `Connected` actor — without
-/// a live session the russh handle is gone and the listener task
-/// would fail every accept.
+/// All orchestration (resolve session, build factory, bind addr,
+/// spawn listener, store handle) lives in
+/// `lfs_core::portforward::driver::start_local`. The shim is a
+/// pass-through so the adapter stays free of business logic.
 Future<int> portForwardStartLocal({
   required String ruleId,
   required String connectionId,
@@ -48,17 +42,8 @@ Future<bool> portForwardStopLocal({required String ruleId}) =>
     RustLib.instance.api.crateApiForwardPortForwardStopLocal(ruleId: ruleId);
 
 /// Start a Rust-driven `-D` SOCKS5 dynamic-forward listener
-/// against the supplied connection actor. Binds
-/// `bind_host:bind_port`, resolves the active russh `Session`
-/// via the connection registry, and spawns the accept loop that
-/// runs the SOCKS5 CONNECT handshake (RFC 1928, NO_AUTH only)
-/// per accepted socket and bridges it through a fresh
-/// `direct-tcpip` channel to the target the client asked for.
-///
-/// Returns the actual bound port (matters when the caller
-/// passes `0` to let the OS pick). Status events (`Listening` /
-/// `Error`) flow onto the bus through the registered rule id;
-/// the Dart UI subscribes there as usual.
+/// against the supplied connection actor. Same shape as
+/// [`port_forward_start_local`] minus the target tuple.
 Future<int> portForwardStartDynamic({
   required String ruleId,
   required String connectionId,
@@ -79,16 +64,9 @@ Future<bool> portForwardStopDynamic({required String ruleId}) =>
     RustLib.instance.api.crateApiForwardPortForwardStopDynamic(ruleId: ruleId);
 
 /// Start a Rust-driven `-R` remote-forward against the supplied
-/// connection actor. Asks the server to listen on
-/// `bind_host:bind_port` (pass `0` to let the server pick),
-/// registers a route through the session-level dispatcher, and
-/// spawns the bridge task that opens a fresh local TCP connection
-/// to `target_host:target_port` per inbound forwarded connection.
-///
-/// Returns the actual bound port the server accepted (servers may
-/// substitute their own when the caller asked for 0). Status
-/// events (`Listening` / `Error`) flow onto the bus through the
-/// registered rule id; the Dart UI subscribes there as usual.
+/// connection actor. Returns the actual bound port the server
+/// accepted (servers may substitute their own when the caller
+/// asked for 0).
 Future<int> portForwardStartRemote({
   required String ruleId,
   required String connectionId,

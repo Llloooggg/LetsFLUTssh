@@ -420,6 +420,18 @@ sealed class BusEvent with _$BusEvent {
     required String promptId,
     required bool accepted,
   }) = BusEvent_KnownHostPromptResolved;
+
+  /// Rust-core log line. Dart `AppLogger` subscribes to
+  /// [`BusTopic::CoreLog`] and folds the line into
+  /// `letsflutssh.log`. `level_wire_name` is one of
+  /// `"info"` / `"warn"` / `"error"` so the Dart shim maps it
+  /// onto its own `LogLevel` enum without an extra translation
+  /// table.
+  const factory BusEvent.coreLog({
+    required String levelWireName,
+    required String name,
+    required String message,
+  }) = BusEvent_CoreLog;
 }
 
 /// FRB mirror of `lfs_core::bus::KnownHostPromptKind`.
@@ -478,4 +490,9 @@ enum BusTopic {
   tier,
   securityPrompt,
   securityCapabilities,
+
+  /// Rust-core log fan-out. Dart `AppLogger` subscribes here +
+  /// folds every line into the same on-disk `letsflutssh.log`
+  /// the Dart-side calls write through.
+  coreLog,
 }

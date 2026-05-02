@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../src/rust/api/bus.dart' as rust_bus;
 import '../src/rust/api/format.dart' as rust_format;
 import '../src/rust/api/path.dart' as rust_path;
 import 'sanitize.dart';
@@ -127,6 +129,13 @@ class AppLogger {
   // survive even when routine logging is disabled.
   LogLevel? _threshold;
 
+  // Subscription that forwards Rust-core log lines into this same
+  // sink. Without it, internal Rust failures (panics caught by
+  // FRB, errors swallowed in match arms, connect-driver traces)
+  // never reach `letsflutssh.log`. Held for the lifetime of the
+  // logger; `dispose()` cancels it.
+  StreamSubscription<rust_bus.BusEvent>? _coreLogSub;
+
   AppLogger._();
 
   /// Get the singleton instance.
@@ -177,6 +186,34 @@ class AppLogger {
     } catch (_) {
       // Best-effort init — no OS-logging fallback anymore; a failed
       // init just means neither routine nor critical writes will land.
+    }
+    _attachCoreLogPipe();
+  }
+
+  /// Subscribe to `BusTopic::CoreLog` so every Rust-core log line
+  /// folds into the same on-disk file Dart writes through. The
+  /// subscriber routes the message through [log] with the matching
+  /// level, so the threshold + sanitization + line format stay in
+  /// one place.
+  ///
+  /// Best-effort — flutter_test contexts that don't load the FRB
+  /// native lib hit the catch and the pipe stays unwired (Dart
+  /// tests don't exercise Rust log paths anyway).
+  void _attachCoreLogPipe() {
+    try {
+      _coreLogSub = rust_bus
+          .busSubscribe(topic: rust_bus.BusTopic.coreLog)
+          .listen((event) {
+            if (event is rust_bus.BusEvent_CoreLog) {
+              final level = logLevelFromJson(event.levelWireName);
+              log(event.message, name: event.name, level: level);
+            }
+          });
+    } catch (e) {
+      // FRB native lib not loaded — skip the pipe; Rust log lines
+      // will not surface in the Dart-side file, but the rest of
+      // logging keeps working.
+      stderr.writeln('AppLogger: CoreLog pipe skipped: $e');
     }
   }
 
@@ -374,6 +411,8 @@ class AppLogger {
   /// a non-null value.
   Future<void> dispose() async {
     _threshold = null;
+    await _coreLogSub?.cancel();
+    _coreLogSub = null;
     await _closeSink();
   }
 
