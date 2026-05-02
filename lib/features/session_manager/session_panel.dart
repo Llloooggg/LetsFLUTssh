@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/session/port_forwards_dao.dart';
 import '../../core/session/session.dart';
 import '../../core/session/session_tree.dart';
-import '../../core/shortcut_registry.dart';
+import '../../widgets/shortcut_registry.dart';
 import '../../core/ssh/port_forward_rule.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';

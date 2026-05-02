@@ -21,7 +21,7 @@ import 'app/import_flow.dart';
 import 'app/navigator_key.dart';
 import 'app/security_init_controller.dart';
 import 'app/update_dialog_flow.dart';
-import 'core/shortcut_registry.dart';
+import 'widgets/shortcut_registry.dart';
 import 'core/deeplink/deeplink_handler.dart';
 import 'core/single_instance/single_instance.dart';
 import 'core/security/backup_exclusion.dart';

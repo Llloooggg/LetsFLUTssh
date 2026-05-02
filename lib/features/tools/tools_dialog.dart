@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/shortcut_registry.dart';
+import '../../widgets/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';

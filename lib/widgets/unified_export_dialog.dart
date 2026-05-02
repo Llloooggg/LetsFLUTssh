@@ -5,7 +5,7 @@ import '../core/security/ssh_key.dart';
 import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
 import '../core/session/session_tree.dart';
-import '../core/shortcut_registry.dart';
+import '../widgets/shortcut_registry.dart';
 import '../core/snippets/snippet.dart';
 import '../core/tags/tag.dart';
 import '../l10n/app_localizations.dart';

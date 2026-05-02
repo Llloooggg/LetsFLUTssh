@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 import '../../core/import/key_file_helper.dart';
 import '../../core/security/ssh_key.dart';
 import '../../core/session/port_forwards_dao.dart';
-import '../../core/shortcut_registry.dart';
+import '../../widgets/shortcut_registry.dart';
 import '../../core/session/session.dart';
 import '../../core/ssh/port_forward_rule.dart';
 import '../../core/ssh/ssh_config.dart';

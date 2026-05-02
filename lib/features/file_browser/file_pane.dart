@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/sftp/sftp_models.dart';
-import '../../core/shortcut_registry.dart';
+import '../../widgets/shortcut_registry.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';

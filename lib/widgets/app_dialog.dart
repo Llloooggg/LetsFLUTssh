@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/progress/progress_reporter.dart';
-import '../core/shortcut_registry.dart';
+import '../widgets/shortcut_registry.dart';
 import '../theme/app_theme.dart';
 import '../utils/platform.dart';
 import 'app_button.dart';

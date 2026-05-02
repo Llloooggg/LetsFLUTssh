@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
-import '../core/shortcut_registry.dart';
+import '../widgets/shortcut_registry.dart';
 import '../theme/app_theme.dart';
 import '../utils/terminal_clipboard.dart';
 

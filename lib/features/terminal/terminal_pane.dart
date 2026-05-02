@@ -11,7 +11,7 @@ import '../../core/connection/connection.dart';
 import '../../core/connection/connection_step.dart';
 import '../../core/connection/progress_tracker.dart';
 import '../../core/connection/progress_writer.dart';
-import '../../core/shortcut_registry.dart';
+import '../../widgets/shortcut_registry.dart';
 import '../../core/security/terminal_scrubber.dart';
 import '../../core/session/session_recorder.dart';
 import '../../core/ssh/shell_helper.dart';
