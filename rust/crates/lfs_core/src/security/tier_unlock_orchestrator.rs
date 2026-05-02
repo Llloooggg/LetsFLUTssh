@@ -88,6 +88,14 @@ fn stage_key(bytes: &[u8]) {
 /// to the orchestrator.
 const ENCRYPTION_KEY_SLOT: &str = "letsflutssh_encryption_key";
 
+/// Stable rate-limiter ids for the Rust-side gates wired into
+/// [`unlock_keychain_with_password`] and [`unlock_paranoid`]. Stored
+/// in the process-singleton `app::instance().rate_limiters`
+/// registry; survive the lifetime of the process and reset on
+/// `record_success` (correct password lands).
+const L2_UNLOCK_LIMITER_ID: &str = "tier_unlock.keychain_with_password";
+const PARANOID_UNLOCK_LIMITER_ID: &str = "tier_unlock.paranoid";
+
 /// Plaintext tier — no secret, no plugin call, no user prompt.
 /// Idempotent: re-entry while already `Unlocked` is a no-op
 /// because both dispatches are state-guarded.
@@ -187,6 +195,27 @@ pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
         &TierEvent::UnlockRequested,
     );
 
+    // Rate-limit gate. The Dart unlock dialog's countdown was the
+    // only brake on this verify path — a programmatic FRB caller
+    // could fire `unlock_keychain_with_password` in a tight loop
+    // and brute-force the L2 gate password (4-12 chars typical) at
+    // wall-clock speed. The InMemoryRateLimiter applies the same
+    // exponential schedule (1, 5, 15, 30, 60s cap) the Dart-side
+    // limiter used. The persisted variant lives on disk and is
+    // owned by the L2 gate; the in-memory mirror here is the
+    // boundary-level gate that catches direct callers.
+    let limiters = &crate::app::instance().rate_limiters;
+    let l2_status = limiters.status(L2_UNLOCK_LIMITER_ID);
+    if l2_status.is_locked() {
+        instance_dispatch(
+            SecurityTier::KeychainWithPassword,
+            &TierEvent::UnlockFailed {
+                reason: UnlockFailureReason::WrongSecret,
+            },
+        );
+        return UnlockOutcome::WrongSecret;
+    }
+
     let support_dir = crate::security::master_password::pinned_support_dir();
     let verify_result =
         crate::security::keychain_password_gate_actor::verify_password(support_dir, &password)
@@ -208,6 +237,7 @@ pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
     };
 
     if !verified {
+        limiters.record_failure(L2_UNLOCK_LIMITER_ID);
         instance_dispatch(
             SecurityTier::KeychainWithPassword,
             &TierEvent::UnlockFailed {
@@ -216,6 +246,7 @@ pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
         );
         return UnlockOutcome::WrongSecret;
     }
+    limiters.record_success(L2_UNLOCK_LIMITER_ID);
 
     // Password verified — read the DB encryption key directly
     // from the OS keychain.
@@ -271,6 +302,27 @@ pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
 pub async fn unlock_paranoid(password: String) -> UnlockOutcome {
     instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockRequested);
 
+    // In-memory rate-limit gate. Argon2id at production params
+    // already costs ~400-1500ms per attempt, so a brute-force on
+    // the typed master password is bounded by KDF cost — but the
+    // Dart dialog's exponential-cooldown brake made that bound
+    // tighter and was the only enforcement. A direct FRB caller
+    // could otherwise fire `unlock_paranoid` in a tight loop and
+    // pay only the KDF cost. In-memory (not persisted) per the
+    // tier docstring — Paranoid sessions are short-lived and the
+    // limiter does not need to survive a process restart.
+    let limiters = &crate::app::instance().rate_limiters;
+    let p_status = limiters.status(PARANOID_UNLOCK_LIMITER_ID);
+    if p_status.is_locked() {
+        instance_dispatch(
+            SecurityTier::Paranoid,
+            &TierEvent::UnlockFailed {
+                reason: UnlockFailureReason::WrongSecret,
+            },
+        );
+        return UnlockOutcome::WrongSecret;
+    }
+
     // Argon2id is CPU + memory heavy (400-1500ms wall-clock at
     // production profile); spawn_blocking frees the FRB worker
     // for the duration. The pinned support_dir lives inside the
@@ -284,11 +336,13 @@ pub async fn unlock_paranoid(password: String) -> UnlockOutcome {
 
     match key {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
+            limiters.record_success(PARANOID_UNLOCK_LIMITER_ID);
             stage_key(&bytes);
             instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockSucceeded);
             UnlockOutcome::Staged
         }
         Ok(Ok(_)) => {
+            limiters.record_failure(PARANOID_UNLOCK_LIMITER_ID);
             instance_dispatch(
                 SecurityTier::Paranoid,
                 &TierEvent::UnlockFailed {
