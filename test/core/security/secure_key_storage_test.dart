@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
 
 /// SecureKeyStorage round-trip / probe / delete coverage moved
-/// Rust-side after Phase 3 of the cleanup arc retired
+/// Rust-side after the cleanup arc retired
 /// `flutter_secure_storage`. Every platform now routes through
 /// `lfs_os_security::secure_key_storage::*`, whose unit suite
 /// exercises the real OS backend on each target (libsecret on the

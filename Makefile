@@ -17,34 +17,19 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         linux windows macos apk ios \
         package-linux package-windows release-linux \
         deps-linux deps-macos deps-windows fuzz-build hooks help \
-        lint-workflows submodules
-
-## ─── Submodules ───────────────────────────────────────────────
-# third_party/SQLite3MultipleCiphers is compiled in-tree by the sqlite3
-# build hook. Every flutter-invoking target depends on this stamp so a
-# fresh clone (or a forgotten `git submodule update` after pulling a new
-# submodule SHA) self-heals before flutter runs the hooks.
-SQLITE3MC_STAMP := third_party/SQLite3MultipleCiphers/src/sqlite3mc.c
-
-$(SQLITE3MC_STAMP):
-	@if [ ! -f "$@" ]; then \
-		echo "Initializing third_party/SQLite3MultipleCiphers submodule..."; \
-		git submodule update --init --depth 1 third_party/SQLite3MultipleCiphers; \
-	fi
-
-submodules: $(SQLITE3MC_STAMP) ## Initialize / update git submodules (SQLite3MultipleCiphers)
+        lint-workflows
 
 all: build
 
 ## ─── Development ──────────────────────────────────────────────
 
-run: $(SQLITE3MC_STAMP) ## Run the app (debug, current platform, logs=info)
+run: ## Run the app (debug, current platform, logs=info)
 	$(FLUTTER) run --dart-define=LETSFLUTSSH_LOG_LEVEL=info
 
-run-release: $(SQLITE3MC_STAMP) ## Run the app (release mode)
+run-release: ## Run the app (release mode)
 	$(FLUTTER) run --release
 
-build: $(SQLITE3MC_STAMP) ## Build for current platform (release)
+build: ## Build for current platform (release)
 ifdef IS_LINUX
 	$(FLUTTER) build linux --release
 else ifdef IS_MACOS
@@ -54,7 +39,7 @@ else
 	@exit 1
 endif
 
-test: $(SQLITE3MC_STAMP) ## Run all tests with coverage
+test: ## Run all tests with coverage
 	$(FLUTTER) test --coverage --timeout 30s
 	@# Post-process lcov.info to drop generated + localisation files
 	@# from the coverage denominator. Must mirror
@@ -64,7 +49,7 @@ test: $(SQLITE3MC_STAMP) ## Run all tests with coverage
 	@# already need.
 	@dart run scripts/filter_lcov.dart coverage/lcov.info
 
-analyze: $(SQLITE3MC_STAMP) ## Run Dart analyzer (fatal on infos, same as CI)
+analyze: ## Run Dart analyzer (fatal on infos, same as CI)
 	$(FLUTTER) analyze --fatal-infos
 
 # Pinned actionlint version + checksum. Update both together when bumping.
@@ -146,12 +131,6 @@ gen: ## Code generation (freezed, json_serializable)
 watch: ## Watch mode code generation
 	dart run build_runner watch --delete-conflicting-outputs
 
-drift-schema-dump: ## Dump current drift schema to drift_schemas/drift_schema_v$(DB_VERSION).json (bump DB_VERSION before bumping schemaVersion)
-	dart run drift_dev schema dump lib/core/db/database.dart drift_schemas/
-
-drift-schema-generate: ## Regenerate drift schema verification helpers in test/generated_drift_schema/
-	dart run drift_dev schema generate drift_schemas/ test/generated_drift_schema/ --data-classes --companions
-
 fuzz-build: ## Compile standalone fuzz targets to native (fuzz/out/)
 	@mkdir -p fuzz/out
 	@for f in fuzz/fuzz_*.dart; do \
@@ -170,7 +149,7 @@ macos: build-macos
 apk: build-apk
 ios: build-ios
 
-build-linux: $(SQLITE3MC_STAMP) ## Build for Linux (release)
+build-linux: ## Build for Linux (release)
 ifdef IS_LINUX
 	$(FLUTTER) build linux --release
 else
@@ -178,12 +157,12 @@ else
 	@exit 1
 endif
 
-build-windows: $(SQLITE3MC_STAMP) ## Build for Windows
+build-windows: ## Build for Windows
 	@echo "Error: Windows builds require a Windows host (current: $(UNAME))"
 	@echo "Use: flutter build windows (on Windows)"
 	@exit 1
 
-build-macos: $(SQLITE3MC_STAMP) ## Build for macOS (release)
+build-macos: ## Build for macOS (release)
 ifdef IS_MACOS
 	$(FLUTTER) build macos --release
 else
@@ -191,13 +170,13 @@ else
 	@exit 1
 endif
 
-build-apk: $(SQLITE3MC_STAMP) ## Build Android APK (release, per-ABI)
+build-apk: ## Build Android APK (release, per-ABI)
 	$(FLUTTER) build apk --release --split-per-abi
 
-build-aab: $(SQLITE3MC_STAMP) ## Build Android App Bundle (release)
+build-aab: ## Build Android App Bundle (release)
 	$(FLUTTER) build appbundle --release
 
-build-ios: $(SQLITE3MC_STAMP) ## Build for iOS (release)
+build-ios: ## Build for iOS (release)
 ifdef IS_MACOS
 	$(FLUTTER) build ios --release
 else
@@ -264,10 +243,10 @@ release-linux: package-linux ## Build Linux release packages
 
 ## ─── Dependencies ─────────────────────────────────────────────
 
-deps: $(SQLITE3MC_STAMP) ## Install Flutter dependencies
+deps: ## Install Flutter dependencies
 	$(FLUTTER) pub get
 
-upgrade: $(SQLITE3MC_STAMP) ## Upgrade Flutter dependencies
+upgrade: ## Upgrade Flutter dependencies
 	$(FLUTTER) pub upgrade
 
 deps-linux: ## Install system build deps (Debian/Ubuntu)

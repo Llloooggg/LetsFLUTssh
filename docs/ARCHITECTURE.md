@@ -118,9 +118,9 @@ flowchart TD
     end
 
     subgraph Native["<b>Native plumbing</b> (Kotlin / Swift / C++)<br/>NO business logic — entry-point glue only"]
-        kotlin2["Android Kotlin:<br/>LfsJniBootstrap (JavaVM handoff)<br/>LfsBiometricCallback (callback adapter)<br/>MainActivity (Flutter host)<br/>QrScannerActivity (CameraX UI)"]
-        swift2["iOS / macOS Swift:<br/>QR scanner (AVCaptureSession UI)<br/>Hardware/SessionLock (LEGACY — retire post NI-2)"]
-        cpp2["Windows C++:<br/>hardware_vault_plugin (CNG/NCrypt)<br/>session_lock_plugin (LEGACY)"]
+        kotlin2["Android Kotlin:<br/>LfsJniBootstrap (JavaVM handoff)<br/>LfsBiometricCallback (callback adapter)<br/>MainActivity (Flutter host)<br/>QrScannerActivity (CameraX UI)<br/>ClipboardSecurePlugin (EXTRA_IS_SENSITIVE)"]
+        swift2["iOS / macOS Swift:<br/>QR scanner (AVCaptureSession UI)<br/>App / Window host shells"]
+        cpp2["Windows C++:<br/>hardware_vault_plugin (CNG/NCrypt — Win L3 Rust port pending)"]
     end
 
     Dart -- "FRB calls" --> Rust
@@ -139,7 +139,7 @@ flowchart TD
 | "What does the UI show right now?" | **Dart** Riverpod state |
 | OS-API call? | **Rust** through a maintained crate (`security-framework` / `windows` / `jni` / `zbus` / `objc2`) |
 | Parsing untrusted bytes? | **Rust** (always — memory-safety perimeter) |
-| Touches secrets? | **Rust** SecretStore (always — Phase 4 plaintext-discipline boundary, [§3.6](#36-security--encryption-coresecurity)) |
+| Touches secrets? | **Rust** SecretStore (always — plaintext-discipline boundary, [§3.6](#36-security--encryption-coresecurity)) |
 | Persisted to disk? | **Rust** through atomic-write + chmod 0600 (`lfs_core::path::write_bytes_atomic`) |
 | OS requires a JVM/UIKit class instance (Service / FragmentActivity / AVCaptureSession host)? | **Native shim** + JNI/objc2 callback into Rust |
 | Native UI surface (camera preview, file picker)? | **Native** plugin → Dart wrapper → bytes flow into Rust for parsing |
@@ -163,7 +163,7 @@ What native code does **NOT** contain: cryptography, key management, business de
 6. DB key lives in `mlock`-pinned Rust memory until a lock event.
 7. Lock event (idle / OS lock / explicit) → DB key drop + Zeroize, `mlock` release, SQLCipher handle close, `SessionCredentialCache` evict.
 
-Plaintext password exists in Dart heap on the order of milliseconds between steps 1 and 3, then everything is in Rust until the end of life. Per the Phase 4 invariant, this is the minimum possible exposure window for the chosen UX (typed master password).
+Plaintext password exists in Dart heap on the order of milliseconds between steps 1 and 3, then everything is in Rust until the end of life. Per the plaintext-discipline invariant, this is the minimum possible exposure window for the chosen UX (typed master password).
 
 **Rationale for keeping Riverpod in Dart** despite the "Rust owns logic" principle: state management = reactive subscription of UI to changes. Moving Riverpod to Rust would mean every `ref.watch(provider)` is an FRB hop (~50 µs each) — at 60 FPS × hundreds of `watch`es per frame this destroys the Flutter perf model. Riverpod state holds *handles* (session ids, UUIDs) and *flags* (is-loading, last-error), never plaintext credentials, so the security-via-Rust-ownership argument doesn't apply. See [§4 State Management](#4-state-management--riverpod) for the Riverpod patterns; see [§3.6 Security & Encryption](#36-security--encryption-coresecurity) for the plaintext-discipline boundary.
 
@@ -176,27 +176,16 @@ lib/
 ├── main.dart                         # Entry point — `runZonedGuarded(_mainBody)`, RustLib init, single-instance, config preload, runApp. `LetsFLUTsshApp` + `_LetsFLUTsshAppState` (security controller wiring, lifecycle / lock-state listeners) live in `main_app.dart`; `MainScreen` + `_MainScreenState` (deep links, prompt listeners, first-launch banner, update dialog flow) live in `main_screen.dart` — both are `part of 'main.dart';`
 ├── app/                              # App-shell helpers pulled out of main.dart: global error dialog, already-running blocker, toolbar, deep-link wiring, import flow, navigator key, update dialog flow, `SecurityInitController` (migration → unlock → first-launch orchestrator) + `SecurityDialogPrompter` (seam around blocking dialogs — see §14 → Testing the controller), `security_dialogs.dart` (unmounted-fallback wrappers)
 ├── core/                             # Business logic (no Flutter imports)
-│   ├── db/                           # Drift database (SQLite + SQLite3MultipleCiphers)
-│   │   ├── database.dart             # AppDatabase definition + lazy DAO getters
-│   │   ├── database.g.dart           # Drift codegen (do not edit)
-│   │   ├── database_opener.dart      # Database initialization + encryption setup
-│   │   ├── tables.dart               # All table definitions
-│   │   ├── mappers.dart              # Domain ↔ DB conversion, folder path↔tree
-│   │   └── dao/                      # Data Access Objects
-│   │       ├── session_dao.dart      # Session CRUD
-│   │       ├── folder_dao.dart       # Folder tree CRUD
-│   │       ├── ssh_key_dao.dart      # SSH key CRUD
-│   │       ├── known_host_dao.dart   # Known hosts CRUD
-│   │       ├── config_dao.dart       # Single-row config blob
-│   │       ├── tag_dao.dart          # Tags + M2M junctions
-│   │       ├── snippet_dao.dart      # Snippets + session linking
-│   │       └── sftp_bookmark_dao.dart # SFTP path bookmarks
+│   ├── db/                           # Thin Dart shim — schema + DAOs live Rust-side under `lfs_core::db` (rusqlite + bundled SQLCipher 4.x)
+│   │   ├── rust_db_init.dart         # `dbInit(key)` / `dbClose()` FRB wrappers, called from main.dart on unlock
+│   │   ├── mappers.dart              # Domain ↔ FRB DTO conversion (folder path↔tree, session row↔model)
+│   │   └── _folder_path_compat.dart  # Legacy folder-path resolver kept for the migration framework's import path
 │   ├── ssh/                          # SSH client, config, TOFU, errors
 │   ├── sftp/                         # SFTP operations, file models, FileSystem
 │   ├── transfer/                     # File transfer queue
 │   ├── session/                      # Session model, persistence, tree, history
 │   ├── connection/                   # Connection lifecycle, progress tracking
-│   ├── security/                     # AES-256-GCM, master password, keychain, tier ladder
+│   ├── security/                     # Tier ladder + keychain wrappers + biometric auth + master password — every backend lives Rust-side under `lfs_os_security::*` and `lfs_core::security::*`
 │   ├── migration/                    # Dart shim over `lfs_core::migration` (FRB DTO re-exports + `runStartupMigrations()`). Runner, registry, artefacts all live Rust-side. Full description: §3.6 → Migration framework
 │   ├── config/                       # App configuration (file-based, loaded before DB)
 │   ├── snippets/                     # Snippet model (notifier in providers/)
@@ -646,7 +635,7 @@ Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column (added in
 
 #### SessionNotifier — FRB-backed persistence
 
-All session data (including credentials) is stored in a single drift (SQLite) database. Encryption is handled at the DB level via SQLite3MultipleCiphers — stores no longer manage encryption themselves.
+All session data (including credentials) is stored in a single SQLite database opened Rust-side via `rusqlite` + bundled SQLCipher 4.x (AES-256-CBC + HMAC-SHA512). Encryption happens at the DB level — stores never manage encryption themselves; the Dart notifier reads / writes through the FRB DAO surface in `lib/src/rust/api/db/`.
 
 ```dart
 class SessionNotifier {
@@ -1057,8 +1046,8 @@ Per-platform dispatch:
 | Platform | Binding | File | PIN channel |
 |---|---|---|---|
 | **Linux** | TPM2 via `tpm2-tools` shell-out in [`TpmClient`](../lib/core/security/linux/tpm_client.dart) | `hardware_vault.bin` (salt + sealed blob) | PIN HMAC goes to TPM `-p file:<path>` as the unseal auth value — TPM lockout is the rate limiter |
-| **iOS / macOS** | P-256 in Secure Enclave (`kSecAttrTokenIDSecureEnclave`) with `.biometryCurrentSet` via [`HardwareVaultPlugin.swift`](../ios/Runner/HardwareVaultPlugin.swift) / [`macos/Runner/HardwareVaultPlugin.swift`](../macos/Runner/HardwareVaultPlugin.swift) | `hardware_vault_apple.bin` (native side) + `hardware_vault_salt.bin` (Dart side) | PIN HMAC is an external gate — SE accepts only biometrics for release |
-| **Android** | AES-256-GCM in Keystore with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` + StrongBox preferred, via [`HardwareVaultPlugin.kt`](../android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt) | `hardware_vault_android.bin` + salt file | PIN HMAC is an external gate — Keystore requires `BiometricPrompt.CryptoObject` for release |
+| **iOS / macOS** | P-256 in Secure Enclave (`kSecAttrTokenIDSecureEnclave`) with `.biometryCurrentSet` via Rust `lfs_os_security::hardware_tier_vault::apple` (`security-framework` + `objc2`) | `hardware_vault_apple.bin` (Rust-side envelope) + `hardware_vault_salt.bin` (Dart side) | PIN HMAC is an external gate — SE accepts only biometrics for release |
+| **Android** | AES-256-GCM in Keystore with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` + StrongBox preferred, via Rust `lfs_os_security::android::hardware_vault` (direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"`) | `hardware_vault_android.bin` + salt file | PIN HMAC is an external gate — Keystore requires `BiometricPrompt.CryptoObject` for release |
 | **Windows** | CNG / `NCrypt` on the Microsoft Platform Crypto Provider (TPM 2.0) via [`hardware_vault_plugin.cpp`](../windows/runner/hardware_vault_plugin.cpp). Falls back to Microsoft Software KSP when no TPM. Primary wrap is silent (no Hello); biometric overlay is a second NCrypt key with `NCRYPT_UI_PROTECT_KEY` that Hello gates | `hardware_vault_windows.bin` + overlay file + salt file | PIN HMAC is an external gate — wrong PIN fails without waking the TPM |
 
 The PIN is the user-facing secret on every platform, but the binding path diverges: Linux alone is hardware-auth-value-native (TPM accepts arbitrary HMAC bytes as the unseal password). Apple / Android / Windows APIs gate the hardware key release on biometrics / Hello, so the PIN runs as a local HMAC gate that is checked *before* the biometric prompt fires; a wrong PIN fails without waking the user's sensor. Salt lives in Dart-owned `hardware_vault_salt.bin` so two installs with the same PIN produce different gates.
@@ -1074,12 +1063,12 @@ Per-install salt is generated on `store()` and written alongside the sealed blob
 | Platform | File | Mechanism |
 |---|---|---|
 | **iOS / macOS** | `hardware_vault_apple.bin`, `hardware_vault_password_overlay_apple.bin` | `Data.write(to:options:[.atomic, .completeFileProtection])` — Swift's own tmp-file + rename. |
-| **Android** | `hardware_vault_android.bin`, `hardware_vault_password_overlay_android.bin` | Custom `atomicWrite` helper in `HardwareVaultPlugin.kt`: write tmp sibling, `setReadable(false, false) + (true, true)` for 0600, `File.renameTo` atomic inode swap on ext4 / f2fs. |
+| **Android** | `hardware_vault_android.bin`, `hardware_vault_password_overlay_android.bin` | Rust `lfs_os_security::path::write_bytes_atomic` (tokio `fs::write` to a tmp sibling, `Permissions::from_mode(0o600)`, `fs::rename` atomic inode swap on ext4 / f2fs). |
 | **Windows** | `hardware_vault_windows.bin`, `hardware_vault_password_overlay_windows.bin` | `WriteAll` in `hardware_vault_plugin.cpp`: `std::ofstream` into `<target>.tmp`, `ReplaceFileW` with `REPLACEFILE_WRITE_THROUGH` when the target already exists, `MoveFileExW(MOVEFILE_REPLACE_EXISTING \| MOVEFILE_WRITE_THROUGH)` fallback. |
 
 A torn blob on any platform otherwise yields `readVault` → null → `isStored` → true-but-garbage → next unseal returns nothing → Dart side silently drops biometric / hardware unlock without a "vault corrupted" hint. The invariant matches the Dart-side hardware-vault atomic write and the biometric-vault atomic write already enforced by `writeBytesAtomic`.
 
-**Windows private-key export policy.** Keys created by `HardwareVaultPlugin.OpenOrCreateKey` (both primary data-wrap and biometric overlay) pin `NCRYPT_EXPORT_POLICY_PROPERTY = 0` (`NCRYPT_ALLOW_EXPORT_NONE`) via `NCryptSetProperty` before `NCryptFinalizeKey`. On the Platform Crypto Provider (TPM 2.0) path keys are non-exportable by design; the Microsoft Software KSP fallback, which the provider ladder selects when no TPM is reachable, defaults to `NCRYPT_ALLOW_EXPORT_FLAG | NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG` — any local-user process could otherwise call `NCryptExportKey` to lift the DB-wrap RSA private key in plaintext, defeating the separation between the ciphertext file and the wrapping key. Setting the policy to 0 covers both providers uniformly and has to happen *before* `Finalize` because CNG rejects policy changes on finalized keys. Mirror of Android's `setInvalidatedByBiometricEnrollment` invariant: both pin the private key to the hardware-backed storage so the blob on disk is only useful in combination with the live CNG / Keystore handle.
+**Windows private-key export policy.** Keys created by `hardware_vault_plugin.cpp::OpenOrCreateKey` (both primary data-wrap and biometric overlay) pin `NCRYPT_EXPORT_POLICY_PROPERTY = 0` (`NCRYPT_ALLOW_EXPORT_NONE`) via `NCryptSetProperty` before `NCryptFinalizeKey`. On the Platform Crypto Provider (TPM 2.0) path keys are non-exportable by design; the Microsoft Software KSP fallback, which the provider ladder selects when no TPM is reachable, defaults to `NCRYPT_ALLOW_EXPORT_FLAG | NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG` — any local-user process could otherwise call `NCryptExportKey` to lift the DB-wrap RSA private key in plaintext, defeating the separation between the ciphertext file and the wrapping key. Setting the policy to 0 covers both providers uniformly and has to happen *before* `Finalize` because CNG rejects policy changes on finalized keys. Mirror of Android's `setInvalidatedByBiometricEnrollment` invariant: both pin the private key to the hardware-backed storage so the blob on disk is only useful in combination with the live CNG / Keystore handle.
 
 #### Rate limiters — per-tier matrix
 
@@ -1100,11 +1089,11 @@ The unlock dialogs (`UnlockDialog`, `TierSecretUnlockDialog`) consult `rateLimit
 
 #### Biometric unlock
 
-Optional on **T1+password and T2+password only**. Paranoid is intentionally excluded — the tier's "no OS trust" premise rules out a biometric-gated keychain slot (it would pull the DB key back into exactly the OS layer the tier is meant to avoid), and `settings_sections_security._biometricSpecFor` returns `null` for Paranoid so the Settings card never renders the toggle. [`BiometricAuth`](../lib/core/security/biometric_auth.dart) wraps `local_auth` (Linux fprintd + Android) / `lfs_os_security::biometric_auth` (Apple LAContext via `objc2-local-authentication`, Windows `UserConsentVerifier`) for the availability probe + prompt; [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key — Apple routes through `lfs_os_security::secure_key_storage::write_biometric` (raw `SecItemAdd` with `SecAccessControl` + `kSecAccessControlBiometryCurrentSet`); Linux uses TPM2 seal first, then libsecret-marker fallback; Android + Windows stay on `flutter_secure_storage` (Android pending JNI bridge, Windows because Credential Manager has no biometric-bound storage class). At startup, `_unlockKeychainWithPassword` and `_unlockHardware` (both in [`security_init_controller_unlock.dart`](../lib/app/security_init_controller_unlock.dart) — extension on `SecurityInitController`) probe `biometricKeyVault.isStored() && biometricAuth.isAvailable()` and call `_tryBiometricCommit()` **first**, skipping the password dialog entirely on success. Only on biometric failure / cancel does [`TierSecretUnlockDialog`](../lib/widgets/tier_secret_unlock_dialog.dart) render; it opens with `autoTriggerBiometric: false` to avoid a double-prompt, but the fingerprint retry button inside the dialog stays available so the user can re-invoke the system prompt without relaunching. [`UnlockDialog`](../lib/widgets/unlock_dialog.dart) (Paranoid only) has no biometric surface at all — by design.
+Optional on **T1+password and T2+password only**. Paranoid is intentionally excluded — the tier's "no OS trust" premise rules out a biometric-gated keychain slot (it would pull the DB key back into exactly the OS layer the tier is meant to avoid), and `settings_sections_security._biometricSpecFor` returns `null` for Paranoid so the Settings card never renders the toggle. [`BiometricAuth`](../lib/core/security/biometric_auth.dart) routes the availability probe + prompt through `lfs_os_security::biometric_auth` (Apple LAContext via `objc2-local-authentication`, Windows `UserConsentVerifier`, Android JNI to `BiometricManager` + `BiometricPrompt`) plus the direct fprintd D-Bus walk on Linux. [`BiometricKeyVault`](../lib/core/security/biometric_key_vault.dart) stores the already-derived DB key — Apple / Android / Windows all route through `lfs_os_security::secure_key_storage::write_biometric` (Apple `SecAccessControl` + `kSecAccessControlBiometryCurrentSet` via `SecItemAdd`; Android `setUserAuthenticationRequired(true)` on the AndroidKeyStore wrap key via JNI; Windows Credential Manager via `CredWriteW` plus the `BiometricAuth` Hello prompt fired ahead of the read). Linux uses TPM2 seal first, then a libsecret-marker fallback (also via Rust `secure_key_storage`). At startup, `_unlockKeychainWithPassword` and `_unlockHardware` (both in [`security_init_controller_unlock.dart`](../lib/app/security_init_controller_unlock.dart) — extension on `SecurityInitController`) probe `biometricKeyVault.isStored() && biometricAuth.isAvailable()` and call `_tryBiometricCommit()` **first**, skipping the password dialog entirely on success. Only on biometric failure / cancel does [`TierSecretUnlockDialog`](../lib/widgets/tier_secret_unlock_dialog.dart) render; it opens with `autoTriggerBiometric: false` to avoid a double-prompt, but the fingerprint retry button inside the dialog stays available so the user can re-invoke the system prompt without relaunching. [`UnlockDialog`](../lib/widgets/unlock_dialog.dart) (Paranoid only) has no biometric surface at all — by design.
 
-**Apple platforms — Secure Enclave binding.** On iOS and macOS the vault stores the DB key with a `SecAccessControl` that stacks `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` with `SecAccessControlCreateFlags.biometryCurrentSet`, applied Rust-side via `lfs_os_security::secure_key_storage::write_biometric` (raw `SecItemAdd` against the `security-framework-sys` FFI). Two consequences follow: (a) the key material is held in the Secure Enclave, so even a device-level RAM compromise cannot exfiltrate it; and (b) any change to the biometric enrolment (added or removed fingerprint, re-enrolled Face ID) invalidates the stored key, forcing the user back through the master-password dialog on the next unlock. Android still rides on `flutter_secure_storage`'s default EncryptedSharedPreferences until a dedicated Keystore + `BiometricPrompt.CryptoObject` plugin lands (deferred under Tier 3 Android JNI ledger, see RUST_CORE_MIGRATION_PLAN.md). When biometric fails (cancel, wrong finger) the fallback is `UnlockDialog` — which itself auto-triggers biometric on first frame as long as `autoTriggerBiometric` is true. The unlock flow passes `false` when it already attempted biometric to prevent a double-cancel loop; the retry button inside the dialog stays available either way, so the user can re-invoke biometrics without relaunching the app. `LockScreen` (mid-session re-lock overlay) follows the same auto-trigger + retry pattern.
+**Apple platforms — Secure Enclave binding.** On iOS and macOS the vault stores the DB key with a `SecAccessControl` that stacks `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` with `SecAccessControlCreateFlags.biometryCurrentSet`, applied Rust-side via `lfs_os_security::secure_key_storage::write_biometric` (raw `SecItemAdd` against the `security-framework-sys` FFI). Two consequences follow: (a) the key material is held in the Secure Enclave, so even a device-level RAM compromise cannot exfiltrate it; and (b) any change to the biometric enrolment (added or removed fingerprint, re-enrolled Face ID) invalidates the stored key, forcing the user back through the master-password dialog on the next unlock. Android binds the wrap key in AndroidKeyStore via direct JNI (`lfs_os_security::android::keystore::write_biometric`) with `setUserAuthenticationRequired(true)` + `setUserAuthenticationValidityDurationSeconds(60)`; the `BiometricPrompt` invocation is fired by the Dart caller through `lfs_os_security::biometric_auth::authenticate` ahead of the read. When biometric fails (cancel, wrong finger) the fallback is `UnlockDialog` — which itself auto-triggers biometric on first frame as long as `autoTriggerBiometric` is true. The unlock flow passes `false` when it already attempted biometric to prevent a double-cancel loop; the retry button inside the dialog stays available either way, so the user can re-invoke biometrics without relaunching the app. `LockScreen` (mid-session re-lock overlay) follows the same auto-trigger + retry pattern.
 
-`BiometricAuth.availability()` returns a `BiometricUnavailableReason?` (null when biometrics work). The probe goes beyond `canCheckBiometrics + getAvailableBiometrics().isNotEmpty` — a Windows Hello PIN alone satisfies those two checks and would falsely report biometrics as ready. Two independent safeguards apply: (1) the enrolled list is filtered for a real bio type (`fingerprint` / `face` / `iris` / `strong`) so PIN-only Hello is reported as `notEnrolled`; (2) on Windows, a [`WinBioProbe`](../lib/core/security/windows/winbio_probe.dart) extra step enumerates the physical biometric sensors via `WinBioEnumBiometricUnits(Factor = FINGERPRINT | FACIAL | IRIS)` against `winbio.dll`. Zero units → the hardware is not attached; Hello may still reach the user via PIN, but the biometric toggle demotes to `noSensor` regardless of what `UserConsentVerifier` claims. The check is needed because `local_auth_windows` has been observed surfacing `BiometricType.strong` on Hello PIN-only setups depending on the Windows SKU, and the Dart-side filter alone is not enough. The probe is a zero-prompt, side-effect-free enumeration — safe to run on every availability poll. The settings UI uses the multi-state result to show a reason tooltip on a disabled toggle instead of hiding the option.
+`BiometricAuth.availability()` returns a `BiometricUnavailableReason?` (null when biometrics work). The Rust `lfs_os_security::biometric_auth::check_availability` per-platform answer (Apple LAContext, Windows `UserConsentVerifier`, Android `BiometricManager.canAuthenticate`) covers most of the surface, but on Windows it can falsely report ready when only a Hello PIN is configured — `UserConsentVerifier::CheckAvailabilityAsync` says "available" the moment Windows Hello is set up, regardless of whether a physical biometric sensor exists. The Dart wrapper applies an extra Windows-only safeguard via [`WinBioProbe`](../lib/core/security/windows/winbio_probe.dart): `WinBioEnumBiometricUnits(Factor = FINGERPRINT | FACIAL | IRIS)` against `winbio.dll`. Zero units → the hardware is not attached; the toggle demotes to `noSensor` regardless of what `UserConsentVerifier` claims. The probe is a zero-prompt, side-effect-free enumeration — safe to run on every availability poll. The settings UI uses the multi-state result to show a reason tooltip on a disabled toggle instead of hiding the option.
 
 `BiometricUnavailableReason` also carries `systemServiceMissing` — the rung-3 reason for the Linux path: the toggle is disabled with a `fprintd is not installed. See README → Installation.` reason whenever the OS-level fingerprint daemon is absent.
 
@@ -1122,7 +1111,7 @@ Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Andr
 
 #### Android hardware-backed L3 vault (shipped; device-testing pass pending)
 
-[`HardwareVaultPlugin.kt`](../android/app/src/main/kotlin/com/llloooggg/letsflutssh/HardwareVaultPlugin.kt) exposes the Keystore-backed L3 path over the `com.letsflutssh/hardware_vault` MethodChannel. `MainActivity` registers the plugin in `configureFlutterEngine`; `build.gradle.kts` pins `androidx.biometric:1.1.0` + `androidx.fragment:1.6.2` so the `BiometricPrompt` + `FragmentActivity` surfaces compile cleanly.
+`lfs_os_security::android::hardware_vault` exposes the Keystore-backed L3 path via direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"` (no Kotlin shim, no MethodChannel). `MainActivity.configureFlutterEngine` calls `LfsJniBootstrap.register(this)` which captures the JavaVM + the FragmentActivity handle into process-wide `OnceLock`s that the JNI helpers read on every call; `build.gradle.kts` pins `androidx.biometric:1.1.0` + `androidx.fragment:1.6.2` so the `BiometricPrompt` + `FragmentActivity` surfaces resolve from JNI cleanly.
 
 1. **Key creation.** `KeyGenParameterSpec.Builder` with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` — the key *must* be presented inside a `BiometricPrompt.CryptoObject` session, and any change to the device's enrolled biometrics atomically invalidates the key. This is the Android-native equivalent of `.biometryCurrentSet`.
 2. **Storage backing.** `setIsStrongBoxBacked(true)` is attempted on SDK ≥ 28; the Keystore silently falls through to TEE-backed storage on devices that do not expose a StrongBox chip. `KeyInfo.securityLevel` (SDK ≥ 31) + `isInsideSecureHardware` (pre-31) drive the `backingLevel` return value — `hardware_strongbox` / `hardware_tee` / `software`.
@@ -1162,9 +1151,9 @@ A `.2fa` / YubiKey flow was scoped as an optional unlock factor alongside the ma
 
 The app's at-rest DB encryption runs on **SQLCipher 4.x**, statically linked into `lfs_core` via `rusqlite`'s `bundled-sqlcipher` feature. The cipher contract: AES-256-CBC for confidentiality, HMAC-SHA512 for per-page integrity, 256 000 PBKDF2-SHA512 iterations for the page-cipher key derivation off the `PRAGMA key` value. The page-cipher key Rust hands SQLCipher is the 32-byte master DB key produced by Argon2id (Paranoid), pulled out of the OS keychain (T1), or unsealed from the hardware vault (T2); SQLCipher itself does not see Argon2id, only the final 32 bytes.
 
-**Why SQLCipher and not the previous SQLite3MultipleCiphers / ChaCha20 stack.** The pre-Rust era ran on `drift` + `sqlite3_flutter_libs` + SQLite3MultipleCiphers (MC), with MC's default cipher (ChaCha20-Poly1305 — `CODEC_TYPE_DEFAULT`) used implicitly because no `PRAGMA cipher` was ever set. The Rust migration's persistence move (Phase 4.2) had to pick a single cipher for `lfs_core::db`; the choices were MC (any of its schemes) and SQLCipher. Inputs:
+**Why SQLCipher and not the previous SQLite3MultipleCiphers / ChaCha20 stack.** The pre-Rust era ran on `drift` + `sqlite3_flutter_libs` + SQLite3MultipleCiphers (MC), with MC's default cipher (ChaCha20-Poly1305 — `CODEC_TYPE_DEFAULT`) used implicitly because no `PRAGMA cipher` was ever set. The rusqlite/SQLCipher port had to pick a single cipher for `lfs_core::db`; the choices were MC (any of its schemes) and SQLCipher. Inputs:
 
-- **Wire compatibility.** MC and SQLCipher are wire-incompatible — a database written under one cannot be opened under the other, regardless of cipher choice. The migration accepted that gap once: `migrateDriftToRustOnce` (now retired in §4.7 cleanup) read every drift row out under MC + ChaCha20 and wrote them back through `lfs_core::db` under SQLCipher in one atomic pass per startup until every install had migrated.
+- **Wire compatibility.** MC and SQLCipher are wire-incompatible — a database written under one cannot be opened under the other, regardless of cipher choice. The cutover ships as a documented breaking change: existing installs export their state via `Settings → Export .lfs` on the old build and import it on the new build. The release notes call this out; see also [§11 Encryption engine build path](#encryption-engine-build-path) for the rationale (build complexity, not crypto).
 - **Single source of truth.** SQLCipher is the older, more battle-tested implementation; rusqlite's `bundled-sqlcipher` feature ships the canonical 4.x build with no codec-flag matrix. MC's flexibility (six cipher schemes, three KDFs) is a build-surface cost we pay for nothing: only one cipher is ever selected, the choice is project-wide, and the matrix would only matter if individual users wanted to pick.
 - **Auditability.** SQLCipher's wire format is fixed and widely reviewed; the `cipher_test_recovery.sh` style toolchain works against any SQLCipher 4 file. MC's wire format depends on the codec/KDF combination at write time, which makes recovery scripts harder to share.
 - **Performance.** AES-256-CBC under bundled-sqlcipher is fast enough that DB I/O is never the bottleneck for an SSH-client workload — sessions, snippets, known_hosts, ssh_keys are sub-100-KiB tables with low page-churn. ChaCha20's edge on no-AES-NI Arm chips is real but moot for the project's I/O profile.
@@ -1211,8 +1200,8 @@ Why the cache survives the lock while the DB key does not: the cache plaintext i
 
 | Platform | Source |
 |---|---|
-| **Windows** | Rust path: dedicated thread creates a hidden message-only window (`HWND_MESSAGE` parent), registers `WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION)`, and pumps `GetMessageW` / `DispatchMessageW`; the `WindowProc` filters `WM_WTSSESSION_CHANGE` for `WTS_SESSION_LOCK` (wparam `0x07`) and forwards on the broadcast channel. Legacy native plugin (`windows/runner/session_lock_plugin.cpp`) still wired through `FlutterWindow::MessageHandler` until the NI-2 gate retires it. |
-| **macOS** | Rust path: dedicated thread owns its own `NSRunLoop`, registers an `NSDistributedNotificationCenter` observer for `com.apple.screenIsLocked` via an `objc2`-defined `LFSSessionLockObserver` class (`lfs_os_security::session_lock_listener::macos_impl`); observer callback forwards on the broadcast channel. Legacy native plugin (`macos/Runner/SessionLockPlugin.swift`) still wired until the NI-2 gate retires it. |
+| **Windows** | Rust path: dedicated thread creates a hidden message-only window (`HWND_MESSAGE` parent), registers `WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION)`, and pumps `GetMessageW` / `DispatchMessageW`; the `WindowProc` filters `WM_WTSSESSION_CHANGE` for `WTS_SESSION_LOCK` (wparam `0x07`) and forwards on the broadcast channel. |
+| **macOS** | Rust path: dedicated thread owns its own `NSRunLoop`, registers an `NSDistributedNotificationCenter` observer for `com.apple.screenIsLocked` via an `objc2`-defined `LFSSessionLockObserver` class (`lfs_os_security::session_lock_listener::macos_impl`); observer callback forwards on the broadcast channel. |
 | **Linux** | `lfs_os_security::session_lock_listener` (zbus → `org.freedesktop.login1.Session.Lock` signal stream, scoped to the current process's session via `GetSessionByPID`). Native plugin already retired in this slot. |
 | **iOS / Android** | No-op — lifecycle-paused already fires on OS lock, so a second channel would double-lock. |
 
@@ -1254,7 +1243,7 @@ Any finding that would have been expensive (signing / anti-tamper, runtime integ
 
 *Idempotency:* the flag is a property of the directory, so re-running on every launch is cheap and self-healing — if a system action or a restore stripped the xattr, the next launch sets it again. The plugin runs `unawaited`, so startup never blocks on the round-trip.
 
-The native side is a thin Swift plugin (`ios/Runner/BackupExclusionPlugin.swift` and `macos/Runner/BackupExclusionPlugin.swift`) registered on the `com.letsflutssh/backup_exclusion` method channel. The Dart side resolves the path via `path_provider` so native and Dart always agree on which directory to flag, even if Apple ever changes the bundle-identifier layout under `~/Library/Application Support/`.
+The native side runs Rust-side under `lfs_os_security::backup_exclusion::exclude_from_backup` (`objc2-foundation` → `NSURL.setResourceValue(_, forKey: NSURLIsExcludedFromBackupKey)`); the Dart wrapper calls it over FRB and resolves the path via `path_provider` so the FRB-passed string always points at the same directory layout under `~/Library/Application Support/` that Apple eventually exposes through the bundle identifier.
 
 #### Clipboard hygiene
 
@@ -1311,7 +1300,7 @@ class AesGcm {
 Thin Dart wrapper that dispatches OS keychain access by platform:
 
 * **Desktop + Apple (Linux / macOS / iOS / Windows)** — production routes through `lfs_os_security::secure_key_storage` via FRB. Linux uses libsecret over `secret-service` (D-Bus → gnome-keyring / KWallet). Apple goes through `security-framework` plus a raw `SecItemAdd` for the biometric path with `SecAccessControl` + `kSecAccessControlBiometryCurrentSet`. Windows uses extern `CredReadW` / `CredWriteW` / `CredDeleteW`.
-* **Android** — keeps `flutter_secure_storage`'s `EncryptedSharedPreferences` until the AndroidKeystore JNI bridge lands (deferred under the Tier 3 Android JNI ledger in RUST_CORE_MIGRATION_PLAN.md — Three Pillars "moves makes worse" gate: replacing a battle-tested plugin with our own Kotlin shim + JNI surface is unaudited churn).
+* **Android** — direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"` via `lfs_os_security::android::keystore` (no Kotlin shim, no MethodChannel). The wrap key carries `setUserAuthenticationRequired(true)` + `setUserAuthenticationValidityDurationSeconds(60)`, paired with a preceding `BiometricPrompt` invocation by the caller.
 * **Tests** — passing a non-null `FlutterSecureStorage` into the constructor forces the legacy mock path so the unit suite can drive in-memory fakes against the same surface.
 
 All methods catch exceptions and return null/false — graceful fallback to plaintext or master-password mode.
@@ -2174,7 +2163,7 @@ Recordings live as discrete files at `<appSupport>/recordings/<sessionId>/<isoTi
 
 The SSH/SFTP/keypair stack runs entirely on a Rust workspace at `rust/` (`russh = "0.59"`, `russh-sftp = "2.1"`, `russh-keys` 0.6.16 with the PPK feature). dartssh2 is no longer a dep — every connect (shell, file browser browse + transfers, port forwards including SOCKS5, ProxyJump bastion chains) and every keypair operation (generate Ed25519 / RSA, import OpenSSH PEM) goes through this core. Memory safety on the highest-risk code path (parsing untrusted server bytes, key material, KDF/AEAD envelopes) plus access to russh's full algorithm table unlock §6.2 SSH certificates and §6.3 FIDO2-SSH (sk-* keys) without forking anything.
 
-Full migration history, sub-phase order, and the remaining Phase 2 (crypto envelopes) / Phase 3 (native plugins → Rust) tracks live in [`docs/RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md). This § covers what is in the tree right now and how it fits the rest of the app.
+Full migration history + the remaining out-of-scope follow-ups (Windows L3 CNG Rust port, hardware-vault verification on real Apple / Android devices) live in [`docs/RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md). This § covers what is in the tree right now and how it fits the rest of the app.
 
 #### Workspace layout (hexagonal: ports + adapters)
 
@@ -4234,9 +4223,9 @@ AppConfig {
 
 ## 11. Persistence & Storage
 
-### Drift (SQLite) database
+### SQLite database — Rust-owned schema
 
-All application data is stored in a single SQLite database via the drift ORM:
+All application data is stored in a single SQLite database, opened Rust-side via `rusqlite` + bundled SQLCipher 4.x. Schema lives in `lfs_core::db::SCHEMA_SQL`; Dart reads / writes through the FRB DAO surface in `lib/src/rust/api/db/`:
 
 | Table | Purpose | Key relationships |
 |-------|---------|-------------------|
@@ -4259,7 +4248,7 @@ All files live in the platform's app-support directory (see **Location** below).
 
 | Path | Encryption | Format | Purpose | Created when |
 |------|-----------|--------|---------|--------------|
-| `letsflutssh.db` | SQLite3MultipleCiphers — ChaCha20-Poly1305 (`PRAGMA key`) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
+| `letsflutssh.db` | SQLCipher 4.x — AES-256-CBC + HMAC-SHA512 (`PRAGMA key`) | SQLite | All app data — sessions, folders, SSH keys, known hosts, tags, snippets, bookmarks, app config row | First write (after security setup) |
 | `letsflutssh.db-wal` / `letsflutssh.db-shm` | inherits DB encryption | SQLite WAL | SQLite write-ahead log + shared memory; auto-managed by sqlite3 | Whenever DB is open |
 | `config.json` | No | JSON | App config — theme, locale, font size, scrollback, transfer workers, update prefs, `config_schema_version`. Loaded **before** the DB opens (needed for splash screen). Auto-lock timeout lives in the encrypted DB, not here | First config save |
 | `credentials.kdf` | No | `'LFKD'` magic + version + KdfParams + 32-byte salt | Argon2id salt + params for master-password key derivation. Presence = master password is enabled | Master password setup |
@@ -4270,35 +4259,86 @@ All files live in the platform's app-support directory (see **Location** below).
 
 ### Database initialization
 
-`database_opener.dart` opens the database with optional encryption:
-- `openDatabase(encryptionKey: null)` → plain SQLite
-- `openDatabase(encryptionKey: key)` → SQLite3MultipleCiphers with `PRAGMA key = "x'hex'"` (no explicit `PRAGMA cipher`, so MC's default scheme — ChaCha20-Poly1305 — takes effect; see § [MC cipher choice](#mc-cipher-choice--chacha20-poly1305-active--retrospective-rationale))
-- `openTestDatabase()` → in-memory SQLite for tests
-- Foreign keys enabled via `PRAGMA foreign_keys = ON` in setup callback
-- **POSIX permissions:** `restrictDatabaseFilePermissions()` runs on every open and forces `chmod 600` on `letsflutssh.db` and any existing `-journal` / `-wal` / `-shm` sidecar (Linux/macOS via `chmod`, Windows via `icacls`). Idempotent; logs and continues if the call fails so a permission-system quirk never blocks startup. The file is pre-created before SQLite touches it so the very first encrypted page lands on a 0600 inode.
+The DB lives Rust-side under `lfs_core::db`. The Dart layer
+calls `dbInit(path, key)` over FRB once on unlock; the Rust
+side opens an encrypted SQLite file via `rusqlite` with
+`bundled-sqlcipher` (SQLCipher 4.x — AES-256-CBC + HMAC-SHA512,
+256 000 PBKDF2-SHA512 iterations off the `PRAGMA key` value).
+The page-cipher key the Dart caller hands in is the 32-byte
+master DB key produced by Argon2id (Paranoid) / pulled out of
+the OS keychain (T1) / unsealed from the hardware vault (T2).
+Plaintext mode (T0) opens the same file with no `PRAGMA key`.
 
-**Config split:** `config.json` is loaded before the database opens because it carries pre-unlock UI state (theme, locale, window size) — anything that has to render before the user types the master password. The auto-lock timeout, by contrast, is a security control: it lives in the encrypted DB (`AppConfigs.auto_lock_minutes`) so an attacker with disk access cannot weaken it.
+`bootstrap_schema()` writes every table idempotently
+(`CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`)
+and stamps `PRAGMA user_version = SCHEMA_VERSION` (= 1) on
+every open. Foreign keys are enabled via
+`PRAGMA foreign_keys = ON` in the same bootstrap pass.
 
-**Location:** `path_provider` → `getApplicationSupportDirectory()`
+**POSIX permissions.** Rust pre-creates the DB file before
+SQLite touches it so the very first encrypted page lands on a
+0600 inode (Unix `set_permissions(0o600)` / Windows ACL via the
+`windows` crate). Idempotent; a permission-system quirk that
+makes the call fail logs and continues so startup is never
+blocked.
+
+**Config split.** `config.json` is loaded before the database
+opens because it carries pre-unlock UI state (theme, locale,
+window size) — anything that has to render before the user
+types the master password. The auto-lock timeout, by contrast,
+is a security control: it lives in the encrypted DB
+(`app_configs.auto_lock_minutes`) so an attacker with disk
+access cannot weaken it.
+
+**Location.** `path_provider` → `getApplicationSupportDirectory()`:
 - Linux: `~/.local/share/letsflutssh/`
 - macOS: `~/Library/Application Support/letsflutssh/`
 - Windows: `%APPDATA%\letsflutssh\`
 - Android: app internal storage
 - iOS: app sandbox
 
-**Atomicity:** Handled by SQLite transactions — no manual atomic write pattern needed. `lfs_core::archive::apply_pending_import` wraps its entire body in a `Connection::transaction()` (Rust-side, via FRB), so a bulk import either fully lands or leaves the DB unchanged (a mid-import exception triggers SQLite rollback; the Dart wrapper rethrows `LfsImportRolledBackException` so the UI shows "data restored" in replace mode).
+**Atomicity.** Handled by SQLite transactions —
+`lfs_core::archive::apply_pending_import` wraps its entire body
+in a `Connection::transaction()`, so a bulk import either fully
+lands or leaves the DB unchanged (a mid-import exception
+triggers SQLite rollback; the Dart wrapper rethrows
+`LfsImportRolledBackException` so the UI shows "data restored"
+in replace mode).
 
-**Schema migrations:** `AppDatabase` defines a `MigrationStrategy` (`onCreate` → `m.createAll()`, `onUpgrade` → walks `from < N` branches in version order, `beforeOpen` → `PRAGMA foreign_keys = ON`). v1 is the permanent floor — pre-framework legacy layouts that report a version below 1 are treated as corrupt and routed through `DbCorruptDialog` + `WipeAllService`. Forward bumps follow drift's normal `onUpgrade` flow — bump `schemaVersion`, add a `from < N` branch that executes additive DDL (DEFAULT-backed `addColumn`, new tables), regenerate the snapshot via `make DB_VERSION=N drift-schema-dump && make drift-schema-generate`, and add a `verifier.migrateAndValidate(db, N)` test in `test/core/db/drift_schema_test.dart`. Never skip a version.
+**Schema migrations.** `bootstrap_schema()` is currently the
+v1 floor — every shipping install runs it and ends at the
+same column shape. Future bumps:
 
-**Version log:**
-- **v1** — initial schema (Folders, Sessions, SshKeys, KnownHosts, AppConfigs, Tags, SessionTags, FolderTags, Snippets, SessionSnippets, SftpBookmarks).
-- **v2** — `Sessions.extras TEXT NOT NULL DEFAULT '{}'` — JSON escape hatch for per-session feature flags. Cross-link: [§3.4 Session.extras — JSON escape hatch](#sessionextras--json-escape-hatch). Migration is additive (`m.addColumn(sessions, sessions.extras)`); the `DEFAULT '{}'` clause backfills existing rows on the first read after upgrade so no data rewrite is needed.
-- **v3** — `PortForwardRules` table — one row per SSH port-forward attached to a session. Cross-link: [§3.1 Port forwarding](#port-forwarding). Migration is additive (`m.createTable(portForwardRules)`); existing sessions enter v3 with no rules and no behaviour change.
-- **v4** — `Sessions.via_session_id` (FK with `ON DELETE SET NULL`) + `via_host` / `via_port` / `via_user` for ProxyJump bastions. Cross-link: [§3.1 ProxyJump — bastion chains](#proxyjump--bastion-chains). Migration is four additive `addColumn` calls; existing sessions land at v4 with no bastion (every column nullable with no default) and behave identically to v3.
+1. Add the migration step inside `bootstrap_schema` before the
+   `pragma_update("user_version", SCHEMA_VERSION)` line, gated
+   by `read_schema_version(conn)?` (test-only helper today; if
+   the production path needs to branch on it, drop the
+   `#[cfg(test)]` and surface it through `Db`).
+2. Bump `SCHEMA_VERSION`.
+3. Add a Rust unit test that sets up a v(N-1) DB by hand,
+   runs `bootstrap_schema`, asserts the new column / table /
+   constraint behaviour.
 
-**Performance indexes live outside `schemaVersion`.** `AppDatabase` runs a `_createPerformanceIndexes` helper inside both `onCreate` and `beforeOpen`, issuing `CREATE INDEX IF NOT EXISTS` statements for hot query paths (`sessions(folder_id)` for `SessionDao.getByFolder`, `folders(parent_id)` for the recursive `FolderDao.getDescendantIds` CTE, `sftp_bookmarks(session_id)` for `SftpBookmarkDao.getForSession`). The split is deliberate: bumping `schemaVersion` would trip the "any other version = corrupt" floor guard above and wipe every existing v1 DB just to add an index. `IF NOT EXISTS` makes the statements idempotent, so running them on every open costs microseconds on a cached `sqlite_master` and the same code path covers fresh v1 databases and v1 databases that predate a given index. Adding a new index is therefore a one-line edit in `_createPerformanceIndexes`; never add one via the schema-migration machinery. Functional schema changes (columns, tables, constraints) still require a `schemaVersion` bump and the attendant wipe semantics.
+**Version log.**
+- **v1** — initial schema (`folders`, `ssh_keys`, `sessions`,
+  `known_hosts`, `app_configs`, `tags`, `session_tags`,
+  `folder_tags`, `snippets`, `session_snippets`,
+  `sftp_bookmarks`, `port_forward_rules`). Mirrors the drift
+  v4 column shape from before the rusqlite port — every column
+  added across the drift v1→v4 history is part of the v1 floor
+  here.
 
-Drift's `MigrationStrategy` is **only** for intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework-coremigration) (`core/migration/`), which runs on startup before `_initSecurity` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: drift owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so the DB still surfaces in the runner's dependency graph; a schema mismatch is caught by drift itself on open and surfaced via `DbCorruptDialog`.
+**Performance indexes are baked into the schema.**
+`bootstrap_schema` issues `CREATE INDEX IF NOT EXISTS` for hot
+query paths (`sessions(folder_id)`, `folders(parent_id)`,
+`sftp_bookmarks(session_id)`). They share the SCHEMA_VERSION
+stamp; adding a new index for an existing table is a one-line
+edit to the `SCHEMA_SQL` block — `IF NOT EXISTS` makes it
+idempotent without a version bump. Functional schema changes
+(columns, tables, constraints) still require a version bump
+and a migration step per the rule above.
+
+The `bootstrap_schema` SCHEMA_VERSION + `PRAGMA user_version` machinery covers **only** intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework-coremigration) (`core/migration/`), which runs on startup before `_initSecurity` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: `lfs_core::db::bootstrap_schema` owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so the DB still surfaces in the runner's dependency graph; a schema mismatch surfaces as a SQLCipher decrypt failure on `dbInit` and is routed via `DbCorruptDialog`.
 
 ### Uninstall behavior
 
@@ -4313,43 +4353,46 @@ User data lives **outside** the install directory in `getApplicationSupportDirec
 | Android | OS uninstall removes the entire app sandbox including user data |
 | iOS | OS uninstall removes the entire app sandbox including user data |
 
-### Store → DAO pattern
+### Store → FRB DAO pattern
 
-Each store wraps a drift DAO and is injected with the database at startup:
-
-```
-main.dart → _injectDatabase()
-  → sessionStoreProvider.setDatabase(db)
-  → keyStoreProvider.setDatabase(db)
-  → knownHostsProvider.setDatabase(db)
-  → snippetStoreProvider.setDatabase(db)
-  → tagStoreProvider.setDatabase(db)
-```
-
-Stores keep domain model APIs unchanged; DAOs handle SQL. Mappers (`mappers.dart`) translate between domain objects and drift companions.
+Each Dart store wraps an FRB-generated DAO under
+`lib/src/rust/api/db/`. The Riverpod notifier reads / writes
+through `dbInit(...)` once on unlock; subsequent reads /
+writes hop into Rust via `tokio::task::spawn_blocking` so the
+FRB worker thread is never blocked on disk I/O. Mappers
+(`lib/core/db/mappers.dart`) translate between domain objects
+and the FRB DTOs.
 
 ### Encryption engine build path
 
-The encryption half of the storage stack — SQLite3MultipleCiphers (MC) — is compiled from a pinned `third_party/SQLite3MultipleCiphers` git submodule at build time, not downloaded as a prebuilt binary. `pubspec.yaml` points the `sqlite3` package's build hook at the submodule's `src/sqlite3mc.c` umbrella amalgamation via `source: source`, and `native_toolchain_c` compiles it for the target arch alongside the rest of the native_assets graph.
+The encryption half of the storage stack — SQLCipher 4.x —
+is bundled in-tree via the `rusqlite` crate's
+`bundled-sqlcipher` Cargo feature. No separate native binary,
+no `third_party/` submodule, no Flutter build hook. A fresh
+clone is enough; `cargo build` compiles SQLCipher in-process
+along with the rest of the Rust workspace, picking up its
+sources from `rusqlite`'s vendored copy of the SQLCipher
+amalgamation.
 
-**Why in-tree compile, not the upstream hook's prebuilt path.** `package:sqlite3` ships a `source: sqlite3mc` mode that downloads the matching `libsqlite3mc.<arch>.<os>.so` from a GitHub release per hook invocation. Two bugs in the 3.3.1 download path made it unviable:
+**Why SQLCipher and not the previous SQLite3MultipleCiphers /
+ChaCha20 stack** is covered in detail in §3.6 → "Cipher choice
+— SQLCipher 4.x". Short version: `bundled-sqlcipher` is one
+Cargo feature flag, vs. vendoring the MC submodule plus
+custom `pubspec.yaml` build hooks plus a per-cipher
+`HAVE_CIPHER_*` defines block. Build complexity dropped to
+zero; AES-256-CBC + HMAC-SHA512 vs. ChaCha20-Poly1305 is a
+neutral cipher swap on every actively-shipped target (every
+ARMv8 / x86-64 device with hardware AES).
 
-1. The cache-dir name is `download-${hashCode.toRadixString(16)}`, where `hashCode` comes from `Object.hash(os, arch.name, type, releaseTag)`. Dart's `Object.hash` uses a **per-isolate random seed**, so every fresh hook process picks a new dirname, misses the prior cache, and refetches. Every `make test` / `make build-*` / `make run` pays a 2.2 MB download.
-2. `PrecompiledFromGithubAssets._fetchFromSource` streams the response with no overall timeout. When the GitHub Releases CDN stalls mid-stream (observed intermittently from WSL-backed Linux hosts), the hook hangs until the parent process is killed, leaving an empty `<dir>/libsqlite3mc.so.tmp` behind. The user-visible failure is "`make test` hangs for minutes, Ctrl+C reports build.dart exit code -2". Upstream issue tracker has no fix in 3.3.1.
-
-Compiling from source side-steps both. The `CompileSqlite` code path uses `native_toolchain_c`'s content-hashed cache, which hits correctly across invocations, and there is no network read so nothing to stall on. The submodule is pinned to a release tag (currently `v2.3.3`, SQLite `3.53.0`), so the build is reproducible byte-for-byte across machines.
-
-**Default SQLite compile defines.** `package:sqlite3`'s `CompilerDefines.defaults()` is applied automatically — the same set that ships when the upstream hook compiles its own `sqlite3.c`, including `SQLITE_ENABLE_FTS5`, `SQLITE_ENABLE_RTREE`, `SQLITE_DQS=0`, `SQLITE_OMIT_DEPRECATED`, and the session / preupdate-hook defines drift pulls in.
-
-**Cipher trim — only ChaCha20-Poly1305.** MC's per-cipher `HAVE_CIPHER_*` flags default to `1` inside `sqlite3mc_config.h`, which would compile AES-128-CBC, AES-256-CBC, SQLCipher-scheme, RC4, Ascon128, AEGIS, and ChaCha20 all into the final binary. Every scheme except ChaCha20 is dead weight — `lib/` never sets `PRAGMA cipher` to any of them, and the only encrypted DBs the app produces are ChaCha20-Poly1305 (MC's default when `PRAGMA key` is set alone, see § [MC cipher choice](#mc-cipher-choice--chacha20-poly1305-active--retrospective-rationale)). `pubspec.yaml`'s `defines:` list therefore passes `HAVE_CIPHER_*=0` for each unused scheme.
-
-Knocking out all three AES-based schemes (`AES_128_CBC`, `AES_256_CBC`, `SQLCIPHER`) additionally drops `src/rijndael.c` from the compile — its inclusion in `sqlite3mc.c` is gated on `HAVE_CIPHER_AES_128_CBC || HAVE_CIPHER_AES_256_CBC || HAVE_CIPHER_SQLCIPHER`, so zeroing all three is what actually removes it. Net: `~100-200 KiB` off `libsqlite3.so` vs the stock all-cipher build.
-
-**AEGIS disable is also a build-time requirement.** Enabling AEGIS makes `sqlite3mc.c` pull in `src/aegis/libaegis.c` and `src/argon2/libargon2.c`, both of which cross-reference headers across deeper subdirectories (`src/aegis/include/aegis128l.h`, `src/argon2/include/*`). The sqlite3 package's `source: source` mode only passes a single `-I` flag for the parent of `path:`, so those nested headers fail to resolve and clang aborts with `aegis128l.h: file not found`. Even if AEGIS were on the cipher-choice list, the in-tree compile would not work without a second `-I` — which the `user_defines` schema does not currently expose. A design limit we accept rather than fork around.
-
-**Maintenance model.** Dependabot watches the submodule under `package-ecosystem: gitsubmodule` (see `.github/dependabot.yml`, monthly cadence) and opens a PR bumping the tracked SHA whenever the upstream `main` branch moves. CI runs the full `make check` on the PR — a breaking cipher or SQLite change fails there, not in `main`. Typical flow: Dependabot PR → green CI → merge, seconds of human attention. Occasional touchups (pubspec `defines:` entry when MC adds a required flag, rare changelog-flagged API migration) are the tail cost.
-
-**Submodule lifecycle.** `Makefile` adds the submodule source file as a prerequisite of every flutter-invoking target (`test`, `analyze`, `build-*`, `run`, `deps`); a missing `third_party/SQLite3MultipleCiphers/src/sqlite3mc.c` triggers `git submodule update --init --depth 1` before flutter runs the hooks. CI workflows that build Flutter (`ci.yml`, `build-release.yml`, `ci-sonarcloud.yml`) pass `submodules: recursive` on `actions/checkout` so the submodule is cloned in parallel with the main checkout. Fresh developer clones that forget `--recurse-submodules` self-heal on the next `make` invocation — no manual step required.
+**Reproducibility.** `rust/Cargo.lock` pins the exact
+`rusqlite` version + the bundled SQLCipher revision shipped
+with it, so the compiled blob is byte-stable across machines.
+Dependabot tracks the workspace `Cargo.lock` under
+`package-ecosystem: cargo` (see `.github/dependabot.yml`,
+monthly cadence) and opens PRs for the inevitable rusqlite /
+SQLCipher minor bumps; the existing `make rust-test` +
+`make test` matrix on the PR catches a breaking cipher or
+schema change before merge.
 
 ---
 
@@ -4433,11 +4476,11 @@ All data stores support three security levels (see §3.6):
 
 | Level | Key source | Database encryption |
 |-------|-----------|---------------------|
-| Plaintext | None | `letsflutssh.db` — unencrypted SQLite |
-| Keychain | OS keychain (`flutter_secure_storage`) | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) |
-| Master Password | Argon2id-derived | `letsflutssh.db` — SQLite3MultipleCiphers (PRAGMA key) + `credentials.kdf` + `credentials.verify` |
+| Plaintext | None | `letsflutssh.db` — opened via rusqlite/SQLCipher with no `PRAGMA key` |
+| Keychain | OS keychain via `lfs_os_security::secure_key_storage` (libsecret / SecItem / CredMan / AndroidKeyStore JNI) | `letsflutssh.db` — SQLCipher 4.x (`PRAGMA key`) |
+| Master Password | Argon2id-derived | `letsflutssh.db` — SQLCipher 4.x (`PRAGMA key`) + `credentials.kdf` + `credentials.verify` |
 
-Encryption is applied at the database level via SQLite3MultipleCiphers — a single encrypted DB file replaces the old per-store AES-256-GCM files.
+Encryption is applied at the database level via SQLCipher 4.x (AES-256-CBC + HMAC-SHA512) — a single encrypted DB file replaces the old per-store AES-256-GCM files.
 
 ### First-launch auto-select
 
@@ -4462,7 +4505,7 @@ Paranoid is treated as "already opted out of OS trust" and never shows the upgra
 
 *Classified unavailability reasons.* A tier that reports `isAvailable: false` still needs to tell the user *why*, or the Settings card reads as a dead end. Two providers resolve a typed reason code into a localised hint line rendered under the disabled card:
 
-- [`hardwareProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`HardwareProbeDetail`](../lib/providers/security_provider.dart) case to the `hwProbe*` ARB keys. Linux delegates to [`TpmClient.probe()`](../lib/core/security/linux/tpm_client.dart) which distinguishes `deviceNodeMissing` (no `/dev/tpmrm0`), `binaryMissing` (no `tpm2-tools`), and `probeFailed` (CLI returned non-zero). Windows / macOS / iOS / Android call the `probeDetail` method channel on their native `HardwareVaultPlugin` and receive one of the platform-specific codes:
+- [`hardwareProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`HardwareProbeDetail`](../lib/providers/security_provider.dart) case to the `hwProbe*` ARB keys. Linux delegates to [`TpmClient.probe()`](../lib/core/security/linux/tpm_client.dart) which distinguishes `deviceNodeMissing` (no `/dev/tpmrm0`), `binaryMissing` (no `tpm2-tools`), and `probeFailed` (CLI returned non-zero). macOS / iOS / Android route through Rust `lfs_os_security::hardware_tier_vault::probe_detail`; Windows still calls the `probeDetail` MethodChannel on `hardware_vault_plugin.cpp` (Win L3 Rust port pending). All paths emit one of the platform-specific codes:
   - **Windows** — `windowsSoftwareOnly` (TPM 2.0 absent, only Software KSP reachable), `windowsProvidersMissing` (both CNG providers fail — corrupted crypto subsystem or blocking GPO).
   - **macOS** — `macosNoSecureEnclave` (pre-T2 Intel Mac), `macosPasscodeNotSet` (SE present, login password absent), `macosGeneric` (any other `LAError`).
   - **iOS** — `iosPasscodeNotSet`, `iosSimulator` (Simulator has no SEP), `iosGeneric`.
@@ -4470,7 +4513,7 @@ Paranoid is treated as "already opted out of OS trust" and never shows the upgra
 
   *Why the native side classifies rather than the Dart side:* the backing-level inference Linux does via file + process probes is not portable. On Apple the classifier needs the typed `LAError` code from `canEvaluatePolicy`, on Android it needs the `BiometricManager.canAuthenticate` status constant, on Windows it needs the `NCryptOpenStorageProvider` result. All three live on the native side already; the plugin returning a structured code is simpler than routing the raw error object through the method channel and re-classifying in Dart.
 
-- [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. On Linux the probe is a single concrete `gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.DBus.Peer.Ping` subprocess — exit 0 = service registered and responds, any other exit (bus down, no daemon, `gdbus` binary missing) = `linuxNoSecretService`. The same signal `libsecret` itself runs before every API call; probing up front lets us classify without spamming stderr on failure. Earlier iterations pattern-matched `WSL_DISTRO_NAME` or checked `DBUS_SESSION_BUS_ADDRESS` — both proxies: WSL2 + WSLg ships a session bus but no keyring daemon, so the env-var branches gave the wrong answer. Non-Linux platforms (Windows / macOS / iOS / Android) fall through to a live write-read-delete round-trip against `flutter_secure_storage`; failure = `probeFailed`.
+- [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. On Linux the probe is a single concrete `gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.DBus.Peer.Ping` subprocess — exit 0 = service registered and responds, any other exit (bus down, no daemon, `gdbus` binary missing) = `linuxNoSecretService`. The same signal `libsecret` itself runs before every API call; probing up front lets us classify without spamming stderr on failure. Earlier iterations pattern-matched `WSL_DISTRO_NAME` or checked `DBUS_SESSION_BUS_ADDRESS` — both proxies: WSL2 + WSLg ships a session bus but no keyring daemon, so the env-var branches gave the wrong answer. Non-Linux platforms (Windows / macOS / iOS / Android) fall through to a live write-read-delete round-trip against `lfs_os_security::secure_key_storage`; failure = `probeFailed`.
 
 The Linux subprocess path is guarded by `SecureKeyStorage.enableRuntimeSubprocessProbes`, called from `main.dart` at app startup. Widget tests running under FakeAsync do not reach that entry point, so the flag stays false and the probe short-circuits to an optimistic `available` — necessary because `Process.run` inside FakeAsync-managed code leaks a Timer onto the pending-timer list and fails unrelated widget tests.
 
@@ -4755,7 +4798,7 @@ debugDesktopPlatformOverride = true;   // force desktop layout in tests
 | `fake_security.dart` | `FakeMasterPasswordManager`, `FakeSecureKeyStorage` (`writeKeySucceeds` flag), `FakeHardwareTierVault` (`storeSucceeds` flag), `FakeKeychainPasswordGate`, `FakeBiometricAuth` (`skipFirstNAvailableCalls` counter), `FakeBiometricKeyVault` (`isStoredThrows` + `throwAfterNCalls`), `FakeAutoLockNotifier` — all subclasses with no-op async defaults; flags let tests drive write-failure / throw / availability-change branches without swapping fakes mid-test |
 | `fake_dialog_prompter.dart` | `FakeSecurityDialogPrompter` — scripted answers for `showFirstLaunchWizard`, `showDbCorrupt`, `showTierReset`, `showMasterPasswordUnlock`, `showTierSecretUnlock`; `tierSecretSimulatedInput` delegates to the real `verify` closure so the DB-inject side effect fires; `fireOnReset` + `fireBiometricUnlock` trigger the dialog's reset / biometric callbacks for coverage |
 | `fake_path_provider.dart` | `installFakePathProvider()` + `uninstallFakePathProvider(tmp)` — redirects the `path_provider` channel to a per-test tmp dir; returns the `Directory` so tests can pre-seed / inspect state files |
-| `fake_secure_storage.dart` | `installFakeSecureStorage()` — in-memory backing for `flutter_secure_storage`; returns the map so tests can pre-seed entries |
+| `fake_security.dart` | `FakeSecureKeyStorage` / `FakeBiometricAuth` / `FakeHardwareTierVault` / `FakeMasterPasswordManager` — subclasses overriding the async surface with deterministic, filesystem-free defaults so unit tests can inject any tier-state shape without bootstrapping FRB or the OS keychain |
 | `fake_native_plugins.dart` | `installFakeNativePlugins({config})` / `uninstallFakeNativePlugins()` — one-call mock for every app MethodChannel (hardware_vault, clipboard_secure, session_lock, backup_exclusion, permissions, secure_screen, qrscanner) + file_picker; returns a `NativeCallLog` so tests assert on the exact invocation shape |
 | `test_providers.dart` | `makeTestProviderContainer({...})` and `securityProviderOverrides({...})` — shared baseline of Riverpod overrides (session / master-password / keychain / hardware-vault / keychain-gate / biometric-auth / biometric-vault / auto-lock stores). Widget tests that need their own `ProviderScope` spread the override list; unit tests call the factory |
 
@@ -4928,13 +4971,12 @@ flowchart TD
 |----------|-----|
 | **Self-contained binary, zero manual setup** for end-user | App must run from a single extracted bundle. External OS deps allowed only if (1) graceful degradation with in-UI message and (2) install documented in README per platform. Preference order: bundle > built-in fallback > documented optional install. See [§1 Self-contained-binary principle](#1-high-level-overview) |
 | **Shared modules over local one-offs** at every layer | Single source of truth for visual, behavioural, and persistence patterns; second caller triggers extraction, third makes it mandatory. Produced `AppDialog`/`AppIconButton`/`AppDataRow`/`StyledFormField` (UI), `AppTheme.radius*`/`AppFonts.*`/`*ColWidth` (theme), `SftpBrowserMixin`/`key_file_helper.dart`/`breadcrumb_path.dart` (logic), `Store → DAO` template (persistence). See [§1 Reuse principle](#1-high-level-overview) |
-| drift (SQLite) instead of JSON files | Referential integrity, folder tree with FK, M2M tags/snippets, single encrypted DB file via SQLite3MultipleCiphers |
-| SQLite3MultipleCiphers (build hooks) | DB-level encryption replaces per-store AES-GCM. Compiled in-tree from the `third_party/SQLite3MultipleCiphers` submodule via `hooks: user_defines: sqlite3: source: source` — no external native libs needed and no build-time network fetch. Submodule SHA is auto-bumped by Dependabot (`package-ecosystem: gitsubmodule`). See [§11 Encryption engine build path](#encryption-engine-build-path) for the why and the maintenance model |
+| Single SQLite DB instead of JSON files | Referential integrity, folder tree with FK, M2M tags/snippets, single encrypted DB file. Schema + DAOs live Rust-side under `lfs_core::db`; Dart reads / writes through FRB. |
+| SQLCipher 4.x via `rusqlite` `bundled-sqlcipher` | DB-level encryption replaces per-store AES-GCM. Single Cargo feature flag — no submodule, no native build hook. AES-256-CBC + HMAC-SHA512 per-page MAC. See [§3.6 Cipher choice](#cipher-choice--sqlcipher-4x-aes-256-cbc--hmac-sha512) for the picked-over-MC rationale and [§11 Encryption engine build path](#encryption-engine-build-path) for the build model. |
 | Config stays file-based | Theme/locale needed before DB opens (chicken-and-egg with encryption key) |
-| `pointycastle` instead of `encrypt` | Version conflict with dartssh2 |
 | Three-level security (plaintext/keychain/master password) | Honest security: DB-level encryption via PRAGMA key. OS keychain optional with graceful fallback |
 | Accept per-platform asymmetry, don't escalate working baselines | Cross-platform packages with documented per-platform limits are the chosen budget across all domains (storage, file pickers, notifications, biometrics, IPC, hardware probes). Per-platform native rewrites are out of scope unless explicitly requested — N× code paths rarely worth a marginal upgrade. See [AGENT_RULES § Don't Escalate Working Baselines](AGENT_RULES.md#dont-escalate-working-baselines) |
-| `flutter_secure_storage` as optional dep | OS keychain for automatic encryption; app works without it (libsecret on Linux is optional) |
+| OS keychain via `lfs_os_security::secure_key_storage` (libsecret / SecItem / CredMan / AndroidKeyStore JNI) instead of a Flutter plugin | Single Rust dispatch layer per platform — no `flutter_secure_storage` plugin in the call chain; one audit perimeter instead of one per platform. Linux libsecret is still an OS dep (graceful "keyring unavailable" fallback). |
 | `app_links` instead of `uni_links` | Desktop support |
 | Widget-local controllers (`FilePaneController`, `UnifiedExportController`, `SessionPanelController`, `TransferPanelController`) use `ChangeNotifier` | Match tool to scope: app-state lives in Riverpod `NotifierProvider`, dialog / pane / panel state that takes constructor args or owns caches uses `ChangeNotifier + AnimatedBuilder` — side-channel Riverpod overrides would be pure ceremony |
 | Sealed class `SplitNode` | Recursive split tree with type safety |
@@ -5001,11 +5043,7 @@ flowchart TD
 | `flutter_rust_bridge` | FFI bridge to the Rust security/transport core — Dart-side runtime that loads the bundled native blob and calls into [`lfs_frb`](#314-rust-securitytransport-core-rust). Pin must match the codegen CLI version exactly (`cargo install flutter_rust_bridge_codegen --version 2.12.0`); runtime/codegen drift produces incompatible bindings. |
 | `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |
-| `drift` | Typed SQLite ORM (database, DAOs, codegen). Pulled directly without the `drift_flutter` helper — that one transitively depends on the EOL `sqlite3_flutter_libs` + `sqlcipher_flutter_libs` plugins, whose prebuilts would duplicate the libsqlite3 we already compile in-tree from the MC submodule |
-| `pointycastle` | AES-256-GCM (`.lfs` archive encryption) + Argon2id (KEK derivation) |
-| `pinenacl` | Ed25519 verify for release-signature check |
-| `crypto` | SHA-256 over DER for SPKI pinning |
-| `asn1lib` | X.509 ASN.1 parse for SPKI extraction in `CertPinning.extractSpki` — promoted from transitive to direct dep; was already pulled in via `pointycastle`, made explicit so the import is load-bearing rather than relying on a sibling's graph |
+| `crypto` | SHA-256 helper for keychain fingerprints + known_hosts SHA256 + update-feed checksum. AES-GCM / HKDF / Ed25519 / Argon2id moved Rust-side under `lfs_core::crypto` — those packages (pointycastle / pinenacl / asn1lib) are gone. |
 | `path_provider` | App data directories |
 | `archive` | ZIP for .lfs export/import |
 | `desktop_drop` | OS drag & drop |

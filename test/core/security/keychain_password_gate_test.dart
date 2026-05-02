@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
-/// Phase 5 of the cleanup arc retired the bus-event prompt protocol
-/// the L2 keychain-password gate relied on. The actor now calls
-/// `lfs_os_security::secure_key_storage::{read,write,delete}`
-/// directly, so the previous Dart-side
+/// The bus-event prompt protocol the L2 keychain-password gate
+/// historically relied on was retired during the cleanup arc. The
+/// actor now calls `lfs_os_security::secure_key_storage::{read,
+/// write, delete}` directly, so the previous Dart-side
 /// `KeychainOpPromptListener` / `KeychainPepperPromptListener`
 /// MethodChannel mock no longer intercepts the keychain round-trip.
 ///
@@ -25,8 +25,8 @@ void main() {
       'round-trip / verify / clear / atomic-write / rate-limit-wipe',
       () {},
       skip:
-          'Moved to Rust integration tests after Phase 5 retired the '
-          'bus-event prompt protocol. See '
+          'Moved to Rust integration tests after the bus-event prompt '
+          'protocol was retired. See '
           'lfs_core::security::keychain_password_gate_actor::tests + '
           'lfs_os_security::secure_key_storage::tests.',
     );

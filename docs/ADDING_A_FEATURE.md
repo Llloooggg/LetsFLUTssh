@@ -155,7 +155,7 @@ LetsFLUTssh ships on Linux, Windows, macOS, Android, iOS. Before marking a featu
 | Test passes locally, fails in CI | Forgot `make gen` after `.arb` or freezed edits |
 | String shows `notesPanelTitle` literally in UI | Missing key in some `app_*.arb`, or missed `make gen` |
 | Hover/focus looks off | Using `IconButton`/`InkWell` instead of `AppIconButton`/`HoverRegion` |
-| `flutter_secure_storage` errors on Linux | `libsecret-1-dev` is an optional dep — fall back gracefully |
+| `lfs_os_security::secure_key_storage` errors on Linux | `libsecret-1-dev` is an optional OS dep — `KeyringProbeResult` returns `linuxNoSecretService`, UI falls back gracefully |
 
 ---
 

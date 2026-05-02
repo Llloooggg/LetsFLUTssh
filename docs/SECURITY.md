@@ -257,9 +257,9 @@ architecture.
   Dart side has one subscription regardless of OS. The in-app
   lock fires even when the user hasn't been idle long enough to
   trip the timer. **Every lock unconditionally wipes the
-  DB key and closes the drift / SQLite3MultipleCiphers handle**,
+  DB key and closes the rusqlite / SQLCipher handle**,
   zeroing both the Dart-side `SecretBuffer` and the C-layer
-  page-cipher cache (the live cipher is ChaCha20-Poly1305).
+  page-cipher cache (the live cipher is AES-256-CBC + HMAC-SHA512).
   Previously the wipe was gated on "no active SSH sessions" so the
   user's reconnect UX survived; that gate left the DB key warm
   whenever any session was connected, which flattened T1+password
@@ -277,7 +277,7 @@ architecture.
   (Windows), zeroed and unlocked on dispose. They cannot page to
   swap or hibernate. The Rust side adds `Zeroizing<Vec<u8>>` for
   every transient cleartext copy held in `lfs_core::security::SecretStore`
-  (the only cached-plaintext owner per Phase 4 boundary contract);
+  (the only cached-plaintext owner per the plaintext-discipline boundary contract);
   drop = byte-clear regardless of whether the buffer was page-locked,
   belt-and-braces against accidental compiler-side copy elision.
 - **Hardened password entry** — every secret-entry field goes

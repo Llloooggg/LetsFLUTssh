@@ -15,14 +15,6 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-  # Tracks HEAD of every registered git submodule. We use it for
-  # third_party/SQLite3MultipleCiphers — the upstream amalgamation of
-  # SQLite + the ChaCha20-Poly1305 page cipher, compiled in-tree via
-  # the sqlite3 build hook.
-  - package-ecosystem: "gitsubmodule"
-    directory: "/"
-    schedule:
-      interval: "monthly"
   # Rust security/transport core lives under rust/. Dependabot tracks
   # the workspace Cargo.lock at /rust and opens monthly bump PRs for
   # russh, tokio, RustCrypto, and the rest of the dep tree. Bumps that

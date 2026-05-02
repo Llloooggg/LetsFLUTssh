@@ -551,7 +551,7 @@ How the app protects credentials at rest. First launch auto-selects **T1 — Key
 
 | Tier | Where the DB-encryption key lives | Notes |
 |---|---|---|
-| **T0 — Plaintext** | Nowhere — DB itself is unencrypted | App still uses SQLite3MultipleCiphers in-process; just no key. Use only when you have full-disk encryption + accept the trade-off. |
+| **T0 — Plaintext** | Nowhere — DB itself is unencrypted | App still opens via rusqlite/SQLCipher in-process; just no `PRAGMA key` set. Use only when you have full-disk encryption + accept the trade-off. |
 | **T1 — Keychain** | OS keychain via direct Rust calls (macOS / iOS Keychain via `security-framework`, Linux libsecret via `secret-service` D-Bus, Windows Credential Manager via `CredReadW` / `CredWriteW`, Android `java.security.KeyStore` via direct JNI). No third-party plugin in the call chain. | Strongest "no master password to remember" option on most desktops. |
 | **T2 — Hardware** | Hardware-bound key in TPM 2.0 (Linux/Windows), Secure Enclave (macOS/iOS), StrongBox (Android) | Needs hardware. App detects + offers when available. |
 | **Paranoid** | Argon2id-derived from a master password you type every launch | Nothing on disk except the salt + verifier. Lose the password = lose the data. |

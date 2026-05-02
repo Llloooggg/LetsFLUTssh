@@ -5,28 +5,18 @@
 **Prerequisites:**
 
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) **≥ 3.41.0** (ships Dart ≥ 3.11.3)
+- [Rust toolchain](https://rustup.rs/) — required for the `lfs_core` / `lfs_frb` workspace under `rust/` (security + transport core)
 - Platform-specific toolchain (see below)
-- Git submodule: `third_party/SQLite3MultipleCiphers` (the encrypted-DB engine — compiled in-tree by the `sqlite3` build hook, no prebuilt download)
 
-**Submodule — pick one path on clone/update:**
+The encrypted-DB engine (SQLCipher 4.x) is bundled inside the
+`rusqlite` crate via its `bundled-sqlcipher` Cargo feature — no
+git submodule, no native build hook, no prebuilt download. A
+fresh clone is enough; `cargo build` compiles SQLCipher in-tree
+along with the rest of the Rust workspace.
 
-1. **Preferred — clone with `--recurse-submodules`:**
-
-   ```bash
-   git clone --recurse-submodules https://github.com/Llloooggg/LetsFLUTssh.git
-   ```
-
-   After pulling a new upstream commit that bumps the submodule SHA:
-
-   ```bash
-   git submodule update --recursive
-   ```
-
-2. **Cloned without the flag:** every `make` target (`make deps`, `make test`, `make build-*`, `make run`) auto-runs `git submodule update --init --depth 1` before invoking Flutter, so the submodule self-heals on next build. On Windows where `flutter pub get` / `flutter build windows` is invoked directly (no GNU make), run the init manually once:
-
-   ```bash
-   git submodule update --init --depth 1 third_party/SQLite3MultipleCiphers
-   ```
+```bash
+git clone https://github.com/Llloooggg/LetsFLUTssh.git
+```
 
 ### Linux (Debian/Ubuntu)
 
