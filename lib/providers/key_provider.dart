@@ -62,18 +62,24 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
 
   /// Drop the in-memory cache. Called from the unlock handshake so
   /// the next read pulls fresh rows after the DB switches behind us.
+  ///
+  /// `ref.invalidateSelf()` is unconditional — the previous
+  /// `_attached` guard skipped the rebuild whenever the provider
+  /// had only ever served the metadata path (`build()` calls
+  /// `loadAllMetadata`, which never sets `_attached`). The skip
+  /// was the symptom behind "Failed to load key metadata: db not
+  /// initialized" surviving the post-DB-open invalidate: the
+  /// rebuild that would have re-loaded against the now-open DB
+  /// never fired.
   void invalidateCache() {
     _cache = null;
-    if (_attached) ref.invalidateSelf();
+    ref.invalidateSelf();
   }
-
-  bool _attached = false;
 
   /// Load all stored keys (id-keyed). Throws on FRB failure so
   /// callers that need a hard error path can react; use [loadAllSafe]
   /// for the sentinel-empty version.
   Future<Map<String, SshKeyEntry>> loadAll() async {
-    _attached = true;
     if (_cache != null) return Map.of(_cache!);
     try {
       final rows = await rust_db.dbSshKeysListAll();
@@ -158,7 +164,7 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
         level: LogLevel.warn,
       );
     }
-    if (_attached) ref.invalidateSelf();
+    ref.invalidateSelf();
   }
 
   /// Get a single key entry.
@@ -179,7 +185,7 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
         level: LogLevel.warn,
       );
     }
-    if (_attached) ref.invalidateSelf();
+    ref.invalidateSelf();
   }
 
   /// Delete a key entry.
@@ -194,7 +200,7 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
       );
     }
     _cache?.remove(id);
-    if (_attached) ref.invalidateSelf();
+    ref.invalidateSelf();
   }
 
   /// Find the id of a stored key whose material matches [entry].

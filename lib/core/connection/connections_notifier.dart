@@ -402,12 +402,12 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
         .subscribeConnection(conn.id)
         .listen((event) => _applyConnectionEvent(conn, generation, event));
 
-    conn.addProgressStep(
-      const ConnectionStep(
-        phase: ConnectionPhase.socketConnect,
-        status: StepStatus.inProgress,
-      ),
-    );
+    // No manual `socketConnect: inProgress` emit here — `connect_async`
+    // in `lfs_core::connection::run_connect_driver` publishes the same
+    // step on the bus as its first action, and Connection's permanent
+    // `_busSub` forwards it into the per-connection progress stream.
+    // Doing both produced two identical "[*] Connecting…" lines in
+    // the terminal + duplicate [Progress] log entries.
     _notify();
 
     try {

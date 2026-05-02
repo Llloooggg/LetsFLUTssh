@@ -28,6 +28,24 @@ pub mod auth_compose;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+/// `LFS_CONNECT_TRACE=1` flips on a per-step stderr trace through the
+/// connect driver. Off by default — a maintainer chasing a connect
+/// hang sets the env var on the run, captures stderr, then turns it
+/// back off. The env probe is cached on first read so the per-step
+/// branch is a static-bool check after that.
+fn connect_trace_enabled() -> bool {
+    static FLAG: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *FLAG.get_or_init(|| std::env::var_os("LFS_CONNECT_TRACE").is_some())
+}
+
+macro_rules! trace_connect {
+    ($($arg:tt)*) => {
+        if $crate::connection::connect_trace_enabled() {
+            eprintln!("[lfs_core] {}", format_args!($($arg)*));
+        }
+    };
+}
+
 use crate::error::Error;
 use crate::ssh::Session;
 
@@ -445,6 +463,13 @@ pub async fn connect_async(id: ConnId, args: ConnectArgs) -> Result<ConnId, Erro
 /// returns immediately. Stale-generation results are discarded so a
 /// reconnect issued mid-handshake never overwrites the newer state.
 async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<ConnectionActor>>) {
+    trace_connect!(
+        "run_connect_driver enter id={id} host={}:{} user={} bastion={:?}",
+        args.host,
+        args.port,
+        args.user,
+        args.bastion_id
+    );
     let app = crate::app::instance();
     let generation;
     {
@@ -455,6 +480,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
         a.generation = a.generation.wrapping_add(1);
         generation = a.generation;
     }
+    trace_connect!("run_connect_driver bumped gen={generation} id={id}");
     app.bus.publish(crate::bus::Event::ConnectionStateChanged {
         id: id.clone(),
         state: ConnectionState::Connecting,
@@ -469,6 +495,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
         },
     )
     .await;
+    trace_connect!("run_connect_driver about to enter run_auth id={id}");
 
     // 30-second connect timeout. russh `client::connect` does not
     // bound the TCP connect on its own; an unreachable host (typo in
@@ -483,19 +510,30 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
             Ok(r) => r,
             Err(_) => Err(Error::Connect("connect timed out (30 s)".into())),
         };
-    let _ = &result; // silence unused if future arms add early returns
+    trace_connect!(
+        "run_connect_driver run_auth returned id={id} ok={} err={:?}",
+        result.is_ok(),
+        result.as_ref().err().map(|e| e.to_string())
+    );
 
     // Discard stale-generation results — a reconnect bumped the
     // counter while we were mid-handshake.
     {
         let a = handle.lock().expect("actor mutex poisoned");
         if a.generation != generation {
+            trace_connect!(
+                "run_connect_driver early-return STALE gen id={id} actor_gen={} snapshot={generation}",
+                a.generation
+            );
             return;
         }
     }
+    trace_connect!("run_connect_driver gen-check passed id={id} entering match");
 
+    let id_dbg = id.clone();
     match result {
         Ok(session) => {
+            trace_connect!("run_connect_driver SUCCESS id={id_dbg}");
             {
                 let mut a = handle.lock().expect("actor mutex poisoned");
                 a.session = Some(Arc::new(session));
@@ -525,6 +563,10 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
         }
         Err(err) => {
             let detail = err.to_string();
+            trace_connect!(
+                "run_connect_driver FAILURE id={id_dbg} phase={:?} detail={detail}",
+                failure_phase(&err)
+            );
             {
                 let mut a = handle.lock().expect("actor mutex poisoned");
                 a.state = ConnectionState::Disconnected;
@@ -551,6 +593,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
             publish_active_count(&app);
         }
     }
+    trace_connect!("run_connect_driver exit id={id_dbg}");
 }
 
 /// Hard upper bound on how long a child connect waits for its
