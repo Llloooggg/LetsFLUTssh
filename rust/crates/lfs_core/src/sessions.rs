@@ -57,11 +57,12 @@ pub fn reload_and_notify(app: &Arc<AppState>) {
 /// `Ok(_)`, fire [`reload_and_notify`] against the running
 /// `AppState`; on `Err` do nothing so a failed write doesn't
 /// trigger a downstream re-fetch storm against state that didn't
-/// actually change. The FRB DAO shims used to inline this
-/// idiomatic three-line block at every callsite (15+ sites in
-/// `lfs_frb::api::db`); the audit (G16) flagged the duplication
-/// as orchestration leaking into the adapter. Lives here so the
-/// shim stays a one-liner.
+/// actually change. The FRB DAO shims used to inline the
+/// `app::instance()` walk + reload + notify_changed dance at
+/// every callsite (15+ sites in `lfs_frb::api::db`) — that's
+/// orchestration that belongs in the core, not duplicated
+/// through every bridge shim. Lives here so the shim stays a
+/// one-liner.
 pub fn notify_sessions_on_ok<T>(res: &Result<T, String>) {
     if res.is_ok() {
         reload_and_notify(&crate::app::instance());

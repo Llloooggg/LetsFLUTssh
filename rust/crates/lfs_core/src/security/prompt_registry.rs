@@ -5,9 +5,8 @@
 //! `hardware_vault_unlock_prompt`, `hardware_vault_seal_prompt`)
 //! all carried byte-for-byte the same shape: a
 //! `Mutex<HashMap<String, oneshot::Sender<R>>>` plus
-//! register / resolve / cancel / pending_count over `R`. The
-//! audit (G12) flagged ≈600 LOC of copy-paste the type-system
-//! could collapse to one generic.
+//! register / resolve / cancel / pending_count over `R`. ≈600
+//! LOC of copy-paste the type-system collapses to one generic.
 //!
 //! This module owns the canonical [`PromptRegistry<R>`]; each
 //! per-prompt module re-aliases the generic with its specific
@@ -31,8 +30,8 @@
 //! Mutex sites use `unwrap_or_else(|p| p.into_inner())` recovery
 //! rather than `expect("...poisoned")` — the registries are
 //! reachable from FRB-served paths and a panic across that
-//! boundary corrupts in-flight Dart Futures (audit G16, BUG-CRIT
-//! pattern).
+//! boundary corrupts in-flight Dart Futures, the same FFI-safety
+//! discipline the rest of the FRB-adjacent lock sites apply.
 
 use std::collections::HashMap;
 use std::sync::Mutex;

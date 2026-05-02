@@ -14,8 +14,8 @@
 
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use lfs_core::qr_codec_decode::decode_payload;
+use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     let s = match std::str::from_utf8(data) {

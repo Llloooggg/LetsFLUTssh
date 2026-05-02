@@ -79,8 +79,9 @@ pub struct ProgressStep {
 /// don't have to round-trip back through the registry to enrich
 /// the row. The earlier shape forced the FRB adapter's
 /// `From<ConnectionSnapshot> for DbConnectionSnapshot` to walk
-/// the registry inside an `impl From`, which the audit (G16,
-/// ARCH-HIGH) flagged as wrong-direction layering.
+/// the registry inside an `impl From` — wrong-direction layering
+/// (a core-shape gap papered over in the bridge), now fixed at
+/// the source.
 #[derive(Debug, Clone)]
 pub struct ConnectionSnapshot {
     pub id: ConnId,

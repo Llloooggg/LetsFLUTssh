@@ -1020,7 +1020,7 @@ The cross-FFI boundary contract referenced from [§3.14 Boundary contract](#314-
 
 The discipline is not academic: a returned `Vec<u8>` lives on the Dart heap with no `Zeroize`, the broadcast channel keeps a clone alive for every subscriber until consumed, and `TextEditingController` for any password field copies the bytes into a `String` (immutable, GC-tracked, not zeroizable). SecretRef is the only shape under which any of those vectors can be eliminated wholesale.
 
-The audit's wipe-completeness regression test (`security::wipe::tests::every_known_artefact_is_in_managed_files`) and the Rust-side rate-limit gate tests (`security::tier_unlock_orchestrator::tests::unlock_*_short_circuits_when_limiter_locked`) are the regression guards on the parts of this invariant that have automatable shapes; the remaining "is this Dart caller still hitting the legacy plaintext arm?" check stays a code-review concern.
+The wipe-completeness regression test (`security::wipe::tests::every_known_artefact_is_in_managed_files`) and the Rust-side rate-limit gate tests (`security::tier_unlock_orchestrator::tests::unlock_*_short_circuits_when_limiter_locked`) are the regression guards on the parts of this invariant that have automatable shapes; the remaining "is this Dart caller still hitting the legacy plaintext arm?" check stays a code-review concern.
 
 #### Unlock-path single KDF
 
@@ -2019,7 +2019,7 @@ class UpdateService {
 
 Supporting Rust modules:
 
-- **`lfs_core::update_signing`** (`rust/crates/lfs_core/src/update_signing.rs`) — holds two named pin slots: `PRIMARY_PUBLIC_KEY` (always set; current production key) and `BACKUP_PUBLIC_KEY: Option<[u8; 32]>` (`None` today; populated during a planned rotation). The `pinned_public_keys()` iterator yields the primary first, then the backup if set, so a hot release continues to verify off the primary without paying for a backup-key check on the happy path. See the crate-level docstring for the rotation ceremony and [`SECURITY.md`](SECURITY.md) for the wider recovery playbook.
+- **`lfs_core::update_signing`** (`rust/crates/lfs_core/src/update_signing.rs`) — holds the single pinned Ed25519 public key (`PRIMARY_PUBLIC_KEY`) the verifier matches every release-artefact signature against. Single-pin layout by design: rotation is a manual-reinstall ceremony (generate a fresh keypair offline, swap the GitHub `RELEASE_SIGNING_KEY` secret + offline backup, edit the embedded pubkey, ship the new release, announce via README/website), not an in-app hot-swap. A backup `Option<[u8; 32]>` slot was scoped earlier but rejected as scaffolding-without-use — the slot reappears trivially in the same PR that generates the next keypair when a real rotation is planned. See [`SECURITY.md`](SECURITY.md) for the full recovery playbook.
 - **`lfs_core::update_http`** (`rust/crates/lfs_core/src/update_http.rs`) — the rusty HTTP client used to fetch the Releases JSON + the artefact / signature pair. Plugs in [`lfs_core::update_pinning::LfsPinningVerifier`] via `reqwest::ClientBuilder::use_preconfigured_tls`, so every TLS handshake on this code path runs the standard webpki-roots chain check followed by an SPKI gate against the [`PINNED_HOSTS`] map. The Ed25519 release signature is the load-bearing integrity check; the SPKI pin is the defence-in-depth layer against a DNS / CA compromise of `api.github.com` / `objects.githubusercontent.com`.
 - **`lfs_core::update_pinning`** (`rust/crates/lfs_core/src/update_pinning.rs`) — the hand-rolled SPKI extractor + verifier. Walks the X.509 DER structure field-by-field (descend into `tbsCertificate`, step over the seven leading fields, return the bytes of `subjectPublicKeyInfo` as a slice) without pulling in a full ASN.1 crate. `PINNED_HOSTS` is empty today: the verifier is a transparent pass-through to the WebPki chain validator until a pin is added, then that pin's hostname enforces the additional SPKI compare on the next build. Maintainer captures a pin via `openssl s_client | x509 -pubkey | sha256`; see the crate-level docs.
 - **`InvalidReleaseSignatureException`** — thrown from
@@ -4634,12 +4634,9 @@ On the client, `UpdateService.downloadAsset`:
    disk corruption and "attacker replaced only the binary" on its own)
 3. Delegates to `ReleaseArtifactVerifier`, which fetches `<asset>.sig`
    and calls into `lfs_core::update_signing::verify_release_signature`
-   (FRB) — Ed25519 verify against `PRIMARY_PUBLIC_KEY` and the optional
-   `BACKUP_PUBLIC_KEY` (when set). The verifier accepts a signature
-   that validates against either pin — the rotation slot lets a
-   maintainer ship an interim release that trusts both keys before
-   cutting over to the new primary. Today `BACKUP_PUBLIC_KEY` is
-   `None`; only the primary is trusted.
+   (FRB) — Ed25519 verify against the single embedded
+   `PRIMARY_PUBLIC_KEY`. Single-pin layout by design; rotation is a
+   manual-reinstall ceremony, not an in-app hot-swap.
 4. Any failure deletes both the binary and the sig, throws
    `InvalidReleaseSignatureException`. The install step never runs on
    an unverified artefact.
@@ -4653,7 +4650,7 @@ from a private key held offline by the maintainer and verified by a
 public key compiled into the binary; the updater does not consult any
 online service at verify time.
 
-**Rotation:** `lfs_core::update_signing` exposes `PRIMARY_PUBLIC_KEY` (always set) plus `BACKUP_PUBLIC_KEY: Option<[u8; 32]>` (`None` today). The verifier accepts a signature against either pin, which gives the maintainer a hot-swappable rotation: ship an interim release that adds the new pubkey under the backup slot, then cut over to the new primary in the next release while keeping the old primary as the backup as a deprecation grace window, then drop the backup once installs have caught up. The crate-level docstring on `update_signing.rs` lays out the full day-N / day-N+1 / day-N+2 sequence. A genuine compromise that pre-dates a backup pin still falls back to the manual-reinstall recovery playbook documented in [`SECURITY.md`](SECURITY.md).
+**Rotation:** single-pin layout — `lfs_core::update_signing::PRIMARY_PUBLIC_KEY` is the only trusted Ed25519 public key. Rotation is a manual-reinstall ceremony rather than an in-app hot-swap: generate a fresh keypair offline (`openssl genpkey -algorithm Ed25519 -out release-key-new.pem`), update the GitHub `RELEASE_SIGNING_KEY` secret + offline copy, edit the embedded pubkey bytes, ship the new release, announce via README + website. Existing installs whose auto-update breaks (because their embedded pubkey doesn't match the new signature) follow the manual-reinstall flow in [`SECURITY.md`](SECURITY.md). Why no hot-swap backup slot: an `Option<[u8; 32]>` placeholder pinned at `None` until a real rotation populates it costs API surface for zero today-value — the slot reappears trivially in the same PR that generates the next keypair when a rotation is actually planned.
 
 **SPKI pinning (wired, off-by-default pin map):** `lfs_core::update_pinning::LfsPinningVerifier` plugs into rustls via reqwest's `use_preconfigured_tls` and runs the standard webpki-roots chain validation followed by an SPKI compare against [`PINNED_HOSTS`]. SHA-256 over the DER-encoded `subjectPublicKeyInfo` subtree — extracted by a hand-rolled DER walker, fail-closed on any malformed input. `PINNED_HOSTS` is empty today, so the verifier is a transparent pass-through to the chain validator (security parity with the pre-pinning configuration). A maintainer adding an entry — captured via `openssl s_client | x509 -pubkey | sha256` (see `update_pinning.rs` crate-level docs) — enables the gate on the next build without touching call sites. Hashing the SPKI (not the full cert DER) means the pin survives routine leaf rotations that re-sign the same keypair; only a genuine key rotation breaks it.
 

@@ -11,8 +11,8 @@
 //!
 //! Backed by the generic
 //! [`super::prompt_registry::PromptRegistry`]. The shape used to
-//! be hand-rolled here; the audit (G12) flagged the duplication
-//! across 5 sibling modules.
+//! be hand-rolled here, byte-for-byte the same as the four
+//! sibling prompt registries; the generic collapses all five.
 
 use super::prompt_registry::PromptRegistry as Generic;
 

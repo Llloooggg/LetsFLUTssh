@@ -535,9 +535,8 @@ async fn bridge_forward_to_local_tcp(
 // the matching factory + reporter, spawn the listener, and store the
 // returned handle in the AppState's port_forwards registry. The FRB
 // adapter uses them as one-line shims; before they existed each
-// adapter site repeated the same multi-step composition (≈30 LOC),
-// which the audit (G16, ARCH-HIGH) flagged as orchestration leaking
-// into the bridge layer.
+// adapter site repeated the same multi-step composition (≈30 LOC) —
+// orchestration that belongs in the core, not in the bridge layer.
 
 fn resolve_active_session(connection_id: &str) -> Result<Arc<crate::ssh::Session>, Error> {
     crate::app::instance()

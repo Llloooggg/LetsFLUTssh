@@ -1,7 +1,7 @@
 # Rust fuzz targets
 
 Coverage-guided libFuzzer harnesses for the four untrusted-bytes
-parsers the audit (P12) called out:
+parsers that moved to `lfs_core` in the Dart→Rust port:
 
 | Target | Driver                                              | Parser exercised                                     |
 |--------|-----------------------------------------------------|------------------------------------------------------|

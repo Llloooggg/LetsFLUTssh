@@ -5,8 +5,9 @@ publish = false
 edition = "2021"
 
 # Coverage-guided libFuzzer harnesses for the four untrusted-bytes
-# parsers the audit (P12) called out: deeplink URI, known_hosts
-# entries, QR codec payload, and the OpenSSH config grammar. Each
+# parsers that moved to lfs_core in the port: deeplink URI,
+# known_hosts entries, QR codec payload, and the OpenSSH config
+# grammar. Each
 # target is a thin `fuzz_target!` shim that drives bytes from the
 # fuzzer at the parser's pure-fn entrypoint and asserts no panic
 # / no UB / fail-closed on malformed input.

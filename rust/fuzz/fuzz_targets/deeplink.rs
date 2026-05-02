@@ -15,8 +15,8 @@
 
 #![no_main]
 
-use libfuzzer_sys::fuzz_target;
 use lfs_core::deeplink::parse_connect_uri;
+use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     let s = String::from_utf8_lossy(data);
@@ -34,10 +34,16 @@ fuzz_target!(|data: &[u8]| {
         assert!(!link.host.contains('/') && !link.host.contains('\\'));
         assert!(!link.user.contains('/') && !link.user.contains('\\'));
         for b in link.host.bytes() {
-            assert!(b >= 0x20 && !(0x7F..=0x9F).contains(&b), "control char in host");
+            assert!(
+                b >= 0x20 && !(0x7F..=0x9F).contains(&b),
+                "control char in host"
+            );
         }
         for b in link.user.bytes() {
-            assert!(b >= 0x20 && !(0x7F..=0x9F).contains(&b), "control char in user");
+            assert!(
+                b >= 0x20 && !(0x7F..=0x9F).contains(&b),
+                "control char in user"
+            );
         }
     }
 });
