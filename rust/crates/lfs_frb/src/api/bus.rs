@@ -661,7 +661,11 @@ pub async fn connection_get_session(
         return Ok(None);
     };
     let arc = {
-        let actor = actor_handle.lock().expect("actor mutex poisoned");
+        // Recover from a poisoned lock — a panic across the FRB
+        // worker corrupts every in-flight Dart Future, while a
+        // recovered actor at worst returns stale state for one
+        // call.
+        let actor = actor_handle.lock().unwrap_or_else(|p| p.into_inner());
         if actor.state != lfs_core::connection::ConnectionState::Connected {
             return Ok(None);
         }

@@ -110,7 +110,7 @@ impl DbTierEvent {
 pub fn tier_machine_state() -> DbTierState {
     machine_lock()
         .lock()
-        .expect("tier machine poisoned")
+        .unwrap_or_else(|p| p.into_inner())
         .state()
         .into()
 }
@@ -122,7 +122,7 @@ pub fn tier_machine_state() -> DbTierState {
 pub fn tier_machine_active_tier_wire_name() -> String {
     machine_lock()
         .lock()
-        .expect("tier machine poisoned")
+        .unwrap_or_else(|p| p.into_inner())
         .tier()
         .wire_name()
         .to_string()
@@ -135,7 +135,7 @@ pub fn tier_machine_active_tier_wire_name() -> String {
 pub fn tier_machine_set_tier(tier_wire_name: String) -> Result<String, String> {
     let tier = SecurityTier::from_wire_name(&tier_wire_name)
         .ok_or_else(|| format!("unknown tier wire name: {tier_wire_name}"))?;
-    let mut g = machine_lock().lock().expect("tier machine poisoned");
+    let mut g = machine_lock().lock().unwrap_or_else(|p| p.into_inner());
     g.set_tier(tier);
     Ok(tier.wire_name().to_string())
 }
@@ -148,7 +148,7 @@ pub fn tier_machine_dispatch(event: DbTierEvent) -> Result<Option<DbTierState>, 
     let core = event
         .into_core()
         .ok_or_else(|| "unknown event discriminant".to_string())?;
-    let mut g = machine_lock().lock().expect("tier machine poisoned");
+    let mut g = machine_lock().lock().unwrap_or_else(|p| p.into_inner());
     Ok(g.dispatch(&core).map(DbTierState::from))
 }
 
@@ -167,7 +167,7 @@ pub fn tier_machine_dispatch(event: DbTierEvent) -> Result<Option<DbTierState>, 
 pub fn tier_machine_try_advance() -> Option<DbTierState> {
     machine_lock()
         .lock()
-        .expect("tier machine poisoned")
+        .unwrap_or_else(|p| p.into_inner())
         .try_advance()
         .map(DbTierState::from)
 }

@@ -87,7 +87,10 @@ impl From<lfs_core::connection::ConnectionSnapshot> for DbConnectionSnapshot {
         // tracked the destination Dart-side). Pull off the registry.
         let app = lfs_core::app::instance();
         let (host, port, user) = if let Some(handle) = app.connections.get(&s.id) {
-            let actor = handle.lock().expect("actor mutex poisoned");
+            // Recover from a poisoned lock instead of panicking
+            // across the FRB boundary — a panic here would tear
+            // down the FRB worker thread mid-snapshot.
+            let actor = handle.lock().unwrap_or_else(|p| p.into_inner());
             (actor.host.clone(), actor.port, actor.user.clone())
         } else {
             (String::new(), 0, String::new())

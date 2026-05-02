@@ -19,10 +19,17 @@ const DEFAULT_WORKER_COUNT: usize = 4;
 
 fn pool_arc() -> Arc<WorkerPool> {
     let app = lfs_core::app::instance();
+    // `unwrap_or_else(into_inner)` recovers from a poisoned lock by
+    // taking the inner value back. A poison only happens if a prior
+    // holder panicked while mutating; the slot is `Option<Arc<...>>`
+    // — even a panic mid-`spawn` leaves it observable (None or a
+    // valid Arc), so reusing the inner value is sound. The
+    // alternative `.expect(...)` would propagate a panic across the
+    // FRB worker thread, corrupting Dart-side Futures.
     let mut slot = app
         .transfer_pool
         .lock()
-        .expect("transfer pool slot poisoned");
+        .unwrap_or_else(|p| p.into_inner());
     if slot.is_none() {
         let executor = Arc::new(SftpTaskExecutor);
         *slot = Some(Arc::new(WorkerPool::spawn(executor, DEFAULT_WORKER_COUNT)));
