@@ -1,5 +1,10 @@
 [workspace]
-members = ["crates/lfs_core", "crates/lfs_frb", "crates/lfs_os_security"]
+members = ["crates/lfs_core", "crates/lfs_frb", "crates/lfs_os_security", "fuzz"]
+default-members = [
+    "crates/lfs_core",
+    "crates/lfs_frb",
+    "crates/lfs_os_security",
+]
 resolver = "2"
 
 [workspace.package]

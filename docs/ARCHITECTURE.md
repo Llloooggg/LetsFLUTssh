@@ -4903,7 +4903,7 @@ Two layers of fuzz testing — **property-based** (random inputs on every PR, no
 | `parsers_fuzz_test.dart` | Shared `basic` / integer / bool parsers | Random strings + typed overflows |
 | `sanitize_fuzz_test.dart` | `sanitizeErrorMessage()` | Random strings (path redaction, IP redaction) |
 
-**Standalone fuzz harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read **raw bytes** from stdin (binary targets use `stdin.readByteSync` — `readLineSync` would UTF-8-decode and die on any non-ASCII byte), exercise parsing logic, and are wrapped by a thin C libFuzzer harness from `.clusterfuzzlite/build.sh` that pipes libFuzzer input to the Dart binary's stdin. Coverage-guided mutation via libFuzzer, but the parsing logic runs in Dart.
+**Standalone Dart harnesses** (`fuzz/`): compiled to native via `dart compile exe` (`make fuzz-build`). Read **raw bytes** from stdin (binary targets use `stdin.readByteSync` — `readLineSync` would UTF-8-decode and die on any non-ASCII byte), exercise parsing logic, and are wrapped by a thin C libFuzzer harness from `.clusterfuzzlite/build.sh` that pipes libFuzzer input to the Dart binary's stdin. Coverage-guided mutation via libFuzzer, but the parsing logic runs in Dart.
 
 | Harness | Fuzzed logic | Notes |
 |---------|-------------|-------|
@@ -4914,6 +4914,17 @@ Two layers of fuzz testing — **property-based** (random inputs on every PR, no
 | `fuzz_lfs_archive_header` | LFS archive header — magic + version + KDF blob + salt + IV — parsed up to but NOT including the Argon2id run (user-supplied `memoryKiB` would OOM the fuzz worker) | Binary, seeded with one well-formed Argon2id header + 32-byte salt + 12-byte IV |
 
 Standalone harnesses mirror production logic inline (no Flutter / pub imports) so the compiled binary stays small and libFuzzer coverage attribution is clean. Drift between the mirror and production is caught by test-table tests that exercise both paths against the same vectors.
+
+**Rust libFuzzer harnesses** (`rust/fuzz/`): coverage-guided harnesses for the four untrusted-bytes parsers that landed Rust-side in the migration (post-port the Dart harnesses can't reach them — `lfs_core` is consumed via FRB, not import). Member of the parent `rust/` workspace but excluded from `default-members` so `cargo build --workspace` ignores them; activated by `cargo +nightly fuzz run <target>` from `rust/fuzz/`. Targets:
+
+| Target | Driver |
+|---|---|
+| `deeplink` | `lfs_core::deeplink::parse_connect_uri` — `letsflutssh://connect?...` URI grammar |
+| `known_hosts` | `lfs_core::known_hosts_parser::parse_line` — OpenSSH wire format + LFS internal export |
+| `qr_codec` | `lfs_core::qr_codec_decode::decode_payload` — base64url + deflate + JSON-shape payload |
+| `openssh_config` | `lfs_core::ssh_config::parse_openssh_config` — OpenSSH `~/.ssh/config` grammar |
+
+Each `fuzz_target!(|data: &[u8]|)` shim drives bytes from libFuzzer through the parser and asserts no panic + parser-output invariants where applicable (idempotency, contract-bound field shapes). Crashes persist under `rust/fuzz/artifacts/<target>/` (gitignored — corpora live in OSS-Fuzz / ClusterFuzzLite, not the repo). Not run in CI today; the host pipeline (`make rust-test`, `cargo clippy`) ignores these targets entirely.
 
 **CI integration**: `.github/workflows/cfl-fuzz.yml` runs ClusterFuzzLite on push to main and PRs to main, 300 seconds per target. Detected by OpenSSF Scorecard's Fuzzing check. Nightly extended runs are not configured — PR-run coverage over time accumulates broadly enough that a separate nightly workflow would duplicate CFL without meaningfully widening coverage. Any new untrusted-input path in `lib/` adds a matching fuzz target in the same commit (see [AGENT_RULES § Fuzz tests for every untrusted-input consumer](AGENT_RULES.md#code-quality--sonarcloud)).
 
