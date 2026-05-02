@@ -73,6 +73,14 @@ pub struct ProgressStep {
 /// late subscriber as the initial state, and what a `Snapshot`
 /// command returns. Designed to carry no plaintext: credentials
 /// stay in the SecretStore, bastion linkage is by id only.
+///
+/// `host` / `port` / `user` are the destination tuple — included
+/// in the snapshot so consumers (workspace UI, mirror provider)
+/// don't have to round-trip back through the registry to enrich
+/// the row. The earlier shape forced the FRB adapter's
+/// `From<ConnectionSnapshot> for DbConnectionSnapshot` to walk
+/// the registry inside an `impl From`, which the audit (G16,
+/// ARCH-HIGH) flagged as wrong-direction layering.
 #[derive(Debug, Clone)]
 pub struct ConnectionSnapshot {
     pub id: ConnId,
@@ -83,6 +91,9 @@ pub struct ConnectionSnapshot {
     pub state: ConnectionState,
     pub error: Option<String>,
     pub progress: Vec<ProgressStep>,
+    pub host: String,
+    pub port: u16,
+    pub user: String,
 }
 
 /// Reference to a SecretStore-backed credential. The actor's
@@ -199,6 +210,9 @@ impl ConnectionActor {
             state: self.state,
             error: self.error.clone(),
             progress: self.progress.clone(),
+            host: self.host.clone(),
+            port: self.port,
+            user: self.user.clone(),
         }
     }
 

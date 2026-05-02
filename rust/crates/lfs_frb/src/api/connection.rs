@@ -82,19 +82,6 @@ impl From<lfs_core::connection::ConnectionSnapshot> for DbConnectionSnapshot {
             lfs_core::connection::ConnectionState::Connected => "connected",
         }
         .to_string();
-        // Resolve host/port/user from the actor handle since
-        // ConnectionSnapshot doesn't carry them today (the manager
-        // tracked the destination Dart-side). Pull off the registry.
-        let app = lfs_core::app::instance();
-        let (host, port, user) = if let Some(handle) = app.connections.get(&s.id) {
-            // Recover from a poisoned lock instead of panicking
-            // across the FRB boundary — a panic here would tear
-            // down the FRB worker thread mid-snapshot.
-            let actor = handle.lock().unwrap_or_else(|p| p.into_inner());
-            (actor.host.clone(), actor.port, actor.user.clone())
-        } else {
-            (String::new(), 0, String::new())
-        };
         DbConnectionSnapshot {
             id: s.id,
             label: s.label,
@@ -103,9 +90,9 @@ impl From<lfs_core::connection::ConnectionSnapshot> for DbConnectionSnapshot {
             internal: s.internal,
             state_wire_name,
             error: s.error,
-            host,
-            port,
-            user,
+            host: s.host,
+            port: s.port,
+            user: s.user,
         }
     }
 }
