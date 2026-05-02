@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show AnyhowException;
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/master_password.dart' as rust_mp;

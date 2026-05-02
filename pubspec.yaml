@@ -71,6 +71,13 @@ dependencies:
   # FFI helpers (calloc / free) for mlocked secret buffers
   ffi: ^2.1.3
 
+  # `@visibleForTesting` / `@protected` annotations without
+  # pulling in `package:flutter/foundation`. The annotations are
+  # what core/ files actually wanted; `foundation` brings the
+  # whole Flutter framework along the way which violates the
+  # core/-no-Flutter layering invariant.
+  meta: ^1.16.0
+
   lfs_frb:
     path: rust_builder
 

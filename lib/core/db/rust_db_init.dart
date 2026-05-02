@@ -1,6 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data' show Uint8List;
 
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 

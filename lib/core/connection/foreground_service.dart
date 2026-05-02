@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 
 import '../../utils/logger.dart';
 
