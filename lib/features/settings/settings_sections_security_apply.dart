@@ -93,7 +93,7 @@ extension _TierApply on _SecuritySectionState {
   Future<void> _applyKeychainWithPasswordTier(
     SecuritySetupResult result,
   ) async {
-    final short = result.shortPassword;
+    final short = result.takeShortPassword();
     if (short == null || short.isEmpty) {
       throw StateError('short password missing');
     }
@@ -127,7 +127,7 @@ extension _TierApply on _SecuritySectionState {
     // keeps the read side in sync.
     final hwVault = ref.read(hardwareTierVaultProvider);
     final key = rust_crypto.cryptoAesGcmRandomKey();
-    final sealed = await hwVault.store(dbKey: key, pin: result.pin);
+    final sealed = await hwVault.store(dbKey: key, pin: result.takePin());
     if (!sealed) throw StateError('hardware seal failed');
     await _applyAlwaysRekey(key, SecurityTier.hardware, result.modifiers);
     await ref.read(secureKeyStorageProvider).deleteKey();
@@ -138,7 +138,7 @@ extension _TierApply on _SecuritySectionState {
   }
 
   Future<void> _applyParanoidTier(SecuritySetupResult result) async {
-    final pw = result.masterPassword;
+    final pw = result.takeMasterPassword();
     if (pw == null || pw.isEmpty) {
       throw StateError('master password missing');
     }

@@ -122,11 +122,11 @@ extension _FirstLaunchFlows on SecurityInitController {
       case SecurityTier.paranoid:
         await _firstLaunchParanoid(result, manager);
       case SecurityTier.hardware:
-        await _firstLaunchHardware(result.pin, result.modifiers);
+        await _firstLaunchHardware(result.takePin(), result.modifiers);
       case SecurityTier.keychainWithPassword:
         await _firstLaunchKeychainWithPassword(
           keyStorage: keyStorage,
-          shortPassword: result.shortPassword,
+          shortPassword: result.takeShortPassword(),
           modifiers: result.modifiers,
         );
       case SecurityTier.keychain:
@@ -154,7 +154,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     SecuritySetupResult result,
     MasterPasswordManager manager,
   ) async {
-    final password = result.masterPassword;
+    final password = result.takeMasterPassword();
     if (password == null) {
       await _injectDatabase();
       return;

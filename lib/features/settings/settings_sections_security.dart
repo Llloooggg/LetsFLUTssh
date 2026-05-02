@@ -336,12 +336,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     final keychainAvail = ref
         .read(securityCapabilitiesProvider)
         .maybeWhen(data: (c) => c.keychainAvailable, orElse: () => false);
+    // Card-level callers pass plaintext Strings — stage them in the
+    // SecretStore now so the rest of the apply pipeline reads them
+    // through the same `take*()` accessors the wizard pop-result
+    // does. The original Strings stay on the State frame's stack
+    // until the caller's setState rebuild drops them.
     final result = SecuritySetupResult(
       tier: tier,
       modifiers: modifiers,
-      shortPassword: shortPassword,
-      pin: pin,
-      masterPassword: masterPassword,
+      shortPasswordSecretId: SecuritySetupResult.stageSecret(shortPassword),
+      pinSecretId: SecuritySetupResult.stageSecret(pin),
+      masterPasswordSecretId: SecuritySetupResult.stageSecret(masterPassword),
       keychainAvailable: keychainAvail,
     );
 

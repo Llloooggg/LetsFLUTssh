@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
@@ -10,6 +12,7 @@ import '../providers/security_provider.dart'
         hardwareProbeDetailText,
         keyringProbeDetailText,
         decodeHardwareProbeCode;
+import '../src/rust/api/app.dart' as rust_app;
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
 import 'app_button.dart';
@@ -29,10 +32,13 @@ part 'security_setup_dialog_widgets.dart';
 /// Result of the first-launch security setup wizard.
 ///
 /// Carries both the legacy (tier + typed-secret-field) shape and the
-/// new bank-style (tier + modifiers) shape. Downstream call sites
-/// still read the legacy fields (`masterPassword`, `shortPassword`,
-/// `pin`); the `modifiers` field is populated for the call sites
-/// that consume the bank-style shape directly.
+/// new bank-style (tier + modifiers) shape. The typed secret bytes
+/// land in the Rust-side SecretStore under transient ids; only the
+/// ids cross `Navigator.pop`. Callers take (atomic read-and-remove)
+/// the bytes via [SecuritySetupResult.takeMasterPassword] etc.
+/// inside the same dispatch tick they use them, so the Dart-heap
+/// residency window is bounded to a single function call rather
+/// than the wizard's awaiter frame lifetime.
 class SecuritySetupResult {
   /// Tier picked by the user. `plaintext` is the fallback when the
   /// wizard never resolves (barrier-dismiss on desktop shutdown).
@@ -41,18 +47,21 @@ class SecuritySetupResult {
   /// Bank-style modifier flags — password + biometric.
   final SecurityTierModifiers modifiers;
 
-  /// Master password chosen for Paranoid.
-  final String? masterPassword;
+  /// SecretStore id of the master password chosen for Paranoid.
+  /// `null` when the chosen tier is not Paranoid.
+  final String? masterPasswordSecretId;
 
-  /// Bank-style password chosen for T1 + password.
-  final String? shortPassword;
+  /// SecretStore id of the bank-style password chosen for T1+password.
+  /// `null` when the chosen tier is not L2.
+  final String? shortPasswordSecretId;
 
-  /// Secret routed into the hardware-tier PIN slot. When the user
-  /// picks T2 + password (bank-style shape), the typed password lands
-  /// here — `HardwareTierVault.store` treats it as arbitrary bytes
-  /// and HMAC-hashes it with the per-install salt, so a full password
-  /// works identically to a 4-6 digit PIN.
-  final String? pin;
+  /// SecretStore id of the secret routed into the hardware-tier PIN
+  /// slot when the user picks T2+password (bank-style). `null` for
+  /// the passwordless variant. `HardwareTierVault.store` treats the
+  /// bytes as arbitrary input and HMAC-hashes them with the per-
+  /// install salt, so a full password works identically to a 4-6
+  /// digit PIN.
+  final String? pinSecretId;
 
   /// Whether the OS keychain is available.
   final bool keychainAvailable;
@@ -60,11 +69,51 @@ class SecuritySetupResult {
   const SecuritySetupResult({
     this.tier = SecurityTier.plaintext,
     this.modifiers = SecurityTierModifiers.defaults,
-    this.masterPassword,
-    this.shortPassword,
-    this.pin,
+    this.masterPasswordSecretId,
+    this.shortPasswordSecretId,
+    this.pinSecretId,
     this.keychainAvailable = false,
   });
+
+  /// Stage `value` (UTF-8) under a fresh `wizard.<uuid>` SecretStore
+  /// id and return the id. Lets call sites that build a
+  /// [SecuritySetupResult] from already-typed plaintext (the inline
+  /// Settings → Apply path's `onSelectTier`) reuse the same
+  /// SecretStore-backed transit shape the wizard pop-result uses,
+  /// so `take*` accessors work uniformly across both.
+  ///
+  /// Returns `null` when the value is null / empty.
+  static String? stageSecret(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final id = 'wizard.${const Uuid().v4()}';
+    rust_app.secretsPut(id: id, bytes: utf8.encode(value));
+    return id;
+  }
+
+  /// Take (atomic read-and-remove) the staged master-password
+  /// bytes out of the SecretStore and return them as a UTF-8
+  /// String. Returns `null` when the wizard didn't capture a
+  /// master password (every tier other than Paranoid).
+  ///
+  /// Single-shot: a second call returns `null` because the
+  /// SecretStore entry is gone. Callers should consume the
+  /// returned String immediately and let it drop.
+  String? takeMasterPassword() => _takeBytesAsString(masterPasswordSecretId);
+
+  /// Same shape as [takeMasterPassword] but for the L2 + password
+  /// short-password slot.
+  String? takeShortPassword() => _takeBytesAsString(shortPasswordSecretId);
+
+  /// Same shape as [takeMasterPassword] but for the L3 + password
+  /// PIN slot.
+  String? takePin() => _takeBytesAsString(pinSecretId);
+
+  static String? _takeBytesAsString(String? id) {
+    if (id == null) return null;
+    final bytes = rust_app.secretsTake(id: id);
+    if (bytes.isEmpty) return null;
+    return utf8.decode(bytes);
+  }
 }
 
 /// First-launch tier wizard.
@@ -275,16 +324,25 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       typedSecret: _needsSecretInput() ? _secretCtrl.text : null,
     );
 
-    Navigator.of(context).pop(
-      SecuritySetupResult(
-        tier: mapped.tier,
-        modifiers: mapped.modifiers,
-        masterPassword: mapped.masterPassword,
-        shortPassword: mapped.shortPassword,
-        pin: mapped.pin,
-        keychainAvailable: _caps?.keychainAvailable ?? false,
+    // Stage every typed secret in the Rust-side SecretStore under a
+    // fresh transient id. Only the ids cross Navigator.pop; the
+    // plaintext String stays in the dialog's State which the
+    // dispose-time wipeAndClear has already drained. The awaiter
+    // takes (atomic read-and-remove) the bytes immediately before
+    // use so the Dart-heap residency window collapses to one call.
+    final result = SecuritySetupResult(
+      tier: mapped.tier,
+      modifiers: mapped.modifiers,
+      masterPasswordSecretId: SecuritySetupResult.stageSecret(
+        mapped.masterPassword,
       ),
+      shortPasswordSecretId: SecuritySetupResult.stageSecret(
+        mapped.shortPassword,
+      ),
+      pinSecretId: SecuritySetupResult.stageSecret(mapped.pin),
+      keychainAvailable: _caps?.keychainAvailable ?? false,
     );
+    Navigator.of(context).pop(result);
   }
 
   @override
