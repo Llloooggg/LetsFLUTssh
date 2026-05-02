@@ -10,6 +10,7 @@ import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_divider.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/data_checkboxes.dart';
+import '../../widgets/tag_color.dart';
 import 'tag_manager_dialog.dart';
 
 /// Dialog to assign/remove tags on a session or folder.

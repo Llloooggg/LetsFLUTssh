@@ -12,6 +12,7 @@ import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/tag_color.dart';
 import '../../widgets/toast.dart';
 
 /// Embeddable tag manager — toolbar + list with CRUD.

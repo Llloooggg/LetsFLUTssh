@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/tags/tag.dart';
 import '../providers/tag_provider.dart';
 import '../theme/app_theme.dart';
+import 'tag_color.dart';
 
 /// Small colored dots representing tags on a session or folder.
 ///

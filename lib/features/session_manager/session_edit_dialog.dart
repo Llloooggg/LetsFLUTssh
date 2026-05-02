@@ -22,6 +22,7 @@ import '../../widgets/app_picker_chip.dart';
 import '../../widgets/dropdown_select_button.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/styled_form_field.dart';
+import '../../widgets/tag_color.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/platform.dart';
 import '../../utils/secret_controller.dart';
