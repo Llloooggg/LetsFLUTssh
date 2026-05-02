@@ -94,25 +94,20 @@ extension _UnlockFlows on SecurityInitController {
         level: LogLevel.warn,
       );
     }
-    _credentialsWereReset = true;
-    await _injectDatabase();
-    AppLogger.instance.log(
-      'L1 configured but keychain entry missing — plaintext fallback',
-      name: 'App',
-      level: LogLevel.warn,
-    );
+    // No silent plaintext downgrade — the configured tier carries
+    // an encrypted DB on disk. Falling through to `_injectDatabase`
+    // would let the corruption probe re-raise the same error one
+    // step later, but framed as a corrupt DB instead of a missing
+    // keychain entry. Surface the recovery dialog up front so the
+    // user can pick exit / retry / wipe knowing what actually
+    // happened.
+    await _handleVaultStateMissing('L1 keychain');
   }
 
   Future<void> _unlockKeychainWithPassword() async {
     final gate = ref.read(keychainPasswordGateProvider);
     if (!await gate.isConfigured()) {
-      _credentialsWereReset = true;
-      await _injectDatabase();
-      AppLogger.instance.log(
-        'L2 configured but gate state missing — plaintext fallback',
-        name: 'App',
-        level: LogLevel.warn,
-      );
+      await _handleVaultStateMissing('L2 keychain+password');
       return;
     }
     // Multi-attempt dialog routes through the orchestrator + listener
@@ -259,13 +254,7 @@ extension _UnlockFlows on SecurityInitController {
   Future<void> _unlockHardware() async {
     final vault = ref.read(hardwareTierVaultProvider);
     if (!await vault.isStored()) {
-      _credentialsWereReset = true;
-      await _injectDatabase();
-      AppLogger.instance.log(
-        'L3 configured but vault state missing — plaintext fallback',
-        name: 'App',
-        level: LogLevel.warn,
-      );
+      await _handleVaultStateMissing('L3 hardware');
       return;
     }
     final mods = ref.read(configProvider).security?.modifiers;

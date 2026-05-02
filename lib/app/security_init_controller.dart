@@ -360,6 +360,44 @@ class SecurityInitController {
     }
   }
 
+  /// Surface "configured tier is unreachable" to the user instead of
+  /// silently downgrading to the plaintext branch. Called from each
+  /// per-tier unlock flow when its vault entry is missing
+  /// (`SecureKeyStorage` keychain entry gone, `KeychainPasswordGate`
+  /// state file absent, `HardwareTierVault` SE/TPM blob lost).
+  ///
+  /// Reuses the [DbCorruptDialog] shape because the user-visible
+  /// situation matches: the on-disk data cannot be opened with the
+  /// security state we have. The previous behaviour fell through to
+  /// `_injectDatabase()` which opened the encrypted DB without a
+  /// key; the corruption probe then caught the SQLCipher mismatch
+  /// and rerouted into the same dialog — but framed as data
+  /// corruption rather than security-state loss, leaving a user who
+  /// actually had a vault-state problem one click away from
+  /// `WipeAllService.wipeAll()`. Surfacing the choice up front keeps
+  /// the user informed about what is being wiped and why.
+  Future<void> _handleVaultStateMissing(String tierLabel) async {
+    await AppLogger.instance.logCritical(
+      'Configured tier ($tierLabel) is unreachable — vault state '
+      'missing. Surfacing recovery dialog instead of plaintext fallback.',
+      name: 'App',
+    );
+    final choice = await _dialogs.showDbCorrupt();
+    switch (choice) {
+      case DbCorruptChoice.exitApp:
+        AppLogger.instance.log(
+          'Vault state missing — user chose to exit',
+          name: 'App',
+        );
+        await SystemNavigator.pop();
+        exit(0);
+      case DbCorruptChoice.tryOtherTier:
+        await _retryUnlockUnderDifferentTier();
+      case DbCorruptChoice.resetAndSetupFresh:
+        await _wipeAndRestartFromScratch();
+    }
+  }
+
   // ── Security init ──────────────────────────────────────────
 
   Future<void> _initSecurity() async {
@@ -575,8 +613,6 @@ class SecurityInitController {
       return false;
     }
   }
-
-
 
   // ── DB injection + helpers ────────────────────────────────
 
