@@ -78,8 +78,7 @@ passes through `lfs_frb`, which delegates to `lfs_core`.
 
 Rule of thumb in the adapter:
 
-- **Plain data** (host, port, user, key bytes, opaque tokens) —
-  pass by value.
+- **Plain data** (host, port, user, opaque tokens) — pass by value.
 - **Long-lived handles** (active session, channel, sftp client) —
   `lfs_core` returns an opaque struct; `lfs_frb` registers it in a
   handle registry and exposes a numeric ID to Dart. The Dart side
@@ -88,16 +87,55 @@ Rule of thumb in the adapter:
   sftp progress) — `lfs_core` produces a `tokio::sync::mpsc`;
   `lfs_frb` wraps it in an FRB `Stream<T>`.
 - **Async** — every transport call is `async fn` in `lfs_core`.
-  FRB codegen maps it to a Dart `Future<T>`.
+  FRB codegen maps it to a Dart `Future<T>`. The adapter wraps
+  CPU-bound work (Argon2id, large encrypt/decrypt, on-disk
+  migration walks) in `tokio::task::spawn_blocking` so the FRB
+  worker thread does not stall under any single call. Sync FRB
+  endpoints (`#[flutter_rust_bridge::frb(sync)]`) are reserved
+  for sub-microsecond reads (registry getters, snapshot calls);
+  anything that touches the filesystem or the cipher stays
+  async + `spawn_blocking`.
 - **Errors** — `lfs_core` returns `Result<T, lfs_core::Error>` with
   a typed enum (`NoRoute`, `AuthFailed`, `HostKeyMismatch`, …).
-  `lfs_frb` converts to a Dart-friendly variant.
+  `lfs_frb` converts to a Dart-friendly variant. Mutex-lock sites
+  inside the adapter use `lock().unwrap_or_else(|p| p.into_inner())`
+  rather than `.expect("…poisoned")` — a panic across the FRB
+  boundary corrupts in-flight Dart Futures and tears down the
+  worker thread; the recovery shape lets the call return a real
+  result against the still-valid inner state. Regression:
+  `rust/crates/lfs_frb/tests/poison_recovery.rs`.
+- **Secrets** — passwords, key bytes, passphrases, derived AES
+  keys. **Plaintext does not cross the boundary outbound, and
+  crosses inbound only on the user-just-typed-it path.** Rust
+  stages bytes inside [`lfs_core::secrets::SecretStore`](../rust/crates/lfs_core/src/secrets.rs)
+  under a caller-allocated id and returns the id (`String`); the
+  Dart caller invokes `secrets_take(id)` for a one-shot atomic
+  read-and-remove. Inside `lfs_core` every secret-bearing return
+  is `Zeroizing<Vec<u8>>` so dropping clears the bytes (see
+  `crypto::argon2id_derive`, `crypto::aes_gcm_decrypt*`,
+  `master_password::verify_and_derive`). The legacy plaintext-
+  arg variants (`ssh_connect_password(password: String)`,
+  `db_sessions_set_secret(value: String)`, etc.) survive only as
+  the unlock-dialog inbound path; every other caller goes through
+  the `*_with_secret_id` siblings. Bus events follow the same
+  rule — `Event::HardwareVaultSealPromptRequest { db_key_secret_id,
+  pin_secret_id }` carries SecretStore ids, not bytes, so the
+  tokio broadcast channel never holds plaintext between fire-time
+  and consume-time. See ARCHITECTURE.md §3.6 for the full
+  rationale.
 
 **Discipline**: the temptation will be to short-circuit and put a
 tiny FRB-specific concern into `lfs_core`. Don't. If `lfs_core`
 ever depends on `flutter_rust_bridge` or `tauri`, the hexagonal
 property is broken. CI enforces this via `cargo tree -p lfs_core`
-+ a deny-list assertion on the dependency graph.
++ a deny-list assertion on the dependency graph. The reverse
+discipline applies too: business-logic orchestration (port-forward
+driver composition, connection-registry walks, DAO
+post-write reload + bus emit) belongs inside `lfs_core`, not the
+adapter — `lfs_frb` is meant to be a thin pass-through. Today the
+adapter contains a small set of acknowledged exceptions (see
+ARCHITECTURE.md §3.14 "lfs_frb adapter purity"); they shrink as
+the matching `lfs_core` extraction lands.
 
 ---
 
@@ -129,7 +167,7 @@ rust/
 │   │   ├── platform/             # per-OS wrappers
 │   │   │   ├── linux/            # tpm, fprintd
 │   │   │   ├── macos/            # process helper
-│   │   │   └── windows/          # path hardening, winbio
+│   │   │   └── windows/          # path hardening
 │   │   ├── format/               # size, duration, timestamp formatters
 │   │   ├── path/                 # write_bytes_atomic, harden_file_perms
 │   │   └── bus/                  # tokio broadcast Cmd/Evt bus
@@ -1248,24 +1286,35 @@ one, ship it, then pick the next.
 21. **Decision required before starting**: take on each Tier-4
     item only when the security or audit story justifies the
     ongoing cost. Per-item evaluation.
-22. ~~`platform/macos/code_signing`~~ + ~~`macos_installer`~~ —
-    landed (2026-05) as `lfs_os_security::macos_signing` +
-    `lfs_os_security::macos_installer`. `tokio::process::Command`
-    wraps over `openssl` (cert generation), `security` (keychain
-    + trust DB), `codesign` (inside-out re-sign with leaf-first
-    ordering for dylibs → frameworks → xpc/appex → outer
-    bundle), `hdiutil` (atomic DMG mount/detach), `rsync`
-    (staged copy). Same call topology as the prior Dart
-    `IProcessRunner` abstraction. cfg-gated to
+22. **`platform/macos/code_signing` + `macos_installer` —
+    Rust modules shipped, FRB-wiring outstanding.**
+    `lfs_os_security::macos_signing` + `lfs_os_security::macos_installer`
+    contain the full pipeline (`tokio::process::Command` over
+    `openssl` for cert generation, `security` for keychain +
+    trust DB, `codesign` for inside-out re-sign with leaf-first
+    ordering, `hdiutil` for atomic DMG mount/detach, `rsync`
+    for staged copy — same call topology as the prior Dart
+    `IProcessRunner` abstraction). cfg-gated to
     `target_os = "macos"`; rust-cross-check matrix validates
     against `aarch64-apple-darwin` + `x86_64-apple-darwin` on
-    every PR. Side effect: this commit also fixed pre-existing
+    every PR.
+
+    **Status: shipped-but-unwired.** The runtime path on macOS
+    still goes through `lib/platform/macos/code_signing/` (the
+    pre-port Dart implementation) because the Rust modules are
+    not exposed across FRB. Either expose them as
+    `lfs_frb::api::macos_signing` + `_installer` and retire the
+    Dart side, or revise this entry to mark the Rust modules
+    as scaffold-only. Both options are viable; pick before
+    the next macOS release cut.
+
+    Side effect of the original landing commit: pre-existing
     macOS-cfg compile errors in `secure_key_storage::apple`,
     `hardware_tier_vault::apple`, `biometric_auth::apple`, and
-    the `session_lock_listener::macos_impl` from NI-3
+    `session_lock_listener::macos_impl` got fixed
     (security-framework-sys 2.17 dropped some symbols, objc2
     0.6 made `LAContext::new` unsafe, etc.). Apple-cfg compile
-    is now green for the first time.
+    is now green even with the FRB exposure outstanding.
 23. Remaining Tier 4 items stay opt-in per Three Pillars
     "moving makes worse": `foreground_service` (lifecycle-
     bound to MainActivity, JNI duplicates Flutter plugin
