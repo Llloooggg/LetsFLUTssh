@@ -17783,8 +17783,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 31:
         return BusEvent_HardwareVaultSealPromptRequest(
           promptId: dco_decode_String(raw[1]),
-          dbKey: dco_decode_list_prim_u_8_strict(raw[2]),
-          pin: dco_decode_opt_String(raw[3]),
+          dbKeySecretId: dco_decode_String(raw[2]),
+          pinSecretId: dco_decode_opt_String(raw[3]),
         );
       case 32:
         return BusEvent_SecurityCapabilitiesChanged(
@@ -20865,12 +20865,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 31:
         final var_promptId = sse_decode_String(deserializer);
-        final var_dbKey = sse_decode_list_prim_u_8_strict(deserializer);
-        final var_pin = sse_decode_opt_String(deserializer);
+        final var_dbKeySecretId = sse_decode_String(deserializer);
+        final var_pinSecretId = sse_decode_opt_String(deserializer);
         return BusEvent_HardwareVaultSealPromptRequest(
           promptId: var_promptId,
-          dbKey: var_dbKey,
-          pin: var_pin,
+          dbKeySecretId: var_dbKeySecretId,
+          pinSecretId: var_pinSecretId,
         );
       case 32:
         final var_json = sse_decode_String(deserializer);
@@ -24851,13 +24851,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_opt_String(pin, serializer);
       case BusEvent_HardwareVaultSealPromptRequest(
         promptId: final promptId,
-        dbKey: final dbKey,
-        pin: final pin,
+        dbKeySecretId: final dbKeySecretId,
+        pinSecretId: final pinSecretId,
       ):
         sse_encode_i_32(31, serializer);
         sse_encode_String(promptId, serializer);
-        sse_encode_list_prim_u_8_strict(dbKey, serializer);
-        sse_encode_opt_String(pin, serializer);
+        sse_encode_String(dbKeySecretId, serializer);
+        sse_encode_opt_String(pinSecretId, serializer);
       case BusEvent_SecurityCapabilitiesChanged(json: final json):
         sse_encode_i_32(32, serializer);
         sse_encode_String(json, serializer);

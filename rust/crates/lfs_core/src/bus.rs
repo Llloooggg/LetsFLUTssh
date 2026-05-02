@@ -217,19 +217,30 @@ pub enum Event {
         pin: Option<String>,
     },
     /// Hardware-vault seal — fired by the L3 first-launch
-    /// orchestrator. Dart subscriber calls
+    /// orchestrator. Dart subscriber takes the staged bytes via
+    /// [`crate::secrets::SecretStore::take`] (atomic
+    /// read-and-remove), calls
     /// `HardwareTierVault.store(dbKey: bytes, pin: pin)` which
     /// fans out per-platform; resolves `Ok(())` on success or
     /// `Err(message)` on plugin failure via
-    /// `hardware_vault_seal_prompt::instance().resolve`. `pin` is
-    /// `None` for the passwordless variant. `db_key` is the
-    /// random AES-GCM key the orchestrator generated; the
-    /// orchestrator stages the same bytes in the SecretStore on
-    /// the success path so the listener can take them to drift.
+    /// `hardware_vault_seal_prompt::instance().resolve`.
+    /// `pin_secret_id` is `None` for the passwordless variant.
+    ///
+    /// **Why the indirection.** The earlier shape carried
+    /// `db_key: Vec<u8>` + `pin: Option<String>` directly through
+    /// `tokio::sync::broadcast`. Every subscriber on the
+    /// SecurityPrompt topic received a clone, the bytes lingered
+    /// in the channel buffer until consumed, and the FRB stream
+    /// delivered them to Dart as a plain `Vec<u8>` whose lifetime
+    /// no zeroize discipline reaches. Routing through SecretStore
+    /// means the bytes never enter the broadcast or cross the FRB
+    /// boundary inline — only the opaque ids do; the legitimate
+    /// subscriber takes the bytes from the pinned Rust-side
+    /// allocator on demand.
     HardwareVaultSealPromptRequest {
         prompt_id: String,
-        db_key: Vec<u8>,
-        pin: Option<String>,
+        db_key_secret_id: String,
+        pin_secret_id: Option<String>,
     },
     /// Security capabilities snapshot updated — fired by
     /// `lfs_core::security::capabilities_cache::Cache::set` when

@@ -379,14 +379,18 @@ sealed class BusEvent with _$BusEvent {
   }) = BusEvent_HardwareVaultUnlockPromptRequest;
 
   /// Hardware-vault seal — fired by the L3 first-launch
-  /// orchestrator. Dart subscriber wraps the bytes via
+  /// orchestrator. Dart subscriber takes the staged bytes via
+  /// `secrets_take(db_key_secret_id)` and (when present)
+  /// `secrets_take(pin_secret_id)`, wraps them via
   /// `HardwareTierVault.store(dbKey: bytes, pin: pin)`;
   /// resolves via `hardware_vault_seal_prompt_resolve*` shims.
-  /// `pin` is `None` for the passwordless variant.
+  /// `pin_secret_id` is `None` for the passwordless variant.
+  /// The plaintext DB key + PIN never enter the broadcast channel
+  /// or cross the FRB boundary inline — only opaque ids do.
   const factory BusEvent.hardwareVaultSealPromptRequest({
     required String promptId,
-    required Uint8List dbKey,
-    String? pin,
+    required String dbKeySecretId,
+    String? pinSecretId,
   }) = BusEvent_HardwareVaultSealPromptRequest;
 
   /// Security capabilities cache snapshot updated. `json` is

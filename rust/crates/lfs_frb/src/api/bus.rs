@@ -257,14 +257,18 @@ pub enum BusEvent {
         pin: Option<String>,
     },
     /// Hardware-vault seal — fired by the L3 first-launch
-    /// orchestrator. Dart subscriber wraps the bytes via
+    /// orchestrator. Dart subscriber takes the staged bytes via
+    /// `secrets_take(db_key_secret_id)` and (when present)
+    /// `secrets_take(pin_secret_id)`, wraps them via
     /// `HardwareTierVault.store(dbKey: bytes, pin: pin)`;
     /// resolves via `hardware_vault_seal_prompt_resolve*` shims.
-    /// `pin` is `None` for the passwordless variant.
+    /// `pin_secret_id` is `None` for the passwordless variant.
+    /// The plaintext DB key + PIN never enter the broadcast channel
+    /// or cross the FRB boundary inline — only opaque ids do.
     HardwareVaultSealPromptRequest {
         prompt_id: String,
-        db_key: Vec<u8>,
-        pin: Option<String>,
+        db_key_secret_id: String,
+        pin_secret_id: Option<String>,
     },
     /// Security capabilities cache snapshot updated. `json` is
     /// the freshly-cached snapshot in the `lfs_core::security::
@@ -450,12 +454,12 @@ impl BusEvent {
             }
             lfs_core::bus::Event::HardwareVaultSealPromptRequest {
                 prompt_id,
-                db_key,
-                pin,
+                db_key_secret_id,
+                pin_secret_id,
             } => BusEvent::HardwareVaultSealPromptRequest {
                 prompt_id,
-                db_key,
-                pin,
+                db_key_secret_id,
+                pin_secret_id,
             },
             lfs_core::bus::Event::SecurityCapabilitiesChanged { json } => {
                 BusEvent::SecurityCapabilitiesChanged { json }

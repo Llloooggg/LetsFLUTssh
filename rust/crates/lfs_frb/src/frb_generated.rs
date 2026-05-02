@@ -17468,12 +17468,12 @@ impl SseDecode for crate::api::bus::BusEvent {
             }
             31 => {
                 let mut var_promptId = <String>::sse_decode(deserializer);
-                let mut var_dbKey = <Vec<u8>>::sse_decode(deserializer);
-                let mut var_pin = <Option<String>>::sse_decode(deserializer);
+                let mut var_dbKeySecretId = <String>::sse_decode(deserializer);
+                let mut var_pinSecretId = <Option<String>>::sse_decode(deserializer);
                 return crate::api::bus::BusEvent::HardwareVaultSealPromptRequest {
                     prompt_id: var_promptId,
-                    db_key: var_dbKey,
-                    pin: var_pin,
+                    db_key_secret_id: var_dbKeySecretId,
+                    pin_secret_id: var_pinSecretId,
                 };
             }
             32 => {
@@ -21526,13 +21526,13 @@ impl flutter_rust_bridge::IntoDart for crate::api::bus::BusEvent {
             .into_dart(),
             crate::api::bus::BusEvent::HardwareVaultSealPromptRequest {
                 prompt_id,
-                db_key,
-                pin,
+                db_key_secret_id,
+                pin_secret_id,
             } => [
                 31.into_dart(),
                 prompt_id.into_into_dart().into_dart(),
-                db_key.into_into_dart().into_dart(),
-                pin.into_into_dart().into_dart(),
+                db_key_secret_id.into_into_dart().into_dart(),
+                pin_secret_id.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::bus::BusEvent::SecurityCapabilitiesChanged { json } => {
@@ -24759,13 +24759,13 @@ impl SseEncode for crate::api::bus::BusEvent {
             }
             crate::api::bus::BusEvent::HardwareVaultSealPromptRequest {
                 prompt_id,
-                db_key,
-                pin,
+                db_key_secret_id,
+                pin_secret_id,
             } => {
                 <i32>::sse_encode(31, serializer);
                 <String>::sse_encode(prompt_id, serializer);
-                <Vec<u8>>::sse_encode(db_key, serializer);
-                <Option<String>>::sse_encode(pin, serializer);
+                <String>::sse_encode(db_key_secret_id, serializer);
+                <Option<String>>::sse_encode(pin_secret_id, serializer);
             }
             crate::api::bus::BusEvent::SecurityCapabilitiesChanged { json } => {
                 <i32>::sse_encode(32, serializer);

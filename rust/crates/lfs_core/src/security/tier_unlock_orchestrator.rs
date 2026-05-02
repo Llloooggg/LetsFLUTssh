@@ -593,17 +593,25 @@ pub async fn first_launch_hardware(pin: Option<String>) -> UnlockOutcome {
     let key = crate::crypto::aes_gcm_random_key();
     let prompt_id = generate_prompt_id();
     let receiver = hardware_vault_seal_prompt::instance().register(prompt_id.clone());
+    // Stage the DB key + optional PIN in the SecretStore under
+    // transient ids so the broadcast bus carries only the ids,
+    // not the plaintext bytes. The Dart subscriber takes (atomic
+    // read-and-remove) the bytes inside its handler and never
+    // sees them on the channel buffer.
+    let secrets = &crate::app::instance().secrets;
+    let db_key_secret_id = format!("seal_prompt.db_key.{prompt_id}");
+    secrets.put(&db_key_secret_id, &key);
+    let pin_secret_id = pin.as_ref().map(|p| {
+        let id = format!("seal_prompt.pin.{prompt_id}");
+        secrets.put(&id, p.as_bytes());
+        id
+    });
     crate::app::instance()
         .bus
         .publish(Event::HardwareVaultSealPromptRequest {
             prompt_id: prompt_id.clone(),
-            // The seal-prompt event still carries the plaintext DB key
-            // across the broadcast bus — the bus-event redesign is the
-            // separate sub-arc that replaces this with a SecretRef
-            // handle. Until then `(*key).clone()` is needed to satisfy
-            // the `Vec<u8>` field; `key` is now `Zeroizing<Vec<u8>>`.
-            db_key: (*key).clone(),
-            pin,
+            db_key_secret_id: db_key_secret_id.clone(),
+            pin_secret_id: pin_secret_id.clone(),
         });
     let outcome = match receiver.await {
         Ok(Ok(())) => {
@@ -636,6 +644,15 @@ pub async fn first_launch_hardware(pin: Option<String>) -> UnlockOutcome {
             UnlockOutcome::PluginError(detail)
         }
     };
+    // Drop any staged seal-prompt secrets the Dart subscriber did
+    // not take — `take` is atomic-read-and-remove, so the
+    // success path has already drained them; the error / cancel
+    // paths could otherwise leave the bytes pinned in the
+    // SecretStore until process exit.
+    let _ = secrets.take(&db_key_secret_id);
+    if let Some(id) = &pin_secret_id {
+        let _ = secrets.take(id);
+    }
     outcome
 }
 

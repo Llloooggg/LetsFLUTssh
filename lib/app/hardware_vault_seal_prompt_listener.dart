@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import '../core/bus/app_bus.dart';
 import '../core/security/hardware_tier_vault.dart';
+import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../utils/logger.dart';
@@ -62,10 +64,24 @@ class HardwareVaultSealPromptListener {
     rust_bus.BusEvent_HardwareVaultSealPromptRequest event,
   ) async {
     final id = event.promptId;
+    // Take (atomic read-and-remove) the staged secrets out of
+    // the SecretStore. The bytes never travelled inline through
+    // the broadcast channel — only the opaque ids did, so this
+    // is the first point where Dart actually sees the plaintext.
+    // After this single hand-off the Rust side has nothing
+    // pinned, and the Dart-heap residency is bounded by the
+    // single store() call below.
+    final dbKey = rust_app.secretsTake(id: event.dbKeySecretId);
+    final pinSecretId = event.pinSecretId;
+    String? pin;
+    if (pinSecretId != null) {
+      final pinBytes = rust_app.secretsTake(id: pinSecretId);
+      pin = pinBytes.isEmpty ? null : utf8.decode(pinBytes);
+    }
     try {
       final stored = await _vault.store(
-        dbKey: Uint8List.fromList(event.dbKey),
-        pin: event.pin,
+        dbKey: Uint8List.fromList(dbKey),
+        pin: pin,
       );
       if (stored) {
         rust_orch.hardwareVaultSealPromptResolve(promptId: id);
