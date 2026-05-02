@@ -85,6 +85,7 @@ fuzz/out/
 # with the repo (they go stale fast, bloat history). Keep them as
 # working docs, commit nothing.
 docs/REVIEW_*.md
+docs/_audit/
 
 # Local planning doc — kept untracked intentionally.
 SECURITY_BACKLOG.md
