@@ -143,18 +143,70 @@ pub fn toggle_collapsed(conn: &Connection, id: &str) -> Result<usize, Error> {
 }
 
 /// Update name and/or parent_id. Either field may stay the same; the
-/// caller passes the desired values verbatim.
+/// caller passes the desired values verbatim. Rejects cycles —
+/// moving a folder under one of its own descendants would orphan
+/// the rest of the subtree and (combined with [`delete_recursive`]'s
+/// `UNION ALL` traversal) could otherwise spin a wipe forever.
 pub fn update_name_parent(
     conn: &Connection,
     id: &str,
     name: &str,
     parent_id: Option<&str>,
 ) -> Result<usize, Error> {
+    if let Some(target) = parent_id {
+        if target == id {
+            return Err(Error::Io(format!(
+                "folders update_name_parent: cycle — parent_id == id ({id})",
+            )));
+        }
+        if is_descendant_of(conn, target, id)? {
+            return Err(Error::Io(format!(
+                "folders update_name_parent: cycle — refused to move {id} under its own descendant {target}",
+            )));
+        }
+    }
     conn.execute(
         "UPDATE folders SET name = ?1, parent_id = ?2 WHERE id = ?3",
         params![name, parent_id, id],
     )
     .map_err(|e| Error::Io(format!("folders update_name_parent: {e}")))
+}
+
+/// Walk up `candidate.parent_id` chain looking for `ancestor`. Used
+/// by [`update_name_parent`] to reject reparent operations that
+/// would create a cycle. Bounded by the number of folder rows so
+/// pre-existing on-disk cycles can't make this loop forever.
+fn is_descendant_of(
+    conn: &Connection,
+    candidate: &str,
+    ancestor: &str,
+) -> Result<bool, Error> {
+    let mut current: Option<String> = Some(candidate.to_string());
+    let mut hops: u32 = 0;
+    let max_hops: u32 = 65_536;
+    while let Some(id) = current.take() {
+        if hops >= max_hops {
+            return Err(Error::Io(
+                "folders is_descendant_of: traversal hop cap exceeded — \
+                 likely a pre-existing cycle in the parent_id chain"
+                    .into(),
+            ));
+        }
+        hops += 1;
+        if id == ancestor {
+            return Ok(true);
+        }
+        let parent: Option<String> = conn
+            .query_row(
+                "SELECT parent_id FROM folders WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .ok()
+            .flatten();
+        current = parent;
+    }
+    Ok(false)
 }
 
 /// Rename / move a folder from `old_path` to `new_path` in one
@@ -228,14 +280,18 @@ pub fn rename_path_cascade(
 }
 
 /// Delete `id` and every descendant in the parent_id tree. Uses a
-/// recursive CTE so the round-trip count is one regardless of tree
-/// depth — same shape drift's `getDescendantIds` paired with a
-/// follow-up `IN (...)` delete.
+/// recursive CTE with `UNION` (deduplicating) so a pre-existing
+/// cyclic `parent_id` chain (A → B → A) cannot push the recursive
+/// term to walk forever. The schema CHECK + [`update_name_parent`]
+/// cycle guard make a cycle write-impossible going forward, but
+/// hand-edited DBs and pre-fix data could carry one — `UNION ALL`
+/// would happily expand them until SQLite's internal recursion
+/// ceiling, blocking the writer mutex on every wipe.
 pub fn delete_recursive(conn: &Connection, id: &str) -> Result<usize, Error> {
     conn.execute(
         "WITH RECURSIVE descendants(id) AS ( \
            SELECT id FROM folders WHERE id = ?1 \
-           UNION ALL \
+           UNION \
            SELECT f.id FROM folders f \
              INNER JOIN descendants d ON f.parent_id = d.id \
          ) \
@@ -342,5 +398,76 @@ mod rename_tests {
         let db = db();
         assert_eq!(rename(&db, "", "x").unwrap(), 0);
         assert_eq!(rename(&db, "x", "").unwrap(), 0);
+    }
+
+    /// Regression: the recursive CTE in [`delete_recursive`] used
+    /// `UNION ALL` (no dedup) and `update_name_parent` skipped the
+    /// cycle check, so a hand-edited
+    /// or pre-fix DB carrying a cyclic `parent_id` chain (A → B → A)
+    /// would loop the descendant traversal until SQLite's ceiling
+    /// fired, blocking the writer mutex on every wipe attempt. The
+    /// fix is two-fold: `update_name_parent` rejects cycles up
+    /// front so live data can never reach the cyclic state; and
+    /// `delete_recursive` switched to `UNION` (deduplicating) so
+    /// pre-existing on-disk cycles still terminate.
+    #[test]
+    fn update_name_parent_rejects_self_cycle() {
+        let db = db();
+        let id = ensure(&db, "loopy");
+        let err = db
+            .with_conn(|c| update_name_parent(c, &id, "loopy", Some(&id)))
+            .unwrap_err();
+        assert!(err.to_string().contains("cycle"));
+    }
+
+    #[test]
+    fn update_name_parent_rejects_descendant_cycle() {
+        let db = db();
+        ensure(&db, "infra/prod");
+        let folders = db.with_conn(list_all).unwrap();
+        let infra = folders.iter().find(|f| f.name == "infra").unwrap();
+        let prod = folders.iter().find(|f| f.name == "prod").unwrap();
+        // Try to make `infra` a child of `prod` (which is its child).
+        let err = db
+            .with_conn(|c| update_name_parent(c, &infra.id, "infra", Some(&prod.id)))
+            .unwrap_err();
+        assert!(err.to_string().contains("cycle"));
+    }
+
+    #[test]
+    fn delete_recursive_terminates_on_pre_existing_cycle() {
+        // Bypass `update_name_parent` to plant a cycle the way a
+        // hand-edited DB or pre-fix data could carry one. Then
+        // delete_recursive must terminate (the `UNION` dedup wins
+        // over an infinite walk).
+        let db = db();
+        ensure(&db, "a");
+        ensure(&db, "b");
+        let folders = db.with_conn(list_all).unwrap();
+        let a_id = folders.iter().find(|f| f.name == "a").unwrap().id.clone();
+        let b_id = folders.iter().find(|f| f.name == "b").unwrap().id.clone();
+        // Force the cycle directly via SQL: a.parent_id = b, b.parent_id = a.
+        db.with_conn(|c| {
+            c.execute(
+                "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
+                params![&b_id, &a_id],
+            )
+            .map_err(|e| crate::error::Error::Io(format!("plant cycle a: {e}")))
+        })
+        .unwrap();
+        db.with_conn(|c| {
+            c.execute(
+                "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
+                params![&a_id, &b_id],
+            )
+            .map_err(|e| crate::error::Error::Io(format!("plant cycle b: {e}")))
+        })
+        .unwrap();
+
+        // The deletion must complete in finite time (the test would
+        // hang or hit SQLite's recursion ceiling under the old
+        // `UNION ALL` body).
+        let n = db.with_conn(|c| delete_recursive(c, &a_id)).unwrap();
+        assert_eq!(n, 2, "both rows of the cycle should be deleted");
     }
 }
