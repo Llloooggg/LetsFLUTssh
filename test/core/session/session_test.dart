@@ -81,54 +81,9 @@ void main() {
       expect(s.fullPath, 'nginx');
     });
 
-    test('duplicate creates copy with new id', () {
-      final s = Session(
-        label: 'test',
-        server: const ServerAddress(host: 'x', user: 'r'),
-      );
-      final copy = s.duplicate();
-      expect(copy.id, isNot(s.id));
-      expect(copy.label, 'test (copy)');
-      expect(copy.host, s.host);
-    });
-
-    test('duplicate with empty label produces empty label', () {
-      final s = Session(
-        label: '',
-        server: const ServerAddress(host: 'h', user: 'u'),
-      );
-      final copy = s.duplicate();
-      expect(copy.label, isEmpty);
-      expect(copy.displayName, 'u@h:22');
-    });
-
-    test('duplicate creates independent server and auth copies', () {
-      final s = Session(
-        label: 'orig',
-        server: const ServerAddress(host: 'a', port: 22, user: 'b'),
-        auth: const SessionAuth(password: 'pw', keyData: 'key'),
-      );
-      final copy = s.duplicate();
-      expect(copy.host, s.host);
-      expect(copy.password, s.password);
-      expect(copy.keyData, s.keyData);
-      expect(identical(copy.server, s.server), isFalse);
-      expect(identical(copy.auth, s.auth), isFalse);
-    });
-
-    test('duplicate preserves authType', () {
-      final s = Session(
-        label: 'key-session',
-        server: const ServerAddress(host: 'h', user: 'u'),
-        auth: const SessionAuth(
-          authType: AuthType.keyWithPassword,
-          keyPath: '/key',
-          passphrase: 'pp',
-        ),
-      );
-      final copy = s.duplicate();
-      expect(copy.authType, AuthType.keyWithPassword);
-    });
+    // Session.duplicate() was retired with the Rust port — production
+    // duplication routes through dbSessionsDuplicateWithPath, covered
+    // by Rust-side tests in lfs_core::db::sessions::duplicate_tests.
 
     test('JSON roundtrip', () {
       final s = Session(

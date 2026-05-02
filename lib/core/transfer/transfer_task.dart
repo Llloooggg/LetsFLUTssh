@@ -4,27 +4,10 @@ enum TransferDirection { upload, download }
 /// Status of a transfer.
 enum TransferStatus { queued, running, completed, failed, cancelled }
 
-/// A single transfer task to be executed by the manager.
-class TransferTask {
-  final String name;
-  final TransferDirection direction;
-  final String sourcePath;
-  final String targetPath;
-  final int sizeBytes;
-  final Future<void> Function(
-    void Function(double percent, String message) update,
-  )
-  run;
-
-  const TransferTask({
-    required this.name,
-    required this.direction,
-    required this.sourcePath,
-    required this.targetPath,
-    this.sizeBytes = 0,
-    required this.run,
-  });
-}
+// `TransferTask` was retired with the Rust transfer queue port — the
+// only Dart caller was its own test. The HistoryEntry / ActiveEntry
+// read models below stay because TransfersNotifier still produces
+// them for the UI from the Rust-side TaskSnapshot stream.
 
 /// Completed/failed transfer history entry.
 class HistoryEntry {

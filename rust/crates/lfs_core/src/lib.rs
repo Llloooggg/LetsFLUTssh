@@ -60,7 +60,6 @@ pub mod ssh;
 pub mod ssh_config;
 pub mod ssh_dir_scan;
 pub mod threat_eval;
-pub mod threat_vocabulary;
 pub mod transfer;
 pub mod transfer_conflict;
 pub mod update_http;

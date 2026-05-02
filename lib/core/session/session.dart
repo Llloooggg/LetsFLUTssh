@@ -381,22 +381,11 @@ class Session {
   // from "leave unchanged".
   static const Object _unsetVia = Object();
 
-  /// Create a duplicate with new ID and "(copy)" suffix.
-  Session duplicate() {
-    return Session(
-      label: label.isNotEmpty ? '$label (copy)' : '',
-      folder: folder,
-      server: ServerAddress(host: host, port: port, user: user),
-      auth: SessionAuth(
-        authType: auth.authType,
-        keyId: keyId,
-        password: password,
-        keyPath: auth.keyPath,
-        keyData: keyData,
-        passphrase: passphrase,
-      ),
-    );
-  }
+  // Session.duplicate() was retired with the Rust port — production
+  // duplication routes through `dbSessionsDuplicateWithPath` which
+  // composes label-dedup + folder-resolve + new-id mint + insert in
+  // one transaction Rust-side. The Dart helper is no longer needed
+  // and was lossy w.r.t. extras / viaSessionId / viaOverride.
 
   /// Serialize without secrets — safe for plaintext JSON storage.
   Map<String, dynamic> toJson() => {
