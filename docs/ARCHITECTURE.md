@@ -286,16 +286,15 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 | File | Class/Function | Purpose |
 |------|---------------|---------|
 | `transport/ssh_transport.dart` | `SshTransport` interface, `SshConnectRequest`, `SshAuthMethod` family, `SshShellChannel`, `SshDirectTcpipChannel`, `SshForwardedConnection`, typed errors (`SshAuthFailed`, `SshConnectError`, `SshHostKeyRejected`, …) | Engine-agnostic transport surface — connect, openShell, openSftp, direct-tcpip channel, request remote forward. The only impl shipping today is `RustTransport`; the abstraction stays so test mocks can swap in. |
-| `transport/rust_transport.dart` | `RustTransport` | The Rust-backed impl. Translates the typed `SshConnectRequest` (including `SshAuth*Ref` variants that point at SecretStore ids) to FRB calls into `lfs_core::ssh`, materialises shell + direct-tcpip channels as Dart streams, drains forwarded connections via `connectViaProxy`. |
-| `transport/transport_factory.dart` | `createSshTransport` | Single construction point — every connect path goes through here so tests can override one factory and stub the whole transport surface. |
+| `transport/rust_transport.dart` | `RustTransport` | The Rust-backed impl. Translates the typed `SshConnectRequest` (including `SshAuth*Ref` variants that point at SecretStore ids) to FRB calls into `lfs_core::ssh`, materialises shell + direct-tcpip channels as Dart streams, drains forwarded connections via `connectViaProxy`. Only impl in the tree; `ConnectionsNotifier` constructs `RustTransport()` directly — there is no `createSshTransport` factory because there is nothing to switch between. Tests stub by injecting their own `SshTransport` implementation through the constructor seam on `ConnectionsNotifier`. |
 | `ssh_config.dart` | `SSHConfig`, `SshAuth`, `ServerAddress` | Config model carried across the connect path. `SshAuth` carries `password`, `keyPath`, `keyData`, `keyId`, `passphrase`; the connect path stages stored secrets via `db_sessions_stage_secrets` / `db_ssh_keys_stage_secret` so the bytes never round-trip through the Dart heap (see [§3.6 Security boundary](#36-security--encryption-coresecurity)). |
 | `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH-dir import path; never touched at connect time. |
-| `providers/known_hosts_provider.dart` | `KnownHostsNotifier` | TOFU host-key verification surface. Reads / writes the `known_hosts` table in `lfs_core.db` over FRB; serialises mutators against `verify` so an interactive prompt cannot interleave with a parallel `clearAll`. |
+| `providers/known_hosts_provider.dart` | `KnownHostsNotifier` | UI-side notifier that mirrors the `known_hosts` table in `lfs_core.db`. Subscribes to the `BusTopic::KnownHosts` stream so the cache refreshes whenever any code path mutates the table; the actual TOFU host-key verification flow is owned by `lfs_core::known_hosts` and the FRB-side prompt protocol (see [#§3.1 Auth chain](#auth-chain)) — Dart never gates auth itself. Mutators (`add` / `remove` / `clear`) issue the matching FRB DAO calls + reload. |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionsNotifier._failureStep` maps those into the typed errors above. |
 | `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model for the per-session forwarding tab. |
 | `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); thin shim that asks `lfs_core::portforward::driver` to spawn / stop the `-L` / `-D` / `-R` listeners against the live connection actor on connect / disconnect. No accept loop or SOCKS5 handshake on the Dart side. |
 | `shell_helper.dart` | `openShellWithRetry()` | Shared shell-open path with one retry on `SshConnectError("session disconnected")`. Used by the terminal pane + session recorder. |
-| `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`, host-key callback wired to the Dart `KnownHostsNotifier` over FRB. |
+| `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`. Host-key verification runs entirely Rust-side: the russh `check_server_key` callback consults `lfs_core::known_hosts` directly + raises `BusEvent::KnownHostPromptRequest` for unknown / mismatched fingerprints; the Dart side's `KnownHostsPromptListener` shows the dialog and resolves the prompt via `known_hosts_prompt_resolve`. |
 
 #### SSH transport surface
 
@@ -338,28 +337,23 @@ If the user has an encrypted key and no stored / passed passphrase, `RustTranspo
 #### KnownHostsNotifier
 
 ```dart
-class KnownHostsNotifier {
-  KnownHostsNotifier();             // no path — backed by lfs_core.db
-  Future<void> load();             // hydrates the in-memory cache from DAO
+class KnownHostsNotifier extends Notifier<Map<String, String>> {
+  // Subscribes to BusTopic::KnownHosts in build(); every mutation
+  // anywhere in the workspace fires a BusEvent::KnownHostsChanged
+  // and the listener triggers reload().
+  Future<void> load();             // hydrates the in-memory cache from DAO (idempotent)
+  Future<void> reload();           // force re-fetch
   void invalidateCache();          // dropped on auto-lock unlock so stale rows don't survive a tier switch
-
-  // Verification — called from the russh host-key callback over FRB.
-  // → true: key matches / user accepted (TOFU prompt)
-  // → false: user rejected / key changed and rejected
-  Future<bool> verify(String host, int port, String type, Uint8List fingerprint);
-
-  // Interactive callbacks fire through the global navigatorKey because
-  // the russh callback arrives without a BuildContext.
-  Future<bool> Function(String, int, String, String)? onUnknownHost;
-  Future<bool> Function(String, int, String, String)? onHostKeyChanged;
 
   // Read access:
   Map<String, String> get entries;           // {hostPort → "keyType base64Key"}
   int get count;
   static String fingerprint(List<int> keyBytes);
 
-  // CRUD — every mutator persists through the FRB DAO and bumps the cache:
-  Future<void> removeHost(String hostPort);
+  // CRUD — every mutator goes through the FRB DAO; the resulting
+  // bus event refreshes the cache:
+  Future<void> add(String host, int port, String keyType, String base64Key);
+  Future<void> remove(String hostPort);
   Future<void> removeMultiple(Set<String> hostPorts);
   Future<void> clearAll();
   Future<int> importFromFile(String path);   // merge entries, returns added count
@@ -368,9 +362,9 @@ class KnownHostsNotifier {
 }
 ```
 
-**Concurrency invariant — `verify` serialised with mutators.** `verify` runs through the same `_serializeWrite` chain as `clearAll` / `removeMultiple` / `importFromString`. The reader path can call `onUnknownHost` (interactive TOFU prompt) and block on user input; without serialisation a Settings → "Clear Known Hosts" click could interleave and the sequence `verify(host) → await prompt → user accepts → clearAll() fires in parallel → table wiped → verify resumes → re-insert the row the user just asked to forget` was reachable. Full serialisation is cheap (TOFU events are sparse, user-driven) and trivial to reason about. Regression guard: `test/core/ssh/known_hosts_test.dart` "verify is serialised against clearAll — accepted TOFU survives".
+The TOFU verification flow is **not** a Dart concern. The russh host-key callback in `lfs_core::ssh::Session` consults `lfs_core::known_hosts` directly; on a mismatch / unknown host it raises `BusEvent::KnownHostPromptRequest { connection_id, host, port, fingerprint, kind }` and awaits the prompt resolution through `lfs_core::security::known_host_prompt`. The Dart-side [`KnownHostsPromptListener`](../lib/app/known_hosts_prompt_listener.dart) subscribes to that bus event, renders [`HostKeyDialog`](#hostkeydialog), and resolves the prompt via `known_host_prompt_resolve(promptId, decision)`. `KnownHostsNotifier` is **only** the UI-side cache mirror; it does not gate auth, does not hold a `verify` method, and never blocks the connect path on user input.
 
-**Pre-unlock degradation.** Every entry point catches the synchronous `RustLib.instance` throw the FRB layer raises before the native lib is loaded (unit-test runner, first-launch wizard pre-unlock) and returns the in-memory cache only. The connect path tolerates an empty cache: russh's host-key callback runs through `onUnknownHost`, the user accepts in TOFU, and the next mutator persists once the DB is attached.
+**Pre-unlock degradation.** Every entry point catches the synchronous `RustLib.instance` throw the FRB layer raises before the native lib is loaded (unit-test runner, first-launch wizard pre-unlock) and returns the in-memory cache only. The connect path doesn't run pre-unlock anyway; the bus subscription installed in `build()` simply fails-soft until the FRB lib is up.
 
 #### Port forwarding
 
@@ -1192,7 +1186,7 @@ Opt-in, off by default. `autoLockMinutesProvider` (0 = off; presets 1/5/15/30/60
 
 **Always-wipe-on-lock policy.** The idle / lifecycle / session-lock triggers all funnel through `_triggerLock`, which fires `dbClose()` over FRB. `dbClose` zeroes SQLCipher's C-layer page-cipher state inside Rust *and* drops the cached DB key from the SecretStore. Previously the wipe was gated on `activeSessions.isEmpty` — a UX concession so an auto-lock during an open SSH session did not kill the user's reconnect path. The consequence was that the DB key sat in app RAM as long as a single session was active, so RAM forensics of a locked app could still recover it. The gate is now gone; live-session reconnect is satisfied by the [Session credential cache](#session-credential-cache), and T2+password now covers both RAM-forensics and kernel-breach rows.
 
-**Unlock re-opens the DB.** Because `_triggerLock` closes the Rust DB handle, every unlock has to re-open it. [`LockScreen._releaseLock`](../lib/widgets/lock_screen.dart) pushes the freshly-derived key back into `securityStateProvider` and flips `lockStateProvider` off; a `ref.listenManual` in `_LetsFLUTsshAppState.initState` observes the locked → unlocked transition and calls `_reopenDatabaseAfterUnlock`, which calls `dbInit(key)` over FRB and invalidates every store's in-memory cache so the next read pulls fresh rows. The per-session credential cache is Riverpod-scoped and is deliberately not touched in this path — its whole purpose is to survive the lock.
+**Unlock re-opens the DB.** Because `_triggerLock` closes the Rust DB handle, every unlock has to re-open it. [`LockScreen._releaseLock`](../lib/widgets/lock_screen.dart) pushes the freshly-derived key back into `securityStateProvider` and flips `lockStateProvider` off; a `ref.listenManual<bool>(lockStateProvider, …)` in [`_LetsFLUTsshAppState._wireLockStateListener`](../lib/main_app.dart) observes the locked → unlocked transition and calls `SecurityInitController.reopenAfterUnlock()`, which routes through the controller to `dbInit(key)` over FRB and invalidates every store's in-memory cache so the next read pulls fresh rows. The per-session credential cache is Riverpod-scoped and is deliberately not touched in this path — its whole purpose is to survive the lock.
 
 **Shortcut gate while locked.** Keyboard shortcuts registered on `MainScreen.CallbackShortcuts` sit in a sibling focus scope to `LockScreen`, so `Ctrl+N` / `Ctrl+,` can otherwise bubble through the overlay and hit `_newSession` / `SettingsDialog.show` against a closed DB. `MainScreen._buildKeyBindings` short-circuits every shortcut callback when `lockStateProvider` is true. Pointer hit-testing is already blocked by the `Positioned.fill(LockScreen)` overlay on the root `Stack`, so the gate is specifically a keyboard-path defense.
 
@@ -1988,16 +1982,17 @@ Encrypted `IdentityFile` keys are detected by `KeyFileHelper.isEncryptedPem` (de
 
 ```dart
 class UpdateService {
-  // Checks GitHub Releases API
-  // Compares current version with latest release
-  // User can skip a version (skippedVersion in config).
-  // Stale skip auto-clears when a newer version supersedes the skipped one.
+  // Checks GitHub Releases API via lfs_core::update_orchestrator
+  // (FRB) — version compare, skip-version persistence, signed-
+  // manifest verify, atomic download + extract. Dart side is the
+  // UI controller; the Rust orchestrator owns the pipeline.
   //
-  // DI: HttpFetcher, FileDownloader, ProcessRunner, ReleaseArtifactVerifier.
-  // Download: follows redirects (max 10), validates trusted hosts, and
+  // DI: HttpFetcher (rusty wrapper), ReleaseArtifactVerifier
+  // (delegates to lfs_core::update_signing).
+  // Download: follows redirects (max 10), validates trusted hosts,
   //   verifies every downloaded artefact twice before extract —
   //   (a) SHA-256 from the Releases JSON and
-  //   (b) Ed25519 signature against pinned public keys (release_signing.dart).
+  //   (b) Ed25519 signature via lfs_core::update_signing::verify_release_signature.
   // openFile(): platform launcher, validates Windows paths against shell metacharacters.
   // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
   //
@@ -2006,28 +2001,10 @@ class UpdateService {
 }
 ```
 
-Supporting classes in the same directory:
+Supporting Rust modules:
 
-- **`ReleaseSigning`** (`release_signing.dart`) — holds the pinned Ed25519
-  public keys (current + backup) as hex byte arrays and verifies a
-  `<artifact>.sig` file against them via `pinenacl`. Multi-pin so the
-  maintainer can rotate a leaked key without breaking already-installed
-  builds. See [§13 Update channel integrity](#update-channel-integrity)
-  for the end-to-end picture and [`SECURITY.md`](SECURITY.md) for the
-  rotation playbook.
-- **`CertPinning`** (`cert_pinning.dart`) — installs a
-  `badCertificateCallback` on the update-download HTTP client that
-  hashes the presented cert's `SubjectPublicKeyInfo` subtree (ASN.1-
-  parsed out of `cert.der` via `asn1lib`) and compares against a
-  per-host pin set. Pin map is empty by default (falls back to system
-  CA); populating it flips the updater into strict-pinning mode.
-  Defence against DNS / CA compromise of `api.github.com` /
-  `objects.githubusercontent.com`. SPKI (not full-cert) pinning is
-  load-bearing: a routine leaf rotation that re-signs the same
-  keypair — the normal renewal path — keeps the SPKI bytes unchanged,
-  so the pin survives without a release. Only a genuine key rotation
-  (rare, explicit) forces a new pin, which is the behaviour the
-  backup-pin mechanism is designed for.
+- **`lfs_core::update_signing`** (`rust/crates/lfs_core/src/update_signing.rs`) — holds the pinned Ed25519 public keys as a `&[[u8; 32]]` array. The verifier accepts a signature that validates against **any** pinned key, so the array can hold a current + previous pair during a rotation. **Today the array carries a single production key** — the historical "current + backup" claim describes the supported shape, not the live state. Adding a backup slot is a follow-up; until then, a leak of the lone pinned key forces a wider recovery playbook (release a fresh build with the new pin shipped through a side-channel announcement, then have users re-install). See [`SECURITY.md`](SECURITY.md) for the rotation playbook.
+- **`lfs_core::update_http`** (`rust/crates/lfs_core/src/update_http.rs`) — the rusty HTTP client used to fetch the Releases JSON + the artefact / signature pair. Relies on the system CA chain through `rustls-platform-verifier`; **no SPKI pinning is wired today**. The earlier Dart `cert_pinning.dart` had a populated-on-demand SPKI pin map (empty by default, fall back to system CA); the Rust port has not yet exposed an equivalent knob. The Ed25519 signature on every artefact is the load-bearing integrity check; SPKI pinning would be a defence-in-depth layer against a DNS / CA compromise of `api.github.com` / `objects.githubusercontent.com`. Slated as a follow-up.
 - **`InvalidReleaseSignatureException`** — thrown from
   `UpdateService.downloadAsset` when the signature check fails. Distinct
   from network errors so the UI can surface a "security-coloured" toast
@@ -2456,9 +2433,9 @@ class _FooDialogState extends State<FooDialog> {
 | `terminal_tab.dart` | `TerminalTab` | Container: manages split tree, reconnect, shortcuts |
 | `terminal_pane.dart` | `TerminalPane` | Single terminal: xterm widget + SSH shell pipe |
 | `cursor_overlay.dart` | `CursorTextOverlay`, `kTerminalLineHeight` | Paints inverted character on block cursor (xterm overlay). Exports the canonical 1.2 line-height multiplier used by every custom painter that sits on top of `TerminalView`. |
-| `tiling_view.dart` | `TilingView` | Recursive split tree renderer |
+| `tiling_view.dart` | `TilingView` | Recursive split-tree renderer. **Status: implemented but unreachable from the UI.** No menu entry / keyboard shortcut / drop target creates a `BranchNode` today; every workspace tab opens with a single `LeafNode` and stays that way. The renderer + drag-resize splitter handler are wired so the feature can be turned on by adding the missing context-menu entries (or removed wholesale once a decision lands). |
 | `split_node.dart` | `SplitNode`, `LeafNode`, `BranchNode` | Sealed class for split tree |
-| `broadcast_controller.dart` | `BroadcastController` | Per-tab fan-out for terminal broadcast input — see [§5.1 Broadcast input](#broadcast-input--per-tab-fan-out) |
+| `broadcast_controller.dart` | `BroadcastController` | Per-tab fan-out for terminal broadcast input — see [§5.1 Broadcast input](#broadcast-input--per-tab-fan-out). Same status as `tiling_view`: the controller exists, registers driver / receiver panes correctly, and is fully tested, but the UI to set the role does not exist — split panes have to land first for broadcast to be useful. |
 
 #### Split tree (tiling)
 
@@ -2670,13 +2647,12 @@ class FilePaneController extends ChangeNotifier {
 | `session_connect.dart` | `SessionConnect` | Connection logic: Session → resolve keyId → SSHConfig → ConnectionsNotifier. Async to support key store lookup |
 | `quick_connect_dialog.dart` | `QuickConnectDialog` | Quick connect without saving |
 | `qr_display_screen.dart` | `QrDisplayScreen` | QR code display for session sharing (scan or copy link). The bottom badge switches between a neutral "No passwords in QR" info and an orange warning (`qrContainsCredentialsWarning`) depending on the `containsCredentials` flag the caller passes — so the screen doesn't claim there are no passwords when the user enabled `includePasswords` / `includeManagerKeys` in the preceding export dialog |
-| `qr_export_dialog.dart` | `QrExportDialog` | Session selection for QR export (legacy, replaced by UnifiedExportDialog) |
-| `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and .lfs. Preset chips ("Full backup" / "Sessions"), session tree with checkboxes, data type selection (passwords, embedded keys, session-bound manager keys, all manager keys, config, known_hosts, tags, snippets), QR size indicator. Widget is a thin `AnimatedBuilder` shell over `UnifiedExportController` — selection / options / cached-size logic lives in the controller so it can be tested without a widget tree |
+| `unified_export_dialog.dart` | `UnifiedExportDialog` | Unified export dialog for both QR and .lfs (the legacy standalone `QrExportDialog` was retired). Preset chips ("Full backup" / "Sessions"), session tree with checkboxes, data type selection (passwords, embedded keys, session-bound manager keys, all manager keys, config, known_hosts, tags, snippets), QR size indicator. Widget is a thin `AnimatedBuilder` shell over `UnifiedExportController` — selection / options / cached-size logic lives in the controller so it can be tested without a widget tree |
 | `unified_export_controller.dart` | `UnifiedExportController`, `ExportPreset` | Headless `ChangeNotifier` driving the dialog: session selection set, `ExportOptions` with preset helpers, mutually-exclusive key-scope flags, cached payload / credential / empty-folder sizing. Same pattern as [`FilePaneController`](#filepanecontroller) — widget-local state that does not belong in a Riverpod provider |
 | `lfs_import_preview_dialog.dart` | `LfsImportPreviewDialog` | Preview .lfs archive contents before import. Filename header, preset chips (Full / Selective), collapsible checkbox grid with per-type counts on the right, merge/replace mode selector. Every checkbox is always clickable so replace mode can express "wipe this type" via a checked row even when the archive carries zero entries |
 | `link_import_preview_dialog.dart` | `LinkImportPreviewDialog` | Mirror of `LfsImportPreviewDialog` for `letsflutssh://import?…` deep links and scanned QR payloads. Same preset chips / checkbox grid / merge+replace selector, counts come from the `LfsPreview` projected off the Rust-staged handle (`QrDecodedSource.rust`), so link/QR imports share the archive flow's opt-in/out UX |
 | `ssh_dir_import_dialog.dart` | `SshDirImportDialog` | Unified picker for `~/.ssh` contents. Two collapsible sections — "Hosts from config" (from `~/.ssh/config`) and "Keys in ~/.ssh" (scanner output). Each section has a tristate "select all" row, a divider, then the indented per-item list. A "Browse files…" button per section opens a `FilePicker` rooted at `~/.ssh` so the user can pull in an extra config file or key files from elsewhere. Parsed hosts whose `user@host:port` already exists as a session, and keys whose fingerprint matches an entry in the key store, are flagged with an "already in sessions" / "already in store" trailing tag and default to **unchecked** — the same dedup contract the .lfs / QR import flow applies to session IDs and key fingerprints. New picks are deduped by session id (hosts) or private-key fingerprint (keys). Returns one combined `ImportResult` routed through the same `_applyFilteredImport` path as the .lfs archive import |
-| `data_checkboxes.dart` | `CollapsibleCheckboxesSection`, `DataCheckboxRow` | Shared visual primitives for checkbox grids. Used by [`UnifiedExportDialog`](#unified-export-dialog), `LfsImportPreviewDialog`, and `SshDirImportDialog` so every checkbox list in the app has identical chevron/hover/label/trailing layout |
+| (`lib/widgets/data_checkboxes.dart`) | `CollapsibleCheckboxesSection`, `DataCheckboxRow` | Shared visual primitives for checkbox grids — lives in `lib/widgets/` (not under `features/session_manager/` despite the export dialog being its main consumer). Used by [`UnifiedExportDialog`](#unifiedexportdialog), `LfsImportPreviewDialog`, and `SshDirImportDialog` so every checkbox list in the app has identical chevron/hover/label/trailing layout |
 
 #### SessionConnect — flow
 
@@ -2792,7 +2768,7 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
 | `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
-| `known_hosts_manager.dart` | `KnownHostsNotifierDialog` | Known hosts management dialog (search, delete, import, export, clear) |
+| `known_hosts_manager.dart` | `KnownHostsManagerPanel`, `KnownHostsManagerDialog` | Known hosts management surface (search, delete, import, export, clear). Embeddable panel + thin dialog wrapper, same shape as the SSH-keys / snippets / tags managers. |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
 | `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags, Known Hosts |
 | `tools/tools_screen.dart` | `ToolsScreen` | Mobile Tools route — list of tool tiles (same entries as desktop dialog) |
@@ -4139,7 +4115,7 @@ flowchart TD
 Session {
   id: String              // UUID v4
   label: String           // display name
-  folder: String           // folder path: "Production/Web" (/ separator)
+  folder: String          // folder path: "Production/Web" (/ separator)
   server: ServerAddress {
     host: String
     port: int             // default 22
@@ -4149,14 +4125,22 @@ Session {
     authType: AuthType    // password | key | keyWithPassword (Both)
     password: String      // empty if not used
     keyPath: String       // key file path (or ~)
+    keyId: String         // SSH-keys-table id (when using a saved key)
     keyData: String       // PEM text (paste)
     passphrase: String    // for the key
   }
   createdAt: DateTime
   updatedAt: DateTime
-  incomplete: bool        // QR import without credentials
+  extras: Map<String, Object?>  // Sessions.extras JSON bag
+  viaSessionId: String?         // ProxyJump bastion (saved session id)
+  viaOverride: ProxyJumpOverride?  // ProxyJump override (one-off)
+  notes: String                 // Sessions.notes — free-form, round-tripped on every save
+  sortOrder: int                // Sessions.sort_order — manual position within folder (0 = unspecified)
+  lastConnectedAtMs: int?       // Sessions.last_connected_at — wall-clock ms since epoch
 }
 ```
+
+The plaintext credential fields (`password`, `keyData`, `passphrase`) on the in-memory model are populated only on the dialog-edit path; persistence routes through SecretRef ids (see [§3.6 SecretStore + SecretRef pattern](#secretstore--secretref-the-plaintext-discipline-rule)) so the on-disk form holds opaque ids, not plaintext.
 
 ### Connection
 
@@ -4166,13 +4150,18 @@ Connection {
   label: String
   sshConfig: SSHConfig    // mutable — refreshed from session store on reconnect
   sessionId: String?      // links back to saved Session (null for quick-connect)
-  knownHosts: KnownHostsNotifier  // for host key verification
-  sshConnection: SSHConnection?
+  transport: SshTransport?  // engine-agnostic transport set on successful connect (today: RustTransport)
   state: SSHConnectionState  // disconnected | connecting | connected
   connectionError: Object?
-  _readyCompleter: Completer // resolves after connect attempt
+  cachedPassphrase: String?  // for the lifetime of one tab; cleared on disconnect
+  transientSecretIds: Set<String>  // SecretStore ids the connect path staged; drained on terminal state
+  bastion: Connection?    // pinned bastion hop for ProxyJump (lifecycle cascades)
+  internal: bool          // true for manager-created bastion connections (UI hides them)
+  _readyCompleter: Completer<void>  // resolves after connect attempt
 }
 ```
+
+`Connection` does not own a `KnownHostsNotifier` reference; the host-key verification flow runs entirely Rust-side (`lfs_core::known_hosts` + the FRB-side `BusEvent::KnownHostPromptRequest` round-trip), and the Dart `KnownHostsNotifier` is a UI-side notifier on the same backing table without any per-connection link.
 
 ### TabEntry
 
@@ -4514,7 +4503,7 @@ Encryption is applied at the database level via SQLCipher 4.x (AES-256-CBC + HMA
 
 `_firstLaunchSetup` in `main.dart` probes capabilities via [`probeCapabilities`](../lib/core/security/security_bootstrap.dart) and picks the tier itself. The multi-option wizard is a fallback that only fires when the choice matters on this device — 99% of installs never see it.
 
-`probeCapabilities` is now a thin async wrapper around `lfs_core::security::capabilities_orchestrator::run` (FRB) — the orchestrator fans the four probes (keychain / hardware vault / biometric / fprintd) out concurrently via `tokio::join!` with a 5 s per-probe timeout, composes the snapshot, pushes it through the `capabilities_cache` actor, and returns it. Platform plugin calls (`SecureKeyStorage.probe`, `HardwareTierVault.probeDetail`, `BiometricAuth.availability`, `FprintdClient.getEnrolmentHash`) reach the orchestrator through the prompt subscribers (`KeychainProbePromptListener`, `HardwareVaultProbePromptListener`, `BiometricProbePromptListener`). A Rust-side failure now propagates directly to the caller — the previous Dart-mirror pipeline that used to silently take over on FRB error was retired so a buggy snapshot can no longer mask the orchestrator's own failure mode.
+`probeCapabilities` is now a thin async wrapper around `lfs_core::security::capabilities_orchestrator::run` (FRB) — the orchestrator fans the four probes (keychain / hardware vault / biometric / fprintd) out concurrently via `tokio::join!` with a 5 s per-probe timeout, composes the snapshot, pushes it through the `capabilities_cache` actor, and returns it. Two of the four probes still need a Dart-side helper because they wrap UI-bearing platform plugins; those run through `KeychainProbePromptListener` and `HardwareVaultProbePromptListener` (each subscribes to the matching `BusEvent::*ProbePromptRequest` and resolves with `*_probe_prompt_resolve`). The biometric + fprintd probes execute entirely Rust-side via `lfs_os_security::biometric_auth::check_availability` and the Linux `fprintd` D-Bus path inside `lfs_core::platform::linux::fprintd` — no Dart prompt listener is needed for them. A Rust-side failure now propagates directly to the caller; the previous Dart-mirror pipeline that used to silently take over on FRB error was retired so a buggy snapshot can no longer mask the orchestrator's own failure mode.
 
 1. Probe keychain + hardware vault classified results in parallel via the Rust orchestrator.
 2. **Keychain reachable (common path)** → silently land on T1: generate a random DB key, write it to the OS keychain, inject the database, log the auto-select. No dialogs, no prompts. The `FirstLaunchBannerData` is queued on [`firstLaunchBannerProvider`](../lib/providers/first_launch_banner_provider.dart) so the main screen pops a one-shot confirmation dialog telling the user which tier we picked and whether a hardware upgrade is reachable.
@@ -4604,29 +4593,9 @@ from a private key held offline by the maintainer and verified by a
 public key compiled into the binary; the updater does not consult any
 online service at verify time.
 
-**Rotation:** the app embeds two public keys. If the current private
-key ever leaks the maintainer swaps the `RELEASE_SIGNING_KEY` secret
-to the backup, generates a fresh backup pair offline, and ships the
-next release with `[backup, fresh-backup]` in `release_signing.dart`.
-Already-installed builds keep verifying via the (now-active) backup
-pin. Full playbook in [`SECURITY.md`](SECURITY.md).
+**Rotation:** the verifier accepts a signature against any element of the `PINNED_PUBLIC_KEYS` array in `lfs_core::update_signing`, so the shape supports a current + previous pair during a rotation. **Today the array carries a single production key.** A leak forces the wider recovery playbook (release a fresh build under the new pin, announce it through the side-channel documented in [`SECURITY.md`](SECURITY.md), prompt installed builds to re-install). Adding a backup slot to make the rotation hot-swappable is a follow-up.
 
-**SPKI pinning (optional, off by default):** `CertPinning` adds a
-`badCertificateCallback` on the update HTTP client that parses the
-presented X.509 certificate's ASN.1, extracts the
-`SubjectPublicKeyInfo` subtree (via `asn1lib`), SHA-256's the DER
-bytes of that subtree, and compares against a per-host pin set. Pin
-map is empty until the maintainer captures the current GitHub SPKI
-hashes via the `openssl s_client | x509 -pubkey | sha256 | base64`
-pipeline documented in the class. Shipping empty pins keeps behaviour
-at system-CA validation (same as before); populated pins strengthen
-the transport layer on top of the release signature. Hashing the SPKI
-(not the full cert DER) means the pin survives routine leaf rotations
-that re-sign the same keypair — only a genuine key rotation breaks
-the pin, which is the behaviour the backup-pin mechanism is designed
-to handle. Regression guard: `test/core/update/cert_pinning_test.dart`
-"extractSpki returns identical bytes for two certs sharing a keypair"
-and "extractSpki returns different bytes for different keypairs".
+**SPKI pinning (planned — not wired today):** the Dart-era updater shipped with an off-by-default `CertPinning` knob — `badCertificateCallback` on the HTTP client, ASN.1-extract the `SubjectPublicKeyInfo`, SHA-256 the DER bytes, compare against a per-host pin set, fall back to system-CA validation when the pin map was empty. The Rust port (`lfs_core::update_http`) has not yet exposed an equivalent. The Ed25519 release signature is the load-bearing integrity check; SPKI pinning is the defence-in-depth layer for a DNS / CA compromise scenario. Re-introducing the knob is a follow-up; until then the update channel relies on system-CA validation + the offline-signed manifest.
 
 ### .lfs export
 
