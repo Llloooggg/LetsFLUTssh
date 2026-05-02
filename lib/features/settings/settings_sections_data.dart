@@ -122,7 +122,6 @@ class _ResetAllDataTileState extends ConsumerState<_ResetAllDataTile> {
   }
 }
 
-
 class _QrExportTile extends ConsumerWidget {
   const _QrExportTile();
 
@@ -140,15 +139,15 @@ class _QrExportTile extends ConsumerWidget {
     final sessions = ref.read(sessionProvider);
     final notifier = ref.read(sessionProvider.notifier);
 
-    // Load counts for export dialog
+    // Load counts for export dialog. The export orchestrator pulls
+    // bytes directly from `lfs_core.db` Rust-side; the dialog
+    // carries the SshKeyEntry map only so the QR / .lfs size
+    // estimators can measure deflate-encoded payload bytes.
     final keyStore = ref.read(sshKeysProvider.notifier);
     final allKeys = await keyStore.loadAll();
     final allTags = await ref.read(tagsProvider.notifier).loadAll();
     final allSnippets = await ref.read(snippetsProvider.notifier).loadAll();
     if (!context.mounted) return;
-    final managerKeys = Map<String, String>.fromEntries(
-      allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
-    );
 
     final knownHostsContent = await ref
         .read(knownHostsProvider.notifier)
@@ -162,7 +161,6 @@ class _QrExportTile extends ConsumerWidget {
         emptyFolders: notifier.emptyFolders,
         config: ref.read(configProvider),
         knownHostsContent: knownHostsContent,
-        managerKeys: managerKeys,
         managerKeyEntries: allKeys,
         tags: allTags,
         snippets: allSnippets,

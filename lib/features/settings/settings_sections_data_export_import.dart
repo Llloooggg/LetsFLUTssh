@@ -212,15 +212,15 @@ class _ExportImportTile extends ConsumerWidget {
     final sessions = ref.read(sessionProvider);
     final notifier = ref.read(sessionProvider.notifier);
 
-    // Load counts for export dialog
+    // Load counts for export dialog. Same pattern as the QR
+    // export tile — bytes live in `managerKeyEntries` for the
+    // dialog's lifetime; the duplicate `Map<String, String>` was
+    // dropped from the dialog data.
     final keyStore = ref.read(sshKeysProvider.notifier);
     final allKeys = await keyStore.loadAll();
     final allTags = await ref.read(tagsProvider.notifier).loadAll();
     final allSnippets = await ref.read(snippetsProvider.notifier).loadAll();
     if (!context.mounted) return;
-    final managerKeys = Map<String, String>.fromEntries(
-      allKeys.entries.map((e) => MapEntry(e.key, e.value.privateKey)),
-    );
 
     final knownHostsContent = await ref
         .read(knownHostsProvider.notifier)
@@ -234,7 +234,6 @@ class _ExportImportTile extends ConsumerWidget {
         emptyFolders: notifier.emptyFolders,
         config: ref.read(configProvider),
         knownHostsContent: knownHostsContent,
-        managerKeys: managerKeys,
         managerKeyEntries: allKeys,
         tags: allTags,
         snippets: allSnippets,

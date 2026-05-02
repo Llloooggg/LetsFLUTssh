@@ -57,14 +57,30 @@ UnifiedExportController _ctrl({
   List<Snippet> snippets = const [],
   bool isQrMode = false,
 }) {
+  // Tests pass `managerKeys: {id: pem}` for convenience; the dialog
+  // data carries `managerKeyEntries` only (PEM lives on the
+  // SshKeyEntry, no parallel String map). Synthesize the entries
+  // from the convenience input when the caller didn't pass them.
+  final mergedEntries = <String, SshKeyEntry>{
+    ...managerKeyEntries,
+    for (final e in managerKeys.entries)
+      if (!managerKeyEntries.containsKey(e.key))
+        e.key: SshKeyEntry(
+          id: e.key,
+          label: 'k-${e.key}',
+          privateKey: e.value,
+          publicKey: '',
+          keyType: 'ed25519',
+          createdAt: DateTime(2025),
+        ),
+  };
   return UnifiedExportController(
     data: UnifiedExportDialogData(
       sessions: sessions,
       emptyFolders: emptyFolders,
       config: config,
       knownHostsContent: knownHostsContent,
-      managerKeys: managerKeys,
-      managerKeyEntries: managerKeyEntries,
+      managerKeyEntries: mergedEntries,
       tags: tags,
       snippets: snippets,
     ),

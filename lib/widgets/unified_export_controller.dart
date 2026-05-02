@@ -451,7 +451,16 @@ class UnifiedExportController extends ChangeNotifier {
 
   int get managerKeysExtraSize {
     if (_cachedManagerKeysExtra != null) return _cachedManagerKeysExtra!;
-    var managerKeys = data.managerKeys;
+    // Derive `keyId → privateKey` lazily from `managerKeyEntries`
+    // instead of carrying a duplicate `Map<String, String>` on the
+    // dialog data. The PEM bytes still live in `managerKeyEntries`
+    // for the dialog lifetime — fully removing them would require a
+    // Rust-side `qr_estimate_manager_keys_size` API that takes only
+    // metadata (key type + length) and returns the deflate estimate;
+    // tracked as a follow-up.
+    var managerKeys = <String, String>{
+      for (final e in data.managerKeyEntries.entries) e.key: e.value.privateKey,
+    };
     if (managerKeys.isEmpty) return _cachedManagerKeysExtra = 0;
 
     // "Session keys" mode — filter to keys referenced by the current

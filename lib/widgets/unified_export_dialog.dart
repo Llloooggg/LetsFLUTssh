@@ -26,11 +26,11 @@ class UnifiedExportDialogData {
   final AppConfig? config;
   final String? knownHostsContent;
 
-  /// Map of keyId -> keyData for keys stored in the manager.
-  /// Used for QR-mode manager key size estimation.
-  final Map<String, String> managerKeys;
-
-  /// Full SshKeyEntry map for .lfs archive size estimation.
+  /// Full SshKeyEntry map for .lfs archive size estimation AND
+  /// QR-mode manager-key size estimation. The PEM bytes live here
+  /// for the lifetime of the dialog; QR size estimation derives
+  /// `keyId → privateKey` lazily from this map instead of holding
+  /// a duplicate plaintext copy in a parallel `Map<String, String>`.
   final Map<String, SshKeyEntry> managerKeyEntries;
 
   /// All tags for size calculation and export.
@@ -44,7 +44,6 @@ class UnifiedExportDialogData {
     required this.emptyFolders,
     this.config,
     this.knownHostsContent,
-    this.managerKeys = const {},
     this.managerKeyEntries = const {},
     this.tags = const [],
     this.snippets = const [],

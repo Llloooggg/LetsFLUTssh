@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
@@ -51,6 +52,20 @@ void main() {
     bool isQrMode = false,
     Map<String, String> managerKeys = const {},
   }) {
+    // Same convenience-input shape as the controller's test helper:
+    // tests pass `managerKeys: {id: pem}`; the dialog data carries
+    // `managerKeyEntries` only.
+    final managerKeyEntries = <String, SshKeyEntry>{
+      for (final e in managerKeys.entries)
+        e.key: SshKeyEntry(
+          id: e.key,
+          label: 'k-${e.key}',
+          privateKey: e.value,
+          publicKey: '',
+          keyType: 'ed25519',
+          createdAt: DateTime(2025),
+        ),
+    };
     return MaterialApp(
       localizationsDelegates: S.localizationsDelegates,
       supportedLocales: S.supportedLocales,
@@ -63,7 +78,7 @@ void main() {
               emptyFolders: emptyFolders,
               config: config,
               knownHostsContent: knownHostsContent,
-              managerKeys: managerKeys,
+              managerKeyEntries: managerKeyEntries,
             ),
             isQrMode: isQrMode,
           ),
@@ -546,6 +561,19 @@ void main() {
         List<Snippet> snippets = const [],
         required ValueChanged<UnifiedExportResult?> onResult,
       }) {
+        // Convenience: callers pass `managerKeys: {id: pem}`; the
+        // dialog data carries `managerKeyEntries` only.
+        final managerKeyEntries = <String, SshKeyEntry>{
+          for (final e in managerKeys.entries)
+            e.key: SshKeyEntry(
+              id: e.key,
+              label: 'k-${e.key}',
+              privateKey: e.value,
+              publicKey: '',
+              keyType: 'ed25519',
+              createdAt: DateTime(2025),
+            ),
+        };
         return MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
@@ -561,7 +589,7 @@ void main() {
                       emptyFolders: const {},
                       config: config,
                       knownHostsContent: knownHostsContent,
-                      managerKeys: managerKeys,
+                      managerKeyEntries: managerKeyEntries,
                       tags: tags,
                       snippets: snippets,
                     ),
