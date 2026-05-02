@@ -9,19 +9,12 @@
 //! same response — the wire name of the
 //! `lfs_core::security::capabilities::KeyringProbeResult` enum.
 //!
-//! `flutter_secure_storage` access stays Dart-side because the
-//! Flutter plugin already audits those entry points and there
-//! is no mature Rust crate covering every target platform's
-//! keychain shape. The registry uses a typed response (the
-//! enum's wire name) rather than a free-form payload so a
-//! Dart-side typo at the wire-name layer surfaces as a
-//! `from_wire_name` decode failure rather than a silent
-//! mis-classification.
+//! Backed by the generic
+//! [`super::prompt_registry::PromptRegistry`]. The shape used to
+//! be hand-rolled here; the audit (G12) flagged the duplication
+//! across 5 sibling modules.
 
-use std::collections::HashMap;
-use std::sync::Mutex;
-
-use tokio::sync::oneshot;
+use super::prompt_registry::PromptRegistry as Generic;
 
 /// Outcome of a Dart-side keychain probe call. Wire name of one
 /// of the `KeyringProbeResult` variants — `"available"`,
@@ -29,58 +22,10 @@ use tokio::sync::oneshot;
 /// maps the string back to the typed enum.
 pub type KeychainProbeResponse = String;
 
-pub struct PromptRegistry {
-    inner: Mutex<HashMap<String, oneshot::Sender<KeychainProbeResponse>>>,
-}
-
-impl PromptRegistry {
-    pub fn new() -> Self {
-        Self {
-            inner: Mutex::new(HashMap::new()),
-        }
-    }
-
-    pub fn register(&self, prompt_id: String) -> oneshot::Receiver<KeychainProbeResponse> {
-        let (tx, rx) = oneshot::channel();
-        self.inner
-            .lock()
-            .expect("keychain probe prompt registry mutex poisoned")
-            .insert(prompt_id, tx);
-        rx
-    }
-
-    pub fn resolve(&self, prompt_id: &str, response: KeychainProbeResponse) -> bool {
-        let sender = self
-            .inner
-            .lock()
-            .expect("keychain probe prompt registry mutex poisoned")
-            .remove(prompt_id);
-        match sender {
-            Some(tx) => tx.send(response).is_ok(),
-            None => false,
-        }
-    }
-
-    pub fn cancel(&self, prompt_id: &str) {
-        self.inner
-            .lock()
-            .expect("keychain probe prompt registry mutex poisoned")
-            .remove(prompt_id);
-    }
-
-    pub fn pending_count(&self) -> usize {
-        self.inner
-            .lock()
-            .expect("keychain probe prompt registry mutex poisoned")
-            .len()
-    }
-}
-
-impl Default for PromptRegistry {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+/// Process-singleton registry alias — same surface as the other
+/// prompt registries (register / resolve / cancel /
+/// pending_count) parameterised over [`KeychainProbeResponse`].
+pub type PromptRegistry = Generic<KeychainProbeResponse>;
 
 pub fn instance() -> &'static PromptRegistry {
     static GLOBAL: std::sync::OnceLock<PromptRegistry> = std::sync::OnceLock::new();

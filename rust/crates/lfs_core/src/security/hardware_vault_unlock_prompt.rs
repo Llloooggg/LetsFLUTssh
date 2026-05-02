@@ -12,11 +12,11 @@
 //! through `lfs_core::platform::linux::tpm` without a prompt;
 //! the orchestrator picks that branch where it can and falls
 //! back to the prompt path on every other host.
+//!
+//! Backed by the generic
+//! [`super::prompt_registry::PromptRegistry`].
 
-use std::collections::HashMap;
-use std::sync::Mutex;
-
-use tokio::sync::oneshot;
+use super::prompt_registry::PromptRegistry as Generic;
 
 /// Outcome of the Dart-side hardware-vault unlock call.
 ///
@@ -30,60 +30,8 @@ use tokio::sync::oneshot;
 ///   plaintext.
 pub type HardwareVaultUnlockResponse = Result<Option<Vec<u8>>, String>;
 
-/// Process-singleton registry of pending hardware-vault unlock
-/// prompts, keyed by caller-allocated prompt id (UUIDv4).
-pub struct PromptRegistry {
-    inner: Mutex<HashMap<String, oneshot::Sender<HardwareVaultUnlockResponse>>>,
-}
-
-impl PromptRegistry {
-    pub fn new() -> Self {
-        Self {
-            inner: Mutex::new(HashMap::new()),
-        }
-    }
-
-    pub fn register(&self, prompt_id: String) -> oneshot::Receiver<HardwareVaultUnlockResponse> {
-        let (tx, rx) = oneshot::channel();
-        self.inner
-            .lock()
-            .expect("hardware vault unlock prompt registry mutex poisoned")
-            .insert(prompt_id, tx);
-        rx
-    }
-
-    pub fn resolve(&self, prompt_id: &str, response: HardwareVaultUnlockResponse) -> bool {
-        let sender = self
-            .inner
-            .lock()
-            .expect("hardware vault unlock prompt registry mutex poisoned")
-            .remove(prompt_id);
-        match sender {
-            Some(tx) => tx.send(response).is_ok(),
-            None => false,
-        }
-    }
-
-    pub fn cancel(&self, prompt_id: &str) {
-        self.inner
-            .lock()
-            .expect("hardware vault unlock prompt registry mutex poisoned")
-            .remove(prompt_id);
-    }
-
-    pub fn pending_count(&self) -> usize {
-        self.inner
-            .lock()
-            .expect("hardware vault unlock prompt registry mutex poisoned")
-            .len()
-    }
-}
-
-impl Default for PromptRegistry {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+/// Process-singleton registry alias.
+pub type PromptRegistry = Generic<HardwareVaultUnlockResponse>;
 
 pub fn instance() -> &'static PromptRegistry {
     static GLOBAL: std::sync::OnceLock<PromptRegistry> = std::sync::OnceLock::new();

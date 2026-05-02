@@ -1,8 +1,7 @@
 //! Per-prompt-type registry for connection credential prompts.
 //!
-//! Mirrors `lfs_core::security::keychain_pepper_prompt::PromptRegistry`
-//! shape — typed `tokio::oneshot::Sender<CredentialResponse>` per
-//! prompt id, registered by the awaiting Rust connection handler,
+//! Typed `tokio::oneshot::Sender<CredentialResponse>` per prompt
+//! id, registered by the awaiting Rust connection handler,
 //! resolved by the Dart subscriber after the user types a secret
 //! into the unlock dialog.
 //!
@@ -13,15 +12,15 @@
 //! because UI rendering is not portable through Rust; the Rust
 //! actor publishes the request + awaits the response.
 //!
+//! Backed by the generic
+//! [`super::prompt_registry::PromptRegistry`].
+//!
 //! **Currently not wired into the production connect path.**
 //! Lands ahead of the connection-credential-overlay actor work
 //! so the FRB shim layer + the Dart subscriber bus wiring can
 //! target a stable registry API.
 
-use std::collections::HashMap;
-use std::sync::Mutex;
-
-use tokio::sync::oneshot;
+use super::prompt_registry::PromptRegistry as Generic;
 
 /// What the connection actor is asking the user for. Mirrors the
 /// Dart-era prompt variants (`PasswordPromptDialog` /
@@ -79,70 +78,10 @@ pub enum CredentialResponse {
     Cancel,
 }
 
-/// Process-singleton registry of pending credential prompts,
-/// keyed by caller-allocated prompt id (UUIDv4).
-pub struct PromptRegistry {
-    inner: Mutex<HashMap<String, oneshot::Sender<CredentialResponse>>>,
-}
-
-impl PromptRegistry {
-    pub fn new() -> Self {
-        Self {
-            inner: Mutex::new(HashMap::new()),
-        }
-    }
-
-    /// Park a fresh oneshot under `prompt_id` and return the
-    /// receiver. Caller awaits the receiver after publishing
-    /// the matching `CredentialPromptRequest` event.
-    pub fn register(&self, prompt_id: String) -> oneshot::Receiver<CredentialResponse> {
-        let (tx, rx) = oneshot::channel();
-        self.inner
-            .lock()
-            .expect("credential prompt registry mutex poisoned")
-            .insert(prompt_id, tx);
-        rx
-    }
-
-    /// Resolve a pending prompt with the user's response.
-    /// Idempotent — a missing prompt id (already resolved, or
-    /// the awaiting side timed out / cancelled) is a no-op.
-    /// Returns `true` when a receiver was actually woken.
-    pub fn resolve(&self, prompt_id: &str, response: CredentialResponse) -> bool {
-        let sender = self
-            .inner
-            .lock()
-            .expect("credential prompt registry mutex poisoned")
-            .remove(prompt_id);
-        match sender {
-            Some(tx) => tx.send(response).is_ok(),
-            None => false,
-        }
-    }
-
-    /// Drop a pending prompt without resolving — used by
-    /// connection handlers that abandon the await
-    /// (TCP teardown, shutdown, parent-bastion failure).
-    pub fn cancel(&self, prompt_id: &str) {
-        self.inner
-            .lock()
-            .expect("credential prompt registry mutex poisoned")
-            .remove(prompt_id);
-    }
-
-    pub fn pending_count(&self) -> usize {
-        self.inner
-            .lock()
-            .expect("credential prompt registry mutex poisoned")
-            .len()
-    }
-}
-
-impl Default for PromptRegistry {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+/// Process-singleton registry alias parameterised over
+/// [`CredentialResponse`]. Tests use `PromptRegistry::new`
+/// directly so they don't share state through `instance()`.
+pub type PromptRegistry = Generic<CredentialResponse>;
 
 /// Process-singleton instance — the connection actor and the
 /// FRB response shim share this. Tests use `PromptRegistry::new`

@@ -12,17 +12,10 @@
 //! `SecurityCapabilities.hardware_probe_code` field; the wizard
 //! / Settings UI maps it back to localised reason copy.
 //!
-//! `MethodChannel` access stays Dart-side because the Flutter
-//! plugin already audits those entry points and there is no
-//! parallel native plugin per platform. The registry's typed
-//! response (a code string) keeps the Dart subscriber's
-//! responsibility narrow — execute the channel call, return
-//! the verbatim code.
+//! Backed by the generic
+//! [`super::prompt_registry::PromptRegistry`].
 
-use std::collections::HashMap;
-use std::sync::Mutex;
-
-use tokio::sync::oneshot;
+use super::prompt_registry::PromptRegistry as Generic;
 
 /// Outcome of the Dart `MethodChannel` probe call. Free-form
 /// platform code string — `"available"` is the canonical
@@ -31,58 +24,8 @@ use tokio::sync::oneshot;
 /// such-method case.
 pub type HardwareVaultProbeResponse = String;
 
-pub struct PromptRegistry {
-    inner: Mutex<HashMap<String, oneshot::Sender<HardwareVaultProbeResponse>>>,
-}
-
-impl PromptRegistry {
-    pub fn new() -> Self {
-        Self {
-            inner: Mutex::new(HashMap::new()),
-        }
-    }
-
-    pub fn register(&self, prompt_id: String) -> oneshot::Receiver<HardwareVaultProbeResponse> {
-        let (tx, rx) = oneshot::channel();
-        self.inner
-            .lock()
-            .expect("hardware vault probe prompt registry mutex poisoned")
-            .insert(prompt_id, tx);
-        rx
-    }
-
-    pub fn resolve(&self, prompt_id: &str, response: HardwareVaultProbeResponse) -> bool {
-        let sender = self
-            .inner
-            .lock()
-            .expect("hardware vault probe prompt registry mutex poisoned")
-            .remove(prompt_id);
-        match sender {
-            Some(tx) => tx.send(response).is_ok(),
-            None => false,
-        }
-    }
-
-    pub fn cancel(&self, prompt_id: &str) {
-        self.inner
-            .lock()
-            .expect("hardware vault probe prompt registry mutex poisoned")
-            .remove(prompt_id);
-    }
-
-    pub fn pending_count(&self) -> usize {
-        self.inner
-            .lock()
-            .expect("hardware vault probe prompt registry mutex poisoned")
-            .len()
-    }
-}
-
-impl Default for PromptRegistry {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+/// Process-singleton registry alias.
+pub type PromptRegistry = Generic<HardwareVaultProbeResponse>;
 
 pub fn instance() -> &'static PromptRegistry {
     static GLOBAL: std::sync::OnceLock<PromptRegistry> = std::sync::OnceLock::new();
