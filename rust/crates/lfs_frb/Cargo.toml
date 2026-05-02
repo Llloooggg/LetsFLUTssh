@@ -20,11 +20,6 @@ lfs_os_security = { path = "../lfs_os_security" }
 flutter_rust_bridge = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
-# Used to mint random handle ids for the import staging surface
-# (`db_import_open`). Same crate lfs_core already pulls; the
-# adapter just needs its own dep declaration so the FRB module
-# can call `OsRng` directly.
-rand = "0.8"
 # Used by the security-config / capabilities FRB shims to round-trip
 # the `Map<String, dynamic>` payloads Dart consumers persist inside
 # `config.json`. Same crate `lfs_core` already pins.

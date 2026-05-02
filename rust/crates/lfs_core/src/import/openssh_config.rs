@@ -168,7 +168,7 @@ fn resolve_identity_key(
         let label = key_label(raw_path, key_label_suffix);
         match keys::import_openssh(&pem, None, &label) {
             Ok(material) => {
-                let id = uuid::Uuid::new_v4().to_string();
+                let id = crate::id::random_uuid_v4();
                 let now_ms = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|d| d.as_millis() as i64)
@@ -211,7 +211,7 @@ fn build_session_for_entry(entry: &HostEntry, key_id: &str, folder_label: &str) 
         String::new()
     };
     ImportSession {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: crate::id::random_uuid_v4(),
         label: entry.host.clone(),
         folder: folder_label.to_string(),
         host: entry.effective_host().to_string(),

@@ -143,7 +143,7 @@ pub fn prepare_auth(conn: &Connection, input: &PrepareAuthInput) -> Result<Prepa
 
     // 3. Quick-connect fallback. Every id under `conn.*` is
     //    transient — caller drops them after the dial settles.
-    let transient_id = generate_transient_id();
+    let transient_id = crate::id::random_handle_hex_32();
     let store = &crate::app::instance().secrets;
 
     if !input.key_data.is_empty() {
@@ -188,13 +188,6 @@ pub fn prepare_auth(conn: &Connection, input: &PrepareAuthInput) -> Result<Prepa
         auth: PreparedAuthRef::Password { secret_id: id },
         transient_secret_ids: transients,
     })
-}
-
-fn generate_transient_id() -> String {
-    use rand::RngCore;
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[cfg(test)]

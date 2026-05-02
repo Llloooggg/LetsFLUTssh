@@ -370,7 +370,7 @@ fn stage_qr_import(uri: &str) -> DeeplinkOutcome {
     };
     match crate::qr_codec_decode::try_decode_payload(&payload) {
         crate::qr_codec_decode::QrDecodeResult::Ok(decoded) => {
-            let handle_id = random_handle_id();
+            let handle_id = crate::id::random_handle_hex_32();
             let decoded = *decoded;
             crate::app::instance()
                 .imports
@@ -423,18 +423,6 @@ fn strip_file_scheme(uri: &str) -> String {
     } else {
         uri.to_string()
     }
-}
-
-fn random_handle_id() -> String {
-    use rand::RngCore;
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    let mut hex = String::with_capacity(32);
-    for b in bytes {
-        use std::fmt::Write as _;
-        let _ = write!(hex, "{b:02x}");
-    }
-    hex
 }
 
 #[cfg(test)]

@@ -724,14 +724,20 @@ mod tests {
     /// race assertions; serialise here so each scenario sees a
     /// quiescent global state. Parallelism stays on for the rest
     /// of the suite.
-    fn serial() -> std::sync::MutexGuard<'static, ()> {
-        static M: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        M.lock().unwrap_or_else(|p| p.into_inner())
+    ///
+    /// Uses `tokio::sync::Mutex` (not `std::sync::Mutex`) so the
+    /// async tests can hold the guard across `.await` without
+    /// tripping the `await_holding_lock` clippy lint.
+    fn serial_mutex() -> &'static tokio::sync::Mutex<()> {
+        static M: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+        M.get_or_init(|| tokio::sync::Mutex::new(()))
     }
 
     #[test]
     fn unlock_plaintext_self_advances_to_unlocked() {
-        let _guard = serial();
+        // Sync test — `blocking_lock` against the tokio Mutex
+        // since we don't have an async runtime here.
+        let _guard = serial_mutex().blocking_lock();
         // Drive the singleton through the cascade. Other tests
         // in this binary touch the same singleton so we don't
         // assert from any starting state — only that the final
@@ -754,7 +760,7 @@ mod tests {
     /// `WrongSecret`.
     #[tokio::test]
     async fn unlock_keychain_with_password_short_circuits_when_limiter_locked() {
-        let _guard = serial();
+        let _guard = serial_mutex().lock().await;
         let _ = crate::app::init();
         let limiters = &crate::app::instance().rate_limiters;
 
@@ -786,7 +792,7 @@ mod tests {
     /// neither of which is `WrongSecret` returning fast.
     #[tokio::test]
     async fn unlock_paranoid_short_circuits_when_limiter_locked() {
-        let _guard = serial();
+        let _guard = serial_mutex().lock().await;
         let _ = crate::app::init();
         let limiters = &crate::app::instance().rate_limiters;
 

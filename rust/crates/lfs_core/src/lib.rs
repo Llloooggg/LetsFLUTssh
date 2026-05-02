@@ -33,6 +33,7 @@ pub mod folder_path;
 pub mod format;
 pub mod fs;
 pub mod host_info;
+pub mod id;
 pub mod import;
 pub mod keys;
 pub mod known_hosts;

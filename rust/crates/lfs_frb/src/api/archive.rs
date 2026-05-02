@@ -213,18 +213,6 @@ pub struct DbImportOpenResult {
     pub preview: DbImportPreview,
 }
 
-fn random_handle_id() -> String {
-    use rand::RngCore;
-    let mut bytes = [0u8; 16];
-    rand::rngs::OsRng.fill_bytes(&mut bytes);
-    let mut hex = String::with_capacity(32);
-    for b in bytes {
-        use std::fmt::Write as _;
-        let _ = write!(hex, "{b:02x}");
-    }
-    hex
-}
-
 /// Decode a QR / paste-link payload (deflated + base64url JSON,
 /// or v1 legacy raw base64url JSON), stage the resulting
 /// `PendingImport` under a freshly-generated handle id, and
@@ -243,7 +231,7 @@ pub async fn qr_import_open(payload: String) -> Result<DbImportOpenResult, Strin
         let decoded = lfs_core::qr_codec_decode::decode_payload(&raw).map_err(|e| e.to_string())?;
         let preview = decoded.pending.preview(decoded.schema_version);
         let app = lfs_core::app::instance();
-        let handle_id = random_handle_id();
+        let handle_id = lfs_core::id::random_handle_hex_32();
         app.imports.insert(handle_id.clone(), decoded.pending);
         Ok(DbImportOpenResult {
             handle_id,
@@ -269,7 +257,7 @@ pub async fn db_import_open(path: String, password: String) -> Result<DbImportOp
         let (pending, preview) = lfs_core::archive::read_archive_to_pending(&path, &password)
             .map_err(|e| e.to_string())?;
         let app = lfs_core::app::instance();
-        let handle_id = random_handle_id();
+        let handle_id = lfs_core::id::random_handle_hex_32();
         app.imports.insert(handle_id.clone(), pending);
         Ok(DbImportOpenResult {
             handle_id,
@@ -327,7 +315,7 @@ pub async fn db_import_stage(input: DbStagedImport) -> Result<String, String> {
             known_hosts_text: input.known_hosts_text,
         };
         let app = lfs_core::app::instance();
-        let handle_id = random_handle_id();
+        let handle_id = lfs_core::id::random_handle_hex_32();
         app.imports.insert(handle_id.clone(), pending);
         Ok(handle_id)
     })
