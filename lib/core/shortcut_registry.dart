@@ -1,6 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../utils/platform.dart' as plat;
+
 /// Every app-level keyboard shortcut with its default key binding.
 ///
 /// Shortcuts are grouped by context (global, terminal, file browser, session
@@ -64,7 +66,17 @@ enum AppShortcut {
 }
 
 /// Central registry that maps [AppShortcut] values to their current key
-/// bindings. Initially every shortcut uses its [AppShortcut.defaultBinding].
+/// bindings. Initially every shortcut uses its [AppShortcut.defaultBinding],
+/// remapped per-platform so macOS users get Cmd-based shortcuts that match
+/// platform conventions and don't clash with the in-terminal Ctrl+C
+/// (SIGINT) byte.
+///
+/// On macOS every `control: true` flag in [AppShortcut.defaultBinding]
+/// becomes `meta: true` (the Cmd key); other modifiers are left alone.
+/// This is deliberately a bulk rewrite — adopting Apple's "drop the
+/// shift on Cmd-based copy/paste" convention (Cmd+C vs Cmd+Shift+C) is
+/// a UX-polish follow-up; the bulk mapping ships every shortcut as
+/// reachable on macOS today.
 ///
 /// Consumers use [buildCallbackMap] for `CallbackShortcuts` widgets and
 /// [matches] for raw `onKeyEvent` handlers (e.g. inside xterm).
@@ -74,8 +86,33 @@ class AppShortcutRegistry {
   static final instance = AppShortcutRegistry._();
 
   final Map<AppShortcut, SingleActivator> _bindings = {
-    for (final s in AppShortcut.values) s: s.defaultBinding,
+    for (final s in AppShortcut.values) s: _resolvePlatformBinding(s),
   };
+
+  /// Per-platform rewrite of [AppShortcut.defaultBinding]. macOS swaps
+  /// the Ctrl (`control`) flag for Cmd (`meta`) so every binding lands
+  /// on the platform-native primary modifier; every non-mac platform
+  /// keeps the activator as authored. Visible-for-testing so the test
+  /// harness can flip [plat.debugIsMacosOverride] and exercise the
+  /// rewrite without rebuilding the [AppShortcutRegistry] singleton.
+  @visibleForTesting
+  static SingleActivator resolvePlatformBindingForTesting(
+    AppShortcut shortcut,
+  ) => _resolvePlatformBinding(shortcut);
+
+  static SingleActivator _resolvePlatformBinding(AppShortcut shortcut) {
+    final b = shortcut.defaultBinding;
+    if (!plat.isMacosPlatform) return b;
+    if (!b.control) return b;
+    return SingleActivator(
+      b.trigger,
+      shift: b.shift,
+      alt: b.alt,
+      meta: true,
+      includeRepeats: b.includeRepeats,
+      numLock: b.numLock,
+    );
+  }
 
   /// Returns the current binding for [shortcut].
   SingleActivator binding(AppShortcut shortcut) => _bindings[shortcut]!;
@@ -137,6 +174,7 @@ class AppShortcutRegistry {
     final hw = HardwareKeyboard.instance;
     if (b.control != hw.isControlPressed) return false;
     if (b.shift != hw.isShiftPressed) return false;
+    if (b.meta != hw.isMetaPressed) return false;
     return true;
   }
 
@@ -152,16 +190,20 @@ class AppShortcutRegistry {
       formatShortcut(_bindings[shortcut]!);
 }
 
-/// Format a [SingleActivator] as a display string like `Ctrl+Shift+V`.
+/// Format a [SingleActivator] as a display string like `Ctrl+Shift+V`
+/// or `Cmd+Shift+V`.
 ///
 /// Modifier order: Ctrl, Alt, Shift, Meta — the GTK / Windows / macOS
-/// convention. Key glyph mirrors what the user sees on the cap.
+/// convention. On macOS the meta cap renders as "Cmd" since the
+/// activator is the platform's primary modifier; off-macOS it stays
+/// "Meta" so external usage of the meta flag (rare — Win key on
+/// Windows, Super on Linux) is still honest.
 String formatShortcut(SingleActivator a) {
   final parts = <String>[];
   if (a.control) parts.add('Ctrl');
   if (a.alt) parts.add('Alt');
   if (a.shift) parts.add('Shift');
-  if (a.meta) parts.add('Meta');
+  if (a.meta) parts.add(plat.isMacosPlatform ? 'Cmd' : 'Meta');
   parts.add(_keyLabel(a.trigger));
   return parts.join('+');
 }

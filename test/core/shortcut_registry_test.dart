@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/shortcut_registry.dart';
+import 'package:letsflutssh/utils/platform.dart' as plat;
 
 void main() {
   final registry = AppShortcutRegistry.instance;
@@ -302,6 +303,71 @@ void main() {
             formatShortcut(registry.binding(s)),
           );
         }
+      });
+    });
+
+    // Regression: every shortcut used to hard-code `control: true`,
+    // so macOS users got zero working Cmd shortcuts and Ctrl+C
+    // inside the terminal hit SIGINT instead of copy. The registry
+    // now rewrites `control: true` → `meta: true` on macOS so the
+    // platform-native primary modifier reaches every binding.
+    group('macOS Cmd rewrite', () {
+      tearDown(() {
+        plat.debugIsMacosOverride = null;
+        plat.debugResetPlatformCache();
+      });
+
+      test('control:true binding becomes meta:true on macOS', () {
+        plat.debugIsMacosOverride = true;
+        final activator = AppShortcutRegistry.resolvePlatformBindingForTesting(
+          AppShortcut.newSession,
+        );
+        expect(activator.control, isFalse);
+        expect(activator.meta, isTrue);
+        expect(activator.trigger, LogicalKeyboardKey.keyN);
+      });
+
+      test('shift modifier is preserved on macOS rewrite', () {
+        plat.debugIsMacosOverride = true;
+        final activator = AppShortcutRegistry.resolvePlatformBindingForTesting(
+          AppShortcut.terminalCopy,
+        );
+        expect(activator.control, isFalse);
+        expect(activator.meta, isTrue);
+        expect(activator.shift, isTrue);
+        expect(activator.trigger, LogicalKeyboardKey.keyC);
+      });
+
+      test('non-mac platforms leave the binding untouched', () {
+        plat.debugIsMacosOverride = false;
+        final activator = AppShortcutRegistry.resolvePlatformBindingForTesting(
+          AppShortcut.newSession,
+        );
+        expect(activator.control, isTrue);
+        expect(activator.meta, isFalse);
+      });
+
+      test('plain key bindings (no control) are unaffected on macOS', () {
+        plat.debugIsMacosOverride = true;
+        // fileDelete is a bare Delete key, no modifiers.
+        final activator = AppShortcutRegistry.resolvePlatformBindingForTesting(
+          AppShortcut.fileDelete,
+        );
+        expect(activator.control, isFalse);
+        expect(activator.meta, isFalse);
+        expect(activator.trigger, LogicalKeyboardKey.delete);
+      });
+
+      test('formatShortcut renders meta as "Cmd" on macOS', () {
+        plat.debugIsMacosOverride = true;
+        const activator = SingleActivator(LogicalKeyboardKey.keyN, meta: true);
+        expect(formatShortcut(activator), 'Cmd+N');
+      });
+
+      test('formatShortcut renders meta as "Meta" off macOS', () {
+        plat.debugIsMacosOverride = false;
+        const activator = SingleActivator(LogicalKeyboardKey.keyN, meta: true);
+        expect(formatShortcut(activator), 'Meta+N');
       });
     });
 
