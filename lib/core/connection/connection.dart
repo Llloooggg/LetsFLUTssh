@@ -250,13 +250,27 @@ class Connection {
     await ready;
   }
 
-  /// Mark connection attempt as resolved. Called by [ConnectionsNotifier].
+  /// Mark connection attempt as resolved. Called by [ConnectionsNotifier]
+  /// inside `_doConnect.finally`, which happens immediately after the
+  /// FRB `connection_connect` call returns. The Rust actor publishes
+  /// post-handshake events (3× progress success + ConnectionStateChanged
+  /// connected) right before `connect_async` returns, but Dart processes
+  /// them via the bus subscription's microtask queue — so they land
+  /// AFTER `completeReady` runs in the same tick.
+  ///
+  /// We do NOT close `_progressController` here for that reason. Closing
+  /// it would silently drop every queued post-success step in
+  /// `addProgressStep` (the `isClosed` guard kicks in), and downstream
+  /// subscribers (`ProgressTracker.writeStep`) would never see the
+  /// `success` lines for `socketConnect` / `hostKeyVerify` /
+  /// `authenticate`. The controller stays open for the Connection's full
+  /// lifetime; `dispose` closes it.
   void completeReady() {
     if (!_readyCompleter.isCompleted) _readyCompleter.complete();
-    if (!_progressController.isClosed) _progressController.close();
   }
 
-  /// Stream of connection progress steps. Closes when [completeReady] is called.
+  /// Stream of connection progress steps. Open for the lifetime of the
+  /// Connection — closed by [dispose].
   Stream<ConnectionStep> get progressStream => _progressController.stream;
 
   /// Buffered history of all progress steps — for late subscribers.
