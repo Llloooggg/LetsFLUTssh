@@ -15,6 +15,7 @@ import '../terminal/terminal_tab.dart';
 import 'drop_zone_overlay.dart';
 import 'panel_tab_bar.dart';
 import 'workspace_controller.dart';
+import 'workspace_drop_logic.dart';
 import 'workspace_node.dart';
 
 /// Recursively renders the [WorkspaceNode] tree as tiled panels,
@@ -284,17 +285,14 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   }
 
   void _handleDrop(TabDragData data, String targetPanelId, DropZone zone) {
-    if (zone == DropZone.center) return; // Inert — tab bar handles insertion.
+    final params = dropZoneToSplitParams(zone);
+    if (params == null) return; // center is inert — tab bar owns insertion.
     final notifier = ref.read(workspaceProvider.notifier);
-    final axis = zone == DropZone.left || zone == DropZone.right
-        ? Axis.horizontal
-        : Axis.vertical;
-    final insertBefore = zone == DropZone.left || zone == DropZone.top;
     notifier.splitPanel(
       targetPanelId,
-      axis,
+      params.axis,
       data.tab,
-      insertBefore: insertBefore,
+      insertBefore: params.insertBefore,
     );
     if (data.sourcePanelId != targetPanelId) {
       notifier.closeTab(data.sourcePanelId, data.tab.id);
@@ -303,18 +301,15 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
 
   /// Handles drops on the outermost workspace edges — splits the entire root.
   void _handleRootEdgeDrop(TabDragData data, DropZone zone) {
+    final params = dropZoneToSplitParams(zone);
+    if (params == null) return;
     final notifier = ref.read(workspaceProvider.notifier);
     final rootId = ref.read(workspaceProvider).root.id;
-    final direction = zone == DropZone.left || zone == DropZone.right
-        ? Axis.horizontal
-        : Axis.vertical;
-    final insertBefore = zone == DropZone.left || zone == DropZone.top;
-
     notifier.splitAroundNode(
       rootId,
-      direction,
+      params.axis,
       data.tab,
-      insertBefore: insertBefore,
+      insertBefore: params.insertBefore,
     );
     // Remove the tab from its source panel if still present.
     final sourcePanel = findPanel(
