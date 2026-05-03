@@ -98,3 +98,15 @@ pub fn test_ssh_server_stop_all() {
         h.shutdown();
     }
 }
+
+/// Inject an artificial per-`write` delay into the fixture's SFTP
+/// subsystem. Used by the transfer-cancel-mid-flight integration
+/// test to widen the cancel race window — without the delay,
+/// localhost loopback + the per-chunk-open SFTP write completes
+/// faster than a cancel can be dispatched from the test process.
+/// Pass `0` to clear. Tests that set this MUST clear it in
+/// teardown so the delay does not bleed into the next test.
+#[flutter_rust_bridge::frb(sync)]
+pub fn test_ssh_server_set_sftp_write_delay_ms(delay_ms: u32) {
+    test_server::set_sftp_write_delay_ms(delay_ms as u64);
+}

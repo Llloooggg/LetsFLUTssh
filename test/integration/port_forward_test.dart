@@ -1,21 +1,30 @@
-/// Local-forward (-L) integration test against the russh fixture.
+/// Port-forward (-L / -R / -D) integration coverage against the
+/// russh fixture.
 ///
-/// Wires a real SSH local-forward listener on the Rust side, asks
-/// it to tunnel `bindPort` → `127.0.0.1:targetPort` through the
-/// SSH transport, and asserts bytes round-trip through:
+/// All three primitives end up funnelling bytes through the same
+/// underlying SSH `direct-tcpip` (or `forwarded-tcpip` for `-R`)
+/// channel + a TCP socket on either end. The shape of each test:
 ///
-///   Dart TCP client (`bindPort`)
-///     → Rust local-forward accept loop
-///     → SSH `direct-tcpip` channel through the fixture
-///     → fixture's `channel_open_direct_tcpip` handler (proxies
-///       loopback hosts only — see `test_server.rs`)
-///     → Dart TCP echo server (`targetPort`)
+///   `-L` local-forward
+///     Dart TCP client (`bindPort`)
+///       → Rust local-forward accept loop
+///       → SSH `direct-tcpip` channel through the fixture
+///       → fixture's `channel_open_direct_tcpip` (loopback only)
+///       → Dart TCP echo server (`targetPort`)
 ///
-/// Remote-forward (-R) and dynamic-forward (-D / SOCKS5) are not
-/// covered: -R requires the fixture to implement `tcpip_forward`
-/// + accept inbound TCP and forward bytes to the client side,
-/// and SOCKS5 stacks another protocol on top of the same
-/// underlying tunnel that local-forward already exercises here.
+///   `-R` remote-forward
+///     Dart TCP client (server-side bound port)
+///       → fixture's `tcpip_forward` accept loop
+///       → SSH `forwarded-tcpip` channel back to the client
+///       → Rust `RemoteForwardHandle` bridge task
+///       → Dart TCP echo server (local `targetPort`)
+///
+///   `-D` dynamic / SOCKS5
+///     Dart SOCKS5 client (CONNECT 127.0.0.1:targetPort)
+///       → Rust SOCKS5 listener (`spawn_socks5_listener`)
+///       → SSH `direct-tcpip` channel through the fixture
+///       → fixture's `channel_open_direct_tcpip` (loopback only)
+///       → Dart TCP echo server (`targetPort`)
 library;
 
 import 'dart:async';
@@ -194,4 +203,213 @@ void main() {
       );
     });
   });
+
+  group('Port forward (-R remote)', () {
+    test('bytes round-trip through the remote-forward tunnel', () async {
+      // Dart-side echo server: the Rust client-side bridge in
+      // `RemoteForwardHandle` opens a fresh TCP connection here
+      // for every inbound `forwarded-tcpip` channel.
+      final echoServer = await ServerSocket.bind('127.0.0.1', 0);
+      addTearDown(echoServer.close);
+      echoServer.listen((socket) {
+        socket.addStream(socket).then((_) async {
+          await socket.flush();
+          await socket.close();
+        }, onError: (Object _) {});
+      });
+      final targetPort = echoServer.port;
+
+      // Ask the server (fixture) to bind a fresh OS-assigned port
+      // and forward inbound TCP back through the SSH session. The
+      // fixture's `tcpip_forward` mutates *port to the actually-
+      // bound port, russh ships that back, and `start_remote`
+      // returns it to us as `boundPort`.
+      const ruleId = 'port-forward-test-remote';
+      final boundPort = await rust_fwd.portForwardStartRemote(
+        ruleId: ruleId,
+        connectionId: conn.id,
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        targetHost: '127.0.0.1',
+        targetPort: targetPort,
+      );
+      expect(boundPort, isPositive);
+      addTearDown(() async {
+        await rust_fwd.portForwardStopRemote(ruleId: ruleId);
+      });
+
+      // The fixture's accept loop runs in its own tokio task —
+      // give it a microtask to start before we connect.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Connect to the server-side bound port. Same process here
+      // (the fixture is in-proc), so 127.0.0.1:boundPort is the
+      // listener `tcpip_forward` opened.
+      final client = await Socket.connect('127.0.0.1', boundPort);
+      const payload = 'lfs-port-forward-remote-roundtrip\n';
+      client.write(payload);
+      await client.flush();
+      final received = <int>[];
+      late StreamSubscription<List<int>> sub;
+      final done = Completer<void>();
+      sub = client.listen(
+        (chunk) {
+          received.addAll(chunk);
+          if (String.fromCharCodes(received).contains(payload)) {
+            sub.cancel();
+            if (!done.isCompleted) done.complete();
+          }
+        },
+        onDone: () {
+          if (!done.isCompleted) done.complete();
+        },
+      );
+      await done.future.timeout(const Duration(seconds: 10));
+      await client.close();
+
+      expect(String.fromCharCodes(received), payload);
+    });
+
+    test('portForwardStopRemote releases the server-side listener', () async {
+      // Stand up + tear down without any inbound connection. Post-
+      // stop, connecting to `boundPort` must fail because the
+      // fixture's `cancel_tcpip_forward` aborts the listener task,
+      // which drops the `TcpListener` and frees the OS port.
+      const ruleId = 'port-forward-test-remote-teardown';
+      final boundPort = await rust_fwd.portForwardStartRemote(
+        ruleId: ruleId,
+        connectionId: conn.id,
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+        targetHost: '127.0.0.1',
+        // Target port is irrelevant — we never let an inbound
+        // connection reach the bridge.
+        targetPort: 1,
+      );
+      expect(boundPort, isPositive);
+
+      final stopped = await rust_fwd.portForwardStopRemote(ruleId: ruleId);
+      expect(stopped, isTrue);
+
+      // Give the cancel round-trip + OS port release a tick.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      await expectLater(
+        Socket.connect(
+          '127.0.0.1',
+          boundPort,
+          timeout: const Duration(seconds: 1),
+        ),
+        throwsA(isA<SocketException>()),
+      );
+    });
+  });
+
+  group('Port forward (-D dynamic / SOCKS5)', () {
+    test('CONNECT round-trips through the SOCKS5 listener', () async {
+      // The same fixture-side `channel_open_direct_tcpip` handler
+      // -L exercises is what -D ends up driving once the SOCKS5
+      // CONNECT handshake resolves to a `direct-tcpip` open.
+      final echoServer = await ServerSocket.bind('127.0.0.1', 0);
+      addTearDown(echoServer.close);
+      echoServer.listen((socket) {
+        socket.addStream(socket).then((_) async {
+          await socket.flush();
+          await socket.close();
+        }, onError: (Object _) {});
+      });
+      final targetPort = echoServer.port;
+
+      const ruleId = 'port-forward-test-socks5';
+      final boundPort = await rust_fwd.portForwardStartDynamic(
+        ruleId: ruleId,
+        connectionId: conn.id,
+        bindHost: '127.0.0.1',
+        bindPort: 0,
+      );
+      expect(boundPort, isPositive);
+      addTearDown(() async {
+        await rust_fwd.portForwardStopDynamic(ruleId: ruleId);
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Dart-side SOCKS5 client speaking just enough RFC 1928 to
+      // negotiate NO_AUTH and CONNECT to 127.0.0.1:targetPort.
+      // The Rust listener's reply BND.* fields are zero — clients
+      // ignore them for CONNECT-over-SSH, so we only validate the
+      // status byte.
+      final socks = await Socket.connect('127.0.0.1', boundPort);
+      // Greeting: VER=0x05, NMETHODS=1, METHOD=NO_AUTH(0x00).
+      socks.add(<int>[0x05, 0x01, 0x00]);
+      await socks.flush();
+
+      final reader = StreamIterator<List<int>>(socks);
+      final greetReply = await _readExact(reader, 2);
+      expect(greetReply[0], 0x05);
+      expect(greetReply[1], 0x00, reason: 'NO_AUTH must be selected');
+
+      // CONNECT request: VER=0x05, CMD=CONNECT, RSV, ATYP=IPv4,
+      // 127.0.0.1, port (big-endian).
+      socks.add(<int>[
+        0x05,
+        0x01,
+        0x00,
+        0x01,
+        127,
+        0,
+        0,
+        1,
+        (targetPort >> 8) & 0xff,
+        targetPort & 0xff,
+      ]);
+      await socks.flush();
+
+      // Reply: 10 bytes for IPv4 BND. Last 6 are BND.ADDR + BND.PORT.
+      final connectReply = await _readExact(reader, 10);
+      expect(connectReply[0], 0x05);
+      expect(
+        connectReply[1],
+        0x00,
+        reason:
+            'CONNECT must succeed (REP=0x00); fixture rejects '
+            'non-loopback only — target is 127.0.0.1',
+      );
+
+      // Past this point the socket is a transparent byte pipe.
+      const payload = 'lfs-port-forward-dynamic-roundtrip\n';
+      socks.add(payload.codeUnits);
+      await socks.flush();
+
+      // Drain the rest of the stream until we see the echoed
+      // payload — every byte after the 10-byte SOCKS5 reply is
+      // fixture-side echo.
+      final received = <int>[];
+      while (await reader.moveNext()) {
+        received.addAll(reader.current);
+        if (String.fromCharCodes(received).contains(payload)) break;
+      }
+      await socks.close();
+
+      expect(String.fromCharCodes(received), payload);
+    });
+  });
+}
+
+/// Read exactly `n` bytes from a [StreamIterator] of byte chunks.
+/// SOCKS5 control frames are small + fixed-width — the iterator
+/// adapter avoids the multi-event listen plumbing the -L test uses
+/// and keeps the assertion code linear.
+Future<List<int>> _readExact(StreamIterator<List<int>> reader, int n) async {
+  final buf = <int>[];
+  while (buf.length < n) {
+    if (!await reader.moveNext()) {
+      throw StateError('socks5 reply: stream closed before $n bytes');
+    }
+    buf.addAll(reader.current);
+  }
+  // If the iterator delivered more than we asked for, the spillover
+  // belongs to the next read — but SOCKS5 control frames are tiny
+  // and arrive on their own packet here, so we just trim.
+  return buf.sublist(0, n);
 }

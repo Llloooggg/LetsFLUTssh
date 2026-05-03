@@ -17,6 +17,7 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -87,6 +88,10 @@ void main() {
         entry.deleteSync();
       }
     }
+    // Default the per-write delay to 0 so a leftover from a prior
+    // test (e.g. the cancel-mid-flight one below) does not slow
+    // every other test down.
+    rust_test.testSshServerSetSftpWriteDelayMs(delayMs: 0);
   });
 
   /// Wait for the per-task `BusEvent::TransferTaskState` to hit a
@@ -212,14 +217,60 @@ void main() {
       }
     });
 
-    // Cancel-mid-flight isn't covered: the localhost loopback +
-    // fixture's per-chunk-open SFTP write makes the timing
-    // window for "cancel arrives between two write chunks but
-    // before the upload completes" too narrow to reliably hit
-    // from the test process. The Rust-side `pool.cancel`
-    // invariants are exercised by the unit tests in
-    // `lfs_core::transfer::*`; a stress-style integration test
-    // for the race window can be added later if it starts to
-    // regress.
+    test('cancel mid-flight settles the task in `cancelled`', () async {
+      // The upload loop in `lfs_core::transfer::driver::upload`
+      // checks `cancel.is_cancelled()` at the top of every chunk
+      // (`TRANSFER_CHUNK_SIZE = 64 KiB`). On localhost loopback the
+      // 16 chunks for a 1 MiB file fly through faster than a Dart
+      // `cancel` round-trips through the FRB worker — the cancel
+      // arrives after the upload has already settled in `completed`
+      // and the assertion misses. Widening the race window deter-
+      // ministically: install a per-`write` delay on the fixture's
+      // SFTP subsystem so each chunk takes ~50 ms. A 1 MiB file
+      // becomes ≈800 ms; cancelling after 150 ms lands on chunk
+      // ~2/16 and the next loop-top check terminates the task with
+      // `upload cancelled`.
+      rust_test.testSshServerSetSftpWriteDelayMs(delayMs: 50);
+
+      final localTmp = File(
+        '${Directory.systemTemp.path}/lfs-xfer-cancel-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      // 1 MiB of zeros — content does not matter; only chunk count
+      // does. 16 chunks × 50 ms gives plenty of room for the
+      // cancel to land between any two writes.
+      final payload = Uint8List(1 * 1024 * 1024);
+      await localTmp.writeAsBytes(payload);
+      addTearDown(() async {
+        if (await localTmp.exists()) await localTmp.delete();
+      });
+
+      final notifier = container.read(transfersProvider.notifier);
+      final taskId = await notifier.enqueueUpload(
+        connectionId: conn.id,
+        name: 'cancel-mid-flight.bin',
+        localPath: localTmp.path,
+        remotePath: '/cancel-mid-flight.bin',
+        sizeBytes: payload.length,
+      );
+
+      // Wait long enough for the executor to grab the task off
+      // the queue and dispatch the first chunk write — but well
+      // short of the ≈800 ms total. 150 ms ≈ chunks 2-3 of 16.
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      final cancelled = await notifier.cancel(taskId);
+      expect(cancelled, isTrue);
+
+      final terminalState = await waitForTaskTerminal(taskId);
+      expect(
+        terminalState,
+        rust_bus.BusTaskState.cancelled,
+        reason:
+            'cancel dispatched mid-flight must steer the task into '
+            '`cancelled`, not `completed` or `failed`. Either the cancel '
+            'token is not being checked at the chunk boundary, or the '
+            'fixture write delay is not slowing things down enough — try '
+            'a longer delay or a larger payload.',
+      );
+    });
   });
 }

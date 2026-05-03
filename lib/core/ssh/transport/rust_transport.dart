@@ -22,14 +22,9 @@ import 'ssh_transport.dart';
 
 class RustTransport implements SshTransport {
   rust_ssh.SshSession? _session;
-  final StreamController<SshForwardedConnection> _forwardCtrl =
-      StreamController<SshForwardedConnection>.broadcast();
-  Future<void>? _forwardPump;
   bool _disconnected = false;
 
-  RustTransport._adopted(rust_ssh.SshSession session) : _session = session {
-    _startForwardPump();
-  }
+  RustTransport._adopted(rust_ssh.SshSession session) : _session = session;
 
   /// Adopt an actor-owned `SshSession`. The adopted transport
   /// surfaces `isConnected = true` immediately so channel ops
@@ -119,37 +114,6 @@ class RustTransport implements SshTransport {
   }
 
   @override
-  Stream<SshForwardedConnection> get forwardedConnections =>
-      _forwardCtrl.stream;
-
-  /// Long-running pump that polls `ssh_next_forwarded_connection` and
-  /// republishes each connection as a Dart-side event. Quits when
-  /// the receiver returns null (session closed) or the transport
-  /// disconnects.
-  void _startForwardPump() {
-    final session = _session;
-    if (session == null) return;
-    _forwardPump = () async {
-      while (!_disconnected) {
-        final fwd = await rust_forward.sshNextForwardedConnection(
-          session: session,
-        );
-        if (fwd == null) break;
-        final inner = await _RustForwardedChannel.fromConnection(fwd);
-        _forwardCtrl.add(
-          SshForwardedConnection(
-            connectedAddress: fwd.connectedAddress,
-            connectedPort: fwd.connectedPort,
-            originatorAddress: fwd.originatorAddress,
-            originatorPort: fwd.originatorPort,
-            channel: inner,
-          ),
-        );
-      }
-    }();
-  }
-
-  @override
   Future<void> disconnect() async {
     if (_disconnected) return;
     _disconnected = true;
@@ -159,10 +123,8 @@ class RustTransport implements SshTransport {
     // slot (the actor still holds its own `Arc<Session>` clone),
     // leaving the actor pointing at a half-torn russh handle.
     // Tear-down happens through the bus command
-    // (`ConnectionDisconnect`); the local Dart shutdown just stops
-    // the forward pump and closes the broadcast.
-    await _forwardPump;
-    await _forwardCtrl.close();
+    // (`ConnectionDisconnect`); the Dart wrapper just flips its
+    // own `_disconnected` flag.
   }
 
   rust_ssh.SshSession _requireSession() {
@@ -231,34 +193,6 @@ class _RustShell implements SshShellChannel {
 class _RustDirectTcpip implements SshDirectTcpipChannel {
   _RustDirectTcpip(this._inner);
   final rust_forward.SshForwardChannel _inner;
-
-  @override
-  Future<void> write(Uint8List data) => _inner.write(data: data);
-
-  @override
-  Future<Uint8List?> read() async {
-    final bytes = await _inner.read();
-    return bytes == null ? null : Uint8List.fromList(bytes);
-  }
-
-  @override
-  Future<void> eof() => _inner.eof();
-
-  @override
-  Future<void> close() async {
-    // FRB opaque drops the underlying channel.
-  }
-}
-
-class _RustForwardedChannel implements SshDirectTcpipChannel {
-  _RustForwardedChannel._(this._inner);
-  final rust_forward.SshForwardedConnection _inner;
-
-  static Future<_RustForwardedChannel> fromConnection(
-    rust_forward.SshForwardedConnection inner,
-  ) async {
-    return _RustForwardedChannel._(inner);
-  }
 
   @override
   Future<void> write(Uint8List data) => _inner.write(data: data);

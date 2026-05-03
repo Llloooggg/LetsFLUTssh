@@ -49,12 +49,14 @@
 
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use base64::Engine as _;
 use russh::keys::ssh_key::rand_core::OsRng;
 use russh::keys::{Algorithm, PrivateKey};
-use russh::server::{Auth, Config, Handler, Msg, Server, Session};
+use russh::server::{Auth, Config, Handle as ServerHandle, Handler, Msg, Server, Session};
 use russh::{Channel, ChannelId};
 use russh_sftp::protocol::{
     Attrs, Data, File as SftpFile, FileAttributes, Handle as SftpHandle, Name, OpenFlags, Status,
@@ -63,6 +65,7 @@ use russh_sftp::protocol::{
 use tokio::io::AsyncWriteExt as _;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, Notify};
+use tokio::task::JoinHandle;
 
 use crate::error::Error;
 
@@ -70,6 +73,25 @@ use crate::error::Error;
 /// do not care which password works, they care that *some* known
 /// password completes the auth phase deterministically.
 pub const TEST_PASSWORD: &str = "letsflutssh-test";
+
+/// Process-wide SFTP-write artificial delay, in milliseconds. The
+/// transfer-cancel-mid-flight integration test sets this to widen
+/// the cancel race window — without the delay the loopback +
+/// per-chunk-open SFTP write completes faster than the cancel can
+/// be dispatched from the test process, and the cancel never wins.
+/// Sentinel `0` (default) means no delay.
+///
+/// Read once per `write` call; safe to mutate at any point because
+/// every read is `Relaxed`. Tests should reset to 0 in their
+/// teardown so a delay set by one test does not bleed into the
+/// next.
+static SFTP_WRITE_DELAY_MS: AtomicU64 = AtomicU64::new(0);
+
+/// Set the artificial per-`write` SFTP delay. Pass 0 to clear.
+/// Any active SFTP write picks up the new value on its next call.
+pub fn set_sftp_write_delay_ms(delay_ms: u64) {
+    SFTP_WRITE_DELAY_MS.store(delay_ms, Ordering::Relaxed);
+}
 
 /// Handle returned to the caller. Drop without calling
 /// [`shutdown`] still terminates the server eventually (the
@@ -125,8 +147,10 @@ pub async fn start() -> Result<TestServerHandle, Error> {
         .map_err(|e| Error::Io(format!("test_server: pubkey wire: {e}")))?;
     let host_pubkey_b64 = base64::engine::general_purpose::STANDARD.encode(&host_pubkey_wire);
 
-    let sftp_root = std::env::temp_dir()
-        .join(format!("letsflutssh-sftp-{}", crate::id::random_handle_hex_32()));
+    let sftp_root = std::env::temp_dir().join(format!(
+        "letsflutssh-sftp-{}",
+        crate::id::random_handle_hex_32()
+    ));
     std::fs::create_dir_all(&sftp_root)
         .map_err(|e| Error::Io(format!("test_server: sftp root mkdir: {e}")))?;
 
@@ -205,16 +229,25 @@ impl Server for TestSshServer {
         TestSshHandler {
             sftp_root: self.sftp_root.clone(),
             channels: Arc::new(Mutex::new(HashMap::new())),
+            remote_forwards: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
 
+/// Active `tcpip_forward` listeners keyed by `(bind_addr, port)`.
+/// Dropping the [`JoinHandle`] aborts the accept loop, which drops
+/// its `TcpListener` and frees the OS port.
+type RemoteForwardMap = Arc<Mutex<HashMap<(String, u32), JoinHandle<()>>>>;
+
 /// Per-SSH-session handler. Holds the channels the SSH side opens
 /// so `subsystem_request("sftp")` can pull the matching `Channel`
-/// out and feed it into `russh_sftp::server::run`.
+/// out and feed it into `russh_sftp::server::run`. Also tracks any
+/// active server-side `-R` listeners spawned by `tcpip_forward` so
+/// `cancel_tcpip_forward` can shut them down.
 struct TestSshHandler {
     sftp_root: Arc<PathBuf>,
     channels: Arc<Mutex<HashMap<ChannelId, Channel<Msg>>>>,
+    remote_forwards: RemoteForwardMap,
 }
 
 impl Handler for TestSshHandler {
@@ -224,11 +257,7 @@ impl Handler for TestSshHandler {
     /// other input with `Auth::reject` so a misconfigured test
     /// surfaces an Authenticate-phase failure immediately rather
     /// than hanging.
-    async fn auth_password(
-        &mut self,
-        _user: &str,
-        password: &str,
-    ) -> Result<Auth, Self::Error> {
+    async fn auth_password(&mut self, _user: &str, password: &str) -> Result<Auth, Self::Error> {
         if password == TEST_PASSWORD {
             Ok(Auth::Accept)
         } else {
@@ -338,6 +367,121 @@ impl Handler for TestSshHandler {
         };
         tokio::spawn(proxy_channel_to_tcp(channel, tcp));
         Ok(true)
+    }
+
+    /// `-R` remote forward request: the client asks us to listen
+    /// on `address:port` and forward every inbound TCP connection
+    /// back over a fresh `forwarded-tcpip` channel. The fixture
+    /// binds 127.0.0.1 only — the SSH protocol's `address` value
+    /// is informational; ignoring it keeps the fixture from
+    /// listening on a non-loopback interface. When `*port` is 0
+    /// the OS picks one and we mutate the slot so russh sends the
+    /// real number back to the client.
+    ///
+    /// The accept loop runs as a tokio task; its [`JoinHandle`] is
+    /// stored in `remote_forwards` so a later `cancel_tcpip_forward`
+    /// can abort it. Each accepted socket spawns its own
+    /// `forwarded-tcpip` open-and-proxy task, mirroring how a real
+    /// OpenSSH server multiplexes inbound connections onto a single
+    /// `tcpip_forward` request.
+    async fn tcpip_forward(
+        &mut self,
+        address: &str,
+        port: &mut u32,
+        session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        let bind_addr = ("127.0.0.1", *port as u16);
+        let listener = match TcpListener::bind(bind_addr).await {
+            Ok(l) => l,
+            Err(_) => return Ok(false),
+        };
+        let bound = match listener.local_addr() {
+            Ok(a) => a,
+            Err(_) => return Ok(false),
+        };
+        let bound_port = bound.port() as u32;
+        *port = bound_port;
+        let advertised_address = address.to_string();
+        let session_handle: ServerHandle = session.handle();
+
+        let key = (advertised_address.clone(), bound_port);
+        let forwards = self.remote_forwards.clone();
+        // If a slot under the same (addr, port) already exists,
+        // abort + replace. Real servers reject overlapping requests
+        // with a SUCCESS-vs-FAILURE mismatch; the fixture keeps
+        // teardown deterministic instead.
+        if let Some(prev) = forwards.lock().await.remove(&key) {
+            prev.abort();
+        }
+
+        let task = tokio::spawn(remote_forward_accept_loop(
+            listener,
+            session_handle,
+            advertised_address,
+            bound_port,
+        ));
+        forwards.lock().await.insert(key, task);
+        Ok(true)
+    }
+
+    /// `-R` remote forward cancel: drop the listener handle so the
+    /// accept loop aborts and the OS releases the port. Idempotent
+    /// on a missing key — returning `Ok(true)` lets the client's
+    /// `cancel_tcpip_forward` await resolve cleanly even when the
+    /// listener was already torn down (e.g. by a prior test).
+    async fn cancel_tcpip_forward(
+        &mut self,
+        address: &str,
+        port: u32,
+        _session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        if let Some(task) = self
+            .remote_forwards
+            .lock()
+            .await
+            .remove(&(address.to_string(), port))
+        {
+            task.abort();
+        }
+        Ok(true)
+    }
+}
+
+/// Per-`tcpip_forward` accept loop. For every inbound TCP socket
+/// that lands on `listener`, open a fresh `forwarded-tcpip` channel
+/// back to the client through `session_handle` and proxy bytes
+/// bidirectionally. Aborts when the parent handler drops the
+/// stored `JoinHandle`.
+async fn remote_forward_accept_loop(
+    listener: TcpListener,
+    session_handle: ServerHandle,
+    advertised_address: String,
+    bound_port: u32,
+) {
+    loop {
+        let (socket, peer) = match listener.accept().await {
+            Ok(pair) => pair,
+            Err(_) => break,
+        };
+        let session_handle = session_handle.clone();
+        let connected_address = advertised_address.clone();
+        let originator_address = peer.ip().to_string();
+        let originator_port = peer.port() as u32;
+        tokio::spawn(async move {
+            let channel = match session_handle
+                .channel_open_forwarded_tcpip(
+                    connected_address,
+                    bound_port,
+                    originator_address,
+                    originator_port,
+                )
+                .await
+            {
+                Ok(c) => c,
+                Err(_) => return,
+            };
+            proxy_channel_to_tcp(channel, socket).await;
+        });
     }
 }
 
@@ -503,7 +647,10 @@ impl russh_sftp::server::Handler for TestSftpHandler {
             let entry = entry.map_err(io_to_status)?;
             let name = entry.file_name().to_string_lossy().into_owned();
             let meta = entry.metadata().map_err(io_to_status)?;
-            files.push(SftpFile::new(name, TestSftpHandler::attrs_from_metadata(&meta)));
+            files.push(SftpFile::new(
+                name,
+                TestSftpHandler::attrs_from_metadata(&meta),
+            ));
         }
         state.done = true;
         Ok(Name { id, files })
@@ -554,7 +701,10 @@ impl russh_sftp::server::Handler for TestSftpHandler {
         len: u32,
     ) -> Result<Data, Self::Error> {
         use std::io::{Read as _, Seek as _, SeekFrom};
-        let state = self.file_handles.get(&handle).ok_or(StatusCode::NoSuchFile)?;
+        let state = self
+            .file_handles
+            .get(&handle)
+            .ok_or(StatusCode::NoSuchFile)?;
         let mut file = std::fs::OpenOptions::new()
             .read(true)
             .open(&state.path)
@@ -577,7 +727,18 @@ impl russh_sftp::server::Handler for TestSftpHandler {
         data: Vec<u8>,
     ) -> Result<Status, Self::Error> {
         use std::io::{Seek as _, SeekFrom, Write as _};
-        let state = self.file_handles.get(&handle).ok_or(StatusCode::NoSuchFile)?;
+        // Honor the process-wide write delay knob — the
+        // transfer-cancel-mid-flight integration test sets this so
+        // the cancel race window is wide enough to hit reliably on
+        // localhost loopback. Sentinel 0 means no delay.
+        let delay_ms = SFTP_WRITE_DELAY_MS.load(Ordering::Relaxed);
+        if delay_ms > 0 {
+            tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+        }
+        let state = self
+            .file_handles
+            .get(&handle)
+            .ok_or(StatusCode::NoSuchFile)?;
         if !state.writable {
             return Err(StatusCode::PermissionDenied);
         }
@@ -609,7 +770,10 @@ impl russh_sftp::server::Handler for TestSftpHandler {
     }
 
     async fn fstat(&mut self, id: u32, handle: String) -> Result<Attrs, Self::Error> {
-        let state = self.file_handles.get(&handle).ok_or(StatusCode::NoSuchFile)?;
+        let state = self
+            .file_handles
+            .get(&handle)
+            .ok_or(StatusCode::NoSuchFile)?;
         let meta = std::fs::metadata(&state.path).map_err(io_to_status)?;
         Ok(Attrs {
             id,

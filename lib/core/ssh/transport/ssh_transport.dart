@@ -7,7 +7,10 @@
 //   - openShell with PTY size + bidirectional bytes
 //   - openSftp returning an engine-agnostic SFTP client
 //   - direct-tcpip channel for `-L` / `-D` / ProxyJump primitive
-//   - server-side `-R` request + inbound queue
+//   - server-side `-R` request (the inbound dispatch + bridging
+//     lives in `lfs_core::portforward::driver::spawn_remote_forward`,
+//     driven by `portForwardStartRemote` — there is no Dart-side
+//     forwarded-connections queue to subscribe to)
 //   - graceful disconnect
 //
 // Connecting + authenticating happens Rust-side in the connection
@@ -54,11 +57,6 @@ abstract class SshTransport {
 
   /// Withdraw a previously-requested remote forward. Idempotent.
   Future<void> cancelRemoteForward(String address, int port);
-
-  /// Inbound `-R` connections drain through this stream — one event
-  /// per connection the server forwards back. Drains for the life of
-  /// the transport; closes on [disconnect].
-  Stream<SshForwardedConnection> get forwardedConnections;
 
   /// Cleanly tear down the transport. Sends `SSH_MSG_DISCONNECT`
   /// where supported; idempotent (repeated calls are no-ops).
@@ -167,25 +165,6 @@ abstract class SshDirectTcpipChannel {
 
   Future<void> eof();
   Future<void> close();
-}
-
-/// One inbound `-R` forwarded connection delivered through
-/// [SshTransport.forwardedConnections]. Caller bridges the channel
-/// to a local socket of choice.
-class SshForwardedConnection {
-  final String connectedAddress;
-  final int connectedPort;
-  final String originatorAddress;
-  final int originatorPort;
-  final SshDirectTcpipChannel channel;
-
-  const SshForwardedConnection({
-    required this.connectedAddress,
-    required this.connectedPort,
-    required this.originatorAddress,
-    required this.originatorPort,
-    required this.channel,
-  });
 }
 
 /// Connection + handshake failed — TCP refused, host-key rejected,

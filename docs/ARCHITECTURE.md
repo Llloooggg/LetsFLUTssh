@@ -308,7 +308,6 @@ abstract class SshTransport {
   Future<SshDirectTcpipChannel> openDirectTcpip({...});
   Future<int>  requestRemoteForward(String address, int port);
   Future<void> cancelRemoteForward(String address, int port);
-  Stream<SshForwardedConnection> get forwardedConnections;
   Future<void> disconnect();
   bool get isConnected;
 }
@@ -320,7 +319,9 @@ abstract class SshTransport {
 - `SshAuthPassword(password)` / `SshAuthPubkey(pem, passphrase)` — quick-connect fallback for the no-session-id path; the Dart heap holds the bytes for the duration of the connect attempt and the matching transient SecretStore entry is dropped when the attempt completes.
 - `SshAuthAgent` — proxies through the OS ssh-agent socket; no key bytes cross the boundary.
 
-`SshSession` inside Rust is held under `Mutex<Option<Arc<lfs_core::ssh::Session>>>`. Every channel-opening call in `RustTransport` clones the `Arc` under a short-lived lock, drops the lock, then awaits — so a long-running `openShell` cannot deadlock against the forwarded-connection pump that subscribes to the same handle.
+`SshSession` inside Rust is held under `Mutex<Option<Arc<lfs_core::ssh::Session>>>`. Every channel-opening call in `RustTransport` clones the `Arc` under a short-lived lock, drops the lock, then awaits — long-running `openShell` / `openSftp` calls do not block one another and the surface is reentrant per session.
+
+Inbound `-R` connections do not surface on the transport at all: the Rust dispatcher (`lfs_core::ssh::Session::register_remote_forward_route` + `lfs_core::portforward::driver::spawn_remote_forward`) is the **sole** consumer of the per-session `forward_rx`. Each `portForwardStartRemote` registers a route keyed by `(bind_host, bound_port)`; the dispatcher fans out from `forward_rx` to the matching route's bridge task, which opens a TCP connection to the local target and pumps bytes. Funnelling everything through one consumer is intentional — an earlier Dart-side pump that subscribed to the same `forward_rx` raced the Rust dispatcher for every inbound channel, leaving forwards stuck whenever the Dart side won the lock.
 
 #### Auth chain
 
@@ -2247,7 +2248,7 @@ When in doubt: the adapter contains *delegation* + Dart-shape adapters; orchestr
 | SFTP streaming GET/PUT (large-file support) | shipped (1.5b) — `SftpFile` opaque handle: `read_chunk` / `write_all` / `seek` / `sync_all` / `metadata`. Caller drives the chunk loop |
 | `Session::open_direct_tcpip` + `ForwardChannel` (`-L` + ProxyJump primitive) | shipped (1.7a / 1.10a) — split read/write halves; Dart drives the local listener and bridges sockets via `SshForwardChannel.write` / `read` |
 | `lfs_core::forward::LocalForward` listener helper | pending (1.7b) — owns the tokio `TcpListener` + bridge tasks |
-| `-R` remote forward (`request_remote_forward` + `next_forwarded_connection`) | shipped (1.8a) — `LfsHandler` carries an mpsc sender; inbound forwarded channels relay through it |
+| `-R` remote forward (`request_remote_forward` + `register_remote_forward_route`) | shipped (1.8a) — `LfsHandler` carries an mpsc sender, the per-session `forward_rx` dispatcher fans inbound channels out to per-rule bridge tasks; the legacy Dart-side pump that drained `forward_rx` was retired so the Rust dispatcher is the sole consumer |
 | `-D` SOCKS5 | pending (1.9) — pure user-space layer over `open_direct_tcpip` |
 | ssh-agent client (`Session::connect_agent`) | shipped Rust side (1.11a) — `russh::keys::agent::client::AgentClient` does the heavy lifting; iterates over identities, server picks first acceptable. FRB exposure deferred to 1.11b on a higher-ranked-lifetime tangle. **Covers FIDO2 sk-* keys** (§6.3) when agent has them registered |
 | SSH certificates (`Session::connect_pubkey_cert`) | shipped (1.12) — russh's `authenticate_openssh_cert` plus `Certificate::from_openssh` parser; FRB exposes `ssh_connect_pubkey_cert(host, port, user, key, passphrase, cert)`; the earlier "blocked / fork" assessment came from an incomplete russh scan |

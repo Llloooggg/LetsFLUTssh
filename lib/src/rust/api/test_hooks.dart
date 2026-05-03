@@ -22,6 +22,18 @@ Future<TestSshServerInfo> testSshServerStart() =>
 void testSshServerStopAll() =>
     RustLib.instance.api.crateApiTestHooksTestSshServerStopAll();
 
+/// Inject an artificial per-`write` delay into the fixture's SFTP
+/// subsystem. Used by the transfer-cancel-mid-flight integration
+/// test to widen the cancel race window — without the delay,
+/// localhost loopback + the per-chunk-open SFTP write completes
+/// faster than a cancel can be dispatched from the test process.
+/// Pass `0` to clear. Tests that set this MUST clear it in
+/// teardown so the delay does not bleed into the next test.
+void testSshServerSetSftpWriteDelayMs({required int delayMs}) => RustLib
+    .instance
+    .api
+    .crateApiTestHooksTestSshServerSetSftpWriteDelayMs(delayMs: delayMs);
+
 /// Bundle returned to the Dart test caller. Carries everything a
 /// test needs to drive a connect against the fixture: the bound
 /// localhost port, the host-key shape (so the test can pre-seed
