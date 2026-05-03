@@ -9,10 +9,14 @@
 - Platform-specific toolchain (see below)
 
 The encrypted-DB engine (SQLCipher 4.x) is bundled inside the
-`rusqlite` crate via its `bundled-sqlcipher` Cargo feature — no
-git submodule, no native build hook, no prebuilt download. A
-fresh clone is enough; `cargo build` compiles SQLCipher in-tree
-along with the rest of the Rust workspace.
+`rusqlite` crate via its `bundled-sqlcipher-vendored-openssl`
+Cargo feature — both SQLCipher AND the OpenSSL it needs are
+statically vendored, so no system OpenSSL is required on any
+target. No git submodule, no native build hook, no prebuilt
+download. A fresh clone is enough; `cargo build` compiles
+SQLCipher + OpenSSL in-tree along with the rest of the Rust
+workspace. The first build pays ~40s extra for the OpenSSL
+source compile; subsequent builds reuse the cached `target/`.
 
 ```bash
 git clone https://github.com/Llloooggg/LetsFLUTssh.git
@@ -85,7 +89,7 @@ Build output: `build/macos/Build/Products/Release/`
 Requires Android SDK (via Android Studio or standalone SDK).
 
 ```bash
-make build-apk    # APK (per-ABI: arm64, arm, x64)
+make build-apk    # APK (per-ABI: arm64, arm32, x64)
 make build-aab    # App Bundle (for Play Store)
 ```
 

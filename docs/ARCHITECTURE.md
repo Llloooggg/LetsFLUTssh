@@ -1182,14 +1182,14 @@ A `.2fa` / YubiKey flow was scoped as an optional unlock factor alongside the ma
 
 #### Cipher choice — SQLCipher 4.x (AES-256-CBC + HMAC-SHA512)
 
-The app's at-rest DB encryption runs on **SQLCipher 4.x**, statically linked into `lfs_core` via `rusqlite`'s `bundled-sqlcipher` feature. The cipher contract: AES-256-CBC for confidentiality, HMAC-SHA512 for per-page integrity, 256 000 PBKDF2-SHA512 iterations for the page-cipher key derivation off the `PRAGMA key` value. The page-cipher key Rust hands SQLCipher is the 32-byte master DB key produced by Argon2id (Paranoid), pulled out of the OS keychain (T1), or unsealed from the hardware vault (T2); SQLCipher itself does not see Argon2id, only the final 32 bytes.
+The app's at-rest DB encryption runs on **SQLCipher 4.x**, statically linked into `lfs_core` via `rusqlite`'s `bundled-sqlcipher-vendored-openssl` feature (vendors both SQLCipher and the OpenSSL it depends on, so cross-compile targets that lack a system OpenSSL — Android NDK, MSVC Windows, iOS device + sim, ARM64 Linux runners — link cleanly). The cipher contract: AES-256-CBC for confidentiality, HMAC-SHA512 for per-page integrity, 256 000 PBKDF2-SHA512 iterations for the page-cipher key derivation off the `PRAGMA key` value. The page-cipher key Rust hands SQLCipher is the 32-byte master DB key produced by Argon2id (Paranoid), pulled out of the OS keychain (T1), or unsealed from the hardware vault (T2); SQLCipher itself does not see Argon2id, only the final 32 bytes.
 
 **Why SQLCipher and not the previous SQLite3MultipleCiphers / ChaCha20 stack.** The pre-Rust era ran on `drift` + `sqlite3_flutter_libs` + SQLite3MultipleCiphers (MC), with MC's default cipher (ChaCha20-Poly1305 — `CODEC_TYPE_DEFAULT`) used implicitly because no `PRAGMA cipher` was ever set. The rusqlite/SQLCipher port had to pick a single cipher for `lfs_core::db`; the choices were MC (any of its schemes) and SQLCipher. Inputs:
 
 - **Wire compatibility.** MC and SQLCipher are wire-incompatible — a database written under one cannot be opened under the other, regardless of cipher choice. The cutover ships as a documented breaking change: existing installs export their state via `Settings → Export .lfs` on the old build and import it on the new build. The release notes call this out; see also [§11 Encryption engine build path](#encryption-engine-build-path) for the rationale (build complexity, not crypto).
-- **Single source of truth.** SQLCipher is the older, more battle-tested implementation; rusqlite's `bundled-sqlcipher` feature ships the canonical 4.x build with no codec-flag matrix. MC's flexibility (six cipher schemes, three KDFs) is a build-surface cost we pay for nothing: only one cipher is ever selected, the choice is project-wide, and the matrix would only matter if individual users wanted to pick.
+- **Single source of truth.** SQLCipher is the older, more battle-tested implementation; rusqlite's `bundled-sqlcipher-vendored-openssl` feature ships the canonical 4.x build (plus its OpenSSL dependency, vendored from `openssl-src`) with no codec-flag matrix. MC's flexibility (six cipher schemes, three KDFs) is a build-surface cost we pay for nothing: only one cipher is ever selected, the choice is project-wide, and the matrix would only matter if individual users wanted to pick.
 - **Auditability.** SQLCipher's wire format is fixed and widely reviewed; the `cipher_test_recovery.sh` style toolchain works against any SQLCipher 4 file. MC's wire format depends on the codec/KDF combination at write time, which makes recovery scripts harder to share.
-- **Performance.** AES-256-CBC under bundled-sqlcipher is fast enough that DB I/O is never the bottleneck for an SSH-client workload — sessions, snippets, known_hosts, ssh_keys are sub-100-KiB tables with low page-churn. ChaCha20's edge on no-AES-NI Arm chips is real but moot for the project's I/O profile.
+- **Performance.** AES-256-CBC under bundled SQLCipher is fast enough that DB I/O is never the bottleneck for an SSH-client workload — sessions, snippets, known_hosts, ssh_keys are sub-100-KiB tables with low page-churn. ChaCha20's edge on no-AES-NI Arm chips is real but moot for the project's I/O profile.
 - **Operational risk envelope.** SQLCipher's HMAC-SHA512 per-page MAC means a tampered page surfaces a load error rather than silently mis-decoding into UB. The cipher is constant-time on every supported platform.
 
 **If a future decision changes ciphers:**
@@ -4354,8 +4354,9 @@ All files live in the platform's app-support directory (see **Location** below).
 The DB lives Rust-side under `lfs_core::db`. The Dart layer
 calls `dbInit(path, key)` over FRB once on unlock; the Rust
 side opens an encrypted SQLite file via `rusqlite` with
-`bundled-sqlcipher` (SQLCipher 4.x — AES-256-CBC + HMAC-SHA512,
-256 000 PBKDF2-SHA512 iterations off the `PRAGMA key` value).
+`bundled-sqlcipher-vendored-openssl` (SQLCipher 4.x +
+vendored OpenSSL — AES-256-CBC + HMAC-SHA512, 256 000
+PBKDF2-SHA512 iterations off the `PRAGMA key` value).
 The page-cipher key the Dart caller hands in is the 32-byte
 master DB key produced by Argon2id (Paranoid) / pulled out of
 the OS keychain (T1) / unsealed from the hardware vault (T2).
@@ -4459,22 +4460,35 @@ and the FRB DTOs.
 
 The encryption half of the storage stack — SQLCipher 4.x —
 is bundled in-tree via the `rusqlite` crate's
-`bundled-sqlcipher` Cargo feature. No separate native binary,
-no `third_party/` submodule, no Flutter build hook. A fresh
-clone is enough; `cargo build` compiles SQLCipher in-process
-along with the rest of the Rust workspace, picking up its
-sources from `rusqlite`'s vendored copy of the SQLCipher
-amalgamation.
+`bundled-sqlcipher-vendored-openssl` Cargo feature. **Both
+SQLCipher AND the OpenSSL it depends on are statically
+vendored** (via `openssl-src`) — no separate native binary,
+no `third_party/` submodule, no Flutter build hook, no
+system OpenSSL prereq on any cross-compile target. A fresh
+clone is enough; `cargo build` compiles SQLCipher + OpenSSL
+in-process along with the rest of the Rust workspace,
+picking up sources from `rusqlite`'s vendored copies. First
+build pays ~40s extra for the OpenSSL source compile; the
+cargo `target/` cache reuses it on subsequent builds.
+
+The vendored variant replaced the plain `bundled-sqlcipher`
+feature once the release matrix expanded to Android NDK +
+MSVC Windows + iOS + ARM64 Linux runners — none of which
+have system OpenSSL provisioned, all of which fail
+`bundled-sqlcipher`'s linker step with `'openssl/crypto.h'
+file not found`. Vendoring is the difference between
+"download Flutter, run make, ship" and "configure OpenSSL
+per platform, hope vcpkg / NDK headers are aligned".
 
 **Why SQLCipher and not the previous SQLite3MultipleCiphers /
 ChaCha20 stack** is covered in detail in §3.6 → "Cipher choice
-— SQLCipher 4.x". Short version: `bundled-sqlcipher` is one
-Cargo feature flag, vs. vendoring the MC submodule plus
-custom `pubspec.yaml` build hooks plus a per-cipher
-`HAVE_CIPHER_*` defines block. Build complexity dropped to
-zero; AES-256-CBC + HMAC-SHA512 vs. ChaCha20-Poly1305 is a
-neutral cipher swap on every actively-shipped target (every
-ARMv8 / x86-64 device with hardware AES).
+— SQLCipher 4.x". Short version: one Cargo feature flag, vs.
+vendoring the MC submodule plus custom `pubspec.yaml` build
+hooks plus a per-cipher `HAVE_CIPHER_*` defines block. Build
+complexity dropped to zero; AES-256-CBC + HMAC-SHA512 vs.
+ChaCha20-Poly1305 is a neutral cipher swap on every
+actively-shipped target (every ARMv8 / x86-64 device with
+hardware AES).
 
 **Reproducibility.** `rust/Cargo.lock` pins the exact
 `rusqlite` version + the bundled SQLCipher revision shipped
@@ -4902,6 +4916,25 @@ Two paths remain out of reach at this layer and are deferred to higher-level har
 
 `tester.runAsync` is required around `bootstrap()` / `reinitFromReset()` / `reopenAfterUnlock()` — `configProvider.update` awaits a 300 ms debounce `Timer` that FakeAsync (the default under `testWidgets`) never advances.
 
+### End-to-end SSH/SFTP/port-forward integration tests (`test/integration/`)
+
+`flutter test test/integration/` drives the **real Rust connect actor → russh client → russh server → Rust dispatcher → bridge** stack against an **in-process russh-server fixture** at `lfs_core::connection::test_server`. The fixture binds 127.0.0.1:0, generates a fresh Ed25519 host key per `start()`, accepts a hard-coded test password, and implements the SSH subsystem surface the tests exercise: `auth_password` / `auth_publickey`, `channel_open_session` + `subsystem_request("sftp")` (russh-sftp filesystem-backed handler rooted at a tempdir), `channel_open_direct_tcpip` (loopback only — for `-L` / ProxyJump / `-D`), `tcpip_forward` + `cancel_tcpip_forward` (for `-R`), `pty_request` + `shell_request` (idle channels for openShell consumers).
+
+The fixture exists because the four race-window bugs that landed on `feat/rust-core` (post-handshake event drop, per-attempt sub cancellation, transport-vs-state ordering, "Fail to post message to Dart" stderr noise) live at the **bus delivery boundary** between the Rust connect actor and the Dart-side observation pipeline. Static audits missed every one of them; only a real handshake against a real listener exercises that window deterministically. Fake event emitters reproduce the *shape* of bus traffic but not the *timing*.
+
+| File | Coverage |
+|---|---|
+| `connection_lifecycle_test.dart` | progressHistory phases, transport-vs-state ordering, exactly-once `connected` transition, auth-fail, reconnect generation guard |
+| `sftp_lifecycle_test.dart` | list / mkdir / upload / download / rename / remove / removeDir / error-path / `..`-traversal |
+| `known_hosts_prompt_test.dart` | TOFU prompt fires on Unknown / accept proceeds / reject fails HostKeyVerify / KeyChanged dialog |
+| `bastion_proxyjump_test.dart` | bastion-routed connect, both reach Connected + target.bastion is wired, cascade-disconnect tears bastion down |
+| `transfer_queue_test.dart` | single upload/download, batch-of-three uploads, **cancel mid-flight settles in `cancelled`** (uses `test_ssh_server_set_sftp_write_delay_ms` to widen the cancel race window) |
+| `port_forward_test.dart` | `-L` round-trip + teardown, `-R` round-trip + teardown, `-D` SOCKS5 CONNECT round-trip |
+
+`make test` builds `rust/target/release/liblfs_frb.so` first via the `rust-build` Make target — the integration tests load FRB through `requireFrbLoaded()` and throw if the .so is missing.
+
+**Synthetic-Connection helper.** `Connection.debugMarkTransportAdopted()` (gated by `@visibleForTesting`) completes the underlying `_transportAdopted` Completer the same way the bus listener would after `_adoptSession`. Widget tests that build `Connection(state: SSHConnectionState.connected)` directly (no actor, no bus events) call it once at construction so `await conn.transportReady` resolves immediately — without it the SFTP-mixin / file-browser tests' `pumpAndSettle` hangs on the never-completed completer.
+
 ### Fuzz testing
 
 Two layers of fuzz testing — **property-based** (random inputs on every PR, no coverage feedback) and **coverage-guided** (libFuzzer mutation on a seed corpus, nightly-style runs).
@@ -5011,6 +5044,25 @@ flowchart TD
 |---------|--------|---------|
 | GitGuardian | `.gitguardian.yml` | Secret detection on PRs. Test files (`test/**`) and localization files (`lib/l10n/**`) are excluded — they contain fake credentials and translated "password" labels that trigger false positives |
 
+### Composite actions (`.github/actions/`)
+
+| Action | Purpose |
+|--------|---------|
+| `setup-rust` | Activates the toolchain pinned in `rust/rust-toolchain.toml` (`cargo --version` from inside `rust/` triggers rustup auto-install of the pinned channel — currently `1.95.0`), installs any cross-compile targets passed via the `targets:` input, then primes `Swatinem/rust-cache@v2.7.8` (SHA-pinned) keyed on Cargo.lock hash + active rustc version + workspace root. Used by all 7 Rust-building jobs in `build-release.yml`; bumping the cache action SHA, the rustup invocation, or the cache scope is one edit, not seven. The composite's `save-if: 'true'` override sends cache writes from feature branches too — without it, `Swatinem/rust-cache`'s default `save-if` only writes from the repo's default branch and feature-branch pushes would have nothing to restore from. |
+
+### Release matrix shape
+
+The release matrix builds across 7 platform-arch tuples. The Flutter SDK install path differs by tuple:
+
+| Tuple | Flutter SDK install | Rationale |
+|---|---|---|
+| linux-x64, windows-x64, macos-universal, android, ios-unsigned | `subosito/flutter-action@v2` with `flutter-version: 3.41.9` | Flutter Foundation publishes precompiled tarballs for these (host) platforms; the action's resolver finds them in `releases_<os>.json`. |
+| linux-arm64, windows-arm64 | `git clone --depth 1 + git checkout <pinned-SHA>` of `flutter/flutter` followed by `flutter precache` | Flutter Foundation publishes **zero** ARM64 desktop tarballs (verified against `releases_linux.json` / `releases_windows.json` across stable / beta / dev). The git-clone path is the official documented install on ARM64 hardware (https://docs.flutter.dev/get-started/install/linux). The `FLUTTER_SHA` is pinned by full commit hash inside the workflow — tags are mutable, commit SHAs are not. Cached separately keyed `flutter-arm64-${runner.os}-${SHA}`. |
+
+The `lfs_frb` Rust core uses **`ring`** as russh's crypto backend (overriding russh's default `aws-lc-rs`) — `aws-lc-sys` ships ~200k LOC of vendored AWS-LC C that fails MSVC's `stdalign_check.c` probe on Windows ARM64 *and* added 8-15 minutes of compile wall-clock per release matrix job. `ring` has prebuilt assembly for ARM/ARM64 and produces functionally equivalent SSH crypto.
+
+The iOS unsigned-build job runs a **pre-flight `cargo build --target aarch64-apple-ios`** step before `flutter build ios --no-codesign`. xcodebuild swallows rustc diagnostics — collapses any iOS-cfg compile regression to a single `Error (Xcode): could not compile X (lib) due to N previous errors` line without the `error[Exxxx]` body — so we run cargo directly first to surface the full diagnostic in plain GHA log. The pre-flight runs with `working-directory: rust` so rustup picks up `rust-toolchain.toml` (without it, cargo from repo root resolves to the runner's default-stable toolchain which lacks the iOS targets the composite installed) and `IPHONEOS_DEPLOYMENT_TARGET: '13.0'` so vendored OpenSSL's references to `__chkstk_darwin` (added in iOS 13) resolve at link time.
+
 ### 15.4 Makefile Targets
 
 #### Development
@@ -5031,11 +5083,11 @@ flowchart TD
 
 | Target | Platform |
 |--------|----------|
-| `make build-linux` | Linux x64 |
-| `make build-macos` | macOS universal |
-| `make build-apk` | Android per-ABI |
+| `make build-linux` | Linux x64 (or host arch on ARM64 Linux) |
+| `make build-macos` | macOS universal (x86_64 + arm64 lipo'd) |
+| `make build-apk` | Android per-ABI (`arm64`, `arm32`, `x64`) |
 | `make build-aab` | Android App Bundle |
-| `make build-ios` | iOS |
+| `make build-ios` | iOS (unsigned `.ipa` shipped via CI; locally `--no-codesign`) |
 
 #### Packaging
 
@@ -5058,7 +5110,7 @@ flowchart TD
 | **Self-contained binary, zero manual setup** for end-user | App must run from a single extracted bundle. External OS deps allowed only if (1) graceful degradation with in-UI message and (2) install documented in README per platform. Preference order: bundle > built-in fallback > documented optional install. See [§1 Self-contained-binary principle](#1-high-level-overview) |
 | **Shared modules over local one-offs** at every layer | Single source of truth for visual, behavioural, and persistence patterns; second caller triggers extraction, third makes it mandatory. Produced `AppDialog`/`AppIconButton`/`AppDataRow`/`StyledFormField` (UI), `AppTheme.radius*`/`AppFonts.*`/`*ColWidth` (theme), `SftpBrowserMixin`/`key_file_helper.dart`/`breadcrumb_path.dart` (logic), `Store → DAO` template (persistence). See [§1 Reuse principle](#1-high-level-overview) |
 | Single SQLite DB instead of JSON files | Referential integrity, folder tree with FK, M2M tags/snippets, single encrypted DB file. Schema + DAOs live Rust-side under `lfs_core::db`; Dart reads / writes through FRB. |
-| SQLCipher 4.x via `rusqlite` `bundled-sqlcipher` | DB-level encryption replaces per-store AES-GCM. Single Cargo feature flag — no submodule, no native build hook. AES-256-CBC + HMAC-SHA512 per-page MAC. See [§3.6 Cipher choice](#cipher-choice--sqlcipher-4x-aes-256-cbc--hmac-sha512) for the picked-over-MC rationale and [§11 Encryption engine build path](#encryption-engine-build-path) for the build model. |
+| SQLCipher 4.x via `rusqlite` `bundled-sqlcipher-vendored-openssl` | DB-level encryption replaces per-store AES-GCM. Single Cargo feature flag, both SQLCipher and OpenSSL vendored — no submodule, no native build hook, no system OpenSSL prereq on cross-compile targets. AES-256-CBC + HMAC-SHA512 per-page MAC. See [§3.6 Cipher choice](#cipher-choice--sqlcipher-4x-aes-256-cbc--hmac-sha512) for the picked-over-MC rationale and [§11 Encryption engine build path](#encryption-engine-build-path) for the build model + the `vendored-openssl` decision. |
 | Config stays file-based | Theme/locale needed before DB opens (chicken-and-egg with encryption key) |
 | Three-level security (plaintext/keychain/master password) | Honest security: DB-level encryption via PRAGMA key. OS keychain optional with graceful fallback |
 | Accept per-platform asymmetry, don't escalate working baselines | Cross-platform packages with documented per-platform limits are the chosen budget across all domains (storage, file pickers, notifications, biometrics, IPC, hardware probes). Per-platform native rewrites are out of scope unless explicitly requested — N× code paths rarely worth a marginal upgrade. See [AGENT_RULES § Don't Escalate Working Baselines](AGENT_RULES.md#dont-escalate-working-baselines) |

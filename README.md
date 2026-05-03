@@ -32,7 +32,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 - **Sessions** — tree with nested folders, search, drag & drop, QR code sharing, host key verification
 - **Snippets** — reusable command snippets, pin to sessions, one-click terminal injection (now also reachable from the mobile SSH keyboard bar)
 - **Tags** — color-coded tags for sessions and folders, visual dots in tree view; assign right inside Edit Session
-- **Security** — encrypted SQLite storage via SQLCipher 4.x (AES-256-CBC for confidentiality + HMAC-SHA512 per-page MAC + 256 000 PBKDF2-SHA512 iterations on the page-cipher key; bundled in-tree via `rusqlite`'s `bundled-sqlcipher` Cargo feature — no separate native blob, no submodule). Three security tiers with a separate Paranoid alternative (T0 plaintext / T1 OS keychain / T2 hardware-bound key in Secure Enclave, StrongBox, or TPM 2.0 / Paranoid: master-password-derived, no OS storage). Two orthogonal modifiers on T1 / T2: password (pre-vault HMAC gate) and biometric (OS-biometric shortcut releasing the stored password — never a replacement for it). Atomic re-encryption on every tier or modifier change. Page-locked in-memory secrets (`mlock` / `VirtualLock`), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`). Argon2id-only `.lfs` export / import. TOFU host-key verification. Full threat model in [SECURITY.md](docs/SECURITY.md)
+- **Security** — encrypted SQLite storage via SQLCipher 4.x (AES-256-CBC for confidentiality + HMAC-SHA512 per-page MAC + 256 000 PBKDF2-SHA512 iterations on the page-cipher key; bundled in-tree via `rusqlite`'s `bundled-sqlcipher-vendored-openssl` Cargo feature — both SQLCipher and the OpenSSL it depends on are statically linked, no separate native blob, no submodule, no system-library prereqs on any cross-compile target). Three security tiers with a separate Paranoid alternative (T0 plaintext / T1 OS keychain / T2 hardware-bound key in Secure Enclave, StrongBox, or TPM 2.0 / Paranoid: master-password-derived, no OS storage). Two orthogonal modifiers on T1 / T2: password (pre-vault HMAC gate) and biometric (OS-biometric shortcut releasing the stored password — never a replacement for it). Atomic re-encryption on every tier or modifier change. Page-locked in-memory secrets (`mlock` / `VirtualLock`), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`). Argon2id-only `.lfs` export / import. TOFU host-key verification. Full threat model in [SECURITY.md](docs/SECURITY.md)
 - **Import/export** — encrypted `.lfs` archives, QR sharing for small exports, paste-deep-link import (no camera), in-app QR scanner (AndroidX CameraX + ZXing on Android, AVFoundation on iOS — no Google Play Services / MLKit)
 - **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), terminal font slider in Settings, deep links
 - **Auth** — password, key file, PEM text
@@ -42,10 +42,10 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 
 | Platform | Version | Status |
 |---|---|---|
-| **Windows** | 10+ (x64)¹ | primary test platform |
-| **Android** | 9.0+ (API 28) | primary test platform |
-| **Linux** | x64, GTK 3 | occasionally tested |
-| **macOS** | 10.15+ (Intel + Apple Silicon) | occasionally tested |
+| **Windows** | 10+ (x64 + ARM64)¹ | primary test platform — x64 fully tested, ARM64 builds via CI but binary may run through Prism on Snapdragon X if Flutter SDK fell back to x64 Dart |
+| **Android** | 9.0+ (API 28) | primary test platform — three per-ABI APKs (`arm64`, `arm32`, `x64`) |
+| **Linux** | x64 + ARM64, GTK 3 | occasionally tested — both architectures shipped; ARM64 covers Raspberry Pi 5, Asahi Linux, AWS Graviton |
+| **macOS** | 10.15+ (Intel + Apple Silicon) | occasionally tested — universal binary in one `.dmg` / `.tar.gz` |
 | **iOS** | 13.0+ | **unsigned `.ipa` shipped** — re-sign locally to install (no Apple Developer Program account on the project side) |
 
 ¹ Windows 10 RTM launches, but the optional biometric-unlock path (Windows Hello via `Windows.Security.Credentials.UI.UserConsentVerifier`, called directly from Rust through the `windows` crate) needs Windows 10 version **1809 (build 17763)** or newer because it calls into WinRT Hello APIs introduced in that release.
@@ -58,7 +58,7 @@ Download the build for your platform from [Releases](https://github.com/Lllooogg
 
 ### Linux
 
-Available formats: **AppImage**, **.deb**, **tar.gz**.
+Available formats: **AppImage**, **.deb**, **tar.gz** — each shipped per architecture as `letsflutssh-<version>-linux-x64.<ext>` (Intel / AMD / Linux on x86_64) or `-linux-arm64.<ext>` (aarch64 — Raspberry Pi 5, Asahi Linux, AWS Graviton, Ampere Altra). Pick by `uname -m` (`x86_64` → `linux-x64`, `aarch64` → `linux-arm64`).
 
 ```bash
 # AppImage — single self-contained file, no install
@@ -110,7 +110,10 @@ cd letsflutssh && ./letsflutssh
 
 ### Windows
 
-Available formats: **EXE installer** (Inno Setup), **portable zip**.
+Available formats:
+- **`letsflutssh-<version>-windows-x64-setup.exe`** — Inno Setup installer for Intel / AMD x86_64.
+- **`letsflutssh-<version>-windows-x64.zip`** — portable zip, x64.
+- **`letsflutssh-<version>-windows-arm64.zip`** — portable zip for Snapdragon X / Surface Pro X / Windows-on-ARM. The .exe inside may be either native ARM64 (preferred — runs at full speed) or x64 (runs via the OS's Prism emulation layer, ~10-20% slower for compute-heavy work but still fully functional). Both ship under the same artefact name because Windows 11 ARM64 runs both transparently.
 
 - **Installer:** double-click the `.exe`, follow the wizard. Adds Start Menu entry and uninstaller.
 - **Portable:** extract the zip anywhere, run `letsflutssh.exe` directly. No install, no registry writes.
