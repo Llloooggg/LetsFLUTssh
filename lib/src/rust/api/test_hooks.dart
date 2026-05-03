@@ -9,20 +9,18 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These functions are ignored because they are not marked as `pub`: `slot`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
-/// Start the in-process russh-server fixture. Returns the bound
-/// port + the OpenSSH-shaped public-key blob the caller seeds
-/// into `known_hosts`. Idempotent in the sense that a re-call
-/// stops the previous server before starting a fresh one (a fresh
-/// host keypair is generated on every call — tests that share a
-/// `known_hosts` table across `start` invocations must re-seed
-/// the row).
+/// Start an additional in-process russh-server fixture. Returns the
+/// bound port + the OpenSSH-shaped public-key blob the caller seeds
+/// into `known_hosts`. Each call generates a fresh Ed25519 host
+/// keypair + a fresh SFTP-root tempdir, so multiple concurrent
+/// fixtures stay independent.
 Future<TestSshServerInfo> testSshServerStart() =>
     RustLib.instance.api.crateApiTestHooksTestSshServerStart();
 
-/// Stop the running fixture (no-op if none is running). Safe to
-/// call multiple times.
-void testSshServerStop() =>
-    RustLib.instance.api.crateApiTestHooksTestSshServerStop();
+/// Stop every running fixture. Safe to call multiple times — each
+/// `shutdown()` on the underlying handle is idempotent.
+void testSshServerStopAll() =>
+    RustLib.instance.api.crateApiTestHooksTestSshServerStopAll();
 
 /// Bundle returned to the Dart test caller. Carries everything a
 /// test needs to drive a connect against the fixture: the bound

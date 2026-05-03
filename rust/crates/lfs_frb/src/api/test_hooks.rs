@@ -25,9 +25,15 @@
 //! });
 //!
 //! tearDownAll(() {
-//!   testSshServerStop();
+//!   testSshServerStopAll();
 //! });
 //! ```
+//!
+//! Concurrent fixtures: each [`test_ssh_server_start`] adds a new
+//! handle to the running set without disturbing the others, so a
+//! ProxyJump-style test can stand up two endpoints (bastion + final
+//! target) on disjoint ports and shut them all down with one
+//! [`test_ssh_server_stop_all`] call in `tearDownAll`.
 
 use std::sync::{Mutex, OnceLock};
 
@@ -50,25 +56,20 @@ pub struct TestSshServerInfo {
     pub sftp_root: String,
 }
 
-/// Single-instance slot. Tests that re-call [`test_ssh_server_start`]
-/// while a previous server is still running stop the old one first
-/// — keeps the API forgiving for `setUpAll` retries.
-fn slot() -> &'static Mutex<Option<TestServerHandle>> {
-    static SLOT: OnceLock<Mutex<Option<TestServerHandle>>> = OnceLock::new();
-    SLOT.get_or_init(|| Mutex::new(None))
+/// Multiple-instance slot. Each [`test_ssh_server_start`] pushes a
+/// fresh handle so a ProxyJump test can stand up two endpoints on
+/// disjoint ports without one start tearing the other down.
+fn slot() -> &'static Mutex<Vec<TestServerHandle>> {
+    static SLOT: OnceLock<Mutex<Vec<TestServerHandle>>> = OnceLock::new();
+    SLOT.get_or_init(|| Mutex::new(Vec::new()))
 }
 
-/// Start the in-process russh-server fixture. Returns the bound
-/// port + the OpenSSH-shaped public-key blob the caller seeds
-/// into `known_hosts`. Idempotent in the sense that a re-call
-/// stops the previous server before starting a fresh one (a fresh
-/// host keypair is generated on every call — tests that share a
-/// `known_hosts` table across `start` invocations must re-seed
-/// the row).
+/// Start an additional in-process russh-server fixture. Returns the
+/// bound port + the OpenSSH-shaped public-key blob the caller seeds
+/// into `known_hosts`. Each call generates a fresh Ed25519 host
+/// keypair + a fresh SFTP-root tempdir, so multiple concurrent
+/// fixtures stay independent.
 pub async fn test_ssh_server_start() -> Result<TestSshServerInfo, String> {
-    if let Some(prev) = slot().lock().expect("test_server slot poisoned").take() {
-        prev.shutdown();
-    }
     let handle = test_server::start().await.map_err(|e| e.to_string())?;
     let info = TestSshServerInfo {
         port: handle.port,
@@ -77,15 +78,23 @@ pub async fn test_ssh_server_start() -> Result<TestSshServerInfo, String> {
         password: TEST_PASSWORD.to_string(),
         sftp_root: handle.sftp_root.to_string_lossy().into_owned(),
     };
-    *slot().lock().expect("test_server slot poisoned") = Some(handle);
+    slot()
+        .lock()
+        .expect("test_server slot poisoned")
+        .push(handle);
     Ok(info)
 }
 
-/// Stop the running fixture (no-op if none is running). Safe to
-/// call multiple times.
+/// Stop every running fixture. Safe to call multiple times — each
+/// `shutdown()` on the underlying handle is idempotent.
 #[flutter_rust_bridge::frb(sync)]
-pub fn test_ssh_server_stop() {
-    if let Some(handle) = slot().lock().expect("test_server slot poisoned").take() {
-        handle.shutdown();
+pub fn test_ssh_server_stop_all() {
+    let handles: Vec<TestServerHandle> = slot()
+        .lock()
+        .expect("test_server slot poisoned")
+        .drain(..)
+        .collect();
+    for h in &handles {
+        h.shutdown();
     }
 }

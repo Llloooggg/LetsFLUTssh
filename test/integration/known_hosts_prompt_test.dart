@@ -38,7 +38,7 @@ void main() {
   });
 
   tearDownAll(() async {
-    rust_test.testSshServerStop();
+    rust_test.testSshServerStopAll();
     await rust_app.dbClose();
   });
 

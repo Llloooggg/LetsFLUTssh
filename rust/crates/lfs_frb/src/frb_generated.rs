@@ -41,7 +41,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -692917255;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1338470059;
 
 // Section: executor
 
@@ -14934,14 +14934,14 @@ fn wire__crate__api__test_hooks__test_ssh_server_start_impl(
         },
     )
 }
-fn wire__crate__api__test_hooks__test_ssh_server_stop_impl(
+fn wire__crate__api__test_hooks__test_ssh_server_stop_all_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "test_ssh_server_stop",
+            debug_name: "test_ssh_server_stop_all",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -14958,7 +14958,7 @@ fn wire__crate__api__test_hooks__test_ssh_server_stop_impl(
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok({
-                    crate::api::test_hooks::test_ssh_server_stop();
+                    crate::api::test_hooks::test_ssh_server_stop_all();
                 })?;
                 Ok(output_ok)
             })())
@@ -21197,7 +21197,7 @@ fn pde_ffi_dispatcher_sync_impl(
 374 => wire__crate__api__ssh_config__ssh_config_unquote_impl(ptr, rust_vec_len, data_len),
 385 => wire__crate__api__ssh_dir_scan__ssh_dir_scan_impl(ptr, rust_vec_len, data_len),
 386 => wire__crate__api__ssh__ssh_format_host_key_fingerprint_impl(ptr, rust_vec_len, data_len),
-396 => wire__crate__api__test_hooks__test_ssh_server_stop_impl(ptr, rust_vec_len, data_len),
+396 => wire__crate__api__test_hooks__test_ssh_server_stop_all_impl(ptr, rust_vec_len, data_len),
 397 => wire__crate__api__threat_eval__threat_evaluate_impl(ptr, rust_vec_len, data_len),
 402 => wire__crate__api__tier_unlock_orchestrator__tier_first_launch_plaintext_impl(ptr, rust_vec_len, data_len),
 403 => wire__crate__api__tier_machine__tier_machine_active_tier_wire_name_impl(ptr, rust_vec_len, data_len),

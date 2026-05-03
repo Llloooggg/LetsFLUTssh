@@ -60,7 +60,8 @@ use russh_sftp::protocol::{
     Attrs, Data, File as SftpFile, FileAttributes, Handle as SftpHandle, Name, OpenFlags, Status,
     StatusCode, Version,
 };
-use tokio::net::TcpListener;
+use tokio::io::AsyncWriteExt as _;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, Notify};
 
 use crate::error::Error;
@@ -308,6 +309,55 @@ impl Handler for TestSshHandler {
     ) -> Result<(), Self::Error> {
         Ok(())
     }
+
+    /// ProxyJump's `direct-tcpip` channel: a client speaking SSH
+    /// to *us* asks us to forward bytes onward to
+    /// `host_to_connect:port_to_connect`. The fixture proxies
+    /// loopback addresses only — every test target is also a
+    /// fixture on 127.0.0.1, so this is sufficient for the
+    /// bastion-routed connect path. Non-loopback requests get
+    /// rejected (returning `false` makes russh reply
+    /// `AdministrativelyProhibited`), which keeps the fixture
+    /// from accidentally opening sockets to user-supplied hosts.
+    async fn channel_open_direct_tcpip(
+        &mut self,
+        channel: Channel<Msg>,
+        host_to_connect: &str,
+        port_to_connect: u32,
+        _originator_address: &str,
+        _originator_port: u32,
+        _session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        if host_to_connect != "127.0.0.1" && host_to_connect != "localhost" {
+            return Ok(false);
+        }
+        let target = format!("127.0.0.1:{port_to_connect}");
+        let tcp = match TcpStream::connect(&target).await {
+            Ok(s) => s,
+            Err(_) => return Ok(false),
+        };
+        tokio::spawn(proxy_channel_to_tcp(channel, tcp));
+        Ok(true)
+    }
+}
+
+/// Bidirectional pipe between an SSH channel (used as an
+/// `AsyncRead + AsyncWrite` stream) and a downstream TCP socket.
+/// Used by [`TestSshHandler::channel_open_direct_tcpip`] to wire
+/// a ProxyJump child handshake through the bastion fixture.
+async fn proxy_channel_to_tcp(channel: Channel<Msg>, tcp: TcpStream) {
+    let mut stream = channel.into_stream();
+    let (mut tcp_read, mut tcp_write) = tcp.into_split();
+    let (mut stream_read, mut stream_write) = tokio::io::split(&mut stream);
+    let upstream = async {
+        let _ = tokio::io::copy(&mut stream_read, &mut tcp_write).await;
+        let _ = tcp_write.shutdown().await;
+    };
+    let downstream = async {
+        let _ = tokio::io::copy(&mut tcp_read, &mut stream_write).await;
+        let _ = stream_write.shutdown().await;
+    };
+    tokio::join!(upstream, downstream);
 }
 
 // ─── SFTP subsystem ────────────────────────────────────────────────

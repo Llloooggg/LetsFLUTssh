@@ -132,7 +132,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -692917255;
+  int get rustContentHash => 1338470059;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1730,7 +1730,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<TestSshServerInfo> crateApiTestHooksTestSshServerStart();
 
-  void crateApiTestHooksTestSshServerStop();
+  void crateApiTestHooksTestSshServerStopAll();
 
   List<DbThreatRow> crateApiThreatEvalThreatEvaluate({
     required DbThreatTier tier,
@@ -15163,7 +15163,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'test_ssh_server_start', argNames: []);
 
   @override
-  void crateApiTestHooksTestSshServerStop() {
+  void crateApiTestHooksTestSshServerStopAll() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -15178,15 +15178,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiTestHooksTestSshServerStopConstMeta,
+        constMeta: kCrateApiTestHooksTestSshServerStopAllConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiTestHooksTestSshServerStopConstMeta =>
-      const TaskConstMeta(debugName: 'test_ssh_server_stop', argNames: []);
+  TaskConstMeta get kCrateApiTestHooksTestSshServerStopAllConstMeta =>
+      const TaskConstMeta(debugName: 'test_ssh_server_stop_all', argNames: []);
 
   @override
   List<DbThreatRow> crateApiThreatEvalThreatEvaluate({

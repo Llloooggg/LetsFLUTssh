@@ -82,7 +82,7 @@ void main() {
     sftp.close();
     container.read(connectionsProvider.notifier).disconnect(conn.id);
     container.dispose();
-    rust_test.testSshServerStop();
+    rust_test.testSshServerStopAll();
     await rust_app.dbClose();
   });
 
