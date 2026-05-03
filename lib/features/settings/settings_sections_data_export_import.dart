@@ -297,7 +297,7 @@ class _ExportImportTile extends ConsumerWidget {
   ) async {
     // Progress bar covers the Rust orchestrator + write step. The
     // orchestrator reads sessions / keys / tags / snippets / known-hosts
-    // straight from `lfs_core.db` so plaintext credentials never round-
+    // straight from `letsflutssh.db` so plaintext credentials never round-
     // trip through the Dart heap during export. Dart only passes the
     // pre-serialised `config.json` payload (file-based, not in the DB).
     final l10n = S.of(context);

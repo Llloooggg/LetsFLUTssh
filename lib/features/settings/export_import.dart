@@ -184,7 +184,7 @@ class ExportImport {
 
   /// Export app data to an encrypted `.lfs` file via the Rust
   /// orchestrator. Sessions / keys / tags / snippets / known-hosts
-  /// are read from `lfs_core.db` inside Rust; only `config.json`
+  /// are read from `letsflutssh.db` inside Rust; only `config.json`
   /// (file-based) is passed across the FRB boundary as a JSON
   /// string. Plaintext credentials never round-trip through the
   /// Dart heap during export.

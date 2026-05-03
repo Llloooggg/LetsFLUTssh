@@ -4,7 +4,7 @@ import '../core/tags/tag.dart';
 import '../src/rust/api/db.dart' as rust_db;
 import '../utils/logger.dart';
 
-/// All tags — loaded from `lfs_core.db` on first access. Mutations
+/// All tags — loaded from `letsflutssh.db` on first access. Mutations
 /// route through the [TagsNotifier] CRUD methods which update local
 /// state optimistically + invalidate the per-session / per-folder
 /// family providers below.

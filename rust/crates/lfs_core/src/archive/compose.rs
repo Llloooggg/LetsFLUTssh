@@ -58,7 +58,7 @@ pub struct ExportOptions {
 }
 
 /// Inputs to [`export_archive`]. Sessions / folders / tags / snippets
-/// / known-hosts come straight from `lfs_core.db`; only `config_json`
+/// / known-hosts come straight from `letsflutssh.db`; only `config_json`
 /// is passed through from Dart because `config.json` lives on disk.
 #[derive(Debug, Clone)]
 pub struct ExportInput {

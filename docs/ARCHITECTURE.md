@@ -289,7 +289,7 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 | `transport/rust_transport.dart` | `RustTransport` | The Rust-backed impl. Translates the typed `SshConnectRequest` (including `SshAuth*Ref` variants that point at SecretStore ids) to FRB calls into `lfs_core::ssh`, materialises shell + direct-tcpip channels as Dart streams, drains forwarded connections via `connectViaProxy`. Only impl in the tree; `ConnectionsNotifier` constructs `RustTransport()` directly — there is no `createSshTransport` factory because there is nothing to switch between. Tests stub by injecting their own `SshTransport` implementation through the constructor seam on `ConnectionsNotifier`. |
 | `ssh_config.dart` | `SSHConfig`, `SshAuth`, `ServerAddress` | Config model carried across the connect path. `SshAuth` carries `password`, `keyPath`, `keyData`, `keyId`, `passphrase`; the connect path stages stored secrets via `db_sessions_stage_secrets` / `db_ssh_keys_stage_secret` so the bytes never round-trip through the Dart heap (see [§3.6 Security boundary](#36-security--encryption-coresecurity)). |
 | `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH-dir import path; never touched at connect time. |
-| `providers/known_hosts_provider.dart` | `KnownHostsNotifier` | UI-side notifier that mirrors the `known_hosts` table in `lfs_core.db`. Subscribes to the `BusTopic::KnownHosts` stream so the cache refreshes whenever any code path mutates the table; the actual TOFU host-key verification flow is owned by `lfs_core::known_hosts` and the FRB-side prompt protocol (see [#§3.1 Auth chain](#auth-chain)) — Dart never gates auth itself. Mutators (`add` / `remove` / `clear`) issue the matching FRB DAO calls + reload. |
+| `providers/known_hosts_provider.dart` | `KnownHostsNotifier` | UI-side notifier that mirrors the `known_hosts` table in `letsflutssh.db`. Subscribes to the `BusTopic::KnownHosts` stream so the cache refreshes whenever any code path mutates the table; the actual TOFU host-key verification flow is owned by `lfs_core::known_hosts` and the FRB-side prompt protocol (see [#§3.1 Auth chain](#auth-chain)) — Dart never gates auth itself. Mutators (`add` / `remove` / `clear`) issue the matching FRB DAO calls + reload. |
 | `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionsNotifier._failureStep` maps those into the typed errors above. |
 | `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model for the per-session forwarding tab. |
 | `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); thin shim that asks `lfs_core::portforward::driver` to spawn / stop the `-L` / `-D` / `-R` listeners against the live connection actor on connect / disconnect. No accept loop or SOCKS5 handshake on the Dart side. |
@@ -371,7 +371,7 @@ The TOFU verification flow is **not** a Dart concern. The russh host-key callbac
 
 Per-session rules — model + persistence + lifecycle — that open `ssh -L`-style local listeners on connect and tear them down on disconnect. The model lives in `port_forward_rule.dart` (`PortForwardRule { id, kind, bindHost, bindPort, remoteHost, remotePort, description, enabled, sortOrder, createdAt }`), the runtime in `port_forward_runtime.dart`.
 
-**Persistence.** `port_forward_rules` table in `lfs_core.db` joined to `sessions` with `ON DELETE CASCADE`. `SessionNotifier.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the FRB DAO never escapes the store.
+**Persistence.** `port_forward_rules` table in `letsflutssh.db` joined to `sessions` with `ON DELETE CASCADE`. `SessionNotifier.loadPortForwards / upsertPortForward / deletePortForward` are the public surface; the FRB DAO never escapes the store.
 
 **Runtime — `PortForwardRuntime` implements `ConnectionExtension`.** Built by `_attachPortForwards` in `features/session_manager/session_connect.dart` only when the session has at least one saved rule (so a session with zero rules pays nothing). The runtime is registered on the [`Connection`](#connectionextension--lifecycle-add-ons) before [`ConnectionsNotifier`](#connectionmanager) calls `connectAsync`'s underlying `_doConnect`, so when the transport reaches `state == connected` the standard fan-out fires `onConnected` and the runtime asks `lfs_core::portforward::driver` to spawn the listeners with no race against the new transport assignment.
 
@@ -866,7 +866,7 @@ class ForegroundServiceManager {
 
 #### Three-Tier + Paranoid Model
 
-All app data lives in one SQLite database (`lfs_core.db`) opened by `lfs_core::db` over rusqlite with the bundled SQLCipher cipher (AES-256-CBC). The user picks one of three **numbered tiers** plus one **alternative branch** ("Paranoid") shown separately in the wizard for users who do not trust the OS at all. `SecurityTier` enum values are deliberately unordered — no `<` / `>` comparisons anywhere in the codebase; feature-gating goes through predicates on `SecurityConfig` (`usesKeychain`, `usesHardwareVault`, `hasUserSecret`, `isParanoid`, `isPlaintext`).
+All app data lives in one SQLite database (`letsflutssh.db`) opened by `lfs_core::db` over rusqlite with the bundled SQLCipher cipher (AES-256-CBC). The user picks one of three **numbered tiers** plus one **alternative branch** ("Paranoid") shown separately in the wizard for users who do not trust the OS at all. `SecurityTier` enum values are deliberately unordered — no `<` / `>` comparisons anywhere in the codebase; feature-gating goes through predicates on `SecurityConfig` (`usesKeychain`, `usesHardwareVault`, `hasUserSecret`, `isParanoid`, `isPlaintext`).
 
 | Tier | Label | DB key location | Typical user-typed secret (when modifier is on) | Where the secret is stored |
 |---|---|---|---|---|
@@ -1017,7 +1017,7 @@ Two more secret-id namespaces ride on the same store: `key.priv.<keyId>` for sta
 
 `SecurityStateNotifier` no longer owns the DB key as the primary residence. The 32-byte derived key flows: unlock orchestrator stages it under the canonical SecretStore id → Dart's tier-unlocked listener calls `secrets_take(id)` → the bytes briefly cross FRB → Dart wraps them in a `SecretBuffer` (mlock / VirtualLock-pinned page) → hands them to `dbInit(key)` → `SecretBuffer.dispose()` zeroes the page. The Rust-side `SecretStore` entry is gone after the take; the SQLCipher key lives inside Rust until `dbClose()` zeroes the cached page-cipher state on auto-lock or a tier switch. `SecretBuffer` still exists for that narrow Dart-heap residency window plus the `SecurePasswordField` typed-secret mirror, but is no longer the primary holder of the long-lived DB key — that role moved entirely Rust-side.
 
-**Bytes-don't-cross invariant — current state.** Every credential path keeps plaintext bytes on the Rust side of the FRB boundary. Connect / edit / duplicate / bulk listing paths read credentials only via SecretStore staging or pre-hashed metadata. `.lfs` archive composition runs entirely Rust-side via `db_export_archive` / `lfs_core::archive::export_archive`: the orchestrator reads sessions / ssh_keys / tags / snippets / session_tags / folder_tags / session_snippets / known_hosts straight from `lfs_core.db`, builds the manifest + per-entry JSON inside Rust, ZIPs in Stored mode, and applies the Argon2id + AES-GCM envelope before returning the encrypted bytes to Dart for atomic write. The QR-export deeplink path still goes through `SshKeysNotifier.loadAll()` for embedded-key payloads — QR is even rarer than `.lfs` and the codec path is the next slice if the question reopens.
+**Bytes-don't-cross invariant — current state.** Every credential path keeps plaintext bytes on the Rust side of the FRB boundary. Connect / edit / duplicate / bulk listing paths read credentials only via SecretStore staging or pre-hashed metadata. `.lfs` archive composition runs entirely Rust-side via `db_export_archive` / `lfs_core::archive::export_archive`: the orchestrator reads sessions / ssh_keys / tags / snippets / session_tags / folder_tags / session_snippets / known_hosts straight from `letsflutssh.db`, builds the manifest + per-entry JSON inside Rust, ZIPs in Stored mode, and applies the Argon2id + AES-GCM envelope before returning the encrypted bytes to Dart for atomic write. The QR-export deeplink path still goes through `SshKeysNotifier.loadAll()` for embedded-key payloads — QR is even rarer than `.lfs` and the codec path is the next slice if the question reopens.
 
 #### SecretStore + SecretRef: the plaintext-discipline rule
 
@@ -2357,7 +2357,7 @@ flowchart LR
 | Provider | Type | Depends on | Description |
 |----------|------|-----------|-------------|
 | `masterPasswordProvider` | Provider | — | MasterPasswordManager singleton |
-| `sessionProvider.notifier` | Provider | — | Singleton SessionNotifier (FRB-backed via lfs_core.db) |
+| `sessionProvider.notifier` | Provider | — | Singleton SessionNotifier (FRB-backed via letsflutssh.db) |
 | `sessionProvider` | NotifierProvider | sessionStoreProvider | Session CRUD + undo/redo |
 | `sessionTreeProvider` | Provider | sessionProvider | Hierarchical tree |
 | `filteredSessionsProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered session list |
@@ -2366,13 +2366,13 @@ flowchart LR
 | `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger (sequential save lock via `_pendingSave`) |
 | `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
 | `localeProvider` | Provider | configProvider | Locale? (null = system default) |
-| `knownHostsProvider` | Provider | — | KnownHostsNotifier (FRB-backed via lfs_core.db) |
-| `sshKeysProvider.notifier` | Provider | — | SshKeysNotifier (FRB-backed via lfs_core.db) |
+| `knownHostsProvider` | Provider | — | KnownHostsNotifier (FRB-backed via letsflutssh.db) |
+| `sshKeysProvider.notifier` | Provider | — | SshKeysNotifier (FRB-backed via letsflutssh.db) |
 | `sshKeysProvider` | FutureProvider | keyStoreProvider | List\<SshKeyEntry\> |
-| `snippetsProvider.notifier` | Provider | — | SnippetsNotifier (FRB-backed via lfs_core.db) |
+| `snippetsProvider.notifier` | Provider | — | SnippetsNotifier (FRB-backed via letsflutssh.db) |
 | `snippetsProvider` | FutureProvider | snippetStoreProvider | All snippets |
 | `sessionSnippetsProvider` | FutureProvider.family | snippetStoreProvider | Snippets pinned to a session |
-| `tagsProvider.notifier` | Provider | — | TagsNotifier (FRB-backed via lfs_core.db) |
+| `tagsProvider.notifier` | Provider | — | TagsNotifier (FRB-backed via letsflutssh.db) |
 | `tagsProvider` | FutureProvider | tagStoreProvider | All tags |
 | `sessionTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a session |
 | `folderTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a folder |

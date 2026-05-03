@@ -73,7 +73,7 @@ Future<void> dbInit({required String path, required List<int> key}) =>
 Future<void> dbClose() => RustLib.instance.api.crateApiAppDbClose();
 
 /// Re-encrypt the running Rust DB with `new_key`. Used by the
-/// security-tier switcher so the encrypted `lfs_core.db` rekeys
+/// security-tier switcher so the encrypted `letsflutssh.db` rekeys
 /// atomically on tier transitions. Empty `new_key` is rejected —
 /// see `Db::rekey`.
 Future<void> dbRekey({required List<int> newKey}) =>

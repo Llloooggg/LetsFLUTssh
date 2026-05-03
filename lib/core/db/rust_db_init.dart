@@ -8,11 +8,19 @@ import '../../src/rust/api/app.dart' as rust_app;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
-/// Path of the Rust-owned sqlite file. Sits alongside drift's
-/// `letsflutssh.db` while both engines coexist — names diverge so
-/// the two cipher families (drift's MC ChaCha20 vs rusqlite's
-/// SQLCipher AES-256-CBC) never share a wire format.
-const _rustDbFileName = 'lfs_core.db';
+/// Path of the Rust-owned sqlite file. Reuses the same filename
+/// drift wrote to before the rusqlite port (`letsflutssh.db`) so
+/// a fresh install lands at a familiar path. Upgrades from a
+/// pre-rust-port build hit a cipher-family mismatch (drift's MC
+/// ChaCha20 vs rusqlite's SQLCipher AES-256-CBC) when SQLCipher
+/// tries to open the existing file — "file is not a database"
+/// surfaces through `verifyRustDbReadable` → `DbCorruptDialog`,
+/// the user picks Reset, the file is wiped, fresh setup proceeds.
+/// Conscious tradeoff: no on-the-fly migration code, drift/MC and
+/// rusqlite/SQLCipher share the file slot, the corrupt-DB dialog
+/// is the upgrade UX. Users who want to preserve pre-port data
+/// roll back to v7.3.2, export to `.lfs`, upgrade, import.
+const _rustDbFileName = 'letsflutssh.db';
 
 /// Open the Rust-owned sqlite handle behind the FRB boundary using
 /// the same master key Dart just unlocked drift with. Idempotent on
@@ -24,7 +32,7 @@ const _rustDbFileName = 'lfs_core.db';
 /// Failures are logged and swallowed: a missing Rust DB only means
 /// the FRB-backed DAOs are unusable for this run, not that the app
 /// can't boot. Drift-backed legacy paths still operate.
-/// Whether `lfs_core.db` already exists on disk. Used by the
+/// Whether `letsflutssh.db` already exists on disk. Used by the
 /// first-launch path to distinguish "fresh install, no data" from
 /// "existing install — unlock the previous key".
 Future<bool> lfsCoreDbExists() async {
@@ -33,7 +41,7 @@ Future<bool> lfsCoreDbExists() async {
     return File(p.join(dir.path, _rustDbFileName)).exists();
   } catch (e) {
     AppLogger.instance.log(
-      'lfs_core.db existence probe failed: $e',
+      'letsflutssh.db existence probe failed: $e',
       name: 'RustDbInit',
       level: LogLevel.warn,
     );
@@ -52,7 +60,7 @@ Future<bool> verifyRustDbReadable() async {
     return true;
   } catch (e) {
     AppLogger.instance.log(
-      'lfs_core.db readability probe failed: ${e.runtimeType}',
+      'letsflutssh.db readability probe failed: ${e.runtimeType}',
       name: 'RustDbInit',
     );
     return false;

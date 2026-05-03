@@ -123,7 +123,7 @@ impl Db {
 
     /// Re-encrypt every page under `new_key`. Mirrors drift-side
     /// `rekeyDatabase` so the security-tier switcher can rekey
-    /// drift's `letsflutssh.db` and lfs_core's `lfs_core.db` in
+    /// drift's `letsflutssh.db` and lfs_core's `letsflutssh.db` in
     /// lock-step. Empty `new_key` is rejected — converting back to
     /// plaintext is not a valid lfs_core flow (the schema docstring
     /// describes a key-required handle; a plaintext degrade would

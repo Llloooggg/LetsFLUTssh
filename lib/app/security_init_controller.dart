@@ -80,7 +80,7 @@ part 'security_init_controller_unlock.dart';
 ///   5. `dispose()` called from the state's `dispose()` so any
 ///      in-flight async completes into a disposed flag instead of
 ///      touching the DB.
-/// Signature of the `lfs_core.db` existence probe. Lets tests flip
+/// Signature of the `letsflutssh.db` existence probe. Lets tests flip
 /// "first launch vs existing install" without touching the
 /// filesystem.
 typedef DbFileExistsProbe = Future<bool> Function();
@@ -124,7 +124,7 @@ class SecurityInitController {
   // ── State fields ────────────────────────────────────────────
 
   /// True once the integrity probe has observed a successful read
-  /// against the live `lfs_core.db`. Gates every follow-on query path —
+  /// against the live `letsflutssh.db`. Gates every follow-on query path —
   /// session reloads, auto-lock load — so nothing hits the DB
   /// before the cipher is validated.
   bool _securityReady = false;
@@ -627,13 +627,13 @@ class SecurityInitController {
     }
     // Open the Rust-owned sqlite handle BEFORE invalidating provider
     // caches. The invalidate triggers a rebuild that calls back into
-    // `lfs_core.db` (`db_sessions_list_all`, `db_ssh_keys_list_metadata`,
+    // `letsflutssh.db` (`db_sessions_list_all`, `db_ssh_keys_list_metadata`,
     // `db_known_hosts_list`); calling those before `ensureRustDbOpen`
     // returns produces a "db not initialized" error and the providers
     // fall back to empty state. The rebuild has to land AFTER the
     // sqlite handle is up so the first read pulls real rows.
     await ensureRustDbOpen(key: key);
-    // Stores read/write through FRB into `lfs_core.db`; the unlock
+    // Stores read/write through FRB into `letsflutssh.db`; the unlock
     // handshake invalidates each store's in-memory cache so the next
     // read pulls fresh rows after the engine swap.
     ref.read(sessionProvider.notifier).invalidateCache();

@@ -4,7 +4,7 @@ import '../core/snippets/snippet.dart';
 import '../src/rust/api/db.dart' as rust_db;
 import '../utils/logger.dart';
 
-/// All snippets — loaded from `lfs_core.db` on first access. Mutations
+/// All snippets — loaded from `letsflutssh.db` on first access. Mutations
 /// route through the [SnippetsNotifier] CRUD methods which invalidate
 /// local state + the per-session family provider below.
 ///

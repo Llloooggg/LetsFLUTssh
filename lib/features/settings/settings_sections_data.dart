@@ -140,7 +140,7 @@ class _QrExportTile extends ConsumerWidget {
     final notifier = ref.read(sessionProvider.notifier);
 
     // Load counts for export dialog. The export orchestrator pulls
-    // bytes directly from `lfs_core.db` Rust-side; the dialog
+    // bytes directly from `letsflutssh.db` Rust-side; the dialog
     // carries the SshKeyEntry map only so the QR / .lfs size
     // estimators can measure deflate-encoded payload bytes.
     final keyStore = ref.read(sshKeysProvider.notifier);
@@ -172,7 +172,7 @@ class _QrExportTile extends ConsumerWidget {
 
     // Hand the encode off to the Rust orchestrator — sessions /
     // manager keys / tags / snippets / known-hosts come straight
-    // from `lfs_core.db`, dedup runs Rust-side, and only the
+    // from `letsflutssh.db`, dedup runs Rust-side, and only the
     // deflated + base64url-encoded ASCII payload returns to Dart
     // for the QR widget. Plaintext credentials never round-trip
     // through the Dart heap during encode.

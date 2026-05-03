@@ -5,7 +5,7 @@ import '../utils/logger.dart';
 
 /// Auto-lock idle timeout in minutes. `0` = disabled.
 ///
-/// The value is stored in the encrypted DB (`lfs_core.db`) so an
+/// The value is stored in the encrypted DB (`letsflutssh.db`) so an
 /// attacker with plaintext-disk access cannot weaken the security
 /// control by editing a config file. Reads return `0` until the DB
 /// is unlocked; the notifier reloads itself the first time `load()`

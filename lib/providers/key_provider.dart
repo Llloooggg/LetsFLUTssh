@@ -5,7 +5,7 @@ import '../src/rust/api/db.dart' as rust_db;
 import '../utils/logger.dart';
 
 /// All stored SSH keys, sorted by createdAt descending. Loaded from
-/// `lfs_core.db` on first access; mutations route through the
+/// `letsflutssh.db` on first access; mutations route through the
 /// [SshKeysNotifier] CRUD methods which invalidate state and refresh.
 ///
 /// Replaces the prior two-tier `Provider<KeyStore>` +

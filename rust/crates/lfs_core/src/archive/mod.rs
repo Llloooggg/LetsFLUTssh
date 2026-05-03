@@ -21,7 +21,7 @@
 //! threaded through `serde_json::Value` for shape preservation, and
 //! handed to AES-GCM. The Dart caller passes only the export options
 //! plus the pre-serialised `config_json` string (since `config.json`
-//! is file-based, not in `lfs_core.db`) and receives the encrypted
+//! is file-based, not in `letsflutssh.db`) and receives the encrypted
 //! archive bytes ready to write atomically.
 
 use std::collections::{HashMap, HashSet};

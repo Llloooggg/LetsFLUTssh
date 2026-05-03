@@ -17,7 +17,7 @@ import '../utils/logger.dart';
 
 /// Single source of truth for session state. Owns the in-memory cache
 /// (sessions, emptyFolders, collapsedFolders, folder map), the FRB
-/// `lfs_core.db` write pipeline, the bus subscription that re-hydrates
+/// `letsflutssh.db` write pipeline, the bus subscription that re-hydrates
 /// the cache after Rust-side mutations (bulk import etc.), and the
 /// undo/redo history.
 ///

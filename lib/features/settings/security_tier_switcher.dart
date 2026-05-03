@@ -42,7 +42,7 @@ class SecurityTierSwitcher {
        _keyFactory = keyFactory ?? _defaultRandomKey,
        _rekey = rekey ?? _defaultRekey;
 
-  /// Default rekey hook — re-encrypts `lfs_core.db` under `newKey`
+  /// Default rekey hook — re-encrypts `letsflutssh.db` under `newKey`
   /// via the FRB `db_rekey` adapter.
   static Future<void> _defaultRekey(Uint8List newKey) =>
       rust_app.dbRekey(newKey: List<int>.from(newKey));

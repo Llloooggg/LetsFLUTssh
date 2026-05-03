@@ -1,5 +1,5 @@
 //! Import-apply driver — turns a [`PendingImport`] into committed
-//! rows on `lfs_core.db`. Companion to the export composer in
+//! rows on `letsflutssh.db`. Companion to the export composer in
 //! [`super`]; the two halves bracket the wire-format contract for
 //! the `.lfs` archive (and, via [`crate::archive_stage`], the
 //! in-memory QR / paste-link / OpenSSH-config import flows).
