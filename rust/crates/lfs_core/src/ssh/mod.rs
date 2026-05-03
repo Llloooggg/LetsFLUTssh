@@ -1293,6 +1293,55 @@ impl ShellEvent {
 
 // ---- Helpers ----------------------------------------------------------
 
+/// Connect to the user's running ssh-agent across the platform-
+/// specific default channels:
+/// - **Unix** — `$SSH_AUTH_SOCK` (the canonical OpenSSH path).
+/// - **Windows** — OpenSSH-on-Windows named pipe
+///   (`\\.\pipe\openssh-ssh-agent`) preferred (that's what the
+///   `OpenSSH Authentication Agent` service registers when the
+///   user enables it via Optional Features), falling back to
+///   Pageant for users on the PuTTY toolchain. russh 0.59 does
+///   not expose `connect_env` on Windows because Windows has no
+///   single canonical agent socket — the platform splits between
+///   the OpenSSH named pipe and Pageant's per-process protocol.
+///
+/// Returns the dynamic-stream variant (`AgentClient<Box<dyn ...>>`)
+/// so the call sites stay generic over the per-platform stream type
+/// downstream (UnixStream / NamedPipeClient / PageantStream).
+async fn connect_default_agent() -> Result<
+    russh::keys::agent::client::AgentClient<
+        Box<dyn russh::keys::agent::client::AgentStream + Send + Unpin + 'static>,
+    >,
+    Error,
+> {
+    #[cfg(unix)]
+    {
+        let agent = russh::keys::agent::client::AgentClient::connect_env()
+            .await
+            .map_err(|e| Error::Auth(format!("agent connect: {e}")))?;
+        Ok(agent.dynamic())
+    }
+    #[cfg(windows)]
+    {
+        const OPENSSH_NAMED_PIPE: &str = r"\\.\pipe\openssh-ssh-agent";
+        match russh::keys::agent::client::AgentClient::connect_named_pipe(
+            OPENSSH_NAMED_PIPE,
+        )
+        .await
+        {
+            Ok(client) => Ok(client.dynamic()),
+            Err(named_pipe_err) => match russh::keys::agent::client::AgentClient::connect_pageant()
+                .await
+            {
+                Ok(client) => Ok(client.dynamic()),
+                Err(pageant_err) => Err(Error::Auth(format!(
+                    "agent connect: openssh-named-pipe={named_pipe_err}, pageant={pageant_err}"
+                ))),
+            },
+        }
+    }
+}
+
 /// Owned-args agent flow extracted into a free function. Inlining it
 /// inside the `Session::connect_agent` method body produces a
 /// "higher-ranked lifetime error" out of FRB's `wrap_async` (the
@@ -1301,10 +1350,7 @@ impl ShellEvent {
 /// `Send + 'static`). Owning the strings up front sidesteps the
 /// reference-lifetime tangle.
 async fn connect_via_agent(host: String, port: u16, user: String) -> Result<Session, Error> {
-    let mut agent = russh::keys::agent::client::AgentClient::connect_env()
-        .await
-        .map_err(|e| Error::Auth(format!("agent connect: {e}")))?
-        .dynamic();
+    let mut agent = connect_default_agent().await?;
 
     let identities = agent
         .request_identities()
@@ -1364,10 +1410,7 @@ async fn connect_via_agent_proxy(
     port: u16,
     user: String,
 ) -> Result<Session, Error> {
-    let mut agent = russh::keys::agent::client::AgentClient::connect_env()
-        .await
-        .map_err(|e| Error::Auth(format!("agent connect: {e}")))?
-        .dynamic();
+    let mut agent = connect_default_agent().await?;
 
     let identities = agent
         .request_identities()

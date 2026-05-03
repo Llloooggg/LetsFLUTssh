@@ -107,12 +107,11 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          # Pin so all seven matrix jobs build against the same SDK
-          # — and so the resolver finds an explicit version's ARM64
-          # archive (the implicit `version: any` failed to match
-          # anything for `architecture: arm64` on the
-          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
-          # how Linux ARM64 + Windows ARM64 were silently broken).
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
           flutter-version: 3.41.9
           cache: true
 
@@ -258,17 +257,45 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      # Flutter does NOT publish a Linux ARM64 SDK tarball — `subosito/
+      # flutter-action`'s resolver returns "Unable to determine Flutter
+      # version" for any architecture: arm64 query because Flutter's
+      # `releases_linux.json` contains zero arm64 entries (verified
+      # 2026-05-03 across stable / beta / dev). The official
+      # documented install on ARM64 hardware (per
+      # https://docs.flutter.dev/get-started/install/linux) is
+      # `git clone flutter/flutter` + `flutter precache`, which
+      # bootstraps the Dart SDK and fetches per-arch engine artifacts
+      # for the host triple. We mirror that path here, pinning to a
+      # framework commit SHA (not tag — tags are mutable) so the
+      # SDK we run is cryptographically reproducible across reruns.
+      - name: Cache Flutter SDK + engine artefacts
+        id: flutter-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
-          channel: stable
-          # Pin so all seven matrix jobs build against the same SDK
-          # — and so the resolver finds an explicit version's ARM64
-          # archive (the implicit `version: any` failed to match
-          # anything for `architecture: arm64` on the
-          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
-          # how Linux ARM64 + Windows ARM64 were silently broken).
-          flutter-version: 3.41.9
-          cache: true
+          path: ${{ runner.temp }}/flutter
+          # Cache key carries the full SHA + OS + arch — bumping
+          # FLUTTER_SHA below invalidates automatically.
+          key: flutter-arm64-${{ runner.os }}-00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+
+      - name: Install Flutter SDK (git clone)
+        if: steps.flutter-cache.outputs.cache-hit != 'true'
+        env:
+          # `git rev-parse 3.41.9` against flutter/flutter — the
+          # framework HEAD of the 3.41.9 stable tag. Bump in
+          # lockstep with a Flutter version roll.
+          FLUTTER_SHA: 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+        run: |
+          git -c advice.detachedHead=false clone \
+            --filter=blob:none \
+            https://github.com/flutter/flutter.git \
+            "$RUNNER_TEMP/flutter"
+          git -C "$RUNNER_TEMP/flutter" checkout "$FLUTTER_SHA"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --linux
+
+      - name: Add Flutter to PATH
+        run: echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
 
       - name: Install Linux build dependencies
         # Same set as build-linux-x64; `libtss2-dev` is required
@@ -393,12 +420,11 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          # Pin so all seven matrix jobs build against the same SDK
-          # — and so the resolver finds an explicit version's ARM64
-          # archive (the implicit `version: any` failed to match
-          # anything for `architecture: arm64` on the
-          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
-          # how Linux ARM64 + Windows ARM64 were silently broken).
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
           flutter-version: 3.41.9
           cache: true
 
@@ -502,17 +528,36 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      # Same git-clone path as build-linux-arm64 (see the long
+      # comment there) — Flutter publishes zero Windows ARM64
+      # tarballs, the documented install is `git clone` + `flutter
+      # precache`. `shell: bash` resolves to Git Bash on the
+      # `windows-11-arm` runner, which handles forward / backward
+      # slashes uniformly through the underlying Win32 API.
+      - name: Cache Flutter SDK + engine artefacts
+        id: flutter-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
-          channel: stable
-          # Pin so all seven matrix jobs build against the same SDK
-          # — and so the resolver finds an explicit version's ARM64
-          # archive (the implicit `version: any` failed to match
-          # anything for `architecture: arm64` on the
-          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
-          # how Linux ARM64 + Windows ARM64 were silently broken).
-          flutter-version: 3.41.9
-          cache: true
+          path: ${{ runner.temp }}/flutter
+          key: flutter-arm64-${{ runner.os }}-00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+
+      - name: Install Flutter SDK (git clone)
+        if: steps.flutter-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          FLUTTER_SHA: 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+        run: |
+          git -c advice.detachedHead=false clone \
+            --filter=blob:none \
+            https://github.com/flutter/flutter.git \
+            "$RUNNER_TEMP/flutter"
+          git -C "$RUNNER_TEMP/flutter" checkout "$FLUTTER_SHA"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --windows
+
+      - name: Add Flutter to PATH
+        shell: bash
+        run: echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
 
       - name: Install Rust toolchain
         # `aarch64-pc-windows-msvc` is the host triple on this
@@ -604,12 +649,11 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          # Pin so all seven matrix jobs build against the same SDK
-          # — and so the resolver finds an explicit version's ARM64
-          # archive (the implicit `version: any` failed to match
-          # anything for `architecture: arm64` on the
-          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
-          # how Linux ARM64 + Windows ARM64 were silently broken).
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
           flutter-version: 3.41.9
           cache: true
 
@@ -741,12 +785,11 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          # Pin so all seven matrix jobs build against the same SDK
-          # — and so the resolver finds an explicit version's ARM64
-          # archive (the implicit `version: any` failed to match
-          # anything for `architecture: arm64` on the
-          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
-          # how Linux ARM64 + Windows ARM64 were silently broken).
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
           flutter-version: 3.41.9
           cache: true
 
@@ -763,6 +806,21 @@ jobs:
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Pre-flight cargo build for iOS (surface rustc errors)
+        # `flutter build ios` invokes cargokit which invokes cargo
+        # under Xcode's stdout filter — rustc diagnostics get
+        # collapsed to a single "could not compile $crate (lib)
+        # due to N previous errors" line in the GitHub Actions
+        # log, without the actual `error[Exxxx]` body. Run cargo
+        # directly here first so any iOS-cfg compile regression
+        # surfaces with full rustc output before the Xcode wrapper
+        # gets a chance to swallow it. Real-device target only —
+        # the simulator slices (aarch64-apple-ios-sim,
+        # x86_64-apple-ios) tend to share the same iOS-cfg paths,
+        # and the device target is what end users actually run.
+        run: |
+          cargo build --manifest-path rust/crates/lfs_frb/Cargo.toml -p lfs_frb --release --target aarch64-apple-ios
 
       - name: Build iOS (no codesign)
         # `--no-codesign` skips the provisioning-profile / signing
@@ -815,12 +873,11 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
-          # Pin so all seven matrix jobs build against the same SDK
-          # — and so the resolver finds an explicit version's ARM64
-          # archive (the implicit `version: any` failed to match
-          # anything for `architecture: arm64` on the
-          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
-          # how Linux ARM64 + Windows ARM64 were silently broken).
+          # Pin Flutter version so every x64 job in the release
+          # matrix builds against the same SDK, matching the
+          # `FLUTTER_SHA` the ARM64 jobs git-clone — bump both
+          # together. Sustains build reproducibility across
+          # runner-image rotations.
           flutter-version: 3.41.9
           cache: true
 
