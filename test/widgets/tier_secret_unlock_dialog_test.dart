@@ -133,6 +133,261 @@ void main() {
       },
     );
 
+    testWidgets('empty input never reaches verify', (tester) async {
+      var verifyCalls = 0;
+      await _openDialog(
+        tester,
+        verify: (_) async {
+          verifyCalls += 1;
+          return TierUnlockAttempt.staged;
+        },
+      );
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+      expect(verifyCalls, 0, reason: 'Empty input must short-circuit submit');
+      // Dialog still up.
+      expect(find.text('Unlock'), findsOneWidget);
+    });
+
+    testWidgets('cancelled outcome leaves the dialog open + clears busy', (
+      tester,
+    ) async {
+      await _openDialog(
+        tester,
+        verify: (_) async => TierUnlockAttempt.cancelled,
+      );
+      await tester.enterText(find.byType(TextField), 'p');
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+      // Dialog still open; Unlock button is back (busy spinner gone).
+      expect(find.text('Unlock'), findsOneWidget);
+    });
+
+    testWidgets('error outcome closes the dialog with false', (tester) async {
+      bool? result;
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (ctx) => TextButton(
+              child: const Text('Open'),
+              onPressed: () async {
+                result = await TierSecretUnlockDialog.show(
+                  ctx,
+                  labels: const TierSecretUnlockLabels(
+                    title: 'x',
+                    hint: 'h',
+                    inputLabel: 'P',
+                    wrongSecretLabel: 'w',
+                  ),
+                  verify: (_) async => TierUnlockAttempt.error,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'x');
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+      expect(result, isFalse);
+    });
+
+    testWidgets('cancelling the reset confirmation does not call onReset', (
+      tester,
+    ) async {
+      var resetCalls = 0;
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (ctx) => TextButton(
+              child: const Text('Open'),
+              onPressed: () async {
+                await TierSecretUnlockDialog.show(
+                  ctx,
+                  labels: const TierSecretUnlockLabels(
+                    title: 'x',
+                    hint: 'h',
+                    inputLabel: 'P',
+                    wrongSecretLabel: 'w',
+                  ),
+                  verify: (_) async => TierUnlockAttempt.wrongSecret,
+                  onReset: () async => resetCalls += 1,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+      await tester.tap(find.text(l10n.forgotPassword));
+      await tester.pumpAndSettle();
+      // Cancel the confirm dialog rather than pressing the destructive
+      // button. onReset must stay at zero.
+      await tester.tap(find.text(l10n.cancel));
+      await tester.pumpAndSettle();
+      expect(resetCalls, 0);
+    });
+
+    testWidgets(
+      'autoTrigger biometric: callback returning true closes dialog with true',
+      (tester) async {
+        bool? result;
+        var bioCalls = 0;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  result = await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      unlock: () async {
+                        bioCalls += 1;
+                        return true;
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        expect(bioCalls, 1, reason: 'autoTrigger fires on first frame');
+        expect(result, isTrue);
+      },
+    );
+
+    testWidgets(
+      'autoTrigger biometric: callback returning false surfaces a banner',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      unlock: () async => false,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // Dialog stays open — wrong-secret banner localisation key is
+        // `biometricUnlockCancelled`.
+        final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+        expect(find.text(l10n.biometricUnlockCancelled), findsOneWidget);
+        expect(find.text('Unlock'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'autoTrigger biometric: callback throwing surfaces failure banner',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      unlock: () async => throw StateError('plugin gone'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+        expect(find.text(l10n.biometricUnlockFailed), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'autoTrigger=false renders retry button without firing the callback',
+      (tester) async {
+        var bioCalls = 0;
+        await tester.pumpWidget(
+          _wrap(
+            Builder(
+              builder: (ctx) => TextButton(
+                child: const Text('Open'),
+                onPressed: () async {
+                  await TierSecretUnlockDialog.show(
+                    ctx,
+                    labels: const TierSecretUnlockLabels(
+                      title: 't',
+                      hint: 'h',
+                      inputLabel: 'P',
+                      wrongSecretLabel: 'w',
+                    ),
+                    verify: (_) async => TierUnlockAttempt.wrongSecret,
+                    biometric: TierSecretUnlockBiometric(
+                      autoTrigger: false,
+                      unlock: () async {
+                        bioCalls += 1;
+                        return true;
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        // Caller already attempted biometric before the dialog opened —
+        // the dialog must surface a retry button without firing again.
+        expect(
+          bioCalls,
+          0,
+          reason: 'autoTrigger=false suppresses first-frame fire',
+        );
+        final l10n = S.of(tester.element(find.byType(TierSecretUnlockDialog)));
+        expect(find.text(l10n.biometricUnlockTitle), findsOneWidget);
+      },
+    );
+
     testWidgets('numeric + maxLength restrict the input', (tester) async {
       bool? result;
       String? observedSecret;
