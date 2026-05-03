@@ -212,6 +212,12 @@ Future<void> _mainBody() async {
     // commands (secrets_*, sessions/connections/forwards) attach to
     // it. Idempotent.
     await rust_app.appInit();
+    // Wire the Rust→Dart log pipe — every `lfs_core::app_log`
+    // call gets folded into the same on-disk `letsflutssh.log`
+    // the Dart-side AppLogger writes through. Must be after
+    // `app_init` because `bus_subscribe` reaches into
+    // `lfs_core::app::instance()`.
+    AppLogger.instance.attachCoreLogPipe();
     AppLogger.instance.log(
       'Rust core loaded: ${rust_core.ping()}',
       name: 'RustCore',

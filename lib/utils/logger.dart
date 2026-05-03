@@ -187,7 +187,6 @@ class AppLogger {
       // Best-effort init — no OS-logging fallback anymore; a failed
       // init just means neither routine nor critical writes will land.
     }
-    _attachCoreLogPipe();
   }
 
   /// Subscribe to `BusTopic::CoreLog` so every Rust-core log line
@@ -196,10 +195,16 @@ class AppLogger {
   /// level, so the threshold + sanitization + line format stay in
   /// one place.
   ///
+  /// Must be called **after** `rust_app.appInit()` — `bus_subscribe`
+  /// internally reaches into `lfs_core::app::instance()` which
+  /// panics if AppState isn't yet built. main.dart wires it
+  /// straight after `rust_app.appInit()` for that reason.
+  ///
   /// Best-effort — flutter_test contexts that don't load the FRB
   /// native lib hit the catch and the pipe stays unwired (Dart
   /// tests don't exercise Rust log paths anyway).
-  void _attachCoreLogPipe() {
+  void attachCoreLogPipe() {
+    if (_coreLogSub != null) return; // idempotent
     try {
       _coreLogSub = rust_bus
           .busSubscribe(topic: rust_bus.BusTopic.coreLog)
