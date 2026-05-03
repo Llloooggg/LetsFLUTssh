@@ -74,7 +74,31 @@ runs:
     # tradeoff: cache space is generous (10 GB per repo, GitHub
     # auto-evicts old entries) and the speedup applies to the
     # branches that actually iterate.
+    #
+    # `add-rust-environment-hash-key: false` + `key: ${{ hashFiles(
+    # 'rust/rust-toolchain.toml') }}` replace the action's default
+    # auto-derived "rust environment hash" with a deterministic key
+    # based on the in-repo toolchain pin. Without this override,
+    # the cache key changed per-run because the action calls
+    # `rustup toolchain list` and hashes EVERY installed toolchain
+    # into the key. The runner image ships a preinstalled stable
+    # (e.g. 1.94.1); our composite then triggers a second install
+    # of the toolchain.toml pin (1.95.0). On run A only `{1.94.1}`
+    # is present at cache-step time → hash X. On run B both
+    # `{1.94.1, 1.95.0}` are present → hash Y. Same source code,
+    # different cache key, every run builds from scratch — the
+    # user-reported "android/windows/macos still 15-22 min" symptom.
+    # Replacement: hash `rust-toolchain.toml` itself. The file is
+    # in version control, the only thing that changes when we
+    # deliberately bump the pin, and bumping the pin *should*
+    # invalidate the cache (different rustc may emit different
+    # artefacts). One stable hash component, no flap.
+    # `Cargo.lock` is still auto-included in the key by the action
+    # (separate lockfile-hash component, independent of env-hash),
+    # so dep changes still invalidate.
     - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       with:
         workspaces: rust
         save-if: 'true'
+        add-rust-environment-hash-key: 'false'
+        key: ${{ hashFiles('rust/rust-toolchain.toml') }}
