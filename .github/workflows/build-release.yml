@@ -537,19 +537,43 @@ jobs:
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Build Windows ARM64
-        # `--target-platform=windows-arm64` is load-bearing on the
-        # `windows-11-arm` runner: without it, `flutter build
-        # windows` defaults to compiling for x64 (the runner can
-        # execute x64 binaries via Prism emulation, so Flutter's
-        # auto-detection picks x64 and emits the .exe under
-        # `build\windows\x64\runner\Release\` — wrong arch + wrong
-        # path for the downstream signing / packaging steps that
-        # expect `build\windows\arm64\...`). Explicit flag forces
-        # the native ARM64 codegen path so users on Snapdragon X /
-        # Surface Pro X get a real ARM64 binary instead of an x64
-        # one running through Prism.
-        run: flutter build windows --release --target-platform=windows-arm64
+      - name: Build Windows
+        # Flutter 3.41.9's `flutter build windows` does NOT accept
+        # `--target-platform` (that's an Android-build flag); it
+        # picks arch automatically from
+        # `_operatingSystemUtils.hostPlatform == HostPlatform.
+        # windows_arm64`. On `windows-11-arm` we get either:
+        #   - native ARM64 — if `flutter precache --windows`
+        #     downloaded an ARM64 Dart SDK (Flutter 3.27+ ships
+        #     one and uname -m at install time picks it).
+        #   - x64-via-Prism — if Flutter pulled the x64 Dart SDK
+        #     and ran it through Windows ARM64's x64 emulation
+        #     layer, in which case the host self-reports as x64
+        #     and we get an x64 binary (still runs on ARM64
+        #     hardware via Prism).
+        # Either is a valid release artifact; the downstream
+        # `Resolve build dir` step picks whichever path Flutter
+        # actually used.
+        run: flutter build windows --release
+
+      - name: Resolve build dir
+        # `flutter build windows` writes to either
+        # `build\windows\arm64\runner\Release\` (native ARM64
+        # build) or `build\windows\x64\runner\Release\` (x64
+        # binary, runs on ARM64 via Prism). Detect which one
+        # Flutter actually picked + export `BUILD_DIR` for the
+        # signing / packaging steps below.
+        shell: bash
+        run: |
+          if [ -d "build/windows/arm64/runner/Release" ]; then
+            echo "BUILD_DIR=build\\windows\\arm64\\runner\\Release" >> "$GITHUB_ENV"
+          elif [ -d "build/windows/x64/runner/Release" ]; then
+            echo "BUILD_DIR=build\\windows\\x64\\runner\\Release" >> "$GITHUB_ENV"
+          else
+            echo "::error::Flutter produced no recognised Windows build dir"
+            ls -la build/windows/ || true
+            exit 1
+          fi
 
       - name: Self-signed Authenticode
         # Same self-sign-then-discard certificate flow as
@@ -567,7 +591,7 @@ jobs:
             -KeyLength 3072 `
             -HashAlgorithm SHA256 `
             -NotAfter (Get-Date).AddYears(2)
-          $exe = "build\windows\arm64\runner\Release\letsflutssh.exe"
+          $exe = "$env:BUILD_DIR\letsflutssh.exe"
           Set-AuthenticodeSignature `
             -FilePath $exe `
             -Certificate $cert `
@@ -576,7 +600,7 @@ jobs:
           Get-AuthenticodeSignature $exe
 
       - name: Package zip
-        run: Compress-Archive -Path build\windows\arm64\runner\Release\* -DestinationPath letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
+        run: Compress-Archive -Path $env:BUILD_DIR\* -DestinationPath letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
 
       - name: Install Inno Setup
         # Inno Setup ships an x86 installer that runs under x64
@@ -600,7 +624,7 @@ jobs:
         if: false
         run: |
           $env:APP_VERSION = "${{ needs.preflight.outputs.version }}"
-          $env:BUILD_DIR = "${{ github.workspace }}\build\windows\arm64\runner\Release"
+          $env:BUILD_DIR = "${{ github.workspace }}\$env:BUILD_DIR"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
           Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64-setup.exe" .
 
@@ -794,7 +818,21 @@ jobs:
         # targets the `setup-rust` composite added to the pinned
         # 1.95.0 toolchain. cd'ing into `rust/` makes rustup find
         # the toml + use 1.95.0, where the targets actually live.
+        #
+        # `IPHONEOS_DEPLOYMENT_TARGET=13.0` is also load-bearing:
+        # without it, the rustc target `aarch64-apple-ios` defaults
+        # to iOS 10.0, but vendored OpenSSL (3.6.x) compiles against
+        # the current Xcode 15+ SDK headers and emits references to
+        # `__chkstk_darwin` — a stack-checking symbol added in iOS
+        # 13. Linker fails with "Undefined symbols for architecture
+        # arm64: ___chkstk_darwin". The app's Podfile pins
+        # `platform :ios, '13.0'` so the production `flutter build
+        # ios` step uses iOS 13 already; we just need to mirror it
+        # for the standalone cargo invocation here. Matches the
+        # README + pubspec iOS requirement.
         working-directory: rust
+        env:
+          IPHONEOS_DEPLOYMENT_TARGET: '13.0'
         run: cargo build -p lfs_frb --release --target aarch64-apple-ios
 
       - name: Build iOS (no codesign)
