@@ -26,7 +26,7 @@ extension _UnlockFlows on SecurityInitController {
     final dialogResult = await _dialogs.showMasterPasswordUnlock(manager);
     if (dialogResult == true) {
       final result = await unlockDone.timeout(
-        const Duration(seconds: 5),
+        tierUnlockedListenerWaitTimeout,
         onTimeout: () => TierUnlockOutcome.failed,
       );
       if (result == TierUnlockOutcome.unlocked) {
@@ -72,7 +72,7 @@ extension _UnlockFlows on SecurityInitController {
       final outcome = await rust_orch.tierUnlockKeychain();
       if (outcome is rust_orch.DbUnlockOutcome_Staged) {
         final result = await unlockDone.timeout(
-          const Duration(seconds: 5),
+          tierUnlockedListenerWaitTimeout,
           onTimeout: () => TierUnlockOutcome.failed,
         );
         if (result == TierUnlockOutcome.unlocked) {
@@ -126,7 +126,7 @@ extension _UnlockFlows on SecurityInitController {
       final ok = await _tryBiometricCommit(SecurityTier.keychainWithPassword);
       if (ok) {
         final result = await unlockDone.timeout(
-          const Duration(seconds: 5),
+          tierUnlockedListenerWaitTimeout,
           onTimeout: () => TierUnlockOutcome.failed,
         );
         if (result == TierUnlockOutcome.unlocked) {
@@ -150,7 +150,7 @@ extension _UnlockFlows on SecurityInitController {
     );
     if (dialogResult == true) {
       final result = await unlockDone.timeout(
-        const Duration(seconds: 5),
+        tierUnlockedListenerWaitTimeout,
         onTimeout: () => TierUnlockOutcome.failed,
       );
       if (result == TierUnlockOutcome.unlocked) {
@@ -270,7 +270,7 @@ extension _UnlockFlows on SecurityInitController {
         final outcome = await rust_orch.tierUnlockHardware();
         if (outcome is rust_orch.DbUnlockOutcome_Staged) {
           final result = await unlockDone.timeout(
-            const Duration(seconds: 5),
+            tierUnlockedListenerWaitTimeout,
             onTimeout: () => TierUnlockOutcome.failed,
           );
           if (result == TierUnlockOutcome.unlocked) {
@@ -311,7 +311,7 @@ extension _UnlockFlows on SecurityInitController {
       final ok = await _tryBiometricCommit(SecurityTier.hardware);
       if (ok) {
         final result = await unlockDone.timeout(
-          const Duration(seconds: 5),
+          tierUnlockedListenerWaitTimeout,
           onTimeout: () => TierUnlockOutcome.failed,
         );
         if (result == TierUnlockOutcome.unlocked) {
@@ -334,7 +334,7 @@ extension _UnlockFlows on SecurityInitController {
     );
     if (dialogResult == true) {
       final result = await unlockDone.timeout(
-        const Duration(seconds: 5),
+        tierUnlockedListenerWaitTimeout,
         onTimeout: () => TierUnlockOutcome.failed,
       );
       if (result == TierUnlockOutcome.unlocked) {

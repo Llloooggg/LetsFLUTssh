@@ -16,6 +16,21 @@ import '../src/rust/api/bus.dart' as rust_bus;
 import '../src/rust/api/tier_machine.dart' as rust_tier;
 import '../utils/logger.dart';
 
+/// Wall-clock budget for `awaitNextUnlock().timeout(...)` across
+/// every tier-unlock and first-launch path. The bus event
+/// `Unlocked` triggers `_handleUnlocked`, which inline-runs
+/// `ensureRustDbOpen` — on a fresh-install Windows IoT box with
+/// Defender + SQLCipher PBKDF2-256k header derivation + first-time
+/// vendored-OpenSSL init, the cascade end-to-end is ~6-10s.
+/// Anything tighter (the previous 5s budget) raced against the
+/// Rust side and fired the destructive Dart-fallback / vault-
+/// missing path even though the unlock was succeeding. 30s mirrors
+/// the connect-actor timeout, well past worst observed init wall-
+/// clock; users on hung systems still get a recovery dialog within
+/// a single coffee-sip rather than the prior 5s flap-into-data-
+/// destruction window.
+const tierUnlockedListenerWaitTimeout = Duration(seconds: 30);
+
 /// Bus-driven post-unlock orchestrator. Subscribes to
 /// `BusTopic.tier`, takes the key the Rust per-tier
 /// orchestrator staged under `TIER_UNLOCK_KEY_ID`, and runs

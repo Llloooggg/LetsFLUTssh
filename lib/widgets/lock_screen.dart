@@ -85,7 +85,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
           // isn't loaded so the bus stream never delivers; flip lock
           // state anyway so the UI doesn't strand.
           await unlockDone.timeout(
-            const Duration(seconds: 5),
+            tierUnlockedListenerWaitTimeout,
             onTimeout: () => TierUnlockOutcome.failed,
           );
           if (!mounted) return;

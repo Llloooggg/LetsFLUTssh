@@ -85,6 +85,20 @@ Future<void> ensureRustDbOpen({Uint8List? key}) async {
       name: 'RustDbInit',
     );
   } catch (e, st) {
+    // Log + swallow on purpose: callers up the chain (`bootstrap`
+    // → `handleCorruption` via `verifyRustDbReadable`) probe DB
+    // readability AFTER `_injectDatabase` returns and route a
+    // failed probe through `DbCorruptDialog`. Rethrowing here
+    // would propagate past `_injectDatabase` → `_initSecurity` →
+    // `bootstrap` and land as an unhandled future on the widget
+    // tree (red-screen / silent crash) because none of those
+    // intermediate frames currently catch. The catch + log keeps
+    // the failure on the existing recovery rail without bypassing
+    // it — and the post-`_initSecurity` `verifyReadable` probe
+    // already detects the broken state regardless of whether
+    // `dbInit` returned cleanly or not (a half-open state with no
+    // SQLCipher attach behind it returns false from the probe
+    // just like an attach-failed state).
     AppLogger.instance.log(
       'Rust DB init failed: ${e.runtimeType}',
       name: 'RustDbInit',

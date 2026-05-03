@@ -331,20 +331,11 @@ extension _FirstLaunchFlows on SecurityInitController {
       );
       return false;
     }
-    // 30s rather than 5s: `TierUnlockedListener._handleUnlocked`
-    // does the actual `ensureRustDbOpen` call inside its bus-event
-    // handler, which on a fresh-install Windows IoT box with
-    // Defender scanning every new write + SQLCipher's PBKDF2-256k
-    // header derivation + vendored-OpenSSL first-init can stretch
-    // to ~6-10s end-to-end. A 5s budget made the orchestrator
-    // declare failure and the Dart-side fallback then generated a
-    // SECOND key, overwrote the keychain, and tried to reopen the
-    // file the orchestrator was still finishing — resulting in
-    // "file is not a database" because the cipher state didn't
-    // match. 30s mirrors the connect-actor timeout and is well
-    // beyond the worst observed init time.
+    // Shared budget across every unlock + first-launch path —
+    // see `tierUnlockedListenerWaitTimeout` in tier_unlocked_listener.dart
+    // for the rationale (5s → 30s).
     final result = await unlockDone.timeout(
-      const Duration(seconds: 30),
+      tierUnlockedListenerWaitTimeout,
       onTimeout: () => TierUnlockOutcome.failed,
     );
     if (result == TierUnlockOutcome.unlocked) return true;

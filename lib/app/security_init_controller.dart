@@ -377,6 +377,24 @@ class SecurityInitController {
   /// `WipeAllService.wipeAll()`. Surfacing the choice up front keeps
   /// the user informed about what is being wiped and why.
   Future<void> _handleVaultStateMissing(String tierLabel) async {
+    // Idempotency probe — every caller arrives here through a
+    // listener-timeout fallback (`tierUnlockedListenerWaitTimeout`).
+    // If `TierUnlockedListener._handleUnlocked` finished its
+    // `ensureRustDbOpen` cascade after the timeout fired but before
+    // we got here, the DB is already open and we'd otherwise show
+    // the user a corrupt-DB dialog over a perfectly-fine vault —
+    // and "Reset and setup fresh" wipes the DB they could just be
+    // using. Probe first; only show the dialog when the DB is
+    // actually unreadable.
+    if (await _verifyReadable()) {
+      AppLogger.instance.log(
+        'Vault state missing dialog skipped — listener cascade '
+        'completed after $tierLabel timeout; DB is readable',
+        name: 'App',
+      );
+      _markSecurityReady();
+      return;
+    }
     await AppLogger.instance.logCritical(
       'Configured tier ($tierLabel) is unreachable — vault state '
       'missing. Surfacing recovery dialog instead of plaintext fallback.',
@@ -552,7 +570,7 @@ class SecurityInitController {
       final unlockDone = listener.awaitNextUnlock();
       rust_orch.tierUnlockPlaintext();
       final outcome = await unlockDone.timeout(
-        const Duration(seconds: 5),
+        tierUnlockedListenerWaitTimeout,
         onTimeout: () => TierUnlockOutcome.failed,
       );
       if (outcome == TierUnlockOutcome.unlocked) return;
