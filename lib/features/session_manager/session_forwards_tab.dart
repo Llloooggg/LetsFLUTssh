@@ -9,6 +9,7 @@ import '../../widgets/app_empty_state.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/app_picker_chip.dart';
 import '../../widgets/styled_form_field.dart';
+import 'session_forwards_logic.dart';
 
 /// Editor surface for the per-session port-forward rule list.
 ///
@@ -208,17 +209,9 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
     super.dispose();
   }
 
-  String? _portValidator(String? raw) {
-    final n = int.tryParse(raw?.trim() ?? '');
-    if (n == null || n < 1 || n > 65535) return '1–65535';
-    return null;
-  }
+  String? _portValidator(String? raw) => validatePortForwardPort(raw);
 
-  String? _hostValidator(String? raw) {
-    if (_kind == PortForwardKind.dynamic_) return null;
-    if (raw == null || raw.trim().isEmpty) return '—';
-    return null;
-  }
+  String? _hostValidator(String? raw) => validatePortForwardHost(raw, _kind);
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;

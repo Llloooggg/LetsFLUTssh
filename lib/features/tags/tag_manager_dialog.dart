@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tags/tag.dart';
+import 'tags_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
@@ -47,11 +48,7 @@ class _TagManagerPanelState extends ConsumerState<TagManagerPanel> {
     }
   }
 
-  List<Tag> _filtered() {
-    if (_filter.isEmpty) return _tags;
-    final needle = _filter.toLowerCase();
-    return _tags.where((t) => t.name.toLowerCase().contains(needle)).toList();
-  }
+  List<Tag> _filtered() => filterTagsByName(_tags, _filter);
 
   @override
   Widget build(BuildContext context) {

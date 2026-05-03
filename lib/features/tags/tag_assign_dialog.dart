@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/tags/tag.dart';
+import 'tags_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/tag_provider.dart';
 import '../../theme/app_theme.dart';
@@ -102,21 +103,12 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
     }
   }
 
-  List<Tag> get _visibleTags {
-    if (_filter.isEmpty) return _allTags;
-    final q = _filter.toLowerCase();
-    return _allTags.where((t) => t.name.toLowerCase().contains(q)).toList();
-  }
+  List<Tag> get _visibleTags => filterTagsByName(_allTags, _filter);
 
   /// Tristate for the "select all" row: all → true, none → false,
   /// partial → null (drawn as the mixed indicator).
-  bool? get _allAssignedTristate {
-    if (_allTags.isEmpty) return false;
-    final n = _assignedIds.length;
-    if (n == 0) return false;
-    if (n == _allTags.length) return true;
-    return null;
-  }
+  bool? get _allAssignedTristate =>
+      allAssignedTristate(allTags: _allTags, assignedIds: _assignedIds);
 
   @override
   Widget build(BuildContext context) {

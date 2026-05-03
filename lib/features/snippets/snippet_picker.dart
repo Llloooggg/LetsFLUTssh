@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/snippets/snippet.dart';
+import 'snippets_logic.dart';
 import '../../core/snippets/snippet_template.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/snippet_provider.dart';
@@ -83,13 +84,8 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
     }
   }
 
-  bool _matches(Snippet snippet) {
-    if (_filter.isEmpty) return true;
-    final needle = _filter.toLowerCase();
-    return snippet.title.toLowerCase().contains(needle) ||
-        snippet.command.toLowerCase().contains(needle) ||
-        snippet.description.toLowerCase().contains(needle);
-  }
+  bool _matches(Snippet snippet) =>
+      filterSnippets([snippet], _filter).isNotEmpty;
 
   @override
   Widget build(BuildContext context) {

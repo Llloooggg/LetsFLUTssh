@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/import/key_file_helper.dart';
 import '../../core/security/ssh_key.dart';
+import 'key_manager_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
@@ -131,17 +132,7 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     );
   }
 
-  List<SshKeyMetadata> _filtered() {
-    final q = _filter.trim().toLowerCase();
-    if (q.isEmpty) return _keys;
-    return _keys
-        .where(
-          (k) =>
-              k.label.toLowerCase().contains(q) ||
-              k.keyType.toLowerCase().contains(q),
-        )
-        .toList();
-  }
+  List<SshKeyMetadata> _filtered() => filterSshKeys(_keys, _filter);
 
   Widget _buildBody(S s) {
     if (_loading) {

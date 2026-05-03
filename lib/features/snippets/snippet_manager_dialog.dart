@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/snippets/snippet.dart';
+import 'snippets_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/snippet_provider.dart';
@@ -49,15 +50,7 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     }
   }
 
-  List<Snippet> _filtered() {
-    if (_filter.isEmpty) return _snippets;
-    final needle = _filter.toLowerCase();
-    return _snippets.where((sn) {
-      return sn.title.toLowerCase().contains(needle) ||
-          sn.command.toLowerCase().contains(needle) ||
-          sn.description.toLowerCase().contains(needle);
-    }).toList();
-  }
+  List<Snippet> _filtered() => filterSnippets(_snippets, _filter);
 
   @override
   Widget build(BuildContext context) {
