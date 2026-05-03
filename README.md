@@ -136,7 +136,7 @@ If you do not want T1 unlock, the **Paranoid** tier (master password, Argon2id-d
 
 ### Android
 
-Available format: **APK**, shipped as three per-ABI variants named `letsflutssh-<version>-android-arm64.apk` (64-bit ARM — pick this for any modern device), `-android-arm.apk` (32-bit ARM), and `-android-x64.apk` (emulator / x86_64 tablets).
+Available format: **APK**, shipped as three per-ABI variants named `letsflutssh-<version>-android-arm64.apk` (64-bit ARM — pick this for any modern device), `-android-arm32.apk` (32-bit ARMv7), and `-android-x64.apk` (emulator / x86_64 tablets).
 
 In Android Settings, enable **Install unknown apps** for the file manager or browser you'll use to open the APK. Tap the `.apk` file and confirm. No Google Play Services required, no MLKit, no GPS dependency.
 

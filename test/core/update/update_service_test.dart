@@ -1245,11 +1245,11 @@ void main() {
           'a3f5e8d2c91b1234567890abcdef1234567890abcdef1234567890abcdef1234  '
           'letsflutssh-5.9.0-linux-x64.tar.gz\n'
           'b7d1f2e9a45cabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd  '
-          'letsflutssh-5.9.0-linux-amd64.deb\n';
+          'letsflutssh-5.9.0-linux-x64.deb\n';
       final m = UpdateService.parseSha256Manifest(content);
       expect(m.length, 2);
       expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], startsWith('a3f5'));
-      expect(m['letsflutssh-5.9.0-linux-amd64.deb'], startsWith('b7d1'));
+      expect(m['letsflutssh-5.9.0-linux-x64.deb'], startsWith('b7d1'));
     });
 
     test('accepts binary-mode (asterisk-prefixed) filename field', () {

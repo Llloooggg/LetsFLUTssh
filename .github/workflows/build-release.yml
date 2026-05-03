@@ -215,7 +215,7 @@ jobs:
           Priority: optional
           EOF
           dpkg-deb --build $PKG
-          mv ${PKG}.deb letsflutssh-${VER}-linux-amd64.deb
+          mv ${PKG}.deb letsflutssh-${VER}-linux-x64.deb
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -224,7 +224,7 @@ jobs:
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
             letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
-            letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
+            letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.deb
 
   build-linux-arm64:
     # Native ARM64 build on the GitHub-hosted `ubuntu-24.04-arm`
@@ -930,7 +930,7 @@ jobs:
         run: |
           cd build/app/outputs/flutter-apk
           mv app-arm64-v8a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
-          mv app-armeabi-v7a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
+          mv app-armeabi-v7a-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-arm32.apk
           mv app-x86_64-release.apk letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -1307,7 +1307,7 @@ jobs:
           files: |
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.tar.gz
             artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.AppImage
-            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-amd64.deb
+            artifacts/linux-x64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-x64.deb
             artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.tar.gz
             artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.AppImage
             artifacts/linux-arm64/letsflutssh-${{ needs.preflight.outputs.version }}-linux-arm64.deb
@@ -1317,7 +1317,7 @@ jobs:
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.tar.gz
             artifacts/macos-universal/letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
-            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
+            artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm32.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
             artifacts/ios-unsigned/letsflutssh-${{ needs.preflight.outputs.version }}-ios-unsigned.ipa
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums
