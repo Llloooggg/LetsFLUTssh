@@ -368,6 +368,26 @@ mod tests {
         assert!(n >= 1, "schema_object_count was {n}");
     }
 
+    /// `Db::open` against a freshly-created empty file with a
+    /// SQLCipher key must succeed — that's the path
+    /// `ensureRustDbOpen` hits on first launch (Dart pre-creates a
+    /// 0-byte file via `File.create()` before handing the path to
+    /// the FRB call). Without this test the schema-probe vs
+    /// bootstrap ordering is silently regression-prone: a probe
+    /// that runs before the first DDL trips on the empty file
+    /// because SQLCipher has no encrypted header to verify yet.
+    #[test]
+    fn open_creates_fresh_encrypted_db_when_file_is_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("fresh.db");
+        // Mirror Dart's `File(path).create()` — empty file on disk.
+        std::fs::File::create(&path).unwrap();
+        let key = [0x42u8; 32];
+        let db = Db::open(&path, &key).expect("open empty file with key must succeed");
+        let count = db.schema_object_count().expect("schema count after fresh open");
+        assert!(count > 0, "bootstrap_schema should have created tables");
+    }
+
     /// Bootstrap stamps `user_version = SCHEMA_VERSION` on a fresh
     /// DB and is idempotent on re-bootstrap.
     #[test]

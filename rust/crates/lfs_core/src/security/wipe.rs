@@ -336,6 +336,49 @@ mod tests {
     }
 
     #[test]
+    fn sweep_deletes_lfs_core_db_orphan_from_intermediate_build() {
+        // Regression: an early Rust-port build (between bf6bb95f and
+        // the b56ccf7b filename revert) wrote the SQLCipher DB to
+        // `lfs_core.db` instead of reusing `letsflutssh.db`. Users
+        // who installed that intermediate build had a stale orphan
+        // at `lfs_core.db` that `sweep_files` skipped because the
+        // filename was missing from `MANAGED_FILES`. Pressing Wipe
+        // in `DbCorruptDialog` then looped — the next first-launch
+        // re-opened the orphan with a freshly-generated keychain
+        // key, SQLCipher rejected the cipher mismatch, the dialog
+        // fired again. This test pins the cleanup so a future
+        // refactor that drops the orphan entry from MANAGED_FILES
+        // surfaces the regression instead of recreating the loop.
+        let _ = crate::app::init();
+        let dir = TempDir::new().unwrap();
+        for name in [
+            "lfs_core.db",
+            "lfs_core.db-wal",
+            "lfs_core.db-shm",
+            "lfs_core.db-journal",
+        ] {
+            std::fs::write(dir.path().join(name), [0u8; 16]).unwrap();
+        }
+        let report = sweep_files(dir.path());
+        for name in [
+            "lfs_core.db",
+            "lfs_core.db-wal",
+            "lfs_core.db-shm",
+            "lfs_core.db-journal",
+        ] {
+            assert!(
+                report.deleted_files.contains(&name.to_string()),
+                "{name} must be in deleted_files; current MANAGED_FILES is missing it"
+            );
+            assert!(
+                !dir.path().join(name).exists(),
+                "{name} must be removed from disk"
+            );
+        }
+        assert!(report.failed_files.is_empty());
+    }
+
+    #[test]
     fn sweep_wipes_logs_dir_contents() {
         let _ = crate::app::init();
         let dir = TempDir::new().unwrap();
