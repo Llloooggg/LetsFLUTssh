@@ -148,6 +148,14 @@ class TierUnlockedListener {
   }
 
   Future<void> _handleUnlocked() async {
+    final sw = Stopwatch()..start();
+    void mark(String phase) {
+      AppLogger.instance.log(
+        'unlock cascade phase=$phase elapsed=${sw.elapsedMilliseconds}ms',
+        name: 'TierUnlock',
+      );
+    }
+
     try {
       // Take the key the Rust orchestrator staged. Atomic
       // read-and-remove so the SecretStore entry is gone
@@ -160,6 +168,7 @@ class TierUnlockedListener {
       final tierWire = rust_tier.tierMachineActiveTierWireName();
       final tier = SecurityTierWireName.fromWireName(tierWire);
       final key = keyBytes.isEmpty ? null : Uint8List.fromList(keyBytes);
+      mark('secrets_take');
       // Invalidate Dart-side store caches so the next read
       // pulls fresh rows after the engine swap. Mirrors the
       // existing `_injectDatabase` pre-step.
@@ -172,6 +181,7 @@ class TierUnlockedListener {
       // Open the Rust-owned sqlite handle keyed off the same
       // master key the orchestrator just resolved.
       await ensureRustDbOpen(key: key);
+      mark('rust_db_open');
       // Persist the tier into config so a cold-restart picks
       // up the same tier without re-entering the wizard.
       // Modifiers come from the wizard / settings flow that
@@ -179,6 +189,7 @@ class TierUnlockedListener {
       // and updates only when the resolved (tier, modifiers)
       // pair differs from what's stored.
       await _persistSecurityTier(tier);
+      mark('persist_tier');
       _resolvePending(TierUnlockOutcome.unlocked);
     } catch (e, st) {
       AppLogger.instance.log(

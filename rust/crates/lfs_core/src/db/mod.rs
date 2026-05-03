@@ -1,12 +1,21 @@
 //! SQLite + SQLCipher database handle.
 //!
 //! Opens an encrypted sqlite file under `bundled-sqlcipher`
-//! (SQLCipher 4.x, AES-256-CBC + HMAC-SHA512, 256 000 PBKDF2-SHA512
-//! iterations off the `PRAGMA key` value). The page-cipher key the
-//! caller hands in is the 32-byte master DB key produced by
+//! (SQLCipher 4.x, AES-256-CBC + HMAC-SHA512). The page-cipher key
+//! the caller hands in is the 32-byte master DB key produced by
 //! Argon2id (Paranoid) / pulled out of the OS keychain (T1) /
 //! unsealed from the hardware vault (T2); SQLCipher itself does
 //! not see Argon2id, only the final 32 bytes.
+//!
+//! **PBKDF2 is skipped on the page-key derivation** because we
+//! pass the key through `PRAGMA key = "x'<64 hex chars>'"` — the
+//! raw-key literal shape SQLCipher recognises. The 256 000 default
+//! `cipher_kdf_iter` only applies to passphrase-format keys; with
+//! a raw 32-byte key the page key is used verbatim and the open
+//! cost collapses to single-digit milliseconds. HMAC-key derivation
+//! still runs `cipher_hmac_kdf_iter` (default 2 iterations) which
+//! is microseconds. If a future caller switches to a passphrase
+//! shape — DON'T — re-document this block.
 //!
 //! **Schema versioning.** [`bootstrap_schema`] writes
 //! `PRAGMA user_version = SCHEMA_VERSION` on every fresh open,

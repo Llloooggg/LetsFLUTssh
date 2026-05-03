@@ -92,7 +92,16 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// load, foreground service, probe warm-up, update check) can
   /// be read top-to-bottom as the startup contract.
   Future<void> _bootstrap() async {
+    final sw = Stopwatch()..start();
+    void mark(String phase) {
+      AppLogger.instance.log(
+        'bootstrap phase=$phase elapsed=${sw.elapsedMilliseconds}ms',
+        name: 'Boot',
+      );
+    }
+
     await ref.read(appVersionProvider.notifier).load();
+    mark('app_version_load');
     // Kick the tier-availability probe off in parallel with migrations
     // + unlock. `securityCapabilitiesProvider` caches its result to
     // `config.json`, so warm starts read the cached snapshot on the
@@ -103,9 +112,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // controller so by the time `_firstLaunchSetup` awaits the same
     // future the work is either done or well in flight.
     _warmProbeCaches();
+    mark('warm_probes_kicked');
     // Migration runner + security init + corruption probe + initial
     // session load all now live inside [SecurityInitController.bootstrap].
     await _securityController.bootstrap();
+    mark('security_bootstrap');
     _maybeShowCredentialsResetToast();
     if (plat.isMobilePlatform) {
       AppLogger.instance.log('Initializing foreground service', name: 'App');

@@ -704,27 +704,40 @@ class SecurityInitController {
   }
 
   Future<void> _wipeAndRestartFromScratch() async {
+    final sw = Stopwatch()..start();
+    void mark(String phase) {
+      AppLogger.instance.log(
+        'wipe restart phase=$phase elapsed=${sw.elapsedMilliseconds}ms',
+        name: 'WipeRestart',
+      );
+    }
+
     _readyNotifier.value = false;
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
     _safeRustDbClose();
+    mark('db_close');
     await WipeAllService(
       credentialCacheEvict: ref.read(sessionCredentialCacheProvider).evictAll,
     ).wipeAll();
+    mark('wipe_all');
     await ref
         .read(configProvider.notifier)
         .update(
           (c) => c.copyWithSecurity(security: null, securityProbeCache: null),
         );
+    mark('config_clear');
     _credentialsWereReset = true;
     _corruptionRetries = 0;
     if (!isMounted()) return;
     final manager = ref.read(masterPasswordProvider);
     final keyStorage = ref.read(secureKeyStorageProvider);
     await _firstLaunchSetup(manager, keyStorage);
+    mark('first_launch_setup');
     if (await _verifyReadable()) {
       _markSecurityReady();
+      mark('verify_readable');
     }
   }
 

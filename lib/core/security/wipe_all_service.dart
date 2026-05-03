@@ -129,7 +129,16 @@ class WipeAllService {
   /// plugin to drop its secondary keys. Returns a [WipeReport] so
   /// callers can surface partial failures.
   Future<WipeReport> wipeAll() async {
+    final sw = Stopwatch()..start();
+    void mark(String phase) {
+      AppLogger.instance.log(
+        'wipe phase=$phase elapsed=${sw.elapsedMilliseconds}ms',
+        name: 'WipeAllService',
+      );
+    }
+
     final dir = await _supportDir();
+    mark('support_dir');
 
     // 0. Flush the per-session credential cache BEFORE any file
     //    deletion. The cache is process-RAM-only, so there is no
@@ -149,6 +158,7 @@ class WipeAllService {
         name: 'WipeAllService',
       );
     }
+    mark('credential_evict');
 
     // 0.5. Scrub every active xterm scrollback. A reset that wipes
     //      the on-disk session record while leaving the user's
@@ -179,6 +189,7 @@ class WipeAllService {
         name: 'WipeAllService',
       );
     }
+    mark('sweep_files');
 
     // 2. Native hw-vault: primary + biometric overlay. Swallow errors;
     //    a missing channel (desktop Linux, missing plugin) is a no-op.
@@ -188,10 +199,12 @@ class WipeAllService {
     //    Windows) keep the native invocation.
     final nativeCleared = await _clearNativePrimary();
     final overlayCleared = await _clearNativeBiometricOverlay();
+    mark('native_vault_clear');
 
     // 3. OS secure storage (keychain / Credential Manager / keyring /
     //    EncryptedSharedPrefs depending on platform).
     final purged = _purgeKeychain ? await _purgeKeychainStore() : false;
+    mark('keychain_purge');
 
     return WipeReport(
       deletedFiles: deleted,
