@@ -282,8 +282,16 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     }
     // Tear down Connection's persistent resources (bus
     // subscription + progress controller) now that it's no
-    // longer reachable through the map.
-    conn.dispose();
+    // longer reachable through the map. `dispose()` is async
+    // because it waits for `BusEvent::ConnectionRemoved` to
+    // arrive on `Connection._busSub` before cancelling the
+    // subscription — the wait is what kills the
+    // "Fail to post message to Dart" stderr noise FRB used to
+    // emit on every disconnect (the worker was racing the
+    // cancel). Fire-and-forget here: the workspace caller
+    // doesn't await disconnect, and we already removed the
+    // Connection from the map so nothing reads it after this.
+    unawaited(conn.dispose());
     _notify();
   }
 
@@ -307,7 +315,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
               Future<void>.value(),
         );
       }
-      conn.dispose();
+      unawaited(conn.dispose());
     }
     _connections.clear();
     _clearGenerations();

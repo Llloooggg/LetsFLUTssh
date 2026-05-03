@@ -22,18 +22,38 @@ class AppBus {
   AppBus._();
   static final AppBus instance = AppBus._();
 
+  /// Per-topic shared broadcast streams. Lazily wired on first use:
+  /// the underlying FRB subscription opens once for the topic, fans
+  /// out to every Dart-side subscriber through a `StreamController.
+  /// broadcast()`, and stays alive for the AppBus singleton's
+  /// lifetime (= the process lifetime). Concrete reason: each
+  /// `bus_subscribe` call on the Rust side is a separate
+  /// `StreamSink<BusEvent>`, and FRB's protocol unconditionally
+  /// emits `Shell: Fail to post message to Dart` on every
+  /// subscription teardown (the `StreamSinkCloser::Drop` impl in
+  /// `flutter_rust_bridge::stream::closer` posts an
+  /// `encode_close_stream` message whose Dart receiver is by
+  /// definition already gone). Keeping a single FRB subscription
+  /// per topic for the entire process lifetime collapses N
+  /// per-disconnect cancels to one teardown at exit.
+  final Map<rust_bus.BusTopic, _SharedTopic> _shared = {};
+
   /// Dispatch a typed command. Returns when the Rust side has
   /// processed it; events emitted as a side effect arrive on the
   /// matching [subscribe] streams.
   Future<void> dispatch(rust_bus.BusCommand command) =>
       rust_bus.busDispatch(command: command);
 
-  /// Subscribe to events on [topic]. The returned stream cancels
-  /// the Rust-side subscription when the listener cancels (FRB
-  /// `StreamSink.add` returns Err, the Rust loop exits, the
-  /// broadcast receiver drops). No explicit close needed.
-  Stream<rust_bus.BusEvent> subscribe(rust_bus.BusTopic topic) =>
-      rust_bus.busSubscribe(topic: topic);
+  /// Subscribe to events on [topic]. The returned stream is fed by
+  /// a process-lifetime-scoped FRB subscription that fans out to
+  /// every Dart subscriber via `StreamController.broadcast`. The
+  /// caller cancels the returned subscription as usual; the
+  /// underlying FRB stream is NOT torn down at that point — only
+  /// when the process exits.
+  Stream<rust_bus.BusEvent> subscribe(rust_bus.BusTopic topic) {
+    final entry = _shared.putIfAbsent(topic, () => _SharedTopic(topic));
+    return entry.controller.stream;
+  }
 
   /// Convenience — subscribe to [BusTopic.connection] events and
   /// filter to a single connection id. Variants without an id are
@@ -66,4 +86,27 @@ class AppBus {
       return eventId == recorderId;
     });
   }
+}
+
+/// Per-topic broadcast pipe + the underlying FRB subscription that
+/// feeds it. Lives for the AppBus singleton's lifetime (= process
+/// lifetime). FRB-unreachable contexts (flutter_test without the
+/// native blob loaded) catch the `busSubscribe` throw and leave
+/// the controller as-is — listeners receive no events but all
+/// `subscribe` calls still return a valid stream, so test code
+/// that wires up but never expects events keeps compiling.
+class _SharedTopic {
+  _SharedTopic(rust_bus.BusTopic topic) {
+    try {
+      _frbSub = rust_bus
+          .busSubscribe(topic: topic)
+          .listen(controller.add, onError: controller.addError);
+    } catch (_) {
+      _frbSub = null;
+    }
+  }
+
+  final controller = StreamController<rust_bus.BusEvent>.broadcast();
+  // ignore: unused_field
+  StreamSubscription<rust_bus.BusEvent>? _frbSub;
 }

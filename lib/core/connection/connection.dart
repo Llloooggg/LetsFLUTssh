@@ -93,6 +93,19 @@ class Connection {
   /// via [_onBusStateChanged].
   Completer<bool> _transportAdopted = Completer<bool>();
 
+  /// Resolves when the Rust connection actor publishes
+  /// [`BusEvent::ConnectionRemoved`] for this id — the canonical
+  /// "the actor is gone, no more events for this id are coming"
+  /// signal. [`dispose`] awaits this with a short timeout before
+  /// cancelling [`_busSub`] so the listener has a chance to
+  /// process trailing teardown events before its broadcast
+  /// subscription drops. The timeout exists for the path where
+  /// the Connection is disposed without ever having owned an
+  /// actor (test container dispose, FRB-unreachable contexts) —
+  /// there is no `ConnectionRemoved` to wait for, so we proceed
+  /// after the bound elapses.
+  final Completer<void> _removed = Completer<void>();
+
   /// Lifecycle add-ons (port forwards, recording sinks, future agent
   /// forwarding). See [ConnectionExtension] for the contract. The list
   /// is owned by this Connection — features register at construction
@@ -171,6 +184,8 @@ class Connection {
             name: 'Connection',
             level: LogLevel.warn,
           );
+        } else if (event is rust_bus.BusEvent_ConnectionRemoved) {
+          if (!_removed.isCompleted) _removed.complete();
         }
       });
     } catch (e) {
@@ -444,12 +459,28 @@ class Connection {
   /// in memory + keeps consuming bus events for an id no one
   /// renders anymore.
   ///
+  /// Awaits [`_removed`] with a 1-second cap before cancelling
+  /// [`_busSub`]. The Rust `connection::disconnect` publishes
+  /// [`BusEvent::ConnectionRemoved`] as the last event of its
+  /// teardown; once we observe it, no more bus traffic is coming
+  /// for this id, so the subscription cancel cannot race the FRB
+  /// worker thread's in-flight delivery. The cap fires for paths
+  /// where the actor was never alive (test container dispose,
+  /// FRB-unreachable contexts) — no `ConnectionRemoved` is ever
+  /// published, so we proceed after the bound rather than hang.
+  ///
   /// Idempotent — repeated calls are a no-op.
-  void dispose() {
+  Future<void> dispose() async {
+    if (!_removed.isCompleted) {
+      await _removed.future.timeout(
+        const Duration(seconds: 1),
+        onTimeout: () {},
+      );
+    }
     final sub = _busSub;
     _busSub = null;
     if (sub != null) {
-      unawaited(sub.cancel());
+      await sub.cancel();
     }
     if (!_progressController.isClosed) {
       _progressController.close();
