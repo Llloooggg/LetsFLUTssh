@@ -13,16 +13,8 @@ part of 'settings_screen.dart';
 /// `.tier-transition-pending` marker on disk; recovery happens at
 /// next launch through `main._initSecurity`.
 extension _TierApply on _SecuritySectionState {
-  bool _isVerifiablePasswordDrop(SecurityTier current, SecurityTier next) {
-    if (current == SecurityTier.keychainWithPassword &&
-        next != SecurityTier.keychainWithPassword) {
-      return true;
-    }
-    if (current == SecurityTier.paranoid && next != SecurityTier.paranoid) {
-      return true;
-    }
-    return false;
-  }
+  bool _isVerifiablePasswordDrop(SecurityTier current, SecurityTier next) =>
+      isVerifiablePasswordDrop(current, next);
 
   /// Prompt for the current password before a password-dropping
   /// transition. Returns true to proceed, false to abort (user

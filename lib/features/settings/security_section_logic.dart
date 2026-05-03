@@ -144,6 +144,30 @@ BiometricModifierSpec? biometricSpecFor({
   );
 }
 
+/// True when the [current] → [next] transition drops a *verifiable*
+/// password — meaning the tier change wants the user to re-enter the
+/// existing password before we discard it. Verifiable means the
+/// previous tier carries a password that can be cryptographically
+/// checked: KeychainWithPassword (gate verifier file) and Paranoid
+/// (KDF-derived key against the master verifier). Plaintext / plain
+/// Keychain / Hardware do not — the gate-down transition for those
+/// has nothing to verify against, so the helper returns false and
+/// the apply pipeline skips the prompt.
+///
+/// Same-tier transitions (T2-with-pw → T2-with-pw, Paranoid →
+/// Paranoid) return false too: the user is reconfiguring modifiers,
+/// not dropping the password, so the prompt would be redundant.
+bool isVerifiablePasswordDrop(SecurityTier current, SecurityTier next) {
+  if (current == SecurityTier.keychainWithPassword &&
+      next != SecurityTier.keychainWithPassword) {
+    return true;
+  }
+  if (current == SecurityTier.paranoid && next != SecurityTier.paranoid) {
+    return true;
+  }
+  return false;
+}
+
 /// Snake-case marker for [tier] used in logs / telemetry. Stays
 /// stable across renames so log greps survive UI label changes;
 /// matches the same-named function in `lfs_core::security` so

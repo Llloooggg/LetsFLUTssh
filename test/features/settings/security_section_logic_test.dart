@@ -324,6 +324,62 @@ void main() {
     });
   });
 
+  group('isVerifiablePasswordDrop', () {
+    test('keychainWithPassword → anything other than keychainWithPassword '
+        'requires verification', () {
+      for (final next in SecurityTier.values) {
+        if (next == SecurityTier.keychainWithPassword) continue;
+        expect(
+          isVerifiablePasswordDrop(SecurityTier.keychainWithPassword, next),
+          isTrue,
+          reason: 'Drop from keychainWithPassword to $next must verify',
+        );
+      }
+    });
+
+    test('paranoid → anything other than paranoid requires verification', () {
+      for (final next in SecurityTier.values) {
+        if (next == SecurityTier.paranoid) continue;
+        expect(
+          isVerifiablePasswordDrop(SecurityTier.paranoid, next),
+          isTrue,
+          reason: 'Drop from paranoid to $next must verify',
+        );
+      }
+    });
+
+    test(
+      'same-tier transitions never trigger the prompt (modifier-only edit)',
+      () {
+        for (final t in SecurityTier.values) {
+          expect(
+            isVerifiablePasswordDrop(t, t),
+            isFalse,
+            reason: '$t → $t is a modifier-only edit, no verify prompt',
+          );
+        }
+      },
+    );
+
+    test('non-verifiable source tiers never demand a verification prompt', () {
+      const sources = [
+        SecurityTier.plaintext,
+        SecurityTier.keychain,
+        SecurityTier.hardware,
+      ];
+      for (final src in sources) {
+        for (final next in SecurityTier.values) {
+          if (src == next) continue;
+          expect(
+            isVerifiablePasswordDrop(src, next),
+            isFalse,
+            reason: 'Source $src has no verifiable password — $src → $next',
+          );
+        }
+      }
+    });
+  });
+
   group('securityTierLogName', () {
     test('every tier has a stable snake_case marker', () {
       expect(securityTierLogName(SecurityTier.plaintext), 'plaintext');

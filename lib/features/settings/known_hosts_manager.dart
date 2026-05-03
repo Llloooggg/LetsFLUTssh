@@ -14,6 +14,7 @@ import '../../widgets/app_data_search_bar.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/toast.dart';
+import 'known_hosts_manager_logic.dart';
 
 /// Embeddable known hosts manager — search + list with CRUD.
 ///
@@ -45,16 +46,8 @@ class _KnownHostsManagerPanelState
     if (mounted) setState(() => _loading = false);
   }
 
-  List<MapEntry<String, String>> get _filteredEntries {
-    final entries = _manager.entries.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    if (_filter.isEmpty) return entries;
-    final lower = _filter.toLowerCase();
-    return entries.where((e) {
-      return e.key.toLowerCase().contains(lower) ||
-          e.value.toLowerCase().contains(lower);
-    }).toList();
-  }
+  List<MapEntry<String, String>> get _filteredEntries =>
+      filterKnownHostEntries(_manager.entries, _filter);
 
   @override
   Widget build(BuildContext context) {
@@ -112,9 +105,9 @@ class _KnownHostsManagerPanelState
 
   Widget _buildEntry(S s, MapEntry<String, String> entry) {
     final hostPort = entry.key;
-    final parts = entry.value.split(' ');
-    final keyType = parts.isNotEmpty ? parts[0] : '';
-    final keyData = parts.length > 1 ? parts[1] : '';
+    final split = splitKnownHostValue(entry.value);
+    final keyType = split.keyType;
+    final keyData = split.keyData;
 
     // Compute fingerprint from base64 key data
     String fp;

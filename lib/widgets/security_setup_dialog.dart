@@ -20,6 +20,7 @@ import 'password_strength_meter.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
 import 'security_comparison_table.dart';
+import 'security_setup_dialog_logic.dart';
 import 'toast.dart';
 
 // Six private helper widgets (_TierRow / _ModifierToggle /
@@ -248,41 +249,17 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   bool get _biometricToggleEnabled {
     final caps = _caps;
     if (caps == null) return false;
-    if (!caps.canOfferBiometricModifier) return false;
-    // Invariant: biometric requires password.
-    if (!_password) return false;
-    // Paranoid forbids biometric by design.
-    if (_selected == WizardTier.paranoid) return false;
-    // Plaintext has nothing to gate.
-    if (_selected == WizardTier.plaintext) return false;
-    return true;
+    return wizardBiometricToggleEnabled(
+      selected: _selected,
+      password: _password,
+      canOfferBiometric: caps.canOfferBiometricModifier,
+    );
   }
 
-  bool get _passwordToggleEnabled {
-    // Paranoid has a mandatory password; the toggle is not interactive.
-    if (_selected == WizardTier.paranoid) return false;
-    // Plaintext has no secret to add.
-    if (_selected == WizardTier.plaintext) return false;
-    // T1 / T2 — both allow the password modifier to be on or off.
-    // Passwordless T2 seals the DB key under an empty auth value and
-    // relies on SE / TPM isolation alone; the unlock path in
-    // `_unlockHardware` reads the modifier back and skips the PIN
-    // pad when the user opted out. The earlier force-on for T2 is
-    // gone — the downstream code handles both branches now.
-    return true;
-  }
+  bool get _passwordToggleEnabled => wizardPasswordToggleEnabled(_selected);
 
-  bool _needsSecretInput() {
-    // Paranoid always asks for a master password.
-    if (_selected == WizardTier.paranoid) return true;
-    // T1/T2 + password asks for the bank-style secret.
-    if ((_selected == WizardTier.keychain ||
-            _selected == WizardTier.hardware) &&
-        _password) {
-      return true;
-    }
-    return false;
-  }
+  bool _needsSecretInput() =>
+      wizardNeedsSecretInput(selected: _selected, password: _password);
 
   /// Gate the Continue button up front so a disabled state is the
   /// visible cue instead of a toast on tap. Today the only hard-block
@@ -290,12 +267,10 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   /// password / passphrase fields rely on _submit's post-tap error
   /// paths because their validation depends on both controllers
   /// being in sync, which is fiddlier to wire to button state.
-  bool _canSubmit() {
-    if (_selected == WizardTier.plaintext && !_plaintextAcknowledged) {
-      return false;
-    }
-    return true;
-  }
+  bool _canSubmit() => wizardCanSubmit(
+    selected: _selected,
+    plaintextAcknowledged: _plaintextAcknowledged,
+  );
 
   void _submit() {
     final l10n = S.of(context);
@@ -315,7 +290,10 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     }
 
     // Enforce invariant before mapping.
-    if (_biometric && !_password) _biometric = false;
+    _biometric = resolveBiometricInvariant(
+      password: _password,
+      biometric: _biometric,
+    );
 
     final mapped = mapWizardChoice(
       chosen: _selected,
