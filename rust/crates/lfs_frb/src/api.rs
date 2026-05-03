@@ -68,6 +68,13 @@ pub mod wipe;
 pub mod wipe_keychain;
 pub mod wizard_setup;
 
+/// In-process russh-server fixture for integration tests. Always
+/// compiled in. The fixture binds 127.0.0.1 only, accepts a
+/// hard-coded test password, and is invoked by no production
+/// code path — see the module docstring for the rationale on
+/// shipping it unconditionally rather than feature-gating it.
+pub mod test_hooks;
+
 /// FFI plumbing init — runs once when Dart loads the native blob.
 /// Sets up the FRB default user utils (panic hook, logging hook).
 /// Required by FRB 2.x; do not remove.

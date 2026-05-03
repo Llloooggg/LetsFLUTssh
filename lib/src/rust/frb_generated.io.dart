@@ -55,6 +55,7 @@ import 'api/snippet_template.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
 import 'api/ssh_dir_scan.dart';
+import 'api/test_hooks.dart';
 import 'api/threat_eval.dart';
 import 'api/tier_machine.dart';
 import 'api/tier_transition_marker.dart';
@@ -1024,6 +1025,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent dco_decode_ssh_shell_event(dynamic raw);
+
+  @protected
+  TestSshServerInfo dco_decode_test_ssh_server_info(dynamic raw);
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -2214,6 +2218,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshShellEvent sse_decode_ssh_shell_event(SseDeserializer deserializer);
+
+  @protected
+  TestSshServerInfo sse_decode_test_ssh_server_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -3716,6 +3725,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_ssh_shell_event(SshShellEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_test_ssh_server_info(
+    TestSshServerInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);

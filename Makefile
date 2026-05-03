@@ -39,7 +39,17 @@ else
 	@exit 1
 endif
 
-test: ## Run all tests with coverage
+test: rust-build ## Run all tests with coverage
+	@# Tests that load the FRB native blob — `terminal_clipboard_test.dart`
+	@# (sensitivity-routing → `lfs_core::log_sanitize`),
+	@# `connection_lifecycle_test.dart` (in-process russh fixture) — call
+	@# `requireFrbLoaded()` and throw if the .so is missing. The
+	@# `rust-build` dependency above guarantees `rust/target/release/
+	@# liblfs_frb.so` exists before the Flutter test runner picks it up.
+	@# Without this, FRB-loaded tests fail silently in CI (the previous
+	@# behaviour: `make test` ran without the .so, and the bus-driven
+	@# integration tests this whole pipeline exists to enable would
+	@# never trip).
 	$(FLUTTER) test --coverage --timeout 30s
 	@# Post-process lcov.info to drop generated + localisation files
 	@# from the coverage denominator. Must mirror

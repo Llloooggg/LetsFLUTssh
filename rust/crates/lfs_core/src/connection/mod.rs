@@ -24,6 +24,7 @@
 //! never paints a tab for a hop the user did not explicitly open.
 
 pub mod auth_compose;
+pub mod test_server;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

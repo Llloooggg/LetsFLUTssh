@@ -48,6 +48,37 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsecret-1-dev libtss2-dev
 
+      - name: Install Rust toolchain
+        # `make test` now depends on `make rust-build` so the FRB
+        # native blob (`rust/target/release/liblfs_frb.so`) is in place
+        # before flutter_test loads it via `requireFrbLoaded`. Without
+        # this dependency, every test that calls into Rust failed
+        # silently against a missing .so. Toolchain version is pinned
+        # in `rust/rust-toolchain.toml`; rustup auto-installs on the
+        # first cargo invocation when `working-directory: rust`.
+        working-directory: rust
+        run: |
+          rustup show active-toolchain
+          rustup component add rustfmt clippy
+
+      - name: Cache cargo registry + workspace target
+        # Same cache key as the `rust-ci` job below so the two jobs
+        # populate / hit the same cache. Release-profile target dirs
+        # (rust/target/release/, what `make rust-build` produces) and
+        # debug target dirs (rust/target/debug/, what cargo test
+        # produces in `rust-ci`) coexist in `rust/target/` so a single
+        # cache covers both.
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            rust/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Install dependencies
         run: make deps
 
