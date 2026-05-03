@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/security/security_tier.dart';
 import '../core/security/threat_vocabulary.dart';
+import 'expandable_tier_card_logic.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/secret_controller.dart';
@@ -224,30 +225,15 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     super.dispose();
   }
 
-  bool _derivePassword(SecurityTier current, SecurityTierModifiers mods) {
-    if (widget.tier != current &&
-        !(widget.tier == SecurityTier.keychain &&
-            current == SecurityTier.keychainWithPassword)) {
-      // Non-current tier card: start with password off (T1/T2) or
-      // on (Paranoid — always on by design). This is the pending
-      // selection the user can tweak before tapping Select.
-      return widget.tier == SecurityTier.paranoid;
-    }
-    return mods.password ||
-        current == SecurityTier.keychainWithPassword ||
-        current == SecurityTier.paranoid;
-  }
+  bool _derivePassword(SecurityTier current, SecurityTierModifiers mods) =>
+      derivePasswordModifierForCard(
+        cardTier: widget.tier,
+        currentTier: current,
+        currentModifiers: mods,
+      );
 
-  bool get _isCurrent {
-    final t = widget.tier;
-    final c = widget.currentTier;
-    if (t == c) return true;
-    // T1 card matches both `keychain` and `keychainWithPassword`.
-    if (t == SecurityTier.keychain && c == SecurityTier.keychainWithPassword) {
-      return true;
-    }
-    return false;
-  }
+  bool get _isCurrent =>
+      tierCardIsCurrent(cardTier: widget.tier, currentTier: widget.currentTier);
 
   /// True when the current config exactly matches the card's pending
   /// state. Drives whether Select reads "Current" (disabled) or
@@ -265,8 +251,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   }
 
   bool get _passwordToggleAvailable =>
-      widget.tier == SecurityTier.keychain ||
-      widget.tier == SecurityTier.hardware;
+      tierCardPasswordToggleAvailable(widget.tier);
 
   /// T1 and T2 use the same short-password input path when the
   /// password modifier toggle is on. T2 historically had a
@@ -284,26 +269,20 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// the user to re-type the password twice (card fields + dialog)
   /// was the user-report bug that "two password fields are showing
   /// on my own tier".
-  bool get _requiresPasswordInput {
-    if (widget.tier != SecurityTier.keychain &&
-        widget.tier != SecurityTier.hardware) {
-      return false;
-    }
-    if (!_passwordEnabled) return false;
-    if (_isCurrent && _currentHasPassword) return false;
-    return true;
-  }
+  bool get _requiresPasswordInput => requiresShortPasswordInput(
+    cardTier: widget.tier,
+    passwordModifierEnabled: _passwordEnabled,
+    isCurrent: _isCurrent,
+    currentHasPassword: _currentHasPassword,
+  );
 
   /// Same reasoning as [_requiresPasswordInput]: on Paranoid a
   /// biometric-only toggle does not change the master password, and
   /// the post-Apply biometric step re-prompts via the shared dialog,
   /// so rendering the master-password pair on the current card is
   /// redundant UI.
-  bool get _requiresMasterPasswordInput {
-    if (widget.tier != SecurityTier.paranoid) return false;
-    if (_isCurrent) return false;
-    return true;
-  }
+  bool get _requiresMasterPasswordInput =>
+      requiresMasterPasswordInput(cardTier: widget.tier, isCurrent: _isCurrent);
 
   /// Whether the currently-applied tier + modifiers already carry a
   /// user-typed password. Paranoid is always true; T1+password is
@@ -311,13 +290,10 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// applied state the parent pushed down, not the pending card
   /// state, because this predicate exists to tell the render code
   /// whether we need a fresh password from the user.
-  bool get _currentHasPassword {
-    final current = widget.currentTier;
-    final mods = widget.currentModifiers;
-    return mods.password ||
-        current == SecurityTier.keychainWithPassword ||
-        current == SecurityTier.paranoid;
-  }
+  bool get _currentHasPassword => currentConfigHasPassword(
+    currentTier: widget.currentTier,
+    currentModifiers: widget.currentModifiers,
+  );
 
   bool get _inputsReady {
     if (_requiresPasswordInput) {
@@ -682,4 +658,3 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
     return 'libsecret';
   }
 }
-
