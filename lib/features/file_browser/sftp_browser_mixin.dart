@@ -52,6 +52,12 @@ mixin SftpBrowserMixin<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Future<void> initSftp() async {
     final conn = sftpConnection;
     await conn.waitUntilReady();
+    // `state == connected` flips before [Connection._adoptSession]
+    // assigns the russh handle to `transport`; wait for the adopt
+    // to settle so the SFTP open below sees a non-null transport.
+    if (conn.isConnecting || conn.isConnected) {
+      await conn.transportReady;
+    }
 
     if (!conn.isConnected) {
       if (mounted) {

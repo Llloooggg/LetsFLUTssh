@@ -198,6 +198,12 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
 
     _progressSub = writer.subscribe(tracker);
     await conn.waitUntilReady();
+    // `state == connected` flips before [Connection._adoptSession]
+    // assigns the russh handle to `transport`; wait for the adopt
+    // to settle so `_openShell` doesn't see a null transport.
+    if (conn.isConnecting || conn.isConnected) {
+      await conn.transportReady;
+    }
     _progressSub?.cancel();
     _progressSub = null;
     tracker.dispose();

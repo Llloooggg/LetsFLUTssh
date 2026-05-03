@@ -185,6 +185,15 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
 
     // Wait for connection if still connecting
     await conn.waitUntilReady();
+    // `state == connected` flips when the Rust actor publishes
+    // ConnectionStateChanged Connected, but the russh handle is
+    // adopted asynchronously inside Connection._adoptSession. If
+    // we open the shell now, `conn.transport` may still be null
+    // and `_openShell` raises "Bad state: Not connected". Wait
+    // for the adopt to settle (succeed / fail) before checking.
+    if (conn.isConnecting || conn.isConnected) {
+      await conn.transportReady;
+    }
     _progressSub?.cancel();
     _progressSub = null;
     tracker.dispose();

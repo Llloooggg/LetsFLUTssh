@@ -80,6 +80,19 @@ class Connection {
   /// Buffered progress steps — replayed to late subscribers.
   final _progressHistory = <ConnectionStep>[];
 
+  /// Resolves once `_adoptSession` has finished — `true` when the
+  /// russh handle was fetched + wrapped in [`RustTransport`] (so
+  /// [`transport`] is non-null), `false` when adoption failed
+  /// (`connectionGetSession` returned null, FRB error, etc.) or
+  /// the actor moved straight to Disconnected.
+  ///
+  /// Connect-flow consumers (terminal pane, SFTP browser) await
+  /// this AFTER [waitUntilReady] before reading [`transport`] —
+  /// otherwise they race the async adoption and see a null
+  /// transport even though `state == connected` already flipped
+  /// via [_onBusStateChanged].
+  Completer<bool> _transportAdopted = Completer<bool>();
+
   /// Lifecycle add-ons (port forwards, recording sinks, future agent
   /// forwarding). See [ConnectionExtension] for the contract. The list
   /// is owned by this Connection — features register at construction
@@ -131,10 +144,6 @@ class Connection {
   void _subscribeProgressBus() {
     try {
       _busSub = AppBus.instance.subscribeConnection(id).listen((event) {
-        AppLogger.instance.log(
-          'Connection._busSub received ${event.runtimeType} for $id',
-          name: 'Connection',
-        );
         if (event is rust_bus.BusEvent_ConnectionProgress) {
           addProgressStep(
             ConnectionStep(
@@ -192,11 +201,25 @@ class Connection {
       case rust_bus.BusConnectionState.disconnected:
         this.state = SSHConnectionState.disconnected;
         transport = null;
+        // Wake any waiter on `transportReady` so the connect-flow
+        // consumer doesn't deadlock when the actor moves straight
+        // to Disconnected without an Adopt step.
+        if (!_transportAdopted.isCompleted) {
+          _transportAdopted.complete(false);
+        }
         _evictTransientSecrets();
     }
   }
 
+  /// Resolves once the russh transport has been adopted (or
+  /// adoption failed). `true` = [`transport`] is non-null and
+  /// usable; `false` = adoption failed / actor settled into
+  /// Disconnected. Safe to await multiple times — a second
+  /// `await` after completion returns the same value.
+  Future<bool> get transportReady => _transportAdopted.future;
+
   Future<void> _adoptSession() async {
+    var adopted = false;
     try {
       final session = await rust_bus.connectionGetSession(id: id);
       if (session == null) {
@@ -205,16 +228,21 @@ class Connection {
           name: 'Connection',
           level: LogLevel.warn,
         );
-        return;
+      } else {
+        transport = RustTransport.adopt(session);
+        notifyExtensionsConnected();
+        adopted = true;
       }
-      transport = RustTransport.adopt(session);
-      notifyExtensionsConnected();
     } catch (e) {
       AppLogger.instance.log(
         'Connection.adoptSession failed for $id: $e',
         name: 'Connection',
         level: LogLevel.warn,
       );
+    } finally {
+      if (!_transportAdopted.isCompleted) {
+        _transportAdopted.complete(adopted);
+      }
     }
   }
 
@@ -343,6 +371,7 @@ class Connection {
   /// can await [ready] and subscribe to [progressStream] again.
   void resetForReconnect() {
     _readyCompleter = Completer<void>();
+    _transportAdopted = Completer<bool>();
     if (!_progressController.isClosed) _progressController.close();
     _progressController = StreamController<ConnectionStep>.broadcast();
     _progressHistory.clear();
