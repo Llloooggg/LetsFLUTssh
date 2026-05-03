@@ -25,6 +25,7 @@ import 'package:letsflutssh/core/security/keychain_password_gate.dart';
 import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/secure_key_storage.dart';
+import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
 
 class FakeMasterPasswordManager extends MasterPasswordManager {
@@ -32,11 +33,35 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
   Uint8List? derivedKey;
   bool verifyResult;
 
+  /// Queued outcomes for [unlockAttempt]. Each call dequeues one;
+  /// the queue running dry returns [TierUnlockAttempt.error] so
+  /// callers that didn't pre-stage anything fail loud rather than
+  /// silently accept. Records every supplied password into
+  /// [unlockAttemptCalls] so tests assert on the exact value the
+  /// dialog handed in.
+  final List<TierUnlockAttempt> unlockOutcomes;
+  final List<String> unlockAttemptCalls = [];
+
+  /// Static rate-limit status returned by [rateLimitStatus]. Tests
+  /// that need a state machine (e.g. "lock after the next failed
+  /// attempt") swap [statusAfterFailure] in or assign [_status]
+  /// directly between operations.
+  RateLimitStatus _status;
+  final RateLimitStatus? statusAfterFailure;
+
   FakeMasterPasswordManager({
     this.enabled = false,
     this.derivedKey,
     this.verifyResult = false,
-  });
+    List<TierUnlockAttempt>? unlockOutcomes,
+    RateLimitStatus initialStatus = const RateLimitStatus(
+      failureCount: 0,
+      cooldownRemaining: Duration.zero,
+    ),
+    this.statusAfterFailure,
+  }) : unlockOutcomes = unlockOutcomes ?? [],
+       _status = initialStatus,
+       super(basePath: '/tmp/fake-master-password');
 
   @override
   Future<bool> isEnabled() async => enabled;
@@ -66,6 +91,28 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
   @override
   Future<void> reset() async {
     enabled = false;
+  }
+
+  @override
+  RateLimitStatus rateLimitStatus() => _status;
+
+  /// Override the limiter snapshot — tests that drive a dialog
+  /// through "first attempt clean, second attempt locked" mutate
+  /// this directly between submits.
+  void setStatus(RateLimitStatus status) {
+    _status = status;
+  }
+
+  @override
+  Future<TierUnlockAttempt> unlockAttempt(String password) async {
+    unlockAttemptCalls.add(password);
+    final next = unlockOutcomes.isNotEmpty
+        ? unlockOutcomes.removeAt(0)
+        : TierUnlockAttempt.error;
+    if (next == TierUnlockAttempt.wrongSecret && statusAfterFailure != null) {
+      _status = statusAfterFailure!;
+    }
+    return next;
   }
 }
 

@@ -1,52 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/master_password.dart';
 import 'package:letsflutssh/core/security/password_rate_limiter.dart';
 import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/widgets/unlock_dialog.dart';
 
-/// Test stand-in for [MasterPasswordManager] that overrides the two
-/// methods [_UnlockDialogState] reaches for ([unlockAttempt] and
-/// [rateLimitStatus]) so the dialog flows can be driven without
-/// booting FRB / Argon2id / the Rust rate-limiter registry.
-class _FakeMasterPasswordManager extends MasterPasswordManager {
-  _FakeMasterPasswordManager({
-    required this.attemptOutcomes,
-    RateLimitStatus initialStatus = const RateLimitStatus(
-      failureCount: 0,
-      cooldownRemaining: Duration.zero,
-    ),
-    this.statusAfterFailure,
-  }) : _status = initialStatus,
-       super(basePath: '/tmp/unlock-dialog-test');
-
-  final List<TierUnlockAttempt> attemptOutcomes;
-  RateLimitStatus _status;
-
-  /// Optional override pushed onto [_status] after every
-  /// `wrongSecret` attempt — lets a test demonstrate the cooldown
-  /// ticker activation without driving the real rate limiter.
-  final RateLimitStatus? statusAfterFailure;
-
-  final List<String> attemptCalls = [];
-
-  @override
-  RateLimitStatus rateLimitStatus() => _status;
-
-  @override
-  Future<TierUnlockAttempt> unlockAttempt(String password) async {
-    attemptCalls.add(password);
-    final next = attemptOutcomes.isNotEmpty
-        ? attemptOutcomes.removeAt(0)
-        : TierUnlockAttempt.error;
-    if (next == TierUnlockAttempt.wrongSecret && statusAfterFailure != null) {
-      _status = statusAfterFailure!;
-    }
-    return next;
-  }
-}
+import '../helpers/fake_security.dart';
 
 Widget _wrap(Widget child) => ProviderScope(
   child: MaterialApp(
@@ -58,7 +18,7 @@ Widget _wrap(Widget child) => ProviderScope(
 
 Future<bool?> _open(
   WidgetTester tester, {
-  required _FakeMasterPasswordManager manager,
+  required FakeMasterPasswordManager manager,
 }) async {
   bool? result;
   await tester.pumpWidget(
@@ -83,8 +43,8 @@ void main() {
 
   group('UnlockDialog — unlock path', () {
     testWidgets('staged outcome closes the dialog with true', (tester) async {
-      final mgr = _FakeMasterPasswordManager(
-        attemptOutcomes: [TierUnlockAttempt.staged],
+      final mgr = FakeMasterPasswordManager(
+        unlockOutcomes: [TierUnlockAttempt.staged],
       );
       bool? result;
       await tester.pumpWidget(
@@ -104,15 +64,15 @@ void main() {
       await tester.enterText(find.byType(TextField), 'correct-password');
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
-      expect(mgr.attemptCalls, ['correct-password']);
+      expect(mgr.unlockAttemptCalls, ['correct-password']);
       expect(result, isTrue);
     });
 
     testWidgets('wrongSecret leaves dialog open with the wrong-pw banner', (
       tester,
     ) async {
-      final mgr = _FakeMasterPasswordManager(
-        attemptOutcomes: [TierUnlockAttempt.wrongSecret],
+      final mgr = FakeMasterPasswordManager(
+        unlockOutcomes: [TierUnlockAttempt.wrongSecret],
       );
       await _open(tester, manager: mgr);
       await tester.enterText(find.byType(TextField), 'wrong');
@@ -122,14 +82,14 @@ void main() {
       expect(find.text(l10n.wrongMasterPassword), findsOneWidget);
       // Dialog still up — Unlock button is back.
       expect(find.text(l10n.unlock), findsOneWidget);
-      expect(mgr.attemptCalls, ['wrong']);
+      expect(mgr.unlockAttemptCalls, ['wrong']);
     });
 
     testWidgets('cancelled outcome closes the dialog with null', (
       tester,
     ) async {
-      final mgr = _FakeMasterPasswordManager(
-        attemptOutcomes: [TierUnlockAttempt.cancelled],
+      final mgr = FakeMasterPasswordManager(
+        unlockOutcomes: [TierUnlockAttempt.cancelled],
       );
       bool? result;
       await tester.pumpWidget(
@@ -154,8 +114,8 @@ void main() {
     });
 
     testWidgets('error outcome closes the dialog with null', (tester) async {
-      final mgr = _FakeMasterPasswordManager(
-        attemptOutcomes: [TierUnlockAttempt.error],
+      final mgr = FakeMasterPasswordManager(
+        unlockOutcomes: [TierUnlockAttempt.error],
       );
       bool? result;
       await tester.pumpWidget(
@@ -181,15 +141,15 @@ void main() {
     testWidgets('empty password short-circuits — manager never sees it', (
       tester,
     ) async {
-      final mgr = _FakeMasterPasswordManager(
-        attemptOutcomes: [TierUnlockAttempt.staged],
+      final mgr = FakeMasterPasswordManager(
+        unlockOutcomes: [TierUnlockAttempt.staged],
       );
       await _open(tester, manager: mgr);
       // Submit the empty field directly. The button should ignore it.
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
       expect(
-        mgr.attemptCalls,
+        mgr.unlockAttemptCalls,
         isEmpty,
         reason: 'Empty password is the early-return branch in _unlock',
       );
@@ -204,8 +164,8 @@ void main() {
           failureCount: 5,
           cooldownRemaining: Duration(seconds: 5),
         );
-        final mgr = _FakeMasterPasswordManager(
-          attemptOutcomes: [TierUnlockAttempt.wrongSecret],
+        final mgr = FakeMasterPasswordManager(
+          unlockOutcomes: [TierUnlockAttempt.wrongSecret],
           statusAfterFailure: lockedAfter,
         );
         await _open(tester, manager: mgr);
@@ -230,8 +190,8 @@ void main() {
         failureCount: 3,
         cooldownRemaining: Duration(seconds: 7),
       );
-      final mgr = _FakeMasterPasswordManager(
-        attemptOutcomes: [TierUnlockAttempt.staged],
+      final mgr = FakeMasterPasswordManager(
+        unlockOutcomes: [TierUnlockAttempt.staged],
         initialStatus: initialLocked,
       );
       await _open(tester, manager: mgr);
@@ -239,7 +199,7 @@ void main() {
       expect(find.text(l10n.tierCooldownHint(8)), findsOneWidget);
       // Tap anyway — the button is null-callback while locked, so
       // tapping it is a no-op. Confirm no attempt fired.
-      expect(mgr.attemptCalls, isEmpty);
+      expect(mgr.unlockAttemptCalls, isEmpty);
       // Drain the cooldown ticker.
       await tester.pump(const Duration(seconds: 8));
       await tester.pumpAndSettle();
@@ -248,8 +208,8 @@ void main() {
     testWidgets('renders the master-password copy + lock icon on open', (
       tester,
     ) async {
-      final mgr = _FakeMasterPasswordManager(
-        attemptOutcomes: [TierUnlockAttempt.staged],
+      final mgr = FakeMasterPasswordManager(
+        unlockOutcomes: [TierUnlockAttempt.staged],
       );
       await _open(tester, manager: mgr);
       final l10n = S.of(tester.element(find.byType(UnlockDialog)));
