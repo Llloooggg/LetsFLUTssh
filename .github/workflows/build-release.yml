@@ -775,8 +775,16 @@ jobs:
         # the simulator slices (aarch64-apple-ios-sim,
         # x86_64-apple-ios) tend to share the same iOS-cfg paths,
         # and the device target is what end users actually run.
-        run: |
-          cargo build --manifest-path rust/crates/lfs_frb/Cargo.toml -p lfs_frb --release --target aarch64-apple-ios
+        #
+        # `working-directory: rust` is load-bearing: rustup walks
+        # UP from CWD looking for `rust-toolchain.toml`, so cargo
+        # invoked from the repo root would pick up the runner's
+        # default-stable toolchain — which does NOT have the iOS
+        # targets the `setup-rust` composite added to the pinned
+        # 1.95.0 toolchain. cd'ing into `rust/` makes rustup find
+        # the toml + use 1.95.0, where the targets actually live.
+        working-directory: rust
+        run: cargo build -p lfs_frb --release --target aarch64-apple-ios
 
       - name: Build iOS (no codesign)
         # `--no-codesign` skips the provisioning-profile / signing
