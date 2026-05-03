@@ -538,7 +538,18 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Windows ARM64
-        run: flutter build windows --release
+        # `--target-platform=windows-arm64` is load-bearing on the
+        # `windows-11-arm` runner: without it, `flutter build
+        # windows` defaults to compiling for x64 (the runner can
+        # execute x64 binaries via Prism emulation, so Flutter's
+        # auto-detection picks x64 and emits the .exe under
+        # `build\windows\x64\runner\Release\` — wrong arch + wrong
+        # path for the downstream signing / packaging steps that
+        # expect `build\windows\arm64\...`). Explicit flag forces
+        # the native ARM64 codegen path so users on Snapdragon X /
+        # Surface Pro X get a real ARM64 binary instead of an x64
+        # one running through Prism.
+        run: flutter build windows --release --target-platform=windows-arm64
 
       - name: Self-signed Authenticode
         # Same self-sign-then-discard certificate flow as

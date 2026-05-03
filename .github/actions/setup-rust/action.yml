@@ -63,6 +63,18 @@ runs:
     # unchanged dep — the slow vendored-OpenSSL + ring builds land
     # in cache, and the build wall-clock drops back toward
     # pre-rust-port shape.
+    #
+    # `save-if: true` overrides the action's default
+    # (`save-if: ${{ github.ref == default_branch }}`), which would
+    # otherwise refuse to write the cache on any branch other than
+    # `main`. Without the override, every push to a feature branch
+    # rebuilds from scratch because there's nothing to restore from
+    # — main's cache only populates on its own pushes (rare during
+    # active feature work). Saving on every branch is the right
+    # tradeoff: cache space is generous (10 GB per repo, GitHub
+    # auto-evicts old entries) and the speedup applies to the
+    # branches that actually iterate.
     - uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
       with:
         workspaces: rust
+        save-if: 'true'
