@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../../features/settings/export_import.dart';
 import '../../src/rust/api/openssh_config_import.dart' as rust_import;
 import '../../src/rust/api/ssh_config.dart' as rust_ssh_config;
@@ -111,7 +113,18 @@ class OpenSshConfigImporter {
     );
   }
 
-  Session _toSession(rust_import.DbOpenSshImportSession row) {
+  Session _toSession(rust_import.DbOpenSshImportSession row) =>
+      mapRustImportSession(row);
+
+  SshKeyEntry _toSshKeyEntry(rust_import.DbOpenSshImportKey row) =>
+      mapRustImportKey(row);
+
+  /// Map a Rust-side imported-session row onto the Flutter [Session]
+  /// model. The auth type is the only branching decision; everything
+  /// else is field copy. Public so the openssh-import test surface
+  /// can drive the mapper without booting FRB.
+  @visibleForTesting
+  static Session mapRustImportSession(rust_import.DbOpenSshImportSession row) {
     final authType = switch (row.authType) {
       rust_ssh_config.DbOpenSshAuthType.password => AuthType.password,
       rust_ssh_config.DbOpenSshAuthType.key => AuthType.key,
@@ -120,16 +133,16 @@ class OpenSshConfigImporter {
       id: row.id,
       label: row.label,
       folder: row.folder,
-      server: ServerAddress(
-        host: row.host,
-        port: row.port,
-        user: row.user,
-      ),
+      server: ServerAddress(host: row.host, port: row.port, user: row.user),
       auth: SessionAuth(authType: authType, keyId: row.keyId),
     );
   }
 
-  SshKeyEntry _toSshKeyEntry(rust_import.DbOpenSshImportKey row) {
+  /// Map a Rust-side imported-key row onto the Flutter [SshKeyEntry]
+  /// model. `isGenerated=false` because OpenSSH-imported keys came
+  /// from disk, not from the in-app generator.
+  @visibleForTesting
+  static SshKeyEntry mapRustImportKey(rust_import.DbOpenSshImportKey row) {
     return SshKeyEntry(
       id: row.id,
       label: row.label,
