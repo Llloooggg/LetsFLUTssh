@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../src/rust/api/archive.dart' as rust_archive;
 import '../../src/rust/api/deeplink.dart' as rust_deeplink;
@@ -67,6 +68,9 @@ class DeepLinkHandler {
 
   /// Sanitize URI for logging — deep links no longer carry credentials,
   /// but we still strip any unexpected sensitive-looking parameters.
+  @visibleForTesting
+  static String sanitizeUriForLog(Uri uri) => _sanitizeUri(uri);
+
   static String _sanitizeUri(Uri uri) {
     if (uri.queryParameters.isEmpty) return uri.toString();
     final safe = Map<String, String>.from(uri.queryParameters);
@@ -94,6 +98,13 @@ class DeepLinkHandler {
     }
     _route(outcome);
   }
+
+  /// Dispatch a Rust-decoded outcome onto the registered callbacks.
+  /// `@visibleForTesting` — production callers go through
+  /// [handleUri] which wires the Rust dispatcher first.
+  @visibleForTesting
+  void routeOutcomeForTest(rust_deeplink.DbDeeplinkOutcome outcome) =>
+      _route(outcome);
 
   void _route(rust_deeplink.DbDeeplinkOutcome outcome) {
     switch (outcome) {

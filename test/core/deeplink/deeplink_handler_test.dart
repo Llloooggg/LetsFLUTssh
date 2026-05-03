@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/deeplink/deeplink_handler.dart';
+import 'package:letsflutssh/core/session/qr_decoded_source.dart';
+import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/src/rust/api/archive.dart' as rust_archive;
+import 'package:letsflutssh/src/rust/api/deeplink.dart' as rust_deeplink;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -266,6 +270,171 @@ void main() {
       final h = DeepLinkHandler();
       h.dispose();
       h.dispose();
+    });
+  });
+
+  group('sanitizeUriForLog', () {
+    test('returns the URI verbatim when no query parameters are present', () {
+      final uri = Uri.parse('letsflutssh://connect');
+      expect(DeepLinkHandler.sanitizeUriForLog(uri), uri.toString());
+    });
+
+    test('non-sensitive query params pass through', () {
+      final uri = Uri.parse('letsflutssh://connect?host=example.org&port=22');
+      final out = DeepLinkHandler.sanitizeUriForLog(uri);
+      expect(out, contains('host=example.org'));
+      expect(out, contains('port=22'));
+    });
+
+    test('redacts password / passphrase / key_data / key params', () {
+      // Even though deep links no longer carry credentials, the
+      // sanitiser still strips any unexpected sensitive-looking
+      // parameter — defense in depth, since plaintext discipline
+      // means these strings must never reach a log file.
+      final uri = Uri.parse(
+        'letsflutssh://connect?host=h&password=secret123'
+        '&passphrase=p2&key=raw&key_data=raw&port=22',
+      );
+      final out = DeepLinkHandler.sanitizeUriForLog(uri);
+      expect(out, contains('host=h'));
+      expect(out, contains('port=22'));
+      expect(out, isNot(contains('secret123')));
+      expect(out, isNot(contains('p2=')));
+      expect(out, isNot(contains('=raw')));
+      // `***` round-trips through `Uri.replace(queryParameters)` as
+      // `%2A%2A%2A`. Either form is fine for log purposes — the
+      // contract is "secret value is gone, marker is present".
+      expect(out, anyOf(contains('***'), contains('%2A%2A%2A')));
+    });
+  });
+
+  group('routeOutcomeForTest', () {
+    rust_archive.DbImportPreview previewWith(int sessions) =>
+        rust_archive.DbImportPreview(
+          schemaVersion: 1,
+          sessionCount: sessions,
+          sessionLabels: List.generate(sessions, (i) => 'sess-$i'),
+          managerKeyCount: 0,
+          tagCount: 0,
+          snippetCount: 0,
+          emptyFolderCount: 0,
+          hasConfig: false,
+          hasKnownHosts: false,
+        );
+
+    late DeepLinkHandler handler;
+    setUp(() {
+      handler = DeepLinkHandler();
+    });
+
+    tearDown(() {
+      handler.dispose();
+    });
+
+    test('Connect → onConnect fires with parsed SSHConfig', () {
+      SSHConfig? captured;
+      handler.onConnect = (cfg) => captured = cfg;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.connect(
+          host: 'example.org',
+          port: 2222,
+          user: 'alice',
+        ),
+      );
+      expect(captured, isNotNull);
+      expect(captured!.server.host, 'example.org');
+      expect(captured!.server.port, 2222);
+      expect(captured!.server.user, 'alice');
+    });
+
+    test('QrImport → onQrImport fires with the staged handle + preview', () {
+      QrDecodedSource? captured;
+      handler.onQrImport = (s) => captured = s;
+      final preview = previewWith(3);
+      handler.routeOutcomeForTest(
+        rust_deeplink.DbDeeplinkOutcome.qrImport(
+          handleId: 'h-42',
+          preview: preview,
+        ),
+      );
+      expect(captured, isNotNull);
+      expect(captured!.rust.handleId, 'h-42');
+      expect(captured!.preview.sessionCount, 3);
+    });
+
+    test('QrImportRejected → onQrImportVersionTooNew fires with versions', () {
+      int? capturedFound;
+      int? capturedSupported;
+      handler.onQrImportVersionTooNew = (found, supported) {
+        capturedFound = found;
+        capturedSupported = supported;
+      };
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.qrImportRejected(
+          found: 99,
+          supported: 1,
+        ),
+      );
+      expect(capturedFound, 99);
+      expect(capturedSupported, 1);
+    });
+
+    test('OpenLfs → onLfsFileOpened fires with the path', () {
+      String? captured;
+      handler.onLfsFileOpened = (p) => captured = p;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.openLfs(path: '/tmp/data.lfs'),
+      );
+      expect(captured, '/tmp/data.lfs');
+    });
+
+    test('OpenKeyFile → onKeyFileOpened fires with the path', () {
+      String? captured;
+      handler.onKeyFileOpened = (p) => captured = p;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.openKeyFile(path: '/tmp/id_rsa'),
+      );
+      expect(captured, '/tmp/id_rsa');
+    });
+
+    test('Unknown → no callback fires', () {
+      var fired = false;
+      handler.onConnect = (_) => fired = true;
+      handler.onQrImport = (_) => fired = true;
+      handler.onLfsFileOpened = (_) => fired = true;
+      handler.onKeyFileOpened = (_) => fired = true;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.unknown(),
+      );
+      expect(fired, isFalse);
+    });
+
+    test('Duplicate → no callback fires', () {
+      var fired = false;
+      handler.onConnect = (_) => fired = true;
+      handler.onQrImport = (_) => fired = true;
+      handler.onLfsFileOpened = (_) => fired = true;
+      handler.onKeyFileOpened = (_) => fired = true;
+      handler.routeOutcomeForTest(
+        const rust_deeplink.DbDeeplinkOutcome.duplicate(),
+      );
+      expect(fired, isFalse);
+    });
+
+    test('outcomes with no listener registered are no-ops, not crashes', () {
+      // No callbacks wired → routeOutcomeForTest must not throw.
+      // Pin the contract so a future `?? throw` on the callback site
+      // surfaces here.
+      expect(
+        () => handler.routeOutcomeForTest(
+          const rust_deeplink.DbDeeplinkOutcome.connect(
+            host: 'h',
+            port: 22,
+            user: 'u',
+          ),
+        ),
+        returnsNormally,
+      );
     });
   });
 }
