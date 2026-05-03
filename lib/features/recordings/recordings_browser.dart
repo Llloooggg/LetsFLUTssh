@@ -17,6 +17,7 @@ import '../../widgets/app_empty_state.dart';
 import '../../widgets/app_icon_button.dart';
 import 'recording_playback_dialog.dart';
 import 'recording_reader.dart';
+import 'recordings_logic.dart';
 
 /// Per-recording metadata aggregated for the list view.
 class _RecordingEntry {
@@ -136,16 +137,8 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
     );
   }
 
-  String _resolveSessionLabel(String sessionId, List<Session> sessions) {
-    for (final s in sessions) {
-      if (s.id == sessionId) {
-        return s.label.isNotEmpty ? s.label : s.displayName;
-      }
-    }
-    // Session deleted — show the id (truncated) so the user can
-    // still find / delete the orphaned recording.
-    return '<deleted> ${sessionId.substring(0, 8)}';
-  }
+  String _resolveSessionLabel(String sessionId, List<Session> sessions) =>
+      resolveRecordingSessionLabel(sessionId, sessions);
 
   /// Format byte size with IEC prefixes (B / KiB / MiB / GiB) via
   /// `lfs_core::format::format_size_iec`.
