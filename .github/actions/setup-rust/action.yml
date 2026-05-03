@@ -74,7 +74,7 @@ runs:
     # tradeoff: cache space is generous (10 GB per repo, GitHub
     # auto-evicts old entries) and the speedup applies to the
     # branches that actually iterate.
-    - uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
+    - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       with:
         workspaces: rust
         save-if: 'true'
