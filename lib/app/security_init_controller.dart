@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 import 'dart:io' show Directory, Platform, exit;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -127,7 +128,14 @@ class SecurityInitController {
   /// against the live `letsflutssh.db`. Gates every follow-on query path —
   /// session reloads, auto-lock load — so nothing hits the DB
   /// before the cipher is validated.
-  bool _securityReady = false;
+  ///
+  /// Backed by a [ValueNotifier] so the shell can render a startup
+  /// splash overlay until bootstrap finishes (FRB native-lib load +
+  /// migrations + tier unlock + DB cipher probe stack). Without the
+  /// gate the user sees the empty-workspace skeleton during the few
+  /// hundred ms to several seconds the bootstrap takes — reads as
+  /// "the app is broken" rather than "loading".
+  final ValueNotifier<bool> _readyNotifier = ValueNotifier<bool>(false);
 
   /// Counts how many times the corruption dialog has fired with the
   /// "try other credentials" option. Limits the recursion so a
@@ -153,7 +161,13 @@ class SecurityInitController {
   /// Whether the post-unlock integrity probe has completed. Callers
   /// (session-reload lifecycle callback) short-circuit when this is
   /// false so nothing touches the DB before the cipher is validated.
-  bool get isReady => _securityReady;
+  bool get isReady => _readyNotifier.value;
+
+  /// Observable flavour of [isReady] for UI surfaces that need to
+  /// rebuild on transitions (the startup splash overlay flips off
+  /// when this turns true; reset / wipe paths flip it back to false
+  /// briefly while the controller re-runs first-launch).
+  ValueListenable<bool> get readiness => _readyNotifier;
 
   /// Read-once flag: returns the previous value, clears it. The
   /// state class uses this from its post-session-load toast
@@ -168,6 +182,7 @@ class SecurityInitController {
   /// Clean up. Called from `_LetsFLUTsshAppState.dispose()`.
   void dispose() {
     _disposed = true;
+    _readyNotifier.dispose();
   }
 
   /// Full cold-start sequence: migrations → security init →
@@ -242,7 +257,7 @@ class SecurityInitController {
     if (!isMounted()) return;
     _safeRustDbClose();
     _corruptionRetries = 0;
-    _securityReady = false;
+    _readyNotifier.value = false;
     // Drop the cached `FutureProvider` snapshots so Settings UI
     // reads fresh probe results after the reset.
     ref.invalidate(securityCapabilitiesProvider);
@@ -662,7 +677,7 @@ class SecurityInitController {
 
   Future<void> _retryUnlockUnderDifferentTier() async {
     _corruptionRetries++;
-    _securityReady = false;
+    _readyNotifier.value = false;
     _safeRustDbClose();
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
@@ -689,7 +704,7 @@ class SecurityInitController {
   }
 
   Future<void> _wipeAndRestartFromScratch() async {
-    _securityReady = false;
+    _readyNotifier.value = false;
     ref.invalidate(securityCapabilitiesProvider);
     ref.invalidate(hardwareProbeDetailProvider);
     ref.invalidate(keyringProbeDetailProvider);
@@ -714,8 +729,8 @@ class SecurityInitController {
   }
 
   void _markSecurityReady() {
-    if (_securityReady) return;
-    _securityReady = true;
+    if (_readyNotifier.value) return;
+    _readyNotifier.value = true;
     unawaited(ref.read(autoLockMinutesProvider.notifier).load());
   }
 

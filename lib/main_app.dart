@@ -1,5 +1,15 @@
 part of 'main.dart';
 
+/// Tests bypass the bootstrap-pending splash overlay because they
+/// never run the real `bootstrap()` (no FRB migrations, no real
+/// keychain unlock) so [SecurityInitController.readiness] would
+/// stay `false` forever and pin the splash on top of the widget
+/// tree the test is trying to inspect / interact with. Flip to
+/// `false` at top of every test that mounts [LetsFLUTsshApp] —
+/// the existing `test/main_test.dart` setUp already does so.
+@visibleForTesting
+bool debugShowStartupSplash = true;
+
 class LetsFLUTsshApp extends ConsumerStatefulWidget {
   const LetsFLUTsshApp({super.key});
 
@@ -244,8 +254,80 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
             children: [
               ?child,
               if (locked) const Positioned.fill(child: LockScreen()),
+              // Startup splash — covers the empty-workspace skeleton
+              // while bootstrap (FRB load + migrations + tier unlock +
+              // DB cipher probe) is still in flight. Flips off via the
+              // controller's [ValueNotifier] the moment
+              // `_markSecurityReady()` fires. Sits ABOVE the lock
+              // overlay because the auto-lock idle timer can't fire
+              // before bootstrap finishes anyway, and visually it's
+              // the same "you can't interact yet" state.
+              if (debugShowStartupSplash)
+                Positioned.fill(
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: _securityController.readiness,
+                    builder: (context, ready, _) {
+                      if (ready) return const SizedBox.shrink();
+                      return const _StartupSplash();
+                    },
+                  ),
+                ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Cold-start overlay shown until the security controller marks
+/// itself ready. Renders an opaque themed background + centred
+/// spinner + the app name so the user sees a deliberate "loading"
+/// state rather than the empty-workspace skeleton flash that used
+/// to greet them during the few hundred ms (warm start) to several
+/// seconds (Windows IoT cold start, post-wipe re-init) the
+/// bootstrap sequence takes.
+///
+/// Lives in this file so it shares the part-of-main library scope
+/// with the rest of the app shell — keeps it next to the
+/// [AutoLockDetector] / [LockScreen] stack it overlays.
+class _StartupSplash extends StatelessWidget {
+  const _StartupSplash();
+
+  @override
+  Widget build(BuildContext context) {
+    // CircularProgressIndicator schedules a continuous Ticker that
+    // ignores MediaQuery.disableAnimations — under flutter_test that
+    // makes `pumpAndSettle` hang forever. `TickerMode(enabled: false)`
+    // disables every Ticker in the subtree, so when the global
+    // `disableAnimations` flag is set (production app shell sets it
+    // unconditionally + tests inherit) the spinner renders as a
+    // static disc and frame pumping converges.
+    final disableAnim = MediaQuery.of(context).disableAnimations;
+    return ColoredBox(
+      color: AppTheme.bg0,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: TickerMode(
+                enabled: !disableAnim,
+                child: const CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'LetsFLUTssh',
+              style: TextStyle(
+                fontSize: AppFonts.lg,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.fg,
+              ),
+            ),
+          ],
         ),
       ),
     );

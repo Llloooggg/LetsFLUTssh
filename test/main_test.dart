@@ -50,11 +50,18 @@ void main() {
   setUp(() {
     plat.debugDesktopPlatformOverride = true;
     plat.debugMobilePlatformOverride = false;
+    // Bootstrap never completes under flutter_test (no FRB migrations
+    // / real keychain unlock), so the readiness ValueNotifier stays
+    // false and the splash overlay would pin itself on top of every
+    // test target. Skip the overlay entirely so tests interact with
+    // the widget tree beneath.
+    debugShowStartupSplash = false;
   });
 
   tearDown(() {
     plat.debugDesktopPlatformOverride = null;
     plat.debugMobilePlatformOverride = null;
+    debugShowStartupSplash = true;
   });
 
   Widget buildApp({
