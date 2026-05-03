@@ -35,7 +35,22 @@ flutter_rust_bridge = "=2.12.0"
 #   - pkcs8 0.11 / pkcs5 0.9 graduate together to stable
 #
 # Track: https://github.com/RustCrypto/formats/pull/* (pkcs8 / pkcs5)
-russh = "0.59"
+# russh defaults to `aws-lc-rs` for crypto, which transitively
+# pulls `aws-lc-sys` — a vendored AWS-LC C codebase. Two problems
+# with the default for our matrix:
+#   1. Windows ARM64 (windows-11-arm runner) trips on
+#      `stdalign_check.c` during the aws-lc-sys C compile because
+#      MSVC on ARM64 treats some warnings the AWS-LC config sets
+#      as errors.
+#   2. `aws-lc-sys` compiles 200k+ LOC of C from source on every
+#      run, dominating Android + Windows build wall-clock (8 → 22
+#      minutes regression observed against pre-rust v7.3.2).
+# `ring` is the alternative pure-Rust + minimal-C backend russh
+# 0.59 supports out of the box. It builds cleanly on every
+# target our matrix covers, has prebuilt assembly for ARM/ARM64,
+# and produces functionally equivalent ssh crypto. We keep the
+# rest of the russh defaults (`flate2`, `rsa`) untouched.
+russh = { version = "0.59", default-features = false, features = ["flate2", "ring", "rsa"] }
 # russh's forked ssh-key crate. russh pulls it transitively (the
 # `internal-russh-forked-` prefix is the upstream's choice — exact
 # pin `=0.6.16+upstream-0.6.7` matches what russh 0.59 resolves

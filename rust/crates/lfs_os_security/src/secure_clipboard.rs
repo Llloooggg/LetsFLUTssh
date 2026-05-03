@@ -145,8 +145,16 @@ fn ios_set_secure_text(text: &str) -> Result<(), String> {
         let local_only_key = NSString::from_str("UIPasteboardOptionLocalOnly");
         let expiration_key = NSString::from_str("UIPasteboardOptionExpirationDate");
         let yes: objc2::rc::Retained<NSNumber> = NSNumber::numberWithBool(true);
+        // `NSDate::dateWithTimeIntervalSinceNow` is the typed
+        // method binding; the older `msg_send![NSDate::class(),
+        // dateWithTimeIntervalSinceNow: 30.0_f64]` form needed
+        // `objc2::ClassType` in scope and tripped on iOS-targets
+        // because the trait shadow differs between objc2 0.5
+        // (where `class()` was inherent) and 0.6 (where it moved
+        // behind the trait). Using the typed binding sidesteps
+        // the import-tangle entirely.
         let in_30s: objc2::rc::Retained<NSDate> =
-            msg_send![NSDate::class(), dateWithTimeIntervalSinceNow: 30.0_f64];
+            NSDate::dateWithTimeIntervalSinceNow(30.0);
         let opts: objc2::rc::Retained<NSDictionary<NSString, objc2::runtime::AnyObject>> =
             NSDictionary::from_retained_objects(
                 &[&*local_only_key, &*expiration_key],
