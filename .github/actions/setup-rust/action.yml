@@ -1,0 +1,68 @@
+# Composite action that activates the Rust toolchain pinned in
+# `rust/rust-toolchain.toml`, optionally installs cross-compile
+# targets, and primes `Swatinem/rust-cache` for the workspace.
+#
+# Why a composite (rather than per-job duplication):
+#   - 7 release-matrix jobs all need the same setup. Extracting
+#     the duplication is the third-time-DRY moment.
+#   - Single source of truth for the pinned cache action SHA, so
+#     bumping `Swatinem/rust-cache` is one edit, not seven.
+#   - Cache key uniformity — every job feeds the same `workspaces:
+#     rust` to the cache action, so `Cargo.lock` hash + rust
+#     version are the only key differentiators (per OS + arch).
+#
+# Why `cargo --version` instead of `rustup toolchain install
+# stable`: `rust-toolchain.toml` pins channel `1.95.0` (specific
+# patch release for reproducibility — see the file's preamble).
+# `rustup toolchain install stable` would install whatever the
+# runner image's current `stable` is (e.g. 1.96), but the actual
+# build then triggers a SECOND install of 1.95.0 the first time
+# `cargo` runs in the `rust/` dir. Two toolchains on disk, the
+# first one unused, two cache entries fighting. `cargo --version`
+# inside `rust/` triggers exactly the install the toml pins, no
+# divergence.
+
+name: Setup Rust toolchain (with cache)
+description: |
+  Activate the rust-toolchain.toml-pinned channel + add optional
+  cross-compile targets + prime Swatinem/rust-cache.
+
+inputs:
+  targets:
+    description: "Space-separated cross-compile targets to install (e.g. 'aarch64-apple-darwin x86_64-apple-darwin')."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Activate Rust toolchain (rust-toolchain.toml)
+      working-directory: rust
+      shell: bash
+      run: |
+        # `cargo --version` inside the workspace dir triggers
+        # rustup to read rust-toolchain.toml + install the pinned
+        # channel if missing. Reporting `rustup show` gives the
+        # GHA log a clean toolchain summary for cross-checking
+        # the cache action's key.
+        cargo --version
+        rustc --version
+        rustup show
+        # Cross-compile targets are toolchain-scoped, so install
+        # them after the channel is active. Empty input → no-op.
+        if [ -n "${{ inputs.targets }}" ]; then
+          for t in ${{ inputs.targets }}; do
+            rustup target add "$t"
+          done
+        fi
+
+    # Swatinem/rust-cache caches `~/.cargo/registry`, `~/.cargo/git`,
+    # and the workspace `target/` dir keyed on Cargo.lock hash + the
+    # active rustc version. After the first run on a given (OS, arch,
+    # Cargo.lock) tuple, subsequent runs skip recompiling every
+    # unchanged dep — the slow vendored-OpenSSL + ring builds land
+    # in cache, and the build wall-clock drops back toward
+    # pre-rust-port shape.
+    - uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
+      with:
+        workspaces: rust
