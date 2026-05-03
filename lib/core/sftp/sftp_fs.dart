@@ -530,9 +530,12 @@ class RustSftpFs extends RemoteSftpFs {
     try {
       final remote = await rust_sftp.sshSftpOpen(sftp: _sftp, path: remotePath);
       final meta = await remote.metadata();
-      final fileSize = meta.size is int
-          ? meta.size as int
-          : (meta.size as num).toInt();
+      // `SftpFileMetadata.size` is FRB-typed as `BigInt` (the SSH wire
+      // format carries u64 byte counts); a previous `meta.size is int /
+      // as num` cast tripped at runtime because `_BigIntImpl` is
+      // neither `int` nor `num`. `BigInt.toInt()` truncates above
+      // 2^63 — irrelevant for filesystem sizes (8 EiB ceiling).
+      final fileSize = meta.size.toInt();
       final localFile = File(localPath);
       await localFile.parent.create(recursive: true);
       final sink = localFile.openWrite();
