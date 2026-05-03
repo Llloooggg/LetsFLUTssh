@@ -253,6 +253,24 @@ extension _FirstLaunchFlows on SecurityInitController {
       );
       return true;
     }
+    // Orchestrator returned non-success — either it actually failed
+    // (FRB unreachable, write rejected, true bug) or its post-stage
+    // unlock cascade ran past the timeout (slow first-init disks,
+    // Defender, etc). Distinguish by probing the Rust DB: if the
+    // listener's `_handleUnlocked` completed late and the DB is
+    // open, `verifyRustDbReadable` returns true and we treat the
+    // orchestrator as eventually-successful. Generating a new key
+    // here would overwrite the keychain entry the orchestrator
+    // staged + collide with the cipher state SQLCipher already
+    // wrote, producing the "file is not a database" loop.
+    if (await verifyRustDbReadable()) {
+      AppLogger.instance.log(
+        'First launch: orchestrator timed out but DB came up after — '
+        'skipping fallback key generation',
+        name: 'App',
+      );
+      return true;
+    }
     // Orchestrator unreachable / write failed — fall back to direct
     // Dart pipeline.
     final key = rust_crypto.cryptoAesGcmRandomKey();
@@ -313,8 +331,20 @@ extension _FirstLaunchFlows on SecurityInitController {
       );
       return false;
     }
+    // 30s rather than 5s: `TierUnlockedListener._handleUnlocked`
+    // does the actual `ensureRustDbOpen` call inside its bus-event
+    // handler, which on a fresh-install Windows IoT box with
+    // Defender scanning every new write + SQLCipher's PBKDF2-256k
+    // header derivation + vendored-OpenSSL first-init can stretch
+    // to ~6-10s end-to-end. A 5s budget made the orchestrator
+    // declare failure and the Dart-side fallback then generated a
+    // SECOND key, overwrote the keychain, and tried to reopen the
+    // file the orchestrator was still finishing — resulting in
+    // "file is not a database" because the cipher state didn't
+    // match. 30s mirrors the connect-actor timeout and is well
+    // beyond the worst observed init time.
     final result = await unlockDone.timeout(
-      const Duration(seconds: 5),
+      const Duration(seconds: 30),
       onTimeout: () => TierUnlockOutcome.failed,
     );
     if (result == TierUnlockOutcome.unlocked) return true;
