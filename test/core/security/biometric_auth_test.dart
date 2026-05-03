@@ -5,6 +5,7 @@ import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/linux/fprintd_client.dart';
 import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/windows/winbio_probe.dart';
+import 'package:letsflutssh/src/rust/api/os_security.dart' as rust_os;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -199,6 +200,70 @@ void main() {
         BiometricUnavailableReason.systemServiceMissing,
       );
     });
+  });
+
+  group('mapRustBiometricAvailability', () {
+    test('Available variant maps to null (biometric ready)', () {
+      expect(
+        mapRustBiometricAvailability(
+          const rust_os.DbBiometricAvailability.available(),
+        ),
+        isNull,
+      );
+    });
+
+    test('PlatformUnsupported maps to platformUnsupported', () {
+      expect(
+        mapRustBiometricAvailability(
+          const rust_os.DbBiometricAvailability.platformUnsupported(),
+        ),
+        BiometricUnavailableReason.platformUnsupported,
+      );
+    });
+
+    test('NoSensor maps to noSensor', () {
+      expect(
+        mapRustBiometricAvailability(
+          const rust_os.DbBiometricAvailability.noSensor(),
+        ),
+        BiometricUnavailableReason.noSensor,
+      );
+    });
+
+    test('NotEnrolled maps to notEnrolled', () {
+      expect(
+        mapRustBiometricAvailability(
+          const rust_os.DbBiometricAvailability.notEnrolled(),
+        ),
+        BiometricUnavailableReason.notEnrolled,
+      );
+    });
+
+    test('SystemServiceMissing maps to systemServiceMissing', () {
+      expect(
+        mapRustBiometricAvailability(
+          const rust_os.DbBiometricAvailability.systemServiceMissing(),
+        ),
+        BiometricUnavailableReason.systemServiceMissing,
+      );
+    });
+
+    test(
+      'Probe(reason) collapses to platformUnsupported with logged reason',
+      () {
+        // Probe variant is the Rust-side error indicator (e.g. WinRT
+        // call failed). UI must surface a single "biometric
+        // unreachable" branch — leaking the platform-specific
+        // diagnostic up the stack would force every locale to translate
+        // strings the Rust side emitted.
+        expect(
+          mapRustBiometricAvailability(
+            const rust_os.DbBiometricAvailability.probe('winrt: 0x80004005'),
+          ),
+          BiometricUnavailableReason.platformUnsupported,
+        );
+      },
+    );
   });
 }
 

@@ -1,8 +1,36 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import '../../../src/rust/api/tpm.dart' as rust_tpm;
+
+/// Function-pointer signatures matching `lfs_core::api::tpm`. Public
+/// so [TpmClient]'s test seams can refer to them by name.
+typedef TpmProbeFn =
+    Future<rust_tpm.DbTpmProbeResult> Function({
+      required String binary,
+      required String device,
+      required BigInt timeoutMs,
+    });
+
+typedef TpmSealFn =
+    Future<Uint8List> Function({
+      required Uint8List secret,
+      required Uint8List authValue,
+      required String binary,
+      required String device,
+      required BigInt timeoutMs,
+    });
+
+typedef TpmUnsealFn =
+    Future<Uint8List> Function({
+      required Uint8List blob,
+      required Uint8List authValue,
+      required String binary,
+      required String device,
+      required BigInt timeoutMs,
+    });
 
 /// Classified TPM probe outcome — surfaces the reason the probe
 /// failed so the Settings UI can render an actionable hint instead
@@ -82,13 +110,33 @@ class TpmClient {
   /// the unlock dialog on indefinitely.
   final Duration _timeout;
 
+  /// Production wiring uses [Platform.isLinux] + the FRB-generated
+  /// `rust_tpm.tpm*` calls; tests override the four `*Fn` seams to
+  /// drive every probe / seal / unseal branch (platform short-circuit,
+  /// 128-byte guard, throw-on-rust-error → null, enum mapping) without
+  /// shelling out to `tpm2-tools` or booting FRB.
   TpmClient({
     String binary = 'tpm2',
     String tpmDevice = '/dev/tpmrm0',
     Duration? timeout,
+    @visibleForTesting bool Function()? isLinuxFn,
+    @visibleForTesting TpmProbeFn? probeFn,
+    @visibleForTesting TpmSealFn? sealFn,
+    @visibleForTesting TpmUnsealFn? unsealFn,
   }) : _binary = binary,
        _tpmDevice = tpmDevice,
-       _timeout = timeout ?? const Duration(seconds: 15);
+       _timeout = timeout ?? const Duration(seconds: 15),
+       _isLinux = isLinuxFn ?? _defaultIsLinux,
+       _probe = probeFn ?? rust_tpm.tpmProbe,
+       _seal = sealFn ?? rust_tpm.tpmSeal,
+       _unseal = unsealFn ?? rust_tpm.tpmUnseal;
+
+  final bool Function() _isLinux;
+  final TpmProbeFn _probe;
+  final TpmSealFn _seal;
+  final TpmUnsealFn _unseal;
+
+  static bool _defaultIsLinux() => Platform.isLinux;
 
   /// True when the TPM device node is accessible and the `tpm2`
   /// binary answers a trivial `getcap` probe. Returns false on any
@@ -112,8 +160,8 @@ class TpmClient {
   /// binaries and reads the same `/dev/tpmrm0` device node a Dart
   /// implementation would.
   Future<TpmProbeResult> probe() async {
-    if (!Platform.isLinux) return TpmProbeResult.wrongPlatform;
-    final r = await rust_tpm.tpmProbe(
+    if (!_isLinux()) return TpmProbeResult.wrongPlatform;
+    final r = await _probe(
       binary: _binary,
       device: _tpmDevice,
       timeoutMs: BigInt.from(_timeout.inMilliseconds),
@@ -145,7 +193,7 @@ class TpmClient {
   }) async {
     if (secret.length > 128) return null;
     try {
-      return await rust_tpm.tpmSeal(
+      return await _seal(
         secret: secret,
         authValue: authValue,
         binary: _binary,
@@ -165,7 +213,7 @@ class TpmClient {
     required Uint8List authValue,
   }) async {
     try {
-      return await rust_tpm.tpmUnseal(
+      return await _unseal(
         blob: blob,
         authValue: authValue,
         binary: _binary,

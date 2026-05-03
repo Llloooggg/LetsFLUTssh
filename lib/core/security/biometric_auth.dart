@@ -57,6 +57,42 @@ enum BiometricBackingLevel {
 /// from mis-using `null` vs `false` as overlapping "no" states.
 typedef BiometricAvailability = BiometricUnavailableReason?;
 
+/// Map a Rust `DbBiometricAvailability` variant onto its
+/// [BiometricUnavailableReason] equivalent (or `null` for the
+/// "available" variant). Pulled out of `_rustAvailability` so the
+/// 6-way mapping can be exercised against every variant without
+/// booting the Rust biometric probe — the platform side of the
+/// switch is the same Rust binary on every host, so coverage of the
+/// mapping is the only Dart-side honest test there is.
+///
+/// `Probe(reason)` is a Rust-side error indicator (e.g. WinRT call
+/// failed); the helper logs the message and falls back to
+/// [BiometricUnavailableReason.platformUnsupported] so the UI
+/// surfaces a single "biometric unreachable" branch instead of
+/// leaking platform diagnostic strings.
+BiometricAvailability mapRustBiometricAvailability(
+  rust_os.DbBiometricAvailability r,
+) {
+  return switch (r) {
+    rust_os.DbBiometricAvailability_Available() => null,
+    rust_os.DbBiometricAvailability_PlatformUnsupported() =>
+      BiometricUnavailableReason.platformUnsupported,
+    rust_os.DbBiometricAvailability_NoSensor() =>
+      BiometricUnavailableReason.noSensor,
+    rust_os.DbBiometricAvailability_NotEnrolled() =>
+      BiometricUnavailableReason.notEnrolled,
+    rust_os.DbBiometricAvailability_SystemServiceMissing() =>
+      BiometricUnavailableReason.systemServiceMissing,
+    rust_os.DbBiometricAvailability_Probe(:final field0) => () {
+      AppLogger.instance.log(
+        'Biometric probe error: $field0',
+        name: 'BiometricAuth',
+      );
+      return BiometricUnavailableReason.platformUnsupported;
+    }(),
+  };
+}
+
 /// Thin wrapper around the platform biometric backend for the optional
 /// biometric unlock on T1+password and T2+password. Paranoid does not
 /// expose a biometric shortcut by design — see ARCHITECTURE §3.6 →
@@ -240,24 +276,7 @@ class BiometricAuth {
   Future<BiometricAvailability> _rustAvailability() async {
     try {
       final result = await rust_os.osSecurityBiometricAvailability();
-      return switch (result) {
-        rust_os.DbBiometricAvailability_Available() => null,
-        rust_os.DbBiometricAvailability_PlatformUnsupported() =>
-          BiometricUnavailableReason.platformUnsupported,
-        rust_os.DbBiometricAvailability_NoSensor() =>
-          BiometricUnavailableReason.noSensor,
-        rust_os.DbBiometricAvailability_NotEnrolled() =>
-          BiometricUnavailableReason.notEnrolled,
-        rust_os.DbBiometricAvailability_SystemServiceMissing() =>
-          BiometricUnavailableReason.systemServiceMissing,
-        rust_os.DbBiometricAvailability_Probe(:final field0) => () {
-          AppLogger.instance.log(
-            'Biometric probe error: $field0',
-            name: 'BiometricAuth',
-          );
-          return BiometricUnavailableReason.platformUnsupported;
-        }(),
-      };
+      return mapRustBiometricAvailability(result);
     } catch (e) {
       AppLogger.instance.log(
         'Biometric availability (Rust) failed: $e',

@@ -4867,8 +4867,10 @@ This provides:
 | `MobileFileBrowser` | `sftpInitFactory` | Mock SFTP initialization (mobile) |
 | `ForegroundServiceManager` | `create()` factory | Platform-specific impl |
 | `SecurityInitController` | `dbOpener`, `dbFileExists`, `verifyReadable`, `dialogPrompter`, `migrationRunner` | Bootstrap / unlock / first-launch / corruption / migration paths driven end-to-end in tests without touching real SQLite cipher or blocking on user-driven dialogs — see [Testing the controller](#testing-the-controller) below |
+| `app/import_flow.dart` (top-level fns) | `ImportFlowSeams` ‒ `probeArchive` / `openArchive` / `dropHandle` / `applyHandle` / `showLfsDialog` / `showLinkPreviewDialog` | Drives `showLfsImportDialog` / `handleQrImport` / `handleQrImportSource` end-to-end without booting FRB or rendering a real password / preview dialog. Tests swap the bag via `debugSetImportFlowSeams(...)` (clear with `null` in `tearDown`) so they can assert on probe→open→apply→drop ordering and the handle-drop-on-failure invariant |
+| `TpmClient` (Linux) | `isLinuxFn`, `probeFn`, `sealFn`, `unsealFn` | Drives the platform short-circuit + 5-way `DbTpmProbeResult → TpmProbeResult` mapping + 128-byte seal guard + throw-to-null collapse on every seal/unseal failure path without a real `tpm2-tools` install or a `/dev/tpmrm0` device |
 
-All seams are optional ctor params defaulting to the production function (`openDatabase`, `databaseFileExists`, `verifyDatabaseReadable`, `ProductionSecurityDialogPrompter()`, `MigrationRunner(buildAppMigrationRegistry()).runOnStartup`). Prod call sites construct `SecurityInitController` without passing any of them — no behavioural drift from pre-seam code.
+All seams are optional ctor params defaulting to the production function (`openDatabase`, `databaseFileExists`, `verifyDatabaseReadable`, `ProductionSecurityDialogPrompter()`, `MigrationRunner(buildAppMigrationRegistry()).runOnStartup`). Prod call sites construct `SecurityInitController` without passing any of them — no behavioural drift from pre-seam code. The top-level dispatchers in `app/import_flow.dart` follow the same pattern with a process-wide `_seams = ImportFlowSeams.production()` that tests rebind via `debugSetImportFlowSeams`.
 
 ### Platform overrides
 
@@ -4895,9 +4897,9 @@ debugDesktopPlatformOverride = true;   // force desktop layout in tests
 
 Rule: **one test file per source file** (`lib/core/ssh/ssh_client.dart` → `test/core/ssh/ssh_client_test.dart`). No `_extra_test.dart` files.
 
-### Mock generation
+### Mocking discipline
 
-Uses `mockito` + `@GenerateMocks`. Generated mocks: `*.mocks.dart`.
+No `mockito` / `mocktail` in the suite. Test doubles are hand-rolled subclasses (see `test/helpers/fake_*.dart`) so the public production API is the only contract under test — a `mockWhen(...).thenReturn(...)` graph would lock tests to private call shapes and silently rot when the production code changes signature. Pure logic ships as ordinary subclass overrides; side-effect surfaces (Rust archive boundary, native plugins, file_picker) ship as wrapper classes / function-pointer bags swapped through a Riverpod override or a `@visibleForTesting` setter.
 
 ### Testing the controller
 

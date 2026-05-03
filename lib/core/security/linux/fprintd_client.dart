@@ -1,7 +1,15 @@
 import 'dart:io' show Platform;
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import '../../../src/rust/api/fprintd.dart' as rust_fprintd;
+
+/// Function-pointer signatures matching `lfs_core::api::fprintd` so
+/// the [FprintdClient] DI seams stay readable in the ctor.
+typedef FprintdReachableFn = Future<bool> Function();
+typedef FprintdEnrolmentHashFn = Future<Uint8List?> Function();
+typedef FprintdHasFingersFn = Future<bool> Function();
+typedef FprintdVerifyFn = Future<bool> Function({required int timeoutMs});
 
 /// Thin async wrapper around the `net.reactivated.Fprint` system-bus
 /// API exposed by the `fprintd` daemon.
@@ -25,8 +33,31 @@ class FprintdClient {
   /// wandered off doesn't leave the UI frozen indefinitely.
   final Duration _verifyTimeout;
 
-  FprintdClient({Duration? verifyTimeout})
-    : _verifyTimeout = verifyTimeout ?? const Duration(seconds: 30);
+  /// Production wiring uses [Platform.isLinux] + the FRB-generated
+  /// `rust_fprintd.*` calls; tests override the `*Fn` seams to drive
+  /// every off-Linux short-circuit and every reachable / unreachable
+  /// branch without booting D-Bus or shelling fprintd.
+  FprintdClient({
+    Duration? verifyTimeout,
+    @visibleForTesting bool Function()? isLinuxFn,
+    @visibleForTesting FprintdReachableFn? reachableFn,
+    @visibleForTesting FprintdEnrolmentHashFn? enrolmentHashFn,
+    @visibleForTesting FprintdHasFingersFn? hasFingersFn,
+    @visibleForTesting FprintdVerifyFn? verifyFn,
+  }) : _verifyTimeout = verifyTimeout ?? const Duration(seconds: 30),
+       _isLinux = isLinuxFn ?? _defaultIsLinux,
+       _reachable = reachableFn ?? rust_fprintd.fprintdIsServiceReachable,
+       _enrolmentHash = enrolmentHashFn ?? rust_fprintd.fprintdGetEnrolmentHash,
+       _hasFingers = hasFingersFn ?? rust_fprintd.fprintdHasEnrolledFingers,
+       _verify = verifyFn ?? rust_fprintd.fprintdVerify;
+
+  final bool Function() _isLinux;
+  final FprintdReachableFn _reachable;
+  final FprintdEnrolmentHashFn _enrolmentHash;
+  final FprintdHasFingersFn _hasFingers;
+  final FprintdVerifyFn _verify;
+
+  static bool _defaultIsLinux() => Platform.isLinux;
 
   /// True when fprintd is registered on the system bus and its
   /// Manager interface answers a trivial `GetDefaultDevice` call.
@@ -34,8 +65,8 @@ class FprintdClient {
   /// timeout — is downgraded to `false` so the caller can translate
   /// into a single `systemServiceMissing` reason.
   Future<bool> isServiceReachable() async {
-    if (!Platform.isLinux) return false;
-    return rust_fprintd.fprintdIsServiceReachable();
+    if (!_isLinux()) return false;
+    return _reachable();
   }
 
   /// SHA-256 of the current user's enrolled-finger list, sorted and
@@ -46,8 +77,8 @@ class FprintdClient {
   /// re-enrolled finger) invalidates the sealed blob — the Apple-side
   /// equivalent of `biometryCurrentSet`.
   Future<Uint8List?> getEnrolmentHash() async {
-    if (!Platform.isLinux) return null;
-    final bytes = await rust_fprintd.fprintdGetEnrolmentHash();
+    if (!_isLinux()) return null;
+    final bytes = await _enrolmentHash();
     if (bytes == null) return null;
     return Uint8List.fromList(bytes);
   }
@@ -56,8 +87,8 @@ class FprintdClient {
   /// `fprintd-enroll`. Uses the empty-string username shortcut that
   /// fprintd interprets as "the calling uid's user".
   Future<bool> hasEnrolledFingers() async {
-    if (!Platform.isLinux) return false;
-    return rust_fprintd.fprintdHasEnrolledFingers();
+    if (!_isLinux()) return false;
+    return _hasFingers();
   }
 
   /// Run a fprintd `Claim` → `VerifyStart` → wait for the terminal
@@ -68,7 +99,7 @@ class FprintdClient {
   /// cleanup path so a failed verify does not leave the reader
   /// claimed against other apps.
   Future<bool> verify() async {
-    if (!Platform.isLinux) return false;
-    return rust_fprintd.fprintdVerify(timeoutMs: _verifyTimeout.inMilliseconds);
+    if (!_isLinux()) return false;
+    return _verify(timeoutMs: _verifyTimeout.inMilliseconds);
   }
 }

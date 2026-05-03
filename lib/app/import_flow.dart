@@ -20,6 +20,83 @@ import '../widgets/link_import_preview_dialog.dart';
 import '../widgets/toast.dart';
 import 'navigator_key.dart';
 
+/// Side-effect seams for the LFS / QR / paste-link import dispatchers
+/// in this file. The dispatchers are pure UI glue — every line that
+/// matters (probe → open → apply → drop, plus the password / preview
+/// dialog round-trips) goes through one of the six fields below, so
+/// tests can drive every branch (notLfs reject, dialog cancel, open
+/// throws, apply throws, config-restore on/off, handle drop on
+/// failure) without booting FRB or rendering a real dialog.
+///
+/// Production wiring lives in [ImportFlowSeams.production]; tests
+/// swap the bag via [debugSetImportFlowSeams] (clear by passing
+/// `null` in `tearDown`).
+@visibleForTesting
+class ImportFlowSeams {
+  const ImportFlowSeams({
+    required this.probeArchive,
+    required this.openArchive,
+    required this.dropHandle,
+    required this.applyHandle,
+    required this.showLfsDialog,
+    required this.showLinkPreviewDialog,
+  });
+
+  factory ImportFlowSeams.production() => const ImportFlowSeams(
+    probeArchive: ExportImport.probeArchive,
+    openArchive: rust_archive.dbImportOpen,
+    dropHandle: rust_archive.dbImportDrop,
+    applyHandle: applyOpenedHandle,
+    showLfsDialog: LfsImportDialog.show,
+    showLinkPreviewDialog: LinkImportPreviewDialog.show,
+  );
+
+  final LfsArchiveKind Function(String filePath) probeArchive;
+
+  final Future<rust_archive.DbImportOpenResult> Function({
+    required String path,
+    required String password,
+  })
+  openArchive;
+
+  final Future<void> Function({required String handleId}) dropHandle;
+
+  final Future<rust_archive.DbApplyResult> Function({
+    required String handleId,
+    required ImportMode mode,
+    required bool applySessions,
+    required bool applyKeys,
+    required bool applyTags,
+    required bool applySnippets,
+    required bool applyKnownHosts,
+    Future<void> Function()? refreshAfterImport,
+  })
+  applyHandle;
+
+  final Future<LfsImportDialogResult?> Function(
+    BuildContext context, {
+    required String filePath,
+    bool isEncrypted,
+  })
+  showLfsDialog;
+
+  final Future<LinkImportPreviewResult?> Function(
+    BuildContext context, {
+    required QrDecodedSource source,
+  })
+  showLinkPreviewDialog;
+}
+
+ImportFlowSeams _seams = ImportFlowSeams.production();
+
+/// Swap the active [ImportFlowSeams]. Pass `null` to restore the
+/// production wiring. `@visibleForTesting` so a forgotten override
+/// in production code trips the analyzer.
+@visibleForTesting
+void debugSetImportFlowSeams(ImportFlowSeams? seams) {
+  _seams = seams ?? ImportFlowSeams.production();
+}
+
 /// Apply the QR deep-link / paste-link payload to the user's stores.
 ///
 /// The [QrDecodedSource] always carries a Rust-staged handle id consumed
@@ -30,7 +107,7 @@ import 'navigator_key.dart';
 Future<void> handleQrImport(WidgetRef ref, QrDecodedSource source) async {
   final ctx = navigatorKey.currentContext;
   if (ctx == null || !ctx.mounted) return;
-  final choice = await LinkImportPreviewDialog.show(ctx, source: source);
+  final choice = await _seams.showLinkPreviewDialog(ctx, source: source);
   if (choice == null) return;
 
   try {
@@ -84,7 +161,7 @@ Future<ImportSummary> _applyRustQrSource({
   required rust_archive.DbImportOpenResult rust,
   required LinkImportPreviewResult choice,
 }) async {
-  final apply = await applyOpenedHandle(
+  final apply = await _seams.applyHandle(
     handleId: rust.handleId,
     mode: choice.mode,
     applySessions: choice.options.includeSessions,
@@ -163,7 +240,7 @@ Future<void> showLfsImportDialog(
     'LFS import started: ${filePath.split('/').last}',
     name: 'App',
   );
-  final kind = ExportImport.probeArchive(filePath);
+  final kind = _seams.probeArchive(filePath);
   if (kind == LfsArchiveKind.notLfs) {
     Toast.show(
       context,
@@ -172,7 +249,7 @@ Future<void> showLfsImportDialog(
     );
     return;
   }
-  final result = await LfsImportDialog.show(
+  final result = await _seams.showLfsDialog(
     context,
     filePath: filePath,
     isEncrypted: kind == LfsArchiveKind.encryptedLfs,
@@ -189,13 +266,13 @@ Future<void> showLfsImportDialog(
 
   try {
     progress.phase(l10n.progressDecrypting);
-    final opened = await rust_archive.dbImportOpen(
+    final opened = await _seams.openArchive(
       path: filePath,
       password: result.password,
     );
     handleId = opened.handleId;
 
-    final apply = await applyOpenedHandle(
+    final apply = await _seams.applyHandle(
       handleId: handleId,
       mode: result.mode,
       applySessions: true,
@@ -242,7 +319,7 @@ Future<void> showLfsImportDialog(
   } finally {
     if (handleId != null) {
       try {
-        await rust_archive.dbImportDrop(handleId: handleId);
+        await _seams.dropHandle(handleId: handleId);
       } catch (_) {}
     }
     if (progressShown && context.mounted) {

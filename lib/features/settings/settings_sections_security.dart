@@ -66,37 +66,16 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     });
   }
 
-  /// Translate a platform [BiometricUnavailableReason] into a
-  /// localised tooltip string, or null if the device is biometric-
-  /// capable. Extracted from [_biometricDisabledReason] so the
-  /// tier-card spec can check it as the highest-priority tooltip
-  /// without falling through the rest of the priority chain.
-  String? _biometricPlatformReason(S l10n) {
-    if (!_biometricProbed) return null;
-    switch (_biometricUnavailable) {
-      case BiometricUnavailableReason.platformUnsupported:
-      case BiometricUnavailableReason.noSensor:
-        return l10n.biometricSensorNotAvailable;
-      case BiometricUnavailableReason.notEnrolled:
-        return l10n.biometricNotEnrolled;
-      case BiometricUnavailableReason.systemServiceMissing:
-        return l10n.biometricSystemServiceMissing;
-      case null:
-        return null;
-    }
-  }
-
-  // _biometricDisabledReason + _biometricToggleEnabled used to
-  // render the biometric row inside `_activeTierExtras`. After the
-  // row moved into every T1 / T2 tier card's modifier section via
-  // `BiometricModifierSpec`, `_biometricSpecFor` owns the full
-  // priority ladder (platform unavailable → tier unavailable →
-  // tier not current → password missing) and the two helpers are
-  // no longer called from the widget tree. Kept here as dead-code
-  // placeholders would only confuse future readers, so removed.
-  //
-  // The platform-reason extraction lives on `_biometricPlatformReason`
-  // above; that is the only caller-facing helper left.
+  // _biometricDisabledReason + _biometricToggleEnabled + the per-state
+  // wrapper for `biometricPlatformReason` used to render the biometric
+  // row inside `_activeTierExtras`. After the row moved into every
+  // T1 / T2 tier card's modifier section via `BiometricModifierSpec`,
+  // the public helper `biometricSpecFor` owns the full priority
+  // ladder (platform unavailable → tier unavailable → tier not
+  // current → password missing) and the wrappers are dead. Removed —
+  // call `biometricPlatformReason(...)` from
+  // `security_section_logic.dart` directly when a future caller
+  // needs the platform-only branch in isolation.
   /// Localized explanation for why the biometric toggle is disabled —
   /// null means "either fully enabled, or still probing". Three layers
   /// after the bank-style modifier shape:
@@ -110,14 +89,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     S l10n,
     SecurityTier level,
     SecurityTierModifiers modifiers,
-  ) {
-    final hasPassword =
-        level == SecurityTier.paranoid ||
-        level == SecurityTier.keychainWithPassword ||
-        modifiers.password;
-    if (hasPassword) return null;
-    return l10n.autoLockRequiresPassword;
-  }
+  ) => autoLockDisabledReason(l10n: l10n, level: level, modifiers: modifiers);
 
   /// Build one tier card pre-wired to onSelectTier. Factored out so
   /// the four stacked cards in the ladder share the same callback +
@@ -230,86 +202,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required bool tierAvailable,
     required String? tierUnavailableReason,
     required S l10n,
-  }) {
-    if (tier != SecurityTier.keychain && tier != SecurityTier.hardware) {
-      return null;
-    }
-    final isCurrent =
-        tier == currentLevel ||
-        (tier == SecurityTier.keychain &&
-            currentLevel == SecurityTier.keychainWithPassword);
-
-    // Priority 1: biometric platform unavailable. Never let a
-    // "select tier first" tooltip mask the fact that the device
-    // can't do biometric at all — a user configuring a tier +
-    // password only to find out biometric is unreachable at the
-    // last step is exactly the churn this priority ordering
-    // prevents.
-    final platformReason = _biometricPlatformReason(l10n);
-    if (platformReason != null) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: platformReason,
-      );
-    }
-
-    // Priority 2: tier available but not currently applied. Short
-    // "select this tier first" prompt — the tier's actual
-    // availability reason (when applicable) lives on the next
-    // priority step below so the user first sees the "how to
-    // unlock this" action hint before the "why the tier is out
-    // of reach" explanation.
-    if (tierAvailable && !isCurrent) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: l10n.biometricRequiresActiveTier,
-      );
-    }
-
-    // Priority 3: tier not available on this host. Re-use the
-    // tier's own reason string — same message as the yellow pill
-    // on the tier card keeps the UI coherent.
-    if (!tierAvailable) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: tierUnavailableReason,
-      );
-    }
-
-    // Priority 4: current tier but password modifier off.
-    final hasPassword =
-        currentLevel == SecurityTier.paranoid ||
-        currentLevel == SecurityTier.keychainWithPassword ||
-        currentModifiers.password;
-    if (!hasPassword) {
-      return BiometricModifierSpec(
-        enabled: false,
-        value: _biometricEnabled == true,
-        onChanged: (_) {},
-        disabledReason: l10n.biometricRequiresPassword,
-      );
-    }
-
-    // All preconditions satisfied. The card owns the pending
-    // biometric state from here on — the toggle mutates local state
-    // only, and the real enable / disable work runs from
-    // `onSelectTier` after the user taps Apply (single batched
-    // password prompt + platform biometric prompt). The `onChanged`
-    // hook on the spec is intentionally a no-op; it's still required
-    // by the spec shape for potential future call sites.
-    return BiometricModifierSpec(
-      enabled: _biometricProbed,
-      value: _biometricEnabled == true,
-      onChanged: (_) {},
-      disabledReason: null,
-    );
-  }
+  }) => biometricSpecFor(
+    l10n: l10n,
+    tier: tier,
+    currentLevel: currentLevel,
+    currentModifiers: currentModifiers,
+    tierAvailable: tierAvailable,
+    tierUnavailableReason: tierUnavailableReason,
+    availability: _biometricUnavailable,
+    probed: _biometricProbed,
+    biometricEnabled: _biometricEnabled == true,
+  );
 
   // `_activeTierExtras` used to carry biometric + auto-lock rows
   // in the current tier's expandable. Both moved into the
@@ -645,20 +548,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  String _tierName(SecurityTier tier) {
-    switch (tier) {
-      case SecurityTier.plaintext:
-        return 'plaintext';
-      case SecurityTier.keychain:
-        return 'keychain';
-      case SecurityTier.keychainWithPassword:
-        return 'keychain_with_password';
-      case SecurityTier.hardware:
-        return 'hardware';
-      case SecurityTier.paranoid:
-        return 'paranoid';
-    }
-  }
+  String _tierName(SecurityTier tier) => securityTierLogName(tier);
 
   /// Re-renders the section from a per-flow extension method.
   /// `State.setState` is `@protected` so extensions on
