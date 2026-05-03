@@ -20021,13 +20021,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TestSshServerInfo dco_decode_test_ssh_server_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return TestSshServerInfo(
       port: dco_decode_u_16(arr[0]),
       hostPubkeyAlgorithm: dco_decode_String(arr[1]),
       hostPubkeyB64: dco_decode_String(arr[2]),
       password: dco_decode_String(arr[3]),
+      sftpRoot: dco_decode_String(arr[4]),
     );
   }
 
@@ -23966,11 +23967,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final var_hostPubkeyAlgorithm = sse_decode_String(deserializer);
     final var_hostPubkeyB64 = sse_decode_String(deserializer);
     final var_password = sse_decode_String(deserializer);
+    final var_sftpRoot = sse_decode_String(deserializer);
     return TestSshServerInfo(
       port: var_port,
       hostPubkeyAlgorithm: var_hostPubkeyAlgorithm,
       hostPubkeyB64: var_hostPubkeyB64,
       password: var_password,
+      sftpRoot: var_sftpRoot,
     );
   }
 
@@ -27422,6 +27425,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.hostPubkeyAlgorithm, serializer);
     sse_encode_String(self.hostPubkeyB64, serializer);
     sse_encode_String(self.password, serializer);
+    sse_encode_String(self.sftpRoot, serializer);
   }
 
   @protected

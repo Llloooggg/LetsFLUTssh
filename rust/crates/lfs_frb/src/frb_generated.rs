@@ -20706,11 +20706,13 @@ impl SseDecode for crate::api::test_hooks::TestSshServerInfo {
         let mut var_hostPubkeyAlgorithm = <String>::sse_decode(deserializer);
         let mut var_hostPubkeyB64 = <String>::sse_decode(deserializer);
         let mut var_password = <String>::sse_decode(deserializer);
+        let mut var_sftpRoot = <String>::sse_decode(deserializer);
         return crate::api::test_hooks::TestSshServerInfo {
             port: var_port,
             host_pubkey_algorithm: var_hostPubkeyAlgorithm,
             host_pubkey_b64: var_hostPubkeyB64,
             password: var_password,
+            sftp_root: var_sftpRoot,
         };
     }
 }
@@ -24474,6 +24476,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::test_hooks::TestSshServerInfo
             self.host_pubkey_algorithm.into_into_dart().into_dart(),
             self.host_pubkey_b64.into_into_dart().into_dart(),
             self.password.into_into_dart().into_dart(),
+            self.sftp_root.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -27354,6 +27357,7 @@ impl SseEncode for crate::api::test_hooks::TestSshServerInfo {
         <String>::sse_encode(self.host_pubkey_algorithm, serializer);
         <String>::sse_encode(self.host_pubkey_b64, serializer);
         <String>::sse_encode(self.password, serializer);
+        <String>::sse_encode(self.sftp_root, serializer);
     }
 }
 

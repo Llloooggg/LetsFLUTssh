@@ -17,7 +17,7 @@
 //! # Why an embedded server (vs. a static-event-driver fake)
 //!
 //! The four race conditions this scaffolding exists to catch
-//! ([`docs/_audit/G03.md`] missed all of them) live at the bus
+//! (`docs/_audit/G03.md` missed all of them) live at the bus
 //! delivery boundary between the real Rust connect actor and the
 //! Dart-side observation pipeline. Fake event emitters reproduce
 //! the *shape* of the bus traffic but not the *timing* — the bug
@@ -32,15 +32,23 @@
 //!
 //! # Lifecycle
 //!
-//! [`start`] binds 127.0.0.1:0 (random ephemeral port), spawns
-//! the accept loop on the current tokio runtime, and returns the
-//! port + the OpenSSH-shaped host pubkey blob. The test then
-//! seeds the running app's `known_hosts` table with that key
-//! before calling `connectAsync`. [`TestServerHandle::shutdown`]
-//! triggers a notify, the accept loop drops the listener, all
-//! in-flight per-connection tasks finish naturally on the next
-//! disconnect.
+//! [`start`] binds 127.0.0.1:0 (random ephemeral port), generates
+//! a fresh tempdir under `std::env::temp_dir()` for the SFTP
+//! subsystem to back its filesystem ops against, spawns the
+//! accept loop on the current tokio runtime, and returns the
+//! port + the OpenSSH-shaped host pubkey blob + the absolute
+//! path of the SFTP root. The test seeds the running app's
+//! `known_hosts` table with the key before calling
+//! `connectAsync`, and uses normal `dart:io` to drop fixture
+//! files into the SFTP root before the SFTP-side test
+//! sequences run. [`TestServerHandle::shutdown`] triggers the
+//! notify, the accept loop drops the listener, all in-flight
+//! per-connection tasks finish naturally on the next
+//! disconnect, and the SFTP root is removed best-effort from
+//! disk.
 
+use std::collections::HashMap;
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use base64::Engine as _;
@@ -48,8 +56,12 @@ use russh::keys::ssh_key::rand_core::OsRng;
 use russh::keys::{Algorithm, PrivateKey};
 use russh::server::{Auth, Config, Handler, Msg, Server, Session};
 use russh::{Channel, ChannelId};
+use russh_sftp::protocol::{
+    Attrs, Data, File as SftpFile, FileAttributes, Handle as SftpHandle, Name, OpenFlags, Status,
+    StatusCode, Version,
+};
 use tokio::net::TcpListener;
-use tokio::sync::Notify;
+use tokio::sync::{Mutex, Notify};
 
 use crate::error::Error;
 
@@ -76,15 +88,22 @@ pub struct TestServerHandle {
     /// stripping the `"ssh-ed25519 "` prefix from a normal
     /// OpenSSH public-key line.
     pub host_pubkey_b64: String,
+    /// Absolute filesystem path the SFTP subsystem treats as `/`.
+    /// Tests can read / write here directly with `dart:io` to
+    /// pre-seed fixtures or assert on what an SFTP put landed.
+    pub sftp_root: PathBuf,
     shutdown: Arc<Notify>,
 }
 
 impl TestServerHandle {
-    /// Signal the accept loop to stop. Safe to call multiple
-    /// times; subsequent notifies are no-ops once the loop has
-    /// observed the first one.
+    /// Signal the accept loop to stop and remove the SFTP-root
+    /// tempdir. Safe to call multiple times; the tempdir-remove
+    /// is best-effort (an in-flight SFTP operation might still
+    /// hold a handle, in which case the OS releases the path on
+    /// the next sweep).
     pub fn shutdown(&self) {
         self.shutdown.notify_waiters();
+        let _ = std::fs::remove_dir_all(&self.sftp_root);
     }
 }
 
@@ -105,6 +124,11 @@ pub async fn start() -> Result<TestServerHandle, Error> {
         .map_err(|e| Error::Io(format!("test_server: pubkey wire: {e}")))?;
     let host_pubkey_b64 = base64::engine::general_purpose::STANDARD.encode(&host_pubkey_wire);
 
+    let sftp_root = std::env::temp_dir()
+        .join(format!("letsflutssh-sftp-{}", crate::id::random_handle_hex_32()));
+    std::fs::create_dir_all(&sftp_root)
+        .map_err(|e| Error::Io(format!("test_server: sftp root mkdir: {e}")))?;
+
     let listener = TcpListener::bind(("127.0.0.1", 0u16))
         .await
         .map_err(|e| Error::Io(format!("test_server: bind: {e}")))?;
@@ -123,7 +147,9 @@ pub async fn start() -> Result<TestServerHandle, Error> {
 
     let shutdown = Arc::new(Notify::new());
     let shutdown_for_loop = shutdown.clone();
-    let mut server = TestSshServer;
+    let server_template = TestSshServer {
+        sftp_root: Arc::new(sftp_root.clone()),
+    };
 
     // Custom accept loop instead of `Server::run_on_socket` so the
     // listener + per-connection tasks live entirely inside one
@@ -131,6 +157,7 @@ pub async fn start() -> Result<TestServerHandle, Error> {
     // the lifetime of its returned future, which is awkward to
     // spawn into a 'static background task.
     tokio::spawn(async move {
+        let mut server = server_template;
         loop {
             tokio::select! {
                 biased;
@@ -155,26 +182,39 @@ pub async fn start() -> Result<TestServerHandle, Error> {
         port,
         host_pubkey_algorithm,
         host_pubkey_b64,
+        sftp_root,
         shutdown,
     })
 }
 
-/// Per-process server template. Russh constructs one `Handler` per
-/// inbound TCP socket via [`Server::new_client`]; the template
-/// itself carries no state because per-handler initialisation is
-/// what kept stateful in the upstream echoserver pattern.
+/// Per-process server template. The single `Arc<PathBuf>` is the
+/// SFTP root every spawned handler shares — every SSH session
+/// served by this fixture is rooted at the same tempdir, so a
+/// test that wrote to the directory through dart:io and then
+/// connected sees the same files as a test that wrote via SFTP
+/// PUT and asserted via dart:io read.
 #[derive(Clone)]
-struct TestSshServer;
+struct TestSshServer {
+    sftp_root: Arc<PathBuf>,
+}
 
 impl Server for TestSshServer {
     type Handler = TestSshHandler;
     fn new_client(&mut self, _peer_addr: Option<std::net::SocketAddr>) -> Self::Handler {
-        TestSshHandler
+        TestSshHandler {
+            sftp_root: self.sftp_root.clone(),
+            channels: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 }
 
-#[derive(Default)]
-struct TestSshHandler;
+/// Per-SSH-session handler. Holds the channels the SSH side opens
+/// so `subsystem_request("sftp")` can pull the matching `Channel`
+/// out and feed it into `russh_sftp::server::run`.
+struct TestSshHandler {
+    sftp_root: Arc<PathBuf>,
+    channels: Arc<Mutex<HashMap<ChannelId, Channel<Msg>>>>,
+}
 
 impl Handler for TestSshHandler {
     type Error = russh::Error;
@@ -206,16 +246,42 @@ impl Handler for TestSshHandler {
         Ok(Auth::Accept)
     }
 
-    /// Accept session-channel opens — needed for tests that exercise
-    /// `openShell` after the connect has settled. The bare-connect
-    /// lifecycle test never gets here, but having the handler in
-    /// place keeps the fixture useful for the next consumer.
+    /// Stash the channel by id so a later `subsystem_request("sftp")`
+    /// or shell command can fetch it. Necessary because `russh_sftp::
+    /// server::run` consumes the `Channel<Msg>` value, but
+    /// `subsystem_request` only sees `ChannelId`.
     async fn channel_open_session(
         &mut self,
-        _channel: Channel<Msg>,
+        channel: Channel<Msg>,
         _session: &mut Session,
     ) -> Result<bool, Self::Error> {
+        self.channels.lock().await.insert(channel.id(), channel);
         Ok(true)
+    }
+
+    async fn subsystem_request(
+        &mut self,
+        channel_id: ChannelId,
+        name: &str,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        if name == "sftp" {
+            let Some(channel) = self.channels.lock().await.remove(&channel_id) else {
+                session.channel_failure(channel_id)?;
+                return Ok(());
+            };
+            session.channel_success(channel_id)?;
+            let sftp = TestSftpHandler::new(self.sftp_root.clone());
+            // run() owns the channel for the rest of the SFTP
+            // session; spawn so the handler returns and the SSH
+            // side can keep multiplexing other channels.
+            tokio::spawn(async move {
+                russh_sftp::server::run(channel.into_stream(), sftp).await;
+            });
+        } else {
+            session.channel_failure(channel_id)?;
+        }
+        Ok(())
     }
 
     /// Accept pty + shell so an `openShell` consumer can drive a
@@ -241,5 +307,338 @@ impl Handler for TestSshHandler {
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
         Ok(())
+    }
+}
+
+// ─── SFTP subsystem ────────────────────────────────────────────────
+
+/// Filesystem-backed SFTP handler. Every operation resolves the
+/// SFTP-absolute path against [`Self::root`] (which is the
+/// per-fixture tempdir), and `..` traversal that would escape
+/// `root` is rejected with [`StatusCode::PermissionDenied`].
+struct TestSftpHandler {
+    root: Arc<PathBuf>,
+    /// Active dir handles → resolved on-disk path + readdir done flag.
+    dir_handles: HashMap<String, DirState>,
+    /// Active file handles → resolved on-disk path + open mode.
+    file_handles: HashMap<String, FileState>,
+    /// Monotonic id assigned to each handle string. Keeps the
+    /// strings short and unambiguous.
+    next_handle_id: u64,
+    version: Option<u32>,
+}
+
+struct DirState {
+    path: PathBuf,
+    done: bool,
+}
+
+struct FileState {
+    path: PathBuf,
+    /// True if the handle was opened with WRITE / APPEND. Used to
+    /// skip the metadata-only path for the read-only handle.
+    writable: bool,
+}
+
+impl TestSftpHandler {
+    fn new(root: Arc<PathBuf>) -> Self {
+        Self {
+            root,
+            dir_handles: HashMap::new(),
+            file_handles: HashMap::new(),
+            next_handle_id: 0,
+            version: None,
+        }
+    }
+
+    fn alloc_handle(&mut self, kind: &str) -> String {
+        let id = self.next_handle_id;
+        self.next_handle_id = self.next_handle_id.wrapping_add(1);
+        format!("{kind}-{id}")
+    }
+
+    /// Map an SFTP-absolute path to the on-disk path inside
+    /// [`Self::root`]. Reject `..` segments that would escape the
+    /// root with [`StatusCode::PermissionDenied`].
+    fn resolve(&self, sftp_path: &str) -> Result<PathBuf, StatusCode> {
+        let trimmed = sftp_path.trim_start_matches('/');
+        let candidate = Path::new(trimmed);
+        for c in candidate.components() {
+            match c {
+                Component::Normal(_) | Component::CurDir => {}
+                _ => return Err(StatusCode::PermissionDenied),
+            }
+        }
+        Ok(self.root.join(candidate))
+    }
+
+    fn attrs_from_metadata(meta: &std::fs::Metadata) -> FileAttributes {
+        FileAttributes {
+            size: Some(meta.len()),
+            permissions: Some(if meta.is_dir() { 0o040755 } else { 0o100644 }),
+            ..FileAttributes::default()
+        }
+    }
+}
+
+impl russh_sftp::server::Handler for TestSftpHandler {
+    type Error = StatusCode;
+
+    fn unimplemented(&self) -> Self::Error {
+        StatusCode::OpUnsupported
+    }
+
+    async fn init(
+        &mut self,
+        version: u32,
+        _extensions: HashMap<String, String>,
+    ) -> Result<Version, Self::Error> {
+        if self.version.is_some() {
+            return Err(StatusCode::ConnectionLost);
+        }
+        self.version = Some(version);
+        Ok(Version::new())
+    }
+
+    async fn realpath(&mut self, id: u32, path: String) -> Result<Name, Self::Error> {
+        // The russh-sftp client's `canonicalize` issues a realpath
+        // for "." right after init. Always anchor at "/" — the
+        // fixture's tempdir is the SFTP root, paths above it are
+        // not addressable.
+        let display = if path == "." || path.is_empty() {
+            "/".to_string()
+        } else {
+            let normalised = path.replace("//", "/");
+            let trimmed = normalised.trim_end_matches('/');
+            if trimmed.is_empty() {
+                "/".to_string()
+            } else {
+                trimmed.to_string()
+            }
+        };
+        Ok(Name {
+            id,
+            files: vec![SftpFile::dummy(display)],
+        })
+    }
+
+    async fn opendir(&mut self, id: u32, path: String) -> Result<SftpHandle, Self::Error> {
+        let on_disk = self.resolve(&path)?;
+        let meta = std::fs::metadata(&on_disk).map_err(io_to_status)?;
+        if !meta.is_dir() {
+            return Err(StatusCode::NoSuchFile);
+        }
+        let handle = self.alloc_handle("dir");
+        self.dir_handles.insert(
+            handle.clone(),
+            DirState {
+                path: on_disk,
+                done: false,
+            },
+        );
+        Ok(SftpHandle { id, handle })
+    }
+
+    async fn readdir(&mut self, id: u32, handle: String) -> Result<Name, Self::Error> {
+        let state = self
+            .dir_handles
+            .get_mut(&handle)
+            .ok_or(StatusCode::NoSuchFile)?;
+        if state.done {
+            return Err(StatusCode::Eof);
+        }
+        let mut files: Vec<SftpFile> = Vec::new();
+        let read_dir = std::fs::read_dir(&state.path).map_err(io_to_status)?;
+        for entry in read_dir {
+            let entry = entry.map_err(io_to_status)?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let meta = entry.metadata().map_err(io_to_status)?;
+            files.push(SftpFile::new(name, TestSftpHandler::attrs_from_metadata(&meta)));
+        }
+        state.done = true;
+        Ok(Name { id, files })
+    }
+
+    async fn close(&mut self, id: u32, handle: String) -> Result<Status, Self::Error> {
+        self.dir_handles.remove(&handle);
+        self.file_handles.remove(&handle);
+        Ok(ok_status(id))
+    }
+
+    async fn open(
+        &mut self,
+        id: u32,
+        filename: String,
+        pflags: OpenFlags,
+        _attrs: FileAttributes,
+    ) -> Result<SftpHandle, Self::Error> {
+        let on_disk = self.resolve(&filename)?;
+        let mut opts = std::fs::OpenOptions::new();
+        let writable = pflags.contains(OpenFlags::WRITE) || pflags.contains(OpenFlags::APPEND);
+        opts.read(pflags.contains(OpenFlags::READ));
+        opts.write(writable);
+        opts.append(pflags.contains(OpenFlags::APPEND));
+        opts.create(pflags.contains(OpenFlags::CREATE));
+        opts.truncate(pflags.contains(OpenFlags::TRUNCATE));
+        // Probe-open just to surface ENOENT / EPERM through the
+        // SFTP error channel — we re-open per read/write so the
+        // handler can remain `Send + Sync` without holding a
+        // `std::fs::File`.
+        let _probe = opts.open(&on_disk).map_err(io_to_status)?;
+        let handle = self.alloc_handle("file");
+        self.file_handles.insert(
+            handle.clone(),
+            FileState {
+                path: on_disk,
+                writable,
+            },
+        );
+        Ok(SftpHandle { id, handle })
+    }
+
+    async fn read(
+        &mut self,
+        id: u32,
+        handle: String,
+        offset: u64,
+        len: u32,
+    ) -> Result<Data, Self::Error> {
+        use std::io::{Read as _, Seek as _, SeekFrom};
+        let state = self.file_handles.get(&handle).ok_or(StatusCode::NoSuchFile)?;
+        let mut file = std::fs::OpenOptions::new()
+            .read(true)
+            .open(&state.path)
+            .map_err(io_to_status)?;
+        file.seek(SeekFrom::Start(offset)).map_err(io_to_status)?;
+        let mut buf = vec![0u8; len as usize];
+        let n = file.read(&mut buf).map_err(io_to_status)?;
+        if n == 0 {
+            return Err(StatusCode::Eof);
+        }
+        buf.truncate(n);
+        Ok(Data { id, data: buf })
+    }
+
+    async fn write(
+        &mut self,
+        id: u32,
+        handle: String,
+        offset: u64,
+        data: Vec<u8>,
+    ) -> Result<Status, Self::Error> {
+        use std::io::{Seek as _, SeekFrom, Write as _};
+        let state = self.file_handles.get(&handle).ok_or(StatusCode::NoSuchFile)?;
+        if !state.writable {
+            return Err(StatusCode::PermissionDenied);
+        }
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&state.path)
+            .map_err(io_to_status)?;
+        file.seek(SeekFrom::Start(offset)).map_err(io_to_status)?;
+        file.write_all(&data).map_err(io_to_status)?;
+        Ok(ok_status(id))
+    }
+
+    async fn stat(&mut self, id: u32, path: String) -> Result<Attrs, Self::Error> {
+        let on_disk = self.resolve(&path)?;
+        let meta = std::fs::metadata(&on_disk).map_err(io_to_status)?;
+        Ok(Attrs {
+            id,
+            attrs: TestSftpHandler::attrs_from_metadata(&meta),
+        })
+    }
+
+    async fn lstat(&mut self, id: u32, path: String) -> Result<Attrs, Self::Error> {
+        let on_disk = self.resolve(&path)?;
+        let meta = std::fs::symlink_metadata(&on_disk).map_err(io_to_status)?;
+        Ok(Attrs {
+            id,
+            attrs: TestSftpHandler::attrs_from_metadata(&meta),
+        })
+    }
+
+    async fn fstat(&mut self, id: u32, handle: String) -> Result<Attrs, Self::Error> {
+        let state = self.file_handles.get(&handle).ok_or(StatusCode::NoSuchFile)?;
+        let meta = std::fs::metadata(&state.path).map_err(io_to_status)?;
+        Ok(Attrs {
+            id,
+            attrs: TestSftpHandler::attrs_from_metadata(&meta),
+        })
+    }
+
+    async fn remove(&mut self, id: u32, filename: String) -> Result<Status, Self::Error> {
+        let on_disk = self.resolve(&filename)?;
+        std::fs::remove_file(&on_disk).map_err(io_to_status)?;
+        Ok(ok_status(id))
+    }
+
+    async fn mkdir(
+        &mut self,
+        id: u32,
+        path: String,
+        _attrs: FileAttributes,
+    ) -> Result<Status, Self::Error> {
+        let on_disk = self.resolve(&path)?;
+        std::fs::create_dir(&on_disk).map_err(io_to_status)?;
+        Ok(ok_status(id))
+    }
+
+    async fn rmdir(&mut self, id: u32, path: String) -> Result<Status, Self::Error> {
+        let on_disk = self.resolve(&path)?;
+        std::fs::remove_dir(&on_disk).map_err(io_to_status)?;
+        Ok(ok_status(id))
+    }
+
+    async fn rename(
+        &mut self,
+        id: u32,
+        oldpath: String,
+        newpath: String,
+    ) -> Result<Status, Self::Error> {
+        let from = self.resolve(&oldpath)?;
+        let to = self.resolve(&newpath)?;
+        std::fs::rename(&from, &to).map_err(io_to_status)?;
+        Ok(ok_status(id))
+    }
+
+    async fn setstat(
+        &mut self,
+        id: u32,
+        _path: String,
+        _attrs: FileAttributes,
+    ) -> Result<Status, Self::Error> {
+        // Tests do not assert on chmod; ignore + return Ok so a
+        // client-side `setstat(644)` after upload doesn't trip
+        // the SFTP-error path.
+        Ok(ok_status(id))
+    }
+
+    async fn fsetstat(
+        &mut self,
+        id: u32,
+        _handle: String,
+        _attrs: FileAttributes,
+    ) -> Result<Status, Self::Error> {
+        Ok(ok_status(id))
+    }
+}
+
+fn ok_status(id: u32) -> Status {
+    Status {
+        id,
+        status_code: StatusCode::Ok,
+        error_message: "Ok".to_string(),
+        language_tag: "en-US".to_string(),
+    }
+}
+
+fn io_to_status(err: std::io::Error) -> StatusCode {
+    match err.kind() {
+        std::io::ErrorKind::NotFound => StatusCode::NoSuchFile,
+        std::io::ErrorKind::PermissionDenied => StatusCode::PermissionDenied,
+        std::io::ErrorKind::AlreadyExists => StatusCode::Failure,
+        std::io::ErrorKind::UnexpectedEof => StatusCode::Eof,
+        _ => StatusCode::Failure,
     }
 }

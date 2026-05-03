@@ -27,19 +27,24 @@ void testSshServerStop() =>
 /// Bundle returned to the Dart test caller. Carries everything a
 /// test needs to drive a connect against the fixture: the bound
 /// localhost port, the host-key shape (so the test can pre-seed
-/// `known_hosts` and avoid the prompt round-trip), and the fixed
-/// password the fixture's `auth_password` handler accepts.
+/// `known_hosts` and avoid the prompt round-trip), the fixed
+/// password the fixture's `auth_password` handler accepts, and the
+/// absolute filesystem path the SFTP subsystem is rooted at (tests
+/// can drop fixture files there with `dart:io` before the SFTP
+/// flow reads them, or assert against the same path after a PUT).
 class TestSshServerInfo {
   final int port;
   final String hostPubkeyAlgorithm;
   final String hostPubkeyB64;
   final String password;
+  final String sftpRoot;
 
   const TestSshServerInfo({
     required this.port,
     required this.hostPubkeyAlgorithm,
     required this.hostPubkeyB64,
     required this.password,
+    required this.sftpRoot,
   });
 
   @override
@@ -47,7 +52,8 @@ class TestSshServerInfo {
       port.hashCode ^
       hostPubkeyAlgorithm.hashCode ^
       hostPubkeyB64.hashCode ^
-      password.hashCode;
+      password.hashCode ^
+      sftpRoot.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -57,5 +63,6 @@ class TestSshServerInfo {
           port == other.port &&
           hostPubkeyAlgorithm == other.hostPubkeyAlgorithm &&
           hostPubkeyB64 == other.hostPubkeyB64 &&
-          password == other.password;
+          password == other.password &&
+          sftpRoot == other.sftpRoot;
 }

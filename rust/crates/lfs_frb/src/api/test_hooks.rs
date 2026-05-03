@@ -36,14 +36,18 @@ use lfs_core::connection::test_server::{self, TestServerHandle, TEST_PASSWORD};
 /// Bundle returned to the Dart test caller. Carries everything a
 /// test needs to drive a connect against the fixture: the bound
 /// localhost port, the host-key shape (so the test can pre-seed
-/// `known_hosts` and avoid the prompt round-trip), and the fixed
-/// password the fixture's `auth_password` handler accepts.
+/// `known_hosts` and avoid the prompt round-trip), the fixed
+/// password the fixture's `auth_password` handler accepts, and the
+/// absolute filesystem path the SFTP subsystem is rooted at (tests
+/// can drop fixture files there with `dart:io` before the SFTP
+/// flow reads them, or assert against the same path after a PUT).
 #[derive(Debug, Clone)]
 pub struct TestSshServerInfo {
     pub port: u16,
     pub host_pubkey_algorithm: String,
     pub host_pubkey_b64: String,
     pub password: String,
+    pub sftp_root: String,
 }
 
 /// Single-instance slot. Tests that re-call [`test_ssh_server_start`]
@@ -71,6 +75,7 @@ pub async fn test_ssh_server_start() -> Result<TestSshServerInfo, String> {
         host_pubkey_algorithm: handle.host_pubkey_algorithm.clone(),
         host_pubkey_b64: handle.host_pubkey_b64.clone(),
         password: TEST_PASSWORD.to_string(),
+        sftp_root: handle.sftp_root.to_string_lossy().into_owned(),
     };
     *slot().lock().expect("test_server slot poisoned") = Some(handle);
     Ok(info)
