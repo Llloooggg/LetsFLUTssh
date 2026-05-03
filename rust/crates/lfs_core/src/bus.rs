@@ -36,7 +36,7 @@ use crate::error::Error;
 /// Generous capacity. Domain actors emit a handful of events per
 /// user action; per-frame / per-chunk traffic coalesces inside the
 /// actor before reaching the bus.
-const EVENT_CHANNEL_CAPACITY: usize = 256;
+const EVENT_CHANNEL_CAPACITY: usize = 4096;
 
 /// Topic tag attached to every event. Subscribers filter by the
 /// topic they care about; a per-screen view typically subscribes

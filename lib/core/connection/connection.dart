@@ -131,6 +131,10 @@ class Connection {
   void _subscribeProgressBus() {
     try {
       _busSub = AppBus.instance.subscribeConnection(id).listen((event) {
+        AppLogger.instance.log(
+          'Connection._busSub received ${event.runtimeType} for $id',
+          name: 'Connection',
+        );
         if (event is rust_bus.BusEvent_ConnectionProgress) {
           addProgressStep(
             ConnectionStep(
