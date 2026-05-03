@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../utils/logger.dart';
@@ -272,6 +274,20 @@ class Connection {
   /// Disconnected. Safe to await multiple times — a second
   /// `await` after completion returns the same value.
   Future<bool> get transportReady => _transportAdopted.future;
+
+  /// Test-only: short-circuit the [transportReady] gate so widgets
+  /// driven by [SftpBrowserMixin] / similar `await conn.transportReady`
+  /// flows resolve under a synthetic [Connection] built directly
+  /// with `state: SSHConnectionState.connected` (no actor, no
+  /// `_adoptSession`). Production never calls this — the bus
+  /// listener is the only path that completes the underlying
+  /// completer in real flows.
+  @visibleForTesting
+  void debugMarkTransportAdopted({bool adopted = true}) {
+    if (!_transportAdopted.isCompleted) {
+      _transportAdopted.complete(adopted);
+    }
+  }
 
   Future<void> _adoptSession() async {
     var adopted = false;
