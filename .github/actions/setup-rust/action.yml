@@ -102,3 +102,39 @@ runs:
         save-if: 'true'
         add-rust-environment-hash-key: 'false'
         key: ${{ hashFiles('rust/rust-toolchain.toml') }}
+
+    # Cargokit's target dir lives OUTSIDE the workspace `rust/target/`
+    # the Swatinem cache covers — `rust_builder/cargokit/cmake/`
+    # +`rust_builder/cargokit/gradle/plugin.gradle` hardcode it under
+    # the per-platform Flutter build dir (`build/windows/x64/plugins/
+    # rust_builder/cargokit_build/`, gradle's per-module `buildDir`,
+    # etc.). Without a separate cache the platform builds re-compile
+    # ring / openssl / russh / lfs_core from scratch on every run —
+    # the user-reported "android/windows still 20 min" symptom that
+    # the rust-cache key fix did NOT resolve, because that fix only
+    # stabilised the workspace cache, not the cargokit one.
+    #
+    # Cache key includes Cargo.lock + rust-toolchain.toml (same
+    # invalidation triggers as the workspace cache) AND the cargokit
+    # shim sources themselves — cmake/gradle plugin upgrades change
+    # build-script outputs and must not silently reuse stale
+    # artefacts. Restore-keys lets a partial-hash hit (only Cargo.lock
+    # changed, not toolchain) skip the dep recompile and only rebuild
+    # the touched crates.
+    - name: Cache cargokit target dir
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
+      with:
+        # cmake platforms (Windows / Linux / macOS desktop) write
+        # under `build/<platform>/.../plugins/rust_builder/cargokit_build/`.
+        # Android gradle plugin writes directly into the per-module
+        # `buildDir`, which for a Flutter plugin lands at
+        # `build/rust_builder/` relative to the project root. Glob
+        # both shapes so a missing path on a given platform is a
+        # silent no-op (cache action tolerates non-matching globs).
+        path: |
+          build/**/cargokit_build
+          build/rust_builder
+          android/**/cargokit_build
+        key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml', 'rust_builder/cargokit/**') }}
+        restore-keys: |
+          cargokit-${{ runner.os }}-${{ runner.arch }}-
