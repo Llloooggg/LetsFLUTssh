@@ -57,6 +57,21 @@ class TerminalClipboard {
     final selection = controller.selection;
     if (selection == null) return;
     final text = terminal.buffer.getText(selection);
+    copyText(text);
+    controller.clearSelection();
+  }
+
+  /// Copy a pre-captured text snapshot to the clipboard with the same
+  /// sensitive-content routing + auto-wipe arming as [copy].
+  ///
+  /// Used by the read-only progress terminal: the right-click menu
+  /// captures the selected text synchronously at pointer-down time
+  /// (before xterm's gesture recognizer can touch the controller
+  /// state), so the actual copy works against a stable string even
+  /// if the underlying selection is cleared by a competing recogniser
+  /// before the menu item is chosen.
+  static void copyText(String text) {
+    if (text.isEmpty) return;
     if (_looksSensitive(text)) {
       // Fire-and-forget — `SecureClipboard.setText` falls back to the
       // stock clipboard on Linux / missing-plugin so a copy action
@@ -65,7 +80,6 @@ class TerminalClipboard {
     } else {
       Clipboard.setData(ClipboardData(text: text));
     }
-    controller.clearSelection();
     _maybeArmWipe(text);
   }
 

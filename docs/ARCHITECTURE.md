@@ -3323,7 +3323,7 @@ ReadOnlyTerminalView({
   double fontSize = 14.0,
 })
 ```
-Read-only xterm `TerminalView` wrapper — no keyboard input, no context menu, cursor hidden. Used by `ConnectionProgress` for SFTP tab progress/error display. Wraps in `FocusScope(canRequestFocus: false)`.
+Read-only xterm `TerminalView` wrapper — no keyboard input, cursor hidden. Used by `ConnectionProgress` for SFTP tab progress/error display. Wraps in a `Focus` for the terminal-copy keyboard shortcut and a `Listener` whose `onPointerDown` shows a one-item Copy context menu on right-click. The selection text is captured synchronously in the listener (before xterm's gesture arena resolves) so the menu's Copy action operates on a stable snapshot — competing recognisers that wipe `controller.selection` between right-click and the menu tap can no longer turn a Copy into a no-op.
 
 ### ThresholdDraggable
 
@@ -3790,8 +3790,20 @@ results.
 
 ```dart
 static void copy(Terminal terminal, TerminalController controller);
+static void copyText(String text);
 static Future<void> paste(Terminal terminal);
 ```
+
+`copy()` reads the controller's current selection, runs the
+sensitive-content heuristic on the resulting text, writes it through
+either `SecureClipboard` (PEM private key / ≥ 200-char base64 run) or
+`Clipboard.setData`, then clears the selection as a side-effect.
+`copyText()` is the same routing without the controller dependency —
+used by [ReadOnlyTerminalView](#readonlyterminalview)'s right-click
+menu, which captures the selected text snapshot synchronously at
+`onPointerDown` so the menu's Copy action stays correct even if a
+competing gesture recogniser clears `controller.selection` between
+the right-click and the user's choice.
 
 ### Format
 

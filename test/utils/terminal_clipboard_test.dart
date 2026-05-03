@@ -233,6 +233,74 @@ void main() {
       );
     });
 
+    group('copyText — pre-captured text (no controller dependency)', () {
+      tearDown(() {
+        clearClipboardMock();
+        TerminalClipboard.debugResetSecureClipboard();
+      });
+
+      test('empty text is a no-op (no clipboard writes)', () async {
+        final fakeSecure = _RecordingSecureClipboard();
+        TerminalClipboard.debugSetSecureClipboard(fakeSecure);
+
+        var stockWrites = 0;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') stockWrites++;
+              return null;
+            });
+
+        TerminalClipboard.copyText('');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(fakeSecure.writes, isEmpty);
+        expect(stockWrites, 0);
+      });
+
+      test('sensitive text routes through SecureClipboard', () async {
+        // Same routing invariant as `copy()` — the read-only progress
+        // view's right-click path must not leak a private-key paste
+        // into the OS clipboard-history ring just because it bypassed
+        // the controller-based code path.
+        final fakeSecure = _RecordingSecureClipboard();
+        TerminalClipboard.debugSetSecureClipboard(fakeSecure);
+
+        var stockWrites = 0;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') stockWrites++;
+              return null;
+            });
+
+        final secret = 'A' * 250;
+        TerminalClipboard.copyText(secret);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(fakeSecure.writes, [secret]);
+        expect(stockWrites, 0);
+      });
+
+      test('non-sensitive text takes the stock clipboard path', () async {
+        final fakeSecure = _RecordingSecureClipboard();
+        TerminalClipboard.debugSetSecureClipboard(fakeSecure);
+
+        String? lastWrite;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+              if (call.method == 'Clipboard.setData') {
+                lastWrite = (call.arguments as Map)['text'] as String?;
+              }
+              return null;
+            });
+
+        TerminalClipboard.copyText('hello world');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(fakeSecure.writes, isEmpty);
+        expect(lastWrite, 'hello world');
+      });
+    });
+
     group('copy — with an active selection (non-sensitive)', () {
       tearDown(clearClipboardMock);
 
