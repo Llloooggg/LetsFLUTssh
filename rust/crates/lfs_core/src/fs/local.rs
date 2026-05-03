@@ -152,11 +152,24 @@ fn walk_size(
 /// (`H` / `S` attribs). Routes through `cmd /c attrib *` because
 /// `tokio::fs::Metadata` doesn't surface NTFS attrs portably.
 /// Compile-time no-op on every other target.
+///
+/// `CREATE_NO_WINDOW = 0x08000000` (Win32 process-creation flag) is
+/// load-bearing: without it, every `cmd.exe` spawn flashes a
+/// console window for the duration of `attrib`. The file browser
+/// fires this on every directory listing, so a directory-heavy
+/// session showed dozens of black-window blinks. The flag tells
+/// CreateProcessW to skip console allocation; the spawned process
+/// still has a stdout pipe (we read it) — only the visible
+/// console window is suppressed. Documented at
+/// https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags.
 #[cfg(target_os = "windows")]
 pub async fn windows_hidden_names(dir: String) -> Vec<String> {
+    use std::os::windows::process::CommandExt as _;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let output = tokio::process::Command::new("cmd")
         .args(["/c", "attrib", "*"])
         .current_dir(&dir)
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .await;
     let Ok(output) = output else {

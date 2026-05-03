@@ -78,6 +78,25 @@ pub const MANAGED_FILES: &[&str] = &[
     "letsflutssh.db-wal",
     "letsflutssh.db-shm",
     "letsflutssh.db-journal",
+    // Transitional cleanup: an early Rust-port build (between
+    // bf6bb95f and the filename revert at b56ccf7b) wrote the
+    // SQLCipher DB to `lfs_core.db` instead of reusing the
+    // drift-era `letsflutssh.db` slot. Users who installed that
+    // intermediate build have a stale orphan at `lfs_core.db`
+    // that the rest of the app no longer touches — but
+    // `WipeAllService` never deleted it because the file name
+    // wasn't on the managed list. Without this entry, every
+    // post-port wipe leaves the orphan behind, and on the next
+    // first-launch the SQLCipher init can collide with whatever
+    // permission state Windows attaches to the abandoned file.
+    // Safe to keep indefinitely — a fresh install never creates
+    // `lfs_core.db`, so the entry is a pure no-op outside the
+    // upgrade window. Remove once we are confident no installs
+    // from the intermediate-filename window remain in the wild.
+    "lfs_core.db",
+    "lfs_core.db-wal",
+    "lfs_core.db-shm",
+    "lfs_core.db-journal",
 ];
 
 /// Subset of [`MANAGED_FILES`] used at startup to detect "install has
