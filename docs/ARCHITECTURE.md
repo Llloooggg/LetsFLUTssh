@@ -742,9 +742,11 @@ class Connection {
   List<ConnectionStep> progressHistory;   // buffered for late subscribers
 
   Future<void> waitUntilReady();   // waits for connect attempt to finish (success or error)
-  void completeReady();            // called by ConnectionsNotifier — also closes progressStream
+  Future<bool> get transportReady; // resolves once `_adoptSession` has finished
+  void completeReady();            // called by ConnectionsNotifier in `_doConnect.finally`
   void addProgressStep(step);      // buffers + broadcasts a progress step
   void resetForReconnect();        // closes old progress controller, then fresh completer + stream, clears history/error
+  void dispose();                  // closes bus subscription + progress controller
 
   // Lifecycle add-ons — see "ConnectionExtension" below.
   void addExtension(ConnectionExtension ext);    // idempotent on the same instance
@@ -776,6 +778,12 @@ abstract class ConnectionExtension {
 **Failure isolation.** `Connection._fanOut` wraps each hook in a `try/catch` and logs through `AppLogger` — one extension throwing never aborts the connection lifecycle or starves later extensions. Extensions are allowed to mutate the registration list during a hook (deregister themselves, register dependent extensions); fan-out iterates over a snapshot so the loop stays safe.
 
 **Idempotence requirement.** `onDisconnecting` is fired even on connections that never reached `onConnected` (a connect that timed out before handshake) so cleanup paths stay symmetric. Extensions must tolerate a teardown that has nothing to clean up.
+
+**Bus subscription ownership.** Each `Connection` opens a permanent FRB bus subscription in its constructor (`_subscribeProgressBus`) and tears it down in `dispose()`. That subscription owns every Dart-side reaction to the per-id event stream the Rust actor publishes — `state` field mutation, transport adoption (`connection_get_session` → `RustTransport.adopt`), transient-secret eviction, progress fan-out into the local stream, connect-attempt success/failure logging, and `connectionError` capture from `BusEvent::ConnectionError`. The earlier design had `ConnectionsNotifier._doConnect` open a second per-attempt subscription that it cancelled in `finally`, but the cancel raced in-flight events from the FRB worker thread and produced "Fail to post message to Dart" stderr noise on every connect; collapsing the two listeners into one persistent subscription is what fixes that.
+
+**Transport-adoption gate.** `state == connected` flips synchronously inside `_subscribeProgressBus` the moment the actor publishes `Connected`, but `_adoptSession` (which calls `connection_get_session` and wraps the russh handle in `RustTransport`) runs as a fire-and-forget `unawaited(_adoptSession())` so the bus listener stays non-blocking. Connect-flow consumers — `terminal_pane`, `mobile_terminal_view`, `sftp_browser_mixin` — therefore await `transportReady` *after* `waitUntilReady()`; otherwise they race the async adoption and see `transport == null` even though the state already says `connected`. `transportReady` resolves to `true` on a successful adopt and `false` if the actor moved straight to `Disconnected` or the `connection_get_session` call failed, so a deadlock-free completion is guaranteed.
+
+**Progress controller lifetime.** `_progressController` is created in the constructor, recreated by `resetForReconnect()`, and only ever closed by `dispose()`. `completeReady()` does **not** close it — closing on `_doConnect.finally` would silently drop every queued post-success step (Rust publishes the success entries for `socketConnect` / `hostKeyVerify` / `authenticate` in the same tick the actor returns, before the Dart microtask queue drains the bus events), so downstream subscribers like `ProgressTracker.writeStep` would never see the green checkmarks even though the connection is live.
 
 **Deferred Init pattern:** Connection is created instantly in state=`connecting`. The actual SSH handshake runs in the background. UI immediately opens a tab and shows a connecting indicator.
 

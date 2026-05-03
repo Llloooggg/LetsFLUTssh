@@ -398,16 +398,20 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       }
       return;
     }
-    final sub = AppBus.instance
-        .subscribeConnection(conn.id)
-        .listen((event) => _applyConnectionEvent(conn, generation, event));
-
     // No manual `socketConnect: inProgress` emit here — `connect_async`
     // in `lfs_core::connection::run_connect_driver` publishes the same
     // step on the bus as its first action, and Connection's permanent
     // `_busSub` forwards it into the per-connection progress stream.
     // Doing both produced two identical "[*] Connecting…" lines in
     // the terminal + duplicate [Progress] log entries.
+    //
+    // The per-attempt sub used to live here too, but every duty it
+    // had — state mutation, transient-secret eviction, connect-step
+    // logging, ConnectionError → connectionError capture — is now
+    // owned by Connection's permanent `_busSub`. A second listener
+    // cancelled in this `finally` raced in-flight events from the
+    // FRB worker thread and produced "Fail to post message to Dart"
+    // stderr noise on every connect, so it's gone.
     _notify();
 
     try {
@@ -428,7 +432,6 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
         conn.state = SSHConnectionState.disconnected;
       }
     } finally {
-      await sub.cancel();
       if (!_isStaleGeneration(conn.id, generation)) {
         conn.completeReady();
         if (conn.state == SSHConnectionState.connected) {
@@ -437,69 +440,6 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       }
       _notify();
     }
-  }
-
-  /// Translate a per-connection bus event into a Dart `Connection`
-  /// state mutation. Stale-generation events are dropped.
-  void _applyConnectionEvent(
-    Connection conn,
-    int generation,
-    rust_bus.BusEvent event,
-  ) {
-    if (_isStaleGeneration(conn.id, generation)) return;
-    switch (event) {
-      case rust_bus.BusEvent_ConnectionStateChanged(:final state):
-        switch (state) {
-          case rust_bus.BusConnectionState.connecting:
-            conn.state = SSHConnectionState.connecting;
-          case rust_bus.BusConnectionState.connected:
-            conn.state = SSHConnectionState.connected;
-            AppLogger.instance.log(
-              'Connected: ${conn.label} (id=${conn.id})',
-              name: 'Connection',
-            );
-          // Transport adoption + transient-secret eviction
-          // happen inside `Connection`'s own bus subscription
-          // (it sees the same event).
-          case rust_bus.BusConnectionState.disconnected:
-            conn.state = SSHConnectionState.disconnected;
-            AppLogger.instance.log(
-              'Connection failed: ${conn.connectionError ?? "no error detail"}',
-              name: 'Connection',
-              level: LogLevel.warn,
-              error: conn.connectionError,
-            );
-        }
-      case rust_bus.BusEvent_ConnectionProgress(:final step):
-        // Per-step append happens inside `Connection` via its
-        // own bus subscription — nothing to do here for the
-        // history fan-out. Failed-step logging stays here so
-        // a support trace pins which connect attempt's Dart
-        // listener saw the failure.
-        if (step.status == rust_bus.BusStepStatus.failed) {
-          AppLogger.instance.log(
-            'Connect step failed: ${mapBusPhase(step.phase).name} '
-            '— ${step.detail ?? "no detail"}',
-            name: 'Connection',
-            level: LogLevel.warn,
-          );
-        }
-      case rust_bus.BusEvent_ConnectionError(:final detail):
-        AppLogger.instance.log(
-          'Connection actor error: $detail',
-          name: 'Connection',
-          level: LogLevel.warn,
-        );
-        conn.connectionError = detail;
-      case rust_bus.BusEvent_ConnectionRemoved():
-        // Actor torn down — leave Connection in its current
-        // state; the Notifier's own `disconnect(id)` already
-        // removed the Dart-side row.
-        break;
-      case _:
-        break;
-    }
-    _notify();
   }
 
   /// Translate the legacy [SshAuth] config bag into the typed

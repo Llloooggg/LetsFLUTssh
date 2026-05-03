@@ -145,15 +145,32 @@ class Connection {
     try {
       _busSub = AppBus.instance.subscribeConnection(id).listen((event) {
         if (event is rust_bus.BusEvent_ConnectionProgress) {
+          final phase = mapBusPhase(event.step.phase);
+          final status = mapBusStatus(event.step.status);
           addProgressStep(
             ConnectionStep(
-              phase: mapBusPhase(event.step.phase),
-              status: mapBusStatus(event.step.status),
+              phase: phase,
+              status: status,
               detail: event.step.detail,
             ),
           );
+          if (status == StepStatus.failed) {
+            AppLogger.instance.log(
+              'Connect step failed: ${phase.name} '
+              '— ${event.step.detail ?? "no detail"}',
+              name: 'Connection',
+              level: LogLevel.warn,
+            );
+          }
         } else if (event is rust_bus.BusEvent_ConnectionStateChanged) {
           _onBusStateChanged(event.state);
+        } else if (event is rust_bus.BusEvent_ConnectionError) {
+          connectionError = event.detail;
+          AppLogger.instance.log(
+            'Connection actor error: ${event.detail}',
+            name: 'Connection',
+            level: LogLevel.warn,
+          );
         }
       });
     } catch (e) {
@@ -172,13 +189,16 @@ class Connection {
   /// publishes a `ConnectionStateChanged` event for every
   /// transition; this listener owns the Dart-side `state` field
   /// + the per-state side effects (transport adoption,
-  /// transient-secret eviction). The manager's per-attempt sub
-  /// also subscribes for the connect-attempt envelope (logging,
-  /// error capture), but state ownership lives here so a
-  /// per-attempt sub being cancelled in `_doConnect.finally`
-  /// does not race the final `Connected` / `Disconnected` event
-  /// — Connection's `_busSub` lives for the Connection's full
-  /// lifetime and catches every transition reliably.
+  /// transient-secret eviction, connect-attempt success/failure
+  /// logging).
+  ///
+  /// The manager (`ConnectionsNotifier`) used to mirror these
+  /// events through a per-attempt subscription it cancelled in
+  /// `_doConnect.finally`, but the cancel raced in-flight events
+  /// from the FRB worker thread and produced "Fail to post
+  /// message to Dart" stderr noise on every connect. Every duty
+  /// the per-attempt sub had now lives here, where the
+  /// subscription's lifetime matches the Connection's.
   ///
   /// `Connecting` → mirror state on the Dart object.
   ///
@@ -187,20 +207,40 @@ class Connection {
   /// hook, drop any per-attempt transient secrets the connect
   /// path staged.
   ///
-  /// `Disconnected` → flip state, clear the adopted transport +
-  /// drop staged transient secrets so the next reconnect starts
-  /// clean.
+  /// `Disconnected` → flip state, clear the adopted transport,
+  /// log "Connection failed" only if the prior state was
+  /// `connecting` (a clean teardown after `connected` is logged
+  /// by [`ConnectionsNotifier.disconnect`] itself), drop staged
+  /// transient secrets so the next reconnect starts clean.
   void _onBusStateChanged(rust_bus.BusConnectionState state) {
     switch (state) {
       case rust_bus.BusConnectionState.connecting:
         this.state = SSHConnectionState.connecting;
       case rust_bus.BusConnectionState.connected:
         this.state = SSHConnectionState.connected;
+        AppLogger.instance.log(
+          'Connected: <label> (id=$id)',
+          name: 'Connection',
+        );
         unawaited(_adoptSession());
         _evictTransientSecrets();
       case rust_bus.BusConnectionState.disconnected:
+        // Distinguish "connect attempt failed" (was connecting → now
+        // disconnected) from "live session torn down" (was connected
+        // → now disconnected). Only the former is a failure worth a
+        // warn-level log line; teardown is logged at info level by
+        // ConnectionsNotifier.disconnect itself.
+        final wasConnecting = this.state == SSHConnectionState.connecting;
         this.state = SSHConnectionState.disconnected;
         transport = null;
+        if (wasConnecting) {
+          AppLogger.instance.log(
+            'Connection failed: ${connectionError ?? "no error detail"}',
+            name: 'Connection',
+            level: LogLevel.warn,
+            error: connectionError,
+          );
+        }
         // Wake any waiter on `transportReady` so the connect-flow
         // consumer doesn't deadlock when the actor moves straight
         // to Disconnected without an Adopt step.
