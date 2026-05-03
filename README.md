@@ -46,7 +46,7 @@ Open-source alternative to Xshell and Termius — runs on Windows, Linux, macOS,
 | **Android** | 9.0+ (API 28) | primary test platform |
 | **Linux** | x64, GTK 3 | occasionally tested |
 | **macOS** | 10.15+ (Intel + Apple Silicon) | occasionally tested |
-| **iOS** | 13.0+ | not built |
+| **iOS** | 13.0+ | **unsigned `.ipa` shipped** — re-sign locally to install (no Apple Developer Program account on the project side) |
 
 ¹ Windows 10 RTM launches, but the optional biometric-unlock path (Windows Hello via `Windows.Security.Credentials.UI.UserConsentVerifier`, called directly from Rust through the `windows` crate) needs Windows 10 version **1809 (build 17763)** or newer because it calls into WinRT Hello APIs introduced in that release.
 
@@ -139,6 +139,22 @@ If you do not want T1 unlock, the **Paranoid** tier (master password, Argon2id-d
 Available format: **APK**, shipped as three per-ABI variants named `letsflutssh-<version>-android-arm64.apk` (64-bit ARM — pick this for any modern device), `-android-arm.apk` (32-bit ARM), and `-android-x64.apk` (emulator / x86_64 tablets).
 
 In Android Settings, enable **Install unknown apps** for the file manager or browser you'll use to open the APK. Tap the `.apk` file and confirm. No Google Play Services required, no MLKit, no GPS dependency.
+
+### iOS
+
+Available format: **unsigned `.ipa`** — `letsflutssh-<version>-ios-unsigned.ipa`. The project does not have an Apple Developer Program account, so the `.ipa` ships without a code-signing identity and **cannot be installed as-is**. Two paths to install on a device:
+
+- **Free Apple ID + Xcode (personal use, 7-day cert).** Drop the `.app` bundle from inside the `.ipa` (`unzip ...ipa` → `Payload/Runner.app`) into Xcode → *Window → Devices and Simulators*. Xcode signs with your free personal team certificate and pushes to the connected device. The signature expires after 7 days; re-sign + reinstall to renew.
+- **Paid Apple Developer Program ($99/yr).** Sign the `.app` bundle with your developer cert, repack as `.ipa`, and install via Xcode, TestFlight, or any standard MDM channel. Sketch:
+  ```bash
+  unzip letsflutssh-<version>-ios-unsigned.ipa
+  codesign -f -s "Apple Development: <your name>" \
+           --entitlements <your-entitlements.plist> \
+           Payload/Runner.app
+  zip -r resigned.ipa Payload/
+  ```
+
+The CI artifact compiles against iOS 13.0+ (matches the platform table above).
 
 ### User Data & Uninstalling
 

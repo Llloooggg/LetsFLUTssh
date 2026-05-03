@@ -96,11 +96,18 @@ aes-gcm = { version = "0.10", default-features = false, features = ["aes", "allo
 # schema migration.
 argon2 = "0.5"
 # SQLite + SQLCipher for Phase 4.2 — drift replacement.
-# `bundled-sqlcipher` statically links SQLCipher 4.x so the encrypted
-# sqlite database the drift+sqlite3_flutter_libs side wrote stays
-# readable across the migration. Same PRAGMA key wire format.
+# `bundled-sqlcipher-vendored-openssl` statically links both SQLCipher
+# 4.x AND the OpenSSL it depends on (via `openssl-src`), so cross-
+# compile targets that lack a system OpenSSL (Android NDK, MSVC
+# Windows, iOS device + sim, ARM64 Linux runners) link cleanly without
+# per-platform openssl provisioning. The plain `bundled-sqlcipher`
+# variant only bundles SQLCipher and expects `-lcrypto` to be findable
+# on the linker path — fine for the Linux x64 + macOS runners that
+# ship OpenSSL out of the box, broken everywhere else. Same PRAGMA key
+# wire format on both variants; flipping the feature is transparent
+# to the encrypted-DB on disk.
 rusqlite = { version = "0.31", default-features = false, features = [
-    "bundled-sqlcipher",
+    "bundled-sqlcipher-vendored-openssl",
 ] }
 # No async wrapper — DB calls run on `tokio::task::spawn_blocking`
 # inside FRB adapter functions, which keeps the FRB tokio worker

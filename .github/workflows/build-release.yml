@@ -107,6 +107,13 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
+          # Pin so all seven matrix jobs build against the same SDK
+          # — and so the resolver finds an explicit version's ARM64
+          # archive (the implicit `version: any` failed to match
+          # anything for `architecture: arm64` on the
+          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
+          # how Linux ARM64 + Windows ARM64 were silently broken).
+          flutter-version: 3.41.9
           cache: true
 
       - name: Install Linux build dependencies
@@ -254,6 +261,13 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
+          # Pin so all seven matrix jobs build against the same SDK
+          # — and so the resolver finds an explicit version's ARM64
+          # archive (the implicit `version: any` failed to match
+          # anything for `architecture: arm64` on the
+          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
+          # how Linux ARM64 + Windows ARM64 were silently broken).
+          flutter-version: 3.41.9
           cache: true
 
       - name: Install Linux build dependencies
@@ -379,6 +393,13 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
+          # Pin so all seven matrix jobs build against the same SDK
+          # — and so the resolver finds an explicit version's ARM64
+          # archive (the implicit `version: any` failed to match
+          # anything for `architecture: arm64` on the
+          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
+          # how Linux ARM64 + Windows ARM64 were silently broken).
+          flutter-version: 3.41.9
           cache: true
 
       - name: Install Rust toolchain
@@ -484,6 +505,13 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
+          # Pin so all seven matrix jobs build against the same SDK
+          # — and so the resolver finds an explicit version's ARM64
+          # archive (the implicit `version: any` failed to match
+          # anything for `architecture: arm64` on the
+          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
+          # how Linux ARM64 + Windows ARM64 were silently broken).
+          flutter-version: 3.41.9
           cache: true
 
       - name: Install Rust toolchain
@@ -576,6 +604,13 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
+          # Pin so all seven matrix jobs build against the same SDK
+          # — and so the resolver finds an explicit version's ARM64
+          # archive (the implicit `version: any` failed to match
+          # anything for `architecture: arm64` on the
+          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
+          # how Linux ARM64 + Windows ARM64 were silently broken).
+          flutter-version: 3.41.9
           cache: true
 
       - name: Install Rust toolchain + universal targets
@@ -680,18 +715,20 @@ jobs:
             letsflutssh-${{ needs.preflight.outputs.version }}-macos-universal.dmg
 
   build-ios-unsigned:
-    # Compile-validation only — no Apple Developer ID, so no
-    # signed `.ipa` is shippable from CI. The point of this job is
-    # to surface iOS-cfg breakage at release-tag time on the same
-    # SHA the macOS path is also built from, so a regression that
-    # only manifests on `cfg(target_os = "ios")` (e.g. a divergence
-    # between the macOS and iOS Apple-stack code paths in
-    # `lfs_os_security`) is caught here rather than waiting for an
-    # external user to discover it. The `rust-cross-check` matrix
-    # in ci.yml already covers `aarch64-apple-ios` for `cargo
-    # check` on every PR; this job extends the validation to a
-    # full Flutter iOS bundle build that exercises cargokit's
-    # iOS xcframework path end-to-end.
+    # Unsigned `.ipa` build — the `.ipa` is published as a release
+    # artifact so a user with their own Apple Developer ID (or even
+    # a free Apple ID + Xcode for personal-use 7-day signing) can
+    # re-sign it locally and install on a device without rebuilding
+    # the whole project from source. The job also doubles as
+    # iOS-cfg compile validation: a regression that only manifests
+    # on `cfg(target_os = "ios")` (e.g. a divergence between the
+    # macOS and iOS Apple-stack code paths in `lfs_os_security`) is
+    # caught here rather than waiting for an external user to
+    # discover it. The `rust-cross-check` matrix in ci.yml already
+    # covers `aarch64-apple-ios` for `cargo check` on every PR;
+    # this job extends the validation to a full Flutter iOS bundle
+    # build that exercises cargokit's iOS xcframework path
+    # end-to-end and produces a downloadable artifact.
     needs: preflight
     runs-on: macos-latest
     permissions:
@@ -704,6 +741,13 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
+          # Pin so all seven matrix jobs build against the same SDK
+          # — and so the resolver finds an explicit version's ARM64
+          # archive (the implicit `version: any` failed to match
+          # anything for `architecture: arm64` on the
+          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
+          # how Linux ARM64 + Windows ARM64 were silently broken).
+          flutter-version: 3.41.9
           cache: true
 
       - name: Install Rust toolchain + iOS targets
@@ -724,11 +768,34 @@ jobs:
         # `--no-codesign` skips the provisioning-profile / signing
         # identity requirement so the build runs without an Apple
         # Developer Program account. Output is an unsigned `.app`
-        # bundle inside `build/ios/iphoneos/` that cannot be
-        # installed on a device but is sufficient to prove the
-        # iOS toolchain + Apple-cfg Rust + Swift plugins all
-        # compile and link cleanly.
+        # bundle inside `build/ios/iphoneos/` that the next step
+        # repacks into a `.ipa` shape.
         run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned .ipa
+        # Wrap the `.app` bundle in the `Payload/` directory layout
+        # iOS expects from a `.ipa`, then zip. The output cannot be
+        # installed as-is — iOS rejects unsigned binaries. End users
+        # re-sign locally:
+        #   unzip letsflutssh-X.Y.Z-ios-unsigned.ipa
+        #   codesign -f -s "<Apple ID Developer cert>" \
+        #            --entitlements <entitlements.plist> \
+        #            Payload/Runner.app
+        #   zip -r resigned.ipa Payload/
+        # Free Apple ID users can equivalently drop the `.app` into
+        # Xcode (Window → Devices & Simulators) which signs + installs
+        # with a 7-day personal-team certificate.
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/Runner.app
+          zip -r ${{ github.workspace }}/letsflutssh-${{ needs.preflight.outputs.version }}-ios-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ios-unsigned
+          retention-days: 7
+          path: letsflutssh-${{ needs.preflight.outputs.version }}-ios-unsigned.ipa
 
   build-android:
     needs: preflight
@@ -748,6 +815,13 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
+          # Pin so all seven matrix jobs build against the same SDK
+          # — and so the resolver finds an explicit version's ARM64
+          # archive (the implicit `version: any` failed to match
+          # anything for `architecture: arm64` on the
+          # `ubuntu-24.04-arm` + `windows-11-arm` runners, which is
+          # how Linux ARM64 + Windows ARM64 were silently broken).
+          flutter-version: 3.41.9
           cache: true
 
       - name: Install Rust toolchain + Android targets + cargo-ndk
@@ -906,7 +980,8 @@ jobs:
           : > "$MANIFEST"
           for d in artifacts/linux-x64 artifacts/linux-arm64 \
                    artifacts/windows-x64 artifacts/windows-arm64 \
-                   artifacts/macos-universal artifacts/android-apk; do
+                   artifacts/macos-universal artifacts/android-apk \
+                   artifacts/ios-unsigned; do
             [ -d "$d" ] || continue
             (cd "$d" && find . -maxdepth 1 -type f \
               ! -name '*.sig' ! -name '*.intoto.jsonl' \
@@ -947,6 +1022,7 @@ jobs:
             artifacts/macos-universal/*.tar.gz
             artifacts/macos-universal/*.dmg
             artifacts/android-apk/*.apk
+            artifacts/ios-unsigned/*.ipa
 
       - name: Install cosign
         # Sigstore client. Pinned to v4.1.1 (released 2026-03-26),
@@ -1020,7 +1096,8 @@ jobs:
           anchor=""
           for f in artifacts/linux-x64/* artifacts/linux-arm64/* \
                    artifacts/windows-x64/* artifacts/windows-arm64/* \
-                   artifacts/macos-universal/* artifacts/android-apk/*; do
+                   artifacts/macos-universal/* artifacts/android-apk/* \
+                   artifacts/ios-unsigned/*; do
             [ -f "$f" ] || continue
             case "$f" in
               *.sig|*.intoto.jsonl|*.sha256sums*) continue ;;
@@ -1177,6 +1254,7 @@ jobs:
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm64.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-arm.apk
             artifacts/android-apk/letsflutssh-${{ needs.preflight.outputs.version }}-android-x64.apk
+            artifacts/ios-unsigned/letsflutssh-${{ needs.preflight.outputs.version }}-ios-unsigned.ipa
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums.sig
             artifacts/letsflutssh-${{ needs.preflight.outputs.version }}.sha256sums.cosign-bundle
