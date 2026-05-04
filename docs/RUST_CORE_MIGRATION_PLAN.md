@@ -211,7 +211,7 @@ frontend crate. Verified by CI.
 | Persisted rate-limit (HMAC-authenticated frame) | DONE | `lfs_core::security::persisted_rate_limit` |
 | `app_config` schema mirror | DONE | `lfs_core::config` |
 | Config store actor (debounce + atomic write + bus events) | DONE | `lfs_core::config_store` |
-| Tail-end Dart retire — Phase 6 Tier 1 (host_info, session_tree, single_instance) | DONE | `lfs_core::host_info`, `lfs_core::session_tree`, `lfs_os_security::single_instance` |
+| Tail-end Dart retire — Phase 6 Tier 1 (host_info, session_tree) | DONE | `lfs_core::host_info`, `lfs_core::session_tree`. **`single_instance` reverted to pure Dart** — see [§ Reverted: single_instance](#reverted--single_instance-back-to-dart) below |
 | Tail-end Dart retire — Phase 6 Tier 2 (clipboard, session_lock, backup_excl, fprintd, LocalFS, ssh_config Include, SFTP recursive) | DONE | `lfs_os_security::*`, `lfs_core::fs::local`, `lfs_core::ssh_config`, `lfs_core::sftp::recursive_walk` |
 | Tail-end Dart retire — Phase 6 Tier 3 desktop + Apple (secure key storage, biometric vault, biometric auth, wipe service) | DONE | `lfs_os_security::secure_key_storage`, `lfs_os_security::biometric_auth`, `lfs_core::security::wipe`, `lfs_core::wipe_keychain` |
 | **Tail-end Dart retire — Phase 6 Tier 3 Android JNI** | **DONE — runtime-verification pending** | direct JNI to `java.security.KeyStore` / `androidx.biometric.BiometricPrompt` landed in `lfs_os_security::android`; method-ID resolution + StrongBox availability + prompt UX gated on real-device pass — see [Tier 3 Android JNI bridge ledger](#tier-3--android-jni-bridge-ledger-planned-approach) |
@@ -437,7 +437,7 @@ plain data — the Rust crate is shorter than the Dart wrapper.
 | ~~`utils/platform.dart`~~ | ~~44~~ | ~~`Platform.environment['HOME' \| 'USERPROFILE' \| 'EXTERNAL_STORAGE']`~~ | done — `lfs_core::host_info` (`home_directory()` + cfg-gated `is_mobile/is_desktop/is_macos`); Dart wrapper caches first FRB read, falls back to `dart:io Platform.isXyz` for the booleans only when FRB is not bootstrapped (mathematically identical answer — same compile-time constants tied to the same binary target — so the fallback exists for widget-test ergonomics, not as a correctness divergence) |
 | ~~`core/session/session_tree.dart`~~ | ~~128~~ | ~~folder-tree builder (pure data)~~ | done — `lfs_core::session_tree` (forest builder + sort + recursive count); Dart class is now a thin FRB wrapper that re-binds the live `Session` handle to leaf nodes by id |
 | ~~`core/session/session_history.dart`~~ | ~~58~~ | ~~undo/redo snapshot stack (pure data)~~ | done — `lfs_core::session_history` (per-handle bounded LIFO actor); Dart class wraps the actor handle and serialises `SessionSnapshot` ↔ JSON bytes |
-| `core/single_instance/single_instance.dart` | 85 | flock-based single-instance gate | `fd-lock` |
+| ~~`core/single_instance/single_instance.dart`~~ | ~~85~~ | ~~flock-based single-instance gate~~ | **Reverted** — see [§ Reverted: single_instance](#reverted--single_instance-back-to-dart). The Rust crate forced the lock check to wait on `RustLib.init()`, which conflicted with painting the splash before the ~3 s native blob load on Windows IoT. Pure Dart `RandomAccessFile.lock` calls the same `fcntl` / `LockFileEx` syscalls without an FFI dependency. |
 
 Acceptance criteria:
 
@@ -1112,14 +1112,56 @@ one, ship it, then pick the next.
    shims; the Dart wrapper caches each result on first read.
 5. ~~`core/session/session_tree.dart` + `session_history.dart` +
    `core/single_instance/single_instance.dart` → Rust pure-data
-   modules + `fd-lock` for the file lock.~~ Done — `session_history`
+   modules + `fd-lock` for the file lock.~~ Partly done — `session_history`
    landed as `lfs_core::session_history` (per-handle actor),
    `session_tree` landed as `lfs_core::session_tree` (immutable
-   forest builder); `single_instance` rewritten on `libc::flock`
-   (POSIX) / `LockFileEx` (Windows) inside `lfs_os_security`
-   (the `fd-lock` plan was rejected — its `fcntl(F_SETLK)` lock
-   namespace doesn't see Dart's `RandomAccessFile.lock`/`flock()`
-   on Linux, so cross-process contention silently passed).
+   forest builder); `single_instance` was rewritten on `libc::flock`
+   (POSIX) / `LockFileEx` (Windows) inside `lfs_os_security` and
+   then **reverted** to pure Dart — see [§ Reverted: single_instance](#reverted--single_instance-back-to-dart) below.
+
+### Reverted — single_instance back to Dart
+
+`core/single_instance/single_instance.dart` was migrated to
+`lfs_os_security::single_instance` (Phase 6 Tier 1) and reverted
+on 2026-05-04. Reason: the FRB-bound `acquire` call cannot run
+before `RustLib.init()` completes, but the boot ordering paints
+the startup splash *before* the ~3 s native blob load (Windows
+IoT, Defender real-time scan). Single-instance must be the very
+first synchronous step in `_mainBody` — putting it after
+`RustLib.init` brings back the blank-window symptom that the
+splash-first reorder was meant to fix; putting it before throws
+"RustLib not initialised" and `acquire`'s catch interprets that
+as contention, sending every solo cold-start to
+`AlreadyRunningApp`.
+
+Pure Dart `RandomAccessFile.lock(FileLock.exclusive)` calls the
+same `fcntl(F_SETLK, F_WRLCK)` (Linux/macOS) and
+`LockFileEx(LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY)`
+(Windows) syscalls the Rust crate did, with no FFI dependency.
+Three Pillars trade-off:
+
+- **Ideal code** — net positive. The Rust crate added no
+  invariant the kernel didn't already enforce; deleting it
+  removes 240 LOC + an FFI hop.
+- **Security** — neutral. Same advisory-lock semantics; OS
+  releases on process exit either way. Single-instance is a
+  UX gate, not a security boundary (the original Rust module
+  doc-commented this).
+- **Optimality** — net positive. Lock check is sub-ms in either
+  language; removing the FFI dependency lets the splash paint
+  ~3 s earlier on cold Windows IoT starts.
+
+Caveats documented in the source: POSIX `fcntl(F_SETLK)` is
+per-process, so same-process double-acquire silently succeeds
+(harmless — single-instance only cares about cross-process
+contention) and closing any fd to the locked file in this
+process releases the kernel-side lock (mitigated by routing all
+`app.lock` access through `SingleInstance`).
+
+The previous rejection of `fd-lock` (POSIX `fcntl` namespace
+mismatch with Dart's `RandomAccessFile.lock`) is moot here
+because we no longer have two languages racing for the same
+lock — Dart owns it end-to-end.
 
 ### Parallel — test debt sweep (any time)
 

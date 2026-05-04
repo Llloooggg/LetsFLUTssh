@@ -113,7 +113,7 @@ flowchart TD
 
     subgraph Rust["<b>Rust</b> (rust/crates/)"]
         core2["<b>lfs_core</b><br/>SSH+SFTP (russh)<br/>Cryptography (RustCrypto family)<br/>SecretStore (sole plaintext owner)<br/>DB (rusqlite + SQLCipher)<br/>State machines (tier / auto-lock / orchestrators)<br/>Persisted state (sessions, config, known_hosts, …)<br/>Update orchestrator + .lfs/QR codec<br/>OpenSSH config parser, log sanitizer"]
-        ossec2["<b>lfs_os_security</b><br/>OS-API calls for all 5 platforms:<br/>keystore / biometric / hardware vault /<br/>session lock listener / clipboard /<br/>backup exclusion / single-instance<br/>Process hardening + anti-debug<br/>macOS code-signing pipeline"]
+        ossec2["<b>lfs_os_security</b><br/>OS-API calls for all 5 platforms:<br/>keystore / biometric / hardware vault /<br/>session lock listener / clipboard /<br/>backup exclusion<br/>Process hardening + anti-debug<br/>macOS code-signing pipeline"]
         frb2["<b>lfs_frb</b><br/>Type-safe Dart↔Rust bridge<br/>(no business logic — adapter only)"]
     end
 
@@ -4555,7 +4555,7 @@ Additionally, internal resizable elements (sidebar, file browser columns, split 
 
 Prevents multiple app instances from running simultaneously, which would corrupt the shared database.
 
-**Mechanism:** exclusive file lock via `RandomAccessFile.lock(FileLock.exclusive)` on `app.lock` in the app data directory (`getApplicationSupportDirectory()`). The OS kernel automatically releases the lock when the process exits (even on crash), so there are no stale lock files.
+**Mechanism:** exclusive advisory file lock via `RandomAccessFile.lock(FileLock.exclusive)` on `app.lock` in `getApplicationSupportDirectory()`. Resolves to `fcntl(F_SETLK, F_WRLCK)` on Linux/macOS and `LockFileEx(LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY)` on Windows. The kernel releases the lock automatically on process exit (even on crash), so stale lock files never accumulate.
 
 **Flow:**
 1. `main()` → `SingleInstance.acquire()` before `runApp()`
@@ -4563,6 +4563,10 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 3. If lock fails → show `_AlreadyRunningApp` (minimal dialog: "Another instance is already running" + OK button → `exit(0)`)
 
 **Mobile:** skipped — Android/iOS manage single instance natively.
+
+**Why pure Dart, not Rust** ([§3.14](#314-rust-securitytransport-core-rust)): a previous iteration routed acquisition through `lfs_os_security::single_instance`, which made the FRB call depend on `RustLib.init()` having completed. On Windows IoT the native blob load takes ~3 s (Defender real-time scan), and the boot sequence paints the startup splash *before* that load — `_mainBody` runs only the splash-prerequisites synchronously (single-instance, config preload, logger init), then `runApp(LetsFLUTsshApp)` paints the first frame, and `_LetsFLUTsshAppState._bootstrap` runs the heavy chain (`RustLib.init` → `appInit` → `ProcessHardening` → migrations → security bootstrap) post-frame. Putting the FRB-bound lock check ahead of `RustLib.init` threw "RustLib not initialised", `acquire`'s catch reported the throw as contention, and every solo cold-start landed on `AlreadyRunningApp`. `dart:io` calls the same `fcntl` / `LockFileEx` syscalls without an FFI dependency, so the check runs at the very top of `_mainBody` and the splash-first ordering survives. The `lfs_os_security::single_instance` module was deleted alongside this revert.
+
+**`fcntl(F_SETLK)` footgun:** locks are per-process, not per-fd — two `RandomAccessFile.lock` calls in the same process to `app.lock` do *not* contend. Cross-process semantics (the case that matters for single-instance UX) work correctly. The other edge: closing any fd in this process pointing to the locked file releases the lock kernel-side. Nothing else in the app re-opens `app.lock`; if a future feature needs to read it, route the access through `SingleInstance` rather than `File(path).open(...)` directly.
 
 **File:** `core/single_instance/single_instance.dart`
 

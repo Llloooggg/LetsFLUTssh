@@ -1,10 +1,19 @@
-//! Process-hardening + memory-lock + single-instance helpers.
+//! Process-hardening + memory-lock helpers.
 //!
 //! Per-OS FFI lives here (not in `lfs_core`) so the core stays
 //! `unsafe_code = "forbid"`. This crate's public surface is a
 //! small set of safe-to-call functions — `apply_startup_hardening`,
-//! `lock_memory`, `unlock_memory`, plus the `single_instance`
-//! file-lock module. The unsafe blocks are auditable in one place.
+//! `lock_memory`, `unlock_memory`. The unsafe blocks are auditable
+//! in one place.
+//!
+//! The single-instance file lock used to live here as a sibling
+//! module; it now lives in `lib/core/single_instance/` as pure
+//! Dart on top of `RandomAccessFile.lock`. The Rust route forced
+//! the lock check to wait on `RustLib.init()` (~3 s on Windows
+//! IoT), which conflicted with painting the splash before the
+//! native blob load. `dart:io` calls the same `flock` /
+//! `LockFileEx` syscalls the Rust module did, so going back to
+//! Dart costs nothing and removes the load-order dependency.
 //!
 //! ## Hardening goals
 //!
@@ -378,7 +387,6 @@ pub mod hardware_tier_vault;
 pub mod secure_clipboard;
 pub mod secure_key_storage;
 pub mod session_lock_listener;
-pub mod single_instance;
 // Cross-platform shape (`-1` outside Windows); real FFI behind
 // a target_os gate inside the module.
 pub mod winbio;
