@@ -113,7 +113,28 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          cache: true
+          # SDK caching DISABLED in the release matrix on purpose.
+          # Flutter SDK caches across the 5 platform jobs (Linux,
+          # macOS, Windows x64, Windows ARM64, Linux ARM64 — plus
+          # the corresponding `flutter-pub-*` siblings) sum to ~7 GB,
+          # which is the bulk of the repository's 10 GB cache budget.
+          # GitHub's LRU eviction kicks in whenever the total exceeds
+          # the limit, and Flutter SDK entries (1.5-2 GB) win every
+          # eviction race against the cargokit Rust caches (300-380
+          # MB): Flutter is read at the start of every job (marked
+          # recently-accessed), cargokit isn't touched again after
+          # its post-job save. Net result: cargokit lived ~1 CI run
+          # before eviction, the cold Rust rebuild cost ~10 minutes
+          # per Windows job, and `Cache not found for input keys:
+          # cargokit-Windows-X64-...` showed up in every restore log.
+          # Disabling Flutter SDK caching trades ~1 min per job
+          # (mirror download) for stable cargokit hits, freeing ~5
+          # GB of the budget so cargokit + rust-cache layers persist
+          # across runs. Net per CI run is roughly -10 min on
+          # Windows. ci.yml / reproducibility-check.yml /
+          # ci-sonarcloud.yml keep `cache: true` — they're single-
+          # platform Linux jobs that don't fight for the same budget.
+          cache: false
 
       - name: Install Linux build dependencies
         # `libtss2-dev` is required by `tss-esapi` (Rust bindings to
@@ -409,7 +430,28 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          cache: true
+          # SDK caching DISABLED in the release matrix on purpose.
+          # Flutter SDK caches across the 5 platform jobs (Linux,
+          # macOS, Windows x64, Windows ARM64, Linux ARM64 — plus
+          # the corresponding `flutter-pub-*` siblings) sum to ~7 GB,
+          # which is the bulk of the repository's 10 GB cache budget.
+          # GitHub's LRU eviction kicks in whenever the total exceeds
+          # the limit, and Flutter SDK entries (1.5-2 GB) win every
+          # eviction race against the cargokit Rust caches (300-380
+          # MB): Flutter is read at the start of every job (marked
+          # recently-accessed), cargokit isn't touched again after
+          # its post-job save. Net result: cargokit lived ~1 CI run
+          # before eviction, the cold Rust rebuild cost ~10 minutes
+          # per Windows job, and `Cache not found for input keys:
+          # cargokit-Windows-X64-...` showed up in every restore log.
+          # Disabling Flutter SDK caching trades ~1 min per job
+          # (mirror download) for stable cargokit hits, freeing ~5
+          # GB of the budget so cargokit + rust-cache layers persist
+          # across runs. Net per CI run is roughly -10 min on
+          # Windows. ci.yml / reproducibility-check.yml /
+          # ci-sonarcloud.yml keep `cache: true` — they're single-
+          # platform Linux jobs that don't fight for the same budget.
+          cache: false
 
       - uses: ./.github/actions/setup-rust
 
@@ -673,7 +715,28 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          cache: true
+          # SDK caching DISABLED in the release matrix on purpose.
+          # Flutter SDK caches across the 5 platform jobs (Linux,
+          # macOS, Windows x64, Windows ARM64, Linux ARM64 — plus
+          # the corresponding `flutter-pub-*` siblings) sum to ~7 GB,
+          # which is the bulk of the repository's 10 GB cache budget.
+          # GitHub's LRU eviction kicks in whenever the total exceeds
+          # the limit, and Flutter SDK entries (1.5-2 GB) win every
+          # eviction race against the cargokit Rust caches (300-380
+          # MB): Flutter is read at the start of every job (marked
+          # recently-accessed), cargokit isn't touched again after
+          # its post-job save. Net result: cargokit lived ~1 CI run
+          # before eviction, the cold Rust rebuild cost ~10 minutes
+          # per Windows job, and `Cache not found for input keys:
+          # cargokit-Windows-X64-...` showed up in every restore log.
+          # Disabling Flutter SDK caching trades ~1 min per job
+          # (mirror download) for stable cargokit hits, freeing ~5
+          # GB of the budget so cargokit + rust-cache layers persist
+          # across runs. Net per CI run is roughly -10 min on
+          # Windows. ci.yml / reproducibility-check.yml /
+          # ci-sonarcloud.yml keep `cache: true` — they're single-
+          # platform Linux jobs that don't fight for the same budget.
+          cache: false
 
       - uses: ./.github/actions/setup-rust
         # Universal binary — cargokit runs cargo twice (one per
@@ -804,7 +867,28 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          cache: true
+          # SDK caching DISABLED in the release matrix on purpose.
+          # Flutter SDK caches across the 5 platform jobs (Linux,
+          # macOS, Windows x64, Windows ARM64, Linux ARM64 — plus
+          # the corresponding `flutter-pub-*` siblings) sum to ~7 GB,
+          # which is the bulk of the repository's 10 GB cache budget.
+          # GitHub's LRU eviction kicks in whenever the total exceeds
+          # the limit, and Flutter SDK entries (1.5-2 GB) win every
+          # eviction race against the cargokit Rust caches (300-380
+          # MB): Flutter is read at the start of every job (marked
+          # recently-accessed), cargokit isn't touched again after
+          # its post-job save. Net result: cargokit lived ~1 CI run
+          # before eviction, the cold Rust rebuild cost ~10 minutes
+          # per Windows job, and `Cache not found for input keys:
+          # cargokit-Windows-X64-...` showed up in every restore log.
+          # Disabling Flutter SDK caching trades ~1 min per job
+          # (mirror download) for stable cargokit hits, freeing ~5
+          # GB of the budget so cargokit + rust-cache layers persist
+          # across runs. Net per CI run is roughly -10 min on
+          # Windows. ci.yml / reproducibility-check.yml /
+          # ci-sonarcloud.yml keep `cache: true` — they're single-
+          # platform Linux jobs that don't fight for the same budget.
+          cache: false
 
       - uses: ./.github/actions/setup-rust
         # `aarch64-apple-ios` for real devices, `*-ios-sim` +
@@ -911,7 +995,28 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          cache: true
+          # SDK caching DISABLED in the release matrix on purpose.
+          # Flutter SDK caches across the 5 platform jobs (Linux,
+          # macOS, Windows x64, Windows ARM64, Linux ARM64 — plus
+          # the corresponding `flutter-pub-*` siblings) sum to ~7 GB,
+          # which is the bulk of the repository's 10 GB cache budget.
+          # GitHub's LRU eviction kicks in whenever the total exceeds
+          # the limit, and Flutter SDK entries (1.5-2 GB) win every
+          # eviction race against the cargokit Rust caches (300-380
+          # MB): Flutter is read at the start of every job (marked
+          # recently-accessed), cargokit isn't touched again after
+          # its post-job save. Net result: cargokit lived ~1 CI run
+          # before eviction, the cold Rust rebuild cost ~10 minutes
+          # per Windows job, and `Cache not found for input keys:
+          # cargokit-Windows-X64-...` showed up in every restore log.
+          # Disabling Flutter SDK caching trades ~1 min per job
+          # (mirror download) for stable cargokit hits, freeing ~5
+          # GB of the budget so cargokit + rust-cache layers persist
+          # across runs. Net per CI run is roughly -10 min on
+          # Windows. ci.yml / reproducibility-check.yml /
+          # ci-sonarcloud.yml keep `cache: true` — they're single-
+          # platform Linux jobs that don't fight for the same budget.
+          cache: false
 
       - uses: ./.github/actions/setup-rust
         # Per-ABI cargo invocations through the cargokit gradle
