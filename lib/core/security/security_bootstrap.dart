@@ -112,25 +112,37 @@ class SecurityCapabilities {
     return jsonDecode(str) as Map<String, dynamic>;
   }
 
+  /// Pure Dart on purpose — `_mainBody` calls
+  /// `loadAppConfigFromDisk` before `RustLib.init`, so any FRB
+  /// route here would crash the cold-start path. The wire-format
+  /// shape (snake_case keys, enum values matching `KeyringProbeResult.name`)
+  /// is the canonical encoding `lfs_core::security::capabilities`
+  /// emits and Dart writes back through `SecurityCapabilities.toJson`,
+  /// so a manual decode produces the same result as the Rust round-trip.
+  /// Returns `null` for malformed input (unknown enum value, missing
+  /// required keys) — same contract as the previous Rust-routed
+  /// version.
   static SecurityCapabilities? fromJson(Map<String, dynamic>? json) {
     if (json == null) return null;
-    final decoded = rust_caps.securityCapabilitiesFromJson(
-      json: jsonEncode(json),
-    );
-    if (decoded == null) return null;
-    final probe = KeyringProbeResult.values
-        .where((v) => v.name == decoded.keychainProbeWireName)
-        .firstOrNull;
-    if (probe == null) return null;
-    return SecurityCapabilities(
-      keychainAvailable: decoded.keychainAvailable,
-      hardwareVaultAvailable: decoded.hardwareVaultAvailable,
-      biometricAvailable: decoded.biometricAvailable,
-      fprintdAvailable: decoded.fprintdAvailable,
-      isLinuxHost: decoded.isLinuxHost,
-      keychainProbe: probe,
-      hardwareProbeCode: decoded.hardwareProbeCode,
-    );
+    try {
+      final probeName = json['keychain_probe'] as String?;
+      final probe = KeyringProbeResult.values
+          .where((v) => v.name == probeName)
+          .firstOrNull;
+      if (probe == null) return null;
+      return SecurityCapabilities(
+        keychainAvailable: json['keychain_available'] as bool? ?? false,
+        hardwareVaultAvailable:
+            json['hardware_vault_available'] as bool? ?? false,
+        biometricAvailable: json['biometric_available'] as bool? ?? false,
+        fprintdAvailable: json['fprintd_available'] as bool? ?? false,
+        isLinuxHost: json['is_linux_host'] as bool? ?? false,
+        keychainProbe: probe,
+        hardwareProbeCode: json['hardware_probe_code'] as String? ?? 'unknown',
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

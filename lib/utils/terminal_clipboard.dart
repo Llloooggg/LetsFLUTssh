@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
 import '../core/security/secure_clipboard.dart';
-import '../src/rust/api/log_sanitize.dart' as rust_san;
+import 'sanitize.dart' show looksSensitive;
 
 /// Shared clipboard operations for terminal views (desktop + mobile).
 class TerminalClipboard {
@@ -93,11 +93,10 @@ class TerminalClipboard {
 
   /// Heuristic: looks-like-a-secret content gets a clipboard auto-wipe.
   /// Triggers on PEM-style markers and long base64 runs (the same
-  /// shapes `redactSecrets` strips from logs) via
-  /// `lfs_core::log_sanitize::looks_sensitive` so the redactor +
-  /// auto-wipe agree on what counts as "do not let this leak".
-  static bool _looksSensitive(String text) =>
-      rust_san.looksSensitive(text: text);
+  /// shapes `redactSecrets` strips from logs) via the pure-Dart
+  /// `looksSensitive` helper so the redactor + auto-wipe agree on
+  /// what counts as "do not let this leak".
+  static bool _looksSensitive(String text) => looksSensitive(text);
 
   /// Test-only accessor for the sensitivity heuristic.
   @visibleForTesting

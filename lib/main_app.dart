@@ -100,11 +100,38 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       );
     }
 
-    // Rust core was loaded synchronously inside `_mainBody` via
-    // `_initRustCoreOrFatal` so every pre-`runApp` FRB call (config
-    // sanitize, capability decode, store init) had FRB ready. By the
-    // time this post-frame callback runs, FRB is up and AppState is
-    // initialised — `_bootstrap` can dive straight into Riverpod work.
+    // Rust core load — DEFERRED past the first frame on purpose.
+    // `_mainBody` painted the splash overlay immediately (via
+    // `runApp(LetsFLUTsshApp)`), so the user already sees the
+    // spinner; the ~3 s Defender scan of the bundled `.so/.dll`
+    // on Windows IoT happens here, behind the splash, instead of
+    // in front of a blank desktop. Pre-`runApp` callers that need
+    // FRB (`AppConfig.fromJson` → Rust sanitize, `SecurityCapabilities
+    // .fromJson`) detect `!RustLib.instance.initialized` and use a
+    // pure-Dart fallback path; their result is canonically the same
+    // for healthy `config.json` content because the per-sub-config
+    // `fromJson` factories run their own `.sanitized()` clamps.
+    if (!await _initRustCoreOrFatal()) return;
+    mark('rust_core');
+
+    // FRB-dependent bus subscribers wire here — NOT in
+    // `MainScreen.initState`. The previous architecture wired
+    // them synchronously during the first runApp frame, when
+    // RustLib hadn't loaded yet, and every `AppBus._SharedTopic`
+    // ctor's `busSubscribe` call threw "RustLib not initialised"
+    // → caught silently → `_frbSub` stuck at null for the process
+    // lifetime → the unlock cascade's `await
+    // TierUnlockedListener.awaitNextUnlock()` hung indefinitely
+    // because no `Unlocked` event ever reached the Dart side.
+    _wireFrbDependentBootstrapListeners();
+    mark('bus_subscribers_attached');
+
+    // Opt the app-support directory out of iCloud/iTunes backup (iOS) and
+    // Time Machine (macOS) so secrets don't land in untrusted backups.
+    // Routes through `lfs_os_security::backup_exclusion` (FRB sync) so
+    // it has to land *after* `_initRustCoreOrFatal`. Idempotent, cheap,
+    // refreshes the flag if a system action stripped the xattr.
+    unawaited(BackupExclusion().applyOnStartup());
 
     await ref.read(appVersionProvider.notifier).load();
     mark('app_version_load');
@@ -132,6 +159,45 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       AppLogger.instance.log('Checking for updates on start', name: 'App');
       ref.read(updateProvider.notifier).check();
     }
+  }
+
+  /// Attach every `AppBus.subscribe`-using listener that runs for
+  /// the process lifetime. Called from [_bootstrap] right after
+  /// [_initRustCoreOrFatal] succeeds — every callsite below routes
+  /// through `AppBus.subscribe(topic)` whose underlying FRB stream
+  /// requires `RustLib.init` to have completed. Centralising the
+  /// wiring here (rather than scattering `.start()` calls across
+  /// `initState`s and provider constructors) makes the FRB-readiness
+  /// invariant trivially auditable: only post-`_initRustCoreOrFatal`
+  /// code can reach `AppBus.subscribe`.
+  void _wireFrbDependentBootstrapListeners() {
+    HostKeyPromptListener.start();
+    // Keychain reachability probe subscriber — drives the
+    // capabilities orchestrator's keychain-ping round-trip.
+    KeychainProbePromptListener.start();
+    // Hardware-vault probe subscriber — drives the orchestrator's
+    // MethodChannel round-trip on Apple / Android / Windows. Linux
+    // never fires this prompt.
+    HardwareVaultProbePromptListener.start();
+    // Hardware-vault unlock subscriber — drives the L3 tier
+    // orchestrator's `HardwareTierVault.read(pin)` call which fans
+    // out to tpm2-tools (Linux) or the platform method channel
+    // (Apple / Android / Windows).
+    HardwareVaultUnlockPromptListener.start();
+    // Hardware-vault seal subscriber — drives the L3 first-launch
+    // orchestrator's `HardwareTierVault.store(dbKey, pin)` call (the
+    // wrap-and-persist counterpart of the unlock prompt).
+    HardwareVaultSealPromptListener.start();
+    // Diagnostic observer for tier_machine transitions — logs every
+    // Locked / Unlocking / Unlocked / Wiping flip a support trace
+    // can read back. Non-functional until per-tier handlers wire
+    // production unlock through the actor.
+    TierStateObserver.start();
+    // Activate the bus → foreground-service bridge. The provider's
+    // body wires `ref.listen` against the active-count stream; the
+    // act of reading it once installs the listener for the process
+    // lifetime.
+    ref.read(foregroundActiveCountListenerProvider);
   }
 
   void _maybeShowCredentialsResetToast() {

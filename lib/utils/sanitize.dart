@@ -1,49 +1,108 @@
 // Utilities for sanitizing sensitive data before logging or surfacing in
 // user-facing error toasts.
 //
-// Routes through `lfs_core::log_sanitize` over the synchronous FRB
-// endpoints — the canonical PEM/base64 redactor and IP/user@host/path
-// scrubber live Rust-side.
+// Pure Dart on purpose. The redaction pipeline used to route through
+// `lfs_core::log_sanitize` over FRB, but the cold-start path needs
+// these helpers callable BEFORE `RustLib.init` completes — the global
+// runZonedGuarded / FlutterError / PlatformDispatcher error handlers
+// fire whenever code anywhere in the app throws, including the brief
+// window between `WidgetsFlutterBinding.ensureInitialized` and the
+// post-frame `_initRustCoreOrFatal`. A FRB-bound sanitiser would
+// crash-loop the zone handler in that window (every error → log →
+// sanitize → "FRB not initialised" → caught by zone → log again).
 //
-// **Pre-FRB-init safety.** `AppLogger.logCritical` (the crash-path
-// logger wired into the runZonedGuarded / FlutterError / PlatformDispatcher
-// error handlers) calls these functions on every error, and errors
-// can fire before `RustLib.init()` has completed — the Rust core
-// load is deferred past the first frame so the splash paints
-// immediately. If the sanitizer itself threw "FRB not initialised",
-// the zone handler would catch the throw, log it again, hit the same
-// throw, and loop forever (the symptom that prompted this guard:
-// every async error pre-init turned into infinite "Bad state: FRB
-// not initialised" spam). The wrappers below detect the unbootstrapped
-// state via `RustLib.initialized` and fall through to the unredacted
-// input. Trade-off: a handful of error lines that fire in the brief
-// window between `runApp` and `_initRustCore` may carry unredacted
-// PEM / IP / paths. That window contains only bootstrap-internal
-// errors (no SSH / SFTP work yet, no user secrets entered), and
-// trading silent log corruption for a crash loop is the right call.
+// dart:core RegExp covers every shape the Rust implementation
+// covered, byte-for-byte (the Rust crate was migrated FROM these
+// regexes). Match order mirrors the Rust pipeline:
+// IPv6 → IPv4 → user@host → as-user / user= / login= → host:port →
+// Windows path → Unix path. Each step rewrites the buffer the next
+// step scans, so e.g. host:port redaction operates after the IP
+// rewrites have already turned bare IPs into `<ip>`.
 
-import '../src/rust/api/log_sanitize.dart' as rust_san;
-import '../src/rust/frb_generated.dart' show RustLib;
+// PEM-style block — private key, encrypted private key, OpenSSH
+// proprietary format. Type-name class is non-newline so multi-word
+// types ("ENCRYPTED PRIVATE KEY", "OPENSSH PRIVATE KEY") still match.
+// `dotAll: true` makes `.` cross newlines (Rust's `(?s)`).
+final RegExp _pemRe = RegExp(
+  r'-----BEGIN[^\n]*?(PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY)[^\n]*?-----.*?-----END[^\n]*?(PRIVATE KEY|RSA PRIVATE KEY|EC PRIVATE KEY|OPENSSH PRIVATE KEY)[^\n]*?-----',
+  dotAll: true,
+);
 
-/// Strip PEM private keys and long base64 blobs. No-op fallback when
-/// the Rust core is not yet initialised — see the file-level comment.
+// 200+ char base64-alphabet runs catch the common drift / sqlite
+// leak where a failed INSERT dumps its bound parameters (a base64
+// blob) into the exception message.
+final RegExp _longB64Re = RegExp(r'[A-Za-z0-9+/=]{200,}');
+
+/// Strip PEM private keys and long base64 blobs.
 String redactSecrets(String input) {
-  if (!RustLib.instance.initialized) return input;
-  try {
-    return rust_san.redactSecrets(input: input);
-  } catch (_) {
-    return input;
-  }
+  return input
+      .replaceAll(_pemRe, '[REDACTED PRIVATE KEY]')
+      .replaceAll(_longB64Re, '[REDACTED BASE64]');
 }
 
-/// Remove sensitive data (IPv4 / IPv6 addresses, user@host, host:port,
-/// home-dir paths, …) from error messages. No-op fallback when the
-/// Rust core is not yet initialised — see the file-level comment.
-String sanitizeErrorMessage(String message) {
-  if (!RustLib.instance.initialized) return message;
-  try {
-    return rust_san.sanitizeErrorMessage(input: message);
-  } catch (_) {
-    return message;
+/// True when [text] looks like it carries secret material — a PEM
+/// private-key block or a long base64 run (≥ 200 chars). Used by
+/// the terminal clipboard auto-wipe + log redactor to agree on
+/// what counts as "do not let this leak". Fast path — single
+/// substring scan + one regex match per call.
+bool looksSensitive(String text) {
+  if (text.contains('-----BEGIN') && text.contains('PRIVATE KEY')) {
+    return true;
   }
+  return _longB64Re.hasMatch(text);
+}
+
+// IPv6 literals — full + every compression shape, including
+// link-local / loopback / unspecified. Optionally bracketed so
+// the trailing host:port rule can redact the port cleanly.
+// Branches ordered most-specific-first because Dart's `RegExp`
+// (like Rust's `regex`) picks the first match, not the longest.
+final RegExp _ipv6Re = RegExp(
+  r'\[?(?:'
+  // Full 8-group: 1:2:3:4:5:6:7:8
+  r'(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}'
+  // 1 leading group, 1..6 trailing groups after ::
+  r'|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}'
+  r'|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}'
+  r'|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}'
+  r'|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}'
+  r'|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}'
+  // 1..6 leading + exactly 1 trailing — `2001:db8::1`
+  r'|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}'
+  // Pure leading-then-:: (`1::`, `1:2::`)
+  r'|(?:[0-9A-Fa-f]{1,4}:){1,7}:'
+  // Pure trailing-after-:: (`::8`, `::1:2`)
+  r'|:(?::[0-9A-Fa-f]{1,4}){1,7}'
+  r'|::'
+  r')\]?',
+);
+
+final RegExp _ipv4Re = RegExp(r'\b(?:\d{1,3}\.){3}\d{1,3}\b');
+
+final RegExp _userAtHostRe = RegExp(
+  r'([a-zA-Z0-9_.\-]+)@([a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)',
+);
+
+final RegExp _asUserRe = RegExp(r'\bas\s+([a-zA-Z0-9_.\-]+)');
+
+final RegExp _userEqRe = RegExp(r'\b(user|login)=([a-zA-Z0-9_.\-]+)');
+
+final RegExp _hostPortRe = RegExp(r'(<ip>|[a-zA-Z0-9_.\-]+):(\d{2,5})\b');
+
+final RegExp _windowsPathRe = RegExp(r'[A-Z]:\\Users\\[^\\\r\n]+');
+
+final RegExp _unixPathRe = RegExp(r'/(?:Users|home)/[^/\s]+');
+
+/// Remove sensitive data from error messages before logging or
+/// surfacing in toasts. See file-level comment for the pipeline.
+String sanitizeErrorMessage(String message) {
+  return message
+      .replaceAll(_ipv6Re, '<ip>')
+      .replaceAll(_ipv4Re, '<ip>')
+      .replaceAllMapped(_userAtHostRe, (m) => '<user>@${m.group(2)}')
+      .replaceAll(_asUserRe, 'as <user>')
+      .replaceAllMapped(_userEqRe, (m) => '${m.group(1)}=<user>')
+      .replaceAllMapped(_hostPortRe, (m) => '${m.group(1)}:<port>')
+      .replaceAll(_windowsPathRe, '<path>')
+      .replaceAll(_unixPathRe, '/<user>');
 }

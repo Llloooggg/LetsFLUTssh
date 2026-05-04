@@ -8,6 +8,18 @@
 /// the regenerated FRB symbols directly — making it cheap to swap
 /// the transport (mock for tests, future Tauri channel) without
 /// touching every consumer.
+///
+/// Cold-start contract: `AppBus.subscribe` MUST NOT be called before
+/// `_initRustCoreOrFatal` completes. Every callsite is either inside
+/// the post-frame `_bootstrap` chain (or its descendants) or behind a
+/// Riverpod provider whose first read happens after that point. The
+/// previous architecture had `MainScreen.initState` wire the prompt
+/// listeners synchronously during the first runApp frame — pre-FRB-init
+/// when the Rust load is deferred — and the resulting ordering bugs
+/// caused multi-minute hangs in the unlock cascade. The fix moved
+/// every listener `.start()` call into `_bootstrap` (see
+/// `_LetsFLUTsshAppState._bootstrap`), so this module no longer needs
+/// the lazy / retry escape hatches that briefly lived here.
 library;
 
 import 'dart:async';

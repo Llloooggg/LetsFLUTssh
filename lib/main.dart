@@ -288,35 +288,25 @@ Future<void> _mainBody() async {
     }
   }
 
-  // Rust security/transport core load runs synchronously in
-  // `_mainBody`. An earlier iteration deferred this past the first
-  // frame so the splash painted before the ~3 s Defender scan on
-  // Windows IoT — but the cold-start path has multiple FRB-bound
-  // calls before `runApp` (`AppConfig.fromJson` → Rust sanitize,
-  // `SecurityCapabilities.fromJson`, `configStoreInit`, …) that all
-  // throw "RustLib not initialised" pre-init and either silently
-  // fall back to defaults (loses the user's saved tier / theme /
-  // probe cache) or get swallowed by the global error handlers and
-  // hang downstream callers awaiting the resulting Riverpod state.
-  // Putting `RustLib.init` here brings every FRB call's prerequisite
-  // back to the top of the boot path. The Win IoT splash issue is
-  // tracked separately and will land via a native splash (Win32
-  // `SplashScreen` API) so the window appears before the Flutter
-  // engine even spins up.
-  if (!await _initRustCoreOrFatal()) return;
-
-  // Opt the app-support directory out of iCloud/iTunes backup (iOS) and
-  // Time Machine (macOS) so secrets don't land in untrusted backups.
-  // Runs every launch — idempotent, cheap, refreshes the flag if a
-  // system action stripped the xattr.
-  unawaited(BackupExclusion().applyOnStartup());
+  // Rust core (RustLib.init + appInit + ProcessHardening + log
+  // pipe + config-store actor) is DEFERRED into the post-frame
+  // bootstrap so the splash overlay paints immediately — without
+  // that defer, Win IoT users stare at a blank desktop for ~3 s
+  // while Defender scans the bundled `.so/.dll` before the first
+  // frame. This is safe now because the two cold-start callers
+  // that previously needed FRB pre-`runApp` (`AppConfig.fromJson`
+  // → Rust sanitize, `SecurityCapabilities.fromJson`) both fall
+  // back to a pure-Dart path when `RustLib.instance.initialized`
+  // is false; the post-frame canonicalisation re-applies the same
+  // pipeline once the core is up. See `_LetsFLUTsshAppState._bootstrap`
+  // and the docstrings on those two factories.
 
   // Load config before first frame to prevent light-theme flash.
   // The pre-loaded value is injected via [preloadedAppConfigProvider]
   // so ConfigNotifier.build() seeds state with it instead of falling
   // back to AppConfig.defaults. Cheap (single JSON file read), kept
   // pre-runApp so the first frame already paints the user's saved
-  // theme.
+  // theme / locale / `ui_scale`.
   //
   // [AppConfigParseException] = on-disk file exists but cannot be
   // parsed. Bail to a fatal screen rather than silently fall back

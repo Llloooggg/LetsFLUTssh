@@ -560,29 +560,39 @@ class AppConfig {
     return jsonDecode(stripped) as Map<String, dynamic>;
   }
 
-  /// Parse `config.json` JSON into a typed `AppConfig`. Routes
-  /// through `lfs_core::config::AppConfig::from_json_value` (FRB
-  /// sync) — the canonical sanitize pipeline (clamp out-of-range
-  /// values to defaults, fall through unknown locale to `null`,
-  /// fall through unknown tier to `null`) lives one place.
+  /// Parse `config.json` JSON into a typed `AppConfig`.
+  ///
+  /// Pure Dart on purpose — `_mainBody` loads `config.json` BEFORE
+  /// `RustLib.init` so the first frame paints with the user's real
+  /// theme / locale / `ui_scale` from the first frame instead of
+  /// flashing through `AppConfig.defaults` while the native blob
+  /// loads. Routing through `lfs_core::config::AppConfig::
+  /// from_json_value` would crash in that window with "RustLib not
+  /// initialised". The per-sub-config `fromJson` factories
+  /// (`TerminalConfig.fromJson`, `SshDefaults.fromJson`,
+  /// `UiConfig.fromJson`, `BehaviorConfig.fromJson`) each call
+  /// their own `.sanitized()` step (clamp out-of-range values,
+  /// fall through unknown enum names to defaults), and the outer
+  /// `.sanitized()` at the bottom of this factory re-runs the
+  /// same Dart-side clamp pipeline. The Rust path used to handle
+  /// values that bypass Dart's typed casts (e.g. a `"theme": 123`
+  /// hand-edit), but every sub-config's `as String? ?? d.theme`
+  /// pattern catches that already — the only marginal difference
+  /// was canonical field ordering on save, which `_saveAppConfigToDisk`
+  /// achieves through the Rust `configStoreSetJson` actor anyway.
   factory AppConfig.fromJson(Map<String, dynamic> json) {
-    final canonical = rust_config.configAppConfigSanitizeJson(
-      inputJson: jsonEncode(json),
-    );
-    final resolved = jsonDecode(canonical) as Map<String, dynamic>;
     const d = AppConfig.defaults;
     return AppConfig(
-      terminal: TerminalConfig.fromJson(resolved),
-      ssh: SshDefaults.fromJson(resolved),
-      ui: UiConfig.fromJson(resolved),
-      behavior: BehaviorConfig.fromJson(resolved),
-      transferWorkers:
-          resolved['transfer_workers'] as int? ?? d.transferWorkers,
-      maxHistory: resolved['max_history'] as int? ?? d.maxHistory,
-      locale: resolved['locale'] as String?,
-      security: _readSecurityConfig(resolved),
+      terminal: TerminalConfig.fromJson(json),
+      ssh: SshDefaults.fromJson(json),
+      ui: UiConfig.fromJson(json),
+      behavior: BehaviorConfig.fromJson(json),
+      transferWorkers: json['transfer_workers'] as int? ?? d.transferWorkers,
+      maxHistory: json['max_history'] as int? ?? d.maxHistory,
+      locale: json['locale'] as String?,
+      security: _readSecurityConfig(json),
       securityProbeCache: SecurityCapabilities.fromJson(
-        resolved['security_probe_cache'] as Map<String, dynamic>?,
+        json['security_probe_cache'] as Map<String, dynamic>?,
       ),
     ).sanitized();
   }

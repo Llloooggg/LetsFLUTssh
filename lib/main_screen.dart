@@ -20,34 +20,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   void initState() {
     super.initState();
+    // Pure-Dart wiring only. Every FRB-touching listener (HostKey,
+    // Keychain probe, HardwareVault probe / unlock / seal, tier
+    // state observer, foreground-service bridge) wires up from
+    // `_LetsFLUTsshAppState._bootstrap` AFTER `_initRustCoreOrFatal`
+    // — see the comment block on `wireFrbDependentBootstrapListeners`.
+    // This `initState` runs during the first `runApp` frame, *before*
+    // the deferred Rust core load lands; subscribing to AppBus here
+    // would attach a `_SharedTopic` whose underlying FRB stream
+    // throws and stays null for the process lifetime, breaking the
+    // unlock cascade and the prompt protocol.
     wireDeepLinks(_deepLinkHandler, ref);
-    HostKeyPromptListener.start();
-    // Keychain reachability probe subscriber — drives the
-    // capabilities orchestrator's keychain-ping round-trip.
-    KeychainProbePromptListener.start();
-    // Hardware-vault probe subscriber — drives the
-    // orchestrator's MethodChannel round-trip on
-    // Apple/Android/Windows. Linux never fires this prompt.
-    HardwareVaultProbePromptListener.start();
-    // Hardware-vault unlock subscriber — drives the L3 tier
-    // orchestrator's `HardwareTierVault.read(pin)` call which
-    // fans out to tpm2-tools (Linux) or the platform method
-    // channel (Apple/Android/Windows).
-    HardwareVaultUnlockPromptListener.start();
-    // Hardware-vault seal subscriber — drives the L3 first-launch
-    // orchestrator's `HardwareTierVault.store(dbKey, pin)` call
-    // (the wrap-and-persist counterpart of the unlock prompt).
-    HardwareVaultSealPromptListener.start();
-    // Diagnostic observer for tier_machine transitions — logs
-    // every Locked/Unlocking/Unlocked/Wiping flip a support
-    // trace can read back. Non-functional until per-tier
-    // handlers wire production unlock through the actor.
-    TierStateObserver.start();
-    // Activate the bus → foreground-service bridge. The provider's
-    // body wires `ref.listen` against the active-count stream; the
-    // act of reading it once installs the listener for the process
-    // lifetime.
-    ref.read(foregroundActiveCountListenerProvider);
     _listenForStartupUpdate();
     _listenForFirstLaunchBanner();
   }
