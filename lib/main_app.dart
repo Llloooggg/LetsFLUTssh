@@ -100,6 +100,20 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       );
     }
 
+    // Rust security/transport core load DEFERRED past the first
+    // frame on purpose. Win32 hides its window until the engine
+    // paints the first frame (`flutter_window.cpp:42`), so doing
+    // RustLib.init / appInit / ProcessHardening synchronously
+    // before runApp leaves the user staring at a blank desktop
+    // for the entire native-lib load duration (Defender real-time
+    // scan on Windows IoT pushes that to ~3-4s). With the load
+    // deferred, runApp paints the splash overlay immediately —
+    // user sees the spinner from the second the window appears,
+    // and every dependent step (FRB calls, capability probes,
+    // unlock cascade) waits on this single completion.
+    if (!await _initRustCore()) return;
+    mark('rust_core');
+
     await ref.read(appVersionProvider.notifier).load();
     mark('app_version_load');
     // Kick the tier-availability probe off in parallel with migrations
@@ -140,6 +154,82 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         );
       }
     });
+  }
+
+  /// Load the bundled native blob + initialise the Rust AppState
+  /// singleton + apply process hardening. Returns true on success
+  /// so the caller's `_bootstrap` can continue, false when the
+  /// load failed and the entire widget tree was replaced with
+  /// [FatalErrorApp] (no further bootstrap work is meaningful in
+  /// that branch — every downstream FRB call would throw).
+  ///
+  /// Failure-mode escape valve: every SSH / SFTP / keypair / crypto
+  /// call routes through here, and a missing core makes downstream
+  /// FRB calls throw. The migration runner catches those throws
+  /// and routes the user into `DbCorruptDialog` whose "Reset and
+  /// start fresh" button calls `WipeAllService.wipeAll()` —
+  /// destroying their data over what is usually a transient
+  /// packaging issue. We bail to a dedicated fatal screen instead
+  /// so the wipe path is unreachable.
+  Future<bool> _initRustCore() async {
+    try {
+      // `RustLib.init()` throws "Should not initialize twice" on a
+      // re-entry — that happens under flutter_test where
+      // `requireFrbLoaded()` already ran in `setUpAll`. Tolerate
+      // that specific shape and continue; every other StateError
+      // / load-time failure still routes through the catch below
+      // and lands on FatalErrorApp.
+      try {
+        await RustLib.init();
+      } on StateError catch (e) {
+        if (!e.message.contains('Should not initialize')) rethrow;
+        AppLogger.instance.log(
+          'RustLib already initialised — skipping re-init',
+          name: 'RustCore',
+        );
+      }
+      // Initialise the AppState singleton in lfs_core. Subsequent
+      // commands (secrets_*, sessions/connections/forwards) attach
+      // to it. Idempotent.
+      await rust_app.appInit();
+      // Wire the Rust→Dart log pipe — every `lfs_core::app_log`
+      // call gets folded into the same on-disk `letsflutssh.log`
+      // the Dart-side AppLogger writes through. Must be after
+      // `app_init` because `bus_subscribe` reaches into
+      // `lfs_core::app::instance()`.
+      AppLogger.instance.attachCoreLogPipe();
+      AppLogger.instance.log(
+        'Rust core loaded: ${rust_core.ping()}',
+        name: 'RustCore',
+      );
+      // Disable core dumps + ptrace attach as early as possible —
+      // before any secrets touch RAM. The previous `main()` ordering
+      // ran this before bootstrap; deferring the whole core-load
+      // here keeps the same "harden before secrets" invariant since
+      // the unlock cascade fires inside `_securityController.
+      // bootstrap()` further down. Best-effort, swallowed on
+      // failure.
+      ProcessHardening.applyOnStartup();
+      return true;
+    } catch (e, st) {
+      await AppLogger.instance.logCritical(
+        'Rust core failed to load — bailing to fatal screen: $e',
+        name: 'RustCore',
+        error: e,
+        stackTrace: st,
+      );
+      runApp(
+        const FatalErrorApp(
+          summary: 'LetsFLUTssh cannot start.',
+          detail:
+              'The bundled native core failed to load. This usually means the '
+              'application bundle is incomplete or incompatible with this '
+              'platform. Reinstalling the app should restore it. Your saved '
+              'sessions and data are not affected.',
+        ),
+      );
+      return false;
+    }
   }
 
   /// Eager-prefetch the capability + probe snapshots off the main
@@ -307,38 +397,39 @@ class _StartupSplash extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // CircularProgressIndicator schedules a continuous Ticker that
-    // ignores MediaQuery.disableAnimations — under flutter_test that
-    // makes `pumpAndSettle` hang forever. `TickerMode(enabled: false)`
-    // disables every Ticker in the subtree, so when the global
-    // `disableAnimations` flag is set (production app shell sets it
-    // unconditionally + tests inherit) the spinner renders as a
-    // static disc and frame pumping converges.
-    final disableAnim = MediaQuery.of(context).disableAnimations;
+    // The shell's `disableAnimations: true` MediaQuery would normally
+    // freeze CircularProgressIndicator's ticker — that flag is meant
+    // to hard-off route / implicit animations the user can't opt out
+    // of, NOT a load indicator that's the only signal the app isn't
+    // hung. Re-enable the ticker here via `MediaQuery` override so
+    // the spinner actually rotates while bootstrap (Windows IoT
+    // sees ~5 s of `dbInit` + `hardenFilePerms`) is in flight.
+    // Tests skip the splash entirely via [debugShowStartupSplash],
+    // so re-enabling animations here doesn't pin `pumpAndSettle`.
     return ColoredBox(
       color: AppTheme.bg0,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: TickerMode(
-                enabled: !disableAnim,
-                child: const CircularProgressIndicator(strokeWidth: 2.5),
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(disableAnimations: false),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'LetsFLUTssh',
-              style: TextStyle(
-                fontSize: AppFonts.lg,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.fg,
+              const SizedBox(height: 16),
+              Text(
+                'LetsFLUTssh',
+                style: TextStyle(
+                  fontSize: AppFonts.lg,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.fg,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

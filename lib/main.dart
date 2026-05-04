@@ -195,81 +195,10 @@ Future<void> _mainBody() async {
 
   AppLogger.instance.log('App starting', name: 'App');
 
-  // Per-step Stopwatch on the cold-start path. Every "the app
-  // takes forever to open" report so far has hit the same handful
-  // of suspects (RustLib.init load latency on cold Windows IoT,
-  // Credential Manager warm-up, Defender real-time scan), but
-  // without per-step timing we can't pinpoint which one it is.
-  // Logged at INFO so production builds capture them too — single
-  // line per phase, ~100 bytes total per cold start.
-  final boot = Stopwatch()..start();
-  void mark(String phase) {
-    AppLogger.instance.log(
-      'cold-start phase=$phase elapsed=${boot.elapsedMilliseconds}ms',
-      name: 'Boot',
-    );
-  }
-
-  // Rust security/transport core — load the bundled native blob and
-  // verify the Dart bindings match. See ARCHITECTURE.md §3.14 +
-  // docs/RUST_CORE_MIGRATION_PLAN.md. Every SSH/SFTP/keypair/crypto
-  // call routes through here; failure to load is fatal — without
-  // the core, every subsequent FRB call throws, and the migration
-  // runner interprets those throws as a corrupt-DB signal. That
-  // routes the user into `DbCorruptDialog` whose "Reset and start
-  // fresh" button calls `WipeAllService.wipeAll()` — destroying
-  // their data because of what is usually a transient packaging
-  // issue. Bail out to a dedicated fatal screen instead so the
-  // wipe path is unreachable.
-  try {
-    await RustLib.init();
-    mark('rustlib_init');
-    // Initialise the AppState singleton in lfs_core. Subsequent
-    // commands (secrets_*, sessions/connections/forwards) attach to
-    // it. Idempotent.
-    await rust_app.appInit();
-    mark('rust_app_init');
-    // Wire the Rust→Dart log pipe — every `lfs_core::app_log`
-    // call gets folded into the same on-disk `letsflutssh.log`
-    // the Dart-side AppLogger writes through. Must be after
-    // `app_init` because `bus_subscribe` reaches into
-    // `lfs_core::app::instance()`.
-    AppLogger.instance.attachCoreLogPipe();
-    AppLogger.instance.log(
-      'Rust core loaded: ${rust_core.ping()}',
-      name: 'RustCore',
-    );
-  } catch (e, st) {
-    await AppLogger.instance.logCritical(
-      'Rust core failed to load — bailing to fatal screen: $e',
-      name: 'RustCore',
-      error: e,
-      stackTrace: st,
-    );
-    runApp(
-      const FatalErrorApp(
-        summary: 'LetsFLUTssh cannot start.',
-        detail:
-            'The bundled native core failed to load. This usually means the '
-            'application bundle is incomplete or incompatible with this '
-            'platform. Reinstalling the app should restore it. Your saved '
-            'sessions and data are not affected.',
-      ),
-    );
-    return;
-  }
-
-  // Disable core dumps and ptrace attach as early as possible — before any
-  // secrets touch RAM. Best-effort, swallowed on failure.
-  ProcessHardening.applyOnStartup();
-  mark('process_hardening');
-
-  // Opt the app-support directory out of iCloud/iTunes backup (iOS) and
-  // Time Machine (macOS) so secrets don't land in untrusted backups.
-  // Runs every launch — idempotent, cheap, refreshes the flag if a
-  // system action stripped the xattr.
-  unawaited(BackupExclusion().applyOnStartup());
-
+  // Single-instance lock fires before runApp so a second copy clicked
+  // from the launcher gets the dedicated `AlreadyRunningApp` blocker
+  // instead of two splash overlays competing for the same Win32
+  // window. The acquire is a single file-lock syscall — sub-ms.
   if (plat.isDesktopPlatform) {
     singleInstanceLock = SingleInstance();
     final acquired = await singleInstanceLock!.acquire();
@@ -281,18 +210,23 @@ Future<void> _mainBody() async {
       runApp(const AlreadyRunningApp());
       return;
     }
-    mark('single_instance');
   }
+
+  // Opt the app-support directory out of iCloud/iTunes backup (iOS) and
+  // Time Machine (macOS) so secrets don't land in untrusted backups.
+  // Runs every launch — idempotent, cheap, refreshes the flag if a
+  // system action stripped the xattr.
+  unawaited(BackupExclusion().applyOnStartup());
 
   // Load config before first frame to prevent light-theme flash.
   // The pre-loaded value is injected via [preloadedAppConfigProvider]
   // so ConfigNotifier.build() seeds state with it instead of falling
-  // back to AppConfig.defaults.
+  // back to AppConfig.defaults. Cheap (single JSON file read), kept
+  // pre-runApp so the first frame already paints the user's saved
+  // theme.
   final loaded = await loadAppConfigFromDisk();
   final config = loaded.config;
-  mark('config_load');
   await loggerInit; // ensure log path resolved before enabling file logging
-  mark('logger_init');
   // `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` overrides the on-
   // disk config on dev / beta-tester builds so fresh installs start
   // with logs enabled without a Settings-tweak round-trip. Release

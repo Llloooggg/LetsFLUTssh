@@ -86,7 +86,18 @@ impl Db {
     /// drift-MC ChaCha20 file at this path will NOT open with this
     /// PRAGMA — see the module docstring for the migration plan.
     pub fn open(path: &Path, key: &[u8]) -> Result<Self, Error> {
+        // Per-step timing — the Dart-side `RustDbInit` Stopwatch
+        // reported the whole `dbInit` FRB hop taking 5+ seconds on
+        // Windows IoT, but couldn't split SQLCipher PRAGMA / smoke
+        // probe / schema bootstrap. These spans surface the actual
+        // culprit on the next reproduction.
+        let t0 = std::time::Instant::now();
         let conn = Connection::open(path).map_err(|e| Error::Io(format!("db open: {e}")))?;
+        crate::app_log_info!(
+            "DbOpen",
+            "db open phase=connection elapsed={}ms",
+            t0.elapsed().as_millis()
+        );
         if !key.is_empty() {
             // Hex-encode for the PRAGMA key literal. Match the Dart
             // `encryptionKeyToSqlLiteral` exactly: lowercase hex, no
@@ -104,18 +115,33 @@ impl Db {
                 .map_err(|e| Error::Io(format!("PRAGMA key: {e}")))?;
             conn.execute_batch("PRAGMA cipher_compatibility = 4")
                 .map_err(|e| Error::Io(format!("PRAGMA cipher_compatibility: {e}")))?;
+            crate::app_log_info!(
+                "DbOpen",
+                "db open phase=pragma_key elapsed={}ms",
+                t0.elapsed().as_millis()
+            );
         }
         // Smoke test the key by touching the schema table.
         conn.query_row("SELECT count(*) FROM sqlite_master", [], |row| {
             row.get::<_, i64>(0)
         })
         .map_err(|e| Error::Io(format!("schema probe: {e}")))?;
+        crate::app_log_info!(
+            "DbOpen",
+            "db open phase=schema_probe elapsed={}ms",
+            t0.elapsed().as_millis()
+        );
         // Enable foreign-key enforcement (drift sets this too) so
         // ON DELETE CASCADE / SET NULL behave consistently across
         // both engines while the migration is mid-flight.
         conn.execute_batch("PRAGMA foreign_keys = ON")
             .map_err(|e| Error::Io(format!("PRAGMA foreign_keys: {e}")))?;
         bootstrap_schema(&conn)?;
+        crate::app_log_info!(
+            "DbOpen",
+            "db open phase=schema_bootstrap elapsed={}ms",
+            t0.elapsed().as_millis()
+        );
         Ok(Self {
             conn: Mutex::new(conn),
         })

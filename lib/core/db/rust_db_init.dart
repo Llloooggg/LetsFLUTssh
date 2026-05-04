@@ -68,18 +68,30 @@ Future<bool> verifyRustDbReadable() async {
 }
 
 Future<void> ensureRustDbOpen({Uint8List? key}) async {
+  final sw = Stopwatch()..start();
+  void mark(String phase) {
+    AppLogger.instance.log(
+      'rust db open phase=$phase elapsed=${sw.elapsedMilliseconds}ms',
+      name: 'RustDbInit',
+    );
+  }
+
   try {
     final dir = await getApplicationSupportDirectory();
+    mark('support_dir');
     final path = p.join(dir.path, _rustDbFileName);
     final file = File(path);
     if (!await file.exists()) {
       await file.create(recursive: true);
     }
+    mark('file_create');
     await hardenFilePerms(path);
+    mark('harden_perms');
     await rust_app.dbInit(
       path: path,
       key: key == null ? const <int>[] : List<int>.from(key),
     );
+    mark('db_init');
     AppLogger.instance.log(
       'Rust DB ready (encrypted=${key != null})',
       name: 'RustDbInit',
