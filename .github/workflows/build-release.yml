@@ -454,6 +454,7 @@ jobs:
       - name: Package EXE installer
         run: |
           $env:APP_VERSION = "${{ needs.preflight.outputs.version }}"
+          $env:OUTPUT_ARCH = "x64"
           $env:BUILD_DIR = "${{ github.workspace }}\build\windows\x64\runner\Release"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
           Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-x64-setup.exe" .
@@ -613,20 +614,37 @@ jobs:
         run: choco install innosetup -y --no-progress
 
       - name: Package EXE installer
-        # NOTE: `windows/packaging/setup.iss` currently targets
-        # x64 only. For an ARM64-clean installer the `ArchitecturesAllowed`
-        # / `ArchitecturesInstallIn64BitMode` directives need an
-        # `arm64` entry, otherwise Windows installer flags it
-        # "may not run correctly on ARM64". Tracked as a Wave 5b
-        # follow-up. Until then this step produces a zip-only
-        # release artifact for ARM64 (the Inno Setup .exe is
-        # skipped via the `if: false` guard below).
-        if: false
+        # `setup.iss` reads `OUTPUT_ARCH` from the env to pick the
+        # filename slug (`-windows-arm64-setup.exe` here, `-windows-
+        # x64-setup.exe` on the AMD64 job). Inno Setup 6.3+'s
+        # `ArchitecturesAllowed=x64compatible` covers both AMD64 and
+        # ARM64 hosts, so a single directive in the script handles
+        # both runner shapes — no per-arch `#if`.
         run: |
           $env:APP_VERSION = "${{ needs.preflight.outputs.version }}"
+          $env:OUTPUT_ARCH = "arm64"
           $env:BUILD_DIR = "${{ github.workspace }}\$env:BUILD_DIR"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
           Move-Item "windows\packaging\Output\letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64-setup.exe" .
+
+      - name: Self-signed Authenticode (installer)
+        # Mirror the build-windows installer-signing step. Inno Setup
+        # re-wraps the signed `letsflutssh.exe` into a separate PE
+        # that needs its own signature, otherwise SmartScreen flags
+        # the installer as "Unknown publisher" even though the
+        # bundled binary inside it is signed.
+        shell: pwsh
+        run: |
+          $cert = Get-ChildItem Cert:\CurrentUser\My |
+            Where-Object { $_.Subject -like '*LetsFLUTssh Open Source*' } |
+            Select-Object -First 1
+          $installer = "letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64-setup.exe"
+          Set-AuthenticodeSignature `
+            -FilePath $installer `
+            -Certificate $cert `
+            -HashAlgorithm SHA256 `
+            -TimestampServer http://timestamp.digicert.com
+          Get-AuthenticodeSignature $installer
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -634,6 +652,7 @@ jobs:
           retention-days: 7
           path: |
             letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64.zip
+            letsflutssh-${{ needs.preflight.outputs.version }}-windows-arm64-setup.exe
 
   build-macos:
     needs: preflight

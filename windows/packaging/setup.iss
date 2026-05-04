@@ -13,6 +13,15 @@
 #if BuildDir == ""
   #define BuildDir "..\..\build\windows\x64\runner\Release"
 #endif
+; Output arch slug that lands in the installer filename and the
+; ArchitecturesAllowed gate. CI release matrix passes `x64` for the
+; AMD64 build and `arm64` for the windows-11-arm runner; local
+; `iscc setup.iss` invocations without the env var fall back to x64
+; so contributor builds keep working.
+#define OutputArch GetEnv('OUTPUT_ARCH')
+#if OutputArch == ""
+  #define OutputArch "x64"
+#endif
 
 [Setup]
 AppId={{7A2E3B4C-1D5F-4E6A-8B9C-0D1E2F3A4B5C}
@@ -25,10 +34,14 @@ AppSupportURL={#MyAppURL}/issues
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-OutputBaseFilename=letsflutssh-{#MyAppVersion}-windows-x64-setup
+OutputBaseFilename=letsflutssh-{#MyAppVersion}-windows-{#OutputArch}-setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+; `x64compatible` matches both AMD64 and ARM64 hosts in Inno Setup
+; 6.3+. The CI release matrix ships choco's latest Inno Setup (>6.4
+; at time of writing), so a single arch directive covers both
+; runner shapes — no per-arch `#if` required.
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
