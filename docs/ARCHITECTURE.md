@@ -3731,9 +3731,32 @@ Line format: `HH:MM:SS X [Tag] message` where X is `I` / `W` / `E`. Continuation
 
 ```dart
 String sanitizeErrorMessage(String message);
-// Redacts: user@host → <user>@host, IPv4 → <ip>, port → :<port>,
-// file paths with usernames → <path>/ or /<user>/
+// Redacts: IPv6 → <ip>, IPv4 → <ip>, user@host → <user>@host,
+// `as <user>` / `user=<user>` / `login=<user>` shapes, host:port → :<port>,
+// `C:\Users\<user>\…` → `<path>\…`, `/home/<user>/…` / `/Users/<user>/…` → `/<user>/…`
+
+String redactSecrets(String input);
+// Strips PEM private-key blocks and ≥ 200-char base64 runs
+// (catches the common drift / sqlite leak where a failed INSERT
+// dumps its bound parameters into the exception message).
+
+bool looksSensitive(String text);
+// Heuristic: PEM marker + "PRIVATE KEY", or a ≥ 200-char base64 run.
+// Used by terminal_clipboard auto-wipe to decide whether a copy
+// should route through SecureClipboard + arm the 30-s wipe timer.
 ```
+
+Pure Dart — no FRB. The pipeline used to route through
+`lfs_core::log_sanitize`, but the cold-start error handlers fire
+before `RustLib.init` completes (any throw between
+`runZonedGuarded`-wrap and `_initRustCoreOrFatal` lands in the
+zone handler), and a FRB-bound sanitiser would crash-loop the
+handler in that window. The Dart regex pipeline is byte-for-byte
+the same as the Rust port — the 10k-input fuzz suites
+(`test/fuzz/sanitize_fuzz_test.dart`) cover idempotence,
+stability, and per-shape redaction invariants. See [Cold-start
+ordering](#cold-start-ordering--pre-init--post-init-invariant)
+for the broader pre-init / post-init invariant this is part of.
 
 Use `sanitizeErrorMessage()` before logging any error message that may contain connection details, usernames, IPs, or file paths. The global error handler in `main.dart` applies this automatically.
 
@@ -4551,6 +4574,49 @@ Additionally, internal resizable elements (sidebar, file browser columns, split 
 - **Sidebar text** (`_SidebarFooter`, `_PanelHeader`, session tree rows): `Flexible` / `Expanded` with `TextOverflow.ellipsis`
 - **Welcome screen**: `SingleChildScrollView` prevents vertical overflow on small windows
 
+### Cold-start ordering — pre-init / post-init invariant
+
+The boot path splits into two strict halves with FRB readiness as
+the boundary:
+
+```
+_mainBody (synchronous, pre-runApp — PURE DART):
+  WidgetsFlutterBinding.ensureInitialized
+  SecureKeyStorage.enableRuntimeSubprocessProbes()      // bool flag
+  AppLogger.init()                                      // path resolution
+  error handlers (FlutterError + PlatformDispatcher + zone)
+  single-instance lock                                  // dart:io flock
+  loadAppConfigFromDisk                                 // dart:io + jsonDecode
+  setThreshold(config.logLevel)                         // file open
+  runApp(LetsFLUTsshApp)                                // first frame ← splash visible
+──── post-frame _bootstrap (FRB OK from this point):
+  _initRustCoreOrFatal:                                 // ~3 s on Win IoT
+      RustLib.init()                                    // load .so/.dll
+      rust_app.appInit()                                // AppState singleton
+      bootstrapRustConfigStore()                        // config_store actor
+      AppLogger.attachCoreLogPipe()                     // bus → file sink
+      ProcessHardening.applyOnStartup()
+  _wireFrbDependentBootstrapListeners                   // every AppBus.subscribe
+      HostKeyPromptListener.start()
+      KeychainProbePromptListener.start()
+      HardwareVault*PromptListener.start() × 3
+      TierStateObserver.start()
+      ref.read(foregroundActiveCountListenerProvider)   // triggers StreamProvider
+  BackupExclusion.applyOnStartup()                      // unawaited, FRB
+  appVersionProvider.load
+  warmProbeCaches                                       // capabilities + hardware + keyring
+  securityController.bootstrap                          // migrations + tier unlock + DB open
+  → readyNotifier.value = true                          // splash hides
+```
+
+**Invariant — STRICT.** No code reachable from `_mainBody` synchronously, from any Dart `Notifier.build()` triggered during the first runApp pass, or from any `initState` of the widgets that mount during the first frame may call into FRB. The check is mechanical: nothing on those paths imports `package:letsflutssh/src/rust/...` (with the narrow exception of save-side code that runs only post-bootstrap, e.g. `AppConfig.toJson` → `rust_config.configAppConfigToJson`). The pure-Dart pipeline produces canonical results for healthy `config.json` content because every sub-config's `fromJson` factory calls its own `.sanitized()` clamp pipeline (clamp out-of-range numbers, fall through unknown enum names to defaults).
+
+**Why the invariant exists.** Win IoT's Defender real-time scan adds ~3 s to the bundled `liblfs_frb.dll` load. Painting the splash overlay through that wait demands `runApp` fire before `RustLib.init`. Earlier code violated this on the cold-start path (`AppConfig.fromJson` calling `rust_config.configAppConfigSanitizeJson`, `SecurityCapabilities.fromJson` calling `rust_caps.securityCapabilitiesFromJson`, `MainScreen.initState` wiring `*PromptListener.start()` → `AppBus.subscribe`); the violations manifested as silent config overwrites, hung unlock cascades, and FRB-not-initialised crash loops in the global error handlers. The fix routed each violation through pure Dart so the deferral is structurally safe rather than guarded by scattered `RustLib.instance.initialized` checks.
+
+**How to add a new pre-runApp step.** Use only `dart:io`, `dart:convert`, `path_provider`, `package:flutter/foundation`. Importing anything under `lib/src/rust/` from a file reachable on the cold-start path is a regression — fail loud at review.
+
+**How to add a new post-init listener / FRB-touching boot step.** Wire it inside `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` (for AppBus subscribers) or directly in `_bootstrap` after `_initRustCoreOrFatal` (for one-shot setup). Don't add it to `_MainScreenState.initState` — that fires during the first runApp frame, pre-FRB-init.
+
 ### Single-instance protection (desktop only)
 
 Prevents multiple app instances from running simultaneously, which would corrupt the shared database.
@@ -4564,7 +4630,7 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 
 **Mobile:** skipped — Android/iOS manage single instance natively.
 
-**Why pure Dart, not Rust** ([§3.14](#314-rust-securitytransport-core-rust)): a previous iteration routed acquisition through `lfs_os_security::single_instance`, which made the FRB call depend on `RustLib.init()` having completed. On Windows IoT the native blob load takes ~3 s (Defender real-time scan), and the boot sequence paints the startup splash *before* that load — `_mainBody` runs only the splash-prerequisites synchronously (single-instance, config preload, logger init), then `runApp(LetsFLUTsshApp)` paints the first frame, and `_LetsFLUTsshAppState._bootstrap` runs the heavy chain (`RustLib.init` → `appInit` → `ProcessHardening` → migrations → security bootstrap) post-frame. Putting the FRB-bound lock check ahead of `RustLib.init` threw "RustLib not initialised", `acquire`'s catch reported the throw as contention, and every solo cold-start landed on `AlreadyRunningApp`. `dart:io` calls the same `fcntl` / `LockFileEx` syscalls without an FFI dependency, so the check runs at the very top of `_mainBody` and the splash-first ordering survives. The `lfs_os_security::single_instance` module was deleted alongside this revert.
+**Why pure Dart.** Falls under the pre-init / post-init invariant above — single-instance is the very first synchronous step in `_mainBody` and must stay FRB-free. `dart:io`'s `RandomAccessFile.lock` calls the same `fcntl` / `LockFileEx` syscalls a Rust crate would. An earlier `lfs_os_security::single_instance` route forced the lock check to wait on `RustLib.init`, which broke splash-first boot; that module was deleted.
 
 **`fcntl(F_SETLK)` footgun:** locks are per-process, not per-fd — two `RandomAccessFile.lock` calls in the same process to `app.lock` do *not* contend. Cross-process semantics (the case that matters for single-instance UX) work correctly. The other edge: closing any fd in this process pointing to the locked file releases the lock kernel-side. Nothing else in the app re-opens `app.lock`; if a future feature needs to read it, route the access through `SingleInstance` rather than `File(path).open(...)` directly.
 

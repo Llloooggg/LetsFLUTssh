@@ -202,7 +202,7 @@ frontend crate. Verified by CI.
 | Known-hosts + TOFU prompt protocol | DONE | `lfs_core::known_hosts` |
 | Update orchestrator (GitHub parse + signed-manifest verify) | DONE | `lfs_core::update_orchestrator` |
 | OpenSSH config grammar (parse + glob + comment + tokenise) | DONE | `lfs_core::ssh_config` |
-| Log sanitiser (PEM / IP / `user@host` / paths) | DONE | `lfs_core::log_sanitize` |
+| Log sanitiser (PEM / IP / `user@host` / paths) | **Dart-side reverted** — see [§ Reverted: log_sanitize](#reverted--log_sanitize-back-to-dart) below | Dart caller (`lib/utils/sanitize.dart`) is pure Dart again; Rust crate `lfs_core::log_sanitize` retained for Rust-side log lines and the FRB shim is unused |
 | TPM seal / unseal (Linux subprocess) | DONE — non-ideal, see [NI-1](#ni-1--linux-tpm2-via-subprocess-shell-out) | `lfs_core::platform::linux::tpm` |
 | Hardware-vault disk-blob format + auth resolver | DONE | `lfs_core::security::hardware_tier_vault` |
 | Capabilities orchestrator + cache + prompt registries | DONE | `lfs_core::security::capabilities_orchestrator` |
@@ -1162,6 +1162,58 @@ The previous rejection of `fd-lock` (POSIX `fcntl` namespace
 mismatch with Dart's `RandomAccessFile.lock`) is moot here
 because we no longer have two languages racing for the same
 lock — Dart owns it end-to-end.
+
+### Reverted — log_sanitize back to Dart
+
+`lib/utils/sanitize.dart` was migrated to call
+`lfs_core::log_sanitize` over FRB and reverted to pure Dart on
+2026-05-04. Reason: the global error handlers
+(`runZonedGuarded`, `FlutterError.onError`,
+`PlatformDispatcher.onError`) call `sanitize` on every
+exception, including those that fire in the brief window
+between the zone-wrap and `_initRustCoreOrFatal` completing.
+A FRB-bound sanitiser threw "RustLib not initialised" in that
+window, the throw propagated back to the zone handler, the
+handler called `sanitize` again, → infinite crash loop until
+the OS killed the process.
+
+The Dart pipeline is the original — the Rust crate's own
+docstring says "mirror Dart `lib/utils/sanitize.dart`". The
+regexes (PEM block via `dotAll`, IPv6 alternation, IPv4,
+`user@host`, `as <user>`, `user=` / `login=`, host:port,
+`C:\Users\<user>\…`, `/home/<user>/…` / `/Users/<user>/…`)
+are byte-for-byte identical between the two implementations,
+and the 10k-input fuzz suites in
+`test/fuzz/sanitize_fuzz_test.dart` (idempotence, stability,
+per-shape redaction invariants) pass against the Dart port
+verbatim.
+
+Three Pillars trade-off:
+
+- **Ideal code** — net positive. The previous architecture
+  had a defensive `RustLib.instance.initialized` guard wrapping
+  every `redactSecrets` / `sanitizeErrorMessage` call so the
+  pipeline could be called from error handlers. The guard was
+  scaffolding around the FRB dependency, not a correctness fix.
+  Going back to Dart removes both the guard and the dependency.
+- **Security** — neutral. Same redaction shapes; same
+  trade-offs (free-form labels still need the marker convention
+  documented in [AGENT_RULES § Logging](AGENT_RULES.md#logging--applogger-auto-sanitized-err-on-more-not-less)).
+- **Optimality** — neutral on the steady state, net positive on
+  the cold-start error window (no FRB hop on every error line
+  the bootstrap chain might raise).
+
+The Rust crate `lfs_core::log_sanitize` is RETAINED for use by
+Rust-side log lines (the `lfs_core::app_log` macro pipes
+through it before publishing to `BusTopic::CoreLog`). Only the
+Dart→Rust FRB shim is unused; if no other caller materialises,
+remove it in a follow-up cleanup.
+
+`SecurityCapabilities.fromJson` and `AppConfig.fromJson` were
+reverted to pure Dart in the same arc (commit 9473f9d1 —
+`refactor(boot): enforce pre-init / post-init split`), for the
+same root cause + the same architectural invariant. See
+[ARCHITECTURE.md § Cold-start ordering](ARCHITECTURE.md#cold-start-ordering--pre-init--post-init-invariant).
 
 ### Parallel — test debt sweep (any time)
 
