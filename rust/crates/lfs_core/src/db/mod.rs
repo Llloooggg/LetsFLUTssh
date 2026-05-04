@@ -419,7 +419,9 @@ mod tests {
         std::fs::File::create(&path).unwrap();
         let key = [0x42u8; 32];
         let db = Db::open(&path, &key).expect("open empty file with key must succeed");
-        let count = db.schema_object_count().expect("schema count after fresh open");
+        let count = db
+            .schema_object_count()
+            .expect("schema count after fresh open");
         assert!(count > 0, "bootstrap_schema should have created tables");
     }
 

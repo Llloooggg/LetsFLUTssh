@@ -1324,20 +1324,17 @@ async fn connect_default_agent() -> Result<
     #[cfg(windows)]
     {
         const OPENSSH_NAMED_PIPE: &str = r"\\.\pipe\openssh-ssh-agent";
-        match russh::keys::agent::client::AgentClient::connect_named_pipe(
-            OPENSSH_NAMED_PIPE,
-        )
-        .await
+        match russh::keys::agent::client::AgentClient::connect_named_pipe(OPENSSH_NAMED_PIPE).await
         {
             Ok(client) => Ok(client.dynamic()),
-            Err(named_pipe_err) => match russh::keys::agent::client::AgentClient::connect_pageant()
-                .await
-            {
-                Ok(client) => Ok(client.dynamic()),
-                Err(pageant_err) => Err(Error::Auth(format!(
-                    "agent connect: openssh-named-pipe={named_pipe_err}, pageant={pageant_err}"
-                ))),
-            },
+            Err(named_pipe_err) => {
+                match russh::keys::agent::client::AgentClient::connect_pageant().await {
+                    Ok(client) => Ok(client.dynamic()),
+                    Err(pageant_err) => Err(Error::Auth(format!(
+                        "agent connect: openssh-named-pipe={named_pipe_err}, pageant={pageant_err}"
+                    ))),
+                }
+            }
         }
     }
 }

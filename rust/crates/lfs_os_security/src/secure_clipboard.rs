@@ -153,8 +153,7 @@ fn ios_set_secure_text(text: &str) -> Result<(), String> {
         // (where `class()` was inherent) and 0.6 (where it moved
         // behind the trait). Using the typed binding sidesteps
         // the import-tangle entirely.
-        let in_30s: objc2::rc::Retained<NSDate> =
-            NSDate::dateWithTimeIntervalSinceNow(30.0);
+        let in_30s: objc2::rc::Retained<NSDate> = NSDate::dateWithTimeIntervalSinceNow(30.0);
         let opts: objc2::rc::Retained<NSDictionary<NSString, objc2::runtime::AnyObject>> =
             NSDictionary::from_retained_objects(
                 &[&*local_only_key, &*expiration_key],

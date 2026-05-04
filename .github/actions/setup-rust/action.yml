@@ -124,16 +124,29 @@ runs:
     - name: Cache cargokit target dir
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
       with:
-        # cmake platforms (Windows / Linux / macOS desktop) write
-        # under `build/<platform>/.../plugins/rust_builder/cargokit_build/`.
-        # Android gradle plugin writes directly into the per-module
-        # `buildDir`, which for a Flutter plugin lands at
-        # `build/rust_builder/` relative to the project root. Glob
-        # both shapes so a missing path on a given platform is a
-        # silent no-op (cache action tolerates non-matching globs).
+        # cargokit puts its `cargo --target-dir` in three different
+        # places depending on the build pipeline:
+        # - cmake (Windows / Linux desktop): `build/<platform>/.../
+        #   plugins/rust_builder/cargokit_build/`.
+        # - gradle (Android): the per-module `buildDir`. With the
+        #   Flutter plugin loader the rust_builder module name comes
+        #   from `pubspec.yaml` (`lfs_frb`), so the path is
+        #   `build/lfs_frb/intermediates/cargokit_build/` (or
+        #   sometimes `build/lfs_frb/` without the subdir).
+        # - Xcode (macOS / iOS): `TARGET_TEMP_DIR` which Xcode
+        #   resolves under `build/macos/Build/Intermediates.noindex/
+        #   Pods.build/<config>/<plugin>.build/`.
+        #
+        # Glob covers all three shapes; a missing path on a given
+        # platform is a silent no-op (cache action tolerates
+        # non-matching globs as long as at least ONE matches).
         path: |
           build/**/cargokit_build
+          build/lfs_frb
           build/rust_builder
+          build/macos/Build/Intermediates.noindex/**/cargokit_phony*
+          build/macos/Build/Intermediates.noindex/**/Cargokit*
+          build/ios/Build/Intermediates.noindex/**/cargokit_phony*
           android/**/cargokit_build
         key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml', 'rust_builder/cargokit/**') }}
         restore-keys: |
