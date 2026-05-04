@@ -204,6 +204,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
     return MaterialApp(
       navigatorKey: navigatorKey,
+      // The observer feeds `activeOverlayModalCount` so the startup
+      // splash can hide itself while a `PopupRoute` (showDialog /
+      // showModalBottomSheet / showMenu) sits on top of the navigator.
+      // Without this, bootstrap-time recovery dialogs (showTierReset,
+      // showDbCorrupt) paint underneath the splash overlay and the
+      // user can't click them — the spinner spins forever. See
+      // `app/navigator_key.dart` for the rationale + counter contract.
+      navigatorObservers: [overlayModalRouteObserver],
       title: 'LetsFLUTssh',
       debugShowCheckedModeBanner: false,
       locale: locale,
@@ -279,13 +287,28 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
               // overlay because the auto-lock idle timer can't fire
               // before bootstrap finishes anyway, and visually it's
               // the same "you can't interact yet" state.
+              //
+              // Hides itself while a `PopupRoute` (dialog / bottom
+              // sheet / menu) sits on top of the navigator —
+              // bootstrap-time recovery dialogs (showTierReset,
+              // showDbCorrupt) live inside the navigator and would
+              // otherwise paint *under* the opaque splash overlay,
+              // blocking the user from acting on them. Tracked via
+              // the singleton `overlayModalRouteObserver` attached to
+              // `MaterialApp.navigatorObservers` above.
               if (debugShowStartupSplash)
                 Positioned.fill(
                   child: ValueListenableBuilder<bool>(
                     valueListenable: _securityController.readiness,
                     builder: (context, ready, _) {
                       if (ready) return const SizedBox.shrink();
-                      return const _StartupSplash();
+                      return ValueListenableBuilder<int>(
+                        valueListenable: activeOverlayModalCount,
+                        builder: (context, modalCount, _) {
+                          if (modalCount > 0) return const SizedBox.shrink();
+                          return const _StartupSplash();
+                        },
+                      );
                     },
                   ),
                 ),
