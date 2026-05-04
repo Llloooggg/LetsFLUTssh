@@ -22,25 +22,47 @@ const _configFileName = 'config.json';
 final preloadedAppConfigProvider = Provider<AppConfig?>((_) => null);
 
 /// Result of [loadAppConfigFromDisk] — carries the parsed config plus
-/// flags the SecurityInitController inspects to decide whether to surface
-/// a "config corrupt" toast on first frame.
+/// a flag the SecurityInitController inspects to decide whether to
+/// run first-launch wizards.
 class LoadedAppConfig {
-  const LoadedAppConfig({
-    required this.config,
-    required this.loadedFromFile,
-    this.loadError,
-  });
+  const LoadedAppConfig({required this.config, required this.loadedFromFile});
 
   final AppConfig config;
   final bool loadedFromFile;
-  final String? loadError;
 }
 
-/// Best-effort load of `config.json` from the app support directory.
-/// Replaces the prior `ConfigStore.load()`. Returns defaults on missing
-/// or unparseable files; surfaces the parse error in [LoadedAppConfig
-/// .loadError] so callers can warn the user without losing the
-/// fall-through to defaults.
+/// Thrown by [loadAppConfigFromDisk] when `config.json` exists but
+/// cannot be parsed (truncated JSON, FRB sanitiser threw, schema
+/// drift the runner couldn't repair, …). Distinct from the
+/// missing-file branch — a missing file means "fresh install, use
+/// defaults"; a parse error means "the user has on-disk data we
+/// cannot interpret, do NOT silently fall back to defaults and
+/// then save those defaults over the unparseable file".
+///
+/// The previous behaviour caught every parse failure, returned
+/// `AppConfig.defaults`, then let `ConfigNotifier` save those
+/// defaults on the first probe-cache write — which OVERWROTE the
+/// user's real `config.json` (specifically `security_tier` would
+/// drop, sending the next launch into the legacy-state path with
+/// a "Reset all" dialog the user couldn't see because it sat
+/// under the splash). [main] now catches this and routes to
+/// [FatalErrorApp] so the user can decide whether to delete the
+/// file (lose preferences, keep data) or quit and recover the
+/// file out-of-band.
+class AppConfigParseException implements Exception {
+  AppConfigParseException(this.path, this.cause);
+
+  final String path;
+  final Object cause;
+
+  @override
+  String toString() => 'AppConfigParseException($path): $cause';
+}
+
+/// Load `config.json` from the app support directory. Returns
+/// defaults when the file is absent (fresh install). Throws
+/// [AppConfigParseException] when the file exists but cannot be
+/// parsed — see the exception's docstring for the rationale.
 Future<LoadedAppConfig> loadAppConfigFromDisk() async {
   final dir = await getApplicationSupportDirectory();
   final filePath = p.join(dir.path, _configFileName);
@@ -59,13 +81,12 @@ Future<LoadedAppConfig> loadAppConfigFromDisk() async {
       loadedFromFile: true,
     );
   } catch (e) {
-    final msg = 'Failed to load config: $e';
-    AppLogger.instance.log(msg, name: 'ConfigStore');
-    return LoadedAppConfig(
-      config: AppConfig.defaults,
-      loadedFromFile: false,
-      loadError: msg,
+    AppLogger.instance.log(
+      'Failed to parse config.json — refusing silent fallback to '
+      'defaults so the existing file is not overwritten on next save: $e',
+      name: 'ConfigStore',
     );
+    throw AppConfigParseException(filePath, e);
   }
 }
 
@@ -156,7 +177,18 @@ class ConfigNotifier extends Notifier<AppConfig> {
 
   /// Force a re-read from disk + push into state. Used after `main()`
   /// already pre-loaded (no-op except for late-binding tests) and by
-  /// the SecurityInitController reset cascade.
+  /// the SecurityInitController reset cascade after wipe (where the
+  /// config file is gone and `loadAppConfigFromDisk` returns the
+  /// missing-file branch with `AppConfig.defaults`).
+  ///
+  /// On [AppConfigParseException] (existing-but-corrupt file) the
+  /// catch keeps the prior state — the throw is structurally only
+  /// reachable here on a mid-session corruption (the cold-start
+  /// path catches the same exception in `main` and routes to the
+  /// fatal screen). Logging + leaving state untouched is the
+  /// safest fallback for the runtime case: a follow-up `update`
+  /// will save the prior in-memory state, not silently overwrite
+  /// the on-disk file with defaults.
   Future<void> load() async {
     try {
       final loaded = await loadAppConfigFromDisk();
@@ -164,7 +196,7 @@ class ConfigNotifier extends Notifier<AppConfig> {
       await AppLogger.instance.setThreshold(state.logLevel);
     } catch (e) {
       AppLogger.instance.log(
-        'Failed to load config, using defaults',
+        'config reload failed mid-session, keeping previous state: $e',
         name: 'ConfigProvider',
         error: e,
       );

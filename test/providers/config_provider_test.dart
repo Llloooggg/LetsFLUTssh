@@ -138,6 +138,32 @@ void main() {
       );
     });
 
+    test('loadAppConfigFromDisk throws on corrupt file', () async {
+      // Pre-write garbage into the temp config so the parse throws.
+      // The bug this guards: the previous behaviour silently fell
+      // back to AppConfig.defaults, which would then get written
+      // back by the next `update`-triggered save and overwrite the
+      // unparseable file (losing any field the in-memory defaults
+      // don't carry, e.g. `security_tier`). Throwing forces `main`
+      // to bail to FatalErrorApp instead so the on-disk file stays
+      // intact for the user to recover manually.
+      final f = File('${tempDir.path}/config.json');
+      await f.writeAsString('{not valid json');
+
+      expect(
+        () => loadAppConfigFromDisk(),
+        throwsA(isA<AppConfigParseException>()),
+      );
+    });
+
+    test('loadAppConfigFromDisk returns defaults on missing file', () async {
+      // Fresh-install path: file absent → defaults, no throw. Same
+      // tempDir from setUp is empty, so no config.json exists.
+      final loaded = await loadAppConfigFromDisk();
+      expect(loaded.loadedFromFile, isFalse);
+      expect(loaded.config, equals(AppConfig.defaults));
+    });
+
     test('concurrent updates do not corrupt saved config', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);

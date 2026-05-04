@@ -317,7 +317,38 @@ Future<void> _mainBody() async {
   // back to AppConfig.defaults. Cheap (single JSON file read), kept
   // pre-runApp so the first frame already paints the user's saved
   // theme.
-  final loaded = await loadAppConfigFromDisk();
+  //
+  // [AppConfigParseException] = on-disk file exists but cannot be
+  // parsed. Bail to a fatal screen rather than silently fall back
+  // to defaults: the next `update` would overwrite the existing
+  // file with those defaults and lose the user's `security_tier` /
+  // `security_modifiers` (which sends the next launch into the
+  // legacy-state recovery path). User keeps their on-disk DB, just
+  // needs to delete `config.json` (or restore a backup) and relaunch.
+  final LoadedAppConfig loaded;
+  try {
+    loaded = await loadAppConfigFromDisk();
+  } on AppConfigParseException catch (e, st) {
+    await AppLogger.instance.logCritical(
+      'config.json is unreadable — bailing to fatal screen so the '
+      'corrupt file is not overwritten on the next save: $e',
+      name: 'ConfigStore',
+      error: e,
+      stackTrace: st,
+    );
+    runApp(
+      FatalErrorApp(
+        summary: 'LetsFLUTssh cannot start.',
+        detail:
+            'The settings file at ${e.path} could not be parsed. '
+            'Your sessions and saved data are not affected — only '
+            'app preferences live in this file. To recover, quit '
+            'the app and either delete that file (preferences reset '
+            'to defaults) or restore it from a backup, then relaunch.',
+      ),
+    );
+    return;
+  }
   final config = loaded.config;
   await loggerInit; // ensure log path resolved before enabling file logging
   // `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` overrides the on-
