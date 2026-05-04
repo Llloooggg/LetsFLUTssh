@@ -73,6 +73,81 @@ part 'main_screen.dart';
 @visibleForTesting
 SingleInstance? singleInstanceLock;
 
+/// Load the bundled native blob, initialise the Rust AppState
+/// singleton, wire the config-store actor, attach the Rust→Dart log
+/// pipe, and apply process hardening. Returns `true` when the core
+/// is ready and `_mainBody` should continue, `false` when load
+/// failed and the widget tree was replaced with [FatalErrorApp].
+///
+/// Failure-mode escape valve: every SSH / SFTP / keypair / crypto
+/// call routes through here, and a missing core makes downstream
+/// FRB calls throw. The migration runner catches those throws and
+/// routes the user into `DbCorruptDialog` whose "Reset and start
+/// fresh" button calls `WipeAllService.wipeAll()` — destroying their
+/// data over what is usually a transient packaging issue. Bail to a
+/// dedicated fatal screen instead so the wipe path is unreachable.
+Future<bool> _initRustCoreOrFatal() async {
+  try {
+    // `RustLib.init()` throws "Should not initialize twice" on a
+    // re-entry — that happens under flutter_test where
+    // `requireFrbLoaded()` already ran in `setUpAll`. Tolerate that
+    // specific shape and continue; every other StateError /
+    // load-time failure still routes through the catch below and
+    // lands on FatalErrorApp.
+    try {
+      await RustLib.init();
+    } on StateError catch (e) {
+      if (!e.message.contains('Should not initialize')) rethrow;
+      AppLogger.instance.log(
+        'RustLib already initialised — skipping re-init',
+        name: 'RustCore',
+      );
+    }
+    // Initialise the AppState singleton in lfs_core. Subsequent
+    // commands (secrets_*, sessions/connections/forwards) attach
+    // to it. Idempotent.
+    await rust_app.appInit();
+    // Wire the Rust `lfs_core::config_store::Store` actor so
+    // `loadAppConfigFromDisk` (next step in `_mainBody`) parses
+    // through the Rust-side `AppConfig::from_json_value` sanitizer
+    // and subsequent `ConfigNotifier.save` calls land via the
+    // atomic-write path.
+    await bootstrapRustConfigStore();
+    // Wire the Rust→Dart log pipe — every `lfs_core::app_log` call
+    // gets folded into the same on-disk `letsflutssh.log` the
+    // Dart-side AppLogger writes through. Must be after `app_init`
+    // because `bus_subscribe` reaches into `lfs_core::app::instance()`.
+    AppLogger.instance.attachCoreLogPipe();
+    AppLogger.instance.log(
+      'Rust core loaded: ${rust_core.ping()}',
+      name: 'RustCore',
+    );
+    // Disable core dumps + ptrace attach as early as possible —
+    // before any secrets touch RAM. Best-effort, swallowed on
+    // failure.
+    ProcessHardening.applyOnStartup();
+    return true;
+  } catch (e, st) {
+    await AppLogger.instance.logCritical(
+      'Rust core failed to load — bailing to fatal screen: $e',
+      name: 'RustCore',
+      error: e,
+      stackTrace: st,
+    );
+    runApp(
+      const FatalErrorApp(
+        summary: 'LetsFLUTssh cannot start.',
+        detail:
+            'The bundled native core failed to load. This usually means the '
+            'application bundle is incomplete or incompatible with this '
+            'platform. Reinstalling the app should restore it. Your saved '
+            'sessions and data are not affected.',
+      ),
+    );
+    return false;
+  }
+}
+
 Future<void> main() async {
   // `WidgetsFlutterBinding.ensureInitialized()` must be called inside
   // the same zone as `runApp` — otherwise Flutter warns about a zone
@@ -195,10 +270,11 @@ Future<void> _mainBody() async {
 
   AppLogger.instance.log('App starting', name: 'App');
 
-  // Single-instance lock fires before runApp so a second copy clicked
-  // from the launcher gets the dedicated `AlreadyRunningApp` blocker
-  // instead of two splash overlays competing for the same Win32
-  // window. The acquire is a single file-lock syscall — sub-ms.
+  // Single-instance lock fires before any heavy init so a second
+  // copy clicked from the launcher gets the dedicated
+  // `AlreadyRunningApp` blocker. Pure-Dart `RandomAccessFile.lock`
+  // means the check has no FRB dependency — a single file-lock
+  // syscall, sub-ms.
   if (plat.isDesktopPlatform) {
     singleInstanceLock = SingleInstance();
     final acquired = await singleInstanceLock!.acquire();
@@ -211,6 +287,23 @@ Future<void> _mainBody() async {
       return;
     }
   }
+
+  // Rust security/transport core load runs synchronously in
+  // `_mainBody`. An earlier iteration deferred this past the first
+  // frame so the splash painted before the ~3 s Defender scan on
+  // Windows IoT — but the cold-start path has multiple FRB-bound
+  // calls before `runApp` (`AppConfig.fromJson` → Rust sanitize,
+  // `SecurityCapabilities.fromJson`, `configStoreInit`, …) that all
+  // throw "RustLib not initialised" pre-init and either silently
+  // fall back to defaults (loses the user's saved tier / theme /
+  // probe cache) or get swallowed by the global error handlers and
+  // hang downstream callers awaiting the resulting Riverpod state.
+  // Putting `RustLib.init` here brings every FRB call's prerequisite
+  // back to the top of the boot path. The Win IoT splash issue is
+  // tracked separately and will land via a native splash (Win32
+  // `SplashScreen` API) so the window appears before the Flutter
+  // engine even spins up.
+  if (!await _initRustCoreOrFatal()) return;
 
   // Opt the app-support directory out of iCloud/iTunes backup (iOS) and
   // Time Machine (macOS) so secrets don't land in untrusted backups.

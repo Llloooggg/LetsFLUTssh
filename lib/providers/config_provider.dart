@@ -43,7 +43,6 @@ class LoadedAppConfig {
 /// fall-through to defaults.
 Future<LoadedAppConfig> loadAppConfigFromDisk() async {
   final dir = await getApplicationSupportDirectory();
-  await _bootstrapRustStore(dir.path);
   final filePath = p.join(dir.path, _configFileName);
   final file = File(filePath);
   if (!await file.exists()) {
@@ -70,16 +69,25 @@ Future<LoadedAppConfig> loadAppConfigFromDisk() async {
   }
 }
 
-Future<void> _bootstrapRustStore(String supportDir) async {
-  // Bootstrap the Rust `lfs_core::config_store::Store` actor against
-  // the same directory so subsequent save() calls land on disk through
-  // the Rust atomic-write + bus-event path.
-  rust_config.configStoreInit(supportDir: supportDir);
+/// Wire the Rust `lfs_core::config_store::Store` actor against
+/// the app-support directory so subsequent save() calls land on
+/// disk through the Rust atomic-write + bus-event path.
+///
+/// Called once from `_initRustCoreOrFatal()` in `main.dart` right
+/// after `RustLib.init()` + `appInit()` succeed and before
+/// `loadAppConfigFromDisk` parses the on-disk file (which routes
+/// through `rust_config.configAppConfigSanitizeJson`).
+/// `_saveAppConfigToDisk` re-invokes `configStoreInit` defensively
+/// — the Rust-side actor is idempotent under repeated init with
+/// the same directory.
+Future<void> bootstrapRustConfigStore() async {
+  final dir = await getApplicationSupportDirectory();
+  rust_config.configStoreInit(supportDir: dir.path);
 }
 
 Future<void> _saveAppConfigToDisk(AppConfig config) async {
   final dir = await getApplicationSupportDirectory();
-  await _bootstrapRustStore(dir.path);
+  rust_config.configStoreInit(supportDir: dir.path);
   // Stamp the current schema version on every write so the Rust
   // migration runner on the next launch can detect any version other
   // than the current `SchemaVersions::CONFIG` (defined in
