@@ -3,7 +3,7 @@ import 'package:letsflutssh/core/connection/connection_step.dart';
 
 void main() {
   group('ConnectionPhase', () {
-    test('contains expected values', () {
+    test('ConnectionPhase enum exposes expected cases', () {
       expect(
         ConnectionPhase.values,
         containsAll([
@@ -17,7 +17,7 @@ void main() {
   });
 
   group('StepStatus', () {
-    test('contains expected values', () {
+    test('StepStatus enum exposes expected cases', () {
       expect(
         StepStatus.values,
         containsAll([

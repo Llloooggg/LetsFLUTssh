@@ -35,7 +35,7 @@ void main() {
       expect(addr.displayName, 'admin@srv:8022');
     });
 
-    test('copyWith replaces fields', () {
+    test('ServerAddress.copyWith replaces fields', () {
       const original = ServerAddress(host: 'a', user: 'b', port: 22);
       final copy = original.copyWith(host: 'x', port: 3333);
       expect(copy.host, 'x');
@@ -43,19 +43,19 @@ void main() {
       expect(copy.user, 'b');
     });
 
-    test('copyWith with no args returns equivalent object', () {
+    test('ServerAddress.copyWith with no args returns equivalent object', () {
       const original = ServerAddress(host: 'a', user: 'b', port: 22);
       final copy = original.copyWith();
       expect(copy, original);
     });
 
-    test('equality — same fields are equal', () {
+    test('ServerAddress equality — same fields are equal', () {
       const a = ServerAddress(host: 'h', user: 'u', port: 22);
       const b = ServerAddress(host: 'h', user: 'u', port: 22);
       expect(a, b);
     });
 
-    test('equality — identical returns true', () {
+    test('ServerAddress equality — identical returns true', () {
       const a = ServerAddress(host: 'h', user: 'u');
       expect(a == a, isTrue);
     });
@@ -134,7 +134,7 @@ void main() {
       expect(auth.hasAuth, isFalse);
     });
 
-    test('copyWith replaces fields', () {
+    test('SshAuth.copyWith replaces fields', () {
       const original = SshAuth(password: 'p', keyPath: 'k');
       final copy = original.copyWith(password: 'new', passphrase: 'pp');
       expect(copy.password, 'new');
@@ -143,19 +143,19 @@ void main() {
       expect(copy.passphrase, 'pp');
     });
 
-    test('copyWith with no args returns equivalent object', () {
+    test('SshAuth.copyWith with no args returns equivalent object', () {
       const original = SshAuth(password: 'p');
       final copy = original.copyWith();
       expect(copy, original);
     });
 
-    test('equality — same fields are equal', () {
+    test('SshAuth equality — same fields are equal', () {
       const a = SshAuth(password: 'p', keyPath: 'k');
       const b = SshAuth(password: 'p', keyPath: 'k');
       expect(a, b);
     });
 
-    test('equality — identical returns true', () {
+    test('SshAuth equality — identical returns true', () {
       const a = SshAuth(password: 'p');
       expect(a == a, isTrue);
     });

@@ -84,7 +84,7 @@ void main() {
       expect(SshKeySequences.ctrlKey('['), '\x1b');
     });
 
-    test('empty string returns empty', () {
+    test('ctrlKey on empty string returns empty', () {
       expect(SshKeySequences.ctrlKey(''), '');
     });
 
@@ -103,7 +103,7 @@ void main() {
       expect(SshKeySequences.altKey('x'), '\x1bx');
     });
 
-    test('empty string returns empty', () {
+    test('altKey on empty string returns empty', () {
       expect(SshKeySequences.altKey(''), '');
     });
   });

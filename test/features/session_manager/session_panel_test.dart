@@ -875,35 +875,11 @@ void main() {
     });
   });
 
-  group('SessionPanel — Delete Folder confirmation', () {
-    testWidgets('Delete Folder from folder context menu shows confirmation', (
-      tester,
-    ) async {
+  group('SessionPanel — Delete Folder confirm-tap', () {
+    testWidgets('Delete Folder confirm-tap dismisses dialog', (tester) async {
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
 
-      // Right-click on empty area (background) — we use the staging session area
-      // but right-click on the background. Let's right-click the 'Sessions' header area.
-      // Actually, the background context menu is triggered on the tree view background.
-      // We can trigger by right-clicking on the staging row with folder context.
-      // Better: right-click directly on the tree's empty space — we need to find
-      // a spot after all sessions. Instead, use the folder context menu on root:
-      // In the test, the filteredSessionTreeProvider is overridden, so background
-      // right-click is on the tree area. Let's test via _showFolderContextMenu('', ...).
-      // Actually, the root folder context menu is shown when right-clicking the tree background.
-      // Since we have sessions, the 'delete_all' item should appear.
-      // The easiest approach: use an offset on the tree view area.
-
-      // The SessionTreeView has onBackgroundContextMenu callback that fires
-      // when the tree background is right-clicked. In practice, this is hard to
-      // trigger reliably in test. Instead, let's test via the folder context menu
-      // on an actual folder, then check the folder menu items.
-      //
-      // But _confirmDeleteAll is triggered from the root ("") folder menu.
-      // Let's test it indirectly by checking the folder menu has 'Delete All Sessions'.
-
-      // For now, test that Delete Folder confirmation for Production works and
-      // exercises the _confirmDeleteFolder path with session count.
       final folderText = find.text('Production');
       final center = tester.getCenter(folderText);
       final gesture = await tester.createGesture(

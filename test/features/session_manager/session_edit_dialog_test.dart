@@ -121,17 +121,18 @@ void main() {
       expect(find.text('KEY PASSPHRASE'), findsOneWidget);
     });
 
-    testWidgets('dialog has Save, Save & Connect and Cancel buttons', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'New Connection dialog has Save, Save & Connect and Cancel buttons',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Save'), findsOneWidget);
-      expect(find.text('Save & Connect'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-    });
+        expect(find.text('Save'), findsOneWidget);
+        expect(find.text('Save & Connect'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+      },
+    );
 
     testWidgets('validates required fields on submit', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -176,25 +177,26 @@ void main() {
   });
 
   group('SessionEditDialog — submit actions', () {
-    testWidgets('Save & Connect returns SaveResult with connect=true', (
-      tester,
-    ) async {
-      await tester.pumpWidget(buildApp());
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Save & Connect on new session returns SaveResult with connect=true',
+      (tester) async {
+        await tester.pumpWidget(buildApp());
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      await fillRequiredFields(tester);
+        await fillRequiredFields(tester);
 
-      await tester.tap(find.text('Save & Connect'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.host, 'example.com');
-      expect(result.session.user, 'testuser');
-      expect(result.session.port, 22);
-      expect(result.connect, isTrue);
-    });
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.host, 'example.com');
+        expect(result.session.user, 'testuser');
+        expect(result.session.port, 22);
+        expect(result.connect, isTrue);
+      },
+    );
 
     testWidgets('Save & Connect with label filled', (tester) async {
       await tester.pumpWidget(buildApp());
@@ -288,27 +290,31 @@ void main() {
       expect(result.connect, isFalse);
     });
 
-    testWidgets('Save & Connect returns SaveResult with connect=true', (
-      tester,
-    ) async {
-      final session = Session(
-        label: 'test-server',
-        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
-        auth: const SessionAuth(authType: AuthType.password, password: 'pass'),
-      );
-      await tester.pumpWidget(buildApp(session: session));
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Save & Connect on existing session returns SaveResult with connect=true',
+      (tester) async {
+        final session = Session(
+          label: 'test-server',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+          auth: const SessionAuth(
+            authType: AuthType.password,
+            password: 'pass',
+          ),
+        );
+        await tester.pumpWidget(buildApp(session: session));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save & Connect'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Save & Connect'));
+        await tester.pumpAndSettle();
 
-      expect(dialogResult, isA<SaveResult>());
-      final result = dialogResult as SaveResult;
-      expect(result.session.host, '10.0.0.1');
-      expect(result.session.user, 'root');
-      expect(result.connect, isTrue);
-    });
+        expect(dialogResult, isA<SaveResult>());
+        final result = dialogResult as SaveResult;
+        expect(result.session.host, '10.0.0.1');
+        expect(result.session.user, 'root');
+        expect(result.connect, isTrue);
+      },
+    );
 
     testWidgets('Save preserves edited fields', (tester) async {
       final session = Session(
@@ -774,23 +780,24 @@ void main() {
       expect(result.connect, isFalse);
     });
 
-    testWidgets('dialog has Save, Save & Connect and Cancel buttons', (
-      tester,
-    ) async {
-      final session = Session(
-        label: 'edit-me',
-        server: const ServerAddress(host: '10.0.0.1', user: 'root'),
-        auth: const SessionAuth(authType: AuthType.password),
-      );
-      await tester.pumpWidget(buildApp(session: session));
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Edit Connection dialog has Save, Save & Connect and Cancel buttons',
+      (tester) async {
+        final session = Session(
+          label: 'edit-me',
+          server: const ServerAddress(host: '10.0.0.1', user: 'root'),
+          auth: const SessionAuth(authType: AuthType.password),
+        );
+        await tester.pumpWidget(buildApp(session: session));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Edit Connection'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
-      expect(find.text('Save & Connect'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-    });
+        expect(find.text('Edit Connection'), findsOneWidget);
+        expect(find.text('Save'), findsOneWidget);
+        expect(find.text('Save & Connect'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+      },
+    );
   });
 
   group('SessionEditDialog — edit key session preserves all key fields', () {

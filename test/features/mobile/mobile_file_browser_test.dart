@@ -1628,26 +1628,6 @@ void main() {
       // Should now show descending
       expect(find.textContaining('Name ↓'), findsOneWidget);
     });
-
-    testWidgets('loading state shows CircularProgressIndicator', (
-      tester,
-    ) async {
-      // Create controller but don't init — set loading state
-      final loadingFs = FakeFileSystem(fakeEntries: testEntries());
-      final loadingCtrl = FilePaneController(fs: loadingFs, label: 'Loading');
-      // Simulate loading by refreshing (the controller sets loading = true)
-      // Instead, directly test with a controller that is loading
-      // We need to trigger refresh without completing it
-
-      // Simple approach: create widget with a controller that has loading=true
-      // FilePaneController starts with loading=false and empty entries
-      // We'll use the empty state test pattern instead
-
-      // Actually testing loading: start init but don't await
-      // The FakeFileSystem resolves immediately, so we can't easily catch
-      // the loading state. Let's verify the branch by testing the empty entries case.
-      loadingCtrl.dispose();
-    });
   });
 
   // ===========================================================================

@@ -130,7 +130,7 @@ void main() {
     });
 
     group('equality and hashCode', () {
-      test('equal configs are equal', () {
+      test('equal TerminalConfigs are equal', () {
         const a = TerminalConfig(
           fontSize: 16,
           theme: 'light',
@@ -348,7 +348,7 @@ void main() {
     });
 
     group('equality and hashCode', () {
-      test('equal configs are equal', () {
+      test('equal SshDefaults are equal', () {
         const a = SshDefaults(
           keepAliveSec: 10,
           defaultPort: 22,
@@ -541,7 +541,7 @@ void main() {
     });
 
     group('equality and hashCode', () {
-      test('equal configs are equal', () {
+      test('equal UiConfigs are equal', () {
         const a = UiConfig(
           toastDurationMs: 3000,
           windowWidth: 800,
@@ -940,7 +940,7 @@ void main() {
     });
 
     group('equality and hashCode', () {
-      test('equal configs are equal', () {
+      test('equal AppConfigs are equal', () {
         const a = AppConfig(
           transferWorkers: 4,
           maxHistory: 100,

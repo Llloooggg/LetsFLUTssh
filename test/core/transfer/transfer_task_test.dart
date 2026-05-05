@@ -64,7 +64,7 @@ void main() {
       expect(h.sizeBytes, 0);
     });
 
-    test('direction icon flips based on direction', () {
+    test('HistoryEntry.directionIcon flips based on direction', () {
       expect(make(direction: TransferDirection.upload).directionIcon, '↑');
       expect(make(direction: TransferDirection.download).directionIcon, '↓');
     });
@@ -127,7 +127,7 @@ void main() {
       expect(a.message, isEmpty);
     });
 
-    test('direction icon flips based on direction', () {
+    test('ActiveEntry.directionIcon flips based on direction', () {
       expect(make(direction: TransferDirection.upload).directionIcon, '↑');
       expect(make(direction: TransferDirection.download).directionIcon, '↓');
     });

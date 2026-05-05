@@ -777,54 +777,6 @@ void main() {
       await doubleTapSession(tester, 'Fail Server');
     });
 
-    testWidgets(
-      'SFTP connect via context menu navigates to Files page',
-      (tester) async {
-        final session = Session(
-          id: 'sess-sftp',
-          label: 'SFTP Target',
-          server: const ServerAddress(host: 'sftp.example.com', user: 'admin'),
-          auth: const SessionAuth(password: 'secret'),
-        );
-        await tester.pumpWidget(
-          buildWithSession(
-            session: session,
-            manager: _SuccessConnectionManager(),
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('SFTP Target'), findsOneWidget);
-
-        // Right-click (secondary tap) on the session to open context menu
-        await tester.tap(
-          find.text('SFTP Target'),
-          buttons: kSecondaryMouseButton,
-        );
-        await tester.pumpAndSettle();
-
-        // Tap 'Files' in the context menu (last match — first is nav bar)
-        expect(find.text('Files'), findsWidgets);
-        await tester.tap(find.text('Files').last);
-        await tester.pumpAndSettle();
-
-        // Should navigate to Files page (index 2) after _connectSessionSftp
-        final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
-        expect(stack.index, equals(2));
-      },
-      // SFTP-from-context-menu nav requires a live Rust connection
-      // registry session; the fake handle never resolves because
-      // the FRB-bootstrapped Connection ctor subscribes to the real
-      // bus and the Rust SFTP init queries the actor's registry
-      // instead of the fake. Equivalent coverage lives in
-      // `integration_test/` where the Rust actor has a real session
-      // attached. `testWidgets.skip` is a bool — rationale lives in
-      // this comment block above the skip flag.
-      skip: true,
-    );
-
-    // FAB was removed — new sessions are created from SessionPanel's add button.
-
     testWidgets('incomplete session shows toast and stays on Sessions page', (
       tester,
     ) async {

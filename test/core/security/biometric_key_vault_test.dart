@@ -130,31 +130,6 @@ void main() {
       },
     );
 
-    // The two libsecret-fallback tests below moved to the Rust
-    // side after the cleanup arc retired flutter_secure_storage.
-    // The fallback now goes through `lfs_os_security::secure_key_storage`
-    // (Rust `secret-service` crate, libsecret D-Bus); the equivalent
-    // round-trip lives in
-    // `lfs_os_security::secure_key_storage::tests` (Linux integration
-    // path) where it can talk to a real session bus on the CI runner
-    // instead of mocking a MethodChannel that no longer exists.
-    test(
-      'store falls back to libsecret when TPM is unavailable on Linux',
-      () async {},
-      skip:
-          'Moved to Rust integration tests under '
-          'lfs_os_security::secure_key_storage::tests after the '
-          'flutter_secure_storage retire',
-    );
-    test(
-      'store falls back to libsecret when fprintd enrolment is missing',
-      () async {},
-      skip:
-          'Moved to Rust integration tests under '
-          'lfs_os_security::secure_key_storage::tests after the '
-          'flutter_secure_storage retire',
-    );
-
     test(
       'clear removes both the TPM seal file and the libsecret entry',
       () async {

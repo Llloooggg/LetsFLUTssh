@@ -36,7 +36,7 @@ void main() {
       expect(File(path).readAsStringSync(), 'second');
     });
 
-    test('creates parent directories', () async {
+    test('writeFileAtomic creates parent directories', () async {
       final path = '${tempDir.path}/sub/dir/test.txt';
       await writeFileAtomic(path, 'nested');
       expect(File(path).readAsStringSync(), 'nested');
@@ -82,7 +82,7 @@ void main() {
       expect(File('$path.tmp').existsSync(), isFalse);
     });
 
-    test('creates parent directories', () async {
+    test('writeBytesAtomic creates parent directories', () async {
       final path = '${tempDir.path}/a/b/test.bin';
       await writeBytesAtomic(path, [42]);
       expect(File(path).readAsBytesSync(), [42]);
