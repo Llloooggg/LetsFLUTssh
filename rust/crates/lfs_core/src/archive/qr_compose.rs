@@ -784,6 +784,9 @@ mod tests {
         input.options.include_sessions = true;
         input.selected_session_ids = vec!["s1".into()];
         let with_session = qr_export_payload_size(&conn, &input).unwrap();
-        assert!(with_session > baseline, "adding a session must grow payload");
+        assert!(
+            with_session > baseline,
+            "adding a session must grow payload"
+        );
     }
 }

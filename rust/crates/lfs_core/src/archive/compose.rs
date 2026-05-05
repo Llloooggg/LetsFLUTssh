@@ -509,7 +509,9 @@ mod tests {
     }
 
     fn text_entry<'a>(zip: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [u8]> {
-        zip.iter().find(|(n, _)| n == name).map(|(_, b)| b.as_slice())
+        zip.iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, b)| b.as_slice())
     }
 
     fn insert_session(conn: &Connection, row: SessionRow) {

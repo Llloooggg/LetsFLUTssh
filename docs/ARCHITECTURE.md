@@ -934,7 +934,7 @@ Stores (`SessionNotifier`, `SshKeysNotifier`, `KnownHostsNotifier`, `SnippetsNot
 3. Read `readConfigSchemaVersion()` (FRB shim over
    `migration_config_version_on_disk`, which delegates to the
    Rust-side `ConfigArtefact::read_version`). When the value is
-   older than `kCurrentConfigSchemaVersion` (mirror of
+   older than `currentConfigSchemaVersion()` (FRB getter for
    `lfs_core::migration::SchemaVersions::CONFIG`), or when
    `AppConfig.security == null`
    **and** any managed artefact exists on disk, show
@@ -1431,9 +1431,9 @@ lib/core/migration/migration_runner.dart
                         has_failures / migrated_count) + the
                         `runStartupMigrations()` async entry that
                         resolves support dir and dispatches the FRB
-                        call. `kCurrentConfigSchemaVersion` mirrors
-                        SchemaVersions::CONFIG by literal until the
-                        config writer moves Rust-side.
+                        call. `currentConfigSchemaVersion()` reads
+                        `SchemaVersions::CONFIG` through FRB so the
+                        constant lives one place across the workspace.
 ```
 
 ##### Envelope (future use — not registered today)

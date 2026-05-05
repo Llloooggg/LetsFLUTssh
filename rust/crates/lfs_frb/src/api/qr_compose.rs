@@ -421,7 +421,10 @@ mod tests {
         // Even an empty options payload carries v=4 which compresses
         // to a non-zero byte count after deflate + base64url.
         let n = qr_estimate_export_size(empty_payload());
-        assert!(n > 0, "size must be > 0 (empty payload still has `v` field)");
+        assert!(
+            n > 0,
+            "size must be > 0 (empty payload still has `v` field)"
+        );
     }
 
     #[test]

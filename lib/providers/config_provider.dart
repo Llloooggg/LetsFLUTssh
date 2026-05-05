@@ -109,24 +109,16 @@ Future<void> bootstrapRustConfigStore() async {
 Future<void> _saveAppConfigToDisk(AppConfig config) async {
   final dir = await getApplicationSupportDirectory();
   rust_config.configStoreInit(supportDir: dir.path);
-  // Stamp the current schema version on every write so the Rust
-  // migration runner on the next launch can detect any version other
-  // than the current `SchemaVersions::CONFIG` (defined in
-  // `lfs_core::migration::SchemaVersions`) and route the user through
-  // the reset path. Mirrors the Rust constant by literal — this whole
-  // writer moves to `lfs_core::config` in a follow-up arc, at which
-  // point the duplication retires.
-  final payload = <String, dynamic>{
-    'config_schema_version': 1,
-    ...config.toJson(),
-  };
-  // Routes through `lfs_core::config_store::Store` — the actor owns
-  // the in-memory snapshot, 300 ms debounce, atomic write through
+  // `config.toJson()` already routes through the Rust canonicaliser
+  // (`config_app_config_to_json`), which stamps `config_schema_version`
+  // from `SchemaVersions::CONFIG` on the way out. Persisting goes
+  // through `lfs_core::config_store::Store` — the actor owns the
+  // in-memory snapshot, 300 ms debounce, atomic write through
   // `write_bytes_atomic`, and the bus event publication. The
   // `flush()` after `set_json` forces the pending state to disk on
   // an explicit save semantic ("save now") rather than letting the
   // actor's own debounce window absorb it.
-  rust_config.configStoreSetJson(newJson: jsonEncode(payload));
+  rust_config.configStoreSetJson(newJson: jsonEncode(config.toJson()));
   rust_config.configStoreFlush();
 }
 

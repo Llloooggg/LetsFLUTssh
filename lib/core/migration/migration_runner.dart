@@ -36,10 +36,11 @@ Future<rust_migration.DbMigrationReport> runStartupMigrations() async {
   return rust_migration.migrationRunOnStartup(supportDir: dir.path);
 }
 
-/// Schema floor `lfs_core::migration::SchemaVersions::CONFIG` is
-/// pinned to this constant on the Dart side. Mirrors the Rust value;
-/// retires once the `config_store` writer moves Rust-side.
-const int kCurrentConfigSchemaVersion = 1;
+/// Target version this build supports for `config.json`. Reads
+/// `lfs_core::migration::SchemaVersions::CONFIG` through FRB so the
+/// constant lives one place across the workspace.
+int currentConfigSchemaVersion() =>
+    rust_migration.migrationConfigTargetVersion();
 
 /// Read the `config.json` schema version from disk. Returns `-1`
 /// when the file is absent. Throws [Exception] when the file is

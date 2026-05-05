@@ -483,7 +483,7 @@ class SecurityInitController {
     final currentSecurity = ref.read(configProvider).security;
     final configVersion = await readConfigSchemaVersion();
     final legacyConfig =
-        configVersion >= 0 && configVersion < kCurrentConfigSchemaVersion;
+        configVersion >= 0 && configVersion < currentConfigSchemaVersion();
     final orphanArtefacts =
         currentSecurity == null && await wiper.hasAnyState();
     if (!legacyConfig && !orphanArtefacts) return false;

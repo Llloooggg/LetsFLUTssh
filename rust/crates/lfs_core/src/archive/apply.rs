@@ -1097,8 +1097,7 @@ mod tests {
         };
         let mut opts = merge_all_options();
         opts.apply_keys = false;
-        let result =
-            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        let result = apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
         assert_eq!(result.keys_applied, 0);
         assert!(ssh_keys::get(&conn, "k1").unwrap().is_none());
     }
@@ -1139,23 +1138,17 @@ mod tests {
         // Tags off → link skipped.
         let mut opts = merge_all_options();
         opts.apply_tags = false;
-        let result =
-            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        let result = apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
         assert_eq!(result.session_tags_applied, 0);
         // Sessions off → also skipped.
         let mut opts = merge_all_options();
         opts.apply_sessions = false;
-        let result =
-            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        let result = apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
         assert_eq!(result.session_tags_applied, 0);
         // Both on → link applied.
-        let result = apply_pending_import_merge(
-            &conn,
-            &pending,
-            &merge_all_options(),
-            1_700_000_000_000,
-        )
-        .unwrap();
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
         assert_eq!(result.session_tags_applied, 1);
         assert_eq!(tags::list_session_tag_ids(&conn, "s1").unwrap(), vec!["t1"]);
     }
@@ -1196,21 +1189,15 @@ mod tests {
         };
         let mut opts = merge_all_options();
         opts.apply_snippets = false;
-        let result =
-            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        let result = apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
         assert_eq!(result.session_snippets_applied, 0);
         let mut opts = merge_all_options();
         opts.apply_sessions = false;
-        let result =
-            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        let result = apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
         assert_eq!(result.session_snippets_applied, 0);
-        let result = apply_pending_import_merge(
-            &conn,
-            &pending,
-            &merge_all_options(),
-            1_700_000_000_000,
-        )
-        .unwrap();
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
         assert_eq!(result.session_snippets_applied, 1);
     }
 
@@ -1451,10 +1438,7 @@ mod tests {
             apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
                 .unwrap();
         assert_eq!(result.tags_applied, 1);
-        assert!(tags::list_all(&conn)
-            .unwrap()
-            .iter()
-            .any(|t| t.id == "t2"));
+        assert!(tags::list_all(&conn).unwrap().iter().any(|t| t.id == "t2"));
     }
 
     #[test]

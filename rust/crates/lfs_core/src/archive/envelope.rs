@@ -255,8 +255,11 @@ mod tests {
 
     #[test]
     fn decrypt_rejects_parallelism_one_above_cap() {
-        let env =
-            synthetic_envelope(16, 1, (MAX_IMPORT_PARALLELISM + 1).min(u8::MAX as u32) as u8);
+        let env = synthetic_envelope(
+            16,
+            1,
+            (MAX_IMPORT_PARALLELISM + 1).min(u8::MAX as u32) as u8,
+        );
         let err = decrypt_archive_with_password(&env, "p").unwrap_err();
         assert!(err.to_string().contains("exceed import caps"), "got: {err}");
     }

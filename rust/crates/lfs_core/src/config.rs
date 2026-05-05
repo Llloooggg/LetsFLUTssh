@@ -486,9 +486,16 @@ impl AppConfig {
 
     /// JSON wire format — flat object. Sub-struct fields land at
     /// the top level so the format stays stable across the Dart +
-    /// Rust encoders.
+    /// Rust encoders. `config_schema_version` is stamped from
+    /// `SchemaVersions::CONFIG` on every write so the migration
+    /// runner can route any non-current value through its chain on
+    /// the next launch.
     pub fn to_json_value(&self) -> Value {
         let mut m = serde_json::Map::new();
+        m.insert(
+            "config_schema_version".into(),
+            json!(crate::migration::SchemaVersions::CONFIG),
+        );
         m.extend(self.terminal.to_json_object());
         m.extend(self.ssh.to_json_object());
         m.extend(self.ui.to_json_object());
@@ -761,6 +768,37 @@ mod tests {
     }
 
     #[test]
+    fn to_json_value_stamps_config_schema_version() {
+        let v = AppConfig::default().to_json_value();
+        let stamped = v
+            .as_object()
+            .and_then(|o| o.get("config_schema_version"))
+            .and_then(|n| n.as_i64());
+        assert_eq!(
+            stamped,
+            Some(crate::migration::SchemaVersions::CONFIG as i64),
+        );
+    }
+
+    #[test]
+    fn from_json_then_to_json_preserves_current_schema_version_even_if_input_was_stale() {
+        // Simulates a `Store::set_json` round-trip: caller hands JSON
+        // produced by an older build that wrote an outdated version;
+        // the canonicaliser must re-stamp the current `SchemaVersions::CONFIG`
+        // on the way out so the on-disk file always reflects the live
+        // build's target version.
+        let stale = json!({"font_size": 14.0, "config_schema_version": 0});
+        let cfg = AppConfig::from_json_value(&stale);
+        let out = cfg.to_json_value();
+        assert_eq!(
+            out.as_object()
+                .and_then(|o| o.get("config_schema_version"))
+                .and_then(|n| n.as_i64()),
+            Some(crate::migration::SchemaVersions::CONFIG as i64),
+        );
+    }
+
+    #[test]
     fn app_config_security_round_trips_when_set() {
         let cfg = AppConfig {
             security: Some(SecurityConfig {
@@ -810,11 +848,15 @@ mod tests {
             ..AppConfig::default()
         };
         let mut v = cfg.to_json_value();
-        // Inject the legacy schema-version marker the .lfs exporter
-        // strips alongside the security fields.
-        v.as_object_mut()
-            .unwrap()
-            .insert("config_schema_version".into(), json!(2));
+        // `to_json_value` always stamps `config_schema_version`;
+        // `strip_for_export` is responsible for removing it before
+        // the blob lands inside an `.lfs` archive.
+        assert_eq!(
+            v.as_object()
+                .and_then(|o| o.get("config_schema_version"))
+                .and_then(|n| n.as_i64()),
+            Some(crate::migration::SchemaVersions::CONFIG as i64),
+        );
         strip_for_export(&mut v);
         let obj = v.as_object().unwrap();
         assert!(!obj.contains_key("security_tier"));
