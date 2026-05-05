@@ -28,21 +28,11 @@ ignore = [
   #     LAN attacker scenario.
   #   - Affects RSA keys only. Ed25519 and ECDSA keys go through
   #     other crates (curve25519-dalek, ecdsa) and are unaffected.
-  #   - Users are guided towards Ed25519 in the key-generation UI
-  #     (and have been since the dartssh2 era — see
-  #     docs/USER_GUIDE.md § Keys).
+  #   - Users are guided towards Ed25519 in the key-generation UI.
   #
-  # Mitigation roadmap:
-  #   1. Document the limitation in ARCHITECTURE §3.14 + USER_GUIDE
-  #      so RSA-key users are aware (now)
-  #   2. When 1.5+ flips the Rust transport default, evaluate
-  #      `russh = { default-features = false, features = [...] }`
-  #      with `rsa` disabled — break compat with RSA private keys
-  #      in the Rust path, force the user back to dartssh2 for
-  #      legacy RSA. Depends on whether russh requires the rsa
-  #      feature for protocol-side RSA handshake compatibility.
-  #   3. Track upstream RustCrypto/RSA constant-time milestone:
-  #      https://github.com/RustCrypto/RSA/issues/626
+  # Mitigation: track the upstream RustCrypto/RSA constant-time
+  # milestone (https://github.com/RustCrypto/RSA/issues/626) and
+  # drop this allow when it lands.
   "RUSTSEC-2023-0071",
 ]
 

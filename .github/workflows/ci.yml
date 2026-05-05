@@ -39,11 +39,8 @@ jobs:
           cache: true
 
       - name: Install Linux build dependencies
-        # `libtss2-dev` is required by `tss-esapi` (Rust bindings to
-        # the TSS2 ESAPI library) under
-        # `lfs_core::platform::linux::tpm_native` — the native TPM2
-        # backend that replaces the historical `tpm2-tools` subprocess
-        # shell-out (NI-1, see RUST_CORE_MIGRATION_PLAN.md).
+        # `libtss2-dev` is required by `tss-esapi` for the native TPM2
+        # backend (`lfs_core::platform::linux::tpm_native`).
         run: |
           sudo apt-get update
           sudo apt-get install -y libsecret-1-dev libtss2-dev
@@ -366,7 +363,9 @@ jobs:
           # Windows MSVC — Windows-cfg Rust (CredWriteW,
           # UserConsentVerifier, hidden HWND for session-lock when
           # NI-3 lands).
-          - { runner: windows-latest, target: x86_64-pc-windows-msvc,  label: windows-x64 }
+          # `windows-2025-vs2026` (not `windows-latest`) — silences the
+          # GitHub redirect notice + locks the VS 2026 / MSVC toolchain.
+          - { runner: windows-2025-vs2026, target: x86_64-pc-windows-msvc, label: windows-x64 }
           # Android NDK ABIs — gates the upcoming Tier 3 Android JNI
           # work (java.security.KeyStore + BiometricPrompt direct
           # calls). Cargokit already builds these targets at release

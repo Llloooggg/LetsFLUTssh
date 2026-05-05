@@ -1,31 +1,52 @@
 # Adding a Feature — Walkthrough
 
-This is a hands-on tutorial for new contributors. It walks through adding a small feature end-to-end so you learn the project's layout, conventions, and tooling without reading [`ARCHITECTURE.md`](ARCHITECTURE.md) cover-to-cover.
+Hands-on tutorial for new contributors. Walks through adding a small feature end-to-end so you learn the project's layout, conventions, and tooling without reading [`ARCHITECTURE.md`](ARCHITECTURE.md) cover-to-cover.
 
-If you're looking for build instructions, see [`CONTRIBUTING.md`](CONTRIBUTING.md). For deep technical reference, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
+Build instructions: [`CONTRIBUTING.md`](CONTRIBUTING.md). Deep technical reference: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 
 ## Mental Model
 
-The codebase is split in two layers:
+The codebase splits across three layers:
 
-- **`lib/core/<domain>/`** — pure logic, models, stores, services. No widgets. Easy to unit-test
-- **`lib/features/<feature>/`** — UI: screens, dialogs, widgets. Consume `core/` via Riverpod providers
+- **`rust/crates/lfs_core/`** — pure Rust headless library. Owns SSH/SFTP, crypto envelopes, `rusqlite` + SQLCipher 4.x DB, sessions registry, every persisted derivation, every cached secret. No FFI, no UI awareness. See [ARCHITECTURE §3.14](ARCHITECTURE.md#314-rust-securitytransport-core-rust).
+- **`lib/core/<domain>/`** — pure Dart logic + thin FRB shims for the Rust core. Models, mappers, DAO wrappers. No widgets.
+- **`lib/features/<feature>/`** — UI: screens, dialogs, widgets. Consume `core/` through Riverpod providers in `lib/providers/`.
 
-State is shared through Riverpod providers in `lib/providers/` (one file per domain, e.g. `session_provider.dart`). Persistence goes through Drift (see [§11 Persistence](ARCHITECTURE.md#11-persistence--storage)). Strings live in `lib/l10n/app_*.arb` (one file per locale).
+Persistence runs through the FRB DAO surface in `lib/src/rust/api/db/`; the Rust schema lives in `lfs_core::db::SCHEMA_SQL` and is bootstrapped on every DB open. Dart never holds a SQLite handle directly. See [ARCHITECTURE §11 Persistence](ARCHITECTURE.md#11-persistence--storage).
 
-A good first scan: open `lib/core/snippets/` and `lib/features/snippets/` side-by-side — it's the smallest complete feature in the codebase and a fair template.
+Strings live in `lib/l10n/app_*.arb` (one file per locale, 15 total). The `S.of(context)` getter is generated from `app_en.arb`.
+
+A good first scan: open `lib/core/snippets/` + `lib/features/snippets/` + `lib/providers/snippet_provider.dart` side-by-side — the smallest complete feature in the codebase.
 
 ---
 
 ## Walkthrough — Add a "Notes" Feature
 
-We'll add a per-session free-form notes field (a real feature you might pick up). Steps map 1:1 to the layers.
+We'll add a per-session free-form notes field that lives in its own table. Steps map 1:1 to the layers.
 
-### 1. Model — `lib/core/notes/note.dart`
+### 1. Rust DAO + schema (`rust/crates/lfs_core/src/db/`)
 
-Immutable data class with `copyWith`, `==`, `hashCode`. Match the style of [`lib/core/snippets/snippet.dart`](../lib/core/snippets/snippet.dart):
+Schema is the authoritative source of truth — every column, FK, and index lives in `lfs_core::db::SCHEMA_SQL`. Add a `Notes` table next to the existing ones (`Sessions`, `SshKeys`, `Snippets`, …).
+
+For the DAO, copy the shape from `rust/crates/lfs_core/src/db/snippets.rs`: each entity gets `list_*`, `upsert_*`, `delete_*` functions taking a `&Connection` and the typed row struct. Idiomatic `rusqlite::Result<T>` returns; errors funnel through `crate::Error`.
+
+When you add or rename a column, bump `SCHEMA_VERSION` and add the matching `ALTER TABLE` step in the bootstrap — see [ARCHITECTURE §11 Schema migrations](ARCHITECTURE.md#11-persistence--storage).
+
+### 2. FRB API surface (`rust/crates/lfs_frb/src/api/db/`)
+
+Expose the DAO through `lfs_frb::api::db::notes` (one file per entity, mirroring `snippets.rs` / `tags.rs`). The adapter:
+
+- Receives Dart-friendly DTOs (`Vec<u8>` / `String` / numeric).
+- Delegates to `lfs_core::db::notes::*`.
+- Wraps blocking `rusqlite` calls in `tokio::task::spawn_blocking` so the FRB worker thread never stalls.
+
+After editing any file under `lfs_frb::api`, run `make rust-codegen` to regenerate the Dart bindings under `lib/src/rust/`. Stage the regenerated files in the same commit.
+
+### 3. Dart model — `lib/core/notes/note.dart`
+
+Immutable data class with `copyWith`, `==`, `hashCode`, `toJson` / `fromJson`. Match the style of [`lib/core/snippets/snippet.dart`](../lib/core/snippets/snippet.dart):
 
 ```dart
 import 'package:uuid/uuid.dart';
@@ -51,21 +72,17 @@ class Note {
         updatedAt: DateTime.now(),
       );
 
-  // == / hashCode / toString — see snippet.dart for the pattern
+  // == / hashCode / toString — see snippet.dart for the pattern.
 }
 ```
 
-**Why no `freezed`?** The existing models in `core/` are hand-written for readability. `freezed` is used only where unions/sealed types pay for themselves (see existing `*.freezed.dart` for examples).
+### 4. Dart shim + mapper — `lib/core/db/mappers.dart`
 
-### 2. Store — `lib/core/notes/note_store.dart`
+Add a one-pair converter between the FRB `DbNoteRow` DTO and the domain `Note` class. Same pattern the existing entries use for `Session` ↔ `DbSessionRow`.
 
-The store owns persistence. For new domains backed by Drift, follow the pattern in [`snippet_store.dart`](../lib/core/snippets/snippet_store.dart) — it loads on init, mutates in memory, writes through Drift on every change.
+### 5. Provider — `lib/providers/notes_provider.dart`
 
-If the data is sensitive (credentials, tokens) it must go through `AesGcm` — see [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity). Notes are not sensitive, so plain Drift is fine.
-
-### 3. Provider — `lib/providers/notes_provider.dart`
-
-Riverpod is the **only** way state is shared. Never `static` mutable globals.
+Riverpod is the **only** way state is shared. Never use `static` mutable globals.
 
 ```dart
 final notesProvider = AsyncNotifierProvider<NotesNotifier, List<Note>>(
@@ -73,24 +90,26 @@ final notesProvider = AsyncNotifierProvider<NotesNotifier, List<Note>>(
 );
 ```
 
-Consumers should `.select()` the slice they need — see [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod).
+The notifier reads / writes via the FRB DAO (`dbNotesList` / `dbNotesUpsert` / `dbNotesDelete`) and subscribes to the matching `BusTopic::Notes` event so cross-window mutations refresh the cache without polling. Existing example: [`lib/providers/snippet_provider.dart`](../lib/providers/snippet_provider.dart).
+
+Consumers should `.select()` the slice they need — see [ARCHITECTURE §4 State Management](ARCHITECTURE.md#4-state-management--riverpod).
 
 Widget-local state (dialog selection, pane caches, panel focus) does **not** belong in a Riverpod provider. Use `ChangeNotifier` + `AnimatedBuilder` instead — see [§4.3 Widget-local controllers](ARCHITECTURE.md#43-widget-local-controllers-changenotifier) and the canonical `FilePaneController` / `UnifiedExportController` / `SessionPanelController` / `TransferPanelController` implementations.
 
-### 4. UI — `lib/features/notes/notes_panel.dart`
+### 6. UI — `lib/features/notes/notes_panel.dart`
 
-Conventions to respect (the analyzer will catch most, but not all):
+Conventions (the analyzer catches most, but not all):
 
-- **Buttons:** `AppIconButton`, never bare `IconButton`
-- **Hover:** `HoverRegion`, never custom `MouseRegion`
-- **Colors:** semantic constants from `AppTheme`, never raw `Colors.red`
-- **Font sizes:** `AppFonts.sm`/`md`/`lg`, never hardcoded `fontSize: 14`
-- **Border radius:** `AppTheme.radiusSm`/`radiusMd`, never `BorderRadius.circular(8)`
-- **Logging:** `AppLogger.instance.log(msg, name: 'Notes')`, never `print`/`debugPrint`
+- **Buttons:** `AppIconButton`, never bare `IconButton`.
+- **Hover:** `HoverRegion`, never custom `MouseRegion`.
+- **Colors:** semantic constants from `AppTheme`, never raw `Colors.red`.
+- **Font sizes:** `AppFonts.sm` / `md` / `lg`, never hardcoded `fontSize: 14`.
+- **Border radius:** `AppTheme.radiusSm` / `radiusMd`, never `BorderRadius.circular(8)`.
+- **Logging:** `AppLogger.instance.log(msg, name: 'Notes')`, never `print` / `debugPrint`. Auto-sanitised; see [§ Logging](AGENT_RULES.md#logging--applogger-auto-sanitized-err-on-more-not-less).
 
 Full list in [CONTRIBUTING.md → Coding Conventions](CONTRIBUTING.md#coding-conventions).
 
-### 5. Localization — `lib/l10n/app_*.arb`
+### 7. Localization — `lib/l10n/app_*.arb`
 
 Every user-visible string goes into **all 15** `app_*.arb` files (ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh). Add the key once in `app_en.arb` with metadata, then mirror to other locales (machine translation is acceptable as a starting point — native speakers refine later).
 
@@ -99,32 +118,37 @@ Every user-visible string goes into **all 15** `app_*.arb` files (ar, de, en, es
 "@notesPanelTitle": { "description": "Title of the per-session notes panel" }
 ```
 
-After editing `.arb`, run `make gen` to regenerate `lib/l10n/app_localizations*.dart`.
+After editing `.arb`, run `make gen` to regenerate `lib/l10n/app_localizations*.dart`. Tone guide: [AGENT_RULES § Localization Tone](AGENT_RULES.md#localization-tone--native-it-register-not-dictionary-calques) — write what a native-speaking senior dev would type to a colleague, not dictionary calques.
 
-### 6. Tests — `test/features/notes/`, `test/core/notes/`
+### 8. Tests — `test/core/notes/`, `test/features/notes/`, `test/providers/`
 
 **One test file per source file.** Mirror the source tree:
 
 ```
-lib/core/notes/note.dart           → test/core/notes/note_test.dart
-lib/core/notes/note_store.dart     → test/core/notes/note_store_test.dart
+lib/core/notes/note.dart            → test/core/notes/note_test.dart
+lib/providers/notes_provider.dart   → test/providers/notes_provider_test.dart
 lib/features/notes/notes_panel.dart → test/features/notes/notes_panel_test.dart
 ```
 
-Patterns, helpers, and DI hooks: [§14 Testing Patterns](ARCHITECTURE.md#14-testing-patterns--di-hooks). In short:
+Patterns, helpers, and DI hooks: [ARCHITECTURE §14 Testing Patterns](ARCHITECTURE.md#14-testing-patterns--di-hooks). In short:
 
-- Pure logic — straight `test()`
-- Anything touching `ref.read()` — `ProviderContainer` with overrides
-- Widgets — `pumpWidget` wrapped via `test/helpers/`
-- Anything parsing untrusted input (JSON, URIs, file formats) — also add a fuzz target in `test/fuzz/`
+- Pure logic → straight `test()`.
+- Anything touching `ref.read()` → `ProviderContainer` with overrides.
+- Anything that needs a real DB / SecretStore → `requireFrbLoaded()` + the in-process Rust fixture (see `test/integration/`).
+- Widgets → `pumpWidget` wrapped via `test/helpers/`.
+- Anything parsing untrusted input (JSON, URIs, file formats) → also add a fuzz target in `test/fuzz/`.
 
-Run `make check` (analyzer + tests). Both must be green before commit — the pre-commit hook enforces this.
+Test mocks are **hand-rolled** (`test/helpers/fake_*.dart`) — no `mockito` / `mocktail` (see [§14 Mocking discipline](ARCHITECTURE.md#mocking-discipline)).
 
-### 7. Documentation
+Run `make check` (analyzer + tests) and `make rust-check` (fmt + clippy + Rust tests). Both must be green before commit — the pre-commit hook enforces this.
 
-If your feature adds a new `core/` module or changes a public contract, add a subsection to [`ARCHITECTURE.md`](ARCHITECTURE.md) under §3 (core) or §5 (features). Tiny additions don't need their own section — extend the closest existing one. See the [doc maintenance checklist](AGENT_RULES.md#documentation-maintenance-checklist).
+### 9. Documentation
 
-### 8. Commit
+If your feature adds a new `core/` module or changes a public contract, add a subsection to [`ARCHITECTURE.md`](ARCHITECTURE.md) under §3 (core) or §5 (features). Tiny additions extend the closest existing §. See the [doc maintenance checklist](AGENT_RULES.md#documentation-maintenance-checklist).
+
+User-visible feature → also walk through [`USER_GUIDE.md`](USER_GUIDE.md) and add an example.
+
+### 10. Commit
 
 One logical change per commit. Use the right [conventional prefix](CONTRIBUTING.md#commit-messages) — it drives the auto-changelog and version bump:
 
@@ -140,10 +164,11 @@ Don't bump `pubspec.yaml` manually — the release pipeline does it from commit 
 
 LetsFLUTssh ships on Linux, Windows, macOS, Android, iOS. Before marking a feature done:
 
-- [ ] Touched Android code? — also smoke-test iOS (and vice versa)
-- [ ] Touched desktop code? — at minimum `make build-linux`; ideally also Windows or macOS
-- [ ] New file picker / clipboard / notification? — these have platform-specific quirks; check [§3 Core Modules](ARCHITECTURE.md#3-core-modules) for existing wrappers
-- [ ] Mobile UI? — the `features/mobile/` layer is separate from desktop layout (see [§5.6 Mobile](ARCHITECTURE.md#56-mobile-featuresmobile))
+- [ ] Touched Android code? — also smoke-test iOS (and vice versa).
+- [ ] Touched desktop code? — at minimum `make build-linux`; ideally also Windows or macOS.
+- [ ] New file picker / clipboard / notification? — these have platform-specific quirks; check [§3 Core Modules](ARCHITECTURE.md#3-core-modules) for existing wrappers.
+- [ ] Mobile UI? — the `features/mobile/` layer is separate from desktop layout (see [§5.6 Mobile](ARCHITECTURE.md#56-mobile-featuresmobile)).
+- [ ] Touched any `cfg(target_os = ...)` Rust code? — `ci.yml::rust-cross-check` validates the Apple / Windows / Android cfg paths every PR (see [§3.14 CI gates](ARCHITECTURE.md#314-rust-securitytransport-core-rust)).
 
 ---
 
@@ -152,17 +177,18 @@ LetsFLUTssh ships on Linux, Windows, macOS, Android, iOS. Before marking a featu
 | Symptom | Likely cause |
 |---|---|
 | `make analyze` complains about cognitive complexity | Method > 15 — extract a helper. Don't `// ignore:` |
-| Test passes locally, fails in CI | Forgot `make gen` after `.arb` or freezed edits |
-| String shows `notesPanelTitle` literally in UI | Missing key in some `app_*.arb`, or missed `make gen` |
-| Hover/focus looks off | Using `IconButton`/`InkWell` instead of `AppIconButton`/`HoverRegion` |
-| `lfs_os_security::secure_key_storage` errors on Linux | `libsecret-1-dev` is an optional OS dep — `KeyringProbeResult` returns `linuxNoSecretService`, UI falls back gracefully |
+| Test passes locally, fails in CI | Forgot `make gen` or `make rust-codegen` after editing ARB / FRB API. |
+| String shows `notesPanelTitle` literally in UI | Missing key in some `app_*.arb`, or missed `make gen`. |
+| Hover/focus looks off | Using `IconButton` / `InkWell` instead of `AppIconButton` / `HoverRegion`. |
+| `lfs_os_security::secure_key_storage` errors on Linux | `libsecret-1-0` is an optional OS dep — `KeyringProbeResult` returns `linuxNoSecretService`, UI falls back gracefully. |
+| Rust changes don't show up in Dart | Forgot to run `make rust-codegen` after editing `lfs_frb::api::*`. |
 
 ---
 
 ## Where to Ask
 
-- Architecture question — check the [navigation table](AGENT_RULES.md#quick-navigation-by-task) first
-- Found a bug — open an issue with the `bug` label
-- Want to discuss a larger change before coding — open an issue with `discussion` first
+- Architecture question — check the [navigation table](AGENT_RULES.md#quick-navigation-by-task) first.
+- Found a bug — open an issue with the `bug` label.
+- Want to discuss a larger change before coding — open an issue with `discussion` first.
 
 Welcome aboard.

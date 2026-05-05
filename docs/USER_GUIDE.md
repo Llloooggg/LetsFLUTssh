@@ -629,7 +629,7 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 - Settings → Updates → **Check for updates**.
 - Optional **Check on startup** toggle (default on).
 - Found a new version → modal with release notes + Skip / Open in Browser / Download & Install.
-- Download → SHA-256 verify → Ed25519-signature verify → installer launch (Windows MSI / Linux .deb) or "Open release page" fallback.
+- Download → SHA-256 verify → Ed25519-signature verify → installer launch (Windows Inno Setup `.exe` / Linux `.deb`) or "Open release page" fallback.
 - Install signature key is bundled with the app; an attacker would need to either (a) compromise the GitHub Releases CDN AND have access to the signing key, or (b) ship a malicious update that's CSP-pinned by the build itself.
 
 ---

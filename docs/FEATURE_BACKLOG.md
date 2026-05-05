@@ -30,7 +30,7 @@ The remaining backlog (high to low priority, with concrete next-step pointers):
 1. **§4.1 WebDAV sync** — biggest feature in the open list. Best-practice path: hand-roll WebDAV over `dart:io` HttpClient (PROPFIND/PUT/GET/DELETE/MKCOL — ~300 lines, zero new dep), Sessions+Keys+Snippets+Tags+Bookmarks soft-delete with `deletedAt DATETIME NULL` (DB v4→v5; **not** known_hosts — TOFU stays per-device), separate sync passphrase from master, manual push/pull buttons in v1 with auto-interval deferred. Plan in §4.1.
 2. **§4.2 S3 bucket browser** — depends on the `RemoteFs` widening (`stat` / `getStream` / `putStream` / `close`). Best-practice path: hand-roll Sigv4 against AWS's published test suite (~600 lines including bucket ops + multipart), in-process fake test backend + integration suite under `--tags integration` for MinIO. STS / SSO / IAM out of scope v1.
 3. **§4.3 WebDAV file browser** — reuses §4.1's transport. ~1 week of additional surface for `WebDavRemoteFs` + a `webdav` `SessionKind`. Browses Nextcloud / ownCloud / mod_dav / generic NAS WebDAV endpoints in the same file-browser UI as SFTP and (eventually) S3.
-3. **§6.2 SSH certificates** — **upstream blocker:** dartssh2 2.17.1 has no client-side cert userauth API. Best-practice path: submit upstream PR adding cert support to `userauth_publickey.dart` + ship via local `pubspec_overrides.yaml` until it merges. Cert parser + display in key manager can ship before the upstream PR lands.
+3. **§6.2 SSH certificates** — protocol layer landed via russh (`lfs_core::ssh::connect_pubkey_cert`). Open work: cert import / display in the key manager + an optional auto-renewal hook that runs an external command (e.g. `step ssh renew`) before expiry.
 4. **§6.3 FIDO2-SSH** — desktop-first (Linux + Windows v1, macOS deferred for entitlements). Best-practice path: native HID platform channels per OS (not `package:hidapi` FFI — would break the zero-install rule on Linux distros without the package). Sequential PIN → touch dialogs.
 5. **§6.1 polish** (smaller follow-ups): global storage cap + LRU eviction for recordings, settings tile showing recordings disk-used, scrub bar in playback (would need a per-frame index file written alongside the recording for random access).
 
@@ -486,7 +486,7 @@ Add a single `ConnectionExtension` interface the connection holds a list of. Eac
 
 ### 6.2 SSH certificates (OpenSSH signed keys)
 
-**Status: protocol layer DONE on `feat/rust-core` (commit `04831ac9`).** UI / cert-renewal layers below still pending — they ride on the Rust transport unified-swap (RUST_CORE_MIGRATION_PLAN.md §13 1.5+).
+**Status: protocol layer DONE.** Rust core authenticates with OpenSSH certs via `lfs_core::ssh::connect_pubkey_cert`. UI / cert-renewal layers below still pending.
 
 **Goal.** Support user certs issued by internal CAs — step-ca, HashiCorp Vault SSH, Teleport-style short-lived certs. Auto-renew via external command hook.
 
@@ -520,7 +520,7 @@ Add a single `ConnectionExtension` interface the connection holds a list of. Eac
 
 ### 6.3 Hardware tokens / FIDO2-SSH
 
-**Status: agent-mediated path DONE on `feat/rust-core` (commit `6dc622ac`).** Direct CTAP2 (no agent) deferred to RUST_CORE_MIGRATION_PLAN.md §13 1.13b.
+**Status: agent-mediated path DONE.** Direct CTAP2 (no agent) is deferred until an opt-in real-user need surfaces.
 
 **Goal.** Support `sk-ecdsa-sha2-nistp256@openssh.com` + `sk-ssh-ed25519@openssh.com` (OpenSSH 8.2+ FIDO2 keys) on YubiKey / SoloKey / OnlyKey.
 

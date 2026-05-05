@@ -134,7 +134,7 @@ make build-ios
 
 The SSH/crypto/persistence core lives in the Rust workspace at `rust/`. End-users install nothing — the native blob is bundled per platform alongside the Flutter binary. Contributors building from source need the Rust toolchain; the Flutter build invokes `cargokit` automatically, so any edit under `rust/` is picked up by the next `make run` / `make build-*`.
 
-See [`RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md) for the migration history and the boundary contract that closed each sub-phase.
+See [`ARCHITECTURE.md` §3.14](ARCHITECTURE.md#314-rust-securitytransport-core-rust) for the workspace layout, FRB boundary, and dependency invariant.
 
 **Install Rust toolchain** (once per machine):
 

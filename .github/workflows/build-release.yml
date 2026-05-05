@@ -148,15 +148,11 @@ jobs:
           cache: false
 
       - name: Install Linux build dependencies
-        # `libtss2-dev` is required by `tss-esapi` (Rust bindings to
-        # the TSS2 ESAPI library) under
-        # `lfs_core::platform::linux::tpm_native` — the native TPM2
-        # backend that replaces the historical `tpm2-tools` subprocess
-        # shell-out (NI-1, see RUST_CORE_MIGRATION_PLAN.md). Even
-        # though the subprocess backend is the default at runtime,
-        # the native module is compiled into every Linux release
-        # build so a future `LFS_TPM_BACKEND=native` flip needs no
-        # rebuild.
+        # `libtss2-dev` is required by `tss-esapi` for the native TPM2
+        # backend (`lfs_core::platform::linux::tpm_native`). The native
+        # module compiles into every Linux release build so a future
+        # `LFS_TPM_BACKEND=native` flip needs no rebuild — the
+        # subprocess backend stays the runtime default until verified.
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libtss2-dev lld
@@ -424,7 +420,11 @@ jobs:
 
   build-windows:
     needs: preflight
-    runs-on: windows-latest
+    # Pinned explicitly to silence the `windows-2025` → `windows-2025-vs2026`
+    # redirect notice GitHub fires on `windows-latest` until the May 2026
+    # forced migration. Pinned label = reproducible toolchain (VS 2026 +
+    # MSVC + Rust). Bump when GitHub deprecates this label.
+    runs-on: windows-2025-vs2026
     permissions:
       contents: read
     steps:

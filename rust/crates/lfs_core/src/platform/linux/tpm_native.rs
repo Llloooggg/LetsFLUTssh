@@ -1,55 +1,22 @@
-//! Native TSS2 ESAPI seal/unseal — replaces the historical
-//! `tpm2-tools` subprocess shell-out (still in `tpm.rs` as the
-//! verified-working backend) with direct calls into
-//! `libtss2-esys` through the [`tss_esapi`] crate.
+//! Native TSS2 ESAPI seal/unseal — direct `libtss2-esys` calls via
+//! the [`tss_esapi`] crate. Sibling to the `tpm2-tools` subprocess
+//! backend in `tpm.rs`; selectable via `LFS_TPM_BACKEND=native`.
+//! Stays opt-in until real-device verification flips the default.
 //!
-//! **Why it exists**: the subprocess path forks `tpm2_create` /
-//! `tpm2_load` / `tpm2_unseal` once per L3-tier seal/unseal
-//! cycle. Each fork is a few hundred ms of process spawn +
-//! argv-parsing + temp-file plumbing for what is fundamentally
-//! a single TPM2 command. The native path is one library call —
-//! no fork, no temp files for `-u/-r` blob handoff, type-safe
-//! `TPMT_PUBLIC` / `TPMT_SENSITIVE_CREATE` building. Closes
-//! NI-1 in `RUST_CORE_MIGRATION_PLAN.md`.
+//! **Envelope format** — `[u32 BE pub_len][pub][u32 BE priv_len][priv]`,
+//! holding `TPM2B_PUBLIC` + `TPM2B_PRIVATE` marshalled via
+//! `Tss2_MU_TPM2B_*`. tss-esapi's `PublicBuffer::marshall` /
+//! `PrivateBuffer::marshall` call the same `Tss2_MU_*` so envelopes
+//! round-trip byte-identically with the subprocess backend.
 //!
-//! **Byte compatibility with existing envelopes**: the on-disk
-//! pack format (`[u32 BE pub_len][pub][u32 BE priv_len][priv]`)
-//! holds two `TPM2B_PUBLIC` + `TPM2B_PRIVATE` blobs that
-//! `tpm2 create -u/-r` writes via `Tss2_MU_TPM2B_PUBLIC_Marshal` /
-//! `Tss2_MU_TPM2B_PRIVATE_Marshal`. tss-esapi's
-//! `PublicBuffer::marshall` / `PrivateBuffer::marshall` call
-//! the same `Tss2_MU_*` functions — so the marshalled bytes are
-//! identical at the TCG-spec level, and an envelope sealed under
-//! the subprocess path unseals correctly under the native path
-//! (and vice versa) provided the primary template matches.
+//! **Primary template** — [`build_primary_template`] mirrors
+//! `tpm2 createprimary -C o`'s default storage-primary template
+//! (RSA 2048, SHA-256 name hash, AES-128-CFB symmetric, restricted
+//! decryption key) field-for-field so the derived primary key is
+//! identical regardless of which backend created it.
 //!
-//! **Primary template choice — tpm2-tools `-C o` default
-//! parity**: tpm2-tools, when invoked as `tpm2 createprimary -C o`
-//! without an explicit `-G`, builds the standard "storage
-//! primary" template per the TCG provisioning guidance: RSA 2048,
-//! SHA-256 name hash, AES-128-CFB symmetric, restricted
-//! decryption key with the standard ObjectAttributes
-//! (`fixedTPM | fixedParent | sensitiveDataOrigin |
-//! userWithAuth | restricted | decrypt`). The `Public` returned
-//! by [`build_primary_template`] below mirrors that template
-//! field-for-field, so the primary key the TPM derives is
-//! byte-identical regardless of which backend created it.
-//!
-//! **Verification status**: the byte-compat invariant is sound
-//! at the spec level — both paths invoke the same `libtss2-mu`
-//! marshalling and the same `TPM2_CreatePrimary` command, so
-//! the primary key derivation + sealed-object derivation are
-//! contractually identical. End-to-end verification on a real
-//! TPM device is the [NI-2 verification gate](
-//! ../../../../docs/RUST_CORE_MIGRATION_PLAN.md#ni-2--apple--windows-rust-ports-verification-pending);
-//! until that lands, the native backend stays opt-in via the
-//! `LFS_TPM_BACKEND=native` env var read by [`TpmConfig::default`].
-//!
-//! **`unsafe_code = "forbid"` compatibility**: tss-esapi's
-//! internals use `unsafe` to FFI into libtss2 — that's the
-//! crate's audit perimeter, not ours. This module itself
-//! contains no `unsafe` blocks, so the workspace-level
-//! `forbid` rule stays enforced for `lfs_core` source.
+//! `unsafe_code = "forbid"` holds — tss-esapi's FFI into libtss2
+//! is its own audit perimeter; this module has no `unsafe` blocks.
 
 use tss_esapi::{
     attributes::ObjectAttributesBuilder,

@@ -1,48 +1,22 @@
 //! OS session-lock event listener — Rust on Linux + macOS +
 //! Windows; iOS / Android stay on the Flutter lifecycle hook.
-//!
-//! Closes the architectural-uniformity gap recorded as
-//! [NI-3](../../../../docs/RUST_CORE_MIGRATION_PLAN.md#ni-3--session_lock_listener-macos--windows-on-dart-methodchannel)
-//! in the migration plan. Earlier revisions kept macOS + Windows
-//! on Dart MethodChannel under the rationale "Cocoa run-loop /
-//! HWND-scoped — duplicate plumbing without correctness gain";
-//! re-classified as non-ideal because the plumbing genuinely
-//! lives in `lfs_os_security` regardless of how the OS surfaces
-//! the event, and treating it as such restores the
-//! "Rust owns OS-API on every platform" invariant the rest of
-//! the security stack already maintains.
+//! Restores the "Rust owns OS-API on every platform" invariant the
+//! rest of the security stack maintains.
 //!
 //! Per-platform plumbing:
 //!
-//! - **Linux** — `org.freedesktop.login1.Session.Lock` D-Bus
-//!   signal subscribed via `zbus` (the historical Linux path,
-//!   unchanged).
+//! - **Linux** — `org.freedesktop.login1.Session.Lock` via `zbus`.
 //! - **macOS** — `NSDistributedNotificationCenter` observer for
-//!   `com.apple.screenIsLocked`, registered from a dedicated
-//!   thread that owns its own `NSRunLoop` (separate from the
-//!   Flutter engine's main-thread loop, so observer registration
-//!   does not contend with Cocoa main-thread work).
+//!   `com.apple.screenIsLocked` on a dedicated `NSRunLoop` thread.
 //! - **Windows** — `WTSRegisterSessionNotification` against a
-//!   hidden message-only window (`HWND_MESSAGE` parent) created
-//!   on a dedicated thread that pumps `GetMessageW` / `DispatchMessageW`.
-//!   The window class lives only for the lifetime of the
-//!   listener thread; the `WindowProc` filters
-//!   `WM_WTSSESSION_CHANGE` for the `WTS_SESSION_LOCK` wparam
-//!   (`0x07`) and forwards via the broadcast channel.
-//! - **iOS / Android** — no Rust listener; the Flutter
-//!   `AppLifecycleState.paused` / `.resumed` callbacks already
-//!   cover the equivalent surface (when the user backgrounds
-//!   the app the auto-lock state machine fires the same way it
-//!   does on a desktop screen-lock).
+//!   hidden message-only window on a dedicated `GetMessageW`
+//!   pump; `WindowProc` filters `WM_WTSSESSION_CHANGE` for the
+//!   `WTS_SESSION_LOCK` wparam (`0x07`).
+//! - **iOS / Android** — no Rust listener; Flutter's
+//!   `AppLifecycleState.paused` covers the equivalent surface.
 //!
-//! **Verification status**: cross-platform compile validation
-//! lands via `ci.yml::rust-cross-check` (matrix covers Apple +
-//! Windows targets every PR). End-to-end runtime verification
-//! on real macOS + Windows machines is the
-//! [NI-2 verification gate](
-//! ../../../../docs/RUST_CORE_MIGRATION_PLAN.md#ni-2--apple--windows-rust-ports-verification-pending);
-//! the Dart MethodChannel paths remain wired in parallel until
-//! that gate flips.
+//! Apple + Windows runtime verification on real hardware is
+//! pending; Dart MethodChannel paths remain wired in parallel.
 
 use tokio::sync::broadcast;
 

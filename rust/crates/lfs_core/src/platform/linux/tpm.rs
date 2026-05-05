@@ -1,41 +1,19 @@
-//! TPM2 sealing / unsealing — two backends behind the same
-//! public surface (`probe` / `seal` / `unseal`).
+//! TPM2 seal/unseal. Two backends behind one public surface
+//! (`probe` / `seal` / `unseal`):
 //!
-//! 1. **Subprocess (default)** — historical path, shells out to
-//!    the `tpm2-tools` CLI binaries (`tpm2 createprimary`,
-//!    `tpm2 create`, `tpm2 load`, `tpm2 unseal`). Each spawn
-//!    lands in `Directory::systemTemp.createTemp`
-//!    (`std::env::temp_dir`); the sealed-secret bytes write to
-//!    a 0600 file inside that dir; the auth value goes through
-//!    `file:<path>` rather than `hex:<hex>` argv to keep the
-//!    HMAC out of `/proc/<pid>/cmdline`; every file in the
-//!    work dir is zero-overwritten before unlink so the
-//!    on-disk plaintext window is bounded. Verified-working
-//!    against real TPM hardware in the field.
+//! 1. **Subprocess (default)** — `tpm2-tools` CLI. Auth values
+//!    pass via `file:<path>` (not argv) so the HMAC stays out
+//!    of `/proc/<pid>/cmdline`; the per-op work dir is
+//!    zero-overwritten on unlink.
+//! 2. **Native (opt-in via `LFS_TPM_BACKEND=native`)** —
+//!    direct `libtss2-esys` calls through `tss-esapi`, see
+//!    [`super::tpm_native`]. Envelope bytes are identical to
+//!    the subprocess path so envelopes round-trip between
+//!    backends.
 //!
-//! 2. **Native (opt-in via `LFS_TPM_BACKEND=native`)** — direct
-//!    `libtss2-esys` calls through the `tss-esapi` crate, see
-//!    [`super::tpm_native`]. No fork, no temp files for the
-//!    `-u/-r` blob handoff, type-safe `TPMT_PUBLIC` /
-//!    `TPMT_SENSITIVE_CREATE` building. The on-disk envelope
-//!    bytes are byte-identical to the subprocess path because
-//!    both go through the same `Tss2_MU_TPM2B_*` marshalling
-//!    inside libtss2; an envelope sealed under one backend
-//!    unseals correctly under the other. Closes NI-1 in
-//!    `RUST_CORE_MIGRATION_PLAN.md`. Stays opt-in until the
-//!    real-device verification gate ([NI-2](
-//!    ../../../../docs/RUST_CORE_MIGRATION_PLAN.md#ni-2--apple--windows-rust-ports-verification-pending))
-//!    flips it to default-on.
-//!
-//! Backend selection: [`TpmConfig::default`] reads the
-//! `LFS_TPM_BACKEND` env var once at config construction; the
-//! caller may also set `cfg.backend` directly. Public API
-//! (`probe`, `seal`, `unseal`) dispatches based on `cfg.backend`,
-//! so call sites stay backend-agnostic.
-//!
-//! Async-free by construction: the caller drives both backends
-//! through a tokio `spawn_blocking` (matching the rest of
-//! lfs_core's blocking-IO pattern); we do not own the runtime.
+//! Backend selection: [`TpmConfig::default`] reads
+//! `LFS_TPM_BACKEND`; callers may also set `cfg.backend`
+//! directly. Sync API; the caller wraps in `spawn_blocking`.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};

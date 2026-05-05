@@ -1,15 +1,9 @@
-// RustTransport — `SshTransport` implementation backed by the Rust
-// security/transport core via the FRB bindings (lib/src/rust/api/*).
-//
-// Wraps the engine-specific FRB types (`rust_ssh.SshSession`,
-// `SshShell`, `SshForwardChannel`, `SshSftp`) behind the
-// engine-agnostic abstraction. The session itself is built by the
-// Rust connection actor; this Dart wrapper exists to bridge the
-// channel-ops surface (`openShell` / `openSftp` /
-// `openDirectTcpip` / `requestRemoteForward`) into the engine-
-// agnostic `SshTransport` abstraction the rest of the app binds to.
-//
-// See docs/RUST_CORE_MIGRATION_PLAN.md §13.
+// `SshTransport` impl over the Rust core (FRB bindings in
+// `lib/src/rust/api/*`). The Rust connection actor owns the
+// authenticated session; this Dart wrapper bridges its channel-ops
+// surface (`openShell` / `openSftp` / `openDirectTcpip` /
+// `requestRemoteForward`) into the engine-agnostic interface the
+// rest of the app binds to. See ARCHITECTURE.md §3.14.
 
 import 'dart:async';
 import 'dart:typed_data';

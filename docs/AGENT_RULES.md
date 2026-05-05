@@ -13,7 +13,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Write a commit message / bump version | [§ Commits & Versioning](#commits--versioning) + [§ Plan-Item IDs Stay Internal](#plan-item-ids-stay-internal) |
 | Open a PR / merge to main | [§ Branching & Release Flow](#branching--release-flow) |
 | Add/edit a diagram in docs | [§ Diagrams in Docs](#diagrams-in-docs--mermaid-not-ascii-box-art) — Mermaid only, no ASCII box-art |
-| Write or refactor any Dart code | [§ Code Quality — SonarCloud](#code-quality--sonarcloud) + [§ Conventions](#conventions) |
+| Write or refactor any Dart or Rust code | [§ Code Quality — SonarCloud](#code-quality--sonarcloud) + [§ Conventions](#conventions) + [§ Comments](#comments--short-and-current) |
 | Call API of an external package (riverpod, xterm, FRB, russh / rusqlite via the Rust core, …) | [§ Conventions → External Libraries & APIs](#external-libraries--apis--look-up-dont-guess) — grep repo first, then Context7 / web docs / pub-cache source / `rust/Cargo.toml` |
 | Add a new dependency or feature that needs an OS capability | [§ Conventions → Self-Contained Binary](#self-contained-binary--end-user-installs-nothing) — bundle > fallback > optional-with-docs |
 | Tempted to propose per-platform native rewrite of a working feature ("true X", "real X", "verified X") | [§ Conventions → Don't Escalate Working Baselines](#dont-escalate-working-baselines) — don't escalate; document the gap, don't fill it with code unless the user asks |
@@ -155,7 +155,7 @@ This rule binds every code edit **and every plan**, not just "big" ones. "Forgot
 | New/changed user-facing string | Add key to `lib/l10n/app_en.arb` **and translate into every other `app_*.arb` file** (ar, de, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh — 15 total). Run `flutter gen-l10n`. Use `S.of(context).key`. Missing keys in non-en locales silently fall back to English — ship broken UX |
 | New/changed shared component | Before adding a new widget/helper, search `lib/widgets/` and `lib/core/**` for an existing equivalent. Extend the shared component (add a param) instead of duplicating. Update [§6 Widgets API](ARCHITECTURE.md#6-widgets--public-api-reference) |
 | Architecture changed | Update CLAUDE.md if navigation links affected |
-| Touched any `rust/**/*.rs` file (Rust security/transport core) | Tick the matching sub-phase in [`docs/RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md) §13 checklist; once a sub-phase ships behaviour, add/update the relevant ARCHITECTURE.md § (e.g., §3.1 SSH, §3.6 Security) and cross-link the plan. Run `make rust-fmt`, `make rust-lint`, `make rust-test`; if the FRB API surface changed, also `make rust-codegen` and stage the regenerated `lib/src/rust/` |
+| Touched any `rust/**/*.rs` file (Rust security/transport core) | Update the relevant ARCHITECTURE.md § (e.g., §3.1 SSH, §3.6 Security, §3.14 Rust core) in the same commit. Run `make rust-fmt`, `make rust-lint`, `make rust-test`; if the FRB API surface changed, also `make rust-codegen` and stage the regenerated `lib/src/rust/` |
 | Edited the FRB API surface (`rust/crates/lfs_frb/src/api/*.rs`) | Run `make rust-codegen` and stage the regenerated Dart bindings in `lib/src/rust/` in the same commit. Pin in `pubspec.yaml` (`flutter_rust_bridge:` runtime) and `rust/crates/lfs_frb/Cargo.toml` (`flutter_rust_bridge =` build dep) MUST match the codegen CLI version exactly. `lfs_core` MUST NOT depend on `flutter_rust_bridge` directly — every FFI concern lives in `lfs_frb` |
 | User-visible change | Update README.md **and** [`USER_GUIDE.md`](USER_GUIDE.md) — the user guide is the end-user reference; every shipped feature has a section there with usage steps, examples, and platform caveats. New flow / new toggle / changed UX → update / extend the relevant § |
 | New end-user feature | Add a top-level § (or a sub-§ under an existing one) in [`USER_GUIDE.md`](USER_GUIDE.md), linked from its TOC. Walk-through style: numbered steps, at least one worked example, platform differences in the §17 mobile-differences table |
@@ -181,8 +181,8 @@ Anything else — "this is convenient as-is", "tests would need a rewrite", "FRB
 
 **Examples where the escape hatch (moving makes it worse) legitimately fires:**
 
-- The `single_instance` revert, 2026-05-04 / 2026-05-05: migrated to `lfs_os_security::single_instance` per this rule, reverted to pure Dart `RandomAccessFile.lock` because the FRB call couldn't run before `RustLib.init`, then dropped from Dart entirely once we noticed the gate belongs in the native shell — Linux runner uses GtkApplication's D-Bus uniqueness, Windows runner a `CreateMutexW` named mutex, macOS `LSMultipleInstancesProhibited`. Each layer of the migration chain only made sense relative to the constraint we found at that step. See [`RUST_CORE_MIGRATION_PLAN.md` § Reverted: single_instance](RUST_CORE_MIGRATION_PLAN.md#reverted--single_instance-moved-to-native-shells). The takeaway: when a "system regression" trigger fires, ask whether the right answer is "revert to the previous Dart shape" OR "move the concern out of Dart entirely". Sometimes the regression is a hint about layering, not just timing.
-- The `log_sanitize` Dart-side revert + cold-start refactor, 2026-05-04 / 2026-05-05: `lib/utils/sanitize.dart`, `AppConfig.fromJson`, `SecurityCapabilities.fromJson` all moved back to pure Dart, and every `*PromptListener.start()` wired in `MainScreen.initState` moved into `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`. Same root cause as single_instance: the cold-start path needs to run before `RustLib.init` so the splash paints during the ~3 s native blob load on Win IoT, and the FRB-routed code paths above were the ordering violations that broke that promise. The architectural fix replaces every defensive `RustLib.instance.initialized` guard with a single invariant — `_mainBody` and the first runApp pass are pure Dart, only post-`_initRustCoreOrFatal` code reaches FRB. See [`RUST_CORE_MIGRATION_PLAN.md` § Reverted: log_sanitize](RUST_CORE_MIGRATION_PLAN.md#reverted--log_sanitize-back-to-dart) and [`ARCHITECTURE.md` § Cold-start ordering](ARCHITECTURE.md#cold-start-ordering--pre-init--post-init-invariant).
+- **Single-instance gate moved to the native shell** (Linux GtkApplication D-Bus uniqueness, Windows `CreateMutexW` named mutex, macOS `LSMultipleInstancesProhibited`). Earlier Dart-via-FRB and pure-Dart `RandomAccessFile.lock` shapes both ran after Flutter engine boot — the duplicate paid the engine cost. Native gates reject in milliseconds before any Dart code runs. Takeaway: when a "system regression" fires, ask whether the right answer is "revert to the previous Dart shape" OR "move the concern out of Dart entirely". Sometimes the regression is a hint about layering, not just timing.
+- **`log_sanitize` + cold-start handlers stay pure Dart.** `lib/utils/sanitize.dart`, `AppConfig.fromJson`, `SecurityCapabilities.fromJson`, and every `*PromptListener.start()` wire in `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` (post-`_initRustCoreOrFatal`), not in `_MainScreenState.initState` (pre-FRB). The invariant replaces every defensive `RustLib.instance.initialized` guard: `_mainBody` and the first `runApp` pass are pure Dart, only post-init code reaches FRB. See [`ARCHITECTURE.md` § Cold-start ordering](ARCHITECTURE.md#cold-start-ordering--pre-init--post-init-invariant).
 
 The exception is real; the bar is "concrete regression we can point at", not "feels iffy". Both reverts ship with measurements (multi-minute hangs in the unlock cascade for the listener subscriptions, silent config overwrites for the AppConfig sanitize) and the rewrite drops scaffolding code (defensive guards, retry mechanisms) on net.
 
@@ -297,6 +297,43 @@ Non-negotiable triggers — if any of these appear in a diff, refactor before co
 **Premature-abstraction guard:** triggers above mean *consider extraction*, not *extract no matter what*. If the third caller would force a parameter that warps the first two (e.g. a flag toggling a whole different layout, or coupling unrelated concerns), leave the duplication and add a `// TODO(reuse): N callers — revisit when shape stabilises` comment instead. Reuse exists to reduce surface area, not to grow it.
 
 Reference: full project-wide formulation in [ARCHITECTURE §1 Reuse principle](ARCHITECTURE.md#1-high-level-overview).
+
+### Comments — Short and Current
+
+Code comments are **load-bearing** when they exist. They describe a *present* invariant the next reader cannot infer from well-named identifiers. Treat them as expensive: every line lives forever, ages with the code around it, and gets read every time someone scrolls past. Two rules:
+
+**1. Short.** One line max. No multi-paragraph blocks, no multi-line `///` walls of text. If the rationale needs a paragraph, write it into `ARCHITECTURE.md` and point the comment at the §:
+
+```dart
+// See ARCHITECTURE.md §3.6 → SecretStore for the plaintext-discipline rule.
+```
+
+A long comment is almost always one of three things:
+- A retrospective (see rule 2 — delete the historical part).
+- Documentation that should be in `ARCHITECTURE.md` instead (move it, link to it).
+- A signal that the code itself is too tangled (per [§ Docs First](#docs-first--read-before-fix-drift-update-after) step 8 — surface to the user, propose simplification).
+
+**2. Current state only — no retrospective.** A comment describes the code *as it is now*. Forbidden phrases (search-replace any of these out when you see them):
+
+- `originally...` / `originally we tried...`
+- `previously...` / `the previous Dart-side...` / `earlier revisions...`
+- `after the migration...` / `replaces the historical...` / `replaces the legacy...`
+- `now retired` / `now Rust-side` / `moved out of...` / `moved to...`
+- `the legacy path...` / `before we...` / `we used to...`
+
+History lives in git log + commit messages — readers who need it have those. A comment that explains "what this used to be and why we changed" is noise on top of noise: the "before" disappears from the code base immediately, so the comment is wrong by the time anyone reads it.
+
+**Acceptable shapes.** State the invariant directly:
+- `// X is staged via SecretStore so plaintext never crosses FRB outbound.` ✓
+- `// Idempotent: caller may invoke twice without surprise.` ✓
+- `// Cold-start invariant: pure Dart only — see ARCHITECTURE § Cold-start ordering.` ✓
+- `// `tss-esapi` FFIs into libtss2 (its audit perimeter); this module has no `unsafe`.` ✓
+
+**Editing existing long comments.** Same rule applies. Shorten them, drop the retrospective, link to `ARCHITECTURE.md` for any rationale that doesn't fit one line. Do not preserve "for context" — git history is the context.
+
+**Test before shipping a comment.** Read the line as a stranger picking up the file fresh. If removing it would make a future reader confused → keep it, in one short line. Otherwise → delete it.
+
+Same rule applies to Rust `//`/`///`/`//!` doc comments and to Dart `///` doc comments — short, current, no retrospective. Multi-paragraph module-level `//!` docstrings get the same `ARCHITECTURE.md`-link treatment.
 
 ### Architecture (non-obvious rules)
 - **No SCP** — SFTP covers every transfer use case; the project never shipped SCP and `lfs_core::sftp` is the only file-transfer surface
@@ -446,7 +483,7 @@ Plans, session notes, backlogs, internal docs live **outside git** (`~/.claude/p
 - `README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `CLAUDE.md`, `AGENT_RULES.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
 - Any other tracked artefact
 
-This rule applies **even when the plan document also lives in git** (e.g. `docs/RUST_CORE_MIGRATION_PLAN.md`). Such documents are *temporary scaffolding* — they get deleted when the migration ships. Anything that outlives them (commit history, code comments) must not depend on their identifier scheme. Reference the *behaviour* the change brings, not the plan checkbox it ticks.
+This rule applies **even when the plan document lives in git**. Such documents are *temporary scaffolding* — they get deleted when the migration ships. Anything that outlives them (commit history, code comments) must not depend on their identifier scheme. Reference the *behaviour* the change brings, not the plan checkbox it ticks.
 
 If a commit needs to explain "why this change came with that change", describe the reason **prose-wise**: `"ships alongside the overlay methods added to the native plugins"` — not `"wraps up Phase D1"` and not `"Phase 4.2 stage 6.1 — store X on FRB"`. Plan IDs are an internal shorthand for in-session tracking only; readers of git history have no access to that context, and any ID reference ages into noise the moment the plan is superseded.
 

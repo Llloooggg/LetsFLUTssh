@@ -1,7 +1,6 @@
 //! SSH keypair generation + import — backed by `russh-keys`
-//! (`internal-russh-forked-ssh-key`). The Dart-side key store calls
-//! these to mint Ed25519 / RSA keypairs and to ingest user-supplied
-//! PEM blobs without touching dartssh2's `SSHKeyPair`.
+//! (`internal-russh-forked-ssh-key`). Mints Ed25519 / RSA keypairs
+//! and ingests user-supplied PEM blobs.
 
 use russh::keys::ssh_key::private::{KeypairData, RsaKeypair};
 use russh::keys::ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey};

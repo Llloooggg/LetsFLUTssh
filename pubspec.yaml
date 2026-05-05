@@ -14,13 +14,11 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # FFI bridge to the Rust security/transport core (see rust/, plan in
-  # docs/RUST_CORE_MIGRATION_PLAN.md). The Rust core (`lfs_core` +
-  # `lfs_frb`) is the only SSH/SFTP/key engine — dartssh2 was removed
-  # once the migration completed. Pin must match the codegen CLI
-  # version (`cargo install flutter_rust_bridge_codegen --version
-  # 2.12.0`) exactly — runtime/codegen drift produces incompatible
-  # bindings.
+  # FFI bridge to the Rust core (see rust/, ARCHITECTURE.md §3.14).
+  # `lfs_core` + `lfs_frb` is the only SSH/SFTP/key engine. Pin must
+  # match the codegen CLI version (`cargo install
+  # flutter_rust_bridge_codegen --version 2.12.0`) exactly — drift
+  # produces incompatible bindings.
   flutter_rust_bridge: 2.12.0
 
   # Annotations for the Freezed sealed-class codegen used by FRB on

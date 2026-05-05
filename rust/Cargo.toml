@@ -65,12 +65,10 @@ internal-russh-forked-ssh-key = { version = "=0.6.16", features = [
     "rsa",
     "alloc",
 ] }
-# SFTP client over a russh shell channel. Speaks SSH SFTP v3 (the
-# OpenSSH-server default). Used by `lfs_core::sftp` (sub-phase 1.5)
-# to mirror dartssh2's SFTP surface — list / read / write / stat /
-# rename / mkdir / remove. Pinned via caret so dependabot rolls
-# patches; major bumps need manual review for protocol surface
-# changes.
+# SFTP client over a russh shell channel. Speaks SSH SFTP v3
+# (OpenSSH-server default). Backs `lfs_core::sftp` — list / read /
+# write / stat / rename / mkdir / remove. Caret-pinned; major bumps
+# need manual review for protocol surface changes.
 russh-sftp = "2.1"
 # Typed error enum derive — used in lfs_core's `Error` to keep the
 # error-path well-shaped without manual `Display`/`From` boilerplate.
@@ -196,8 +194,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 futures-core = { version = "0.3", default-features = false }
 
 [profile.release]
-# Tightened bundle-size profile (RUST_CORE_MIGRATION_PLAN.md §16).
-# Existing flags:
+# Bundle-size-tightened profile. Flags:
 #   - codegen-units = 1   : whole-crate optimisation, smaller code.
 #   - lto = "fat"         : cross-crate inlining + dead-code elim.
 #   - opt-level = 3       : full optimisation.

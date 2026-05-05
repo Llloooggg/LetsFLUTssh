@@ -1,17 +1,14 @@
 //! SFTP client surface (russh-sftp-backed, v3 protocol).
 //!
-//! Byte-level CRUD surface — list, read, write, stat, rename,
-//! mkdir, remove — plus streamed GET/PUT for large files: open
-//! returns a `SftpFile` handle, callers pump chunks via
-//! `read_chunk` / `write_all` and may seek for resumable
-//! transfers. Mirrors dartssh2's `SftpFile.read()` /
-//! `writeBytes()` byte-stream surface and feeds the existing
-//! transfer queue once the unified SshTransport swap lands.
+//! Byte-level CRUD — list, read, write, stat, rename, mkdir,
+//! remove — plus streamed GET/PUT: open returns a `SftpFile`
+//! handle and callers pump chunks via `read_chunk` / `write_all`
+//! (with `seek` for resumable transfers).
 //!
 //! `Sftp` is opened off a live `ssh::Session` via
-//! `Session::open_sftp` — internally it allocates a fresh channel,
-//! requests the `sftp` subsystem, and hands the resulting bidirectional
-//! stream to `russh-sftp`'s `SftpSession::new`.
+//! `Session::open_sftp` — allocates a fresh channel, requests the
+//! `sftp` subsystem, and hands the bidirectional stream to
+//! `russh-sftp`'s `SftpSession::new`.
 
 use std::io::SeekFrom;
 

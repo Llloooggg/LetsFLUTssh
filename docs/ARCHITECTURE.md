@@ -16,9 +16,10 @@
   - [3.8 Deep Links (`core/deeplink/`)](#38-deep-links-coredeeplink)
   - [3.9 Import (`core/import/`)](#39-import-coreimport)
   - [3.10 Update (`core/update/`)](#310-update-coreupdate)
-  - [3.11 Keyboard Shortcuts (`core/shortcut_registry.dart`)](#311-keyboard-shortcuts-coreshortcut_registrydart)
+  - [3.11 Keyboard Shortcuts (`widgets/shortcut_registry.dart`)](#311-keyboard-shortcuts-widgetsshortcut_registrydart)
   - [3.12 Snippets (`core/snippets/`)](#312-snippets-coresnippets)
   - [3.13 Session Recording (`core/session/session_recorder.dart`)](#313-session-recording-coresessionsession_recorderdart)
+  - [3.14 Rust Security/Transport Core (`rust/`)](#314-rust-securitytransport-core-rust)
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
@@ -30,6 +31,7 @@
   - [5.4 Tab & Workspace System](#54-tab--workspace-system)
   - [5.5 Settings (`features/settings/`)](#55-settings-featuressettings)
   - [5.6 Mobile (`features/mobile/`)](#56-mobile-featuresmobile)
+  - [5.7 Recordings (`features/recordings/`)](#57-recordings-featuresrecordings)
 - [6. Widgets — Public API Reference](#6-widgets--public-api-reference)
   - [6.1 Security & Tier Wizard Widgets](#61-security--tier-wizard-widgets)
 - [7. Utilities — Public API Reference](#7-utilities--public-api-reference)
@@ -176,26 +178,26 @@ lib/
 ├── main.dart                         # Entry point — `runZonedGuarded(_mainBody)`, RustLib init, single-instance, config preload, runApp. `LetsFLUTsshApp` + `_LetsFLUTsshAppState` (security controller wiring, lifecycle / lock-state listeners) live in `main_app.dart`; `MainScreen` + `_MainScreenState` (deep links, prompt listeners, first-launch banner, update dialog flow) live in `main_screen.dart` — both are `part of 'main.dart';`
 ├── app/                              # App-shell helpers pulled out of main.dart: global error dialog, already-running blocker, toolbar, deep-link wiring, import flow, navigator key, update dialog flow, `SecurityInitController` (migration → unlock → first-launch orchestrator) + `SecurityDialogPrompter` (seam around blocking dialogs — see §14 → Testing the controller), `security_dialogs.dart` (unmounted-fallback wrappers)
 ├── core/                             # Business logic (no Flutter imports)
+│   ├── bus/                          # `AppBus` — Dart-side wrapper over the FRB bus subscription. Single global event hub the prompt listeners and notifiers subscribe to.
 │   ├── db/                           # Thin Dart shim — schema + DAOs live Rust-side under `lfs_core::db` (rusqlite + bundled SQLCipher 4.x)
-│   │   ├── rust_db_init.dart         # `dbInit(key)` / `dbClose()` FRB wrappers, called from main.dart on unlock
+│   │   ├── rust_db_init.dart         # `dbInit(key)` / `dbClose()` FRB wrappers
 │   │   ├── mappers.dart              # Domain ↔ FRB DTO conversion (folder path↔tree, session row↔model)
-│   │   └── _folder_path_compat.dart  # Legacy folder-path resolver kept for the migration framework's import path
+│   │   └── _folder_path_compat.dart  # Folder-path resolver used by the import path
 │   ├── ssh/                          # SSH client, config, TOFU, errors
 │   ├── sftp/                         # SFTP operations, file models, FileSystem
 │   ├── transfer/                     # File transfer queue
-│   ├── session/                      # Session model, persistence, tree, history
-│   ├── connection/                   # Connection lifecycle, progress tracking
+│   ├── session/                      # Session model, persistence, tree, history, recorder, port-forward DAO
+│   ├── connection/                   # Connection lifecycle, progress tracking, ConnectionExtension
 │   ├── security/                     # Tier ladder + keychain wrappers + biometric auth + master password — every backend lives Rust-side under `lfs_os_security::*` and `lfs_core::security::*`
 │   ├── migration/                    # Dart shim over `lfs_core::migration` (FRB DTO re-exports + `runStartupMigrations()`). Runner, registry, artefacts all live Rust-side. Full description: §3.6 → Migration framework
 │   ├── config/                       # App configuration (file-based, loaded before DB)
-│   ├── snippets/                     # Snippet model (notifier in providers/)
-│   ├── tags/                         # Tag model (notifier in providers/)
+│   ├── snippets/                     # Snippet model + template engine
+│   ├── tags/                         # Tag model
 │   ├── deeplink/                     # Deep link handling
 │   ├── import/                       # Data import (.lfs, key files)
 │   ├── progress/                     # ProgressReporter — phase/step stream consumed by AppProgressBarDialog and connection-progress widgets
 │   ├── qr/                           # QR scanner — native camera bridge (AVFoundation / CameraX) for import flow
-│   ├── update/                       # Update checking
-│   └── shortcut_registry.dart        # Centralized keyboard shortcut definitions
+│   └── update/                       # Update checking
 ├── features/                         # UI modules
 │   ├── terminal/                     # Terminal with tiling
 │   ├── file_browser/                 # Dual-pane SFTP browser
@@ -203,22 +205,29 @@ lib/
 │   ├── key_manager/                  # SSH key manager (embeddable; standalone dialog on mobile, inside Tools on desktop)
 │   ├── snippets/                     # Snippet manager + terminal picker
 │   ├── tags/                         # Tag manager + assignment dialog
-│   ├── tools/                        # Desktop Tools dialog (SSH Keys, Snippets, Tags)
+│   ├── tools/                        # Desktop Tools dialog (SSH Keys, Snippets, Tags, Known Hosts, Recordings)
 │   ├── tabs/                         # Tab model (TabEntry, TabKind)
 │   ├── workspace/                    # Workspace tiling (panels, tab bars, drop zones)
 │   ├── settings/                     # Settings + export/import
+│   ├── recordings/                   # Recordings browser + xterm playback dialog (engine in `core/session/session_recorder.dart`)
 │   └── mobile/                       # Mobile version (bottom nav)
 ├── l10n/                             # Internationalization (15 languages: ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh)
 ├── providers/                        # Riverpod providers (global state)
 ├── widgets/                          # Reusable UI components (alphabetical)
 │   ├── app_bordered_box.dart        # Bordered container with guaranteed radius
-│   ├── app_data_row.dart            # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions, min-height-padded
+│   ├── app_button.dart              # AppButton + named ctors (.cancel / .primary / .secondary / .destructive)
+│   ├── app_collection_toolbar.dart  # Shared header (search + add + secondary action) for list-style managers
+│   ├── app_data_row.dart            # Shared row for list / table dialogs — icon + title + secondary + tertiary + trailing actions
 │   ├── app_data_search_bar.dart     # Shared search input for list / table dialogs (known hosts, snippets, tags)
 │   ├── app_dialog.dart              # Unified dialog shell, header, footer, action buttons, progress dialog
 │   ├── app_divider.dart             # Standardized 1px divider
+│   ├── app_empty_state.dart         # Centered icon + heading + secondary line + optional action
 │   ├── app_icon_button.dart         # Rectangular hover button (replaces Material IconButton)
 │   ├── app_info_button.dart         # Inline (i) icon that opens AppInfoDialog with caller-supplied threat-model copy
 │   ├── app_info_dialog.dart         # Reusable threat-model explainer (what tier protects / does not protect against)
+│   ├── app_picker_chip.dart         # Pill-shaped selector (ProxyJump kind, port-forward kind, snippet token chips)
+│   ├── app_popup_select.dart        # Compact dropdown (PopupMenuButton wrapper with project chrome)
+│   ├── app_selection_area.dart      # Local-scope text-selection wrapper used inside dialogs / threat lists / help prose
 │   ├── app_shell.dart               # Desktop layout shell (toolbar, sidebar, body, status bar)
 │   ├── auto_lock_detector.dart      # Inactivity wrapper — locks app after autoLockMinutesProvider when security level is masterPassword
 │   ├── clipped_row.dart             # Overflow-clipping Row replacement
@@ -228,10 +237,11 @@ lib/
 │   ├── context_menu.dart            # Custom context menu with keyboard nav
 │   ├── data_checkboxes.dart         # Shared collapsible checkbox grid used by export + import dialogs
 │   ├── db_corrupt_dialog.dart       # Outcome dialog for DB corruption (reset / try other tier / exit)
+│   ├── dropdown_select_button.dart  # Canonical shared dropdown trigger (replaces inline PopupMenuButton copies)
 │   ├── error_state.dart             # Error display with retry/secondary actions
-│   ├── expandable_tier_card.dart    # Settings Security ladder unit — tier header + modifiers + secret inputs inline
+│   ├── expandable_tier_card.dart    # Settings Security ladder unit — tier header + modifiers + secret inputs inline (split into _header / _inputs / _logic / _threats part siblings)
 │   ├── file_conflict_dialog.dart    # Destination-exists prompt (Skip / Keep both / Replace / Cancel + apply-to-all)
-│   ├── first_launch_security_dialog.dart # Post-auto-setup banner — shows chosen tier + hardware-upgrade path or its absence
+│   ├── first_launch_security_toast.dart # Post-auto-setup banner — shows chosen tier + hardware-upgrade path or its absence
 │   ├── form_submit_chain.dart       # FocusNode + Enter-to-next/submit wiring for multi-field input dialogs
 │   ├── host_key_dialog.dart         # TOFU dialogs (new host / key changed)
 │   ├── hover_region.dart            # MouseRegion + GestureDetector replacement
@@ -244,30 +254,31 @@ lib/
 │   ├── marquee_mixin.dart           # Drag-select mixin for list/table widgets
 │   ├── mobile_selection_bar.dart    # Mobile bulk-action toolbar
 │   ├── mode_button.dart             # Shared pill-shaped toggle button (import mode)
-│   ├── passphrase_dialog.dart       # Interactive SSH key passphrase prompt
 │   ├── password_strength_meter.dart # Live coloured strength bar under password input — informational, never blocks Save
 │   ├── paste_import_link_dialog.dart # Camera-less QR import — accepts letsflutssh:// link or raw base64url payload
 │   ├── readonly_terminal_view.dart  # Read-only terminal display widget
 │   ├── secure_password_field.dart   # TextField pre-configured for secret entry — IME spellcheck/autofill/history disabled
 │   ├── secure_screen_scope.dart     # Scope opting subtree into OS screen-capture protection (Android FLAG_SECURE)
 │   ├── security_comparison_table.dart # Threat × tier matrix — horizontally scrollable on desktop, transposed on mobile
-│   ├── security_setup_dialog.dart   # First-launch wizard — plain tier + modifier-shape choice
+│   ├── security_setup_dialog.dart   # First-launch wizard — plain tier + modifier-shape choice (split into _logic / _widgets part siblings)
 │   ├── security_threat_list.dart    # Single-tier threat inventory with ✓ / ✗ / — / ! glyphs
+│   ├── shortcut_registry.dart       # `AppShortcut` enum + `AppShortcutRegistry`. See §3.11.
 │   ├── sortable_header_cell.dart    # Column header with sort indicator
 │   ├── split_view.dart              # Horizontal resizable split
 │   ├── ssh_dir_import_dialog.dart   # ~/.ssh unified picker — hosts (parsed from config) + keys (scanned)
 │   ├── status_indicator.dart        # Icon + count indicator with tooltip
 │   ├── styled_form_field.dart       # Shared form field (StyledFormField, FieldLabel, StyledInput)
+│   ├── tag_color.dart               # Tag colour palette + `TagColor` helpers
 │   ├── tag_dots.dart                # Colored tag dots for session/folder tree rows
 │   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
 │   ├── tier_reset_dialog.dart       # Non-dismissible reset prompt when the resolved tier no longer matches on-disk artefacts
 │   ├── tier_secret_unlock_dialog.dart # Shared L2 short-password / L3 PIN unlock shell with retry + cooldown
-│   ├── tier_threat_block.dart       # Single-tier presentation block (header + threat split) used by wizard + Settings
 │   ├── toast.dart                   # Stacked notification toasts
 │   ├── unified_export_controller.dart # Headless selection / options / sizing
 │   ├── unified_export_dialog.dart   # Unified QR and .lfs export dialog
 │   ├── unified_export_dialog_tree.dart # Tree builders + size-indicator helpers split off from unified_export_dialog.dart
-│   └── unlock_dialog.dart           # Master password unlock dialog (startup)
+│   ├── unlock_dialog.dart           # Master password unlock dialog (startup)
+│   └── update_progress_indicator.dart # Determinate + indeterminate progress UI for the in-app updater
 ├── theme/                            # OneDark / One Light palettes
 └── utils/                            # Utilities: logger, format, platform
 ```
@@ -284,16 +295,16 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 
 | File | Class/Function | Purpose |
 |------|---------------|---------|
-| `transport/ssh_transport.dart` | `SshTransport` interface, `SshConnectRequest`, `SshAuthMethod` family, `SshShellChannel`, `SshDirectTcpipChannel`, `SshForwardedConnection`, typed errors (`SshAuthFailed`, `SshConnectError`, `SshHostKeyRejected`, …) | Engine-agnostic transport surface — connect, openShell, openSftp, direct-tcpip channel, request remote forward. The only impl shipping today is `RustTransport`; the abstraction stays so test mocks can swap in. |
-| `transport/rust_transport.dart` | `RustTransport` | The Rust-backed impl. Translates the typed `SshConnectRequest` (including `SshAuth*Ref` variants that point at SecretStore ids) to FRB calls into `lfs_core::ssh`, materialises shell + direct-tcpip channels as Dart streams, drains forwarded connections via `connectViaProxy`. Only impl in the tree; `ConnectionsNotifier` constructs `RustTransport()` directly — there is no `createSshTransport` factory because there is nothing to switch between. Tests stub by injecting their own `SshTransport` implementation through the constructor seam on `ConnectionsNotifier`. |
+| `transport/ssh_transport.dart` | `SshTransport` interface, `SshAuthMethod` family (`SshAuthPassword`, `SshAuthPubkey`, `SshAuthPubkeyCert`, `SshAuthAgent` + `*Ref` variants), `SshShellChannel`, `SshDirectTcpipChannel`, typed errors (`SshAuthFailed`, `SshConnectError`, `SshHostKeyRejected`) | Engine-agnostic transport surface — `connect` / `openShell` / `openSftp` / `openDirectTcpip` / `requestRemoteForward`. `RustTransport` is the only impl; the interface stays so tests can swap in fakes through the constructor seam on `ConnectionsNotifier`. |
+| `transport/rust_transport.dart` | `RustTransport` | Routes channel-ops calls into FRB (`lfs_core::ssh`). The Rust connection actor builds the authenticated session; this wrapper bridges the channel-ops surface and materialises shell + direct-tcpip channels as Dart streams. ProxyJump dialled child sessions adopt the parent's session via `RustTransport.adopt(session)` rather than re-connecting on the bridge. |
 | `ssh_config.dart` | `SSHConfig`, `SshAuth`, `ServerAddress` | Config model carried across the connect path. `SshAuth` carries `password`, `keyPath`, `keyData`, `keyId`, `passphrase`; the connect path stages stored secrets via `db_sessions_stage_secrets` / `db_ssh_keys_stage_secret` so the bytes never round-trip through the Dart heap (see [§3.6 Security boundary](#36-security--encryption-coresecurity)). |
 | `openssh_config_parser.dart` | `parseOpenSshConfig()` | OpenSSH `~/.ssh/config` parser — Host/HostName/User/Port/IdentityFile. Wildcards and global scope skipped. Used by the one-time SSH-dir import path; never touched at connect time. |
 | `providers/known_hosts_provider.dart` | `KnownHostsNotifier` | UI-side notifier that mirrors the `known_hosts` table in `letsflutssh.db`. Subscribes to the `BusTopic::KnownHosts` stream so the cache refreshes whenever any code path mutates the table; the actual TOFU host-key verification flow is owned by `lfs_core::known_hosts` and the FRB-side prompt protocol (see [#§3.1 Auth chain](#auth-chain)) — Dart never gates auth itself. Mutators (`add` / `remove` / `clear`) issue the matching FRB DAO calls + reload. |
-| `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionsNotifier._failureStep` maps those into the typed errors above. |
+| `errors.dart` | `ConnectError`, `AuthError`, `HostKeyError`, `ProxyJumpCycleError`, `ProxyJumpDepthError`, `ProxyJumpBastionError` | UI-facing error hierarchy with structured fields (host, port, user) for localisation. The transport layer raises `SshAuthFailed` / `SshConnectError` / `SshHostKeyRejected`; `ConnectionsNotifier._failureStep` maps those into the typed errors above. |
 | `port_forward_rule.dart` | `PortForwardRule`, `PortForwardKind` | Immutable rule model for the per-session forwarding tab. |
 | `port_forward_runtime.dart` | `PortForwardRuntime` | Implements [`ConnectionExtension`](#connectionextension--lifecycle-add-ons); thin shim that asks `lfs_core::portforward::driver` to spawn / stop the `-L` / `-D` / `-R` listeners against the live connection actor on connect / disconnect. No accept loop or SOCKS5 handshake on the Dart side. |
-| `shell_helper.dart` | `openShellWithRetry()` | Shared shell-open path with one retry on `SshConnectError("session disconnected")`. Used by the terminal pane + session recorder. |
-| `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`. Host-key verification runs entirely Rust-side: the russh `check_server_key` callback consults `lfs_core::known_hosts` directly + raises `BusEvent::KnownHostPromptRequest` for unknown / mismatched fingerprints; the Dart side's `KnownHostsPromptListener` shows the dialog and resolves the prompt via `known_hosts_prompt_resolve`. |
+| `shell_helper.dart` | `ShellHelper.openShell()` | Shared shell-open path used by the terminal pane + session recorder. Returns a `ShellConnection` wrapping the FRB shell handle. |
+| `rust/crates/lfs_core/src/ssh/mod.rs` | `lfs_core::ssh::Session` | russh client wrapper — connect, userauth (password / pubkey / pubkey-cert / sk-key / agent), `openShell`, `openSftp`, `openDirectTcpip`, `requestRemoteForward`. Host-key verification runs entirely Rust-side: the russh `check_server_key` callback consults `lfs_core::known_hosts` directly + raises `BusEvent::KnownHostPromptRequest` for unknown / mismatched fingerprints; the Dart side's `HostKeyPromptListener` (`lib/app/host_key_prompt_listener.dart`) shows the dialog and resolves the prompt via the known-host bus command. |
 
 #### SSH transport surface
 
@@ -301,9 +312,9 @@ The SSH engine lives entirely in Rust; the Dart side is a thin transport interfa
 
 ```dart
 abstract class SshTransport {
-  Future<void> connect(SshConnectRequest request);
+  void adopt(rust_ssh.SshSession session);
   Future<SshShellChannel> openShell({required int cols, required int rows});
-  Future<dynamic> openSftp();          // returns a Rust SFTP client; see §3.2
+  Future<dynamic> openSftp();
   Future<SshDirectTcpipChannel> openDirectTcpip({...});
   Future<int>  requestRemoteForward(String address, int port);
   Future<void> cancelRemoteForward(String address, int port);
@@ -312,9 +323,11 @@ abstract class SshTransport {
 }
 ```
 
-`RustTransport.connect` resolves the auth method:
+The Rust connection actor owns the connect handshake itself — `connectAsync` in `ConnectionsNotifier` enqueues an `lfs_core::connection::ConnectCommand` over FRB; the actor authenticates via russh, publishes `BusEvent::ConnectionStateChanged(Connected)`, and the Dart `Connection` hands the resulting handle to `RustTransport.adopt(session)` (see `_adoptSession` in [§3.5](#35-connection-lifecycle-coreconnection)).
 
-- `SshAuthPasswordRef(secretId)` / `SshAuthPubkeyRef(secretId, passphraseSecretId)` / `SshAuthPubkeyCertRef(...)` — the bytes already live in the [`SecretStore`](#36-security--encryption-coresecurity) under the named ids, so the FRB call passes only the ids; russh fetches the bytes inside Rust.
+Auth method selection happens before the FRB hop in `ConnectionsNotifier._authFromConfig`:
+
+- `SshAuthPasswordRef(secretId)` / `SshAuthPubkeyRef(secretId, passphraseSecretId)` / `SshAuthPubkeyCertRef(...)` — the bytes already live in the [`SecretStore`](#36-security--encryption-coresecurity) under the named ids, so the actor passes only the ids; russh fetches the bytes inside Rust.
 - `SshAuthPassword(password)` / `SshAuthPubkey(pem, passphrase)` — quick-connect fallback for the no-session-id path; the Dart heap holds the bytes for the duration of the connect attempt and the matching transient SecretStore entry is dropped when the attempt completes.
 - `SshAuthAgent` — proxies through the OS ssh-agent socket; no key bytes cross the boundary.
 
@@ -362,7 +375,7 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
 }
 ```
 
-The TOFU verification flow is **not** a Dart concern. The russh host-key callback in `lfs_core::ssh::Session` consults `lfs_core::known_hosts` directly; on a mismatch / unknown host it raises `BusEvent::KnownHostPromptRequest { connection_id, host, port, fingerprint, kind }` and awaits the prompt resolution through `lfs_core::security::known_host_prompt`. The Dart-side [`KnownHostsPromptListener`](../lib/app/known_hosts_prompt_listener.dart) subscribes to that bus event, renders [`HostKeyDialog`](#hostkeydialog), and resolves the prompt via `known_host_prompt_resolve(promptId, decision)`. `KnownHostsNotifier` is **only** the UI-side cache mirror; it does not gate auth, does not hold a `verify` method, and never blocks the connect path on user input.
+The TOFU verification flow is **not** a Dart concern. The russh host-key callback in `lfs_core::ssh::Session` consults `lfs_core::known_hosts` directly; on a mismatch / unknown host it raises `BusEvent::KnownHostPromptRequest { connection_id, host, port, fingerprint, kind }` and awaits the prompt resolution through `lfs_core::security::known_host_prompt`. The Dart-side [`HostKeyPromptListener`](../lib/app/host_key_prompt_listener.dart) subscribes to that bus event, renders [`HostKeyDialog`](#hostkeydialog), and resolves the prompt via the matching bus command. `KnownHostsNotifier` is **only** the UI-side cache mirror; it does not gate auth, does not hold a `verify` method, and never blocks the connect path on user input.
 
 **Pre-unlock degradation.** Every entry point catches the synchronous `RustLib.instance` throw the FRB layer raises before the native lib is loaded (unit-test runner, first-launch wizard pre-unlock) and returns the in-memory cache only. The connect path doesn't run pre-unlock anyway; the bus subscription installed in `build()` simply fails-soft until the FRB lib is up.
 
@@ -568,10 +581,13 @@ The `TransferPanel` (`features/file_browser/transfer_panel.dart`) is a collapsib
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `session.dart` | `Session`, `ServerAddress`, `SessionAuth`, `AuthType` | Session model with all fields |
+| `session.dart` | `Session`, `SessionAuth`, `AuthType` | Session model with all fields. (`ServerAddress` lives in `lib/core/ssh/ssh_config.dart` and is reused via `Session.server`.) |
 | `providers/session_provider.dart` | `SessionNotifier` | CRUD via FRB DAOs, search, folder tree management |
-| `session_tree.dart` | `SessionTree`, `TreeNode` | Hierarchical tree built from flat session list |
+| `session_tree.dart` | `SessionTree`, `SessionTreeNode` | Hierarchical tree built from flat session list |
 | `session_history.dart` | `SessionHistory` | Undo/redo snapshots (stores credentials separately) |
+| `session_recorder.dart` | `SessionRecorder` | Per-shell terminal recorder; see [§3.13](#313-session-recording-coresessionsession_recorderdart). |
+| `port_forwards_dao.dart` | DAO helpers | Thin Dart shim over the FRB port-forward DAO surface used by `SessionNotifier`. |
+| `qr_decoded_source.dart` | `QrDecodedSource` | Sealed type wrapping a Rust-staged QR/.lfs import handle so `LinkImportPreviewDialog` and the apply pipeline speak the same shape. |
 | `qr_codec.dart` | Free functions | Thin Dart shim over the Rust QR/`.lfs` codec. Versioned format (`v: 4`), deflate compressed, key map deduplication — all encode/decode/size/wrap/unwrap logic lives in `lfs_core::qr_codec` + `lfs_core::archive::qr_export_payload`; this file only exposes the `ExportOptions` config bag, the `qrMaxPayloadBytes` constant, and `encodeSessionCompact()` (FRB sync wrapper used by export-dialog size estimation). Decode/import always routes through the staged-handle Rust path (`qrImportOpen` → `QrDecodedSource.rust`). |
 
 #### QR payload format (v4)
@@ -717,9 +733,11 @@ flag the sidebar mutates as the user clicks chevrons).
 |------|-------|---------|
 | `connection.dart` | `Connection` | Connection model (id, label, sshConnection, state, error, ready completer, progress stream) |
 | `connection_step.dart` | `ConnectionStep` | Progress step model — phase (`socketConnect` / `hostKeyVerify` / `authenticate` / `openChannel`) × status (`inProgress` / `success` / `failed`) |
+| `connection_step_mappers.dart` | Bus → `ConnectionStep` mappers | Translates `BusEvent::ConnectionProgress` payloads into the Dart `ConnectionStep` shape the progress tracker consumes. |
 | `progress_tracker.dart` | `ProgressTracker` | Subscribes to `Connection.progressStream`, replays history for late subscribers, notifies listeners |
 | `progress_writer.dart` | `ProgressWriter` | Writes ANSI-styled progress steps to an xterm `Terminal` (shared by desktop and mobile terminal views) |
-| `core/connection/connections_notifier.dart` | `ConnectionsNotifier` | Active connection management, creation, disconnection, stream |
+| `connections_notifier.dart` | `ConnectionsNotifier` | Active connection management, creation, disconnection, bus subscription |
+| `connection_extension.dart` | `ConnectionExtension` interface | Lifecycle hook contract (`onConnected` / `onDisconnecting` / `onReconnecting`) used by port forwards, recorder, etc. — see [ConnectionExtension](#connectionextension--lifecycle-add-ons) below. |
 | `foreground_service.dart` | `ForegroundServiceManager` | Android: foreground service for SSH keep-alive on screen lock |
 
 #### Connection model
@@ -815,7 +833,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   // _doConnect resolves saved-session credentials through the FRB
   // SecretStore staging path (db_sessions_stage_secrets +
   // db_ssh_keys_stage_secret); the resulting SecretStore ids land in
-  // SshConnectRequest's SshAuth*Ref shape, never the bytes. Quick-connect
+  // SshAuth*Ref shape, never the bytes. Quick-connect
   // / typed-passphrase paths use transient ids under conn.<slot>.<uuid>
   // and add them to Connection.transientSecretIds for cleanup on
   // terminal state. cachedPassphrase covers the interactive retry path.
@@ -1135,7 +1153,7 @@ Optional on **T1+password and T2+password only**. Paranoid is intentionally excl
 
 **TPM auth value never crosses argv.** On every `tpm2 create -p …` / `tpm2 unseal -p …` call, the Rust seal/unseal pipeline ([`lfs_core::platform::linux::tpm`](../rust/crates/lfs_core/src/platform/linux/tpm.rs), reached through the thin Dart `TpmClient` wrapper) writes the HMAC auth value to a sibling file inside the per-call temp directory and passes `-p file:<path>` to the CLI. The earlier `-p hex:<hex>` form embedded the exact bytes an attacker needs to unseal the blob in the process command line; `/proc/<pid>/cmdline` is readable cross-UID on distros that default to `hidepid=0`, so the leak bypassed every cooldown except the TPM's own lockout. The temp file lives under a per-call workdir that the Rust pipeline zero-overwrites and unlinks on every exit path, so the auth file is self-cleaning. Per `docs/AGENT_RULES.md` § Self-Contained Binary the tpm2-tools dependency is a rung-3 opt-in, but the threat-model invariant applies regardless of whether the install is bundled.
 
-**Linux — TPM2 seal layer (`tpm2-tools` default; native `tss-esapi` opt-in).** When `/dev/tpmrm0` is present and the optional `tpm2-tools` package is installed, `BiometricKeyVault` stores the DB key via a TPM-sealed blob instead of libsecret. The seal flow: `FprintdClient.getEnrolmentHash()` returns the SHA-256 of the sorted enrolled-finger list; that digest is handed to [`TpmClient.seal`](../lib/core/security/linux/tpm_client.dart) as the auth value, which dispatches to one of two backends inside `lfs_core::platform::linux::tpm`. The default backend (`TpmBackend::Subprocess`, verified-working in the field) shells out to `tpm2 createprimary` + `tpm2 create -p file:<path>`. The opt-in backend (`TpmBackend::Native`, gated on `LFS_TPM_BACKEND=native` env var) talks to `/dev/tpmrm0` directly through the [`tss-esapi`](https://crates.io/crates/tss-esapi) crate — same `Tss2_MU_TPM2B_*` marshalling as `tpm2-tools`, so envelopes round-trip between backends; primary template (RSA 2048, SHA-256, AES-128-CFB, restricted decrypt) mirrors `tpm2 createprimary -C o`'s default field-for-field. The resulting `{pub, priv}` pair is framed with 4-byte length prefixes and written to `biometric_vault.tpm` under the app-support dir. Unseal runs the mirror sequence (`createprimary` + `load` + `unseal`) against a freshly probed enrolment hash; any change to the biometric enrolment flips the digest, the unseal fails, and the user is back on master password — the Linux equivalent of Apple's `biometryCurrentSet`. The native backend stays opt-in until real-TPM end-to-end verification (NI-2 gate) confirms cross-backend envelope compatibility on hardware; the subprocess backend retires as soon as that lands. The backing-level label on Linux flips from `software` to `hardware` as soon as the TPM probe succeeds.
+**Linux — TPM2 seal layer (`tpm2-tools` default; native `tss-esapi` opt-in).** When `/dev/tpmrm0` is present and the optional `tpm2-tools` package is installed, `BiometricKeyVault` stores the DB key via a TPM-sealed blob instead of libsecret. The seal flow: `FprintdClient.getEnrolmentHash()` returns the SHA-256 of the sorted enrolled-finger list; that digest is handed to [`TpmClient.seal`](../lib/core/security/linux/tpm_client.dart) as the auth value, which dispatches to one of two backends inside `lfs_core::platform::linux::tpm`. The default backend (`TpmBackend::Subprocess`, verified-working in the field) shells out to `tpm2 createprimary` + `tpm2 create -p file:<path>`. The opt-in backend (`TpmBackend::Native`, gated on `LFS_TPM_BACKEND=native` env var) talks to `/dev/tpmrm0` directly through the [`tss-esapi`](https://crates.io/crates/tss-esapi) crate — same `Tss2_MU_TPM2B_*` marshalling as `tpm2-tools`, so envelopes round-trip between backends; primary template (RSA 2048, SHA-256, AES-128-CFB, restricted decrypt) mirrors `tpm2 createprimary -C o`'s default field-for-field. The resulting `{pub, priv}` pair is framed with 4-byte length prefixes and written to `biometric_vault.tpm` under the app-support dir. Unseal runs the mirror sequence (`createprimary` + `load` + `unseal`) against a freshly probed enrolment hash; any change to the biometric enrolment flips the digest, the unseal fails, and the user is back on master password — the Linux equivalent of Apple's `biometryCurrentSet`. The native backend stays opt-in until end-to-end verification on real TPM hardware confirms cross-backend envelope compatibility; the subprocess backend retires as soon as that lands. The backing-level label on Linux flips from `software` to `hardware` as soon as the TPM probe succeeds.
 
 `BiometricAuth.backingLevel()` reports how the active biometric vault is protecting the cached DB key — `hardware` on iOS/macOS (Secure Enclave via `biometryCurrentSet`), `software` on Android/Windows/Linux until the respective hardware-binding path lands (dedicated Keystore + `BiometricPrompt.CryptoObject` on Android; CNG Platform Crypto Provider on Windows; TPM2 seal bound to the fprintd enrolment hash on Linux). The Settings biometric toggle concatenates the localised backing-level label into its subtitle when the toggle is on, so the user can tell hardware binding apart from software fallback without opening the source.
 
@@ -1228,7 +1246,7 @@ Lifetime:
 
 Why the cache survives the lock while the DB key does not: the cache plaintext is per-session and per-install, decrypts nothing at rest, and only helps the user's own reconnect UX when the encrypted store closes on lock. The DB key, by contrast, is the at-rest secret — leaving it warm during lock would flatten the threat matrix between T1+pw and T2+pw. Wiping the DB key but retaining the session envelope is the honest trade.
 
-**OS-level session-lock hook.** Idle-timer auto-lock covers "user stopped typing" and mobile lifecycle-paused covers "app went to background". Neither catches the case where the user locks the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock, power-button lock) *without* being idle-minutes-idle inside the app first. [`SessionLockListener`](../lib/core/security/session_lock_listener.dart) closes that gap by routing an OS workstation-lock signal straight into the auto-lock path. The desktop trio (Linux + macOS + Windows) all run through `lfs_os_security::session_lock_listener` Rust paths and surface as a single FRB Stream `subscribeOsSessionLock`; the legacy `com.letsflutssh/session_lock` method channel + native plugins remain wired in parallel until the NI-2 real-device verification gate flips them off.
+**OS-level session-lock hook.** Idle-timer auto-lock covers "user stopped typing" and mobile lifecycle-paused covers "app went to background". Neither catches the case where the user locks the OS (`Win+L`, `Ctrl+Cmd+Q`, GNOME lock, power-button lock) *without* being idle-minutes-idle inside the app first. [`SessionLockListener`](../lib/core/security/session_lock_listener.dart) closes that gap by routing an OS workstation-lock signal straight into the auto-lock path. The desktop trio (Linux + macOS + Windows) all run through `lfs_os_security::session_lock_listener` Rust paths and surface as a single FRB Stream `subscribeOsSessionLock`; the matching `com.letsflutssh/session_lock` MethodChannel + native plugins remain wired in parallel until end-to-end verification on real macOS + Windows hardware lets us drop them.
 
 | Platform | Source |
 |---|---|
@@ -1312,20 +1330,9 @@ Every secret-entry field in the app (master password, SSH key passphrase, export
 
 *Why no custom `SecureNativeTextField` PlatformView:* an earlier iteration shipped a PlatformView-backed `SecureNativeTextField` (Android `EditText`, iOS `UITextField`, macOS `NSSecureTextField`) intending to collapse Dart-heap residency into a single one-frame `Uint8List`. It was removed before any call site adopted it — the hardening actually delivered over plain Flutter `TextField + obscureText` was marginal on Android / iOS (the engine already bridges to the same native field) and real only on macOS (`NSSecureTextField` triggers `EnableSecureEventInput`). Keeping the macOS-only branch would have required separate wiring at every password call site, stylistic mismatch with Material widgets, and a platform-view lifecycle bug surface — all for a keylogger-block that a user with untrusted Accessibility-permissioned apps has already lost regardless. The unified `SecurePasswordField` is the single code path; the macOS HID-block gap is documented above and in `SECURITY.md`.
 
-#### AesGcm
+#### AES-GCM
 
-Shared AES-256-GCM utility used by all encrypted stores.
-
-```dart
-class AesGcm {
-  static Uint8List encrypt(String plaintext, Uint8List key);
-  static String decrypt(Uint8List data, Uint8List key);
-  static Uint8List generateKey(); // 32-byte random key
-  // Wire format: [IV (12 bytes)] [ciphertext + GCM authentication tag]
-}
-```
-
-**Why pointycastle:** `encrypt` package has version conflicts with dartssh2. pointycastle is pure Dart, transitive dependency via dartssh2.
+AES-256-GCM lives Rust-side in `lfs_core::crypto` (RustCrypto `aes-gcm`). Wire format `[IV (12 bytes)] [ciphertext + GCM tag]`. Dart never sees AEAD plaintext on the outbound path — see [SecretStore + SecretRef](#secretstore--secretref-the-plaintext-discipline-rule). The previous Dart `AesGcm` class is retired.
 
 #### SecureKeyStorage
 
@@ -1998,7 +2005,7 @@ Encrypted `IdentityFile` keys are detected by `KeyFileHelper.isEncryptedPem` (de
 
 **MAC verification.** HMAC-SHA-1 keyed with `SHA-1("putty-private-key-file-mac-key")` for unencrypted files, or `SHA-1("putty-private-key-file-mac-key" || passphrase)` for encrypted ones. The payload is the ssh-string-prefixed concatenation of `algorithm`, `encryption`, `comment`, `publicBlob`, **encrypted** `privateBlob` — verification runs **before** decryption so a corrupted file does not waste a CBC pass, and so a wrong passphrase surfaces as the canonical [`PpkMacMismatchException`](#3-modules) (decrypted gibberish hashes uniformly; the only honest signal is the MAC failing). Compare is constant-time so a forge attempt cannot leak the expected MAC byte-by-byte. Encrypted files passed to `parseV2Ed25519` without a passphrase throw [`PpkPassphraseRequiredException`](#3-modules) so the importer can prompt and retry.
 
-**OpenSSH conversion.** `toOpenSshPemEd25519` extracts the 32-byte ed25519 public key from the public blob (skipping the algorithm ssh-string) and the 32-byte private scalar from the mpint in the private blob (stripping the optional leading-zero pad), then constructs the `openssh-key-v1\0` envelope with `cipher=none` / `kdf=none`, packs the keys into the standard private-block (matched-check pair, ssh-ed25519 algo, pub, priv-pub-concat, comment, 1..N padding), base64-armors with `-----BEGIN OPENSSH PRIVATE KEY-----`. The result feeds `dartssh2.SSHKeyPair.fromPem` directly.
+**OpenSSH conversion.** `toOpenSshPemEd25519` extracts the 32-byte ed25519 public key from the public blob (skipping the algorithm ssh-string) and the 32-byte private scalar from the mpint in the private blob (stripping the optional leading-zero pad), then constructs the `openssh-key-v1\0` envelope with `cipher=none` / `kdf=none`, packs the keys into the standard private-block (matched-check pair, ssh-ed25519 algo, pub, priv-pub-concat, comment, 1..N padding), and base64-armors with `-----BEGIN OPENSSH PRIVATE KEY-----`. The result feeds the Rust core's PEM importer directly.
 
 ---
 
@@ -2035,7 +2042,7 @@ Supporting Rust modules:
   from network errors so the UI can surface a "security-coloured" toast
   instead of a retry prompt.
 
-### 3.11 Keyboard Shortcuts (`core/shortcut_registry.dart`)
+### 3.11 Keyboard Shortcuts (`widgets/shortcut_registry.dart`)
 
 Central registry for all app keyboard shortcuts. Every shortcut is an `AppShortcut` enum value with a default `SingleActivator` binding.
 
@@ -2177,27 +2184,36 @@ Recordings live as discrete files at `<appSupport>/recordings/<sessionId>/<isoTi
 
 ### 3.14 Rust Security/Transport Core (`rust/`)
 
-The SSH/SFTP/keypair stack runs entirely on a Rust workspace at `rust/` (`russh = "0.59"`, `russh-sftp = "2.1"`, `russh-keys` 0.6.16 with the PPK feature). dartssh2 is no longer a dep — every connect (shell, file browser browse + transfers, port forwards including SOCKS5, ProxyJump bastion chains) and every keypair operation (generate Ed25519 / RSA, import OpenSSH PEM) goes through this core. Memory safety on the highest-risk code path (parsing untrusted server bytes, key material, KDF/AEAD envelopes) plus access to russh's full algorithm table unlock §6.2 SSH certificates and §6.3 FIDO2-SSH (sk-* keys) without forking anything.
-
-Full migration history + the remaining out-of-scope follow-ups (Windows L3 CNG Rust port, hardware-vault verification on real Apple / Android devices) live in [`docs/RUST_CORE_MIGRATION_PLAN.md`](RUST_CORE_MIGRATION_PLAN.md). This § covers what is in the tree right now and how it fits the rest of the app.
+The SSH/SFTP/keypair stack and every cryptographic envelope run entirely on a Rust workspace at `rust/` (`russh = "0.59"`, `russh-sftp = "2.1"`, `russh-keys = "0.6.16"` with the PPK feature, `rusqlite` with `bundled-sqlcipher-vendored-openssl`, RustCrypto family for AES-GCM / HKDF / Argon2id / Ed25519). The Dart side carries widgets, Riverpod state, theme, l10n, and thin command/event subscribers — no protocol parsing, no key material, no plaintext secrets ever live there outside the user-typed-just-now window. Memory safety on the highest-risk code path (parsing untrusted server bytes, key material, KDF/AEAD envelopes) plus access to russh's full algorithm table unlock SSH certificates and FIDO2-SSH (sk-* keys) without forking anything.
 
 #### Workspace layout (hexagonal: ports + adapters)
 
 ```
 rust/
-├── Cargo.toml                workspace root + shared dep pins
-├── rust-toolchain.toml       channel = stable
+├── Cargo.toml                  workspace root + shared dep pins
+├── rust-toolchain.toml         channel = stable
 └── crates/
-    ├── lfs_core/             PURE Rust headless library
-    │                         crate-type = ["rlib"]
-    │                         NO flutter_rust_bridge / tauri / dart deps
+    ├── lfs_core/               PURE Rust headless library
+    │                           crate-type = ["rlib"]
+    │                           NO flutter_rust_bridge / tauri / dart deps
+    │                           [lints.rust] unsafe_code = "forbid"
     │
-    └── lfs_frb/              Flutter adapter (the native blob loaded by Flutter)
-                              crate-type = ["cdylib", "staticlib", "rlib"]
-                              deps: lfs_core (path) + flutter_rust_bridge
+    ├── lfs_os_security/        OS-bound FFI for the security stack
+    │                           crate-type = ["rlib"]
+    │                           keychain / biometric / hardware-vault /
+    │                           clipboard / session-lock / process-hardening
+    │                           Linux + macOS + iOS + Windows + Android JNI
+    │                           Owns every `unsafe extern "C"` / objc2 /
+    │                           windows-rs / jni call in one auditable place
+    │                           Depended on by lfs_core (one-way edge)
+    │
+    └── lfs_frb/                Flutter adapter — native blob loaded by Flutter
+                                crate-type = ["cdylib", "staticlib", "rlib"]
+                                deps: lfs_core + flutter_rust_bridge
+                                Zero `unsafe` (all FFI lives in lfs_os_security)
 ```
 
-`lfs_core` is frontend-agnostic. `lfs_frb` is the only crate that imports `flutter_rust_bridge` and the only crate that produces a `cdylib`/`staticlib`. A future Tauri pivot adds `lfs_tauri` next to `lfs_frb` with the same `lfs_core` underneath; a future headless CLI adds `lfs_cli`. The discipline keeps every UI/transport choice replaceable without touching the security-critical core.
+**Three crates, three roles.** `lfs_core` owns business logic + pure-Rust crypto + persisted state — no FFI, no platform conditionals beyond `cfg(target_os)` for behavioural splits, no UI awareness. `lfs_os_security` is the single audit perimeter for OS-API calls — every `objc2-*`, `windows-*`, `jni`, `secret-service`, `arboard`, `tss-esapi` call routes through here so the unsafe surface lives in one crate instead of being scattered. `lfs_frb` is the only crate that imports `flutter_rust_bridge` and the only one that produces a `cdylib`/`staticlib`. A future Tauri pivot adds `lfs_tauri` next to `lfs_frb` with the same `lfs_core` underneath; a future headless CLI adds `lfs_cli`. The discipline keeps every UI/transport choice replaceable without touching the security-critical core.
 
 #### Boundary contract (FRB)
 
@@ -2226,46 +2242,15 @@ Why the SecretRef rule exists: the FRB stream sink buffers events behind the bro
 
 When in doubt: the adapter contains *delegation* + Dart-shape adapters; orchestration belongs in `lfs_core`.
 
-#### Current state (sub-phase 1.1a)
+#### Current scope
 
-| Surface | Status |
-|---|---|
-| `lfs_core::ping()` → smoke test | shipped (1.0) — keeps as smoke alongside real entrypoints |
-| `lfs_core::ssh::try_connect_password` | shipped (1.1a) — one-shot validate-and-disconnect probe over `russh = "0.59"` |
-| `lfs_frb::api::ssh::ssh_try_connect_password` | shipped (1.1a) — Dart binding at `lib/src/rust/api/ssh.dart` |
-| `lfs_core::ssh::try_connect_pubkey` (OpenSSH only) | shipped (1.2a) — encrypted-key passphrase handled, typed `PassphraseIncorrect` separate from generic `KeyParse` for UI retry |
-| `lfs_frb::api::ssh::ssh_try_connect_pubkey` | shipped (1.2a) — `Vec<u8>` key bytes + `Option<String>` passphrase across the bridge |
-| `lfs_core::ssh::Session` + `Shell` | shipped (1.3a) — long-lived session, PTY-backed shell channel (`xterm-256color`), split read/write halves so stdin and event polling do not contend, `disconnect()` for explicit `SSH_MSG_DISCONNECT` |
-| `lfs_frb::api::ssh::SshSession` + `SshShell` (FRB opaque types) | shipped (1.3a) — Dart receives handle objects, `dispose()` triggers Rust `Drop`. Bindings at `lib/src/rust/api/ssh.dart` + Freezed sealed class for `SshShellEvent` |
-| Dart `SshTransport` interface | deferred to 1.5 — premature with current Rust surface; full swap arrives once SFTP + shell are in place |
-| `SshShell::events_stream` (FRB `StreamSink<SshShellEvent>`) | shipped (1.3b) — Dart side gets `Stream<SshShellEvent>`; pump exits on channel close or Dart subscription cancel; single-subscriber per shell because `next_event` serialises the read half |
-| Dart-side xterm bridge + debug entry for manual smoke | pending (1.3c) |
-| PuTTY PPK (v2 + v3 / Argon2id) import | shipped (1.4a) — `parse_private_key` dispatches by magic bytes (`PuTTY-User-Key-File-`); direct dep on `internal-russh-forked-ssh-key` with `ppk` feature flips on russh-keys' built-in parser |
-| Legacy PEM PKCS#1 / PKCS#8 import | pending (1.4b) — blocked on the same upstream RustCrypto pkcs8 0.11 RC issue as the russh 0.60 bump |
-| SFTP byte-level CRUD (`lfs_core::sftp::Sftp`) | shipped (1.5a) — russh-sftp 2.1 over a fresh channel per call, list/read/write/stat/rename/mkdir/remove/canonicalize |
-| `lfs_frb::api::sftp::SshSftp` (FRB opaque type) | shipped (1.5a) — Dart bindings at `lib/src/rust/api/sftp.dart`; SftpDirEntry / SftpFileMetadata carry size, kind, mtime, POSIX mode |
-| SFTP streaming GET/PUT (large-file support) | shipped (1.5b) — `SftpFile` opaque handle: `read_chunk` / `write_all` / `seek` / `sync_all` / `metadata`. Caller drives the chunk loop |
-| `Session::open_direct_tcpip` + `ForwardChannel` (`-L` + ProxyJump primitive) | shipped (1.7a / 1.10a) — split read/write halves; Dart drives the local listener and bridges sockets via `SshForwardChannel.write` / `read` |
-| `lfs_core::forward::LocalForward` listener helper | pending (1.7b) — owns the tokio `TcpListener` + bridge tasks |
-| `-R` remote forward (`request_remote_forward` + `register_remote_forward_route`) | shipped (1.8a) — `LfsHandler` carries an mpsc sender, the per-session `forward_rx` dispatcher fans inbound channels out to per-rule bridge tasks; the legacy Dart-side pump that drained `forward_rx` was retired so the Rust dispatcher is the sole consumer |
-| `-D` SOCKS5 | pending (1.9) — pure user-space layer over `open_direct_tcpip` |
-| ssh-agent client (`Session::connect_agent`) | shipped Rust side (1.11a) — `russh::keys::agent::client::AgentClient` does the heavy lifting; iterates over identities, server picks first acceptable. FRB exposure deferred to 1.11b on a higher-ranked-lifetime tangle. **Covers FIDO2 sk-* keys** (§6.3) when agent has them registered |
-| SSH certificates (`Session::connect_pubkey_cert`) | shipped (1.12) — russh's `authenticate_openssh_cert` plus `Certificate::from_openssh` parser; FRB exposes `ssh_connect_pubkey_cert(host, port, user, key, passphrase, cert)`; the earlier "blocked / fork" assessment came from an incomplete russh scan |
-| FIDO2 sk-keys via agent (§6.3) | covered by 1.11a / 1.11b | russh's `ALL_KEY_TYPES` already advertises `SkEd25519` + `SkEcdsaSha2NistP256`; agent drives the CTAP2 prompt |
-| Direct CTAP2 native HID stack (no agent) | pending (1.13b) — defer until an opt-in real-user need surfaces |
-| ProxyJump full Rust orchestration | pending (1.10b) — over the 1.7a primitive |
-| Shell channel + xterm wiring | pending (1.3) |
-| PPK v2 + v3 codec | pending (1.4) — moves out of `lib/core/security/ppk_codec.dart` |
-| SFTP | pending (1.5) |
-| Mobile cross-compile (cargo-ndk + xcframework) | pending (1.6) — Linux-only host build until then |
-| Port forwarding (-L / -R / -D) + ProxyJump | pending (1.7–1.10) |
-| ssh-agent client | pending (1.11) |
-| SSH certificates (§6.2) | pending (1.12) |
-| FIDO2 sk-keys (§6.3) | pending (1.13) |
+`lfs_core` owns: SSH transport (`russh`), SFTP (`russh-sftp`), shell + direct-tcpip channels, port forward driver (`-L` / `-R` / `-D` + SOCKS5), ProxyJump primitive (`open_direct_tcpip`), ssh-agent client, SSH certificates, OpenSSH PEM + PuTTY PPK (v2 + v3 / Argon2id) import, AES-GCM / HKDF / Argon2id / Ed25519 / SHA-256 envelopes, `.lfs` archive encrypt/decrypt/apply, QR codec, rusqlite + SQLCipher 4.x DB, sessions registry, known-hosts + TOFU, log sanitiser, OpenSSH config grammar, update orchestrator, master-password verify, tier state machine, persisted rate-limit, config store actor, recorder ring buffer, auto-lock state machine, file-system local + remote, transfer queue, migration framework.
 
-`russh` is pinned to **0.59** — versions 0.60+ depend on the RustCrypto release-candidate set (`pkcs8-0.11.0-rc.11`, `ed25519-3.0.0-rc.4`, `ecdsa-0.17.0-rc`, `elliptic-curve-0.14.0-rc`, `rsa-0.10.0-rc`) and `pkcs8-0.11.0-rc.11` fails to build against the latest stable `pkcs5-0.8.0`. Bump back to the latest stable `russh` once that RC set graduates and `pkcs8` 0.11 ships stable. Tracked in [docs/RUST_CORE_MIGRATION_PLAN.md §13](RUST_CORE_MIGRATION_PLAN.md#13-sub-phase-checklist-mark-as-we-go).
+`lfs_os_security` owns: keychain (Apple `security-framework`, Linux `secret-service`, Windows `CredReadW`/`CredWriteW`, Android `java.security.KeyStore` via JNI), biometric (`LAContext`, `UserConsentVerifier`, Linux `fprintd` D-Bus, Android `BiometricPrompt`), hardware vault (Apple Secure Enclave, Android StrongBox JNI, Windows still on a CNG MethodChannel pending Rust port), session lock listener (Linux logind, macOS `NSDistributedNotificationCenter`, Windows `WTSRegisterSessionNotification`), secure clipboard (per-OS sensitive-flag markers), backup exclusion (Apple `NSURLIsExcludedFromBackupKey`), process hardening (`prctl` / `ptrace` / `SetErrorMode`), debug-state probe.
 
-**Migration status — complete.** Every SSH/SFTP path runs through `lfs_core` via the `SshTransport` interface in `lib/core/ssh/transport/`. The Rust core is no longer opt-in — `RustTransport` is the only `SshTransport` implementation. dartssh2 has been removed from `pubspec.yaml`. The legacy `SSHConnection` / `SFTPService` / `Dartssh2Transport` classes are gone; what survives in §3.1 / §3.2 below describes the Dart wrappers around the Rust handles, not dartssh2 internals. Refer to commit `bff78b1b` (drop dartssh2 entirely) for the surgery; sections of this doc that still reference dartssh2 by name are stale prose pending a follow-up sweep.
+`lfs_frb` is the FRB adapter: typed Dart bindings under `lib/src/rust/`, opaque handle registry for long-lived Rust objects, FRB Streams over `tokio::sync::mpsc`. Adapter rule: marshal Dart-friendly types in, delegate to `lfs_core`, marshal results back. No `unsafe`, no business logic.
+
+**`russh` pin — 0.59.** Versions 0.60+ depend on the RustCrypto release-candidate set (`pkcs8-0.11.0-rc.11`, `ed25519-3.0.0-rc.4`, etc.) and `pkcs8-0.11.0-rc.11` fails to build against the latest stable `pkcs5-0.8.0`. Bump back to the latest stable `russh` once that RC set graduates and `pkcs8` 0.11 ships stable.
 
 #### Security baseline
 
@@ -2296,8 +2281,8 @@ Two complementary Rust jobs run on every PR and push, alongside the existing Dar
 | `aarch64-apple-darwin` | macos-latest | Apple Silicon Mac path |
 | `x86_64-apple-darwin` | macos-latest | Intel Mac path (universal binary other half) |
 | `aarch64-apple-ios` | macos-latest | iOS path — same Apple-cfg code, no .ipa shipped today but compile-validates every type drift |
-| `x86_64-pc-windows-msvc` | windows-latest | Windows-cfg paths |
-| `aarch64-linux-android` + `armv7-linux-androideabi` | ubuntu-latest via `cargo-ndk` | Gates the upcoming Tier 3 Android JNI work; cargokit already builds these at release time |
+| `x86_64-pc-windows-msvc` | `windows-2025-vs2026` | Windows-cfg paths. Pinned label (not `windows-latest`) silences the GitHub `windows-2025` → `windows-2025-vs2026` redirect notice + locks the VS 2026 / MSVC toolchain. |
+| `aarch64-linux-android` + `armv7-linux-androideabi` | ubuntu-latest via `cargo-ndk` | Android JNI paths in `lfs_os_security::android::*`; cargokit also builds these at release time. |
 
 Dependabot tracks `rust/Cargo.lock` (`.github/dependabot.yml` `cargo` ecosystem entry) and opens monthly bump PRs alongside the existing pub / github-actions / gitsubmodule schedules.
 
@@ -2305,17 +2290,16 @@ A `make rust-check` target bundles fmt-check + clippy + test for local pre-merge
 
 #### Build & distribution
 
-`make rust-build` compiles `lfs_frb` to a host-native blob (`liblfs_frb.so` on Linux, `.dylib` on macOS, `.dll` on Windows; per-ABI `.so` for Android via `cargo-ndk`; static `.a` for iOS via xcframework). Sub-phase 1.6 wires the cross-compile pipelines into the Flutter build for mobile; 1.0 + 1.1 stay host-only.
+`make rust-build` compiles `lfs_frb` to a host-native blob (`liblfs_frb.so` on Linux, `.dylib` on macOS, `.dll` on Windows; per-ABI `.so` for Android via `cargo-ndk`; static `.a` for iOS via xcframework). The Flutter build picks up the blob via cargokit and bundles it into the platform-specific artefact.
 
-The native blob ships bundled — end-users install nothing beyond the existing app bundle ([§Self-Contained Binary](AGENT_RULES.md#self-contained-binary--end-user-installs-nothing) rung 1). Expected size impact on the release artefact: +1.5–2 MB stripped per platform/arch, well under any platform cap.
+The native blob ships bundled — end-users install nothing beyond the existing app bundle ([§Self-Contained Binary](AGENT_RULES.md#self-contained-binary--end-user-installs-nothing) rung 1). Bundle size after `[profile.release]` tightening (`lto = "fat"` + `codegen-units = 1` + `strip = "symbols"` + `panic = "abort"`): ~16.6 MiB for `liblfs_frb.so` on Linux x64.
 
 #### Dependency invariant
 
-`lfs_core` MUST NOT depend on `flutter_rust_bridge`, `tauri`, or any frontend-specific crate. CI enforces this with `cargo tree -p lfs_core` against a deny-list. Breaking the invariant turns the next UI pivot into a core rewrite — the whole reason the workspace is split this way.
+`lfs_core` MUST NOT depend on `flutter_rust_bridge`, `tauri`, or any frontend-specific crate. `lfs_os_security` is the one-way edge below `lfs_core` — it never depends on `lfs_core`, so `unsafe_code = "forbid"` upstream and `unsafe_code = "allow"` (for FFI) downstream stay separated. CI enforces both via `cargo tree` deny-list. Breaking the invariant turns the next UI pivot into a core rewrite — the whole reason the workspace is split this way.
 
 #### Cross-references
 
-- Plan: [RUST_CORE_MIGRATION_PLAN.md](RUST_CORE_MIGRATION_PLAN.md) — full sub-phase roadmap, risks, effort estimate
 - Build: [CONTRIBUTING.md § Rust core](CONTRIBUTING.md#rust-core-securitytransport) — toolchain install, common targets
 - AGENT_RULES doc-map rows — "Touched any `rust/**/*.rs` file" + "Edited Rust API surface" for the doc-update flow
 
@@ -2328,63 +2312,111 @@ The native blob ships bundled — end-users install nothing beyond the existing 
 ```mermaid
 flowchart TD
     UI["UI (features/)"]
-    UI -->|watches| sp["sessionProvider<br/>(Notifier)"]
-    UI -->|watches| cp["configProvider<br/>(Notifier)"]
-    UI -->|watches| wp["workspaceProvider<br/>(Notifier)"]
-    sp --> ssp["sessionStoreProvider"]
-    cp --> csp["configStoreProvider"]
-    ssp --> ss["SessionNotifier + CredentialStore<br/><i>core/ (pure Dart)</i>"]
-    csp --> cs["ConfigNotifier<br/><i>core/ (pure Dart)</i>"]
+    UI -->|watches| sp["sessionProvider<br/>(NotifierProvider&lt;SessionNotifier, List&lt;Session&gt;&gt;)"]
+    UI -->|watches| cp["configProvider<br/>(NotifierProvider&lt;ConfigNotifier, AppConfig&gt;)"]
+    UI -->|watches| wp["workspaceProvider<br/>(NotifierProvider&lt;WorkspaceNotifier, WorkspaceState&gt;)"]
 
-    sp -.-> stp["sessionTreeProvider<br/>(computed from sessionProvider)"]
-    cp -.-> tmop["themeModeProvider<br/>(computed from configProvider)"]
-    sp -.-> fsp["filteredSessionsProvider<br/>(computed from sessionProvider<br/>+ sessionSearchProvider)"]
+    sp -.-> fsp["filteredSessionsProvider<br/>(sessionProvider + sessionSearchProvider)"]
+    sp -.-> ftp["filteredSessionTreeProvider<br/>(sessionProvider + sessionSearchProvider)"]
+    cp -.-> tmp["themeModeProvider"]
+    cp -.-> lp["localeProvider"]
+
+    sp --> bus["FRB bus subscription<br/>(BusTopic::Sessions)"]
+    cp --> rust["lfs_core::config_store actor<br/>(debounce + atomic write)"]
 ```
 
-Independent provider groups:
+Independent provider clusters:
 
 ```mermaid
 flowchart LR
-    cmp["connectionManagerProvider"] --> cp1["connectionsProvider<br/>(NotifierProvider&lt;ConnectionsNotifier, List&lt;Connection&gt;&gt;)"]
-    tmp["transferManagerProvider"] --> tp1["activeTransfersProvider"]
-    tmp --> tp2["transferHistoryProvider"]
-    tmp --> tp3["transferStatusProvider"]
+    conn["connectionsProvider<br/>(NotifierProvider&lt;ConnectionsNotifier, List&lt;Connection&gt;&gt;)"]
+    conn --> cac["connectionActiveCountProvider"]
+    conn --> csum["connectionSummaryProvider"]
+
+    txp["transfersProvider<br/>(NotifierProvider&lt;TransfersNotifier, TransfersState&gt;)"]
+    txp --> at["activeTransfersProvider"]
+    txp --> th["transferHistoryProvider"]
+    txp --> ts["transferStatusProvider"]
+
+    sec["securityCapabilitiesProvider<br/>(FutureProvider)"]
+    sec --> hpd["hardwareProbeDetailProvider"]
+    sec --> kpd["keyringProbeDetailProvider"]
 ```
 
 ### 4.2 Provider Catalog
 
-| Provider | Type | Depends on | Description |
-|----------|------|-----------|-------------|
-| `masterPasswordProvider` | Provider | — | MasterPasswordManager singleton |
-| `sessionProvider.notifier` | Provider | — | Singleton SessionNotifier (FRB-backed via letsflutssh.db) |
-| `sessionProvider` | NotifierProvider | sessionStoreProvider | Session CRUD + undo/redo |
-| `sessionTreeProvider` | Provider | sessionProvider | Hierarchical tree |
-| `filteredSessionsProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered session list |
-| `sessionSearchProvider` | NotifierProvider<SessionSearchNotifier, String> | — | Search query string |
-| `configProvider.notifier` + `preloadedAppConfigProvider` | Provider | — | Singleton ConfigNotifier (file-based) |
-| `configProvider` | NotifierProvider | configStoreProvider | Configuration + sync logger (sequential save lock via `_pendingSave`) |
-| `themeModeProvider` | Provider | configProvider | ThemeMode (dark/light/system) |
-| `localeProvider` | Provider | configProvider | Locale? (null = system default) |
-| `knownHostsProvider` | Provider | — | KnownHostsNotifier (FRB-backed via letsflutssh.db) |
-| `sshKeysProvider.notifier` | Provider | — | SshKeysNotifier (FRB-backed via letsflutssh.db) |
-| `sshKeysProvider` | FutureProvider | keyStoreProvider | List\<SshKeyEntry\> |
-| `snippetsProvider.notifier` | Provider | — | SnippetsNotifier (FRB-backed via letsflutssh.db) |
-| `snippetsProvider` | FutureProvider | snippetStoreProvider | All snippets |
-| `sessionSnippetsProvider` | FutureProvider.family | snippetStoreProvider | Snippets pinned to a session |
-| `tagsProvider.notifier` | Provider | — | TagsNotifier (FRB-backed via letsflutssh.db) |
-| `tagsProvider` | FutureProvider | tagStoreProvider | All tags |
-| `sessionTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a session |
-| `folderTagsProvider` | FutureProvider.family | tagStoreProvider | Tags for a folder |
-| `connectionsProvider` | NotifierProvider&lt;ConnectionsNotifier, List&lt;Connection&gt;&gt; | — | Live connection list. The notifier subscribes to `BusTopic::Connection` so every Rust-side state transition (`ConnectionStateChanged` / `ConnectionRemoved` / `ConnectionError`) re-emits without polling. `connectionsProvider.notifier` exposes the notifier for command-shaped methods (connect / disconnect / reconnect). `StaticConnectionsNotifier` is the test seam. |
-| `transfersProvider.notifier` | Provider | — | TransfersNotifier singleton |
-| `activeTransfersProvider` | StreamProvider | transferManagerProvider | Active/queued tasks |
-| `transferHistoryProvider` | StreamProvider | transferManagerProvider | Completed transfer history |
-| `transferStatusProvider` | StreamProvider<ActiveTransferState> | transferManagerProvider | Active tasks + progress state |
-| `workspaceProvider` | NotifierProvider<WorkspaceNotifier, WorkspaceState> | connectionManagerProvider | Workspace tiling tree + tabs (defined in `features/workspace/workspace_controller.dart`) |
-| `foregroundServiceProvider` | Provider | — | ForegroundServiceManager singleton |
-| `filteredSessionTreeProvider` | Provider | sessionProvider, sessionSearchProvider | Filtered + hierarchical session tree |
-| `updateProvider` | NotifierProvider<UpdateNotifier, UpdateState> | — | Update check state + actions |
-| `appVersionProvider` | NotifierProvider<AppVersionNotifier, String> | — | Current version from package_info_plus |
+Generated from `lib/providers/` — each row points at the file that defines the provider. Providers feeding other providers list the dependency in the third column.
+
+#### Session, config, locale, theme
+
+| Provider | Type | Source / depends on |
+|---|---|---|
+| `sessionProvider` | `NotifierProvider<SessionNotifier, List<Session>>` | `session_provider.dart` — FRB DAO (`db_sessions_*`) + `BusTopic::Sessions` |
+| `sessionsLoadingProvider` | `NotifierProvider<SessionsLoadingNotifier, bool>` | `session_provider.dart` — `true` while the initial load is in flight |
+| `sessionSearchProvider` | `NotifierProvider<SessionSearchNotifier, String>` | `session_provider.dart` |
+| `filteredSessionsProvider` | `Provider<List<Session>>` | `sessionProvider` + `sessionSearchProvider` |
+| `filteredSessionTreeProvider` | `Provider<List<SessionTreeNode>>` | `sessionProvider` + `sessionSearchProvider` |
+| `preloadedAppConfigProvider` | `Provider<AppConfig?>` | `config_provider.dart` — overridden in `main.dart` with the on-disk config so `ConfigNotifier.build()` seeds without a file read |
+| `configProvider` | `NotifierProvider<ConfigNotifier, AppConfig>` | `config_provider.dart` — sync via `lfs_core::config_store` (debounce + atomic write + bus event) |
+| `themeModeProvider` | `Provider<ThemeMode>` | derived from `configProvider` |
+| `localeProvider` | `Provider<Locale?>` | derived from `configProvider` (null = OS auto-detect) |
+
+#### Connections + workspace + transfers
+
+| Provider | Type | Source / depends on |
+|---|---|---|
+| `connectionsProvider` | `NotifierProvider<ConnectionsNotifier, List<Connection>>` | `connection_provider.dart` — subscribes to `BusTopic::Connection`; `connectionsProvider.notifier` exposes connect / disconnect / reconnect methods |
+| `connectionActiveCountProvider` | `StreamProvider<int>` | `connection_provider.dart` — count of `connecting` + `connected` for status indicator |
+| `foregroundActiveCountListenerProvider` | `Provider<void>` | `connection_provider.dart` — keeps the Android foreground service alive while ≥ 1 connection is live |
+| `connectionSummaryProvider` | `Provider<ConnectionSummary>` | `connection_provider.dart` — derived counts for the sidebar footer |
+| `foregroundServiceProvider` | `Provider<ForegroundServiceManager>` | `connection_provider.dart` |
+| `workspaceProvider` | `NotifierProvider<WorkspaceNotifier, WorkspaceState>` | `features/workspace/workspace_controller.dart` |
+| `transfersProvider` | `NotifierProvider<TransfersNotifier, TransfersState>` | `transfer_provider.dart` — subscribes to `BusTopic::Transfer*` |
+| `activeTransfersProvider` | `Provider<List<ActiveEntry>>` | derived from `transfersProvider` |
+| `transferHistoryProvider` | `Provider<List<HistoryEntry>>` | derived from `transfersProvider` |
+| `transferStatusProvider` | `Provider<ActiveTransferState>` | derived from `transfersProvider` |
+
+#### Security stack
+
+| Provider | Type | Source / depends on |
+|---|---|---|
+| `masterPasswordProvider` | `Provider<MasterPasswordManager>` | `master_password_provider.dart` |
+| `sessionCredentialCacheProvider` | `Provider<SessionCredentialCache>` | `session_credential_cache_provider.dart` |
+| `secureKeyStorageProvider` | `Provider<SecureKeyStorage>` | `security_provider.dart` |
+| `resignServiceProvider` | `Provider<ResignService>` | `security_provider.dart` (macOS keychain re-sign pipeline) |
+| `biometricAuthProvider` | `Provider<BiometricAuth>` | `security_provider.dart` |
+| `biometricKeyVaultProvider` | `Provider<BiometricKeyVault>` | `security_provider.dart` |
+| `keychainPasswordGateProvider` | `Provider<KeychainPasswordGate>` | `security_provider.dart` |
+| `hardwareTierVaultProvider` | `Provider<HardwareTierVault>` | `security_provider.dart` |
+| `securityCapabilitiesProvider` | `FutureProvider<SecurityCapabilities>` | `security_provider.dart` — orchestrator-driven capability snapshot |
+| `hardwareProbeDetailProvider` | `FutureProvider<HardwareProbeDetail>` | `security_provider.dart` — typed unavailability reason for the hardware-vault Settings card |
+| `keyringProbeDetailProvider` | `FutureProvider<KeyringProbeResult>` | `security_provider.dart` — typed unavailability reason for the keychain Settings card |
+| `securityStateProvider` | `NotifierProvider<SecurityStateNotifier, SecurityState>` | `security_provider.dart` — current tier + modifiers + DB key holder |
+| `lockStateProvider` | `NotifierProvider<LockStateNotifier, bool>` | `core/security/lock_state.dart` |
+| `autoLockMinutesProvider` | `NotifierProvider<AutoLockMinutesNotifier, int>` | `auto_lock_provider.dart` |
+| `firstLaunchBannerProvider` | `NotifierProvider<FirstLaunchBannerNotifier, FirstLaunchBannerData?>` | `first_launch_banner_provider.dart` |
+| `securityReinitProvider` | `NotifierProvider<SecurityReinitNotifier, int>` | `security_reinit_provider.dart` — bumps to force re-evaluation after a tier switch / wipe |
+
+#### Tags, snippets, keys, known hosts
+
+| Provider | Type | Source / depends on |
+|---|---|---|
+| `tagsProvider` | `AsyncNotifierProvider<TagsNotifier, List<Tag>>` | `tag_provider.dart` |
+| `sessionTagsProvider` | `FutureProvider.family<List<Tag>, String>` | `tag_provider.dart` |
+| `folderTagsProvider` | `FutureProvider.family<List<Tag>, String>` | `tag_provider.dart` |
+| `snippetsProvider` | `AsyncNotifierProvider<SnippetsNotifier, List<Snippet>>` | `snippet_provider.dart` |
+| `sessionSnippetsProvider` | `FutureProvider.family<List<Snippet>, String>` | `snippet_provider.dart` |
+| `sshKeysProvider` | `AsyncNotifierProvider<SshKeysNotifier, List<SshKeyEntry>>` | `key_provider.dart` |
+| `knownHostsProvider` | `NotifierProvider<KnownHostsNotifier, Map<String, String>>` | `known_hosts_provider.dart` |
+
+#### Updates, version, terminal broadcast
+
+| Provider | Type | Source / depends on |
+|---|---|---|
+| `updateServiceProvider` | `Provider<UpdateService>` | `update_provider.dart` |
+| `updateProvider` | `NotifierProvider<UpdateNotifier, UpdateState>` | `update_provider.dart` |
+| `appVersionProvider` | `NotifierProvider<AppVersionNotifier, String>` | `version_provider.dart` |
+| `broadcastControllerProvider` | `Provider.family<BroadcastController, String>` | `broadcast_provider.dart` — per-tab broadcast input fan-out |
 
 **Data flow pattern:**
 ```
@@ -2860,7 +2892,46 @@ if (isMobilePlatform) {
 
 ---
 
+### 5.7 Recordings (`features/recordings/`)
+
+User-facing browser + replay surface for the per-session recordings the [`SessionRecorder`](#313-session-recording-coresessionsession_recorderdart) writes. The engine lives in `core/session/session_recorder.dart` (encryption envelope, asciinema framing, rotation); the files below render the on-disk results.
+
+| File | Class | Purpose |
+|------|-------|---------|
+| `recordings_browser.dart` | `RecordingsBrowserPanel`, `RecordingsBrowserDialog` | Embeddable list panel + dialog wrapper. Lists every file under `<appSupport>/recordings/<sessionId>/`, joins to the live session list to resolve labels, exposes per-row delete + Play action. Reachable via Tools → Recordings on desktop and the mobile Tools tile. |
+| `recording_playback_dialog.dart` | `RecordingPlaybackDialog` | Embedded xterm playback with speed control (`1×` / `2×` / `4×` / Instant). Decodes per-event AES-256-GCM frames sequentially; truncated tails surface as a clean stop instead of a decode error. |
+| `recording_reader.dart` | `RecordingReader` | Pure decoder over the `[LFR1][version][len][nonce][cipher+tag]` envelope or the plain asciinema `.cast` JSON-Lines fallback. Used by both playback and the unit suite. |
+| `recordings_logic.dart` | Listing + lifecycle helpers | Disk walk + label join + delete pipeline shared by panel / dialog. Pure logic, testable without `BuildContext`. |
+
+Recordings storage path + per-event GCM frame layout are owned by [§3.13](#313-session-recording-coresessionsession_recorderdart); this section is the UI surface. Cross-link: [USER_GUIDE § Session recording + playback](USER_GUIDE.md#10-session-recording--playback) for the user-facing flow.
+
+---
+
 ## 6. Widgets — Public API Reference
+
+### Widget catalogue at a glance
+
+The full set of files lives under `lib/widgets/` (alphabetical). The detailed entries below describe widgets with non-obvious contracts; the rest of the inventory:
+
+| File | Role |
+|------|------|
+| `app_button.dart` | `AppButton` + named ctors (`.cancel` / `.primary` / `.secondary` / `.destructive`) — compact dialog/footer button. Re-exported from `app_dialog.dart` so dialog callsites only need one import. |
+| `app_collection_toolbar.dart` | `AppCollectionToolbar` — shared "search + add + secondary action" header used by every list-style manager (SSH keys, snippets, tags, known hosts) so they line up visually. |
+| `app_empty_state.dart` | `AppEmptyState` — centered icon + heading + secondary line + optional action. Replaces ad-hoc `Column` empty placeholders. |
+| `app_picker_chip.dart` | `AppPickerChip` — shared pill-shaped selector used by ProxyJump kind picker, port-forward kind picker, snippet token chips. |
+| `app_selection_area.dart` | `AppSelectionArea` — local-scope text-selection wrapper used inside dialogs / threat lists / help prose. The desktop shell never wraps the workspace in `SelectionArea` (gesture-arena race with `ThresholdDraggable`). See [Selection scoping](#selection-scoping). |
+| `dropdown_select_button.dart` | `DropdownSelectButton<T>` — the canonical shared dropdown trigger (replaces inline `PopupMenuButton` copies in session edit forms and similar). |
+| `tag_color.dart` | Colour-palette + `TagColor` helpers used by `TagManagerDialog` / `SessionTagDots` / `FolderTagDots`. |
+| `update_progress_indicator.dart` | Determinate + indeterminate progress UI shared by the in-app updater dialogs. |
+| `import_preview_dialog.dart` | Shared typedefs (`ImportPreviewCounts`, `ImportPreviewSelection`) consumed by [LfsImportPreviewDialog](#lfsimportpreviewdialog) + [LinkImportPreviewDialog](#linkimportpreviewdialog). |
+| `shortcut_registry.dart` | `AppShortcut` enum + `AppShortcutRegistry`. Documented in detail under [§3.11 Keyboard Shortcuts](#311-keyboard-shortcuts-widgetsshortcut_registrydart) — file lives under `widgets/` because shortcuts cross UI / non-UI concerns and the registry has no Flutter-free callers. |
+
+Widgets split across `part of` siblings (one entry, multiple files):
+
+- `expandable_tier_card.dart` + `expandable_tier_card_header.dart` / `_inputs.dart` / `_logic.dart` / `_threats.dart`.
+- `security_setup_dialog.dart` + `security_setup_dialog_logic.dart` / `_widgets.dart`.
+
+Detailed entries follow.
 
 ### AppShell
 
@@ -2947,7 +3018,7 @@ Inside a scoped `AppSelectionArea`, a parent may still need to block selection o
 | Role | Examples | Cursor | Selection |
 |---|---|---|---|
 | **Action** | `AppButton`, `AppIconButton`, `_Toggle` knob, `_SegmentControl`, `PopupMenuButton` chip | pointer | **disabled** |
-| **Tile** (row dispatches on tap) | `ExpandableTierCard` header, `_ActionTile` (Data section), `AppDataRow` clickable row, `TierThreatBlock` clickable variant | pointer | **disabled** — wrap the InkWell's child in `SelectionContainer.disabled` |
+| **Tile** (row dispatches on tap) | `ExpandableTierCard` header, `_ActionTile` (Data section), `AppDataRow` clickable row | pointer | **disabled** — wrap the InkWell's child in `SelectionContainer.disabled` |
 | **Form row** (label + interactive control) | `_SettingsRow` used by `_IntTile`, `_Toggle`, `_ThemeTile`, `_LanguageTile` | default | **disabled** — the label + subtitle block is a field name, not content to copy; the row's control handles its own cursor |
 | **Prose** (no gesture, user may want to copy) | `SecurityThreatList` rows, dialog bodies, release notes, help text | I-beam | **enabled** |
 
@@ -3197,16 +3268,6 @@ HostKeyDialog.showNewHost(context, {host, port, keyType, fingerprint})    → Fu
 HostKeyDialog.showKeyChanged(context, {host, port, keyType, fingerprint}) → Future<bool>
 ```
 TOFU dialogs: new host / key changed.
-
-### PassphraseDialog
-
-```dart
-PassphraseDialog.show(context, {required String host, int? attempt}) → Future<PassphraseResult?>
-class PassphraseResult { String passphrase; bool remember; }
-```
-Interactive prompt for encrypted SSH key passphrase. Shows "wrong passphrase" on retry (attempt > 1).
-Checkbox "Remember for this session" (default: checked). Returns null on cancel.
-Wired via `ConnectionsNotifier.onPassphraseRequired` → `SSHConnection.onPassphraseRequired`.
 
 ### ConfirmDialog
 
@@ -3555,18 +3616,6 @@ SecurityThreatList({
 })
 ```
 Single-tier threat-status list used by the per-tier info popup. Renders the full `SecurityThreat` vocabulary — every threat row visible inline with a ✓ / ✗ / — / ! glyph derived from the tier + modifiers it was constructed with.
-
-### TierThreatBlock
-
-```dart
-TierThreatBlock({
-  required SecurityTier tier,
-  required SecurityModifiers modifiers,
-  VoidCallback? onTap,
-  bool selected = false,
-})
-```
-Single-tier presentation block used by both Settings → Security (read-only info) and the first-launch wizard (tap-to-select). Header carries the tier badge + title + subtitle + a trailing `(i)` — body is a [SecurityThreatList](#securitythreatlist).
 
 ### ExpandableTierCard
 
@@ -4366,10 +4415,9 @@ All files live in the platform's app-support directory (see **Location** below).
 | `hardware_vault_*.bin` | Hardware-backed wrap | Per-platform envelope | Hardware-vault sealed DB-key blob (one per platform — Apple / Android / Windows / Linux + per-platform overlay variants). See [§3.6 L3 hardware vault](#l3-hardware-vault-hardwaretiervault) for the per-platform shape | L3 enable |
 | `.tier-transition-pending` | No | JSON | Crash-recovery marker written before a tier-switch rekey. Absence = previous tier switch completed cleanly; presence on startup signals an interrupted switch and routes through the recovery path | Every tier switch (cleared on success) |
 | `.wipe-pending` | No | Empty file | Crash-recovery marker written before a wipe sweep starts. Presence on startup re-runs the sweep idempotently | Wipe start (cleared on success) |
-| `migration_history.json` | No | JSON | Legacy migration framework journal — kept in [`MANAGED_FILES`](../rust/crates/lfs_core/src/security/wipe.rs) for cleanup; no longer written by the current Rust runner | Pre-port installs only |
+| `migration_history.json` | No | JSON | Legacy artefact, kept in [`MANAGED_FILES`](../rust/crates/lfs_core/src/security/wipe.rs) for cleanup on installs that still carry it. No code path writes or reads it. | Legacy installs only |
 | `logs/letsflutssh.log` | No | Text | App debug log (rotates at 5 MB, keeps 3 rotated copies). Disabled by default | First log write after user enables logging |
 | `logs/letsflutssh.log.1`…`.3` | No | Text | Rotated log files | After log rotation |
-| `app.lock` | No | PID text | Single-instance lock — exclusive `RandomAccessFile.lock`. OS releases on process exit | Each app start (desktop only) |
 
 ### Database initialization
 
@@ -4539,7 +4587,7 @@ schema change before merge.
 | Home directory | `HOME` / `USERPROFILE` | Android: `EXTERNAL_STORAGE` / `/storage/emulated/0`; iOS: app Documents dir + folder picker |
 | Drag & drop | desktop_drop + inter-pane | None |
 | Deep links | `app_links` (URL scheme) | `app_links` (URL scheme + file intents) |
-| Single instance | File lock (`app.lock`) | OS-managed natively |
+| Single instance | Native shell primitive (Linux GtkApplication D-Bus uniqueness; Windows `CreateMutexW` named mutex; macOS `LSMultipleInstancesProhibited`) — see [§ Single-instance protection](#single-instance-protection-desktop-only) | OS-managed natively |
 | Font scaling | UI scale in settings | Terminal font slider in settings |
 
 ### Android specifics
@@ -4713,8 +4761,8 @@ Both providers are session-scoped (keyring failure modes on Linux don't change m
 1. DB file exists + master-password enabled → biometric first, else `UnlockDialog` → derive key
 2. DB file exists + keychain has key → read from keychain
 3. DB file exists but no encryption → plaintext mode
-5. No DB file → first launch → probe capabilities, auto-select T1 when the keychain is reachable (queue the post-setup banner on `firstLaunchBannerProvider`), or show `SecuritySetupDialog` in its T0-vs-Paranoid form when the keychain is not reachable (see [First-launch auto-select](#first-launch-auto-select))
-6. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
+4. No DB file → first launch → probe capabilities, auto-select T1 when the keychain is reachable (queue the post-setup banner on `firstLaunchBannerProvider`), or show `SecuritySetupDialog` in its T0-vs-Paranoid form when the keychain is not reachable (see [First-launch auto-select](#first-launch-auto-select))
+5. Open database via `_injectDatabase(key, level)` → `openDatabase(encryptionKey)` → `setDatabase()` on all stores + update `securityStateProvider`
 
 ### Master password
 
@@ -4905,7 +4953,7 @@ AppLogger.instance.log(
 *Never compose a message that embeds a raw secret.* The sanitizer catches PEM blocks and long base64 runs, but a short passphrase / master password falls through. Keep the secret in the code path, not the string:
 
 ```dart
-// OK — the sanitizer redacts user@host and host:port from dartssh2 error.
+// OK — the sanitizer redacts user@host and host:port from russh error text.
 AppLogger.instance.log('SSH auth failed: $e', name: 'Connect', error: e);
 
 // NOT OK — `$typedPassword` falls through every sanitizer rule.
@@ -5109,16 +5157,19 @@ flowchart TD
 
 | Workflow | Trigger | Branches | Purpose | Blocks release? |
 |----------|---------|----------|---------|-----------------|
-| `ci.yml` | push main / PR (all) | main, dev | analyze + test + coverage | Yes (required) |
+| `ci.yml` | push main / PR (main, dev) | main, dev | Dart analyze + test + coverage; Rust `rust-ci` (fmt + clippy + test + cargo-deny) and `rust-cross-check` matrix (Apple, Windows, Android cfg compile) | Yes (required) |
 | `ci-auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
-| `build-release.yml` | push tag v* / manual | — | Build all platforms + release | — |
+| `build-release.yml` | push tag v* / manual | — | Build all platforms + release + SBOM + cosign keyless signature | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
-| `dependabot-auto.yml` | PR (dependabot) | main | Bump version in PR branch + auto-merge patch/minor | — |
+| `dependabot-auto.yml` | PR (any branch) — gates on `dependabot[bot]` actor | main | Bump version in PR branch + auto-merge patch/minor | — |
 | `osv.yml` | push main / PR (all) / weekly | main | CVE scan (pubspec.lock) | Yes on PR |
 | `codeql.yml` | push main / PR (all) / weekly | main | GitHub Actions analysis | Yes on PR |
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
-| `cfl-fuzz.yml` | push main / PR to main | main | cfl-fuzz | No |
+| `cfl-fuzz.yml` | push main / PR to main | main | ClusterFuzzLite | No |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
+| `rust-audit.yml` | weekly cron | main | `cargo deny check advisories` — narrows the unnoticed-CVE window between dep-bump PRs to one week worst-case | No |
+| `reproducibility-check.yml` | nightly cron | main | Builds Linux artefacts twice on the same SHA + diffs sha256 to verify the `SOURCE_DATE_EPOCH`-pinned reproducibility claim | No |
+| `pages.yml` | push main / manual | main | Publishes the project landing site to GitHub Pages | No |
 
 **External Integrations:**
 
@@ -5155,11 +5206,25 @@ The iOS unsigned-build job runs a **pre-flight `cargo build --target aarch64-app
 | `make run-release` | `flutter run --release` | Run (release) |
 | `make test` | `flutter test --coverage --timeout 30s` | Tests with coverage |
 | `make analyze` | `flutter analyze --fatal-infos` | Lint + analyze |
-| `make check` | analyze + test | Full check |
+| `make check` | analyze + test | Full Dart check |
 | `make format` | `dart format .` | Format code |
-| `make gen` | `build_runner build` | Code generation |
+| `make gen` | `build_runner build` | Code generation (FRB freezed siblings + l10n) |
 | `make deps` | `flutter pub get` | Install dependencies |
 | `make fuzz-build` | `dart compile exe fuzz/*.dart` | Compile native fuzz targets |
+
+#### Rust core (`rust/`)
+
+| Target | Command | Purpose |
+|--------|---------|---------|
+| `make rust-build` | `cargo build --release --workspace` | Build the FRB native blob + workspace |
+| `make rust-test` | `cargo test --workspace` | Workspace unit + integration tests |
+| `make rust-fmt` | `cargo fmt --all` | Format Rust sources |
+| `make rust-fmt-check` | `cargo fmt --all -- --check` | CI fmt gate |
+| `make rust-lint` | `cargo clippy --workspace --all-targets -- -D warnings` | Clippy, deny warnings |
+| `make rust-codegen` | `flutter_rust_bridge_codegen generate` | Regenerate Dart bindings under `lib/src/rust/` (run after editing `rust/crates/lfs_frb/src/api/*.rs`) |
+| `make rust-check` | fmt-check + clippy + test | Full Rust pre-merge check |
+| `make rust-deny` | `cargo deny --all-features check` | Advisory + license + bans gates |
+| `make rust-clean` | `cargo clean` | Remove `rust/target/` |
 
 #### Build
 
@@ -5215,9 +5280,9 @@ The iOS unsigned-build job runs a **pre-flight `cargo build --target aarch64-app
 | Problem | Solution |
 |---------|----------|
 | `ConnectionState` conflict with Flutter async.dart | Use `SSHConnectionState` |
-| dartssh2 host key callback: `FutureOr<bool> Function(String type, Uint8List fingerprint)` | Not SSHPublicKey — remember the signature |
-| dartssh2 SFTP: `attr.mode?.value` | Not `.permissions?.mode` |
-| dartssh2 SFTP: `remoteFile.writeBytes()` | Not `.write()` |
+| russh-sftp file mode lookup | `metadata.permissions` (`russh-sftp` shape), not POSIX `mode_t` |
+| russh `check_server_key` callback runs on the IO thread | Bus-event prompt protocol with a `tokio::oneshot` resolution; never block the callback on Dart |
+| FRB `#[frb(sync)]` reserved for sub-microsecond reads | Anything touching the filesystem or cipher stays async + `spawn_blocking` |
 | xterm TextInputClient broken on Windows | `hardwareKeyboardOnly: true` on desktop |
 
 ### 16.3 Security Decisions
@@ -5259,11 +5324,12 @@ The iOS unsigned-build job runs a **pre-flight `cargo build --target aarch64-app
 |---------|---------|
 | `flutter_localizations` | Flutter i18n delegates (SDK package) |
 | `intl` | ICU message formatting for l10n |
-| `lfs_core` / `lfs_frb` (vendored Rust workspace at `rust/`) | SSH2 + SFTP + keypair stack. The only SSH engine — dartssh2 has been removed. See [§3.14](#314-rust-securitytransport-core-rust). |
-| `flutter_rust_bridge` | FFI bridge to the Rust security/transport core — Dart-side runtime that loads the bundled native blob and calls into [`lfs_frb`](#314-rust-securitytransport-core-rust). Pin must match the codegen CLI version exactly (`cargo install flutter_rust_bridge_codegen --version 2.12.0`); runtime/codegen drift produces incompatible bindings. |
+| `lfs_frb` (path dep on `rust_builder/`) | Loads the Rust core native blob; see [§3.14](#314-rust-securitytransport-core-rust) for the workspace it's built from. |
+| `flutter_rust_bridge` | FFI bridge to the Rust core. Pin must match the codegen CLI version exactly (`cargo install flutter_rust_bridge_codegen --version 2.12.0`) — drift produces incompatible bindings. |
+| `freezed_annotation` | Annotations the generated `*.freezed.dart` files (FRB-side enums) import; runtime dep because the generated code ships in release. |
 | `xterm` | Terminal emulator widget |
 | `flutter_riverpod` | State management |
-| `crypto` | SHA-256 helper for keychain fingerprints + known_hosts SHA256 + update-feed checksum. AES-GCM / HKDF / Ed25519 / Argon2id moved Rust-side under `lfs_core::crypto` — those packages (pointycastle / pinenacl / asn1lib) are gone. |
+| `crypto` | SHA-256 only (keychain fingerprints, known_hosts, update-feed checksum). AES-GCM / HKDF / Ed25519 / Argon2id all live Rust-side under `lfs_core::crypto`. |
 | `path_provider` | App data directories |
 | `archive` | ZIP for .lfs export/import |
 | `desktop_drop` | OS drag & drop |
@@ -5275,18 +5341,22 @@ The iOS unsigned-build job runs a **pre-flight `cargo build --target aarch64-app
 | `url_launcher` | Open URLs |
 | `uuid` | UUID generation |
 | `path` | Cross-platform path utils |
+| `ffi` | `calloc` / `free` for `mlock`-pinned secret buffers (`lib/core/security/secret_buffer.dart`). |
+| `meta` | `@visibleForTesting` / `@protected` annotations without dragging in `package:flutter/foundation` (would break `core/`-no-Flutter layering). |
 
 ### Dev
 
 | Package | Purpose |
 |---------|---------|
+| `flutter_test` | Flutter test framework (SDK package) |
+| `integration_test` | Flutter integration test runner (SDK package) |
 | `flutter_lints` | Lint rules |
-| `mockito` | Test mocking |
-| `build_runner` | Code generation (drift) |
-| `drift_dev` | Drift code generator |
-| `build_verify` | Verifies build_runner output is up-to-date |
+| `build_runner` | Drives `freezed` codegen for FRB-generated sealed classes. |
+| `freezed` | Sealed-class codegen for FRB enum bindings (run via `make rust-codegen` followed by `make gen`). |
 | `plugin_platform_interface` | Platform interface for plugin packages |
 | `flutter_launcher_icons` | App icon gen |
+
+**Test mocks are hand-rolled** (`test/helpers/fake_*.dart`) — no `mockito` / `mocktail` (see [§14 Mocking discipline](#mocking-discipline)).
 
 ### Bundled Fonts
 

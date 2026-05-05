@@ -1,10 +1,9 @@
 //! FRB adapter for `lfs_core::keys` — keypair generation + import.
 //!
 //! Surfaces three functions to Dart: generate Ed25519, generate RSA,
-//! and import an OpenSSH PEM. Each returns the same shape: armored
-//! private key, OpenSSH public-key string, and the algorithm tag.
-//! Used by `lib/core/security/key_store.dart` to mint/import keys
-//! without depending on dartssh2's `SSHKeyPair` or `pinenacl`.
+//! and import an OpenSSH PEM. Each returns `KeyMaterial` (armored
+//! private key + OpenSSH public-key string + algorithm tag).
+//! Consumed by `lib/core/security/key_store.dart`.
 
 #[derive(Debug, Clone)]
 pub struct KeyMaterial {

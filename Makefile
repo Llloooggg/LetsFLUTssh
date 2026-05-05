@@ -278,10 +278,7 @@ deps-windows: ## Install system build deps (Windows)
 	@echo "  (select 'Desktop development with C++' workload)"
 
 ## ─── Rust core ────────────────────────────────────────────────
-# Security/transport core lives in rust/. See docs/RUST_CORE_MIGRATION_PLAN.md
-# for scope and sub-phases. Targets stay opt-in until sub-phase 1.1
-# wires Rust into the Flutter build; until then `make analyze` and
-# `make test` remain Dart-only.
+# Security/transport core lives in rust/. See ARCHITECTURE.md §3.14.
 RUST_DIR := rust
 
 rust-fmt: ## Format Rust code (cargo fmt)
