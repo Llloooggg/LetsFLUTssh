@@ -17,7 +17,7 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         linux windows macos apk ios \
         package-linux package-windows release-linux \
         deps-linux deps-macos deps-windows fuzz-build hooks help \
-        lint-workflows
+        lint-workflows rust-mutants
 
 all: build
 
@@ -307,6 +307,14 @@ rust-check: rust-fmt-check rust-lint rust-test ## fmt-check + clippy + test (CI 
 
 rust-deny: ## cargo deny check (advisories + licenses + bans). Requires `cargo install cargo-deny`.
 	cd $(RUST_DIR) && cargo deny --all-features check
+
+rust-mutants: ## Mutation-test a scope of lfs_core (e.g. `make rust-mutants SCOPE=archive`). Requires `cargo install cargo-mutants`. Honours MUTANTS_JOBS / MUTANTS_TIMEOUT_MUL.
+	@if [ -z "$(SCOPE)" ]; then \
+		echo "Error: pass SCOPE=<dir under rust/crates/lfs_core/src/>"; \
+		echo "Examples: SCOPE=archive | SCOPE=security | SCOPE=ssh"; \
+		exit 64; \
+	fi
+	@bash scripts/run-mutants.sh "$(SCOPE)"
 
 ## ─── Utility ──────────────────────────────────────────────────
 
