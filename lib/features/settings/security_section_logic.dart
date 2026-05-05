@@ -226,6 +226,38 @@ String securityTierLogName(SecurityTier tier) {
   }
 }
 
+/// Which password verifier the apply pipeline must drive when the user
+/// confirms a verifiable password drop. Driven by
+/// [passwordVerifierKindFor]; the dispatcher in
+/// `_TierApply._confirmCurrentPasswordIfDropping` switches on the
+/// enum and routes to the matching provider's `verify` method.
+///
+/// Only Paranoid and KeychainWithPassword carry a verifiable password
+/// — see [isVerifiablePasswordDrop] — so the gate caller has already
+/// narrowed the input to those two tiers by the time this is reached.
+enum PasswordVerifierKind {
+  /// `masterPasswordProvider.verify(entered)` — Paranoid.
+  masterPassword,
+
+  /// `keychainPasswordGateProvider.verify(entered)` — KeychainWithPassword.
+  keychainGate,
+}
+
+/// Pick the verifier the password-drop confirm dialog routes through
+/// for [currentTier]. Paranoid uses the master-password manager;
+/// KeychainWithPassword uses the keychain gate. Any other tier reaches
+/// here only via misuse — `isVerifiablePasswordDrop` is the gate that
+/// keeps T0 / T1 / T2 from invoking the prompt at all — so the helper
+/// falls back to keychainGate as a safe default; the surrounding
+/// dispatcher would have already short-circuited on `false` from the
+/// gate.
+PasswordVerifierKind passwordVerifierKindFor(SecurityTier currentTier) {
+  if (currentTier == SecurityTier.paranoid) {
+    return PasswordVerifierKind.masterPassword;
+  }
+  return PasswordVerifierKind.keychainGate;
+}
+
 /// Where the biometric-enable flow should source the DB key it caches
 /// in the biometric-gated vault. Driven by [biometricKeySourceFor],
 /// which the `_BiometricFlow._captureKeyForBiometricEnable` extension

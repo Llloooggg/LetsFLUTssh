@@ -37,9 +37,15 @@ extension _TierApply on _SecuritySectionState {
     }
     if (entered == null) return false;
     if (!mounted) return false;
-    final ok = current == SecurityTier.paranoid
-        ? await ref.read(masterPasswordProvider).verify(entered)
-        : await ref.read(keychainPasswordGateProvider).verify(entered);
+    // Verifier choice (paranoid → masterPassword, T1+pw → keychainGate)
+    // lives in `security_section_logic.passwordVerifierKindFor` so
+    // the rule is unit-tested without a stateful pumpWidget.
+    final ok = switch (passwordVerifierKindFor(current)) {
+      PasswordVerifierKind.masterPassword =>
+        await ref.read(masterPasswordProvider).verify(entered),
+      PasswordVerifierKind.keychainGate =>
+        await ref.read(keychainPasswordGateProvider).verify(entered),
+    };
     if (!ok) {
       if (mounted) {
         Toast.show(

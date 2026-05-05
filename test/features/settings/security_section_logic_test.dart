@@ -616,6 +616,42 @@ void main() {
     });
   });
 
+  group('passwordVerifierKindFor', () {
+    test('paranoid → masterPassword', () {
+      expect(
+        passwordVerifierKindFor(SecurityTier.paranoid),
+        PasswordVerifierKind.masterPassword,
+      );
+    });
+
+    test('keychainWithPassword → keychainGate', () {
+      expect(
+        passwordVerifierKindFor(SecurityTier.keychainWithPassword),
+        PasswordVerifierKind.keychainGate,
+      );
+    });
+
+    test('non-verifiable tiers fall back to keychainGate', () {
+      // The caller (`_confirmCurrentPasswordIfDropping`) is gated by
+      // `isVerifiablePasswordDrop`, so these tiers never reach the
+      // dispatcher in production — but the helper still has to
+      // return *some* kind to keep the switch exhaustive. Pick the
+      // safe-default branch (keychainGate); the surrounding gate
+      // would have already short-circuited on the false return.
+      for (final tier in [
+        SecurityTier.plaintext,
+        SecurityTier.keychain,
+        SecurityTier.hardware,
+      ]) {
+        expect(
+          passwordVerifierKindFor(tier),
+          PasswordVerifierKind.keychainGate,
+          reason: 'tier $tier defaults to keychainGate',
+        );
+      }
+    });
+  });
+
   group('biometricKeySourceFor', () {
     test('cross-tier transition always pulls from the applied tier', () {
       // Every {current, next | current != next} pair must surface
