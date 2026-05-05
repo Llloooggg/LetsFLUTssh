@@ -181,46 +181,23 @@ class _QrExportTile extends ConsumerWidget {
     final cfg = exportResult.options.includeConfig
         ? ref.read(configProvider)
         : null;
+    // Shape mapping (FRB input + deeplink wrap + credentials flag)
+    // lives in `qr_export_logic.dart` so each branch is unit-tested
+    // without booting FRB or showing the dialog.
     final payload = await rust_archive.dbExportQrPayload(
-      input: rust_archive.DbQrExportInput(
-        options: rust_archive.DbQrExportOptions(
-          includeSessions: exportResult.options.includeSessions,
-          includeConfig: exportResult.options.includeConfig && cfg != null,
-          includeKnownHosts: exportResult.options.includeKnownHosts,
-          includePasswords: exportResult.options.includePasswords,
-          includeEmbeddedKeys: exportResult.options.includeEmbeddedKeys,
-          includeManagerKeys: exportResult.options.includeManagerKeys,
-          includeAllManagerKeys: exportResult.options.includeAllManagerKeys,
-          includeTags: exportResult.options.includeTags,
-          includeSnippets: exportResult.options.includeSnippets,
-        ),
+      input: buildDbQrExportInput(
+        options: exportResult.options,
         selectedSessionIds: selectedIds,
         selectedEmptyFolders: emptyFolders,
-        configJson: cfg != null ? jsonEncode(cfg.toJson()) : null,
+        cfg: cfg,
       ),
     );
-
-    // The Rust encoder returns the raw deflated+base64url payload; the
-    // `letsflutssh://import?d=` prefix is a one-line wrap so we keep it
-    // inline here rather than ferry a one-call helper.
-    final deepLink = 'letsflutssh://import?d=$payload';
-    // Selected ids = exported session count (the encoder writes one
-    // entry per id). Avoids round-tripping the encoded blob back
-    // through the Dart decoder just to count.
-    final sessionCount = selectedIds.length;
-    // Reflect the *actual* export choice on the display screen. The QR
-    // mode default is `includePasswords: true`, so a blanket reassurance
-    // that the code carries no credentials would be misleading.
-    final containsCredentials =
-        exportResult.options.includePasswords ||
-        exportResult.options.includeEmbeddedKeys ||
-        exportResult.options.hasManagerKeys;
     if (!context.mounted) return;
     await QrDisplayScreen.show(
       context,
-      data: deepLink,
-      sessionCount: sessionCount,
-      containsCredentials: containsCredentials,
+      data: qrPayloadDeepLink(payload),
+      sessionCount: selectedIds.length,
+      containsCredentials: qrPayloadHasCredentials(exportResult.options),
     );
   }
 }

@@ -44,6 +44,7 @@ import '../../providers/version_provider.dart';
 import '../../utils/android_storage_permission.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import 'qr_export_logic.dart';
 import 'security_section_logic.dart';
 import '../../providers/session_provider.dart';
 import '../../utils/platform.dart' as plat;
