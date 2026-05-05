@@ -847,4 +847,651 @@ mod tests {
         assert_eq!(result.sessions_applied, 0);
         assert!(!result.errors.is_empty());
     }
+
+    // ── Per-field session round-trip ────────────────────────────
+
+    #[test]
+    fn apply_sessions_lands_every_field_on_disk() {
+        let conn = fresh_db();
+        let json = r#"[{
+            "id":"s1",
+            "label":"prod-server",
+            "folder":"",
+            "host":"host.example",
+            "port":2222,
+            "user":"deploy",
+            "auth_type":"key",
+            "password":"pw-1",
+            "key_path":"/home/u/.ssh/id_rsa",
+            "key_data":"PRIV-PEM",
+            "key_id":"k-ext",
+            "passphrase":"kpass",
+            "notes":"important box",
+            "extras":{"shell":"zsh"},
+            "via_session_id":"bastion-1",
+            "via_override":{"host":"bastion","port":2200,"user":"jump"},
+            "created_at":"2026-04-26T00:00:00.000Z",
+            "updated_at":"2026-04-26T00:00:00.000Z"
+        }]"#;
+        // Seed bastion target so via_session_id FK passes,
+        // and the manager key so key_id FK passes.
+        sessions::upsert(
+            &conn,
+            &sessions::SessionRow {
+                id: "bastion-1".into(),
+                label: "bastion".into(),
+                host: "b".into(),
+                port: 22,
+                user: "u".into(),
+                auth_type: "password".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        ssh_keys::upsert(
+            &conn,
+            &ssh_keys::SshKeyRow {
+                id: "k-ext".into(),
+                label: "ext".into(),
+                private_key: "P".into(),
+                public_key: "ssh-ed25519 X".into(),
+                key_type: "ssh-ed25519".into(),
+                is_generated: false,
+                created_at_ms: 0,
+            },
+        )
+        .unwrap();
+        let pending = PendingImport {
+            sessions_json: Some(json.to_string()),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.sessions_applied, 1);
+        let row = sessions::get(&conn, "s1").unwrap().unwrap();
+        // Every json_string mapping verified.
+        assert_eq!(row.label, "prod-server");
+        assert_eq!(row.host, "host.example");
+        assert_eq!(row.port, 2222);
+        assert_eq!(row.user, "deploy");
+        assert_eq!(row.auth_type, "key");
+        assert_eq!(row.password, "pw-1");
+        assert_eq!(row.key_path, "/home/u/.ssh/id_rsa");
+        assert_eq!(row.key_data, "PRIV-PEM");
+        assert_eq!(row.key_id.as_deref(), Some("k-ext"));
+        assert_eq!(row.passphrase, "kpass");
+        assert_eq!(row.notes, "important box");
+        assert!(row.extras.contains("zsh"));
+        assert_eq!(row.via_session_id.as_deref(), Some("bastion-1"));
+        assert_eq!(row.via_host.as_deref(), Some("bastion"));
+        assert_eq!(row.via_port, Some(2200));
+        assert_eq!(row.via_user.as_deref(), Some("jump"));
+    }
+
+    #[test]
+    fn apply_session_skips_row_with_blank_id() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[{"id":"","label":"x","host":"a","port":22,"user":"u","auth_type":"password"}]"#
+                    .to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.sessions_applied, 0);
+        assert!(result.errors.iter().any(|e| e.contains("missing id")));
+    }
+
+    #[test]
+    fn apply_session_uses_created_at_iso_when_provided() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[{"id":"s1","label":"x","host":"a","port":22,"user":"u","auth_type":"password","created_at":"2024-01-01T00:00:00.000Z","updated_at":"2024-01-01T00:00:00.000Z"}]"#
+                    .to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 9_999_000_000_000)
+                .unwrap();
+        assert_eq!(result.sessions_applied, 1);
+        let row = sessions::get(&conn, "s1").unwrap().unwrap();
+        // 2024-01-01T00:00:00Z = 1704067200000 ms.
+        assert_eq!(row.created_at_ms, 1_704_067_200_000);
+        // updated_at_ms is always now_ms (the apply moment).
+        assert_eq!(row.updated_at_ms, 9_999_000_000_000);
+    }
+
+    // ── Folder tree from session.folder paths ──────────────────
+
+    #[test]
+    fn apply_folder_tree_builds_nested_hierarchy_and_assigns_ids() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[
+                    {"id":"s1","label":"l1","folder":"Prod/Web","host":"a","port":22,"user":"u","auth_type":"password"},
+                    {"id":"s2","label":"l2","folder":"Prod/DB","host":"b","port":22,"user":"u","auth_type":"password"},
+                    {"id":"s3","label":"l3","folder":"Staging","host":"c","port":22,"user":"u","auth_type":"password"}
+                ]"#
+                .to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        // Folders: Prod, Prod/Web, Prod/DB, Staging = 4 distinct
+        // folder rows.
+        assert_eq!(result.folders_applied, 4);
+        let all = folders::list_all(&conn).unwrap();
+        let names: HashSet<&str> = all.iter().map(|f| f.name.as_str()).collect();
+        assert!(names.contains("Prod"));
+        assert!(names.contains("Web"));
+        assert!(names.contains("DB"));
+        assert!(names.contains("Staging"));
+        // Web's parent is Prod, DB's parent is Prod, Staging is root.
+        let prod = all.iter().find(|f| f.name == "Prod").unwrap();
+        let web = all.iter().find(|f| f.name == "Web").unwrap();
+        let db = all.iter().find(|f| f.name == "DB").unwrap();
+        let staging = all.iter().find(|f| f.name == "Staging").unwrap();
+        assert!(prod.parent_id.is_none());
+        assert_eq!(web.parent_id.as_deref(), Some(prod.id.as_str()));
+        assert_eq!(db.parent_id.as_deref(), Some(prod.id.as_str()));
+        assert!(staging.parent_id.is_none());
+        // Sessions land with the resolved folder_id of their leaf.
+        let s1 = sessions::get(&conn, "s1").unwrap().unwrap();
+        assert_eq!(s1.folder_id.as_deref(), Some(web.id.as_str()));
+        let s2 = sessions::get(&conn, "s2").unwrap().unwrap();
+        assert_eq!(s2.folder_id.as_deref(), Some(db.id.as_str()));
+        let s3 = sessions::get(&conn, "s3").unwrap().unwrap();
+        assert_eq!(s3.folder_id.as_deref(), Some(staging.id.as_str()));
+    }
+
+    #[test]
+    fn apply_folder_tree_skips_when_folder_path_blank() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[{"id":"s1","label":"l1","folder":"","host":"a","port":22,"user":"u","auth_type":"password"}]"#
+                    .to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.folders_applied, 0);
+        let s1 = sessions::get(&conn, "s1").unwrap().unwrap();
+        assert!(s1.folder_id.is_none());
+    }
+
+    #[test]
+    fn apply_empty_folders_creates_rows_for_paths_with_no_sessions() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            sessions_json: Some("[]".to_string()),
+            empty_folders_json: Some(r#"["A/B","C"]"#.to_string()),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        // A, A/B, C = 3 folder rows.
+        assert_eq!(result.folders_applied, 3);
+        let all = folders::list_all(&conn).unwrap();
+        assert_eq!(all.len(), 3);
+    }
+
+    #[test]
+    fn apply_empty_folders_dedups_against_session_folders() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[{"id":"s1","label":"l","folder":"A","host":"a","port":22,"user":"u","auth_type":"password"}]"#
+                    .to_string(),
+            ),
+            // "A" already exists from sessions_json — must not double-create.
+            empty_folders_json: Some(r#"["A","B"]"#.to_string()),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        // 2 folders: A (from sessions) + B (from empty_folders).
+        assert_eq!(result.folders_applied, 2);
+    }
+
+    #[test]
+    fn apply_empty_folders_skips_blank_paths() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            sessions_json: Some("[]".to_string()),
+            empty_folders_json: Some(r#"["","A"]"#.to_string()),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.folders_applied, 1);
+    }
+
+    // ── Per-toggle gating ──────────────────────────────────────
+
+    #[test]
+    fn apply_keys_off_skips_keys_stage_entirely() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            keys_json: Some(
+                r#"[{"id":"k1","label":"l","private_key":"P","public_key":"ssh-ed25519 X","key_type":"ssh-ed25519","is_generated":false,"created_at":"2026-04-26T00:00:00.000Z"}]"#
+                    .to_string(),
+            ),
+            ..empty_pending()
+        };
+        let mut opts = merge_all_options();
+        opts.apply_keys = false;
+        let result =
+            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        assert_eq!(result.keys_applied, 0);
+        assert!(ssh_keys::get(&conn, "k1").unwrap().is_none());
+    }
+
+    #[test]
+    fn apply_session_tags_requires_both_sessions_and_tags_toggles() {
+        let conn = fresh_db();
+        // Pre-seed session + tag so the link target exists.
+        sessions::upsert(
+            &conn,
+            &sessions::SessionRow {
+                id: "s1".into(),
+                label: "l".into(),
+                host: "a".into(),
+                port: 22,
+                user: "u".into(),
+                auth_type: "password".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        tags::upsert(
+            &conn,
+            &tags::TagRow {
+                id: "t1".into(),
+                name: "n".into(),
+                color: None,
+                created_at_ms: 0,
+            },
+        )
+        .unwrap();
+        let pending = PendingImport {
+            session_tags_json: Some(r#"[{"session_id":"s1","tag_id":"t1"}]"#.to_string()),
+            ..empty_pending()
+        };
+        // Tags off → link skipped.
+        let mut opts = merge_all_options();
+        opts.apply_tags = false;
+        let result =
+            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        assert_eq!(result.session_tags_applied, 0);
+        // Sessions off → also skipped.
+        let mut opts = merge_all_options();
+        opts.apply_sessions = false;
+        let result =
+            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        assert_eq!(result.session_tags_applied, 0);
+        // Both on → link applied.
+        let result = apply_pending_import_merge(
+            &conn,
+            &pending,
+            &merge_all_options(),
+            1_700_000_000_000,
+        )
+        .unwrap();
+        assert_eq!(result.session_tags_applied, 1);
+        assert_eq!(tags::list_session_tag_ids(&conn, "s1").unwrap(), vec!["t1"]);
+    }
+
+    #[test]
+    fn apply_session_snippets_requires_both_sessions_and_snippets_toggles() {
+        let conn = fresh_db();
+        sessions::upsert(
+            &conn,
+            &sessions::SessionRow {
+                id: "s1".into(),
+                label: "l".into(),
+                host: "a".into(),
+                port: 22,
+                user: "u".into(),
+                auth_type: "password".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        snippets::upsert(
+            &conn,
+            &snippets::SnippetRow {
+                id: "sn1".into(),
+                title: "t".into(),
+                command: "c".into(),
+                description: "".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+            },
+        )
+        .unwrap();
+        let pending = PendingImport {
+            session_snippets_json: Some(r#"[{"session_id":"s1","snippet_id":"sn1"}]"#.to_string()),
+            ..empty_pending()
+        };
+        let mut opts = merge_all_options();
+        opts.apply_snippets = false;
+        let result =
+            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        assert_eq!(result.session_snippets_applied, 0);
+        let mut opts = merge_all_options();
+        opts.apply_sessions = false;
+        let result =
+            apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        assert_eq!(result.session_snippets_applied, 0);
+        let result = apply_pending_import_merge(
+            &conn,
+            &pending,
+            &merge_all_options(),
+            1_700_000_000_000,
+        )
+        .unwrap();
+        assert_eq!(result.session_snippets_applied, 1);
+    }
+
+    #[test]
+    fn apply_session_link_skips_blank_ids() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            session_tags_json: Some(
+                r#"[{"session_id":"","tag_id":"t1"},{"session_id":"s1","tag_id":""}]"#.to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.session_tags_applied, 0);
+        assert!(result.errors.is_empty(), "blank-id rows skip silently");
+    }
+
+    // ── Replace mode ──────────────────────────────────────────
+
+    #[test]
+    fn replace_mode_clears_existing_sessions_and_tags() {
+        let mut conn = fresh_db();
+        // Pre-seed live data.
+        sessions::upsert(
+            &conn,
+            &sessions::SessionRow {
+                id: "old-s".into(),
+                label: "old".into(),
+                host: "a".into(),
+                port: 22,
+                user: "u".into(),
+                auth_type: "password".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        tags::upsert(
+            &conn,
+            &tags::TagRow {
+                id: "old-t".into(),
+                name: "old".into(),
+                color: None,
+                created_at_ms: 0,
+            },
+        )
+        .unwrap();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[{"id":"new-s","label":"new","host":"b","port":22,"user":"u","auth_type":"password","created_at":"2026-04-26T00:00:00.000Z","updated_at":"2026-04-26T00:00:00.000Z"}]"#
+                    .to_string(),
+            ),
+            tags_json: Some(
+                r##"[{"id":"new-t","name":"new","color":"#fff","created_at":"2026-04-26T00:00:00.000Z"}]"##
+                    .to_string(),
+            ),
+            ..empty_pending()
+        };
+        let mut opts = merge_all_options();
+        opts.mode = ImportMode::Replace;
+        let result = apply_pending_import(&mut conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        assert_eq!(result.sessions_applied, 1);
+        assert_eq!(result.tags_applied, 1);
+        // Old rows cleared, new ones present.
+        assert!(sessions::get(&conn, "old-s").unwrap().is_none());
+        assert!(sessions::get(&conn, "new-s").unwrap().is_some());
+        let all_tags = tags::list_all(&conn).unwrap();
+        assert_eq!(all_tags.len(), 1);
+        assert_eq!(all_tags[0].id, "new-t");
+    }
+
+    #[test]
+    fn replace_mode_does_not_wipe_manager_keys() {
+        let mut conn = fresh_db();
+        ssh_keys::upsert(
+            &conn,
+            &ssh_keys::SshKeyRow {
+                id: "user-k".into(),
+                label: "mine".into(),
+                private_key: "P".into(),
+                public_key: "ssh-ed25519 USERKEY".into(),
+                key_type: "ssh-ed25519".into(),
+                is_generated: false,
+                created_at_ms: 0,
+            },
+        )
+        .unwrap();
+        let pending = empty_pending();
+        let mut opts = merge_all_options();
+        opts.mode = ImportMode::Replace;
+        apply_pending_import(&mut conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        // Manager key untouched — replace intentionally skips ssh_keys.
+        assert!(ssh_keys::get(&conn, "user-k").unwrap().is_some());
+    }
+
+    #[test]
+    fn replace_mode_clears_known_hosts_when_toggle_on() {
+        let mut conn = fresh_db();
+        known_hosts::upsert_by_host_port(&conn, "old.example", 22, "ssh-rsa", "OLD", 0).unwrap();
+        let pending = PendingImport {
+            known_hosts_text: Some("new.example ssh-ed25519 NEW".to_string()),
+            ..empty_pending()
+        };
+        let mut opts = merge_all_options();
+        opts.mode = ImportMode::Replace;
+        apply_pending_import(&mut conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        // Old host gone, new host present.
+        assert!(known_hosts::get_by_host_port(&conn, "old.example", 22)
+            .unwrap()
+            .is_none());
+        assert!(known_hosts::get_by_host_port(&conn, "new.example", 22)
+            .unwrap()
+            .is_some());
+    }
+
+    // ── known_hosts parsing ───────────────────────────────────
+
+    #[test]
+    fn apply_known_hosts_default_port_22_when_omitted() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            known_hosts_text: Some("h.example ssh-ed25519 KEY".to_string()),
+            ..empty_pending()
+        };
+        apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+            .unwrap();
+        // Default port is 22 — entry must land at (h.example, 22).
+        assert!(known_hosts::get_by_host_port(&conn, "h.example", 22)
+            .unwrap()
+            .is_some());
+    }
+
+    #[test]
+    fn apply_known_hosts_parses_explicit_port() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            known_hosts_text: Some("h.example:9000 ssh-rsa KEY".to_string()),
+            ..empty_pending()
+        };
+        apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+            .unwrap();
+        assert!(known_hosts::get_by_host_port(&conn, "h.example", 9000)
+            .unwrap()
+            .is_some());
+    }
+
+    #[test]
+    fn apply_known_hosts_skips_comments_and_blanks() {
+        let conn = fresh_db();
+        let text = "\n# comment line\n\n  \nh1 ssh-rsa A\n# another comment\nh2 ssh-rsa B\n";
+        let pending = PendingImport {
+            known_hosts_text: Some(text.into()),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.known_hosts_applied, 2);
+    }
+
+    #[test]
+    fn apply_known_hosts_skips_lines_with_too_few_columns() {
+        let conn = fresh_db();
+        let text = "incomplete line\nh ssh-rsa KEY";
+        let pending = PendingImport {
+            known_hosts_text: Some(text.into()),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.known_hosts_applied, 1);
+    }
+
+    // ── port + json_i64 ───────────────────────────────────────
+
+    #[test]
+    fn apply_session_port_round_trips_actual_value() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[{"id":"s1","label":"l","host":"h","port":12345,"user":"u","auth_type":"password"}]"#
+                    .to_string(),
+            ),
+            ..empty_pending()
+        };
+        apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+            .unwrap();
+        let row = sessions::get(&conn, "s1").unwrap().unwrap();
+        // json_i64 mutants would replace the value with 0 / 1 / -1.
+        assert_eq!(row.port, 12345);
+    }
+
+    // ── tags / snippets content ───────────────────────────────
+
+    #[test]
+    fn apply_tags_lands_color_and_name_per_row() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            tags_json: Some(
+                r##"[
+                    {"id":"t1","name":"prod","color":"#ff0000","created_at":"2026-04-26T00:00:00.000Z"},
+                    {"id":"t2","name":"staging","color":"","created_at":"2026-04-26T00:00:00.000Z"}
+                ]"##
+                .to_string(),
+            ),
+            ..empty_pending()
+        };
+        apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+            .unwrap();
+        let all = tags::list_all(&conn).unwrap();
+        let t1 = all.iter().find(|t| t.id == "t1").unwrap();
+        let t2 = all.iter().find(|t| t.id == "t2").unwrap();
+        assert_eq!(t1.name, "prod");
+        assert_eq!(t1.color.as_deref(), Some("#ff0000"));
+        // Empty color string stored as None.
+        assert!(t2.color.is_none());
+    }
+
+    #[test]
+    fn apply_tags_skips_row_with_blank_id_or_name() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            tags_json: Some(
+                r##"[
+                    {"id":"","name":"x","color":null,"created_at":"2026-04-26T00:00:00.000Z"},
+                    {"id":"t1","name":"","color":null,"created_at":"2026-04-26T00:00:00.000Z"},
+                    {"id":"t2","name":"good","color":null,"created_at":"2026-04-26T00:00:00.000Z"}
+                ]"##
+                .to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.tags_applied, 1);
+        assert!(tags::list_all(&conn)
+            .unwrap()
+            .iter()
+            .any(|t| t.id == "t2"));
+    }
+
+    #[test]
+    fn apply_snippets_lands_command_and_description() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            snippets_json: Some(
+                r#"[{"id":"sn1","title":"list","command":"ls -la","description":"long","created_at":"2026-04-26T00:00:00.000Z","updated_at":"2026-04-26T00:00:00.000Z"}]"#
+                    .to_string(),
+            ),
+            ..empty_pending()
+        };
+        apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+            .unwrap();
+        let all = snippets::list_all(&conn).unwrap();
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].command, "ls -la");
+        assert_eq!(all[0].description, "long");
+    }
+
+    #[test]
+    fn apply_snippets_skips_row_with_blank_title_or_id() {
+        let conn = fresh_db();
+        let pending = PendingImport {
+            snippets_json: Some(
+                r#"[
+                    {"id":"","title":"x","command":"c","description":"","created_at":"2026-04-26T00:00:00.000Z","updated_at":"2026-04-26T00:00:00.000Z"},
+                    {"id":"sn1","title":"","command":"c","description":"","created_at":"2026-04-26T00:00:00.000Z","updated_at":"2026-04-26T00:00:00.000Z"},
+                    {"id":"sn2","title":"good","command":"c","description":"","created_at":"2026-04-26T00:00:00.000Z","updated_at":"2026-04-26T00:00:00.000Z"}
+                ]"#
+                .to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.snippets_applied, 1);
+    }
 }

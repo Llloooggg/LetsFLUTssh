@@ -226,4 +226,134 @@ mod tests {
         let err = decrypt_archive_with_password(&env, "p").unwrap_err();
         assert!(err.to_string().contains("exceed import caps"), "got: {err}");
     }
+
+    /// Hand-build a syntactically valid LFSE envelope with the
+    /// given KdfParams; the ciphertext is empty so any decryption
+    /// past the cap check fails on the AES-GCM tag — but for the
+    /// cap-check tests we only inspect the *first* error surfaced
+    /// (cap rejection vs crypto failure).
+    fn synthetic_envelope(memory_kib: u32, iterations: u32, parallelism: u8) -> Vec<u8> {
+        let mut env = Vec::new();
+        env.extend_from_slice(&ENC_HEADER_MAGIC);
+        env.push(ENC_VERSION_ARGON2ID);
+        env.push(KDF_ALGO_ARGON2ID);
+        env.extend_from_slice(&memory_kib.to_be_bytes());
+        env.extend_from_slice(&iterations.to_be_bytes());
+        env.push(parallelism);
+        env.extend_from_slice(&[0u8; SALT_LEN]);
+        env.extend_from_slice(&[0u8; IV_LEN]);
+        env.extend_from_slice(&[0u8; 16]);
+        env
+    }
+
+    #[test]
+    fn decrypt_rejects_iterations_one_above_cap() {
+        let env = synthetic_envelope(16, MAX_IMPORT_ITERATIONS + 1, 1);
+        let err = decrypt_archive_with_password(&env, "p").unwrap_err();
+        assert!(err.to_string().contains("exceed import caps"), "got: {err}");
+    }
+
+    #[test]
+    fn decrypt_rejects_parallelism_one_above_cap() {
+        let env =
+            synthetic_envelope(16, 1, (MAX_IMPORT_PARALLELISM + 1).min(u8::MAX as u32) as u8);
+        let err = decrypt_archive_with_password(&env, "p").unwrap_err();
+        assert!(err.to_string().contains("exceed import caps"), "got: {err}");
+    }
+
+    #[test]
+    fn decrypt_does_not_reject_iterations_exactly_at_cap() {
+        // Boundary check: cap is `>` (strict), so params == cap
+        // must NOT trip the cap branch. The KDF still runs past
+        // the check, so we settle for "the error surfaced is not
+        // the cap-exceed string" and use tiny memory + p=1 so the
+        // derive finishes in milliseconds.
+        let env = synthetic_envelope(16, MAX_IMPORT_ITERATIONS, 1);
+        let err = decrypt_archive_with_password(&env, "p").unwrap_err();
+        assert!(
+            !err.to_string().contains("exceed import caps"),
+            "iterations == cap must pass the cap check; got: {err}"
+        );
+        // Boundary on memory_kib — hand pick a value at the cap
+        // for the desktop build only; the mobile build has a
+        // different cap and would need its own KDF run with 512
+        // MiB which is impractical even on dev machines. Verify
+        // the cap-check predicate, not the derive runtime.
+        // For parallelism == cap (16 lanes) the same predicate
+        // pass would force argon2id_derive across 16 threads,
+        // measured > 30 s on a dev laptop and far longer in CI;
+        // that branch is covered by `import_caps_match_documented_values`
+        // (constant value check) + the `+1` reject test above
+        // (boundary direction).
+    }
+
+    #[test]
+    fn import_caps_match_documented_values() {
+        // Constant-arithmetic mutations (e.g. `512 * 1024 → 512 + 1024`)
+        // would silently change the cap; pin the numbers so any
+        // refactor that breaks the documented contract trips a
+        // test instead of slipping into release.
+        assert_eq!(MAX_IMPORT_ITERATIONS, 20);
+        assert_eq!(MAX_IMPORT_PARALLELISM, 16);
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        assert_eq!(MAX_IMPORT_MEMORY_KIB, 512 * 1024);
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        assert_eq!(MAX_IMPORT_MEMORY_KIB, 1024 * 1024);
+    }
+
+    #[test]
+    fn decrypt_rejects_envelope_one_byte_short_of_header_minimum() {
+        // Minimum well-formed header is 4 + 1 + 10 + SALT_LEN + IV_LEN
+        // = 59 bytes. One byte under that must trip the "too short"
+        // branch even if the magic + version bytes happen to match.
+        let header_min = 4 + 1 + 10 + SALT_LEN + IV_LEN;
+        let mut env = vec![0u8; header_min - 1];
+        env[0..4].copy_from_slice(&ENC_HEADER_MAGIC);
+        env[4] = ENC_VERSION_ARGON2ID;
+        env[5] = KDF_ALGO_ARGON2ID;
+        let err = decrypt_archive_with_password(&env, "p").unwrap_err();
+        assert!(err.to_string().contains("too short"), "got: {err}");
+    }
+
+    #[test]
+    fn decrypt_does_not_reject_envelope_at_header_minimum_for_length_alone() {
+        // At exactly the header minimum the "envelope too short"
+        // branch must NOT fire — any subsequent failure must come
+        // from the missing ciphertext, not the length predicate.
+        // Mutating `<` to `<=` in the length check would make this
+        // case hit "envelope too short".
+        let header_min = 4 + 1 + 10 + SALT_LEN + IV_LEN;
+        let env = synthetic_envelope(16, 1, 1);
+        let env = env[..header_min].to_vec();
+        let err = decrypt_archive_with_password(&env, "p").unwrap_err();
+        // Match the exact length-predicate error string. Other
+        // "too short" strings (AES-GCM ciphertext-too-short etc.)
+        // are expected past the length gate and must NOT trip
+        // this assertion.
+        assert!(
+            !err.to_string().contains("archive envelope too short"),
+            "exact header_min must pass the length check; got: {err}"
+        );
+    }
+
+    #[test]
+    fn encrypt_writes_kdf_params_in_big_endian_at_documented_offsets() {
+        // Wire-shape pin: bumping any field offset in encrypt() is
+        // a wire break that decrypt() must catch in lockstep.
+        // Magic (0..4), version (4), algo (5), m (6..10), t (10..14),
+        // p (14), salt (15..47), iv (47..59), ct (59..).
+        // Use small KDF params so the actual derive call finishes
+        // in milliseconds — we only inspect the wire bytes here.
+        // Argon2id requires `memory_kib >= 8 * parallelism`, so
+        // 64 KiB is the smallest legal value with p=7.
+        let env = encrypt_with_password(SAMPLE_PAYLOAD, "p", 64, 1, 7).unwrap();
+        assert_eq!(&env[0..4], &ENC_HEADER_MAGIC);
+        assert_eq!(env[4], ENC_VERSION_ARGON2ID);
+        assert_eq!(env[5], KDF_ALGO_ARGON2ID);
+        assert_eq!(&env[6..10], &64u32.to_be_bytes());
+        assert_eq!(&env[10..14], &1u32.to_be_bytes());
+        assert_eq!(env[14], 7);
+        // ct begins after salt + iv.
+        assert!(env.len() > 4 + 1 + 10 + SALT_LEN + IV_LEN);
+    }
 }

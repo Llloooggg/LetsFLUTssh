@@ -214,3 +214,238 @@ impl From<DbQrPayloadInput> for qr_compose::QrPayloadInput {
 pub fn qr_estimate_export_size(input: DbQrPayloadInput) -> u32 {
     qr_compose::compose_and_size(&input.into())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_options() -> DbQrExportOptions {
+        DbQrExportOptions {
+            include_sessions: false,
+            include_config: false,
+            include_known_hosts: false,
+            include_passwords: false,
+            include_embedded_keys: false,
+            include_manager_keys: false,
+            include_all_manager_keys: false,
+            include_tags: false,
+            include_snippets: false,
+        }
+    }
+
+    fn empty_payload() -> DbQrPayloadInput {
+        DbQrPayloadInput {
+            options: empty_options(),
+            sessions: vec![],
+            empty_folders: vec![],
+            config_json: None,
+            known_hosts: String::new(),
+            tags: vec![],
+            session_tags: vec![],
+            folder_tags: vec![],
+            snippets: vec![],
+            session_snippets: vec![],
+            manager_key_entries: vec![],
+        }
+    }
+
+    // ── From conversions ──────────────────────────────────────
+
+    #[test]
+    fn db_qr_session_input_from_preserves_every_field() {
+        let d = DbQrSessionInput {
+            id: "s1".into(),
+            label: "label".into(),
+            host: "host.example".into(),
+            port: 2222,
+            user: "deploy".into(),
+            auth_type: "key".into(),
+            password: "secret".into(),
+            key_id: Some("k-ext".into()),
+            key_data: "PEM".into(),
+            folder_path: "Prod/Web".into(),
+        };
+        let out: qr_compose::QrSessionInput = d.into();
+        assert_eq!(out.id, "s1");
+        assert_eq!(out.label, "label");
+        assert_eq!(out.host, "host.example");
+        assert_eq!(out.port, 2222);
+        assert_eq!(out.user, "deploy");
+        assert_eq!(out.auth_type, "key");
+        assert_eq!(out.password, "secret");
+        assert_eq!(out.key_id.as_deref(), Some("k-ext"));
+        assert_eq!(out.key_data, "PEM");
+        assert_eq!(out.folder_path, "Prod/Web");
+    }
+
+    #[test]
+    fn db_qr_tag_input_from_preserves_every_field() {
+        let d = DbQrTagInput {
+            id: "t1".into(),
+            name: "prod".into(),
+            color: Some("#abcdef".into()),
+        };
+        let out: qr_compose::QrTagInput = d.into();
+        assert_eq!(out.id, "t1");
+        assert_eq!(out.name, "prod");
+        assert_eq!(out.color.as_deref(), Some("#abcdef"));
+    }
+
+    #[test]
+    fn db_qr_tag_input_from_preserves_none_color() {
+        let d = DbQrTagInput {
+            id: "t1".into(),
+            name: "prod".into(),
+            color: None,
+        };
+        let out: qr_compose::QrTagInput = d.into();
+        assert!(out.color.is_none());
+    }
+
+    #[test]
+    fn db_qr_snippet_input_from_preserves_every_field() {
+        let d = DbQrSnippetInput {
+            id: "sn1".into(),
+            title: "list".into(),
+            command: "ls -la".into(),
+            description: "long-list".into(),
+        };
+        let out: qr_compose::QrSnippetInput = d.into();
+        assert_eq!(out.id, "sn1");
+        assert_eq!(out.title, "list");
+        assert_eq!(out.command, "ls -la");
+        assert_eq!(out.description, "long-list");
+    }
+
+    #[test]
+    fn db_qr_manager_key_entry_from_preserves_every_field() {
+        let d = DbQrManagerKeyEntry {
+            id: "k1".into(),
+            label: "manager-a".into(),
+            key_type: "ed25519".into(),
+            public_key: "PUB".into(),
+            private_key: "PRIV".into(),
+        };
+        let out: qr_compose::QrManagerKeyEntry = d.into();
+        assert_eq!(out.id, "k1");
+        assert_eq!(out.label, "manager-a");
+        assert_eq!(out.key_type, "ed25519");
+        assert_eq!(out.public_key, "PUB");
+        assert_eq!(out.private_key, "PRIV");
+    }
+
+    #[test]
+    fn db_qr_session_tag_link_from_preserves_pair() {
+        let d = DbQrSessionTagLink {
+            session_id: "s1".into(),
+            tag_id: "t1".into(),
+        };
+        let out: qr_compose::QrSessionTagLink = d.into();
+        assert_eq!(out.session_id, "s1");
+        assert_eq!(out.tag_id, "t1");
+    }
+
+    #[test]
+    fn db_qr_folder_tag_link_from_preserves_pair() {
+        let d = DbQrFolderTagLink {
+            folder_path: "Prod/Web".into(),
+            tag_id: "t1".into(),
+        };
+        let out: qr_compose::QrFolderTagLink = d.into();
+        assert_eq!(out.folder_path, "Prod/Web");
+        assert_eq!(out.tag_id, "t1");
+    }
+
+    #[test]
+    fn db_qr_session_snippet_link_from_preserves_pair() {
+        let d = DbQrSessionSnippetLink {
+            session_id: "s1".into(),
+            snippet_id: "sn1".into(),
+        };
+        let out: qr_compose::QrSessionSnippetLink = d.into();
+        assert_eq!(out.session_id, "s1");
+        assert_eq!(out.snippet_id, "sn1");
+    }
+
+    #[test]
+    fn db_qr_payload_input_from_preserves_options_and_arrays() {
+        let mut d = empty_payload();
+        d.options.include_sessions = true;
+        d.options.include_passwords = true;
+        d.options.include_tags = true;
+        d.options.include_all_manager_keys = true;
+        d.sessions = vec![DbQrSessionInput {
+            id: "s1".into(),
+            label: "p1".into(),
+            host: "h".into(),
+            port: 22,
+            user: "u".into(),
+            auth_type: "password".into(),
+            password: String::new(),
+            key_id: None,
+            key_data: String::new(),
+            folder_path: String::new(),
+        }];
+        d.empty_folders = vec!["A".into(), "B/C".into()];
+        d.config_json = Some(r#"{"k":"v"}"#.into());
+        d.known_hosts = "host ssh-rsa K".into();
+        d.tags = vec![DbQrTagInput {
+            id: "t1".into(),
+            name: "n".into(),
+            color: None,
+        }];
+        d.manager_key_entries = vec![DbQrManagerKeyEntry {
+            id: "k1".into(),
+            label: "mk".into(),
+            key_type: "ed25519".into(),
+            public_key: "P".into(),
+            private_key: "S".into(),
+        }];
+        let out: qr_compose::QrPayloadInput = d.into();
+        assert!(out.options.include_sessions);
+        assert!(out.options.include_passwords);
+        assert!(out.options.include_tags);
+        assert!(out.options.include_all_manager_keys);
+        assert_eq!(out.sessions.len(), 1);
+        assert_eq!(out.empty_folders, vec!["A".to_string(), "B/C".into()]);
+        assert_eq!(out.config_json.as_deref(), Some(r#"{"k":"v"}"#));
+        assert_eq!(out.known_hosts, "host ssh-rsa K");
+        assert_eq!(out.tags.len(), 1);
+        assert_eq!(out.manager_key_entries.len(), 1);
+    }
+
+    // ── qr_estimate_export_size ───────────────────────────────
+
+    #[test]
+    fn estimate_size_returns_non_zero_for_any_payload() {
+        // Even an empty options payload carries v=4 which compresses
+        // to a non-zero byte count after deflate + base64url.
+        let n = qr_estimate_export_size(empty_payload());
+        assert!(n > 0, "size must be > 0 (empty payload still has `v` field)");
+    }
+
+    #[test]
+    fn estimate_size_grows_with_content() {
+        let baseline = qr_estimate_export_size(empty_payload());
+        let mut p = empty_payload();
+        p.options.include_sessions = true;
+        p.sessions = vec![DbQrSessionInput {
+            id: "s1".into(),
+            label: "longer-session-label".into(),
+            host: "long.host.example.com".into(),
+            port: 22,
+            user: "deploy".into(),
+            auth_type: "password".into(),
+            password: "x".repeat(200),
+            key_id: None,
+            key_data: String::new(),
+            folder_path: String::new(),
+        }];
+        p.options.include_passwords = true;
+        let with_session = qr_estimate_export_size(p);
+        assert!(
+            with_session > baseline,
+            "adding a session must grow the estimate (baseline {baseline}, with {with_session})"
+        );
+    }
+}
