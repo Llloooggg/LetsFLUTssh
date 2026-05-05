@@ -3,6 +3,7 @@ name = "lfs_fuzz"
 version = "0.0.0"
 publish = false
 edition = "2021"
+license = "GPL-3.0-only"
 
 # Coverage-guided libFuzzer harnesses for the four untrusted-bytes
 # parsers that moved to lfs_core in the port: deeplink URI,

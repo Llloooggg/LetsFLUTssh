@@ -48,11 +48,17 @@ allow = [
   "ISC",
   "Zlib",
   "Unicode-3.0",
-  "Unicode-DFS-2016",
-  "MPL-2.0",     # russh-cryptovec — file-level copyleft only, OK to bundle
   "CDLA-Permissive-2.0",
-  "CC0-1.0",
   "0BSD",
+  # GPL-3.0-only — the project's own license, applies to lfs_fuzz
+  # which intentionally inherits it (fuzz harnesses ship under the
+  # same GPL terms as the rest of the repo).
+  "GPL-3.0-only",
+  # NCSA (University of Illinois / NCSA Open Source License) — OSI-
+  # approved, FSF-free, permissive (MIT-style). Carried by
+  # libfuzzer-sys, used only by the lfs_fuzz harnesses (not in the
+  # shipped binary).
+  "NCSA",
   # Boost Software License 1.0 — permissive (no copyleft, no
   # attribution-in-binary requirement, OSI/FSF-approved). Carried
   # by `clipboard-win` + `error-code` (DoumanAsh), pulled
