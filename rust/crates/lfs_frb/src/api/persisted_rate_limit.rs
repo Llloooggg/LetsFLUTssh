@@ -5,10 +5,12 @@
 //! per cooldown-state load, so the no-async-hop overhead is worth
 //! the few-microsecond saving.
 //!
-//! What stays Dart-side: the actual file I/O for
-//! `rate_limit_state.bin` (atomic write via `writeBytesAtomic` +
-//! 0600 hardening) and the in-memory state caching that
-//! `PersistedRateLimiter` does between disk reads.
+//! The actual disk I/O lives Rust-side in
+//! [`lfs_core::security::persisted_rate_limit_actor`]; this shim
+//! only surfaces the pure encode/decode/hmac helpers tests + the
+//! Dart-side rate-limiter façade still need to mint a
+//! [`super::persisted_rate_limit_actor`] HMAC key from the gate
+//! disk blob without re-parsing the wire format.
 
 use lfs_core::security::persisted_rate_limit as rl;
 

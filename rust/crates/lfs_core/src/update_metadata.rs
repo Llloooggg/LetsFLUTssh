@@ -14,10 +14,11 @@
 //!   - cumulative changelog walker
 //!     ([`build_cumulative_changelog`])
 //!
-//! The HTTP fetch + cert-pinning + Ed25519 verify plumbing
-//! stays Dart-side for now (separate arc — needs `reqwest` +
-//! `rustls`); these helpers are the small pure-function piece
-//! that runs whether or not the Rust HTTP stack is wired.
+//! HTTP fetch + cert-pinning + Ed25519 verify plumbing live
+//! next door in [`crate::update_http`] / [`crate::update_pinning`] /
+//! [`crate::update_orchestrator`]; this module is the small
+//! pure-function half — semver compare, asset-URI predicate,
+//! filename heuristics, manifest parsing, changelog walker.
 
 use std::collections::HashMap;
 

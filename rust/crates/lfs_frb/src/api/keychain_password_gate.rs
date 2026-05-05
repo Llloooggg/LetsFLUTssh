@@ -6,10 +6,11 @@
 //! dialog wants the verify decision before the keychain prompt
 //! finishes animating.
 //!
-//! What stays Dart-side: the actual file I/O for
-//! `security_pass_hash.bin`, the `flutter_secure_storage` keychain
-//! pepper read/write, and the rate-limit-state clear that runs
-//! after a successful `setPassword`.
+//! Disk I/O and the keychain pepper round-trip live Rust-side in
+//! [`lfs_core::security::keychain_password_gate_actor`]; this
+//! shim only surfaces the pure encode/decode/hmac helpers Dart
+//! needs to wire the rate-limiter HMAC key without re-parsing the
+//! disk blob format.
 
 use lfs_core::security::keychain_password_gate as gate;
 

@@ -1,27 +1,17 @@
-//! Typed scaffold for the L0-L3 + Paranoid tier state machine.
+//! Typed L0-L3 + Paranoid tier state machine.
 //!
-//! Owns the state + event + transition table only. Per-tier
-//! orchestration (Plaintext / Keychain / KeychainWithPassword /
-//! Hardware / Paranoid) lands incrementally behind feature
-//! gates so each per-tier handler ships as a retain-rollback-able
-//! commit.
+//! Owns the state + event + transition table plus a `dispatch`
+//! that publishes [`crate::bus::Event::TierStateChanged`] on every
+//! committed transition. Per-tier orchestration (Plaintext /
+//! Keychain / KeychainWithPassword / Hardware / Paranoid) wires
+//! into the dispatch here while the Dart `SecurityInitController`
+//! continues to drive the production unlock flow until each
+//! per-tier handler ships behind its feature gate.
 //!
-//! This file is **purely additive** and does not yet touch the
-//! Dart `SecurityInitController` (1167 LOC) which still owns the
-//! production unlock flow. That orchestrator retires once every
-//! per-tier feature gate is on by default.
-//!
-//! **Why land the scaffold ahead of the wiring.** The transition
-//! table is the contract every per-tier sub-machine implements.
-//! Putting it down now (with property tests) lets the per-tier
-//! work compose against a fixed shape instead of redesigning the
-//! state machine each time.
-//!
-//! **Why no `dispatch` impl yet.** A dispatch with no per-tier
-//! handlers wired would either return `Pending` for every event
-//! (dead code) or fake side-effects with `todo!` (worse than no
-//! impl). The transition table itself is enough scaffold —
-//! per-tier handlers wire up the real transitions later.
+//! **Why a single transition table.** The table is the contract
+//! every per-tier sub-machine implements. Pinning it down with
+//! property tests lets per-tier work compose against a fixed
+//! shape rather than redesigning the state machine each time.
 
 use crate::security::SecurityTier;
 

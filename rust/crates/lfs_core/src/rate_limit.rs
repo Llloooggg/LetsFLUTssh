@@ -1,10 +1,12 @@
 //! In-memory password-attempt rate limiter.
 //!
-//! Mirrors the Dart `InMemoryRateLimiter` schedule + transitions
-//! byte-for-byte. The persistent variant (HMAC-authenticated
-//! state file) stays Dart-side for now — its persistence path
-//! goes through `path_provider` + `Directory.systemTemp`, which
-//! is platform code best left near the existing consumers.
+//! Owns the exponential-backoff schedule + transition rules used
+//! across every password-bearing tier. The persistent variant
+//! (HMAC-authenticated state file used by the L2 keychain gate)
+//! lives next door in
+//! [`crate::security::persisted_rate_limit_actor`] — both share
+//! [`BACKOFF_SCHEDULE`] so the timing is identical regardless of
+//! whether counters survive a process restart.
 
 use std::sync::Mutex;
 

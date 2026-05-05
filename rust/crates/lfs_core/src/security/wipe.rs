@@ -31,10 +31,12 @@ pub const WIPE_PENDING_MARKER: &str = ".wipe-pending";
 /// destructive last" (the DB itself) so a mid-wipe crash leaves the
 /// user with at least a detectable "wipe was in progress" state.
 ///
-/// Mirror of the Dart `_managedFiles` list — both must agree
-/// case-for-case or the wipe leaves orphan files behind. Add new
-/// artefacts here AND keep the Dart side in sync until the Dart
-/// shim retires entirely.
+/// Sole source of truth for what the wipe must clean up — the
+/// Dart side calls into the Rust `wipe_all` driver and never
+/// maintains its own filename list. Add new artefacts here when
+/// any module starts writing a new file under `support_dir`;
+/// `wipe::tests::registry_covers_every_known_artefact` enforces
+/// coverage at the module-publish layer.
 pub const MANAGED_FILES: &[&str] = &[
     // Markers / transient state
     ".tier-transition-pending",
