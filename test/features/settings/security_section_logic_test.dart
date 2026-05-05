@@ -712,6 +712,106 @@ void main() {
     );
   });
 
+  group('confirmCurrentPasswordIfDropping', () {
+    Future<ConfirmPasswordResult> runWith({
+      required SecurityTier current,
+      required SecurityTier next,
+      required Future<String?> Function() prompt,
+      bool masterAccepts = true,
+      bool gateAccepts = true,
+    }) {
+      return confirmCurrentPasswordIfDropping(
+        currentTier: current,
+        targetTier: next,
+        promptCurrentPassword: prompt,
+        verifyMaster: (_) async => masterAccepts,
+        verifyKeychainGate: (_) async => gateAccepts,
+      );
+    }
+
+    test('non-verifiable transition short-circuits to notRequired', () async {
+      // T1 → T0 doesn't have a verifiable password to drop.
+      var prompted = 0;
+      final r = await runWith(
+        current: SecurityTier.keychain,
+        next: SecurityTier.plaintext,
+        prompt: () async {
+          prompted++;
+          return 'should-not-be-called';
+        },
+      );
+      expect(r, ConfirmPasswordResult.notRequired);
+      expect(prompted, 0, reason: 'prompt must NOT fire on non-verifiable');
+    });
+
+    test('null prompt → cancelled', () async {
+      final r = await runWith(
+        current: SecurityTier.keychainWithPassword,
+        next: SecurityTier.plaintext,
+        prompt: () async => null,
+      );
+      expect(r, ConfirmPasswordResult.cancelled);
+    });
+
+    test('keychainGate verifier rejects → wrongPassword', () async {
+      final r = await runWith(
+        current: SecurityTier.keychainWithPassword,
+        next: SecurityTier.plaintext,
+        prompt: () async => 'whatever',
+        gateAccepts: false,
+      );
+      expect(r, ConfirmPasswordResult.wrongPassword);
+    });
+
+    test('keychainGate verifier accepts → ok', () async {
+      final r = await runWith(
+        current: SecurityTier.keychainWithPassword,
+        next: SecurityTier.plaintext,
+        prompt: () async => 'ok-pw',
+        gateAccepts: true,
+      );
+      expect(r, ConfirmPasswordResult.ok);
+    });
+
+    test('master verifier rejects → wrongPassword', () async {
+      final r = await runWith(
+        current: SecurityTier.paranoid,
+        next: SecurityTier.plaintext,
+        prompt: () async => 'whatever',
+        masterAccepts: false,
+      );
+      expect(r, ConfirmPasswordResult.wrongPassword);
+    });
+
+    test('master verifier accepts → ok', () async {
+      final r = await runWith(
+        current: SecurityTier.paranoid,
+        next: SecurityTier.plaintext,
+        prompt: () async => 'right',
+        masterAccepts: true,
+      );
+      expect(r, ConfirmPasswordResult.ok);
+    });
+
+    test('paranoid verifier path never calls the keychainGate seam', () async {
+      // The dispatcher routes paranoid → masterPassword exclusively.
+      // A wrong-config crossover would silently shadow paranoid
+      // verification with the gate's verdict.
+      var gateCalled = 0;
+      await confirmCurrentPasswordIfDropping(
+        currentTier: SecurityTier.paranoid,
+        targetTier: SecurityTier.plaintext,
+        promptCurrentPassword: () async => 'pw',
+        verifyMaster: (_) async => true,
+        verifyKeychainGate: (_) async {
+          gateCalled++;
+          return false;
+        },
+      );
+      expect(gateCalled, 0);
+    });
+  });
+
   group('runVaultClearPlan', () {
     /// Records every seam the runner invoked, in order.
     Future<List<String>> runPlan(

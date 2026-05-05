@@ -13,50 +13,57 @@ part of 'settings_screen.dart';
 /// `.tier-transition-pending` marker on disk; recovery happens at
 /// next launch through `main._initSecurity`.
 extension _TierApply on _SecuritySectionState {
-  bool _isVerifiablePasswordDrop(SecurityTier current, SecurityTier next) =>
-      isVerifiablePasswordDrop(current, next);
-
   /// Prompt for the current password before a password-dropping
   /// transition. Returns true to proceed, false to abort (user
-  /// cancelled or typed the wrong password).
+  /// cancelled or typed the wrong password). The four-outcome state
+  /// machine lives in `security_section_logic.
+  /// confirmCurrentPasswordIfDropping`; this wrapper translates the
+  /// outcome enum into the bool the caller already consumes plus the
+  /// "wrong password" toast.
   Future<bool> _confirmCurrentPasswordIfDropping(
     SecurityTier current,
     SecurityTier next,
   ) async {
-    if (!_isVerifiablePasswordDrop(current, next)) return true;
-    final currentCtrl = TextEditingController();
-    final String? entered;
+    final result = await confirmCurrentPasswordIfDropping(
+      currentTier: current,
+      targetTier: next,
+      promptCurrentPassword: _promptCurrentPasswordWithWipe,
+      verifyMaster: ref.read(masterPasswordProvider).verify,
+      verifyKeychainGate: ref.read(keychainPasswordGateProvider).verify,
+    );
+    switch (result) {
+      case ConfirmPasswordResult.notRequired:
+      case ConfirmPasswordResult.ok:
+        return true;
+      case ConfirmPasswordResult.cancelled:
+        return false;
+      case ConfirmPasswordResult.wrongPassword:
+        if (mounted) {
+          Toast.show(
+            context,
+            message: S.of(context).currentPasswordIncorrect,
+            level: ToastLevel.error,
+          );
+        }
+        return false;
+    }
+  }
+
+  /// Shared current-password prompt with wipe-on-exit semantics. The
+  /// backing controller is wiped + disposed in a `finally` so the
+  /// typed plaintext doesn't linger on the Dart heap regardless of
+  /// dismiss path.
+  Future<String?> _promptCurrentPasswordWithWipe() async {
+    final ctrl = TextEditingController();
     try {
-      entered = await AppDialog.show<String>(
+      return await AppDialog.show<String>(
         context,
-        builder: (ctx) => _EnableBiometricDialog(currentCtrl: currentCtrl),
+        builder: (ctx) => _EnableBiometricDialog(currentCtrl: ctrl),
       );
     } finally {
-      currentCtrl.wipeAndClear();
-      currentCtrl.dispose();
+      ctrl.wipeAndClear();
+      ctrl.dispose();
     }
-    if (entered == null) return false;
-    if (!mounted) return false;
-    // Verifier choice (paranoid → masterPassword, T1+pw → keychainGate)
-    // lives in `security_section_logic.passwordVerifierKindFor` so
-    // the rule is unit-tested without a stateful pumpWidget.
-    final ok = switch (passwordVerifierKindFor(current)) {
-      PasswordVerifierKind.masterPassword =>
-        await ref.read(masterPasswordProvider).verify(entered),
-      PasswordVerifierKind.keychainGate =>
-        await ref.read(keychainPasswordGateProvider).verify(entered),
-    };
-    if (!ok) {
-      if (mounted) {
-        Toast.show(
-          context,
-          message: S.of(context).currentPasswordIncorrect,
-          level: ToastLevel.error,
-        );
-      }
-      return false;
-    }
-    return true;
   }
 
   Future<void> _applyTierChange(SecuritySetupResult result) async {

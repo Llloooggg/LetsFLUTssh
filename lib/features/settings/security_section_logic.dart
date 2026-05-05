@@ -389,6 +389,62 @@ bool isPostIdentityRemovalTierAccepted(SecurityTier target) =>
 Directory appBundlePathFromExecutable(String executablePath) =>
     Directory(executablePath).parent.parent.parent;
 
+/// Outcome of [confirmCurrentPasswordIfDropping]. Distinguishes the
+/// three failure modes (not required / cancelled / wrong) so the
+/// caller can route only the wrong-password case to the user-visible
+/// toast — cancel and not-required are silent.
+enum ConfirmPasswordResult {
+  /// The current → target transition does not drop a verifiable
+  /// password, so no prompt was shown. The caller proceeds with
+  /// the apply.
+  notRequired,
+
+  /// The prompt resolved to null — user dismissed the dialog. The
+  /// caller aborts the apply silently.
+  cancelled,
+
+  /// The verifier rejected the entered password. The caller surfaces
+  /// the "current password incorrect" toast and aborts.
+  wrongPassword,
+
+  /// The verifier accepted the password. The caller proceeds with
+  /// the apply.
+  ok,
+}
+
+/// Run the password-confirm gate for a tier transition. Pulled out
+/// of `_TierApply._confirmCurrentPasswordIfDropping` so the four-
+/// outcome state machine is unit-testable without booting a dialog
+/// or a riverpod container.
+///
+/// Routes through:
+/// 1. [isVerifiablePasswordDrop] — short-circuit `notRequired` when
+///    the transition has nothing verifiable to drop.
+/// 2. [promptCurrentPassword] — shows the inline current-password
+///    dialog and returns the typed string. `null` → `cancelled`.
+/// 3. [passwordVerifierKindFor] — decide which verifier to use
+///    based on the current tier.
+/// 4. The matching `verify*` seam — `false` → `wrongPassword`,
+///    `true` → `ok`.
+Future<ConfirmPasswordResult> confirmCurrentPasswordIfDropping({
+  required SecurityTier currentTier,
+  required SecurityTier targetTier,
+  required Future<String?> Function() promptCurrentPassword,
+  required Future<bool> Function(String) verifyMaster,
+  required Future<bool> Function(String) verifyKeychainGate,
+}) async {
+  if (!isVerifiablePasswordDrop(currentTier, targetTier)) {
+    return ConfirmPasswordResult.notRequired;
+  }
+  final entered = await promptCurrentPassword();
+  if (entered == null) return ConfirmPasswordResult.cancelled;
+  final ok = switch (passwordVerifierKindFor(currentTier)) {
+    PasswordVerifierKind.masterPassword => await verifyMaster(entered),
+    PasswordVerifierKind.keychainGate => await verifyKeychainGate(entered),
+  };
+  return ok ? ConfirmPasswordResult.ok : ConfirmPasswordResult.wrongPassword;
+}
+
 /// Run the [plan] decided by [tierVaultClearPlanFor] through the
 /// supplied vault-clear seams. Each seam is the existing provider
 /// method (`secureKeyStorage.deleteKey`, `keychainGate.clear`,
