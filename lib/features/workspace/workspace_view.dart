@@ -285,41 +285,34 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   }
 
   void _handleDrop(TabDragData data, String targetPanelId, DropZone zone) {
-    final params = dropZoneToSplitParams(zone);
-    if (params == null) return; // center is inert — tab bar owns insertion.
     final notifier = ref.read(workspaceProvider.notifier);
-    notifier.splitPanel(
-      targetPanelId,
-      params.axis,
-      data.tab,
-      insertBefore: params.insertBefore,
+    applyTabDrop(
+      splitPanel: notifier.splitPanel,
+      closeTab: notifier.closeTab,
+      data: data,
+      targetPanelId: targetPanelId,
+      zone: zone,
     );
-    if (data.sourcePanelId != targetPanelId) {
-      notifier.closeTab(data.sourcePanelId, data.tab.id);
-    }
   }
 
   /// Handles drops on the outermost workspace edges — splits the entire root.
   void _handleRootEdgeDrop(TabDragData data, DropZone zone) {
-    final params = dropZoneToSplitParams(zone);
-    if (params == null) return;
     final notifier = ref.read(workspaceProvider.notifier);
-    final rootId = ref.read(workspaceProvider).root.id;
-    notifier.splitAroundNode(
-      rootId,
-      params.axis,
-      data.tab,
-      insertBefore: params.insertBefore,
+    applyTabRootEdgeDrop(
+      splitAroundNode: notifier.splitAroundNode,
+      closeTab: notifier.closeTab,
+      rootId: ref.read(workspaceProvider).root.id,
+      sourceStillContainsTab: () {
+        final sourcePanel = findPanel(
+          ref.read(workspaceProvider).root,
+          data.sourcePanelId,
+        );
+        return sourcePanel != null &&
+            sourcePanel.tabs.any((t) => t.id == data.tab.id);
+      },
+      data: data,
+      zone: zone,
     );
-    // Remove the tab from its source panel if still present.
-    final sourcePanel = findPanel(
-      ref.read(workspaceProvider).root,
-      data.sourcePanelId,
-    );
-    if (sourcePanel != null &&
-        sourcePanel.tabs.any((t) => t.id == data.tab.id)) {
-      notifier.closeTab(data.sourcePanelId, data.tab.id);
-    }
   }
 
   VoidCallback? _retryCallback(PanelLeaf panel) {
