@@ -61,16 +61,13 @@ extension _MacosKeychain on _SecuritySectionState {
     try {
       final svc = ref.read(resignServiceProvider);
       await svc.ensureIdentity();
-      final bundle = Directory(Platform.resolvedExecutable)
-          .parent // Contents/MacOS
-          .parent // Contents
-          .parent; // <bundle>.app
+      // Bundle path math + outcome classification live in
+      // `security_section_logic` so they're unit-testable without
+      // a real macOS executable on disk.
+      final bundle = appBundlePathFromExecutable(Platform.resolvedExecutable);
       final outcome = await svc.resignBundle(appBundle: bundle);
       if (!mounted) return;
-      final ok =
-          outcome == ResignOutcome.succeeded ||
-          outcome == ResignOutcome.reusedExisting;
-      if (!ok) {
+      if (!isResignAcceptable(outcome)) {
         Toast.show(
           context,
           message: S.of(context).securityMacosEnableSecureTiersFailed,
@@ -151,10 +148,11 @@ extension _MacosKeychain on _SecuritySectionState {
         dismissible: true,
       );
       if (!mounted) return;
-      if (result.tier != SecurityTier.plaintext &&
-          result.tier != SecurityTier.paranoid) {
+      if (!isPostIdentityRemovalTierAccepted(result.tier)) {
         // User dismissed or wizard returned an unexpected tier —
-        // treat as cancel, leave cert in place.
+        // treat as cancel, leave cert in place. The accept-set
+        // (plaintext / paranoid) lives in
+        // `security_section_logic.isPostIdentityRemovalTierAccepted`.
         return;
       }
       // Re-use `_applyTierChange` directly (not `onSelectTier`) so

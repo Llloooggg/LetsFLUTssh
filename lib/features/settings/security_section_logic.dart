@@ -9,10 +9,12 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
 import '../../l10n/app_localizations.dart';
+import '../../platform/macos/code_signing/resign_service.dart';
 import '../../widgets/expandable_tier_card.dart';
 
 /// Localised tooltip explaining why biometric is unreachable on this
@@ -324,6 +326,36 @@ class TierVaultClearPlan {
     required this.clearBiometricVault,
   });
 }
+
+/// True when [outcome] means the inside-out re-sign step landed a
+/// usable signing identity on the bundle. Both `succeeded` (fresh
+/// cert + re-sign chain) and `reusedExisting` (cert already present,
+/// re-sign succeeded) leave the bundle in the desired state; the
+/// other two values (`bundleNotWritable`, `cancelledOrFailed`)
+/// represent the user-actionable failure surface and route through
+/// the toast path. Pulled out of `_enableMacosKeychain` so the
+/// success classification is one testable surface.
+bool isResignAcceptable(ResignOutcome outcome) =>
+    outcome == ResignOutcome.succeeded ||
+    outcome == ResignOutcome.reusedExisting;
+
+/// True when [target] is one of the tiers the macOS Remove-Identity
+/// flow allows the user to land on after the cert is dropped: T0
+/// (plaintext, no keychain dependency) or Paranoid (master password,
+/// no OS trust). Picking any other tier would re-bind to a cert that
+/// is about to disappear, so the wizard's `forcedCaps` shape must be
+/// matched by an equally narrow accept-set on the result side.
+bool isPostIdentityRemovalTierAccepted(SecurityTier target) =>
+    target == SecurityTier.plaintext || target == SecurityTier.paranoid;
+
+/// Walk up from `Platform.resolvedExecutable` to the `.app` bundle
+/// root. macOS layout is `<bundle>.app/Contents/MacOS/<exe>`, so the
+/// app bundle is three parents up from the executable. Pulled out of
+/// the inline `Directory(...).parent.parent.parent` chain in
+/// `_enableMacosKeychain` so the path math stays one testable
+/// transformation that doesn't hit the live filesystem.
+Directory appBundlePathFromExecutable(String executablePath) =>
+    Directory(executablePath).parent.parent.parent;
 
 /// The clear plan for a tier-apply targeting [target]. Mirrors the
 /// inline cleanup steps inside `_apply{Plaintext,Keychain,

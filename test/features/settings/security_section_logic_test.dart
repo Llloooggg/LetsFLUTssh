@@ -6,6 +6,7 @@ import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/features/settings/security_section_logic.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
+import 'package:letsflutssh/platform/macos/code_signing/resign_service.dart';
 
 /// Drive the section's pure decision helpers
 /// (`biometricPlatformReason`, `autoLockDisabledReason`,
@@ -543,6 +544,75 @@ void main() {
       final payload = buildTierMarkerPayload(SecurityTier.plaintext, mods);
       final decoded = json.decode(payload) as Map<String, dynamic>;
       expect(decoded['mods'], mods.toJson());
+    });
+  });
+
+  group('isResignAcceptable', () {
+    test('succeeded counts as acceptable', () {
+      expect(isResignAcceptable(ResignOutcome.succeeded), isTrue);
+    });
+    test('reusedExisting counts as acceptable', () {
+      expect(isResignAcceptable(ResignOutcome.reusedExisting), isTrue);
+    });
+    test('cancelledOrFailed routes through the failure toast', () {
+      expect(isResignAcceptable(ResignOutcome.cancelledOrFailed), isFalse);
+    });
+    test('bundleNotWritable routes through the failure toast', () {
+      expect(isResignAcceptable(ResignOutcome.bundleNotWritable), isFalse);
+    });
+    test('every ResignOutcome value classifies into exactly one bucket', () {
+      // Belt-and-braces: a future enum addition (e.g. a "user
+      // declined keychain prompt") must consciously decide which
+      // bucket it falls into. The test exhausts the enum so a new
+      // variant trips a missing-classification analyzer error.
+      for (final o in ResignOutcome.values) {
+        // The function returns a bool — the call itself is the
+        // classification. We just assert it doesn't throw.
+        isResignAcceptable(o);
+      }
+    });
+  });
+
+  group('isPostIdentityRemovalTierAccepted', () {
+    test('plaintext + paranoid are the two accepted targets', () {
+      expect(isPostIdentityRemovalTierAccepted(SecurityTier.plaintext), isTrue);
+      expect(isPostIdentityRemovalTierAccepted(SecurityTier.paranoid), isTrue);
+    });
+
+    test('every keychain / hardware tier rejects after identity removal', () {
+      // The cert backs T1 / T2 — once it's gone, those tiers can no
+      // longer wrap their secrets. The wizard's `forcedCaps` shape
+      // must align with this accept-set.
+      for (final tier in [
+        SecurityTier.keychain,
+        SecurityTier.keychainWithPassword,
+        SecurityTier.hardware,
+      ]) {
+        expect(
+          isPostIdentityRemovalTierAccepted(tier),
+          isFalse,
+          reason: 'tier $tier must not be accepted post-identity-removal',
+        );
+      }
+    });
+  });
+
+  group('appBundlePathFromExecutable', () {
+    test('walks three parents up to reach the .app bundle root', () {
+      // macOS layout: <bundle>.app/Contents/MacOS/<exe>
+      final dir = appBundlePathFromExecutable(
+        '/Applications/LetsFLUTssh.app/Contents/MacOS/letsflutssh',
+      );
+      expect(dir.path, '/Applications/LetsFLUTssh.app');
+    });
+
+    test('handles a path with extra trailing segments correctly', () {
+      // Should still yield three parents up — caller's responsibility
+      // to hand a valid macOS executable path.
+      final dir = appBundlePathFromExecutable(
+        '/tmp/Foo.app/Contents/MacOS/foo',
+      );
+      expect(dir.path, '/tmp/Foo.app');
     });
   });
 

@@ -31,7 +31,6 @@ import '../../core/security/secure_key_storage.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/master_password_provider.dart';
 import '../../core/security/security_bootstrap.dart';
-import '../../platform/macos/code_signing/resign_service.dart';
 import '../../providers/security_provider.dart';
 import '../../providers/security_reinit_provider.dart';
 import '../../providers/session_credential_cache_provider.dart';
