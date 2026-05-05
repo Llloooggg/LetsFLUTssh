@@ -100,6 +100,52 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // DLL load, COM init, window create) is covered.
   ::SetUnhandledExceptionFilter(EarlyCrashHandler);
 
+  // Single-instance gate. Acquire a named mutex in the per-user
+  // `Local\` namespace — owned by this process for its lifetime.
+  // A second launch from the Start menu / Explorer / `letsflutssh.exe`
+  // CLI sees `ERROR_ALREADY_EXISTS` here, brings the existing
+  // window to the foreground, and exits without loading the
+  // Flutter engine, the bundled `lfs_frb.dll`, the Defender
+  // real-time scan that bundled DLL triggers, or any of the Dart
+  // bootstrap chain. Previous attempts gated single-instance from
+  // Dart (`lib/core/single_instance/single_instance.dart`,
+  // `RandomAccessFile.lock`) — that ran AFTER the engine + native
+  // blob load had already paid their cost, defeating the speed
+  // benefit of rejecting the duplicate launch and forcing the
+  // boot ordering to coordinate "FRB ready" vs "lock check"
+  // semantics. Doing it here, pre-engine, removes the whole
+  // class of ordering concerns. The mutex auto-releases when the
+  // process exits (clean or crash) — no stale-lock files to
+  // clean up, no fcntl-per-process / per-fd footgun.
+  HANDLE single_instance_mutex =
+      ::CreateMutexW(nullptr, TRUE, L"Local\\LetsFLUTssh-SingleInstance");
+  if (single_instance_mutex == nullptr) {
+    // Mutex object couldn't be created at all (extremely rare —
+    // out of handles or kernel resource exhaustion). Fall through
+    // to the normal launch — the OS is in a bad state anyway, no
+    // point in adding a custom failure mode.
+  } else if (::GetLastError() == ERROR_ALREADY_EXISTS) {
+    // Existing instance found. Try to focus its window before
+    // exiting; if `FindWindowW` fails (race during the existing
+    // instance's window creation) just exit silently — the user
+    // can click the existing taskbar entry. The window class name
+    // matches the title `Win32Window::Create` calls below with
+    // (`L"LetsFLUTssh"`) — `Win32Window` registers a window class
+    // whose name is derived from the title.
+    HWND existing = ::FindWindowW(nullptr, L"LetsFLUTssh");
+    if (existing != nullptr) {
+      if (::IsIconic(existing)) {
+        ::ShowWindow(existing, SW_RESTORE);
+      }
+      ::SetForegroundWindow(existing);
+    }
+    ::CloseHandle(single_instance_mutex);
+    return EXIT_SUCCESS;
+  }
+  // single_instance_mutex stays held for the process lifetime —
+  // Windows releases it on process exit. We intentionally don't
+  // close it on the success path.
+
   // Harden the process before anything else — policies apply to
   // every subsequent DLL load + allocation in the process.
   ApplyProcessMitigationPolicies();

@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/app_localizations.dart';
-import 'app/already_running_app.dart';
 import 'app/app_toolbar.dart';
 import 'app/deep_link_wiring.dart';
 import 'app/fatal_error_app.dart';
@@ -24,7 +23,6 @@ import 'app/update_dialog_flow.dart';
 import 'widgets/shortcut_registry.dart';
 import 'core/bus/app_bus.dart';
 import 'core/deeplink/deeplink_handler.dart';
-import 'core/single_instance/single_instance.dart';
 import 'core/security/backup_exclusion.dart';
 import 'core/security/lock_state.dart';
 import 'core/security/process_hardening.dart';
@@ -63,16 +61,11 @@ import 'widgets/lock_screen.dart';
 import 'widgets/toast.dart';
 
 // LetsFLUTsshApp + MainScreen live in part siblings so the entry-point
-// scaffolding (main, _mainBody, error handlers, single-instance,
-// config preload) stays the focus of this file. Same `part of`
-// pattern the settings_screen / session_panel split uses.
+// scaffolding (main, _mainBody, error handlers, config preload) stays
+// the focus of this file. Same `part of` pattern the settings_screen /
+// session_panel split uses.
 part 'main_app.dart';
 part 'main_screen.dart';
-
-/// Single-instance lock — kept alive for the process lifetime.
-/// The OS releases the file lock automatically on exit (even on crash).
-@visibleForTesting
-SingleInstance? singleInstanceLock;
 
 /// Load the bundled native blob, initialise the Rust AppState
 /// singleton, wire the config-store actor, attach the Rust→Dart log
@@ -271,23 +264,23 @@ Future<void> _mainBody() async {
 
   AppLogger.instance.log('App starting', name: 'App');
 
-  // Single-instance lock fires before any heavy init so a second
-  // copy clicked from the launcher gets the dedicated
-  // `AlreadyRunningApp` blocker. Pure-Dart `RandomAccessFile.lock`
-  // means the check has no FRB dependency — a single file-lock
-  // syscall, sub-ms.
-  if (plat.isDesktopPlatform) {
-    singleInstanceLock = SingleInstance();
-    final acquired = await singleInstanceLock!.acquire();
-    if (!acquired) {
-      AppLogger.instance.log(
-        'Another instance detected — showing blocker',
-        name: 'App',
-      );
-      runApp(const AlreadyRunningApp());
-      return;
-    }
-  }
+  // Single-instance enforcement happens in the native shell BEFORE
+  // the Flutter engine boots — `windows/runner/main.cpp` acquires a
+  // `Local\LetsFLUTssh-SingleInstance` named mutex + focuses the
+  // existing window on `ERROR_ALREADY_EXISTS`, `linux/runner/
+  // my_application.cc` relies on GtkApplication's default D-Bus-
+  // backed uniqueness (no `G_APPLICATION_NON_UNIQUE` flag) +
+  // `gtk_window_present` of the existing window in `activate`,
+  // and macOS's `Info.plist` carries `LSMultipleInstancesProhibited`
+  // (NSApplication enforces it natively). All three reject the
+  // duplicate launch in milliseconds, before paying the cost of
+  // engine init / `lfs_frb.dll` Defender scan / Dart bootstrap, and
+  // the standard "focus existing window" UX is what the OS file
+  // managers expect. The previous Dart-side `SingleInstance.acquire`
+  // gate did the same intent one process-lifetime layer too late.
+  // Mobile (iOS / Android) doesn't need any of this — both OSes
+  // manage single instance natively as part of the activity / scene
+  // lifecycle.
 
   // Rust core (RustLib.init + appInit + ProcessHardening + log
   // pipe + config-store actor) is DEFERRED into the post-frame

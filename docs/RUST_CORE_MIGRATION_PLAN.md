@@ -211,7 +211,7 @@ frontend crate. Verified by CI.
 | Persisted rate-limit (HMAC-authenticated frame) | DONE | `lfs_core::security::persisted_rate_limit` |
 | `app_config` schema mirror | DONE | `lfs_core::config` |
 | Config store actor (debounce + atomic write + bus events) | DONE | `lfs_core::config_store` |
-| Tail-end Dart retire — Phase 6 Tier 1 (host_info, session_tree) | DONE | `lfs_core::host_info`, `lfs_core::session_tree`. **`single_instance` reverted to pure Dart** — see [§ Reverted: single_instance](#reverted--single_instance-back-to-dart) below |
+| Tail-end Dart retire — Phase 6 Tier 1 (host_info, session_tree) | DONE | `lfs_core::host_info`, `lfs_core::session_tree`. **`single_instance` moved to native shells** — see [§ Reverted: single_instance](#reverted--single_instance-moved-to-native-shells) below |
 | Tail-end Dart retire — Phase 6 Tier 2 (clipboard, session_lock, backup_excl, fprintd, LocalFS, ssh_config Include, SFTP recursive) | DONE | `lfs_os_security::*`, `lfs_core::fs::local`, `lfs_core::ssh_config`, `lfs_core::sftp::recursive_walk` |
 | Tail-end Dart retire — Phase 6 Tier 3 desktop + Apple (secure key storage, biometric vault, biometric auth, wipe service) | DONE | `lfs_os_security::secure_key_storage`, `lfs_os_security::biometric_auth`, `lfs_core::security::wipe`, `lfs_core::wipe_keychain` |
 | **Tail-end Dart retire — Phase 6 Tier 3 Android JNI** | **DONE — runtime-verification pending** | direct JNI to `java.security.KeyStore` / `androidx.biometric.BiometricPrompt` landed in `lfs_os_security::android`; method-ID resolution + StrongBox availability + prompt UX gated on real-device pass — see [Tier 3 Android JNI bridge ledger](#tier-3--android-jni-bridge-ledger-planned-approach) |
@@ -437,7 +437,7 @@ plain data — the Rust crate is shorter than the Dart wrapper.
 | ~~`utils/platform.dart`~~ | ~~44~~ | ~~`Platform.environment['HOME' \| 'USERPROFILE' \| 'EXTERNAL_STORAGE']`~~ | done — `lfs_core::host_info` (`home_directory()` + cfg-gated `is_mobile/is_desktop/is_macos`); Dart wrapper caches first FRB read, falls back to `dart:io Platform.isXyz` for the booleans only when FRB is not bootstrapped (mathematically identical answer — same compile-time constants tied to the same binary target — so the fallback exists for widget-test ergonomics, not as a correctness divergence) |
 | ~~`core/session/session_tree.dart`~~ | ~~128~~ | ~~folder-tree builder (pure data)~~ | done — `lfs_core::session_tree` (forest builder + sort + recursive count); Dart class is now a thin FRB wrapper that re-binds the live `Session` handle to leaf nodes by id |
 | ~~`core/session/session_history.dart`~~ | ~~58~~ | ~~undo/redo snapshot stack (pure data)~~ | done — `lfs_core::session_history` (per-handle bounded LIFO actor); Dart class wraps the actor handle and serialises `SessionSnapshot` ↔ JSON bytes |
-| ~~`core/single_instance/single_instance.dart`~~ | ~~85~~ | ~~flock-based single-instance gate~~ | **Reverted** — see [§ Reverted: single_instance](#reverted--single_instance-back-to-dart). The Rust crate forced the lock check to wait on `RustLib.init()`, which conflicted with painting the splash before the ~3 s native blob load on Windows IoT. Pure Dart `RandomAccessFile.lock` calls the same `fcntl` / `LockFileEx` syscalls without an FFI dependency. |
+| ~~`core/single_instance/single_instance.dart`~~ | ~~85~~ | ~~flock-based single-instance gate~~ | **Moved to native shells** — see [§ Reverted: single_instance](#reverted--single_instance-moved-to-native-shells). Each platform's runner enforces uniqueness through its OS-canonical primitive (Linux GtkApplication / Windows named mutex / macOS `LSMultipleInstancesProhibited`) before the Flutter engine even boots. The Dart module + `app.lock` + `AlreadyRunningApp` widget were deleted. |
 
 Acceptance criteria:
 
@@ -1116,52 +1116,78 @@ one, ship it, then pick the next.
    landed as `lfs_core::session_history` (per-handle actor),
    `session_tree` landed as `lfs_core::session_tree` (immutable
    forest builder); `single_instance` was rewritten on `libc::flock`
-   (POSIX) / `LockFileEx` (Windows) inside `lfs_os_security` and
-   then **reverted** to pure Dart — see [§ Reverted: single_instance](#reverted--single_instance-back-to-dart) below.
+   (POSIX) / `LockFileEx` (Windows) inside `lfs_os_security`, then
+   reverted to pure Dart, then **moved into the native shells** —
+   see [§ Reverted: single_instance](#reverted--single_instance-moved-to-native-shells) below.
 
-### Reverted — single_instance back to Dart
+### Reverted — single_instance moved to native shells
 
 `core/single_instance/single_instance.dart` was migrated to
-`lfs_os_security::single_instance` (Phase 6 Tier 1) and reverted
-on 2026-05-04. Reason: the FRB-bound `acquire` call cannot run
-before `RustLib.init()` completes, but the boot ordering paints
-the startup splash *before* the ~3 s native blob load (Windows
-IoT, Defender real-time scan). Single-instance must be the very
-first synchronous step in `_mainBody` — putting it after
-`RustLib.init` brings back the blank-window symptom that the
-splash-first reorder was meant to fix; putting it before throws
-"RustLib not initialised" and `acquire`'s catch interprets that
-as contention, sending every solo cold-start to
-`AlreadyRunningApp`.
+`lfs_os_security::single_instance` (Phase 6 Tier 1), reverted to
+pure-Dart `RandomAccessFile.lock` on 2026-05-04 because the
+FRB-bound `acquire` couldn't run before `RustLib.init`, then on
+2026-05-05 the Dart layer ALSO retired in favour of native
+single-instance gates in each platform's runner. Three reasons:
 
-Pure Dart `RandomAccessFile.lock(FileLock.exclusive)` calls the
-same `fcntl(F_SETLK, F_WRLCK)` (Linux/macOS) and
-`LockFileEx(LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY)`
-(Windows) syscalls the Rust crate did, with no FFI dependency.
-Three Pillars trade-off:
+1. **Speed.** Dart-layer rejects had already paid for Flutter
+   engine init (~500 ms on healthy hosts, ~3 s on Win IoT under
+   Defender real-time scan of `lfs_frb.dll`). Native gates
+   reject in milliseconds — the duplicate process never loads
+   the engine.
+2. **UX.** The Dart `SingleInstance.acquire == false` branch
+   handed the user an `AlreadyRunningApp` modal that did
+   nothing useful. The native gates implement the OS-standard
+   "focus the existing window" behaviour every Start menu /
+   Dock / Finder launch already expects.
+3. **Architecture.** The Dart-layer `acquire` had to coordinate
+   timing with the cold-start FRB-readiness invariant (see
+   `ARCHITECTURE.md § Cold-start ordering`). Moving the gate
+   into the native shell side-steps that whole concern — no
+   Dart code runs at all on duplicate launches.
 
-- **Ideal code** — net positive. The Rust crate added no
-  invariant the kernel didn't already enforce; deleting it
-  removes 240 LOC + an FFI hop.
-- **Security** — neutral. Same advisory-lock semantics; OS
-  releases on process exit either way. Single-instance is a
-  UX gate, not a security boundary (the original Rust module
-  doc-commented this).
-- **Optimality** — net positive. Lock check is sub-ms in either
-  language; removing the FFI dependency lets the splash paint
-  ~3 s earlier on cold Windows IoT starts.
+Native primitives per platform (each its OS-canonical idiom):
 
-Caveats documented in the source: POSIX `fcntl(F_SETLK)` is
-per-process, so same-process double-acquire silently succeeds
-(harmless — single-instance only cares about cross-process
-contention) and closing any fd to the locked file in this
-process releases the kernel-side lock (mitigated by routing all
-`app.lock` access through `SingleInstance`).
+* **Linux** — `linux/runner/my_application.cc`. Drop the
+  `G_APPLICATION_NON_UNIQUE` flag from `g_object_new`, switch
+  to `G_APPLICATION_DEFAULT_FLAGS`. GtkApplication then uses
+  D-Bus to detect the existing primary instance, forwards the
+  duplicate launch's `activate` signal to it, and exits the
+  duplicate. `my_application_activate` checks
+  `gtk_application_get_active_window()` first and calls
+  `gtk_window_present()` on the existing window before falling
+  through to its window-creation path.
+* **Windows** — `windows/runner/main.cpp`. `CreateMutexW(nullptr,
+  TRUE, L"Local\\LetsFLUTssh-SingleInstance")` at the top of
+  `wWinMain`. `ERROR_ALREADY_EXISTS` →
+  `FindWindowW(nullptr, L"LetsFLUTssh")` + `IsIconic` /
+  `ShowWindow(SW_RESTORE)` + `SetForegroundWindow` + `return
+  EXIT_SUCCESS`. Mutex auto-releases on process exit (clean or
+  crash) — no stale-lock-file cleanup needed.
+* **macOS** — `macos/Runner/Info.plist`:
+  `LSMultipleInstancesProhibited = true`. NSApplication enforces
+  it natively as part of Launch Services — duplicate launches
+  forward activation to the existing process via the standard
+  AppKit machinery.
 
-The previous rejection of `fd-lock` (POSIX `fcntl` namespace
-mismatch with Dart's `RandomAccessFile.lock`) is moot here
-because we no longer have two languages racing for the same
-lock — Dart owns it end-to-end.
+Three Pillars trade-off (third pass):
+
+- **Ideal code** — net positive. Removes ~150 lines of Dart +
+  the `app.lock` filesystem artefact + the test scaffolding +
+  the `lib/core/single_instance/` module + the
+  `AlreadyRunningApp` widget + every cold-start ordering
+  comment that referenced the Dart-side gate. Native code is
+  ~30 lines C++ on Windows, ~10 on Linux, 1 plist key on
+  macOS — all stable, well-trodden APIs.
+- **Security** — neutral / minor improvement. Same OS-level
+  enforcement (mutex / D-Bus / NSApplication). Single-instance
+  is a UX gate, not a security boundary.
+- **Optimality** — net positive. Duplicate launches reject in
+  milliseconds vs seconds; the engine never boots for them, no
+  Defender scan triggered.
+
+The `fd-lock` and `fcntl-vs-flock` ordering / per-process /
+per-fd footguns documented under earlier reverts are moot —
+none of those layers participate any more.
 
 ### Reverted — log_sanitize back to Dart
 

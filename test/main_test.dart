@@ -430,14 +430,4 @@ void main() {
       ErrorWidget.builder = originalBuilder;
     });
   });
-
-  group('singleInstanceLock', () {
-    test('is initially null', () {
-      // Reset if needed
-      final previous = singleInstanceLock;
-      singleInstanceLock = null;
-      expect(singleInstanceLock, isNull);
-      singleInstanceLock = previous;
-    });
-  });
 }

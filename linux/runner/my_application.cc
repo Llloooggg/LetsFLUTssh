@@ -25,6 +25,25 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
 
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
+  // Single-instance focus path: if a previous launch already
+  // owns the primary D-Bus name + has a window, bring it to the
+  // front instead of creating a second one. GtkApplication's
+  // default uniqueness machinery (the absence of
+  // G_APPLICATION_NON_UNIQUE on the flags below) already
+  // routed the second-launch's `activate` signal here on the
+  // existing instance — we just have to honour it. Without
+  // this branch the existing window stays where it is and a
+  // brand-new empty window opens on top, which is the same UX
+  // bug the previous Dart-side `SingleInstance.acquire` flow
+  // tried to paper over with an `AlreadyRunningApp` blocker
+  // dialog.
+  GtkWindow* existing =
+      gtk_application_get_active_window(GTK_APPLICATION(application));
+  if (existing != nullptr) {
+    gtk_window_present(existing);
+    return;
+  }
+
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
@@ -152,7 +171,17 @@ MyApplication* my_application_new() {
   // the application to be recognized beyond its binary name.
   g_set_prgname(APPLICATION_ID);
 
+  // `G_APPLICATION_DEFAULT_FLAGS` (no `G_APPLICATION_NON_UNIQUE`)
+  // turns on GApplication's built-in single-instance behaviour:
+  // the primary instance registers `APPLICATION_ID` on the user's
+  // session D-Bus, every subsequent launch detects the existing
+  // owner, forwards its `activate` (and `open` if files were
+  // passed) request to it, and exits without spinning up the
+  // Flutter engine. The previous Dart-side `SingleInstance.acquire`
+  // gate did the same thing one process-lifetime layer too late
+  // — Flutter engine + RustLib + Dart bootstrap + first-frame
+  // paint had all already happened before the lock check ran.
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",
-                                     G_APPLICATION_NON_UNIQUE, nullptr));
+                                     G_APPLICATION_DEFAULT_FLAGS, nullptr));
 }

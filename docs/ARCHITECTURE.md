@@ -194,7 +194,6 @@ lib/
 │   ├── import/                       # Data import (.lfs, key files)
 │   ├── progress/                     # ProgressReporter — phase/step stream consumed by AppProgressBarDialog and connection-progress widgets
 │   ├── qr/                           # QR scanner — native camera bridge (AVFoundation / CameraX) for import flow
-│   ├── single_instance/              # Single-instance lock (desktop)
 │   ├── update/                       # Update checking
 │   └── shortcut_registry.dart        # Centralized keyboard shortcut definitions
 ├── features/                         # UI modules
@@ -4619,22 +4618,31 @@ _mainBody (synchronous, pre-runApp — PURE DART):
 
 ### Single-instance protection (desktop only)
 
-Prevents multiple app instances from running simultaneously, which would corrupt the shared database.
+Prevents multiple app instances from running simultaneously, which would corrupt the shared database, and follows the OS-standard "focus the existing window on duplicate launch" UX every desktop file manager + Start menu / Dock expects.
 
-**Mechanism:** exclusive advisory file lock via `RandomAccessFile.lock(FileLock.exclusive)` on `app.lock` in `getApplicationSupportDirectory()`. Resolves to `fcntl(F_SETLK, F_WRLCK)` on Linux/macOS and `LockFileEx(LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY)` on Windows. The kernel releases the lock automatically on process exit (even on crash), so stale lock files never accumulate.
+**Enforced in the native shell, BEFORE the Flutter engine boots.** Each platform uses its canonical primitive:
 
-**Flow:**
-1. `main()` → `SingleInstance.acquire()` before `runApp()`
-2. If lock acquired → proceed normally
-3. If lock fails → show `_AlreadyRunningApp` (minimal dialog: "Another instance is already running" + OK button → `exit(0)`)
+| Platform | Primitive | Where |
+|---|---|---|
+| **Linux** | GtkApplication's D-Bus uniqueness (no `G_APPLICATION_NON_UNIQUE` flag) | `linux/runner/my_application.cc` `my_application_new()` |
+| **Windows** | `Local\LetsFLUTssh-SingleInstance` named mutex via `CreateMutexW` | `windows/runner/main.cpp` `wWinMain()` |
+| **macOS** | `LSMultipleInstancesProhibited = true` in `Info.plist` (NSApplication enforces) | `macos/Runner/Info.plist` |
 
-**Mobile:** skipped — Android/iOS manage single instance natively.
+**Behaviour on duplicate launch:**
 
-**Why pure Dart.** Falls under the pre-init / post-init invariant above — single-instance is the very first synchronous step in `_mainBody` and must stay FRB-free. `dart:io`'s `RandomAccessFile.lock` calls the same `fcntl` / `LockFileEx` syscalls a Rust crate would. An earlier `lfs_os_security::single_instance` route forced the lock check to wait on `RustLib.init`, which broke splash-first boot; that module was deleted.
+1. Linux: GApplication's primary instance receives the second launch's `activate` signal (forwarded over D-Bus). `my_application_activate` checks `gtk_application_get_active_window()` first — if a window already exists, calls `gtk_window_present()` on it and returns. The duplicate process exits without spinning up the Flutter engine.
+2. Windows: `wWinMain` calls `CreateMutexW` immediately. `GetLastError() == ERROR_ALREADY_EXISTS` → `FindWindowW(L"LetsFLUTssh")` + `IsIconic` / `ShowWindow(SW_RESTORE)` + `SetForegroundWindow` to bring the existing window forward, then `return EXIT_SUCCESS`. Mutex auto-releases on process exit.
+3. macOS: NSApplication detects the duplicate launch via Launch Services, forwards activation to the existing process (window comes to front), the second process never starts.
 
-**`fcntl(F_SETLK)` footgun:** locks are per-process, not per-fd — two `RandomAccessFile.lock` calls in the same process to `app.lock` do *not* contend. Cross-process semantics (the case that matters for single-instance UX) work correctly. The other edge: closing any fd in this process pointing to the locked file releases the lock kernel-side. Nothing else in the app re-opens `app.lock`; if a future feature needs to read it, route the access through `SingleInstance` rather than `File(path).open(...)` directly.
+**Mobile:** Android + iOS manage single instance through their activity / scene lifecycle — no app code involved.
 
-**File:** `core/single_instance/single_instance.dart`
+**Why native, not Dart.** The previous implementation was `lib/core/single_instance/single_instance.dart` using `RandomAccessFile.lock` (and before that an `lfs_os_security::single_instance` Rust module via FRB). Both ran AFTER the Flutter engine + the bundled `lfs_frb.dll` had already loaded — the duplicate process paid the entire engine boot cost (~500 ms on healthy hosts, ~3 s on Win IoT under Defender real-time scan), then showed an `AlreadyRunningApp` blocker the user had to dismiss. Three concrete benefits of moving the gate into the native shell:
+
+* **Faster reject** — duplicate launches return in milliseconds instead of seconds.
+* **Standard UX** — focus the existing window instead of showing a custom error dialog.
+* **No Dart-side ordering concerns** — earlier the FRB-bound version of `acquire` had to coordinate with `RustLib.init` (it threw "RustLib not initialised" when called too early); the native gate side-steps the cold-start `pre-init / post-init` invariant entirely, since there's no Dart code in that path at all.
+
+**Files:** `linux/runner/my_application.cc`, `windows/runner/main.cpp`, `macos/Runner/Info.plist`. No Dart-side code.
 
 ### Windows specifics
 
