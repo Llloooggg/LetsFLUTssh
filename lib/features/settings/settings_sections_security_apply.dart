@@ -98,25 +98,21 @@ extension _TierApply on _SecuritySectionState {
   Future<void> _applyKeychainWithPasswordTier(
     SecuritySetupResult result,
   ) async {
-    final short = result.takeShortPassword();
-    if (short == null || short.isEmpty) {
-      throw StateError('short password missing');
-    }
     final keyStorage = ref.read(secureKeyStorageProvider);
     final gate = ref.read(keychainPasswordGateProvider);
-    await gate.setPassword(short);
-    final key = rust_crypto.cryptoAesGcmRandomKey();
-    final stored = await keyStorage.writeKey(key);
-    if (!stored) {
-      await gate.clear();
-      throw StateError('keychain write failed');
-    }
-    await _applyAlwaysRekey(
-      key,
-      SecurityTier.keychainWithPassword,
-      result.modifiers,
+    // Runner with rollback (gate.clear on keychain-write failure)
+    // lives in `security_section_logic.applyKeychainWithPasswordTier`
+    // so the failure path is unit-testable without Riverpod.
+    await applyKeychainWithPasswordTier(
+      shortPassword: result.takeShortPassword(),
+      modifiers: result.modifiers,
+      gateSetPassword: gate.setPassword,
+      gateClear: gate.clear,
+      randomKey: rust_crypto.cryptoAesGcmRandomKey,
+      keychainWriteKey: keyStorage.writeKey,
+      applyAlwaysRekey: _applyAlwaysRekey,
+      runClearPlan: _runVaultClearPlan,
     );
-    await _runVaultClearPlan(SecurityTier.keychainWithPassword);
   }
 
   Future<void> _applyHardwareTier(SecuritySetupResult result) async {

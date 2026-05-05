@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -710,6 +711,128 @@ void main() {
         }
       },
     );
+  });
+
+  group('applyKeychainWithPasswordTier', () {
+    /// Records every seam invocation so each test can assert on
+    /// the exact sequence + args.
+    Future<List<String>> drive({String? short, bool writeOk = true}) async {
+      final calls = <String>[];
+      try {
+        await applyKeychainWithPasswordTier(
+          shortPassword: short,
+          modifiers: const SecurityTierModifiers(password: true),
+          gateSetPassword: (pw) async {
+            calls.add('gate.set($pw)');
+          },
+          gateClear: () async {
+            calls.add('gate.clear');
+          },
+          randomKey: () {
+            calls.add('randomKey');
+            return Uint8List.fromList(List.filled(32, 0xAA));
+          },
+          keychainWriteKey: (key) async {
+            calls.add('keychainWrite');
+            return writeOk;
+          },
+          applyAlwaysRekey: (key, level, mods) async {
+            calls.add('rekey($level)');
+          },
+          runClearPlan: (target) async {
+            calls.add('clearPlan($target)');
+          },
+        );
+      } catch (_) {
+        // Tests assert on the call sequence + (separately) the throw.
+      }
+      return calls;
+    }
+
+    test(
+      'happy path runs gate.set → randomKey → write → rekey → clearPlan',
+      () async {
+        final calls = await drive(short: 'pw-1');
+        expect(calls, [
+          'gate.set(pw-1)',
+          'randomKey',
+          'keychainWrite',
+          'rekey(SecurityTier.keychainWithPassword)',
+          'clearPlan(SecurityTier.keychainWithPassword)',
+        ]);
+      },
+    );
+
+    test('null short password throws StateError, no seams fire', () async {
+      final calls = await drive();
+      expect(calls, isEmpty);
+      // Re-run with a propagating throw assertion.
+      await expectLater(
+        applyKeychainWithPasswordTier(
+          shortPassword: null,
+          modifiers: const SecurityTierModifiers(password: true),
+          gateSetPassword: (_) async {},
+          gateClear: () async {},
+          randomKey: () => Uint8List(32),
+          keychainWriteKey: (_) async => true,
+          applyAlwaysRekey: (_, _, _) async {},
+          runClearPlan: (_) async {},
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('short password missing'),
+          ),
+        ),
+      );
+    });
+
+    test('empty short password throws StateError, no seams fire', () async {
+      final calls = await drive(short: '');
+      expect(calls, isEmpty);
+    });
+
+    test(
+      'keychain write failure rolls back the gate password and throws',
+      () async {
+        final calls = await drive(short: 'pw-1', writeOk: false);
+        expect(calls, [
+          'gate.set(pw-1)',
+          'randomKey',
+          'keychainWrite',
+          // No rekey, no clearPlan — the throw fires first; gate
+          // rollback fires before the throw.
+          'gate.clear',
+        ]);
+        await expectLater(
+          applyKeychainWithPasswordTier(
+            shortPassword: 'pw-1',
+            modifiers: const SecurityTierModifiers(password: true),
+            gateSetPassword: (_) async {},
+            gateClear: () async {},
+            randomKey: () => Uint8List(32),
+            keychainWriteKey: (_) async => false,
+            applyAlwaysRekey: (_, _, _) async {},
+            runClearPlan: (_) async {},
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('keychain write failed'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('gate.set is called with the unmodified short password', () async {
+      // Belt-and-braces: pin that the password isn't trimmed / hashed
+      // / mutated before reaching the gate setter.
+      final calls = await drive(short: ' has spaces ');
+      expect(calls.first, 'gate.set( has spaces )');
+    });
   });
 
   group('confirmCurrentPasswordIfDropping', () {

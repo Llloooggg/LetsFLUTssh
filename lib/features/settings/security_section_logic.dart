@@ -10,6 +10,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
@@ -388,6 +389,48 @@ bool isPostIdentityRemovalTierAccepted(SecurityTier target) =>
 /// transformation that doesn't hit the live filesystem.
 Directory appBundlePathFromExecutable(String executablePath) =>
     Directory(executablePath).parent.parent.parent;
+
+/// Apply the KeychainWithPassword tier: stage the gate password,
+/// generate + write a fresh DB key into the keychain, rekey the DB,
+/// and run the per-tier vault-clear plan. Pulled out of
+/// `_TierApply._applyKeychainWithPasswordTier` so the rollback path
+/// (gate clear when keychain write fails) is unit-tested without
+/// booting Riverpod.
+///
+/// Throws [StateError] when:
+/// * the result carries no short password (empty / missing) — the
+///   apply pipeline must never reach the gate setter without one.
+/// * the keychain write fails — the staged gate password is rolled
+///   back via [gateClear] before the throw, so a re-attempt starts
+///   from a clean gate slot.
+Future<void> applyKeychainWithPasswordTier({
+  required String? shortPassword,
+  required SecurityTierModifiers modifiers,
+  required Future<void> Function(String pw) gateSetPassword,
+  required Future<void> Function() gateClear,
+  required Uint8List Function() randomKey,
+  required Future<bool> Function(Uint8List key) keychainWriteKey,
+  required Future<void> Function(
+    Uint8List key,
+    SecurityTier level,
+    SecurityTierModifiers mods,
+  )
+  applyAlwaysRekey,
+  required Future<void> Function(SecurityTier target) runClearPlan,
+}) async {
+  if (shortPassword == null || shortPassword.isEmpty) {
+    throw StateError('short password missing');
+  }
+  await gateSetPassword(shortPassword);
+  final key = randomKey();
+  final stored = await keychainWriteKey(key);
+  if (!stored) {
+    await gateClear();
+    throw StateError('keychain write failed');
+  }
+  await applyAlwaysRekey(key, SecurityTier.keychainWithPassword, modifiers);
+  await runClearPlan(SecurityTier.keychainWithPassword);
+}
 
 /// Outcome of [confirmCurrentPasswordIfDropping]. Distinguishes the
 /// three failure modes (not required / cancelled / wrong) so the
