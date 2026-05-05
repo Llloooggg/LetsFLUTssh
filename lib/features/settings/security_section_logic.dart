@@ -389,6 +389,39 @@ bool isPostIdentityRemovalTierAccepted(SecurityTier target) =>
 Directory appBundlePathFromExecutable(String executablePath) =>
     Directory(executablePath).parent.parent.parent;
 
+/// Run the [plan] decided by [tierVaultClearPlanFor] through the
+/// supplied vault-clear seams. Each seam is the existing provider
+/// method (`secureKeyStorage.deleteKey`, `keychainGate.clear`,
+/// `hardwareVault.clear`, `masterPassword.disable`, `biometricVault.clear`)
+/// plus the master-password gate (`masterPassword.isEnabled` —
+/// `disable` on a disabled manager is a no-op but the FRB
+/// round-trip is non-trivial, so the gate keeps the call
+/// quiet on tiers without the manager).
+///
+/// Pulled out of `_runVaultClearPlan` so the per-slot dispatch can
+/// be unit-tested against every plan combination without touching
+/// the Riverpod runtime — production passes the real provider
+/// methods, tests pass recording lambdas.
+Future<void> runVaultClearPlan({
+  required TierVaultClearPlan plan,
+  required Future<void> Function() clearKeychainKey,
+  required Future<void> Function() clearKeychainGate,
+  required Future<void> Function() clearHardwareVault,
+  required Future<bool> Function() isMasterPasswordEnabled,
+  required Future<void> Function() disableMasterPassword,
+  required Future<void> Function() clearBiometricVault,
+}) async {
+  if (plan.clearKeychainKey) await clearKeychainKey();
+  if (plan.clearKeychainGate) await clearKeychainGate();
+  if (plan.clearHardwareVault) await clearHardwareVault();
+  if (plan.clearMasterPassword) {
+    if (await isMasterPasswordEnabled()) {
+      await disableMasterPassword();
+    }
+  }
+  if (plan.clearBiometricVault) await clearBiometricVault();
+}
+
 /// The clear plan for a tier-apply targeting [target]. Mirrors the
 /// inline cleanup steps inside `_apply{Plaintext,Keychain,
 /// KeychainWithPassword,Hardware,Paranoid}Tier` — extracted so the

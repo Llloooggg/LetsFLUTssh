@@ -140,27 +140,22 @@ extension _TierApply on _SecuritySectionState {
   }
 
   /// Drive the per-target vault clear matrix from
-  /// [tierVaultClearPlanFor]. The matrix flips off the slot the
-  /// apply method just wrote into so the commit isn't immediately
-  /// undone, and every other vault clears verbatim.
+  /// [tierVaultClearPlanFor] through the pure runner in
+  /// `security_section_logic.runVaultClearPlan`. The matrix flips
+  /// off the slot the apply method just wrote into so the commit
+  /// isn't immediately undone; the runner walks the remaining
+  /// slots through the provider methods.
   Future<void> _runVaultClearPlan(SecurityTier target) async {
-    final plan = tierVaultClearPlanFor(target);
-    if (plan.clearKeychainKey) {
-      await ref.read(secureKeyStorageProvider).deleteKey();
-    }
-    if (plan.clearKeychainGate) {
-      await ref.read(keychainPasswordGateProvider).clear();
-    }
-    if (plan.clearHardwareVault) {
-      await ref.read(hardwareTierVaultProvider).clear();
-    }
-    if (plan.clearMasterPassword) {
-      final manager = ref.read(masterPasswordProvider);
-      if (await manager.isEnabled()) await manager.disable();
-    }
-    if (plan.clearBiometricVault) {
-      await ref.read(biometricKeyVaultProvider).clear();
-    }
+    final manager = ref.read(masterPasswordProvider);
+    await runVaultClearPlan(
+      plan: tierVaultClearPlanFor(target),
+      clearKeychainKey: ref.read(secureKeyStorageProvider).deleteKey,
+      clearKeychainGate: ref.read(keychainPasswordGateProvider).clear,
+      clearHardwareVault: ref.read(hardwareTierVaultProvider).clear,
+      isMasterPasswordEnabled: manager.isEnabled,
+      disableMasterPassword: manager.disable,
+      clearBiometricVault: ref.read(biometricKeyVaultProvider).clear,
+    );
   }
 
   /// Rekey the live database under [key] (or convert to plaintext

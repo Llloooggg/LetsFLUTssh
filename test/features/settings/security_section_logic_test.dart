@@ -712,6 +712,144 @@ void main() {
     );
   });
 
+  group('runVaultClearPlan', () {
+    /// Records every seam the runner invoked, in order.
+    Future<List<String>> runPlan(
+      TierVaultClearPlan plan, {
+      bool masterEnabled = true,
+    }) async {
+      final calls = <String>[];
+      await runVaultClearPlan(
+        plan: plan,
+        clearKeychainKey: () async {
+          calls.add('keychain');
+        },
+        clearKeychainGate: () async {
+          calls.add('gate');
+        },
+        clearHardwareVault: () async {
+          calls.add('hw');
+        },
+        isMasterPasswordEnabled: () async => masterEnabled,
+        disableMasterPassword: () async {
+          calls.add('master.disable');
+        },
+        clearBiometricVault: () async {
+          calls.add('bio');
+        },
+      );
+      return calls;
+    }
+
+    test('plaintext plan walks every slot in canonical order', () async {
+      final calls = await runPlan(
+        tierVaultClearPlanFor(SecurityTier.plaintext),
+      );
+      expect(calls, ['keychain', 'gate', 'hw', 'master.disable', 'bio']);
+    });
+
+    test('keychain plan skips the keychain key (just wrote it)', () async {
+      final calls = await runPlan(tierVaultClearPlanFor(SecurityTier.keychain));
+      expect(calls, ['gate', 'hw', 'master.disable', 'bio']);
+      expect(calls, isNot(contains('keychain')));
+    });
+
+    test('keychainWithPassword plan skips both keychain key + gate', () async {
+      final calls = await runPlan(
+        tierVaultClearPlanFor(SecurityTier.keychainWithPassword),
+      );
+      expect(calls, ['hw', 'master.disable', 'bio']);
+    });
+
+    test('hardware plan skips the hw vault (just sealed)', () async {
+      final calls = await runPlan(tierVaultClearPlanFor(SecurityTier.hardware));
+      expect(calls, ['keychain', 'gate', 'master.disable', 'bio']);
+      expect(calls, isNot(contains('hw')));
+    });
+
+    test(
+      'paranoid plan skips master password disable (just enabled)',
+      () async {
+        final calls = await runPlan(
+          tierVaultClearPlanFor(SecurityTier.paranoid),
+        );
+        expect(calls, ['keychain', 'gate', 'hw', 'bio']);
+        expect(calls, isNot(contains('master.disable')));
+      },
+    );
+
+    test(
+      'master.disable runs only when both plan flag is set AND manager is enabled',
+      () async {
+        // Plan says clear-master, but manager reports !enabled — the
+        // runner must skip the disable call (idempotent on a disabled
+        // manager but the FRB round-trip is non-trivial).
+        final calls = await runPlan(
+          tierVaultClearPlanFor(SecurityTier.plaintext),
+          masterEnabled: false,
+        );
+        expect(calls, ['keychain', 'gate', 'hw', 'bio']);
+        expect(calls, isNot(contains('master.disable')));
+      },
+    );
+
+    test(
+      'isMasterPasswordEnabled is NOT polled when plan flag is false',
+      () async {
+        // T1 plan does NOT clear master password (slot stays true; T1
+        // doesn't have a master-password verifier in scope). The
+        // gate must short-circuit so a slow `isEnabled` FRB call
+        // never runs for that branch.
+        // Sanity: keychainWithPassword is the tier where the `clearMasterPassword`
+        // flag is true; assert the gate fires there.
+        var enabledQueried = 0;
+        await runVaultClearPlan(
+          plan: tierVaultClearPlanFor(SecurityTier.keychainWithPassword),
+          clearKeychainKey: () async {},
+          clearKeychainGate: () async {},
+          clearHardwareVault: () async {},
+          isMasterPasswordEnabled: () async {
+            enabledQueried++;
+            return false;
+          },
+          disableMasterPassword: () async {},
+          clearBiometricVault: () async {},
+        );
+        expect(
+          enabledQueried,
+          1,
+          reason: 'KeychainWithPassword plan does poll isEnabled',
+        );
+        // Now the inverse: plan with clearMasterPassword=false (no such
+        // case in production but the runner must respect the flag).
+        enabledQueried = 0;
+        await runVaultClearPlan(
+          plan: const TierVaultClearPlan(
+            clearKeychainKey: false,
+            clearKeychainGate: false,
+            clearHardwareVault: false,
+            clearMasterPassword: false,
+            clearBiometricVault: false,
+          ),
+          clearKeychainKey: () async {},
+          clearKeychainGate: () async {},
+          clearHardwareVault: () async {},
+          isMasterPasswordEnabled: () async {
+            enabledQueried++;
+            return false;
+          },
+          disableMasterPassword: () async {},
+          clearBiometricVault: () async {},
+        );
+        expect(
+          enabledQueried,
+          0,
+          reason: 'flag=false must skip the isEnabled poll',
+        );
+      },
+    );
+  });
+
   group('tierVaultClearPlanFor', () {
     test('plaintext clears every vault — no key survives at T0', () {
       final plan = tierVaultClearPlanFor(SecurityTier.plaintext);
