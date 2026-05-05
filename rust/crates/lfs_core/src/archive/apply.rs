@@ -1264,9 +1264,7 @@ mod tests {
         // No sessions / empty_folders ⇒ Work/Prod never materialises;
         // the tag link must be silently dropped, not error.
         let pending = PendingImport {
-            folder_tags_json: Some(
-                r#"[{"folder_path":"Work/Prod","tag_id":"t1"}]"#.to_string(),
-            ),
+            folder_tags_json: Some(r#"[{"folder_path":"Work/Prod","tag_id":"t1"}]"#.to_string()),
             ..empty_pending()
         };
         let result =

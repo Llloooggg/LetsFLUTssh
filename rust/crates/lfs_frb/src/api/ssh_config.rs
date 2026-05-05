@@ -1,11 +1,21 @@
 //! FRB adapter for `lfs_core::ssh_config`.
 //!
-//! Surfaces the OpenSSH config parser as a synchronous one-shot.
-//! `Include` directives are NOT expanded Rust-side — the FRB
-//! boundary cannot easily marshal a callback for the include
-//! reader. Callers either pre-expand includes Dart-side and pass
-//! the fully-expanded content here, or rely on the Dart parser
-//! for now.
+//! Three sync entry points cover every caller:
+//!
+//! * [`parse_openssh_config`] — no `Include` expansion. Used by
+//!   callers that want a pure parse with no filesystem touch.
+//! * [`parse_openssh_config_resolving`] — production path. Routes
+//!   through `lfs_core::ssh_config::parse_openssh_config_with_fs`
+//!   so include directives, glob expansion, cycle detection, and
+//!   the per-file size cap all live Rust-side.
+//! * [`parse_openssh_config_with_includes`] — test seam. Caller
+//!   pre-supplies a `path → content` map; useful for unit tests
+//!   that don't want to stage files on disk.
+//!
+//! The grammar primitives (`glob_matches`, `strip_comment`,
+//! `split_keyword_value`, `split_host_patterns`, `unquote`) are
+//! exposed alongside so the Dart-side test include-map collector
+//! can apply identical lexing without re-implementing it.
 
 /// FRB-visible mirror of `lfs_core::ssh_config::AuthType`.
 #[derive(Debug, Clone, Copy)]
