@@ -1,14 +1,16 @@
 //! OS biometric prompt — Touch ID / Face ID on Apple, Windows
-//! Hello on Windows. Linux is covered by the Tier 2 fprintd
-//! shim (`lfs_core::platform::linux::fprintd`); Android stays
-//! on `local_auth` until the BiometricPrompt JNI bridge lands.
+//! Hello on Windows, BiometricPrompt on Android via direct JNI
+//! into `androidx.biometric` (see `crate::android::biometric`).
+//! Linux is covered by the Tier 2 fprintd shim
+//! (`lfs_core::platform::linux::fprintd`).
 //!
 //! Public surface mirrors the Dart `BiometricAuth` shape:
 //! `check_availability` returns the structured reason (or `None`
 //! = ready), `authenticate(reason)` shows the OS prompt and
-//! resolves to a bool. Both bridge the platform's native
+//! resolves to a bool. Each platform-impl bridges its native
 //! callback shape (block on Apple, async WinRT operation on
-//! Windows) into a Rust Future via a oneshot channel.
+//! Windows, JNI callback adapter on Android) into a Rust Future
+//! via a oneshot channel.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BiometricUnavailableReason {
