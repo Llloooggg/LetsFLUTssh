@@ -67,7 +67,22 @@ Future<bool> verifyRustDbReadable() async {
   }
 }
 
-Future<void> ensureRustDbOpen({Uint8List? key}) async {
+/// Open the Rust-owned sqlite handle.
+///
+/// At most one of [key] or [secretId] may be provided:
+/// * [key] — legacy bytes-on-Dart-heap path. Bytes cross FRB once.
+/// * [secretId] — SecretRef path. Pulls bytes from the Rust-side
+///   `SecretStore` entry that was previously staged via
+///   `cryptoAesGcmRandomKeyToSecret`; the bytes never touch the
+///   Dart heap. The `secrets_take` is atomic — after this call the
+///   SecretStore entry is empty.
+///
+/// Both null = plaintext (unencrypted) path.
+Future<void> ensureRustDbOpen({Uint8List? key, String? secretId}) async {
+  assert(
+    key == null || secretId == null,
+    'pass either key or secretId, not both',
+  );
   final sw = Stopwatch()..start();
   void mark(String phase) {
     AppLogger.instance.log(
@@ -87,13 +102,17 @@ Future<void> ensureRustDbOpen({Uint8List? key}) async {
     mark('file_create');
     await hardenFilePerms(path);
     mark('harden_perms');
-    await rust_app.dbInit(
-      path: path,
-      key: key == null ? const <int>[] : List<int>.from(key),
-    );
+    if (secretId != null) {
+      await rust_app.dbInitFromSecret(path: path, secretId: secretId);
+    } else {
+      await rust_app.dbInit(
+        path: path,
+        key: key == null ? const <int>[] : List<int>.from(key),
+      );
+    }
     mark('db_init');
     AppLogger.instance.log(
-      'Rust DB ready (encrypted=${key != null})',
+      'Rust DB ready (encrypted=${key != null || secretId != null})',
       name: 'RustDbInit',
     );
   } catch (e, st) {

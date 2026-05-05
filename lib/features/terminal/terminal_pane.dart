@@ -15,7 +15,6 @@ import '../../widgets/shortcut_registry.dart';
 import '../../core/security/terminal_scrubber.dart';
 import '../../core/session/session_recorder.dart';
 import '../../core/ssh/shell_helper.dart';
-import '../../providers/security_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../core/config/app_config.dart';
 import '../../providers/config_provider.dart';
@@ -317,13 +316,14 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     final session = ref.read(sessionProvider.notifier).get(sessionId);
     if (session == null) return null;
     if (session.extrasBool('record') != true) return null;
-    final dbKey = ref.read(securityStateProvider).encryptionKey;
+    // The recorder reads the active DB key Rust-side via
+    // `secretsHas` + `recorderRegisterFromActive` — the bytes never
+    // touch the Dart heap.
     return SessionRecorder.open(
       sessionId: sessionId,
       shellLabel: session.label,
       width: _terminal.viewWidth,
       height: _terminal.viewHeight,
-      dbKey: dbKey,
     );
   }
 

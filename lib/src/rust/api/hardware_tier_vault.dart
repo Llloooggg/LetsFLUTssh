@@ -82,6 +82,25 @@ Future<void> hardwareTierVaultStore({
   pinHmac: pinHmac,
 );
 
+/// Variant of [`hardware_tier_vault_store`] that pulls `db_key` from
+/// [`lfs_core::secrets::SecretStore`] under [`secret_id`] instead of
+/// taking it across the FRB boundary. Same SecretRef shape as
+/// [`super::secure_key_storage::secure_storage_write_from_secret`]
+/// — bytes never touch the Dart heap on the way to the hardware
+/// vault. The SecretStore entry survives the call so the caller can
+/// also feed `secrets_take(id)` into drift's sqlcipher rekey before
+/// dropping the ref.
+Future<void> hardwareTierVaultStoreFromSecret({
+  required String supportDir,
+  required String secretId,
+  required List<int> pinHmac,
+}) => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultStoreFromSecret(
+      supportDir: supportDir,
+      secretId: secretId,
+      pinHmac: pinHmac,
+    );
+
 Future<Uint8List?> hardwareTierVaultRead({
   required String supportDir,
   required List<int> pinHmac,
@@ -89,6 +108,23 @@ Future<Uint8List?> hardwareTierVaultRead({
   supportDir: supportDir,
   pinHmac: pinHmac,
 );
+
+/// SecretRef variant of [`hardware_tier_vault_read`]. Unwraps the
+/// hardware-bound DB key and stages it in
+/// [`lfs_core::secrets::SecretStore`] under `secret_id` so the
+/// bytes never cross the FRB boundary. Returns `Ok(true)` on
+/// successful unwrap, `Ok(false)` on missing vault file / wrong
+/// PIN, `Err(_)` on backend errors.
+Future<bool> hardwareTierVaultReadToSecret({
+  required String supportDir,
+  required List<int> pinHmac,
+  required String secretId,
+}) =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadToSecret(
+      supportDir: supportDir,
+      pinHmac: pinHmac,
+      secretId: secretId,
+    );
 
 Future<void> hardwareTierVaultClear({required String supportDir}) => RustLib
     .instance

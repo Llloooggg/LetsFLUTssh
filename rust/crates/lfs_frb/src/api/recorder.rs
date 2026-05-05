@@ -63,6 +63,84 @@ pub async fn recorder_register(
     .map_err(|e| format!("recorder register task: {e}"))?
 }
 
+/// HKDF-SHA256 info string the Dart-era recorder used. Pinned
+/// here so the byte-for-byte derivation matches whatever the old
+/// recorder wrote — recordings produced before the SecretRef
+/// migration must remain decryptable.
+const RECORDER_HKDF_INFO: &[u8] = b"letsflutssh-recording-v1";
+
+/// Derive the per-recording AES-256 key from the active DB key
+/// in [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] using the same
+/// HKDF-SHA256 chain [`recorder_register_from_active`] uses for
+/// the writer. Returns the 32-byte recorder key for callers that
+/// drive AES-GCM decryption Dart-side (today: `RecordingReader`
+/// playback streamer); future migration moves the iter Rust-side
+/// and this entry point retires.
+///
+/// Returns an empty `Vec` when the active slot is empty
+/// (plaintext tier) — caller treats empty as "no encrypted
+/// recordings can be opened from this session".
+pub async fn recorder_derive_key_from_active() -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(|| {
+        let app = lfs_core::app::instance();
+        let Some(db_key) = app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) else {
+            return Ok(Vec::new());
+        };
+        if db_key.is_empty() {
+            return Ok(Vec::new());
+        }
+        lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32)
+            .map(|z| z.to_vec())
+            .map_err(|e| format!("recorder hkdf: {e}"))
+    })
+    .await
+    .map_err(|e| format!("recorder derive task: {e}"))?
+}
+
+/// SecretRef variant of [`recorder_register`]. Reads the running
+/// session's DB key from
+/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`], runs the
+/// `letsflutssh-recording-v1` HKDF-SHA256 derivation entirely
+/// Rust-side, and registers the recorder under the derived key.
+/// When the active slot is empty (plaintext tier) the recorder
+/// registers in plaintext-asciinema mode.
+///
+/// Bytes never cross the FRB boundary on this path — both the DB
+/// key and the derived recorder key live in Rust memory only.
+pub async fn recorder_register_from_active(
+    id: String,
+    session_id: String,
+    path: String,
+) -> Result<DbRecorderSnapshot, String> {
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        let key_arr = match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
+            Some(db_key) if !db_key.is_empty() => {
+                let derived = lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32)
+                    .map_err(|e| format!("recorder hkdf: {e}"))?;
+                let arr: [u8; 32] = derived
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| "recorder derived key length".to_string())?;
+                Some(arr)
+            }
+            _ => None,
+        };
+        lfs_core::recorder::RecorderRegistry::register_with_io(
+            &app.recorders,
+            id,
+            session_id,
+            path,
+            key_arr,
+            &app.bus,
+        )
+        .map(DbRecorderSnapshot::from)
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("recorder register from active task: {e}"))?
+}
+
 /// FRB mirror of [`lfs_core::recorder::RecordDirection`].
 pub enum DbRecordDirection {
     Output,

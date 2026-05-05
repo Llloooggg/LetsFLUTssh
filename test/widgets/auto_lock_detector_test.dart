@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -90,7 +89,7 @@ void main() {
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityTier.paranoid, Uint8List(32));
+            .setActive(SecurityTier.paranoid, hasKey: true);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -120,8 +119,8 @@ void main() {
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityTier.paranoid, Uint8List(32));
-        expect(container.read(securityStateProvider).encryptionKey, isNotNull);
+            .setActive(SecurityTier.paranoid, hasKey: true);
+        expect(container.read(securityStateProvider).hasActiveDbKey, isTrue);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -140,8 +139,8 @@ void main() {
           reason: 'timer expiry must flip the lock overlay',
         );
         expect(
-          container.read(securityStateProvider).encryptionKey,
-          isNull,
+          container.read(securityStateProvider).hasActiveDbKey,
+          isFalse,
           reason:
               'no live sessions → the in-memory DB key must be zeroed '
               'at the same time as the lock',
@@ -176,7 +175,7 @@ void main() {
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityTier.paranoid, Uint8List(32));
+          .setActive(SecurityTier.paranoid, hasKey: true);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -194,8 +193,8 @@ void main() {
         reason: 'lock overlay always fires on timeout',
       );
       expect(
-        container.read(securityStateProvider).encryptionKey,
-        isNull,
+        container.read(securityStateProvider).hasActiveDbKey,
+        isFalse,
         reason:
             'always-wipe-on-lock: the DB key must be zeroed on every '
             'lock regardless of active sessions; live sessions remain '
@@ -218,7 +217,7 @@ void main() {
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityTier.paranoid, Uint8List(32));
+            .setActive(SecurityTier.paranoid, hasKey: true);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(
@@ -253,7 +252,7 @@ void main() {
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityTier.paranoid, Uint8List(32));
+          .setActive(SecurityTier.paranoid, hasKey: true);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -287,7 +286,7 @@ void main() {
       addTearDown(container.dispose);
       container
           .read(securityStateProvider.notifier)
-          .set(SecurityTier.paranoid, Uint8List(32));
+          .setActive(SecurityTier.paranoid, hasKey: true);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -328,7 +327,7 @@ void main() {
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .set(SecurityTier.keychainWithPassword, Uint8List(32));
+            .setActive(SecurityTier.keychainWithPassword, hasKey: true);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(

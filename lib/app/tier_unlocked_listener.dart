@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/bus/app_bus.dart';
 import '../core/db/rust_db_init.dart';
+import '../core/security/active_dbkey.dart';
 import '../core/security/security_tier.dart';
 import '../providers/config_provider.dart';
 import '../providers/connection_provider.dart' show knownHostsProvider;
@@ -157,30 +157,33 @@ class TierUnlockedListener {
     }
 
     try {
-      // Take the key the Rust orchestrator staged. Atomic
-      // read-and-remove so the SecretStore entry is gone
-      // after the take — single FRB byte crossing per
-      // unlock cascade.
-      final keyBytes = rust_app.secretsTake(id: 'tier.unlock.key');
-      // Resolve the active tier wire name to the Dart enum
-      // so the post-unlock Dart cascade fans out the right
-      // `securityStateProvider.set` slot.
+      // Resolve the active tier wire name to the Dart enum so the
+      // post-unlock Dart cascade flips the right
+      // `securityStateProvider` slot.
       final tierWire = rust_tier.tierMachineActiveTierWireName();
       final tier = SecurityTierWireName.fromWireName(tierWire);
-      final key = keyBytes.isEmpty ? null : Uint8List.fromList(keyBytes);
-      mark('secrets_take');
-      // Invalidate Dart-side store caches so the next read
-      // pulls fresh rows after the engine swap. Mirrors the
-      // existing `_injectDatabase` pre-step.
+      // The Rust orchestrator stages the resolved DB key directly
+      // under `lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID` (re-export
+      // of `TIER_UNLOCK_KEY_ID`). Probe presence — empty means
+      // plaintext tier — and route the encrypted cascade through
+      // `dbInitFromSecret(ACTIVE)` so the bytes never cross the FRB
+      // boundary outwards.
+      final hasKey = rust_app.secretsHas(id: kActiveDbKeySecretId);
+      mark('secrets_probe');
+      // Invalidate Dart-side store caches so the next read pulls
+      // fresh rows after the engine swap.
       _ref.read(sessionProvider.notifier).invalidateCache();
       _ref.read(sshKeysProvider.notifier).invalidateCache();
       _ref.read(knownHostsProvider.notifier).invalidateCache();
-      if (key != null) {
-        _ref.read(securityStateProvider.notifier).set(tier, key);
+      _ref.read(securityStateProvider.notifier).setActive(tier, hasKey: hasKey);
+      // Open the Rust-owned sqlite handle. SecretRef path on the
+      // encrypted tier; plaintext routes through the unencrypted
+      // branch in `ensureRustDbOpen`.
+      if (hasKey) {
+        await ensureRustDbOpen(secretId: kActiveDbKeySecretId);
+      } else {
+        await ensureRustDbOpen();
       }
-      // Open the Rust-owned sqlite handle keyed off the same
-      // master key the orchestrator just resolved.
-      await ensureRustDbOpen(key: key);
       mark('rust_db_open');
       // Persist the tier into config so a cold-restart picks
       // up the same tier without re-entering the wizard.

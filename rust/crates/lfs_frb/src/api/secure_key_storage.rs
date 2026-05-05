@@ -72,6 +72,67 @@ pub async fn secure_storage_write_biometric(alias: String, value: Vec<u8>) -> Re
     map_unit(lfs_os_security::secure_key_storage::write_biometric(&alias, &value).await)
 }
 
+/// SecretRef variant of [`secure_storage_read`]. Reads the OS
+/// keychain entry under `alias` and stores the bytes in
+/// [`lfs_core::secrets::SecretStore`] under `secret_id` — the
+/// bytes never cross the FRB boundary. Returns:
+/// * `Ok(true)` when the alias was present and bytes landed under
+///   `secret_id`.
+/// * `Ok(false)` when the alias was absent or the read returned
+///   empty (no SecretStore mutation).
+/// * `Err(_)` on platform-level failures.
+pub async fn secure_storage_read_to_secret(
+    alias: String,
+    secret_id: String,
+) -> Result<bool, String> {
+    match lfs_os_security::secure_key_storage::read(&alias)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        Some(bytes) if !bytes.is_empty() => {
+            lfs_core::app::instance().secrets.put(&secret_id, &bytes);
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
+/// SecretRef variant of [`secure_storage_read_biometric`]. Same
+/// semantics as [`secure_storage_read_to_secret`] but routes
+/// through the biometric-gated keychain entry — the OS surfaces
+/// the matching biometric prompt as part of the read.
+pub async fn secure_storage_read_biometric_to_secret(
+    alias: String,
+    secret_id: String,
+) -> Result<bool, String> {
+    match lfs_os_security::secure_key_storage::read_biometric(&alias)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        Some(bytes) if !bytes.is_empty() => {
+            lfs_core::app::instance().secrets.put(&secret_id, &bytes);
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
+/// SecretRef variant of [`secure_storage_write_biometric`]. Pulls
+/// the bytes from `SecretStore` under `secret_id` (entry preserved
+/// so downstream consumers can still read) and writes the
+/// biometric-gated keychain entry. Mirrors the no-FRB-byte-crossing
+/// shape of [`secure_storage_write_from_secret`].
+pub async fn secure_storage_write_biometric_from_secret(
+    alias: String,
+    secret_id: String,
+) -> Result<(), String> {
+    let bytes = lfs_core::app::instance()
+        .secrets
+        .get(&secret_id)
+        .ok_or_else(|| format!("secret not found: {secret_id}"))?;
+    map_unit(lfs_os_security::secure_key_storage::write_biometric(&alias, &bytes).await)
+}
+
 pub async fn secure_storage_delete_biometric(alias: String) -> Result<(), String> {
     map_unit(lfs_os_security::secure_key_storage::delete_biometric(&alias).await)
 }

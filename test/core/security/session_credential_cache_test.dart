@@ -28,9 +28,9 @@ void main() {
         keyPassphrase: 'pp',
       );
 
-      expect(await rust_app.secretsHas(id: 'sess.password.s1'), isTrue);
-      expect(await rust_app.secretsHas(id: 'sess.key.s1'), isTrue);
-      expect(await rust_app.secretsHas(id: 'sess.passphrase.s1'), isTrue);
+      expect(rust_app.secretsHas(id: 'sess.password.s1'), isTrue);
+      expect(rust_app.secretsHas(id: 'sess.key.s1'), isTrue);
+      expect(rust_app.secretsHas(id: 'sess.passphrase.s1'), isTrue);
 
       // Bytes round-trip via UTF-8.
       expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s1')), 'pw');
@@ -57,9 +57,9 @@ void main() {
         keyPassphrase: null,
       );
 
-      expect(await rust_app.secretsHas(id: 'sess.password.s2'), isFalse);
-      expect(await rust_app.secretsHas(id: 'sess.key.s2'), isFalse);
-      expect(await rust_app.secretsHas(id: 'sess.passphrase.s2'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.password.s2'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.key.s2'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.passphrase.s2'), isFalse);
     });
 
     test('store with empty strings is a drop, not a put', () async {
@@ -70,7 +70,7 @@ void main() {
 
       await cache.store(sessionId: 's3', password: '');
 
-      expect(await rust_app.secretsHas(id: 'sess.password.s3'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.password.s3'), isFalse);
     });
 
     test('store overwrites a previous value for the same slot', () async {
@@ -102,18 +102,18 @@ void main() {
 
       await cache.evict('s7');
 
-      expect(await rust_app.secretsHas(id: 'sess.password.s7'), isFalse);
-      expect(await rust_app.secretsHas(id: 'sess.key.s7'), isFalse);
-      expect(await rust_app.secretsHas(id: 'sess.passphrase.s7'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.password.s7'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.key.s7'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.passphrase.s7'), isFalse);
       // The neighbouring sessionId stays intact.
-      expect(await rust_app.secretsHas(id: 'sess.password.s8'), isTrue);
+      expect(rust_app.secretsHas(id: 'sess.password.s8'), isTrue);
     });
 
     test('evict on a session that has nothing staged is a no-op', () async {
       await cache.evict('never-existed');
       // No throw; SecretStore stays empty (no other slots seeded).
       expect(
-        await rust_app.secretsHas(id: 'sess.password.never-existed'),
+        rust_app.secretsHas(id: 'sess.password.never-existed'),
         isFalse,
       );
     });
@@ -129,10 +129,10 @@ void main() {
 
       await cache.evictAll();
 
-      expect(await rust_app.secretsHas(id: 'sess.password.s9'), isFalse);
-      expect(await rust_app.secretsHas(id: 'sess.key.s9'), isFalse);
-      expect(await rust_app.secretsHas(id: 'sess.password.s10'), isFalse);
-      expect(await rust_app.secretsHas(id: 'conn.something.uuid'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.password.s9'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.key.s9'), isFalse);
+      expect(rust_app.secretsHas(id: 'sess.password.s10'), isFalse);
+      expect(rust_app.secretsHas(id: 'conn.something.uuid'), isFalse);
     });
   });
 }

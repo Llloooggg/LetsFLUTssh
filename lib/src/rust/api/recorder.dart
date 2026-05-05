@@ -23,6 +23,40 @@ Future<DbRecorderSnapshot> recorderRegister({
   key: key,
 );
 
+/// Derive the per-recording AES-256 key from the active DB key
+/// in [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] using the same
+/// HKDF-SHA256 chain [`recorder_register_from_active`] uses for
+/// the writer. Returns the 32-byte recorder key for callers that
+/// drive AES-GCM decryption Dart-side (today: `RecordingReader`
+/// playback streamer); future migration moves the iter Rust-side
+/// and this entry point retires.
+///
+/// Returns an empty `Vec` when the active slot is empty
+/// (plaintext tier) — caller treats empty as "no encrypted
+/// recordings can be opened from this session".
+Future<Uint8List> recorderDeriveKeyFromActive() =>
+    RustLib.instance.api.crateApiRecorderRecorderDeriveKeyFromActive();
+
+/// SecretRef variant of [`recorder_register`]. Reads the running
+/// session's DB key from
+/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`], runs the
+/// `letsflutssh-recording-v1` HKDF-SHA256 derivation entirely
+/// Rust-side, and registers the recorder under the derived key.
+/// When the active slot is empty (plaintext tier) the recorder
+/// registers in plaintext-asciinema mode.
+///
+/// Bytes never cross the FRB boundary on this path — both the DB
+/// key and the derived recorder key live in Rust memory only.
+Future<DbRecorderSnapshot> recorderRegisterFromActive({
+  required String id,
+  required String sessionId,
+  required String path,
+}) => RustLib.instance.api.crateApiRecorderRecorderRegisterFromActive(
+  id: id,
+  sessionId: sessionId,
+  path: path,
+);
+
 /// Compose the asciinema v2 header line for the registered
 /// recording (`{"version": 2, "width": …, "height": …,
 /// "timestamp": …, "env": {…}}`) and append it as a frame. The

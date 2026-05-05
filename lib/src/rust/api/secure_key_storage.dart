@@ -62,6 +62,50 @@ Future<void> secureStorageWriteBiometric({
   value: value,
 );
 
+/// SecretRef variant of [`secure_storage_read`]. Reads the OS
+/// keychain entry under `alias` and stores the bytes in
+/// [`lfs_core::secrets::SecretStore`] under `secret_id` — the
+/// bytes never cross the FRB boundary. Returns:
+/// * `Ok(true)` when the alias was present and bytes landed under
+///   `secret_id`.
+/// * `Ok(false)` when the alias was absent or the read returned
+///   empty (no SecretStore mutation).
+/// * `Err(_)` on platform-level failures.
+Future<bool> secureStorageReadToSecret({
+  required String alias,
+  required String secretId,
+}) => RustLib.instance.api.crateApiSecureKeyStorageSecureStorageReadToSecret(
+  alias: alias,
+  secretId: secretId,
+);
+
+/// SecretRef variant of [`secure_storage_read_biometric`]. Same
+/// semantics as [`secure_storage_read_to_secret`] but routes
+/// through the biometric-gated keychain entry — the OS surfaces
+/// the matching biometric prompt as part of the read.
+Future<bool> secureStorageReadBiometricToSecret({
+  required String alias,
+  required String secretId,
+}) => RustLib.instance.api
+    .crateApiSecureKeyStorageSecureStorageReadBiometricToSecret(
+      alias: alias,
+      secretId: secretId,
+    );
+
+/// SecretRef variant of [`secure_storage_write_biometric`]. Pulls
+/// the bytes from `SecretStore` under `secret_id` (entry preserved
+/// so downstream consumers can still read) and writes the
+/// biometric-gated keychain entry. Mirrors the no-FRB-byte-crossing
+/// shape of [`secure_storage_write_from_secret`].
+Future<void> secureStorageWriteBiometricFromSecret({
+  required String alias,
+  required String secretId,
+}) => RustLib.instance.api
+    .crateApiSecureKeyStorageSecureStorageWriteBiometricFromSecret(
+      alias: alias,
+      secretId: secretId,
+    );
+
 Future<void> secureStorageDeleteBiometric({required String alias}) => RustLib
     .instance
     .api

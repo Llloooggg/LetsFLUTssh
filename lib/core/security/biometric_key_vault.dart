@@ -4,9 +4,11 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/app.dart' as rust_secrets;
 import '../../src/rust/api/secure_key_storage.dart' as rust_storage;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
+import 'active_dbkey.dart';
 import 'linux/fprintd_client.dart';
 import 'linux/tpm_client.dart';
 import 'linux_keychain_marker.dart';
@@ -146,6 +148,40 @@ class BiometricKeyVault {
     } catch (e) {
       AppLogger.instance.log(
         'BiometricKeyVault.store failed: $e',
+        name: 'BiometricKeyVault',
+      );
+      return false;
+    }
+  }
+
+  /// SecretRef variant of [store]. Pulls the bytes from the active
+  /// SecretStore slot Rust-side via
+  /// `secure_storage_write_biometric_from_secret` so the DB key
+  /// never touches the Dart heap on this path. Linux TPM seal still
+  /// needs the bytes Dart-side for the `tpm2-tools` shell-out — we
+  /// fetch them via `secretsGet(ACTIVE)` for that one operation
+  /// only; on every other platform the call is end-to-end
+  /// Rust-internal.
+  Future<bool> storeFromActive() async {
+    if (Platform.isLinux) {
+      final keyBytes = rust_secrets.secretsGet(id: kActiveDbKeySecretId);
+      if (keyBytes.isEmpty) return false;
+      final sealed = await _linuxSeal(keyBytes);
+      if (sealed) return true;
+      // TPM unavailable — fall through to libsecret path which
+      // routes through the SecretRef shim below (no second
+      // Dart-side materialisation).
+    }
+    try {
+      await rust_storage.secureStorageWriteBiometricFromSecret(
+        alias: _keyName,
+        secretId: kActiveDbKeySecretId,
+      );
+      if (Platform.isLinux) await _marker.set();
+      return true;
+    } catch (e) {
+      AppLogger.instance.log(
+        'BiometricKeyVault.storeFromActive failed: $e',
         name: 'BiometricKeyVault',
       );
       return false;

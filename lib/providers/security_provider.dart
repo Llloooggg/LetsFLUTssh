@@ -1,15 +1,15 @@
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/security/active_dbkey.dart';
 import '../core/security/biometric_auth.dart';
 import '../core/security/biometric_key_vault.dart';
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
 import '../core/security/linux/tpm_client.dart';
-import '../core/security/secret_buffer.dart';
 import '../core/security/secure_key_storage.dart';
+import '../src/rust/api/app.dart' as rust_secrets;
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
@@ -378,79 +378,79 @@ final securityStateProvider =
       SecurityStateNotifier.new,
     );
 
-/// Immutable snapshot of security state: level + optional encryption key
-/// held in a page-locked native buffer.
-///
-/// [_buffer] owns a [SecretBuffer] with the 32-byte DB key; [encryptionKey]
-/// exposes it as a `Uint8List` alias for compatibility with the existing
-/// drift/SQLite3MC call sites. The alias stays valid as long as the buffer
-/// lives — i.e. until the next `set(...)`/`clearEncryption()` replaces the
-/// state, at which point the old buffer is disposed (zeroed + munlock +
-/// freed) by [SecurityStateNotifier].
+/// Immutable snapshot of security state: tier + a probe whether
+/// the running session has a DB key staged in
+/// `lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`. The bytes live
+/// Rust-side only — every consumer that needs them goes through
+/// a SecretRef-aware FRB shim, so this class carries no key
+/// material.
 class SecurityState {
   final SecurityTier level;
-  final SecretBuffer? _buffer;
 
-  SecurityState({this.level = SecurityTier.plaintext, SecretBuffer? buffer})
-    : _buffer = buffer;
+  /// True when the running session has unlocked the encrypted DB —
+  /// i.e. `app.dbkey.active` SecretStore slot holds the master
+  /// key. UI layers gate "lock" / "unlock required" affordances
+  /// off this flag.
+  final bool hasActiveDbKey;
 
-  /// Live `Uint8List` view into the locked buffer, or null in plaintext mode.
-  Uint8List? get encryptionKey => _buffer?.bytes;
-
-  /// Internal handle — needed by [SecurityStateNotifier] to dispose on
-  /// transitions. Not part of the public surface.
-  SecretBuffer? get buffer => _buffer;
+  const SecurityState({
+    this.level = SecurityTier.plaintext,
+    this.hasActiveDbKey = false,
+  });
 
   /// Whether data stores should encrypt their contents.
   bool get isEncrypted => level != SecurityTier.plaintext;
 }
 
 /// Notifier for security state — set once at startup, updated on
-/// master password enable/disable/change. Owns the [SecretBuffer] lifecycle:
-/// any transition disposes the previous buffer so the plaintext key is
-/// zeroed + unlocked + freed before a new one takes its place.
+/// master password enable/disable/change. Carries no plaintext key
+/// material; the running DB key lives in
+/// `lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`. Lock / unlock
+/// transitions both flip the [SecurityState.hasActiveDbKey] flag
+/// AND drop the SecretStore slot in the lock case so the bytes
+/// don't outlive the active session.
 class SecurityStateNotifier extends Notifier<SecurityState> {
-  SecretBuffer? _owned;
-
   @override
-  SecurityState build() {
-    // Dispose the currently-owned buffer when the provider itself is torn
-    // down. Reading `state` inside onDispose isn't allowed (Riverpod
-    // forbids ref access from lifecycle callbacks), so we keep a plain
-    // field that mirrors the buffer the state holds.
-    ref.onDispose(() {
-      _owned?.dispose();
-      _owned = null;
-    });
-    return SecurityState();
+  SecurityState build() => const SecurityState();
+
+  /// Mark the running session as on [level], with [hasKey] reflecting
+  /// whether `app.dbkey.active` holds a DB key. Caller is responsible
+  /// for staging the key Rust-side before this call (typically
+  /// through `dbInitFromSecret` which atomically promotes a
+  /// caller-minted secret into the active slot).
+  void setActive(SecurityTier level, {required bool hasKey}) {
+    state = SecurityState(level: level, hasActiveDbKey: hasKey);
+    _logTransition(level, hasKey: hasKey);
   }
 
-  /// Set the security level and encryption key. Copies [key] into a fresh
-  /// page-locked buffer and disposes the previous one. The caller is
-  /// responsible for zeroing its own `Uint8List` copy afterwards.
-  void set(SecurityTier level, [Uint8List? key]) {
-    final previous = _owned;
-    final buffer = key == null ? null : SecretBuffer.fromBytes(key);
-    _owned = buffer;
-    state = SecurityState(level: level, buffer: buffer);
-    previous?.dispose();
+  void _logTransition(SecurityTier level, {required bool hasKey}) {
     // Security level transitions are load-bearing for support traces
     // — a "why did my DB open in plaintext" ticket is answered by
-    // matching the tier on the last `set` call against the persisted
+    // matching the tier on the last transition against the persisted
     // config tier. No key bytes in the log, just the enum name.
     AppLogger.instance.log(
-      'SecurityState: tier=${level.name} hasKey=${key != null}',
+      'SecurityState: tier=${level.name} hasKey=$hasKey',
       name: 'SecurityState',
     );
   }
 
-  /// Clear encryption (revert to plaintext). Zeroes and releases the
-  /// in-memory key.
+  /// Clear encryption (revert to plaintext). Drops the active
+  /// SecretStore slot Rust-side so the running key bytes don't
+  /// outlive the auto-lock / wipe transition. The state flip runs
+  /// regardless of whether the FRB drop succeeded — flutter_test
+  /// contexts that haven't bootstrapped the native lib still get
+  /// the right Riverpod state, and the Rust side is a no-op on
+  /// missing-id anyway.
   void clearEncryption() {
-    final previous = _owned;
-    _owned = null;
-    state = SecurityState();
-    previous?.dispose();
+    try {
+      rust_secrets.secretsDrop(id: kActiveDbKeySecretId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'SecurityState.clearEncryption: secretsDrop swallowed: $e',
+        name: 'SecurityState',
+      );
+    }
+    state = const SecurityState();
     AppLogger.instance.log(
       'SecurityState: cleared encryption (plaintext)',
       name: 'SecurityState',

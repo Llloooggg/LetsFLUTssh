@@ -123,6 +123,29 @@ pub async fn master_password_enable(
     .map_err(|e| format!("master_password_enable task: {e}"))?
 }
 
+/// SecretRef variant of [`master_password_enable`]. Stages the
+/// derived key directly into [`lfs_core::secrets::SecretStore`]
+/// under [`secret_id`] instead of returning the bytes over FRB.
+/// Caller routes the same id through `db_rekey_from_secret` /
+/// `db_init_from_secret` so the AES bytes never touch the Dart
+/// heap.
+///
+/// Idempotent on `secret_id` collision: replaces any prior value at
+/// the same id (the previous `Zeroizing` buffer scrubs on drop).
+pub async fn master_password_enable_to_secret(
+    password: String,
+    params: DbKdfParams,
+    secret_id: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let key = master_password::enable(support_dir(), &password, &params.into())?;
+        lfs_core::app::instance().secrets.put(&secret_id, &key);
+        Ok::<_, String>(())
+    })
+    .await
+    .map_err(|e| format!("master_password_enable_to_secret task: {e}"))?
+}
+
 /// Verify the old password, then re-key under the new one. Returns
 /// the new derived key. `Err("Current password is incorrect")` on
 /// wrong old password — the Dart `MasterPasswordException` wrapper
@@ -173,4 +196,29 @@ pub async fn master_password_verify_and_derive(
     })
     .await
     .map_err(|e| format!("master_password_verify task: {e}"))?
+}
+
+/// SecretRef variant of [`master_password_verify_and_derive`].
+/// Stages the derived key directly into
+/// [`lfs_core::secrets::SecretStore`] under `secret_id` (no FRB
+/// byte-crossing). Returns:
+/// * `Ok(true)` when the password was correct and bytes landed
+///   under `secret_id`.
+/// * `Ok(false)` on wrong password (no SecretStore mutation).
+/// * `Err(_)` for "tier not enabled" / "files corrupt".
+pub async fn master_password_verify_and_derive_to_secret(
+    password: String,
+    secret_id: String,
+) -> Result<bool, String> {
+    tokio::task::spawn_blocking(move || {
+        match master_password::verify_and_derive(support_dir(), &password)? {
+            Some(key) => {
+                lfs_core::app::instance().secrets.put(&secret_id, &key);
+                Ok::<_, String>(true)
+            }
+            None => Ok(false),
+        }
+    })
+    .await
+    .map_err(|e| format!("master_password_verify_and_derive_to_secret task: {e}"))?
 }

@@ -134,6 +134,27 @@ class SecureKeyStorage {
     }
   }
 
+  /// SecretRef variant of [readKey]. Reads the OS keychain entry
+  /// and stages it directly under [secretId] in the Rust-side
+  /// `SecretStore` — bytes never cross the FRB boundary. Returns
+  /// true on success, false when the alias was absent or the read
+  /// returned empty.
+  Future<bool> readKeyToSecret(String secretId) async {
+    if (!await _linuxGatePass()) return false;
+    try {
+      return await rust_storage.secureStorageReadToSecret(
+        alias: _keyName,
+        secretId: secretId,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to read key (secret) from keychain: $e',
+        name: 'SecureKeyStorage',
+      );
+      return false;
+    }
+  }
+
   Future<bool> writeKey(Uint8List key) async {
     try {
       await rust_storage.secureStorageWrite(alias: _keyName, value: key);
@@ -142,6 +163,29 @@ class SecureKeyStorage {
     } catch (e) {
       AppLogger.instance.log(
         'Failed to write key to keychain: $e',
+        name: 'SecureKeyStorage',
+      );
+      return false;
+    }
+  }
+
+  /// SecretRef variant — pulls the key bytes from the Rust-side
+  /// `SecretStore` under [secretId] instead of marshalling them as
+  /// `Uint8List` over the FRB boundary. Used by the first-launch +
+  /// tier-apply flows that stage the key via
+  /// `cryptoAesGcmRandomKeyToSecret` so the bytes never touch the
+  /// Dart heap on the way to the OS keychain.
+  Future<bool> writeKeyFromSecret(String secretId) async {
+    try {
+      await rust_storage.secureStorageWriteFromSecret(
+        alias: _keyName,
+        secretId: secretId,
+      );
+      if (Platform.isLinux) await _marker.set();
+      return true;
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to write key (secret) to keychain: $e',
         name: 'SecureKeyStorage',
       );
       return false;

@@ -177,11 +177,12 @@ extension _FirstLaunchFlows on SecurityInitController {
       return;
     }
     // Orchestrator unreachable / staging failed — fall back to the
-    // pure-Dart manager.enable path so flutter_test contexts (no FRB
-    // native lib) still resolve.
-    final key = await manager.enable(password);
+    // SecretRef-aware manager.enableToSecret path so the derived
+    // key never lands on the Dart heap.
+    final secretId = _firstLaunchKeySecretId('paranoid');
+    await manager.enableToSecret(password, secretId);
     await _injectDatabase(
-      key: key,
+      secretId: secretId,
       level: SecurityTier.paranoid,
       modifiers: result.modifiers,
     );
@@ -215,12 +216,19 @@ extension _FirstLaunchFlows on SecurityInitController {
       return;
     }
     // Orchestrator unreachable / write failed — fall back to direct
-    // Dart pipeline so flutter_test contexts still resolve.
-    final key = rust_crypto.cryptoAesGcmRandomKey();
-    final stored = await keyStorage.writeKey(key);
+    // Dart pipeline so flutter_test contexts still resolve. The
+    // SecretRef pattern below stages the AES key Rust-side via
+    // `cryptoAesGcmRandomKeyToSecret`, pipes it to the OS keychain
+    // through `writeKeyFromSecret` (no FRB byte-crossing), and
+    // hands the same secret id to `_injectDatabase` which routes
+    // through `dbInitFromSecret` for SQLCipher. The bytes never
+    // touch the Dart heap on the way out.
+    final secretId = _firstLaunchKeySecretId('keychain.modifier');
+    rust_crypto.cryptoAesGcmRandomKeyToSecret(id: secretId);
+    final stored = await keyStorage.writeKeyFromSecret(secretId);
     if (stored) {
       await _injectDatabase(
-        key: key,
+        secretId: secretId,
         level: SecurityTier.keychain,
         modifiers: result.modifiers,
       );
@@ -229,6 +237,7 @@ extension _FirstLaunchFlows on SecurityInitController {
         name: 'App',
       );
     } else {
+      rust_app.secretsDrop(id: secretId);
       await _injectDatabase();
       AppLogger.instance.log(
         'First launch: keychain write failed, falling back to plaintext',
@@ -272,17 +281,19 @@ extension _FirstLaunchFlows on SecurityInitController {
       return true;
     }
     // Orchestrator unreachable / write failed — fall back to direct
-    // Dart pipeline.
-    final key = rust_crypto.cryptoAesGcmRandomKey();
-    final stored = await keyStorage.writeKey(key);
+    // Dart pipeline. SecretRef path: bytes never on Dart heap.
+    final secretId = _firstLaunchKeySecretId('keychain.auto');
+    rust_crypto.cryptoAesGcmRandomKeyToSecret(id: secretId);
+    final stored = await keyStorage.writeKeyFromSecret(secretId);
     if (stored) {
-      await _injectDatabase(key: key, level: SecurityTier.keychain);
+      await _injectDatabase(secretId: secretId, level: SecurityTier.keychain);
       AppLogger.instance.log(
         'First launch: auto-selected T1 (keychain, fallback)',
         name: 'App',
       );
       return true;
     }
+    rust_app.secretsDrop(id: secretId);
     AppLogger.instance.log(
       'First launch: auto-select T1 keychain write rejected — '
       'leaving DB uninitialised for the wizard fallback',
@@ -389,13 +400,15 @@ extension _FirstLaunchFlows on SecurityInitController {
     }
     // Orchestrator unreachable / staging failed — fall back to the
     // pure-Dart pipeline so flutter_test contexts still resolve.
+    // SecretRef path: bytes never on Dart heap.
     final gate = ref.read(keychainPasswordGateProvider);
     await gate.setPassword(shortPassword);
-    final key = rust_crypto.cryptoAesGcmRandomKey();
-    final stored = await keyStorage.writeKey(key);
+    final secretId = _firstLaunchKeySecretId('keychain.password');
+    rust_crypto.cryptoAesGcmRandomKeyToSecret(id: secretId);
+    final stored = await keyStorage.writeKeyFromSecret(secretId);
     if (stored) {
       await _injectDatabase(
-        key: key,
+        secretId: secretId,
         level: SecurityTier.keychainWithPassword,
         modifiers: modifiers,
       );
@@ -405,6 +418,7 @@ extension _FirstLaunchFlows on SecurityInitController {
       );
       return;
     }
+    rust_app.secretsDrop(id: secretId);
     await gate.clear();
     await _injectDatabase();
     AppLogger.instance.log(
@@ -435,13 +449,14 @@ extension _FirstLaunchFlows on SecurityInitController {
     }
     // Orchestrator unreachable / staging failed — fall back to the
     // pure-Dart pipeline so flutter_test contexts (no FRB native
-    // lib) still resolve.
+    // lib) still resolve. SecretRef path: bytes never on Dart heap.
     final vault = ref.read(hardwareTierVaultProvider);
-    final key = rust_crypto.cryptoAesGcmRandomKey();
-    final stored = await vault.store(dbKey: key, pin: pin);
+    final secretId = _firstLaunchKeySecretId('hardware');
+    rust_crypto.cryptoAesGcmRandomKeyToSecret(id: secretId);
+    final stored = await vault.storeFromSecret(secretId: secretId, pin: pin);
     if (stored) {
       await _injectDatabase(
-        key: key,
+        secretId: secretId,
         level: SecurityTier.hardware,
         modifiers: modifiers,
       );
@@ -451,6 +466,7 @@ extension _FirstLaunchFlows on SecurityInitController {
       );
       return;
     }
+    rust_app.secretsDrop(id: secretId);
     await _injectDatabase();
     AppLogger.instance.log(
       'First launch: hardware-vault seal failed — plaintext fallback',
@@ -458,4 +474,14 @@ extension _FirstLaunchFlows on SecurityInitController {
       level: LogLevel.warn,
     );
   }
+
+  /// Mint a unique SecretStore id for first-launch DB-key staging.
+  /// `prefix` namespaces the id by call-site (`keychain.modifier`,
+  /// `keychain.auto`, `keychain.password`, `hardware`) so a stuck
+  /// store entry from one path can't be picked up accidentally by
+  /// another. The UUID v4 component guarantees uniqueness even if
+  /// the same path runs twice in a session (e.g. orchestrator
+  /// retry).
+  String _firstLaunchKeySecretId(String prefix) =>
+      'firstlaunch.dbkey.$prefix.${const Uuid().v4()}';
 }

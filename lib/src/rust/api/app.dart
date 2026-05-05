@@ -18,12 +18,13 @@ Future<void> secretsPut({required String id, required List<int> bytes}) =>
 
 /// Whether [id] has a stored secret. Used by Dart UI to render
 /// "password set"/"key configured" badges without ever touching the
-/// plaintext.
-Future<bool> secretsHas({required String id}) =>
+/// plaintext. Sync — single hashmap probe.
+bool secretsHas({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsHas(id: id);
 
-/// Drop the secret under [id]. Idempotent.
-Future<void> secretsDrop({required String id}) =>
+/// Drop the secret under [id]. Idempotent. Sync — single hashmap
+/// remove.
+void secretsDrop({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsDrop(id: id);
 
 /// Atomic read-and-remove. Returns the bytes that were stored
@@ -43,6 +44,16 @@ Future<void> secretsDrop({required String id}) =>
 /// on `bytes.isEmpty` for the absent case).
 Uint8List secretsTake({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsTake(id: id);
+
+/// Read the bytes stored under [`id`] WITHOUT removing the entry.
+/// Used by hardware-vault store flows that still need the raw bytes
+/// for a TPM CLI shell-out / Windows MethodChannel call but want
+/// the SecretStore entry to survive so the follow-up
+/// `secrets_take` for drift's sqlcipher rekey still has something
+/// to consume. Returns an empty `Vec` when the id is missing —
+/// caller branches on `bytes.isEmpty`.
+Uint8List secretsGet({required String id}) =>
+    RustLib.instance.api.crateApiAppSecretsGet(id: id);
 
 /// Drop every secret in [ids] in a single FRB hop. Used by the
 /// connect path's transient-secret cleanup so an N-id evict
@@ -66,6 +77,28 @@ Future<void> secretsClear() => RustLib.instance.api.crateApiAppSecretsClear();
 Future<void> dbInit({required String path, required List<int> key}) =>
     RustLib.instance.api.crateApiAppDbInit(path: path, key: key);
 
+/// SecretRef variant of [`db_init`]. Pulls the SQLCipher key from
+/// the process-singleton `SecretStore` under [`secret_id`] and hands
+/// it to `Db::open` without the bytes ever crossing the FRB
+/// boundary. On success the entry is renamed to
+/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] so every downstream
+/// consumer (recorder HKDF, biometric vault store, mid-session
+/// reopen) reads from the canonical slot — there is exactly one
+/// place the running key lives.
+///
+/// `secret_id` empty string OR a missing-id case both fall through
+/// to the unencrypted (plaintext-tier) path so test fixtures that
+/// "open with no key" stay symmetric with [`db_init`]'s
+/// `Vec::new()` behaviour. In the plaintext branch the active slot
+/// is dropped (auto-lock semantics).
+Future<void> dbInitFromSecret({
+  required String path,
+  required String secretId,
+}) => RustLib.instance.api.crateApiAppDbInitFromSecret(
+  path: path,
+  secretId: secretId,
+);
+
 /// Drop the running Rust DB handle. Idempotent. Used by the auto-
 /// lock path to wipe SQLCipher's C-layer page-cipher state when the
 /// user steps away. Unlock re-calls `db_init` to bring the handle
@@ -78,6 +111,17 @@ Future<void> dbClose() => RustLib.instance.api.crateApiAppDbClose();
 /// see `Db::rekey`.
 Future<void> dbRekey({required List<int> newKey}) =>
     RustLib.instance.api.crateApiAppDbRekey(newKey: newKey);
+
+/// SecretRef variant of [`db_rekey`]. Reads the new key from
+/// [`lfs_core::secrets::SecretStore`] under [`secret_id`]; on a
+/// successful `PRAGMA rekey` the entry is renamed to
+/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] so the running key
+/// lives in the canonical slot. Same atomicity semantics as
+/// `db_rekey`: SQLCipher either re-encrypts every page under the
+/// new key or leaves the DB on the old key. Bytes never cross the
+/// FRB boundary.
+Future<void> dbRekeyFromSecret({required String secretId}) =>
+    RustLib.instance.api.crateApiAppDbRekeyFromSecret(secretId: secretId);
 
 /// Smoke-test query — returns the count of rows in `sqlite_master`.
 /// Used by Dart at startup to assert the DB is reachable before

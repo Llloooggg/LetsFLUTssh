@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -733,92 +732,101 @@ void main() {
   });
 
   group('applyKeychainTier', () {
-    test('happy path runs randomKey → write → rekey → clearPlan', () async {
-      final calls = <String>[];
-      await applyKeychainTier(
-        modifiers: const SecurityTierModifiers(),
-        randomKey: () {
-          calls.add('randomKey');
-          return Uint8List(32);
-        },
-        keychainWriteKey: (_) async {
-          calls.add('write');
-          return true;
-        },
-        applyAlwaysRekey: (_, level, _) async {
-          calls.add('rekey($level)');
-        },
-        runClearPlan: (target) async {
-          calls.add('clearPlan($target)');
-        },
-      );
-      expect(calls, [
-        'randomKey',
-        'write',
-        'rekey(SecurityTier.keychain)',
-        'clearPlan(SecurityTier.keychain)',
-      ]);
-    });
-
-    test('keychain write failure throws + skips rekey + clearPlan', () async {
-      final calls = <String>[];
-      await expectLater(
-        () => applyKeychainTier(
+    test(
+      'happy path runs stageRandomKey → write → rekey → clearPlan',
+      () async {
+        final calls = <String>[];
+        await applyKeychainTier(
           modifiers: const SecurityTierModifiers(),
-          randomKey: () {
-            calls.add('randomKey');
-            return Uint8List(32);
+          stageRandomKey: () {
+            calls.add('stage');
+            return 'fake-secret-id';
           },
-          keychainWriteKey: (_) async {
-            calls.add('write');
-            return false;
+          keychainWriteFromSecret: (id) async {
+            calls.add('write($id)');
+            return true;
           },
-          applyAlwaysRekey: (_, _, _) async {
-            calls.add('rekey-SHOULD-NOT-FIRE');
+          applyAlwaysRekeyFromSecret: (id, level, _) async {
+            calls.add('rekey($level,$id)');
           },
-          runClearPlan: (_) async {
-            calls.add('clearPlan-SHOULD-NOT-FIRE');
+          dropStaged: (id) => calls.add('drop($id)'),
+          runClearPlan: (target) async {
+            calls.add('clearPlan($target)');
           },
-        ),
-        throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            'keychain write failed',
+        );
+        expect(calls, [
+          'stage',
+          'write(fake-secret-id)',
+          'rekey(SecurityTier.keychain,fake-secret-id)',
+          'clearPlan(SecurityTier.keychain)',
+        ]);
+      },
+    );
+
+    test(
+      'keychain write failure drops staged secret + throws + skips rekey/clearPlan',
+      () async {
+        final calls = <String>[];
+        await expectLater(
+          () => applyKeychainTier(
+            modifiers: const SecurityTierModifiers(),
+            stageRandomKey: () {
+              calls.add('stage');
+              return 'fake-secret-id';
+            },
+            keychainWriteFromSecret: (_) async {
+              calls.add('write');
+              return false;
+            },
+            applyAlwaysRekeyFromSecret: (_, _, _) async {
+              calls.add('rekey-SHOULD-NOT-FIRE');
+            },
+            dropStaged: (id) => calls.add('drop($id)'),
+            runClearPlan: (_) async {
+              calls.add('clearPlan-SHOULD-NOT-FIRE');
+            },
           ),
-        ),
-      );
-      expect(calls, ['randomKey', 'write']);
-    });
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'keychain write failed',
+            ),
+          ),
+        );
+        expect(calls, ['stage', 'write', 'drop(fake-secret-id)']);
+      },
+    );
   });
 
   group('applyHardwareTier', () {
-    test('happy path passes pin through to hardwareStore', () async {
+    test('happy path passes pin through to hardwareStoreFromSecret', () async {
       final calls = <String>[];
       String? capturedPin;
       await applyHardwareTier(
         modifiers: const SecurityTierModifiers(password: true),
         pin: 'pin-1',
-        randomKey: () {
-          calls.add('randomKey');
-          return Uint8List(32);
+        stageRandomKey: () {
+          calls.add('stage');
+          return 'fake-id';
         },
-        hardwareStore: ({required dbKey, required pin}) async {
+        hardwareStoreFromSecret: ({required secretId, required pin}) async {
           capturedPin = pin;
-          calls.add('seal');
+          calls.add('seal($secretId)');
           return true;
         },
-        applyAlwaysRekey: (_, level, _) async {
-          calls.add('rekey($level)');
+        applyAlwaysRekeyFromSecret: (id, level, _) async {
+          calls.add('rekey($level,$id)');
         },
+        dropStaged: (id) => calls.add('drop($id)'),
         runClearPlan: (target) async {
           calls.add('clearPlan($target)');
         },
       );
       expect(calls, [
-        'randomKey',
-        'seal',
-        'rekey(SecurityTier.hardware)',
+        'stage',
+        'seal(fake-id)',
+        'rekey(SecurityTier.hardware,fake-id)',
         'clearPlan(SecurityTier.hardware)',
       ]);
       expect(capturedPin, 'pin-1');
@@ -829,33 +837,38 @@ void main() {
       await applyHardwareTier(
         modifiers: const SecurityTierModifiers(),
         pin: null,
-        randomKey: () => Uint8List(32),
-        hardwareStore: ({required dbKey, required pin}) async {
+        stageRandomKey: () => 'fake-id',
+        hardwareStoreFromSecret: ({required secretId, required pin}) async {
           capturedPin = pin;
           return true;
         },
-        applyAlwaysRekey: (_, _, _) async {},
+        applyAlwaysRekeyFromSecret: (_, _, _) async {},
+        dropStaged: (_) {},
         runClearPlan: (_) async {},
       );
       expect(capturedPin, isNull);
     });
 
     test(
-      'seal failure throws hardware seal failed + skips rekey/clearPlan',
+      'seal failure drops staged secret + throws hardware seal failed + skips rekey/clearPlan',
       () async {
         final calls = <String>[];
         await expectLater(
           () => applyHardwareTier(
             modifiers: const SecurityTierModifiers(),
             pin: null,
-            randomKey: () => Uint8List(32),
-            hardwareStore: ({required dbKey, required pin}) async {
+            stageRandomKey: () {
+              calls.add('stage');
+              return 'fake-id';
+            },
+            hardwareStoreFromSecret: ({required secretId, required pin}) async {
               calls.add('seal');
               return false;
             },
-            applyAlwaysRekey: (_, _, _) async {
+            applyAlwaysRekeyFromSecret: (_, _, _) async {
               calls.add('rekey-SHOULD-NOT-FIRE');
             },
+            dropStaged: (id) => calls.add('drop($id)'),
             runClearPlan: (_) async {
               calls.add('clearPlan-SHOULD-NOT-FIRE');
             },
@@ -868,40 +881,45 @@ void main() {
             ),
           ),
         );
-        expect(calls, ['seal']);
+        expect(calls, ['stage', 'seal', 'drop(fake-id)']);
       },
     );
   });
 
   group('applyParanoidTier', () {
-    test(
-      'happy path: enable → rekey → clearPlan with the enabled key',
-      () async {
-        final calls = <String>[];
-        String? enabledWith;
-        await applyParanoidTier(
-          masterPassword: 'master-pw',
-          modifiers: const SecurityTierModifiers(password: true),
-          masterEnable: (pw) async {
-            enabledWith = pw;
-            calls.add('enable');
-            return Uint8List.fromList(List.filled(32, 0xCC));
-          },
-          applyAlwaysRekey: (key, level, _) async {
-            calls.add('rekey($level,key=${key.first.toRadixString(16)})');
-          },
-          runClearPlan: (target) async {
-            calls.add('clearPlan($target)');
-          },
-        );
-        expect(enabledWith, 'master-pw');
-        expect(calls, [
-          'enable',
-          'rekey(SecurityTier.paranoid,key=cc)',
-          'clearPlan(SecurityTier.paranoid)',
-        ]);
-      },
-    );
+    test('happy path: mintSecretId → enable → rekey → clearPlan', () async {
+      final calls = <String>[];
+      String? enabledWith;
+      String? capturedSecretId;
+      await applyParanoidTier(
+        masterPassword: 'master-pw',
+        modifiers: const SecurityTierModifiers(password: true),
+        mintSecretId: () {
+          calls.add('mint');
+          return 'fake-master-id';
+        },
+        masterEnableToSecret: (pw, secretId) async {
+          enabledWith = pw;
+          capturedSecretId = secretId;
+          calls.add('enable($secretId)');
+        },
+        applyAlwaysRekeyFromSecret: (id, level, _) async {
+          calls.add('rekey($level,$id)');
+        },
+        dropStaged: (id) => calls.add('drop($id)'),
+        runClearPlan: (target) async {
+          calls.add('clearPlan($target)');
+        },
+      );
+      expect(enabledWith, 'master-pw');
+      expect(capturedSecretId, 'fake-master-id');
+      expect(calls, [
+        'mint',
+        'enable(fake-master-id)',
+        'rekey(SecurityTier.paranoid,fake-master-id)',
+        'clearPlan(SecurityTier.paranoid)',
+      ]);
+    });
 
     test('null master password throws + no seams fire', () async {
       final calls = <String>[];
@@ -909,13 +927,17 @@ void main() {
         () => applyParanoidTier(
           masterPassword: null,
           modifiers: const SecurityTierModifiers(),
-          masterEnable: (_) async {
-            calls.add('enable-SHOULD-NOT-FIRE');
-            return Uint8List(32);
+          mintSecretId: () {
+            calls.add('mint-SHOULD-NOT-FIRE');
+            return 'x';
           },
-          applyAlwaysRekey: (_, _, _) async {
+          masterEnableToSecret: (_, _) async {
+            calls.add('enable-SHOULD-NOT-FIRE');
+          },
+          applyAlwaysRekeyFromSecret: (_, _, _) async {
             calls.add('rekey-SHOULD-NOT-FIRE');
           },
+          dropStaged: (_) {},
           runClearPlan: (_) async {
             calls.add('clearPlan-SHOULD-NOT-FIRE');
           },
@@ -936,8 +958,10 @@ void main() {
         () => applyParanoidTier(
           masterPassword: '',
           modifiers: const SecurityTierModifiers(),
-          masterEnable: (_) async => Uint8List(32),
-          applyAlwaysRekey: (_, _, _) async {},
+          mintSecretId: () => 'x',
+          masterEnableToSecret: (_, _) async {},
+          applyAlwaysRekeyFromSecret: (_, _, _) async {},
+          dropStaged: (_) {},
           runClearPlan: (_) async {},
         ),
         throwsA(
@@ -966,17 +990,18 @@ void main() {
           gateClear: () async {
             calls.add('gate.clear');
           },
-          randomKey: () {
-            calls.add('randomKey');
-            return Uint8List.fromList(List.filled(32, 0xAA));
+          stageRandomKey: () {
+            calls.add('stage');
+            return 'fake-id';
           },
-          keychainWriteKey: (key) async {
-            calls.add('keychainWrite');
+          keychainWriteFromSecret: (id) async {
+            calls.add('keychainWrite($id)');
             return writeOk;
           },
-          applyAlwaysRekey: (key, level, mods) async {
-            calls.add('rekey($level)');
+          applyAlwaysRekeyFromSecret: (id, level, mods) async {
+            calls.add('rekey($level,$id)');
           },
+          dropStaged: (id) => calls.add('drop($id)'),
           runClearPlan: (target) async {
             calls.add('clearPlan($target)');
           },
@@ -988,14 +1013,14 @@ void main() {
     }
 
     test(
-      'happy path runs gate.set → randomKey → write → rekey → clearPlan',
+      'happy path runs gate.set → stage → write → rekey → clearPlan',
       () async {
         final calls = await drive(short: 'pw-1');
         expect(calls, [
           'gate.set(pw-1)',
-          'randomKey',
-          'keychainWrite',
-          'rekey(SecurityTier.keychainWithPassword)',
+          'stage',
+          'keychainWrite(fake-id)',
+          'rekey(SecurityTier.keychainWithPassword,fake-id)',
           'clearPlan(SecurityTier.keychainWithPassword)',
         ]);
       },
@@ -1011,9 +1036,10 @@ void main() {
           modifiers: const SecurityTierModifiers(password: true),
           gateSetPassword: (_) async {},
           gateClear: () async {},
-          randomKey: () => Uint8List(32),
-          keychainWriteKey: (_) async => true,
-          applyAlwaysRekey: (_, _, _) async {},
+          stageRandomKey: () => 'fake-id',
+          keychainWriteFromSecret: (_) async => true,
+          applyAlwaysRekeyFromSecret: (_, _, _) async {},
+          dropStaged: (_) {},
           runClearPlan: (_) async {},
         ),
         throwsA(
@@ -1032,15 +1058,16 @@ void main() {
     });
 
     test(
-      'keychain write failure rolls back the gate password and throws',
+      'keychain write failure drops staged secret + rolls back the gate password and throws',
       () async {
         final calls = await drive(short: 'pw-1', writeOk: false);
         expect(calls, [
           'gate.set(pw-1)',
-          'randomKey',
-          'keychainWrite',
-          // No rekey, no clearPlan — the throw fires first; gate
-          // rollback fires before the throw.
+          'stage',
+          'keychainWrite(fake-id)',
+          // No rekey, no clearPlan — the throw fires first; staged
+          // drop + gate rollback fire before the throw.
+          'drop(fake-id)',
           'gate.clear',
         ]);
         await expectLater(
@@ -1049,9 +1076,10 @@ void main() {
             modifiers: const SecurityTierModifiers(password: true),
             gateSetPassword: (_) async {},
             gateClear: () async {},
-            randomKey: () => Uint8List(32),
-            keychainWriteKey: (_) async => false,
-            applyAlwaysRekey: (_, _, _) async {},
+            stageRandomKey: () => 'fake-id',
+            keychainWriteFromSecret: (_) async => false,
+            applyAlwaysRekeyFromSecret: (_, _, _) async {},
+            dropStaged: (_) {},
             runClearPlan: (_) async {},
           ),
           throwsA(

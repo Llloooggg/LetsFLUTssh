@@ -65,6 +65,25 @@ Future<Uint8List> masterPasswordEnable({
   params: params,
 );
 
+/// SecretRef variant of [`master_password_enable`]. Stages the
+/// derived key directly into [`lfs_core::secrets::SecretStore`]
+/// under [`secret_id`] instead of returning the bytes over FRB.
+/// Caller routes the same id through `db_rekey_from_secret` /
+/// `db_init_from_secret` so the AES bytes never touch the Dart
+/// heap.
+///
+/// Idempotent on `secret_id` collision: replaces any prior value at
+/// the same id (the previous `Zeroizing` buffer scrubs on drop).
+Future<void> masterPasswordEnableToSecret({
+  required String password,
+  required DbKdfParams params,
+  required String secretId,
+}) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordEnableToSecret(
+  password: password,
+  params: params,
+  secretId: secretId,
+);
+
 /// Verify the old password, then re-key under the new one. Returns
 /// the new derived key. `Err("Current password is incorrect")` on
 /// wrong old password — the Dart `MasterPasswordException` wrapper
@@ -97,6 +116,23 @@ void masterPasswordReset() =>
 Future<Uint8List?> masterPasswordVerifyAndDerive({required String password}) =>
     RustLib.instance.api.crateApiMasterPasswordMasterPasswordVerifyAndDerive(
       password: password,
+    );
+
+/// SecretRef variant of [`master_password_verify_and_derive`].
+/// Stages the derived key directly into
+/// [`lfs_core::secrets::SecretStore`] under `secret_id` (no FRB
+/// byte-crossing). Returns:
+/// * `Ok(true)` when the password was correct and bytes landed
+///   under `secret_id`.
+/// * `Ok(false)` on wrong password (no SecretStore mutation).
+/// * `Err(_)` for "tier not enabled" / "files corrupt".
+Future<bool> masterPasswordVerifyAndDeriveToSecret({
+  required String password,
+  required String secretId,
+}) => RustLib.instance.api
+    .crateApiMasterPasswordMasterPasswordVerifyAndDeriveToSecret(
+      password: password,
+      secretId: secretId,
     );
 
 /// FRB mirror of `lfs_core::security::master_password::KdfParams`.

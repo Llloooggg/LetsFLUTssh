@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/security/active_dbkey.dart';
 import 'package:letsflutssh/core/session/session_recorder.dart';
 import 'package:letsflutssh/features/recordings/recording_reader.dart';
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_secrets;
 import 'package:path/path.dart' as p;
 
 import '../../helpers/frb_bootstrap.dart';
@@ -46,7 +48,6 @@ void main() {
       shellLabel: 'bash',
       width: 80,
       height: 24,
-      dbKey: null,
     );
     expect(rec, isNotNull);
     rec!.recordOutput(utf8.encode('hello'));
@@ -67,13 +68,18 @@ void main() {
   });
 
   test('encrypted file: reader rebuilds the same lines', () async {
+    // Stage a deterministic DB key in the active SecretStore slot
+    // so the recorder picks the encrypted (.lfsr) branch and the
+    // reader can derive the same recording key. Caller drops the
+    // slot at the end so other tests start clean.
     final key = Uint8List.fromList(List.generate(32, (i) => i));
+    rust_secrets.secretsPut(id: kActiveDbKeySecretId, bytes: key);
+    addTearDown(() => rust_secrets.secretsDrop(id: kActiveDbKeySecretId));
     final rec = await SessionRecorder.open(
       sessionId: 'sb',
       shellLabel: 'bash',
       width: 80,
       height: 24,
-      dbKey: key,
     );
     expect(rec, isNotNull);
     rec!.recordOutput(utf8.encode('one'));
@@ -81,7 +87,7 @@ void main() {
     final path = await rec.close();
 
     final lines = <String>[];
-    await for (final dec in RecordingReader.openEncrypted(File(path!), key)) {
+    await for (final dec in RecordingReader.openEncrypted(File(path!))) {
       lines.add(dec.value);
     }
     expect(lines, hasLength(3));
@@ -97,15 +103,10 @@ void main() {
       shellLabel: 'bash',
       width: 132,
       height: 40,
-      dbKey: null,
     );
     rec!.recordOutput(utf8.encode('hi'));
     final path = await rec.close();
-    final meta = await RecordingReader.readMeta(
-      File(path!),
-      encrypted: false,
-      dbKey: null,
-    );
+    final meta = await RecordingReader.readMeta(File(path!), encrypted: false);
     expect(meta, isNotNull);
     expect(meta!.header.width, 132);
     expect(meta.header.height, 40);
@@ -113,13 +114,15 @@ void main() {
   });
 
   test('readMeta returns null on a corrupt encrypted file', () async {
+    // Active SecretStore slot must be populated; otherwise the reader
+    // throws "no active key" before it ever gets to the corrupt-bytes
+    // branch we're trying to exercise.
+    final key = Uint8List.fromList(List.generate(32, (i) => i));
+    rust_secrets.secretsPut(id: kActiveDbKeySecretId, bytes: key);
+    addTearDown(() => rust_secrets.secretsDrop(id: kActiveDbKeySecretId));
     final f = File(p.join(tempDir.path, 'corrupt.lfsr'));
     await f.writeAsBytes([0xFF, 0xFE, 0xFD, 0xFC, 0x01]);
-    final meta = await RecordingReader.readMeta(
-      f,
-      encrypted: true,
-      dbKey: Uint8List(32),
-    );
+    final meta = await RecordingReader.readMeta(f, encrypted: true);
     expect(meta, isNull);
   });
 
@@ -132,6 +135,11 @@ void main() {
   // opening the recordings panel. The reader now rejects any frame
   // whose declared plaintext length exceeds the per-frame cap.
   test('rejects oversized frame length prefix without allocating', () async {
+    // Same staging as the corrupt-file test — the reader has to
+    // accept a key before it can hit the per-frame size cap.
+    final key = Uint8List.fromList(List.generate(32, (i) => i));
+    rust_secrets.secretsPut(id: kActiveDbKeySecretId, bytes: key);
+    addTearDown(() => rust_secrets.secretsDrop(id: kActiveDbKeySecretId));
     final f = File(p.join(tempDir.path, 'oversized.lfsr'));
     final bytes = <int>[
       // Magic + version.
@@ -141,11 +149,7 @@ void main() {
       0xFF, 0xFF, 0xFF, 0xFF,
     ];
     await f.writeAsBytes(bytes);
-    final meta = await RecordingReader.readMeta(
-      f,
-      encrypted: true,
-      dbKey: Uint8List(32),
-    );
+    final meta = await RecordingReader.readMeta(f, encrypted: true);
     // readMeta wraps every error as Ok(None) so the panel can list
     // the file with a delete button. The bound-check is what we're
     // really asserting — without the cap the await above would

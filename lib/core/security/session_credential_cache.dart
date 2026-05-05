@@ -44,17 +44,17 @@ class SessionCredentialCache {
 
   static Future<void> _putOrDrop(String id, String? value) async {
     if (value == null || value.isEmpty) {
-      await rust_app.secretsDrop(id: id);
+      rust_app.secretsDrop(id: id);
       return;
     }
-    await rust_app.secretsPut(id: id, bytes: utf8.encode(value));
+    rust_app.secretsPut(id: id, bytes: utf8.encode(value));
   }
 
   /// Evict one entry. Drops every slot under that sessionId.
   Future<void> evict(String sessionId) async {
-    await rust_app.secretsDrop(id: _passwordId(sessionId));
-    await rust_app.secretsDrop(id: _keyDataId(sessionId));
-    await rust_app.secretsDrop(id: _passphraseId(sessionId));
+    rust_app.secretsDrop(id: _passwordId(sessionId));
+    rust_app.secretsDrop(id: _keyDataId(sessionId));
+    rust_app.secretsDrop(id: _passphraseId(sessionId));
   }
 
   /// Evict every entry. Maps to `secrets_clear` on the Rust side —

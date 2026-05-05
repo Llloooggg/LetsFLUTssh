@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/tier_transition_marker.dart' as rust_ttm;
@@ -150,4 +151,62 @@ class SecurityTierSwitcher {
     //    signal the next startup relies on.
     await clearMarker();
   }
+
+  /// SecretRef variant of [switchTier]. Identical orchestration but
+  /// the new DB key is provided indirectly through a SecretStore id:
+  /// the new bytes never land on the Dart heap. Caller stages the
+  /// secret upstream (typically `cryptoAesGcmRandomKeyToSecret`),
+  /// hands the id here, the switcher routes it through
+  /// `dbRekeyFromSecret` for the SQLCipher rekey, and the wrapper /
+  /// persistConfig callbacks receive the same id so they can run
+  /// their own SecretRef-aware writes (`keychain_write_from_secret`
+  /// / `hardware_tier_vault_store_from_secret` / `setFromSecret`).
+  ///
+  /// SecretStore entry survives the rekey + wrappers — `db_rekey_from_secret`
+  /// uses `secrets_get`, not `take`. Caller is responsible for
+  /// dropping the entry once every downstream consumer has had its
+  /// turn (typical shape: `_injectDatabase(secretId: ...)` →
+  /// `dbInitFromSecret` → `secrets_take`).
+  Future<void> switchTierFromSecret({
+    required String secretId,
+    required String targetMarkerPayload,
+    required Future<void> Function(String secretId) applyWrapperFromSecret,
+    required Future<void> Function(String secretId) persistConfigFromSecret,
+    required Future<void> Function() clearPrevious,
+  }) async {
+    // 1 + 2. Write marker.
+    final dir = await _supportDir();
+    rust_ttm.tierTransitionMarkerWrite(
+      supportDir: dir,
+      payload: targetMarkerPayload,
+    );
+
+    // 3. Atomic rekey via SecretRef. SecretStore entry survives —
+    //    `db_rekey_from_secret` uses `secrets_get`, not `take`.
+    try {
+      await rust_app.dbRekeyFromSecret(secretId: secretId);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Tier switch rekey (SecretRef) failed: $e',
+        name: 'SecurityTierSwitcher',
+      );
+      rethrow;
+    }
+
+    // 4. Wrap the new key in the target tier's vault.
+    await applyWrapperFromSecret(secretId);
+
+    // 5. Persist the new config.
+    await persistConfigFromSecret(secretId);
+
+    // 6. Drop the old tier's state.
+    await clearPrevious();
+
+    // 7. Marker cleared last — its absence is the "all good"
+    //    signal the next startup relies on.
+    await clearMarker();
+  }
 }
+
+/// Mint a unique SecretStore id for tier-switch DB-key staging.
+String mintTierSwitchSecretId() => 'tier-switch.dbkey.${const Uuid().v4()}';

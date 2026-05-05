@@ -159,13 +159,14 @@ extension _BiometricFlow on _SecuritySectionState {
       rebuild(() => _biometricEnabled = false);
       return;
     }
-    // Enable path — we have a candidate key (zero-length means "pull
-    // from the freshly-applied tier").
-    Uint8List? key = keyFromEnable;
-    if (key != null && key.isEmpty) {
-      key = ref.read(securityStateProvider).encryptionKey;
-    }
-    if (key == null) return;
+    // Enable path. Two flavours:
+    //   * `keyFromEnable.isEmpty` — sentinel for "use the active
+    //     tier's freshly-applied DB key". Routes through the
+    //     SecretRef path (`storeFromActive`) so the bytes never
+    //     touch the Dart heap on this call.
+    //   * `keyFromEnable` non-empty — caller already derived a key
+    //     Dart-side (legacy bytes path; tracked as Phase-2 follow-up
+    //     for the password-derivation paths).
     final bio = ref.read(biometricAuthProvider);
     final l10n = S.of(context);
     if (!await bio.authenticate(l10n.biometricUnlockPrompt)) {
@@ -178,7 +179,15 @@ extension _BiometricFlow on _SecuritySectionState {
       }
       return;
     }
-    final stored = await ref.read(biometricKeyVaultProvider).store(key);
+    final vault = ref.read(biometricKeyVaultProvider);
+    final bool stored;
+    if (keyFromEnable == null) {
+      return;
+    } else if (keyFromEnable.isEmpty) {
+      stored = await vault.storeFromActive();
+    } else {
+      stored = await vault.store(keyFromEnable);
+    }
     if (!mounted) return;
     if (!stored) {
       Toast.show(

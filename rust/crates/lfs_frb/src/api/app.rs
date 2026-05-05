@@ -24,12 +24,15 @@ pub fn secrets_put(id: String, bytes: Vec<u8>) {
 
 /// Whether [id] has a stored secret. Used by Dart UI to render
 /// "password set"/"key configured" badges without ever touching the
-/// plaintext.
+/// plaintext. Sync — single hashmap probe.
+#[flutter_rust_bridge::frb(sync)]
 pub fn secrets_has(id: String) -> bool {
     lfs_core::app::instance().secrets.has(&id)
 }
 
-/// Drop the secret under [id]. Idempotent.
+/// Drop the secret under [id]. Idempotent. Sync — single hashmap
+/// remove.
+#[flutter_rust_bridge::frb(sync)]
 pub fn secrets_drop(id: String) {
     lfs_core::app::instance().secrets.drop_id(&id);
 }
@@ -54,6 +57,22 @@ pub fn secrets_take(id: String) -> Vec<u8> {
     lfs_core::app::instance()
         .secrets
         .take(&id)
+        .map(|buf| buf.to_vec())
+        .unwrap_or_default()
+}
+
+/// Read the bytes stored under [`id`] WITHOUT removing the entry.
+/// Used by hardware-vault store flows that still need the raw bytes
+/// for a TPM CLI shell-out / Windows MethodChannel call but want
+/// the SecretStore entry to survive so the follow-up
+/// `secrets_take` for drift's sqlcipher rekey still has something
+/// to consume. Returns an empty `Vec` when the id is missing —
+/// caller branches on `bytes.isEmpty`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn secrets_get(id: String) -> Vec<u8> {
+    lfs_core::app::instance()
+        .secrets
+        .get(&id)
         .map(|buf| buf.to_vec())
         .unwrap_or_default()
 }
@@ -94,6 +113,46 @@ pub async fn db_init(path: String, key: Vec<u8>) -> Result<(), String> {
     .map_err(|e| format!("db_init task: {e}"))?
 }
 
+/// SecretRef variant of [`db_init`]. Pulls the SQLCipher key from
+/// the process-singleton `SecretStore` under [`secret_id`] and hands
+/// it to `Db::open` without the bytes ever crossing the FRB
+/// boundary. On success the entry is renamed to
+/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] so every downstream
+/// consumer (recorder HKDF, biometric vault store, mid-session
+/// reopen) reads from the canonical slot — there is exactly one
+/// place the running key lives.
+///
+/// `secret_id` empty string OR a missing-id case both fall through
+/// to the unencrypted (plaintext-tier) path so test fixtures that
+/// "open with no key" stay symmetric with [`db_init`]'s
+/// `Vec::new()` behaviour. In the plaintext branch the active slot
+/// is dropped (auto-lock semantics).
+pub async fn db_init_from_secret(path: String, secret_id: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        if secret_id.is_empty() {
+            app.secrets
+                .drop_id(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID);
+            return app
+                .db_init(std::path::Path::new(&path), &[])
+                .map_err(|e| e.to_string());
+        }
+        let key = app
+            .secrets
+            .get(&secret_id)
+            .ok_or_else(|| format!("secret not found: {secret_id}"))?;
+        app.db_init(std::path::Path::new(&path), &key)
+            .map_err(|e| e.to_string())?;
+        // Promote source → active. `rename` is atomic; a no-op when
+        // source already matches the active slot id.
+        app.secrets
+            .rename(&secret_id, lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID);
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("db_init_from_secret task: {e}"))?
+}
+
 /// Drop the running Rust DB handle. Idempotent. Used by the auto-
 /// lock path to wipe SQLCipher's C-layer page-cipher state when the
 /// user steps away. Unlock re-calls `db_init` to bring the handle
@@ -115,6 +174,31 @@ pub async fn db_rekey(new_key: Vec<u8>) -> Result<(), String> {
     })
     .await
     .map_err(|e| format!("db_rekey task: {e}"))?
+}
+
+/// SecretRef variant of [`db_rekey`]. Reads the new key from
+/// [`lfs_core::secrets::SecretStore`] under [`secret_id`]; on a
+/// successful `PRAGMA rekey` the entry is renamed to
+/// [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] so the running key
+/// lives in the canonical slot. Same atomicity semantics as
+/// `db_rekey`: SQLCipher either re-encrypts every page under the
+/// new key or leaves the DB on the old key. Bytes never cross the
+/// FRB boundary.
+pub async fn db_rekey_from_secret(secret_id: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        let new_key = app
+            .secrets
+            .get(&secret_id)
+            .ok_or_else(|| format!("secret not found: {secret_id}"))?;
+        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        db.rekey(&new_key).map_err(|e| e.to_string())?;
+        app.secrets
+            .rename(&secret_id, lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID);
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("db_rekey_from_secret task: {e}"))?
 }
 
 /// Smoke-test query — returns the count of rows in `sqlite_master`.

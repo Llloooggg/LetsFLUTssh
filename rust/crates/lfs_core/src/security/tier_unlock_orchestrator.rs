@@ -33,15 +33,18 @@ use crate::security::SecurityTier;
 
 /// Canonical SecretStore id the per-tier orchestrators stage
 /// the resolved DB key under just before emitting
-/// `UnlockSucceeded`. The Dart bus listener subscribed to
-/// `TierStateChanged.unlocked` takes the bytes via
-/// `secrets_take` (atomic read-and-remove) and hands them to
-/// drift; the SecretStore entry is gone after the take.
+/// `UnlockSucceeded`. Re-exports the global
+/// `ACTIVE_DBKEY_SECRET_ID` constant so the orchestrator stages
+/// directly into the running session's active slot — the Dart
+/// listener routes `db_init_from_secret(ACTIVE)` without an
+/// intermediate take + re-stage hop, and downstream consumers
+/// (recorder HKDF, biometric vault store) read from the same
+/// slot through their own SecretRef-aware FRB shims.
 ///
-/// Plaintext stages an empty buffer so the listener's
-/// `secrets_take` call returns the empty `Vec` consistent
-/// with the "no key" tier shape.
-pub const TIER_UNLOCK_KEY_ID: &str = "tier.unlock.key";
+/// Plaintext stages an empty buffer; the listener's plaintext
+/// branch sees `secrets_get` return empty and routes through the
+/// unencrypted `db_init` path.
+pub const TIER_UNLOCK_KEY_ID: &str = crate::secrets::ACTIVE_DBKEY_SECRET_ID;
 
 /// Result of a per-tier unlock attempt. The bytes never cross
 /// FRB — `Staged` means the key sits in the SecretStore under

@@ -195,6 +195,28 @@ class MasterPasswordManager {
     }
   }
 
+  /// SecretRef variant of [enable]. Stages the derived key directly
+  /// into the Rust-side `SecretStore` under [secretId] instead of
+  /// returning the bytes — caller routes the same id through
+  /// `dbRekeyFromSecret` / `setFromSecret` so the AES bytes never
+  /// touch the Dart heap.
+  Future<void> enableToSecret(String password, String secretId) async {
+    await _getBasePath();
+    try {
+      await rust_mp.masterPasswordEnableToSecret(
+        password: password,
+        params: _wireParams(_defaultParams),
+        secretId: secretId,
+      );
+      AppLogger.instance.log(
+        'Master password enabled (Argon2id, SecretRef)',
+        name: 'MasterPassword',
+      );
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
+    }
+  }
+
   /// Change master password.
   ///
   /// 1. Verify old password

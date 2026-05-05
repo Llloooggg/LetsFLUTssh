@@ -55,7 +55,6 @@ void main() {
       shellLabel: 'bash',
       width: 80,
       height: 24,
-      dbKey: null,
     );
     expect(rec, isNotNull);
     rec!.recordOutput(utf8.encode('hello'));
@@ -85,7 +84,6 @@ void main() {
       shellLabel: 'bash',
       width: 80,
       height: 24,
-      dbKey: null,
     );
     final first = await rec!.close();
     final again = await rec.close();
@@ -98,7 +96,6 @@ void main() {
       shellLabel: 'bash',
       width: 80,
       height: 24,
-      dbKey: null,
     );
     await rec!.close();
     rec.recordOutput(utf8.encode('ignored'));
@@ -115,7 +112,6 @@ void main() {
       shellLabel: 'bash',
       width: 80,
       height: 24,
-      dbKey: null,
     );
     rec!.recordOutput(utf8.encode('café 漢 🎉'));
     final path = await rec.close();

@@ -6,10 +6,11 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../src/rust/api/app.dart' as rust_secrets;
 import '../../src/rust/api/bus.dart' as rust_bus;
-import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
+import '../security/active_dbkey.dart' as rust_secrets_consts;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
@@ -117,21 +118,30 @@ class SessionRecorder {
 
   /// Open a recorder rooted at the platform's app-support directory.
   ///
-  /// [dbKey] is the running session's DB encryption key; when null
-  /// the recorder writes plaintext asciinema (`.cast`) instead of
-  /// encrypted (`.lfsr`). Returns null if the underlying directory
-  /// cannot be created — caller treats null as "recording disabled
-  /// silently for this session" rather than blocking the connect.
+  /// Encryption mode is decided Rust-side from the running session's
+  /// active DB key in `SecretStore` — when `app.dbkey.active` holds
+  /// bytes the recorder writes encrypted `.lfsr`, when the slot is
+  /// empty (plaintext tier) it writes raw asciinema `.cast`. The DB
+  /// key never crosses the FRB boundary on this path; HKDF-derive
+  /// to the recorder key happens entirely Rust-side via
+  /// `recorder_register_from_active`.
+  ///
+  /// Returns null if the underlying directory cannot be created —
+  /// caller treats null as "recording disabled silently for this
+  /// session" rather than blocking the connect.
   static Future<SessionRecorder?> open({
     required String sessionId,
     required String shellLabel,
     required int width,
     required int height,
-    required Uint8List? dbKey,
   }) async {
     try {
       final dir = await _ensureDirectory(sessionId);
-      final encrypted = dbKey != null;
+      // Active-slot presence determines wire format. `secretsHas` is
+      // a sync FRB lookup — single hashmap probe Rust-side.
+      final encrypted = rust_secrets.secretsHas(
+        id: rust_secrets_consts.kActiveDbKeySecretId,
+      );
       final ext = encrypted ? 'lfsr' : 'cast';
       final isoTs = _isoTimestamp();
       final path = p.join(dir.path, '$isoTs.$ext');
@@ -141,17 +151,17 @@ class SessionRecorder {
       final file = File(path);
       await file.create();
       await hardenFilePerms(path);
-      final key = encrypted ? await _deriveKey(dbKey) : null;
       final handleId = const Uuid().v4();
-      // Rust opens the file in append mode and writes the LFR1
-      // magic + version when `key` is non-empty. Plaintext mode
-      // (empty key bytes) leaves the file untouched at open so the
-      // result stays a valid asciinema document.
-      await rust_recorder.recorderRegister(
+      // Rust pulls the DB key from `SecretStore.app.dbkey.active`,
+      // runs the `letsflutssh-recording-v1` HKDF-SHA256 derive
+      // in-process, and registers the recorder under the derived
+      // key. When the active slot is empty (plaintext tier) the
+      // recorder registers in plaintext-asciinema mode and the
+      // file stays a valid asciinema document.
+      await rust_recorder.recorderRegisterFromActive(
         id: handleId,
         sessionId: sessionId,
         path: path,
-        key: key ?? Uint8List(0),
       );
       // Spawn the per-id worker before any enqueue arrives. The
       // worker owns the asciinema event ordering on disk.
@@ -247,22 +257,6 @@ class SessionRecorder {
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }
-
-  static Future<Uint8List> _deriveKey(Uint8List dbKey) async {
-    final out = await rust_crypto.cryptoHkdfSha256(
-      ikm: dbKey,
-      salt: Uint8List(0),
-      info: _hkdfInfo,
-      length: 32,
-    );
-    return Uint8List.fromList(out);
-  }
-
-  // Distinct from any other HKDF context the app uses so a key
-  // recovered from a recording cannot decrypt the DB and vice versa.
-  static final Uint8List _hkdfInfo = Uint8List.fromList(
-    'letsflutssh-recording-v1'.codeUnits,
-  );
 
   void _enqueueEvent(List<int> bytes, RecordDirection dir) {
     if (_closed || bytes.isEmpty) return;

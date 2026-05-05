@@ -112,6 +112,31 @@ pub async fn hardware_tier_vault_store(
     .map_err(|e| format!("hw_vault store join: {e}"))?
 }
 
+/// Variant of [`hardware_tier_vault_store`] that pulls `db_key` from
+/// [`lfs_core::secrets::SecretStore`] under [`secret_id`] instead of
+/// taking it across the FRB boundary. Same SecretRef shape as
+/// [`super::secure_key_storage::secure_storage_write_from_secret`]
+/// — bytes never touch the Dart heap on the way to the hardware
+/// vault. The SecretStore entry survives the call so the caller can
+/// also feed `secrets_take(id)` into drift's sqlcipher rekey before
+/// dropping the ref.
+pub async fn hardware_tier_vault_store_from_secret(
+    support_dir: String,
+    secret_id: String,
+    pin_hmac: Vec<u8>,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let bytes = lfs_core::app::instance()
+            .secrets
+            .get(&secret_id)
+            .ok_or_else(|| format!("secret not found: {secret_id}"))?;
+        lfs_os_security::hardware_tier_vault::store(&support_dir, &bytes, &pin_hmac)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("hw_vault store_from_secret join: {e}"))?
+}
+
 pub async fn hardware_tier_vault_read(
     support_dir: String,
     pin_hmac: Vec<u8>,
@@ -122,6 +147,32 @@ pub async fn hardware_tier_vault_read(
     })
     .await
     .map_err(|e| format!("hw_vault read join: {e}"))?
+}
+
+/// SecretRef variant of [`hardware_tier_vault_read`]. Unwraps the
+/// hardware-bound DB key and stages it in
+/// [`lfs_core::secrets::SecretStore`] under `secret_id` so the
+/// bytes never cross the FRB boundary. Returns `Ok(true)` on
+/// successful unwrap, `Ok(false)` on missing vault file / wrong
+/// PIN, `Err(_)` on backend errors.
+pub async fn hardware_tier_vault_read_to_secret(
+    support_dir: String,
+    pin_hmac: Vec<u8>,
+    secret_id: String,
+) -> Result<bool, String> {
+    tokio::task::spawn_blocking(move || {
+        match lfs_os_security::hardware_tier_vault::read(&support_dir, &pin_hmac)
+            .map_err(|e| e.to_string())?
+        {
+            Some(bytes) if !bytes.is_empty() => {
+                lfs_core::app::instance().secrets.put(&secret_id, &bytes);
+                Ok::<_, String>(true)
+            }
+            _ => Ok(false),
+        }
+    })
+    .await
+    .map_err(|e| format!("hw_vault read_to_secret join: {e}"))?
 }
 
 pub async fn hardware_tier_vault_clear(support_dir: String) -> Result<(), String> {

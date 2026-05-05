@@ -93,9 +93,10 @@ extension _TierApply on _SecuritySectionState {
     final keyStorage = ref.read(secureKeyStorageProvider);
     await applyKeychainTier(
       modifiers: result.modifiers,
-      randomKey: rust_crypto.cryptoAesGcmRandomKey,
-      keychainWriteKey: keyStorage.writeKey,
-      applyAlwaysRekey: _applyAlwaysRekey,
+      stageRandomKey: _stageRandomKey,
+      keychainWriteFromSecret: keyStorage.writeKeyFromSecret,
+      applyAlwaysRekeyFromSecret: _applyAlwaysRekeyFromSecret,
+      dropStaged: _dropStaged,
       runClearPlan: _runVaultClearPlan,
     );
   }
@@ -113,9 +114,10 @@ extension _TierApply on _SecuritySectionState {
       modifiers: result.modifiers,
       gateSetPassword: gate.setPassword,
       gateClear: gate.clear,
-      randomKey: rust_crypto.cryptoAesGcmRandomKey,
-      keychainWriteKey: keyStorage.writeKey,
-      applyAlwaysRekey: _applyAlwaysRekey,
+      stageRandomKey: _stageRandomKey,
+      keychainWriteFromSecret: keyStorage.writeKeyFromSecret,
+      applyAlwaysRekeyFromSecret: _applyAlwaysRekeyFromSecret,
+      dropStaged: _dropStaged,
       runClearPlan: _runVaultClearPlan,
     );
   }
@@ -128,9 +130,10 @@ extension _TierApply on _SecuritySectionState {
     await applyHardwareTier(
       modifiers: result.modifiers,
       pin: result.takePin(),
-      randomKey: rust_crypto.cryptoAesGcmRandomKey,
-      hardwareStore: hwVault.store,
-      applyAlwaysRekey: _applyAlwaysRekey,
+      stageRandomKey: _stageRandomKey,
+      hardwareStoreFromSecret: hwVault.storeFromSecret,
+      applyAlwaysRekeyFromSecret: _applyAlwaysRekeyFromSecret,
+      dropStaged: _dropStaged,
       runClearPlan: _runVaultClearPlan,
     );
   }
@@ -140,10 +143,28 @@ extension _TierApply on _SecuritySectionState {
     await applyParanoidTier(
       masterPassword: result.takeMasterPassword(),
       modifiers: result.modifiers,
-      masterEnable: manager.enable,
-      applyAlwaysRekey: _applyAlwaysRekey,
+      mintSecretId: mintTierSwitchSecretId,
+      masterEnableToSecret: manager.enableToSecret,
+      applyAlwaysRekeyFromSecret: _applyAlwaysRekeyFromSecret,
+      dropStaged: _dropStaged,
       runClearPlan: _runVaultClearPlan,
     );
+  }
+
+  /// Mint a SecretStore id and stage a fresh AES-256 key under it.
+  /// Returns the id for downstream consumers (`keychainWriteFromSecret`,
+  /// `applyAlwaysRekeyFromSecret`).
+  String _stageRandomKey() {
+    final id = mintTierSwitchSecretId();
+    rust_crypto.cryptoAesGcmRandomKeyToSecret(id: id);
+    return id;
+  }
+
+  /// Drop a previously-staged SecretStore id. Used by the helpers'
+  /// failure paths so a write-rejected secret does not linger
+  /// Rust-side until the next process exit.
+  void _dropStaged(String secretId) {
+    rust_app.secretsDrop(id: secretId);
   }
 
   /// Drive the per-target vault clear matrix from
@@ -176,64 +197,81 @@ extension _TierApply on _SecuritySectionState {
   /// crash leaves the `.tier-transition-pending` marker on disk; the
   /// next launch logs and clears it in `main._initSecurity` before
   /// falling through to the standard unlock path.
+  /// Plaintext-target rekey path. The non-plaintext tiers route
+  /// through [_applyAlwaysRekeyFromSecret] (SecretRef-aware) so this
+  /// helper now serves only the `applyPlaintextTier` caller, which
+  /// passes `key == null` to land the DB on the unencrypted cipher.
+  /// The signature stays compatible with `applyPlaintextTier`'s
+  /// callback shape so tests + the helper's contract don't shift
+  /// just to drop a no-longer-used branch.
   Future<void> _applyAlwaysRekey(
     Uint8List? key,
     SecurityTier level, [
     SecurityTierModifiers? modifiers,
   ]) async {
-    final resolvedMods = modifiers ?? SecurityTierModifiers.defaults;
-    // Marker payload carries tier + modifiers so a crash-recovery
-    // path can reconstruct the target config and drive the right
-    // unlock prompt (password? biometric? no gate?) instead of
-    // falling back to whatever the enum alone suggests. JSON shape
-    // lives in `security_section_logic.buildTierMarkerPayload`.
-    final markerPayload = buildTierMarkerPayload(level, resolvedMods);
-    // Bind the constructor-time callback to the supplied key. The
-    // tier-secret unlock dialog routes the freshly-derived key here,
-    // so the override path uses the user's key (not a fresh random
-    // one). A fresh switcher instance per call is fine — the marker
-    // file is the authoritative state, not the instance.
-    final switcher = SecurityTierSwitcher(
-      keyFactory: () => key ?? Uint8List(0),
+    assert(
+      key == null,
+      'non-plaintext tiers route through _applyAlwaysRekeyFromSecret',
     );
-
-    if (key == null) {
-      // Plaintext target — no rekey to run, no key for the vault to
-      // wrap. Just clear the marker (in case a stale one is on
-      // disk) and flip the provider so consumers stop holding the
-      // previous key.
-      try {
-        await switcher.clearMarker();
-        ref.read(securityStateProvider.notifier).clearEncryption();
-      } catch (_) {}
-      return;
+    final switcher = SecurityTierSwitcher();
+    try {
+      await switcher.clearMarker();
+      ref.read(securityStateProvider.notifier).clearEncryption();
+    } catch (_) {}
+    final existing = ref.read(configProvider).security;
+    final next = SecurityConfig(
+      tier: level,
+      modifiers: modifiers ?? SecurityTierModifiers.defaults,
+    );
+    if (existing != next) {
+      await ref
+          .read(configProvider.notifier)
+          .update((cfg) => cfg.copyWithSecurity(security: next));
     }
+  }
 
-    await switcher.switchTier(
-      targetMarkerPayload: markerPayload,
-      applyWrapper: (_) async {
-        // `key != null` guaranteed by the early return above.
-        ref.read(securityStateProvider.notifier).set(level, key);
-      },
-      persistConfig: (_) async {
-        // Persist tier + modifiers atomically inside the switch so a
-        // crash after rekey but before config-write does not leave
-        // the DB on the new cipher with the old tier label in
-        // config.json (the legacy main.dart path only persisted on
-        // provider flip and dropped the modifier field).
-        final existing = ref.read(configProvider).security;
-        final next = SecurityConfig(tier: level, modifiers: resolvedMods);
-        if (existing == next) return;
-        await ref
-            .read(configProvider.notifier)
-            .update((cfg) => cfg.copyWithSecurity(security: next));
-      },
-      clearPrevious: () async {
-        // Previous-tier cleanup (biometric vault clear, keychain
-        // delete, credentials.kdf remove) is handled by the
-        // specific enable/disable/change/remove methods that call
-        // into `_applyAlwaysRekey`.
-      },
-    );
+  /// SecretRef variant of [_applyAlwaysRekey]. Routes through
+  /// [SecurityTierSwitcher.switchTierFromSecret] so the new DB key
+  /// never lands on the Dart heap — `dbRekeyFromSecret` reads it
+  /// Rust-side via `secrets_get` and atomically promotes the source
+  /// id to `app.dbkey.active` on success. The Riverpod state then
+  /// only needs the tier enum + a `hasActiveDbKey: true` flag; no
+  /// bytes Dart-side. The `finally` drop covers failure paths
+  /// before the promote — on success the source id has already
+  /// been renamed away, so the drop is a no-op.
+  Future<void> _applyAlwaysRekeyFromSecret(
+    String secretId,
+    SecurityTier level,
+    SecurityTierModifiers modifiers,
+  ) async {
+    final markerPayload = buildTierMarkerPayload(level, modifiers);
+    final switcher = SecurityTierSwitcher();
+
+    try {
+      await switcher.switchTierFromSecret(
+        secretId: secretId,
+        targetMarkerPayload: markerPayload,
+        applyWrapperFromSecret: (_) async {
+          ref
+              .read(securityStateProvider.notifier)
+              .setActive(level, hasKey: true);
+        },
+        persistConfigFromSecret: (_) async {
+          final existing = ref.read(configProvider).security;
+          final next = SecurityConfig(tier: level, modifiers: modifiers);
+          if (existing == next) return;
+          await ref
+              .read(configProvider.notifier)
+              .update((cfg) => cfg.copyWithSecurity(security: next));
+        },
+        clearPrevious: () async {},
+      );
+    } finally {
+      // No-op on success — `db_rekey_from_secret` already renamed the
+      // source slot to `ACTIVE_DBKEY_SECRET_ID`. On failure (rekey
+      // throws before the rename) the transient bytes are still
+      // resident; drop them so they don't outlive the rekey window.
+      rust_app.secretsDrop(id: secretId);
+    }
   }
 }

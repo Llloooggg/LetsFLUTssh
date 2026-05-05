@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import '../../src/rust/api/crypto.dart' as rust_crypto;
+import '../../src/rust/api/recorder.dart' as rust_recorder;
 
 /// One asciinema-v2 event read out of a recording file. The fields
 /// mirror the JSON-Lines schema 1:1 — `timestamp` is seconds-since-
@@ -59,7 +60,6 @@ class RecordingHeader {
 class RecordingReader {
   RecordingReader._();
 
-  static const _hkdfInfo = 'letsflutssh-recording-v1';
   static const List<int> _expectedMagic = [0x4C, 0x46, 0x52, 0x31];
 
   /// Per-frame plaintext-length cap for `.lfsr` envelopes. The
@@ -87,14 +87,19 @@ class RecordingReader {
     }
   }
 
-  /// Walk an encrypted `.lfsr` recording. [dbKey] is the running
-  /// session's DB encryption key; the recording key is derived
-  /// from it via the same HKDF-SHA-256 chain the recorder used.
-  static Stream<RecordingDecodedLine> openEncrypted(
-    File file,
-    Uint8List dbKey,
-  ) async* {
-    final key = await _deriveKey(dbKey);
+  /// Walk an encrypted `.lfsr` recording. The recording key is
+  /// derived Rust-side from
+  /// `lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID` via
+  /// `recorderDeriveKeyFromActive` — the DB key never lands on the
+  /// Dart heap on this path. Throws when the active slot is empty
+  /// (plaintext tier — encrypted recordings cannot be opened).
+  static Stream<RecordingDecodedLine> openEncrypted(File file) async* {
+    final key = await rust_recorder.recorderDeriveKeyFromActive();
+    if (key.isEmpty) {
+      throw const RecordingFormatException(
+        'No active DB key — encrypted recording cannot be opened',
+      );
+    }
     final raf = file.openSync();
     try {
       // Magic + version sniff. Throw early so the playback UI can
@@ -157,10 +162,9 @@ class RecordingReader {
   static Future<RecordingMeta?> readMeta(
     File file, {
     required bool encrypted,
-    required Uint8List? dbKey,
   }) async {
     try {
-      final stream = encrypted ? openEncrypted(file, dbKey!) : openCast(file);
+      final stream = encrypted ? openEncrypted(file) : openCast(file);
       RecordingHeader? header;
       var lastTimestamp = 0.0;
       var eventCount = 0;
@@ -186,16 +190,6 @@ class RecordingReader {
       // size and offer a delete button.
       return null;
     }
-  }
-
-  static Future<Uint8List> _deriveKey(Uint8List dbKey) async {
-    final out = await rust_crypto.cryptoHkdfSha256(
-      ikm: dbKey,
-      salt: Uint8List(0),
-      info: Uint8List.fromList(_hkdfInfo.codeUnits),
-      length: 32,
-    );
-    return Uint8List.fromList(out);
   }
 }
 

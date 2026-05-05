@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../src/rust/api/app.dart' as rust_secrets;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/file_utils.dart';
@@ -261,6 +262,81 @@ class HardwareTierVault {
     } catch (e) {
       AppLogger.instance.log(
         'HardwareTierVault.store failed: $e',
+        name: 'HardwareTierVault',
+      );
+      return false;
+    }
+  }
+
+  /// SecretRef variant — pulls the DB key from the Rust-side
+  /// `SecretStore` under [secretId] instead of materialising it as
+  /// `Uint8List` Dart-side. Mirrors [store]'s semantics platform by
+  /// platform; on Linux + the MethodChannel paths we still have to
+  /// take the bytes (`secrets_get` Rust-side, but the bytes flow back
+  /// over FRB once for the TPM CLI shell-out and the Windows plugin
+  /// call). On the unified Apple / Android Rust path we route through
+  /// `hardware_tier_vault_store_from_secret` which reads the
+  /// SecretStore Rust-internally.
+  Future<bool> storeFromSecret({required String secretId, String? pin}) async {
+    try {
+      if (!await isAvailable()) return false;
+      final salt = _randomBytes(_saltLength);
+      final authValue = _deriveAuth(pin, salt);
+      if (Platform.isLinux) {
+        // TPM CLI seal still takes raw bytes — pull from the store
+        // for this one materialisation; the original is left in the
+        // store so the caller can also feed drift via secrets_take.
+        final keyBytes = rust_secrets.secretsGet(id: secretId);
+        if (keyBytes.isEmpty) return false;
+        final sealed = await _tpm.seal(keyBytes, authValue: authValue);
+        if (sealed == null) return false;
+        final file = await _stateFile();
+        await file.parent.create(recursive: true);
+        final blob = rust_vault.hardwareTierVaultEncodeLinuxBlob(
+          salt: salt,
+          sealed: sealed,
+        );
+        await writeBytesAtomic(file.path, utf8.encode(blob));
+        return true;
+      }
+      if (_usesRust) {
+        try {
+          final dir = await getApplicationSupportDirectory();
+          await rust_vault.hardwareTierVaultStoreFromSecret(
+            supportDir: dir.path,
+            secretId: secretId,
+            pinHmac: authValue,
+          );
+          await _writeSaltFile(salt);
+          return true;
+        } catch (e) {
+          AppLogger.instance.log(
+            'HardwareTierVault.storeFromSecret (Rust): $e',
+            name: 'HardwareTierVault',
+          );
+          return false;
+        }
+      }
+      if (_usesWindowsMethodChannel) {
+        // Method-channel plugin still takes Uint8List — same one-shot
+        // materialisation as the Linux branch; the bytes never live
+        // beyond the plugin call.
+        final keyBytes = rust_secrets.secretsGet(id: secretId);
+        if (keyBytes.isEmpty) return false;
+        final ok =
+            await _channel.invokeMethod<bool>('store', <String, Object>{
+              'dbKey': keyBytes,
+              'pinHmac': authValue,
+            }) ??
+            false;
+        if (!ok) return false;
+        await _writeSaltFile(salt);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      AppLogger.instance.log(
+        'HardwareTierVault.storeFromSecret failed: $e',
         name: 'HardwareTierVault',
       );
       return false;

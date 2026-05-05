@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../core/db/rust_db_init.dart';
+import '../core/security/active_dbkey.dart';
 import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
@@ -228,22 +230,20 @@ class SecurityInitController {
   Future<void> reopenAfterUnlock() async {
     if (!isMounted()) return;
     final security = ref.read(securityStateProvider);
-    final key = security.encryptionKey;
-    if (key == null) {
+    if (!security.hasActiveDbKey) {
       AppLogger.instance.log(
-        'Unlock re-open: securityStateProvider has no key — skipping',
+        'Unlock re-open: active SecretStore slot empty — skipping',
         name: 'App',
       );
       return;
     }
     final modifiers = ref.read(configProvider).security?.modifiers;
-    // `_injectDatabase` calls `securityStateProvider.set(level, key)`
-    // internally, which copies the bytes into a fresh SecretBuffer
-    // and disposes the old one. Reading the alias here and passing
-    // it through is fine because the copy happens before the dispose
-    // inside the notifier — same contract `_releaseLock` relies on.
+    // SecretRef path: `dbInitFromSecret(ACTIVE_DBKEY_SECRET_ID)`
+    // reads the staged bytes Rust-internal; `_injectDatabase`'s
+    // `setActive` flips the Riverpod tier slot. No bytes cross
+    // the FRB boundary outwards.
     await _injectDatabase(
-      key: key,
+      secretId: kActiveDbKeySecretId,
       level: security.level,
       modifiers: modifiers,
     );
@@ -526,9 +526,15 @@ class SecurityInitController {
       await _unlockParanoid(manager);
       return;
     }
-    final keychainKey = await keyStorage.readKey();
-    if (keychainKey != null) {
-      await _injectDatabase(key: keychainKey, level: SecurityTier.keychain);
+    // SecretRef path: the keychain bytes land directly in the
+    // active SecretStore slot Rust-side; `dbInitFromSecret` then
+    // opens SQLCipher under them without any FRB byte crossing.
+    final loaded = await keyStorage.readKeyToSecret(kActiveDbKeySecretId);
+    if (loaded) {
+      await _injectDatabase(
+        secretId: kActiveDbKeySecretId,
+        level: SecurityTier.keychain,
+      );
       AppLogger.instance.log('Keychain key loaded', name: 'App');
       return;
     }
@@ -649,15 +655,29 @@ class SecurityInitController {
 
   // ── DB injection + helpers ────────────────────────────────
 
+  /// Open the encrypted `letsflutssh.db` and commit the active
+  /// security tier in Riverpod state.
+  ///
+  /// [secretId] non-null = encrypted tier. The caller stages the
+  /// DB key Rust-side (typically through
+  /// `cryptoAesGcmRandomKeyToSecret`, the master-password
+  /// `enableToSecret`, the keychain `readToSecret`, or the
+  /// hardware-vault `readToSecret` shims). `dbInitFromSecret`
+  /// atomically opens SQLCipher under the staged bytes AND
+  /// promotes them to `app.dbkey.active` so downstream consumers
+  /// (recorder HKDF, biometric vault store, mid-session reopen)
+  /// read from the canonical slot.
+  ///
+  /// [secretId] null = plaintext tier. The active SecretStore
+  /// slot is cleared and SQLCipher opens unencrypted.
+  ///
+  /// Bytes never cross the FRB boundary on this path.
   Future<void> _injectDatabase({
-    Uint8List? key,
+    String? secretId,
     SecurityTier level = SecurityTier.plaintext,
     SecurityTierModifiers? modifiers,
   }) async {
     if (_disposed) return;
-    if (key != null) {
-      ref.read(securityStateProvider.notifier).set(level, key);
-    }
     // Open the Rust-owned sqlite handle BEFORE invalidating provider
     // caches. The invalidate triggers a rebuild that calls back into
     // `letsflutssh.db` (`db_sessions_list_all`, `db_ssh_keys_list_metadata`,
@@ -665,7 +685,15 @@ class SecurityInitController {
     // returns produces a "db not initialized" error and the providers
     // fall back to empty state. The rebuild has to land AFTER the
     // sqlite handle is up so the first read pulls real rows.
-    await ensureRustDbOpen(key: key);
+    await ensureRustDbOpen(secretId: secretId);
+    // SecurityState records tier + active-slot presence. Plaintext
+    // path: `dbInitFromSecret` already dropped the active slot inside
+    // `ensureRustDbOpen`; encrypted path: the slot now holds the
+    // promoted bytes (`db_init_from_secret` → `secrets.rename(src,
+    // ACTIVE)`).
+    ref
+        .read(securityStateProvider.notifier)
+        .setActive(level, hasKey: secretId != null);
     // Stores read/write through FRB into `letsflutssh.db`; the unlock
     // handshake invalidates each store's in-memory cache so the next
     // read pulls fresh rows after the engine swap.

@@ -407,27 +407,39 @@ Future<void> applyPlaintextTier({
   await runClearPlan(SecurityTier.plaintext);
 }
 
-/// Apply the Keychain (no password) tier. Generates a fresh DB key,
-/// writes it into the keychain, rekeys, runs the vault clear plan.
-/// Throws [StateError] when the keychain write fails — no rollback
-/// path here (no gate to roll back).
+/// Apply the Keychain (no password) tier — SecretRef variant.
+///
+/// [stageRandomKey] mints a fresh `SecretStore` id and stages the
+/// AES-256 DB key under it Rust-side (typical implementation:
+/// `mintTierSwitchSecretId()` then
+/// `cryptoAesGcmRandomKeyToSecret`). [keychainWriteFromSecret]
+/// pulls the bytes from `SecretStore` and writes the OS keychain
+/// entry — no FRB byte-crossing. [applyAlwaysRekeyFromSecret]
+/// runs the rekey through `SecurityTierSwitcher.switchTierFromSecret`.
+/// On keychain-write failure the staged secret is dropped so the
+/// SecretStore stays clean.
+///
+/// Throws [StateError] on keychain-write failure (no gate to roll
+/// back at this tier).
 Future<void> applyKeychainTier({
   required SecurityTierModifiers modifiers,
-  required Uint8List Function() randomKey,
-  required Future<bool> Function(Uint8List key) keychainWriteKey,
+  required String Function() stageRandomKey,
+  required Future<bool> Function(String secretId) keychainWriteFromSecret,
   required Future<void> Function(
-    Uint8List key,
+    String secretId,
     SecurityTier level,
     SecurityTierModifiers mods,
   )
-  applyAlwaysRekey,
+  applyAlwaysRekeyFromSecret,
+  required void Function(String secretId) dropStaged,
   required Future<void> Function(SecurityTier target) runClearPlan,
 }) async {
-  final key = randomKey();
-  if (!await keychainWriteKey(key)) {
+  final secretId = stageRandomKey();
+  if (!await keychainWriteFromSecret(secretId)) {
+    dropStaged(secretId);
     throw StateError('keychain write failed');
   }
-  await applyAlwaysRekey(key, SecurityTier.keychain, modifiers);
+  await applyAlwaysRekeyFromSecret(secretId, SecurityTier.keychain, modifiers);
   await runClearPlan(SecurityTier.keychain);
 }
 
@@ -436,27 +448,36 @@ Future<void> applyKeychainTier({
 /// rekeys, runs the vault clear plan. Throws [StateError] when the
 /// seal fails — the hardware vault hasn't committed anything to roll
 /// back.
+/// Apply the Hardware tier — SecretRef variant. Seals the staged
+/// SecretStore key under the hardware vault (passwordless when
+/// [pin] is null), rekeys, runs the vault clear plan. Throws
+/// [StateError] on seal failure; staged secret is dropped before
+/// the throw.
 Future<void> applyHardwareTier({
   required SecurityTierModifiers modifiers,
   required String? pin,
-  required Uint8List Function() randomKey,
+  required String Function() stageRandomKey,
   required Future<bool> Function({
-    required Uint8List dbKey,
+    required String secretId,
     required String? pin,
   })
-  hardwareStore,
+  hardwareStoreFromSecret,
   required Future<void> Function(
-    Uint8List key,
+    String secretId,
     SecurityTier level,
     SecurityTierModifiers mods,
   )
-  applyAlwaysRekey,
+  applyAlwaysRekeyFromSecret,
+  required void Function(String secretId) dropStaged,
   required Future<void> Function(SecurityTier target) runClearPlan,
 }) async {
-  final key = randomKey();
-  final sealed = await hardwareStore(dbKey: key, pin: pin);
-  if (!sealed) throw StateError('hardware seal failed');
-  await applyAlwaysRekey(key, SecurityTier.hardware, modifiers);
+  final secretId = stageRandomKey();
+  final sealed = await hardwareStoreFromSecret(secretId: secretId, pin: pin);
+  if (!sealed) {
+    dropStaged(secretId);
+    throw StateError('hardware seal failed');
+  }
+  await applyAlwaysRekeyFromSecret(secretId, SecurityTier.hardware, modifiers);
   await runClearPlan(SecurityTier.hardware);
 }
 
@@ -465,23 +486,37 @@ Future<void> applyHardwareTier({
 /// under that key; runs the vault clear plan. Throws [StateError]
 /// when the master password is null/empty — the manager refuses to
 /// enable without one.
+/// Apply the Paranoid tier — SecretRef variant. The master-password
+/// manager's `enableToSecret` derives the AES key Argon2id-from
+/// the passphrase and stages it Rust-side under the caller-minted
+/// `secretId`, then `applyAlwaysRekeyFromSecret` runs the rekey.
+/// Throws [StateError] on missing / empty master password.
 Future<void> applyParanoidTier({
   required String? masterPassword,
   required SecurityTierModifiers modifiers,
-  required Future<Uint8List> Function(String pw) masterEnable,
+  required String Function() mintSecretId,
+  required Future<void> Function(String pw, String secretId)
+  masterEnableToSecret,
   required Future<void> Function(
-    Uint8List key,
+    String secretId,
     SecurityTier level,
     SecurityTierModifiers mods,
   )
-  applyAlwaysRekey,
+  applyAlwaysRekeyFromSecret,
+  required void Function(String secretId) dropStaged,
   required Future<void> Function(SecurityTier target) runClearPlan,
 }) async {
   if (masterPassword == null || masterPassword.isEmpty) {
     throw StateError('master password missing');
   }
-  final key = await masterEnable(masterPassword);
-  await applyAlwaysRekey(key, SecurityTier.paranoid, modifiers);
+  final secretId = mintSecretId();
+  try {
+    await masterEnableToSecret(masterPassword, secretId);
+  } catch (_) {
+    dropStaged(secretId);
+    rethrow;
+  }
+  await applyAlwaysRekeyFromSecret(secretId, SecurityTier.paranoid, modifiers);
   await runClearPlan(SecurityTier.paranoid);
 }
 
@@ -503,27 +538,33 @@ Future<void> applyKeychainWithPasswordTier({
   required SecurityTierModifiers modifiers,
   required Future<void> Function(String pw) gateSetPassword,
   required Future<void> Function() gateClear,
-  required Uint8List Function() randomKey,
-  required Future<bool> Function(Uint8List key) keychainWriteKey,
+  required String Function() stageRandomKey,
+  required Future<bool> Function(String secretId) keychainWriteFromSecret,
   required Future<void> Function(
-    Uint8List key,
+    String secretId,
     SecurityTier level,
     SecurityTierModifiers mods,
   )
-  applyAlwaysRekey,
+  applyAlwaysRekeyFromSecret,
+  required void Function(String secretId) dropStaged,
   required Future<void> Function(SecurityTier target) runClearPlan,
 }) async {
   if (shortPassword == null || shortPassword.isEmpty) {
     throw StateError('short password missing');
   }
   await gateSetPassword(shortPassword);
-  final key = randomKey();
-  final stored = await keychainWriteKey(key);
+  final secretId = stageRandomKey();
+  final stored = await keychainWriteFromSecret(secretId);
   if (!stored) {
+    dropStaged(secretId);
     await gateClear();
     throw StateError('keychain write failed');
   }
-  await applyAlwaysRekey(key, SecurityTier.keychainWithPassword, modifiers);
+  await applyAlwaysRekeyFromSecret(
+    secretId,
+    SecurityTier.keychainWithPassword,
+    modifiers,
+  );
   await runClearPlan(SecurityTier.keychainWithPassword);
 }
 

@@ -18,6 +18,7 @@ import '../../core/import/openssh_config_importer.dart';
 import '../../core/import/ssh_dir_key_scanner.dart';
 import 'security_tier_switcher.dart';
 import '../../widgets/shortcut_registry.dart';
+import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';

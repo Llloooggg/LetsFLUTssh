@@ -5,10 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/security/active_dbkey.dart';
 import '../../core/session/session.dart';
 import '../../l10n/app_localizations.dart';
-import '../../providers/security_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../src/rust/api/app.dart' as rust_secrets;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_data_row.dart';
@@ -68,7 +69,6 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
   }
 
   Future<void> _scan() async {
-    final dbKey = ref.read(securityStateProvider).encryptionKey;
     final base = await getApplicationSupportDirectory();
     final root = Directory(p.join(base.path, 'recordings'));
     final list = <_RecordingEntry>[];
@@ -84,12 +84,11 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
           final stat = await f.stat();
           // Header read is best-effort — corrupt or wrong-key files
           // still appear in the list with size + timestamp so the
-          // user can delete them.
-          final meta = await RecordingReader.readMeta(
-            f,
-            encrypted: encrypted,
-            dbKey: dbKey,
-          );
+          // user can delete them. Encrypted recordings derive the
+          // playback key Rust-side from the active DB-key slot via
+          // `recorderDeriveKeyFromActive`; the DB key never lands
+          // on the Dart heap on this path.
+          final meta = await RecordingReader.readMeta(f, encrypted: encrypted);
           list.add(
             _RecordingEntry(
               file: f,
@@ -122,17 +121,16 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
   }
 
   Future<void> _play(_RecordingEntry entry) async {
-    final dbKey = ref.read(securityStateProvider).encryptionKey;
-    if (entry.encrypted && dbKey == null) {
-      // Encrypted recording but the running tier is plaintext —
-      // we don't have the key. The user would need to unlock first.
+    if (entry.encrypted && !rust_secrets.secretsHas(id: kActiveDbKeySecretId)) {
+      // Encrypted recording but the running tier has no active DB
+      // key (plaintext tier or auto-locked) — playback can't decrypt.
+      // The user would need to unlock first.
       return;
     }
     await RecordingPlaybackDialog.show(
       context,
       file: entry.file,
       encrypted: entry.encrypted,
-      dbKey: dbKey,
       meta: entry.meta,
     );
   }

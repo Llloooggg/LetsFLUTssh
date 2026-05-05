@@ -3,6 +3,17 @@
 //! sees only metadata (`hasPassword: bool`, etc.) and references
 //! the secrets by id.
 //!
+//! # Active DB key slot
+//!
+//! [`ACTIVE_DBKEY_SECRET_ID`] is the canonical slot for the running
+//! session's SQLCipher master key. Every code path that needs the DB
+//! key — drift's `db_init_from_secret`, the recorder's HKDF-derive,
+//! the biometric vault's enroll-on-change, the auto-lock close — pulls
+//! through this slot Rust-side, never crossing the FRB boundary as
+//! plaintext bytes. The slot is populated when an unlock cascade
+//! lands (orchestrator stages, listener promotes) and dropped on
+//! auto-lock / wipe.
+//!
 //! Threading: `Mutex<HashMap>` keeps the API lock-and-clone-out.
 //! Reads return a fresh `Zeroizing<Vec<u8>>` so the caller owns the
 //! scrub-on-drop guarantee for their copy. No interior `&[u8]`
@@ -24,6 +35,10 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use zeroize::Zeroizing;
+
+/// Canonical SecretStore slot for the running session's SQLCipher
+/// master key. See module docs for lifecycle.
+pub const ACTIVE_DBKEY_SECRET_ID: &str = "app.dbkey.active";
 
 #[derive(Default)]
 pub struct SecretStore {
@@ -82,6 +97,31 @@ impl SecretStore {
         g.clear();
     }
 
+    /// Atomic move: take bytes from `from`, store them under `to`.
+    /// `to` is replaced if it already had a value (the previous
+    /// `Zeroizing` buffer scrubs on drop). No-op when `from == to`.
+    /// Returns `false` when `from` is absent (the slot at `to` is
+    /// untouched in that case).
+    ///
+    /// Used by the unlock cascade to promote a transient
+    /// caller-minted secret into the canonical
+    /// [`ACTIVE_DBKEY_SECRET_ID`] slot once every consumer (rekey,
+    /// keychain write, hardware-vault seal) has had its turn — the
+    /// promote happens inside one critical section so a concurrent
+    /// `secrets_get` either sees the old `to` or the freshly-moved
+    /// bytes, never neither.
+    pub fn rename(&self, from: &str, to: &str) -> bool {
+        if from == to {
+            return self.has(from);
+        }
+        let mut g = self.inner.lock().expect("secrets lock");
+        let Some(buf) = g.remove(from) else {
+            return false;
+        };
+        g.insert(to.to_string(), buf);
+        true
+    }
+
     /// Snapshot of stored ids — debug/diagnostic only. Returns owned
     /// strings so the caller can drop the mutex before touching the
     /// list.
@@ -134,5 +174,41 @@ mod tests {
         store.put("k2", b"b");
         store.clear();
         assert_eq!(store.ids().len(), 0);
+    }
+
+    #[test]
+    fn rename_moves_bytes_atomically() {
+        let store = SecretStore::new();
+        store.put("transient", b"hello");
+        assert!(store.rename("transient", "active"));
+        assert!(!store.has("transient"));
+        assert_eq!(&*store.get("active").unwrap(), b"hello");
+    }
+
+    #[test]
+    fn rename_replaces_existing_target() {
+        let store = SecretStore::new();
+        store.put("transient", b"new");
+        store.put("active", b"old");
+        store.rename("transient", "active");
+        assert_eq!(&*store.get("active").unwrap(), b"new");
+        assert!(!store.has("transient"));
+    }
+
+    #[test]
+    fn rename_self_is_idempotent_when_present() {
+        let store = SecretStore::new();
+        store.put("k", b"x");
+        assert!(store.rename("k", "k"));
+        assert_eq!(&*store.get("k").unwrap(), b"x");
+    }
+
+    #[test]
+    fn rename_returns_false_when_source_absent() {
+        let store = SecretStore::new();
+        store.put("active", b"keep");
+        assert!(!store.rename("missing", "active"));
+        // Target untouched.
+        assert_eq!(&*store.get("active").unwrap(), b"keep");
     }
 }

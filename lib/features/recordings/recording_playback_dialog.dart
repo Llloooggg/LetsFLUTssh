@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
@@ -33,14 +32,12 @@ import 'recording_reader.dart';
 class RecordingPlaybackDialog extends StatefulWidget {
   final File file;
   final bool encrypted;
-  final Uint8List? dbKey;
   final RecordingMeta? meta;
 
   const RecordingPlaybackDialog({
     super.key,
     required this.file,
     required this.encrypted,
-    required this.dbKey,
     required this.meta,
   });
 
@@ -48,17 +45,12 @@ class RecordingPlaybackDialog extends StatefulWidget {
     BuildContext context, {
     required File file,
     required bool encrypted,
-    required Uint8List? dbKey,
     required RecordingMeta? meta,
   }) {
     return AppDialog.show<void>(
       context,
-      builder: (_) => RecordingPlaybackDialog(
-        file: file,
-        encrypted: encrypted,
-        dbKey: dbKey,
-        meta: meta,
-      ),
+      builder: (_) =>
+          RecordingPlaybackDialog(file: file, encrypted: encrypted, meta: meta),
     );
   }
 
@@ -105,7 +97,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
     });
     try {
       final stream = widget.encrypted
-          ? RecordingReader.openEncrypted(widget.file, widget.dbKey!)
+          ? RecordingReader.openEncrypted(widget.file)
           : RecordingReader.openCast(widget.file);
       var prevTimestamp = 0.0;
       var sawHeader = false;
