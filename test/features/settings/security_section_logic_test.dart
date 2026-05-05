@@ -546,6 +546,66 @@ void main() {
     });
   });
 
+  group('biometricKeySourceFor', () {
+    test('cross-tier transition always pulls from the applied tier', () {
+      // Every {current, next | current != next} pair must surface
+      // the key from `securityStateProvider` after the rekey, never
+      // re-prompt — the user already typed the new tier's secret
+      // into the card and the rekey derived from it.
+      for (final current in SecurityTier.values) {
+        for (final next in SecurityTier.values) {
+          if (current == next) continue;
+          expect(
+            biometricKeySourceFor(currentTier: current, nextTier: next),
+            BiometricKeySource.pullFromAppliedTier,
+            reason: '$current → $next must NOT prompt for password',
+          );
+        }
+      }
+    });
+
+    test('same-tier T1+pw → promptAndVerifyKeychainGate', () {
+      expect(
+        biometricKeySourceFor(
+          currentTier: SecurityTier.keychainWithPassword,
+          nextTier: SecurityTier.keychainWithPassword,
+        ),
+        BiometricKeySource.promptAndVerifyKeychainGate,
+      );
+    });
+
+    test('same-tier Paranoid → promptAndVerifyMasterPassword', () {
+      expect(
+        biometricKeySourceFor(
+          currentTier: SecurityTier.paranoid,
+          nextTier: SecurityTier.paranoid,
+        ),
+        BiometricKeySource.promptAndVerifyMasterPassword,
+      );
+    });
+
+    test(
+      'same-tier T0 / T1 / T2 → pullFromAppliedTier (no verifiable secret)',
+      () {
+        // No verifiable password to re-prompt against — the post-apply
+        // DB key is the only thing we can stash. Empty sentinel falls
+        // out as a no-op when the tier holds no key (plaintext / T1
+        // without password).
+        for (final tier in [
+          SecurityTier.plaintext,
+          SecurityTier.keychain,
+          SecurityTier.hardware,
+        ]) {
+          expect(
+            biometricKeySourceFor(currentTier: tier, nextTier: tier),
+            BiometricKeySource.pullFromAppliedTier,
+            reason: 'same-tier $tier has no verifiable secret to prompt for',
+          );
+        }
+      },
+    );
+  });
+
   group('tierVaultClearPlanFor', () {
     test('plaintext clears every vault — no key survives at T0', () {
       final plan = tierVaultClearPlanFor(SecurityTier.plaintext);

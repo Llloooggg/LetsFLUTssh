@@ -75,25 +75,24 @@ extension _BiometricFlow on _SecuritySectionState {
     String? pin,
     String? masterPassword,
   }) async {
-    // Case 1: tier changes → the post-apply state will hold a fresh
-    // DB key derived from the NEW password. Those provisioning paths
-    // are already password-verified by definition (the user typed
-    // the new password into the card), so no extra prompt is needed.
-    // We surface the key by reading it after `_applyTierChange`
-    // runs — returning a non-null sentinel here signals "wait for
-    // apply, then fetch". Sentinel is a zero-length buffer that
-    // [_applyPendingBiometric] replaces with the real key.
-    if (current != next) return Uint8List(0);
-    if (current == SecurityTier.keychainWithPassword) {
-      return _captureKeyFromKeychainPassword();
+    // Decision lives in `security_section_logic.biometricKeySourceFor`
+    // so the priority ladder (cross-tier → pullFromApplied; same-tier
+    // T1+pw → keychain gate; same-tier Paranoid → master password;
+    // everything else → empty sentinel) is unit-tested without a
+    // pumpWidget round-trip. The dispatcher here only wires the
+    // chosen source onto its prompt + read implementation.
+    switch (biometricKeySourceFor(currentTier: current, nextTier: next)) {
+      case BiometricKeySource.pullFromAppliedTier:
+        // Returning a non-null zero-length buffer signals "wait for
+        // apply, then fetch from securityStateProvider". The post-
+        // apply step in `_applyPendingBiometric` replaces it with
+        // the real key.
+        return Uint8List(0);
+      case BiometricKeySource.promptAndVerifyKeychainGate:
+        return _captureKeyFromKeychainPassword();
+      case BiometricKeySource.promptAndVerifyMasterPassword:
+        return _captureKeyFromMasterPassword();
     }
-    if (current == SecurityTier.paranoid) {
-      return _captureKeyFromMasterPassword();
-    }
-    // T1 / T2 without password, or plaintext: no key to cache. Return
-    // empty sentinel so the post-apply step skips the enable (nothing
-    // to protect anyway).
-    return Uint8List(0);
   }
 
   Future<Uint8List?> _captureKeyFromKeychainPassword() async {

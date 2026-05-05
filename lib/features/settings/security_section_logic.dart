@@ -224,6 +224,51 @@ String securityTierLogName(SecurityTier tier) {
   }
 }
 
+/// Where the biometric-enable flow should source the DB key it caches
+/// in the biometric-gated vault. Driven by [biometricKeySourceFor],
+/// which the `_BiometricFlow._captureKeyForBiometricEnable` extension
+/// dispatches on.
+///
+/// * [pullFromAppliedTier] — the Apply just rekeyed the database
+///   under the freshly-derived key (tier change, or same-tier with
+///   no verifiable password to re-prompt against). Read it back from
+///   `securityStateProvider.encryptionKey` after `_applyTierChange`
+///   resolves.
+/// * [promptAndVerifyKeychainGate] — same-tier biometric flip on
+///   T1+pw. The gate verifier is the only way to revalidate the
+///   user's password without a tier rekey, so prompt + verify, then
+///   read the stored key out of the keychain.
+/// * [promptAndVerifyMasterPassword] — same-tier biometric flip on
+///   Paranoid. Master-password manager owns both the verifier file
+///   and the KDF; verifyAndDerive returns the key directly.
+enum BiometricKeySource {
+  pullFromAppliedTier,
+  promptAndVerifyKeychainGate,
+  promptAndVerifyMasterPassword,
+}
+
+/// Decide which path the biometric-enable flow takes given the
+/// current and target tier. Cross-tier transitions never need to
+/// re-prompt — the new tier's password is fresh from the card and
+/// drives the rekey. Same-tier flips only need a re-prompt when the
+/// tier carries a verifiable password (T1+pw, Paranoid); other
+/// same-tier flips (T1 without password, T2, plaintext) have no
+/// verifiable secret to gate against, so they fall back to reading
+/// the post-apply DB key.
+BiometricKeySource biometricKeySourceFor({
+  required SecurityTier currentTier,
+  required SecurityTier nextTier,
+}) {
+  if (currentTier != nextTier) return BiometricKeySource.pullFromAppliedTier;
+  if (currentTier == SecurityTier.keychainWithPassword) {
+    return BiometricKeySource.promptAndVerifyKeychainGate;
+  }
+  if (currentTier == SecurityTier.paranoid) {
+    return BiometricKeySource.promptAndVerifyMasterPassword;
+  }
+  return BiometricKeySource.pullFromAppliedTier;
+}
+
 /// What every tier-apply method writes into the marker file before
 /// kicking off `SecurityTierSwitcher.switchTier`. Bundles the snake-
 /// case tier name + modifier JSON so a crash-recovery path can
