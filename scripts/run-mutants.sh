@@ -79,35 +79,81 @@ echo "scratch:     $TMP"
 echo
 
 cd "$REPO/rust/crates/lfs_core"
+# cargo-mutants exits 2 when at least one mutant survives — that's
+# the normal "found dirty spots" outcome, not a wrapper failure.
+# Capture the code, run the summary, then forward it.
+set +e
 TMPDIR="$TMP" cargo mutants \
   "${FILE_FLAGS[@]}" \
   --jobs "$JOBS" \
   --timeout-multiplier "$TIMEOUT_MUL" \
   --output "$RESULTS"
+RC=$?
+set -e
 
-# Summary from outcomes.json. cargo-mutants writes one record per
-# mutation with .summary in {caught, missed, unviable, timeout,
-# success, failure}. Anything other than `missed` and `success`
-# counts as caught.
-SUMMARY="$RESULTS/outcomes.json"
-if [[ -f "$SUMMARY" ]] && command -v python3 >/dev/null 2>&1; then
+# cargo-mutants writes per-outcome lists under mutants.out/. Each
+# *.txt file holds one mutant per line, prefixed with the source
+# path — perfect for a wc + awk roll-up that needs no host deps
+# beyond the POSIX shell tools we already rely on.
+OUT_DIR="$RESULTS/mutants.out"
+if [[ -d "$OUT_DIR" ]]; then
+  caught=$(wc -l <"$OUT_DIR/caught.txt"   2>/dev/null || echo 0)
+  missed=$(wc -l <"$OUT_DIR/missed.txt"   2>/dev/null || echo 0)
+  unv=$(   wc -l <"$OUT_DIR/unviable.txt" 2>/dev/null || echo 0)
+  to=$(    wc -l <"$OUT_DIR/timeout.txt"  2>/dev/null || echo 0)
+  caught_total=$((caught + to))
+  testable=$((caught_total + missed))
   echo
   echo "── Mutation summary (lfs_core::$SCOPE) ──"
-  python3 - "$SUMMARY" <<'PY'
-import json, sys
-data = json.load(open(sys.argv[1]))
-outcomes = data.get('outcomes', [])
-buckets = {}
-for o in outcomes:
-    s = o.get('summary', '?')
-    buckets[s] = buckets.get(s, 0) + 1
-total = sum(buckets.values())
-caught = total - buckets.get('Missed', 0) - buckets.get('Unviable', 0)
-testable = total - buckets.get('Unviable', 0)
-score = (100.0 * caught / testable) if testable else 0.0
-for k in sorted(buckets):
-    print(f'  {k:14} {buckets[k]:>5}')
-print(f'  {"TOTAL":14} {total:>5}')
-print(f'  caught/testable: {caught}/{testable} → mutation score {score:.1f}%')
-PY
+  echo "  caught $caught_total  missed $missed  unviable $unv  (total $((testable + unv)))"
+  if [[ $testable -gt 0 ]]; then
+    # Bash has no float math; awk is the standard tool for the
+    # mutation-score percentage.
+    awk -v c="$caught_total" -v t="$testable" \
+      'BEGIN { printf "  mutation score: %.1f%%  (%d/%d)\n", 100.0 * c / t, c, t }'
+  fi
+  echo
+  printf '  %6s %6s %6s  file\n' caught missed score
+  # Build per-file caught / missed counts with awk over both
+  # outcome lists, then emit a sorted (worst first) table.
+  awk -v out="$OUT_DIR" '
+    function strip(s) {
+      sub(/^crates\/lfs_core\/src\//, "", s)
+      sub(/^crates\/lfs_frb\/src\/api\//, "frb::", s)
+      return s
+    }
+    BEGIN {
+      while ((getline line < (out "/caught.txt")) > 0) {
+        split(line, a, ":"); caught[a[1]]++
+      }
+      while ((getline line < (out "/timeout.txt")) > 0) {
+        split(line, a, ":"); caught[a[1]]++
+      }
+      while ((getline line < (out "/missed.txt")) > 0) {
+        split(line, a, ":"); missed[a[1]]++
+      }
+      for (f in caught) files[f]
+      for (f in missed) files[f]
+      n = 0
+      for (f in files) {
+        order[++n] = f
+      }
+      # Sort descending by missed count.
+      for (i = 1; i <= n; i++) {
+        for (j = i + 1; j <= n; j++) {
+          if (missed[order[j]] > missed[order[i]]) {
+            t = order[i]; order[i] = order[j]; order[j] = t
+          }
+        }
+      }
+      for (i = 1; i <= n; i++) {
+        f = order[i]; c = caught[f] + 0; m = missed[f] + 0
+        total = c + m
+        score = total ? (100.0 * c / total) : 0
+        printf "  %6d %6d %5.1f%%  %s\n", c, m, score, strip(f)
+      }
+    }'
 fi
+# Forward cargo-mutants exit code so CI / make-target pipelines can
+# decide whether to fail the build on surviving mutants.
+exit "$RC"
