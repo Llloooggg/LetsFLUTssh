@@ -82,17 +82,22 @@ extension _TierApply on _SecuritySectionState {
   }
 
   Future<void> _applyPlaintextTier(SecuritySetupResult result) async {
-    await _applyAlwaysRekey(null, SecurityTier.plaintext, result.modifiers);
-    await _runVaultClearPlan(SecurityTier.plaintext);
+    await applyPlaintextTier(
+      modifiers: result.modifiers,
+      applyAlwaysRekey: _applyAlwaysRekey,
+      runClearPlan: _runVaultClearPlan,
+    );
   }
 
   Future<void> _applyKeychainTier(SecuritySetupResult result) async {
     final keyStorage = ref.read(secureKeyStorageProvider);
-    final key = rust_crypto.cryptoAesGcmRandomKey();
-    final stored = await keyStorage.writeKey(key);
-    if (!stored) throw StateError('keychain write failed');
-    await _applyAlwaysRekey(key, SecurityTier.keychain, result.modifiers);
-    await _runVaultClearPlan(SecurityTier.keychain);
+    await applyKeychainTier(
+      modifiers: result.modifiers,
+      randomKey: rust_crypto.cryptoAesGcmRandomKey,
+      keychainWriteKey: keyStorage.writeKey,
+      applyAlwaysRekey: _applyAlwaysRekey,
+      runClearPlan: _runVaultClearPlan,
+    );
   }
 
   Future<void> _applyKeychainWithPasswordTier(
@@ -116,30 +121,29 @@ extension _TierApply on _SecuritySectionState {
   }
 
   Future<void> _applyHardwareTier(SecuritySetupResult result) async {
-    // Hardware tier now accepts a passwordless seal: when the
-    // wizard returns `pin == null` (user left the password
-    // modifier off for T2) the vault derives an empty auth value
-    // and seals under SE/TPM isolation alone. The modifiers
-    // snapshot `mods.password` stays the source of truth for
-    // later unlock flows, so persisting it alongside the tier
-    // keeps the read side in sync.
+    // Hardware tier accepts a passwordless seal — `pin == null` when
+    // the wizard left the password modifier off for T2. The modifier
+    // snapshot stays the source of truth for later unlock flows.
     final hwVault = ref.read(hardwareTierVaultProvider);
-    final key = rust_crypto.cryptoAesGcmRandomKey();
-    final sealed = await hwVault.store(dbKey: key, pin: result.takePin());
-    if (!sealed) throw StateError('hardware seal failed');
-    await _applyAlwaysRekey(key, SecurityTier.hardware, result.modifiers);
-    await _runVaultClearPlan(SecurityTier.hardware);
+    await applyHardwareTier(
+      modifiers: result.modifiers,
+      pin: result.takePin(),
+      randomKey: rust_crypto.cryptoAesGcmRandomKey,
+      hardwareStore: hwVault.store,
+      applyAlwaysRekey: _applyAlwaysRekey,
+      runClearPlan: _runVaultClearPlan,
+    );
   }
 
   Future<void> _applyParanoidTier(SecuritySetupResult result) async {
-    final pw = result.takeMasterPassword();
-    if (pw == null || pw.isEmpty) {
-      throw StateError('master password missing');
-    }
     final manager = ref.read(masterPasswordProvider);
-    final key = await manager.enable(pw);
-    await _applyAlwaysRekey(key, SecurityTier.paranoid, result.modifiers);
-    await _runVaultClearPlan(SecurityTier.paranoid);
+    await applyParanoidTier(
+      masterPassword: result.takeMasterPassword(),
+      modifiers: result.modifiers,
+      masterEnable: manager.enable,
+      applyAlwaysRekey: _applyAlwaysRekey,
+      runClearPlan: _runVaultClearPlan,
+    );
   }
 
   /// Drive the per-target vault clear matrix from

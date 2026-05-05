@@ -390,6 +390,101 @@ bool isPostIdentityRemovalTierAccepted(SecurityTier target) =>
 Directory appBundlePathFromExecutable(String executablePath) =>
     Directory(executablePath).parent.parent.parent;
 
+/// Apply the Plaintext tier: rekey the DB to plaintext (null key)
+/// and run the per-tier vault-clear plan. Pulled out for parity with
+/// the other tier runners and tested for the canonical seam order.
+Future<void> applyPlaintextTier({
+  required SecurityTierModifiers modifiers,
+  required Future<void> Function(
+    Uint8List? key,
+    SecurityTier level,
+    SecurityTierModifiers mods,
+  )
+  applyAlwaysRekey,
+  required Future<void> Function(SecurityTier target) runClearPlan,
+}) async {
+  await applyAlwaysRekey(null, SecurityTier.plaintext, modifiers);
+  await runClearPlan(SecurityTier.plaintext);
+}
+
+/// Apply the Keychain (no password) tier. Generates a fresh DB key,
+/// writes it into the keychain, rekeys, runs the vault clear plan.
+/// Throws [StateError] when the keychain write fails — no rollback
+/// path here (no gate to roll back).
+Future<void> applyKeychainTier({
+  required SecurityTierModifiers modifiers,
+  required Uint8List Function() randomKey,
+  required Future<bool> Function(Uint8List key) keychainWriteKey,
+  required Future<void> Function(
+    Uint8List key,
+    SecurityTier level,
+    SecurityTierModifiers mods,
+  )
+  applyAlwaysRekey,
+  required Future<void> Function(SecurityTier target) runClearPlan,
+}) async {
+  final key = randomKey();
+  if (!await keychainWriteKey(key)) {
+    throw StateError('keychain write failed');
+  }
+  await applyAlwaysRekey(key, SecurityTier.keychain, modifiers);
+  await runClearPlan(SecurityTier.keychain);
+}
+
+/// Apply the Hardware tier. Generates a fresh DB key, seals it under
+/// the hardware vault (with optional pin — null for passwordless T2),
+/// rekeys, runs the vault clear plan. Throws [StateError] when the
+/// seal fails — the hardware vault hasn't committed anything to roll
+/// back.
+Future<void> applyHardwareTier({
+  required SecurityTierModifiers modifiers,
+  required String? pin,
+  required Uint8List Function() randomKey,
+  required Future<bool> Function({
+    required Uint8List dbKey,
+    required String? pin,
+  })
+  hardwareStore,
+  required Future<void> Function(
+    Uint8List key,
+    SecurityTier level,
+    SecurityTierModifiers mods,
+  )
+  applyAlwaysRekey,
+  required Future<void> Function(SecurityTier target) runClearPlan,
+}) async {
+  final key = randomKey();
+  final sealed = await hardwareStore(dbKey: key, pin: pin);
+  if (!sealed) throw StateError('hardware seal failed');
+  await applyAlwaysRekey(key, SecurityTier.hardware, modifiers);
+  await runClearPlan(SecurityTier.hardware);
+}
+
+/// Apply the Paranoid tier. Enables the master-password manager,
+/// which derives the DB key from the user's master password; rekeys
+/// under that key; runs the vault clear plan. Throws [StateError]
+/// when the master password is null/empty — the manager refuses to
+/// enable without one.
+Future<void> applyParanoidTier({
+  required String? masterPassword,
+  required SecurityTierModifiers modifiers,
+  required Future<Uint8List> Function(String pw) masterEnable,
+  required Future<void> Function(
+    Uint8List key,
+    SecurityTier level,
+    SecurityTierModifiers mods,
+  )
+  applyAlwaysRekey,
+  required Future<void> Function(SecurityTier target) runClearPlan,
+}) async {
+  if (masterPassword == null || masterPassword.isEmpty) {
+    throw StateError('master password missing');
+  }
+  final key = await masterEnable(masterPassword);
+  await applyAlwaysRekey(key, SecurityTier.paranoid, modifiers);
+  await runClearPlan(SecurityTier.paranoid);
+}
+
 /// Apply the KeychainWithPassword tier: stage the gate password,
 /// generate + write a fresh DB key into the keychain, rekey the DB,
 /// and run the per-tier vault-clear plan. Pulled out of

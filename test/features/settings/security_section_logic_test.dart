@@ -713,6 +713,244 @@ void main() {
     );
   });
 
+  group('applyPlaintextTier', () {
+    test('runs rekey(null, plaintext) → clearPlan(plaintext)', () async {
+      final calls = <String>[];
+      await applyPlaintextTier(
+        modifiers: const SecurityTierModifiers(),
+        applyAlwaysRekey: (key, level, _) async {
+          calls.add('rekey(${key == null ? "null" : "key"},$level)');
+        },
+        runClearPlan: (target) async {
+          calls.add('clearPlan($target)');
+        },
+      );
+      expect(calls, [
+        'rekey(null,SecurityTier.plaintext)',
+        'clearPlan(SecurityTier.plaintext)',
+      ]);
+    });
+  });
+
+  group('applyKeychainTier', () {
+    test('happy path runs randomKey → write → rekey → clearPlan', () async {
+      final calls = <String>[];
+      await applyKeychainTier(
+        modifiers: const SecurityTierModifiers(),
+        randomKey: () {
+          calls.add('randomKey');
+          return Uint8List(32);
+        },
+        keychainWriteKey: (_) async {
+          calls.add('write');
+          return true;
+        },
+        applyAlwaysRekey: (_, level, _) async {
+          calls.add('rekey($level)');
+        },
+        runClearPlan: (target) async {
+          calls.add('clearPlan($target)');
+        },
+      );
+      expect(calls, [
+        'randomKey',
+        'write',
+        'rekey(SecurityTier.keychain)',
+        'clearPlan(SecurityTier.keychain)',
+      ]);
+    });
+
+    test('keychain write failure throws + skips rekey + clearPlan', () async {
+      final calls = <String>[];
+      await expectLater(
+        () => applyKeychainTier(
+          modifiers: const SecurityTierModifiers(),
+          randomKey: () {
+            calls.add('randomKey');
+            return Uint8List(32);
+          },
+          keychainWriteKey: (_) async {
+            calls.add('write');
+            return false;
+          },
+          applyAlwaysRekey: (_, _, _) async {
+            calls.add('rekey-SHOULD-NOT-FIRE');
+          },
+          runClearPlan: (_) async {
+            calls.add('clearPlan-SHOULD-NOT-FIRE');
+          },
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'keychain write failed',
+          ),
+        ),
+      );
+      expect(calls, ['randomKey', 'write']);
+    });
+  });
+
+  group('applyHardwareTier', () {
+    test('happy path passes pin through to hardwareStore', () async {
+      final calls = <String>[];
+      String? capturedPin;
+      await applyHardwareTier(
+        modifiers: const SecurityTierModifiers(password: true),
+        pin: 'pin-1',
+        randomKey: () {
+          calls.add('randomKey');
+          return Uint8List(32);
+        },
+        hardwareStore: ({required dbKey, required pin}) async {
+          capturedPin = pin;
+          calls.add('seal');
+          return true;
+        },
+        applyAlwaysRekey: (_, level, _) async {
+          calls.add('rekey($level)');
+        },
+        runClearPlan: (target) async {
+          calls.add('clearPlan($target)');
+        },
+      );
+      expect(calls, [
+        'randomKey',
+        'seal',
+        'rekey(SecurityTier.hardware)',
+        'clearPlan(SecurityTier.hardware)',
+      ]);
+      expect(capturedPin, 'pin-1');
+    });
+
+    test('null pin (passwordless T2) is forwarded as-is', () async {
+      String? capturedPin = 'sentinel';
+      await applyHardwareTier(
+        modifiers: const SecurityTierModifiers(),
+        pin: null,
+        randomKey: () => Uint8List(32),
+        hardwareStore: ({required dbKey, required pin}) async {
+          capturedPin = pin;
+          return true;
+        },
+        applyAlwaysRekey: (_, _, _) async {},
+        runClearPlan: (_) async {},
+      );
+      expect(capturedPin, isNull);
+    });
+
+    test(
+      'seal failure throws hardware seal failed + skips rekey/clearPlan',
+      () async {
+        final calls = <String>[];
+        await expectLater(
+          () => applyHardwareTier(
+            modifiers: const SecurityTierModifiers(),
+            pin: null,
+            randomKey: () => Uint8List(32),
+            hardwareStore: ({required dbKey, required pin}) async {
+              calls.add('seal');
+              return false;
+            },
+            applyAlwaysRekey: (_, _, _) async {
+              calls.add('rekey-SHOULD-NOT-FIRE');
+            },
+            runClearPlan: (_) async {
+              calls.add('clearPlan-SHOULD-NOT-FIRE');
+            },
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'hardware seal failed',
+            ),
+          ),
+        );
+        expect(calls, ['seal']);
+      },
+    );
+  });
+
+  group('applyParanoidTier', () {
+    test(
+      'happy path: enable → rekey → clearPlan with the enabled key',
+      () async {
+        final calls = <String>[];
+        String? enabledWith;
+        await applyParanoidTier(
+          masterPassword: 'master-pw',
+          modifiers: const SecurityTierModifiers(password: true),
+          masterEnable: (pw) async {
+            enabledWith = pw;
+            calls.add('enable');
+            return Uint8List.fromList(List.filled(32, 0xCC));
+          },
+          applyAlwaysRekey: (key, level, _) async {
+            calls.add('rekey($level,key=${key.first.toRadixString(16)})');
+          },
+          runClearPlan: (target) async {
+            calls.add('clearPlan($target)');
+          },
+        );
+        expect(enabledWith, 'master-pw');
+        expect(calls, [
+          'enable',
+          'rekey(SecurityTier.paranoid,key=cc)',
+          'clearPlan(SecurityTier.paranoid)',
+        ]);
+      },
+    );
+
+    test('null master password throws + no seams fire', () async {
+      final calls = <String>[];
+      await expectLater(
+        () => applyParanoidTier(
+          masterPassword: null,
+          modifiers: const SecurityTierModifiers(),
+          masterEnable: (_) async {
+            calls.add('enable-SHOULD-NOT-FIRE');
+            return Uint8List(32);
+          },
+          applyAlwaysRekey: (_, _, _) async {
+            calls.add('rekey-SHOULD-NOT-FIRE');
+          },
+          runClearPlan: (_) async {
+            calls.add('clearPlan-SHOULD-NOT-FIRE');
+          },
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'master password missing',
+          ),
+        ),
+      );
+      expect(calls, isEmpty);
+    });
+
+    test('empty master password throws + no seams fire', () async {
+      await expectLater(
+        () => applyParanoidTier(
+          masterPassword: '',
+          modifiers: const SecurityTierModifiers(),
+          masterEnable: (_) async => Uint8List(32),
+          applyAlwaysRekey: (_, _, _) async {},
+          runClearPlan: (_) async {},
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'master password missing',
+          ),
+        ),
+      );
+    });
+  });
+
   group('applyKeychainWithPasswordTier', () {
     /// Records every seam invocation so each test can assert on
     /// the exact sequence + args.
