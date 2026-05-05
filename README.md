@@ -145,10 +145,13 @@ In Android Settings, enable **Install unknown apps** for the file manager or bro
 
 ### iOS
 
-Available format: **unsigned `.ipa`** — `letsflutssh-<version>-ios-unsigned.ipa`. The project does not have an Apple Developer Program account, so the `.ipa` ships without a code-signing identity and **cannot be installed as-is**. Two paths to install on a device:
+Available format: **unsigned `.ipa`** — `letsflutssh-<version>-ios-unsigned.ipa`. The project does not have an Apple Developer Program account, so the `.ipa` ships without a code-signing identity and **cannot be installed as-is**. Sideload it onto your own device with one of:
 
-- **Free Apple ID + Xcode (personal use, 7-day cert).** Drop the `.app` bundle from inside the `.ipa` (`unzip ...ipa` → `Payload/Runner.app`) into Xcode → *Window → Devices and Simulators*. Xcode signs with your free personal team certificate and pushes to the connected device. The signature expires after 7 days; re-sign + reinstall to renew.
-- **Paid Apple Developer Program ($99/yr).** Sign the `.app` bundle with your developer cert, repack as `.ipa`, and install via Xcode, TestFlight, or any standard MDM channel. Sketch:
+- **[AltStore](https://altstore.io)** (free, all host OSes). AltServer on a host computer (mac / Win / Linux) re-signs the `.ipa` with your free Apple ID and pushes to the iPhone over Wi-Fi; the cert expires after 7 days, AltServer refreshes it in the background while the phone is on the same network. Easiest no-Xcode path.
+- **[Sideloadly](https://sideloadly.io)** (free, mac / Win). Drag-and-drop the `.ipa` + your Apple ID. No background refresh — re-sideload manually when the cert expires.
+- **Xcode** (free, mac only). Drop `Payload/Runner.app` (from `unzip ...ipa`) into *Window → Devices and Simulators*. Pushes to a connected device under your free personal team. Same 7-day cert.
+- **[TrollStore](https://github.com/opa334/TrollStore)** (no Apple ID, no host computer). On-device permanent install via the CoreTrust bypass — only works on iOS versions vulnerable to the exploit (currently iOS ≤ 16.7 and select 17.x sub-builds; check the TrollStore compat matrix before trying).
+- **Paid Apple Developer Program ($99 / yr).** Sign the `.app` bundle with your developer cert, repack as `.ipa`, install via Xcode / TestFlight / any standard MDM channel. 1-year cert. Sketch:
   ```bash
   unzip letsflutssh-<version>-ios-unsigned.ipa
   codesign -f -s "Apple Development: <your name>" \
@@ -157,7 +160,9 @@ Available format: **unsigned `.ipa`** — `letsflutssh-<version>-ios-unsigned.ip
   zip -r resigned.ipa Payload/
   ```
 
-The CI artifact compiles against iOS 13.0+ (matches the platform table above).
+After install, on the iPhone: **Settings → General → VPN & Device Management → Apple Development: <your-apple-id> → Trust** (only the first time per cert).
+
+Step-by-step walkthrough + free-vs-paid Apple ID limits + update flow live in [USER_GUIDE § iOS sideloading](docs/USER_GUIDE.md#ios-sideloading-no-app-store). The CI artifact compiles against iOS 13.0+.
 
 ### User Data & Uninstalling
 

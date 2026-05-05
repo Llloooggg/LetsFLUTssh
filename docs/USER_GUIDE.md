@@ -665,6 +665,49 @@ Apple disallows long-lived sockets in background for non-VoIP / non-audio apps. 
 
 The foreground service notification can be muted by aggressive OEM battery managers (Xiaomi, Huawei, OnePlus). If your tunnels die in background despite the notification: Settings → battery → Don't optimise → LetsFLUTssh.
 
+### iOS sideloading (no App Store)
+
+LetsFLUTssh is not on the App Store — Apple Developer Program is paid ($99/year) and the per-release review process is hostile to fast iteration. The release pipeline ships an unsigned `.ipa` you self-sign onto your own device. Free Apple ID works for personal use; the cert it issues is good for 7 days, so the install needs refreshing weekly. A paid Apple Developer cert lifts that to 1 year.
+
+**One-time setup**
+
+1. Grab `letsflutssh-ios-unsigned-<version>.ipa` from the [Releases page](https://github.com/Llloooggg/LetsFLUTssh/releases).
+2. Pick a sideloader for the OS you'll re-sign from (you do NOT need a Mac):
+
+   | Tool | Host OS | Apple ID | Cert lifetime | Notes |
+   |---|---|---|---|---|
+   | [AltStore](https://altstore.io) | macOS / Win / Linux | Free / Paid | 7 d / 1 yr | AltServer on the host machine refreshes the cert in the background as long as the iPhone is on the same Wi-Fi. Easiest free path. |
+   | [Sideloadly](https://sideloadly.io) | macOS / Win | Free / Paid | 7 d / 1 yr | Manual re-sideload; no background refresh. |
+   | Xcode | macOS | Free / Paid | 7 d / 1 yr | Drag the `.ipa` onto a connected device, sign with your team. |
+   | [TrollStore](https://github.com/opa334/TrollStore) | none (on-device) | none | permanent | Only works on iOS versions vulnerable to the CoreTrust bypass — currently iOS ≤ 16.7 and select 17.x sub-builds. Check the TrollStore compat matrix before trying. |
+
+3. On the iPhone after install: **Settings → General → VPN & Device Management → Apple Development: <your-apple-id> → Trust**.
+
+**Free Apple ID limits**
+
+- 3 sideloaded apps active per device at any time.
+- 10 unique app IDs every 7 days.
+- 7-day cert expiry — re-sideload when the LetsFLUTssh icon greys out + iOS shows "Untrusted Developer". AltStore automates this if AltServer is reachable.
+
+**Paid Apple Developer ($99/year)**
+
+- Up to 100 devices per cert.
+- 1-year cert.
+- Worth it only if you also publish your own apps; for purely sideloading LetsFLUTssh the AltStore + free Apple ID flow is enough.
+
+**Updating the app**
+
+Each new release ships a fresh `.ipa` on the GitHub release page. Re-sideload over the existing install — settings, sessions, key material, recordings persist (data lives in the app sandbox, the resign only swaps the binary + bundle ID's signing chain).
+
+**What's NOT available on iOS**
+
+- App Store delivery (we don't go through the review).
+- Push notifications (no APNs cert in the unsigned build).
+- Universal Clipboard / Handoff between Apple devices (would need an entitlement signed by the App Store team).
+- Background socket lifetime — see [iOS background caveat](#ios-background-caveat) above.
+
+If sideloading isn't an option for you, the desktop builds (Linux / macOS / Windows) cover the same workflow and don't have the sandbox limits.
+
 ---
 
 ## 18. Troubleshooting
