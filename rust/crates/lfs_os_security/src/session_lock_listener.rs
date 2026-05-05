@@ -46,13 +46,13 @@ pub fn subscribe() -> broadcast::Receiver<()> {
 
 #[cfg(target_os = "linux")]
 fn spawn_platform_listener(tx: broadcast::Sender<()>) {
+    // Best-effort: logind failures (no D-Bus session, no logind on
+    // headless / test environments) just mean OS lock events won't
+    // fire the in-app auto-lock — everything else keeps running.
+    // No log channel here on purpose; the headless path hits this
+    // normally and stderr would only be noise.
     tokio::spawn(async move {
-        if let Err(e) = run_logind_listener(tx).await {
-            // Best-effort — failure here only means the OS lock
-            // signal won't fire the in-app auto-lock; the rest of
-            // the app continues to work.
-            eprintln!("[lfs_os_security] logind listener exited: {e}");
-        }
+        let _ = run_logind_listener(tx).await;
     });
 }
 
