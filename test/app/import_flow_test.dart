@@ -70,6 +70,7 @@ rust_archive.DbApplyResult _applyResult({
   knownHostsApplied: knownHosts,
   foldersApplied: 0,
   sessionTagsApplied: 0,
+  folderTagsApplied: 0,
   sessionSnippetsApplied: 0,
   errors: const [],
   configJson: configJson,

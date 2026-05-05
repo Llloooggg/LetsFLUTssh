@@ -81,6 +81,7 @@ pub struct ApplyResult {
     pub known_hosts_applied: i64,
     pub folders_applied: i64,
     pub session_tags_applied: i64,
+    pub folder_tags_applied: i64,
     pub session_snippets_applied: i64,
     pub errors: Vec<String>,
 }
@@ -161,6 +162,9 @@ fn run_apply(
     if options.apply_sessions && options.apply_tags {
         if let Some(json) = pending.session_tags_json.as_deref() {
             apply_session_tags(conn, json, result);
+        }
+        if let Some(json) = pending.folder_tags_json.as_deref() {
+            apply_folder_tags(conn, json, &folder_path_to_id, result);
         }
     }
     if options.apply_snippets {
@@ -358,6 +362,52 @@ fn apply_session_tags(conn: &Connection, json: &str, result: &mut ApplyResult) {
             Err(e) => result
                 .errors
                 .push(format!("session_tag {session_id}↔{tag_id}: {e}")),
+        }
+    }
+}
+
+/// Apply `folder_tags.json` — `[{folder_path, tag_id}]` — by
+/// resolving each `folder_path` against the freshly-built
+/// `path_to_id` map (populated by [`apply_folder_tree`] +
+/// [`apply_empty_folders`]) and calling `tags::link_folder_tag`.
+///
+/// Folders unknown to `path_to_id` (path not present in the
+/// imported sessions or empty-folders payload) are skipped — the
+/// archive carries the path verbatim so a partial import that
+/// drops the parent folder must not silently re-anchor the tag
+/// to a stale id; the link is dropped instead, which the user can
+/// rebuild from the Tag Manager.
+fn apply_folder_tags(
+    conn: &Connection,
+    json: &str,
+    path_to_id: &HashMap<String, String>,
+    result: &mut ApplyResult,
+) {
+    let arr = match serde_json::from_str::<Vec<Value>>(json) {
+        Ok(a) => a,
+        Err(e) => {
+            result.errors.push(format!("folder_tags parse: {e}"));
+            return;
+        }
+    };
+    for v in arr {
+        let folder_path = json_string(&v, "folder_path");
+        let tag_id = json_string(&v, "tag_id");
+        if folder_path.is_empty() || tag_id.is_empty() {
+            continue;
+        }
+        let Some(folder_id) = path_to_id.get(&folder_path) else {
+            // Path was not materialised this import — sessions for
+            // it weren't applied and it wasn't in empty_folders.
+            // Skip silently: the link belongs to a folder the user
+            // chose not to import.
+            continue;
+        };
+        match tags::link_folder_tag(conn, folder_id, &tag_id) {
+            Ok(_) => result.folder_tags_applied += 1,
+            Err(e) => result
+                .errors
+                .push(format!("folder_tag {folder_path}↔{tag_id}: {e}")),
         }
     }
 }
@@ -1151,6 +1201,119 @@ mod tests {
                 .unwrap();
         assert_eq!(result.session_tags_applied, 1);
         assert_eq!(tags::list_session_tag_ids(&conn, "s1").unwrap(), vec!["t1"]);
+    }
+
+    #[test]
+    fn apply_folder_tags_resolves_paths_against_freshly_built_folder_tree() {
+        let conn = fresh_db();
+        // Tag must exist on the receiving side; the import may have
+        // staged it via tags.json (gated by apply_tags) and the
+        // folder must materialise via sessions.json or
+        // empty_folders.json so the path → id map carries it.
+        tags::upsert(
+            &conn,
+            &tags::TagRow {
+                id: "t1".into(),
+                name: "n".into(),
+                color: None,
+                created_at_ms: 0,
+            },
+        )
+        .unwrap();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[{"id":"s1","label":"l","folder":"Work/Prod","host":"a","port":22,"user":"u","auth_type":"password"}]"#
+                    .to_string(),
+            ),
+            folder_tags_json: Some(
+                r#"[{"folder_path":"Work/Prod","tag_id":"t1"}]"#.to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.folder_tags_applied, 1);
+        // The freshly-minted folder id for "Work/Prod" must carry
+        // the tag now.
+        let folder_id = folders::list_all(&conn)
+            .unwrap()
+            .into_iter()
+            .find(|f| f.name == "Prod")
+            .map(|f| f.id)
+            .expect("Prod folder created");
+        assert_eq!(
+            tags::list_folder_tag_ids(&conn, &folder_id).unwrap(),
+            vec!["t1"],
+        );
+    }
+
+    #[test]
+    fn apply_folder_tags_skips_unknown_paths() {
+        let conn = fresh_db();
+        tags::upsert(
+            &conn,
+            &tags::TagRow {
+                id: "t1".into(),
+                name: "n".into(),
+                color: None,
+                created_at_ms: 0,
+            },
+        )
+        .unwrap();
+        // No sessions / empty_folders ⇒ Work/Prod never materialises;
+        // the tag link must be silently dropped, not error.
+        let pending = PendingImport {
+            folder_tags_json: Some(
+                r#"[{"folder_path":"Work/Prod","tag_id":"t1"}]"#.to_string(),
+            ),
+            ..empty_pending()
+        };
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.folder_tags_applied, 0);
+        assert!(result.errors.is_empty(), "errors: {:?}", result.errors);
+    }
+
+    #[test]
+    fn apply_folder_tags_requires_both_sessions_and_tags_toggles() {
+        let conn = fresh_db();
+        tags::upsert(
+            &conn,
+            &tags::TagRow {
+                id: "t1".into(),
+                name: "n".into(),
+                color: None,
+                created_at_ms: 0,
+            },
+        )
+        .unwrap();
+        let pending = PendingImport {
+            sessions_json: Some(
+                r#"[{"id":"s1","label":"l","folder":"Work","host":"a","port":22,"user":"u","auth_type":"password"}]"#
+                    .to_string(),
+            ),
+            folder_tags_json: Some(
+                r#"[{"folder_path":"Work","tag_id":"t1"}]"#.to_string(),
+            ),
+            ..empty_pending()
+        };
+        // Tags off → link skipped.
+        let mut opts = merge_all_options();
+        opts.apply_tags = false;
+        let result = apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        assert_eq!(result.folder_tags_applied, 0);
+        // Sessions off → also skipped (the folder never materialises).
+        let mut opts = merge_all_options();
+        opts.apply_sessions = false;
+        let result = apply_pending_import_merge(&conn, &pending, &opts, 1_700_000_000_000).unwrap();
+        assert_eq!(result.folder_tags_applied, 0);
+        // Both on → link applied.
+        let result =
+            apply_pending_import_merge(&conn, &pending, &merge_all_options(), 1_700_000_000_000)
+                .unwrap();
+        assert_eq!(result.folder_tags_applied, 1);
     }
 
     #[test]

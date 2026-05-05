@@ -195,12 +195,15 @@ rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
           for (final l in result.sessionTags)
             {'session_id': l.sessionId, 'tag_id': l.targetId},
         ]);
-  // Folder→tag links carry the folder PATH, not an id — the Rust apply
-  // driver currently keys junctions on folder_id, so these are dropped
-  // for now. A follow-up resolves paths to freshly-minted folder ids the
-  // same way `apply_folder_tree` does for sessions.
-  const String? folderTagsJson = null;
-  final _ = result.folderTags;
+  // Folder→tag links carry the folder PATH; the Rust apply driver
+  // resolves it against the freshly-built `folder_path → folder_id`
+  // map populated by `apply_folder_tree` + `apply_empty_folders`.
+  final folderTagsJson = result.folderTags.isEmpty
+      ? null
+      : jsonEncode([
+          for (final l in result.folderTags)
+            {'folder_path': l.folderPath, 'tag_id': l.tagId},
+        ]);
   final snippetsJson = _stageSnippetsJson(result.snippets);
   final sessionSnippetsJson = result.sessionSnippets.isEmpty
       ? null

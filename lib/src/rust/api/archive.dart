@@ -157,6 +157,7 @@ class DbApplyResult {
   final PlatformInt64 knownHostsApplied;
   final PlatformInt64 foldersApplied;
   final PlatformInt64 sessionTagsApplied;
+  final PlatformInt64 folderTagsApplied;
   final PlatformInt64 sessionSnippetsApplied;
   final List<String> errors;
   final String? configJson;
@@ -170,6 +171,7 @@ class DbApplyResult {
     required this.knownHostsApplied,
     required this.foldersApplied,
     required this.sessionTagsApplied,
+    required this.folderTagsApplied,
     required this.sessionSnippetsApplied,
     required this.errors,
     this.configJson,
@@ -185,6 +187,7 @@ class DbApplyResult {
       knownHostsApplied.hashCode ^
       foldersApplied.hashCode ^
       sessionTagsApplied.hashCode ^
+      folderTagsApplied.hashCode ^
       sessionSnippetsApplied.hashCode ^
       errors.hashCode ^
       configJson.hashCode;
@@ -202,6 +205,7 @@ class DbApplyResult {
           knownHostsApplied == other.knownHostsApplied &&
           foldersApplied == other.foldersApplied &&
           sessionTagsApplied == other.sessionTagsApplied &&
+          folderTagsApplied == other.folderTagsApplied &&
           sessionSnippetsApplied == other.sessionSnippetsApplied &&
           errors == other.errors &&
           configJson == other.configJson;
