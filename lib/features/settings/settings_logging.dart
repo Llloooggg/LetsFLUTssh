@@ -301,157 +301,158 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = AppTheme.bg0;
     final fg = AppTheme.green;
-    // Mirror the session-panel header: on mobile we give each AppIconButton
-    // a filled background + rounded corners so the three log actions read
-    // as buttons (they were 16 px transparent icons before — too small for
-    // a thumb and easy to miss).
     final mobile = plat.isMobilePlatform;
     final buttonBg = mobile ? AppTheme.bg3 : null;
-
-    // Toolbar title + status dot reflect whether writes are currently
-    // happening. When the user set logging level to Off we still show
-    // the viewer (archived entries stay reachable), but the "Live"
-    // wording + green dot would misrepresent state — swap in a dim
-    // "Archived log" + grey dot.
-    final indicatorColor = widget.active
-        ? fg
-        : theme.colorScheme.onSurface.withValues(alpha: 0.35);
-    final titleText = widget.active ? S.of(context).liveLog : 'Archived log';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Toolbar
-        Row(
-          children: [
-            Icon(Icons.circle, size: 8, color: indicatorColor),
-            const SizedBox(width: 6),
-            Text(
-              titleText,
-              style: TextStyle(
-                fontSize: AppFonts.md,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-            const Spacer(),
-            AppIconButton(
-              icon: Icons.copy,
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: _content));
-                Toast.show(
-                  context,
-                  message: _content.isEmpty
-                      ? S.of(context).logIsEmpty
-                      : S.of(context).copiedToClipboard,
-                  level: ToastLevel.info,
-                );
-              },
-              tooltip: S.of(context).copyLog,
-              backgroundColor: buttonBg,
-              borderRadius: AppTheme.radiusSm,
-            ),
-            if (mobile) const SizedBox(width: 8),
-            AppIconButton(
-              icon: Icons.save_alt,
-              onTap: widget.onExport,
-              tooltip: S.of(context).exportLog,
-              backgroundColor: buttonBg,
-              borderRadius: AppTheme.radiusSm,
-            ),
-            if (mobile) const SizedBox(width: 8),
-            AppIconButton(
-              icon: Icons.delete_outline,
-              onTap: () async {
-                widget.onClear();
-                await Future<void>.delayed(const Duration(milliseconds: 100));
-                await _refresh();
-              },
-              tooltip: S.of(context).clearLogs,
-              backgroundColor: buttonBg,
-              borderRadius: AppTheme.radiusSm,
-            ),
-          ],
-        ),
-        // Log content — grow into the rest of the viewport. Previously
-        // the box was capped at 360 px, leaving a large blank gap under
-        // it on tall windows / phones in portrait. Subtracting a
-        // generous chrome budget (~280 px for dialog header, section
-        // header, toolbar, dialog inset on desktop; for mobile the
-        // AppBar + ExpansionTile ancestor is similar) lets the viewer
-        // reach the bottom of the viewport without pushing its own
-        // toolbar off-screen on small devices. Floor stays at 200 px
-        // so a very short window still shows a usable strip.
+        _buildToolbar(context, theme, fg, mobile, buttonBg),
+        // Box height = viewport - 280 px chrome budget, floored at 200,
+        // so the viewer fills the dialog on tall windows but still leaves
+        // a usable strip on short ones.
         LayoutBuilder(
-          builder: (context, constraints) {
+          builder: (context, _) {
             final viewportHeight = MediaQuery.of(context).size.height;
             final maxHeight = (viewportHeight - 280).clamp(
               200.0,
               double.infinity,
             );
-            return Container(
-              width: double.infinity,
-              height: maxHeight,
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: AppTheme.radiusLg,
-              ),
-              padding: const EdgeInsets.all(4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _LogFilterBar(
-                    visibleLevels: _visibleLevels,
-                    query: _query,
-                    searchController: _searchController,
-                    onLevelToggle: (level) => setState(() {
-                      if (_visibleLevels.contains(level)) {
-                        _visibleLevels.remove(level);
-                      } else {
-                        _visibleLevels.add(level);
-                      }
-                    }),
-                    onQueryChanged: (q) => setState(() => _query = q),
-                  ),
-                  const SizedBox(height: 4),
-                  Expanded(
-                    child: _content.isEmpty
-                        ? Center(
-                            child: Text(
-                              '(no log entries yet)',
-                              style: TextStyle(
-                                fontSize: AppFonts.sm,
-                                fontFamily: 'monospace',
-                                color: fg.withValues(alpha: 0.5),
-                              ),
-                            ),
-                          )
-                        : Opacity(
-                            // Hide the first frame of the list while
-                            // `_refresh` schedules its post-frame
-                            // jumpTo(maxScrollExtent). Flipping to 1
-                            // happens in the same post-frame callback
-                            // after the jump, so the user only ever
-                            // sees the already-positioned-at-bottom
-                            // state — no "appears at top, then rips
-                            // down" jank on first open.
-                            opacity: _initiallyPositioned ? 1 : 0,
-                            child: _LogList(
-                              entries: _filterEntries(
-                                parseLogEntries(_content),
-                              ),
-                              controller: _scrollController,
-                              defaultFg: fg,
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            );
+            return _buildLogBox(maxHeight, fg);
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildToolbar(
+    BuildContext context,
+    ThemeData theme,
+    Color fg,
+    bool mobile,
+    Color? buttonBg,
+  ) {
+    final indicatorColor = widget.active
+        ? fg
+        : theme.colorScheme.onSurface.withValues(alpha: 0.35);
+    final titleText = widget.active ? S.of(context).liveLog : 'Archived log';
+    return Row(
+      children: [
+        Icon(Icons.circle, size: 8, color: indicatorColor),
+        const SizedBox(width: 6),
+        Text(
+          titleText,
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        const Spacer(),
+        AppIconButton(
+          icon: Icons.copy,
+          onTap: () => _copyLogToClipboard(context),
+          tooltip: S.of(context).copyLog,
+          backgroundColor: buttonBg,
+          borderRadius: AppTheme.radiusSm,
+        ),
+        if (mobile) const SizedBox(width: 8),
+        AppIconButton(
+          icon: Icons.save_alt,
+          onTap: widget.onExport,
+          tooltip: S.of(context).exportLog,
+          backgroundColor: buttonBg,
+          borderRadius: AppTheme.radiusSm,
+        ),
+        if (mobile) const SizedBox(width: 8),
+        AppIconButton(
+          icon: Icons.delete_outline,
+          onTap: _clearAndRefresh,
+          tooltip: S.of(context).clearLogs,
+          backgroundColor: buttonBg,
+          borderRadius: AppTheme.radiusSm,
+        ),
+      ],
+    );
+  }
+
+  void _copyLogToClipboard(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: _content));
+    Toast.show(
+      context,
+      message: _content.isEmpty
+          ? S.of(context).logIsEmpty
+          : S.of(context).copiedToClipboard,
+      level: ToastLevel.info,
+    );
+  }
+
+  Future<void> _clearAndRefresh() async {
+    widget.onClear();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await _refresh();
+  }
+
+  Widget _buildLogBox(double maxHeight, Color fg) {
+    return Container(
+      width: double.infinity,
+      height: maxHeight,
+      decoration: BoxDecoration(
+        color: AppTheme.bg0,
+        borderRadius: AppTheme.radiusLg,
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _LogFilterBar(
+            visibleLevels: _visibleLevels,
+            query: _query,
+            searchController: _searchController,
+            onLevelToggle: _toggleLevel,
+            onQueryChanged: (q) => setState(() => _query = q),
+          ),
+          const SizedBox(height: 4),
+          Expanded(child: _buildLogBody(fg)),
+        ],
+      ),
+    );
+  }
+
+  void _toggleLevel(LogLevel level) {
+    setState(() {
+      if (_visibleLevels.contains(level)) {
+        _visibleLevels.remove(level);
+      } else {
+        _visibleLevels.add(level);
+      }
+    });
+  }
+
+  Widget _buildLogBody(Color fg) {
+    if (_content.isEmpty) {
+      return Center(
+        child: Text(
+          '(no log entries yet)',
+          style: TextStyle(
+            fontSize: AppFonts.sm,
+            fontFamily: 'monospace',
+            color: fg.withValues(alpha: 0.5),
+          ),
+        ),
+      );
+    }
+    // Hide the first frame while `_refresh` schedules its post-frame
+    // jumpTo(maxScrollExtent); flips to 1 in the same callback so the
+    // user never sees "appears at top, then rips down".
+    final listOpacity = _initiallyPositioned ? 1.0 : 0.0;
+    return Opacity(
+      opacity: listOpacity,
+      child: _LogList(
+        entries: _filterEntries(parseLogEntries(_content)),
+        controller: _scrollController,
+        defaultFg: fg,
+      ),
     );
   }
 
