@@ -3,20 +3,20 @@
 //! The QR import deeplink (`letsflutssh://import?d=…`) carries a
 //! deflate-compressed JSON payload, base64url-encoded so it survives
 //! the URI's character set. This module owns the
-//! deflate + base64url half of the pipeline; the JSON construction
-//! lives Dart-side until the in-memory encoder retires.
+//! deflate + base64url half of the pipeline.
 //!
-//! Two callers share the helper today:
+//! Two callers share the helper:
 //!
 //! * `lfs_core::archive::qr_export_payload` — production encoder
 //!   that pulls session data from the DB and serialises it into the
-//!   v4 QR JSON shape. Routes through [`compress_to_payload`] for
-//!   the deflate + base64url step so the wire format lives one
+//!   v4 QR JSON shape, then routes through [`compress_to_payload`]
+//!   for the deflate + base64url step so the wire format lives one
 //!   place.
-//! * Dart `unified_export_controller` + `qr_codec` (legacy in-memory
-//!   encoder + the size-estimation getters that drive the live UI
-//!   feedback). Route via the FRB shim so the deflate parameters +
-//!   base64url alphabet stay in lock-step with the production path.
+//! * Dart `unified_export_controller` size-estimation gauge — builds
+//!   a small in-memory dummy payload for live "fits in QR" feedback
+//!   and routes through [`compress_to_payload_size`] so the
+//!   deflate parameters + base64url alphabet match the production
+//!   path byte-for-byte.
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use flate2::write::DeflateEncoder;
