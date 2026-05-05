@@ -265,7 +265,7 @@ class AppLogger {
   Future<void> _restrictPermissions(String path) async {
     if (Platform.isWindows) return;
     try {
-      rust_path.pathHardenFilePerms(path: path);
+      await rust_path.pathHardenFilePerms(path: path);
     } catch (_) {
       // Best-effort. Logger hardening must never break logging.
     }

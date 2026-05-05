@@ -1182,7 +1182,7 @@ abstract class RustLibApi extends BaseApi {
 
   String crateApiPathPathExpandTilde({required String path});
 
-  void crateApiPathPathHardenFilePerms({required String path});
+  Future<void> crateApiPathPathHardenFilePerms({required String path});
 
   bool crateApiPathPathIsSuspicious({required String path});
 
@@ -10864,17 +10864,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'path_expand_tilde', argNames: ['path']);
 
   @override
-  void crateApiPathPathHardenFilePerms({required String path}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
+  Future<void> crateApiPathPathHardenFilePerms({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(path, serializer);
-          return pdeCallFfi(
+          pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
             funcId: 274,
-          )!;
+            port: port_,
+          );
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,

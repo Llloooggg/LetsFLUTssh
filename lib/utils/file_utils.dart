@@ -49,7 +49,7 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
 /// never break a write.
 Future<void> hardenFilePerms(String path) async {
   try {
-    rust_path.pathHardenFilePerms(path: path);
+    await rust_path.pathHardenFilePerms(path: path);
   } catch (e) {
     AppLogger.instance.log(
       'Failed to harden permissions: $e',

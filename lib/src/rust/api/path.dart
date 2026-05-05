@@ -32,12 +32,24 @@ void pathWriteBytesAtomic({required String path, required List<int> bytes}) =>
 /// Android (sandboxed app storage). Best-effort: returns the OS
 /// error as `Err(String)` for the caller to log, never panics.
 ///
-/// Sync because the per-call work is one syscall on Unix and one
-/// short-lived subprocess on Windows; both run in microseconds
-/// and the call sites (drift WAL/SHM sidecars, explicit
+/// Async-with-spawn_blocking because the Windows `icacls` path
+/// can be many seconds on hosts with aggressive AV inspection
+/// (Defender real-time scan on Windows IoT LTSC measured at ~6 s
+/// for a single `icacls /inheritance:r /grant:r` invocation),
+/// not the "microseconds" the previous sync FRB annotation
+/// assumed. A sync FRB call holds the Dart UI thread for the
+/// entire subprocess wait — splash spinner freezes, no frames
+/// paint, the user perceives the app as hung. Offload the
+/// blocking subprocess wait to tokio's blocking pool so the
+/// Dart event loop keeps pumping while we wait. Unix `chmod` is
+/// genuinely microseconds and would not need this, but the
+/// uniform async signature is cheaper than splitting per-OS API
+/// surfaces. Call sites (drift WAL/SHM sidecars, explicit
 /// post-write hardening for files where the writer cannot use
-/// `path_write_bytes_atomic`) are not on hot paths.
-void pathHardenFilePerms({required String path}) =>
+/// `path_write_bytes_atomic`, `rust_db_init`'s `harden_perms`
+/// step) all already `await` through Dart-side `Future<void>`
+/// wrappers, so this is a transparent change at the binding.
+Future<void> pathHardenFilePerms({required String path}) =>
     RustLib.instance.api.crateApiPathPathHardenFilePerms(path: path);
 
 /// Extract the basename portion of [`path`], normalising Windows

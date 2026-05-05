@@ -42,14 +42,29 @@ pub fn path_write_bytes_atomic(path: String, bytes: Vec<u8>) -> Result<(), Strin
 /// Android (sandboxed app storage). Best-effort: returns the OS
 /// error as `Err(String)` for the caller to log, never panics.
 ///
-/// Sync because the per-call work is one syscall on Unix and one
-/// short-lived subprocess on Windows; both run in microseconds
-/// and the call sites (drift WAL/SHM sidecars, explicit
+/// Async-with-spawn_blocking because the Windows `icacls` path
+/// can be many seconds on hosts with aggressive AV inspection
+/// (Defender real-time scan on Windows IoT LTSC measured at ~6 s
+/// for a single `icacls /inheritance:r /grant:r` invocation),
+/// not the "microseconds" the previous sync FRB annotation
+/// assumed. A sync FRB call holds the Dart UI thread for the
+/// entire subprocess wait — splash spinner freezes, no frames
+/// paint, the user perceives the app as hung. Offload the
+/// blocking subprocess wait to tokio's blocking pool so the
+/// Dart event loop keeps pumping while we wait. Unix `chmod` is
+/// genuinely microseconds and would not need this, but the
+/// uniform async signature is cheaper than splitting per-OS API
+/// surfaces. Call sites (drift WAL/SHM sidecars, explicit
 /// post-write hardening for files where the writer cannot use
-/// `path_write_bytes_atomic`) are not on hot paths.
-#[flutter_rust_bridge::frb(sync)]
-pub fn path_harden_file_perms(path: String) -> Result<(), String> {
-    lfs_core::path::harden_file_perms(std::path::Path::new(&path))
+/// `path_write_bytes_atomic`, `rust_db_init`'s `harden_perms`
+/// step) all already `await` through Dart-side `Future<void>`
+/// wrappers, so this is a transparent change at the binding.
+pub async fn path_harden_file_perms(path: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_core::path::harden_file_perms(std::path::Path::new(&path))
+    })
+    .await
+    .map_err(|e| format!("path_harden_file_perms join: {e}"))?
 }
 
 /// Extract the basename portion of [`path`], normalising Windows
