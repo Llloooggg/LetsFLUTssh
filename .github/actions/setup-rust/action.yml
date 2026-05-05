@@ -124,7 +124,7 @@ runs:
     - name: Cache cargokit target dir
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
       with:
-        # cargokit puts its `cargo --target-dir` in three different
+        # cargokit puts its `cargo --target-dir` in four different
         # places depending on the build pipeline:
         # - cmake (Windows / Linux desktop): `build/<platform>/.../
         #   plugins/rust_builder/cargokit_build/`.
@@ -132,15 +132,23 @@ runs:
         #   Flutter plugin loader for `lfs_frb` lands at
         #   `<repo>/build/lfs_frb/` (cargo writes its standard
         #   `<triple>/release/` tree directly inside).
-        # - Xcode (macOS / iOS): `TARGET_TEMP_DIR` resolves under
-        #   `build/<macos|ios>/Build/Intermediates.noindex/Pods.build/
+        # - Xcode / macOS Flutter: Flutter's macOS pod build script
+        #   overrides `OBJROOT` so `TARGET_TEMP_DIR` resolves under
+        #   `build/macos/Build/Intermediates.noindex/Pods.build/
         #   <config>/lfs_frb-<hash>.build/Objects-normal/<arch>/`.
-        #   Cargo writes its `<triple>/release/` tree inside that
-        #   path. We glob the entire `Intermediates.noindex` subtree
-        #   for the platform — captures cargokit + the small Xcode
-        #   intermediate stuff alongside, the bloat is acceptable
-        #   given otherwise the save fails with `Path Validation
-        #   Error: Path(s) specified ... do(es) not exist`.
+        # - Xcode / iOS Flutter: Flutter iOS does NOT override
+        #   `OBJROOT` (open issue flutter/flutter#156136 — Flutter
+        #   only sets `BUILD_DIR=build/ios` for products, leaves
+        #   intermediates at xcodebuild default), so `TARGET_TEMP_DIR`
+        #   lands in the runner's default Xcode DerivedData under
+        #   `~/Library/Developer/Xcode/DerivedData/Runner-<hash>/
+        #   Build/Intermediates.noindex/Pods.build/<config>-iphoneos/
+        #   lfs_frb-<hash>.build/Objects-normal/<arch>/`. Caching the
+        #   whole `DerivedData` is coarse but works without modifying
+        #   the vendored cargokit `build_pod.sh` (which would create
+        #   merge conflicts on subtree updates). For macOS jobs the
+        #   `DerivedData` glob captures very little extra because
+        #   Flutter macOS funnels everything into `build/macos/`.
         path: |
           build/**/cargokit_build
           build/lfs_frb
@@ -148,6 +156,7 @@ runs:
           build/macos/Build/Intermediates.noindex
           build/ios/Build/Intermediates.noindex
           android/**/cargokit_build
+          ~/Library/Developer/Xcode/DerivedData
         # Cache key MUST include `github.job` — without it, Android
         # builds collide with `build-linux-x64` (both run on Linux
         # runners → `runner.os=Linux runner.arch=X64`) and iOS
