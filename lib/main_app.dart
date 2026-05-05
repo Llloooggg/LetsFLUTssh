@@ -114,15 +114,29 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (!await _initRustCoreOrFatal()) return;
     mark('rust_core');
 
-    // FRB-dependent bus subscribers wire here — NOT in
-    // `MainScreen.initState`. The previous architecture wired
-    // them synchronously during the first runApp frame, when
-    // RustLib hadn't loaded yet, and every `AppBus._SharedTopic`
-    // ctor's `busSubscribe` call threw "RustLib not initialised"
-    // → caught silently → `_frbSub` stuck at null for the process
-    // lifetime → the unlock cascade's `await
-    // TierUnlockedListener.awaitNextUnlock()` hung indefinitely
-    // because no `Unlocked` event ever reached the Dart side.
+    // Promote every `_SharedTopic` whose `Notifier.build()` ran
+    // pre-FRB-init (Riverpod providers like `ConnectionsNotifier`
+    // or `connectionActiveCountProvider` that widgets watch on the
+    // first runApp frame) to a live FRB subscription. Without this
+    // promotion, `AppBus.subscribe` calls during widget build
+    // anchor a dead `_SharedTopic` whose `_frbSub` never attaches
+    // — `Connection: Connected` and `[Progress]` events never
+    // reach the Dart subscribers, the terminal pane sees no
+    // shell-open trigger, and the user gets an empty tab. The
+    // per-call retry in `AppBus.subscribe` would eventually fix
+    // this on a follow-up subscription, but Riverpod notifiers
+    // don't re-enter `subscribe` after their build runs, so we
+    // promote them all at the FRB-ready boundary explicitly.
+    AppBus.instance.retryFrbSubscriptions();
+    mark('bus_subscriptions_promoted');
+
+    // FRB-dependent listeners owned directly by the boot chain
+    // (prompt subscribers, tier-state observer, foreground bridge)
+    // wire here. Centralised here so the FRB-readiness invariant
+    // for boot-chain code is trivially auditable: only post-
+    // `_initRustCoreOrFatal` code reaches `AppBus.subscribe`
+    // through this path. Riverpod-driven subscribers go through
+    // the retry promotion above instead.
     _wireFrbDependentBootstrapListeners();
     mark('bus_subscribers_attached');
 

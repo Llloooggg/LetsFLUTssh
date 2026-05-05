@@ -9,22 +9,32 @@
 /// the transport (mock for tests, future Tauri channel) without
 /// touching every consumer.
 ///
-/// Cold-start contract: `AppBus.subscribe` MUST NOT be called before
-/// `_initRustCoreOrFatal` completes. Every callsite is either inside
-/// the post-frame `_bootstrap` chain (or its descendants) or behind a
-/// Riverpod provider whose first read happens after that point. The
-/// previous architecture had `MainScreen.initState` wire the prompt
-/// listeners synchronously during the first runApp frame — pre-FRB-init
-/// when the Rust load is deferred — and the resulting ordering bugs
-/// caused multi-minute hangs in the unlock cascade. The fix moved
-/// every listener `.start()` call into `_bootstrap` (see
-/// `_LetsFLUTsshAppState._bootstrap`), so this module no longer needs
-/// the lazy / retry escape hatches that briefly lived here.
+/// Cold-start contract: `AppBus.subscribe` may be called at any
+/// point relative to `_initRustCoreOrFatal`. Listeners owned
+/// directly by the boot chain (`HostKeyPromptListener.start`,
+/// `TierStateObserver.start`, …) are wired from
+/// `_wireFrbDependentBootstrapListeners` after FRB is up — they
+/// see a ready core. Riverpod-driven subscribers can't promise
+/// that ordering: a `Notifier.build()` runs lazily when the FIRST
+/// `ref.watch` / `ref.read` lands on the provider, and that read
+/// often originates from a widget that mounts during the first
+/// runApp frame (pre-FRB-init when the Rust load is deferred to
+/// paint the splash first). [_SharedTopic.ensureFrbSub] handles
+/// this by retrying the FRB subscription on every `subscribe`
+/// call — once `RustLib.instance.initialized` flips to true and
+/// any subscriber re-enters `subscribe`, the previously-dead
+/// `_SharedTopic` promotes to a live broadcast and existing Dart
+/// listeners on its controller start receiving events without
+/// re-listening. [retryFrbSubscriptions] is the explicit fast-path
+/// for the bootstrap chain to promote every cached topic at the
+/// FRB-ready boundary, since not every Riverpod provider re-enters
+/// `subscribe` after init.
 library;
 
 import 'dart:async';
 
 import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/frb_generated.dart' show RustLib;
 
 export '../../src/rust/api/bus.dart' show BusCommand, BusEvent, BusTopic;
 
@@ -62,9 +72,32 @@ class AppBus {
   /// caller cancels the returned subscription as usual; the
   /// underlying FRB stream is NOT torn down at that point — only
   /// when the process exits.
+  ///
+  /// Each call retries [_SharedTopic.ensureFrbSub] so that
+  /// Riverpod `Notifier.build()` invocations that fire pre-FRB-init
+  /// (a widget on the first runApp frame watches the provider)
+  /// don't permanently anchor a dead subscription. See the library
+  /// docstring for the cold-start contract.
   Stream<rust_bus.BusEvent> subscribe(rust_bus.BusTopic topic) {
     final entry = _shared.putIfAbsent(topic, () => _SharedTopic(topic));
+    entry.ensureFrbSub();
     return entry.controller.stream;
+  }
+
+  /// Promote every cached `_SharedTopic` to a live FRB subscription.
+  /// Called from `_LetsFLUTsshAppState._bootstrap` immediately after
+  /// `_initRustCoreOrFatal` returns — Riverpod providers
+  /// (`ConnectionsNotifier`, `connectionActiveCountProvider`, …)
+  /// whose `build()` ran during the first runApp frame need their
+  /// dead pre-init `_SharedTopic` entries promoted before their
+  /// listeners start asking "where are my events?". Callers that
+  /// land AFTER bootstrap automatically pick up a ready stream
+  /// through the per-call retry in [subscribe], so this method is
+  /// only the fast-path for the cold-start window.
+  void retryFrbSubscriptions() {
+    for (final entry in _shared.values) {
+      entry.ensureFrbSub();
+    }
   }
 
   /// Convenience — subscribe to [BusTopic.connection] events and
@@ -103,22 +136,37 @@ class AppBus {
 /// Per-topic broadcast pipe + the underlying FRB subscription that
 /// feeds it. Lives for the AppBus singleton's lifetime (= process
 /// lifetime). FRB-unreachable contexts (flutter_test without the
-/// native blob loaded) catch the `busSubscribe` throw and leave
-/// the controller as-is — listeners receive no events but all
-/// `subscribe` calls still return a valid stream, so test code
-/// that wires up but never expects events keeps compiling.
+/// native blob loaded, or a Riverpod `Notifier.build()` that ran
+/// during the first runApp frame before `_initRustCoreOrFatal`
+/// completes) leave `_frbSub` as `null`; the next [ensureFrbSub]
+/// call once `RustLib` is up promotes it to a real subscription,
+/// and listeners that already subscribed to the broadcast stream
+/// start receiving events without re-listening.
 class _SharedTopic {
-  _SharedTopic(rust_bus.BusTopic topic) {
+  _SharedTopic(this.topic);
+
+  final rust_bus.BusTopic topic;
+  final controller = StreamController<rust_bus.BusEvent>.broadcast();
+  StreamSubscription<rust_bus.BusEvent>? _frbSub;
+
+  /// Idempotent — if a previous attempt already attached the FRB
+  /// stream, returns immediately. Checks
+  /// `RustLib.instance.initialized` first to avoid throwing a
+  /// `StateError` (which is technically caught below but creates
+  /// noise in the unhandled-error stream traces) and only calls
+  /// into FRB once the core is loaded.
+  void ensureFrbSub() {
+    if (_frbSub != null) return;
+    if (!RustLib.instance.initialized) return;
     try {
       _frbSub = rust_bus
           .busSubscribe(topic: topic)
           .listen(controller.add, onError: controller.addError);
     } catch (_) {
-      _frbSub = null;
+      // Native lib genuinely unreachable (flutter_test without
+      // FRB bootstrap) — leave `_frbSub` null. Subsequent
+      // subscribes will retry, but in the test context they
+      // continue to fail by design.
     }
   }
-
-  final controller = StreamController<rust_bus.BusEvent>.broadcast();
-  // ignore: unused_field
-  StreamSubscription<rust_bus.BusEvent>? _frbSub;
 }
