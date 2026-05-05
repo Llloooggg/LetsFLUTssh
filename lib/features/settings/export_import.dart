@@ -14,6 +14,7 @@ import '../../core/snippets/snippet.dart';
 import '../../core/tags/tag.dart';
 import '../../l10n/app_localizations.dart';
 import '../../src/rust/api/archive.dart' as rust_archive;
+import '../../src/rust/api/migration.dart' as rust_migration;
 import '../../utils/logger.dart';
 
 /// .lfs (LetsFLUTssh) archive format — ZIP encrypted with AES-256-GCM
@@ -40,13 +41,13 @@ import '../../utils/logger.dart';
 /// half here only composes the export side and exposes `probeArchive`
 /// for the SAF file-picker classification step.
 class ExportImport {
-  /// Current .lfs schema version. Bump on format-breaking changes;
+  /// Current `.lfs` schema version. Bump on format-breaking changes;
   /// every bump ships a corresponding archive migration in
-  /// `lfs_core::migration`. Mirrors `SchemaVersions::ARCHIVE` from
-  /// `lfs_core::migration` by literal — the export composer moves
-  /// fully Rust-side in a follow-up arc, at which point the
-  /// duplication retires.
-  static const int currentSchemaVersion = 1;
+  /// `lfs_core::migration`. Reads
+  /// `lfs_core::migration::SchemaVersions::ARCHIVE` through a sync
+  /// FRB getter so the constant lives one place across the workspace.
+  static int get currentSchemaVersion =>
+      rust_migration.migrationArchiveTargetVersion();
 
   static const _saltLen = 32;
   static const _ivLen = 12;
@@ -436,13 +437,15 @@ class LfsManifest {
     this.createdAt,
   });
 
-  /// Placeholder manifest used by code paths that need a
-  /// `LfsManifest` instance before the real one is parsed (e.g. the
-  /// default value on `LfsPreview.manifest`). Always carries the
-  /// current schema version and null metadata — never persisted.
-  static const LfsManifest placeholder = LfsManifest(
-    schemaVersion: ExportImport.currentSchemaVersion,
-  );
+  /// Placeholder manifest used as the default for
+  /// [LfsPreview.manifest] when no real manifest is available yet.
+  /// `schemaVersion: 0` is the "not parsed" sentinel — real archives
+  /// always report `>= SchemaVersions::ARCHIVE`, so a code path that
+  /// observes `0` here knows it received the default rather than a
+  /// real manifest. Kept `const` so it can sit on a default-argument
+  /// position; cannot reference `ExportImport.currentSchemaVersion`
+  /// (now an FRB-backed getter) for that reason.
+  static const LfsManifest placeholder = LfsManifest(schemaVersion: 0);
 }
 
 /// Classification of a file offered to the import flow. Produced by

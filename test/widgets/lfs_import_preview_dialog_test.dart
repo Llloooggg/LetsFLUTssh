@@ -6,7 +6,10 @@ import 'package:letsflutssh/widgets/lfs_import_preview_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 
+import '../helpers/frb_bootstrap.dart';
+
 void main() {
+  setUpAll(requireFrbLoaded);
   late Directory tempDir;
 
   setUp(() {
@@ -183,7 +186,7 @@ void main() {
     });
 
     testWidgets('Import button is disabled when no selection', (tester) async {
-      const preview = LfsPreview(
+      final preview = LfsPreview(
         schemaVersion: ExportImport.currentSchemaVersion,
         hasConfig: false,
         hasKnownHosts: false,
@@ -302,7 +305,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      const preview = LfsPreview(
+      final preview = LfsPreview(
         schemaVersion: ExportImport.currentSchemaVersion,
         hasConfig: false,
         hasKnownHosts: false,
@@ -327,7 +330,7 @@ void main() {
         // Replace-mode intent: checking "Tags" with zero imported tags wipes
         // existing tags. The UI must keep every checkbox clickable regardless
         // of preview counts so that intent can be expressed.
-        const preview = LfsPreview(
+        final preview = LfsPreview(
           schemaVersion: ExportImport.currentSchemaVersion,
           hasConfig: false,
           hasKnownHosts: false,

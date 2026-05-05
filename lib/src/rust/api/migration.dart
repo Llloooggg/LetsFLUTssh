@@ -13,6 +13,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 int migrationConfigTargetVersion() =>
     RustLib.instance.api.crateApiMigrationMigrationConfigTargetVersion();
 
+/// Target `schema_version` this build stamps into `.lfs` archive
+/// manifests and accepts on import. Reads
+/// `lfs_core::migration::SchemaVersions::ARCHIVE` so the constant
+/// lives one place across the workspace.
+int migrationArchiveTargetVersion() =>
+    RustLib.instance.api.crateApiMigrationMigrationArchiveTargetVersion();
+
 /// Read the on-disk `config.json` schema version. Returns `-1`
 /// when the file is absent. Returns `Err` when the file is present
 /// but corrupt (missing `config_schema_version`, malformed JSON,

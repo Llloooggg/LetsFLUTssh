@@ -327,6 +327,13 @@ pub fn read_archive_to_pending(
             )));
         };
     let (pending, schema_version) = parse_pending_import(&zip_bytes)?;
+    let supported = i64::from(crate::migration::SchemaVersions::ARCHIVE);
+    if schema_version > supported {
+        return Err(Error::ArchiveFutureVersion {
+            found: schema_version.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+            supported: crate::migration::SchemaVersions::ARCHIVE,
+        });
+    }
     let preview = pending.preview(schema_version);
     Ok((pending, preview))
 }
@@ -465,6 +472,47 @@ mod tests {
         let zip = build_test_zip(&[("sessions.json", "[]")]);
         let (_pending, schema) = parse_pending_import(&zip).expect("parse");
         assert_eq!(schema, 0);
+    }
+
+    #[test]
+    fn read_archive_to_pending_rejects_future_version() {
+        // Future-version manifest stamped by a hypothetical newer
+        // build. Current build supports SchemaVersions::ARCHIVE = 1
+        // and must refuse rather than silently apply whatever subset
+        // of fields it understands.
+        let zip = build_test_zip(&[
+            ("manifest.json", r#"{"schema_version":99}"#),
+            ("sessions.json", "[]"),
+        ]);
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("future.lfs");
+        std::fs::write(&path, &zip).unwrap();
+        let err = read_archive_to_pending(path.to_str().unwrap(), "")
+            .expect_err("future-version archive must error");
+        match err {
+            Error::ArchiveFutureVersion { found, supported } => {
+                assert_eq!(found, 99);
+                assert_eq!(supported, crate::migration::SchemaVersions::ARCHIVE);
+            }
+            other => panic!("expected ArchiveFutureVersion, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn read_archive_to_pending_accepts_current_version() {
+        let zip = build_test_zip(&[
+            ("manifest.json", r#"{"schema_version":1}"#),
+            ("sessions.json", "[]"),
+        ]);
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("current.lfs");
+        std::fs::write(&path, &zip).unwrap();
+        let (_pending, preview) =
+            read_archive_to_pending(path.to_str().unwrap(), "").expect("current version");
+        assert_eq!(
+            preview.schema_version,
+            i64::from(crate::migration::SchemaVersions::ARCHIVE),
+        );
     }
 
     #[test]

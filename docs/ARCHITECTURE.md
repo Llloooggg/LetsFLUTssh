@@ -1935,11 +1935,13 @@ password prompt:
     check inside `_decryptAndParseArchive` is the final arbiter.
 ```
 
-Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**,
-mirrors `lfs_core::migration::SchemaVersions::ARCHIVE` by literal until
-the export composer moves Rust-side). The manifest is written on every
-export and validated on import — archives with any `schema_version`
-other than the current one, or no manifest at all, throw
+Schema versioning: `ExportImport.currentSchemaVersion` (currently **v1**)
+reads `lfs_core::migration::SchemaVersions::ARCHIVE` through a sync FRB
+getter so the constant lives one place across the workspace. The
+manifest is written on every export and validated on import: when
+`read_archive_to_pending` parses a `schema_version` greater than the
+build's `SchemaVersions::ARCHIVE` it returns `Error::ArchiveFutureVersion`,
+which the Dart `openArchiveWithTypedErrors` wrapper translates into
 `UnsupportedLfsVersionException`. GCM's auth tag already protects
 archive integrity end-to-end, so no separate content hash is stored
 in the manifest.
