@@ -4630,9 +4630,11 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 
 **Behaviour on duplicate launch:**
 
-1. Linux: GApplication's primary instance receives the second launch's `activate` signal (forwarded over D-Bus). `my_application_activate` checks `gtk_application_get_active_window()` first — if a window already exists, calls `gtk_window_present()` on it and returns. The duplicate process exits without spinning up the Flutter engine.
-2. Windows: `wWinMain` calls `CreateMutexW` immediately. `GetLastError() == ERROR_ALREADY_EXISTS` → `FindWindowW(L"LetsFLUTssh")` + `IsIconic` / `ShowWindow(SW_RESTORE)` + `SetForegroundWindow` to bring the existing window forward, then `return EXIT_SUCCESS`. Mutex auto-releases on process exit.
-3. macOS: NSApplication detects the duplicate launch via Launch Services, forwards activation to the existing process (window comes to front), the second process never starts.
+1. Linux: in `my_application_local_command_line`, after `g_application_register`, `g_application_get_is_remote() == TRUE` indicates a primary instance already owns the D-Bus name. The duplicate calls `gtk_init` + `gtk_message_dialog_new` + `gtk_dialog_run` to surface a native GTK info dialog (`"An instance of LetsFLUTssh is already running."`, OK button), then exits without invoking `g_application_activate` and without spinning up the Flutter engine.
+2. Windows: `wWinMain` calls `CreateMutexW` immediately. `GetLastError() == ERROR_ALREADY_EXISTS` → `MessageBoxW("An instance of LetsFLUTssh is already running.", "LetsFLUTssh", MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND)` for a native Win32 info dialog, then `CloseHandle` + `return EXIT_SUCCESS`. Mutex auto-releases on process exit.
+3. macOS: NSApplication detects the duplicate launch via Launch Services and forwards activation to the existing process (window comes to front). The duplicate process never starts; no dialog. macOS users expect this silent focus-existing behaviour as the platform convention — every Cocoa app does this and surfacing an "already running" alert would feel out of place against the rest of the system.
+
+**Why English-only text in the dialogs.** Pulling the strings from `lib/l10n/app_*.arb` would require running enough of the Flutter engine to reach the localisation runtime, which defeats the speed benefit of rejecting the duplicate launch before the engine boots. The brief modal is acceptable in EN-only — the `OK` button itself renders in the OS's system locale via `MessageBoxW` / `GtkMessageDialog`'s native chrome.
 
 **Mobile:** Android + iOS manage single instance through their activity / scene lifecycle — no app code involved.
 

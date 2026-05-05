@@ -103,8 +103,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Single-instance gate. Acquire a named mutex in the per-user
   // `Local\` namespace — owned by this process for its lifetime.
   // A second launch from the Start menu / Explorer / `letsflutssh.exe`
-  // CLI sees `ERROR_ALREADY_EXISTS` here, brings the existing
-  // window to the foreground, and exits without loading the
+  // CLI sees `ERROR_ALREADY_EXISTS` here, surfaces a native
+  // `MessageBoxW` info dialog, and exits without loading the
   // Flutter engine, the bundled `lfs_frb.dll`, the Defender
   // real-time scan that bundled DLL triggers, or any of the Dart
   // bootstrap chain. Previous attempts gated single-instance from
@@ -117,6 +117,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // class of ordering concerns. The mutex auto-releases when the
   // process exits (clean or crash) — no stale-lock files to
   // clean up, no fcntl-per-process / per-fd footgun.
+  //
+  // Dialog text is hardcoded English. Pulling it from
+  // `lib/l10n/app_*.arb` would require running enough of the
+  // Flutter engine to reach the localisation runtime, which
+  // defeats the "reject before paying engine cost" benefit. The
+  // brief modal is acceptable in EN-only — `MessageBoxW` itself
+  // renders in the OS theme + system locale for the OK button.
   HANDLE single_instance_mutex =
       ::CreateMutexW(nullptr, TRUE, L"Local\\LetsFLUTssh-SingleInstance");
   if (single_instance_mutex == nullptr) {
@@ -125,20 +132,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     // to the normal launch — the OS is in a bad state anyway, no
     // point in adding a custom failure mode.
   } else if (::GetLastError() == ERROR_ALREADY_EXISTS) {
-    // Existing instance found. Try to focus its window before
-    // exiting; if `FindWindowW` fails (race during the existing
-    // instance's window creation) just exit silently — the user
-    // can click the existing taskbar entry. The window class name
-    // matches the title `Win32Window::Create` calls below with
-    // (`L"LetsFLUTssh"`) — `Win32Window` registers a window class
-    // whose name is derived from the title.
-    HWND existing = ::FindWindowW(nullptr, L"LetsFLUTssh");
-    if (existing != nullptr) {
-      if (::IsIconic(existing)) {
-        ::ShowWindow(existing, SW_RESTORE);
-      }
-      ::SetForegroundWindow(existing);
-    }
+    ::MessageBoxW(nullptr,
+                  L"An instance of LetsFLUTssh is already running.",
+                  L"LetsFLUTssh",
+                  MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND);
     ::CloseHandle(single_instance_mutex);
     return EXIT_SUCCESS;
   }
