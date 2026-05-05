@@ -128,26 +128,39 @@ runs:
         # places depending on the build pipeline:
         # - cmake (Windows / Linux desktop): `build/<platform>/.../
         #   plugins/rust_builder/cargokit_build/`.
-        # - gradle (Android): the per-module `buildDir`. With the
-        #   Flutter plugin loader the rust_builder module name comes
-        #   from `pubspec.yaml` (`lfs_frb`), so the path is
-        #   `build/lfs_frb/intermediates/cargokit_build/` (or
-        #   sometimes `build/lfs_frb/` without the subdir).
-        # - Xcode (macOS / iOS): `TARGET_TEMP_DIR` which Xcode
-        #   resolves under `build/macos/Build/Intermediates.noindex/
-        #   Pods.build/<config>/<plugin>.build/`.
-        #
-        # Glob covers all three shapes; a missing path on a given
-        # platform is a silent no-op (cache action tolerates
-        # non-matching globs as long as at least ONE matches).
+        # - gradle (Android): per-module `buildDir`, which under the
+        #   Flutter plugin loader for `lfs_frb` lands at
+        #   `<repo>/build/lfs_frb/` (cargo writes its standard
+        #   `<triple>/release/` tree directly inside).
+        # - Xcode (macOS / iOS): `TARGET_TEMP_DIR` resolves under
+        #   `build/<macos|ios>/Build/Intermediates.noindex/Pods.build/
+        #   <config>/lfs_frb-<hash>.build/Objects-normal/<arch>/`.
+        #   Cargo writes its `<triple>/release/` tree inside that
+        #   path. We glob the entire `Intermediates.noindex` subtree
+        #   for the platform — captures cargokit + the small Xcode
+        #   intermediate stuff alongside, the bloat is acceptable
+        #   given otherwise the save fails with `Path Validation
+        #   Error: Path(s) specified ... do(es) not exist`.
         path: |
           build/**/cargokit_build
           build/lfs_frb
           build/rust_builder
-          build/macos/Build/Intermediates.noindex/**/cargokit_phony*
-          build/macos/Build/Intermediates.noindex/**/Cargokit*
-          build/ios/Build/Intermediates.noindex/**/cargokit_phony*
+          build/macos/Build/Intermediates.noindex
+          build/ios/Build/Intermediates.noindex
           android/**/cargokit_build
-        key: cargokit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml', 'rust_builder/cargokit/**') }}
+        # Cache key MUST include `github.job` — without it, Android
+        # builds collide with `build-linux-x64` (both run on Linux
+        # runners → `runner.os=Linux runner.arch=X64`) and iOS
+        # collides with macOS (both on macos-latest →
+        # `runner.os=macOS runner.arch=ARM64`). The collision
+        # produces a cache hit on the WRONG target's compiled
+        # artefacts (Android tries to use x86_64-unknown-linux-gnu
+        # `.rlib` files, iOS tries to use aarch64-apple-darwin
+        # `.rlib` files), cargo recompiles the actual targets from
+        # scratch, then save sees the existing key and skips ("Cache
+        # up-to-date, not saving cache") — eternal miss for the
+        # cross-compile jobs no matter how many times they run. Per-
+        # job key namespaces each matrix slot separately.
+        key: cargokit-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml', 'rust_builder/cargokit/**') }}
         restore-keys: |
-          cargokit-${{ runner.os }}-${{ runner.arch }}-
+          cargokit-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-
