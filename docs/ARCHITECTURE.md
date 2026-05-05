@@ -5063,6 +5063,28 @@ The fixture exists because the four race-window bugs that landed on `feat/rust-c
 
 `make test` builds `rust/target/release/liblfs_frb.so` first via the `rust-build` Make target — the integration tests load FRB through `requireFrbLoaded()` and throw if the .so is missing.
 
+### Mutation testing (`cargo-mutants`)
+
+`make rust-mutants SCOPE=<dir>` (e.g. `SCOPE=archive`) drives [`cargo-mutants`](https://mutants.rs) over a curated module under `rust/crates/lfs_core/src/<dir>/`. The wrapper at `scripts/run-mutants.sh` enumerates every `*.rs` basename in the chosen scope, feeds each as a `--file` flag, and prints the per-file caught/missed roll-up after the run.
+
+| Outcome | Meaning |
+|---|---|
+| **CaughtMutant** | The mutated code failed at least one test. Test suite catches the regression. |
+| **MissedMutant** | The mutated code passed every test. The test suite **does not** verify the behaviour at that span. |
+| **Unviable** | The mutation does not compile (skipped). |
+| **Timeout** | The mutated code hangs the test (counted as caught). |
+| **Mutation score** | `caught / (caught + missed)` — fraction of behaviour-touching mutations the suite would catch. |
+
+A mutation score of 100% means every algebraic / boolean / return-value mutation produces a test failure. Real-world good is ≈ 80–90%; below 50% means the tests verify "the function ran" rather than "the function returned the right thing".
+
+**WSL caveat.** cargo-mutants creates per-job scratch copies of `target/` (3-4 GiB each) under `$TMPDIR`. WSL2 mounts `/tmp` as **tmpfs (RAM)** capped at ~16 GiB by default, so 4 jobs OOM the box; the wrapper pins `TMPDIR=$REPO/.cache/cargo-mutants/scratch` (disk-backed) and defaults to 2 jobs. Override with `MUTANTS_JOBS=N`, `MUTANTS_TMPDIR=...`, `MUTANTS_TIMEOUT_MUL=...`.
+
+**Scopes.** Pass `SCOPE=<directory under lfs_core/src/>`. Examples: `archive`, `security`, `ssh`, `crypto`, `db`. cargo-mutants matches files by basename, so this works as long as `lfs_core` carries one file per name across these dirs (today it does).
+
+**Outputs.** `.cache/cargo-mutants/<scope>/mutants.out/` — already in `.gitignore`. Inspect `missed.txt` for the actionable list (each line is `path:line:col: <kind>: <replacement> in <fn>`); use it to write tests that would fail under that exact mutation.
+
+**When to run.** Not every commit. Mutation runs are minutes-long; trigger them when raising the testing bar on a sub-module, when reviewing a `0%` test file, or when a refactor reshapes a critical path (archive composer / crypto envelope / authn handshake).
+
 **Synthetic-Connection helper.** `Connection.debugMarkTransportAdopted()` (gated by `@visibleForTesting`) completes the underlying `_transportAdopted` Completer the same way the bus listener would after `_adoptSession`. Widget tests that build `Connection(state: SSHConnectionState.connected)` directly (no actor, no bus events) call it once at construction so `await conn.transportReady` resolves immediately — without it the SFTP-mixin / file-browser tests' `pumpAndSettle` hangs on the never-completed completer.
 
 ### Fuzz testing
