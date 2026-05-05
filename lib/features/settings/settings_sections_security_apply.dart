@@ -70,7 +70,7 @@ extension _TierApply on _SecuritySectionState {
 
   Future<void> _applyPlaintextTier(SecuritySetupResult result) async {
     await _applyAlwaysRekey(null, SecurityTier.plaintext, result.modifiers);
-    await _clearAllTierSecrets();
+    await _runVaultClearPlan(SecurityTier.plaintext);
   }
 
   Future<void> _applyKeychainTier(SecuritySetupResult result) async {
@@ -79,7 +79,7 @@ extension _TierApply on _SecuritySectionState {
     final stored = await keyStorage.writeKey(key);
     if (!stored) throw StateError('keychain write failed');
     await _applyAlwaysRekey(key, SecurityTier.keychain, result.modifiers);
-    await _clearNonKeychainTierSecrets();
+    await _runVaultClearPlan(SecurityTier.keychain);
   }
 
   Future<void> _applyKeychainWithPasswordTier(
@@ -103,10 +103,7 @@ extension _TierApply on _SecuritySectionState {
       SecurityTier.keychainWithPassword,
       result.modifiers,
     );
-    await ref.read(hardwareTierVaultProvider).clear();
-    final manager = ref.read(masterPasswordProvider);
-    if (await manager.isEnabled()) await manager.disable();
-    await ref.read(biometricKeyVaultProvider).clear();
+    await _runVaultClearPlan(SecurityTier.keychainWithPassword);
   }
 
   Future<void> _applyHardwareTier(SecuritySetupResult result) async {
@@ -122,11 +119,7 @@ extension _TierApply on _SecuritySectionState {
     final sealed = await hwVault.store(dbKey: key, pin: result.takePin());
     if (!sealed) throw StateError('hardware seal failed');
     await _applyAlwaysRekey(key, SecurityTier.hardware, result.modifiers);
-    await ref.read(secureKeyStorageProvider).deleteKey();
-    await ref.read(keychainPasswordGateProvider).clear();
-    final manager = ref.read(masterPasswordProvider);
-    if (await manager.isEnabled()) await manager.disable();
-    await ref.read(biometricKeyVaultProvider).clear();
+    await _runVaultClearPlan(SecurityTier.hardware);
   }
 
   Future<void> _applyParanoidTier(SecuritySetupResult result) async {
@@ -137,31 +130,31 @@ extension _TierApply on _SecuritySectionState {
     final manager = ref.read(masterPasswordProvider);
     final key = await manager.enable(pw);
     await _applyAlwaysRekey(key, SecurityTier.paranoid, result.modifiers);
-    await ref.read(secureKeyStorageProvider).deleteKey();
-    await ref.read(keychainPasswordGateProvider).clear();
-    await ref.read(hardwareTierVaultProvider).clear();
-    await ref.read(biometricKeyVaultProvider).clear();
+    await _runVaultClearPlan(SecurityTier.paranoid);
   }
 
-  /// Wipe every tier vault — used on T0 (plaintext) switch.
-  Future<void> _clearAllTierSecrets() async {
-    await ref.read(secureKeyStorageProvider).deleteKey();
-    await ref.read(keychainPasswordGateProvider).clear();
-    await ref.read(hardwareTierVaultProvider).clear();
-    final manager = ref.read(masterPasswordProvider);
-    if (await manager.isEnabled()) await manager.disable();
-    await ref.read(biometricKeyVaultProvider).clear();
-  }
-
-  /// Wipe every tier vault *except* the keychain entry — used on T1
-  /// switch where [_applyKeychainTier] has just written a fresh DB
-  /// key into the keychain and must not immediately delete it.
-  Future<void> _clearNonKeychainTierSecrets() async {
-    await ref.read(keychainPasswordGateProvider).clear();
-    await ref.read(hardwareTierVaultProvider).clear();
-    final manager = ref.read(masterPasswordProvider);
-    if (await manager.isEnabled()) await manager.disable();
-    await ref.read(biometricKeyVaultProvider).clear();
+  /// Drive the per-target vault clear matrix from
+  /// [tierVaultClearPlanFor]. The matrix flips off the slot the
+  /// apply method just wrote into so the commit isn't immediately
+  /// undone, and every other vault clears verbatim.
+  Future<void> _runVaultClearPlan(SecurityTier target) async {
+    final plan = tierVaultClearPlanFor(target);
+    if (plan.clearKeychainKey) {
+      await ref.read(secureKeyStorageProvider).deleteKey();
+    }
+    if (plan.clearKeychainGate) {
+      await ref.read(keychainPasswordGateProvider).clear();
+    }
+    if (plan.clearHardwareVault) {
+      await ref.read(hardwareTierVaultProvider).clear();
+    }
+    if (plan.clearMasterPassword) {
+      final manager = ref.read(masterPasswordProvider);
+      if (await manager.isEnabled()) await manager.disable();
+    }
+    if (plan.clearBiometricVault) {
+      await ref.read(biometricKeyVaultProvider).clear();
+    }
   }
 
   /// Rekey the live database under [key] (or convert to plaintext
@@ -184,11 +177,9 @@ extension _TierApply on _SecuritySectionState {
     // Marker payload carries tier + modifiers so a crash-recovery
     // path can reconstruct the target config and drive the right
     // unlock prompt (password? biometric? no gate?) instead of
-    // falling back to whatever the enum alone suggests.
-    final markerPayload = jsonEncode({
-      'tier': _tierName(level),
-      'mods': resolvedMods.toJson(),
-    });
+    // falling back to whatever the enum alone suggests. JSON shape
+    // lives in `security_section_logic.buildTierMarkerPayload`.
+    final markerPayload = buildTierMarkerPayload(level, resolvedMods);
     // Bind the constructor-time callback to the supplied key. The
     // tier-secret unlock dialog routes the freshly-derived key here,
     // so the override path uses the user's key (not a fresh random

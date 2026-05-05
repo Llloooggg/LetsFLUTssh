@@ -552,8 +552,6 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     }
   }
 
-  String _tierName(SecurityTier tier) => securityTierLogName(tier);
-
   /// Re-renders the section from a per-flow extension method.
   /// `State.setState` is `@protected` so extensions on
   /// `_SecuritySectionState` cannot call it directly; this wrapper

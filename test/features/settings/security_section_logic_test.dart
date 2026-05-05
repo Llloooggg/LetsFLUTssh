@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
@@ -508,5 +510,131 @@ void main() {
         );
       },
     );
+  });
+
+  group('buildTierMarkerPayload', () {
+    test('payload is JSON {tier, mods} with snake_case tier name', () {
+      final payload = buildTierMarkerPayload(
+        SecurityTier.keychainWithPassword,
+        const SecurityTierModifiers(password: true),
+      );
+      // Round-trip through jsonDecode for shape assertions — never
+      // assert on raw string layout (would lock to formatting).
+      final decoded = json.decode(payload);
+      expect(decoded, isA<Map<String, dynamic>>());
+      expect(decoded['tier'], 'keychain_with_password');
+      expect(decoded['mods'], isA<Map<String, dynamic>>());
+      expect(decoded['mods']['password'], isTrue);
+    });
+
+    test('every tier round-trips its snake_case marker into the payload', () {
+      for (final tier in SecurityTier.values) {
+        final payload = buildTierMarkerPayload(
+          tier,
+          const SecurityTierModifiers(),
+        );
+        final decoded = json.decode(payload) as Map<String, dynamic>;
+        expect(decoded['tier'], securityTierLogName(tier));
+      }
+    });
+
+    test('modifiers map mirrors SecurityTierModifiers.toJson verbatim', () {
+      const mods = SecurityTierModifiers(password: false);
+      final payload = buildTierMarkerPayload(SecurityTier.plaintext, mods);
+      final decoded = json.decode(payload) as Map<String, dynamic>;
+      expect(decoded['mods'], mods.toJson());
+    });
+  });
+
+  group('tierVaultClearPlanFor', () {
+    test('plaintext clears every vault — no key survives at T0', () {
+      final plan = tierVaultClearPlanFor(SecurityTier.plaintext);
+      expect(plan.clearKeychainKey, isTrue);
+      expect(plan.clearKeychainGate, isTrue);
+      expect(plan.clearHardwareVault, isTrue);
+      expect(plan.clearMasterPassword, isTrue);
+      expect(plan.clearBiometricVault, isTrue);
+    });
+
+    test('keychain spares the keychain entry it just wrote', () {
+      final plan = tierVaultClearPlanFor(SecurityTier.keychain);
+      expect(plan.clearKeychainKey, isFalse);
+      expect(plan.clearKeychainGate, isTrue);
+      expect(plan.clearHardwareVault, isTrue);
+      expect(plan.clearMasterPassword, isTrue);
+      expect(plan.clearBiometricVault, isTrue);
+    });
+
+    test('keychainWithPassword spares both keychain key + gate', () {
+      final plan = tierVaultClearPlanFor(SecurityTier.keychainWithPassword);
+      expect(plan.clearKeychainKey, isFalse);
+      expect(plan.clearKeychainGate, isFalse);
+      expect(plan.clearHardwareVault, isTrue);
+      expect(plan.clearMasterPassword, isTrue);
+      expect(plan.clearBiometricVault, isTrue);
+    });
+
+    test('hardware spares the hw vault it just sealed', () {
+      final plan = tierVaultClearPlanFor(SecurityTier.hardware);
+      expect(plan.clearKeychainKey, isTrue);
+      expect(plan.clearKeychainGate, isTrue);
+      expect(plan.clearHardwareVault, isFalse);
+      expect(plan.clearMasterPassword, isTrue);
+      expect(plan.clearBiometricVault, isTrue);
+    });
+
+    test('paranoid spares the master password it just enabled', () {
+      final plan = tierVaultClearPlanFor(SecurityTier.paranoid);
+      expect(plan.clearKeychainKey, isTrue);
+      expect(plan.clearKeychainGate, isTrue);
+      expect(plan.clearHardwareVault, isTrue);
+      expect(plan.clearMasterPassword, isFalse);
+      expect(plan.clearBiometricVault, isTrue);
+    });
+
+    test('every plan keeps the biometric vault wiped — vault is per-tier', () {
+      // The biometric vault stores a tier-specific HMAC; a tier
+      // switch always invalidates it, so no plan should ever
+      // skip the bio clear.
+      for (final tier in SecurityTier.values) {
+        expect(
+          tierVaultClearPlanFor(tier).clearBiometricVault,
+          isTrue,
+          reason: 'tier $tier must clear biometric vault on switch',
+        );
+      }
+    });
+
+    test('exactly one slot is `false` per tier — the slot the apply method '
+        'just wrote into (plaintext is the all-clear exception)', () {
+      for (final tier in SecurityTier.values) {
+        final plan = tierVaultClearPlanFor(tier);
+        final falseCount = [
+          plan.clearKeychainKey,
+          plan.clearKeychainGate,
+          plan.clearHardwareVault,
+          plan.clearMasterPassword,
+          plan.clearBiometricVault,
+        ].where((b) => !b).length;
+        if (tier == SecurityTier.plaintext) {
+          expect(falseCount, 0, reason: 'plaintext clears every vault');
+        } else if (tier == SecurityTier.keychainWithPassword) {
+          // keychainWithPassword is the only tier that writes to
+          // two slots — the keychain key and the password gate —
+          // so two `false`s.
+          expect(
+            falseCount,
+            2,
+            reason: 'keychainWithPassword writes both keychain key and gate',
+          );
+        } else {
+          expect(
+            falseCount,
+            1,
+            reason: 'tier $tier writes one vault slot only',
+          );
+        }
+      }
+    });
   });
 }

@@ -8,6 +8,8 @@
 /// callers stay one-liners and unit tests cover each branch directly.
 library;
 
+import 'dart:convert';
+
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
 import '../../l10n/app_localizations.dart';
@@ -219,5 +221,122 @@ String securityTierLogName(SecurityTier tier) {
       return 'hardware';
     case SecurityTier.paranoid:
       return 'paranoid';
+  }
+}
+
+/// What every tier-apply method writes into the marker file before
+/// kicking off `SecurityTierSwitcher.switchTier`. Bundles the snake-
+/// case tier name + modifier JSON so a crash-recovery path can
+/// reconstruct the target config and drive the right unlock prompt
+/// (password? biometric? no gate?) at next launch.
+///
+/// Pure JSON — no rekey side-effects, no provider reads — so the
+/// payload shape can be unit-tested directly against the Rust-side
+/// recovery path's parser.
+String buildTierMarkerPayload(
+  SecurityTier tier,
+  SecurityTierModifiers modifiers,
+) {
+  return jsonEncode({
+    'tier': securityTierLogName(tier),
+    'mods': modifiers.toJson(),
+  });
+}
+
+/// Decision matrix for which tier vaults the apply pipeline must
+/// clear after rekeying onto [target]. Each apply method first
+/// commits the new key to the target tier's own vault (keychain
+/// blob, keychain-with-password gate, hardware seal, master-password
+/// verifier), then wipes everything else so a stale wrapper from a
+/// previous tier cannot resurrect under a different unlock path.
+///
+/// The `false` slot per row corresponds to the vault the apply
+/// method **just wrote into** — wiping it would race with the
+/// commit that just landed. Every other vault returns `true`.
+class TierVaultClearPlan {
+  /// True → `secureKeyStorageProvider.deleteKey()` runs.
+  final bool clearKeychainKey;
+
+  /// True → `keychainPasswordGateProvider.clear()` runs.
+  final bool clearKeychainGate;
+
+  /// True → `hardwareTierVaultProvider.clear()` runs.
+  final bool clearHardwareVault;
+
+  /// True → `masterPasswordProvider.disable()` runs (gated on
+  /// `isEnabled()` since `disable()` on an already-disabled manager
+  /// is a no-op but the call still does an FRB round-trip).
+  final bool clearMasterPassword;
+
+  /// True → `biometricKeyVaultProvider.clear()` runs.
+  final bool clearBiometricVault;
+
+  const TierVaultClearPlan({
+    required this.clearKeychainKey,
+    required this.clearKeychainGate,
+    required this.clearHardwareVault,
+    required this.clearMasterPassword,
+    required this.clearBiometricVault,
+  });
+}
+
+/// The clear plan for a tier-apply targeting [target]. Mirrors the
+/// inline cleanup steps inside `_apply{Plaintext,Keychain,
+/// KeychainWithPassword,Hardware,Paranoid}Tier` — extracted so the
+/// matrix is one unit-testable surface instead of five inlined
+/// `await ref.read(...).clear()` chains that drifted independently.
+TierVaultClearPlan tierVaultClearPlanFor(SecurityTier target) {
+  switch (target) {
+    case SecurityTier.plaintext:
+      // T0 — every vault wiped. The DB drops to plaintext, so no
+      // wrapper needs to survive.
+      return const TierVaultClearPlan(
+        clearKeychainKey: true,
+        clearKeychainGate: true,
+        clearHardwareVault: true,
+        clearMasterPassword: true,
+        clearBiometricVault: true,
+      );
+    case SecurityTier.keychain:
+      // T1 — apply just wrote a fresh DB key into the keychain;
+      // every other vault gets cleared.
+      return const TierVaultClearPlan(
+        clearKeychainKey: false,
+        clearKeychainGate: true,
+        clearHardwareVault: true,
+        clearMasterPassword: true,
+        clearBiometricVault: true,
+      );
+    case SecurityTier.keychainWithPassword:
+      // T1+pw — apply wrote both the keychain key + the password
+      // gate; everything else clears.
+      return const TierVaultClearPlan(
+        clearKeychainKey: false,
+        clearKeychainGate: false,
+        clearHardwareVault: true,
+        clearMasterPassword: true,
+        clearBiometricVault: true,
+      );
+    case SecurityTier.hardware:
+      // T2 — apply sealed under SE/TPM; keychain key + gate go,
+      // master-password disables (was on Paranoid before), bio
+      // clears.
+      return const TierVaultClearPlan(
+        clearKeychainKey: true,
+        clearKeychainGate: true,
+        clearHardwareVault: false,
+        clearMasterPassword: true,
+        clearBiometricVault: true,
+      );
+    case SecurityTier.paranoid:
+      // Paranoid — apply just enabled the master password; every
+      // OS-trust-bearing vault wipes.
+      return const TierVaultClearPlan(
+        clearKeychainKey: true,
+        clearKeychainGate: true,
+        clearHardwareVault: true,
+        clearMasterPassword: false,
+        clearBiometricVault: true,
+      );
   }
 }
