@@ -64,3 +64,16 @@ pub fn persisted_rate_limit_actor_record_success(id: String) {
 pub fn persisted_rate_limit_actor_clear(id: String) {
     actor::instance().clear(&id);
 }
+
+/// Await the most-recent in-flight disk write for `id`. Returns
+/// immediately when nothing is pending. Replaces the Dart-side
+/// `Future.delayed(50ms)` heuristic the wrapper used to assume
+/// `tokio::spawn_blocking` had landed; tests that observe disk
+/// state can now block on this call deterministically.
+pub async fn persisted_rate_limit_actor_flush(id: String) {
+    if let Some(handle) = actor::instance().take_pending_write(&id) {
+        // JoinError on cancellation is harmless — the next write
+        // is the truth, not the one we were awaiting.
+        let _ = handle.await;
+    }
+}

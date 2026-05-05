@@ -240,19 +240,22 @@ class PersistedRateLimiter extends PasswordRateLimiter {
     _initialised = false;
   }
 
-  /// Awaits any pending save. The actor schedules writes via
-  /// `tokio::spawn_blocking` on the FRB tokio runtime; the short
-  /// delay covers the worker dispatch + sync `std::fs::write`
-  /// latency.
+  /// Awaits the actor's most-recent in-flight `tokio::spawn_blocking`
+  /// disk write for this limiter. Routes through
+  /// `persisted_rate_limit_actor_flush` (FRB async) so callers
+  /// observe a settled disk state deterministically — replaces the
+  /// earlier `Future.delayed(50ms)` heuristic.
   ///
-  /// 50 ms is empirical — flutter_test runs the FRB worker on the
-  /// same machine the test is running on, so the Tokio handoff +
-  /// disk write completes well within this window. If a future
-  /// machine reliably misses, bump it; a proper Rust-side
-  /// `actor_flush` FRB call is the long-term fix but requires
-  /// rebuilding codegen.
+  /// Safe to call when no write is pending — the FRB function
+  /// returns immediately in that case.
   Future<void> awaitPendingSave() async {
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    try {
+      await rust_persisted_actor.persistedRateLimitActorFlush(id: _id);
+    } catch (_) {
+      // FRB unavailable / actor unreachable in some test contexts —
+      // fall through; the worst case is the test observes the
+      // pre-write state, not an empty / corrupt one.
+    }
   }
 
   @override

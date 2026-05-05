@@ -59,3 +59,13 @@ void persistedRateLimitActorRecordSuccess({required String id}) => RustLib
 /// zero.
 void persistedRateLimitActorClear({required String id}) => RustLib.instance.api
     .crateApiPersistedRateLimitActorPersistedRateLimitActorClear(id: id);
+
+/// Await the most-recent in-flight disk write for `id`. Returns
+/// immediately when nothing is pending. Replaces the Dart-side
+/// `Future.delayed(50ms)` heuristic the wrapper used to assume
+/// `tokio::spawn_blocking` had landed; tests that observe disk
+/// state can now block on this call deterministically.
+Future<void> persistedRateLimitActorFlush({required String id}) => RustLib
+    .instance
+    .api
+    .crateApiPersistedRateLimitActorPersistedRateLimitActorFlush(id: id);

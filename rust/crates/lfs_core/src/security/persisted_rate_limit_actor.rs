@@ -41,6 +41,14 @@ struct Entry {
     /// the unlock dialog renders no cooldown before the load
     /// settles.
     loaded: bool,
+    /// Handle of the most recent `tokio::spawn_blocking` write task,
+    /// taken by [`PersistedRateLimiterRegistry::flush`] so callers
+    /// can await write settlement instead of polling the disk.
+    /// Replaced (not chained) on every new write — the latest state
+    /// is always the only one that matters; an older write that
+    /// hasn't observed wins is no longer the truth and is safe to
+    /// drop (race-then-overwrite, not race-then-revert).
+    pending_write: Option<tokio::task::JoinHandle<()>>,
 }
 
 /// Singleton registry. Mirrors the shape of
@@ -80,6 +88,7 @@ impl PersistedRateLimiterRegistry {
             hmac_key: hmac_key.clone(),
             state: None,
             loaded: false,
+            pending_write: None,
         });
         // Re-init under a different HMAC key / path resets the
         // cache so the next read picks up the fresh state.
@@ -149,7 +158,8 @@ impl PersistedRateLimiterRegistry {
         };
         entry.state = Some(state.clone());
         entry.loaded = true;
-        write_state_async(entry.file_path.clone(), entry.hmac_key.clone(), state);
+        entry.pending_write =
+            write_state_async(entry.file_path.clone(), entry.hmac_key.clone(), state);
         snapshot_status(entry, &self.clock)
     }
 
@@ -165,7 +175,19 @@ impl PersistedRateLimiterRegistry {
         };
         entry.state = Some(state.clone());
         entry.loaded = true;
-        write_state_async(entry.file_path.clone(), entry.hmac_key.clone(), state);
+        entry.pending_write =
+            write_state_async(entry.file_path.clone(), entry.hmac_key.clone(), state);
+    }
+
+    /// Take the most-recent in-flight write JoinHandle for `id`.
+    /// Returns `None` when no write is pending or the entry is not
+    /// registered. Caller awaits the handle outside the registry
+    /// lock so a slow disk does not block other actors. Used by
+    /// the FRB `flush` shim so callers (tests, logout flows) can
+    /// observe a settled disk state without polling.
+    pub fn take_pending_write(&self, id: &str) -> Option<tokio::task::JoinHandle<()>> {
+        let mut g = self.inner.lock().expect("persisted rate limit poisoned");
+        g.get_mut(id).and_then(|e| e.pending_write.take())
     }
 
     /// Drop the registry entry + best-effort delete the on-disk
@@ -267,18 +289,25 @@ fn read_state(path: &PathBuf, hmac_key: &[u8], clock: &Clock) -> Option<Persiste
 /// Spawn a blocking task that writes the state to disk. Errors
 /// are silently dropped — the worst case is the counter resets on
 /// the next launch, which is preferable to blocking the unlock
-/// flow on a filesystem hiccup.
-fn write_state_async(file_path: PathBuf, hmac_key: Vec<u8>, state: PersistedState) {
+/// flow on a filesystem hiccup. Returns the JoinHandle so the
+/// caller (the registry [`Entry`]) can hand it to [`flush`]
+/// callers that want to observe write settlement.
+fn write_state_async(
+    file_path: PathBuf,
+    hmac_key: Vec<u8>,
+    state: PersistedState,
+) -> Option<tokio::task::JoinHandle<()>> {
     // Tokio runtime may not be available in some test contexts —
     // fall back to an inline write so unit tests against the
     // actor don't need a runtime spun up just to observe the
     // disk side-effect.
     if let Ok(rt) = tokio::runtime::Handle::try_current() {
-        rt.spawn_blocking(move || {
+        Some(rt.spawn_blocking(move || {
             let _ = write_state_sync(&file_path, &hmac_key, &state);
-        });
+        }))
     } else {
         let _ = write_state_sync(&file_path, &hmac_key, &state);
+        None
     }
 }
 
