@@ -537,7 +537,6 @@ Target: 100% coverage (excluding the OS-specific / external-integration edges na
   
   Each target gets either a Dart property-based test in `test/fuzz/` (for logic that has Flutter / pub deps) or a standalone harness in `fuzz/` + seed corpus + CFL wiring in `.clusterfuzzlite/build.sh` (for coverage-guided libFuzzer runs on pure-Dart-compileable logic). New untrusted-input code = new fuzz target in the same commit. See [§14 Fuzz testing](ARCHITECTURE.md#fuzz-testing).
 - **UI changes = test updates** — proactively update all tests that reference changed widget names, labels, or finders.
-- **Mutation-test critical scopes when raising the bar.** Coverage % counts lines that *executed*; mutation score counts lines whose *behaviour* a test would catch breaking. The two diverge whenever a test asserts "function ran without panicking" or "result is `isA<T>()`" instead of asserting the actual contract — exactly the trap [§ Uncovered lines are a marker, not a target](#testing-methodology) names. For Rust core changes that ship behaviour (parsers, composers, crypto envelopes, DAO writers), run `make rust-mutants SCOPE=<dir>` and treat each `MissedMutant` line as a real gap: the listed mutation passed every test, so write the test that would have failed. The wrapper handles WSL TMPDIR, scratch placement, and per-file roll-up — see [ARCHITECTURE §14 Mutation testing](ARCHITECTURE.md#mutation-testing-cargo-mutants).
 
 ## Commits & Versioning
 
