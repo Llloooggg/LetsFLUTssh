@@ -1,20 +1,22 @@
-//! Transfer-conflict resolution types + the batch-state machine
-//! the Dart `BatchConflictResolver` wraps.
+//! Transfer-conflict resolution state machine.
 //!
-//! The Dart `ConflictPrompt` callback (driving the modal dialog)
-//! stays Dart-side because of UI ownership; this module covers
-//! the pure pieces:
+//! The Dart `BatchConflictResolver` is a thin façade: every call
+//! routes through `BatchStateRegistry` here so the cache /
+//! cancellation grammar lives one place. The Dart `ConflictPrompt`
+//! callback (driving the modal dialog) stays Dart-side because UI
+//! rendering is not portable; the resolver hands prompt outcomes
+//! back through [`BatchState::record_decision`] and reads the
+//! cached action via [`BatchState::cached_action`] before showing
+//! the next dialog.
+//!
+//! Public surface:
 //!
 //!   - `ConflictAction` enum — skip / keep_both / replace / cancel.
 //!   - `ConflictDecision` struct — `(action, apply_to_all)`.
-//!   - `BatchState::record_decision` — the cache-action +
-//!     cancellation grammar `BatchConflictResolver.resolve` runs
-//!     on every prompt result.
-//!
-//! Once the bus prompt-protocol arc lands the resolver itself can
-//! move Rust-side; for now the Dart wrapper holds a `BatchState`
-//! and folds prompt outcomes through `record_decision` so the
-//! grammar lives one place.
+//!   - `BatchState::record_decision` + `cached_action` —
+//!     cache lifecycle.
+//!   - `BatchStateRegistry` — process-singleton handle map keyed
+//!     by the Dart-allocated UUID per resolver instance.
 
 /// What the user picked for a single conflicting destination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
