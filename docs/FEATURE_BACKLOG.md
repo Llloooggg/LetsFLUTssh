@@ -60,207 +60,26 @@ Order is tuned to ship the largest pain-points first, keep crypto/security-sensi
 
 ---
 
-## 2. Cross-cutting prerequisites
+## 2. Cross-cutting prerequisites — DONE
 
-Do these **before** the first wave so every later feature has the scaffolding it needs. Skipping makes later work re-plumb the same spots repeatedly.
-
-### 2.1 Session extensibility
-
-Current `Session` (`lib/core/session/session.dart:78-204`) is flat with explicit fields. Every feature in this backlog adds at least one Session field. Three options:
-
-- **Option A — add fields one-by-one per feature.** Each feature ships its own DB migration. Fine for 2-3 features, ugly for 8.
-- **Option B — add a single `extras: Map<String, Object?>` JSON column.** One migration, zero further drift migrations. Loses type safety; tests must guard against `extras` key typos.
-- **Option C — hybrid: structured columns for load-bearing fields (forwards, proxy jump), `extras` for the rest.**
-
-Recommendation: **Option C**. Port forwarding + ProxyJump get their own columns because they load at connect time and need indexed lookups; agent forwarding, recording, certificate IDs, layout hints go into `extras`.
-
-Action: add `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column, drift migration + `schemaVersion` bump in `lib/core/db/database.dart:39`. Session model gains `Map<String, Object?> get extras`, helper getters `bool? extrasBool(key)`, `String? extrasStr(key)` etc.
-
-### 2.2 Connection lifecycle hook points
-
-`lib/core/connection/connection.dart:1-133` is the single object that lives across reconnects (`resetForReconnect()` around line 112). Every new "thing" that must survive reconnect registers on it:
-
-- Port forwards
-- ProxyJump bastion reference (keepalive)
-- Session recording sink
-- Agent forwarding state
-
-Add a single `ConnectionExtension` interface the connection holds a list of. Each extension has `onConnected(SSHClient)`, `onDisconnecting()`, `onReconnecting()` hooks. Port forwards, recordings, etc. implement this instead of the manager re-implementing lifecycle per feature. One file, ~60 lines, unblocks all of wave 1–4.
-
-### 2.3 Remote filesystem abstraction
-
-**Status — already present, partial.** The original premise ("SFTP is pinned") was wrong: `lib/core/sftp/file_system.dart` already defines `abstract class FileSystem` with `list/initialDir/mkdir/remove/removeDir/rename/dirSize`, and both `LocalFS` (`file_system.dart`) and `RemoteFS` (`sftp_client.dart:473`) implement it. The file browser already consumes the abstract interface, not `SftpClient` directly.
-
-**What's still missing** (added at S3 implementation time, not speculatively):
-
-| Method | Why it's needed | When to add |
+| § | Status | What landed |
 |---|---|---|
-| `Future<RemoteStat?> stat(String path)` | S3 `HeadObject` for resumable downloads + last-modified comparisons in sync. SFTP path uses `dartssh2 SftpClient.stat(...)`. | §4.2 S3, §4.1 WebDAV |
-| `Stream<List<int>> getStream(String path, {int? offset})` + `Future<void> putStream(String path, Stream<List<int>>)` | Byte-streaming with progress, currently lives in transfer queue keyed on SFTP. S3 multipart needs the same shape. | §4.2 S3 |
-| `Future<void> close()` | S3 client + WebDAV client need explicit teardown; LocalFS / SFTP no-op. | §4.2 S3 |
-| `Stream<ConnectionHealth> health` | Reflect S3 retry exhaustion / WebDAV server unreachable in the same UI surface as SSH disconnects. Consider deferring to wave 4 unless the file browser already grows a connection-state badge. | Optional — defer |
-
-**Action.** No standalone refactor. Each S3-driven addition lands on its actual feature commit (§4.1 / §4.2). The shared interface is already in place; widening it without a concrete consumer would be premature abstraction.
+| 2.1 Session extensibility | ✅ | `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column + typed accessors. See [ARCHITECTURE §10 Data Models → Session.extras](ARCHITECTURE.md#10-data-models). |
+| 2.2 Connection lifecycle hooks | ✅ | `ConnectionExtension` interface — `onConnected` / `onDisconnecting` / `onReconnecting` with failure-isolated fan-out. See [ARCHITECTURE §3.5 → ConnectionExtension](ARCHITECTURE.md#connectionextension--lifecycle-add-ons). |
+| 2.3 Remote filesystem abstraction | ✅ (scoped) | `FileSystem` interface in `lib/core/sftp/file_system.dart` already covers the SFTP path; widening (`stat` / `getStream` / `putStream` / `close`) lands per-feature when §4.2 / §4.1 actually consume it. |
 
 ---
 
-## 3. Wave 1 — Core SSH pain
+## 3. Wave 1 — Core SSH pain — DONE
 
-### 3.1 SSH port forwarding (-L / -R / -D)
-
-**Goal.** Per-session rules that open on connect, close on disconnect, survive reconnect. Three rule types: local (-L), remote (-R), dynamic SOCKS5 (-D).
-
-**What exists.**
-- dartssh2 2.17.1 has the primitives:
-  - `SSHClient.forwardLocal(host, port)` → `SSHForwardChannel`
-  - `SSHClient.forwardRemote(...)` → `SSHRemoteForward`
-  - `SSHClient.forwardDynamic(...)` → `SSHDynamicForward`
-  - `SSHClient.forwardLocalUnix(path)` (bonus — ship later)
-- `SSHForwardChannel implements SSHSocket`, so any channel can be passed around like a native socket.
-
-**What's missing.** Everything above the dartssh2 layer.
-
-**Files to change.**
-
-| # | Path | Action |
+| § | Status | What landed |
 |---|---|---|
-| 1 | `lib/core/ssh/port_forward_rule.dart` (new) | Immutable `PortForwardRule` model: `id`, `type: PortForwardKind { local, remote, dynamic }`, `bindHost`, `bindPort`, `remoteHost`, `remotePort`, `description`, `enabled`. `toJson`/`fromJson`. ~80 lines. |
-| 2 | `lib/core/db/tables.dart:25-57` | Add table `PortForwardRules` — `id TEXT PK`, `sessionId TEXT NOT NULL REFERENCES Sessions(id) ON DELETE CASCADE`, `kind TEXT`, `bindHost TEXT`, `bindPort INT`, `remoteHost TEXT`, `remotePort INT`, `description TEXT`, `enabled BOOL`, `createdAt DATETIME`, `sortOrder INT`. |
-| 3 | `lib/core/db/database.dart:39` | Bump `schemaVersion` → 2. Drift `MigrationStrategy.onUpgrade` adds the new table. |
-| 4 | `lib/core/db/dao/port_forward_rule_dao.dart` (new) | CRUD: `getBySession(id)`, `upsert(rule)`, `delete(id)`, `deleteBySession(id)`, `reorder(ids)`. |
-| 5 | `lib/core/db/mappers.dart` | Domain ↔ DB converters for the rule. |
-| 6 | `lib/core/session/session.dart:78-204` | `Session` gains `List<PortForwardRule> forwards`. `copyWith`, `toJson`, `fromJson` updated. |
-| 7 | `lib/core/session/session_store.dart` | `load()` / `loadWithCredentials()` join the new DAO. `save()` persists the rule list. |
-| 8 | `lib/core/ssh/port_forward_runtime.dart` (new) | `PortForwardRuntime` — implements `ConnectionExtension` (from §2.2). `onConnected` iterates enabled rules, opens channels via dartssh2, tracks `{ruleId: SSHForwardChannel}`. `onDisconnecting` closes all. SOCKS5 over `forwardDynamic` needs a small SOCKS-over-loopback-listener; use `package:socks5_proxy` or ~120 lines of hand-rolled SOCKS5. |
-| 9 | `lib/core/connection/connection.dart:1-133` | Holds `PortForwardRuntime` when session has enabled rules. Exposes `Stream<ForwardRuleStatus>` for UI. |
-| 10 | `lib/features/session_manager/session_edit_dialog.dart` | Add 4th tab "Port Forwarding" with dynamic rule list (reuse AppDataRow + AppButton patterns from existing tabs). `_buildTabBar()` ~line 298–312 grows one cell. |
-| 11 | `lib/features/session_manager/session_panel_widgets.dart` | Session row gains a small `forward_outlined` badge when the session has active forwards, colour-coded to runtime status. |
-| 12 | `lib/providers/connection_provider.dart` | Expose `forwardStatusProvider.family(sessionId)` streaming from the runtime. |
-| 13 | `lib/features/settings/export_import.dart:314-323` | Export includes forwards (already in `sessions.json` if Session serialises them; verify). Bump `currentSchemaVersion` for the `.lfs` archive (see 3.1 archive migration below). |
-| 14 | `lib/core/migration/schema_versions.dart` | Bump `db` 1 → 2, `archive` 1 → 2. |
-| 15 | `lib/core/migration/artefacts/archive_v1_to_v2.dart` (new) | Archive migration: open v1 archive, parse `sessions.json`, ensure each session dict has `forwards: []` (missing = empty list), stamp v2 in manifest. Register in `archive_registry.dart`. |
-| 16 | `docs/ARCHITECTURE.md` §3.1 / §10 / §11 | Document the new table + runtime + session field. |
-
-**L10n keys.** `portForwarding`, `addForwardRule`, `localForward`, `remoteForward`, `dynamicForward`, `bindAddress`, `bindPort`, `targetHost`, `targetPort`, `forwardDescription`, `forwardRuleActive`, `forwardRuleError`, `forwardRuleDisabled`, `deleteForwardRule`, `socks5ProxyAt`.
-
-**Tests.**
-- `test/core/ssh/port_forward_rule_test.dart` — JSON roundtrip, validation.
-- `test/core/db/port_forward_rule_dao_test.dart` — CRUD + cascade-delete.
-- `test/core/ssh/port_forward_runtime_test.dart` — mocked SSHClient, assert channel lifecycle.
-- `test/core/migration/archive_v1_to_v2_test.dart` — on v1 archive adds `forwards: []`.
-- `test/features/session_manager/session_edit_dialog_forwards_test.dart` — add rule UX.
-
-**Scope.** 2 weeks including docs + tests.
-
-**Gotchas.**
-- Remote forwards allocate a port on the server; handle `SSH_MSG_REQUEST_FAILURE` → show toast "server refused remote forward on port X".
-- On mobile we can't reliably hold listening sockets while backgrounded; add a capability gate + note in UI.
-- Dynamic (-D) listener must bind to loopback by default, never `0.0.0.0`. Make "bindHost" default `127.0.0.1` and show an explicit warning if the user types `0.0.0.0`.
+| 3.1 Port forwarding (-L / -R / -D) | ✅ | DB column + `PortForwardRules` table + `PortForwardRuntime` (`ConnectionExtension`-based) + 4th tab in session edit dialog + hand-rolled SOCKS5 for `-D`. Server-side `GatewayPorts no` produces a targeted toast on remote-bind refusal. See [ARCHITECTURE §3.1 → Port forwarding](ARCHITECTURE.md#port-forwarding). |
+| 3.2 ProxyJump bastion chains | ✅ | `Session.viaSessionId` + `via_host` / `via_port` / `via_user` override columns + `Connection.bastion` cascade + cycle / depth-8 guards + "via X" badge in session tree. See [ARCHITECTURE §3.1 → ProxyJump](ARCHITECTURE.md#proxyjump--bastion-chains). |
+| 3.3 PuTTY `.ppk` import | ✅ | Pure-Dart `PpkCodec` — v2 + v3 (Argon2id with 1 GiB memory cap), `ssh-ed25519` + `ssh-rsa`, encrypted + unencrypted, MAC-verified before decrypt. See [ARCHITECTURE §3.9 → PPK codec](ARCHITECTURE.md#ppk-codec--puttys-private-key-format). |
+| 3.4 Snippet `{{tokens}}` | ✅ | `renderSnippet()` template engine + `SnippetPicker.show()` + fill-modal for unresolved user tokens. Built-in keys: `host` / `user` / `port` / `label` / `now`. See [ARCHITECTURE §3.12 Snippets](ARCHITECTURE.md#312-snippets-coresnippets). |
 
 ---
-
-### 3.2 ProxyJump / bastion chains
-
-**Goal.** A session points to another saved session as its "jump host"; the connection opens the bastion first, then `forwardLocal(finalHost, finalPort)` → wrap the resulting `SSHForwardChannel` as the transport `SSHSocket` for the final `SSHClient`.
-
-**What exists.**
-- `SSHClient(this.socket, ...)` (dartssh2 `ssh_client.dart:204`) accepts any `SSHSocket`.
-- `SSHForwardChannel implements SSHSocket` (`dartssh2/src/ssh_forward.dart:45`).
-- No chaining logic in our code today — every session connects directly.
-
-**Files to change.**
-
-| # | Path | Action |
-|---|---|---|
-| 1 | `lib/core/session/session.dart` | Add `viaSessionId: String?` + `viaOverride: ProxyJumpOverride?` (`ProxyJumpOverride` = `{user, host, port}` free-form override for users who don't want a saved bastion). |
-| 2 | `lib/core/db/tables.dart` | Add columns on `Sessions`: `viaSessionId TEXT NULL REFERENCES Sessions(id) ON DELETE SET NULL`, `viaHost TEXT NULL`, `viaPort INT NULL`, `viaUser TEXT NULL`. |
-| 3 | `lib/core/db/database.dart:39` | `schemaVersion` already bumped in 3.1; add the columns to the same migration batch (ship 3.1 and 3.2 under db v2 together, not separate bumps). |
-| 4 | `lib/core/ssh/ssh_client.dart:1-450` | `SSHClient` wrapper gains an optional `SSHSocket socket` parameter. When passed, skip the `SSHSocket.connect(host, port)` step inside `_connectSocket`. |
-| 5 | `lib/core/connection/connection_manager.dart` | Recursive `connectAsync(sessionId)` — if `session.viaSessionId` non-null, first connect the bastion (recursively), wait until authenticated, call `bastion.client.forwardLocal(session.host, session.port)`, pass the resulting `SSHForwardChannel` as `socket:` to the final SSHClient. **Cycle detection** via a `Set<String> visited` argument — throw `ProxyJumpCycleException` if hit. Max depth 4 hop constant. |
-| 6 | `lib/core/ssh/errors.dart` | Add `ProxyJumpCycleException`, `ProxyJumpBastionFailed(cause)`, `ProxyJumpDepthExceeded`. |
-| 7 | `lib/utils/format.dart` | Localise the three new exception types (see the pattern the `errReleaseManifestUnavailable` work landed on). |
-| 8 | `lib/features/session_manager/session_edit_dialog.dart` | In Connection tab, add a **"Connect via"** row: dropdown of other saved sessions + "None" + "Custom (user@host:port)". Custom pops three inline fields. |
-| 9 | `lib/features/session_manager/session_panel_widgets.dart` | Session row subtitle: append `" (via <bastion-label>)"` when `viaSessionId` resolves. |
-| 10 | `lib/features/settings/export_import.dart` | Export / import of `viaSessionId` — if the bastion is missing in the import, clear the field (don't fail the import). |
-| 11 | `lib/core/migration/artefacts/archive_v1_to_v2.dart` | Extend the v1→v2 archive migration (same migration as 3.1) to ensure session dicts have the via-* fields nullable. |
-| 12 | `docs/ARCHITECTURE.md` §3.1 / §3.5 / §10 | Add a data-flow diagram for the bastion chain. |
-
-**L10n keys.** `proxyJump`, `connectVia`, `noProxyJump`, `customProxy`, `proxyUser`, `proxyHost`, `proxyPort`, `errProxyJumpCycle`, `errProxyJumpBastionFailed`, `errProxyJumpDepth`, `viaSessionLabel`.
-
-**Tests.**
-- `test/core/connection/proxy_jump_test.dart` — two-hop + three-hop, cycle detection, bastion-auth-failure propagation.
-- `test/features/session_manager/session_edit_dialog_proxy_test.dart` — dropdown selection flows + custom override.
-
-**Scope.** 1 week.
-
-**Gotchas.**
-- Keepalive on the bastion while the final hop is idle: dartssh2 default `keepAliveInterval: 10s` on each SSHClient covers it.
-- When the user deletes a session that's referenced by `viaSessionId` in others: `ON DELETE SET NULL` handles the DB, but UI should show a banner "These sessions lost their jump host" after delete.
-
----
-
-### 3.3 PuTTY `.ppk` import / export
-
-**Goal.** Read + write PuTTY Private Key v2 and v3 files so Windows users migrating from PuTTY / Xshell / WinSCP don't have to convert keys manually.
-
-**What exists.**
-- `lib/core/import/key_file_helper.dart` already handles PEM + OpenSSH formats.
-- dartssh2's `SSHKeyPair.fromPem(...)` (called from `lib/core/security/key_store.dart:292`) does not parse PPK.
-- No PPK library on pub.dev with current null-safety + pure Dart (last check — verify before starting).
-
-**Files to change.**
-
-| # | Path | Action |
-|---|---|---|
-| 1 | `lib/core/security/ppk_codec.dart` (new) | Parser + writer for PPK v2 and v3. Format spec: <https://the.earth.li/~sgtatham/putty/0.78/htmldoc/AppendixC.html>. Needs `pointycastle` AES-256-CBC + HMAC-SHA-1 (v2) / Argon2id (v3) — `pointycastle` is already a direct dep. ~400–500 lines with tests. |
-| 2 | `lib/core/security/ppk_codec_test.dart` (new) | Fixtures: one PPK v2 encrypted, one PPK v3 encrypted (Argon2id), one unencrypted. Decode → re-encode → bit-identical. |
-| 3 | `lib/core/import/key_file_helper.dart` | `detectFormat(bytes)` gains a `KeyFormat.putty` case; dispatch to PPK codec. |
-| 4 | `lib/core/security/key_store.dart:292-384` | On import, if `KeyFormat.putty` → decode with `PpkCodec`, convert the resulting OpenSSH-format raw bytes to dartssh2 `SSHKeyPair` (dartssh2 accepts OpenSSH serialised private keys). On export, offer "PuTTY v3" and "PuTTY v2" options alongside OpenSSH. |
-| 5 | `lib/features/key_manager/key_manager_dialog.dart` | Export dropdown gains "PuTTY (.ppk, v3)" + "PuTTY (.ppk, v2)". Import auto-detects. |
-| 6 | `lib/core/import/ssh_dir_key_scanner.dart` | Scanner picks up `*.ppk` alongside `id_*` files. |
-| 7 | `lib/core/deeplink/deeplink_handler.dart` | If a deeplink points to a `.ppk` file, dispatch to the same import flow. |
-| 8 | `docs/ARCHITECTURE.md` §3.9 | Document PPK support in the import matrix. |
-| 9 | `docs/CONTRIBUTING.md` | Add a blurb on how to regenerate PPK test fixtures (puttygen command line). |
-
-**L10n keys.** `importKeyPutty`, `exportAsPuttyV2`, `exportAsPuttyV3`, `errPuttyMacMismatch`, `errPuttyUnsupportedVersion`, `errPuttyBadCipher`.
-
-**Scope.** 3–5 days, dominated by test fixtures + v3 Argon2id wiring.
-
-**Gotchas.**
-- PPK v3 uses Argon2id with parameters stored in the file header. We already bundle Argon2id via `pointycastle`; make sure the memory cost cap is sane (reject > 1 GiB).
-- PPK v2 MAC uses HMAC-SHA-1 keyed with SHA-1(passphrase). Constant-time compare to avoid trivial leaks.
-- The public key blob inside the PPK uses the same SSH wire format as OpenSSH, so the conversion path is one step away from what dartssh2 already consumes.
-
----
-
-### 3.4 Snippets with parameters
-
-**Goal.** Snippets can reference `{{host}}`, `{{user}}`, `{{port}}`, `{{label}}`, plus user-defined variables that prompt at run time.
-
-**What exists.**
-- `lib/core/snippets/snippet.dart:4-50` — flat `Snippet { id, title, command, description }`. No placeholder logic anywhere.
-- `lib/features/snippets/snippet_picker.dart` — picker that writes the command directly into the terminal.
-
-**Files to change.**
-
-| # | Path | Action |
-|---|---|---|
-| 1 | `lib/core/snippets/snippet_template.dart` (new) | Pure function `String renderSnippet(Snippet s, Map<String, String> context)`. Parses `{{name}}` tokens, substitutes known keys (`host`, `user`, `port`, `label`, `folder`, `now`), leaves unknown tokens intact for the picker to prompt. Return `(rendered, List<String> unresolved)`. |
-| 2 | `lib/features/snippets/snippet_picker.dart` | Before writing to the terminal: call `renderSnippet`. If `unresolved.isNotEmpty`, show a small modal "Fill in <var>" per token in order. |
-| 3 | `lib/features/snippets/snippet_manager_dialog.dart` | Add a live preview pane — shows the rendered command for the currently-selected session. |
-| 4 | `lib/l10n/app_en.arb` | New strings (see below). |
-| 5 | `docs/ARCHITECTURE.md` §3 snippets section | Document the template grammar and the built-in context keys. |
-
-**L10n keys.** `snippetParameters`, `snippetFillPrompt`, `snippetPreview`, `snippetUnresolved`.
-
-**Tests.**
-- `test/core/snippets/snippet_template_test.dart` — coverage for every built-in key, unknown-token passthrough, empty-context behaviour, `{{` literal escape (double-brace `{{{{` → `{{`).
-
-**Scope.** 2–3 days.
-
-**Gotchas.**
-- Don't URL-encode or shell-escape the substituted value. Users typing `{{host}}` want exactly the host string. Shell escaping is their problem, same as it is in OpenSSH config.
-- No recursion: `{{a}}` where `a=" {{b}} "` must render `{{b}}` literal — snippet substitution is single-pass.
 
 ---
 
@@ -403,84 +222,24 @@ Add a single `ConnectionExtension` interface the connection holds a list of. Eac
 
 ---
 
-## 5. Wave 3 — Terminal broadcast input
+## 5. Wave 3 — Terminal broadcast input — DONE
 
-### 5.1 Broadcast input across split panes
-
-**Goal.** Type in one "driver" pane, keystrokes fan out to a user-chosen set of "receiver" panes in the same tab (or across tabs — decide later). Visual indicator on active participants. Paste guard so clipboard secrets don't unintentionally hit multiple hosts.
-
-**What exists.**
-- Split panes are **already implemented** — `lib/features/terminal/tiling_view.dart`, `split_node.dart`, `terminal_pane.dart`, draggable dividers in `tiling_view.dart:130-131`.
-- `lib/core/ssh/shell_helper.dart:91-93` shows the single route where `terminal.onOutput` funnels into `shell.write(...)`. That's the fan-out seam.
-- **Broadcast does not exist yet** (grep confirms zero references).
-
-**Files to change.**
-
-| # | Path | Action |
+| § | Status | What landed |
 |---|---|---|
-| 1 | `lib/features/terminal/broadcast_controller.dart` (new) | Per-tab (or per-workspace) controller: holds driver-pane id + `Set<String> receiverIds`. Exposes `void route(Uint8List bytes, String originPaneId)` called from each pane's input intercept; if `origin == driver` and `receivers` non-empty, also write to each receiver pane's shell sink. |
-| 2 | `lib/core/ssh/shell_helper.dart:91` | Replace the single `terminal.onOutput = (data) => shell.write(...)` with a wrapper that consults the BroadcastController first. Each `ShellConnection` exposes a `rawWrite(Uint8List)` the controller can call without going back through xterm. |
-| 3 | `lib/features/terminal/terminal_pane.dart` | Header gains a toggle "Broadcast target" (for receivers) + "Broadcasting from here" (for driver). Click opens a tiny popover to add/remove receivers from the tab's pane list. |
-| 4 | `lib/features/terminal/tiling_view.dart` | Broadcast-active panes get a `AppTheme.yellow` 2 px border. Driver pane gets a slightly thicker border. |
-| 5 | `lib/features/terminal/broadcast_paste_guard.dart` (new) | Intercept pastes on the driver pane when broadcast is active. Show a modal: "This will send <N chars> to <M hosts>. Continue?" with a "Don't ask again for this session" checkbox. Special-case: if paste contains shell-meta characters `$`, `(`, `` ` ``, or matches clipboard-secret heuristic from `SecureClipboard`, require explicit confirm regardless of don't-ask. |
-| 6 | `lib/core/shortcut_registry.dart` | Add shortcuts: `Cmd+Shift+I` toggle receiver on focused pane, `Cmd+Shift+B` set driver to focused pane, `Cmd+Shift+O` clear all broadcast. |
-| 7 | `lib/features/workspace/workspace_view.dart` | Optional: status-bar chip "Broadcasting to N panes" in the tab bar. |
-| 8 | `docs/ARCHITECTURE.md` §5.1 | Document broadcast model + paste guard. |
-
-**L10n keys.** `broadcastDriver`, `broadcastReceiver`, `broadcastOff`, `broadcastPasteConfirm`, `broadcastActiveBanner`, `broadcastRecipientCount`, `broadcastNoReceivers`.
-
-**Tests.**
-- `test/features/terminal/broadcast_controller_test.dart` — route fan-out, ignore echoes, no self-loop.
-- `test/features/terminal/broadcast_paste_guard_test.dart` — secret-detector integration, don't-ask persistence.
-- Widget test: driver pane sends a keystroke → every receiver's `MockShellConnection.rawWrite` sees the bytes.
-
-**Scope.** 1–2 weeks (feature isolated, no persistence, no backend changes).
-
-**Gotchas.**
-- Mobile: broadcast is a desktop-only feature. Hide the controls on mobile.
-- Driver pane's `onOutput` fires on **keystrokes after xterm processing** (arrow keys → escape sequences). That's the right layer for broadcast; we want the same bytes the driver shell sees, not the pre-terminal scan codes.
-- If a receiver pane has a broken shell, its `rawWrite` should drop the write without throwing so a single broken receiver doesn't stall the driver.
+| 5.1 Broadcast input across split panes | ✅ | Per-tab `BroadcastController` (`broadcastControllerProvider.family`) with driver / receiver roles, yellow pane border, paste-confirmation modal, mobile + quick-connect inert via `supportsBroadcast` guard. See [ARCHITECTURE §5.1 → Broadcast input](ARCHITECTURE.md#broadcast-input--per-tab-fan-out). |
 
 ---
 
 ## 6. Wave 4 — Security-minded
 
-### 6.1 Session recording
+### 6.1 Session recording — DONE (recorder + playback) / open polish
 
-**Goal.** Per-session encrypted local log of commands + output. Searchable viewer, export to encrypted bundle.
+**Status: shipped.** Per-shell `SessionRecorder` (`core/session/session_recorder.dart`) writes asciinema-v2 frames inside per-event AES-256-GCM (HKDF-derived key, info-tag `letsflutssh-recording-v1`) on T1/T2/Paranoid; plaintext `.cast` on T0. Per-recording rotation at 100 MB. Tools → Recordings UI in `features/recordings/` plays via embedded xterm at user-chosen speed (1× / 2× / 4× / instant). See [ARCHITECTURE §3.13 Session Recording](ARCHITECTURE.md#313-session-recording-coresessionsession_recorderdart) + [§5.7 Recordings](ARCHITECTURE.md#57-recordings-featuresrecordings).
 
-**What exists.**
-- `lib/utils/logger.dart` — app-level log, sanitised, opt-in threshold (we just reworked this). Not session-scoped.
-- `lib/core/security/*.dart` — AES-256-GCM primitives already here.
-
-**Files to change.**
-
-| # | Path | Action |
-|---|---|---|
-| 1 | `lib/core/session/session_recorder.dart` (new) | Implements `ConnectionExtension` (§2.2). On connect, opens `<appSupport>/recordings/<sessionId>/<timestamp>.lfsr` encrypted file. Consumes the xterm output stream + the user-input stream, writes framed `{ts, direction: in/out, bytes}` records. |
-| 2 | `lib/core/ssh/shell_helper.dart` | Fork output/input streams into the recorder when `session.extras['record'] == true`. |
-| 3 | `lib/core/session/session.dart` | Expose `recordEnabled` getter reading `extras['record']`. |
-| 4 | `lib/features/session_manager/session_edit_dialog.dart` | Options tab: "Record session" toggle. |
-| 5 | `lib/features/recordings/recording_browser.dart` (new) | List / play / scrub recordings. Playback via xterm replay — each frame applies `terminal.write` at the original cadence, with speed controls. |
-| 6 | `lib/features/settings/settings_sections_data.dart` | Add "Clear all recordings" + "Recording storage used" row. |
-| 7 | `lib/features/settings/export_import.dart` | Exclude recordings from the default `.lfs` archive (too big). Offer separate "Export recordings bundle" action. |
-| 8 | `lib/core/migration/schema_versions.dart` | New artefact `recording` schema — v1 in `SchemaVersions`. |
-| 9 | `lib/core/migration/artefacts/recording_v1.dart` (new) | Recording format = `VersionedBlob` wrapper + gzipped frames inside. |
-| 10 | `docs/ARCHITECTURE.md` new §3.13 / `docs/SECURITY.md` | Recording threat model: plaintext command history on disk is sensitive; the same DB key protects it. |
-
-**L10n keys.** `recordSession`, `recordings`, `recordingDuration`, `recordingSize`, `playRecording`, `deleteRecording`, `exportRecordings`, `clearRecordings`, `recordingsStorage`.
-
-**Tests.**
-- `test/core/session/session_recorder_test.dart` — write → read roundtrip, frame ordering, cap on size (e.g. 100 MB default) with rotation.
-- Widget test for playback scrubbing.
-
-**Scope.** 1–2 weeks.
-
-**Gotchas.**
-- ANSI-coloured output in recordings takes up space; default gzip keeps ratio reasonable.
-- Ring-buffer or rotate on per-session size cap; user sets it in Settings.
-- Never log passwords: the recorder must consult `SecureClipboard`'s sensitive-paste markers and drop those frames entirely.
-- Think about "record by default" vs "opt-in per session". Default is **opt-in** — forensic-by-default is incompatible with the privacy-first positioning.
+**Open polish items:**
+- Global storage cap + LRU eviction across all recordings.
+- Settings tile showing recordings disk-used + "Clear all recordings" action.
+- Scrub bar in the playback dialog — would need a per-frame index file written alongside the recording for random access (per-event GCM frames decode sequentially, no native seek today).
 
 ---
 

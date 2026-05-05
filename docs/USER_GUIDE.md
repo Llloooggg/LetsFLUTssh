@@ -13,7 +13,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - [3. Authentication](#3-authentication)
 - [4. Terminal](#4-terminal)
 - [5. SFTP file browser](#5-sftp-file-browser)
-- [6. Port forwarding (-L / -R / -D)](#6-port-forwarding--l----r----d)
+- [6. Port forwarding](#6-port-forwarding)
 - [7. ProxyJump bastion chains](#7-proxyjump-bastion-chains)
 - [8. Snippets with `{{tokens}}`](#8-snippets-with-tokens)
 - [9. Broadcast input across split panes](#9-broadcast-input-across-split-panes)
@@ -48,7 +48,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - **Connection tab:** name, host, port, username, plus the [Connect via](#7-proxyjump-bastion-chains) selector at the bottom.
 - **Auth tab:** [§3 Authentication](#3-authentication).
 - **Options tab:** tags, [Record session toggle](#10-session-recording--playback).
-- **Forwarding tab:** [§6 Port forwarding](#6-port-forwarding--l----r----d).
+- **Forwarding tab:** [§6 Port forwarding](#6-port-forwarding).
 - **Footer buttons:** Cancel / Save / Save & Connect.
 
 ### Editing
@@ -197,7 +197,7 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 
 ---
 
-## 6. Port forwarding (-L / -R / -D)
+## 6. Port forwarding
 
 These are SSH command-line concepts. Every saved session can carry a list of forwarding rules that open automatically on connect and close on disconnect.
 

@@ -36,7 +36,7 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Work with connections | [§3.5 Connection Lifecycle](ARCHITECTURE.md#35-connection-lifecycle-coreconnection) |
 | Work with encryption/security | [§3.6 Security](ARCHITECTURE.md#36-security--encryption-coresecurity) + [§13 Security Model](ARCHITECTURE.md#13-security-model) |
 | Work with config | [§3.7 Configuration](ARCHITECTURE.md#37-configuration-coreconfig) |
-| Add/change keyboard shortcuts | [§3.11 Keyboard Shortcuts](ARCHITECTURE.md#311-keyboard-shortcuts-coreshortcut_registrydart) |
+| Add/change keyboard shortcuts | [§3.11 Keyboard Shortcuts](ARCHITECTURE.md#311-keyboard-shortcuts-widgetsshortcut_registrydart) |
 | Work with terminal / tiling | [§5.1 Terminal](ARCHITECTURE.md#51-terminal-with-tiling-featuresterminal) |
 | Work with tabs / workspace tiling | [§5.4 Tab & Workspace System](ARCHITECTURE.md#54-tab--workspace-system) |
 | Work with mobile features | [§5.6 Mobile](ARCHITECTURE.md#56-mobile-featuresmobile) + [§12 Platform-Specific](ARCHITECTURE.md#12-platform-specific-behavior) |
@@ -49,8 +49,8 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Work with database / DAOs | [§2 Module Map](ARCHITECTURE.md#2-module-map) (`core/db/`) + [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
 | Work with snippets | `core/snippets/` + `features/snippets/` + `providers/snippet_provider.dart` |
 | Work with tags | `core/tags/` + `features/tags/` + `providers/tag_provider.dart` |
-| Bump a persisted-file format / add a new envelope artefact | [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework-coremigration) + [§3.6 → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — `SchemaVersions` + `Migration` + register in `buildAppMigrationRegistry()` |
-| Bump the `.lfs` archive `schema_version` | [§3.9 Import → .lfs format](ARCHITECTURE.md#39-import-coreimport) + [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework-coremigration) — register the `Migration` in `archiveMigrationRegistry` |
+| Bump a persisted-file format / add a new envelope artefact | [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework) + [§3.6 → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — `SchemaVersions` + `Migration` + register in `buildAppMigrationRegistry()` |
+| Bump the `.lfs` archive `schema_version` | [§3.9 Import → .lfs format](ARCHITECTURE.md#39-import-coreimport) + [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework) — register the `Migration` in `archiveMigrationRegistry` |
 | Check data models | [§10 Data Models](ARCHITECTURE.md#10-data-models) |
 | Understand CI/CD / workflows | [§15 CI/CD Pipeline](ARCHITECTURE.md#15-cicd-pipeline) |
 | Check design decisions / gotchas | [§16 Design Decisions](ARCHITECTURE.md#16-design-decisions--rationale) |
@@ -348,7 +348,7 @@ Every log line goes through `AppLogger.instance.log(message, name: 'Tag', error:
 
 Log output is threshold-gated at runtime (Settings → Logging level — `Off` / `Error` / `Warn` / `Info` / `Debug`). Picking any level opens the file sink and admits lines at or above that level — so `Warn` writes W + E, `Debug` writes everything, `Off` writes nothing. Default is `Off` (privacy-first). `logCritical` bypasses the threshold so crash breadcrumbs land even when routine logging is disabled.
 
-**Every log message passes through `AppLogger.sanitize` automatically** — `redactSecrets` scrubs PEM private keys and long base64 runs, then `sanitizeErrorMessage` redacts IPv4/IPv6, `user@host`, `host:port`, Windows `C:\Users\<name>` and Unix `/home/<name>` paths, plus `as <user>` / `user=<user>` / `login=<user>` shapes from russh exception text. You do **not** pre-sanitize by hand; the logger does it. The one thing the sanitizer cannot catch is **free-form user-chosen strings** (session labels, key labels, tag names, snippet titles, folder names) — those have no regex shape. For those, log the marker `<label>` or `<name>` instead of the value. See [ARCHITECTURE §17 Error Handling](ARCHITECTURE.md#17-error-handling--sanitization) for the full sanitizer table.
+**Every log message passes through `AppLogger.sanitize` automatically** — `redactSecrets` scrubs PEM private keys and long base64 runs, then `sanitizeErrorMessage` redacts IPv4/IPv6, `user@host`, `host:port`, Windows `C:\Users\<name>` and Unix `/home/<name>` paths, plus `as <user>` / `user=<user>` / `login=<user>` shapes from russh exception text. You do **not** pre-sanitize by hand; the logger does it. The one thing the sanitizer cannot catch is **free-form user-chosen strings** (session labels, key labels, tag names, snippet titles, folder names) — those have no regex shape. For those, log the marker `<label>` or `<name>` instead of the value. See [ARCHITECTURE § Error Handling Architecture](ARCHITECTURE.md#error-handling-architecture) for the full sanitizer table.
 
 **Add logs generously.** The default file sink is off so there is no "log spam" cost to worry about; only users who opted into logging pay the write, and they opted in because they want the detail. Log at every load-bearing state transition:
 
