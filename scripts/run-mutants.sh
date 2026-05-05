@@ -49,10 +49,13 @@ TIMEOUT_MUL="${MUTANTS_TIMEOUT_MUL:-5.0}"
 
 mkdir -p "$RESULTS" "$TMP"
 
-# Map scope to a list of .rs basenames under lfs_core/src/<scope>/.
-# cargo-mutants -f <basename> matches the file regardless of path,
-# which is what we want here (the lfs_core crate has only one file
-# per name across these dirs).
+# Map scope to a list of paths under lfs_core/src/<scope>/.
+# cargo-mutants -f <glob> matches by basename when there is no
+# slash in the glob and by full path when there is. Pass paths
+# *with* slashes (`src/archive/apply.rs`) so generic basenames
+# like `mod.rs` don't accidentally pull in every `mod.rs` across
+# the crate (which would balloon a 465-mutant scope into a
+# 900+-mutant unrelated run).
 LFS_CORE_SRC="$REPO/rust/crates/lfs_core/src"
 SCOPE_DIR="$LFS_CORE_SRC/$SCOPE"
 if [[ ! -d "$SCOPE_DIR" ]]; then
@@ -60,7 +63,7 @@ if [[ ! -d "$SCOPE_DIR" ]]; then
   exit 64
 fi
 
-mapfile -t FILES < <(find "$SCOPE_DIR" -maxdepth 2 -name '*.rs' -printf '%f\n' | sort)
+mapfile -t FILES < <(find "$SCOPE_DIR" -maxdepth 2 -name '*.rs' -printf '%P\n' | sort)
 if [[ ${#FILES[@]} -eq 0 ]]; then
   echo "scope '$SCOPE' has no .rs files" >&2
   exit 64
@@ -68,7 +71,12 @@ fi
 
 FILE_FLAGS=()
 for f in "${FILES[@]}"; do
-  FILE_FLAGS+=( --file "$f" )
+  # `**/<scope>/<file>` anchors the glob on the scope dir.
+  # cargo-mutants matches on the full path, so this skips
+  # same-name files in sibling modules — without it,
+  # generic basenames (mod.rs) would pull in every `mod.rs`
+  # across the crate (~900+ extra mutants).
+  FILE_FLAGS+=( --file "**/$SCOPE/$f" )
 done
 
 echo "scope:       $SCOPE  (${#FILES[@]} files)"
