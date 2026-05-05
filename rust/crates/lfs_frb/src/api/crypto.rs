@@ -95,12 +95,60 @@ pub async fn crypto_ed25519_verify(
 
 /// Generate a fresh random AES-256 key (32 bytes from `OsRng`).
 /// Synchronous — the call is a single OS getrandom round-trip.
+///
+/// Bytes cross the FRB boundary plaintext. Prefer
+/// [`crypto_aes_gcm_random_key_to_secret`] for new call sites — it
+/// stages the key in [`lfs_core::secrets::SecretStore`] under a
+/// caller-chosen id and returns `()`, so the bytes never touch the
+/// Dart heap on the way out. Bytes still have to materialise
+/// Dart-side eventually (drift's sqlcipher pragma takes a hex
+/// string), but staging them in a SecretStore narrows the leak
+/// window from "key generation through every consumer" to "just
+/// before drift open".
 #[flutter_rust_bridge::frb(sync)]
 pub fn crypto_aes_gcm_random_key() -> Vec<u8> {
-    // Rust-side buffer is `Zeroizing<Vec<u8>>` and drops scrubbed
-    // when this function returns; the bytes still cross the FRB
-    // boundary plaintext until the SecretRef migration lands.
     lfs_core::crypto::aes_gcm_random_key().to_vec()
+}
+
+/// Generate a fresh random AES-256 key (32 bytes from `OsRng`)
+/// straight into the process-singleton `SecretStore` under [`id`].
+/// Returns `()` — the bytes never cross the FRB boundary.
+///
+/// Call sites pull the bytes back through `secrets_take(id)` only
+/// when they genuinely need them (drift's sqlcipher pragma rekey,
+/// for example). The keychain write side has its own
+/// [`super::secure_key_storage::secure_storage_write_from_secret`]
+/// shortcut that pulls bytes from the store internally so the
+/// keychain-plugin path likewise never sees them on the Dart heap.
+///
+/// Idempotent on `id` collision: replaces any prior value at the
+/// same id (the previous `Zeroizing` buffer scrubs on drop).
+#[flutter_rust_bridge::frb(sync)]
+pub fn crypto_aes_gcm_random_key_to_secret(id: String) {
+    let key = lfs_core::crypto::aes_gcm_random_key();
+    lfs_core::app::instance().secrets.put(&id, &key);
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn random_key_to_secret_stages_into_store_without_returning_bytes() {
+        // FRB tests don't share a runtime with the production
+        // `app_init` entry; bootstrap the singleton manually so
+        // `instance()` resolves.
+        let _ = lfs_core::app::init();
+        // Singleton SecretStore — pin a unique id so the test does
+        // not collide with any production-shaped namespace.
+        let id = format!("test.aes_random_key.{:p}", &());
+        super::crypto_aes_gcm_random_key_to_secret(id.clone());
+        let app = lfs_core::app::instance();
+        assert!(app.secrets.has(&id));
+        let bytes = app.secrets.get(&id).expect("staged key");
+        assert_eq!(bytes.len(), 32);
+        // Drop the entry so a follow-up test on the same singleton
+        // does not see a stale value.
+        app.secrets.drop_id(&id);
+    }
 }
 
 /// AES-256-GCM encrypt with a fresh random nonce. Returns the wire

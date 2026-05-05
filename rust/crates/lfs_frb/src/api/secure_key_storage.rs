@@ -36,6 +36,28 @@ pub async fn secure_storage_write(alias: String, value: Vec<u8>) -> Result<(), S
     map_unit(lfs_os_security::secure_key_storage::write(&alias, &value).await)
 }
 
+/// Variant of [`secure_storage_write`] that pulls the bytes from
+/// [`lfs_core::secrets::SecretStore`] under [`secret_id`] instead of
+/// taking them across the FRB boundary. Used by callers that have
+/// staged the value through
+/// [`super::crypto::crypto_aes_gcm_random_key_to_secret`] (or
+/// equivalent) so the bytes never touch the Dart heap on the way to
+/// the OS keychain. The SecretStore entry remains after the write —
+/// the caller drops it explicitly via `secrets_drop` once every
+/// downstream consumer (e.g. drift's sqlcipher pragma) has had its
+/// turn through `secrets_take`. Returns `Err("secret not found: …")`
+/// when the id is absent from the store.
+pub async fn secure_storage_write_from_secret(
+    alias: String,
+    secret_id: String,
+) -> Result<(), String> {
+    let bytes = lfs_core::app::instance()
+        .secrets
+        .get(&secret_id)
+        .ok_or_else(|| format!("secret not found: {secret_id}"))?;
+    map_unit(lfs_os_security::secure_key_storage::write(&alias, &bytes).await)
+}
+
 pub async fn secure_storage_delete(alias: String) -> Result<(), String> {
     map_unit(lfs_os_security::secure_key_storage::delete(&alias).await)
 }

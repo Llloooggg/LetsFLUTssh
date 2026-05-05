@@ -79,8 +79,34 @@ Future<bool> cryptoEd25519Verify({
 
 /// Generate a fresh random AES-256 key (32 bytes from `OsRng`).
 /// Synchronous — the call is a single OS getrandom round-trip.
+///
+/// Bytes cross the FRB boundary plaintext. Prefer
+/// [`crypto_aes_gcm_random_key_to_secret`] for new call sites — it
+/// stages the key in [`lfs_core::secrets::SecretStore`] under a
+/// caller-chosen id and returns `()`, so the bytes never touch the
+/// Dart heap on the way out. Bytes still have to materialise
+/// Dart-side eventually (drift's sqlcipher pragma takes a hex
+/// string), but staging them in a SecretStore narrows the leak
+/// window from "key generation through every consumer" to "just
+/// before drift open".
 Uint8List cryptoAesGcmRandomKey() =>
     RustLib.instance.api.crateApiCryptoCryptoAesGcmRandomKey();
+
+/// Generate a fresh random AES-256 key (32 bytes from `OsRng`)
+/// straight into the process-singleton `SecretStore` under [`id`].
+/// Returns `()` — the bytes never cross the FRB boundary.
+///
+/// Call sites pull the bytes back through `secrets_take(id)` only
+/// when they genuinely need them (drift's sqlcipher pragma rekey,
+/// for example). The keychain write side has its own
+/// [`super::secure_key_storage::secure_storage_write_from_secret`]
+/// shortcut that pulls bytes from the store internally so the
+/// keychain-plugin path likewise never sees them on the Dart heap.
+///
+/// Idempotent on `id` collision: replaces any prior value at the
+/// same id (the previous `Zeroizing` buffer scrubs on drop).
+void cryptoAesGcmRandomKeyToSecret({required String id}) =>
+    RustLib.instance.api.crateApiCryptoCryptoAesGcmRandomKeyToSecret(id: id);
 
 /// AES-256-GCM encrypt with a fresh random nonce. Returns the wire
 /// shape `nonce || ciphertext || tag` — the same layout the legacy

@@ -24,6 +24,25 @@ Future<void> secureStorageWrite({
   value: value,
 );
 
+/// Variant of [`secure_storage_write`] that pulls the bytes from
+/// [`lfs_core::secrets::SecretStore`] under [`secret_id`] instead of
+/// taking them across the FRB boundary. Used by callers that have
+/// staged the value through
+/// [`super::crypto::crypto_aes_gcm_random_key_to_secret`] (or
+/// equivalent) so the bytes never touch the Dart heap on the way to
+/// the OS keychain. The SecretStore entry remains after the write —
+/// the caller drops it explicitly via `secrets_drop` once every
+/// downstream consumer (e.g. drift's sqlcipher pragma) has had its
+/// turn through `secrets_take`. Returns `Err("secret not found: …")`
+/// when the id is absent from the store.
+Future<void> secureStorageWriteFromSecret({
+  required String alias,
+  required String secretId,
+}) => RustLib.instance.api.crateApiSecureKeyStorageSecureStorageWriteFromSecret(
+  alias: alias,
+  secretId: secretId,
+);
+
 Future<void> secureStorageDelete({required String alias}) => RustLib
     .instance
     .api
