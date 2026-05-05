@@ -147,11 +147,20 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // every subsequent DLL load + allocation in the process.
   ApplyProcessMitigationPolicies();
 
-  // Attach to console when present (e.g., 'flutter run') or create a
-  // new console when running with a debugger.
-  if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
-    CreateAndAttachConsole();
-  }
+  // Attach to the parent console when present (e.g. running under
+  // `flutter run` from a terminal) so stdout / stderr land in the
+  // same window. Failing that, do NOT call `AllocConsole` — the
+  // Flutter template's old `IsDebuggerPresent()` fallback opens a
+  // standalone black "LetsFLUTssh" console window on systems where
+  // a kernel-level telemetry / management agent flips the
+  // debugger-present flag (Windows IoT LTSC enterprise installs are
+  // the canonical case). The user sees that empty console pop up
+  // alongside the real app window for a few seconds before the
+  // splash overlays it. Dropping the fallback removes the false
+  // positive — release builds genuinely don't need stdout, and
+  // debug builds run from `flutter run` already inherit a parent
+  // console via `AttachConsole`.
+  ::AttachConsole(ATTACH_PARENT_PROCESS);
 
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
