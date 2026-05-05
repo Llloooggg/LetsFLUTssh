@@ -540,11 +540,6 @@ class SDe extends S {
       'Alle Sitzungen durch importierte ersetzen';
 
   @override
-  String errorPrefix(String error) {
-    return 'Fehler: $error';
-  }
-
-  @override
   String get folderName => 'Ordnername';
 
   @override
@@ -885,9 +880,6 @@ class SDe extends S {
   String get sourceCode => 'Quellcode';
 
   @override
-  String get enableLogging => 'Protokollierung aktivieren';
-
-  @override
   String get logIsEmpty => 'Protokoll ist leer';
 
   @override
@@ -1004,19 +996,12 @@ class SDe extends S {
   String get exportSessionsViaQr => 'Sitzungen per QR exportieren';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Passwörter und SSH-Schlüssel sind NICHT enthalten.\nImportierte Sitzungen müssen die Zugangsdaten nachträglich erhalten.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Zu viele Sitzungen für einen einzelnen QR-Code. Reduzieren Sie die Auswahl oder nutzen Sie den .lfs-Export.';
 
   @override
   String get qrTooLarge =>
       'Zu groß — wählen Sie einige Elemente ab oder nutzen Sie den .lfs-Dateiexport.';
-
-  @override
-  String get exportAll => 'Alle exportieren';
 
   @override
   String get showQr => 'QR anzeigen';
@@ -1327,30 +1312,6 @@ class SDe extends S {
   String get progressDecrypting => 'Entschlüsseln…';
 
   @override
-  String get progressParsingArchive => 'Archiv wird analysiert…';
-
-  @override
-  String get progressImportingSessions => 'Sitzungen werden importiert';
-
-  @override
-  String get progressImportingFolders => 'Ordner werden importiert';
-
-  @override
-  String get progressImportingManagerKeys => 'SSH-Schlüssel werden importiert';
-
-  @override
-  String get progressImportingTags => 'Tags werden importiert';
-
-  @override
-  String get progressImportingSnippets => 'Snippets werden importiert';
-
-  @override
-  String get progressApplyingConfig => 'Konfiguration wird angewendet…';
-
-  @override
-  String get progressImportingKnownHosts => 'known_hosts werden importiert…';
-
-  @override
   String get progressCollectingData => 'Daten werden gesammelt…';
 
   @override
@@ -1489,23 +1450,6 @@ class SDe extends S {
 
   @override
   String get transferStatusQueued => 'In Warteschlange';
-
-  @override
-  String get transferStartingUpload => 'Upload wird gestartet...';
-
-  @override
-  String get transferStartingDownload => 'Download wird gestartet...';
-
-  @override
-  String get transferCopying => 'Wird kopiert...';
-
-  @override
-  String get transferDone => 'Fertig';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total Dateien';
-  }
 
   @override
   String get fileConflictTitle => 'Datei existiert bereits';
@@ -1728,22 +1672,7 @@ class SDe extends S {
   String get generated => 'Generiert';
 
   @override
-  String get passphraseRequired => 'Passphrase erforderlich';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'Der SSH-Schlüssel für $host ist verschlüsselt. Geben Sie die Passphrase zum Entsperren ein.';
-  }
-
-  @override
-  String get passphraseWrong =>
-      'Falsche Passphrase. Bitte versuchen Sie es erneut.';
-
-  @override
   String get passphrase => 'Passphrase';
-
-  @override
-  String get rememberPassphrase => 'Für diese Sitzung merken';
 
   @override
   String get enterMasterPassword =>
@@ -1752,9 +1681,6 @@ class SDe extends S {
   @override
   String get wrongMasterPassword =>
       'Falsches Passwort. Bitte versuchen Sie es erneut.';
-
-  @override
-  String get newPassword => 'Neues Passwort';
 
   @override
   String get currentPassword => 'Aktuelles Passwort';
@@ -1847,12 +1773,6 @@ class SDe extends S {
   @override
   String get wizardReducedBanner =>
       'Der Schlüsselbund des Betriebssystems ist bei dieser Installation nicht erreichbar. Wähle zwischen keiner Verschlüsselung (T0) und einem Master-Passwort (Paranoid). Installiere gnome-keyring, kwallet oder einen anderen libsecret-Anbieter, um die Keychain-Stufe zu aktivieren.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Auf dieser Stufe nichts.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Keine ungedeckten Bedrohungen.';
 
   @override
   String get tierBadgeCurrent => 'Aktuell';
@@ -2089,9 +2009,6 @@ class SDe extends S {
   String get snippetFillSubmit => 'Ausführen';
 
   @override
-  String get snippetPreview => 'Vorschau';
-
-  @override
   String get broadcastSetDriver => 'Aus diesem Bereich senden';
 
   @override
@@ -2167,10 +2084,6 @@ class SDe extends S {
       'Bindung an 0.0.0.0 macht die Weiterleitung auf jeder Schnittstelle sichtbar — meist willst du 127.0.0.1.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Lokale (-L), entfernte (-R) und dynamische SOCKS5 (-D) Weiterleitungen sind alle aktiv.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Lokal: öffnet einen Port auf diesem Gerät, der zu einem vom SSH-Server erreichbaren Ziel tunnelt. Nützlich für entfernte Datenbanken oder Admin-UIs über localhost:bindPort.';
 
@@ -2181,21 +2094,6 @@ class SDe extends S {
   @override
   String get forwardKindDynamicHelp =>
       'Dynamisch: ein SOCKS5-Proxy auf diesem Gerät, der jede Verbindung durch den SSH-Server leitet. Browser oder curl auf localhost:bindPort zeigen lassen — der gesamte Traffic geht über SSH.';
-
-  @override
-  String get forwardExample => 'Beispiel';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → entfernte DB via localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → Dev-Server auf Server-Port 9000';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → Browser-SOCKS5 auf localhost:1080';
 
   @override
   String get proxyJump => 'Verbinden über';
@@ -2212,19 +2110,6 @@ class SDe extends S {
   @override
   String get proxyJumpCustomNote =>
       'Override-Hops verwenden die Anmeldedaten dieser Sitzung. Für andere Bastion-Auth speichere den Bastion als eigene Sitzung.';
-
-  @override
-  String get errProxyJumpCycle => 'Proxy-Kette bildet einen Kreis.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Proxy-Kette ist zu tief (max $max Hops).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label konnte nicht verbinden.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2384,10 +2269,6 @@ class SDe extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Beim Start nach einer neuen Version auf GitHub suchen';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'App-Ereignisse in eine rotierende Logdatei schreiben';
 
   @override
   String get exportWithoutPassword => 'Ohne Passwort exportieren?';

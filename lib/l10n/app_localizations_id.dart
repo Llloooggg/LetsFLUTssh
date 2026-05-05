@@ -536,11 +536,6 @@ class SId extends S {
       'Ganti semua sesi dengan yang diimpor';
 
   @override
-  String errorPrefix(String error) {
-    return 'Kesalahan: $error';
-  }
-
-  @override
   String get folderName => 'Nama folder';
 
   @override
@@ -880,9 +875,6 @@ class SId extends S {
   String get sourceCode => 'Kode Sumber';
 
   @override
-  String get enableLogging => 'Aktifkan Log';
-
-  @override
   String get logIsEmpty => 'Log kosong';
 
   @override
@@ -999,19 +991,12 @@ class SId extends S {
   String get exportSessionsViaQr => 'Ekspor Sesi via QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Kata sandi dan kunci SSH TIDAK disertakan.\nSesi yang diimpor perlu diisi kredensialnya.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Terlalu banyak sesi untuk satu kode QR. Batalkan beberapa pilihan atau gunakan ekspor .lfs.';
 
   @override
   String get qrTooLarge =>
       'Terlalu besar — batalkan beberapa item atau gunakan ekspor file .lfs.';
-
-  @override
-  String get exportAll => 'Ekspor Semua';
 
   @override
   String get showQr => 'Tampilkan QR';
@@ -1315,30 +1300,6 @@ class SId extends S {
   String get progressDecrypting => 'Mendekripsi…';
 
   @override
-  String get progressParsingArchive => 'Mengurai arsip…';
-
-  @override
-  String get progressImportingSessions => 'Mengimpor sesi';
-
-  @override
-  String get progressImportingFolders => 'Mengimpor folder';
-
-  @override
-  String get progressImportingManagerKeys => 'Mengimpor kunci SSH';
-
-  @override
-  String get progressImportingTags => 'Mengimpor tag';
-
-  @override
-  String get progressImportingSnippets => 'Mengimpor snippet';
-
-  @override
-  String get progressApplyingConfig => 'Menerapkan konfigurasi…';
-
-  @override
-  String get progressImportingKnownHosts => 'Mengimpor known_hosts…';
-
-  @override
   String get progressCollectingData => 'Mengumpulkan data…';
 
   @override
@@ -1477,23 +1438,6 @@ class SId extends S {
 
   @override
   String get transferStatusQueued => 'Dalam antrean';
-
-  @override
-  String get transferStartingUpload => 'Memulai unggah...';
-
-  @override
-  String get transferStartingDownload => 'Memulai unduh...';
-
-  @override
-  String get transferCopying => 'Menyalin...';
-
-  @override
-  String get transferDone => 'Selesai';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total file';
-  }
 
   @override
   String get fileConflictTitle => 'File sudah ada';
@@ -1710,21 +1654,7 @@ class SId extends S {
   String get generated => 'Dibuat';
 
   @override
-  String get passphraseRequired => 'Frasa sandi diperlukan';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'Kunci SSH untuk $host terenkripsi. Masukkan frasa sandi untuk membukanya.';
-  }
-
-  @override
-  String get passphraseWrong => 'Frasa sandi salah. Silakan coba lagi.';
-
-  @override
   String get passphrase => 'Frasa sandi';
-
-  @override
-  String get rememberPassphrase => 'Ingat untuk sesi ini';
 
   @override
   String get enterMasterPassword =>
@@ -1732,9 +1662,6 @@ class SId extends S {
 
   @override
   String get wrongMasterPassword => 'Kata sandi salah. Silakan coba lagi.';
-
-  @override
-  String get newPassword => 'Kata sandi baru';
 
   @override
   String get currentPassword => 'Kata sandi saat ini';
@@ -1826,13 +1753,6 @@ class SId extends S {
   @override
   String get wizardReducedBanner =>
       'Keychain OS tidak terjangkau pada pemasangan ini. Pilih antara tanpa enkripsi (T0) dan kata sandi utama (Paranoid). Pasang gnome-keyring, kwallet, atau penyedia libsecret lainnya untuk mengaktifkan tingkat Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Tidak ada pada tingkat ini.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty =>
-      'Tidak ada ancaman yang tidak tertutup.';
 
   @override
   String get tierBadgeCurrent => 'Saat ini';
@@ -2069,9 +1989,6 @@ class SId extends S {
   String get snippetFillSubmit => 'Jalankan';
 
   @override
-  String get snippetPreview => 'Pratinjau';
-
-  @override
   String get broadcastSetDriver => 'Siarkan dari panel ini';
 
   @override
@@ -2147,10 +2064,6 @@ class SId extends S {
       'Bind ke 0.0.0.0 mempublikasikan penerusan ke semua antarmuka — biasanya 127.0.0.1 yang Anda inginkan.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Penerusan lokal (-L), jarak jauh (-R), dan SOCKS5 dinamis (-D) semuanya aktif.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Lokal: membuka port di perangkat ini yang menerowong ke target yang dapat dijangkau dari server SSH. Berguna untuk mengakses database jarak jauh atau UI admin di localhost:bindPort.';
 
@@ -2161,21 +2074,6 @@ class SId extends S {
   @override
   String get forwardKindDynamicHelp =>
       'Dinamis: proxy SOCKS5 di perangkat ini yang merutekan setiap koneksi melalui server SSH. Arahkan browser atau curl ke localhost:bindPort untuk mengirim semua lalu lintas melalui SSH.';
-
-  @override
-  String get forwardExample => 'Contoh';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → akses DB jarak jauh via localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → mengekspos dev server Anda di port 9000 server';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → atur SOCKS5 browser ke localhost:1080';
 
   @override
   String get proxyJump => 'Hubungkan melalui';
@@ -2192,19 +2090,6 @@ class SId extends S {
   @override
   String get proxyJumpCustomNote =>
       'Hop kustom memakai kredensial sesi ini. Untuk auth bastion berbeda, simpan bastion sebagai sesi tersendiri.';
-
-  @override
-  String get errProxyJumpCycle => 'Rantai proxy membentuk loop.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Rantai proxy terlalu dalam (maks $max hop).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label gagal terhubung.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2363,10 +2248,6 @@ class SId extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Cek rilis baru di GitHub saat aplikasi dijalankan';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'Tulis peristiwa aplikasi ke berkas log berotasi';
 
   @override
   String get exportWithoutPassword => 'Ekspor tanpa kata sandi?';

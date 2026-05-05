@@ -532,11 +532,6 @@ class SVi extends S {
       'Thay thế tất cả phiên bằng phiên nhập vào';
 
   @override
-  String errorPrefix(String error) {
-    return 'Lỗi: $error';
-  }
-
-  @override
   String get folderName => 'Tên thư mục';
 
   @override
@@ -875,9 +870,6 @@ class SVi extends S {
   String get sourceCode => 'Mã nguồn';
 
   @override
-  String get enableLogging => 'Bật log';
-
-  @override
   String get logIsEmpty => 'Log trống';
 
   @override
@@ -994,19 +986,12 @@ class SVi extends S {
   String get exportSessionsViaQr => 'Xuất phiên qua QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Mật khẩu và khóa SSH KHÔNG được bao gồm.\nCác phiên nhập vào sẽ cần điền thông tin xác thực.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Quá nhiều phiên cho một mã QR. Bỏ chọn một số hoặc sử dụng xuất .lfs.';
 
   @override
   String get qrTooLarge =>
       'Quá lớn — bỏ chọn một số mục hoặc sử dụng xuất tệp .lfs.';
-
-  @override
-  String get exportAll => 'Xuất tất cả';
 
   @override
   String get showQr => 'Hiện QR';
@@ -1309,30 +1294,6 @@ class SVi extends S {
   String get progressDecrypting => 'Đang giải mã…';
 
   @override
-  String get progressParsingArchive => 'Đang phân tích kho lưu trữ…';
-
-  @override
-  String get progressImportingSessions => 'Đang nhập phiên';
-
-  @override
-  String get progressImportingFolders => 'Đang nhập thư mục';
-
-  @override
-  String get progressImportingManagerKeys => 'Đang nhập khóa SSH';
-
-  @override
-  String get progressImportingTags => 'Đang nhập thẻ';
-
-  @override
-  String get progressImportingSnippets => 'Đang nhập snippet';
-
-  @override
-  String get progressApplyingConfig => 'Đang áp dụng cấu hình…';
-
-  @override
-  String get progressImportingKnownHosts => 'Đang nhập known_hosts…';
-
-  @override
   String get progressCollectingData => 'Đang thu thập dữ liệu…';
 
   @override
@@ -1470,23 +1431,6 @@ class SVi extends S {
 
   @override
   String get transferStatusQueued => 'Đang chờ';
-
-  @override
-  String get transferStartingUpload => 'Bắt đầu tải lên...';
-
-  @override
-  String get transferStartingDownload => 'Bắt đầu tải xuống...';
-
-  @override
-  String get transferCopying => 'Đang sao chép...';
-
-  @override
-  String get transferDone => 'Hoàn tất';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total tệp';
-  }
 
   @override
   String get fileConflictTitle => 'Tệp đã tồn tại';
@@ -1703,21 +1647,7 @@ class SVi extends S {
   String get generated => 'Đã tạo';
 
   @override
-  String get passphraseRequired => 'Cần passphrase';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'SSH key cho $host được mã hóa. Nhập passphrase để mở khóa.';
-  }
-
-  @override
-  String get passphraseWrong => 'Passphrase sai. Thử lại.';
-
-  @override
   String get passphrase => 'Passphrase';
-
-  @override
-  String get rememberPassphrase => 'Nhớ passphrase cho phiên này';
 
   @override
   String get enterMasterPassword =>
@@ -1725,9 +1655,6 @@ class SVi extends S {
 
   @override
   String get wrongMasterPassword => 'Sai mật khẩu. Vui lòng thử lại.';
-
-  @override
-  String get newPassword => 'Mật khẩu mới';
 
   @override
   String get currentPassword => 'Mật khẩu hiện tại';
@@ -1818,13 +1745,6 @@ class SVi extends S {
   @override
   String get wizardReducedBanner =>
       'Keychain hệ điều hành không thể truy cập trong bản cài đặt này. Hãy chọn giữa không mã hoá (T0) và mật khẩu chính (Paranoid). Cài đặt gnome-keyring, kwallet hoặc trình cung cấp libsecret khác để bật tầng Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Không có gì ở cấp này.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty =>
-      'Không còn mối đe doạ nào chưa được phủ.';
 
   @override
   String get tierBadgeCurrent => 'Hiện tại';
@@ -2057,9 +1977,6 @@ class SVi extends S {
   String get snippetFillSubmit => 'Chạy';
 
   @override
-  String get snippetPreview => 'Xem trước';
-
-  @override
   String get broadcastSetDriver => 'Phát từ ngăn này';
 
   @override
@@ -2135,10 +2052,6 @@ class SVi extends S {
       'Bind tới 0.0.0.0 phát chuyển tiếp trên mọi giao diện — thường bạn muốn 127.0.0.1.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Chuyển tiếp cục bộ (-L), từ xa (-R) và SOCKS5 động (-D) đều đang hoạt động.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Cục bộ: mở một cổng trên thiết bị này, tạo đường hầm đến mục tiêu mà máy chủ SSH có thể tới. Hữu ích để truy cập cơ sở dữ liệu hoặc giao diện admin từ xa qua localhost:bindPort.';
 
@@ -2149,21 +2062,6 @@ class SVi extends S {
   @override
   String get forwardKindDynamicHelp =>
       'Động: một proxy SOCKS5 trên thiết bị này định tuyến mọi kết nối qua máy chủ SSH. Trỏ trình duyệt hoặc curl đến localhost:bindPort để gửi mọi lưu lượng qua SSH.';
-
-  @override
-  String get forwardExample => 'Ví dụ';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → truy cập DB từ xa qua localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → mở dev server ở cổng 9000 của máy chủ';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → đặt SOCKS5 trình duyệt là localhost:1080';
 
   @override
   String get proxyJump => 'Kết nối qua';
@@ -2180,19 +2078,6 @@ class SVi extends S {
   @override
   String get proxyJumpCustomNote =>
       'Hop tuỳ chỉnh dùng thông tin xác thực của phiên này. Để xác thực bastion khác, hãy lưu bastion như một phiên riêng.';
-
-  @override
-  String get errProxyJumpCycle => 'Chuỗi proxy lặp lại chính nó.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Chuỗi proxy quá sâu (tối đa $max hop).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label kết nối thất bại.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2351,10 +2236,6 @@ class SVi extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Kiểm tra phiên bản mới trên GitHub khi khởi chạy ứng dụng';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'Ghi sự kiện ứng dụng vào file log xoay vòng';
 
   @override
   String get exportWithoutPassword => 'Xuất không có mật khẩu?';

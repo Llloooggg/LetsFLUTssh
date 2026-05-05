@@ -525,11 +525,6 @@ class SZh extends S {
   String get importModeReplaceDescription => '用导入的会话替换所有会话';
 
   @override
-  String errorPrefix(String error) {
-    return '错误：$error';
-  }
-
-  @override
   String get folderName => '文件夹名称';
 
   @override
@@ -859,9 +854,6 @@ class SZh extends S {
   String get sourceCode => '源代码';
 
   @override
-  String get enableLogging => '启用日志';
-
-  @override
   String get logIsEmpty => '日志为空';
 
   @override
@@ -977,16 +969,10 @@ class SZh extends S {
   String get exportSessionsViaQr => '通过 QR 导出会话';
 
   @override
-  String get qrNoCredentialsWarning => '密码和 SSH 密钥不会包含在内。\n导入的会话需要重新填写凭据。';
-
-  @override
   String get qrTooManyForSingleCode => '会话过多，无法生成单个 QR 码。请取消部分选择或使用 .lfs 导出。';
 
   @override
   String get qrTooLarge => '数据过大——请取消部分选择或使用 .lfs 文件导出。';
-
-  @override
-  String get exportAll => '全部导出';
 
   @override
   String get showQr => '显示 QR';
@@ -1279,30 +1265,6 @@ class SZh extends S {
   String get progressDecrypting => '正在解密…';
 
   @override
-  String get progressParsingArchive => '正在解析归档…';
-
-  @override
-  String get progressImportingSessions => '正在导入会话';
-
-  @override
-  String get progressImportingFolders => '正在导入文件夹';
-
-  @override
-  String get progressImportingManagerKeys => '正在导入 SSH 密钥';
-
-  @override
-  String get progressImportingTags => '正在导入标签';
-
-  @override
-  String get progressImportingSnippets => '正在导入代码片段';
-
-  @override
-  String get progressApplyingConfig => '正在应用配置…';
-
-  @override
-  String get progressImportingKnownHosts => '正在导入 known_hosts…';
-
-  @override
   String get progressCollectingData => '正在收集数据…';
 
   @override
@@ -1437,23 +1399,6 @@ class SZh extends S {
 
   @override
   String get transferStatusQueued => '排队中';
-
-  @override
-  String get transferStartingUpload => '正在开始上传...';
-
-  @override
-  String get transferStartingDownload => '正在开始下载...';
-
-  @override
-  String get transferCopying => '正在复制...';
-
-  @override
-  String get transferDone => '完成';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total 个文件';
-  }
 
   @override
   String get fileConflictTitle => '文件已存在';
@@ -1666,30 +1611,13 @@ class SZh extends S {
   String get generated => '已生成';
 
   @override
-  String get passphraseRequired => '需要密码短语';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host 的 SSH 密钥已加密。请输入密码短语以解锁。';
-  }
-
-  @override
-  String get passphraseWrong => '密码短语错误。请重试。';
-
-  @override
   String get passphrase => '密码短语';
-
-  @override
-  String get rememberPassphrase => '在此会话中记住';
 
   @override
   String get enterMasterPassword => '输入主密码以访问已保存的凭据。';
 
   @override
   String get wrongMasterPassword => '密码错误。请重试。';
-
-  @override
-  String get newPassword => '新密码';
 
   @override
   String get currentPassword => '当前密码';
@@ -1775,12 +1703,6 @@ class SZh extends S {
   @override
   String get wizardReducedBanner =>
       '本次安装中无法访问系统钥匙串。请在“无加密”（T0）和“主密码”（Paranoid）之间选择。安装 gnome-keyring、kwallet 或其他 libsecret 提供程序以启用钥匙串等级。';
-
-  @override
-  String get tierBlockProtectsEmpty => '该等级无可抵御项。';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => '无未覆盖威胁。';
 
   @override
   String get tierBadgeCurrent => '当前';
@@ -2004,9 +1926,6 @@ class SZh extends S {
   String get snippetFillSubmit => '运行';
 
   @override
-  String get snippetPreview => '预览';
-
-  @override
   String get broadcastSetDriver => '从此窗格广播';
 
   @override
@@ -2082,10 +2001,6 @@ class SZh extends S {
       '绑定到 0.0.0.0 会在所有网卡上公开转发 — 通常你需要 127.0.0.1。';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      '本地 (-L)、远程 (-R) 和动态 SOCKS5 (-D) 转发均已启用。';
-
-  @override
   String get forwardKindLocalHelp =>
       '本地：在此设备上打开一个端口，隧道到 SSH 服务器可访问的目标。便于通过 localhost:bindPort 访问远程数据库或管理界面。';
 
@@ -2096,21 +2011,6 @@ class SZh extends S {
   @override
   String get forwardKindDynamicHelp =>
       '动态：此设备上的 SOCKS5 代理，将每个连接通过 SSH 服务器路由。把浏览器或 curl 指向 localhost:bindPort，所有流量经 SSH 发送。';
-
-  @override
-  String get forwardExample => '示例';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → 通过 localhost:8080 访问远程数据库';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → 在服务器 9000 端口暴露开发服务器';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → 把浏览器 SOCKS5 设为 localhost:1080';
 
   @override
   String get proxyJump => '通过连接';
@@ -2126,19 +2026,6 @@ class SZh extends S {
 
   @override
   String get proxyJumpCustomNote => '自定义跳转使用此会话的凭据。如需不同的堡垒机认证，请将堡垒机保存为独立会话。';
-
-  @override
-  String get errProxyJumpCycle => '代理链路自我闭合。';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return '代理链太深（最多 $max 跳）。';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return '堡垒机 $label 连接失败。';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2291,9 +2178,6 @@ class SZh extends S {
 
   @override
   String get checkForUpdatesOnStartupSubtitle => '应用启动时从 GitHub 检查新版本';
-
-  @override
-  String get enableLoggingSubtitle => '将应用事件写入循环日志文件';
 
   @override
   String get exportWithoutPassword => '不设密码导出？';

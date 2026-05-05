@@ -537,11 +537,6 @@ class SPt extends S {
       'Substituir todas as sessões pelas importadas';
 
   @override
-  String errorPrefix(String error) {
-    return 'Erro: $error';
-  }
-
-  @override
   String get folderName => 'Nome da pasta';
 
   @override
@@ -882,9 +877,6 @@ class SPt extends S {
   String get sourceCode => 'Código Fonte';
 
   @override
-  String get enableLogging => 'Ativar logs';
-
-  @override
   String get logIsEmpty => 'O log está vazio';
 
   @override
@@ -1001,19 +993,12 @@ class SPt extends S {
   String get exportSessionsViaQr => 'Exportar Sessões via QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Senhas e chaves SSH NÃO estão incluídas.\nAs sessões importadas precisarão ter as credenciais preenchidas.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Sessões demais para um único código QR. Desmarque algumas ou use a exportação .lfs.';
 
   @override
   String get qrTooLarge =>
       'Muito grande — desmarque alguns itens ou use a exportação em arquivo .lfs.';
-
-  @override
-  String get exportAll => 'Exportar Tudo';
 
   @override
   String get showQr => 'Mostrar QR';
@@ -1321,30 +1306,6 @@ class SPt extends S {
   String get progressDecrypting => 'Descriptografando…';
 
   @override
-  String get progressParsingArchive => 'Analisando arquivo…';
-
-  @override
-  String get progressImportingSessions => 'Importando sessões';
-
-  @override
-  String get progressImportingFolders => 'Importando pastas';
-
-  @override
-  String get progressImportingManagerKeys => 'Importando chaves SSH';
-
-  @override
-  String get progressImportingTags => 'Importando tags';
-
-  @override
-  String get progressImportingSnippets => 'Importando snippets';
-
-  @override
-  String get progressApplyingConfig => 'Aplicando configuração…';
-
-  @override
-  String get progressImportingKnownHosts => 'Importando known_hosts…';
-
-  @override
   String get progressCollectingData => 'Coletando dados…';
 
   @override
@@ -1483,23 +1444,6 @@ class SPt extends S {
 
   @override
   String get transferStatusQueued => 'Na fila';
-
-  @override
-  String get transferStartingUpload => 'Iniciando envio...';
-
-  @override
-  String get transferStartingDownload => 'Iniciando download...';
-
-  @override
-  String get transferCopying => 'Copiando...';
-
-  @override
-  String get transferDone => 'Concluído';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total arquivos';
-  }
 
   @override
   String get fileConflictTitle => 'O arquivo já existe';
@@ -1721,21 +1665,7 @@ class SPt extends S {
   String get generated => 'Gerada';
 
   @override
-  String get passphraseRequired => 'Passphrase necessária';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'A chave SSH para $host está criptografada. Digite a passphrase para desbloqueá-la.';
-  }
-
-  @override
-  String get passphraseWrong => 'Passphrase incorreta. Tente novamente.';
-
-  @override
   String get passphrase => 'Passphrase';
-
-  @override
-  String get rememberPassphrase => 'Lembrar nesta sessão';
 
   @override
   String get enterMasterPassword =>
@@ -1743,9 +1673,6 @@ class SPt extends S {
 
   @override
   String get wrongMasterPassword => 'Senha incorreta. Tente novamente.';
-
-  @override
-  String get newPassword => 'Nova senha';
 
   @override
   String get currentPassword => 'Senha atual';
@@ -1837,12 +1764,6 @@ class SPt extends S {
   @override
   String get wizardReducedBanner =>
       'O keychain do sistema não está acessível nesta instalação. Escolha entre sem criptografia (T0) e uma senha mestra (Paranoid). Instale gnome-keyring, kwallet ou outro provedor libsecret para habilitar o nível Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Nada neste nível.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Sem ameaças descobertas.';
 
   @override
   String get tierBadgeCurrent => 'Atual';
@@ -2078,9 +1999,6 @@ class SPt extends S {
   String get snippetFillSubmit => 'Executar';
 
   @override
-  String get snippetPreview => 'Pré-visualização';
-
-  @override
   String get broadcastSetDriver => 'Transmitir deste painel';
 
   @override
@@ -2156,10 +2074,6 @@ class SPt extends S {
       'Bind em 0.0.0.0 publica o encaminhamento em todas as interfaces — normalmente queres 127.0.0.1.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Os encaminhamentos locais (-L), remotos (-R) e SOCKS5 dinâmicos (-D) estão todos ativos.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Local: abre uma porta neste dispositivo que faz tunnel até um destino alcançável do servidor SSH. Útil para acessar bancos remotos ou UIs admin via localhost:bindPort.';
 
@@ -2170,21 +2084,6 @@ class SPt extends S {
   @override
   String get forwardKindDynamicHelp =>
       'Dinâmico: um proxy SOCKS5 neste dispositivo que encaminha cada conexão pelo servidor SSH. Aponta o teu navegador ou curl para localhost:bindPort para enviar todo o tráfego por SSH.';
-
-  @override
-  String get forwardExample => 'Exemplo';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → BD remota via localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expõe o teu dev server na porta 9000 do servidor';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → SOCKS5 do navegador para localhost:1080';
 
   @override
   String get proxyJump => 'Ligar através de';
@@ -2201,19 +2100,6 @@ class SPt extends S {
   @override
   String get proxyJumpCustomNote =>
       'Hops personalizados usam as credenciais desta sessão. Para auth de bastião diferente, guarda o bastião como sessão própria.';
-
-  @override
-  String get errProxyJumpCycle => 'A cadeia de proxy forma um ciclo.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Cadeia de proxy demasiado profunda (máx $max hops).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'O bastião $label falhou ao conectar.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2375,10 +2261,6 @@ class SPt extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Consultar o GitHub por uma nova versão ao iniciar o app';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'Gravar eventos do app em arquivo de log rotativo';
 
   @override
   String get exportWithoutPassword => 'Exportar sem senha?';

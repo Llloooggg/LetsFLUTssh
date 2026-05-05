@@ -538,11 +538,6 @@ class SEs extends S {
       'Reemplazar todas las sesiones con las importadas';
 
   @override
-  String errorPrefix(String error) {
-    return 'Error: $error';
-  }
-
-  @override
   String get folderName => 'Nombre de la carpeta';
 
   @override
@@ -882,9 +877,6 @@ class SEs extends S {
   String get sourceCode => 'Código fuente';
 
   @override
-  String get enableLogging => 'Activar logs';
-
-  @override
   String get logIsEmpty => 'El log está vacío';
 
   @override
@@ -1002,19 +994,12 @@ class SEs extends S {
   String get exportSessionsViaQr => 'Exportar sesiones vía QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Las contraseñas y claves SSH NO están incluidas.\nLas sesiones importadas necesitarán que se completen las credenciales.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Demasiadas sesiones para un solo código QR. Deseleccione algunas o use la exportación .lfs.';
 
   @override
   String get qrTooLarge =>
       'Demasiado grande — deseleccione algunos elementos o use la exportación en archivo .lfs.';
-
-  @override
-  String get exportAll => 'Exportar todo';
 
   @override
   String get showQr => 'Mostrar QR';
@@ -1322,30 +1307,6 @@ class SEs extends S {
   String get progressDecrypting => 'Descifrando…';
 
   @override
-  String get progressParsingArchive => 'Analizando archivo…';
-
-  @override
-  String get progressImportingSessions => 'Importando sesiones';
-
-  @override
-  String get progressImportingFolders => 'Importando carpetas';
-
-  @override
-  String get progressImportingManagerKeys => 'Importando claves SSH';
-
-  @override
-  String get progressImportingTags => 'Importando etiquetas';
-
-  @override
-  String get progressImportingSnippets => 'Importando snippets';
-
-  @override
-  String get progressApplyingConfig => 'Aplicando configuración…';
-
-  @override
-  String get progressImportingKnownHosts => 'Importando known_hosts…';
-
-  @override
   String get progressCollectingData => 'Recopilando datos…';
 
   @override
@@ -1484,23 +1445,6 @@ class SEs extends S {
 
   @override
   String get transferStatusQueued => 'En cola';
-
-  @override
-  String get transferStartingUpload => 'Iniciando carga...';
-
-  @override
-  String get transferStartingDownload => 'Iniciando descarga...';
-
-  @override
-  String get transferCopying => 'Copiando...';
-
-  @override
-  String get transferDone => 'Listo';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total archivos';
-  }
 
   @override
   String get fileConflictTitle => 'El archivo ya existe';
@@ -1721,21 +1665,7 @@ class SEs extends S {
   String get generated => 'Generada';
 
   @override
-  String get passphraseRequired => 'Passphrase requerido';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'La clave SSH para $host está cifrada. Introduce el passphrase para desbloquearla.';
-  }
-
-  @override
-  String get passphraseWrong => 'Passphrase incorrecto. Inténtalo de nuevo.';
-
-  @override
   String get passphrase => 'Passphrase';
-
-  @override
-  String get rememberPassphrase => 'Recordar durante esta sesión';
 
   @override
   String get enterMasterPassword =>
@@ -1744,9 +1674,6 @@ class SEs extends S {
   @override
   String get wrongMasterPassword =>
       'Contraseña incorrecta. Por favor, inténtelo de nuevo.';
-
-  @override
-  String get newPassword => 'Nueva contraseña';
 
   @override
   String get currentPassword => 'Contraseña actual';
@@ -1839,12 +1766,6 @@ class SEs extends S {
   @override
   String get wizardReducedBanner =>
       'El keychain del sistema no es accesible en esta instalación. Elige entre sin cifrado (T0) y una contraseña maestra (Paranoid). Instala gnome-keyring, kwallet u otro proveedor de libsecret para habilitar el nivel Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Nada en este nivel.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Sin amenazas sin cubrir.';
 
   @override
   String get tierBadgeCurrent => 'Actual';
@@ -2081,9 +2002,6 @@ class SEs extends S {
   String get snippetFillSubmit => 'Ejecutar';
 
   @override
-  String get snippetPreview => 'Vista previa';
-
-  @override
   String get broadcastSetDriver => 'Transmitir desde este panel';
 
   @override
@@ -2159,10 +2077,6 @@ class SEs extends S {
       'Enlazar a 0.0.0.0 publica el reenvío en todas las interfaces — normalmente querrás 127.0.0.1.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Los reenvíos locales (-L), remotos (-R) y SOCKS5 dinámicos (-D) están todos activos.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Local: abre un puerto en este equipo que tuneliza a un destino accesible desde el servidor SSH. Útil para acceder a bases de datos remotas o paneles admin en localhost:bindPort.';
 
@@ -2173,21 +2087,6 @@ class SEs extends S {
   @override
   String get forwardKindDynamicHelp =>
       'Dinámico: un proxy SOCKS5 en este equipo que enruta cada conexión por el servidor SSH. Apunta tu navegador o curl a localhost:bindPort para enviar todo el tráfico por SSH.';
-
-  @override
-  String get forwardExample => 'Ejemplo';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → BD remota vía localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expone tu dev server en puerto 9000 del servidor';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → SOCKS5 del navegador a localhost:1080';
 
   @override
   String get proxyJump => 'Conectar mediante';
@@ -2204,19 +2103,6 @@ class SEs extends S {
   @override
   String get proxyJumpCustomNote =>
       'Los saltos personalizados usan las credenciales de esta sesión. Para auth de bastión distinta, guarda el bastión como sesión propia.';
-
-  @override
-  String get errProxyJumpCycle => 'La cadena de proxy forma un bucle.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'La cadena de proxy es demasiado profunda (máx $max saltos).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'El bastión $label no pudo conectar.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2380,10 +2266,6 @@ class SEs extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Consultar GitHub por una nueva versión al iniciar la app';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'Escribir los eventos de la app en un archivo de log rotativo';
 
   @override
   String get exportWithoutPassword => '¿Exportar sin contraseña?';

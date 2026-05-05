@@ -535,11 +535,6 @@ class SHi extends S {
   String get importModeReplaceDescription => 'सभी सत्रों को आयातित से बदलें';
 
   @override
-  String errorPrefix(String error) {
-    return 'त्रुटि: $error';
-  }
-
-  @override
   String get folderName => 'फ़ोल्डर का नाम';
 
   @override
@@ -877,9 +872,6 @@ class SHi extends S {
   String get sourceCode => 'सोर्स कोड';
 
   @override
-  String get enableLogging => 'लॉगिंग सक्षम करें';
-
-  @override
   String get logIsEmpty => 'लॉग खाली है';
 
   @override
@@ -997,19 +989,12 @@ class SHi extends S {
   String get exportSessionsViaQr => 'QR से सत्र निर्यात करें';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'पासवर्ड और SSH कुंजियां शामिल नहीं हैं।\nआयातित सत्रों में क्रेडेंशियल भरने की आवश्यकता होगी।';
-
-  @override
   String get qrTooManyForSingleCode =>
       'एक QR कोड के लिए बहुत अधिक सत्र। कुछ अचयनित करें या .lfs निर्यात का उपयोग करें।';
 
   @override
   String get qrTooLarge =>
       'बहुत बड़ा — कुछ आइटम अचयनित करें या .lfs फ़ाइल निर्यात का उपयोग करें।';
-
-  @override
-  String get exportAll => 'सभी निर्यात करें';
 
   @override
   String get showQr => 'QR दिखाएं';
@@ -1314,30 +1299,6 @@ class SHi extends S {
   String get progressDecrypting => 'डिक्रिप्ट किया जा रहा है…';
 
   @override
-  String get progressParsingArchive => 'संग्रह पार्स किया जा रहा है…';
-
-  @override
-  String get progressImportingSessions => 'सत्र आयात किए जा रहे हैं';
-
-  @override
-  String get progressImportingFolders => 'फ़ोल्डर आयात किए जा रहे हैं';
-
-  @override
-  String get progressImportingManagerKeys => 'SSH कुंजियाँ आयात की जा रही हैं';
-
-  @override
-  String get progressImportingTags => 'टैग आयात किए जा रहे हैं';
-
-  @override
-  String get progressImportingSnippets => 'स्निपेट्स आयात किए जा रहे हैं';
-
-  @override
-  String get progressApplyingConfig => 'कॉन्फ़िगरेशन लागू किया जा रहा है…';
-
-  @override
-  String get progressImportingKnownHosts => 'known_hosts आयात किया जा रहा है…';
-
-  @override
   String get progressCollectingData => 'डेटा एकत्र किया जा रहा है…';
 
   @override
@@ -1475,23 +1436,6 @@ class SHi extends S {
 
   @override
   String get transferStatusQueued => 'कतार में';
-
-  @override
-  String get transferStartingUpload => 'अपलोड शुरू हो रहा है...';
-
-  @override
-  String get transferStartingDownload => 'डाउनलोड शुरू हो रहा है...';
-
-  @override
-  String get transferCopying => 'कॉपी हो रहा है...';
-
-  @override
-  String get transferDone => 'पूर्ण';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total फ़ाइलें';
-  }
 
   @override
   String get fileConflictTitle => 'फ़ाइल पहले से मौजूद है';
@@ -1712,21 +1656,7 @@ class SHi extends S {
   String get generated => 'जनरेट की गई';
 
   @override
-  String get passphraseRequired => 'पासफ़्रेज़ आवश्यक';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host की SSH कुंजी एन्क्रिप्टेड है। अनलॉक करने के लिए पासफ़्रेज़ दर्ज करें।';
-  }
-
-  @override
-  String get passphraseWrong => 'गलत पासफ़्रेज़। कृपया पुनः प्रयास करें।';
-
-  @override
   String get passphrase => 'पासफ़्रेज़';
-
-  @override
-  String get rememberPassphrase => 'इस सत्र के लिए याद रखें';
 
   @override
   String get enterMasterPassword =>
@@ -1734,9 +1664,6 @@ class SHi extends S {
 
   @override
   String get wrongMasterPassword => 'गलत पासवर्ड। कृपया पुनः प्रयास करें।';
-
-  @override
-  String get newPassword => 'नया पासवर्ड';
 
   @override
   String get currentPassword => 'वर्तमान पासवर्ड';
@@ -1827,12 +1754,6 @@ class SHi extends S {
   @override
   String get wizardReducedBanner =>
       'इस इंस्टॉलेशन में OS कीचेन उपलब्ध नहीं है। कोई एन्क्रिप्शन नहीं (T0) और मास्टर पासवर्ड (Paranoid) में से चुनें। Keychain स्तर सक्षम करने के लिए gnome-keyring, kwallet या कोई अन्य libsecret प्रदाता स्थापित करें।';
-
-  @override
-  String get tierBlockProtectsEmpty => 'इस स्तर पर कुछ नहीं।';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'कोई खुला खतरा नहीं।';
 
   @override
   String get tierBadgeCurrent => 'वर्तमान';
@@ -2067,9 +1988,6 @@ class SHi extends S {
   String get snippetFillSubmit => 'चलाएँ';
 
   @override
-  String get snippetPreview => 'पूर्वावलोकन';
-
-  @override
   String get broadcastSetDriver => 'इस पैन से प्रसारण';
 
   @override
@@ -2145,10 +2063,6 @@ class SHi extends S {
       '0.0.0.0 से बाइंड करने पर फ़ॉरवर्ड हर इंटरफ़ेस पर प्रकाशित होता है — आमतौर पर 127.0.0.1 चाहिए।';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'स्थानीय (-L), दूरस्थ (-R) और गतिशील SOCKS5 (-D) फ़ॉरवर्ड सभी सक्रिय हैं।';
-
-  @override
   String get forwardKindLocalHelp =>
       'स्थानीय: इस डिवाइस पर एक पोर्ट खोलता है जो SSH सर्वर से पहुँच योग्य लक्ष्य तक टनल करता है। localhost:bindPort के माध्यम से दूरस्थ डेटाबेस या एडमिन UI तक पहुँच के लिए उपयोगी।';
 
@@ -2159,21 +2073,6 @@ class SHi extends S {
   @override
   String get forwardKindDynamicHelp =>
       'गतिशील: इस डिवाइस पर एक SOCKS5 प्रॉक्सी जो हर कनेक्शन को SSH सर्वर के माध्यम से रूट करता है। सभी ट्रैफ़िक SSH के माध्यम से भेजने के लिए ब्राउज़र या curl को localhost:bindPort पर पॉइंट करें।';
-
-  @override
-  String get forwardExample => 'उदाहरण';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → localhost:8080 के माध्यम से दूरस्थ DB तक पहुँच';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → सर्वर पोर्ट 9000 पर dev server को उजागर करें';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → ब्राउज़र SOCKS5 को localhost:1080 पर सेट करें';
 
   @override
   String get proxyJump => 'इसके माध्यम से जुड़ें';
@@ -2190,19 +2089,6 @@ class SHi extends S {
   @override
   String get proxyJumpCustomNote =>
       'कस्टम हॉप्स इसी सत्र के क्रेडेंशियल उपयोग करते हैं। अलग बेस्टियन ऑथ के लिए बेस्टियन को अलग सत्र के रूप में सहेजें।';
-
-  @override
-  String get errProxyJumpCycle => 'प्रॉक्सी श्रृंखला स्वयं को लूप करती है।';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'प्रॉक्सी श्रृंखला बहुत गहरी है (अधिकतम $max हॉप्स)।';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'बेस्टियन $label कनेक्ट नहीं हो सका।';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2361,10 +2247,6 @@ class SHi extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'ऐप शुरू होने पर GitHub से नया संस्करण जाँचें';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'ऐप की घटनाओं को एक रोटेटिंग लॉग फ़ाइल में लिखें';
 
   @override
   String get exportWithoutPassword => 'पासवर्ड के बिना निर्यात करें?';

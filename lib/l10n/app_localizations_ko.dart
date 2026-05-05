@@ -527,11 +527,6 @@ class SKo extends S {
   String get importModeReplaceDescription => '모든 세션을 가져온 세션으로 교체';
 
   @override
-  String errorPrefix(String error) {
-    return '오류: $error';
-  }
-
-  @override
   String get folderName => '폴더 이름';
 
   @override
@@ -861,9 +856,6 @@ class SKo extends S {
   String get sourceCode => '소스 코드';
 
   @override
-  String get enableLogging => '로그 활성화';
-
-  @override
   String get logIsEmpty => '로그가 비어 있습니다';
 
   @override
@@ -979,18 +971,11 @@ class SKo extends S {
   String get exportSessionsViaQr => 'QR로 세션 내보내기';
 
   @override
-  String get qrNoCredentialsWarning =>
-      '비밀번호와 SSH 키는 포함되지 않습니다.\n가져온 세션에는 자격 증명을 다시 입력해야 합니다.';
-
-  @override
   String get qrTooManyForSingleCode =>
       '하나의 QR 코드에 너무 많은 세션이 있습니다. 일부를 선택 해제하거나 .lfs 내보내기를 사용하세요.';
 
   @override
   String get qrTooLarge => '너무 큽니다 — 일부 항목을 선택 해제하거나 .lfs 파일 내보내기를 사용하세요.';
-
-  @override
-  String get exportAll => '모두 내보내기';
 
   @override
   String get showQr => 'QR 표시';
@@ -1285,30 +1270,6 @@ class SKo extends S {
   String get progressDecrypting => '복호화 중…';
 
   @override
-  String get progressParsingArchive => '아카이브 파싱 중…';
-
-  @override
-  String get progressImportingSessions => '세션 가져오는 중';
-
-  @override
-  String get progressImportingFolders => '폴더 가져오는 중';
-
-  @override
-  String get progressImportingManagerKeys => 'SSH 키 가져오는 중';
-
-  @override
-  String get progressImportingTags => '태그 가져오는 중';
-
-  @override
-  String get progressImportingSnippets => '스니펫 가져오는 중';
-
-  @override
-  String get progressApplyingConfig => '구성 적용 중…';
-
-  @override
-  String get progressImportingKnownHosts => 'known_hosts 가져오는 중…';
-
-  @override
   String get progressCollectingData => '데이터 수집 중…';
 
   @override
@@ -1443,23 +1404,6 @@ class SKo extends S {
 
   @override
   String get transferStatusQueued => '대기 중';
-
-  @override
-  String get transferStartingUpload => '업로드 시작 중...';
-
-  @override
-  String get transferStartingDownload => '다운로드 시작 중...';
-
-  @override
-  String get transferCopying => '복사 중...';
-
-  @override
-  String get transferDone => '완료';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total 파일';
-  }
 
   @override
   String get fileConflictTitle => '파일이 이미 존재합니다';
@@ -1673,30 +1617,13 @@ class SKo extends S {
   String get generated => '생성됨';
 
   @override
-  String get passphraseRequired => '패스프레이즈 필요';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host의 SSH 키가 암호화되어 있습니다. 잠금을 해제하려면 패스프레이즈를 입력하세요.';
-  }
-
-  @override
-  String get passphraseWrong => '패스프레이즈가 올바르지 않습니다. 다시 시도하세요.';
-
-  @override
   String get passphrase => '패스프레이즈';
-
-  @override
-  String get rememberPassphrase => '이 세션 동안 기억';
 
   @override
   String get enterMasterPassword => '저장된 인증 정보에 접근하려면 마스터 비밀번호를 입력하세요.';
 
   @override
   String get wrongMasterPassword => '비밀번호가 올바르지 않습니다. 다시 시도하세요.';
-
-  @override
-  String get newPassword => '새 비밀번호';
 
   @override
   String get currentPassword => '현재 비밀번호';
@@ -1787,12 +1714,6 @@ class SKo extends S {
   @override
   String get wizardReducedBanner =>
       '이 설치본에서는 OS 키체인에 접근할 수 없습니다. 암호화 없음(T0)과 마스터 비밀번호(Paranoid) 중에서 선택하세요. 키체인 등급을 활성화하려면 gnome-keyring, kwallet 또는 다른 libsecret 공급자를 설치하세요.';
-
-  @override
-  String get tierBlockProtectsEmpty => '이 등급에서 보호되는 항목이 없습니다.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => '노출된 위협이 없습니다.';
 
   @override
   String get tierBadgeCurrent => '현재';
@@ -2018,9 +1939,6 @@ class SKo extends S {
   String get snippetFillSubmit => '실행';
 
   @override
-  String get snippetPreview => '미리보기';
-
-  @override
   String get broadcastSetDriver => '이 창에서 브로드캐스트';
 
   @override
@@ -2096,10 +2014,6 @@ class SKo extends S {
       '0.0.0.0에 바인드하면 모든 인터페이스에 노출됩니다 — 보통 127.0.0.1을 사용하세요.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      '로컬 (-L), 원격 (-R), 동적 SOCKS5 (-D) 포워딩이 모두 활성화되어 있습니다.';
-
-  @override
   String get forwardKindLocalHelp =>
       '로컬: 이 기기에서 포트를 열어 SSH 서버에서 접근 가능한 대상으로 터널링합니다. localhost:bindPort 통해 원격 DB나 관리 UI 접근에 유용.';
 
@@ -2110,21 +2024,6 @@ class SKo extends S {
   @override
   String get forwardKindDynamicHelp =>
       '동적: 이 기기의 SOCKS5 프록시로 모든 연결을 SSH 서버를 통해 라우팅합니다. 브라우저나 curl을 localhost:bindPort로 설정하면 모든 트래픽이 SSH 통해 전송됩니다.';
-
-  @override
-  String get forwardExample => '예시';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → localhost:8080 통해 원격 DB 접근';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → 서버의 9000 포트에 개발 서버 노출';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → 브라우저 SOCKS5를 localhost:1080으로 설정';
 
   @override
   String get proxyJump => '경유 연결';
@@ -2141,19 +2040,6 @@ class SKo extends S {
   @override
   String get proxyJumpCustomNote =>
       '사용자 지정 hop은 이 세션의 인증 정보를 사용합니다. 다른 bastion 인증이 필요하면 bastion을 별도 세션으로 저장하세요.';
-
-  @override
-  String get errProxyJumpCycle => '프록시 체인이 순환됩니다.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return '프록시 체인이 너무 깊습니다 (최대 $max hop).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label 연결 실패.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2307,9 +2193,6 @@ class SKo extends S {
 
   @override
   String get checkForUpdatesOnStartupSubtitle => '앱 시작 시 GitHub에서 새 버전 확인';
-
-  @override
-  String get enableLoggingSubtitle => '앱 이벤트를 순환 로그 파일에 기록';
 
   @override
   String get exportWithoutPassword => '비밀번호 없이 내보내시겠습니까?';

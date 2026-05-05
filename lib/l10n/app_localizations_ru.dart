@@ -540,11 +540,6 @@ class SRu extends S {
       'Заменить все сессии импортированными';
 
   @override
-  String errorPrefix(String error) {
-    return 'Ошибка: $error';
-  }
-
-  @override
   String get folderName => 'Имя папки';
 
   @override
@@ -883,9 +878,6 @@ class SRu extends S {
   String get sourceCode => 'Исходный код';
 
   @override
-  String get enableLogging => 'Включить журналирование';
-
-  @override
   String get logIsEmpty => 'Журнал пуст';
 
   @override
@@ -1002,19 +994,12 @@ class SRu extends S {
   String get exportSessionsViaQr => 'Экспорт сессий через QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Пароли и SSH-ключи НЕ включены.\nДля импортированных сессий потребуется заполнить учётные данные.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Слишком много сессий для одного QR-кода. Снимите часть выделения или используйте экспорт в .lfs.';
 
   @override
   String get qrTooLarge =>
       'Слишком большой объём — снимите часть выделения или используйте экспорт в файл .lfs.';
-
-  @override
-  String get exportAll => 'Экспортировать все';
 
   @override
   String get showQr => 'Показать QR';
@@ -1322,30 +1307,6 @@ class SRu extends S {
   String get progressDecrypting => 'Расшифровка…';
 
   @override
-  String get progressParsingArchive => 'Разбор архива…';
-
-  @override
-  String get progressImportingSessions => 'Импорт сессий';
-
-  @override
-  String get progressImportingFolders => 'Импорт папок';
-
-  @override
-  String get progressImportingManagerKeys => 'Импорт SSH-ключей';
-
-  @override
-  String get progressImportingTags => 'Импорт тегов';
-
-  @override
-  String get progressImportingSnippets => 'Импорт сниппетов';
-
-  @override
-  String get progressApplyingConfig => 'Применение конфигурации…';
-
-  @override
-  String get progressImportingKnownHosts => 'Импорт known_hosts…';
-
-  @override
   String get progressCollectingData => 'Сбор данных…';
 
   @override
@@ -1484,23 +1445,6 @@ class SRu extends S {
 
   @override
   String get transferStatusQueued => 'В очереди';
-
-  @override
-  String get transferStartingUpload => 'Начало загрузки...';
-
-  @override
-  String get transferStartingDownload => 'Начало скачивания...';
-
-  @override
-  String get transferCopying => 'Копирование...';
-
-  @override
-  String get transferDone => 'Готово';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total файлов';
-  }
 
   @override
   String get fileConflictTitle => 'Файл уже существует';
@@ -1723,21 +1667,7 @@ class SRu extends S {
   String get generated => 'Сгенерирован';
 
   @override
-  String get passphraseRequired => 'Требуется парольная фраза';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'SSH-ключ для $host зашифрован. Введите парольную фразу для разблокировки.';
-  }
-
-  @override
-  String get passphraseWrong => 'Неверная парольная фраза. Попробуйте ещё раз.';
-
-  @override
   String get passphrase => 'Парольная фраза';
-
-  @override
-  String get rememberPassphrase => 'Запомнить для этой сессии';
 
   @override
   String get enterMasterPassword =>
@@ -1745,9 +1675,6 @@ class SRu extends S {
 
   @override
   String get wrongMasterPassword => 'Неверный пароль. Попробуйте ещё раз.';
-
-  @override
-  String get newPassword => 'Новый пароль';
 
   @override
   String get currentPassword => 'Текущий пароль';
@@ -1839,12 +1766,6 @@ class SRu extends S {
   @override
   String get wizardReducedBanner =>
       'Системное хранилище ключей недоступно на этой установке. Выберите между «без шифрования» (T0) и мастер-паролем (Paranoid). Установите gnome-keyring, kwallet или другой провайдер libsecret, чтобы активировать уровень Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'На этом уровне — ничего.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Непокрытых угроз нет.';
 
   @override
   String get tierBadgeCurrent => 'Текущий';
@@ -2085,9 +2006,6 @@ class SRu extends S {
   String get snippetFillSubmit => 'Выполнить';
 
   @override
-  String get snippetPreview => 'Предпросмотр';
-
-  @override
   String get broadcastSetDriver => 'Транслировать из этой панели';
 
   @override
@@ -2163,10 +2081,6 @@ class SRu extends S {
       'Привязка к 0.0.0.0 открывает туннель на всех интерфейсах — обычно нужен 127.0.0.1.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Локальные (-L), удалённые (-R) и динамические SOCKS5 (-D) туннели все активны.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Локальный: открывает порт на этом устройстве и туннелирует к цели, доступной с SSH-сервера. Удобно для доступа к удалённым БД или админкам через localhost:bindPort.';
 
@@ -2177,21 +2091,6 @@ class SRu extends S {
   @override
   String get forwardKindDynamicHelp =>
       'Динамический: SOCKS5-прокси на этом устройстве, маршрутизирующий каждое соединение через SSH-сервер. Укажи браузеру или curl на localhost:bindPort — весь трафик пойдёт через SSH.';
-
-  @override
-  String get forwardExample => 'Пример';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → доступ к удалённой БД через localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → опубликовать локальный dev-сервер на порту 9000 сервера';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → SOCKS5 браузера на localhost:1080';
 
   @override
   String get proxyJump => 'Подключаться через';
@@ -2208,19 +2107,6 @@ class SRu extends S {
   @override
   String get proxyJumpCustomNote =>
       'Свои хопы используют учётные данные этой сессии. Для другой аутентификации бастиона сохрани бастион отдельной сессией.';
-
-  @override
-  String get errProxyJumpCycle => 'Цепочка прокси замыкается на саму себя.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Цепочка прокси слишком глубокая (максимум $max хопов).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Бастион $label не подключился.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2381,10 +2267,6 @@ class SRu extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Проверять новую версию на GitHub при запуске приложения';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'Записывать события приложения в ротируемый лог-файл';
 
   @override
   String get exportWithoutPassword => 'Экспортировать без пароля?';

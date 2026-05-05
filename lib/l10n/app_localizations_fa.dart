@@ -532,11 +532,6 @@ class SFa extends S {
       'جایگزینی همه جلسات با موارد وارد شده';
 
   @override
-  String errorPrefix(String error) {
-    return 'خطا: $error';
-  }
-
-  @override
   String get folderName => 'نام پوشه';
 
   @override
@@ -875,9 +870,6 @@ class SFa extends S {
   String get sourceCode => 'کد منبع';
 
   @override
-  String get enableLogging => 'فعال‌سازی ثبت رویداد';
-
-  @override
   String get logIsEmpty => 'گزارش خالی است';
 
   @override
@@ -994,19 +986,12 @@ class SFa extends S {
   String get exportSessionsViaQr => 'خروجی جلسات از طریق QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'رمزهای عبور و کلیدهای SSH شامل نمی‌شوند.\nجلسات وارد شده نیاز به تکمیل اعتبارنامه دارند.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'تعداد جلسات برای یک کد QR بیش از حد است. برخی را حذف انتخاب کنید یا از خروجی .lfs استفاده کنید.';
 
   @override
   String get qrTooLarge =>
       'حجم بیش از حد است — برخی موارد را حذف انتخاب کنید یا از خروجی فایل .lfs استفاده کنید.';
-
-  @override
-  String get exportAll => 'خروجی همه';
 
   @override
   String get showQr => 'نمایش QR';
@@ -1307,30 +1292,6 @@ class SFa extends S {
   String get progressDecrypting => 'در حال رمزگشایی…';
 
   @override
-  String get progressParsingArchive => 'تحلیل بایگانی…';
-
-  @override
-  String get progressImportingSessions => 'در حال وارد کردن نشست‌ها';
-
-  @override
-  String get progressImportingFolders => 'در حال وارد کردن پوشه‌ها';
-
-  @override
-  String get progressImportingManagerKeys => 'در حال وارد کردن کلیدهای SSH';
-
-  @override
-  String get progressImportingTags => 'در حال وارد کردن برچسب‌ها';
-
-  @override
-  String get progressImportingSnippets => 'در حال وارد کردن قطعه‌ها';
-
-  @override
-  String get progressApplyingConfig => 'در حال اعمال پیکربندی…';
-
-  @override
-  String get progressImportingKnownHosts => 'در حال وارد کردن known_hosts…';
-
-  @override
   String get progressCollectingData => 'در حال جمع‌آوری داده‌ها…';
 
   @override
@@ -1468,23 +1429,6 @@ class SFa extends S {
 
   @override
   String get transferStatusQueued => 'در صف انتظار';
-
-  @override
-  String get transferStartingUpload => 'شروع آپلود...';
-
-  @override
-  String get transferStartingDownload => 'شروع دانلود...';
-
-  @override
-  String get transferCopying => 'در حال کپی...';
-
-  @override
-  String get transferDone => 'انجام شد';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total فایل';
-  }
 
   @override
   String get fileConflictTitle => 'فایل از قبل وجود دارد';
@@ -1701,21 +1645,7 @@ class SFa extends S {
   String get generated => 'ساخته شده';
 
   @override
-  String get passphraseRequired => 'passphrase لازم است';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'کلید SSH برای $host رمزنگاری شده است. عبارت عبور را برای باز کردن وارد کنید.';
-  }
-
-  @override
-  String get passphraseWrong => 'عبارت عبور اشتباه است. دوباره تلاش کنید.';
-
-  @override
   String get passphrase => 'عبارت عبور';
-
-  @override
-  String get rememberPassphrase => 'در این جلسه به خاطر بسپار';
 
   @override
   String get enterMasterPassword =>
@@ -1723,9 +1653,6 @@ class SFa extends S {
 
   @override
   String get wrongMasterPassword => 'رمز عبور اشتباه. دوباره تلاش کنید.';
-
-  @override
-  String get newPassword => 'رمز عبور جدید';
 
   @override
   String get currentPassword => 'رمز عبور فعلی';
@@ -1816,12 +1743,6 @@ class SFa extends S {
   @override
   String get wizardReducedBanner =>
       'Keychain سیستم در این نصب قابل دسترسی نیست. بین «بدون رمزگذاری» (T0) و گذرواژهٔ اصلی (Paranoid) انتخاب کنید. برای فعال‌سازی سطح Keychain، gnome-keyring، kwallet یا ارائه‌دهندهٔ libsecret دیگری را نصب کنید.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'در این سطح چیزی نیست.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'تهدید پوشش‌نیافته‌ای نیست.';
 
   @override
   String get tierBadgeCurrent => 'فعلی';
@@ -2056,9 +1977,6 @@ class SFa extends S {
   String get snippetFillSubmit => 'اجرا';
 
   @override
-  String get snippetPreview => 'پیش‌نمایش';
-
-  @override
   String get broadcastSetDriver => 'پخش از این پنل';
 
   @override
@@ -2134,10 +2052,6 @@ class SFa extends S {
       'باند به 0.0.0.0 فوروارد را روی همه واسط‌ها منتشر می‌کند — معمولاً 127.0.0.1 می‌خواهید.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'فوروارد محلی (-L)، راه دور (-R) و SOCKS5 پویا (-D) همگی فعال هستند.';
-
-  @override
   String get forwardKindLocalHelp =>
       'محلی: یک پورت روی این دستگاه باز می‌کند که به هدف قابل دسترسی از سرور SSH تونل می‌زند. مفید برای دسترسی به پایگاه‌های داده دور یا UI ادمین در localhost:bindPort.';
 
@@ -2148,21 +2062,6 @@ class SFa extends S {
   @override
   String get forwardKindDynamicHelp =>
       'پویا: پروکسی SOCKS5 روی این دستگاه که هر اتصال را از طریق سرور SSH هدایت می‌کند. مرورگر یا curl را به localhost:bindPort اشاره دهید تا تمام ترافیک از طریق SSH ارسال شود.';
-
-  @override
-  String get forwardExample => 'مثال';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → دسترسی به پایگاه داده راه دور از طریق localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → نمایش سرور توسعه در پورت 9000 سرور';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → تنظیم SOCKS5 مرورگر روی localhost:1080';
 
   @override
   String get proxyJump => 'اتصال از طریق';
@@ -2179,19 +2078,6 @@ class SFa extends S {
   @override
   String get proxyJumpCustomNote =>
       'پرش‌های سفارشی از اعتبارنامه‌های همین نشست استفاده می‌کنند. برای احراز هویت متفاوت بستیون، آن را به‌عنوان نشست جداگانه ذخیره کنید.';
-
-  @override
-  String get errProxyJumpCycle => 'زنجیره پروکسی به خودش بازمی‌گردد.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'زنجیره پروکسی بیش از حد عمیق است (حداکثر $max پرش).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'بستیون $label نتوانست متصل شود.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2351,10 +2237,6 @@ class SFa extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'ثبت رویدادهای برنامه در یک فایل گزارش چرخشی';
 
   @override
   String get exportWithoutPassword => 'بدون رمز عبور خروجی گرفته شود؟';

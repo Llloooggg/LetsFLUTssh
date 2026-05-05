@@ -534,11 +534,6 @@ class SEn extends S {
       'Replace all sessions with imported';
 
   @override
-  String errorPrefix(String error) {
-    return 'Error: $error';
-  }
-
-  @override
   String get folderName => 'Folder name';
 
   @override
@@ -876,9 +871,6 @@ class SEn extends S {
   String get sourceCode => 'Source Code';
 
   @override
-  String get enableLogging => 'Enable Logging';
-
-  @override
   String get logIsEmpty => 'Log is empty';
 
   @override
@@ -994,19 +986,12 @@ class SEn extends S {
   String get exportSessionsViaQr => 'Export Sessions via QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Too many sessions for a single QR code. Deselect some or use .lfs export.';
 
   @override
   String get qrTooLarge =>
       'Too large — deselect some items or use .lfs file export.';
-
-  @override
-  String get exportAll => 'Export All';
 
   @override
   String get showQr => 'Show QR';
@@ -1309,30 +1294,6 @@ class SEn extends S {
   String get progressDecrypting => 'Decrypting…';
 
   @override
-  String get progressParsingArchive => 'Parsing archive…';
-
-  @override
-  String get progressImportingSessions => 'Importing sessions';
-
-  @override
-  String get progressImportingFolders => 'Importing folders';
-
-  @override
-  String get progressImportingManagerKeys => 'Importing SSH keys';
-
-  @override
-  String get progressImportingTags => 'Importing tags';
-
-  @override
-  String get progressImportingSnippets => 'Importing snippets';
-
-  @override
-  String get progressApplyingConfig => 'Applying configuration…';
-
-  @override
-  String get progressImportingKnownHosts => 'Importing known_hosts…';
-
-  @override
   String get progressCollectingData => 'Collecting data…';
 
   @override
@@ -1470,23 +1431,6 @@ class SEn extends S {
 
   @override
   String get transferStatusQueued => 'Queued';
-
-  @override
-  String get transferStartingUpload => 'Starting upload...';
-
-  @override
-  String get transferStartingDownload => 'Starting download...';
-
-  @override
-  String get transferCopying => 'Copying...';
-
-  @override
-  String get transferDone => 'Done';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total files';
-  }
 
   @override
   String get fileConflictTitle => 'File already exists';
@@ -1704,21 +1648,7 @@ class SEn extends S {
   String get generated => 'Generated';
 
   @override
-  String get passphraseRequired => 'Passphrase Required';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'The SSH key for $host is encrypted. Enter the passphrase to unlock it.';
-  }
-
-  @override
-  String get passphraseWrong => 'Wrong passphrase. Please try again.';
-
-  @override
   String get passphrase => 'Passphrase';
-
-  @override
-  String get rememberPassphrase => 'Remember for this session';
 
   @override
   String get enterMasterPassword =>
@@ -1726,9 +1656,6 @@ class SEn extends S {
 
   @override
   String get wrongMasterPassword => 'Wrong password. Please try again.';
-
-  @override
-  String get newPassword => 'New Password';
 
   @override
   String get currentPassword => 'Current Password';
@@ -1819,12 +1746,6 @@ class SEn extends S {
   @override
   String get wizardReducedBanner =>
       'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Nothing on this tier.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Nothing left uncovered.';
 
   @override
   String get tierBadgeCurrent => 'Current';
@@ -2058,9 +1979,6 @@ class SEn extends S {
   String get snippetFillSubmit => 'Run';
 
   @override
-  String get snippetPreview => 'Preview';
-
-  @override
   String get broadcastSetDriver => 'Broadcast from this pane';
 
   @override
@@ -2136,10 +2054,6 @@ class SEn extends S {
       'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.';
 
@@ -2150,21 +2064,6 @@ class SEn extends S {
   @override
   String get forwardKindDynamicHelp =>
       'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.';
-
-  @override
-  String get forwardExample => 'Example';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → set browser SOCKS5 to localhost:1080';
 
   @override
   String get proxyJump => 'Connect via';
@@ -2181,19 +2080,6 @@ class SEn extends S {
   @override
   String get proxyJumpCustomNote =>
       'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.';
-
-  @override
-  String get errProxyJumpCycle => 'Proxy chain loops back on itself.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Proxy chain is too deep (max $max hops).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label failed to connect.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2352,9 +2238,6 @@ class SEn extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Query GitHub for a new release when the app launches';
-
-  @override
-  String get enableLoggingSubtitle => 'Write app events to a rotating log file';
 
   @override
   String get exportWithoutPassword => 'Export Without Password?';

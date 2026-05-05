@@ -528,11 +528,6 @@ class SJa extends S {
   String get importModeReplaceDescription => 'すべてのセッションをインポートしたもので置換';
 
   @override
-  String errorPrefix(String error) {
-    return 'エラー: $error';
-  }
-
-  @override
   String get folderName => 'フォルダー名';
 
   @override
@@ -862,9 +857,6 @@ class SJa extends S {
   String get sourceCode => 'ソースコード';
 
   @override
-  String get enableLogging => 'ログを有効にする';
-
-  @override
   String get logIsEmpty => 'ログは空です';
 
   @override
@@ -980,18 +972,11 @@ class SJa extends S {
   String get exportSessionsViaQr => 'QRでセッションをエクスポート';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'パスワードとSSH鍵は含まれません。\nインポートしたセッションには認証情報の入力が必要です。';
-
-  @override
   String get qrTooManyForSingleCode =>
       '1つのQRコードには多すぎます。選択を減らすか、.lfsエクスポートを使用してください。';
 
   @override
   String get qrTooLarge => 'データが大きすぎます — 選択を減らすか、.lfsファイルエクスポートを使用してください。';
-
-  @override
-  String get exportAll => 'すべてエクスポート';
 
   @override
   String get showQr => 'QRを表示';
@@ -1286,30 +1271,6 @@ class SJa extends S {
   String get progressDecrypting => '復号中…';
 
   @override
-  String get progressParsingArchive => 'アーカイブを解析中…';
-
-  @override
-  String get progressImportingSessions => 'セッションをインポート中';
-
-  @override
-  String get progressImportingFolders => 'フォルダをインポート中';
-
-  @override
-  String get progressImportingManagerKeys => 'SSH キーをインポート中';
-
-  @override
-  String get progressImportingTags => 'タグをインポート中';
-
-  @override
-  String get progressImportingSnippets => 'スニペットをインポート中';
-
-  @override
-  String get progressApplyingConfig => '設定を適用中…';
-
-  @override
-  String get progressImportingKnownHosts => 'known_hosts をインポート中…';
-
-  @override
   String get progressCollectingData => 'データを収集中…';
 
   @override
@@ -1446,23 +1407,6 @@ class SJa extends S {
 
   @override
   String get transferStatusQueued => '待機中';
-
-  @override
-  String get transferStartingUpload => 'アップロード開始...';
-
-  @override
-  String get transferStartingDownload => 'ダウンロード開始...';
-
-  @override
-  String get transferCopying => 'コピー中...';
-
-  @override
-  String get transferDone => '完了';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total ファイル';
-  }
 
   @override
   String get fileConflictTitle => 'ファイルは既に存在します';
@@ -1677,30 +1621,13 @@ class SJa extends S {
   String get generated => '生成済み';
 
   @override
-  String get passphraseRequired => 'パスフレーズが必要です';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host の SSH キーは暗号化されています。パスフレーズを入力してください。';
-  }
-
-  @override
-  String get passphraseWrong => 'パスフレーズが正しくありません。もう一度お試しください。';
-
-  @override
   String get passphrase => 'パスフレーズ';
-
-  @override
-  String get rememberPassphrase => 'このセッションで記憶';
 
   @override
   String get enterMasterPassword => '保存された認証情報にアクセスするにはマスターパスワードを入力してください。';
 
   @override
   String get wrongMasterPassword => 'パスワードが正しくありません。もう一度お試しください。';
-
-  @override
-  String get newPassword => '新しいパスワード';
 
   @override
   String get currentPassword => '現在のパスワード';
@@ -1790,12 +1717,6 @@ class SJa extends S {
   @override
   String get wizardReducedBanner =>
       'このインストールでは OS キーチェーンに到達できません。暗号化なし (T0) とマスターパスワード (Paranoid) のいずれかを選択してください。Keychain 階層を有効にするには、gnome-keyring、kwallet、またはその他の libsecret プロバイダをインストールしてください。';
-
-  @override
-  String get tierBlockProtectsEmpty => 'この階層では何も保護しません。';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => '未カバーの脅威はありません。';
 
   @override
   String get tierBadgeCurrent => '現在';
@@ -2021,9 +1942,6 @@ class SJa extends S {
   String get snippetFillSubmit => '実行';
 
   @override
-  String get snippetPreview => 'プレビュー';
-
-  @override
   String get broadcastSetDriver => 'このペインから配信';
 
   @override
@@ -2099,10 +2017,6 @@ class SJa extends S {
       '0.0.0.0 にバインドすると全インターフェースに公開されます — 通常は 127.0.0.1 を使用してください。';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'ローカル (-L)、リモート (-R)、動的 SOCKS5 (-D) 転送すべて動作します。';
-
-  @override
   String get forwardKindLocalHelp =>
       'ローカル: このデバイスでポートを開き、SSH サーバーから到達可能なターゲットへトンネルします。リモート DB や管理 UI に localhost:bindPort 経由でアクセスするのに便利。';
 
@@ -2113,21 +2027,6 @@ class SJa extends S {
   @override
   String get forwardKindDynamicHelp =>
       '動的: このデバイス上の SOCKS5 プロキシで、すべての接続を SSH サーバー経由でルーティングします。ブラウザや curl を localhost:bindPort に向けると、すべてのトラフィックが SSH 経由で送信されます。';
-
-  @override
-  String get forwardExample => '例';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → localhost:8080 経由でリモート DB にアクセス';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → 開発サーバーをサーバーのポート 9000 で公開';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → ブラウザの SOCKS5 を localhost:1080 に設定';
 
   @override
   String get proxyJump => '経由先';
@@ -2144,19 +2043,6 @@ class SJa extends S {
   @override
   String get proxyJumpCustomNote =>
       'カスタム経由はこのセッションの認証情報を使用します。別の踏み台認証が必要な場合は、踏み台を独立したセッションとして保存してください。';
-
-  @override
-  String get errProxyJumpCycle => 'プロキシチェーンがループしています。';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'プロキシチェーンが深すぎます (最大 $max ホップ)。';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return '踏み台 $label に接続できませんでした。';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2310,9 +2196,6 @@ class SJa extends S {
 
   @override
   String get checkForUpdatesOnStartupSubtitle => 'アプリ起動時に GitHub で新バージョンを確認';
-
-  @override
-  String get enableLoggingSubtitle => 'アプリのイベントをローテーションログファイルに記録';
 
   @override
   String get exportWithoutPassword => 'パスワードなしでエクスポートしますか？';

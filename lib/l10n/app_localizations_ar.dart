@@ -541,11 +541,6 @@ class SAr extends S {
   String get importModeReplaceDescription => 'استبدال جميع الجلسات بالمستوردة';
 
   @override
-  String errorPrefix(String error) {
-    return 'خطأ: $error';
-  }
-
-  @override
   String get folderName => 'اسم المجلد';
 
   @override
@@ -883,9 +878,6 @@ class SAr extends S {
   String get sourceCode => 'الشيفرة المصدرية';
 
   @override
-  String get enableLogging => 'تفعيل السجلات';
-
-  @override
   String get logIsEmpty => 'السجل فارغ';
 
   @override
@@ -1001,19 +993,12 @@ class SAr extends S {
   String get exportSessionsViaQr => 'تصدير الجلسات عبر QR';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'كلمات المرور ومفاتيح SSH غير مضمّنة.\nالجلسات المستوردة ستحتاج إلى إدخال بيانات الاعتماد.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'جلسات كثيرة جداً لرمز QR واحد. ألغِ تحديد بعضها أو استخدم تصدير .lfs.';
 
   @override
   String get qrTooLarge =>
       'كبير جداً — ألغِ تحديد بعض العناصر أو استخدم تصدير ملف .lfs.';
-
-  @override
-  String get exportAll => 'تصدير الكل';
 
   @override
   String get showQr => 'عرض QR';
@@ -1319,30 +1304,6 @@ class SAr extends S {
   String get progressDecrypting => 'فك التشفير…';
 
   @override
-  String get progressParsingArchive => 'تحليل الأرشيف…';
-
-  @override
-  String get progressImportingSessions => 'استيراد الجلسات';
-
-  @override
-  String get progressImportingFolders => 'استيراد المجلدات';
-
-  @override
-  String get progressImportingManagerKeys => 'استيراد مفاتيح SSH';
-
-  @override
-  String get progressImportingTags => 'استيراد العلامات';
-
-  @override
-  String get progressImportingSnippets => 'استيراد المقتطفات';
-
-  @override
-  String get progressApplyingConfig => 'تطبيق الإعدادات…';
-
-  @override
-  String get progressImportingKnownHosts => 'استيراد known_hosts…';
-
-  @override
   String get progressCollectingData => 'جمع البيانات…';
 
   @override
@@ -1479,23 +1440,6 @@ class SAr extends S {
 
   @override
   String get transferStatusQueued => 'في الانتظار';
-
-  @override
-  String get transferStartingUpload => 'بدء الرفع...';
-
-  @override
-  String get transferStartingDownload => 'بدء التنزيل...';
-
-  @override
-  String get transferCopying => 'جارٍ النسخ...';
-
-  @override
-  String get transferDone => 'تم';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total ملفات';
-  }
 
   @override
   String get fileConflictTitle => 'الملف موجود بالفعل';
@@ -1713,21 +1657,7 @@ class SAr extends S {
   String get generated => 'تم التوليد';
 
   @override
-  String get passphraseRequired => 'عبارة المرور مطلوبة';
-
-  @override
-  String passphrasePrompt(String host) {
-    return 'مفتاح SSH لـ $host مشفر. أدخل عبارة المرور لفتحه.';
-  }
-
-  @override
-  String get passphraseWrong => 'عبارة المرور غير صحيحة. حاول مرة أخرى.';
-
-  @override
   String get passphrase => 'عبارة المرور';
-
-  @override
-  String get rememberPassphrase => 'تذكر لهذه الجلسة';
 
   @override
   String get enterMasterPassword =>
@@ -1735,9 +1665,6 @@ class SAr extends S {
 
   @override
   String get wrongMasterPassword => 'كلمة مرور خاطئة. حاول مرة أخرى.';
-
-  @override
-  String get newPassword => 'كلمة مرور جديدة';
 
   @override
   String get currentPassword => 'كلمة المرور الحالية';
@@ -1828,12 +1755,6 @@ class SAr extends S {
   @override
   String get wizardReducedBanner =>
       'سلسلة مفاتيح النظام غير متاحة في هذا التثبيت. اختر بين «بدون تشفير» (T0) وكلمة مرور رئيسية (Paranoid). ثبّت gnome-keyring أو kwallet أو أي مزوّد libsecret آخر لتفعيل مستوى Keychain.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'لا شيء في هذا المستوى.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'لا توجد تهديدات غير مغطاة.';
 
   @override
   String get tierBadgeCurrent => 'الحالي';
@@ -2069,9 +1990,6 @@ class SAr extends S {
   String get snippetFillSubmit => 'تشغيل';
 
   @override
-  String get snippetPreview => 'معاينة';
-
-  @override
   String get broadcastSetDriver => 'بث من هذا الجزء';
 
   @override
@@ -2147,10 +2065,6 @@ class SAr extends S {
       'الربط بـ 0.0.0.0 ينشر التحويل على جميع الواجهات — غالبًا تريد 127.0.0.1.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'التوجيه المحلي (-L) والبعيد (-R) و SOCKS5 الديناميكي (-D) جميعها مفعّلة.';
-
-  @override
   String get forwardKindLocalHelp =>
       'محلي: فتح منفذ على هذا الجهاز يمر عبر النفق إلى هدف يمكن الوصول إليه من خادم SSH. مفيد للوصول إلى قواعد بيانات بعيدة أو واجهات إدارة عبر localhost:bindPort.';
 
@@ -2161,21 +2075,6 @@ class SAr extends S {
   @override
   String get forwardKindDynamicHelp =>
       'ديناميكي: وكيل SOCKS5 على هذا الجهاز يوجه كل اتصال عبر خادم SSH. وجّه المتصفح أو curl إلى localhost:bindPort لإرسال كل الحركة عبر SSH.';
-
-  @override
-  String get forwardExample => 'مثال';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 ← الوصول إلى قاعدة بيانات بعيدة عبر localhost:8080';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 ← فضح خادم التطوير على منفذ الخادم 9000';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 ← اضبط SOCKS5 المتصفح على localhost:1080';
 
   @override
   String get proxyJump => 'الاتصال عبر';
@@ -2192,19 +2091,6 @@ class SAr extends S {
   @override
   String get proxyJumpCustomNote =>
       'القفزات المخصصة تستخدم بيانات اعتماد هذه الجلسة. لمصادقة بستيون مختلفة، احفظ البستيون كجلسة خاصة.';
-
-  @override
-  String get errProxyJumpCycle => 'سلسلة البروكسي تشكّل دائرة مغلقة.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'سلسلة البروكسي عميقة جدًا (الحد الأقصى $max قفزات).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'فشل اتصال البستيون $label.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2366,9 +2252,6 @@ class SAr extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'الاستعلام عن إصدار جديد على GitHub عند تشغيل التطبيق';
-
-  @override
-  String get enableLoggingSubtitle => 'كتابة أحداث التطبيق في ملف سجل دوّار';
 
   @override
   String get exportWithoutPassword => 'تصدير بدون كلمة مرور؟';

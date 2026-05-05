@@ -1065,12 +1065,6 @@ abstract class S {
   /// **'Replace all sessions with imported'**
   String get importModeReplaceDescription;
 
-  /// No description provided for @errorPrefix.
-  ///
-  /// In en, this message translates to:
-  /// **'Error: {error}'**
-  String errorPrefix(String error);
-
   /// No description provided for @folderName.
   ///
   /// In en, this message translates to:
@@ -1665,12 +1659,6 @@ abstract class S {
   /// **'Source Code'**
   String get sourceCode;
 
-  /// No description provided for @enableLogging.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable Logging'**
-  String get enableLogging;
-
   /// No description provided for @logIsEmpty.
   ///
   /// In en, this message translates to:
@@ -1893,12 +1881,6 @@ abstract class S {
   /// **'Export Sessions via QR'**
   String get exportSessionsViaQr;
 
-  /// No description provided for @qrNoCredentialsWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.'**
-  String get qrNoCredentialsWarning;
-
   /// No description provided for @qrTooManyForSingleCode.
   ///
   /// In en, this message translates to:
@@ -1910,12 +1892,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Too large — deselect some items or use .lfs file export.'**
   String get qrTooLarge;
-
-  /// No description provided for @exportAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Export All'**
-  String get exportAll;
 
   /// No description provided for @showQr.
   ///
@@ -2427,54 +2403,6 @@ abstract class S {
   /// **'Decrypting…'**
   String get progressDecrypting;
 
-  /// No description provided for @progressParsingArchive.
-  ///
-  /// In en, this message translates to:
-  /// **'Parsing archive…'**
-  String get progressParsingArchive;
-
-  /// No description provided for @progressImportingSessions.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing sessions'**
-  String get progressImportingSessions;
-
-  /// No description provided for @progressImportingFolders.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing folders'**
-  String get progressImportingFolders;
-
-  /// No description provided for @progressImportingManagerKeys.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing SSH keys'**
-  String get progressImportingManagerKeys;
-
-  /// No description provided for @progressImportingTags.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing tags'**
-  String get progressImportingTags;
-
-  /// No description provided for @progressImportingSnippets.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing snippets'**
-  String get progressImportingSnippets;
-
-  /// No description provided for @progressApplyingConfig.
-  ///
-  /// In en, this message translates to:
-  /// **'Applying configuration…'**
-  String get progressApplyingConfig;
-
-  /// No description provided for @progressImportingKnownHosts.
-  ///
-  /// In en, this message translates to:
-  /// **'Importing known_hosts…'**
-  String get progressImportingKnownHosts;
-
   /// No description provided for @progressCollectingData.
   ///
   /// In en, this message translates to:
@@ -2696,36 +2624,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Queued'**
   String get transferStatusQueued;
-
-  /// No description provided for @transferStartingUpload.
-  ///
-  /// In en, this message translates to:
-  /// **'Starting upload...'**
-  String get transferStartingUpload;
-
-  /// No description provided for @transferStartingDownload.
-  ///
-  /// In en, this message translates to:
-  /// **'Starting download...'**
-  String get transferStartingDownload;
-
-  /// No description provided for @transferCopying.
-  ///
-  /// In en, this message translates to:
-  /// **'Copying...'**
-  String get transferCopying;
-
-  /// No description provided for @transferDone.
-  ///
-  /// In en, this message translates to:
-  /// **'Done'**
-  String get transferDone;
-
-  /// No description provided for @transferFilesProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'{done}/{total} files'**
-  String transferFilesProgress(int done, int total);
 
   /// No description provided for @fileConflictTitle.
   ///
@@ -3063,35 +2961,11 @@ abstract class S {
   /// **'Generated'**
   String get generated;
 
-  /// No description provided for @passphraseRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Passphrase Required'**
-  String get passphraseRequired;
-
-  /// No description provided for @passphrasePrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'The SSH key for {host} is encrypted. Enter the passphrase to unlock it.'**
-  String passphrasePrompt(String host);
-
-  /// No description provided for @passphraseWrong.
-  ///
-  /// In en, this message translates to:
-  /// **'Wrong passphrase. Please try again.'**
-  String get passphraseWrong;
-
   /// No description provided for @passphrase.
   ///
   /// In en, this message translates to:
   /// **'Passphrase'**
   String get passphrase;
-
-  /// No description provided for @rememberPassphrase.
-  ///
-  /// In en, this message translates to:
-  /// **'Remember for this session'**
-  String get rememberPassphrase;
 
   /// No description provided for @enterMasterPassword.
   ///
@@ -3104,12 +2978,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Wrong password. Please try again.'**
   String get wrongMasterPassword;
-
-  /// No description provided for @newPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'New Password'**
-  String get newPassword;
 
   /// No description provided for @currentPassword.
   ///
@@ -3272,18 +3140,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.'**
   String get wizardReducedBanner;
-
-  /// No description provided for @tierBlockProtectsEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing on this tier.'**
-  String get tierBlockProtectsEmpty;
-
-  /// No description provided for @tierBlockDoesNotProtectEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing left uncovered.'**
-  String get tierBlockDoesNotProtectEmpty;
 
   /// No description provided for @tierBadgeCurrent.
   ///
@@ -3663,12 +3519,6 @@ abstract class S {
   /// **'Run'**
   String get snippetFillSubmit;
 
-  /// No description provided for @snippetPreview.
-  ///
-  /// In en, this message translates to:
-  /// **'Preview'**
-  String get snippetPreview;
-
   /// No description provided for @broadcastSetDriver.
   ///
   /// In en, this message translates to:
@@ -3813,12 +3663,6 @@ abstract class S {
   /// **'Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.'**
   String get forwardBindWildcardWarning;
 
-  /// No description provided for @forwardOnlyLocalSupported.
-  ///
-  /// In en, this message translates to:
-  /// **'Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.'**
-  String get forwardOnlyLocalSupported;
-
   /// No description provided for @forwardKindLocalHelp.
   ///
   /// In en, this message translates to:
@@ -3836,30 +3680,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.'**
   String get forwardKindDynamicHelp;
-
-  /// No description provided for @forwardExample.
-  ///
-  /// In en, this message translates to:
-  /// **'Example'**
-  String get forwardExample;
-
-  /// No description provided for @forwardLocalExample.
-  ///
-  /// In en, this message translates to:
-  /// **'ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080'**
-  String get forwardLocalExample;
-
-  /// No description provided for @forwardRemoteExample.
-  ///
-  /// In en, this message translates to:
-  /// **'ssh -R 9000:localhost:3000 → expose your dev server at server\'s port 9000'**
-  String get forwardRemoteExample;
-
-  /// No description provided for @forwardDynamicExample.
-  ///
-  /// In en, this message translates to:
-  /// **'ssh -D 1080 → set browser SOCKS5 to localhost:1080'**
-  String get forwardDynamicExample;
 
   /// No description provided for @proxyJump.
   ///
@@ -3890,24 +3710,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Override hops use this session\'s credentials. For different bastion auth, save the bastion as its own session.'**
   String get proxyJumpCustomNote;
-
-  /// No description provided for @errProxyJumpCycle.
-  ///
-  /// In en, this message translates to:
-  /// **'Proxy chain loops back on itself.'**
-  String get errProxyJumpCycle;
-
-  /// No description provided for @errProxyJumpDepth.
-  ///
-  /// In en, this message translates to:
-  /// **'Proxy chain is too deep (max {max} hops).'**
-  String errProxyJumpDepth(int max);
-
-  /// No description provided for @errProxyJumpBastionFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Bastion {label} failed to connect.'**
-  String errProxyJumpBastionFailed(String label);
 
   /// No description provided for @viaSessionLabel.
   ///
@@ -4184,12 +3986,6 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Query GitHub for a new release when the app launches'**
   String get checkForUpdatesOnStartupSubtitle;
-
-  /// No description provided for @enableLoggingSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Write app events to a rotating log file'**
-  String get enableLoggingSubtitle;
 
   /// No description provided for @exportWithoutPassword.
   ///

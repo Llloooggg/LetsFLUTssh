@@ -536,11 +536,6 @@ class STr extends S {
       'Tüm oturumları içe aktarılanlarla değiştir';
 
   @override
-  String errorPrefix(String error) {
-    return 'Hata: $error';
-  }
-
-  @override
   String get folderName => 'Klasör adı';
 
   @override
@@ -879,9 +874,6 @@ class STr extends S {
   String get sourceCode => 'Kaynak Kod';
 
   @override
-  String get enableLogging => 'Günlükleri Etkinleştir';
-
-  @override
   String get logIsEmpty => 'Günlük boş';
 
   @override
@@ -999,19 +991,12 @@ class STr extends S {
   String get exportSessionsViaQr => 'Oturumları QR ile Dışa Aktar';
 
   @override
-  String get qrNoCredentialsWarning =>
-      'Şifreler ve SSH anahtarları DAHİL DEĞİLDİR.\nİçe aktarılan oturumların kimlik bilgilerinin doldurulması gerekecektir.';
-
-  @override
   String get qrTooManyForSingleCode =>
       'Tek bir QR kodu için çok fazla oturum. Bazılarının seçimini kaldırın veya .lfs dışa aktarımını kullanın.';
 
   @override
   String get qrTooLarge =>
       'Çok büyük — bazı öğelerin seçimini kaldırın veya .lfs dosya dışa aktarımını kullanın.';
-
-  @override
-  String get exportAll => 'Tümünü Dışa Aktar';
 
   @override
   String get showQr => 'QR Göster';
@@ -1314,30 +1299,6 @@ class STr extends S {
   String get progressDecrypting => 'Şifre çözülüyor…';
 
   @override
-  String get progressParsingArchive => 'Arşiv ayrıştırılıyor…';
-
-  @override
-  String get progressImportingSessions => 'Oturumlar içe aktarılıyor';
-
-  @override
-  String get progressImportingFolders => 'Klasörler içe aktarılıyor';
-
-  @override
-  String get progressImportingManagerKeys => 'SSH anahtarları içe aktarılıyor';
-
-  @override
-  String get progressImportingTags => 'Etiketler içe aktarılıyor';
-
-  @override
-  String get progressImportingSnippets => 'Snippet\'ler içe aktarılıyor';
-
-  @override
-  String get progressApplyingConfig => 'Yapılandırma uygulanıyor…';
-
-  @override
-  String get progressImportingKnownHosts => 'known_hosts içe aktarılıyor…';
-
-  @override
   String get progressCollectingData => 'Veriler toplanıyor…';
 
   @override
@@ -1476,23 +1437,6 @@ class STr extends S {
 
   @override
   String get transferStatusQueued => 'Sırada';
-
-  @override
-  String get transferStartingUpload => 'Yükleme başlıyor...';
-
-  @override
-  String get transferStartingDownload => 'İndirme başlıyor...';
-
-  @override
-  String get transferCopying => 'Kopyalanıyor...';
-
-  @override
-  String get transferDone => 'Tamamlandı';
-
-  @override
-  String transferFilesProgress(int done, int total) {
-    return '$done/$total dosya';
-  }
 
   @override
   String get fileConflictTitle => 'Dosya zaten mevcut';
@@ -1711,21 +1655,7 @@ class STr extends S {
   String get generated => 'Oluşturuldu';
 
   @override
-  String get passphraseRequired => 'Passphrase gerekli';
-
-  @override
-  String passphrasePrompt(String host) {
-    return '$host için SSH anahtarı şifrelenmiş. Kilidini açmak için passphrase girin.';
-  }
-
-  @override
-  String get passphraseWrong => 'Yanlış passphrase. Tekrar deneyin.';
-
-  @override
   String get passphrase => 'Passphrase';
-
-  @override
-  String get rememberPassphrase => 'Bu oturumluk hatırla';
 
   @override
   String get enterMasterPassword =>
@@ -1733,9 +1663,6 @@ class STr extends S {
 
   @override
   String get wrongMasterPassword => 'Yanlış şifre. Lütfen tekrar deneyin.';
-
-  @override
-  String get newPassword => 'Yeni şifre';
 
   @override
   String get currentPassword => 'Mevcut şifre';
@@ -1826,12 +1753,6 @@ class STr extends S {
   @override
   String get wizardReducedBanner =>
       'İşletim sistemi anahtarlığına bu kurulumda erişilemiyor. Şifreleme yok (T0) ile ana parola (Paranoid) arasında seçim yapın. Keychain katmanını etkinleştirmek için gnome-keyring, kwallet veya başka bir libsecret sağlayıcısı kurun.';
-
-  @override
-  String get tierBlockProtectsEmpty => 'Bu katmanda hiçbir şey.';
-
-  @override
-  String get tierBlockDoesNotProtectEmpty => 'Kapsanmayan tehdit yok.';
 
   @override
   String get tierBadgeCurrent => 'Geçerli';
@@ -2067,9 +1988,6 @@ class STr extends S {
   String get snippetFillSubmit => 'Çalıştır';
 
   @override
-  String get snippetPreview => 'Önizleme';
-
-  @override
   String get broadcastSetDriver => 'Bu panelden yayınla';
 
   @override
@@ -2145,10 +2063,6 @@ class STr extends S {
       '0.0.0.0 bağlaması yönlendirmeyi tüm arabirimlerde açar — genelde 127.0.0.1 istersin.';
 
   @override
-  String get forwardOnlyLocalSupported =>
-      'Yerel (-L), uzak (-R) ve dinamik SOCKS5 (-D) yönlendirmeleri hepsi etkin.';
-
-  @override
   String get forwardKindLocalHelp =>
       'Yerel: bu cihazda bir port açar ve SSH sunucusundan erişilebilir hedefe tünel kurar. localhost:bindPort üzerinden uzak veritabanlarına veya yönetim arayüzlerine erişmek için kullanışlı.';
 
@@ -2159,21 +2073,6 @@ class STr extends S {
   @override
   String get forwardKindDynamicHelp =>
       'Dinamik: bu cihazda her bağlantıyı SSH sunucusu üzerinden yönlendiren bir SOCKS5 proxy. Tüm trafiği SSH üzerinden göndermek için tarayıcıyı veya curl\'u localhost:bindPort\'a yönlendirin.';
-
-  @override
-  String get forwardExample => 'Örnek';
-
-  @override
-  String get forwardLocalExample =>
-      'ssh -L 8080:db.internal:5432 → localhost:8080 üzerinden uzak DB erişimi';
-
-  @override
-  String get forwardRemoteExample =>
-      'ssh -R 9000:localhost:3000 → dev sunucunuzu sunucunun 9000 portunda açın';
-
-  @override
-  String get forwardDynamicExample =>
-      'ssh -D 1080 → tarayıcı SOCKS5\'i localhost:1080 olarak ayarlayın';
 
   @override
   String get proxyJump => 'Üzerinden bağlan';
@@ -2190,19 +2089,6 @@ class STr extends S {
   @override
   String get proxyJumpCustomNote =>
       'Özel hoplar bu oturumun kimlik bilgilerini kullanır. Farklı bastion auth için bastion\'u ayrı bir oturum olarak kaydet.';
-
-  @override
-  String get errProxyJumpCycle => 'Proxy zinciri kendine dolanıyor.';
-
-  @override
-  String errProxyJumpDepth(int max) {
-    return 'Proxy zinciri fazla derin (maks $max hop).';
-  }
-
-  @override
-  String errProxyJumpBastionFailed(String label) {
-    return 'Bastion $label bağlanamadı.';
-  }
 
   @override
   String viaSessionLabel(String label) {
@@ -2365,10 +2251,6 @@ class STr extends S {
   @override
   String get checkForUpdatesOnStartupSubtitle =>
       'Uygulama başlatıldığında GitHub\'da yeni sürümü denetle';
-
-  @override
-  String get enableLoggingSubtitle =>
-      'Uygulama olaylarını döngüsel bir günlük dosyasına yaz';
 
   @override
   String get exportWithoutPassword => 'Parolasız dışa aktarılsın mı?';

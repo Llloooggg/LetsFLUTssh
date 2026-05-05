@@ -281,14 +281,6 @@
   "confirmPassword": "Confirm Password",
   "importModeMergeDescription": "Add new sessions, keep existing",
   "importModeReplaceDescription": "Replace all sessions with imported",
-  "errorPrefix": "Error: {error}",
-  "@errorPrefix": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "folderName": "Folder name",
   "newName": "New name",
   "deleteItems": "Delete {names}?",
@@ -503,7 +495,6 @@
     }
   },
   "sourceCode": "Source Code",
-  "enableLogging": "Enable Logging",
   "logIsEmpty": "Log is empty",
   "logExportedTo": "Log exported to: {path}",
   "@logExportedTo": {
@@ -555,10 +546,8 @@
   "hintFolderExample": "e.g. Production",
   "credentialsNotSet": "Credentials not set",
   "exportSessionsViaQr": "Export Sessions via QR",
-  "qrNoCredentialsWarning": "Passwords and SSH keys are NOT included.\nImported sessions will need credentials filled in.",
   "qrTooManyForSingleCode": "Too many sessions for a single QR code. Deselect some or use .lfs export.",
   "qrTooLarge": "Too large — deselect some items or use .lfs file export.",
-  "exportAll": "Export All",
   "showQr": "Show QR",
   "sort": "Sort",
   "resizePanelDivider": "Resize panel divider",
@@ -758,14 +747,6 @@
   },
   "progressReadingArchive": "Reading archive…",
   "progressDecrypting": "Decrypting…",
-  "progressParsingArchive": "Parsing archive…",
-  "progressImportingSessions": "Importing sessions",
-  "progressImportingFolders": "Importing folders",
-  "progressImportingManagerKeys": "Importing SSH keys",
-  "progressImportingTags": "Importing tags",
-  "progressImportingSnippets": "Importing snippets",
-  "progressApplyingConfig": "Applying configuration…",
-  "progressImportingKnownHosts": "Importing known_hosts…",
   "progressCollectingData": "Collecting data…",
   "progressEncrypting": "Encrypting…",
   "progressWritingArchive": "Writing archive…",
@@ -896,21 +877,6 @@
     }
   },
   "transferStatusQueued": "Queued",
-  "transferStartingUpload": "Starting upload...",
-  "transferStartingDownload": "Starting download...",
-  "transferCopying": "Copying...",
-  "transferDone": "Done",
-  "transferFilesProgress": "{done}/{total} files",
-  "@transferFilesProgress": {
-    "placeholders": {
-      "done": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
   "fileConflictTitle": "File already exists",
   "fileConflictMessage": "\"{fileName}\" already exists in {targetDir}. What would you like to do?",
   "@fileConflictMessage": {
@@ -1084,21 +1050,9 @@
     }
   },
   "generated": "Generated",
-  "passphraseRequired": "Passphrase Required",
-  "passphrasePrompt": "The SSH key for {host} is encrypted. Enter the passphrase to unlock it.",
-  "@passphrasePrompt": {
-    "placeholders": {
-      "host": {
-        "type": "String"
-      }
-    }
-  },
-  "passphraseWrong": "Wrong passphrase. Please try again.",
   "passphrase": "Passphrase",
-  "rememberPassphrase": "Remember for this session",
   "enterMasterPassword": "Enter master password to unlock your saved credentials.",
   "wrongMasterPassword": "Wrong password. Please try again.",
-  "newPassword": "New Password",
   "currentPassword": "Current Password",
   "forgotPassword": "Forgot Password?",
   "credentialsReset": "All saved credentials have been deleted",
@@ -1126,8 +1080,6 @@
   "firstLaunchSecurityHardwareUnavailableGeneric": "Hardware-backed storage is unavailable on this device.",
   "firstLaunchSecurityOpenSettings": "Open Settings",
   "wizardReducedBanner": "OS keychain is not reachable on this install. Pick between no encryption (T0) and a master password (Paranoid). Install gnome-keyring, kwallet, or another libsecret provider to enable the Keychain tier.",
-  "tierBlockProtectsEmpty": "Nothing on this tier.",
-  "tierBlockDoesNotProtectEmpty": "Nothing left uncovered.",
   "tierBadgeCurrent": "Current",
   "securitySetupEnable": "Enable",
   "securitySetupApply": "Apply",
@@ -1212,7 +1164,6 @@
   "snippetCustomTokensHint": "Anything else with double braces prompts you for a value when the snippet runs.",
   "snippetFillTitle": "Fill in snippet parameters",
   "snippetFillSubmit": "Run",
-  "snippetPreview": "Preview",
   "broadcastSetDriver": "Broadcast from this pane",
   "broadcastClearDriver": "Stop broadcasting from this pane",
   "broadcastAddReceiver": "Receive broadcast here",
@@ -1247,29 +1198,14 @@
   "forwardDescription": "Description (optional)",
   "forwardEnabled": "Enabled",
   "forwardBindWildcardWarning": "Binding to 0.0.0.0 publishes the forward to every interface — usually you want 127.0.0.1.",
-  "forwardOnlyLocalSupported": "Local (-L), remote (-R), and dynamic SOCKS5 (-D) forwards are all active.",
   "forwardKindLocalHelp": "Local: open a port on this device that tunnels to a target reachable from the SSH server. Useful for accessing remote databases or admin UIs at localhost:bindPort.",
   "forwardKindRemoteHelp": "Remote: ask the SSH server to open a port that tunnels back to a target reachable from this device. Useful for sharing a local dev server with a remote host (server may need GatewayPorts yes for non-loopback binds).",
   "forwardKindDynamicHelp": "Dynamic: a SOCKS5 proxy on this device that routes every connection through the SSH server. Point your browser or curl at localhost:bindPort to send all traffic over SSH.",
-  "forwardExample": "Example",
-  "forwardLocalExample": "ssh -L 8080:db.internal:5432 → access remote DB via localhost:8080",
-  "forwardRemoteExample": "ssh -R 9000:localhost:3000 → expose your dev server at server's port 9000",
-  "forwardDynamicExample": "ssh -D 1080 → set browser SOCKS5 to localhost:1080",
   "proxyJump": "Connect via",
   "proxyJumpNone": "Direct connection",
   "proxyJumpSavedSession": "Saved session",
   "proxyJumpCustom": "Custom",
   "proxyJumpCustomNote": "Override hops use this session's credentials. For different bastion auth, save the bastion as its own session.",
-  "errProxyJumpCycle": "Proxy chain loops back on itself.",
-  "errProxyJumpDepth": "Proxy chain is too deep (max {max} hops).",
-  "@errProxyJumpDepth": {
-    "placeholders": {
-      "max": {
-        "type": "int"
-      }
-    }
-  },
-  "errProxyJumpBastionFailed": "Bastion {label} failed to connect.",
   "viaSessionLabel": "via {label}",
   "@viaSessionLabel": {
     "placeholders": {
@@ -1288,13 +1224,6 @@
   "recordingPlaybackTitle": "Replay recording",
   "recordingSpeed": "Speed",
   "recordingSpeedInstant": "Instant",
-  "@errProxyJumpBastionFailed": {
-    "placeholders": {
-      "label": {
-        "type": "String"
-      }
-    }
-  },
   "tags": "Tags",
   "tagsSubtitle": "Organize sessions and folders with color tags",
   "noTags": "No tags yet",
@@ -1351,7 +1280,6 @@
   "maxHistorySubtitle": "Maximum saved commands in history",
   "calculateFolderSizesSubtitle": "Show total size next to folders in the sidebar",
   "checkForUpdatesOnStartupSubtitle": "Query GitHub for a new release when the app launches",
-  "enableLoggingSubtitle": "Write app events to a rotating log file",
   "exportWithoutPassword": "Export Without Password?",
   "exportWithoutPasswordWarning": "The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.",
   "continueWithoutPassword": "Continue Without Password",
