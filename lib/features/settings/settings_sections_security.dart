@@ -277,13 +277,17 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // biometric does neither — it only (re)populates the biometric-
     // gated keychain slot with the already-derived key, so rekeying
     // would throw off the user (re-prompt for the password for no
-    // cryptographic gain). This branch forwards the biometric flip
-    // alone.
-    final biometricOnlyChange =
-        tier == currentTier &&
-        modifiers.password == currentMods.password &&
-        pendingBiometric != null;
-    if (biometricOnlyChange) {
+    // cryptographic gain). The decision logic lives in
+    // `security_section_logic.classifyTierTransition` so the branch
+    // is unit-tested without a stateful pumpWidget.
+    final transition = classifyTierTransition(
+      currentLevel: currentTier,
+      currentModifiers: currentMods,
+      targetTier: tier,
+      targetModifiers: modifiers,
+      pendingBiometric: pendingBiometric,
+    );
+    if (transition == TierTransitionKind.biometricOnly) {
       await _applyBiometricOnlyToggle(pendingBiometric, currentTier);
       return;
     }

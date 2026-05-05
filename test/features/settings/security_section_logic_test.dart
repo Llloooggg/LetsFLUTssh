@@ -392,4 +392,121 @@ void main() {
       expect(securityTierLogName(SecurityTier.paranoid), 'paranoid');
     });
   });
+
+  group('classifyTierTransition', () {
+    const noPwd = SecurityTierModifiers(password: false);
+    const withPwd = SecurityTierModifiers(password: true);
+
+    test('same tier + same password + biometric flip → biometricOnly', () {
+      // Target = current, password modifier unchanged, biometric is
+      // the only thing flipping. Fast path skips the full rekey.
+      expect(
+        classifyTierTransition(
+          currentLevel: SecurityTier.keychainWithPassword,
+          currentModifiers: withPwd,
+          targetTier: SecurityTier.keychainWithPassword,
+          targetModifiers: withPwd,
+          pendingBiometric: true,
+        ),
+        TierTransitionKind.biometricOnly,
+      );
+      // Same with biometric=false (disabling).
+      expect(
+        classifyTierTransition(
+          currentLevel: SecurityTier.hardware,
+          currentModifiers: withPwd,
+          targetTier: SecurityTier.hardware,
+          targetModifiers: withPwd,
+          pendingBiometric: false,
+        ),
+        TierTransitionKind.biometricOnly,
+      );
+    });
+
+    test('same tier + same password + no pending biometric → fullRekey', () {
+      // pendingBiometric=null means the card did not request a
+      // biometric flip; even when tier + password haven't moved,
+      // there's nothing for the biometricOnly branch to do, so the
+      // dispatcher routes to fullRekey (a metadata-only reconfirm).
+      expect(
+        classifyTierTransition(
+          currentLevel: SecurityTier.keychain,
+          currentModifiers: noPwd,
+          targetTier: SecurityTier.keychain,
+          targetModifiers: noPwd,
+          pendingBiometric: null,
+        ),
+        TierTransitionKind.fullRekey,
+      );
+    });
+
+    test('different tier always routes to fullRekey', () {
+      // Even with biometric pending — a tier change always rekeys
+      // the DB wrapping key end-to-end.
+      expect(
+        classifyTierTransition(
+          currentLevel: SecurityTier.plaintext,
+          currentModifiers: noPwd,
+          targetTier: SecurityTier.keychain,
+          targetModifiers: noPwd,
+          pendingBiometric: true,
+        ),
+        TierTransitionKind.fullRekey,
+      );
+      expect(
+        classifyTierTransition(
+          currentLevel: SecurityTier.keychain,
+          currentModifiers: noPwd,
+          targetTier: SecurityTier.paranoid,
+          targetModifiers: noPwd,
+          pendingBiometric: null,
+        ),
+        TierTransitionKind.fullRekey,
+      );
+    });
+
+    test('password modifier flip routes to fullRekey', () {
+      // Same tier but the password modifier changes ⇒ HMAC gate
+      // shape changes ⇒ the always-rekey invariant kicks in.
+      expect(
+        classifyTierTransition(
+          currentLevel: SecurityTier.keychain,
+          currentModifiers: noPwd,
+          targetTier: SecurityTier.keychain,
+          targetModifiers: withPwd,
+          pendingBiometric: null,
+        ),
+        TierTransitionKind.fullRekey,
+      );
+      // Reverse direction — password drop. Even with biometric
+      // pending (rare in real UI but defended here), full rekey
+      // still wins.
+      expect(
+        classifyTierTransition(
+          currentLevel: SecurityTier.keychain,
+          currentModifiers: withPwd,
+          targetTier: SecurityTier.keychain,
+          targetModifiers: noPwd,
+          pendingBiometric: false,
+        ),
+        TierTransitionKind.fullRekey,
+      );
+    });
+
+    test(
+      'biometric flip with tier move is fullRekey (tier move dominates)',
+      () {
+        expect(
+          classifyTierTransition(
+            currentLevel: SecurityTier.keychain,
+            currentModifiers: noPwd,
+            targetTier: SecurityTier.hardware,
+            targetModifiers: noPwd,
+            pendingBiometric: true,
+          ),
+          TierTransitionKind.fullRekey,
+        );
+      },
+    );
+  });
 }

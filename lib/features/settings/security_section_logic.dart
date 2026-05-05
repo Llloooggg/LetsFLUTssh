@@ -168,6 +168,41 @@ bool isVerifiablePasswordDrop(SecurityTier current, SecurityTier next) {
   return false;
 }
 
+/// Branch the `_SecuritySectionState.onSelectTier` dispatcher needs to
+/// take for a given Apply-button payload, distilled away from the
+/// stateful widget so the decision can be unit-tested in isolation.
+///
+/// * [biometricOnly] — same tier, same `password` modifier, the only
+///   pending change is the biometric toggle. The full rekey pipeline
+///   would re-prompt for the password and re-derive the DB key for
+///   nothing — this branch routes through the cheap biometric vault
+///   rewrite alone.
+/// * [fullRekey] — anything else: tier is changing, password modifier
+///   is flipping, or biometric is `null` (Apply on the same tier with
+///   no biometric pending — usually a metadata-only reconfirm). The
+///   apply pipeline runs end-to-end including the always-rekey step.
+enum TierTransitionKind { biometricOnly, fullRekey }
+
+/// Classify the Apply-button payload into one of [TierTransitionKind]
+/// outcomes. `pendingBiometric == null` means the card did not include
+/// a biometric flip — even when tier + password match the current
+/// state, no biometric-only fast path applies.
+TierTransitionKind classifyTierTransition({
+  required SecurityTier currentLevel,
+  required SecurityTierModifiers currentModifiers,
+  required SecurityTier targetTier,
+  required SecurityTierModifiers targetModifiers,
+  required bool? pendingBiometric,
+}) {
+  final biometricOnly =
+      targetTier == currentLevel &&
+      targetModifiers.password == currentModifiers.password &&
+      pendingBiometric != null;
+  return biometricOnly
+      ? TierTransitionKind.biometricOnly
+      : TierTransitionKind.fullRekey;
+}
+
 /// Snake-case marker for [tier] used in logs / telemetry. Stays
 /// stable across renames so log greps survive UI label changes;
 /// matches the same-named function in `lfs_core::security` so
