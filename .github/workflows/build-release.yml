@@ -113,25 +113,39 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          # Re-enabled after the per-job cargokit cache key fix
-          # in setup-rust/action.yml (`cargokit-${{ github.job }}-
-          # ${{ runner.os }}-${{ runner.arch }}-<hash>`) and the
-          # cleanup of orphan Flutter SDK caches that had been
-          # piling up under the previous `cache: true` regime.
-          # With the per-job keys cargokit no longer cross-
-          # pollinates Linux / Android and macOS / iOS, and the
-          # 10 GB budget settles at ~8 GB steady-state (Flutter
-          # SDK ~5 GB across the 5 platforms + cargokit per-job
-          # ~1.5 GB + rust-cache layer ~700 MB + ci.yml's Linux
-          # Flutter ~1.6 GB). Headroom of ~2 GB absorbs one
-          # Cargo.lock bump (~1.5 GB of new cargokit entries
-          # before LRU evicts the previous ones) before the
-          # eviction-race resumes. Trade-off: ~1 min per platform
-          # job saved on SDK download vs that 2 GB margin. If
-          # Cargo.lock churn ever pushes us back into the eviction
-          # cycle, flip back to `false` here — the previous
-          # comment block has the rationale.
-          cache: true
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
 
       - name: Install Linux build dependencies
         # `libtss2-dev` is required by `tss-esapi` (Rust bindings to
@@ -427,25 +441,39 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          # Re-enabled after the per-job cargokit cache key fix
-          # in setup-rust/action.yml (`cargokit-${{ github.job }}-
-          # ${{ runner.os }}-${{ runner.arch }}-<hash>`) and the
-          # cleanup of orphan Flutter SDK caches that had been
-          # piling up under the previous `cache: true` regime.
-          # With the per-job keys cargokit no longer cross-
-          # pollinates Linux / Android and macOS / iOS, and the
-          # 10 GB budget settles at ~8 GB steady-state (Flutter
-          # SDK ~5 GB across the 5 platforms + cargokit per-job
-          # ~1.5 GB + rust-cache layer ~700 MB + ci.yml's Linux
-          # Flutter ~1.6 GB). Headroom of ~2 GB absorbs one
-          # Cargo.lock bump (~1.5 GB of new cargokit entries
-          # before LRU evicts the previous ones) before the
-          # eviction-race resumes. Trade-off: ~1 min per platform
-          # job saved on SDK download vs that 2 GB margin. If
-          # Cargo.lock churn ever pushes us back into the eviction
-          # cycle, flip back to `false` here — the previous
-          # comment block has the rationale.
-          cache: true
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
 
       - uses: ./.github/actions/setup-rust
 
@@ -709,25 +737,39 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          # Re-enabled after the per-job cargokit cache key fix
-          # in setup-rust/action.yml (`cargokit-${{ github.job }}-
-          # ${{ runner.os }}-${{ runner.arch }}-<hash>`) and the
-          # cleanup of orphan Flutter SDK caches that had been
-          # piling up under the previous `cache: true` regime.
-          # With the per-job keys cargokit no longer cross-
-          # pollinates Linux / Android and macOS / iOS, and the
-          # 10 GB budget settles at ~8 GB steady-state (Flutter
-          # SDK ~5 GB across the 5 platforms + cargokit per-job
-          # ~1.5 GB + rust-cache layer ~700 MB + ci.yml's Linux
-          # Flutter ~1.6 GB). Headroom of ~2 GB absorbs one
-          # Cargo.lock bump (~1.5 GB of new cargokit entries
-          # before LRU evicts the previous ones) before the
-          # eviction-race resumes. Trade-off: ~1 min per platform
-          # job saved on SDK download vs that 2 GB margin. If
-          # Cargo.lock churn ever pushes us back into the eviction
-          # cycle, flip back to `false` here — the previous
-          # comment block has the rationale.
-          cache: true
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
 
       - uses: ./.github/actions/setup-rust
         # Universal binary — cargokit runs cargo twice (one per
@@ -858,25 +900,39 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          # Re-enabled after the per-job cargokit cache key fix
-          # in setup-rust/action.yml (`cargokit-${{ github.job }}-
-          # ${{ runner.os }}-${{ runner.arch }}-<hash>`) and the
-          # cleanup of orphan Flutter SDK caches that had been
-          # piling up under the previous `cache: true` regime.
-          # With the per-job keys cargokit no longer cross-
-          # pollinates Linux / Android and macOS / iOS, and the
-          # 10 GB budget settles at ~8 GB steady-state (Flutter
-          # SDK ~5 GB across the 5 platforms + cargokit per-job
-          # ~1.5 GB + rust-cache layer ~700 MB + ci.yml's Linux
-          # Flutter ~1.6 GB). Headroom of ~2 GB absorbs one
-          # Cargo.lock bump (~1.5 GB of new cargokit entries
-          # before LRU evicts the previous ones) before the
-          # eviction-race resumes. Trade-off: ~1 min per platform
-          # job saved on SDK download vs that 2 GB margin. If
-          # Cargo.lock churn ever pushes us back into the eviction
-          # cycle, flip back to `false` here — the previous
-          # comment block has the rationale.
-          cache: true
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
 
       - uses: ./.github/actions/setup-rust
         # `aarch64-apple-ios` for real devices, `*-ios-sim` +
@@ -983,25 +1039,39 @@ jobs:
           # together. Sustains build reproducibility across
           # runner-image rotations.
           flutter-version: 3.41.9
-          # Re-enabled after the per-job cargokit cache key fix
-          # in setup-rust/action.yml (`cargokit-${{ github.job }}-
-          # ${{ runner.os }}-${{ runner.arch }}-<hash>`) and the
-          # cleanup of orphan Flutter SDK caches that had been
-          # piling up under the previous `cache: true` regime.
-          # With the per-job keys cargokit no longer cross-
-          # pollinates Linux / Android and macOS / iOS, and the
-          # 10 GB budget settles at ~8 GB steady-state (Flutter
-          # SDK ~5 GB across the 5 platforms + cargokit per-job
-          # ~1.5 GB + rust-cache layer ~700 MB + ci.yml's Linux
-          # Flutter ~1.6 GB). Headroom of ~2 GB absorbs one
-          # Cargo.lock bump (~1.5 GB of new cargokit entries
-          # before LRU evicts the previous ones) before the
-          # eviction-race resumes. Trade-off: ~1 min per platform
-          # job saved on SDK download vs that 2 GB margin. If
-          # Cargo.lock churn ever pushes us back into the eviction
-          # cycle, flip back to `false` here — the previous
-          # comment block has the rationale.
-          cache: true
+          # Disabled, second time. The first round
+          # (commit 58de515c) freed ~5 GB of cache budget and
+          # let cargokit caches stop getting evicted every CI
+          # run; we re-enabled it (02010517) once the per-job
+          # cargokit key split (d38c27e6) reduced the cargokit
+          # footprint forecast. The math overlooked one thing:
+          # the iOS cargokit-cache fix (178ed25e) added a
+          # *seventh* cargokit entry under `~/Library/Developer/
+          # Xcode/DerivedData` (~541 MB) that wasn't in the
+          # forecast, and the per-job split itself gave us a
+          # cargokit per platform job rather than per (os, arch)
+          # tuple — 6 entries × 300-900 MB instead of the 4 the
+          # estimate assumed. Steady state crept back over 10 GB
+          # (~10.5 GB measured in run 25371640555), LRU eviction
+          # picked off cargokit caches between every run again,
+          # and Linux x64 / Windows / Android paid full cold-
+          # rebuild cost on each push (Linux 4m → 10m, Windows
+          # 9m → 20m, Android 14m → 21m).
+          #
+          # Disabling Flutter SDK caching here (~5 GB across the
+          # 5 platform jobs + their pub-cache siblings) brings
+          # the steady-state footprint to ~5 GB and gives the
+          # cargokit + rust-cache layers persistent room. Trade
+          # ~1 min per job on SDK mirror download (5 jobs ×
+          # 1 min ≈ 5 min total CI wallclock cost) against
+          # ~10 min per Windows / Android cold rebuild (one
+          # platform alone) recovered.
+          #
+          # Keep `cache: true` in `ci.yml`, `reproducibility-
+          # check.yml`, `ci-sonarcloud.yml`. Those are single-
+          # platform Linux jobs whose 1.6 GB Flutter SDK cache
+          # doesn't push the repo past the limit on its own.
+          cache: false
 
       - uses: ./.github/actions/setup-rust
         # Per-ABI cargo invocations through the cargokit gradle
