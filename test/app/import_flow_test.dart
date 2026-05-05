@@ -10,6 +10,7 @@ import 'package:letsflutssh/features/settings/export_import.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
 import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/src/rust/api/archive.dart' as rust_archive;
+import 'package:letsflutssh/app/navigator_key.dart';
 import 'package:letsflutssh/widgets/lfs_import_dialog.dart';
 import 'package:letsflutssh/widgets/link_import_preview_dialog.dart';
 import 'package:letsflutssh/widgets/toast.dart';
@@ -135,13 +136,21 @@ ImportFlowSeams _seams({
   );
 }
 
-Widget _wrapApp({required Widget child, List<Override> overrides = const []}) {
+Widget _wrapApp({
+  required Widget child,
+  List<Override> overrides = const [],
+  bool useGlobalNavigatorKey = false,
+}) {
   return ProviderScope(
     overrides: [
       configProvider.overrideWith(TestConfigNotifier.new),
       ...overrides,
     ],
     child: MaterialApp(
+      // handleQrImport reads navigatorKey.currentContext to route the
+      // post-frame toast — wire the global key through MaterialApp so
+      // the deeplink entry point becomes reachable from a unit test.
+      navigatorKey: useGlobalNavigatorKey ? navigatorKey : null,
       localizationsDelegates: S.localizationsDelegates,
       supportedLocales: S.supportedLocales,
       home: Scaffold(body: child),
@@ -546,12 +555,153 @@ void main() {
     );
   });
 
-  // handleQrImport (deeplink entry) is exercised end-to-end in
-  // integration_test/. The unit-level coverage of the same body
-  // (`_applyRustQrSource`) is provided by the handleQrImportSource
-  // group above — the only delta is the pre-step
-  // `LinkImportPreviewDialog.show` + `addPostFrameCallback`-routed
-  // toast through `navigatorKey.currentContext`, both of which need
-  // a navigator-routed Overlay that flutter_test's MaterialApp does
-  // not place above the global navigator key.
+  group('handleQrImport (deeplink entry)', () {
+    _testFlow('null link-preview dialog short-circuits without apply', (
+      tester,
+    ) async {
+      final log = _CallLog();
+      debugSetImportFlowSeams(_seams(log: log, linkDialogResult: null));
+
+      await tester.pumpWidget(
+        _wrapApp(
+          useGlobalNavigatorKey: true,
+          child: _triggerButton(
+            'go',
+            (ctx, ref) => handleQrImport(
+              ref,
+              QrDecodedSource.rust(
+                rust_archive.DbImportOpenResult(
+                  handleId: 'h-qr',
+                  preview: _previewWith(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(log.linkDialogShown, 1);
+      expect(log.applyCalls, isEmpty);
+    });
+
+    // The happy / apply-throws variants of handleQrImport call
+    // Toast.show via the navigatorKey's current context, which then
+    // resolves Overlay.of against a Navigator-rooted context. The
+    // flutter_test MaterialApp does place a Navigator (and therefore
+    // an Overlay) above the home tree, but the global navigatorKey's
+    // currentContext sits at the NavigatorState level — Overlay.of
+    // walks ancestors and the wrapper reports "no Overlay above this
+    // context" because the Overlay descends from Navigator, not
+    // ancestrally above it. End-to-end coverage of the toast leg
+    // belongs in `integration_test/` where a full app shell wraps
+    // the deeplink pump. The unit-level apply-handle / dialog-cancel
+    // shape is exercised here (above) and through
+    // `handleQrImportSource` (below), which call the same
+    // `_applyRustQrSource` body.
+  });
+
+  group('config restore branch', () {
+    _testFlow(
+      'handleQrImportSource with includeConfig=true updates config provider',
+      (tester) async {
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(
+            log: log,
+            applyResult: () => _applyResult(configJson: '{"locale":"ru"}'),
+          ),
+        );
+
+        late ProviderContainer container;
+        await tester.pumpWidget(
+          _wrapApp(
+            child: Consumer(
+              builder: (ctx, ref, _) {
+                container = ProviderScope.containerOf(ctx);
+                return ElevatedButton(
+                  onPressed: () => handleQrImportSource(
+                    context: ctx,
+                    ref: ref,
+                    source: QrDecodedSource.rust(
+                      rust_archive.DbImportOpenResult(
+                        handleId: 'h',
+                        preview: _previewWith(),
+                      ),
+                    ),
+                    choice: (
+                      mode: ImportMode.merge,
+                      options: const ExportOptions(
+                        includeSessions: true,
+                        includeConfig: true,
+                      ),
+                    ),
+                  ),
+                  child: const Text('go'),
+                );
+              },
+            ),
+          ),
+        );
+
+        final before = container.read(configProvider);
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        // ConfigNotifier.update debounces save 300 ms — advance past
+        // it so the pending Timer is flushed before tearDown's
+        // pending-timer invariant runs.
+        await tester.pump(const Duration(milliseconds: 350));
+
+        // Config restore ran — provider rebuilt with locale='ru'.
+        final after = container.read(configProvider);
+        expect(identical(after, before), isFalse);
+        expect(after.locale, 'ru');
+      },
+    );
+
+    _testFlow(
+      'showLfsImportDialog with restored configJson updates config provider',
+      (tester) async {
+        final log = _CallLog();
+        debugSetImportFlowSeams(
+          _seams(
+            log: log,
+            applyResult: () => _applyResult(configJson: '{"locale":"de"}'),
+            lfsDialogResult: (password: 'p', mode: ImportMode.merge),
+          ),
+        );
+
+        late ProviderContainer container;
+        await tester.pumpWidget(
+          _wrapApp(
+            child: Consumer(
+              builder: (ctx, ref, _) {
+                container = ProviderScope.containerOf(ctx);
+                return ElevatedButton(
+                  onPressed: () => showLfsImportDialog(ctx, ref, '/tmp/x.lfs'),
+                  child: const Text('go'),
+                );
+              },
+            ),
+          ),
+        );
+
+        final before = container.read(configProvider);
+        await tester.tap(find.text('go'));
+        await tester.pump();
+        await tester.pump();
+        // ConfigNotifier.update debounces save 300 ms — advance past
+        // it so the pending Timer is flushed before tearDown's
+        // pending-timer invariant runs.
+        await tester.pump(const Duration(milliseconds: 350));
+
+        final after = container.read(configProvider);
+        expect(identical(after, before), isFalse);
+        expect(after.locale, 'de');
+      },
+    );
+  });
 }
