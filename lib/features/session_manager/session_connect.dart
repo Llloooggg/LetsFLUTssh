@@ -77,8 +77,12 @@ class SessionConnect {
       return null;
     }
     final fresh = session;
+    // Session label is user-supplied free-form text — log under the
+    // marker contract from AGENT_RULES § Logging instead of letting
+    // the value (which may contain hostnames / project names) hit
+    // the on-disk log file.
     AppLogger.instance.log(
-      'Opening $logLabel for ${fresh.label}',
+      'Opening $logLabel for <session-label>',
       name: 'Session',
     );
     final config = fresh.toSSHConfig();

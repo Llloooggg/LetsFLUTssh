@@ -58,7 +58,15 @@ const MAX_IMPORT_MEMORY_KIB: u32 = 512 * 1024;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 const MAX_IMPORT_MEMORY_KIB: u32 = 1024 * 1024;
 const MAX_IMPORT_ITERATIONS: u32 = 20;
-const MAX_IMPORT_PARALLELISM: u32 = 16;
+/// DoS-cap on the parallelism field of the LFSE Argon2id header.
+/// Combined with the iteration + memory caps above, this bounds the
+/// work an attacker can force the import path to do before the
+/// wrong-password check fires. Argon2id parallelism scales linearly
+/// with thread count; capping at 4 keeps a malicious archive from
+/// pinning every core for tens of seconds, while still allowing
+/// legitimate exports to use the per-platform default (Argon2id
+/// production tuning never exceeds 4).
+const MAX_IMPORT_PARALLELISM: u32 = 4;
 
 /// Wrap `zip_bytes` in the LFSE envelope using `password` + the
 /// caller-supplied Argon2id parameters. The salt + IV are fresh
@@ -297,7 +305,7 @@ mod tests {
         // refactor that breaks the documented contract trips a
         // test instead of slipping into release.
         assert_eq!(MAX_IMPORT_ITERATIONS, 20);
-        assert_eq!(MAX_IMPORT_PARALLELISM, 16);
+        assert_eq!(MAX_IMPORT_PARALLELISM, 4);
         #[cfg(any(target_os = "android", target_os = "ios"))]
         assert_eq!(MAX_IMPORT_MEMORY_KIB, 512 * 1024);
         #[cfg(not(any(target_os = "android", target_os = "ios")))]

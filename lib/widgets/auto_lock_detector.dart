@@ -94,8 +94,16 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
       _busSub = AppBus.instance
           .subscribe(rust_bus.BusTopic.autoLock)
           .listen(_onBusEvent);
-    } catch (_) {
-      // No native lib in unit tests — bus subscription unavailable.
+    } catch (e) {
+      // Subscription failed — typically "no native lib in unit
+      // tests", but log at warn so a production-side failure (FRB
+      // shim renamed, bus topic enum mismatch) doesn't disappear
+      // silently and leave auto-lock unwired without any trace.
+      AppLogger.instance.log(
+        'AutoLockDetector bus subscription failed: $e',
+        name: 'AutoLockDetector',
+        level: LogLevel.warn,
+      );
     }
   }
 

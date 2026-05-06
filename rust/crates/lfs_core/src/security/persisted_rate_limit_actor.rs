@@ -327,7 +327,7 @@ fn write_state_async(
 }
 
 fn write_state_sync(
-    path: &PathBuf,
+    path: &std::path::Path,
     hmac_key: &[u8],
     state: &PersistedState,
 ) -> std::io::Result<()> {
@@ -335,10 +335,14 @@ fn write_state_sync(
         std::fs::create_dir_all(parent)?;
     }
     let bytes = encode_persisted(state, hmac_key);
-    std::fs::write(path, &bytes)?;
-    crate::path::harden_file_perms(path)
-        .map_err(|e| std::io::Error::other(format!("harden_file_perms: {e}")))?;
-    Ok(())
+    // Atomic write — non-atomic `std::fs::write` would torpedo the
+    // HMAC tag on a power-loss between the truncate-open and the
+    // payload flush; the next-launch decoder sees a torn file,
+    // tamper handler downgrades to "fresh state" (zero counter),
+    // and the rate limit collapses to a free retry. The atomic
+    // write + parent-dir fsync invariant from `write_bytes_atomic`
+    // keeps the previous (consistent) state on a crash.
+    crate::path::write_bytes_atomic(path, &bytes).map_err(std::io::Error::other)
 }
 
 #[cfg(test)]

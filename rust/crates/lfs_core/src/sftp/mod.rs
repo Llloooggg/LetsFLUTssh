@@ -183,6 +183,16 @@ fn remove_dir_recursive_inner<'a>(
         let trimmed = path.trim_end_matches('/');
         for entry in entries {
             let child = format!("{trimmed}/{}", entry.name);
+            // Symlink-to-directory escape: the server may resolve a
+            // symlink's target metadata into `is_dir = true`. Recursing
+            // would walk the link's target — outside the intended
+            // delete subtree. Unlinking the symlink itself stops at
+            // the directory entry without touching the pointed-to
+            // contents, which is what every POSIX rm-rf does too.
+            if entry.is_symlink {
+                sftp.remove_file(&child).await?;
+                continue;
+            }
             if entry.is_dir {
                 remove_dir_recursive_inner(sftp, &child, depth + 1).await?;
             } else {
