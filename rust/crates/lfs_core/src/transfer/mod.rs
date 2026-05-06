@@ -12,8 +12,23 @@ pub mod driver;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use crate::bus::{Event, EventBus};
+
+/// Minimum byte-delta between two progress publishes for the same
+/// task. Caps the bus event rate at one per 256 KiB regardless of
+/// chunk size — without this the SFTP read loop emits an event per
+/// 64 KiB chunk (~3200 events / s on a 100 MB/s pipe), which
+/// detonates Dart-side: each event triggers a `_scheduleRefresh`
+/// that rebuilds the full transfer history snapshot.
+const PROGRESS_BYTES_THRESHOLD: u64 = 256 * 1024;
+
+/// Minimum wall time between two progress publishes for the same
+/// task. Catches the small-file / slow-link case where the byte
+/// delta hits the threshold quickly but the user's UI does not need
+/// 60 fps progress updates anyway.
+const PROGRESS_TIME_THRESHOLD: Duration = Duration::from_millis(100);
 
 /// Stable identifier for a queued task. Allocated Dart-side via
 /// `Uuid().v4()` so the same string flows through Riverpod
@@ -59,6 +74,15 @@ pub struct TaskActor {
     pub bytes_done: u64,
     pub bytes_total: u64,
     pub error: Option<String>,
+    /// Bytes-done value at the time of the last `TransferTaskProgress`
+    /// publish. Combined with [`PROGRESS_BYTES_THRESHOLD`] to
+    /// throttle the bus event rate.
+    pub progress_published_bytes: u64,
+    /// Wall clock at the time of the last `TransferTaskProgress`
+    /// publish. `None` means "never published yet" — the first
+    /// `set_progress` call publishes unconditionally so the Dart UI
+    /// sees an early "transfer started" tick.
+    pub progress_published_at: Option<Instant>,
 }
 
 impl TaskActor {
@@ -126,6 +150,8 @@ impl TransferQueue {
             bytes_done: 0,
             bytes_total,
             error: None,
+            progress_published_bytes: 0,
+            progress_published_at: None,
         };
         let snap = actor.snapshot();
         {
@@ -160,8 +186,17 @@ impl TransferQueue {
         }
     }
 
-    /// Set the bytes-done counter. Emits `TransferTaskProgress`.
+    /// Set the bytes-done counter. Emits `TransferTaskProgress`
+    /// **only when** the new value is at least
+    /// [`PROGRESS_BYTES_THRESHOLD`] past the last publish OR
+    /// [`PROGRESS_TIME_THRESHOLD`] has elapsed since the last
+    /// publish (or this is the first publish, or the task is
+    /// finishing — `bytes_done >= bytes_total > 0`). Skipped events
+    /// still update the in-memory counter, so a subsequent
+    /// `task_snapshot` reads the latest value; the next eligible
+    /// `set_progress` call publishes it.
     pub fn set_progress(&self, id: &str, bytes_done: u64, bus: &EventBus) {
+        let publish: bool;
         let bytes_total;
         {
             let mut g = self.lock();
@@ -170,12 +205,30 @@ impl TransferQueue {
             };
             actor.bytes_done = bytes_done;
             bytes_total = actor.bytes_total;
+            let now = Instant::now();
+            publish = match actor.progress_published_at {
+                None => true,
+                Some(prev_at) => {
+                    let bytes_delta = bytes_done.saturating_sub(actor.progress_published_bytes);
+                    let time_elapsed = now.duration_since(prev_at);
+                    let finished = bytes_total > 0 && bytes_done >= bytes_total;
+                    finished
+                        || bytes_delta >= PROGRESS_BYTES_THRESHOLD
+                        || time_elapsed >= PROGRESS_TIME_THRESHOLD
+                }
+            };
+            if publish {
+                actor.progress_published_bytes = bytes_done;
+                actor.progress_published_at = Some(now);
+            }
         }
-        bus.publish(Event::TransferTaskProgress {
-            id: id.to_string(),
-            bytes_done,
-            bytes_total,
-        });
+        if publish {
+            bus.publish(Event::TransferTaskProgress {
+                id: id.to_string(),
+                bytes_done,
+                bytes_total,
+            });
+        }
     }
 
     /// Mark the task `Cancelled`. Idempotent — re-cancelling a
@@ -295,6 +348,96 @@ mod tests {
         assert_eq!(snap.bytes_done, 512);
         assert_eq!(snap.bytes_total, 1024);
         assert_eq!(snap.state, TaskState::Queued);
+    }
+
+    /// Regression for the bus-event storm: tight `set_progress`
+    /// calls per 64 KiB chunk used to publish one event each (~3200
+    /// events/s/conn at 100 MB/s — full Dart-side history snapshot
+    /// rebuild for every event). Throttling caps at one event per
+    /// 256 KiB (or per 100 ms — see `PROGRESS_BYTES_THRESHOLD` /
+    /// `PROGRESS_TIME_THRESHOLD`). 16 calls of 64 KiB increments
+    /// against a 10 MiB total cover that ladder: first publish
+    /// (always fires), then every 4-th call clears the byte
+    /// threshold. Sub-100 ms wall time so the time-based threshold
+    /// does NOT fire for the in-between calls.
+    #[test]
+    fn set_progress_throttles_high_frequency_byte_deltas() {
+        let bus = EventBus::new();
+        let mut rx = bus.subscribe();
+        let q = TransferQueue::new();
+        q.enqueue(
+            "t1".into(),
+            TaskKind::Download,
+            "s1".into(),
+            "/r".into(),
+            "/l".into(),
+            10 * 1024 * 1024,
+            &bus,
+        );
+        // Drain the TransferTaskAdded event so the receiver only
+        // sees TransferTaskProgress hits.
+        let _ = rx.try_recv();
+        const CHUNK: u64 = 64 * 1024;
+        for i in 1..=16 {
+            q.set_progress("t1", CHUNK * i, &bus);
+        }
+        // Snapshot reflects the LATEST byte count regardless of
+        // throttle — counter updates are non-skipped.
+        assert_eq!(q.snapshot("t1").unwrap().bytes_done, CHUNK * 16);
+        // Count the published progress events. With a 256 KiB
+        // threshold we expect 1 (first publish) + 1 every 4 chunks
+        // ≤ 5 total. Without the throttle this would be 16.
+        let mut progress_events = 0;
+        while let Ok(evt) = rx.try_recv() {
+            if let Event::TransferTaskProgress { .. } = evt {
+                progress_events += 1;
+            }
+        }
+        assert!(
+            progress_events <= 5,
+            "expected ≤ 5 throttled progress events, got {progress_events}"
+        );
+        assert!(
+            progress_events >= 1,
+            "first publish must always fire, got {progress_events}"
+        );
+    }
+
+    /// The completion edge — `bytes_done == bytes_total > 0` —
+    /// must publish unconditionally so the Dart UI sees the final
+    /// counter value before the state→Completed transition.
+    #[test]
+    fn set_progress_publishes_final_value_unconditionally() {
+        let bus = EventBus::new();
+        let mut rx = bus.subscribe();
+        let q = TransferQueue::new();
+        q.enqueue(
+            "t1".into(),
+            TaskKind::Upload,
+            "s1".into(),
+            "/r".into(),
+            "/l".into(),
+            1024,
+            &bus,
+        );
+        let _ = rx.try_recv();
+        q.set_progress("t1", 1, &bus); // first publish (always)
+                                       // A near-zero delta would normally be throttled. The
+                                       // completion check overrides because bytes_done == total.
+        q.set_progress("t1", 1024, &bus);
+        let mut saw_complete = false;
+        while let Ok(evt) = rx.try_recv() {
+            if let Event::TransferTaskProgress {
+                bytes_done: 1024, ..
+            } = evt
+            {
+                saw_complete = true;
+            }
+        }
+        assert!(
+            saw_complete,
+            "completion publish must fire even on tiny delta"
+        );
     }
 
     #[test]
