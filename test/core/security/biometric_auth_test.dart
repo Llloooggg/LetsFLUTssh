@@ -2,8 +2,6 @@ import 'dart:io' show Platform;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/biometric_auth.dart';
-import 'package:letsflutssh/core/security/linux/fprintd_client.dart';
-import 'package:letsflutssh/core/security/linux/tpm_client.dart';
 import 'package:letsflutssh/core/security/windows/winbio_probe.dart';
 import 'package:letsflutssh/src/rust/api/os_security.dart' as rust_os;
 
@@ -24,14 +22,14 @@ void main() {
         if (!Platform.isLinux) {
           return; // Skip on non-Linux CI runners.
         }
-        final bio = BiometricAuth(tpmClient: _FakeTpmClient(available: false));
+        final bio = BiometricAuth(tpmAvailable: () async => false);
         expect(await bio.backingLevel(), BiometricBackingLevel.software);
       },
     );
 
     test('returns hardware on Linux when the TPM probe succeeds', () async {
       if (!Platform.isLinux) return;
-      final bio = BiometricAuth(tpmClient: _FakeTpmClient(available: true));
+      final bio = BiometricAuth(tpmAvailable: () async => true);
       expect(await bio.backingLevel(), BiometricBackingLevel.hardware);
     });
 
@@ -74,7 +72,8 @@ void main() {
     test('reports systemServiceMissing when fprintd is unreachable', () async {
       if (!Platform.isLinux) return;
       final bio = BiometricAuth(
-        fprintdClient: _FakeFprintdClient(reachable: false, hasFingers: false),
+        fprintdReachable: () async => false,
+        fprintdHasEnrolled: () async => false,
       );
       expect(
         await bio.availability(),
@@ -87,7 +86,8 @@ void main() {
       () async {
         if (!Platform.isLinux) return;
         final bio = BiometricAuth(
-          fprintdClient: _FakeFprintdClient(reachable: true, hasFingers: false),
+          fprintdReachable: () async => true,
+          fprintdHasEnrolled: () async => false,
         );
         expect(
           await bio.availability(),
@@ -101,7 +101,8 @@ void main() {
       () async {
         if (!Platform.isLinux) return;
         final bio = BiometricAuth(
-          fprintdClient: _FakeFprintdClient(reachable: true, hasFingers: true),
+          fprintdReachable: () async => true,
+          fprintdHasEnrolled: () async => true,
         );
         expect(await bio.availability(), isNull);
       },
@@ -118,17 +119,7 @@ void main() {
     test(
       'zero physical units demotes Hello to noSensor (Windows-only path)',
       () {
-        // This test documents the intent even when the host is not
-        // Windows — the gate itself is guarded by `Platform.isWindows`
-        // inside `availability()`, so running the assertion on a
-        // non-Windows runner would be a false green. Skip outside
-        // Windows, but keep the declaration so `grep noSensor` in a
-        // Windows CI run hits this test.
         if (!Platform.isWindows) return;
-        // NOTE: `_auth` is the real LocalAuthentication; the method
-        // channel is not mocked here, so the test is intentionally
-        // host-dependent. A dedicated Windows CI lane pulls this in
-        // when the toolchain is available.
         final bio = BiometricAuth(winbioProbe: _FakeWinBioProbe(0));
         expect(bio, isA<BiometricAuth>());
       },
@@ -144,28 +135,30 @@ void main() {
   });
 
   group('BiometricAuth.authenticate — Linux branch', () {
-    test('delegates to FprintdClient.verify on Linux', () async {
+    test('delegates to fprintd verify on Linux', () async {
       if (!Platform.isLinux) return;
-      final fake = _FakeFprintdClient(
-        reachable: true,
-        hasFingers: true,
-        verifyResult: true,
+      var calls = 0;
+      final bio = BiometricAuth(
+        fprintdVerify: () async {
+          calls++;
+          return true;
+        },
       );
-      final bio = BiometricAuth(fprintdClient: fake);
       expect(await bio.authenticate('irrelevant'), isTrue);
-      expect(fake.verifyCalls, 1);
+      expect(calls, 1);
     });
 
     test('returns false when fprintd verify fails', () async {
       if (!Platform.isLinux) return;
-      final fake = _FakeFprintdClient(
-        reachable: true,
-        hasFingers: true,
-        verifyResult: false,
+      var calls = 0;
+      final bio = BiometricAuth(
+        fprintdVerify: () async {
+          calls++;
+          return false;
+        },
       );
-      final bio = BiometricAuth(fprintdClient: fake);
       expect(await bio.authenticate('irrelevant'), isFalse);
-      expect(fake.verifyCalls, 1);
+      expect(calls, 1);
     });
   });
 
@@ -177,12 +170,14 @@ void main() {
       // meaning) catches here — lock-screen wiring across multiple
       // call sites relies on "true means ready".
       final ready = BiometricAuth(
-        fprintdClient: _FakeFprintdClient(reachable: true, hasFingers: true),
+        fprintdReachable: () async => true,
+        fprintdHasEnrolled: () async => true,
       );
       expect(await ready.isAvailable(), isTrue);
 
       final notReady = BiometricAuth(
-        fprintdClient: _FakeFprintdClient(reachable: false, hasFingers: false),
+        fprintdReachable: () async => false,
+        fprintdHasEnrolled: () async => false,
       );
       expect(await notReady.isAvailable(), isFalse);
     });
@@ -194,7 +189,10 @@ void main() {
       // A D-Bus transport error surfaces as an arbitrary exception; the
       // probe catches it and returns systemServiceMissing so the UI
       // shows the rung-3 install snippet instead of a raw stack trace.
-      final bio = BiometricAuth(fprintdClient: _ThrowingFprintdClient());
+      final bio = BiometricAuth(
+        fprintdReachable: () async => throw StateError('dbus gone'),
+        fprintdHasEnrolled: () async => false,
+      );
       expect(
         await bio.availability(),
         BiometricUnavailableReason.systemServiceMissing,
@@ -265,62 +263,6 @@ void main() {
       },
     );
   });
-}
-
-/// FprintdClient that throws on the first D-Bus call — emulates the
-/// "daemon socket disappeared mid-probe" failure mode.
-class _ThrowingFprintdClient implements FprintdClient {
-  @override
-  Future<bool> isServiceReachable() async => throw StateError('dbus gone');
-
-  @override
-  Future<bool> hasEnrolledFingers() async => false;
-
-  @override
-  Future<bool> verify() async => false;
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeTpmClient implements TpmClient {
-  _FakeTpmClient({required this.available});
-
-  final bool available;
-
-  @override
-  Future<bool> isAvailable() async => available;
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeFprintdClient implements FprintdClient {
-  _FakeFprintdClient({
-    required this.reachable,
-    required this.hasFingers,
-    this.verifyResult = false,
-  });
-
-  final bool reachable;
-  final bool hasFingers;
-  final bool verifyResult;
-  int verifyCalls = 0;
-
-  @override
-  Future<bool> isServiceReachable() async => reachable;
-
-  @override
-  Future<bool> hasEnrolledFingers() async => hasFingers;
-
-  @override
-  Future<bool> verify() async {
-    verifyCalls++;
-    return verifyResult;
-  }
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 /// Stand-in WinBioProbe that returns a canned unit count without

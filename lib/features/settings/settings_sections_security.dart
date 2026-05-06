@@ -300,17 +300,20 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     // the user types the password exactly once per Apply, even when
     // they combined a tier switch with a biometric toggle. Disable
     // is free — it just wipes the vault — but still routes through
-    // the post-Apply step below.
-    Uint8List? biometricKeyToStash;
+    // the post-Apply step below. The capture stages bytes Rust-side
+    // (SecretStore) so the DB key never crosses the FRB boundary.
+    var biometricCapture = _BiometricKeyCapture.cancelled;
     if (pendingBiometric == true) {
-      biometricKeyToStash = await _captureKeyForBiometricEnable(
+      biometricCapture = await _captureKeyForBiometricEnable(
         currentTier,
         tier,
         shortPassword: shortPassword,
         pin: pin,
         masterPassword: masterPassword,
       );
-      if (biometricKeyToStash == null) return; // user cancelled / wrong pw
+      if (biometricCapture.kind == _BiometricKeyCaptureKind.cancelled) {
+        return; // user cancelled / wrong password
+      }
     }
 
     final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
@@ -318,10 +321,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     AppProgressBarDialog.show(context, reporter);
     try {
       await _applyTierChange(result);
-      await _applyPendingBiometric(
-        pendingBiometric,
-        keyFromEnable: biometricKeyToStash,
-      );
+      await _applyPendingBiometric(pendingBiometric, capture: biometricCapture);
       if (!mounted) return;
       Navigator.of(context).pop();
       Toast.show(

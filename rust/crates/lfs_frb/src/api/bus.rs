@@ -244,17 +244,18 @@ pub enum BusEvent {
     KeychainProbePromptRequest { prompt_id: String },
     /// Capabilities orchestrator needs the hardware-vault
     /// probe code on Apple / Android / Windows. Dart
-    /// subscriber calls
-    /// `MethodChannel('com.letsflutssh/hardware_vault')
-    /// .invokeMethod('probeDetail')` and dispatches the
-    /// platform reason code verbatim.
+    /// subscriber calls `HardwareTierVault.probeDetail()` —
+    /// which routes through FRB into
+    /// `lfs_os_security::hardware_tier_vault::probe_detail`
+    /// — and dispatches the platform reason code verbatim.
     HardwareVaultProbePromptRequest { prompt_id: String },
     /// L3 tier-unlock orchestrator needs the hardware vault
     /// to unseal the DB key. Dart subscriber calls
-    /// `HardwareTierVault.read(pin)` which fans out to
-    /// `tpm2-tools` on Linux or the platform method channel
-    /// elsewhere; resolves with the unsealed bytes / wrong-
-    /// PIN signal / plugin error via the
+    /// `HardwareTierVault.read(pin)` which routes through FRB
+    /// into the per-platform Rust vault (Apple SE / Android
+    /// Keystore / Windows CNG / Linux TPM2 subprocess);
+    /// resolves with the unsealed bytes / wrong-PIN signal /
+    /// plugin error via the
     /// `hardware_vault_unlock_prompt_resolve*` shims. `pin`
     /// is `None` for the passwordless variant.
     HardwareVaultUnlockPromptRequest {

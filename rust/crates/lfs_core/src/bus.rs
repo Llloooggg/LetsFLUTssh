@@ -200,22 +200,24 @@ pub enum Event {
     KeychainProbePromptRequest { prompt_id: String },
     /// Hardware-vault probe — fired by the capabilities
     /// orchestrator on Apple / Android / Windows. Dart
-    /// subscriber calls
-    /// `MethodChannel('com.letsflutssh/hardware_vault')
-    /// .invokeMethod('probeDetail')` and dispatches the
-    /// platform-specific reason code (`available` /
-    /// `no_secure_enclave` / `strongbox_unavailable` / ...)
-    /// via `hardware_vault_probe_prompt::instance().resolve`.
+    /// subscriber calls `HardwareTierVault.probeDetail()` —
+    /// which routes through FRB into
+    /// `lfs_os_security::hardware_tier_vault::probe_detail` —
+    /// and dispatches the platform-specific reason code
+    /// (`available` / `no_secure_enclave` /
+    /// `strongbox_unavailable` / ...) via
+    /// `hardware_vault_probe_prompt::instance().resolve`.
     /// Linux uses the in-process TPM probe and never
     /// publishes this event.
     HardwareVaultProbePromptRequest { prompt_id: String },
     /// Hardware-vault unlock — fired by the L3 tier-unlock
     /// orchestrator. Dart subscriber calls
-    /// `HardwareTierVault.read(pin)` which fans out to
-    /// `tpm2-tools` on Linux or the platform method channel
-    /// on Apple / Android / Windows; resolves with the
-    /// unsealed key bytes (or `None` on wrong PIN / cancelled
-    /// dialog, or `Err` on plugin failure) via
+    /// `HardwareTierVault.read(pin)` which routes through FRB
+    /// into the per-platform Rust vault (Apple SE / Android
+    /// Keystore / Windows CNG / Linux TPM2 subprocess);
+    /// resolves with the unsealed key bytes (or `None` on
+    /// wrong PIN / cancelled dialog, or `Err` on plugin
+    /// failure) via
     /// `hardware_vault_unlock_prompt::instance().resolve`.
     /// `pin` is `None` for the passwordless variant where the
     /// vault was sealed without a user secret.

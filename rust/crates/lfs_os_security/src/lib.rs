@@ -396,3 +396,9 @@ pub mod winbio;
 // See `android::keystore` status block for the verification gate.
 #[cfg(target_os = "android")]
 pub mod android;
+
+// Windows-only — direct CNG / NCrypt bindings via `windows-rs`.
+// Hosts `windows::hardware_vault` (the Tier 4 native CNG port that
+// retires the C++ MethodChannel plugin in `windows/runner/`).
+#[cfg(target_os = "windows")]
+pub mod windows;

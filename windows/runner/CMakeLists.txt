@@ -8,7 +8,6 @@ project(runner LANGUAGES CXX)
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
-  "hardware_vault_plugin.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
@@ -35,15 +34,6 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
-# WindowsApp.lib brings the WinRT Windows.Security.Credentials +
-# Windows.Security.Cryptography surfaces we call from
-# hardware_vault_plugin.cpp.
-target_link_libraries(${BINARY_NAME} PRIVATE "WindowsApp.lib")
-# CNG — ncrypt (key storage / Platform Crypto Provider) and bcrypt
-# (padding / algorithm enums) for the silent-unlock primary key in
-# hardware_vault_plugin.cpp.
-target_link_libraries(${BINARY_NAME} PRIVATE "Ncrypt.lib")
-target_link_libraries(${BINARY_NAME} PRIVATE "Bcrypt.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

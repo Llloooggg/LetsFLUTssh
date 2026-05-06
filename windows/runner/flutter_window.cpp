@@ -3,16 +3,11 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
-// session_lock_plugin + clipboard_secure_plugin retired —
-// session lock now lives Rust-side under
-// `lfs_os_security::session_lock_listener::windows_impl` (WTS
-// notifications via the `windows` crate), and secure_clipboard
-// routes through `lfs_os_security::secure_clipboard` (Win32
-// OpenClipboard + RegisterClipboardFormatW for the cloud /
-// history opt-out). Only `hardware_vault_plugin` survives — the
-// Windows L3 (CNG / Platform Crypto Provider) port is a
-// separate follow-up arc.
-#include "hardware_vault_plugin.h"
+// All native plugins retired — session_lock_plugin,
+// clipboard_secure_plugin, and hardware_vault_plugin now live in
+// the Rust workspace under `lfs_os_security::*` (CNG /
+// Win32 / WTS notifications via the `windows` crate) and reach
+// Dart via FRB. The runner is a plain Flutter host.
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -35,8 +30,6 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
-  hardware_vault_ =
-      std::make_unique<HardwareVaultPlugin>(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {

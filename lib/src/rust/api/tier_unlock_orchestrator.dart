@@ -219,6 +219,21 @@ bool tierUnlockBiometricCommit({
       bytes: bytes,
     );
 
+/// SecretRef variant of [`tier_unlock_biometric_commit`]. The bytes
+/// are already in the SecretStore under `secret_id` (staged by the
+/// biometric-vault SecretRef read shims) and never cross the FRB
+/// boundary on this path. The orchestrator atomically renames the
+/// slot into the canonical active id before firing the unlock
+/// cascade.
+bool tierUnlockBiometricCommitFromSecret({
+  required String tierWireName,
+  required String secretId,
+}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierUnlockBiometricCommitFromSecret(
+      tierWireName: tierWireName,
+      secretId: secretId,
+    );
+
 /// Cancel an in-flight Keychain (L1) unlock attempt. Dispatches
 /// `UnlockFailed { UserCancelled }` so the tier machine flips
 /// back to `Locked`. Used by the Dart unlock-flow caller when

@@ -129,28 +129,6 @@ pub fn crypto_aes_gcm_random_key_to_secret(id: String) {
     lfs_core::app::instance().secrets.put(&id, &key);
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn random_key_to_secret_stages_into_store_without_returning_bytes() {
-        // FRB tests don't share a runtime with the production
-        // `app_init` entry; bootstrap the singleton manually so
-        // `instance()` resolves.
-        let _ = lfs_core::app::init();
-        // Singleton SecretStore — pin a unique id so the test does
-        // not collide with any production-shaped namespace.
-        let id = format!("test.aes_random_key.{:p}", &());
-        super::crypto_aes_gcm_random_key_to_secret(id.clone());
-        let app = lfs_core::app::instance();
-        assert!(app.secrets.has(&id));
-        let bytes = app.secrets.get(&id).expect("staged key");
-        assert_eq!(bytes.len(), 32);
-        // Drop the entry so a follow-up test on the same singleton
-        // does not see a stale value.
-        app.secrets.drop_id(&id);
-    }
-}
-
 /// AES-256-GCM encrypt with a fresh random nonce. Returns the wire
 /// shape `nonce || ciphertext || tag` — the same layout the legacy
 /// pointycastle-backed `AesGcm.encrypt` produced, so existing on-disk
@@ -235,4 +213,26 @@ pub async fn crypto_argon2id_derive(
     })
     .await
     .map_err(|e| format!("argon2id task: {e}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn random_key_to_secret_stages_into_store_without_returning_bytes() {
+        // FRB tests don't share a runtime with the production
+        // `app_init` entry; bootstrap the singleton manually so
+        // `instance()` resolves.
+        let _ = lfs_core::app::init();
+        // Singleton SecretStore — pin a unique id so the test does
+        // not collide with any production-shaped namespace.
+        let id = format!("test.aes_random_key.{:p}", &());
+        super::crypto_aes_gcm_random_key_to_secret(id.clone());
+        let app = lfs_core::app::instance();
+        assert!(app.secrets.has(&id));
+        let bytes = app.secrets.get(&id).expect("staged key");
+        assert_eq!(bytes.len(), 32);
+        // Drop the entry so a follow-up test on the same singleton
+        // does not see a stale value.
+        app.secrets.drop_id(&id);
+    }
 }

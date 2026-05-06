@@ -18,3 +18,17 @@
 /// Dart-side consumers only check presence (`secrets_has(ACTIVE)`)
 /// or trigger Rust-internal operations against the slot.
 const String kActiveDbKeySecretId = 'app.dbkey.active';
+
+/// Transient SecretStore slot used by the biometric-enable flow when
+/// the DB key has to be captured ahead of the tier-apply step (the
+/// user is enabling biometric for a not-yet-applied tier). The
+/// SecretRef-aware capture shims (`master_password_verify_and_derive_to_secret`,
+/// `secure_storage_read_to_secret`) stage into this id; the
+/// post-apply step calls `BiometricKeyVault.storeFromSecret(id)` and
+/// finally `secrets_drop(id)` so the transient never lingers.
+///
+/// Constant rather than per-call random because only one enable
+/// flow is in flight at a time (the dialog is modal). A previous
+/// run that crashed mid-flow leaves a stale entry, but the next
+/// capture overwrites it before the vault read.
+const String kBiometricEnableStagingSecretId = 'app.bio.enable.staging';

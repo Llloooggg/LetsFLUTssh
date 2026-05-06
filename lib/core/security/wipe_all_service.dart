@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_hwvault;
@@ -51,9 +50,9 @@ class WipeReport {
 /// [hasPendingWipe] and re-runs the sweep idempotently.
 ///
 /// Dart side keeps the platform-bound concerns: the keychain
-/// (`flutter_secure_storage`) purge, the
-/// `com.letsflutssh/hardware_vault` `MethodChannel` invocations, and
-/// the optional per-session credential cache evict.
+/// (`flutter_secure_storage`) purge, the per-platform hw-vault
+/// clear via FRB into `lfs_os_security`, and the optional
+/// per-session credential cache evict.
 ///
 /// Intentionally *not* tied to the migration framework's `Artefact`
 /// interface: wipe is a cross-cutting concern that touches files even
@@ -62,20 +61,13 @@ class WipeReport {
 class WipeAllService {
   WipeAllService({
     Future<Directory> Function()? supportDirFactory,
-    MethodChannel? hardwareVaultChannel,
     bool purgeKeychain = true,
     Future<void> Function()? credentialCacheEvict,
   }) : _supportDir = supportDirFactory ?? getApplicationSupportDirectory,
-       _hwChannel =
-           hardwareVaultChannel ??
-           const MethodChannel(_hardwareVaultChannelName),
        _purgeKeychain = purgeKeychain,
        _credentialCacheEvict = credentialCacheEvict;
 
-  static const _hardwareVaultChannelName = 'com.letsflutssh/hardware_vault';
-
   final Future<Directory> Function() _supportDir;
-  final MethodChannel _hwChannel;
   final bool _purgeKeychain;
 
   /// Optional hook that drops every cached per-session credential
@@ -191,12 +183,12 @@ class WipeAllService {
     }
     mark('sweep_files');
 
-    // 2. Native hw-vault: primary + biometric overlay. Swallow errors;
-    //    a missing channel (desktop Linux, missing plugin) is a no-op.
-    //    Apple routes through Rust (`lfs_os_security::hardware_tier_vault`)
-    //    so the same wipe semantics apply when the Swift plugin isn't
-    //    in the call path. Other MethodChannel platforms (Android /
-    //    Windows) keep the native invocation.
+    // 2. Native hw-vault: primary + biometric overlay via Rust
+    //    (`lfs_os_security::hardware_tier_vault::*`). Swallow errors;
+    //    on Linux without a TPM the dispatch returns Unavailable and
+    //    the call is a no-op. Apple SE / Android Keystore / Windows
+    //    CNG / Linux TPM2 all share the same FRB entry now, so wipe
+    //    semantics are uniform across platforms.
     final nativeCleared = await _clearNativePrimary();
     final overlayCleared = await _clearNativeBiometricOverlay();
     mark('native_vault_clear');
@@ -215,70 +207,56 @@ class WipeAllService {
     );
   }
 
-  Future<bool> _invokeNative(String method) async {
+  /// Drop the primary hw-vault. Routes through the unified Rust
+  /// dispatch in `lfs_os_security::hardware_tier_vault::clear`:
+  /// SE primary key + envelope on Apple, AndroidKeyStore wrap key
+  /// + bin file on Android, NCrypt persisted key + bin file on
+  /// Windows, TPM2 envelope on Linux.
+  Future<bool> _clearNativePrimary() async {
+    if (!Platform.isMacOS &&
+        !Platform.isIOS &&
+        !Platform.isAndroid &&
+        !Platform.isWindows &&
+        !Platform.isLinux) {
+      return false;
+    }
     try {
-      await _hwChannel.invokeMethod<bool>(method);
+      final dir = await _supportDir();
+      await rust_hwvault.hardwareTierVaultClear(supportDir: dir.path);
       return true;
     } catch (e) {
       AppLogger.instance.log(
-        'WipeAllService: native $method skipped: $e',
+        'WipeAllService: Rust hw-vault clear failed: $e',
         name: 'WipeAllService',
       );
       return false;
     }
   }
 
-  /// Drop the primary hw-vault. On Apple + Android this runs
-  /// through the unified Rust dispatch in
-  /// `lfs_os_security::hardware_tier_vault::clear` (deletes SE
-  /// primary key + on-disk envelope + biometric overlay on Apple;
-  /// AndroidKeyStore wrap key + bin file + biometric overlay on
-  /// Android). Windows still goes through the
-  /// `com.letsflutssh/hardware_vault` MethodChannel until the
-  /// Win Tier 4 Rust port lands.
-  Future<bool> _clearNativePrimary() async {
-    if (Platform.isMacOS || Platform.isIOS || Platform.isAndroid) {
-      try {
-        final dir = await getApplicationSupportDirectory();
-        await rust_hwvault.hardwareTierVaultClear(supportDir: dir.path);
-        return true;
-      } catch (e) {
-        AppLogger.instance.log(
-          'WipeAllService: Rust hw-vault clear failed: $e',
-          name: 'WipeAllService',
-        );
-        return false;
-      }
-    }
-    if (Platform.isWindows) {
-      return _invokeNative('clear');
-    }
-    return false;
-  }
-
-  /// Drop the biometric overlay (key + file). Apple + Android route
-  /// through the Rust `clear_biometric_password`; Windows keeps the
-  /// MethodChannel `clearBiometricPassword` handler.
+  /// Drop the biometric overlay (key + file) via the same Rust
+  /// dispatch — Apple SE / Android Keystore / Windows CNG. Linux
+  /// has no biometric overlay path (TPM2 owns the entire envelope)
+  /// so the dispatch returns Unavailable and the call is a no-op.
   Future<bool> _clearNativeBiometricOverlay() async {
-    if (Platform.isMacOS || Platform.isIOS || Platform.isAndroid) {
-      try {
-        final dir = await getApplicationSupportDirectory();
-        await rust_hwvault.hardwareTierVaultClearBiometricPassword(
-          supportDir: dir.path,
-        );
-        return true;
-      } catch (e) {
-        AppLogger.instance.log(
-          'WipeAllService: Rust hw-vault clearBiometric failed: $e',
-          name: 'WipeAllService',
-        );
-        return false;
-      }
+    if (!Platform.isMacOS &&
+        !Platform.isIOS &&
+        !Platform.isAndroid &&
+        !Platform.isWindows) {
+      return false;
     }
-    if (Platform.isWindows) {
-      return _invokeNative('clearBiometricPassword');
+    try {
+      final dir = await _supportDir();
+      await rust_hwvault.hardwareTierVaultClearBiometricPassword(
+        supportDir: dir.path,
+      );
+      return true;
+    } catch (e) {
+      AppLogger.instance.log(
+        'WipeAllService: Rust hw-vault clearBiometric failed: $e',
+        name: 'WipeAllService',
+      );
+      return false;
     }
-    return false;
   }
 
   /// Walk the canonical key list (versioned in Rust as

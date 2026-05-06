@@ -1,5 +1,38 @@
 part of 'settings_screen.dart';
 
+/// Outcome of the pre-Apply biometric capture step. Lives as a sealed
+/// enum so the post-Apply caller can pattern-match without re-running
+/// the source decision: cancelled aborts the whole Apply,
+/// pullFromActiveAfterApply waits for the tier-switch rekey to
+/// publish the live key into [kActiveDbKeySecretId], stagedInSecretStore
+/// signals the capture stashed the bytes Rust-side under the named
+/// transient slot.
+enum _BiometricKeyCaptureKind {
+  cancelled,
+  pullFromActiveAfterApply,
+  stagedInSecretStore,
+}
+
+class _BiometricKeyCapture {
+  const _BiometricKeyCapture._(this.kind, this.secretId);
+
+  final _BiometricKeyCaptureKind kind;
+  final String? secretId;
+
+  static const cancelled = _BiometricKeyCapture._(
+    _BiometricKeyCaptureKind.cancelled,
+    null,
+  );
+  static const pullFromActiveAfterApply = _BiometricKeyCapture._(
+    _BiometricKeyCaptureKind.pullFromActiveAfterApply,
+    null,
+  );
+  static const stagedInSecretStore = _BiometricKeyCapture._(
+    _BiometricKeyCaptureKind.stagedInSecretStore,
+    kBiometricEnableStagingSecretId,
+  );
+}
+
 /// Biometric-modifier flow — capture the DB key on enable + apply
 /// the pending toggle as part of the tier-card Apply step. Lives as
 /// an extension on [_SecuritySectionState] so the helpers reach
@@ -18,22 +51,21 @@ extension _BiometricFlow on _SecuritySectionState {
   ) async {
     if (pendingBiometric == null) return;
     final l10n = S.of(context);
-    Uint8List? keyToStash;
+    var capture = _BiometricKeyCapture.cancelled;
     if (pendingBiometric) {
       // Same password-prompt path as the post-tier-change biometric
       // enable — asks for the current password, verifies it against
-      // the live gate, returns the derived DB key.
-      keyToStash = await _captureKeyForBiometricEnable(
-        currentTier,
-        currentTier,
-      );
-      if (keyToStash == null) return; // user cancelled / wrong password
+      // the live gate, stages the derived DB key in the SecretStore
+      // under `kBiometricEnableStagingSecretId`. Bytes never cross
+      // the FRB boundary on this path.
+      capture = await _captureKeyForBiometricEnable(currentTier, currentTier);
+      if (capture.kind == _BiometricKeyCaptureKind.cancelled) return;
     }
     if (!mounted) return;
     final reporter = ProgressReporter(l10n.changeSecurityTierConfirm);
     AppProgressBarDialog.show(context, reporter);
     try {
-      await _applyPendingBiometric(pendingBiometric, keyFromEnable: keyToStash);
+      await _applyPendingBiometric(pendingBiometric, capture: capture);
       if (!mounted) return;
       Navigator.of(context).pop();
       Toast.show(
@@ -66,9 +98,12 @@ extension _BiometricFlow on _SecuritySectionState {
   /// changing the tier) falls back to re-prompting the current
   /// password via [_enableBiometricDialogPrompt].
   ///
-  /// Returns null when the user cancels or types the wrong password;
-  /// the caller aborts the whole Apply on null.
-  Future<Uint8List?> _captureKeyForBiometricEnable(
+  /// Bytes never materialise on the Dart heap — the SecretRef
+  /// capture variants stage the derived / read key into the
+  /// SecretStore under `kBiometricEnableStagingSecretId` and the
+  /// post-Apply step calls `BiometricKeyVault.storeFromSecret(...)`
+  /// against that slot.
+  Future<_BiometricKeyCapture> _captureKeyForBiometricEnable(
     SecurityTier current,
     SecurityTier next, {
     String? shortPassword,
@@ -83,11 +118,7 @@ extension _BiometricFlow on _SecuritySectionState {
     // chosen source onto its prompt + read implementation.
     switch (biometricKeySourceFor(currentTier: current, nextTier: next)) {
       case BiometricKeySource.pullFromAppliedTier:
-        // Returning a non-null zero-length buffer signals "wait for
-        // apply, then fetch from securityStateProvider". The post-
-        // apply step in `_applyPendingBiometric` replaces it with
-        // the real key.
-        return Uint8List(0);
+        return _BiometricKeyCapture.pullFromActiveAfterApply;
       case BiometricKeySource.promptAndVerifyKeychainGate:
         return _captureKeyFromKeychainPassword();
       case BiometricKeySource.promptAndVerifyMasterPassword:
@@ -95,9 +126,9 @@ extension _BiometricFlow on _SecuritySectionState {
     }
   }
 
-  Future<Uint8List?> _captureKeyFromKeychainPassword() async {
+  Future<_BiometricKeyCapture> _captureKeyFromKeychainPassword() async {
     final entered = await _enableBiometricDialogPrompt();
-    if (entered == null || !mounted) return null;
+    if (entered == null || !mounted) return _BiometricKeyCapture.cancelled;
     final gate = ref.read(keychainPasswordGateProvider);
     if (!await gate.verify(entered)) {
       if (mounted) {
@@ -107,15 +138,32 @@ extension _BiometricFlow on _SecuritySectionState {
           level: ToastLevel.error,
         );
       }
-      return null;
+      return _BiometricKeyCapture.cancelled;
     }
-    return ref.read(secureKeyStorageProvider).readKey();
+    final ok = await ref
+        .read(secureKeyStorageProvider)
+        .readKeyToSecret(kBiometricEnableStagingSecretId);
+    if (!ok) return _BiometricKeyCapture.cancelled;
+    return _BiometricKeyCapture.stagedInSecretStore;
   }
 
-  Future<Uint8List?> _captureKeyFromMasterPassword() async {
+  Future<_BiometricKeyCapture> _captureKeyFromMasterPassword() async {
     final entered = await _enableBiometricDialogPrompt();
-    if (entered == null || !mounted) return null;
-    return ref.read(masterPasswordProvider).verifyAndDerive(entered);
+    if (entered == null || !mounted) return _BiometricKeyCapture.cancelled;
+    final ok = await ref
+        .read(masterPasswordProvider)
+        .verifyAndDeriveToSecret(entered, kBiometricEnableStagingSecretId);
+    if (!ok) {
+      if (mounted) {
+        Toast.show(
+          context,
+          message: S.of(context).currentPasswordIncorrect,
+          level: ToastLevel.error,
+        );
+      }
+      return _BiometricKeyCapture.cancelled;
+    }
+    return _BiometricKeyCapture.stagedInSecretStore;
   }
 
   /// Show the reusable current-password prompt shared with the
@@ -140,17 +188,17 @@ extension _BiometricFlow on _SecuritySectionState {
   /// Apply the pending biometric toggle from the tier card. Called
   /// inside `onSelectTier` right after `_applyTierChange`, so the
   /// security state has already flipped to the target tier and the
-  /// fresh DB key is in `securityStateProvider` (for tier changes)
-  /// or readable via the matching gate (for same-tier toggles).
+  /// fresh DB key is in `kActiveDbKeySecretId` (cross-tier path) or
+  /// staged under `kBiometricEnableStagingSecretId` from the
+  /// pre-Apply password-prompt capture (same-tier toggle path).
   ///
   /// [pending] is null for "no change", true for enable, false for
-  /// disable. [keyFromEnable] is the sentinel from
-  /// [_captureKeyForBiometricEnable]: a zero-length buffer means
-  /// "read the current DB key after apply"; non-empty means "use
-  /// this as the vault payload".
+  /// disable. [capture] discriminates which SecretStore slot the
+  /// vault should seal from; bytes never cross the FRB boundary on
+  /// either branch.
   Future<void> _applyPendingBiometric(
     bool? pending, {
-    required Uint8List? keyFromEnable,
+    required _BiometricKeyCapture capture,
   }) async {
     if (pending == null) return;
     if (!pending) {
@@ -159,14 +207,6 @@ extension _BiometricFlow on _SecuritySectionState {
       rebuild(() => _biometricEnabled = false);
       return;
     }
-    // Enable path. Two flavours:
-    //   * `keyFromEnable.isEmpty` — sentinel for "use the active
-    //     tier's freshly-applied DB key". Routes through the
-    //     SecretRef path (`storeFromActive`) so the bytes never
-    //     touch the Dart heap on this call.
-    //   * `keyFromEnable` non-empty — caller already derived a key
-    //     Dart-side (legacy bytes path; tracked as Phase-2 follow-up
-    //     for the password-derivation paths).
     final bio = ref.read(biometricAuthProvider);
     final l10n = S.of(context);
     if (!await bio.authenticate(l10n.biometricUnlockPrompt)) {
@@ -181,12 +221,21 @@ extension _BiometricFlow on _SecuritySectionState {
     }
     final vault = ref.read(biometricKeyVaultProvider);
     final bool stored;
-    if (keyFromEnable == null) {
-      return;
-    } else if (keyFromEnable.isEmpty) {
-      stored = await vault.storeFromActive();
-    } else {
-      stored = await vault.store(keyFromEnable);
+    switch (capture.kind) {
+      case _BiometricKeyCaptureKind.cancelled:
+        return;
+      case _BiometricKeyCaptureKind.pullFromActiveAfterApply:
+        stored = await vault.storeFromActive();
+        break;
+      case _BiometricKeyCaptureKind.stagedInSecretStore:
+        try {
+          stored = await vault.storeFromSecret(capture.secretId!);
+        } finally {
+          // Drop the transient even on failure so a stale entry
+          // never lingers across user retries.
+          rust_app.secretsDrop(id: capture.secretId!);
+        }
+        break;
     }
     if (!mounted) return;
     if (!stored) {

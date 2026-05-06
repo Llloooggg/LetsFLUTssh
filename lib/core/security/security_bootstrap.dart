@@ -32,7 +32,8 @@ class SecurityCapabilities {
 
   /// On Linux, `fprintd` is installed + has at least one enrolled
   /// finger. The biometric modifier on Linux flows through
-  /// [FprintdClient] and fails silently when this is false.
+  /// `lfs_core::platform::linux::fprintd` (FRB) and fails silently
+  /// when this is false.
   final bool fprintdAvailable;
 
   /// True on Linux only. Wizard uses this to surface the "Linux TPM

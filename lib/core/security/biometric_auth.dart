@@ -1,10 +1,12 @@
 import 'dart:async' show TimeoutException;
 import 'dart:io' show Platform;
 
+import 'package:meta/meta.dart' show visibleForTesting;
+
+import '../../src/rust/api/fprintd.dart' as rust_fprintd;
 import '../../src/rust/api/os_security.dart' as rust_os;
+import '../../src/rust/api/tpm.dart' as rust_tpm;
 import '../../utils/logger.dart';
-import 'linux/fprintd_client.dart';
-import 'linux/tpm_client.dart';
 import 'windows/winbio_probe.dart';
 
 /// Why biometric unlock is unavailable. Distinguishes "no hardware"
@@ -109,13 +111,21 @@ BiometricAvailability mapRustBiometricAvailability(
 ///   `LAContext` via objc2; Windows uses `UserConsentVerifier`;
 ///   Android calls `BiometricPrompt` directly via JNI. Same
 ///   `BiometricUnavailableReason` shape on every backend.
-/// - **Linux** — direct fprintd D-Bus walk through [FprintdClient]
-///   so the UI can distinguish daemon-missing / reader-absent /
-///   no-finger-enrolled instead of collapsing them into a generic
+/// - **Linux** — direct FRB call into
+///   `lfs_core::platform::linux::fprintd` (`zbus`-driven D-Bus
+///   walk inside Rust). Splits "daemon missing" / "reader absent"
+///   / "no finger enrolled" so the UI can surface a specific
+///   reason instead of collapsing them into a generic
 ///   "unsupported".
 class BiometricAuth {
-  final FprintdClient _fprintd;
-  final TpmClient _tpm;
+  /// Linux fprintd / TPM probes are FRB calls into Rust; tests
+  /// override these function pointers with deterministic answers
+  /// instead of bootstrapping the native lib.
+  final Future<bool> Function() _fprintdReachable;
+  final Future<bool> Function() _fprintdHasEnrolled;
+  final Future<bool> Function() _fprintdVerify;
+  final Future<bool> Function() _tpmAvailable;
+
   final WinBioProbe _winbio;
 
   /// Process-lifetime cache of the availability probe. The probe
@@ -138,12 +148,32 @@ class BiometricAuth {
   bool _backingLevelProbed = false;
 
   BiometricAuth({
-    FprintdClient? fprintdClient,
-    TpmClient? tpmClient,
     WinBioProbe? winbioProbe,
-  }) : _fprintd = fprintdClient ?? FprintdClient(),
-       _tpm = tpmClient ?? TpmClient(),
-       _winbio = winbioProbe ?? const WinBioProbe();
+    @visibleForTesting Future<bool> Function()? fprintdReachable,
+    @visibleForTesting Future<bool> Function()? fprintdHasEnrolled,
+    @visibleForTesting Future<bool> Function()? fprintdVerify,
+    @visibleForTesting Future<bool> Function()? tpmAvailable,
+  }) : _winbio = winbioProbe ?? const WinBioProbe(),
+       _fprintdReachable =
+           fprintdReachable ?? rust_fprintd.fprintdIsServiceReachable,
+       _fprintdHasEnrolled =
+           fprintdHasEnrolled ?? rust_fprintd.fprintdHasEnrolledFingers,
+       _fprintdVerify = fprintdVerify ?? _defaultFprintdVerify,
+       _tpmAvailable = tpmAvailable ?? _defaultTpmAvailable;
+
+  static const int _fprintdVerifyTimeoutMs = 30000;
+
+  static Future<bool> _defaultFprintdVerify() =>
+      rust_fprintd.fprintdVerify(timeoutMs: _fprintdVerifyTimeoutMs);
+
+  static Future<bool> _defaultTpmAvailable() async {
+    final result = await rust_tpm.tpmProbe(
+      binary: 'tpm2',
+      device: '/dev/tpmrm0',
+      timeoutMs: BigInt.from(15000),
+    );
+    return result == rust_tpm.DbTpmProbeResult.available;
+  }
 
   /// Convenience: true if [availability] returns null.
   Future<bool> isAvailable() async => (await availability()) == null;
@@ -200,7 +230,7 @@ class BiometricAuth {
       return BiometricBackingLevel.software;
     }
     if (Platform.isLinux) {
-      return await _tpm.isAvailable()
+      return await _tpmAvailable()
           ? BiometricBackingLevel.hardware
           : BiometricBackingLevel.software;
     }
@@ -304,7 +334,7 @@ class BiometricAuth {
   /// Linux — `fprintd` renders its own prompt via whatever reader the
   /// kernel exposes; we only await the terminal `VerifyStatus` signal.
   Future<bool> authenticate(String reason) async {
-    if (Platform.isLinux) return _fprintd.verify();
+    if (Platform.isLinux) return _fprintdVerify();
     if (Platform.isMacOS ||
         Platform.isIOS ||
         Platform.isWindows ||
@@ -332,9 +362,10 @@ class BiometricAuth {
     return false;
   }
 
-  /// Linux availability probe: walks the [FprintdClient] ladder so the
-  /// Settings UI can surface a specific reason (daemon missing / reader
-  /// absent / no finger enrolled) instead of a generic "unsupported".
+  /// Linux availability probe: walks the FRB-driven fprintd ladder so
+  /// the Settings UI can surface a specific reason (daemon missing /
+  /// reader absent / no finger enrolled) instead of a generic
+  /// "unsupported".
   ///
   /// Order matters — `isServiceReachable` must succeed before
   /// `hasEnrolledFingers` is meaningful, and both of those run before
@@ -343,10 +374,10 @@ class BiometricAuth {
   /// snippet is surfaced rather than a raw protocol error.
   Future<BiometricAvailability> _linuxAvailability() async {
     try {
-      if (!await _fprintd.isServiceReachable()) {
+      if (!await _fprintdReachable()) {
         return BiometricUnavailableReason.systemServiceMissing;
       }
-      if (!await _fprintd.hasEnrolledFingers()) {
+      if (!await _fprintdHasEnrolled()) {
         return BiometricUnavailableReason.notEnrolled;
       }
       return null;

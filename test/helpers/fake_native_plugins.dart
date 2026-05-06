@@ -30,24 +30,10 @@ class NativeCall {
 /// flip one dimension per test without rewriting handlers.
 class FakeNativePluginsConfig {
   FakeNativePluginsConfig({
-    this.hardwareVaultAvailable = false,
-    this.hardwareVaultProbeDetail = 'unknown',
-    Uint8List? seededHardwareVaultKey,
     this.storagePermissionGranted = true,
     this.qrScanResult,
     this.secureClipboardSucceeds = true,
-  }) : _seededHardwareVaultKey = seededHardwareVaultKey;
-
-  /// `isAvailable` response on the `hardware_vault` channel.
-  final bool hardwareVaultAvailable;
-
-  /// `probeDetail` response — maps to `HardwareProbeDetail` enum.
-  final String hardwareVaultProbeDetail;
-
-  /// When non-null, `isStored` returns true and `read` returns this
-  /// payload. `store` overwrites this slot in-memory.
-  Uint8List? _seededHardwareVaultKey;
-  Uint8List? get seededHardwareVaultKey => _seededHardwareVaultKey;
+  });
 
   /// `requestStoragePermission` response.
   final bool storagePermissionGranted;
@@ -64,7 +50,6 @@ class FakeNativePluginsConfig {
 /// Install mock handlers for every MethodChannel the app uses.
 ///
 /// Covers:
-/// - `com.letsflutssh/hardware_vault`
 /// - `com.letsflutssh/clipboard_secure`
 /// - `com.letsflutssh/session_lock`
 /// - `com.letsflutssh/backup_exclusion`
@@ -76,6 +61,10 @@ class FakeNativePluginsConfig {
 /// Returns the shared [NativeCallLog] so tests can assert on what the
 /// code under test invoked. Call [uninstallFakeNativePlugins] in a
 /// `tearDown` to scrub every handler back to null.
+///
+/// The hardware-vault channel is intentionally absent: every supported
+/// platform now routes through FRB into `lfs_os_security`, so there is
+/// no Dart-side MethodChannel to mock.
 ///
 /// `local_auth` and `path_provider` / `flutter_secure_storage` are NOT
 /// covered here — those have dedicated helpers (`FakeBiometricAuth`,
@@ -93,31 +82,6 @@ NativeCallLog installFakeNativePlugins({FakeNativePluginsConfig? config}) {
       return handler(call);
     });
   }
-
-  // com.letsflutssh/hardware_vault — in-memory sealed-blob slot.
-  mock('com.letsflutssh/hardware_vault', (call) async {
-    switch (call.method) {
-      case 'isAvailable':
-        return cfg.hardwareVaultAvailable;
-      case 'probeDetail':
-        return cfg.hardwareVaultProbeDetail;
-      case 'isStored':
-        return cfg._seededHardwareVaultKey != null;
-      case 'store':
-        final args = (call.arguments as Map).cast<String, Object?>();
-        final dbKey = args['dbKey'];
-        if (dbKey is Uint8List) {
-          cfg._seededHardwareVaultKey = Uint8List.fromList(dbKey);
-        }
-        return true;
-      case 'read':
-        return cfg._seededHardwareVaultKey;
-      case 'clear':
-        cfg._seededHardwareVaultKey = null;
-        return true;
-    }
-    return null;
-  });
 
   // com.letsflutssh/clipboard_secure — returns the configured success
   // flag; tests that care assert on `log.forChannel(...)`.
@@ -184,7 +148,6 @@ void uninstallFakeNativePlugins() {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   const channels = [
-    'com.letsflutssh/hardware_vault',
     'com.letsflutssh/clipboard_secure',
     'com.letsflutssh/session_lock',
     'com.letsflutssh/backup_exclusion',

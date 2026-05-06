@@ -6,6 +6,7 @@ pub mod app;
 pub mod archive;
 pub mod archive_stage;
 pub mod auth_compose;
+pub mod biometric_key_vault;
 pub mod bus;
 pub mod capabilities_cache;
 pub mod capabilities_orchestrator;

@@ -160,10 +160,10 @@ fn read_len_prefixed(raw: &[u8], pos: &mut usize) -> Option<Vec<u8>> {
 }
 
 #[cfg_attr(
-    not(any(test, target_os = "macos", target_os = "ios")),
+    not(any(test, target_os = "macos", target_os = "ios", target_os = "windows")),
     allow(dead_code)
 )]
-fn write_len_prefixed(out: &mut Vec<u8>, bytes: &[u8]) {
+pub(crate) fn write_len_prefixed(out: &mut Vec<u8>, bytes: &[u8]) {
     let len = u32::try_from(bytes.len()).unwrap_or(u32::MAX);
     out.extend_from_slice(&len.to_be_bytes());
     out.extend_from_slice(bytes);
@@ -866,7 +866,17 @@ pub fn is_available() -> bool {
     crate::android::hardware_vault::is_available()
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+#[cfg(target_os = "windows")]
+pub fn is_available() -> bool {
+    crate::windows::hardware_vault::is_available()
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android",
+    target_os = "windows"
+)))]
 pub fn is_available() -> bool {
     false
 }
@@ -890,7 +900,24 @@ pub fn probe_detail() -> HardwareProbeReason {
     }
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+#[cfg(target_os = "windows")]
+pub fn probe_detail() -> HardwareProbeReason {
+    if crate::windows::hardware_vault::is_available() {
+        HardwareProbeReason::Available
+    } else {
+        // Windows-side cause discovery (no Microsoft Platform Crypto
+        // Provider, no TPM, GPO blocking persisted-key UI) belongs
+        // to a future classifier — collapse to generic for now.
+        HardwareProbeReason::AppleGeneric
+    }
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android",
+    target_os = "windows"
+)))]
 pub fn probe_detail() -> HardwareProbeReason {
     HardwareProbeReason::PlatformUnsupported
 }
@@ -905,7 +932,17 @@ pub fn store(support_dir: &str, db_key: &[u8], pin_hmac: &[u8]) -> Result<(), Ha
     crate::android::hardware_vault::store(support_dir, db_key, pin_hmac)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+#[cfg(target_os = "windows")]
+pub fn store(support_dir: &str, db_key: &[u8], pin_hmac: &[u8]) -> Result<(), HardwareVaultError> {
+    crate::windows::hardware_vault::store(support_dir, db_key, pin_hmac)
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android",
+    target_os = "windows"
+)))]
 pub fn store(
     _support_dir: &str,
     _db_key: &[u8],
@@ -924,7 +961,17 @@ pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, Hardw
     crate::android::hardware_vault::read(support_dir, pin_hmac)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+#[cfg(target_os = "windows")]
+pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, HardwareVaultError> {
+    crate::windows::hardware_vault::read(support_dir, pin_hmac)
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android",
+    target_os = "windows"
+)))]
 pub fn read(_support_dir: &str, _pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, HardwareVaultError> {
     Err(HardwareVaultError::PlatformUnsupported)
 }
@@ -939,7 +986,17 @@ pub fn clear(support_dir: &str) -> Result<(), HardwareVaultError> {
     crate::android::hardware_vault::clear(support_dir)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+#[cfg(target_os = "windows")]
+pub fn clear(support_dir: &str) -> Result<(), HardwareVaultError> {
+    crate::windows::hardware_vault::clear(support_dir)
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android",
+    target_os = "windows"
+)))]
 pub fn clear(_support_dir: &str) -> Result<(), HardwareVaultError> {
     Err(HardwareVaultError::PlatformUnsupported)
 }
@@ -960,7 +1017,20 @@ pub fn store_biometric_password(
     crate::android::hardware_vault::store_biometric_password(support_dir, password_bytes)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+#[cfg(target_os = "windows")]
+pub fn store_biometric_password(
+    support_dir: &str,
+    password_bytes: &[u8],
+) -> Result<(), HardwareVaultError> {
+    crate::windows::hardware_vault::store_biometric_password(support_dir, password_bytes)
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android",
+    target_os = "windows"
+)))]
 pub fn store_biometric_password(
     _support_dir: &str,
     _password_bytes: &[u8],
@@ -978,7 +1048,17 @@ pub fn read_biometric_password(support_dir: &str) -> Result<Option<Vec<u8>>, Har
     crate::android::hardware_vault::read_biometric_password(support_dir)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+#[cfg(target_os = "windows")]
+pub fn read_biometric_password(support_dir: &str) -> Result<Option<Vec<u8>>, HardwareVaultError> {
+    crate::windows::hardware_vault::read_biometric_password(support_dir)
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android",
+    target_os = "windows"
+)))]
 pub fn read_biometric_password(_support_dir: &str) -> Result<Option<Vec<u8>>, HardwareVaultError> {
     Err(HardwareVaultError::PlatformUnsupported)
 }
@@ -993,7 +1073,17 @@ pub fn clear_biometric_password(support_dir: &str) -> Result<(), HardwareVaultEr
     crate::android::hardware_vault::clear_biometric_password(support_dir)
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android")))]
+#[cfg(target_os = "windows")]
+pub fn clear_biometric_password(support_dir: &str) -> Result<(), HardwareVaultError> {
+    crate::windows::hardware_vault::clear_biometric_password(support_dir)
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android",
+    target_os = "windows"
+)))]
 pub fn clear_biometric_password(_support_dir: &str) -> Result<(), HardwareVaultError> {
     Err(HardwareVaultError::PlatformUnsupported)
 }

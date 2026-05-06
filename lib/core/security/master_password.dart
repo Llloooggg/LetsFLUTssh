@@ -140,6 +140,24 @@ class MasterPasswordManager {
     }
   }
 
+  /// SecretRef variant of [verifyAndDerive]. Stages the derived
+  /// key directly into the SecretStore under [secretId] — bytes
+  /// never cross the FRB boundary. Returns true when the password
+  /// was correct + bytes landed under [secretId]; false on wrong
+  /// password (no SecretStore mutation). Throws
+  /// [MasterPasswordException] on tier-not-enabled / file-corrupt.
+  Future<bool> verifyAndDeriveToSecret(String password, String secretId) async {
+    await _getBasePath();
+    try {
+      return await rust_mp.masterPasswordVerifyAndDeriveToSecret(
+        password: password,
+        secretId: secretId,
+      );
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
+    }
+  }
+
   /// User-typed unlock attempt. Routes through the
   /// `tier_unlock_paranoid` orchestrator which:
   ///   1. dispatches `UnlockRequested` against `tier_machine`,

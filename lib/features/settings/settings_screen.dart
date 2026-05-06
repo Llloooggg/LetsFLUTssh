@@ -20,6 +20,7 @@ import 'security_tier_switcher.dart';
 import '../../widgets/shortcut_registry.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
+import '../../core/security/active_dbkey.dart';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
 import '../../core/security/wipe_all_service.dart';

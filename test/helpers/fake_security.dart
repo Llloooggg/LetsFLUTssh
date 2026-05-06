@@ -270,7 +270,6 @@ class FakeBiometricAuth extends BiometricAuth {
 
 class FakeBiometricKeyVault extends BiometricKeyVault {
   bool stored;
-  Uint8List? key;
 
   /// When non-null, [isStored] throws with this error ONLY after the
   /// first N successful calls. Lets tests drive the in-dialog
@@ -282,7 +281,6 @@ class FakeBiometricKeyVault extends BiometricKeyVault {
 
   FakeBiometricKeyVault({
     this.stored = false,
-    this.key,
     this.isStoredThrows,
     this.throwAfterNCalls = 0,
   });
@@ -296,14 +294,24 @@ class FakeBiometricKeyVault extends BiometricKeyVault {
   }
 
   @override
-  Future<bool> store(Uint8List key) async {
+  Future<bool> storeFromActive() async {
     stored = true;
-    this.key = key;
     return true;
   }
 
   @override
-  Future<Uint8List?> read() async => stored ? key : null;
+  Future<bool> storeFromSecret(String secretId) async {
+    stored = true;
+    return true;
+  }
+
+  @override
+  Future<bool> readToActive() async => stored;
+
+  @override
+  Future<void> clear() async {
+    stored = false;
+  }
 }
 
 /// In-memory [AutoLockMinutesNotifier] that never touches the DB.

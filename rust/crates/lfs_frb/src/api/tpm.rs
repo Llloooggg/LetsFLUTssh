@@ -9,22 +9,21 @@
 //!
 //! Non-Linux hosts get a `TpmProbeFailedNotLinux` probe response
 //! and `Err("tpm2 not available on this platform")` for seal /
-//! unseal — the Dart `TpmClient` short-circuits on
-//! `Platform.isLinux` before reaching the native lib, but the
-//! shim is defensive so a misrouted call surfaces a clear error
-//! instead of a mystery linker symbol.
+//! unseal — Dart callers short-circuit on `Platform.isLinux`
+//! before reaching the native lib, but the shim is defensive so
+//! a misrouted call surfaces a clear error instead of a mystery
+//! linker symbol.
 
 /// Mirror of `lfs_core::platform::linux::tpm::TpmProbeResult` so
 /// the Dart UI can branch on a typed enum instead of a magic
-/// number. Keeps the wire-name discipline identical to the Dart
-/// `TpmProbeResult` enum case-for-case.
+/// number.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DbTpmProbeResult {
     Available,
     DeviceNodeMissing,
     BinaryMissing,
     ProbeFailed,
-    /// Non-Linux host. The Dart enum's `wrongPlatform` slot.
+    /// Non-Linux host. Caller short-circuits before reaching here.
     NotLinux,
 }
 

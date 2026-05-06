@@ -17,6 +17,7 @@
 
 use std::collections::BTreeMap;
 
+pub mod biometric_key_vault;
 pub mod capabilities;
 pub mod capabilities_cache;
 pub mod capabilities_orchestrator;

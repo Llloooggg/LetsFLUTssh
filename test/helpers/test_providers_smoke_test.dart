@@ -80,11 +80,10 @@ void main() {
       addTearDown(c.dispose);
 
       expect(await vault.isStored(), isFalse);
-      expect(await vault.read(), isNull);
-      final key = Uint8List.fromList(List.generate(32, (i) => i));
-      await vault.store(key);
+      expect(await vault.readToActive(), isFalse);
+      await vault.storeFromActive();
       expect(await vault.isStored(), isTrue);
-      expect(await vault.read(), key);
+      expect(await vault.readToActive(), isTrue);
     });
 
     test('hardware vault fake honours isStored gate on read', () async {

@@ -688,6 +688,29 @@ pub fn commit_biometric_unlock(tier: SecurityTier, bytes: &[u8]) {
     instance_dispatch(tier, &TierEvent::UnlockSucceeded);
 }
 
+/// SecretRef variant of [`commit_biometric_unlock`]. The DB key is
+/// already staged in the [`crate::secrets::SecretStore`] under
+/// `secret_id`; if that id differs from the canonical
+/// [`TIER_UNLOCK_KEY_ID`] slot, the entry is atomically renamed
+/// into it before the unlock cascade fires. Bytes never cross the
+/// FRB boundary on this path.
+///
+/// Returns `false` when `secret_id` is empty in the store (or the
+/// rename target collision is unrecoverable) so the Dart caller
+/// can route to the master-password fallback.
+pub fn commit_biometric_unlock_from_secret(tier: SecurityTier, secret_id: &str) -> bool {
+    let store = &crate::app::instance().secrets;
+    if !store.has(secret_id) {
+        return false;
+    }
+    if secret_id != TIER_UNLOCK_KEY_ID && !store.rename(secret_id, TIER_UNLOCK_KEY_ID) {
+        return false;
+    }
+    instance_dispatch(tier, &TierEvent::UnlockRequested);
+    instance_dispatch(tier, &TierEvent::UnlockSucceeded);
+    true
+}
+
 /// Cancel an in-flight unlock attempt for [`tier`]. Dispatches
 /// `UnlockFailed { UserCancelled }` so the tier machine flips
 /// from `Unlocking` back to `Locked` instead of staying wedged

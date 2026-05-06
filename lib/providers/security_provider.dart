@@ -7,9 +7,9 @@ import '../core/security/biometric_auth.dart';
 import '../core/security/biometric_key_vault.dart';
 import '../core/security/hardware_tier_vault.dart';
 import '../core/security/keychain_password_gate.dart';
-import '../core/security/linux/tpm_client.dart';
 import '../core/security/secure_key_storage.dart';
 import '../src/rust/api/app.dart' as rust_secrets;
+import '../src/rust/api/tpm.dart' as rust_tpm;
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
@@ -99,7 +99,8 @@ final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
 /// Classified reason the hardware tier is unavailable on this host.
 ///
 /// Real probe (not a per-platform guess):
-/// - Linux: delegates to [TpmClient.probe] — distinguishes missing
+/// - Linux: routes through FRB into
+///   `lfs_core::platform::linux::tpm::probe` — distinguishes missing
 ///   `/dev/tpmrm0`, missing `tpm2` binary, and generic probe-failed.
 /// - Windows: asks `NCryptOpenStorageProvider` for the Platform Crypto
 ///   Provider (TPM 2.0) vs the software KSP.
@@ -222,25 +223,32 @@ final hardwareProbeDetailProvider = FutureProvider<HardwareProbeDetail>((
   // second deep probe. `securityCapabilitiesProvider` already ran
   // `hardwareVault.probeDetail` (Windows / macOS / iOS / Android) and
   // stashed the raw code string on `caps.hardwareProbeCode`; Linux
-  // drops through that path with `'unknown'` because the TPM probe
-  // lives in `TpmClient` at this layer. One deep probe per session
-  // instead of three (capabilities + hardware-detail + keyring-detail
-  // each used to trigger their own round-trip, and the Windows
-  // createprimary + macOS SE probe each take hundreds of ms — Settings
-  // visibly hung on open while they ran in series).
+  // re-probes here directly through FRB into
+  // `lfs_core::platform::linux::tpm::probe` (the cap snapshot's
+  // `'unknown'` fallback is the placeholder for that, since the
+  // capabilities orchestrator does not yet run the Linux TPM probe).
+  // One deep probe per session instead of three (capabilities +
+  // hardware-detail + keyring-detail each used to trigger their own
+  // round-trip, and the Windows createprimary + macOS SE probe each
+  // take hundreds of ms — Settings visibly hung on open while they
+  // ran in series).
   final caps = await ref.watch(securityCapabilitiesProvider.future);
   if (Platform.isLinux) {
-    final result = await TpmClient().probe();
+    final result = await rust_tpm.tpmProbe(
+      binary: 'tpm2',
+      device: '/dev/tpmrm0',
+      timeoutMs: BigInt.from(15000),
+    );
     switch (result) {
-      case TpmProbeResult.available:
+      case rust_tpm.DbTpmProbeResult.available:
         return HardwareProbeDetail.available;
-      case TpmProbeResult.deviceNodeMissing:
+      case rust_tpm.DbTpmProbeResult.deviceNodeMissing:
         return HardwareProbeDetail.linuxDeviceMissing;
-      case TpmProbeResult.binaryMissing:
+      case rust_tpm.DbTpmProbeResult.binaryMissing:
         return HardwareProbeDetail.linuxBinaryMissing;
-      case TpmProbeResult.probeFailed:
+      case rust_tpm.DbTpmProbeResult.probeFailed:
         return HardwareProbeDetail.linuxProbeFailed;
-      case TpmProbeResult.wrongPlatform:
+      case rust_tpm.DbTpmProbeResult.notLinux:
         return HardwareProbeDetail.generic;
     }
   }

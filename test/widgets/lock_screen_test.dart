@@ -67,7 +67,7 @@ class _NoBiometricVault extends BiometricKeyVault {
   Future<bool> isStored() async => false;
 
   @override
-  Future<Uint8List?> read() async => null;
+  Future<bool> readToActive() async => false;
 }
 
 class _NoBiometricAuth extends BiometricAuth {

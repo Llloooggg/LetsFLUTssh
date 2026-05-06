@@ -74,14 +74,13 @@ Future<Uint8List> tpmUnseal({
 
 /// Mirror of `lfs_core::platform::linux::tpm::TpmProbeResult` so
 /// the Dart UI can branch on a typed enum instead of a magic
-/// number. Keeps the wire-name discipline identical to the Dart
-/// `TpmProbeResult` enum case-for-case.
+/// number.
 enum DbTpmProbeResult {
   available,
   deviceNodeMissing,
   binaryMissing,
   probeFailed,
 
-  /// Non-Linux host. The Dart enum's `wrongPlatform` slot.
+  /// Non-Linux host. Caller short-circuits before reaching here.
   notLinux,
 }

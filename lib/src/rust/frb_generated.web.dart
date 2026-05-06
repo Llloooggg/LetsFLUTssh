@@ -11,6 +11,7 @@ import 'api/app.dart';
 import 'api/archive.dart';
 import 'api/archive_stage.dart';
 import 'api/auth_compose.dart';
+import 'api/biometric_key_vault.dart';
 import 'api/bus.dart';
 import 'api/capabilities_cache.dart';
 import 'api/capabilities_orchestrator.dart';

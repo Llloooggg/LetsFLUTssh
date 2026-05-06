@@ -10,18 +10,18 @@ import '../utils/logger.dart';
 /// `HardwareVaultUnlockPromptRequest` events by calling the
 /// existing Dart `HardwareTierVault.read(pin)` helper.
 ///
-/// The vault helper fans out per-platform:
-/// - Linux: `tpm2-tools` shell-out (now Rust-side via the
-///   `TpmClient` FRB wrapper).
-/// - Apple / Android / Windows: `MethodChannel` invocation
-///   into the platform vault (Secure Enclave / StrongBox /
-///   WinBio-backed TPM).
+/// The vault helper fans out per-platform — every supported OS now
+/// routes through FRB into the Rust workspace (no MethodChannel
+/// remains):
+/// - Linux: `lfs_core::security::hardware_tier_vault::linux`
+///   (`tpm2-tools` subprocess inside Rust).
+/// - Apple SE / Android Keystore / Windows CNG:
+///   `lfs_os_security::hardware_tier_vault::*`.
 ///
 /// The Rust L3 tier-unlock orchestrator publishes the request
-/// through the bus; this subscriber owns the platform call
-/// because `MethodChannel` is a Flutter primitive without a
-/// Rust analogue and the per-platform vault APIs all sit
-/// behind plugins.
+/// through the bus; this subscriber owns the FRB call because
+/// the prompt protocol is the boundary between the
+/// Rust-orchestrated tier machine and Dart-owned UI dialogs.
 ///
 /// Process-singleton subscription. Cold-start init from
 /// `MainScreenState` alongside the other prompt listeners.

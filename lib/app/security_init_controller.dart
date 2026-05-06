@@ -628,12 +628,14 @@ class SecurityInitController {
       final bio = ref.read(biometricAuthProvider);
       if (!await bio.isAvailable()) return false;
       if (!await bio.authenticate(reason)) return false;
-      final key = await vault.read();
-      if (key == null) return false;
+      // SecretRef path: the vault unseals straight into the active
+      // SecretStore slot, the orchestrator commits from there.
+      // Bytes never cross the FRB boundary on this path.
+      if (!await vault.readToActive()) return false;
       try {
-        return rust_orch.tierUnlockBiometricCommit(
+        return rust_orch.tierUnlockBiometricCommitFromSecret(
           tierWireName: tier.wireName,
-          bytes: key,
+          secretId: kActiveDbKeySecretId,
         );
       } catch (e) {
         AppLogger.instance.log(

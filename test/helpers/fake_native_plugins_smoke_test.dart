@@ -21,47 +21,6 @@ void main() {
 
   tearDown(uninstallFakeNativePlugins);
 
-  test('hardware_vault channel returns configured values', () async {
-    // Hit the mocked channel directly — the Dart-side wrapper
-    // `HardwareTierVault` picks `TpmClient` (not the channel) on a
-    // Linux test host, so we validate the mock shape here and let
-    // real per-platform integration tests cover the wrapper branch.
-    log = installFakeNativePlugins(
-      config: FakeNativePluginsConfig(
-        hardwareVaultAvailable: true,
-        hardwareVaultProbeDetail: 'androidStrongBoxAvailable',
-      ),
-    );
-    const ch = MethodChannel('com.letsflutssh/hardware_vault');
-    expect(await ch.invokeMethod<bool>('isAvailable'), isTrue);
-    expect(
-      await ch.invokeMethod<String>('probeDetail'),
-      'androidStrongBoxAvailable',
-    );
-    expect(
-      log.forChannel('com.letsflutssh/hardware_vault').map((c) => c.method),
-      ['isAvailable', 'probeDetail'],
-    );
-  });
-
-  test('hardware_vault store then read round-trips via the mock', () async {
-    log = installFakeNativePlugins(
-      config: FakeNativePluginsConfig(hardwareVaultAvailable: true),
-    );
-    const ch = MethodChannel('com.letsflutssh/hardware_vault');
-    expect(await ch.invokeMethod<bool>('isStored'), isFalse);
-    final stored = await ch.invokeMethod<bool>('store', <String, Object>{
-      'dbKey': Uint8List.fromList(const [1, 2, 3, 4]),
-      'pinHmac': Uint8List(32),
-    });
-    expect(stored, isTrue);
-    expect(await ch.invokeMethod<bool>('isStored'), isTrue);
-    final read = await ch.invokeMethod<Uint8List>('read', <String, Object>{
-      'pinHmac': Uint8List(32),
-    });
-    expect(read, equals(Uint8List.fromList(const [1, 2, 3, 4])));
-  });
-
   test('permissions.requestStoragePermission honours config flag', () async {
     log = installFakeNativePlugins(
       config: FakeNativePluginsConfig(storagePermissionGranted: false),
@@ -90,9 +49,9 @@ void main() {
     // the same error the production code catches, so this verifies
     // that the teardown actually removes the mock rather than silently
     // keeping it registered.
-    const channel = MethodChannel('com.letsflutssh/hardware_vault');
+    const channel = MethodChannel('com.letsflutssh/qrscanner');
     await expectLater(
-      channel.invokeMethod<bool>('isAvailable'),
+      channel.invokeMethod<String>('scan'),
       throwsA(isA<MissingPluginException>()),
     );
   });

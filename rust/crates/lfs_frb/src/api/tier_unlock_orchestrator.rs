@@ -258,6 +258,26 @@ pub fn tier_unlock_biometric_commit(tier_wire_name: String, bytes: Vec<u8>) -> b
     true
 }
 
+/// SecretRef variant of [`tier_unlock_biometric_commit`]. The bytes
+/// are already in the SecretStore under `secret_id` (staged by the
+/// biometric-vault SecretRef read shims) and never cross the FRB
+/// boundary on this path. The orchestrator atomically renames the
+/// slot into the canonical active id before firing the unlock
+/// cascade.
+#[flutter_rust_bridge::frb(sync)]
+pub fn tier_unlock_biometric_commit_from_secret(tier_wire_name: String, secret_id: String) -> bool {
+    use lfs_core::security::SecurityTier;
+    let tier = match tier_wire_name.as_str() {
+        "plaintext" => SecurityTier::Plaintext,
+        "keychain" => SecurityTier::Keychain,
+        "keychain_with_password" => SecurityTier::KeychainWithPassword,
+        "hardware" => SecurityTier::Hardware,
+        "paranoid" => SecurityTier::Paranoid,
+        _ => return false,
+    };
+    tier_unlock_orchestrator::commit_biometric_unlock_from_secret(tier, &secret_id)
+}
+
 /// Cancel an in-flight Keychain (L1) unlock attempt. Dispatches
 /// `UnlockFailed { UserCancelled }` so the tier machine flips
 /// back to `Locked`. Used by the Dart unlock-flow caller when

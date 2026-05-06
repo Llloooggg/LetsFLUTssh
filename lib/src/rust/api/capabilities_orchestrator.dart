@@ -32,13 +32,13 @@ void keychainProbePromptCancel({required String promptId}) => RustLib
     );
 
 /// Resolve a pending hardware-vault probe with the platform-
-/// specific reason code the Dart subscriber pulled from the
-/// `MethodChannel('com.letsflutssh/hardware_vault')
-/// .invokeMethod('probeDetail')` call. The string is opaque to
-/// Rust — `"available"` is the canonical success value, every
-/// other value flows through the snapshot's
-/// `hardware_probe_code` for the wizard to map to localised
-/// reason copy.
+/// specific reason code the Dart subscriber pulled from
+/// `HardwareTierVault.probeDetail()` (which routes through
+/// FRB into `lfs_os_security::hardware_tier_vault::
+/// probe_detail`). The string is opaque to Rust —
+/// `"available"` is the canonical success value, every other
+/// value flows through the snapshot's `hardware_probe_code`
+/// for the wizard to map to localised reason copy.
 bool hardwareVaultProbePromptResolve({
   required String promptId,
   required String code,
