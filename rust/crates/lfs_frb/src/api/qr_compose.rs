@@ -19,13 +19,8 @@
 //! the dialog never materialises private material.
 
 use crate::api::archive::DbQrExportInput;
+use crate::api::db::require_db;
 use lfs_core::archive::{qr_export_payload_size, QrExportInput, QrExportOptions};
-
-fn require_db() -> Result<std::sync::Arc<lfs_core::db::Db>, String> {
-    lfs_core::app::instance()
-        .db()
-        .ok_or_else(|| "db not initialized".to_string())
-}
 
 /// Size of the QR payload (`d=` value) for the current selection,
 /// in bytes (deflated + base64url-encoded). Reads sessions / keys /

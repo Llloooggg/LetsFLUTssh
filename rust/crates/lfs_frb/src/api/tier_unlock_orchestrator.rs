@@ -2,9 +2,10 @@
 //!
 //! Per-tier unlock orchestrators that drive the tier-machine
 //! through `Locked → Unlocking → Unlocked` in a single FRB hop.
-//! Replaces the per-step `tier_machine_set_tier` + `dispatch` +
-//! `try_advance` chain the Dart `SecurityInitController` used
-//! to walk three calls deep for the no-secret tiers.
+//! The Dart `SecurityInitController` calls one orchestrator per
+//! tier and sees the cascade resolve in a single round-trip rather
+//! than walking the `set_tier` + `dispatch` + `try_advance` chain
+//! by hand.
 //!
 //! Sync — every orchestrator is a chain of mutex-guarded
 //! transition-table lookups + bus publishes, sub-microsecond.

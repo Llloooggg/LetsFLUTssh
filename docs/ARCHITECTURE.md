@@ -612,7 +612,7 @@ JSON → deflate → base64url. Top-level keys:
 
 **Decoder size guard.** The QR-side decoder (`_decodePayload` in `core/session/qr_codec.dart`) caps the **inflated** JSON size at `_maxInflatedPayloadBytes` (4 MiB) and throws `QrPayloadTooLargeException` on overflow. The cap defuses a zip-bomb-style payload: deflate's theoretical compression ratio lets a ~4 KB QR expand to 4 MB+ of JSON, and the downstream `jsonDecode` + cast pass would spike heap usage before any schema check could fire. The same cap applies to the v1 legacy-format fallback (raw base64 without deflate). Legitimate full-backup payloads stay far below this ceiling — the QR producer's own 2 KB compressed limit (`qrMaxPayloadBytes`) would never produce that much JSON, and paste-link payloads coming from the same encoder hit a few hundred KB at most.
 
-**Size estimator ↔ emitter parity.** `UnifiedExportController._qrPayloadSize` and `_lfsArchiveSize` route through `qr_estimate_export_size` and `db_lfs_export_size` respectively (FRB sync, id-based). Both functions reach for `lfs_core::archive::qr_export_payload_size` / `export_archive_size` and pull sessions / keys / tags / snippets straight from `letsflutssh.db` by id, so the gauge value matches the bytes the production producer (`db_export_qr_payload` / `db_export_archive`) would emit for the same selection. The dialog hands across only the option flags + the selected ids — manager-key PEM bytes and session passwords stay Rust-side. The wire-shape collapse from the old PEM-bearing `DbQrPayloadInput` (tagged out per [§ 2.7 SSH PEM SecretRef](#27-ssh-pem-secretref) follow-up) closes the size-estimator's last Dart-heap PEM materialisation point: the dialog's `UnifiedExportDialogData` no longer carries a `managerKeyEntries` map at all.
+**Size estimator ↔ emitter parity.** `UnifiedExportController._qrPayloadSize` and `_lfsArchiveSize` route through `qr_estimate_export_size` and `db_lfs_export_size` respectively (FRB sync, id-based). Both functions reach for `lfs_core::archive::qr_export_payload_size` / `export_archive_size` and pull sessions / keys / tags / snippets straight from `letsflutssh.db` by id, so the gauge value matches the bytes the production producer (`db_export_qr_payload` / `db_export_archive`) would emit for the same selection. The dialog hands across only the option flags + the selected ids — manager-key PEM bytes and session passwords stay Rust-side. `UnifiedExportDialogData` carries no `managerKeyEntries` map; the Rust composer looks every payload component up by id, so the Dart heap never materialises private bytes for either the gauge or the actual emit.
 
 #### Session model
 
@@ -1367,11 +1367,16 @@ Central SSH key store backed by drift DAO.
 ```dart
 class SshKeysNotifier {
   void setDatabase(AppDatabase db);   // injected at startup
-  Future<Map<String, SshKeyEntry>> loadAll();
-  Future<Map<String, SshKeyEntry>> loadAllSafe(); // returns {} on error
-  Future<SshKeyEntry?> get(String id);
+  Future<Map<String, SshKeyMetadata>> loadAllMetadata(); // hot path,
+                                                         // no PEM
+  Future<Map<String, SshKeyEntry>> loadAll();           // PEM-bearing,
+                                                         // export tile
+                                                         // only
   Future<void> save(SshKeyEntry entry);
   Future<void> delete(String id);
+  Future<String> importForMerge(SshKeyEntry entry);     // FRB-side
+                                                         // dedup +
+                                                         // insert
   SshKeyEntry importKey(String pem, String label);
   static SshKeyEntry generateKeyPair(SshKeyType, label); // Ed25519 or RSA
 }

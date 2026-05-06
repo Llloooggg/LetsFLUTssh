@@ -8,11 +8,7 @@ use lfs_core::archive::{
     export_archive_size, ExportInput, ExportOptions, QrExportInput, QrExportOptions,
 };
 
-fn require_db() -> Result<std::sync::Arc<lfs_core::db::Db>, String> {
-    lfs_core::app::instance()
-        .db()
-        .ok_or_else(|| "db not initialized".to_string())
-}
+use crate::api::db::require_db;
 
 /// Mirror of `ExportOptions` over the FRB boundary. Field-for-field
 /// copy of the Dart `ExportOptions` toggle bag.
