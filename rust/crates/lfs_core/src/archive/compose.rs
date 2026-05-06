@@ -1118,6 +1118,41 @@ mod tests {
         assert!(text_entry(&zip, "config.json").is_none());
     }
 
+    #[test]
+    fn config_in_archive_never_carries_config_schema_version() {
+        // `to_json_value` stamps `config_schema_version` on every
+        // write so the migration runner can route old shapes; the
+        // export pipeline must strip it before the JSON lands inside
+        // an `.lfs` archive (per-host stamp would otherwise pin the
+        // importer to the exporter's bump cadence). Round-trip
+        // through `strip_for_export` and assert the wire never
+        // carries the field, regardless of which schema version the
+        // exporter was on.
+        let cfg = crate::config::AppConfig::default();
+        let mut json = cfg.to_json_value();
+        // Sanity: the source has the stamp before stripping.
+        assert!(json
+            .as_object()
+            .and_then(|o| o.get("config_schema_version"))
+            .is_some());
+        crate::config::strip_for_export(&mut json);
+        let conn = fresh_db();
+        let mut input = baseline_input();
+        input.options.include_config = true;
+        input.config_json = json.to_string();
+        let bytes = export_archive(&conn, &input).unwrap();
+        let zip = read_zip(&bytes);
+        let body = text_entry(&zip, "config.json").expect("config entry");
+        let archived: Value = serde_json::from_slice(body).expect("parse archived config");
+        assert!(
+            archived
+                .as_object()
+                .and_then(|o| o.get("config_schema_version"))
+                .is_none(),
+            "archived config.json must not carry config_schema_version; got: {archived}"
+        );
+    }
+
     // ── Toggles + ordering ────────────────────────────────────
 
     #[test]
