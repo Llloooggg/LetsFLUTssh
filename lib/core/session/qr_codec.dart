@@ -234,16 +234,18 @@ Map<String, dynamic> encodeSessionCompact(
   // screen. The opt-in gate lives Rust-side in
   // `lfs_core::qr_codec::encode_session_compact`.
   final json = rust_qr.qrCodecEncodeSessionCompact(
-    label: s.label,
-    host: s.host,
-    user: s.user,
-    port: s.port,
-    folder: s.folder,
-    authType: s.authType.name,
-    keyShort: keyId,
-    isManager: isManagerKey,
-    includePasswords: includePasswords,
-    password: utf8.encode(s.password),
+    inputs: rust_qr.QrSessionCompactInputs(
+      label: s.label,
+      host: s.host,
+      user: s.user,
+      port: s.port,
+      folder: s.folder,
+      authType: s.authType.name,
+      keyShort: keyId,
+      isManager: isManagerKey,
+      includePasswords: includePasswords,
+      password: utf8.encode(s.password),
+    ),
   );
   return jsonDecode(json) as Map<String, dynamic>;
 }

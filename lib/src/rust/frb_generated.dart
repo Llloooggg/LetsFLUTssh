@@ -1330,16 +1330,7 @@ abstract class RustLibApi extends BaseApi {
   int crateApiQrCodecEncodeQrCodecCompressToPayloadSize({required String json});
 
   String crateApiQrCodecEncodeQrCodecEncodeSessionCompact({
-    required String label,
-    required String host,
-    required String user,
-    required int port,
-    required String folder,
-    required String authType,
-    String? keyShort,
-    required bool isManager,
-    required bool includePasswords,
-    required List<int> password,
+    required QrSessionCompactInputs inputs,
   });
 
   int crateApiQrComposeQrEstimateExportSize({required DbQrExportInput input});
@@ -12143,31 +12134,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   String crateApiQrCodecEncodeQrCodecEncodeSessionCompact({
-    required String label,
-    required String host,
-    required String user,
-    required int port,
-    required String folder,
-    required String authType,
-    String? keyShort,
-    required bool isManager,
-    required bool includePasswords,
-    required List<int> password,
+    required QrSessionCompactInputs inputs,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(label, serializer);
-          sse_encode_String(host, serializer);
-          sse_encode_String(user, serializer);
-          sse_encode_u_16(port, serializer);
-          sse_encode_String(folder, serializer);
-          sse_encode_String(authType, serializer);
-          sse_encode_opt_String(keyShort, serializer);
-          sse_encode_bool(isManager, serializer);
-          sse_encode_bool(includePasswords, serializer);
-          sse_encode_list_prim_u_8_loose(password, serializer);
+          sse_encode_box_autoadd_qr_session_compact_inputs(inputs, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -12179,18 +12152,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiQrCodecEncodeQrCodecEncodeSessionCompactConstMeta,
-        argValues: [
-          label,
-          host,
-          user,
-          port,
-          folder,
-          authType,
-          keyShort,
-          isManager,
-          includePasswords,
-          password,
-        ],
+        argValues: [inputs],
         apiImpl: this,
       ),
     );
@@ -12200,18 +12162,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiQrCodecEncodeQrCodecEncodeSessionCompactConstMeta =>
       const TaskConstMeta(
         debugName: 'qr_codec_encode_session_compact',
-        argNames: [
-          'label',
-          'host',
-          'user',
-          'port',
-          'folder',
-          'authType',
-          'keyShort',
-          'isManager',
-          'includePasswords',
-          'password',
-        ],
+        argNames: ['inputs'],
       );
 
   @override
@@ -18344,6 +18295,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  QrSessionCompactInputs dco_decode_box_autoadd_qr_session_compact_inputs(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_qr_session_compact_inputs(raw);
+  }
+
+  @protected
   (String, String) dco_decode_box_autoadd_record_string_string(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as (String, String);
@@ -20625,6 +20584,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  QrSessionCompactInputs dco_decode_qr_session_compact_inputs(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return QrSessionCompactInputs(
+      label: dco_decode_String(arr[0]),
+      host: dco_decode_String(arr[1]),
+      user: dco_decode_String(arr[2]),
+      port: dco_decode_u_16(arr[3]),
+      folder: dco_decode_String(arr[4]),
+      authType: dco_decode_String(arr[5]),
+      keyShort: dco_decode_opt_String(arr[6]),
+      isManager: dco_decode_bool(arr[7]),
+      includePasswords: dco_decode_bool(arr[8]),
+      password: dco_decode_list_prim_u_8_strict(arr[9]),
+    );
+  }
+
+  @protected
   (String, String) dco_decode_record_string_string(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -21313,6 +21292,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  QrSessionCompactInputs sse_decode_box_autoadd_qr_session_compact_inputs(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_qr_session_compact_inputs(deserializer));
   }
 
   @protected
@@ -24394,6 +24381,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  QrSessionCompactInputs sse_decode_qr_session_compact_inputs(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_label = sse_decode_String(deserializer);
+    final var_host = sse_decode_String(deserializer);
+    final var_user = sse_decode_String(deserializer);
+    final var_port = sse_decode_u_16(deserializer);
+    final var_folder = sse_decode_String(deserializer);
+    final var_authType = sse_decode_String(deserializer);
+    final var_keyShort = sse_decode_opt_String(deserializer);
+    final var_isManager = sse_decode_bool(deserializer);
+    final var_includePasswords = sse_decode_bool(deserializer);
+    final var_password = sse_decode_list_prim_u_8_strict(deserializer);
+    return QrSessionCompactInputs(
+      label: var_label,
+      host: var_host,
+      user: var_user,
+      port: var_port,
+      folder: var_folder,
+      authType: var_authType,
+      keyShort: var_keyShort,
+      isManager: var_isManager,
+      includePasswords: var_includePasswords,
+      password: var_password,
+    );
+  }
+
+  @protected
   (String, String) sse_decode_record_string_string(
     SseDeserializer deserializer,
   ) {
@@ -25202,6 +25218,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_qr_session_compact_inputs(
+    QrSessionCompactInputs self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_qr_session_compact_inputs(self, serializer);
   }
 
   @protected
@@ -27742,6 +27767,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_list_prim_u_8_strict(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_qr_session_compact_inputs(
+    QrSessionCompactInputs self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.label, serializer);
+    sse_encode_String(self.host, serializer);
+    sse_encode_String(self.user, serializer);
+    sse_encode_u_16(self.port, serializer);
+    sse_encode_String(self.folder, serializer);
+    sse_encode_String(self.authType, serializer);
+    sse_encode_opt_String(self.keyShort, serializer);
+    sse_encode_bool(self.isManager, serializer);
+    sse_encode_bool(self.includePasswords, serializer);
+    sse_encode_list_prim_u_8_strict(self.password, serializer);
   }
 
   @protected

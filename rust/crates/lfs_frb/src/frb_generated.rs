@@ -11609,31 +11609,13 @@ fn wire__crate__api__qr_codec_encode__qr_codec_encode_session_compact_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_label = <String>::sse_decode(&mut deserializer);
-            let api_host = <String>::sse_decode(&mut deserializer);
-            let api_user = <String>::sse_decode(&mut deserializer);
-            let api_port = <u16>::sse_decode(&mut deserializer);
-            let api_folder = <String>::sse_decode(&mut deserializer);
-            let api_auth_type = <String>::sse_decode(&mut deserializer);
-            let api_key_short = <Option<String>>::sse_decode(&mut deserializer);
-            let api_is_manager = <bool>::sse_decode(&mut deserializer);
-            let api_include_passwords = <bool>::sse_decode(&mut deserializer);
-            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_inputs = <crate::api::qr_codec_encode::QrSessionCompactInputs>::sse_decode(
+                &mut deserializer,
+            );
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
-                    crate::api::qr_codec_encode::qr_codec_encode_session_compact(
-                        api_label,
-                        api_host,
-                        api_user,
-                        api_port,
-                        api_folder,
-                        api_auth_type,
-                        api_key_short,
-                        api_is_manager,
-                        api_include_passwords,
-                        api_password,
-                    ),
+                    crate::api::qr_codec_encode::qr_codec_encode_session_compact(api_inputs),
                 )?;
                 Ok(output_ok)
             })())
@@ -21226,6 +21208,34 @@ impl SseDecode for Option<Vec<u8>> {
     }
 }
 
+impl SseDecode for crate::api::qr_codec_encode::QrSessionCompactInputs {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_label = <String>::sse_decode(deserializer);
+        let mut var_host = <String>::sse_decode(deserializer);
+        let mut var_user = <String>::sse_decode(deserializer);
+        let mut var_port = <u16>::sse_decode(deserializer);
+        let mut var_folder = <String>::sse_decode(deserializer);
+        let mut var_authType = <String>::sse_decode(deserializer);
+        let mut var_keyShort = <Option<String>>::sse_decode(deserializer);
+        let mut var_isManager = <bool>::sse_decode(deserializer);
+        let mut var_includePasswords = <bool>::sse_decode(deserializer);
+        let mut var_password = <Vec<u8>>::sse_decode(deserializer);
+        return crate::api::qr_codec_encode::QrSessionCompactInputs {
+            label: var_label,
+            host: var_host,
+            user: var_user,
+            port: var_port,
+            folder: var_folder,
+            auth_type: var_authType,
+            key_short: var_keyShort,
+            is_manager: var_isManager,
+            include_passwords: var_includePasswords,
+            password: var_password,
+        };
+    }
+}
+
 impl SseDecode for (String, String) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -24908,6 +24918,35 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::keys::KeyMaterial>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::qr_codec_encode::QrSessionCompactInputs {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.label.into_into_dart().into_dart(),
+            self.host.into_into_dart().into_dart(),
+            self.user.into_into_dart().into_dart(),
+            self.port.into_into_dart().into_dart(),
+            self.folder.into_into_dart().into_dart(),
+            self.auth_type.into_into_dart().into_dart(),
+            self.key_short.into_into_dart().into_dart(),
+            self.is_manager.into_into_dart().into_dart(),
+            self.include_passwords.into_into_dart().into_dart(),
+            self.password.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::qr_codec_encode::QrSessionCompactInputs
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::qr_codec_encode::QrSessionCompactInputs>
+    for crate::api::qr_codec_encode::QrSessionCompactInputs
+{
+    fn into_into_dart(self) -> crate::api::qr_codec_encode::QrSessionCompactInputs {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sftp::SftpDirEntry {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -27715,6 +27754,22 @@ impl SseEncode for Option<Vec<u8>> {
         if let Some(value) = self {
             <Vec<u8>>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::qr_codec_encode::QrSessionCompactInputs {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.label, serializer);
+        <String>::sse_encode(self.host, serializer);
+        <String>::sse_encode(self.user, serializer);
+        <u16>::sse_encode(self.port, serializer);
+        <String>::sse_encode(self.folder, serializer);
+        <String>::sse_encode(self.auth_type, serializer);
+        <Option<String>>::sse_encode(self.key_short, serializer);
+        <bool>::sse_encode(self.is_manager, serializer);
+        <bool>::sse_encode(self.include_passwords, serializer);
+        <Vec<u8>>::sse_encode(self.password, serializer);
     }
 }
 

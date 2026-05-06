@@ -244,16 +244,18 @@ fn build_qr_export_json(conn: &Connection, input: &QrExportInput) -> Result<Stri
                     .map(|k| manager_shorts.contains(k))
                     .unwrap_or(false);
                 crate::qr_codec_encode::encode_session_compact(
-                    &s.label,
-                    &s.host,
-                    &s.user,
-                    u16::try_from(s.port.max(0)).unwrap_or(u16::MAX),
-                    &folder_path,
-                    &s.auth_type,
-                    key_short.map(String::as_str),
-                    is_manager,
-                    input.options.include_passwords,
-                    &s.password,
+                    &crate::qr_codec_encode::SessionCompactInputs {
+                        label: &s.label,
+                        host: &s.host,
+                        user: &s.user,
+                        port: u16::try_from(s.port.max(0)).unwrap_or(u16::MAX),
+                        folder: &folder_path,
+                        auth_type: &s.auth_type,
+                        key_short: key_short.map(String::as_str),
+                        is_manager,
+                        include_passwords: input.options.include_passwords,
+                        password: &s.password,
+                    },
                 )
             })
             .collect();

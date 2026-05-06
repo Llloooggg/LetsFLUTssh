@@ -101,6 +101,20 @@ impl TaskActor {
     }
 }
 
+/// Bundled inputs for [`TransferQueue::enqueue`]. Bundling the
+/// per-task fields keeps the call signature under clippy's
+/// too-many-arguments threshold and lets the FRB shim pass a
+/// typed payload through verbatim.
+#[derive(Clone, Debug)]
+pub struct EnqueueRequest {
+    pub id: TaskId,
+    pub kind: TaskKind,
+    pub session_id: String,
+    pub remote_path: String,
+    pub local_path: String,
+    pub bytes_total: u64,
+}
+
 /// Process-singleton transfer queue. Owned by `AppState`.
 pub struct TransferQueue {
     inner: Mutex<QueueInner>,
@@ -129,17 +143,15 @@ impl TransferQueue {
 
     /// Enqueue a fresh task. Emits `TransferTaskAdded`. Idempotent
     /// on repeated id (later enqueues replace the row).
-    #[allow(clippy::too_many_arguments)]
-    pub fn enqueue(
-        &self,
-        id: TaskId,
-        kind: TaskKind,
-        session_id: String,
-        remote_path: String,
-        local_path: String,
-        bytes_total: u64,
-        bus: &EventBus,
-    ) -> TaskSnapshot {
+    pub fn enqueue(&self, req: EnqueueRequest, bus: &EventBus) -> TaskSnapshot {
+        let EnqueueRequest {
+            id,
+            kind,
+            session_id,
+            remote_path,
+            local_path,
+            bytes_total,
+        } = req;
         let actor = TaskActor {
             id: id.clone(),
             kind,
@@ -335,12 +347,14 @@ mod tests {
         let bus = EventBus::new();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Download,
-            "s1".into(),
-            "/r/path".into(),
-            "/l/path".into(),
-            1024,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Download,
+                session_id: "s1".into(),
+                remote_path: "/r/path".into(),
+                local_path: "/l/path".into(),
+                bytes_total: 1024,
+            },
             &bus,
         );
         q.set_progress("t1", 512, &bus);
@@ -366,12 +380,14 @@ mod tests {
         let mut rx = bus.subscribe();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Download,
-            "s1".into(),
-            "/r".into(),
-            "/l".into(),
-            10 * 1024 * 1024,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Download,
+                session_id: "s1".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 10 * 1024 * 1024,
+            },
             &bus,
         );
         // Drain the TransferTaskAdded event so the receiver only
@@ -412,12 +428,14 @@ mod tests {
         let mut rx = bus.subscribe();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Upload,
-            "s1".into(),
-            "/r".into(),
-            "/l".into(),
-            1024,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Upload,
+                session_id: "s1".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 1024,
+            },
             &bus,
         );
         let _ = rx.try_recv();
@@ -445,12 +463,14 @@ mod tests {
         let bus = EventBus::new();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Upload,
-            "s1".into(),
-            "/r".into(),
-            "/l".into(),
-            0,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Upload,
+                session_id: "s1".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 0,
+            },
             &bus,
         );
         q.fail("t1", "permission denied".into(), &bus);
@@ -464,12 +484,14 @@ mod tests {
         let bus = EventBus::new();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Download,
-            "s1".into(),
-            "/r".into(),
-            "/l".into(),
-            0,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Download,
+                session_id: "s1".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 0,
+            },
             &bus,
         );
         q.set_state("t1", TaskState::Running, &bus);
@@ -482,12 +504,14 @@ mod tests {
         let bus = EventBus::new();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Download,
-            "s1".into(),
-            "/r".into(),
-            "/l".into(),
-            0,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Download,
+                session_id: "s1".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 0,
+            },
             &bus,
         );
         q.set_state("t1", TaskState::Completed, &bus);
@@ -500,12 +524,14 @@ mod tests {
         let bus = EventBus::new();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Download,
-            "s1".into(),
-            "/r".into(),
-            "/l".into(),
-            0,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Download,
+                session_id: "s1".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 0,
+            },
             &bus,
         );
         q.fail("t1", "boom".into(), &bus);
@@ -527,12 +553,14 @@ mod tests {
         let bus = EventBus::new();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Upload,
-            "s1".into(),
-            "/r".into(),
-            "/l".into(),
-            0,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Upload,
+                session_id: "s1".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 0,
+            },
             &bus,
         );
         q.set_state("t1", TaskState::Completed, &bus);
@@ -546,12 +574,14 @@ mod tests {
         let bus = EventBus::new();
         let q = TransferQueue::new();
         q.enqueue(
-            "t1".into(),
-            TaskKind::Upload,
-            "s1".into(),
-            "/r".into(),
-            "/l".into(),
-            0,
+            EnqueueRequest {
+                id: "t1".into(),
+                kind: TaskKind::Upload,
+                session_id: "s1".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 0,
+            },
             &bus,
         );
         q.set_state("t1", TaskState::Running, &bus);
@@ -565,12 +595,14 @@ mod tests {
         let q = TransferQueue::new();
         for n in 0..5 {
             q.enqueue(
-                format!("t{n}"),
-                TaskKind::Download,
-                "s1".into(),
-                "/r".into(),
-                "/l".into(),
-                0,
+                EnqueueRequest {
+                    id: format!("t{n}"),
+                    kind: TaskKind::Download,
+                    session_id: "s1".into(),
+                    remote_path: "/r".into(),
+                    local_path: "/l".into(),
+                    bytes_total: 0,
+                },
                 &bus,
             );
         }

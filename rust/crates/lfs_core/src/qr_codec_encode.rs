@@ -72,20 +72,34 @@ pub fn compress_to_payload_size(json: &str) -> u32 {
 /// only appears when the session's key resolved to a manager-owned
 /// short id. `pw` is gated behind `include_passwords` — callers
 /// must opt in explicitly because QR codes are camera-readable.
+#[derive(Clone, Debug)]
+pub struct SessionCompactInputs<'a> {
+    pub label: &'a str,
+    pub host: &'a str,
+    pub user: &'a str,
+    pub port: u16,
+    pub folder: &'a str,
+    pub auth_type: &'a str,
+    pub key_short: Option<&'a str>,
+    pub is_manager: bool,
+    pub include_passwords: bool,
+    pub password: &'a str,
+}
+
 #[must_use]
-#[allow(clippy::too_many_arguments)]
-pub fn encode_session_compact(
-    label: &str,
-    host: &str,
-    user: &str,
-    port: u16,
-    folder: &str,
-    auth_type: &str,
-    key_short: Option<&str>,
-    is_manager: bool,
-    include_passwords: bool,
-    password: &str,
-) -> Value {
+pub fn encode_session_compact(inputs: &SessionCompactInputs<'_>) -> Value {
+    let SessionCompactInputs {
+        label,
+        host,
+        user,
+        port,
+        folder,
+        auth_type,
+        key_short,
+        is_manager,
+        include_passwords,
+        password,
+    } = *inputs;
     let mut m = serde_json::Map::new();
     m.insert("l".into(), json!(label));
     m.insert("h".into(), json!(host));
@@ -117,31 +131,8 @@ pub fn encode_session_compact(
 /// outer payload object. Stringification keeps the FRB type list
 /// to one return type instead of forcing a heterogeneous map shape.
 #[must_use]
-#[allow(clippy::too_many_arguments)]
-pub fn encode_session_compact_json(
-    label: &str,
-    host: &str,
-    user: &str,
-    port: u16,
-    folder: &str,
-    auth_type: &str,
-    key_short: Option<&str>,
-    is_manager: bool,
-    include_passwords: bool,
-    password: &str,
-) -> String {
-    let v = encode_session_compact(
-        label,
-        host,
-        user,
-        port,
-        folder,
-        auth_type,
-        key_short,
-        is_manager,
-        include_passwords,
-        password,
-    );
+pub fn encode_session_compact_json(inputs: &SessionCompactInputs<'_>) -> String {
+    let v = encode_session_compact(inputs);
     serde_json::to_string(&v).expect("Map<String, Value> serialisation cannot fail")
 }
 
@@ -252,18 +243,18 @@ mod tests {
         // Default port + default auth + no folder + no key → only
         // `l` / `h` / `u` should be present. Mirrors the Dart
         // `encodeSessionCompact` baseline shape.
-        let v = encode_session_compact(
-            "lab",
-            "host.example",
-            "alice",
-            22,
-            "",
-            "password",
-            None,
-            false,
-            false,
-            "",
-        );
+        let v = encode_session_compact(&SessionCompactInputs {
+            label: "lab",
+            host: "host.example",
+            user: "alice",
+            port: 22,
+            folder: "",
+            auth_type: "password",
+            key_short: None,
+            is_manager: false,
+            include_passwords: false,
+            password: "",
+        });
         let m = v.as_object().unwrap();
         assert_eq!(m.len(), 3);
         assert_eq!(m.get("l").and_then(Value::as_str), Some("lab"));
@@ -273,18 +264,18 @@ mod tests {
 
     #[test]
     fn session_compact_emits_optional_fields_only_when_non_default() {
-        let v = encode_session_compact(
-            "lab",
-            "host.example",
-            "alice",
-            2222,
-            "infra/prod",
-            "key",
-            Some("k0"),
-            true,
-            false,
-            "",
-        );
+        let v = encode_session_compact(&SessionCompactInputs {
+            label: "lab",
+            host: "host.example",
+            user: "alice",
+            port: 2222,
+            folder: "infra/prod",
+            auth_type: "key",
+            key_short: Some("k0"),
+            is_manager: true,
+            include_passwords: false,
+            password: "",
+        });
         let m = v.as_object().unwrap();
         assert_eq!(m.get("p").and_then(Value::as_u64), Some(2222));
         assert_eq!(m.get("g").and_then(Value::as_str), Some("infra/prod"));
@@ -299,14 +290,32 @@ mod tests {
         // Without opt-in, password never lands in the payload even
         // when set — security default for QR. Mirrors the Dart
         // `includePasswords` gate.
-        let off = encode_session_compact(
-            "lab", "h", "u", 22, "", "password", None, false, false, "secret",
-        );
+        let off = encode_session_compact(&SessionCompactInputs {
+            label: "lab",
+            host: "h",
+            user: "u",
+            port: 22,
+            folder: "",
+            auth_type: "password",
+            key_short: None,
+            is_manager: false,
+            include_passwords: false,
+            password: "secret",
+        });
         assert!(!off.as_object().unwrap().contains_key("pw"));
 
-        let on = encode_session_compact(
-            "lab", "h", "u", 22, "", "password", None, false, true, "secret",
-        );
+        let on = encode_session_compact(&SessionCompactInputs {
+            label: "lab",
+            host: "h",
+            user: "u",
+            port: 22,
+            folder: "",
+            auth_type: "password",
+            key_short: None,
+            is_manager: false,
+            include_passwords: true,
+            password: "secret",
+        });
         assert_eq!(
             on.as_object()
                 .and_then(|m| m.get("pw"))
@@ -320,7 +329,18 @@ mod tests {
         // The opt-in alone shouldn't materialise an empty `pw` key —
         // the helper still skips it when the password is empty so the
         // payload doesn't carry a meaningless field.
-        let v = encode_session_compact("lab", "h", "u", 22, "", "password", None, false, true, "");
+        let v = encode_session_compact(&SessionCompactInputs {
+            label: "lab",
+            host: "h",
+            user: "u",
+            port: 22,
+            folder: "",
+            auth_type: "password",
+            key_short: None,
+            is_manager: false,
+            include_passwords: true,
+            password: "",
+        });
         assert!(!v.as_object().unwrap().contains_key("pw"));
     }
 
@@ -329,31 +349,31 @@ mod tests {
         // The FRB-friendly JSON-string variant must produce the same
         // shape as the `Value` variant, byte-for-byte after a
         // `serde_json::to_string` of the latter.
-        let v = encode_session_compact(
-            "lab",
-            "h",
-            "u",
-            2222,
-            "g",
-            "key",
-            Some("k1"),
-            true,
-            false,
-            "",
-        );
+        let v = encode_session_compact(&SessionCompactInputs {
+            label: "lab",
+            host: "h",
+            user: "u",
+            port: 2222,
+            folder: "g",
+            auth_type: "key",
+            key_short: Some("k1"),
+            is_manager: true,
+            include_passwords: false,
+            password: "",
+        });
         let direct = serde_json::to_string(&v).unwrap();
-        let via_helper = encode_session_compact_json(
-            "lab",
-            "h",
-            "u",
-            2222,
-            "g",
-            "key",
-            Some("k1"),
-            true,
-            false,
-            "",
-        );
+        let via_helper = encode_session_compact_json(&SessionCompactInputs {
+            label: "lab",
+            host: "h",
+            user: "u",
+            port: 2222,
+            folder: "g",
+            auth_type: "key",
+            key_short: Some("k1"),
+            is_manager: true,
+            include_passwords: false,
+            password: "",
+        });
         assert_eq!(direct, via_helper);
     }
 }

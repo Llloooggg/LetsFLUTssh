@@ -33,26 +33,69 @@ int qrCodecCompressToPayloadSize({required String json}) => RustLib.instance.api
 /// `pw` field is gated behind `include_passwords` because QR
 /// codes are camera-readable and silently embedding plaintext
 /// passwords would be a security regression.
-String qrCodecEncodeSessionCompact({
-  required String label,
-  required String host,
-  required String user,
-  required int port,
-  required String folder,
-  required String authType,
-  String? keyShort,
-  required bool isManager,
-  required bool includePasswords,
-  required List<int> password,
-}) => RustLib.instance.api.crateApiQrCodecEncodeQrCodecEncodeSessionCompact(
-  label: label,
-  host: host,
-  user: user,
-  port: port,
-  folder: folder,
-  authType: authType,
-  keyShort: keyShort,
-  isManager: isManager,
-  includePasswords: includePasswords,
-  password: password,
-);
+String qrCodecEncodeSessionCompact({required QrSessionCompactInputs inputs}) =>
+    RustLib.instance.api.crateApiQrCodecEncodeQrCodecEncodeSessionCompact(
+      inputs: inputs,
+    );
+
+/// FRB-mirror of [`lfs_core::qr_codec_encode::SessionCompactInputs`].
+/// Owned-string fields cross the FRB boundary one copy each — the
+/// inner call borrows them as `&str` after assembly.
+class QrSessionCompactInputs {
+  final String label;
+  final String host;
+  final String user;
+  final int port;
+  final String folder;
+  final String authType;
+  final String? keyShort;
+  final bool isManager;
+  final bool includePasswords;
+
+  /// Lossy-decoded as UTF-8 inside the shim — invalid sequences
+  /// collapse to empty, same fallback shape the prior
+  /// `password: String` signature produced for malformed input.
+  final Uint8List password;
+
+  const QrSessionCompactInputs({
+    required this.label,
+    required this.host,
+    required this.user,
+    required this.port,
+    required this.folder,
+    required this.authType,
+    this.keyShort,
+    required this.isManager,
+    required this.includePasswords,
+    required this.password,
+  });
+
+  @override
+  int get hashCode =>
+      label.hashCode ^
+      host.hashCode ^
+      user.hashCode ^
+      port.hashCode ^
+      folder.hashCode ^
+      authType.hashCode ^
+      keyShort.hashCode ^
+      isManager.hashCode ^
+      includePasswords.hashCode ^
+      password.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is QrSessionCompactInputs &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          host == other.host &&
+          user == other.user &&
+          port == other.port &&
+          folder == other.folder &&
+          authType == other.authType &&
+          keyShort == other.keyShort &&
+          isManager == other.isManager &&
+          includePasswords == other.includePasswords &&
+          password == other.password;
+}

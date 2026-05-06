@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use lfs_core::transfer::driver::{SftpTaskExecutor, WorkerPool};
-use lfs_core::transfer::{TaskKind, TaskSnapshot, TaskState};
+use lfs_core::transfer::{EnqueueRequest, TaskKind, TaskSnapshot, TaskState};
 
 /// Default worker count. Matches the `Tokio worker pool with
 /// bounded concurrency, default = host-platform-aware`
@@ -130,12 +130,14 @@ pub async fn transfer_enqueue(
 ) -> Result<DbTransferSnapshot, String> {
     let app = lfs_core::app::instance();
     let snap = app.transfers.enqueue(
-        id.clone(),
-        kind.into(),
-        session_id,
-        remote_path,
-        local_path,
-        bytes_total,
+        EnqueueRequest {
+            id: id.clone(),
+            kind: kind.into(),
+            session_id: session_id,
+            remote_path: remote_path,
+            local_path: local_path,
+            bytes_total: bytes_total,
+        },
         &app.bus,
     );
     let pool = pool_arc();

@@ -321,7 +321,7 @@ async fn upload(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transfer::{TaskKind, TransferQueue};
+    use crate::transfer::{EnqueueRequest, TaskKind, TransferQueue};
     use std::sync::atomic::{AtomicU32, Ordering};
 
     /// Counts execute calls + acts on the cancel flag.
@@ -365,23 +365,27 @@ mod tests {
         let registry = TransferQueue::new();
         let bus = crate::bus::EventBus::new();
         registry.enqueue(
-            "t-pool-1".into(),
-            TaskKind::Download,
-            "sess-pool".into(),
-            "/r".into(),
-            "/l".into(),
-            0,
+            EnqueueRequest {
+                id: "t-pool-1".into(),
+                kind: TaskKind::Download,
+                session_id: "sess-pool".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 0,
+            },
             &bus,
         );
         // Move the row into the singleton's registry so the
         // worker can find it.
         crate::app::instance().transfers.enqueue(
-            "t-pool-1".into(),
-            TaskKind::Download,
-            "sess-pool".into(),
-            "/r".into(),
-            "/l".into(),
-            0,
+            EnqueueRequest {
+                id: "t-pool-1".into(),
+                kind: TaskKind::Download,
+                session_id: "sess-pool".into(),
+                remote_path: "/r".into(),
+                local_path: "/l".into(),
+                bytes_total: 0,
+            },
             &crate::app::instance().bus,
         );
         let exec = Arc::new(CountingExecutor {

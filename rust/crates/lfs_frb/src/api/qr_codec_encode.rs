@@ -25,6 +25,25 @@ pub fn qr_codec_compress_to_payload_size(json: String) -> u32 {
     qr_codec_encode::compress_to_payload_size(&json)
 }
 
+/// FRB-mirror of [`lfs_core::qr_codec_encode::SessionCompactInputs`].
+/// Owned-string fields cross the FRB boundary one copy each — the
+/// inner call borrows them as `&str` after assembly.
+pub struct QrSessionCompactInputs {
+    pub label: String,
+    pub host: String,
+    pub user: String,
+    pub port: u16,
+    pub folder: String,
+    pub auth_type: String,
+    pub key_short: Option<String>,
+    pub is_manager: bool,
+    pub include_passwords: bool,
+    /// Lossy-decoded as UTF-8 inside the shim — invalid sequences
+    /// collapse to empty, same fallback shape the prior
+    /// `password: String` signature produced for malformed input.
+    pub password: Vec<u8>,
+}
+
 /// Build the v4 QR per-session compact map and return it as a
 /// JSON-encoded string. The Dart caller decodes it into a
 /// `Map<String, dynamic>` and inserts it under the outer
@@ -40,35 +59,18 @@ pub fn qr_codec_compress_to_payload_size(json: String) -> u32 {
 /// codes are camera-readable and silently embedding plaintext
 /// passwords would be a security regression.
 #[flutter_rust_bridge::frb(sync)]
-#[allow(clippy::too_many_arguments)]
-pub fn qr_codec_encode_session_compact(
-    label: String,
-    host: String,
-    user: String,
-    port: u16,
-    folder: String,
-    auth_type: String,
-    key_short: Option<String>,
-    is_manager: bool,
-    include_passwords: bool,
-    password: Vec<u8>,
-) -> String {
-    // Lossy decode keeps the wire shape `Vec<u8>` for parity with
-    // the rest of the password-marshalling family while preserving
-    // the existing failure mode — invalid UTF-8 collapses to empty
-    // password, same shape `String::new()` produced under the
-    // previous `password: String` signature.
-    let password = String::from_utf8(password).unwrap_or_default();
-    qr_codec_encode::encode_session_compact_json(
-        &label,
-        &host,
-        &user,
-        port,
-        &folder,
-        &auth_type,
-        key_short.as_deref(),
-        is_manager,
-        include_passwords,
-        &password,
-    )
+pub fn qr_codec_encode_session_compact(inputs: QrSessionCompactInputs) -> String {
+    let password = String::from_utf8(inputs.password).unwrap_or_default();
+    qr_codec_encode::encode_session_compact_json(&qr_codec_encode::SessionCompactInputs {
+        label: &inputs.label,
+        host: &inputs.host,
+        user: &inputs.user,
+        port: inputs.port,
+        folder: &inputs.folder,
+        auth_type: &inputs.auth_type,
+        key_short: inputs.key_short.as_deref(),
+        is_manager: inputs.is_manager,
+        include_passwords: inputs.include_passwords,
+        password: &password,
+    })
 }

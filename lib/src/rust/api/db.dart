@@ -69,11 +69,10 @@ Future<int> dbFoldersUpdateNameParent({
 /// Composite folder rename / move — Rust resolves the existing
 /// folder by `old_path`, computes the new leaf name + new parent
 /// path, ensures the new parent exists, then updates the row in
-/// one transaction.
-///
-/// Replaces the Dart `SessionStore.renameFolder` + `moveFolder`
-/// two-step (which carried a stale `parent_id` from the row
-/// cache and silently failed to re-parent on cross-tree moves).
+/// one transaction. The single-FRB-call shape keeps the rename +
+/// re-parent atomic — the row's `parent_id` is read freshly inside
+/// the transaction, so a cross-tree move never racing a stale
+/// row-cache value.
 ///
 /// Returns 1 on success, 0 when `old_path` resolves to nothing.
 /// `Err` for cycle moves (folder under its own descendant).
@@ -152,14 +151,12 @@ Future<void> dbSessionsDuplicate({
   nowMs: nowMs,
 );
 
-/// Atomic restore from an undo-history snapshot. Wipes live
-/// sessions + folders, rebuilds the folder tree from session
-/// paths + the bare empty-folder list, re-inserts every session
-/// under the freshly-resolved folder id. One transaction.
-///
-/// Replaces the Dart `SessionStore.restoreSnapshot` orchestration
-/// (delete-all sessions + delete-all folders + N× resolveFolderPath
-/// + N× upsert + M× resolveFolderPath) with a single FRB call.
+/// Atomic restore from an undo-history snapshot. One transaction
+/// covers: wipe live sessions + folders, rebuild the folder tree
+/// from session paths + the bare empty-folder list, re-insert every
+/// session under the freshly-resolved folder id. Single-FRB-call
+/// shape keeps the rebuild + re-insert atomic so a partial restore
+/// can't leave the DB in an inconsistent shape.
 Future<void> dbSessionsRestoreSnapshot({
   required List<DbRestoreSessionInput> sessions,
   required List<String> emptyFolderPaths,
@@ -172,10 +169,10 @@ Future<void> dbSessionsRestoreSnapshot({
 
 /// Composite duplicate — Rust composes label-uniqueness +
 /// folder-path resolution + duplicate-insert in one transaction.
-/// Returns the new session id. Replaces the multi-step Dart
-/// `SessionStore.duplicateSession` orchestration; callers that only
-/// know the source id + a target folder path now pay one FRB call
-/// instead of three.
+/// Returns the new session id. Single FRB call so a caller that
+/// only knows the source id + a target folder path keeps the
+/// whole rename + reparent + insert atomic against concurrent
+/// label collisions.
 Future<String> dbSessionsDuplicateWithPath({
   required String srcId,
   required String targetFolderPath,

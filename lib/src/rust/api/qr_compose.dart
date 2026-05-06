@@ -7,8 +7,6 @@ import '../frb_generated.dart';
 import 'archive.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `require_db`
-
 /// Size of the QR payload (`d=` value) for the current selection,
 /// in bytes (deflated + base64url-encoded). Reads sessions / keys /
 /// tags / snippets straight from the open SQLCipher connection by
