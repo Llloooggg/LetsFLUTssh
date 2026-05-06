@@ -95,8 +95,8 @@ mod tests {
             reg.migrations
                 .iter()
                 .any(|m| m.artefact_id() == "config.json"
-                    && m.from_version() == 1
-                    && m.to_version() == 2),
+                    && m.source_version() == 1
+                    && m.target_version() == 2),
             "ConfigV1ToV2 must be registered so v1 installs migrate \
              to v2 on the next launch",
         );

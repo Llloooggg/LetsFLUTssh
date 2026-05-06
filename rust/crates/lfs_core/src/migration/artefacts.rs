@@ -96,11 +96,11 @@ impl Migration for ConfigV1ToV2 {
         ConfigArtefact::FILE_NAME
     }
 
-    fn from_version(&self) -> i32 {
+    fn source_version(&self) -> i32 {
         1
     }
 
-    fn to_version(&self) -> i32 {
+    fn target_version(&self) -> i32 {
         2
     }
 

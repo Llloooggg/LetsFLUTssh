@@ -125,25 +125,19 @@ pub trait Artefact: Send + Sync {
 /// the original. If `apply` returns `Err` before the rename, the
 /// original file is untouched and the runner records the failure as
 /// a fatal entry.
-//
-// `from_version` reads as a constructor name to clippy's
-// `wrong_self_convention` lint, but here it's the artefact-version
-// getter that the runner pairs with `to_version`. Renaming both
-// makes the registration site harder to scan, so silence the lint.
-#[allow(clippy::wrong_self_convention)]
 pub trait Migration: Send + Sync {
     /// id of the artefact this migration acts on. Must match an
     /// [`Artefact::id`] registered in the registry.
     fn artefact_id(&self) -> &'static str;
 
     /// Version of the artefact this migration expects to read.
-    fn from_version(&self) -> i32;
+    fn source_version(&self) -> i32;
 
     /// Version of the artefact this migration produces.
-    fn to_version(&self) -> i32;
+    fn target_version(&self) -> i32;
 
     /// Run the conversion. Implementations must be atomic — any
-    /// failure must leave the artefact at `from_version` on disk.
+    /// failure must leave the artefact at `source_version` on disk.
     /// Return `Err(message)` on any failure.
     fn apply(&self, support_dir: &Path) -> Result<(), String>;
 }
@@ -325,18 +319,18 @@ fn walk_chain(
             Ok(()) => {
                 steps.push(Step {
                     artefact_id: artefact.id().to_string(),
-                    from_version: step.from_version(),
-                    to_version: step.to_version(),
+                    from_version: step.source_version(),
+                    to_version: step.target_version(),
                     succeeded: true,
                     error: None,
                 });
-                current = step.to_version();
+                current = step.target_version();
             }
             Err(e) => {
                 steps.push(Step {
                     artefact_id: artefact.id().to_string(),
-                    from_version: step.from_version(),
-                    to_version: step.to_version(),
+                    from_version: step.source_version(),
+                    to_version: step.target_version(),
                     succeeded: false,
                     error: Some(e.clone()),
                 });
@@ -353,7 +347,7 @@ fn find_migration<'a>(
     from: i32,
 ) -> Option<&'a dyn Migration> {
     for m in &registry.migrations {
-        if m.artefact_id() == artefact_id && m.from_version() == from {
+        if m.artefact_id() == artefact_id && m.source_version() == from {
             return Some(&**m);
         }
     }
@@ -448,10 +442,10 @@ mod tests {
         fn artefact_id(&self) -> &'static str {
             self.artefact_id
         }
-        fn from_version(&self) -> i32 {
+        fn source_version(&self) -> i32 {
             self.from
         }
-        fn to_version(&self) -> i32 {
+        fn target_version(&self) -> i32 {
             self.to
         }
         fn apply(&self, _: &Path) -> Result<(), String> {
