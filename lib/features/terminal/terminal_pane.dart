@@ -96,7 +96,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   StreamSubscription<ConnectionStep>? _progressSub;
   Map<AppShortcut, VoidCallback>? _shortcuts;
   BroadcastController? _broadcast;
-  VoidCallback? _broadcastUnsubscribe;
 
   /// Whether the terminal pane is in an error state.
   bool get hasError => _error != null;
@@ -270,12 +269,12 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
         controller.broadcastFrom(paneId, Uint8List.fromList(utf8.encode(data)));
       }
     };
-    void onChange() {
-      if (mounted) setState(() {});
-    }
-
-    controller.addListener(onChange);
-    _broadcastUnsubscribe = () => controller.removeListener(onChange);
+    // Driver/receiver flags drive only the bordered Container in build();
+    // the rebuild is scoped via `ListenableBuilder(listenable: controller, …)`
+    // so a flag flip never re-walks the xterm subtree. The previous
+    // `addListener(setState(() {}))` rebuilt the entire pane on every
+    // notify, which churned the xterm view, font metrics, and search bar
+    // for no visual reason.
   }
 
   Future<ShellConnection> _openShell(Connection conn) async {
@@ -340,7 +339,6 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     TerminalScrubber.instance.unregister(_scrubFn);
     _progressSub?.cancel();
     HardwareKeyboard.instance.removeHandler(_onShiftToggle);
-    _broadcastUnsubscribe?.call();
     if (widget.paneId != null) _broadcast?.unregisterSink(widget.paneId!);
     _shellConn?.close();
     _terminalController.dispose();
@@ -390,82 +388,94 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
     if (paneId != null && tabId != null) {
       broadcast = ref.watch(broadcastControllerProvider(tabId));
     }
-    final isDriver = broadcast != null && paneId != null
-        ? broadcast.isDriver(paneId)
-        : false;
-    final isReceiver = broadcast != null && paneId != null
-        ? broadcast.isReceiver(paneId)
-        : false;
-    final borderColor = isDriver || isReceiver ? AppTheme.yellow : null;
-    final borderWidth = isDriver ? 2.5 : 1.5;
+
+    // Resolve the bordered Container's decoration through the
+    // broadcast controller so only the border rebuilds when the
+    // driver/receiver flags flip — the xterm subtree underneath
+    // never re-walks. `paneInner` captures everything below the
+    // decoration so we hand the same widget to either branch.
+    final paneInner = CallbackShortcuts(
+      bindings: AppShortcutRegistry.instance.buildCallbackMap({
+        AppShortcut.terminalSearch: toggleSearch,
+        AppShortcut.terminalCloseSearch: _closeSearch,
+      }),
+      child: Column(
+        children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: _showSearch,
+            builder: (context, show, _) {
+              if (!show) return const SizedBox.shrink();
+              return TerminalSearchBar(
+                terminal: _terminal,
+                terminalController: _terminalController,
+                onClose: _closeSearch,
+              );
+            },
+          ),
+          // Snap the terminal widget's height to an integer number of
+          // cells so xterm's viewport doesn't leave a dead strip at
+          // the bottom — the same trick MobileTerminalView applies.
+          // `kTerminalLineHeight` is the shared 1.2 multiplier xterm's
+          // painter uses internally; mirroring it here gives us a
+          // pre-layout estimate that matches the real measurement
+          // closely enough that xterm settles on `rows * cellHeight`
+          // rendered text with zero trailing gap. The remainder pixels
+          // become a `ColoredBox` painted in the terminal background
+          // so the boundary between the last row and the pane's next
+          // widget (split divider / status) reads as a clean edge.
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
+                final cellHeight = fontSize * kTerminalLineHeight;
+                final usable = constraints.maxHeight - verticalPadding;
+                final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
+                final snappedHeight = rows > 0
+                    ? rows * cellHeight + verticalPadding
+                    : constraints.maxHeight;
+                return Column(
+                  children: [
+                    SizedBox(
+                      height: snappedHeight,
+                      child: _buildTerminalStack(fontSize),
+                    ),
+                    if (snappedHeight < constraints.maxHeight)
+                      Expanded(
+                        child: ColoredBox(color: _terminalTheme.background),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => widget.onFocused?.call(),
-      child: Container(
-        decoration: borderColor == null
-            ? null
-            : BoxDecoration(
-                border: Border.all(color: borderColor, width: borderWidth),
-              ),
-        child: CallbackShortcuts(
-          bindings: AppShortcutRegistry.instance.buildCallbackMap({
-            AppShortcut.terminalSearch: toggleSearch,
-            AppShortcut.terminalCloseSearch: _closeSearch,
-          }),
-          child: Column(
-            children: [
-              ValueListenableBuilder<bool>(
-                valueListenable: _showSearch,
-                builder: (context, show, _) {
-                  if (!show) return const SizedBox.shrink();
-                  return TerminalSearchBar(
-                    terminal: _terminal,
-                    terminalController: _terminalController,
-                    onClose: _closeSearch,
-                  );
-                },
-              ),
-              // Snap the terminal widget's height to an integer number of
-              // cells so xterm's viewport doesn't leave a dead strip at
-              // the bottom — the same trick MobileTerminalView applies.
-              // `kTerminalLineHeight` is the shared 1.2 multiplier xterm's
-              // painter uses internally; mirroring it here gives us a
-              // pre-layout estimate that matches the real measurement
-              // closely enough that xterm settles on `rows * cellHeight`
-              // rendered text with zero trailing gap. The remainder pixels
-              // become a `ColoredBox` painted in the terminal background
-              // so the boundary between the last row and the pane's next
-              // widget (split divider / status) reads as a clean edge.
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
-                    final cellHeight = fontSize * kTerminalLineHeight;
-                    final usable = constraints.maxHeight - verticalPadding;
-                    final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
-                    final snappedHeight = rows > 0
-                        ? rows * cellHeight + verticalPadding
-                        : constraints.maxHeight;
-                    return Column(
-                      children: [
-                        SizedBox(
-                          height: snappedHeight,
-                          child: _buildTerminalStack(fontSize),
-                        ),
-                        if (snappedHeight < constraints.maxHeight)
-                          Expanded(
-                            child: ColoredBox(color: _terminalTheme.background),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: broadcast == null || paneId == null
+          ? paneInner
+          : ListenableBuilder(
+              listenable: broadcast,
+              builder: (context, _) {
+                final ctl = broadcast!;
+                final isDriver = ctl.isDriver(paneId);
+                final isReceiver = ctl.isReceiver(paneId);
+                final borderColor = isDriver || isReceiver
+                    ? AppTheme.yellow
+                    : null;
+                final borderWidth = isDriver ? 2.5 : 1.5;
+                if (borderColor == null) return paneInner;
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: borderColor, width: borderWidth),
+                  ),
+                  child: paneInner,
+                );
+              },
+            ),
     );
   }
 
