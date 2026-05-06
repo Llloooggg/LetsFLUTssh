@@ -147,7 +147,12 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               final connectedCount = summary.connectedTotal;
               final connectingCount = summary.connectingTotal;
               final activeCount = summary.activeTotal;
-              final savedCount = ref.watch(sessionProvider).length;
+              // `.select` — same reason as desktop sidebar footer:
+              // rebuild only when the count changes, not on every
+              // per-row field edit.
+              final savedCount = ref.watch(
+                sessionProvider.select((s) => s.length),
+              );
               final Color? connectionIconColor;
               if (connectedCount > 0) {
                 connectionIconColor = AppTheme.green;

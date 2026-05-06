@@ -34,6 +34,23 @@ final sessionProvider = NotifierProvider<SessionNotifier, List<Session>>(
   SessionNotifier.new,
 );
 
+/// Derived O(1)-by-id session map. Rebuilds whenever
+/// [sessionProvider] mutates; consumers should use
+/// `ref.watch(sessionsByIdProvider.select((m) => m[id]))` so the
+/// dependent widget rebuilds only when *its specific* session
+/// changes — instead of every list-mutation forcing every
+/// `firstWhere`-scanning consumer to rebuild + re-scan O(N).
+///
+/// Replaces the O(N²) pattern where every per-row widget
+/// (`SessionViaBadge`, anything resolving `via_session_id` →
+/// label) ran a fresh `firstWhere` on every parent list
+/// rebuild — at 1000 sessions that's 1 000 000 string compares
+/// per refresh, visible as a sidebar lag.
+final sessionsByIdProvider = Provider<Map<String, Session>>((ref) {
+  final list = ref.watch(sessionProvider);
+  return {for (final s in list) s.id: s};
+});
+
 /// True while the very first [SessionNotifier.load] is in flight and
 /// has not completed yet. The sidebar treats this as "render a blank
 /// placeholder instead of the empty-state" so cold-start doesn't

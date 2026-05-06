@@ -31,14 +31,15 @@ class SessionViaBadge extends ConsumerWidget {
       // user from the parent session's auth.
       label = session.viaOverride!.host;
     } else {
-      final all = ref.watch(sessionProvider);
-      Session? bastion;
-      for (final s in all) {
-        if (s.id == session.viaSessionId) {
-          bastion = s;
-          break;
-        }
-      }
+      // O(1) bastion lookup via the derived `sessionsByIdProvider`
+      // map + `.select` so this badge rebuilds only when its
+      // specific bastion changes (label / host / FK becoming
+      // dangling). Pre-fix shape was an O(N) `firstWhere` per row
+      // on every list rebuild → O(N²) total per parent refresh.
+      final bastionId = session.viaSessionId;
+      final bastion = bastionId == null
+          ? null
+          : ref.watch(sessionsByIdProvider.select((m) => m[bastionId]));
       if (bastion == null) {
         label = '?';
       } else if (bastion.label.isNotEmpty) {

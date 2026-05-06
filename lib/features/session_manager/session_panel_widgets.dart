@@ -275,7 +275,11 @@ class _SidebarFooter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final savedCount = ref.watch(sessionProvider).length;
+    // `.select` so the footer rebuilds only when the count changes,
+    // not on every per-session field edit (label rename, folder
+    // move, etc.) that the full list rebuild would otherwise
+    // trigger.
+    final savedCount = ref.watch(sessionProvider.select((s) => s.length));
     final summary = ref.watch(connectionSummaryProvider);
     final connectedCount = summary.connectedTotal;
     final connectingCount = summary.connectingTotal;
