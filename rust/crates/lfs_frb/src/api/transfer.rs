@@ -133,10 +133,10 @@ pub async fn transfer_enqueue(
         EnqueueRequest {
             id: id.clone(),
             kind: kind.into(),
-            session_id: session_id,
-            remote_path: remote_path,
-            local_path: local_path,
-            bytes_total: bytes_total,
+            session_id,
+            remote_path,
+            local_path,
+            bytes_total,
         },
         &app.bus,
     );
