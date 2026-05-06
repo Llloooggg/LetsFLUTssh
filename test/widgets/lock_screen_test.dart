@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -45,21 +46,30 @@ class _FakeMasterPassword extends MasterPasswordManager {
   final Uint8List keyBytes;
   int unlockAttemptCalls = 0;
 
+  bool _matches(Uint8List password) {
+    final expected = utf8.encode(expectedPassword);
+    if (expected.length != password.length) return false;
+    for (var i = 0; i < expected.length; i++) {
+      if (expected[i] != password[i]) return false;
+    }
+    return true;
+  }
+
   @override
-  Future<TierUnlockAttempt> unlockAttempt(String password) async {
+  Future<TierUnlockAttempt> unlockAttempt(Uint8List password) async {
     unlockAttemptCalls++;
-    return password == expectedPassword
+    return _matches(password)
         ? TierUnlockAttempt.staged
         : TierUnlockAttempt.wrongSecret;
   }
 
   @override
-  Future<Uint8List?> verifyAndDerive(String password) async {
-    return password == expectedPassword ? keyBytes : null;
+  Future<Uint8List?> verifyAndDerive(Uint8List password) async {
+    return _matches(password) ? keyBytes : null;
   }
 
   @override
-  Future<bool> verify(String password) async => password == expectedPassword;
+  Future<bool> verify(Uint8List password) async => _matches(password);
 }
 
 class _NoBiometricVault extends BiometricKeyVault {

@@ -25,7 +25,7 @@ Future<bool> keychainPasswordGateIsConfigured({required String supportDir}) =>
 /// rate-limit state file (best effort).
 Future<void> keychainPasswordGateSetPassword({
   required String supportDir,
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api
     .crateApiKeychainPasswordGateActorKeychainPasswordGateSetPassword(
       supportDir: supportDir,
@@ -50,7 +50,7 @@ Future<void> keychainPasswordGateClear({required String supportDir}) => RustLib
 /// the caller can't recover from.
 Future<bool> keychainPasswordGateVerify({
   required String supportDir,
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api
     .crateApiKeychainPasswordGateActorKeychainPasswordGateVerify(
       supportDir: supportDir,

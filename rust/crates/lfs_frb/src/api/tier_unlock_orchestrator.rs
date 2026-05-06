@@ -84,7 +84,7 @@ pub async fn tier_unlock_keychain() -> DbUnlockOutcome {
 /// dialog interprets `WrongSecret` as "keep open + decrement
 /// rate limiter"; `Staged` triggers dialog close + the
 /// post-unlock listener cascade.
-pub async fn tier_unlock_keychain_with_password(password: String) -> DbUnlockOutcome {
+pub async fn tier_unlock_keychain_with_password(password: Vec<u8>) -> DbUnlockOutcome {
     tier_unlock_orchestrator::unlock_keychain_with_password(password)
         .await
         .into()
@@ -96,7 +96,7 @@ pub async fn tier_unlock_keychain_with_password(password: String) -> DbUnlockOut
 ///
 /// Reads the support dir from the pinned singleton — caller
 /// must have invoked `master_password_init` at app startup.
-pub async fn tier_unlock_paranoid(password: String) -> DbUnlockOutcome {
+pub async fn tier_unlock_paranoid(password: Vec<u8>) -> DbUnlockOutcome {
     tier_unlock_orchestrator::unlock_paranoid(password)
         .await
         .into()
@@ -164,7 +164,7 @@ pub fn tier_first_launch_plaintext() {
 /// (Argon2id + writes `credentials.kdf` + `credentials.verify`),
 /// stages the derived key + emits the cascade. Async — Argon2id
 /// is CPU-heavy and runs on `spawn_blocking`.
-pub async fn tier_first_launch_paranoid(password: String) -> DbUnlockOutcome {
+pub async fn tier_first_launch_paranoid(password: Vec<u8>) -> DbUnlockOutcome {
     tier_unlock_orchestrator::first_launch_paranoid(password)
         .await
         .into()
@@ -186,7 +186,7 @@ pub async fn tier_first_launch_keychain() -> DbUnlockOutcome {
 /// subscriber, stages + emits cascade. On a keychain write
 /// failure the gate is rolled back so a retry sees the
 /// "not configured" state.
-pub async fn tier_first_launch_keychain_with_password(password: String) -> DbUnlockOutcome {
+pub async fn tier_first_launch_keychain_with_password(password: Vec<u8>) -> DbUnlockOutcome {
     tier_unlock_orchestrator::first_launch_keychain_with_password(password)
         .await
         .into()

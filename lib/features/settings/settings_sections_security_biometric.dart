@@ -130,7 +130,8 @@ extension _BiometricFlow on _SecuritySectionState {
     final entered = await _enableBiometricDialogPrompt();
     if (entered == null || !mounted) return _BiometricKeyCapture.cancelled;
     final gate = ref.read(keychainPasswordGateProvider);
-    if (!await gate.verify(entered)) {
+    final passwordBytes = Uint8List.fromList(utf8.encode(entered));
+    if (!await gate.verify(passwordBytes)) {
       if (mounted) {
         Toast.show(
           context,
@@ -150,9 +151,13 @@ extension _BiometricFlow on _SecuritySectionState {
   Future<_BiometricKeyCapture> _captureKeyFromMasterPassword() async {
     final entered = await _enableBiometricDialogPrompt();
     if (entered == null || !mounted) return _BiometricKeyCapture.cancelled;
+    final passwordBytes = Uint8List.fromList(utf8.encode(entered));
     final ok = await ref
         .read(masterPasswordProvider)
-        .verifyAndDeriveToSecret(entered, kBiometricEnableStagingSecretId);
+        .verifyAndDeriveToSecret(
+          passwordBytes,
+          kBiometricEnableStagingSecretId,
+        );
     if (!ok) {
       if (mounted) {
         Toast.show(

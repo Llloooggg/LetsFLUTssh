@@ -8754,7 +8754,7 @@ fn wire__crate__api__keychain_password_gate__keychain_gate_compute_hmac_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_pepper = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_salt = <Vec<u8>>::sse_decode(&mut deserializer);
-            let api_password = <String>::sse_decode(&mut deserializer);
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
@@ -9024,7 +9024,7 @@ fn wire__crate__api__keychain_password_gate_actor__keychain_password_gate_set_pa
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_support_dir = <String>::sse_decode(&mut deserializer);
-let api_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_password = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
                          let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_set_password(api_support_dir, api_password).await?;   Ok(output_ok)
                     })().await)
@@ -9040,7 +9040,7 @@ fn wire__crate__api__keychain_password_gate_actor__keychain_password_gate_verify
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_support_dir = <String>::sse_decode(&mut deserializer);
-let api_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+let api_password = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
                          let output_ok = crate::api::keychain_password_gate_actor::keychain_password_gate_verify(api_support_dir, api_password).await?;   Ok(output_ok)
                     })().await)
@@ -9777,8 +9777,8 @@ fn wire__crate__api__master_password__master_password_change_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_old_password = <String>::sse_decode(&mut deserializer);
-            let api_new_password = <String>::sse_decode(&mut deserializer);
+            let api_old_password = <Vec<u8>>::sse_decode(&mut deserializer);
+            let api_new_password = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_params =
                 <crate::api::master_password::DbKdfParams>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -9850,7 +9850,7 @@ fn wire__crate__api__master_password__master_password_enable_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_params =
                 <crate::api::master_password::DbKdfParams>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -9892,7 +9892,7 @@ fn wire__crate__api__master_password__master_password_enable_to_secret_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_params =
                 <crate::api::master_password::DbKdfParams>::sse_decode(&mut deserializer);
             let api_secret_id = <String>::sse_decode(&mut deserializer);
@@ -10028,7 +10028,7 @@ fn wire__crate__api__master_password__master_password_verify_and_derive_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
@@ -10055,7 +10055,7 @@ fn wire__crate__api__master_password__master_password_verify_and_derive_to_secre
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "master_password_verify_and_derive_to_secret", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
 let api_secret_id = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, String>((move || async move {
                          let output_ok = crate::api::master_password::master_password_verify_and_derive_to_secret(api_password, api_secret_id).await?;   Ok(output_ok)
@@ -15735,7 +15735,7 @@ fn wire__crate__api__tier_unlock_orchestrator__tier_first_launch_keychain_with_p
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "tier_first_launch_keychain_with_password", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, ()>((move || async move {
                          let output_ok = Result::<_,()>::Ok(crate::api::tier_unlock_orchestrator::tier_first_launch_keychain_with_password(api_password).await)?;   Ok(output_ok)
                     })().await)
@@ -15763,7 +15763,7 @@ fn wire__crate__api__tier_unlock_orchestrator__tier_first_launch_paranoid_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, ()>(
@@ -16286,7 +16286,7 @@ fn wire__crate__api__tier_unlock_orchestrator__tier_unlock_keychain_with_passwor
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "tier_unlock_keychain_with_password", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { 
             let message = unsafe { flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_) };
             let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);deserializer.end(); move |context| async move {
                     transform_result_sse::<_, ()>((move || async move {
                          let output_ok = Result::<_,()>::Ok(crate::api::tier_unlock_orchestrator::tier_unlock_keychain_with_password(api_password).await)?;   Ok(output_ok)
                     })().await)
@@ -16346,7 +16346,7 @@ fn wire__crate__api__tier_unlock_orchestrator__tier_unlock_paranoid_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_password = <String>::sse_decode(&mut deserializer);
+            let api_password = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, ()>(

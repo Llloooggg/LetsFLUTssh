@@ -46,7 +46,7 @@ Future<DbUnlockOutcome> tierUnlockKeychain() =>
 /// rate limiter"; `Staged` triggers dialog close + the
 /// post-unlock listener cascade.
 Future<DbUnlockOutcome> tierUnlockKeychainWithPassword({
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierUnlockKeychainWithPassword(
       password: password,
@@ -58,7 +58,7 @@ Future<DbUnlockOutcome> tierUnlockKeychainWithPassword({
 ///
 /// Reads the support dir from the pinned singleton — caller
 /// must have invoked `master_password_init` at app startup.
-Future<DbUnlockOutcome> tierUnlockParanoid({required String password}) =>
+Future<DbUnlockOutcome> tierUnlockParanoid({required List<int> password}) =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockParanoid(
       password: password,
     );
@@ -130,10 +130,10 @@ void tierFirstLaunchPlaintext() => RustLib.instance.api
 /// (Argon2id + writes `credentials.kdf` + `credentials.verify`),
 /// stages the derived key + emits the cascade. Async — Argon2id
 /// is CPU-heavy and runs on `spawn_blocking`.
-Future<DbUnlockOutcome> tierFirstLaunchParanoid({required String password}) =>
-    RustLib.instance.api.crateApiTierUnlockOrchestratorTierFirstLaunchParanoid(
-      password: password,
-    );
+Future<DbUnlockOutcome> tierFirstLaunchParanoid({
+  required List<int> password,
+}) => RustLib.instance.api
+    .crateApiTierUnlockOrchestratorTierFirstLaunchParanoid(password: password);
 
 /// First-launch L1 (Keychain). Generates a fresh AES-GCM key,
 /// publishes a `KeychainOpPromptRequest { Write }` so the Dart
@@ -149,7 +149,7 @@ Future<DbUnlockOutcome> tierFirstLaunchKeychain() => RustLib.instance.api
 /// failure the gate is rolled back so a retry sees the
 /// "not configured" state.
 Future<DbUnlockOutcome> tierFirstLaunchKeychainWithPassword({
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPassword(
       password: password,

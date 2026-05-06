@@ -112,7 +112,7 @@ class MasterPasswordManager {
   /// no cascade — internal verify callers (settings password change
   /// confirmation, tests) need the raw boolean without dragging the
   /// unlock listener into a non-unlock flow.
-  Future<bool> verify(String password) async {
+  Future<bool> verify(Uint8List password) async {
     final derived = await verifyAndDerive(password);
     return derived != null;
   }
@@ -128,7 +128,7 @@ class MasterPasswordManager {
   /// they use [unlockAttempt] which routes through the Paranoid
   /// orchestrator (stages key + emits cascade) so the listener
   /// pattern owns the post-unlock cascade.
-  Future<Uint8List?> verifyAndDerive(String password) async {
+  Future<Uint8List?> verifyAndDerive(Uint8List password) async {
     await _getBasePath();
     try {
       final out = await rust_mp.masterPasswordVerifyAndDerive(
@@ -146,7 +146,10 @@ class MasterPasswordManager {
   /// was correct + bytes landed under [secretId]; false on wrong
   /// password (no SecretStore mutation). Throws
   /// [MasterPasswordException] on tier-not-enabled / file-corrupt.
-  Future<bool> verifyAndDeriveToSecret(String password, String secretId) async {
+  Future<bool> verifyAndDeriveToSecret(
+    Uint8List password,
+    String secretId,
+  ) async {
     await _getBasePath();
     try {
       return await rust_mp.masterPasswordVerifyAndDeriveToSecret(
@@ -172,7 +175,7 @@ class MasterPasswordManager {
   /// cross FRB on the return value (plaintext discipline). The
   /// in-memory rate limiter still gates UI re-attempts; the real
   /// brake against offline brute is the Argon2id wall-clock.
-  Future<TierUnlockAttempt> unlockAttempt(String password) async {
+  Future<TierUnlockAttempt> unlockAttempt(Uint8List password) async {
     if (_rateLimiter.status().isLocked) {
       return TierUnlockAttempt.wrongSecret;
     }
@@ -196,7 +199,7 @@ class MasterPasswordManager {
   ///
   /// The caller is responsible for re-encrypting SessionStore,
   /// KeyStore, and KnownHostsManager with the returned key.
-  Future<Uint8List> enable(String password) async {
+  Future<Uint8List> enable(Uint8List password) async {
     await _getBasePath();
     try {
       final out = await rust_mp.masterPasswordEnable(
@@ -218,7 +221,7 @@ class MasterPasswordManager {
   /// returning the bytes — caller routes the same id through
   /// `dbRekeyFromSecret` / `setFromSecret` so the AES bytes never
   /// touch the Dart heap.
-  Future<void> enableToSecret(String password, String secretId) async {
+  Future<void> enableToSecret(Uint8List password, String secretId) async {
     await _getBasePath();
     try {
       await rust_mp.masterPasswordEnableToSecret(
@@ -243,8 +246,8 @@ class MasterPasswordManager {
   /// 3. Update verifier + `credentials.kdf`
   /// 4. Returns the new key (caller re-encrypts stores)
   Future<Uint8List> changePassword(
-    String oldPassword,
-    String newPassword,
+    Uint8List oldPassword,
+    Uint8List newPassword,
   ) async {
     await _getBasePath();
     try {

@@ -54,10 +54,10 @@ pub fn random_salt_and_pepper() -> (Vec<u8>, Vec<u8>) {
 /// wire change here (key vs. message ordering, salt-prefix vs.
 /// trailing) immediately invalidates every install on disk.
 #[must_use]
-pub fn compute_gate_hmac(pepper: &[u8], salt: &[u8], password: &str) -> Vec<u8> {
+pub fn compute_gate_hmac(pepper: &[u8], salt: &[u8], password: &[u8]) -> Vec<u8> {
     let mut msg = Vec::with_capacity(salt.len() + password.len());
     msg.extend_from_slice(salt);
-    msg.extend_from_slice(password.as_bytes());
+    msg.extend_from_slice(password);
     crate::crypto::hmac_sha256(pepper, &msg)
 }
 
@@ -185,8 +185,8 @@ mod tests {
     fn compute_gate_hmac_is_deterministic() {
         let pepper = vec![0xaau8; PEPPER_LENGTH];
         let salt = vec![0xbbu8; SALT_LENGTH];
-        let a = compute_gate_hmac(&pepper, &salt, "secret");
-        let b = compute_gate_hmac(&pepper, &salt, "secret");
+        let a = compute_gate_hmac(&pepper, &salt, b"secret");
+        let b = compute_gate_hmac(&pepper, &salt, b"secret");
         assert_eq!(a, b);
         assert_eq!(a.len(), 32, "HMAC-SHA-256 always emits 32 bytes");
     }
@@ -195,24 +195,24 @@ mod tests {
     fn compute_gate_hmac_changes_when_password_changes() {
         let pepper = vec![0xaau8; PEPPER_LENGTH];
         let salt = vec![0xbbu8; SALT_LENGTH];
-        let a = compute_gate_hmac(&pepper, &salt, "alpha");
-        let b = compute_gate_hmac(&pepper, &salt, "beta");
+        let a = compute_gate_hmac(&pepper, &salt, b"alpha");
+        let b = compute_gate_hmac(&pepper, &salt, b"beta");
         assert_ne!(a, b);
     }
 
     #[test]
     fn compute_gate_hmac_changes_when_salt_changes() {
         let pepper = [0xaau8; PEPPER_LENGTH];
-        let a = compute_gate_hmac(&pepper, &[0xbbu8; SALT_LENGTH], "x");
-        let b = compute_gate_hmac(&pepper, &[0xccu8; SALT_LENGTH], "x");
+        let a = compute_gate_hmac(&pepper, &[0xbbu8; SALT_LENGTH], b"x");
+        let b = compute_gate_hmac(&pepper, &[0xccu8; SALT_LENGTH], b"x");
         assert_ne!(a, b);
     }
 
     #[test]
     fn compute_gate_hmac_changes_when_pepper_changes() {
         let salt = [0xbbu8; SALT_LENGTH];
-        let a = compute_gate_hmac(&[0xaau8; PEPPER_LENGTH], &salt, "x");
-        let b = compute_gate_hmac(&[0xddu8; PEPPER_LENGTH], &salt, "x");
+        let a = compute_gate_hmac(&[0xaau8; PEPPER_LENGTH], &salt, b"x");
+        let b = compute_gate_hmac(&[0xddu8; PEPPER_LENGTH], &salt, b"x");
         assert_ne!(a, b);
     }
 }

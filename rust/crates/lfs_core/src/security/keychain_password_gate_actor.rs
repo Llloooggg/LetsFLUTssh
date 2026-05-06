@@ -44,7 +44,7 @@ const HASH_FILE_NAME: &str = "security_pass_hash.bin";
 
 /// Verify the L2 password against the on-disk hash + the
 /// keychain pepper. Returns `Ok(true)` on match.
-pub async fn verify_password(support_dir: &Path, password: &str) -> Result<bool, String> {
+pub async fn verify_password(support_dir: &Path, password: &[u8]) -> Result<bool, String> {
     // Step 1: read the disk hash. Missing file = gate not
     // configured = no match (caller still records as a failure
     // for the rate limiter).
@@ -124,7 +124,7 @@ pub async fn is_configured(support_dir: &Path) -> Result<bool, String> {
 /// Also clears the persisted rate-limit state file (best effort
 /// — a filesystem hiccup logs + swallows rather than blocking
 /// the password write).
-pub async fn set_password(support_dir: &Path, password: &str) -> Result<(), String> {
+pub async fn set_password(support_dir: &Path, password: &[u8]) -> Result<(), String> {
     let (salt, pepper) = random_salt_and_pepper();
     let hmac = compute_gate_hmac(&pepper, &salt, password);
     let blob = encode_disk_blob(&salt, &hmac);
@@ -211,7 +211,7 @@ mod tests {
     /// the test stand-in would inject — kept for shape parity
     /// with the prior actor tests even though the post-bus rewrite
     /// no longer surfaces the pepper through a registry.
-    fn setup_gate(dir: &Path, password: &str) -> Vec<u8> {
+    fn setup_gate(dir: &Path, password: &[u8]) -> Vec<u8> {
         let (salt, pepper) = random_salt_and_pepper();
         let hmac = compute_gate_hmac(&pepper, &salt, password);
         let blob = encode_disk_blob(&salt, &hmac);
@@ -222,7 +222,7 @@ mod tests {
     #[tokio::test]
     async fn verify_returns_false_when_hash_file_missing() {
         let dir = TempDir::new().unwrap();
-        let result = verify_password(dir.path(), "anything").await.unwrap();
+        let result = verify_password(dir.path(), b"anything").await.unwrap();
         assert!(!result);
     }
 
@@ -230,7 +230,7 @@ mod tests {
     async fn verify_returns_false_for_corrupt_blob() {
         let dir = TempDir::new().unwrap();
         std::fs::write(dir.path().join(HASH_FILE_NAME), b"not-json").unwrap();
-        let result = verify_password(dir.path(), "anything").await.unwrap();
+        let result = verify_password(dir.path(), b"anything").await.unwrap();
         assert!(!result);
     }
 
@@ -246,8 +246,8 @@ mod tests {
     #[tokio::test]
     async fn verify_returns_false_when_pepper_absent() {
         let dir = TempDir::new().unwrap();
-        let _pepper = setup_gate(dir.path(), "hunter2");
-        let result = verify_password(dir.path(), "hunter2").await.unwrap();
+        let _pepper = setup_gate(dir.path(), b"hunter2");
+        let result = verify_password(dir.path(), b"hunter2").await.unwrap();
         assert!(!result);
     }
 

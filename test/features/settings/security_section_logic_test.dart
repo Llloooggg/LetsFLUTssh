@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -889,7 +890,7 @@ void main() {
   group('applyParanoidTier', () {
     test('happy path: mintSecretId → enable → rekey → clearPlan', () async {
       final calls = <String>[];
-      String? enabledWith;
+      Uint8List? enabledWith;
       String? capturedSecretId;
       await applyParanoidTier(
         masterPassword: 'master-pw',
@@ -911,7 +912,7 @@ void main() {
           calls.add('clearPlan($target)');
         },
       );
-      expect(enabledWith, 'master-pw');
+      expect(utf8.decode(enabledWith!), 'master-pw');
       expect(capturedSecretId, 'fake-master-id');
       expect(calls, [
         'mint',
@@ -985,7 +986,9 @@ void main() {
           shortPassword: short,
           modifiers: const SecurityTierModifiers(password: true),
           gateSetPassword: (pw) async {
-            calls.add('gate.set($pw)');
+            // Decode for the assertion log so the test still reads
+            // human-friendly; the FRB call sees the bytes directly.
+            calls.add('gate.set(${utf8.decode(pw)})');
           },
           gateClear: () async {
             calls.add('gate.clear');

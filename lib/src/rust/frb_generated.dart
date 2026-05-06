@@ -1008,7 +1008,7 @@ abstract class RustLibApi extends BaseApi {
   Uint8List crateApiKeychainPasswordGateKeychainGateComputeHmac({
     required List<int> pepper,
     required List<int> salt,
-    required String password,
+    required List<int> password,
   });
 
   DbKeychainGateBlob crateApiKeychainPasswordGateKeychainGateDecodeBlob({
@@ -1040,12 +1040,12 @@ abstract class RustLibApi extends BaseApi {
   Future<void>
   crateApiKeychainPasswordGateActorKeychainPasswordGateSetPassword({
     required String supportDir,
-    required String password,
+    required List<int> password,
   });
 
   Future<bool> crateApiKeychainPasswordGateActorKeychainPasswordGateVerify({
     required String supportDir,
-    required String password,
+    required List<int> password,
   });
 
   void crateApiCapabilitiesOrchestratorKeychainProbePromptCancel({
@@ -1116,20 +1116,20 @@ abstract class RustLibApi extends BaseApi {
   bool crateApiLogSanitizeLooksSensitive({required String text});
 
   Future<Uint8List> crateApiMasterPasswordMasterPasswordChange({
-    required String oldPassword,
-    required String newPassword,
+    required List<int> oldPassword,
+    required List<int> newPassword,
     required DbKdfParams params,
   });
 
   void crateApiMasterPasswordMasterPasswordDisable();
 
   Future<Uint8List> crateApiMasterPasswordMasterPasswordEnable({
-    required String password,
+    required List<int> password,
     required DbKdfParams params,
   });
 
   Future<void> crateApiMasterPasswordMasterPasswordEnableToSecret({
-    required String password,
+    required List<int> password,
     required DbKdfParams params,
     required String secretId,
   });
@@ -1141,11 +1141,11 @@ abstract class RustLibApi extends BaseApi {
   void crateApiMasterPasswordMasterPasswordReset();
 
   Future<Uint8List?> crateApiMasterPasswordMasterPasswordVerifyAndDerive({
-    required String password,
+    required List<int> password,
   });
 
   Future<bool> crateApiMasterPasswordMasterPasswordVerifyAndDeriveToSecret({
-    required String password,
+    required List<int> password,
     required String secretId,
   });
 
@@ -1817,12 +1817,12 @@ abstract class RustLibApi extends BaseApi {
 
   Future<DbUnlockOutcome>
   crateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPassword({
-    required String password,
+    required List<int> password,
   });
 
   Future<DbUnlockOutcome>
   crateApiTierUnlockOrchestratorTierFirstLaunchParanoid({
-    required String password,
+    required List<int> password,
   });
 
   void crateApiTierUnlockOrchestratorTierFirstLaunchPlaintext();
@@ -1874,13 +1874,13 @@ abstract class RustLibApi extends BaseApi {
 
   Future<DbUnlockOutcome>
   crateApiTierUnlockOrchestratorTierUnlockKeychainWithPassword({
-    required String password,
+    required List<int> password,
   });
 
   void crateApiTierUnlockOrchestratorTierUnlockKeychainWithPasswordCancel();
 
   Future<DbUnlockOutcome> crateApiTierUnlockOrchestratorTierUnlockParanoid({
-    required String password,
+    required List<int> password,
   });
 
   void crateApiTierUnlockOrchestratorTierUnlockParanoidCancel();
@@ -9307,7 +9307,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List crateApiKeychainPasswordGateKeychainGateComputeHmac({
     required List<int> pepper,
     required List<int> salt,
-    required String password,
+    required List<int> password,
   }) {
     return handler.executeSync(
       SyncTask(
@@ -9315,7 +9315,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_list_prim_u_8_loose(pepper, serializer);
           sse_encode_list_prim_u_8_loose(salt, serializer);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -9603,14 +9603,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<void>
   crateApiKeychainPasswordGateActorKeychainPasswordGateSetPassword({
     required String supportDir,
-    required String password,
+    required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(supportDir, serializer);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -9640,14 +9640,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<bool> crateApiKeychainPasswordGateActorKeychainPasswordGateVerify({
     required String supportDir,
-    required String password,
+    required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(supportDir, serializer);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -10303,16 +10303,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<Uint8List> crateApiMasterPasswordMasterPasswordChange({
-    required String oldPassword,
-    required String newPassword,
+    required List<int> oldPassword,
+    required List<int> newPassword,
     required DbKdfParams params,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(oldPassword, serializer);
-          sse_encode_String(newPassword, serializer);
+          sse_encode_list_prim_u_8_loose(oldPassword, serializer);
+          sse_encode_list_prim_u_8_loose(newPassword, serializer);
           sse_encode_box_autoadd_db_kdf_params(params, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -10366,14 +10366,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<Uint8List> crateApiMasterPasswordMasterPasswordEnable({
-    required String password,
+    required List<int> password,
     required DbKdfParams params,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           sse_encode_box_autoadd_db_kdf_params(params, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -10401,7 +10401,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<void> crateApiMasterPasswordMasterPasswordEnableToSecret({
-    required String password,
+    required List<int> password,
     required DbKdfParams params,
     required String secretId,
   }) {
@@ -10409,7 +10409,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           sse_encode_box_autoadd_db_kdf_params(params, serializer);
           sse_encode_String(secretId, serializer);
           pdeCallFfi(
@@ -10526,13 +10526,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<Uint8List?> crateApiMasterPasswordMasterPasswordVerifyAndDerive({
-    required String password,
+    required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -10561,14 +10561,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<bool> crateApiMasterPasswordMasterPasswordVerifyAndDeriveToSecret({
-    required String password,
+    required List<int> password,
     required String secretId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           sse_encode_String(secretId, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -15955,13 +15955,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<DbUnlockOutcome>
   crateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPassword({
-    required String password,
+    required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -15991,13 +15991,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<DbUnlockOutcome>
   crateApiTierUnlockOrchestratorTierFirstLaunchParanoid({
-    required String password,
+    required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -16499,13 +16499,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<DbUnlockOutcome>
   crateApiTierUnlockOrchestratorTierUnlockKeychainWithPassword({
-    required String password,
+    required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -16565,13 +16565,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<DbUnlockOutcome> crateApiTierUnlockOrchestratorTierUnlockParanoid({
-    required String password,
+    required List<int> password,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(password, serializer);
+          sse_encode_list_prim_u_8_loose(password, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,

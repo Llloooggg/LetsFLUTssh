@@ -192,7 +192,7 @@ pub async fn unlock_keychain() -> UnlockOutcome {
 /// must have invoked `master_password_init` at app startup
 /// (the L2 gate shares the same support-dir pin since both
 /// store on-disk state under the same root).
-pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
+pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     instance_dispatch(
         SecurityTier::KeychainWithPassword,
         &TierEvent::UnlockRequested,
@@ -302,7 +302,7 @@ pub async fn unlock_keychain_with_password(password: String) -> UnlockOutcome {
 /// `password` crosses FRB once on the way in; the key bytes
 /// cross once on the way out for the Dart caller to hand to
 /// drift.
-pub async fn unlock_paranoid(password: String) -> UnlockOutcome {
+pub async fn unlock_paranoid(password: Vec<u8>) -> UnlockOutcome {
     instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockRequested);
 
     // In-memory rate-limit gate. Argon2id at production params
@@ -473,7 +473,7 @@ pub fn first_launch_plaintext() {
 /// First-launch Paranoid. Runs `master_password::enable` (Argon2id +
 /// writes `credentials.kdf` + `credentials.verify` atomically) then
 /// stages the derived key + emits the cascade.
-pub async fn first_launch_paranoid(password: String) -> UnlockOutcome {
+pub async fn first_launch_paranoid(password: Vec<u8>) -> UnlockOutcome {
     instance_dispatch(SecurityTier::Paranoid, &TierEvent::UnlockRequested);
     let result = tokio::task::spawn_blocking(move || {
         let path = crate::security::master_password::pinned_support_dir();
@@ -538,7 +538,7 @@ pub async fn first_launch_keychain() -> UnlockOutcome {
 /// (Rust-side actor writes the salt + verifier files), generates a
 /// random key, writes it to the OS keychain via the Dart
 /// subscriber, stages the bytes + emits the cascade.
-pub async fn first_launch_keychain_with_password(password: String) -> UnlockOutcome {
+pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     instance_dispatch(
         SecurityTier::KeychainWithPassword,
         &TierEvent::UnlockRequested,

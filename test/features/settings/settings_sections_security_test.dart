@@ -44,7 +44,7 @@ class _MockMasterPasswordManager extends MasterPasswordManager {
     : super(basePath: basePath);
 
   @override
-  Future<Uint8List> enable(String password) async {
+  Future<Uint8List> enable(Uint8List password) async {
     _enabled = true;
     return Uint8List.fromList(List.generate(32, (i) => i));
   }
@@ -53,7 +53,7 @@ class _MockMasterPasswordManager extends MasterPasswordManager {
   Future<bool> isEnabled() async => _enabled;
 
   @override
-  Future<bool> verify(String password) async => true;
+  Future<bool> verify(Uint8List password) async => true;
 }
 
 void main() {

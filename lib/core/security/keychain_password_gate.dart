@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show AnyhowException;
@@ -72,7 +73,7 @@ class KeychainPasswordGate {
   /// tamper branch and throw the user into the worst-case 60-second
   /// cooldown on first launch. Wiping the state here aligns the
   /// counter with the new password.
-  Future<void> setPassword(String password) async {
+  Future<void> setPassword(Uint8List password) async {
     final file = await _hashFile();
     await file.parent.create(recursive: true);
     await rust_actor.keychainPasswordGateSetPassword(
@@ -89,7 +90,7 @@ class KeychainPasswordGate {
   /// Routes through `lfs_core::security::keychain_password_gate_actor::
   /// verify_password` (FRB async) — the disk-blob read +
   /// Decision-1 prompt round-trip + HMAC compare live in Rust.
-  Future<bool> verify(String password) async {
+  Future<bool> verify(Uint8List password) async {
     final file = await _hashFile();
     return rust_actor.keychainPasswordGateVerify(
       supportDir: file.parent.path,

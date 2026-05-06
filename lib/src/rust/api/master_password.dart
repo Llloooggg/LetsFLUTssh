@@ -58,7 +58,7 @@ DbKdfParams kdfParamsDecode({required List<int> bytes}) =>
 /// atomic write of the KDF record + verifier files. Returns the
 /// derived key — the caller re-encrypts the SQLCipher store with it.
 Future<Uint8List> masterPasswordEnable({
-  required String password,
+  required List<int> password,
   required DbKdfParams params,
 }) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordEnable(
   password: password,
@@ -75,7 +75,7 @@ Future<Uint8List> masterPasswordEnable({
 /// Idempotent on `secret_id` collision: replaces any prior value at
 /// the same id (the previous `Zeroizing` buffer scrubs on drop).
 Future<void> masterPasswordEnableToSecret({
-  required String password,
+  required List<int> password,
   required DbKdfParams params,
   required String secretId,
 }) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordEnableToSecret(
@@ -89,8 +89,8 @@ Future<void> masterPasswordEnableToSecret({
 /// wrong old password — the Dart `MasterPasswordException` wrapper
 /// surfaces it to the change-password dialog.
 Future<Uint8List> masterPasswordChange({
-  required String oldPassword,
-  required String newPassword,
+  required List<int> oldPassword,
+  required List<int> newPassword,
   required DbKdfParams params,
 }) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordChange(
   oldPassword: oldPassword,
@@ -113,10 +113,11 @@ void masterPasswordReset() =>
 /// Single-KDF unlock: derive the key, decrypt-and-match the verifier,
 /// return `Some(key)` on success or `None` on a wrong password.
 /// `Err` is reserved for "the tier is not enabled" / "files corrupt".
-Future<Uint8List?> masterPasswordVerifyAndDerive({required String password}) =>
-    RustLib.instance.api.crateApiMasterPasswordMasterPasswordVerifyAndDerive(
-      password: password,
-    );
+Future<Uint8List?> masterPasswordVerifyAndDerive({
+  required List<int> password,
+}) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordVerifyAndDerive(
+  password: password,
+);
 
 /// SecretRef variant of [`master_password_verify_and_derive`].
 /// Stages the derived key directly into
@@ -127,7 +128,7 @@ Future<Uint8List?> masterPasswordVerifyAndDerive({required String password}) =>
 /// * `Ok(false)` on wrong password (no SecretStore mutation).
 /// * `Err(_)` for "tier not enabled" / "files corrupt".
 Future<bool> masterPasswordVerifyAndDeriveToSecret({
-  required String password,
+  required List<int> password,
   required String secretId,
 }) => RustLib.instance.api
     .crateApiMasterPasswordMasterPasswordVerifyAndDeriveToSecret(

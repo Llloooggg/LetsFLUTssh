@@ -28,7 +28,7 @@ pub async fn keychain_password_gate_is_configured(support_dir: String) -> Result
 /// rate-limit state file (best effort).
 pub async fn keychain_password_gate_set_password(
     support_dir: String,
-    password: String,
+    password: Vec<u8>,
 ) -> Result<(), String> {
     actor::set_password(Path::new(&support_dir), &password).await
 }
@@ -48,7 +48,7 @@ pub async fn keychain_password_gate_clear(support_dir: String) -> Result<(), Str
 /// the caller can't recover from.
 pub async fn keychain_password_gate_verify(
     support_dir: String,
-    password: String,
+    password: Vec<u8>,
 ) -> Result<bool, String> {
     actor::verify_password(Path::new(&support_dir), &password).await
 }

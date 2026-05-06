@@ -495,7 +495,7 @@ Future<void> applyParanoidTier({
   required String? masterPassword,
   required SecurityTierModifiers modifiers,
   required String Function() mintSecretId,
-  required Future<void> Function(String pw, String secretId)
+  required Future<void> Function(Uint8List pw, String secretId)
   masterEnableToSecret,
   required Future<void> Function(
     String secretId,
@@ -509,9 +509,14 @@ Future<void> applyParanoidTier({
   if (masterPassword == null || masterPassword.isEmpty) {
     throw StateError('master password missing');
   }
+  // Convert here so the caller's `masterEnableToSecret` seam — which
+  // drops straight onto the FRB `Vec<u8>` boundary — never sees the
+  // typed `String`. The Dart `String` becomes GC-eligible the moment
+  // this function returns.
+  final passwordBytes = Uint8List.fromList(utf8.encode(masterPassword));
   final secretId = mintSecretId();
   try {
-    await masterEnableToSecret(masterPassword, secretId);
+    await masterEnableToSecret(passwordBytes, secretId);
   } catch (_) {
     dropStaged(secretId);
     rethrow;
@@ -536,7 +541,7 @@ Future<void> applyParanoidTier({
 Future<void> applyKeychainWithPasswordTier({
   required String? shortPassword,
   required SecurityTierModifiers modifiers,
-  required Future<void> Function(String pw) gateSetPassword,
+  required Future<void> Function(Uint8List pw) gateSetPassword,
   required Future<void> Function() gateClear,
   required String Function() stageRandomKey,
   required Future<bool> Function(String secretId) keychainWriteFromSecret,
@@ -552,7 +557,10 @@ Future<void> applyKeychainWithPasswordTier({
   if (shortPassword == null || shortPassword.isEmpty) {
     throw StateError('short password missing');
   }
-  await gateSetPassword(shortPassword);
+  // Convert here so the gate seam — which lands on the FRB
+  // `Vec<u8>` boundary — never sees the typed `String`.
+  final passwordBytes = Uint8List.fromList(utf8.encode(shortPassword));
+  await gateSetPassword(passwordBytes);
   final secretId = stageRandomKey();
   final stored = await keychainWriteFromSecret(secretId);
   if (!stored) {
@@ -609,17 +617,20 @@ Future<ConfirmPasswordResult> confirmCurrentPasswordIfDropping({
   required SecurityTier currentTier,
   required SecurityTier targetTier,
   required Future<String?> Function() promptCurrentPassword,
-  required Future<bool> Function(String) verifyMaster,
-  required Future<bool> Function(String) verifyKeychainGate,
+  required Future<bool> Function(Uint8List) verifyMaster,
+  required Future<bool> Function(Uint8List) verifyKeychainGate,
 }) async {
   if (!isVerifiablePasswordDrop(currentTier, targetTier)) {
     return ConfirmPasswordResult.notRequired;
   }
   final entered = await promptCurrentPassword();
   if (entered == null) return ConfirmPasswordResult.cancelled;
+  // Convert here so the verify seams marshal `Uint8List` over FRB —
+  // the typed `String` from the dialog stays in this scope only.
+  final enteredBytes = Uint8List.fromList(utf8.encode(entered));
   final ok = switch (passwordVerifierKindFor(currentTier)) {
-    PasswordVerifierKind.masterPassword => await verifyMaster(entered),
-    PasswordVerifierKind.keychainGate => await verifyKeychainGate(entered),
+    PasswordVerifierKind.masterPassword => await verifyMaster(enteredBytes),
+    PasswordVerifierKind.keychainGate => await verifyKeychainGate(enteredBytes),
   };
   return ok ? ConfirmPasswordResult.ok : ConfirmPasswordResult.wrongPassword;
 }

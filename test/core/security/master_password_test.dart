@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,6 +11,11 @@ import 'package:letsflutssh/core/security/tier_unlock_attempt.dart';
 import 'package:letsflutssh/src/rust/api/master_password.dart' as rust_mp;
 
 import '../../helpers/frb_bootstrap.dart';
+
+/// Test helper — UTF-8-encode a String into the `Uint8List` shape
+/// every `MasterPasswordManager` method now takes after the
+/// password-marshalling SecretRef arc.
+Uint8List _b(String s) => Uint8List.fromList(utf8.encode(s));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -60,12 +67,12 @@ void main() {
     });
 
     test('flips to true after enable', () async {
-      await mp.enable('correcthorse');
+      await mp.enable(_b('correcthorse'));
       expect(await mp.isEnabled(), isTrue);
     });
 
     test('flips back to false after disable', () async {
-      await mp.enable('correcthorse');
+      await mp.enable(_b('correcthorse'));
       await mp.disable();
       expect(await mp.isEnabled(), isFalse);
     });
@@ -73,26 +80,26 @@ void main() {
 
   group('enable', () {
     test('returns a 32-byte derived DB key', () async {
-      final key = await mp.enable('correcthorse');
+      final key = await mp.enable(_b('correcthorse'));
       expect(key.length, 32);
     });
 
     test('writes credentials.kdf so isEnabled reports true', () async {
-      await mp.enable('correcthorse');
+      await mp.enable(_b('correcthorse'));
       expect(File('${tmp.path}/credentials.kdf').existsSync(), isTrue);
     });
 
     test('re-enable overwrites the verifier with a new password', () async {
-      final firstKey = await mp.enable('correcthorse');
+      final firstKey = await mp.enable(_b('correcthorse'));
       // Rust shim allows enable to re-run — useful for the "user
       // changed their mind during first-launch wizard" path.
-      final secondKey = await mp.enable('different-password');
+      final secondKey = await mp.enable(_b('different-password'));
       expect(secondKey.length, 32);
       // New salt → new key bytes (overwhelmingly likely).
       expect(secondKey, isNot(equals(firstKey)));
       // The original password stops working.
-      expect(await mp.verify('correcthorse'), isFalse);
-      expect(await mp.verify('different-password'), isTrue);
+      expect(await mp.verify(_b('correcthorse')), isFalse);
+      expect(await mp.verify(_b('different-password')), isTrue);
     });
   });
 
@@ -100,9 +107,9 @@ void main() {
     test(
       'returns true / non-null derived key for the right password',
       () async {
-        final enableKey = await mp.enable('correcthorse');
-        expect(await mp.verify('correcthorse'), isTrue);
-        final derived = await mp.verifyAndDerive('correcthorse');
+        final enableKey = await mp.enable(_b('correcthorse'));
+        expect(await mp.verify(_b('correcthorse')), isTrue);
+        final derived = await mp.verifyAndDerive(_b('correcthorse'));
         expect(derived, isNotNull);
         expect(derived!.length, 32);
         // Same password → same derived key (Argon2id is deterministic
@@ -112,44 +119,47 @@ void main() {
     );
 
     test('returns false / null for the wrong password', () async {
-      await mp.enable('correcthorse');
-      expect(await mp.verify('wrongpass'), isFalse);
-      expect(await mp.verifyAndDerive('wrongpass'), isNull);
+      await mp.enable(_b('correcthorse'));
+      expect(await mp.verify(_b('wrongpass')), isFalse);
+      expect(await mp.verifyAndDerive(_b('wrongpass')), isNull);
     });
 
     test('verifyAndDerive on a never-enabled vault throws', () async {
       // Rust raises "Master password is not enabled" when no KDF
       // file is present. The unlock UI keys off `isEnabled` first
       // and never reaches `verifyAndDerive` in that state.
-      expect(() => mp.verifyAndDerive('anything'), throwsA(anything));
+      expect(() => mp.verifyAndDerive(_b('anything')), throwsA(anything));
     });
   });
 
   group('changePassword', () {
     test('returns a fresh 32-byte key + verifies new password', () async {
-      final originalKey = await mp.enable('old');
-      final newKey = await mp.changePassword('old', 'new');
+      final originalKey = await mp.enable(_b('old'));
+      final newKey = await mp.changePassword(_b('old'), _b('new'));
 
       expect(newKey.length, 32);
       // Salt rotates on changePassword → new key bytes differ from
       // the original (overwhelmingly likely; salt is OsRng-fresh).
       expect(newKey, isNot(equals(originalKey)));
-      expect(await mp.verify('new'), isTrue);
+      expect(await mp.verify(_b('new')), isTrue);
     });
 
     test('throws on wrong old password', () async {
-      await mp.enable('old');
+      await mp.enable(_b('old'));
       // Rust surfaces the wrong-old failure as a typed FRB error
       // (not the AnyhowException the Dart wrapper rebrands), so the
       // assertion accepts any throw — the contract callers care
       // about is "operation fails", not the specific type.
-      expect(() => mp.changePassword('wrong-old', 'new'), throwsA(anything));
+      expect(
+        () => mp.changePassword(_b('wrong-old'), _b('new')),
+        throwsA(anything),
+      );
     });
   });
 
   group('disable', () {
     test('flips isEnabled back to false', () async {
-      await mp.enable('old');
+      await mp.enable(_b('old'));
       expect(await mp.isEnabled(), isTrue);
       await mp.disable();
       expect(await mp.isEnabled(), isFalse);
@@ -161,7 +171,7 @@ void main() {
 
   group('reset', () {
     test('flips isEnabled back to false', () async {
-      await mp.enable('correcthorse');
+      await mp.enable(_b('correcthorse'));
       await mp.reset();
       expect(await mp.isEnabled(), isFalse);
     });
@@ -176,9 +186,9 @@ void main() {
         basePath: tmp.path,
         rateLimiter: limiter,
       );
-      await mp2.enable('p');
+      await mp2.enable(_b('p'));
       // Limiter is "locked" → unlockAttempt short-circuits.
-      final outcome = await mp2.unlockAttempt('p');
+      final outcome = await mp2.unlockAttempt(_b('p'));
       expect(outcome, TierUnlockAttempt.wrongSecret);
       // The orchestrator wasn't called — recordSuccess / recordFailure
       // weren't invoked.

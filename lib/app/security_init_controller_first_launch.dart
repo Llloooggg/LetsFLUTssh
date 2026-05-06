@@ -159,12 +159,16 @@ extension _FirstLaunchFlows on SecurityInitController {
       await _injectDatabase();
       return;
     }
+    // Convert the typed master password to UTF-8 bytes once at the
+    // boundary so every FRB call below marshals `Vec<u8>`; the typed
+    // String stays in this scope only.
+    final passwordBytes = Uint8List.fromList(utf8.encode(password));
     final ok = await _runFirstLaunchOrchestrator(
       tier: SecurityTier.paranoid,
       modifiers: result.modifiers,
       dispatch: () async {
         final outcome = await rust_orch.tierFirstLaunchParanoid(
-          password: password,
+          password: passwordBytes,
         );
         return outcome is rust_orch.DbUnlockOutcome_Staged;
       },
@@ -180,7 +184,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     // SecretRef-aware manager.enableToSecret path so the derived
     // key never lands on the Dart heap.
     final secretId = _firstLaunchKeySecretId('paranoid');
-    await manager.enableToSecret(password, secretId);
+    await manager.enableToSecret(passwordBytes, secretId);
     await _injectDatabase(
       secretId: secretId,
       level: SecurityTier.paranoid,
@@ -381,12 +385,15 @@ extension _FirstLaunchFlows on SecurityInitController {
       await _injectDatabase();
       return;
     }
+    // Convert once so each FRB hop marshals `Vec<u8>`; the typed
+    // String stays scoped to this function.
+    final passwordBytes = Uint8List.fromList(utf8.encode(shortPassword));
     final ok = await _runFirstLaunchOrchestrator(
       tier: SecurityTier.keychainWithPassword,
       modifiers: modifiers,
       dispatch: () async {
         final outcome = await rust_orch.tierFirstLaunchKeychainWithPassword(
-          password: shortPassword,
+          password: passwordBytes,
         );
         return outcome is rust_orch.DbUnlockOutcome_Staged;
       },
@@ -402,7 +409,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     // pure-Dart pipeline so flutter_test contexts still resolve.
     // SecretRef path: bytes never on Dart heap.
     final gate = ref.read(keychainPasswordGateProvider);
-    await gate.setPassword(shortPassword);
+    await gate.setPassword(passwordBytes);
     final secretId = _firstLaunchKeySecretId('keychain.password');
     rust_crypto.cryptoAesGcmRandomKeyToSecret(id: secretId);
     final stored = await keyStorage.writeKeyFromSecret(secretId);

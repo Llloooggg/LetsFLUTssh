@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert' show utf8;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -123,7 +125,9 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     // takes the bytes and runs the post-unlock injection. The
     // in-memory rate limiter still gates UI re-attempts (real brake
     // against offline brute remains Argon2id wall-clock).
-    final attempt = await widget.manager.unlockAttempt(password);
+    final attempt = await widget.manager.unlockAttempt(
+      Uint8List.fromList(utf8.encode(password)),
+    );
 
     if (!mounted) return;
 

@@ -223,8 +223,12 @@ extension _UnlockFlows on SecurityInitController {
         // caller routes through the plaintext fallback in
         // `_unlockKeychainWithPassword`.
         try {
+          // Convert to UTF-8 bytes inside the verify closure so the
+          // password marshals as `Vec<u8>` over FRB; the Dart String
+          // is GC-eligible the moment the closure returns.
+          final passwordBytes = Uint8List.fromList(utf8.encode(password));
           final outcome = await rust_orch.tierUnlockKeychainWithPassword(
-            password: password,
+            password: passwordBytes,
           );
           return mapUnlockOutcome(outcome);
         } catch (e) {

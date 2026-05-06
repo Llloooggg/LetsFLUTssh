@@ -230,7 +230,7 @@ pub fn is_enabled(support_dir: &Path) -> bool {
 /// KnownHostsManager with this key.
 pub fn enable(
     support_dir: &Path,
-    password: &str,
+    password: &[u8],
     params: &KdfParams,
 ) -> Result<Zeroizing<Vec<u8>>, String> {
     let mut salt = [0u8; SALT_LENGTH];
@@ -248,8 +248,8 @@ pub fn enable(
 /// replaces both files. Returns the new derived key.
 pub fn change_password(
     support_dir: &Path,
-    old_password: &str,
-    new_password: &str,
+    old_password: &[u8],
+    new_password: &[u8],
     params: &KdfParams,
 ) -> Result<Zeroizing<Vec<u8>>, String> {
     if verify_and_derive(support_dir, old_password)?.is_none() {
@@ -289,7 +289,7 @@ pub fn reset(support_dir: &Path) -> Result<(), String> {
 /// needs a key to encrypt new data and already trusts the password.
 pub fn derive_key_from_disk(
     support_dir: &Path,
-    password: &str,
+    password: &[u8],
 ) -> Result<Zeroizing<Vec<u8>>, String> {
     let record = read_kdf_record(support_dir)?;
     derive_key(password, &record.salt, &record.params)
@@ -302,7 +302,7 @@ pub fn derive_key_from_disk(
 /// ran KDF inside both `verify` and `deriveKey`.
 pub fn verify_and_derive(
     support_dir: &Path,
-    password: &str,
+    password: &[u8],
 ) -> Result<Option<Zeroizing<Vec<u8>>>, String> {
     let record = read_kdf_record(support_dir)?;
     let verifier_path = support_dir.join(VERIFIER_FILE_NAME);
@@ -326,12 +326,12 @@ fn read_kdf_record(support_dir: &Path) -> Result<KdfRecord, String> {
 }
 
 fn derive_key(
-    password: &str,
+    password: &[u8],
     salt: &[u8],
     params: &KdfParams,
 ) -> Result<Zeroizing<Vec<u8>>, String> {
     crypto::argon2id_derive(
-        password.as_bytes(),
+        password,
         salt,
         params.memory_kib,
         params.iterations,
@@ -422,17 +422,17 @@ mod tests {
     fn enable_persists_and_verify_round_trips() {
         let dir = TempDir::new().unwrap();
         let params = fast_params();
-        let key = enable(dir.path(), "secret", &params).unwrap();
+        let key = enable(dir.path(), b"secret", &params).unwrap();
         assert!(is_enabled(dir.path()));
-        let got = verify_and_derive(dir.path(), "secret").unwrap().unwrap();
+        let got = verify_and_derive(dir.path(), b"secret").unwrap().unwrap();
         assert_eq!(got, key);
     }
 
     #[test]
     fn verify_returns_none_on_wrong_password() {
         let dir = TempDir::new().unwrap();
-        enable(dir.path(), "right", &fast_params()).unwrap();
-        let got = verify_and_derive(dir.path(), "wrong").unwrap();
+        enable(dir.path(), b"right", &fast_params()).unwrap();
+        let got = verify_and_derive(dir.path(), b"wrong").unwrap();
         assert!(got.is_none());
     }
 
@@ -440,25 +440,25 @@ mod tests {
     fn change_password_rotates_and_old_stops_working() {
         let dir = TempDir::new().unwrap();
         let params = fast_params();
-        enable(dir.path(), "v1", &params).unwrap();
-        let new_key = change_password(dir.path(), "v1", "v2", &params).unwrap();
-        assert!(verify_and_derive(dir.path(), "v1").unwrap().is_none());
-        let again = verify_and_derive(dir.path(), "v2").unwrap().unwrap();
+        enable(dir.path(), b"v1", &params).unwrap();
+        let new_key = change_password(dir.path(), b"v1", b"v2", &params).unwrap();
+        assert!(verify_and_derive(dir.path(), b"v1").unwrap().is_none());
+        let again = verify_and_derive(dir.path(), b"v2").unwrap().unwrap();
         assert_eq!(again, new_key);
     }
 
     #[test]
     fn change_password_rejects_wrong_old() {
         let dir = TempDir::new().unwrap();
-        enable(dir.path(), "right", &fast_params()).unwrap();
-        let err = change_password(dir.path(), "wrong", "new", &fast_params()).unwrap_err();
+        enable(dir.path(), b"right", &fast_params()).unwrap();
+        let err = change_password(dir.path(), b"wrong", b"new", &fast_params()).unwrap_err();
         assert!(err.contains("incorrect"));
     }
 
     #[test]
     fn disable_drops_kdf_and_verifier_only() {
         let dir = TempDir::new().unwrap();
-        enable(dir.path(), "x", &fast_params()).unwrap();
+        enable(dir.path(), b"x", &fast_params()).unwrap();
         std::fs::write(dir.path().join(KEY_FILE_NAME), b"keep").unwrap();
         disable(dir.path()).unwrap();
         assert!(!dir.path().join(KDF_FILE_NAME).exists());
@@ -469,7 +469,7 @@ mod tests {
     #[test]
     fn reset_drops_everything() {
         let dir = TempDir::new().unwrap();
-        enable(dir.path(), "x", &fast_params()).unwrap();
+        enable(dir.path(), b"x", &fast_params()).unwrap();
         std::fs::write(dir.path().join(KEY_FILE_NAME), b"to-go").unwrap();
         reset(dir.path()).unwrap();
         assert!(!dir.path().join(KDF_FILE_NAME).exists());
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn verify_and_derive_errors_when_disabled() {
         let dir = TempDir::new().unwrap();
-        let err = verify_and_derive(dir.path(), "anything").unwrap_err();
+        let err = verify_and_derive(dir.path(), b"anything").unwrap_err();
         assert!(err.contains("not enabled"));
     }
 
@@ -488,8 +488,8 @@ mod tests {
     fn derive_key_from_disk_matches_verify() {
         let dir = TempDir::new().unwrap();
         let params = fast_params();
-        let key = enable(dir.path(), "p", &params).unwrap();
-        let again = derive_key_from_disk(dir.path(), "p").unwrap();
+        let key = enable(dir.path(), b"p", &params).unwrap();
+        let again = derive_key_from_disk(dir.path(), b"p").unwrap();
         assert_eq!(again, key);
     }
 
@@ -505,7 +505,7 @@ mod tests {
         // writer. Confirm the Rust write keeps 0600 parity.
         use std::os::unix::fs::PermissionsExt;
         let dir = TempDir::new().unwrap();
-        enable(dir.path(), "x", &fast_params()).unwrap();
+        enable(dir.path(), b"x", &fast_params()).unwrap();
         for name in [KDF_FILE_NAME, VERIFIER_FILE_NAME] {
             let p = dir.path().join(name);
             let mode = std::fs::metadata(&p).unwrap().permissions().mode() & 0o777;

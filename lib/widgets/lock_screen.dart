@@ -1,3 +1,6 @@
+import 'dart:convert' show utf8;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -74,7 +77,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
       // unlock cascade. The `TierUnlockedListener` takes the bytes
       // on the `unlocked` event and runs the post-unlock cascade
       // (caches, drift open, securityStateProvider, config persist).
-      final attempt = await manager.unlockAttempt(password);
+      final attempt = await manager.unlockAttempt(
+        Uint8List.fromList(utf8.encode(password)),
+      );
       if (!mounted) return;
       switch (attempt) {
         case TierUnlockAttempt.staged:

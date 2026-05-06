@@ -113,7 +113,7 @@ pub fn kdf_params_decode(bytes: Vec<u8>) -> Result<DbKdfParams, String> {
 /// atomic write of the KDF record + verifier files. Returns the
 /// derived key — the caller re-encrypts the SQLCipher store with it.
 pub async fn master_password_enable(
-    password: String,
+    password: Vec<u8>,
     params: DbKdfParams,
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
@@ -133,7 +133,7 @@ pub async fn master_password_enable(
 /// Idempotent on `secret_id` collision: replaces any prior value at
 /// the same id (the previous `Zeroizing` buffer scrubs on drop).
 pub async fn master_password_enable_to_secret(
-    password: String,
+    password: Vec<u8>,
     params: DbKdfParams,
     secret_id: String,
 ) -> Result<(), String> {
@@ -151,8 +151,8 @@ pub async fn master_password_enable_to_secret(
 /// wrong old password — the Dart `MasterPasswordException` wrapper
 /// surfaces it to the change-password dialog.
 pub async fn master_password_change(
-    old_password: String,
-    new_password: String,
+    old_password: Vec<u8>,
+    new_password: Vec<u8>,
     params: DbKdfParams,
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
@@ -188,7 +188,7 @@ pub fn master_password_reset() -> Result<(), String> {
 /// return `Some(key)` on success or `None` on a wrong password.
 /// `Err` is reserved for "the tier is not enabled" / "files corrupt".
 pub async fn master_password_verify_and_derive(
-    password: String,
+    password: Vec<u8>,
 ) -> Result<Option<Vec<u8>>, String> {
     tokio::task::spawn_blocking(move || {
         master_password::verify_and_derive(support_dir(), &password)
@@ -207,7 +207,7 @@ pub async fn master_password_verify_and_derive(
 /// * `Ok(false)` on wrong password (no SecretStore mutation).
 /// * `Err(_)` for "tier not enabled" / "files corrupt".
 pub async fn master_password_verify_and_derive_to_secret(
-    password: String,
+    password: Vec<u8>,
     secret_id: String,
 ) -> Result<bool, String> {
     tokio::task::spawn_blocking(move || {

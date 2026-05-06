@@ -19,7 +19,7 @@ DbKeychainGateSeed keychainGateRandomSeed() =>
 Uint8List keychainGateComputeHmac({
   required List<int> pepper,
   required List<int> salt,
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api.crateApiKeychainPasswordGateKeychainGateComputeHmac(
   pepper: pepper,
   salt: salt,

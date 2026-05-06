@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -64,7 +66,9 @@ void main() {
       await tester.enterText(find.byType(TextField), 'correct-password');
       await tester.tap(find.text('Unlock'));
       await tester.pumpAndSettle();
-      expect(mgr.unlockAttemptCalls, ['correct-password']);
+      expect(mgr.unlockAttemptCalls.map(utf8.decode).toList(), [
+        'correct-password',
+      ]);
       expect(result, isTrue);
     });
 
@@ -82,7 +86,7 @@ void main() {
       expect(find.text(l10n.wrongMasterPassword), findsOneWidget);
       // Dialog still up — Unlock button is back.
       expect(find.text(l10n.unlock), findsOneWidget);
-      expect(mgr.unlockAttemptCalls, ['wrong']);
+      expect(mgr.unlockAttemptCalls.map(utf8.decode).toList(), ['wrong']);
     });
 
     testWidgets('cancelled outcome closes the dialog with null', (

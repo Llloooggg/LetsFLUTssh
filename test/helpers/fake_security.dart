@@ -40,7 +40,7 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
   /// [unlockAttemptCalls] so tests assert on the exact value the
   /// dialog handed in.
   final List<TierUnlockAttempt> unlockOutcomes;
-  final List<String> unlockAttemptCalls = [];
+  final List<Uint8List> unlockAttemptCalls = [];
 
   /// Static rate-limit status returned by [rateLimitStatus]. Tests
   /// that need a state machine (e.g. "lock after the next failed
@@ -67,20 +67,20 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
   Future<bool> isEnabled() async => enabled;
 
   @override
-  Future<bool> verify(String password) async => verifyResult;
+  Future<bool> verify(Uint8List password) async => verifyResult;
 
   @override
-  Future<Uint8List?> verifyAndDerive(String password) async =>
+  Future<Uint8List?> verifyAndDerive(Uint8List password) async =>
       verifyResult ? (derivedKey ?? Uint8List(32)) : null;
 
   @override
-  Future<Uint8List> enable(String password) async {
+  Future<Uint8List> enable(Uint8List password) async {
     enabled = true;
     return derivedKey ?? Uint8List(32);
   }
 
   @override
-  Future<Uint8List> changePassword(String oldPwd, String newPwd) async =>
+  Future<Uint8List> changePassword(Uint8List oldPwd, Uint8List newPwd) async =>
       derivedKey ?? Uint8List(32);
 
   @override
@@ -104,7 +104,7 @@ class FakeMasterPasswordManager extends MasterPasswordManager {
   }
 
   @override
-  Future<TierUnlockAttempt> unlockAttempt(String password) async {
+  Future<TierUnlockAttempt> unlockAttempt(Uint8List password) async {
     unlockAttemptCalls.add(password);
     final next = unlockOutcomes.isNotEmpty
         ? unlockOutcomes.removeAt(0)
@@ -211,7 +211,7 @@ class FakeHardwareTierVault extends HardwareTierVault {
 
 class FakeKeychainPasswordGate extends KeychainPasswordGate {
   bool configured;
-  String? expectedPassword;
+  Uint8List? expectedPassword;
 
   FakeKeychainPasswordGate({this.configured = false, this.expectedPassword});
 
@@ -219,14 +219,21 @@ class FakeKeychainPasswordGate extends KeychainPasswordGate {
   Future<bool> isConfigured() async => configured;
 
   @override
-  Future<void> setPassword(String password) async {
+  Future<void> setPassword(Uint8List password) async {
     configured = true;
     expectedPassword = password;
   }
 
   @override
-  Future<bool> verify(String password) async =>
-      configured && password == expectedPassword;
+  Future<bool> verify(Uint8List password) async {
+    if (!configured) return false;
+    final expected = expectedPassword;
+    if (expected == null || expected.length != password.length) return false;
+    for (var i = 0; i < expected.length; i++) {
+      if (expected[i] != password[i]) return false;
+    }
+    return true;
+  }
 
   @override
   Future<PasswordRateLimiter?> rateLimiter() async => null;
