@@ -10,8 +10,22 @@ import '../widgets/toast.dart';
 import 'import_flow.dart';
 import 'navigator_key.dart';
 
+/// Process-wide deep-link handler. Lives in a provider so the
+/// pre-FRB `_MainScreenState.initState` can register callbacks
+/// without firing `getInitialLink()` (which would dispatch through
+/// FRB before `_initRustCoreOrFatal` ran), while
+/// `_LetsFLUTsshAppState._bootstrap` activates the same instance via
+/// [activateDeepLinks] AFTER Rust is up. Single instance per
+/// process — disposing happens at app exit.
+final deepLinkHandlerProvider = Provider<DeepLinkHandler>((_) {
+  return DeepLinkHandler();
+});
+
 /// Bind every callback on [handler] to the app's post-frame
-/// plumbing and fire `handler.init()` to start pumping URIs.
+/// plumbing. Pure-Dart wiring — does NOT call `handler.init()`,
+/// which is deferred to [activateDeepLinks] post-FRB-init so a
+/// cold-start `letsflutssh://` URL or `.lfs` file does not race
+/// `_initRustCoreOrFatal` (the dispatch goes through Rust).
 ///
 /// Each callback defers to `addPostFrameCallback` before reading
 /// `navigatorKey.currentContext` — when the deep link arrives while
@@ -89,5 +103,14 @@ void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
       }
     });
   };
-  handler.init();
+}
+
+/// Fire the handler's `init()` — drains the cold-launch
+/// `getInitialLink()` (which dispatches through Rust) and
+/// subscribes to the warm-start URI stream. Called from
+/// `_LetsFLUTsshAppState._bootstrap` AFTER `_initRustCoreOrFatal`
+/// so a cold-launch via `letsflutssh://` or a double-clicked
+/// `.lfs` file never races the FRB load.
+Future<void> activateDeepLinks(DeepLinkHandler handler) async {
+  await handler.init();
 }

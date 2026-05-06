@@ -8,7 +8,6 @@ class MainScreen extends ConsumerStatefulWidget {
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> {
-  final _deepLinkHandler = DeepLinkHandler();
   bool _updateDialogShown = false;
   bool _sidebarOpen = true;
   final _workspaceKey = GlobalKey<WorkspaceViewState>();
@@ -30,14 +29,25 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // would attach a `_SharedTopic` whose underlying FRB stream
     // throws and stays null for the process lifetime, breaking the
     // unlock cascade and the prompt protocol.
-    wireDeepLinks(_deepLinkHandler, ref);
+    //
+    // Deep-link callbacks register here (pure Dart); the handler's
+    // `init()` — which dispatches the cold-start initial link
+    // through Rust — fires from `_bootstrap` post-FRB via
+    // `activateDeepLinks`, so a `letsflutssh://` cold launch or a
+    // double-clicked `.lfs` file never races the native lib load.
+    wireDeepLinks(ref.read(deepLinkHandlerProvider), ref);
     _listenForStartupUpdate();
     _listenForFirstLaunchBanner();
   }
 
   @override
   void dispose() {
-    _deepLinkHandler.dispose();
+    // Deep-link handler lives in `deepLinkHandlerProvider` for the
+    // process lifetime — `_MainScreenState` registers callbacks but
+    // does not own the handle. The provider scope outlives this
+    // state, and disposing here would break a navigator-rebuild
+    // scenario (test harness re-mounts MainScreen) by leaving a
+    // dead listener on the next mount.
     _sidebarActivated.dispose();
     super.dispose();
   }

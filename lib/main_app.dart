@@ -114,6 +114,24 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (!await _initRustCoreOrFatal()) return;
     mark('rust_core');
 
+    // Drain log-file chmod requests queued during the pre-FRB
+    // window. `AppLogger._openSink` (and the `logCritical` write
+    // path) call `pathHardenFilePerms` on every fresh log file;
+    // before `_initRustCoreOrFatal` ran, those calls queued via
+    // `_deferredHardenPaths` instead of throwing `StateError`. Now
+    // that Rust is up, replay them so the file's perms tighten to
+    // 0600 instead of staying at the umask-wide default.
+    unawaited(AppLogger.instance.hardenPendingLogPerms());
+    mark('log_perms_drained');
+
+    // Activate the deep-link handler now that Rust is loaded —
+    // `_MainScreenState.initState` registered the callbacks
+    // pre-FRB but withheld `init()` so a cold-launch via
+    // `letsflutssh://` URL or a double-clicked `.lfs` file does
+    // not race `deeplinkDispatch` against the native-lib load.
+    unawaited(activateDeepLinks(ref.read(deepLinkHandlerProvider)));
+    mark('deep_links_activated');
+
     // Promote every `_SharedTopic` whose `Notifier.build()` ran
     // pre-FRB-init (Riverpod providers like `ConnectionsNotifier`
     // or `connectionActiveCountProvider` that widgets watch on the

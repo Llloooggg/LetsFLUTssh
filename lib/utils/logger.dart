@@ -262,12 +262,54 @@ class AppLogger {
   /// Routes through `lfs_core::path::harden_file_perms` —
   /// the chmod / icacls grammar lives in Rust. Best-effort: a
   /// chmod failure must never break logging.
+  ///
+  /// Cold-start aware: the logger opens its sink in `main.dart` —
+  /// BEFORE `_initRustCoreOrFatal` runs and the FRB native lib is
+  /// loaded. Calling Rust before init would throw `StateError` and
+  /// the chmod silently never lands; the file would stay at the
+  /// umask-wide default for the rest of the session. We queue
+  /// pre-init paths in [_deferredHardenPaths] and drain them via
+  /// [hardenPendingLogPerms] from `_bootstrap` once Rust is ready.
   Future<void> _restrictPermissions(String path) async {
     if (Platform.isWindows) return;
+    if (!_frbReady) {
+      _deferredHardenPaths.add(path);
+      return;
+    }
     try {
       await rust_path.pathHardenFilePerms(path: path);
     } catch (_) {
       // Best-effort. Logger hardening must never break logging.
+    }
+  }
+
+  /// Tracks whether [hardenPendingLogPerms] has already flipped the
+  /// FRB-ready gate. Pre-init `_restrictPermissions` calls queue
+  /// here; the post-init drain flushes the set and starts forwarding
+  /// straight to Rust.
+  bool _frbReady = false;
+  final Set<String> _deferredHardenPaths = <String>{};
+
+  /// Called from `_LetsFLUTsshAppState._bootstrap` after
+  /// `_initRustCoreOrFatal` succeeds. Drains any pre-FRB log-file
+  /// chmod requests against the now-available Rust core, and flips
+  /// the gate so subsequent [_restrictPermissions] calls forward
+  /// straight to Rust. Idempotent.
+  Future<void> hardenPendingLogPerms() async {
+    _frbReady = true;
+    if (Platform.isWindows) {
+      _deferredHardenPaths.clear();
+      return;
+    }
+    final paths = _deferredHardenPaths.toList();
+    _deferredHardenPaths.clear();
+    for (final p in paths) {
+      try {
+        await rust_path.pathHardenFilePerms(path: p);
+      } catch (_) {
+        // Best-effort. A failed late-harden is no worse than the
+        // pre-fix shape (which silently never hardened at all).
+      }
     }
   }
 
