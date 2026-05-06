@@ -97,6 +97,32 @@ class SessionRecorder {
   /// shell teardown's last bytes do not throw on a closed sink.
   bool _closed = false;
 
+  /// Per-direction coalescing buffers. The shell-output stream
+  /// arrives in 4-16 KiB bursts (each russh `Data` packet); pre-fix
+  /// we crossed FRB + allocated a fresh `Uint8List.fromList(bytes)`
+  /// per packet — ~3-10 hops/s for an interactive prompt, hundreds
+  /// for a `cat large_file`. Buffering lets one FRB call carry
+  /// dozens of packets when they arrive within the same animation
+  /// frame.
+  final BytesBuilder _outputBuffer = BytesBuilder(copy: false);
+  final BytesBuilder _inputBuffer = BytesBuilder(copy: false);
+
+  /// Scheduled flush of any non-empty buffer. `null` while a flush
+  /// is already pending. Cleared in [_flushBuffers].
+  Timer? _flushTimer;
+
+  /// Flush any buffer that grows past this many bytes immediately,
+  /// without waiting for the timer. 8 KiB is small enough that a
+  /// single `cat` line still produces sub-millisecond perceived
+  /// latency, large enough that an interactive shell coalesces ~5
+  /// arriving packets per FRB hop.
+  static const int _flushThresholdBytes = 8 * 1024;
+
+  /// Maximum wall time a buffered byte may sit before crossing FRB.
+  /// A frame budget of 10 ms keeps interactive output flowing
+  /// without visible jitter.
+  static const Duration _flushDeadline = Duration(milliseconds: 10);
+
   final String sessionId;
   final String terminalShellLabel;
   final int width;
@@ -224,6 +250,12 @@ class SessionRecorder {
   Future<String?> close() async {
     if (_closed) return _currentPath;
     _closed = true;
+    // Drain any buffered bytes BEFORE the close enqueue so the
+    // recorder's mpsc mailbox sees them in the right order; the
+    // worker drains until it hits the close marker, then seals the
+    // file. Without this flush a burst that arrived in the last
+    // 10 ms could be lost on a fast disconnect.
+    _flushBuffers();
     try {
       await rust_recorder.recorderQueueEnqueueClose(id: _handleId);
     } catch (e) {
@@ -260,25 +292,60 @@ class SessionRecorder {
 
   void _enqueueEvent(List<int> bytes, RecordDirection dir) {
     if (_closed || bytes.isEmpty) return;
-    // Fire-and-forget. The Rust worker holds the mailbox; ordering
-    // across calls is preserved because tokio mpsc is FIFO.
-    unawaited(
-      rust_recorder
-          .recorderQueueEnqueueEvent(
-            id: _handleId,
-            direction: switch (dir) {
-              RecordDirection.output => rust_recorder.DbRecordDirection.output,
-              RecordDirection.input => rust_recorder.DbRecordDirection.input,
-            },
-            bytes: Uint8List.fromList(bytes),
-          )
-          .catchError((Object e) {
-            AppLogger.instance.log(
-              'recorderQueueEnqueueEvent failed: $e',
-              name: 'Recorder',
-            );
-          }),
-    );
+    final buffer = switch (dir) {
+      RecordDirection.output => _outputBuffer,
+      RecordDirection.input => _inputBuffer,
+    };
+    buffer.add(bytes);
+    if (buffer.length >= _flushThresholdBytes) {
+      // Bypass the timer — a sustained burst (e.g. `cat large_file`)
+      // would otherwise queue 100+ KiB into RAM before the 10 ms
+      // tick fires. Flushing now keeps the recorder mailbox close
+      // to the wire.
+      _flushBuffers();
+      return;
+    }
+    _flushTimer ??= Timer(_flushDeadline, _flushBuffers);
+  }
+
+  /// Drain both per-direction buffers across FRB. Called from the
+  /// 10 ms timer, the threshold-overrun branch in [_enqueueEvent],
+  /// and [close] (which then awaits the close enqueue + the
+  /// `RecorderStopped` event so the file is sealed before the
+  /// returned path is acted on).
+  void _flushBuffers() {
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    if (_outputBuffer.isNotEmpty) {
+      final out = _outputBuffer.takeBytes();
+      unawaited(_dispatchEnqueue(out, rust_recorder.DbRecordDirection.output));
+    }
+    if (_inputBuffer.isNotEmpty) {
+      final inp = _inputBuffer.takeBytes();
+      unawaited(_dispatchEnqueue(inp, rust_recorder.DbRecordDirection.input));
+    }
+  }
+
+  /// Single-shot FRB dispatch for a buffered chunk. Fire-and-forget;
+  /// the Rust worker holds the mailbox and tokio mpsc preserves
+  /// FIFO ordering across calls so the asciinema event order on
+  /// disk matches the wire order.
+  Future<void> _dispatchEnqueue(
+    Uint8List bytes,
+    rust_recorder.DbRecordDirection direction,
+  ) async {
+    try {
+      await rust_recorder.recorderQueueEnqueueEvent(
+        id: _handleId,
+        direction: direction,
+        bytes: bytes,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'recorderQueueEnqueueEvent failed: $e',
+        name: 'Recorder',
+      );
+    }
   }
 
   /// Handler for the per-id recorder topic. Three events matter

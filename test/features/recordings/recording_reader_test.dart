@@ -86,15 +86,25 @@ void main() {
     rec.recordOutput(utf8.encode('two'));
     final path = await rec.close();
 
+    // The Dart recorder coalesces sub-flush-window calls before
+    // crossing FRB (see `_flushBuffers` — 10 ms / 8 KiB threshold).
+    // Two back-to-back `recordOutput` calls in the same micro-batch
+    // therefore produce one event carrying the concatenation. We
+    // assert the payload + the byte order rather than per-call event
+    // count — that's the user-facing contract (what they saw on
+    // screen replays in order), and the line count is an
+    // implementation artefact of the batching window.
     final lines = <String>[];
     await for (final dec in RecordingReader.openEncrypted(File(path!))) {
       lines.add(dec.value);
     }
-    expect(lines, hasLength(3));
-    final outOne = jsonDecode(lines[1]) as List;
-    final outTwo = jsonDecode(lines[2]) as List;
-    expect(outOne[2], 'one');
-    expect(outTwo[2], 'two');
+    // At minimum: header + ≥ 1 output event.
+    expect(lines.length, greaterThanOrEqualTo(2));
+    final payloads = lines
+        .skip(1)
+        .map((l) => (jsonDecode(l) as List)[2] as String)
+        .join();
+    expect(payloads, 'onetwo');
   });
 
   test('readMeta returns duration + dimensions', () async {
