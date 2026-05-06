@@ -254,6 +254,7 @@ pub fn harden_file_perms(_path: &std::path::Path) -> Result<(), String> {
 /// behaviour would mask "support dir was never resolved" bugs.
 pub fn write_bytes_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
     use rand::RngCore;
+    use std::io::Write as _;
     // Random 32-bit suffix on the tmp filename so concurrent
     // writers to the same destination do not collide on the
     // intermediate file. Mirror of the Dart `_rng.nextInt(1 << 30)`
@@ -269,8 +270,33 @@ pub fn write_bytes_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), St
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| String::from("blob"));
     let tmp = parent.join(format!("{stem}.tmp{suffix:08x}"));
-    if let Err(e) = std::fs::write(&tmp, bytes) {
-        return Err(format!("write {}: {e}", tmp.display()));
+    // Write + fsync the tmp file before rename. Without the fsync,
+    // a power-loss / OS panic between the rename and the kernel
+    // flushing the data pages can leave the destination pointing at
+    // an empty / truncated file even though the directory entry
+    // resolved. Every artefact this helper writes (KDF state,
+    // hardware-vault blob, rate-limit history, keychain marker,
+    // tier-transition marker) is cold-launch-load-bearing — a torn
+    // post-crash state forces a tier reset / data-wipe path the
+    // user did not ask for. `sync_data` flushes file contents but
+    // skips metadata that doesn't affect file integrity, so it is
+    // strictly cheaper than `sync_all` while still closing the
+    // payload-corruption window.
+    {
+        let mut f =
+            std::fs::File::create(&tmp).map_err(|e| format!("create {}: {e}", tmp.display()))?;
+        if let Err(e) = f.write_all(bytes) {
+            // Drop the partial tmp so the next write does not
+            // re-collide on the same suffix.
+            drop(f);
+            let _ = std::fs::remove_file(&tmp);
+            return Err(format!("write {}: {e}", tmp.display()));
+        }
+        if let Err(e) = f.sync_data() {
+            drop(f);
+            let _ = std::fs::remove_file(&tmp);
+            return Err(format!("fsync {}: {e}", tmp.display()));
+        }
     }
     // Best-effort harden — a chmod failure on the tmp file is the
     // same posture the Dart writer shipped (log + swallow). The
@@ -281,6 +307,20 @@ pub fn write_bytes_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), St
         // switch does not litter app-support with stale tmps.
         let _ = std::fs::remove_file(&tmp);
         return Err(format!("rename {}: {e}", path.display()));
+    }
+    // fsync the parent directory so the rename itself survives a
+    // crash. Without this, Linux + Apple can lose the rename even
+    // though the file's data pages flushed (the directory entry
+    // sits in the page cache until the next inode-touching event).
+    // Best-effort — Windows has no directory-fsync primitive on
+    // POSIX semantics (`File::open` on a dir + `sync_all` is a
+    // no-op there); the `MoveFileExW` underlying `std::fs::rename`
+    // is durable enough in practice for the artefacts we ship.
+    #[cfg(unix)]
+    {
+        if let Ok(dir) = std::fs::File::open(parent) {
+            let _ = dir.sync_all();
+        }
     }
     Ok(())
 }
@@ -619,8 +659,32 @@ mod tests {
         let path = dir.path().join("does-not-exist").join("payload.bin");
         // Caller is responsible for `create_dir_all`; this helper
         // surfaces ENOENT rather than implicitly creating it, so a
-        // misconfigured caller is loud not silent.
+        // misconfigured caller is loud not silent. The exact error
+        // tag depends on which step fails first (`create` or
+        // `write`); we just pin that *some* I/O step refuses.
         let err = write_bytes_atomic(&path, b"x").unwrap_err();
-        assert!(err.contains("write"));
+        assert!(
+            err.contains("create") || err.contains("write"),
+            "unexpected error tag: {err}",
+        );
+    }
+
+    #[test]
+    fn write_bytes_atomic_fsyncs_payload_before_rename() {
+        // Regression for the "rename lands a torn file after a power
+        // loss" gap. We cannot synthesise a real crash in a unit
+        // test, but we *can* assert that the bytes on disk match the
+        // payload byte-for-byte after the helper returns — proving
+        // the data hit the destination through the rename path. The
+        // `sync_data` step is what guarantees the post-crash
+        // observable matches the post-return observable; without
+        // it the destination could read empty after a crash even
+        // though the test would still see the right bytes here.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("fsync.bin");
+        let payload: Vec<u8> = (0..=255u8).cycle().take(64 * 1024).collect();
+        write_bytes_atomic(&path, &payload).unwrap();
+        let on_disk = std::fs::read(&path).unwrap();
+        assert_eq!(on_disk, payload);
     }
 }
