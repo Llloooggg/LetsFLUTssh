@@ -8,7 +8,8 @@
 //! transactional apply.
 
 use lfs_core::archive_stage::{
-    self, StagedKeyImport, StagedSessionImport, StagedSnippetImport, StagedTagImport,
+    self, StagedFolderTagLink, StagedKeyImport, StagedSessionImport, StagedSessionSnippetLink,
+    StagedSessionTagLink, StagedSnippetImport, StagedTagImport,
 };
 
 /// FRB mirror of `archive_stage::StagedSessionImport`.
@@ -163,4 +164,79 @@ pub fn archive_stage_tags_to_json(rows: Vec<DbStagedTagImport>) -> Option<String
 pub fn archive_stage_snippets_to_json(rows: Vec<DbStagedSnippetImport>) -> Option<String> {
     let typed: Vec<StagedSnippetImport> = rows.into_iter().map(Into::into).collect();
     archive_stage::stage_snippets_to_json(&typed)
+}
+
+/// FRB mirrors of the link-table envelope rows. The shape was
+/// previously built Dart-side via `jsonEncode([...])`; routing
+/// through typed structs keeps the wire format Rust-authoritative
+/// and lets the apply driver consume the same JSON the stager
+/// emits.
+#[derive(Debug, Clone)]
+pub struct DbStagedSessionTagLink {
+    pub session_id: String,
+    pub tag_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DbStagedFolderTagLink {
+    pub folder_path: String,
+    pub tag_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DbStagedSessionSnippetLink {
+    pub session_id: String,
+    pub snippet_id: String,
+}
+
+impl From<DbStagedSessionTagLink> for StagedSessionTagLink {
+    fn from(d: DbStagedSessionTagLink) -> Self {
+        Self {
+            session_id: d.session_id,
+            tag_id: d.tag_id,
+        }
+    }
+}
+
+impl From<DbStagedFolderTagLink> for StagedFolderTagLink {
+    fn from(d: DbStagedFolderTagLink) -> Self {
+        Self {
+            folder_path: d.folder_path,
+            tag_id: d.tag_id,
+        }
+    }
+}
+
+impl From<DbStagedSessionSnippetLink> for StagedSessionSnippetLink {
+    fn from(d: DbStagedSessionSnippetLink) -> Self {
+        Self {
+            session_id: d.session_id,
+            snippet_id: d.snippet_id,
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_session_tags_to_json(rows: Vec<DbStagedSessionTagLink>) -> Option<String> {
+    let typed: Vec<StagedSessionTagLink> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_session_tags_to_json(&typed)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_folder_tags_to_json(rows: Vec<DbStagedFolderTagLink>) -> Option<String> {
+    let typed: Vec<StagedFolderTagLink> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_folder_tags_to_json(&typed)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_session_snippets_to_json(
+    rows: Vec<DbStagedSessionSnippetLink>,
+) -> Option<String> {
+    let typed: Vec<StagedSessionSnippetLink> = rows.into_iter().map(Into::into).collect();
+    archive_stage::stage_session_snippets_to_json(&typed)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn archive_stage_empty_folders_to_json(paths: Vec<String>) -> Option<String> {
+    archive_stage::stage_empty_folders_to_json(&paths)
 }

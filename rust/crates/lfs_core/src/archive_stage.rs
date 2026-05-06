@@ -231,6 +231,101 @@ pub fn stage_snippets_to_json(rows: &[StagedSnippetImport]) -> Option<String> {
     )
 }
 
+// Junction-table link rows the apply driver consumes via the
+// `session_tags_json` / `folder_tags_json` / `session_snippets_json`
+// fields on `PendingImport`. Typed FRB structs replace the prior
+// Dart-side `jsonEncode([...])` envelopes — the wire shape lives
+// one place, in this module, and the apply driver re-parses the
+// same JSON it would have built.
+
+/// Session ↔ tag M2M row.
+#[derive(Debug, Clone)]
+pub struct StagedSessionTagLink {
+    pub session_id: String,
+    pub tag_id: String,
+}
+
+/// Folder ↔ tag M2M row. Carries the folder *path* (not id) — the
+/// Rust apply driver resolves it against the freshly-built
+/// `folder_path → folder_id` map populated by `apply_folder_tree`
+/// + `apply_empty_folders`.
+#[derive(Debug, Clone)]
+pub struct StagedFolderTagLink {
+    pub folder_path: String,
+    pub tag_id: String,
+}
+
+/// Session ↔ snippet M2M row.
+#[derive(Debug, Clone)]
+pub struct StagedSessionSnippetLink {
+    pub session_id: String,
+    pub snippet_id: String,
+}
+
+#[must_use]
+pub fn stage_session_tags_to_json(rows: &[StagedSessionTagLink]) -> Option<String> {
+    if rows.is_empty() {
+        return None;
+    }
+    let arr: Vec<Value> = rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "session_id": r.session_id,
+                "tag_id": r.tag_id,
+            })
+        })
+        .collect();
+    Some(serde_json::to_string(&Value::Array(arr)).expect("Value array serialises"))
+}
+
+#[must_use]
+pub fn stage_folder_tags_to_json(rows: &[StagedFolderTagLink]) -> Option<String> {
+    if rows.is_empty() {
+        return None;
+    }
+    let arr: Vec<Value> = rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "folder_path": r.folder_path,
+                "tag_id": r.tag_id,
+            })
+        })
+        .collect();
+    Some(serde_json::to_string(&Value::Array(arr)).expect("Value array serialises"))
+}
+
+#[must_use]
+pub fn stage_session_snippets_to_json(rows: &[StagedSessionSnippetLink]) -> Option<String> {
+    if rows.is_empty() {
+        return None;
+    }
+    let arr: Vec<Value> = rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "session_id": r.session_id,
+                "snippet_id": r.snippet_id,
+            })
+        })
+        .collect();
+    Some(serde_json::to_string(&Value::Array(arr)).expect("Value array serialises"))
+}
+
+/// Bare-string list — the empty-folder paths the apply driver
+/// inserts into `folders` outside the `apply_folder_tree` pass
+/// (folders explicitly carried in the archive that have no
+/// sessions referencing them).
+#[must_use]
+pub fn stage_empty_folders_to_json(paths: &[String]) -> Option<String> {
+    if paths.is_empty() {
+        return None;
+    }
+    let arr: Vec<Value> = paths.iter().map(|p| Value::String(p.clone())).collect();
+    Some(serde_json::to_string(&Value::Array(arr)).expect("Value array serialises"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

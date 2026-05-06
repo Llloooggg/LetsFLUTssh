@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 /// Serialise a session list to the JSON-string envelope the apply
 /// driver consumes (`DbStagedImport.sessions_json`). Empty input
@@ -31,6 +31,46 @@ String? archiveStageSnippetsToJson({
 }) => RustLib.instance.api.crateApiArchiveStageArchiveStageSnippetsToJson(
   rows: rows,
 );
+
+String? archiveStageSessionTagsToJson({
+  required List<DbStagedSessionTagLink> rows,
+}) => RustLib.instance.api.crateApiArchiveStageArchiveStageSessionTagsToJson(
+  rows: rows,
+);
+
+String? archiveStageFolderTagsToJson({
+  required List<DbStagedFolderTagLink> rows,
+}) => RustLib.instance.api.crateApiArchiveStageArchiveStageFolderTagsToJson(
+  rows: rows,
+);
+
+String? archiveStageSessionSnippetsToJson({
+  required List<DbStagedSessionSnippetLink> rows,
+}) => RustLib.instance.api
+    .crateApiArchiveStageArchiveStageSessionSnippetsToJson(rows: rows);
+
+String? archiveStageEmptyFoldersToJson({required List<String> paths}) => RustLib
+    .instance
+    .api
+    .crateApiArchiveStageArchiveStageEmptyFoldersToJson(paths: paths);
+
+class DbStagedFolderTagLink {
+  final String folderPath;
+  final String tagId;
+
+  const DbStagedFolderTagLink({required this.folderPath, required this.tagId});
+
+  @override
+  int get hashCode => folderPath.hashCode ^ tagId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbStagedFolderTagLink &&
+          runtimeType == other.runtimeType &&
+          folderPath == other.folderPath &&
+          tagId == other.tagId;
+}
 
 /// FRB mirror of `archive_stage::StagedKeyImport`.
 class DbStagedKeyImport {
@@ -170,6 +210,50 @@ class DbStagedSessionImport {
           viaOverrideUser == other.viaOverrideUser &&
           createdAtMs == other.createdAtMs &&
           updatedAtMs == other.updatedAtMs;
+}
+
+class DbStagedSessionSnippetLink {
+  final String sessionId;
+  final String snippetId;
+
+  const DbStagedSessionSnippetLink({
+    required this.sessionId,
+    required this.snippetId,
+  });
+
+  @override
+  int get hashCode => sessionId.hashCode ^ snippetId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbStagedSessionSnippetLink &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          snippetId == other.snippetId;
+}
+
+/// FRB mirrors of the link-table envelope rows. The shape was
+/// previously built Dart-side via `jsonEncode([...])`; routing
+/// through typed structs keeps the wire format Rust-authoritative
+/// and lets the apply driver consume the same JSON the stager
+/// emits.
+class DbStagedSessionTagLink {
+  final String sessionId;
+  final String tagId;
+
+  const DbStagedSessionTagLink({required this.sessionId, required this.tagId});
+
+  @override
+  int get hashCode => sessionId.hashCode ^ tagId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbStagedSessionTagLink &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          tagId == other.tagId;
 }
 
 /// FRB mirror of `archive_stage::StagedSnippetImport`.

@@ -174,14 +174,13 @@ AppConfig? decodeConfigFromApply(rust_archive.DbApplyResult apply) {
 /// (Dart-built `ImportResult` → staged JSON → Rust apply) holds without
 /// exporter / importer drift.
 ///
-/// Sessions / keys / tags / snippets route through
-/// `lfs_core::archive_stage::stage_*_to_json` (FRB sync) so the
-/// JSON-shape contract — field names, default-omission, ISO
-/// timestamp formatting, nested `via_override` object — lives one
-/// place. The link-table envelopes (`session_tags`,
-/// `session_snippets`) and the bare-string lists (`empty_folders`)
-/// stay Dart-built because they're trivial `jsonEncode` calls with
-/// no shape contract worth a Rust hop.
+/// Sessions / keys / tags / snippets / link-tables / empty-folders
+/// all route through `lfs_core::archive_stage::stage_*_to_json` (FRB
+/// sync). The JSON-shape contract — field names, default-omission,
+/// ISO timestamp formatting, nested `via_override` object, the
+/// link-table column names — lives one place: the apply driver
+/// re-parses the same JSON the stagers emit, and a wire-format bump
+/// is a single Rust-side edit.
 rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
   final sessionsJson = _stageSessionsJson(result.sessions);
   final keysJson = _stageKeysJson(result.managerKeys);
@@ -189,31 +188,40 @@ rust_archive.DbStagedImport _stageFromResult(ImportResult result) {
   // `ExportLink.sessionId` is the session's id; `targetId` is the
   // tag/snippet on the other end (the field is reused for both M2M
   // relations).
-  final sessionTagsJson = result.sessionTags.isEmpty
-      ? null
-      : jsonEncode([
-          for (final l in result.sessionTags)
-            {'session_id': l.sessionId, 'tag_id': l.targetId},
-        ]);
+  final sessionTagsJson = rust_stage.archiveStageSessionTagsToJson(
+    rows: [
+      for (final l in result.sessionTags)
+        rust_stage.DbStagedSessionTagLink(
+          sessionId: l.sessionId,
+          tagId: l.targetId,
+        ),
+    ],
+  );
   // Folder→tag links carry the folder PATH; the Rust apply driver
   // resolves it against the freshly-built `folder_path → folder_id`
   // map populated by `apply_folder_tree` + `apply_empty_folders`.
-  final folderTagsJson = result.folderTags.isEmpty
-      ? null
-      : jsonEncode([
-          for (final l in result.folderTags)
-            {'folder_path': l.folderPath, 'tag_id': l.tagId},
-        ]);
+  final folderTagsJson = rust_stage.archiveStageFolderTagsToJson(
+    rows: [
+      for (final l in result.folderTags)
+        rust_stage.DbStagedFolderTagLink(
+          folderPath: l.folderPath,
+          tagId: l.tagId,
+        ),
+    ],
+  );
   final snippetsJson = _stageSnippetsJson(result.snippets);
-  final sessionSnippetsJson = result.sessionSnippets.isEmpty
-      ? null
-      : jsonEncode([
-          for (final l in result.sessionSnippets)
-            {'session_id': l.sessionId, 'snippet_id': l.targetId},
-        ]);
-  final emptyFoldersJson = result.emptyFolders.isEmpty
-      ? null
-      : jsonEncode(result.emptyFolders.toList());
+  final sessionSnippetsJson = rust_stage.archiveStageSessionSnippetsToJson(
+    rows: [
+      for (final l in result.sessionSnippets)
+        rust_stage.DbStagedSessionSnippetLink(
+          sessionId: l.sessionId,
+          snippetId: l.targetId,
+        ),
+    ],
+  );
+  final emptyFoldersJson = rust_stage.archiveStageEmptyFoldersToJson(
+    paths: result.emptyFolders.toList(),
+  );
   return rust_archive.DbStagedImport(
     manifestJson: null,
     sessionsJson: sessionsJson,

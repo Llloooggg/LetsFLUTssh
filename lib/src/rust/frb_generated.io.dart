@@ -680,6 +680,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKeyMetadata dco_decode_db_ssh_key_metadata(dynamic raw);
 
   @protected
+  DbStagedFolderTagLink dco_decode_db_staged_folder_tag_link(dynamic raw);
+
+  @protected
   DbStagedImport dco_decode_db_staged_import(dynamic raw);
 
   @protected
@@ -690,6 +693,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbStagedSessionImport dco_decode_db_staged_session_import(dynamic raw);
+
+  @protected
+  DbStagedSessionSnippetLink dco_decode_db_staged_session_snippet_link(
+    dynamic raw,
+  );
+
+  @protected
+  DbStagedSessionTagLink dco_decode_db_staged_session_tag_link(dynamic raw);
 
   @protected
   DbStagedSnippetImport dco_decode_db_staged_snippet_import(dynamic raw);
@@ -877,10 +888,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbSshKeyMetadata> dco_decode_list_db_ssh_key_metadata(dynamic raw);
 
   @protected
+  List<DbStagedFolderTagLink> dco_decode_list_db_staged_folder_tag_link(
+    dynamic raw,
+  );
+
+  @protected
   List<DbStagedKeyImport> dco_decode_list_db_staged_key_import(dynamic raw);
 
   @protected
   List<DbStagedSessionImport> dco_decode_list_db_staged_session_import(
+    dynamic raw,
+  );
+
+  @protected
+  List<DbStagedSessionSnippetLink>
+  dco_decode_list_db_staged_session_snippet_link(dynamic raw);
+
+  @protected
+  List<DbStagedSessionTagLink> dco_decode_list_db_staged_session_tag_link(
     dynamic raw,
   );
 
@@ -1780,6 +1805,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKeyMetadata sse_decode_db_ssh_key_metadata(SseDeserializer deserializer);
 
   @protected
+  DbStagedFolderTagLink sse_decode_db_staged_folder_tag_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbStagedImport sse_decode_db_staged_import(SseDeserializer deserializer);
 
   @protected
@@ -1792,6 +1822,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbStagedSessionImport sse_decode_db_staged_session_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbStagedSessionSnippetLink sse_decode_db_staged_session_snippet_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbStagedSessionTagLink sse_decode_db_staged_session_tag_link(
     SseDeserializer deserializer,
   );
 
@@ -2037,12 +2077,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DbStagedFolderTagLink> sse_decode_list_db_staged_folder_tag_link(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DbStagedKeyImport> sse_decode_list_db_staged_key_import(
     SseDeserializer deserializer,
   );
 
   @protected
   List<DbStagedSessionImport> sse_decode_list_db_staged_session_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DbStagedSessionSnippetLink>
+  sse_decode_list_db_staged_session_snippet_link(SseDeserializer deserializer);
+
+  @protected
+  List<DbStagedSessionTagLink> sse_decode_list_db_staged_session_tag_link(
     SseDeserializer deserializer,
   );
 
@@ -3173,6 +3227,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_staged_folder_tag_link(
+    DbStagedFolderTagLink self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_staged_import(
     DbStagedImport self,
     SseSerializer serializer,
@@ -3193,6 +3253,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_staged_session_import(
     DbStagedSessionImport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_staged_session_snippet_link(
+    DbStagedSessionSnippetLink self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_staged_session_tag_link(
+    DbStagedSessionTagLink self,
     SseSerializer serializer,
   );
 
@@ -3503,6 +3575,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_db_staged_folder_tag_link(
+    List<DbStagedFolderTagLink> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_db_staged_key_import(
     List<DbStagedKeyImport> self,
     SseSerializer serializer,
@@ -3511,6 +3589,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_db_staged_session_import(
     List<DbStagedSessionImport> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_staged_session_snippet_link(
+    List<DbStagedSessionSnippetLink> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_db_staged_session_tag_link(
+    List<DbStagedSessionTagLink> self,
     SseSerializer serializer,
   );
 
