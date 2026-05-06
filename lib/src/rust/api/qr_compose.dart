@@ -148,7 +148,14 @@ class DbQrSessionInput {
   final PlatformInt64 port;
   final String user;
   final String authType;
-  final String password;
+
+  /// Wire shape `Vec<u8>` for parity with the rest of the password
+  /// marshalling family (master-password / keychain-gate / SSH
+  /// session). The composer downstream consumes a `String`; lossy
+  /// UTF-8 decode preserves the previous behaviour where invalid
+  /// bytes (Dart-side encoding bug, never user typing) collapse
+  /// to the empty-password branch.
+  final Uint8List password;
   final String? keyId;
   final String keyData;
   final String folderPath;

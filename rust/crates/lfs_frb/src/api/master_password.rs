@@ -168,6 +168,39 @@ pub async fn master_password_change(
     .map_err(|e| format!("master_password_change task: {e}"))?
 }
 
+/// SecretRef variant of [`master_password_change`]. Stages the
+/// freshly-derived key directly into
+/// [`lfs_core::secrets::SecretStore`] under [`secret_id`] instead
+/// of returning the bytes over FRB. Caller routes the same id
+/// through `db_rekey_from_secret` so the AES bytes never touch the
+/// Dart heap — finishes the master-password SecretRef family
+/// alongside `master_password_enable_to_secret` and
+/// `master_password_verify_and_derive_to_secret`.
+///
+/// Idempotent on `secret_id` collision: replaces any prior value
+/// at the same id (the previous `Zeroizing` buffer scrubs on drop).
+/// `Err("Current password is incorrect")` on wrong old password —
+/// the SecretStore stays untouched.
+pub async fn master_password_change_to_secret(
+    old_password: Vec<u8>,
+    new_password: Vec<u8>,
+    params: DbKdfParams,
+    secret_id: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let key = master_password::change_password(
+            support_dir(),
+            &old_password,
+            &new_password,
+            &params.into(),
+        )?;
+        lfs_core::app::instance().secrets.put(&secret_id, &key);
+        Ok::<_, String>(())
+    })
+    .await
+    .map_err(|e| format!("master_password_change_to_secret task: {e}"))?
+}
+
 /// Drop the KDF + verifier files. Caller is responsible for
 /// re-encrypting stores with a fresh random key + writing
 /// `credentials.key`.

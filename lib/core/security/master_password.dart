@@ -266,6 +266,35 @@ class MasterPasswordManager {
     }
   }
 
+  /// SecretRef variant of [changePassword]. Stages the freshly-
+  /// derived key directly into the Rust-side `SecretStore` under
+  /// [secretId] instead of returning the bytes — caller routes the
+  /// same id through `dbRekeyFromSecret` so the new AES bytes
+  /// never touch the Dart heap. Finishes the master-password
+  /// SecretRef family alongside [enableToSecret] and
+  /// [verifyAndDeriveToSecret].
+  Future<void> changePasswordToSecret(
+    Uint8List oldPassword,
+    Uint8List newPassword,
+    String secretId,
+  ) async {
+    await _getBasePath();
+    try {
+      await rust_mp.masterPasswordChangeToSecret(
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+        params: _wireParams(_defaultParams),
+        secretId: secretId,
+      );
+      AppLogger.instance.log(
+        'Master password changed (Argon2id, SecretRef)',
+        name: 'MasterPassword',
+      );
+    } on AnyhowException catch (e) {
+      throw MasterPasswordException(e.message);
+    }
+  }
+
   /// Disable master password protection.
   ///
   /// Deletes KDF and verifier files. The caller is responsible for

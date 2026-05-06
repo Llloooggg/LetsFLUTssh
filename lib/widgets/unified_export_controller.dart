@@ -282,7 +282,7 @@ class UnifiedExportController extends ChangeNotifier {
         port: s.port,
         user: s.user,
         authType: s.authType.name,
-        password: s.password,
+        password: Uint8List.fromList(utf8.encode(s.password)),
         keyId: s.keyId.isEmpty ? null : s.keyId,
         keyData: s.keyData,
         folderPath: s.folder,

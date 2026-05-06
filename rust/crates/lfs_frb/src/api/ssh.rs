@@ -52,9 +52,11 @@ pub async fn ssh_try_connect_password(
     host: String,
     port: u16,
     user: String,
-    password: String,
+    password: Vec<u8>,
 ) -> Result<(), String> {
-    lfs_core::ssh::try_connect_password(&host, port, &user, &password)
+    let pw = std::str::from_utf8(&password)
+        .map_err(|_| "password is not valid UTF-8".to_string())?;
+    lfs_core::ssh::try_connect_password(&host, port, &user, pw)
         .await
         .map_err(|e| e.to_string())
 }
@@ -240,9 +242,11 @@ pub async fn ssh_connect_password(
     host: String,
     port: u16,
     user: String,
-    password: String,
+    password: Vec<u8>,
 ) -> Result<SshSession, String> {
-    let session = lfs_core::ssh::Session::connect_password(&host, port, &user, &password)
+    let pw = std::str::from_utf8(&password)
+        .map_err(|_| "password is not valid UTF-8".to_string())?;
+    let session = lfs_core::ssh::Session::connect_password(&host, port, &user, pw)
         .await
         .map_err(|e| e.to_string())?;
     Ok(SshSession::from_core(session))
@@ -432,8 +436,10 @@ pub async fn ssh_connect_password_via_proxy(
     host: String,
     port: u16,
     user: String,
-    password: String,
+    password: Vec<u8>,
 ) -> Result<SshSession, String> {
+    let pw = std::str::from_utf8(&password)
+        .map_err(|_| "password is not valid UTF-8".to_string())?;
     let parent_guard = parent.inner.lock().await;
     let parent_session = parent_guard
         .as_ref()
@@ -443,7 +449,7 @@ pub async fn ssh_connect_password_via_proxy(
         &host,
         port,
         &user,
-        &password,
+        pw,
     )
     .await
     .map_err(|e| e.to_string())?;

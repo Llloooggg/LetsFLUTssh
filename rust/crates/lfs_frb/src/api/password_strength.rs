@@ -26,6 +26,11 @@ impl From<lfs_core::password_strength::PasswordStrength> for DbPasswordStrength 
 }
 
 #[flutter_rust_bridge::frb(sync)]
-pub fn assess_password_strength(password: String) -> DbPasswordStrength {
+pub fn assess_password_strength(password: Vec<u8>) -> DbPasswordStrength {
+    // Wire-shape parity with the rest of the password-marshalling
+    // family. Invalid UTF-8 (Dart-side encoding bug, never user
+    // typing) collapses to `Empty` via `unwrap_or_default()` — the
+    // same shape an empty-string call would produce.
+    let password = String::from_utf8(password).unwrap_or_default();
     lfs_core::password_strength::assess(&password).into()
 }

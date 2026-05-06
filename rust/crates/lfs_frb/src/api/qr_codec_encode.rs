@@ -51,8 +51,14 @@ pub fn qr_codec_encode_session_compact(
     key_short: Option<String>,
     is_manager: bool,
     include_passwords: bool,
-    password: String,
+    password: Vec<u8>,
 ) -> String {
+    // Lossy decode keeps the wire shape `Vec<u8>` for parity with
+    // the rest of the password-marshalling family while preserving
+    // the existing failure mode — invalid UTF-8 collapses to empty
+    // password, same shape `String::new()` produced under the
+    // previous `password: String` signature.
+    let password = String::from_utf8(password).unwrap_or_default();
     qr_codec_encode::encode_session_compact_json(
         &label,
         &host,

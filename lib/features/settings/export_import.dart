@@ -135,7 +135,7 @@ class ExportImport {
         configJson: configJson,
         schemaVersion: currentSchemaVersion,
         appVersion: appVersion,
-        masterPassword: masterPassword,
+        masterPassword: Uint8List.fromList(utf8.encode(masterPassword)),
         kdfMemoryKib: params.memoryKiB,
         kdfIterations: params.iterations,
         kdfParallelism: params.parallelism,

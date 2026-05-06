@@ -32,7 +32,7 @@ Future<void> sshTryConnectPassword({
   required String host,
   required int port,
   required String user,
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api.crateApiSshSshTryConnectPassword(
   host: host,
   port: port,
@@ -69,7 +69,7 @@ Future<SshSession> sshConnectPassword({
   required String host,
   required int port,
   required String user,
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api.crateApiSshSshConnectPassword(
   host: host,
   port: port,
@@ -205,7 +205,7 @@ Future<SshSession> sshConnectPasswordViaProxy({
   required String host,
   required int port,
   required String user,
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api.crateApiSshSshConnectPasswordViaProxy(
   parent: parent,
   host: host,

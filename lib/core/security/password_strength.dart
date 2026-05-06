@@ -1,3 +1,5 @@
+import 'dart:convert' show utf8;
+
 import '../../src/rust/api/password_strength.dart' as rust_pw;
 
 /// Very coarse password-strength classifier, purely informational.
@@ -30,7 +32,7 @@ enum PasswordStrength {
 
 /// Classify [password] into a [PasswordStrength] tier.
 PasswordStrength assessPasswordStrength(String password) =>
-    _fromRust(rust_pw.assessPasswordStrength(password: password));
+    _fromRust(rust_pw.assessPasswordStrength(password: utf8.encode(password)));
 
 PasswordStrength _fromRust(rust_pw.DbPasswordStrength s) => switch (s) {
   rust_pw.DbPasswordStrength.empty => PasswordStrength.empty,

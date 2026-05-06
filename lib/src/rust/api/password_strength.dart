@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
 
-DbPasswordStrength assessPasswordStrength({required String password}) => RustLib
-    .instance
-    .api
-    .crateApiPasswordStrengthAssessPasswordStrength(password: password);
+DbPasswordStrength assessPasswordStrength({required List<int> password}) =>
+    RustLib.instance.api.crateApiPasswordStrengthAssessPasswordStrength(
+      password: password,
+    );
 
 enum DbPasswordStrength { empty, weak, moderate, strong, veryStrong }

@@ -25,7 +25,13 @@ pub struct DbQrSessionInput {
     pub port: i64,
     pub user: String,
     pub auth_type: String,
-    pub password: String,
+    /// Wire shape `Vec<u8>` for parity with the rest of the password
+    /// marshalling family (master-password / keychain-gate / SSH
+    /// session). The composer downstream consumes a `String`; lossy
+    /// UTF-8 decode preserves the previous behaviour where invalid
+    /// bytes (Dart-side encoding bug, never user typing) collapse
+    /// to the empty-password branch.
+    pub password: Vec<u8>,
     pub key_id: Option<String>,
     pub key_data: String,
     pub folder_path: String,
@@ -40,7 +46,7 @@ impl From<DbQrSessionInput> for qr_compose::QrSessionInput {
             port: d.port,
             user: d.user,
             auth_type: d.auth_type,
-            password: d.password,
+            password: String::from_utf8(d.password).unwrap_or_default(),
             key_id: d.key_id,
             key_data: d.key_data,
             folder_path: d.folder_path,
@@ -260,7 +266,7 @@ mod tests {
             port: 2222,
             user: "deploy".into(),
             auth_type: "key".into(),
-            password: "secret".into(),
+            password: b"secret".to_vec(),
             key_id: Some("k-ext".into()),
             key_data: "PEM".into(),
             folder_path: "Prod/Web".into(),
@@ -381,7 +387,7 @@ mod tests {
             port: 22,
             user: "u".into(),
             auth_type: "password".into(),
-            password: String::new(),
+            password: Vec::new(),
             key_id: None,
             key_data: String::new(),
             folder_path: String::new(),
@@ -439,7 +445,7 @@ mod tests {
             port: 22,
             user: "deploy".into(),
             auth_type: "password".into(),
-            password: "x".repeat(200),
+            password: vec![b'x'; 200],
             key_id: None,
             key_data: String::new(),
             folder_path: String::new(),

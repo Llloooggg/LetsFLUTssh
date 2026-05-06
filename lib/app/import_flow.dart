@@ -1,3 +1,5 @@
+import 'dart:convert' show utf8;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
@@ -100,7 +102,10 @@ Future<rust_archive.DbImportOpenResult> openArchiveWithTypedErrors({
   required String password,
 }) async {
   try {
-    return await rust_archive.dbImportOpen(path: path, password: password);
+    return await rust_archive.dbImportOpen(
+      path: path,
+      password: utf8.encode(password),
+    );
   } on AnyhowException catch (e) {
     final parsed = _parseUnsupportedArchiveVersion(e.message);
     if (parsed != null) {

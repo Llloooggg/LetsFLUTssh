@@ -57,7 +57,7 @@ Future<DbImportOpenResult> qrImportOpen({required String payload}) =>
 /// envelope surfaces as an error and no handle is registered.
 Future<DbImportOpenResult> dbImportOpen({
   required String path,
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api.crateApiArchiveDbImportOpen(
   path: path,
   password: password,
@@ -260,9 +260,12 @@ class DbExportInput {
   final PlatformInt64 schemaVersion;
   final String? appVersion;
 
-  /// Empty string → no encryption, raw ZIP. Non-empty → Argon2id
+  /// Empty bytes → no encryption, raw ZIP. Non-empty → Argon2id
   /// + AES-GCM envelope under the canonical `LFSE`-magic header.
-  final String masterPassword;
+  /// Wire shape is `Vec<u8>` so the Dart caller stays on
+  /// `Uint8List.fromList(utf8.encode(text))`, mirroring the
+  /// master-password / keychain-gate / tier-orchestrator family.
+  final Uint8List masterPassword;
   final int kdfMemoryKib;
   final int kdfIterations;
   final int kdfParallelism;

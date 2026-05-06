@@ -43,7 +43,7 @@ String qrCodecEncodeSessionCompact({
   String? keyShort,
   required bool isManager,
   required bool includePasswords,
-  required String password,
+  required List<int> password,
 }) => RustLib.instance.api.crateApiQrCodecEncodeQrCodecEncodeSessionCompact(
   label: label,
   host: host,

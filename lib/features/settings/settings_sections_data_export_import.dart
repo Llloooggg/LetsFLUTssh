@@ -525,7 +525,7 @@ class _ExportImportTile extends ConsumerWidget {
       reporter.phase(l10n.progressDecrypting);
       final result = await rust_archive.dbImportOpen(
         path: path,
-        password: password,
+        password: utf8.encode(password),
       );
       if (!context.mounted) {
         await _safeDropHandle(result.handleId);

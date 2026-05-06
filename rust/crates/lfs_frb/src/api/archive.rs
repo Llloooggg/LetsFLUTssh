@@ -35,9 +35,12 @@ pub struct DbExportInput {
     pub config_json: String,
     pub schema_version: i64,
     pub app_version: Option<String>,
-    /// Empty string → no encryption, raw ZIP. Non-empty → Argon2id
+    /// Empty bytes → no encryption, raw ZIP. Non-empty → Argon2id
     /// + AES-GCM envelope under the canonical `LFSE`-magic header.
-    pub master_password: String,
+    /// Wire shape is `Vec<u8>` so the Dart caller stays on
+    /// `Uint8List.fromList(utf8.encode(text))`, mirroring the
+    /// master-password / keychain-gate / tier-orchestrator family.
+    pub master_password: Vec<u8>,
     pub kdf_memory_kib: u32,
     pub kdf_iterations: u32,
     pub kdf_parallelism: u32,
@@ -67,7 +70,10 @@ pub async fn db_export_archive(input: DbExportInput) -> Result<Vec<u8>, String> 
         master_password: if input.master_password.is_empty() {
             None
         } else {
-            Some(input.master_password)
+            Some(
+                String::from_utf8(input.master_password)
+                    .map_err(|_| "master_password is not valid UTF-8".to_string())?,
+            )
         },
         kdf_memory_kib: input.kdf_memory_kib,
         kdf_iterations: input.kdf_iterations,
@@ -293,9 +299,14 @@ pub async fn qr_import_open(payload: String) -> Result<DbImportOpenResult, Strin
 /// `password` empty → assumes a raw-ZIP archive (matches the
 /// "no encryption" export branch). Wrong password / malformed
 /// envelope surfaces as an error and no handle is registered.
-pub async fn db_import_open(path: String, password: String) -> Result<DbImportOpenResult, String> {
+pub async fn db_import_open(
+    path: String,
+    password: Vec<u8>,
+) -> Result<DbImportOpenResult, String> {
     tokio::task::spawn_blocking(move || {
-        let (pending, preview) = lfs_core::archive::read_archive_to_pending(&path, &password)
+        let pw = std::str::from_utf8(&password)
+            .map_err(|_| "password is not valid UTF-8".to_string())?;
+        let (pending, preview) = lfs_core::archive::read_archive_to_pending(&path, pw)
             .map_err(|e| e.to_string())?;
         let app = lfs_core::app::instance();
         let handle_id = lfs_core::id::random_handle_hex_32();

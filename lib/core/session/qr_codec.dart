@@ -243,7 +243,7 @@ Map<String, dynamic> encodeSessionCompact(
     keyShort: keyId,
     isManager: isManagerKey,
     includePasswords: includePasswords,
-    password: s.password,
+    password: utf8.encode(s.password),
   );
   return jsonDecode(json) as Map<String, dynamic>;
 }

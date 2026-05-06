@@ -98,6 +98,31 @@ Future<Uint8List> masterPasswordChange({
   params: params,
 );
 
+/// SecretRef variant of [`master_password_change`]. Stages the
+/// freshly-derived key directly into
+/// [`lfs_core::secrets::SecretStore`] under [`secret_id`] instead
+/// of returning the bytes over FRB. Caller routes the same id
+/// through `db_rekey_from_secret` so the AES bytes never touch the
+/// Dart heap — finishes the master-password SecretRef family
+/// alongside `master_password_enable_to_secret` and
+/// `master_password_verify_and_derive_to_secret`.
+///
+/// Idempotent on `secret_id` collision: replaces any prior value
+/// at the same id (the previous `Zeroizing` buffer scrubs on drop).
+/// `Err("Current password is incorrect")` on wrong old password —
+/// the SecretStore stays untouched.
+Future<void> masterPasswordChangeToSecret({
+  required List<int> oldPassword,
+  required List<int> newPassword,
+  required DbKdfParams params,
+  required String secretId,
+}) => RustLib.instance.api.crateApiMasterPasswordMasterPasswordChangeToSecret(
+  oldPassword: oldPassword,
+  newPassword: newPassword,
+  params: params,
+  secretId: secretId,
+);
+
 /// Drop the KDF + verifier files. Caller is responsible for
 /// re-encrypting stores with a fresh random key + writing
 /// `credentials.key`.
