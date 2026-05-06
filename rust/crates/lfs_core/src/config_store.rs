@@ -114,7 +114,7 @@ impl Store {
             Err(_) => AppConfig::default(),
         };
         let json = cfg.to_json_value().to_string();
-        let mut g = self.inner.lock().expect("config store mutex poisoned");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.file_path = Some(path);
         g.current = Some(cfg);
         g.pending = None;
@@ -127,7 +127,7 @@ impl Store {
     /// Dart caller treats that as "use defaults" until the
     /// startup init lands.
     pub fn get_json(&self) -> Option<String> {
-        let g = self.inner.lock().expect("config store mutex poisoned");
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.current.as_ref().map(|c| c.to_json_value().to_string())
     }
 
@@ -140,7 +140,7 @@ impl Store {
         let value: serde_json::Value =
             serde_json::from_str(new_json).map_err(|e| format!("config_store: parse: {e}"))?;
         let cfg = AppConfig::from_json_value(&value);
-        let mut g = self.inner.lock().expect("config store mutex poisoned");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if g.file_path.is_none() {
             return Err("config_store: not initialised".into());
         }
@@ -158,7 +158,7 @@ impl Store {
     /// JSON.
     pub fn flush(&self) -> Result<Option<String>, String> {
         let (path, cfg) = {
-            let mut g = self.inner.lock().expect("config store mutex poisoned");
+            let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             let Some(path) = g.file_path.clone() else {
                 return Ok(None);
             };
@@ -191,7 +191,7 @@ impl Store {
     /// tick keeps the test surface deterministic.
     pub fn tick_if_due(&self) -> Result<bool, String> {
         let due = {
-            let g = self.inner.lock().expect("config store mutex poisoned");
+            let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             match (g.pending_at, &g.pending) {
                 (Some(when), Some(_)) => Instant::now() >= when,
                 _ => false,

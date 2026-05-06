@@ -151,8 +151,7 @@ impl PromptRegistry {
     pub fn register(&self, prompt_id: String) -> oneshot::Receiver<bool> {
         let (tx, rx) = oneshot::channel();
         self.inner
-            .lock()
-            .expect("known-hosts prompt registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .insert(prompt_id, tx);
         rx
     }
@@ -164,8 +163,7 @@ impl PromptRegistry {
     pub fn resolve(&self, prompt_id: &str, accepted: bool) -> bool {
         let sender = self
             .inner
-            .lock()
-            .expect("known-hosts prompt registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .remove(prompt_id);
         match sender {
             Some(tx) => tx.send(accepted).is_ok(),
@@ -177,15 +175,13 @@ impl PromptRegistry {
     /// that abandon the await (timeout, peer drop, shutdown).
     pub fn cancel(&self, prompt_id: &str) {
         self.inner
-            .lock()
-            .expect("known-hosts prompt registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .remove(prompt_id);
     }
 
     pub fn pending_count(&self) -> usize {
         self.inner
-            .lock()
-            .expect("known-hosts prompt registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .len()
     }
 }

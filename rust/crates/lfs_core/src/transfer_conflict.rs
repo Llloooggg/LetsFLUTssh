@@ -131,8 +131,7 @@ impl BatchStateRegistry {
     /// the default (no cache, not cancelled).
     pub fn create(&self, handle: &str) {
         self.inner
-            .lock()
-            .expect("conflict-resolver registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .insert(handle.to_string(), BatchState::default());
     }
 
@@ -140,8 +139,7 @@ impl BatchStateRegistry {
     /// already gone.
     pub fn drop(&self, handle: &str) {
         self.inner
-            .lock()
-            .expect("conflict-resolver registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .remove(handle);
     }
 
@@ -150,8 +148,7 @@ impl BatchStateRegistry {
     #[must_use]
     pub fn cached(&self, handle: &str) -> Option<ConflictAction> {
         self.inner
-            .lock()
-            .expect("conflict-resolver registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .get(handle)
             .and_then(|s| s.cached())
     }
@@ -162,8 +159,7 @@ impl BatchStateRegistry {
     #[must_use]
     pub fn is_cancelled(&self, handle: &str) -> bool {
         self.inner
-            .lock()
-            .expect("conflict-resolver registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .get(handle)
             .map(|s| s.is_cancelled())
             .unwrap_or(false)
@@ -177,8 +173,7 @@ impl BatchStateRegistry {
     pub fn record_decision(&self, handle: &str, decision: ConflictDecision) -> ConflictAction {
         let mut g = self
             .inner
-            .lock()
-            .expect("conflict-resolver registry mutex poisoned");
+            .lock().unwrap_or_else(|e| e.into_inner());
         let state = g.entry(handle.to_string()).or_default();
         state.record_decision(decision)
     }

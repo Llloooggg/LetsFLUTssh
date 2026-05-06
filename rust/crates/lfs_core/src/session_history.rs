@@ -51,7 +51,7 @@ fn registry() -> &'static Mutex<HashMap<HandleId, State>> {
 
 fn next_id() -> HandleId {
     let m = NEXT_ID.get_or_init(|| Mutex::new(1));
-    let mut g = m.lock().expect("session_history id mutex poisoned");
+    let mut g = m.lock().unwrap_or_else(|e| e.into_inner());
     let id = *g;
     *g = g.wrapping_add(1);
     id
@@ -61,8 +61,7 @@ fn next_id() -> HandleId {
 pub fn create() -> HandleId {
     let id = next_id();
     let mut reg = registry()
-        .lock()
-        .expect("session_history registry poisoned");
+        .lock().unwrap_or_else(|e| e.into_inner());
     reg.insert(id, State::default());
     id
 }
@@ -71,8 +70,7 @@ pub fn create() -> HandleId {
 /// no-op. Production callers tear down on `Notifier` dispose.
 pub fn drop_handle(id: HandleId) {
     let mut reg = registry()
-        .lock()
-        .expect("session_history registry poisoned");
+        .lock().unwrap_or_else(|e| e.into_inner());
     reg.remove(&id);
 }
 
@@ -81,8 +79,7 @@ pub fn drop_handle(id: HandleId) {
 /// stack at `MAX_STACK`; oldest entry drops when full.
 pub fn push_undo(id: HandleId, description: String, blob: Vec<u8>) {
     let mut reg = registry()
-        .lock()
-        .expect("session_history registry poisoned");
+        .lock().unwrap_or_else(|e| e.into_inner());
     let Some(state) = reg.get_mut(&id) else {
         return;
     };
@@ -98,8 +95,7 @@ pub fn push_undo(id: HandleId, description: String, blob: Vec<u8>) {
 /// when the undo stack is empty.
 pub fn undo(id: HandleId, current_description: String, current_blob: Vec<u8>) -> Option<Snapshot> {
     let mut reg = registry()
-        .lock()
-        .expect("session_history registry poisoned");
+        .lock().unwrap_or_else(|e| e.into_inner());
     let state = reg.get_mut(&id)?;
     let popped = state.undo_stack.pop()?;
     state.redo_stack.push(Snapshot {
@@ -114,8 +110,7 @@ pub fn undo(id: HandleId, current_description: String, current_blob: Vec<u8>) ->
 /// when the redo stack is empty.
 pub fn redo(id: HandleId, current_description: String, current_blob: Vec<u8>) -> Option<Snapshot> {
     let mut reg = registry()
-        .lock()
-        .expect("session_history registry poisoned");
+        .lock().unwrap_or_else(|e| e.into_inner());
     let state = reg.get_mut(&id)?;
     let popped = state.redo_stack.pop()?;
     state.undo_stack.push(Snapshot {
@@ -128,8 +123,7 @@ pub fn redo(id: HandleId, current_description: String, current_blob: Vec<u8>) ->
 /// Clear both stacks.
 pub fn clear(id: HandleId) {
     let mut reg = registry()
-        .lock()
-        .expect("session_history registry poisoned");
+        .lock().unwrap_or_else(|e| e.into_inner());
     if let Some(state) = reg.get_mut(&id) {
         state.undo_stack.clear();
         state.redo_stack.clear();

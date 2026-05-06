@@ -165,7 +165,7 @@ impl Registry {
                 collapsed_folders,
             })
         })?;
-        let mut g = self.inner.write().expect("registry view lock poisoned");
+        let mut g = self.inner.write().unwrap_or_else(|e| e.into_inner());
         *g = view;
         Ok(())
     }
@@ -178,8 +178,7 @@ impl Registry {
     #[must_use]
     pub fn snapshot(&self) -> RegistryView {
         self.inner
-            .read()
-            .expect("registry view lock poisoned")
+            .read().unwrap_or_else(|e| e.into_inner())
             .clone()
     }
 
@@ -187,8 +186,7 @@ impl Registry {
     #[must_use]
     pub fn session_count(&self) -> usize {
         self.inner
-            .read()
-            .expect("registry view lock poisoned")
+            .read().unwrap_or_else(|e| e.into_inner())
             .sessions
             .len()
     }
@@ -199,7 +197,7 @@ impl Registry {
     /// sessions. Reads off the cached view; no DB round-trip.
     #[must_use]
     pub fn ids_by_exact_folder(&self, folder_path: &str) -> Vec<String> {
-        let view = self.inner.read().expect("registry view lock poisoned");
+        let view = self.inner.read().unwrap_or_else(|e| e.into_inner());
         view.sessions
             .iter()
             .filter(|s| {
@@ -218,7 +216,7 @@ impl Registry {
     /// the cached view; no DB round-trip.
     #[must_use]
     pub fn distinct_folders(&self) -> Vec<String> {
-        let view = self.inner.read().expect("registry view lock poisoned");
+        let view = self.inner.read().unwrap_or_else(|e| e.into_inner());
         let folders: Vec<String> = view
             .sessions
             .iter()
@@ -240,7 +238,7 @@ impl Registry {
     /// returned set without sorting.
     #[must_use]
     pub fn filter_ids(&self, query: &str) -> Vec<String> {
-        let view = self.inner.read().expect("registry view lock poisoned");
+        let view = self.inner.read().unwrap_or_else(|e| e.into_inner());
         let projected: Vec<SearchableSession> = view
             .sessions
             .iter()
@@ -267,7 +265,7 @@ impl Registry {
     /// already kept current.
     #[must_use]
     pub fn count_in_folder(&self, folder_path: &str) -> usize {
-        let view = self.inner.read().expect("registry view lock poisoned");
+        let view = self.inner.read().unwrap_or_else(|e| e.into_inner());
         let folders: Vec<String> = view
             .sessions
             .iter()

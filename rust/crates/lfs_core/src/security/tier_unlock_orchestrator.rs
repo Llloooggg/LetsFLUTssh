@@ -771,7 +771,7 @@ mod tests {
         let _ = crate::app::init();
         unlock_plaintext();
         let m = instance();
-        let g = m.lock().expect("tier machine mutex");
+        let g = m.lock().unwrap_or_else(|e| e.into_inner());
         assert_eq!(g.state(), TierState::Unlocked);
         assert_eq!(g.tier(), SecurityTier::Plaintext);
     }

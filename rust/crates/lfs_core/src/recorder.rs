@@ -162,7 +162,7 @@ impl RecorderRegistry {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, RegistryInner> {
-        self.inner.lock().expect("recorder registry mutex poisoned")
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Register a fresh recording actor. Emits `RecorderStarted`

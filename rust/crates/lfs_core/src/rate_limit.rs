@@ -77,7 +77,7 @@ impl InMemoryRateLimiter {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
-        self.state.lock().expect("rate limiter mutex poisoned")
+        self.state.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Snapshot the limiter for the UI — failure count + remaining
@@ -156,8 +156,7 @@ impl InMemoryRateLimiterRegistry {
     pub fn status(&self, id: &str) -> RateLimitStatus {
         let mut g = self
             .inner
-            .lock()
-            .expect("rate limiter registry mutex poisoned");
+            .lock().unwrap_or_else(|e| e.into_inner());
         g.entry(id.to_string()).or_default().status()
     }
 
@@ -166,8 +165,7 @@ impl InMemoryRateLimiterRegistry {
     pub fn record_failure(&self, id: &str) {
         let mut g = self
             .inner
-            .lock()
-            .expect("rate limiter registry mutex poisoned");
+            .lock().unwrap_or_else(|e| e.into_inner());
         g.entry(id.to_string()).or_default().record_failure();
     }
 
@@ -177,8 +175,7 @@ impl InMemoryRateLimiterRegistry {
     pub fn record_success(&self, id: &str) {
         let mut g = self
             .inner
-            .lock()
-            .expect("rate limiter registry mutex poisoned");
+            .lock().unwrap_or_else(|e| e.into_inner());
         g.entry(id.to_string()).or_default().record_success();
     }
 
@@ -186,16 +183,14 @@ impl InMemoryRateLimiterRegistry {
     /// reclaim memory; idempotent on a missing id.
     pub fn drop_id(&self, id: &str) -> bool {
         self.inner
-            .lock()
-            .expect("rate limiter registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .remove(id)
             .is_some()
     }
 
     pub fn count(&self) -> usize {
         self.inner
-            .lock()
-            .expect("rate limiter registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .len()
     }
 }

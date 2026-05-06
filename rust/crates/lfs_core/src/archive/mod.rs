@@ -164,7 +164,7 @@ impl ImportRegistry {
     fn lock(
         &self,
     ) -> std::sync::MutexGuard<'_, std::collections::HashMap<ImportHandleId, PendingImport>> {
-        self.inner.lock().expect("import registry mutex poisoned")
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     pub fn insert(&self, id: ImportHandleId, pending: PendingImport) {

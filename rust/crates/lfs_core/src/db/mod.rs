@@ -151,7 +151,7 @@ impl Db {
     /// the connection is alive. Returns the count of rows in
     /// `sqlite_master` (i.e. table count + index count).
     pub fn schema_object_count(&self) -> Result<i64, Error> {
-        let g = self.conn.lock().expect("db lock");
+        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         g.query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))
             .map_err(|e| Error::Db(format!("schema count: {e}")))
     }
@@ -180,7 +180,7 @@ impl Db {
             },
         ));
         let pragma = format!("PRAGMA rekey = \"x'{}'\"", &*hex_key);
-        let g = self.conn.lock().expect("db lock");
+        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         g.execute_batch(&pragma)
             .map_err(|_| Error::Io("db rekey: PRAGMA rekey failed".into()))?;
         Ok(())
@@ -195,7 +195,7 @@ impl Db {
         &self,
         f: impl FnOnce(&Connection) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let g = self.conn.lock().expect("db lock");
+        let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         f(&g)
     }
 
@@ -209,7 +209,7 @@ impl Db {
         &self,
         f: impl FnOnce(&mut Connection) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        let mut g = self.conn.lock().expect("db lock");
+        let mut g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         f(&mut g)
     }
 }

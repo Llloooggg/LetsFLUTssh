@@ -138,7 +138,7 @@ impl TransferQueue {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, QueueInner> {
-        self.inner.lock().expect("transfer queue mutex poisoned")
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Enqueue a fresh task. Emits `TransferTaskAdded`. Idempotent

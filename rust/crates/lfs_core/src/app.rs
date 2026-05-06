@@ -139,14 +139,14 @@ impl AppState {
     /// rekey events.
     pub fn db_init(&self, path: &Path, key: &[u8]) -> Result<(), Error> {
         let db = Db::open(path, key)?;
-        let mut g = self.db.lock().expect("db slot lock");
+        let mut g = self.db.lock().unwrap_or_else(|e| e.into_inner());
         *g = Some(Arc::new(db));
         Ok(())
     }
 
     /// Fetch the DB handle. `None` when init hasn't run.
     pub fn db(&self) -> Option<Arc<Db>> {
-        let g = self.db.lock().expect("db slot lock");
+        let g = self.db.lock().unwrap_or_else(|e| e.into_inner());
         g.clone()
     }
 
@@ -156,7 +156,7 @@ impl AppState {
     /// the user steps away. Unlock re-runs `db_init` to bring the
     /// handle back under the freshly re-derived master key.
     pub fn db_close(&self) {
-        let mut g = self.db.lock().expect("db slot lock");
+        let mut g = self.db.lock().unwrap_or_else(|e| e.into_inner());
         *g = None;
     }
 }

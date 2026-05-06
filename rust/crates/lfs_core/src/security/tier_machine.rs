@@ -182,7 +182,7 @@ pub fn instance() -> &'static std::sync::Mutex<Machine> {
 /// section.
 pub fn instance_dispatch(tier: SecurityTier, event: &TierEvent) -> TransitionResult {
     let m = instance();
-    let mut g = m.lock().expect("tier machine mutex poisoned");
+    let mut g = m.lock().unwrap_or_else(|e| e.into_inner());
     g.set_tier(tier);
     g.dispatch(event)
 }

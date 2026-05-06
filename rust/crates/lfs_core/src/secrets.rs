@@ -55,25 +55,25 @@ impl SecretStore {
     /// Store `bytes` under `id`. Replaces any prior value at the
     /// same id (the previous `Zeroizing` buffer scrubs on drop).
     pub fn put(&self, id: &str, bytes: &[u8]) {
-        let mut g = self.inner.lock().expect("secrets lock");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.insert(id.to_string(), Zeroizing::new(bytes.to_vec()));
     }
 
     pub fn has(&self, id: &str) -> bool {
-        let g = self.inner.lock().expect("secrets lock");
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.contains_key(id)
     }
 
     /// Return a fresh copy of the stored bytes. Caller owns the
     /// scrub-on-drop guarantee for the returned buffer.
     pub fn get(&self, id: &str) -> Option<Zeroizing<Vec<u8>>> {
-        let g = self.inner.lock().expect("secrets lock");
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.get(id).map(|v| Zeroizing::new(v.to_vec()))
     }
 
     /// Remove the entry under `id`. Idempotent.
     pub fn drop_id(&self, id: &str) {
-        let mut g = self.inner.lock().expect("secrets lock");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.remove(id);
     }
 
@@ -86,14 +86,14 @@ impl SecretStore {
     /// listener takes it once for drift, the entry is gone
     /// from the store after a single FRB byte crossing.
     pub fn take(&self, id: &str) -> Option<Zeroizing<Vec<u8>>> {
-        let mut g = self.inner.lock().expect("secrets lock");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.remove(id)
     }
 
     /// Drop every secret under any id. Used by the auth-failure
     /// recovery path that wipes all cached credentials at once.
     pub fn clear(&self) {
-        let mut g = self.inner.lock().expect("secrets lock");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.clear();
     }
 
@@ -114,7 +114,7 @@ impl SecretStore {
         if from == to {
             return self.has(from);
         }
-        let mut g = self.inner.lock().expect("secrets lock");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let Some(buf) = g.remove(from) else {
             return false;
         };
@@ -126,7 +126,7 @@ impl SecretStore {
     /// strings so the caller can drop the mutex before touching the
     /// list.
     pub fn ids(&self) -> Vec<String> {
-        let g = self.inner.lock().expect("secrets lock");
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.keys().cloned().collect()
     }
 }

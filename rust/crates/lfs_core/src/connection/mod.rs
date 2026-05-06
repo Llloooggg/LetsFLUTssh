@@ -293,7 +293,7 @@ impl ConnectionRegistry {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, RegistryInner> {
-        self.inner.lock().expect("registry mutex poisoned")
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Insert a freshly-built actor. Returns its handle so the
@@ -351,7 +351,7 @@ impl ConnectionRegistry {
         let mut out = Vec::with_capacity(g.order.len());
         for id in &g.order {
             if let Some(handle) = g.by_id.get(id) {
-                let actor = handle.lock().expect("actor mutex poisoned");
+                let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
                 out.push(actor.snapshot());
             }
         }
@@ -414,7 +414,7 @@ impl ConnectionRegistry {
         let g = self.lock();
         let mut n: usize = 0;
         for handle in g.by_id.values() {
-            let actor = handle.lock().expect("actor mutex poisoned");
+            let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
             if !actor.internal && matches!(actor.state, ConnectionState::Connected) {
                 n += 1;
             }
@@ -484,7 +484,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     let app = crate::app::instance();
     let generation;
     {
-        let mut a = handle.lock().expect("actor mutex poisoned");
+        let mut a = handle.lock().unwrap_or_else(|e| e.into_inner());
         a.state = ConnectionState::Connecting;
         a.error = None;
         a.progress.clear();
@@ -530,7 +530,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     // Discard stale-generation results — a reconnect bumped the
     // counter while we were mid-handshake.
     {
-        let a = handle.lock().expect("actor mutex poisoned");
+        let a = handle.lock().unwrap_or_else(|e| e.into_inner());
         if a.generation != generation {
             trace_connect!(
                 "run_connect_driver early-return STALE gen id={id} actor_gen={} snapshot={generation}",
@@ -546,7 +546,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
         Ok(session) => {
             trace_connect!("run_connect_driver SUCCESS id={id_dbg}");
             {
-                let mut a = handle.lock().expect("actor mutex poisoned");
+                let mut a = handle.lock().unwrap_or_else(|e| e.into_inner());
                 a.session = Some(Arc::new(session));
                 a.state = ConnectionState::Connected;
             }
@@ -579,7 +579,7 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
                 failure_phase(&err)
             );
             {
-                let mut a = handle.lock().expect("actor mutex poisoned");
+                let mut a = handle.lock().unwrap_or_else(|e| e.into_inner());
                 a.state = ConnectionState::Disconnected;
                 a.error = Some(detail.clone());
             }
@@ -655,7 +655,7 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
             .connections
             .get(parent_id)
             .ok_or_else(|| Error::Transport(format!("ProxyJump parent '{parent_id}' missing")))?;
-        let actor = handle.lock().expect("actor mutex poisoned");
+        let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
         actor.state
     };
     match initial_state {
@@ -690,7 +690,7 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
                     // happened we missed, the snapshot still surfaces it.
                     let app = crate::app::instance();
                     if let Some(handle) = app.connections.get(&parent_id) {
-                        let actor = handle.lock().expect("actor mutex poisoned");
+                        let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
                         match actor.state {
                             ConnectionState::Connected => return Ok(()),
                             ConnectionState::Disconnected => {
@@ -749,7 +749,7 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
                     .connections
                     .get(id)
                     .ok_or_else(|| Error::Transport(format!("ProxyJump parent '{id}' missing")))?;
-                let actor = handle.lock().expect("actor mutex poisoned");
+                let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
                 if actor.state != ConnectionState::Connected {
                     return Err(Error::Transport(format!(
                         "ProxyJump parent '{id}' not yet connected (state {:?})",
@@ -875,7 +875,7 @@ fn failure_phase(err: &Error) -> ConnectionPhase {
 async fn record_progress(handle: Arc<Mutex<ConnectionActor>>, id: ConnId, step: ProgressStep) {
     let app = crate::app::instance();
     {
-        let mut a = handle.lock().expect("actor mutex poisoned");
+        let mut a = handle.lock().unwrap_or_else(|e| e.into_inner());
         a.progress.push(step.clone());
     }
     app.bus
@@ -917,7 +917,7 @@ pub async fn disconnect(id: &str) -> Result<(), Error> {
     let app = crate::app::instance();
     if let Some(handle) = app.connections.remove(id) {
         let session = {
-            let mut a = handle.lock().expect("actor mutex poisoned");
+            let mut a = handle.lock().unwrap_or_else(|e| e.into_inner());
             a.state = ConnectionState::Disconnected;
             a.session.take()
         };
@@ -1012,7 +1012,7 @@ mod tests {
         });
         let handle = reg.insert(actor);
         {
-            let mut a = handle.lock().expect("actor mutex poisoned");
+            let mut a = handle.lock().unwrap_or_else(|e| e.into_inner());
             a.progress.push(ProgressStep {
                 phase: ConnectionPhase::SocketConnect,
                 status: StepStatus::Success,

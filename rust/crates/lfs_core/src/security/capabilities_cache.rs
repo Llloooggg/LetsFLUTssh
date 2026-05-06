@@ -57,8 +57,7 @@ impl Cache {
     pub fn view(&self) -> Option<SecurityCapabilities> {
         let g = self
             .inner
-            .lock()
-            .expect("capabilities cache mutex poisoned");
+            .lock().unwrap_or_else(|e| e.into_inner());
         g.current.clone()
     }
 
@@ -76,8 +75,7 @@ impl Cache {
         let changed = {
             let mut g = self
                 .inner
-                .lock()
-                .expect("capabilities cache mutex poisoned");
+                .lock().unwrap_or_else(|e| e.into_inner());
             let differs = g.current.as_ref() != Some(&snapshot);
             if differs {
                 g.current = Some(snapshot.clone());
@@ -104,8 +102,7 @@ impl Cache {
         let was_present = {
             let mut g = self
                 .inner
-                .lock()
-                .expect("capabilities cache mutex poisoned");
+                .lock().unwrap_or_else(|e| e.into_inner());
             g.current.take().is_some()
         };
         if was_present {

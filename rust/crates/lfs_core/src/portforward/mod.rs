@@ -128,8 +128,7 @@ impl PortForwardRegistry {
     /// withdraws the server-side listener).
     pub fn store_remote_forward(&self, id: &str, handle: driver::RemoteForwardHandle) {
         self.remote_forwards
-            .lock()
-            .expect("port forward remote_forwards mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .insert(id.to_string(), handle);
     }
 
@@ -138,8 +137,7 @@ impl PortForwardRegistry {
     /// missing id. Returns `true` when a handle was actually stopped.
     pub fn stop_remote_forward(&self, id: &str) -> bool {
         self.remote_forwards
-            .lock()
-            .expect("port forward remote_forwards mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .remove(id)
             .is_some()
     }
@@ -150,8 +148,7 @@ impl PortForwardRegistry {
     /// aborts its task).
     pub fn store_listener(&self, id: &str, handle: driver::ListenerHandle) {
         self.listeners
-            .lock()
-            .expect("port forward listeners mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .insert(id.to_string(), handle);
     }
 
@@ -162,8 +159,7 @@ impl PortForwardRegistry {
     pub fn stop_listener(&self, id: &str) -> Option<std::net::SocketAddr> {
         let removed = self
             .listeners
-            .lock()
-            .expect("port forward listeners mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
             .remove(id);
         removed.map(|h| {
             let addr = h.bound_addr();
@@ -174,8 +170,7 @@ impl PortForwardRegistry {
 
     fn lock(&self) -> std::sync::MutexGuard<'_, RegistryInner> {
         self.inner
-            .lock()
-            .expect("port forward registry mutex poisoned")
+            .lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Register a rule actor + emit `PortForwardRegistered`. The

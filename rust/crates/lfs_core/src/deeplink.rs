@@ -308,8 +308,7 @@ impl DeeplinkDispatcher {
     fn is_duplicate(&self, uri: &str) -> bool {
         let g = self
             .inner
-            .lock()
-            .expect("deeplink dispatcher mutex poisoned");
+            .lock().unwrap_or_else(|e| e.into_inner());
         match (&g.last_uri, &g.last_at) {
             (Some(last), Some(at)) => last == uri && at.elapsed().as_millis() < DEDUP_WINDOW_MS,
             _ => false,
@@ -319,8 +318,7 @@ impl DeeplinkDispatcher {
     fn record(&self, uri: &str) {
         let mut g = self
             .inner
-            .lock()
-            .expect("deeplink dispatcher mutex poisoned");
+            .lock().unwrap_or_else(|e| e.into_inner());
         g.last_uri = Some(uri.to_string());
         g.last_at = Some(std::time::Instant::now());
     }

@@ -96,12 +96,11 @@ impl AutoLockMachine {
     pub fn set_lock_action(&self, action: LockAction) {
         *self
             .lock_action
-            .write()
-            .expect("autolock action lock poisoned") = Some(action);
+            .write().unwrap_or_else(|e| e.into_inner()) = Some(action);
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
-        self.inner.lock().expect("autolock mutex poisoned")
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// User interacted with the app — reset the idle countdown.
@@ -191,8 +190,7 @@ impl AutoLockMachine {
         // state is zeroed at the same instant the event fires.
         let action = self
             .lock_action
-            .read()
-            .expect("autolock action lock poisoned")
+            .read().unwrap_or_else(|e| e.into_inner())
             .clone();
         if let Some(action) = action {
             (action)();

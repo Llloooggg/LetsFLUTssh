@@ -82,7 +82,7 @@ impl PersistedRateLimiterRegistry {
     /// L2-gate's password change / wipe path may legitimately
     /// re-init with a fresh HMAC key.
     pub fn init_or_get(&self, id: &str, file_path: PathBuf, hmac_key: Vec<u8>) -> RateLimitStatus {
-        let mut g = self.inner.lock().expect("persisted rate limit poisoned");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let entry = g.entry(id.to_string()).or_insert_with(|| Entry {
             file_path: file_path.clone(),
             hmac_key: hmac_key.clone(),
@@ -112,7 +112,7 @@ impl PersistedRateLimiterRegistry {
     /// when the id has never been initialised — same contract the
     /// Dart `status()` honoured before the cache settled.
     pub fn status(&self, id: &str) -> RateLimitStatus {
-        let g = self.inner.lock().expect("persisted rate limit poisoned");
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         match g.get(id) {
             Some(entry) => snapshot_status(entry, &self.clock),
             None => RateLimitStatus {
@@ -131,7 +131,7 @@ impl PersistedRateLimiterRegistry {
     /// Returns the new status snapshot so the caller can render
     /// the cooldown countdown without a follow-up `status` call.
     pub fn record_failure(&self, id: &str) -> RateLimitStatus {
-        let mut g = self.inner.lock().expect("persisted rate limit poisoned");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let Some(entry) = g.get_mut(id) else {
             return RateLimitStatus {
                 failure_count: 0,
@@ -180,7 +180,7 @@ impl PersistedRateLimiterRegistry {
 
     /// Wipe the failure counter so the next unlock starts fresh.
     pub fn record_success(&self, id: &str) {
-        let mut g = self.inner.lock().expect("persisted rate limit poisoned");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let Some(entry) = g.get_mut(id) else {
             return;
         };
@@ -201,7 +201,7 @@ impl PersistedRateLimiterRegistry {
     /// the FRB `flush` shim so callers (tests, logout flows) can
     /// observe a settled disk state without polling.
     pub fn take_pending_write(&self, id: &str) -> Option<tokio::task::JoinHandle<()>> {
-        let mut g = self.inner.lock().expect("persisted rate limit poisoned");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.get_mut(id).and_then(|e| e.pending_write.take())
     }
 
@@ -209,7 +209,7 @@ impl PersistedRateLimiterRegistry {
     /// file. Used on logout / wipe-all so a never-failed re-enable
     /// starts from zero.
     pub fn clear(&self, id: &str) {
-        let mut g = self.inner.lock().expect("persisted rate limit poisoned");
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(entry) = g.remove(id) {
             let _ = std::fs::remove_file(&entry.file_path);
         }
