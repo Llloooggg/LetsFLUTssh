@@ -530,6 +530,7 @@ async fn stream_upload_file(sftp: &Sftp, local_path: &str, remote_path: &str) ->
         }
         remote.write_all(&buf[..n]).await?;
     }
+    remote.sync_all().await?;
     Ok(())
 }
 
@@ -627,11 +628,22 @@ impl SftpFile {
             .map_err(|e| Error::Io(format!("sftp seek: {e}")))
     }
 
-    /// Flush buffered writes and instruct the server to fsync to
-    /// disk. Best-effort — the server may quietly ignore on
-    /// filesystems that do not support sync.
+    /// Drain any pipelined WRITE acks the russh-sftp client has queued
+    /// (poll_write returns Ready(Ok) before the server acks; the ack
+    /// receivers live in the file's `write_acks` deque), then ask the
+    /// server to fsync the handle to disk. The fsync round-trip is
+    /// best-effort — servers without `fsync@openssh.com` quietly skip
+    /// it — but the flush is mandatory: without it the upload driver
+    /// declares a task `Completed` while WRITE bytes are still in the
+    /// SSH transport queue, racing any caller that reads the remote
+    /// file immediately after the bus event.
     pub async fn sync_all(&self) -> Result<(), Error> {
-        let guard = self.inner.lock().await;
+        use tokio::io::AsyncWriteExt;
+        let mut guard = self.inner.lock().await;
+        guard
+            .flush()
+            .await
+            .map_err(|e| Error::Io(format!("sftp flush: {e}")))?;
         guard
             .sync_all()
             .await
