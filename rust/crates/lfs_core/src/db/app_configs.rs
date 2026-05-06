@@ -13,7 +13,7 @@ pub struct AppConfigRow {
 
 pub fn get(conn: &Connection) -> Result<Option<AppConfigRow>, Error> {
     let mut stmt = conn
-        .prepare("SELECT data, updated_at, auto_lock_minutes FROM app_configs WHERE id = 1")
+        .prepare_cached("SELECT data, updated_at, auto_lock_minutes FROM app_configs WHERE id = 1")
         .map_err(|e| Error::Io(format!("app_configs prepare: {e}")))?;
     let mut rows = stmt
         .query_map([], |row| {

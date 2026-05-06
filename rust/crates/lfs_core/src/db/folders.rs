@@ -27,7 +27,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<FolderRow> {
 
 pub fn list_all(conn: &Connection) -> Result<Vec<FolderRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT id, name, parent_id, sort_order, collapsed, created_at \
              FROM folders ORDER BY sort_order ASC, name ASC",
         )

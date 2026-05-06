@@ -28,7 +28,7 @@ pub fn list_for_session(
     session_id: &str,
 ) -> Result<Vec<SftpBookmarkRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT id, session_id, remote_path, label, created_at \
              FROM sftp_bookmarks WHERE session_id = ?1 \
              ORDER BY remote_path ASC",

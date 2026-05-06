@@ -24,7 +24,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<TagRow> {
 
 pub fn list_all(conn: &Connection) -> Result<Vec<TagRow>, Error> {
     let mut stmt = conn
-        .prepare("SELECT id, name, color, created_at FROM tags ORDER BY name ASC")
+        .prepare_cached("SELECT id, name, color, created_at FROM tags ORDER BY name ASC")
         .map_err(|e| Error::Io(format!("tags prepare: {e}")))?;
     let rows = stmt
         .query_map([], row_from)
@@ -63,7 +63,7 @@ pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
 /// Mirrors drift's `TagDao::getForSession`.
 pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<TagRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT t.id, t.name, t.color, t.created_at \
              FROM tags t \
              INNER JOIN session_tags st ON st.tag_id = t.id \
@@ -84,7 +84,7 @@ pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<TagRo
 /// Tags attached to a folder, joined back to the `tags` table.
 pub fn list_for_folder(conn: &Connection, folder_id: &str) -> Result<Vec<TagRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT t.id, t.name, t.color, t.created_at \
              FROM tags t \
              INNER JOIN folder_tags ft ON ft.tag_id = t.id \
@@ -127,7 +127,7 @@ pub fn unlink_session_tag(
 
 pub fn list_session_tag_ids(conn: &Connection, session_id: &str) -> Result<Vec<String>, Error> {
     let mut stmt = conn
-        .prepare("SELECT tag_id FROM session_tags WHERE session_id = ?1")
+        .prepare_cached("SELECT tag_id FROM session_tags WHERE session_id = ?1")
         .map_err(|e| Error::Io(format!("session_tags prepare: {e}")))?;
     let rows = stmt
         .query_map(params![session_id], |row| row.get::<_, String>(0))
@@ -158,7 +158,7 @@ pub fn unlink_folder_tag(conn: &Connection, folder_id: &str, tag_id: &str) -> Re
 
 pub fn list_folder_tag_ids(conn: &Connection, folder_id: &str) -> Result<Vec<String>, Error> {
     let mut stmt = conn
-        .prepare("SELECT tag_id FROM folder_tags WHERE folder_id = ?1")
+        .prepare_cached("SELECT tag_id FROM folder_tags WHERE folder_id = ?1")
         .map_err(|e| Error::Io(format!("folder_tags prepare: {e}")))?;
     let rows = stmt
         .query_map(params![folder_id], |row| row.get::<_, String>(0))

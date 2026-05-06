@@ -75,7 +75,7 @@ const SELECT_COLS: &str =
 
 pub fn list_all(conn: &Connection) -> Result<Vec<SessionRow>, Error> {
     let mut stmt = conn
-        .prepare(&format!(
+        .prepare_cached(&format!(
             "SELECT {SELECT_COLS} FROM sessions ORDER BY sort_order ASC, label ASC"
         ))
         .map_err(|e| Error::Io(format!("sessions prepare: {e}")))?;
@@ -91,7 +91,7 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SessionRow>, Error> {
 
 pub fn get(conn: &Connection, id: &str) -> Result<Option<SessionRow>, Error> {
     let mut stmt = conn
-        .prepare(&format!("SELECT {SELECT_COLS} FROM sessions WHERE id = ?1"))
+        .prepare_cached(&format!("SELECT {SELECT_COLS} FROM sessions WHERE id = ?1"))
         .map_err(|e| Error::Io(format!("sessions get prepare: {e}")))?;
     let mut rows = stmt
         .query_map(params![id], row_from)
@@ -222,7 +222,7 @@ pub fn stage_secrets_into_store(
     session_id: &str,
 ) -> Result<Option<StagedSecrets>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT auth_type, password, key_data, passphrase \
              FROM sessions WHERE id = ?1",
         )
@@ -412,7 +412,7 @@ pub fn duplicate_with_path(
 
     // Source row — needed for the base label.
     let mut stmt = tx
-        .prepare("SELECT label FROM sessions WHERE id = ?1")
+        .prepare_cached("SELECT label FROM sessions WHERE id = ?1")
         .map_err(|e| Error::Io(format!("sessions duplicate_with_path lookup: {e}")))?;
     let base_label: String = stmt
         .query_row([src_id], |row| row.get::<_, String>(0))
@@ -423,7 +423,7 @@ pub fn duplicate_with_path(
     // doesn't collide with anything already in the list.
     let mut taken: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut labels_stmt = tx
-        .prepare("SELECT label FROM sessions")
+        .prepare_cached("SELECT label FROM sessions")
         .map_err(|e| Error::Io(format!("sessions duplicate_with_path labels: {e}")))?;
     let label_rows = labels_stmt
         .query_map([], |row| row.get::<_, String>(0))

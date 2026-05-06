@@ -30,7 +30,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<KnownHostRow> {
 
 pub fn list_all(conn: &Connection) -> Result<Vec<KnownHostRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT id, host, port, key_type, key_base64, added_at \
              FROM known_hosts ORDER BY host ASC, port ASC",
         )
@@ -51,7 +51,7 @@ pub fn get_by_host_port(
     port: i64,
 ) -> Result<Option<KnownHostRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT id, host, port, key_type, key_base64, added_at \
              FROM known_hosts WHERE host = ?1 AND port = ?2",
         )

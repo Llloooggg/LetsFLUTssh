@@ -40,7 +40,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
 
 pub fn list_all(conn: &Connection) -> Result<Vec<SshKeyRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys ORDER BY created_at DESC",
         )
@@ -57,7 +57,7 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SshKeyRow>, Error> {
 
 pub fn get(conn: &Connection, id: &str) -> Result<Option<SshKeyRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys WHERE id = ?1",
         )
@@ -125,7 +125,7 @@ pub struct SshKeyMetadata {
 
 pub fn list_metadata(conn: &Connection) -> Result<Vec<SshKeyMetadata>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys ORDER BY created_at DESC",
         )
@@ -270,7 +270,7 @@ pub fn private_key_secret_id(key_id: &str) -> String {
 /// `SshAuthPubkeyRef` variant.
 pub fn stage_secret_into_store(conn: &Connection, key_id: &str) -> Result<bool, Error> {
     let mut stmt = conn
-        .prepare("SELECT private_key FROM ssh_keys WHERE id = ?1")
+        .prepare_cached("SELECT private_key FROM ssh_keys WHERE id = ?1")
         .map_err(|e| Error::Io(format!("ssh_keys stage prepare: {e}")))?;
     let private_key: Option<String> = stmt.query_row(params![key_id], |row| row.get(0)).ok();
     let Some(pem) = private_key else {

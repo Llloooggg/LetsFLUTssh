@@ -384,6 +384,38 @@ CREATE TABLE IF NOT EXISTS sftp_bookmarks (
     created_at INTEGER NOT NULL,
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
+
+-- Reverse-edge indexes. Every foreign-key column queried as a
+-- "join from the *child* side" (rows in this table referencing
+-- the parent) needs an explicit index. SQLite indexes the
+-- declared PRIMARY KEY automatically but does NOT index foreign-
+-- key columns by default; without these every reverse lookup
+-- (`SELECT * FROM sessions WHERE folder_id = ?`,
+-- `DELETE FROM sftp_bookmarks WHERE session_id = ?`, etc.) was a
+-- full table scan. Added at the end of the schema block so an
+-- existing database picks them up on the next open without a
+-- migration bump (`IF NOT EXISTS` is idempotent).
+CREATE INDEX IF NOT EXISTS idx_sessions_folder_id
+    ON sessions(folder_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_via_session_id
+    ON sessions(via_session_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_key_id
+    ON sessions(key_id);
+CREATE INDEX IF NOT EXISTS idx_folders_parent_id
+    ON folders(parent_id);
+CREATE INDEX IF NOT EXISTS idx_port_forward_rules_session_id
+    ON port_forward_rules(session_id);
+CREATE INDEX IF NOT EXISTS idx_sftp_bookmarks_session_id
+    ON sftp_bookmarks(session_id);
+-- Composite-PK tables: the leading column is covered by the PK,
+-- but the trailing column needs its own index for the reverse
+-- join (`tag → sessions`, `tag → folders`, `snippet → sessions`).
+CREATE INDEX IF NOT EXISTS idx_session_tags_tag_id
+    ON session_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_folder_tags_tag_id
+    ON folder_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_session_snippets_snippet_id
+    ON session_snippets(snippet_id);
 "#;
 
 #[cfg(test)]

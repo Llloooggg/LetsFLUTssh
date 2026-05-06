@@ -27,7 +27,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SnippetRow> {
 
 pub fn list_all(conn: &Connection) -> Result<Vec<SnippetRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT id, title, command, description, created_at, updated_at \
              FROM snippets ORDER BY title ASC",
         )
@@ -106,7 +106,7 @@ pub fn unlink_session_snippet(
 /// `SnippetDao::getForSession`.
 pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<SnippetRow>, Error> {
     let mut stmt = conn
-        .prepare(
+        .prepare_cached(
             "SELECT s.id, s.title, s.command, s.description, s.created_at, s.updated_at \
              FROM snippets s \
              INNER JOIN session_snippets ss ON ss.snippet_id = s.id \
@@ -126,7 +126,7 @@ pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<Snipp
 
 pub fn list_session_snippet_ids(conn: &Connection, session_id: &str) -> Result<Vec<String>, Error> {
     let mut stmt = conn
-        .prepare("SELECT snippet_id FROM session_snippets WHERE session_id = ?1")
+        .prepare_cached("SELECT snippet_id FROM session_snippets WHERE session_id = ?1")
         .map_err(|e| Error::Io(format!("session_snippets prepare: {e}")))?;
     let rows = stmt
         .query_map(params![session_id], |row| row.get::<_, String>(0))

@@ -45,7 +45,7 @@ pub fn list_for_session(
     session_id: &str,
 ) -> Result<Vec<PortForwardRuleRow>, Error> {
     let mut stmt = conn
-        .prepare(&format!(
+        .prepare_cached(&format!(
             "SELECT {SELECT_COLS} FROM port_forward_rules \
              WHERE session_id = ?1 ORDER BY sort_order ASC, created_at ASC"
         ))
