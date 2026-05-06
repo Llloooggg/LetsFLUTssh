@@ -164,7 +164,9 @@ fn walk_size(
 /// https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags.
 #[cfg(target_os = "windows")]
 pub async fn windows_hidden_names(dir: String) -> Vec<String> {
-    use std::os::windows::process::CommandExt as _;
+    // `tokio::process::Command::creation_flags` is provided as an
+    // inherent method under `cfg_windows!`, not via the std
+    // `CommandExt` trait — no extra `use` needed.
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let output = tokio::process::Command::new("cmd")
         .args(["/c", "attrib", "*"])
