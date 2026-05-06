@@ -308,7 +308,11 @@ class UnifiedExportController extends ChangeNotifier {
         privateKey: k.privateKey,
       );
 
-  /// .lfs archive size: ZIP + AES-GCM overhead (salt+IV+tag = 60 bytes).
+  /// .lfs archive size: sum of UTF-8 byte counts per archive entry
+  /// + ZIP overhead + encrypted-header constant. Approximation by
+  /// design — the dialog tolerates a ±5% slop on the preview line
+  /// and we do not want to pay the cost of a real ZIP build (or
+  /// a Rust round-trip with DB lookups) on every checkbox toggle.
   int _lfsArchiveSize() {
     final resolvedSessions = _resolveSessionsForLfsSize();
     final keyEntries = _selectedManagerKeyEntries();

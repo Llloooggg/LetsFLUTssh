@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/config/app_config.dart';
@@ -49,62 +48,11 @@ class ExportImport {
   static int get currentSchemaVersion =>
       rust_migration.migrationArchiveTargetVersion();
 
-  static const _saltLen = 32;
-  static const _ivLen = 12;
-
-  /// Upper bound on the fixed part of the Argon2id header
-  /// (magic + version + KdfParams). Used by preflight size estimation;
-  /// the actual length depends on KdfParams.encodedLength at write time.
-  static const int _argon2idHeaderMaxLen = 4 + 1 + 16;
-
   /// Default Argon2id profile used when [exportViaRust] is called
   /// without an explicit `kdfParams`. Mutable so the test bootstrap
   /// can drop cost to the Argon2id minimum, keeping the suite fast.
   @visibleForTesting
   static KdfParams defaultKdfParams = KdfParams.productionDefaults;
-
-  /// Maximum accepted encrypted archive size (50 MiB). Used by the
-  /// `probeArchive` classifier; the Rust read path enforces its own
-  /// bounds during decrypt.
-  static const int maxArchiveBytes = 50 * 1024 * 1024;
-
-  /// Maximum total uncompressed payload accepted from any decoded ZIP
-  /// (200 MiB). Used by `probeArchive` only — the Rust read path uses
-  /// the same per-entry caps internally.
-  static const int maxDecompressedBytes = 200 * 1024 * 1024;
-
-  /// Walk every entry in [archive] and refuse if the cumulative declared
-  /// uncompressed size exceeds [maxDecompressedBytes].
-  ///
-  /// Throws [LfsArchiveTooLargeException] (re-using the existing exception
-  /// for "too big" so the UI surface stays consistent).
-  @visibleForTesting
-  static void enforceDecompressedSizeCap(Archive archive) {
-    var total = 0;
-    for (final entry in archive) {
-      final size = entry.size;
-      if (size < 0) continue; // negative sizes are not meaningful
-      total += size;
-      if (total > maxDecompressedBytes) {
-        throw LfsArchiveTooLargeException(
-          size: total,
-          limit: maxDecompressedBytes,
-        );
-      }
-    }
-  }
-
-  /// Detect an unencrypted `.lfs` (plain ZIP) by its local-file-header
-  /// magic `PK\x03\x04`. Encrypted archives start with a random 32-byte
-  /// salt, so a false positive is a ~2⁻³² lottery — and even then the
-  /// ZIP decoder would reject the garbage.
-  static bool isUnencryptedArchive(Uint8List data) {
-    if (data.length < 4) return false;
-    return data[0] == 0x50 &&
-        data[1] == 0x4B &&
-        data[2] == 0x03 &&
-        data[3] == 0x04;
-  }
 
   /// Probe an `.lfs` candidate file and decide what the import flow
   /// should do with it before asking for a password.
@@ -145,18 +93,6 @@ class ExportImport {
       return LfsArchiveKind.notLfs;
     }
   }
-
-  static const _manifestFile = 'manifest.json';
-  static const _sessionsFile = 'sessions.json';
-  static const _keysFile = 'keys.json';
-  static const _emptyFoldersFile = 'empty_folders.json';
-  static const _configFile = 'config.json';
-  static const _knownHostsFile = 'known_hosts';
-  static const _tagsFile = 'tags.json';
-  static const _sessionTagsFile = 'session_tags.json';
-  static const _folderTagsFile = 'folder_tags.json';
-  static const _snippetsFile = 'snippets.json';
-  static const _sessionSnippetsFile = 'session_snippets.json';
 
   /// Export app data to an encrypted `.lfs` file via the Rust
   /// orchestrator. Sessions / keys / tags / snippets / known-hosts
@@ -231,173 +167,204 @@ class ExportImport {
     return outputPath;
   }
 
-  /// Build the ZIP archive in memory from [input].
-  static Archive _buildArchive(LfsExportInput input) {
-    final archive = Archive();
-    _addManifest(archive, input);
-    _addSessions(archive, input);
-    _addManagerKeys(archive, input);
-    _addConfig(archive, input);
-    _addKnownHosts(archive, input);
-    _addTags(archive, input);
-    _addSnippets(archive, input);
-    return archive;
-  }
+  /// Estimate the final `.lfs` file size for the given inputs
+  /// without actually building a real ZIP or running the KDF /
+  /// AES-GCM encryption. Sums the UTF-8 byte length of each
+  /// would-be entry's JSON / text payload, adds a per-entry ZIP
+  /// stored-mode overhead (LFH + CDH + filename twice), the
+  /// fixed end-of-central-directory record, and the encrypted-
+  /// header constant.
+  ///
+  /// Approximation by design — the dialog's "Exported file will
+  /// be ~N MiB" preview tolerates a ±5% slop and we do not want
+  /// to pay the cost of the real `package:archive` ZIP build (or
+  /// a Rust round-trip with DB lookups) on every checkbox toggle.
+  /// Production export goes through
+  /// [exportViaRust] / `lfs_core::archive::export_archive`; this
+  /// helper exists only for the size preview.
+  static int calculateLfsSize(LfsExportInput input) {
+    var total = 0;
+    void addEntry(String name, int payloadBytes) {
+      // Stored-mode ZIP overhead — local file header (30 bytes
+      // fixed + filename) + central directory header (46 bytes
+      // fixed + filename). Filename appears twice on disk.
+      const lfhFixed = 30;
+      const cdhFixed = 46;
+      total += lfhFixed + cdhFixed + (name.length * 2) + payloadBytes;
+    }
 
-  static void _addManifest(Archive archive, LfsExportInput input) {
+    int jsonBytes(Object? value) =>
+        utf8.encode(const JsonEncoder.withIndent('  ').convert(value)).length;
+
+    // Manifest — every export carries one.
     final manifest = <String, dynamic>{
       'schema_version': currentSchemaVersion,
       'created_at': DateTime.now().toUtc().toIso8601String(),
     };
-    final appVersion = input.appVersion;
-    if (appVersion != null && appVersion.isNotEmpty) {
-      manifest['app_version'] = appVersion;
+    if (input.appVersion != null && input.appVersion!.isNotEmpty) {
+      manifest['app_version'] = input.appVersion;
     }
-    _addRawJson(archive, _manifestFile, manifest);
-  }
+    addEntry('manifest.json', jsonBytes(manifest));
 
-  static void _addSessions(Archive archive, LfsExportInput input) {
-    if (!input.options.includeSessions) return;
-    _addRawJson(
-      archive,
-      _sessionsFile,
-      input.sessions.map((s) => s.toJsonWithCredentials()).toList(),
-    );
-    if (input.emptyFolders.isNotEmpty) {
-      _addRawJson(archive, _emptyFoldersFile, input.emptyFolders.toList());
+    if (input.options.includeSessions) {
+      addEntry(
+        'sessions.json',
+        jsonBytes(
+          input.sessions.map((s) => s.toJsonWithCredentials()).toList(),
+        ),
+      );
+      if (input.emptyFolders.isNotEmpty) {
+        addEntry('empty_folders.json', jsonBytes(input.emptyFolders.toList()));
+      }
     }
-  }
 
-  static void _addManagerKeys(Archive archive, LfsExportInput input) {
-    if (!input.options.hasManagerKeys || input.managerKeyEntries.isEmpty) {
-      return;
+    if (input.options.hasManagerKeys && input.managerKeyEntries.isNotEmpty) {
+      addEntry(
+        'keys.json',
+        jsonBytes(
+          input.managerKeyEntries
+              .map(
+                (e) => {
+                  'id': e.id,
+                  'label': e.label,
+                  'private_key': e.privateKey,
+                  'public_key': e.publicKey,
+                  'key_type': e.keyType,
+                  'is_generated': e.isGenerated,
+                  'created_at': e.createdAt.toIso8601String(),
+                },
+              )
+              .toList(),
+        ),
+      );
     }
-    _addRawJson(
-      archive,
-      _keysFile,
-      input.managerKeyEntries
-          .map(
-            (e) => {
-              'id': e.id,
-              'label': e.label,
-              'private_key': e.privateKey,
-              'public_key': e.publicKey,
-              'key_type': e.keyType,
-              'is_generated': e.isGenerated,
-              'created_at': e.createdAt.toIso8601String(),
-            },
-          )
-          .toList(),
-    );
-  }
 
-  static void _addConfig(Archive archive, LfsExportInput input) {
-    if (!input.options.includeConfig) return;
-    // `toJsonForExport()` strips per-machine security setup — the
-    // archive carries portable user data only. Imports use the
-    // local machine's existing `security` configuration regardless
-    // of what the archive was originally exported from.
-    _addRawJson(archive, _configFile, input.config.toJsonForExport());
-  }
+    if (input.options.includeConfig) {
+      addEntry('config.json', jsonBytes(input.config.toJsonForExport()));
+    }
 
-  static void _addKnownHosts(Archive archive, LfsExportInput input) {
     final kh = input.knownHostsContent;
-    if (!input.options.includeKnownHosts || kh == null || kh.isEmpty) return;
-    _addTextFile(archive, _knownHostsFile, kh);
-  }
-
-  static void _addTags(Archive archive, LfsExportInput input) {
-    if (!input.options.includeTags || input.tags.isEmpty) return;
-    _addRawJson(
-      archive,
-      _tagsFile,
-      input.tags
-          .map(
-            (t) => {
-              'id': t.id,
-              'name': t.name,
-              'color': t.color,
-              'created_at': t.createdAt.toIso8601String(),
-            },
-          )
-          .toList(),
-    );
-    if (input.sessionTags.isNotEmpty) {
-      _addRawJson(
-        archive,
-        _sessionTagsFile,
-        input.sessionTags
-            .map((l) => {'session_id': l.sessionId, 'tag_id': l.targetId})
-            .toList(),
-      );
+    if (input.options.includeKnownHosts && kh != null && kh.isNotEmpty) {
+      addEntry('known_hosts', utf8.encode(kh).length);
     }
-    if (input.folderTags.isNotEmpty) {
-      _addRawJson(
-        archive,
-        _folderTagsFile,
-        input.folderTags
-            .map((l) => {'folder_path': l.folderPath, 'tag_id': l.tagId})
-            .toList(),
+
+    if (input.options.includeTags && input.tags.isNotEmpty) {
+      addEntry(
+        'tags.json',
+        jsonBytes(
+          input.tags
+              .map(
+                (t) => {
+                  'id': t.id,
+                  'name': t.name,
+                  'color': t.color,
+                  'created_at': t.createdAt.toIso8601String(),
+                },
+              )
+              .toList(),
+        ),
       );
+      if (input.sessionTags.isNotEmpty) {
+        addEntry(
+          'session_tags.json',
+          jsonBytes(
+            input.sessionTags
+                .map((l) => {'session_id': l.sessionId, 'tag_id': l.targetId})
+                .toList(),
+          ),
+        );
+      }
+      if (input.folderTags.isNotEmpty) {
+        addEntry(
+          'folder_tags.json',
+          jsonBytes(
+            input.folderTags
+                .map((l) => {'folder_path': l.folderPath, 'tag_id': l.tagId})
+                .toList(),
+          ),
+        );
+      }
     }
-  }
 
-  static void _addSnippets(Archive archive, LfsExportInput input) {
-    if (!input.options.includeSnippets || input.snippets.isEmpty) return;
-    _addRawJson(
-      archive,
-      _snippetsFile,
-      input.snippets
-          .map(
-            (s) => {
-              'id': s.id,
-              'title': s.title,
-              'command': s.command,
-              'description': s.description,
-              'created_at': s.createdAt.toIso8601String(),
-              'updated_at': s.updatedAt.toIso8601String(),
-            },
-          )
-          .toList(),
-    );
-    if (input.sessionSnippets.isNotEmpty) {
-      _addRawJson(
-        archive,
-        _sessionSnippetsFile,
-        input.sessionSnippets
-            .map((l) => {'session_id': l.sessionId, 'snippet_id': l.targetId})
-            .toList(),
+    if (input.options.includeSnippets && input.snippets.isNotEmpty) {
+      addEntry(
+        'snippets.json',
+        jsonBytes(
+          input.snippets
+              .map(
+                (s) => {
+                  'id': s.id,
+                  'title': s.title,
+                  'command': s.command,
+                  'description': s.description,
+                  'created_at': s.createdAt.toIso8601String(),
+                  'updated_at': s.updatedAt.toIso8601String(),
+                },
+              )
+              .toList(),
+        ),
       );
+      if (input.sessionSnippets.isNotEmpty) {
+        addEntry(
+          'session_snippets.json',
+          jsonBytes(
+            input.sessionSnippets
+                .map(
+                  (l) => {'session_id': l.sessionId, 'snippet_id': l.targetId},
+                )
+                .toList(),
+          ),
+        );
+      }
     }
-  }
 
-  /// Estimate the final .lfs file size (bytes) for given inputs without
-  /// actually writing to disk or running the KDF.
-  ///
-  /// Adds fixed encryption overhead for the v3 Argon2id format: magic
-  /// (4) + version (1) + KdfParams (≤ 16) + salt (32) + IV (12) + GCM
-  /// tag (16) — padded to [_argon2idHeaderMaxLen] for the header part so
-  /// the estimate holds even if the default KDF params change.
-  static int calculateLfsSize(LfsExportInput input) {
-    final archive = _buildArchive(input);
-    final zipBytes = Uint8List.fromList(ZipEncoder().encode(archive));
-    return zipBytes.length + _argon2idHeaderMaxLen + _saltLen + _ivLen + 16;
+    // End-of-central-directory record (22 bytes fixed, no comment).
+    total += 22;
+    // Encrypted-header overhead — magic (4) + version (1) +
+    // KdfParams worst-case (16) + salt (32) + IV (12) + GCM tag
+    // (16). Mirrors `lfs_core::archive::compose::
+    // ENCRYPTED_ARCHIVE_HEADER_MAX_OVERHEAD`. Always added because
+    // the dialog asks for the password later — the estimate must
+    // hold whether or not the user picks an empty password
+    // (production export builds the same envelope shape).
+    total += 4 + 1 + 16 + 32 + 12 + 16;
+    return total;
   }
+}
 
-  /// Encode any JSON-serializable value to pretty-printed UTF-8 bytes and
-  /// attach it as an archive entry. Single entry point for every JSON entry
-  /// in the archive so padding/indentation stays consistent.
-  static void _addRawJson(Archive archive, String name, Object? data) {
-    final json = const JsonEncoder.withIndent('  ').convert(data);
-    _addTextFile(archive, name, json);
-  }
+/// Bundle of inputs for [ExportImport.calculateLfsSize]. Groups
+/// related optional parameters so the public signature stays
+/// small.
+class LfsExportInput {
+  final List<Session> sessions;
+  final AppConfig config;
+  final ExportOptions options;
+  final Set<String> emptyFolders;
+  final String? knownHostsContent;
+  final List<SshKeyEntry> managerKeyEntries;
+  final List<Tag> tags;
+  final List<ExportLink> sessionTags;
+  final List<ExportFolderTagLink> folderTags;
+  final List<Snippet> snippets;
+  final List<ExportLink> sessionSnippets;
 
-  /// Attach a UTF-8 text blob as an archive entry (known_hosts is raw text,
-  /// not JSON — this is the one place that path matters).
-  static void _addTextFile(Archive archive, String name, String text) {
-    final bytes = utf8.encode(text);
-    archive.addFile(ArchiveFile(name, bytes.length, bytes));
-  }
+  /// App version string recorded in the manifest (diagnostic only).
+  final String? appVersion;
+
+  const LfsExportInput({
+    required this.sessions,
+    required this.config,
+    this.options = const ExportOptions(),
+    this.emptyFolders = const {},
+    this.knownHostsContent,
+    this.managerKeyEntries = const [],
+    this.tags = const [],
+    this.sessionTags = const [],
+    this.folderTags = const [],
+    this.snippets = const [],
+    this.sessionSnippets = const [],
+    this.appVersion,
+  });
 }
 
 /// Manifest metadata returned by the Rust import preview.
@@ -662,38 +629,4 @@ class ImportResult {
       skippedSessions: skippedSessions,
     );
   }
-}
-
-/// Bundle of inputs for [ExportImport.export]. Groups related optional
-/// parameters so the public signature stays small.
-class LfsExportInput {
-  final List<Session> sessions;
-  final AppConfig config;
-  final ExportOptions options;
-  final Set<String> emptyFolders;
-  final String? knownHostsContent;
-  final List<SshKeyEntry> managerKeyEntries;
-  final List<Tag> tags;
-  final List<ExportLink> sessionTags;
-  final List<ExportFolderTagLink> folderTags;
-  final List<Snippet> snippets;
-  final List<ExportLink> sessionSnippets;
-
-  /// App version string recorded in the manifest (diagnostic only).
-  final String? appVersion;
-
-  const LfsExportInput({
-    required this.sessions,
-    required this.config,
-    this.options = const ExportOptions(),
-    this.emptyFolders = const {},
-    this.knownHostsContent,
-    this.managerKeyEntries = const [],
-    this.tags = const [],
-    this.sessionTags = const [],
-    this.folderTags = const [],
-    this.snippets = const [],
-    this.sessionSnippets = const [],
-    this.appVersion,
-  });
 }
