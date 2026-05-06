@@ -1275,6 +1275,8 @@ All calls are wrapped in try/catch; a failed hardening call never blocks startup
 * *Core dumps* — covered on every POSIX target (prctl + setrlimit on Linux/Android, ptrace PT_DENY_ATTACH + setrlimit on macOS). Windows WER is disabled for the process via SetErrorMode. No gap.
 * *Ptrace attach* — Linux requires `CAP_SYS_PTRACE` after `PR_SET_DUMPABLE, 0`; macOS blocked via `PT_DENY_ATTACH`; Windows equivalent is covered by the WER disable + the debugger-detection Windows already surfaces. No gap.
 * *mlock coverage* — every long-lived DB/crypto secret (`SecurityStateNotifier`'s current DB key, `MasterPasswordManager.verifyAndDerive` intermediate, `ExportImport._encryptWithPassword` / `_decryptWithPassword` Argon2id-derived keys) lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) that `mlock`s / `VirtualLock`s the page. Short-lived values routed through the Dart heap (password entry `TextEditingController`, `Uint8List` arguments to factories) are unavoidable without a wholesale isolate rewrite; the `SecretBuffer.fromBytes` call at every entry point zeros the source after copy.
+
+* *Password marshalling — `Uint8List` end-to-end.* Every FRB hop that takes a user-typed password (master-password `enable` / `verify_and_derive` / `change`, keychain-gate `set_password` / `verify`, tier orchestrator `unlock_keychain_with_password` / `unlock_paranoid` / `first_launch_*_password`) signs as `Vec<u8>` Rust-side and `Uint8List` Dart-side. The dialog's `TextEditingController.text` lands as a `String` once, gets converted via `Uint8List.fromList(utf8.encode(text))` inside the verify / submit closure, and the `String` becomes GC-eligible the moment that closure returns. Best practical bound given Dart's heap-immutable `String` semantics — the typed value can still appear in a heap dump during the dialog's lifetime, but the post-dialog GC reclaims it cleanly without the previous "password lives on the heap until the next major GC pass" tail.
 * *Stack canaries* — the Dart VM + `flutter` engine are compiled with `-fstack-protector-strong` by upstream; the project does not link any native code of its own that would opt out. No action.
 * *Isolate cross-talk* — Dart isolates have isolated heaps by design; the project uses one secondary isolate (`MasterPasswordManager.verifyAndDerive` spawns a short-lived isolate for Argon2id) and explicitly disposes its secret buffers before the isolate terminates. No cross-talk surface.
 * *Android manifest debuggable flag* — Flutter release builds set `debuggable=false` by default via Gradle; the project never overrides it. No action.
@@ -1494,6 +1496,13 @@ stale literals.
 post-migration shape. The runner is idempotent — calling twice in a
 row is a no-op on the second call once every artefact has been
 brought to its target.
+
+**Panic-safety.** Each `migrate_artefact` call wraps in
+`std::panic::catch_unwind(AssertUnwindSafe(…))` so a panic in one
+artefact's `read_version` / `migrate` does not abort the whole
+startup pass. A panic-derived fatal lands in `report.fatal_error`
+with the artefact id and the unwound message, routed through the
+same DB-corruption recovery dialog the typed-error fatals use.
 
 For each artefact (in topologically-sorted order — see Topology
 below):
@@ -1903,10 +1912,14 @@ at import time, not startup.
 | v1 (LFSE) | `0x02` | Argon2id @ header params | Current writer and the only supported reader. |
 
 Import caps bound Argon2id params from an untrusted header
-(`maxImportArgon2idMemoryKiB = 1 GiB`, `maxImportArgon2idIterations =
-20`, `maxImportArgon2idParallelism = 16`) so a hostile archive cannot
-pin the isolate into swap. Unencrypted ZIP archives keep their
-`PK\x03\x04` magic and are handled separately.
+(`MAX_IMPORT_MEMORY_KIB = 1 GiB` desktop / 512 MiB mobile,
+`MAX_IMPORT_ITERATIONS = 20`, `MAX_IMPORT_PARALLELISM = 4`) so a
+hostile archive cannot pin every core for tens of seconds before
+the wrong-password check fires. The parallelism cap was tightened
+from 16 to 4 (Argon2id production tuning never exceeds 4 lanes
+anyway; the higher limit was just DoS surface). Unencrypted ZIP
+archives keep their `PK\x03\x04` magic and are handled
+separately.
 
 On iOS and Android the effective ceiling drops to 512 MiB
 (`mobileImportArgon2idMemoryKiB`) — the Android OOM killer on a 2 GB
@@ -4364,7 +4377,11 @@ AppConfig {
   terminal: TerminalConfig {
     fontSize: double      // 6-72, default 14.0
     theme: String         // 'dark'|'light'|'system'
-    scrollback: int       // ≥100, default 5000
+    scrollback: int       // 100..200_000 (TerminalConfig.maxScrollback),
+                          // default 5000. Upper cap is the OOM brake —
+                          // xterm allocates per-line buffers eagerly,
+                          // and an unclamped `cat /dev/urandom` would
+                          // pin the renderer's heap.
   }
   ssh: SshDefaults {
     keepAliveSec: int     // default 30
@@ -4671,7 +4688,14 @@ _mainBody (synchronous, pre-runApp — PURE DART):
   AppLogger.init()                                      // path resolution
   error handlers (FlutterError + PlatformDispatcher + zone)
   single-instance lock                                  // dart:io flock
-  loadAppConfigFromDisk                                 // dart:io + jsonDecode
+  loadAppConfigFromDisk                                 // dart:io + jsonDecode;
+                                                         // throws
+                                                         // AppConfigParseException
+                                                         // on a corrupt file
+                                                         // → fatal-error screen
+                                                         // (never silently
+                                                         // overwrites with
+                                                         // defaults)
   setThreshold(config.logLevel)                         // file open
   runApp(LetsFLUTsshApp)                                // first frame ← splash visible
 ──── post-frame _bootstrap (FRB OK from this point):
