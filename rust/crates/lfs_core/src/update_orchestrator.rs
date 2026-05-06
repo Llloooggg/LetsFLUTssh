@@ -430,13 +430,32 @@ fn replace_path_tail(url: &str, new_tail: &str) -> String {
     }
 }
 
+/// SHA-256 a file by streaming 64 KiB chunks through the hasher
+/// instead of materialising the whole file in memory. The asset
+/// can be a multi-MiB / multi-GiB installer; the prior
+/// `tokio::fs::read(path).await` shape blew RAM proportional to
+/// the artefact, surfaced under the digest precheck + the
+/// manifest cross-check (two full reads on the same file). Now
+/// the buffer is a single `[u8; 65_536]` reused per chunk.
 async fn sha256_file(path: &str) -> Result<String, Error> {
-    let bytes = tokio::fs::read(path)
+    use tokio::io::AsyncReadExt;
+
+    let mut file = tokio::fs::File::open(path)
         .await
-        .map_err(|e| Error::Update(format!("read {path}: {e}")))?;
-    let mut h = Sha256::new();
-    h.update(&bytes);
-    let digest = h.finalize();
+        .map_err(|e| Error::Update(format!("open {path}: {e}")))?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = file
+            .read(&mut buf)
+            .await
+            .map_err(|e| Error::Update(format!("read {path}: {e}")))?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    let digest = hasher.finalize();
     let mut hex = String::with_capacity(64);
     for b in digest {
         use std::fmt::Write as _;
