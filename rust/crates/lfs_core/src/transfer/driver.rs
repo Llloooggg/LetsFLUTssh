@@ -257,20 +257,26 @@ async fn download(
     let mut local = tokio::fs::File::create(&task.local_path)
         .await
         .map_err(|e| Error::Io(format!("create {}: {e}", task.local_path)))?;
+    // Single scratch buffer reused across every chunk read — the
+    // pre-fix `read_chunk(TRANSFER_CHUNK_SIZE)` allocated a fresh
+    // `vec![0; 256 KiB]` per iteration. On a 100 MB/s pipe that's
+    // ~400 mallocs/s; the buffer reuse keeps the heap pressure
+    // off the tokio worker.
+    let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
     let mut written: u64 = 0;
     loop {
         if cancel.is_cancelled() {
             return Err(Error::Io("download cancelled".to_string()));
         }
-        let chunk = remote.read_chunk(TRANSFER_CHUNK_SIZE).await?;
-        if chunk.is_empty() {
+        let n = remote.read_into(&mut buf).await?;
+        if n == 0 {
             break;
         }
         local
-            .write_all(&chunk)
+            .write_all(&buf[..n])
             .await
             .map_err(|e| Error::Io(format!("write {}: {e}", task.local_path)))?;
-        written = written.saturating_add(chunk.len() as u64);
+        written = written.saturating_add(n as u64);
         app.transfers.set_progress(&task.id, written, &app.bus);
     }
     local

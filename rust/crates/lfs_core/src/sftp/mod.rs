@@ -532,13 +532,16 @@ async fn stream_download_file(
     let mut local = tokio::fs::File::create(local_path)
         .await
         .map_err(|e| Error::Io(format!("create {local_path}: {e}")))?;
+    // Reused scratch buffer — same rationale as the transfer
+    // driver loop. One alloc per call, not per chunk.
+    let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
     loop {
-        let chunk = remote.read_chunk(TRANSFER_CHUNK_SIZE).await?;
-        if chunk.is_empty() {
+        let n = remote.read_into(&mut buf).await?;
+        if n == 0 {
             break;
         }
         local
-            .write_all(&chunk)
+            .write_all(&buf[..n])
             .await
             .map_err(|e| Error::Io(format!("local write {local_path}: {e}")))?;
     }
@@ -561,6 +564,11 @@ pub struct SftpFile {
 impl SftpFile {
     /// Read up to `max_bytes` from the current position. Returns the
     /// bytes actually read — an empty `Vec` signals EOF.
+    ///
+    /// Allocates a fresh `Vec` per call. For tight loops where the
+    /// caller already owns a reusable scratch buffer (transfer
+    /// driver / archive-stream reader), prefer [`read_into`] to
+    /// skip the per-iteration `vec![0; N]` allocation.
     pub async fn read_chunk(&self, max_bytes: usize) -> Result<Vec<u8>, Error> {
         let mut guard = self.inner.lock().await;
         let mut buf = vec![0u8; max_bytes];
@@ -570,6 +578,21 @@ impl SftpFile {
             .map_err(|e| Error::Io(format!("sftp read: {e}")))?;
         buf.truncate(n);
         Ok(buf)
+    }
+
+    /// Read up to `buf.len()` bytes into the caller-provided
+    /// scratch buffer. Returns the number of bytes actually read —
+    /// `0` signals EOF. Reuses the caller's allocation across
+    /// chunks, eliminating the `vec![0; chunk_size]` malloc the
+    /// `read_chunk` path runs once per chunk; on a 100 MB/s pipe
+    /// with 256 KiB chunks that's ~400 mallocs/s saved per
+    /// transfer driver loop.
+    pub async fn read_into(&self, buf: &mut [u8]) -> Result<usize, Error> {
+        let mut guard = self.inner.lock().await;
+        guard
+            .read(buf)
+            .await
+            .map_err(|e| Error::Io(format!("sftp read: {e}")))
     }
 
     /// Write the entire `data` slice to the current position. Returns
