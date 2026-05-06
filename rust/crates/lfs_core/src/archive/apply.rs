@@ -68,9 +68,11 @@ pub struct ApplyOptions {
 }
 
 /// Aggregate counters the apply driver returns. `errors` carries
-/// per-entry parse failures encountered along the way — apply
-/// keeps going past a bad row so a single corrupt session in a
-/// 500-host archive doesn't abort the whole import.
+/// per-entry parse failures encountered along the way — Merge
+/// mode keeps going past a bad row so a single corrupt session
+/// in a 500-host archive doesn't abort the whole import. Replace
+/// mode rolls the transaction back when `errors` is non-empty
+/// (see [`rolled_back`]) so the user's pre-import state survives.
 #[derive(Debug, Clone, Default)]
 pub struct ApplyResult {
     pub sessions_applied: i64,
@@ -84,6 +86,13 @@ pub struct ApplyResult {
     pub folder_tags_applied: i64,
     pub session_snippets_applied: i64,
     pub errors: Vec<String>,
+    /// Replace-mode-only flag — set when the per-row apply
+    /// produced one or more errors and the transaction rolled
+    /// back. The `applied` counters reflect what *would* have
+    /// committed had the import succeeded; the caller MUST treat
+    /// this as a hard failure (display errors, leave existing
+    /// data untouched) rather than a partial success.
+    pub rolled_back: bool,
 }
 
 /// Apply a staged [`PendingImport`]. See module docs for mode
@@ -109,6 +118,19 @@ pub fn apply_pending_import(
             let mut result = ApplyResult::default();
             run_replace_clear(&tx, options, &mut result);
             run_apply(&tx, pending, options, now_ms, &mut result);
+            // Replace mode is all-or-nothing — wiping the user's
+            // existing rows and then committing a partially-failed
+            // import would leave them with their original data
+            // gone and the new data incomplete. Rolling back here
+            // preserves the pre-import state; the caller surfaces
+            // `errors` to the user so they can fix the archive
+            // and retry.
+            if !result.errors.is_empty() {
+                tx.rollback()
+                    .map_err(|e| Error::Io(format!("apply tx rollback: {e}")))?;
+                result.rolled_back = true;
+                return Ok(result);
+            }
             tx.commit()
                 .map_err(|e| Error::Io(format!("apply tx commit: {e}")))?;
             Ok(result)
@@ -1475,6 +1497,73 @@ mod tests {
         assert!(known_hosts::get_by_host_port(&conn, "new.example", 22)
             .unwrap()
             .is_some());
+    }
+
+    /// Replace mode is all-or-nothing — a per-row apply error
+    /// MUST roll the transaction back so the user does not end up
+    /// with their original data wiped + a partially-imported new
+    /// state on top. Pre-fix shape kept the wipe (and the rows
+    /// that did succeed) committed; this test pins the rollback
+    /// guarantee on `errors.is_empty() == false`.
+    #[test]
+    fn replace_mode_rolls_back_on_per_row_apply_error() {
+        let mut conn = fresh_db();
+        // Pre-seed a session + tag the user must keep on a failed
+        // import.
+        sessions::upsert(
+            &conn,
+            &sessions::SessionRow {
+                id: "keep-s".into(),
+                label: "keep".into(),
+                host: "a".into(),
+                port: 22,
+                user: "u".into(),
+                auth_type: "password".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        tags::upsert(
+            &conn,
+            &tags::TagRow {
+                id: "keep-t".into(),
+                name: "keep".into(),
+                color: None,
+                created_at_ms: 0,
+            },
+        )
+        .unwrap();
+
+        // Hand the apply driver an unparseable sessions JSON so
+        // `apply_sessions` records an error. Replace mode must
+        // surface that as a rollback.
+        let pending = PendingImport {
+            sessions_json: Some("not valid json".to_string()),
+            ..empty_pending()
+        };
+        let mut opts = merge_all_options();
+        opts.mode = ImportMode::Replace;
+        let result = apply_pending_import(&mut conn, &pending, &opts, 1_700_000_000_000).unwrap();
+
+        assert!(
+            result.rolled_back,
+            "expected rolled_back flag, got: {result:?}",
+        );
+        assert!(!result.errors.is_empty(), "errors must propagate");
+
+        // Pre-import data survives — the rollback restored the
+        // wipe step too.
+        assert!(
+            sessions::get(&conn, "keep-s").unwrap().is_some(),
+            "pre-import session lost on rollback",
+        );
+        let surviving_tags = tags::list_all(&conn).unwrap();
+        assert!(
+            surviving_tags.iter().any(|t| t.id == "keep-t"),
+            "pre-import tag lost on rollback",
+        );
     }
 
     // ── known_hosts parsing ───────────────────────────────────

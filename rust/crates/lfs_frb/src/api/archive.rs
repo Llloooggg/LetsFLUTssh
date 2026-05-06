@@ -387,6 +387,12 @@ pub struct DbApplyResult {
     pub session_snippets_applied: i64,
     pub errors: Vec<String>,
     pub config_json: Option<String>,
+    /// Replace-mode-only flag. True when the apply driver hit a
+    /// per-row error and rolled the whole transaction back so the
+    /// user's pre-import state survives. Caller MUST treat this
+    /// as a hard failure (display `errors`, do not act on the
+    /// `*_applied` counters) rather than a partial success.
+    pub rolled_back: bool,
 }
 
 impl From<lfs_core::archive::ApplyResult> for DbApplyResult {
@@ -404,6 +410,7 @@ impl From<lfs_core::archive::ApplyResult> for DbApplyResult {
             session_snippets_applied: r.session_snippets_applied,
             errors: r.errors,
             config_json: None,
+            rolled_back: r.rolled_back,
         }
     }
 }

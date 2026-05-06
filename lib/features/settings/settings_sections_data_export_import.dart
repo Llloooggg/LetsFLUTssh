@@ -577,6 +577,9 @@ class _ExportImportTile extends ConsumerWidget {
           await ref.read(snippetsProvider.notifier).loadAll();
         },
       );
+      if (apply.rolledBack) {
+        throw ImportRolledBackException(List<String>.from(apply.errors));
+      }
       // Config restore (file IO, not a DB write) stays Dart-side.
       // Security tier setup is per-machine and never travels — keep
       // the local value, merge the rest.
@@ -658,6 +661,9 @@ class _ExportImportTile extends ConsumerWidget {
           await ref.read(snippetsProvider.notifier).loadAll();
         },
       );
+      if (apply.rolledBack) {
+        throw ImportRolledBackException(List<String>.from(apply.errors));
+      }
       final cfg = importResult.config;
       if (cfg != null) {
         ref

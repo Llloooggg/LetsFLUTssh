@@ -90,6 +90,7 @@ void main() {
           sessionSnippetsApplied: 0,
           errors: const [],
           configJson: configJson,
+          rolledBack: false,
         );
 
     test('returns null when configJson is null', () {

@@ -162,6 +162,13 @@ class DbApplyResult {
   final List<String> errors;
   final String? configJson;
 
+  /// Replace-mode-only flag. True when the apply driver hit a
+  /// per-row error and rolled the whole transaction back so the
+  /// user's pre-import state survives. Caller MUST treat this
+  /// as a hard failure (display `errors`, do not act on the
+  /// `*_applied` counters) rather than a partial success.
+  final bool rolledBack;
+
   const DbApplyResult({
     required this.sessionsApplied,
     required this.keysApplied,
@@ -175,6 +182,7 @@ class DbApplyResult {
     required this.sessionSnippetsApplied,
     required this.errors,
     this.configJson,
+    required this.rolledBack,
   });
 
   @override
@@ -190,7 +198,8 @@ class DbApplyResult {
       folderTagsApplied.hashCode ^
       sessionSnippetsApplied.hashCode ^
       errors.hashCode ^
-      configJson.hashCode;
+      configJson.hashCode ^
+      rolledBack.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -208,7 +217,8 @@ class DbApplyResult {
           folderTagsApplied == other.folderTagsApplied &&
           sessionSnippetsApplied == other.sessionSnippetsApplied &&
           errors == other.errors &&
-          configJson == other.configJson;
+          configJson == other.configJson &&
+          rolledBack == other.rolledBack;
 }
 
 /// Mirror of `ExportInput`. Pulled verbatim across the FRB

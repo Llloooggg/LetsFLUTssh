@@ -61,6 +61,7 @@ rust_archive.DbApplyResult _applyResult({
   int snippets = 0,
   int knownHosts = 0,
   String? configJson,
+  bool rolledBack = false,
 }) => rust_archive.DbApplyResult(
   sessionsApplied: sessions,
   keysApplied: keys,
@@ -74,6 +75,7 @@ rust_archive.DbApplyResult _applyResult({
   sessionSnippetsApplied: 0,
   errors: const [],
   configJson: configJson,
+  rolledBack: rolledBack,
 );
 
 ImportFlowSeams _seams({

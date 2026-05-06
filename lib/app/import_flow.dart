@@ -389,11 +389,21 @@ Future<void> _refreshStores(WidgetRef ref) async {
 /// Build a Dart-side `ImportSummary` from the Rust `DbApplyResult`.
 /// `configApplied` mirrors the Dart-side config-restore branch since
 /// the Rust apply leaves `config.json` to the caller.
+///
+/// Throws [ImportRolledBackException] when the Rust apply driver hit
+/// a per-row error in Replace mode and rolled the transaction back.
+/// Replace mode is all-or-nothing: returning a "success" summary
+/// against zeroed counters would lie to the user about whether their
+/// pre-import data survived. The catch arms in each caller surface
+/// the exception via `localizeError`.
 ImportSummary _summaryFromApply(
   rust_archive.DbApplyResult apply,
   bool configApplied, {
   int skippedSessions = 0,
 }) {
+  if (apply.rolledBack) {
+    throw ImportRolledBackException(List<String>.from(apply.errors));
+  }
   return ImportSummary(
     sessions: apply.sessionsApplied.toInt(),
     folders: apply.foldersApplied.toInt(),
@@ -405,4 +415,22 @@ ImportSummary _summaryFromApply(
     skippedSessions: skippedSessions,
     skippedLinks: 0,
   );
+}
+
+/// Raised by [_summaryFromApply] when `DbApplyResult.rolledBack` is
+/// true — the Rust apply driver hit a per-row error in Replace mode
+/// and rolled the transaction back so the user's pre-import state
+/// survives. Carries the Rust-side error messages so the catch arm
+/// can surface them via `localizeError` / a Toast.
+class ImportRolledBackException implements Exception {
+  ImportRolledBackException(this.errors);
+  final List<String> errors;
+
+  @override
+  String toString() {
+    if (errors.isEmpty) {
+      return 'Replace-mode import rolled back (no error detail).';
+    }
+    return 'Replace-mode import rolled back: ${errors.join("; ")}';
+  }
 }
