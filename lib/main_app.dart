@@ -148,6 +148,17 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     AppBus.instance.retryFrbSubscriptions();
     mark('bus_subscriptions_promoted');
 
+    // Drain any auto-lock lifecycle dispatches that the
+    // `AutoLockDetector` queued during the first runApp pass —
+    // pre-FRB lifecycle transitions on Win IoT (the ~3 s native
+    // blob load window) used to silently disappear into a
+    // try/catch swallow, so the Rust state machine never saw
+    // the early `app paused` / `inactive` events. The detector
+    // now queues into a module-static buffer; this drains it
+    // through the live bus.
+    unawaited(AutoLockDetector.replayPendingDispatches());
+    mark('autolock_dispatches_drained');
+
     // FRB-dependent listeners owned directly by the boot chain
     // (prompt subscribers, tier-state observer, foreground bridge)
     // wire here. Centralised here so the FRB-readiness invariant

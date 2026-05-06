@@ -55,6 +55,33 @@ class AutoLockDetector extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<AutoLockDetector> createState() => _AutoLockDetectorState();
+
+  /// FRB-ready gate. `replayPendingDispatches` flips this to true on
+  /// the bootstrap rail; subsequent dispatches forward straight to
+  /// the bus instead of queuing into [_pendingPreFrbDispatches].
+  static bool _frbReady = false;
+  static final List<rust_bus.BusCommand> _pendingPreFrbDispatches =
+      <rust_bus.BusCommand>[];
+
+  /// Drain pre-FRB lifecycle dispatches accumulated before
+  /// `_initRustCoreOrFatal` returned. Called from
+  /// `_LetsFLUTsshAppState._bootstrap` after the Rust core is up.
+  /// Idempotent — flips the gate so future dispatches forward
+  /// directly. Queue is class-static so a hot-reload that swaps the
+  /// detector instance still sees the captured events.
+  static Future<void> replayPendingDispatches() async {
+    _frbReady = true;
+    if (_pendingPreFrbDispatches.isEmpty) return;
+    final pending = List<rust_bus.BusCommand>.from(_pendingPreFrbDispatches);
+    _pendingPreFrbDispatches.clear();
+    for (final cmd in pending) {
+      try {
+        await AppBus.instance.dispatch(cmd);
+      } catch (_) {
+        // Best-effort replay — same shape as the live path.
+      }
+    }
+  }
 }
 
 class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
@@ -198,9 +225,23 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   }
 
   /// Best-effort dispatch into the Rust auto-lock state machine.
-  /// Swallow `RustLib`-not-initialised throws so widget tests with
-  /// no native lib loaded keep working.
+  /// Pre-FRB lifecycle events (`AutoLockDetector` mounts during the
+  /// first runApp pass; on Win IoT the native blob takes ~3 s to
+  /// load) **queue** into [AutoLockDetector._pendingPreFrbDispatches]
+  /// instead of disappearing into a silent catch.
+  /// [AutoLockDetector.replayPendingDispatches] — invoked from
+  /// `_LetsFLUTsshAppState._bootstrap` once the Rust core is up —
+  /// drains the queue so the state machine sees the early lifecycle
+  /// transitions in order.
+  ///
+  /// Widget tests without the native lib loaded still work: every
+  /// queued dispatch is wrapped in try/catch on replay too, so a
+  /// genuinely-unreachable FRB just degrades to the prior swallow.
   void _dispatchRust(rust_bus.BusCommand cmd) {
+    if (!AutoLockDetector._frbReady) {
+      AutoLockDetector._pendingPreFrbDispatches.add(cmd);
+      return;
+    }
     try {
       AppBus.instance.dispatch(cmd);
     } catch (_) {
