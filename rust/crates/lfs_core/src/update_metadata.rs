@@ -14,9 +14,9 @@
 //!   - cumulative changelog walker
 //!     ([`build_cumulative_changelog`])
 //!
-//! HTTP fetch + cert-pinning + Ed25519 verify plumbing live
-//! next door in [`crate::update_http`] / [`crate::update_pinning`] /
-//! [`crate::update_orchestrator`]; this module is the small
+//! HTTP fetch + Ed25519 verify plumbing live next door in
+//! [`crate::update_http`] / [`crate::update_orchestrator`];
+//! this module is the small
 //! pure-function half — semver compare, asset-URI predicate,
 //! filename heuristics, manifest parsing, changelog walker.
 

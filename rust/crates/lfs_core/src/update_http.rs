@@ -19,22 +19,22 @@
 //! # TLS posture
 //!
 //! `rustls-tls` keeps the dep tree pure-Rust (no openssl system
-//! link). The HTTP client wires
-//! [`crate::update_pinning::LfsPinningVerifier`] into rustls so
-//! every TLS handshake on this code path runs:
+//! link). Standard chain validation against the bundled
+//! webpki-roots (same trust anchors any browser uses). The
+//! load-bearing integrity check is the **Ed25519 signature on
+//! the release manifest** ([`crate::update_signing`]) — that is
+//! what gates a forged-cert attacker, not the TLS layer. A CA
+//! compromise alone yields no payload an attacker can install
+//! because the signed-manifest check fails closed.
 //!
-//! 1. Standard chain validation against the bundled webpki-roots
-//!    (same trust anchor any browser uses).
-//! 2. A SPKI pin check for hostnames present in
-//!    [`crate::update_pinning::PINNED_HOSTS`].
-//!
-//! `PINNED_HOSTS` is empty today — the pinning verifier is a
-//! transparent pass-through to the inner WebPki check, so
-//! security parity with the pre-pinning configuration is
-//! preserved. A maintainer adding a host pin enables the second
-//! check on the next build without touching this module. See the
-//! `update_pinning` crate-level docs for the maintainer pipeline
-//! that captures the current SPKI digest.
+//! SPKI pinning was considered (defence-in-depth on top of
+//! system-CA) and rejected: the app ships without analytics or
+//! a remote-management channel, so a pin going stale (GitHub
+//! key rotation) would silently break auto-update for everyone
+//! on the prior release with no detection or rescue path. The
+//! Ed25519 signature is the better security/maintenance
+//! trade-off — it gates the same attacker class without
+//! introducing a third-party-controlled liveness dependency.
 
 use std::path::Path;
 use std::time::Duration;
@@ -155,13 +155,10 @@ pub async fn download_to_file(
 }
 
 fn build_client() -> Result<reqwest::Client, Error> {
-    let tls = crate::update_pinning::build_pinning_tls_config()
-        .map_err(|e| Error::Update(format!("update http TLS config: {e}")))?;
     reqwest::Client::builder()
         .timeout(REQUEST_TIMEOUT)
         .redirect(reqwest::redirect::Policy::limited(MAX_REDIRECTS))
         .user_agent(format!("letsflutssh-update/{}", env!("CARGO_PKG_VERSION")))
-        .use_preconfigured_tls(tls)
         .build()
         .map_err(|e| Error::Update(format!("update http client build: {e}")))
 }
