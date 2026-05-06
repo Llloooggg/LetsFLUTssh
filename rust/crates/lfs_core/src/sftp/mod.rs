@@ -34,7 +34,7 @@ impl Sftp {
     {
         let session = SftpSession::new(stream)
             .await
-            .map_err(|e| Error::Io(format!("sftp init: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp init: {e}")))?;
         Ok(Sftp { session })
     }
 
@@ -46,7 +46,7 @@ impl Sftp {
             .session
             .read_dir(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp read_dir: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp read_dir: {e}")))?;
 
         let entries = read_dir
             .into_iter()
@@ -74,7 +74,7 @@ impl Sftp {
         self.session
             .read(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp read: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp read: {e}")))
     }
 
     /// Overwrite a small file with `data`. Same size guidance as
@@ -85,7 +85,7 @@ impl Sftp {
         self.session
             .write(path, data)
             .await
-            .map_err(|e| Error::Io(format!("sftp write: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp write: {e}")))
     }
 
     /// Stat a path. Resolves symlinks (use [`stat_symlink`] for
@@ -95,7 +95,7 @@ impl Sftp {
             .session
             .metadata(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp stat: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp stat: {e}")))?;
         Ok(FileMetadata::from_russh(&meta))
     }
 
@@ -105,7 +105,7 @@ impl Sftp {
             .session
             .symlink_metadata(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp lstat: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp lstat: {e}")))?;
         Ok(FileMetadata::from_russh(&meta))
     }
 
@@ -116,7 +116,7 @@ impl Sftp {
         self.session
             .rename(old, new)
             .await
-            .map_err(|e| Error::Io(format!("sftp rename: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp rename: {e}")))
     }
 
     /// Create a directory. Errors if the parent does not exist —
@@ -125,7 +125,7 @@ impl Sftp {
         self.session
             .create_dir(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp mkdir: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp mkdir: {e}")))
     }
 
     /// Remove a regular file. Errors on directories — use
@@ -134,7 +134,7 @@ impl Sftp {
         self.session
             .remove_file(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp remove_file: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp remove_file: {e}")))
     }
 
     /// Remove an empty directory. Errors when non-empty.
@@ -142,7 +142,7 @@ impl Sftp {
         self.session
             .remove_dir(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp remove_dir: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp remove_dir: {e}")))
     }
 
     /// Recursively delete a remote directory. Walks the tree
@@ -175,7 +175,7 @@ fn remove_dir_recursive_inner<'a>(
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
     Box::pin(async move {
         if depth >= SFTP_MAX_RECURSION_DEPTH {
-            return Err(Error::Io(format!(
+            return Err(Error::Sftp(format!(
                 "sftp remove_dir_recursive: max depth ({SFTP_MAX_RECURSION_DEPTH}) exceeded at {path}"
             )));
         }
@@ -215,7 +215,7 @@ impl Sftp {
             .session
             .open(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp open: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp open: {e}")))?;
         Ok(SftpFile {
             inner: Mutex::new(file),
         })
@@ -229,7 +229,7 @@ impl Sftp {
             .session
             .create(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp create: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp create: {e}")))?;
         Ok(SftpFile {
             inner: Mutex::new(file),
         })
@@ -242,7 +242,7 @@ impl Sftp {
         self.session
             .canonicalize(path)
             .await
-            .map_err(|e| Error::Io(format!("sftp canonicalize: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp canonicalize: {e}")))
     }
 
     /// Recursively upload `local_dir` into `remote_dir`. Walks the
@@ -383,7 +383,7 @@ fn upload_dir_inner<'a>(
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
     Box::pin(async move {
         if depth >= SFTP_MAX_RECURSION_DEPTH {
-            return Err(Error::Io(format!(
+            return Err(Error::Sftp(format!(
                 "sftp upload_dir: max depth ({SFTP_MAX_RECURSION_DEPTH}) exceeded at {local_dir}"
             )));
         }
@@ -392,13 +392,13 @@ fn upload_dir_inner<'a>(
 
         let mut rd = tokio::fs::read_dir(local_dir)
             .await
-            .map_err(|e| Error::Io(format!("read_dir {local_dir}: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("read_dir {local_dir}: {e}")))?;
         let mut files: Vec<(String, String)> = Vec::new();
         let mut subdirs: Vec<(String, String)> = Vec::new();
         while let Some(entry) = rd
             .next_entry()
             .await
-            .map_err(|e| Error::Io(format!("read_dir entry: {e}")))?
+            .map_err(|e| Error::Sftp(format!("read_dir entry: {e}")))?
         {
             let Ok(metadata) = entry.metadata().await else {
                 continue;
@@ -459,13 +459,13 @@ fn download_dir_inner<'a>(
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
     Box::pin(async move {
         if depth >= SFTP_MAX_RECURSION_DEPTH {
-            return Err(Error::Io(format!(
+            return Err(Error::Sftp(format!(
                 "sftp download_dir: max depth ({SFTP_MAX_RECURSION_DEPTH}) exceeded at {remote_dir}"
             )));
         }
         tokio::fs::create_dir_all(local_dir)
             .await
-            .map_err(|e| Error::Io(format!("create_dir_all {local_dir}: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("create_dir_all {local_dir}: {e}")))?;
         let entries = sftp.list(remote_dir).await?;
         let trimmed = remote_dir.trim_end_matches('/');
         let mut files: Vec<(String, String)> = Vec::new();
@@ -517,14 +517,14 @@ fn download_dir_inner<'a>(
 async fn stream_upload_file(sftp: &Sftp, local_path: &str, remote_path: &str) -> Result<(), Error> {
     let mut local = tokio::fs::File::open(local_path)
         .await
-        .map_err(|e| Error::Io(format!("open {local_path}: {e}")))?;
+        .map_err(|e| Error::Sftp(format!("open {local_path}: {e}")))?;
     let remote = sftp.create(remote_path).await?;
     let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
     loop {
         let n = local
             .read(&mut buf)
             .await
-            .map_err(|e| Error::Io(format!("local read {local_path}: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("local read {local_path}: {e}")))?;
         if n == 0 {
             break;
         }
@@ -542,7 +542,7 @@ async fn stream_download_file(
     let remote = sftp.open(remote_path).await?;
     let mut local = tokio::fs::File::create(local_path)
         .await
-        .map_err(|e| Error::Io(format!("create {local_path}: {e}")))?;
+        .map_err(|e| Error::Sftp(format!("create {local_path}: {e}")))?;
     // Reused scratch buffer — same rationale as the transfer
     // driver loop. One alloc per call, not per chunk.
     let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
@@ -554,12 +554,12 @@ async fn stream_download_file(
         local
             .write_all(&buf[..n])
             .await
-            .map_err(|e| Error::Io(format!("local write {local_path}: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("local write {local_path}: {e}")))?;
     }
     local
         .flush()
         .await
-        .map_err(|e| Error::Io(format!("local flush {local_path}: {e}")))?;
+        .map_err(|e| Error::Sftp(format!("local flush {local_path}: {e}")))?;
     Ok(())
 }
 
@@ -586,7 +586,7 @@ impl SftpFile {
         let n = guard
             .read(&mut buf)
             .await
-            .map_err(|e| Error::Io(format!("sftp read: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp read: {e}")))?;
         buf.truncate(n);
         Ok(buf)
     }
@@ -603,7 +603,7 @@ impl SftpFile {
         guard
             .read(buf)
             .await
-            .map_err(|e| Error::Io(format!("sftp read: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp read: {e}")))
     }
 
     /// Write the entire `data` slice to the current position. Returns
@@ -614,7 +614,7 @@ impl SftpFile {
         guard
             .write_all(data)
             .await
-            .map_err(|e| Error::Io(format!("sftp write: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp write: {e}")))
     }
 
     /// Move the read / write cursor to `offset` bytes from the start
@@ -625,7 +625,7 @@ impl SftpFile {
             .seek(SeekFrom::Start(offset))
             .await
             .map(|_| ())
-            .map_err(|e| Error::Io(format!("sftp seek: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp seek: {e}")))
     }
 
     /// Drain any pipelined WRITE acks the russh-sftp client has queued
@@ -643,11 +643,11 @@ impl SftpFile {
         guard
             .flush()
             .await
-            .map_err(|e| Error::Io(format!("sftp flush: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp flush: {e}")))?;
         guard
             .sync_all()
             .await
-            .map_err(|e| Error::Io(format!("sftp sync: {e}")))
+            .map_err(|e| Error::Sftp(format!("sftp sync: {e}")))
     }
 
     /// Read file metadata via the open handle (avoids a second
@@ -659,7 +659,7 @@ impl SftpFile {
         let meta = guard
             .metadata()
             .await
-            .map_err(|e| Error::Io(format!("sftp fstat: {e}")))?;
+            .map_err(|e| Error::Sftp(format!("sftp fstat: {e}")))?;
         Ok(FileMetadata::from_russh(&meta))
     }
 }

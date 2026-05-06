@@ -34,13 +34,13 @@ pub fn list_all(conn: &Connection) -> Result<Vec<KnownHostRow>, Error> {
             "SELECT id, host, port, key_type, key_base64, added_at \
              FROM known_hosts ORDER BY host ASC, port ASC",
         )
-        .map_err(|e| Error::Io(format!("known_hosts prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("known_hosts prepare: {e}")))?;
     let rows = stmt
         .query_map([], row_from)
-        .map_err(|e| Error::Io(format!("known_hosts query: {e}")))?;
+        .map_err(|e| Error::Db(format!("known_hosts query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("known_hosts row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("known_hosts row: {e}")))?);
     }
     Ok(out)
 }
@@ -55,13 +55,13 @@ pub fn get_by_host_port(
             "SELECT id, host, port, key_type, key_base64, added_at \
              FROM known_hosts WHERE host = ?1 AND port = ?2",
         )
-        .map_err(|e| Error::Io(format!("known_hosts get prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("known_hosts get prepare: {e}")))?;
     let mut rows = stmt
         .query_map(params![host, port], row_from)
-        .map_err(|e| Error::Io(format!("known_hosts get query: {e}")))?;
+        .map_err(|e| Error::Db(format!("known_hosts get query: {e}")))?;
     match rows.next() {
         Some(Ok(row)) => Ok(Some(row)),
-        Some(Err(e)) => Err(Error::Io(format!("known_hosts get row: {e}"))),
+        Some(Err(e)) => Err(Error::Db(format!("known_hosts get row: {e}"))),
         None => Ok(None),
     }
 }
@@ -86,14 +86,14 @@ pub fn upsert_by_host_port(
            added_at = excluded.added_at",
         params![host, port, key_type, key_base64, added_at_ms],
     )
-    .map_err(|e| Error::Io(format!("known_hosts upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("known_hosts upsert: {e}")))?;
     let id = conn
         .query_row(
             "SELECT id FROM known_hosts WHERE host = ?1 AND port = ?2",
             params![host, port],
             |row| row.get::<_, i64>(0),
         )
-        .map_err(|e| Error::Io(format!("known_hosts upsert select: {e}")))?;
+        .map_err(|e| Error::Db(format!("known_hosts upsert select: {e}")))?;
     Ok(id)
 }
 
@@ -102,10 +102,10 @@ pub fn delete_by_host_port(conn: &Connection, host: &str, port: i64) -> Result<u
         "DELETE FROM known_hosts WHERE host = ?1 AND port = ?2",
         params![host, port],
     )
-    .map_err(|e| Error::Io(format!("known_hosts delete: {e}")))
+    .map_err(|e| Error::Db(format!("known_hosts delete: {e}")))
 }
 
 pub fn clear_all(conn: &Connection) -> Result<usize, Error> {
     conn.execute("DELETE FROM known_hosts", [])
-        .map_err(|e| Error::Io(format!("known_hosts clear_all: {e}")))
+        .map_err(|e| Error::Db(format!("known_hosts clear_all: {e}")))
 }

@@ -121,14 +121,14 @@ impl RecorderQueue {
             match g.get(id) {
                 Some(h) => h.sender.clone(),
                 None => {
-                    return Err(Error::Io(format!("recorder queue {id} not spawned")));
+                    return Err(Error::Recorder(format!("queue {id} not spawned")));
                 }
             }
         };
         sender
             .send(entry)
             .await
-            .map_err(|_| Error::Io(format!("recorder queue {id} closed")))
+            .map_err(|_| Error::Recorder(format!("queue {id} closed")))
     }
 
     /// Best-effort drop the worker handle for `id`. Used at close

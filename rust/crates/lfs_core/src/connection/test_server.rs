@@ -134,7 +134,7 @@ impl TestServerHandle {
 /// tokio runtime — uses `tokio::spawn` for the accept loop.
 pub async fn start() -> Result<TestServerHandle, Error> {
     let host_key = PrivateKey::random(&mut OsRng, Algorithm::Ed25519)
-        .map_err(|e| Error::Io(format!("test_server: host key gen: {e}")))?;
+        .map_err(|e| Error::Transport(format!("test_server: host key gen: {e}")))?;
 
     let host_pub = host_key.public_key();
     let host_pubkey_algorithm = host_pub.algorithm().as_str().to_string();
@@ -144,7 +144,7 @@ pub async fn start() -> Result<TestServerHandle, Error> {
     // that wire encoding for the public-key body.
     let host_pubkey_wire = host_pub
         .to_bytes()
-        .map_err(|e| Error::Io(format!("test_server: pubkey wire: {e}")))?;
+        .map_err(|e| Error::Transport(format!("test_server: pubkey wire: {e}")))?;
     let host_pubkey_b64 = base64::engine::general_purpose::STANDARD.encode(&host_pubkey_wire);
 
     let sftp_root = std::env::temp_dir().join(format!(
@@ -152,14 +152,14 @@ pub async fn start() -> Result<TestServerHandle, Error> {
         crate::id::random_handle_hex_32()
     ));
     std::fs::create_dir_all(&sftp_root)
-        .map_err(|e| Error::Io(format!("test_server: sftp root mkdir: {e}")))?;
+        .map_err(|e| Error::Transport(format!("test_server: sftp root mkdir: {e}")))?;
 
     let listener = TcpListener::bind(("127.0.0.1", 0u16))
         .await
-        .map_err(|e| Error::Io(format!("test_server: bind: {e}")))?;
+        .map_err(|e| Error::Transport(format!("test_server: bind: {e}")))?;
     let port = listener
         .local_addr()
-        .map_err(|e| Error::Io(format!("test_server: local_addr: {e}")))?
+        .map_err(|e| Error::Transport(format!("test_server: local_addr: {e}")))?
         .port();
 
     let config = Arc::new(Config {

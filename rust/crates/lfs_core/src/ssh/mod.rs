@@ -191,7 +191,7 @@ async fn check_server_key_via_tofu(
     // known_hosts table stores.
     let openssh_line = server_public_key
         .to_openssh()
-        .map_err(|e| Error::Io(format!("known-hosts: encode public key: {e}")))?;
+        .map_err(|e| Error::Transport(format!("known-hosts: encode public key: {e}")))?;
     let key_b64 = openssh_line
         .split_whitespace()
         .nth(1)
@@ -199,7 +199,7 @@ async fn check_server_key_via_tofu(
         .to_string();
     let key_bytes = B64_STD
         .decode(&key_b64)
-        .map_err(|e| Error::Io(format!("known-hosts: base64 decode: {e}")))?;
+        .map_err(|e| Error::Transport(format!("known-hosts: base64 decode: {e}")))?;
     let port_i64 = port as i64;
     let result = crate::known_hosts::check_host(&db, host, port_i64, &key_type, &key_b64)?;
     if matches!(result, crate::known_hosts::HostCheckResult::Accepted) {

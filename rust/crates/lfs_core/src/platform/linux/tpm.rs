@@ -326,20 +326,20 @@ fn write_0600(path: &Path, bytes: &[u8]) -> Result<(), Error> {
     opts.mode(0o600);
     let mut f = opts
         .open(path)
-        .map_err(|e| Error::Io(format!("tpm write {}: {e}", path.display())))?;
+        .map_err(|e| Error::Platform(format!("tpm write {}: {e}", path.display())))?;
     f.write_all(bytes)
-        .map_err(|e| Error::Io(format!("tpm write {}: {e}", path.display())))?;
+        .map_err(|e| Error::Platform(format!("tpm write {}: {e}", path.display())))?;
     f.sync_all()
-        .map_err(|e| Error::Io(format!("tpm sync {}: {e}", path.display())))?;
+        .map_err(|e| Error::Platform(format!("tpm sync {}: {e}", path.display())))?;
     Ok(())
 }
 
 fn read_all(path: &Path) -> Result<Vec<u8>, Error> {
     let mut f =
-        File::open(path).map_err(|e| Error::Io(format!("tpm read {}: {e}", path.display())))?;
+        File::open(path).map_err(|e| Error::Platform(format!("tpm read {}: {e}", path.display())))?;
     let mut buf = Vec::new();
     f.read_to_end(&mut buf)
-        .map_err(|e| Error::Io(format!("tpm read {}: {e}", path.display())))?;
+        .map_err(|e| Error::Platform(format!("tpm read {}: {e}", path.display())))?;
     Ok(buf)
 }
 
@@ -405,7 +405,7 @@ impl WorkDir {
                     return Ok(Self { path: candidate });
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                Err(e) => return Err(Error::Io(format!("tpm mkdtemp: {e}"))),
+                Err(e) => return Err(Error::Platform(format!("tpm mkdtemp: {e}"))),
             }
         }
         Err(Error::Io("tpm mkdtemp: out of retries".to_string()))

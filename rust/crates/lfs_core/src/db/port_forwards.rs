@@ -49,13 +49,13 @@ pub fn list_for_session(
             "SELECT {SELECT_COLS} FROM port_forward_rules \
              WHERE session_id = ?1 ORDER BY sort_order ASC, created_at ASC"
         ))
-        .map_err(|e| Error::Io(format!("port_forwards prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("port_forwards prepare: {e}")))?;
     let rows = stmt
         .query_map(params![session_id], row_from)
-        .map_err(|e| Error::Io(format!("port_forwards query: {e}")))?;
+        .map_err(|e| Error::Db(format!("port_forwards query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("port_forwards row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("port_forwards row: {e}")))?);
     }
     Ok(out)
 }
@@ -89,11 +89,11 @@ pub fn upsert(conn: &Connection, row: &PortForwardRuleRow) -> Result<(), Error> 
             row.created_at_ms,
         ],
     )
-    .map_err(|e| Error::Io(format!("port_forwards upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("port_forwards upsert: {e}")))?;
     Ok(())
 }
 
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     conn.execute("DELETE FROM port_forward_rules WHERE id = ?1", params![id])
-        .map_err(|e| Error::Io(format!("port_forwards delete: {e}")))
+        .map_err(|e| Error::Db(format!("port_forwards delete: {e}")))
 }

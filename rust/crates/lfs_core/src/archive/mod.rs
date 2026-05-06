@@ -253,7 +253,7 @@ pub(super) fn build_folder_paths(conn: &Connection) -> Result<HashMap<String, St
 pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Error> {
     let cursor = Cursor::new(zip_bytes);
     let mut zip =
-        ZipArchive::new(cursor).map_err(|e| Error::Io(format!("import zip open: {e}")))?;
+        ZipArchive::new(cursor).map_err(|e| Error::Archive(format!("import zip open: {e}")))?;
 
     let mut pending = PendingImport {
         manifest_json: None,
@@ -272,12 +272,12 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
     for i in 0..zip.len() {
         let mut entry = zip
             .by_index(i)
-            .map_err(|e| Error::Io(format!("import zip entry {i}: {e}")))?;
+            .map_err(|e| Error::Archive(format!("import zip entry {i}: {e}")))?;
         let name = entry.name().to_string();
         let mut buf = String::new();
         entry
             .read_to_string(&mut buf)
-            .map_err(|e| Error::Io(format!("import read {name}: {e}")))?;
+            .map_err(|e| Error::Archive(format!("import read {name}: {e}")))?;
         match name.as_str() {
             "manifest.json" => pending.manifest_json = Some(buf),
             "sessions.json" => pending.sessions_json = Some(buf),
@@ -313,7 +313,7 @@ pub fn read_archive_to_pending(
     path: &str,
     password: &str,
 ) -> Result<(PendingImport, ImportPreview), Error> {
-    let bytes = std::fs::read(path).map_err(|e| Error::Io(format!("import read {path}: {e}")))?;
+    let bytes = std::fs::read(path).map_err(|e| Error::Archive(format!("import read {path}: {e}")))?;
     let zip_bytes: zeroize::Zeroizing<Vec<u8>> =
         if bytes.len() >= 4 && bytes[..4] == ENC_HEADER_MAGIC {
             decrypt_archive_with_password(&bytes, password)?
@@ -323,7 +323,7 @@ pub fn read_archive_to_pending(
             // keeps the type uniform).
             zeroize::Zeroizing::new(bytes)
         } else {
-            return Err(Error::Io(format!(
+            return Err(Error::Archive(format!(
                 "{path}: not an LFSE archive or ZIP file"
             )));
         };

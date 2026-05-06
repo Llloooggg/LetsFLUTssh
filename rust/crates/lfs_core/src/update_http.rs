@@ -62,16 +62,16 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 /// manifest from there.
 pub async fn fetch_text(url: &str) -> Result<String, Error> {
     if !is_trusted_release_asset_uri(url) {
-        return Err(Error::Io(format!("untrusted update URL: {url}")));
+        return Err(Error::Update(format!("untrusted update URL: {url}")));
     }
     let client = build_client()?;
     let response = client
         .get(url)
         .send()
         .await
-        .map_err(|e| Error::Io(format!("update fetch {url}: {e}")))?;
+        .map_err(|e| Error::Update(format!("update fetch {url}: {e}")))?;
     if !response.status().is_success() {
-        return Err(Error::Io(format!(
+        return Err(Error::Update(format!(
             "update fetch {url} returned HTTP {}",
             response.status()
         )));
@@ -81,14 +81,14 @@ pub async fn fetch_text(url: &str) -> Result<String, Error> {
     // followed it.
     let final_url = response.url().to_string();
     if !is_trusted_release_asset_uri(&final_url) {
-        return Err(Error::Io(format!(
+        return Err(Error::Update(format!(
             "update fetch redirected to untrusted host: {final_url}"
         )));
     }
     response
         .text()
         .await
-        .map_err(|e| Error::Io(format!("update fetch read {url}: {e}")))
+        .map_err(|e| Error::Update(format!("update fetch read {url}: {e}")))
 }
 
 /// GET `url`, stream the body into `target_path`, hashing each
@@ -106,23 +106,23 @@ pub async fn download_to_file(
     mut progress: impl FnMut(u64, Option<u64>) + Send + 'static,
 ) -> Result<String, Error> {
     if !is_trusted_release_asset_uri(url) {
-        return Err(Error::Io(format!("untrusted update URL: {url}")));
+        return Err(Error::Update(format!("untrusted update URL: {url}")));
     }
     let client = build_client()?;
     let response = client
         .get(url)
         .send()
         .await
-        .map_err(|e| Error::Io(format!("update download {url}: {e}")))?;
+        .map_err(|e| Error::Update(format!("update download {url}: {e}")))?;
     if !response.status().is_success() {
-        return Err(Error::Io(format!(
+        return Err(Error::Update(format!(
             "update download {url} returned HTTP {}",
             response.status()
         )));
     }
     let final_url = response.url().to_string();
     if !is_trusted_release_asset_uri(&final_url) {
-        return Err(Error::Io(format!(
+        return Err(Error::Update(format!(
             "update download redirected to untrusted host: {final_url}"
         )));
     }
@@ -131,39 +131,39 @@ pub async fn download_to_file(
     if let Some(parent) = target_path.parent() {
         tokio::fs::create_dir_all(parent)
             .await
-            .map_err(|e| Error::Io(format!("update mkdir {parent:?}: {e}")))?;
+            .map_err(|e| Error::Update(format!("update mkdir {parent:?}: {e}")))?;
     }
     let mut file = File::create(target_path)
         .await
-        .map_err(|e| Error::Io(format!("update create {target_path:?}: {e}")))?;
+        .map_err(|e| Error::Update(format!("update create {target_path:?}: {e}")))?;
     let mut hasher = Sha256::new();
     let mut written: u64 = 0;
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let bytes = chunk.map_err(|e| Error::Io(format!("update download chunk {url}: {e}")))?;
+        let bytes = chunk.map_err(|e| Error::Update(format!("update download chunk {url}: {e}")))?;
         hasher.update(&bytes);
         file.write_all(&bytes)
             .await
-            .map_err(|e| Error::Io(format!("update write {target_path:?}: {e}")))?;
+            .map_err(|e| Error::Update(format!("update write {target_path:?}: {e}")))?;
         written = written.saturating_add(bytes.len() as u64);
         progress(written, total);
     }
     file.flush()
         .await
-        .map_err(|e| Error::Io(format!("update flush {target_path:?}: {e}")))?;
+        .map_err(|e| Error::Update(format!("update flush {target_path:?}: {e}")))?;
     Ok(hex_encode(&hasher.finalize()))
 }
 
 fn build_client() -> Result<reqwest::Client, Error> {
     let tls = crate::update_pinning::build_pinning_tls_config()
-        .map_err(|e| Error::Io(format!("update http TLS config: {e}")))?;
+        .map_err(|e| Error::Update(format!("update http TLS config: {e}")))?;
     reqwest::Client::builder()
         .timeout(REQUEST_TIMEOUT)
         .redirect(reqwest::redirect::Policy::limited(MAX_REDIRECTS))
         .user_agent(format!("letsflutssh-update/{}", env!("CARGO_PKG_VERSION")))
         .use_preconfigured_tls(tls)
         .build()
-        .map_err(|e| Error::Io(format!("update http client build: {e}")))
+        .map_err(|e| Error::Update(format!("update http client build: {e}")))
 }
 
 fn hex_encode(bytes: &[u8]) -> String {

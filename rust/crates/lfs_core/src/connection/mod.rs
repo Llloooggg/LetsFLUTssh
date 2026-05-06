@@ -637,14 +637,14 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
         let handle = app
             .connections
             .get(parent_id)
-            .ok_or_else(|| Error::Io(format!("ProxyJump parent '{parent_id}' missing")))?;
+            .ok_or_else(|| Error::Transport(format!("ProxyJump parent '{parent_id}' missing")))?;
         let actor = handle.lock().expect("actor mutex poisoned");
         actor.state
     };
     match initial_state {
         ConnectionState::Connected => return Ok(()),
         ConnectionState::Disconnected => {
-            return Err(Error::Io(format!(
+            return Err(Error::Transport(format!(
                 "ProxyJump parent '{parent_id}' is disconnected"
             )));
         }
@@ -659,7 +659,7 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
                     match state {
                         ConnectionState::Connected => return Ok(()),
                         ConnectionState::Disconnected => {
-                            return Err(Error::Io(format!(
+                            return Err(Error::Transport(format!(
                                 "ProxyJump parent '{parent_id}' failed to connect"
                             )));
                         }
@@ -677,7 +677,7 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
                         match actor.state {
                             ConnectionState::Connected => return Ok(()),
                             ConnectionState::Disconnected => {
-                                return Err(Error::Io(format!(
+                                return Err(Error::Transport(format!(
                                     "ProxyJump parent '{parent_id}' is disconnected"
                                 )));
                             }
@@ -688,7 +688,7 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
                             }
                         }
                     }
-                    return Err(Error::Io(format!(
+                    return Err(Error::Transport(format!(
                         "ProxyJump parent '{parent_id}' missing during wait"
                     )));
                 }
@@ -698,7 +698,7 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
 
     match tokio::time::timeout(PARENT_READY_TIMEOUT, wait_fut).await {
         Ok(r) => r,
-        Err(_) => Err(Error::Io(format!(
+        Err(_) => Err(Error::Transport(format!(
             "ProxyJump parent '{parent_id}' did not settle within {}s",
             PARENT_READY_TIMEOUT.as_secs()
         ))),
@@ -731,16 +731,16 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
                 let handle = app
                     .connections
                     .get(id)
-                    .ok_or_else(|| Error::Io(format!("ProxyJump parent '{id}' missing")))?;
+                    .ok_or_else(|| Error::Transport(format!("ProxyJump parent '{id}' missing")))?;
                 let actor = handle.lock().expect("actor mutex poisoned");
                 if actor.state != ConnectionState::Connected {
-                    return Err(Error::Io(format!(
+                    return Err(Error::Transport(format!(
                         "ProxyJump parent '{id}' not yet connected (state {:?})",
                         actor.state
                     )));
                 }
                 Some(actor.clone_session().ok_or_else(|| {
-                    Error::Io(format!("ProxyJump parent '{id}' has no live session"))
+                    Error::Transport(format!("ProxyJump parent '{id}' has no live session"))
                 })?)
             }
         };

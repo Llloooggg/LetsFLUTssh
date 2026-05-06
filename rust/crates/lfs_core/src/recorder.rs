@@ -247,21 +247,21 @@ impl RecorderRegistry {
             .create(true)
             .append(true)
             .open(&path)
-            .map_err(|e| Error::Io(format!("recorder open {path}: {e}")))?;
+            .map_err(|e| Error::Recorder(format!("open {path}: {e}")))?;
         // Harden the file mode to 0600 immediately after open so a
         // crash mid-record does not leave plaintext terminal output
         // (or the encrypted envelope) at the umask-default mode —
         // typically 0644 on Linux, group/world-readable on multi-
         // user hosts. See ARCH §3.13 file-mode invariant.
         if let Err(msg) = crate::path::harden_file_perms(std::path::Path::new(&path)) {
-            return Err(Error::Io(format!("recorder harden {path}: {msg}")));
+            return Err(Error::Recorder(format!("harden {path}: {msg}")));
         }
         let encrypted = key.is_some();
         let mut bytes_written: u64 = 0;
         if encrypted {
             file.write_all(&LFR_MAGIC)
                 .and_then(|_| file.write_all(&[LFR_VERSION]))
-                .map_err(|e| Error::Io(format!("recorder magic write: {e}")))?;
+                .map_err(|e| Error::Recorder(format!("magic write: {e}")))?;
             bytes_written = (LFR_MAGIC.len() + 1) as u64;
         }
         let actor = RecorderActor {
@@ -303,10 +303,10 @@ impl RecorderRegistry {
             let actor = g
                 .by_id
                 .get(id)
-                .ok_or_else(|| Error::Io(format!("recorder {id} not registered")))?;
+                .ok_or_else(|| Error::Recorder(format!("{id} not registered")))?;
             actor
                 .started_at
-                .ok_or_else(|| Error::Io(format!("recorder {id} has no started_at anchor")))?
+                .ok_or_else(|| Error::Recorder(format!("{id} has no started_at anchor")))?
         };
         let timestamp_secs = started_at
             .duration_since(std::time::UNIX_EPOCH)
@@ -349,10 +349,10 @@ impl RecorderRegistry {
             let actor = g
                 .by_id
                 .get(id)
-                .ok_or_else(|| Error::Io(format!("recorder {id} not registered")))?;
+                .ok_or_else(|| Error::Recorder(format!("{id} not registered")))?;
             actor
                 .started_at
-                .ok_or_else(|| Error::Io(format!("recorder {id} has no started_at anchor")))?
+                .ok_or_else(|| Error::Recorder(format!("{id} has no started_at anchor")))?
         };
         let delta = std::time::SystemTime::now()
             .duration_since(started_at)
@@ -385,10 +385,10 @@ impl RecorderRegistry {
         let (file_handle, key) = {
             let g = self.lock();
             let Some(actor) = g.by_id.get(id) else {
-                return Err(Error::Io(format!("recorder {id} not registered")));
+                return Err(Error::Recorder(format!("{id} not registered")));
             };
             let Some(file) = actor.file.as_ref() else {
-                return Err(Error::Io(format!(
+                return Err(Error::Recorder(format!(
                     "recorder {id} has no file handle (counter-only registration)"
                 )));
             };
@@ -402,7 +402,7 @@ impl RecorderRegistry {
                 .map_err(|_| Error::Io("recorder file mutex poisoned".to_string()))?;
             handle
                 .write_all(&frame)
-                .map_err(|e| Error::Io(format!("recorder frame write: {e}")))?;
+                .map_err(|e| Error::Recorder(format!("frame write: {e}")))?;
         }
 
         let new_total = {
@@ -443,10 +443,10 @@ impl RecorderRegistry {
         let snap = {
             let mut g = self.lock();
             let Some(actor) = g.by_id.get_mut(id) else {
-                return Err(Error::Io(format!("recorder {id} not registered")));
+                return Err(Error::Recorder(format!("{id} not registered")));
             };
             let Some(old_file) = actor.file.take() else {
-                return Err(Error::Io(format!(
+                return Err(Error::Recorder(format!(
                     "recorder {id} has no file handle (counter-only registration)"
                 )));
             };
@@ -463,12 +463,12 @@ impl RecorderRegistry {
                 .create(true)
                 .append(true)
                 .open(&new_path)
-                .map_err(|e| Error::Io(format!("recorder rotate open {new_path}: {e}")))?;
+                .map_err(|e| Error::Recorder(format!("rotate open {new_path}: {e}")))?;
             // Same chmod 0600 harden the initial-register path
             // applies — every rotation creates a fresh file at
             // umask-default mode otherwise.
             if let Err(msg) = crate::path::harden_file_perms(std::path::Path::new(&new_path)) {
-                return Err(Error::Io(format!(
+                return Err(Error::Recorder(format!(
                     "recorder rotate harden {new_path}: {msg}"
                 )));
             }
@@ -476,7 +476,7 @@ impl RecorderRegistry {
             if actor.encrypted {
                 file.write_all(&LFR_MAGIC)
                     .and_then(|_| file.write_all(&[LFR_VERSION]))
-                    .map_err(|e| Error::Io(format!("recorder rotate magic: {e}")))?;
+                    .map_err(|e| Error::Recorder(format!("rotate magic: {e}")))?;
                 bytes_written = (LFR_MAGIC.len() + 1) as u64;
             }
             actor.file = Some(Arc::new(Mutex::new(file)));
@@ -507,7 +507,7 @@ impl RecorderRegistry {
                     .map_err(|_| Error::Io("recorder file mutex poisoned".to_string()))?;
                 handle
                     .flush()
-                    .map_err(|e| Error::Io(format!("recorder close flush: {e}")))?;
+                    .map_err(|e| Error::Recorder(format!("close flush: {e}")))?;
                 // File drops with the guard; OS handle closes.
             }
             bus.publish(Event::RecorderStopped { id: id.to_string() });

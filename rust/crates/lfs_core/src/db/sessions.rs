@@ -78,13 +78,13 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SessionRow>, Error> {
         .prepare_cached(&format!(
             "SELECT {SELECT_COLS} FROM sessions ORDER BY sort_order ASC, label ASC"
         ))
-        .map_err(|e| Error::Io(format!("sessions prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions prepare: {e}")))?;
     let rows = stmt
         .query_map([], row_from)
-        .map_err(|e| Error::Io(format!("sessions query: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("sessions row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("sessions row: {e}")))?);
     }
     Ok(out)
 }
@@ -92,13 +92,13 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SessionRow>, Error> {
 pub fn get(conn: &Connection, id: &str) -> Result<Option<SessionRow>, Error> {
     let mut stmt = conn
         .prepare_cached(&format!("SELECT {SELECT_COLS} FROM sessions WHERE id = ?1"))
-        .map_err(|e| Error::Io(format!("sessions get prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions get prepare: {e}")))?;
     let mut rows = stmt
         .query_map(params![id], row_from)
-        .map_err(|e| Error::Io(format!("sessions get query: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions get query: {e}")))?;
     match rows.next() {
         Some(Ok(r)) => Ok(Some(r)),
-        Some(Err(e)) => Err(Error::Io(format!("sessions get row: {e}"))),
+        Some(Err(e)) => Err(Error::Db(format!("sessions get row: {e}"))),
         None => Ok(None),
     }
 }
@@ -156,13 +156,13 @@ pub fn upsert(conn: &Connection, row: &SessionRow) -> Result<(), Error> {
             row.updated_at_ms,
         ],
     )
-    .map_err(|e| Error::Io(format!("sessions upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("sessions upsert: {e}")))?;
     Ok(())
 }
 
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])
-        .map_err(|e| Error::Io(format!("sessions delete: {e}")))
+        .map_err(|e| Error::Db(format!("sessions delete: {e}")))
 }
 
 /// Bulk delete by id list. Empty input is a cheap no-op (no SQL).
@@ -175,12 +175,12 @@ pub fn delete_multiple(conn: &Connection, ids: &[String]) -> Result<usize, Error
     let params_vec: Vec<&dyn rusqlite::ToSql> =
         ids.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
     conn.execute(&sql, params_vec.as_slice())
-        .map_err(|e| Error::Io(format!("sessions delete_multiple: {e}")))
+        .map_err(|e| Error::Db(format!("sessions delete_multiple: {e}")))
 }
 
 pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
     conn.execute("DELETE FROM sessions", [])
-        .map_err(|e| Error::Io(format!("sessions delete_all: {e}")))
+        .map_err(|e| Error::Db(format!("sessions delete_all: {e}")))
 }
 
 /// Set `folder_id` for a single session, refreshing `updated_at`.
@@ -194,7 +194,7 @@ pub fn move_to_folder(
         "UPDATE sessions SET folder_id = ?1, updated_at = ?2 WHERE id = ?3",
         params![folder_id, updated_at_ms, session_id],
     )
-    .map_err(|e| Error::Io(format!("sessions move_to_folder: {e}")))
+    .map_err(|e| Error::Db(format!("sessions move_to_folder: {e}")))
 }
 
 /// What got staged into the [`crate::secrets::SecretStore`] by
@@ -226,7 +226,7 @@ pub fn stage_secrets_into_store(
             "SELECT auth_type, password, key_data, passphrase \
              FROM sessions WHERE id = ?1",
         )
-        .map_err(|e| Error::Io(format!("sessions stage_secrets prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions stage_secrets prepare: {e}")))?;
     let row: Option<(String, String, String, String)> = stmt
         .query_row(params![session_id], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
@@ -321,7 +321,7 @@ pub fn update_metadata(conn: &Connection, m: &SessionMetadata) -> Result<usize, 
             m.id,
         ],
     )
-    .map_err(|e| Error::Io(format!("sessions update_metadata: {e}")))
+    .map_err(|e| Error::Db(format!("sessions update_metadata: {e}")))
 }
 
 /// Replace a single credential column on a session row. `slot` is one
@@ -343,11 +343,11 @@ pub fn set_secret_column(
         "password" => "password",
         "key_data" => "key_data",
         "passphrase" => "passphrase",
-        other => return Err(Error::Io(format!("unknown secret slot: {other}"))),
+        other => return Err(Error::Db(format!("unknown secret slot: {other}"))),
     };
     let sql = format!("UPDATE sessions SET {column} = ?1, updated_at = ?2 WHERE id = ?3");
     conn.execute(&sql, params![value, updated_at_ms, id])
-        .map_err(|e| Error::Io(format!("sessions set_secret_column: {e}")))
+        .map_err(|e| Error::Db(format!("sessions set_secret_column: {e}")))
 }
 
 /// Copy a session row by id, allocating a new id + label and
@@ -381,7 +381,7 @@ pub fn duplicate_session(
              FROM sessions WHERE id = ?5",
             params![new_id, new_label, target_folder_id, now_ms, src_id],
         )
-        .map_err(|e| Error::Io(format!("sessions duplicate: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions duplicate: {e}")))?;
     if n == 0 {
         return Err(Error::Io("sessions duplicate: source row missing".into()));
     }
@@ -408,15 +408,15 @@ pub fn duplicate_with_path(
     use rand::RngCore;
     let tx = conn
         .transaction()
-        .map_err(|e| Error::Io(format!("sessions duplicate_with_path tx: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions duplicate_with_path tx: {e}")))?;
 
     // Source row — needed for the base label.
     let mut stmt = tx
         .prepare_cached("SELECT label FROM sessions WHERE id = ?1")
-        .map_err(|e| Error::Io(format!("sessions duplicate_with_path lookup: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions duplicate_with_path lookup: {e}")))?;
     let base_label: String = stmt
         .query_row([src_id], |row| row.get::<_, String>(0))
-        .map_err(|e| Error::Io(format!("sessions duplicate_with_path source missing: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions duplicate_with_path source missing: {e}")))?;
     drop(stmt);
 
     // Live session labels — feed unique_label so the returned label
@@ -424,13 +424,13 @@ pub fn duplicate_with_path(
     let mut taken: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut labels_stmt = tx
         .prepare_cached("SELECT label FROM sessions")
-        .map_err(|e| Error::Io(format!("sessions duplicate_with_path labels: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions duplicate_with_path labels: {e}")))?;
     let label_rows = labels_stmt
         .query_map([], |row| row.get::<_, String>(0))
-        .map_err(|e| Error::Io(format!("sessions duplicate_with_path labels query: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions duplicate_with_path labels query: {e}")))?;
     for r in label_rows {
         taken.insert(
-            r.map_err(|e| Error::Io(format!("sessions duplicate_with_path label row: {e}")))?,
+            r.map_err(|e| Error::Db(format!("sessions duplicate_with_path label row: {e}")))?,
         );
     }
     drop(labels_stmt);
@@ -455,7 +455,7 @@ pub fn duplicate_with_path(
     )?;
 
     tx.commit()
-        .map_err(|e| Error::Io(format!("sessions duplicate_with_path commit: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions duplicate_with_path commit: {e}")))?;
 
     Ok(new_id)
 }
@@ -480,7 +480,7 @@ pub fn move_multiple(
         params_vec.push(id as &dyn rusqlite::ToSql);
     }
     conn.execute(&sql, params_vec.as_slice())
-        .map_err(|e| Error::Io(format!("sessions move_multiple: {e}")))
+        .map_err(|e| Error::Db(format!("sessions move_multiple: {e}")))
 }
 
 /// Single session input for [`restore_snapshot`]. Mirrors
@@ -538,7 +538,7 @@ pub fn restore_snapshot(
 ) -> Result<(), Error> {
     let tx = conn
         .transaction()
-        .map_err(|e| Error::Io(format!("sessions restore_snapshot tx: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions restore_snapshot tx: {e}")))?;
 
     delete_all(&tx)?;
     crate::db::folders::delete_all(&tx)?;
@@ -577,7 +577,7 @@ pub fn restore_snapshot(
     }
 
     tx.commit()
-        .map_err(|e| Error::Io(format!("sessions restore_snapshot commit: {e}")))?;
+        .map_err(|e| Error::Db(format!("sessions restore_snapshot commit: {e}")))?;
     Ok(())
 }
 

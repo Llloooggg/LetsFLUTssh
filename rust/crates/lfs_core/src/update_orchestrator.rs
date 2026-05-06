@@ -129,7 +129,7 @@ pub fn check_for_update_from_body(
     repo: &str,
 ) -> Result<UpdateInfo, Error> {
     let parsed: Value = serde_json::from_str(body)
-        .map_err(|e| Error::Io(format!("update releases JSON parse: {e}")))?;
+        .map_err(|e| Error::Update(format!("update releases JSON parse: {e}")))?;
     let release_list: Vec<Value> = match parsed {
         Value::Array(arr) => arr,
         Value::Object(_) => vec![parsed],
@@ -433,7 +433,7 @@ fn replace_path_tail(url: &str, new_tail: &str) -> String {
 async fn sha256_file(path: &str) -> Result<String, Error> {
     let bytes = tokio::fs::read(path)
         .await
-        .map_err(|e| Error::Io(format!("read {path}: {e}")))?;
+        .map_err(|e| Error::Update(format!("read {path}: {e}")))?;
     let mut h = Sha256::new();
     h.update(&bytes);
     let digest = h.finalize();

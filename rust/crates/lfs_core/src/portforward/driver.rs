@@ -167,12 +167,12 @@ pub async fn spawn_listener(
         Ok(l) => l,
         Err(e) => {
             reporter.report(RuleStatus::Error, Some(e.to_string()));
-            return Err(Error::Io(format!("bind {bind_addr}: {e}")));
+            return Err(Error::Transport(format!("bind {bind_addr}: {e}")));
         }
     };
     let bound = listener
         .local_addr()
-        .map_err(|e| Error::Io(format!("local_addr: {e}")))?;
+        .map_err(|e| Error::Transport(format!("local_addr: {e}")))?;
     reporter.report(RuleStatus::Listening, None);
 
     let task = tokio::spawn(accept_loop(listener, factory, reporter));
@@ -229,12 +229,12 @@ pub async fn spawn_socks5_listener(
         Ok(l) => l,
         Err(e) => {
             reporter.report(RuleStatus::Error, Some(e.to_string()));
-            return Err(Error::Io(format!("bind {bind_addr}: {e}")));
+            return Err(Error::Transport(format!("bind {bind_addr}: {e}")));
         }
     };
     let bound = listener
         .local_addr()
-        .map_err(|e| Error::Io(format!("local_addr: {e}")))?;
+        .map_err(|e| Error::Transport(format!("local_addr: {e}")))?;
     reporter.report(RuleStatus::Listening, None);
 
     let task = tokio::spawn(socks5_accept_loop(listener, session, reporter));
@@ -271,7 +271,7 @@ async fn handle_socks5_client(
     socket
         .read_exact(&mut greeting)
         .await
-        .map_err(|e| Error::Io(format!("socks5 greeting: {e}")))?;
+        .map_err(|e| Error::Transport(format!("socks5 greeting: {e}")))?;
     if greeting[0] != 0x05 {
         let _ = socks5_fail(&mut socket, 0x07).await;
         return Err(Error::Io("socks5: bad version in greeting".into()));
@@ -281,21 +281,21 @@ async fn handle_socks5_client(
     socket
         .read_exact(&mut methods)
         .await
-        .map_err(|e| Error::Io(format!("socks5 methods: {e}")))?;
+        .map_err(|e| Error::Transport(format!("socks5 methods: {e}")))?;
     // Always pick NO_AUTH (0x00). If the client didn't offer it,
     // the connect will fail at the request stage; auth selection
     // is fixed at the Dart-era behaviour.
     socket
         .write_all(&[0x05, 0x00])
         .await
-        .map_err(|e| Error::Io(format!("socks5 method ack: {e}")))?;
+        .map_err(|e| Error::Transport(format!("socks5 method ack: {e}")))?;
 
     // Request: [VER=0x05][CMD=0x01 CONNECT][RSV=0x00][ATYP][…]
     let mut head = [0u8; 4];
     socket
         .read_exact(&mut head)
         .await
-        .map_err(|e| Error::Io(format!("socks5 req head: {e}")))?;
+        .map_err(|e| Error::Transport(format!("socks5 req head: {e}")))?;
     if head[0] != 0x05 {
         let _ = socks5_fail(&mut socket, 0x07).await;
         return Err(Error::Io("socks5: bad version in request".into()));
@@ -310,7 +310,7 @@ async fn handle_socks5_client(
             socket
                 .read_exact(&mut addr)
                 .await
-                .map_err(|e| Error::Io(format!("socks5 ipv4: {e}")))?;
+                .map_err(|e| Error::Transport(format!("socks5 ipv4: {e}")))?;
             format!("{}.{}.{}.{}", addr[0], addr[1], addr[2], addr[3])
         }
         0x03 => {
@@ -318,12 +318,12 @@ async fn handle_socks5_client(
             socket
                 .read_exact(&mut len)
                 .await
-                .map_err(|e| Error::Io(format!("socks5 domain len: {e}")))?;
+                .map_err(|e| Error::Transport(format!("socks5 domain len: {e}")))?;
             let mut domain = vec![0u8; len[0] as usize];
             socket
                 .read_exact(&mut domain)
                 .await
-                .map_err(|e| Error::Io(format!("socks5 domain: {e}")))?;
+                .map_err(|e| Error::Transport(format!("socks5 domain: {e}")))?;
             String::from_utf8(domain).map_err(|_| Error::Io("socks5: domain not utf-8".into()))?
         }
         0x04 => {
@@ -331,7 +331,7 @@ async fn handle_socks5_client(
             socket
                 .read_exact(&mut addr)
                 .await
-                .map_err(|e| Error::Io(format!("socks5 ipv6: {e}")))?;
+                .map_err(|e| Error::Transport(format!("socks5 ipv6: {e}")))?;
             format_ipv6(&addr)
         }
         _ => {
@@ -343,7 +343,7 @@ async fn handle_socks5_client(
     socket
         .read_exact(&mut port_bytes)
         .await
-        .map_err(|e| Error::Io(format!("socks5 port: {e}")))?;
+        .map_err(|e| Error::Transport(format!("socks5 port: {e}")))?;
     let port = ((port_bytes[0] as u16) << 8) | port_bytes[1] as u16;
 
     // Open direct-tcpip channel to the target.
@@ -368,7 +368,7 @@ async fn handle_socks5_client(
     socket
         .write_all(&[0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
         .await
-        .map_err(|e| Error::Io(format!("socks5 reply: {e}")))?;
+        .map_err(|e| Error::Transport(format!("socks5 reply: {e}")))?;
 
     let (r, w) = tokio::io::split(stream);
     let reader: ReaderHalf = Box::pin(r);
@@ -492,7 +492,7 @@ async fn bridge_forward_to_local_tcp(
 ) -> Result<(), Error> {
     let socket = TcpStream::connect((target_host, target_port))
         .await
-        .map_err(|e| Error::Io(format!("connect {target_host}:{target_port}: {e}")))?;
+        .map_err(|e| Error::Transport(format!("connect {target_host}:{target_port}: {e}")))?;
     let (mut sock_r, mut sock_w) = socket.into_split();
     let channel = Arc::new(channel);
 
@@ -542,14 +542,14 @@ fn resolve_active_session(connection_id: &str) -> Result<Arc<crate::ssh::Session
     crate::app::instance()
         .connections
         .connected_session(connection_id)
-        .ok_or_else(|| Error::Io(format!("connection {connection_id} has no live session")))
+        .ok_or_else(|| Error::Transport(format!("connection {connection_id} has no live session")))
 }
 
 fn parse_bind_addr(bind_host: &str, bind_port: u32) -> Result<SocketAddr, Error> {
     let bind_str = format!("{bind_host}:{bind_port}");
     bind_str
         .parse::<SocketAddr>()
-        .map_err(|e| Error::Io(format!("invalid bind address {bind_str}: {e}")))
+        .map_err(|e| Error::Transport(format!("invalid bind address {bind_str}: {e}")))
 }
 
 /// Start a `-L` local-forward listener against the connection

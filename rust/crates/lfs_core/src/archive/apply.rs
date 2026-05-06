@@ -114,7 +114,7 @@ pub fn apply_pending_import(
         ImportMode::Replace => {
             let tx = conn
                 .transaction()
-                .map_err(|e| Error::Io(format!("apply tx begin: {e}")))?;
+                .map_err(|e| Error::Archive(format!("apply tx begin: {e}")))?;
             let mut result = ApplyResult::default();
             run_replace_clear(&tx, options, &mut result);
             run_apply(&tx, pending, options, now_ms, &mut result);
@@ -127,12 +127,12 @@ pub fn apply_pending_import(
             // and retry.
             if !result.errors.is_empty() {
                 tx.rollback()
-                    .map_err(|e| Error::Io(format!("apply tx rollback: {e}")))?;
+                    .map_err(|e| Error::Archive(format!("apply tx rollback: {e}")))?;
                 result.rolled_back = true;
                 return Ok(result);
             }
             tx.commit()
-                .map_err(|e| Error::Io(format!("apply tx commit: {e}")))?;
+                .map_err(|e| Error::Archive(format!("apply tx commit: {e}")))?;
             Ok(result)
         }
     }

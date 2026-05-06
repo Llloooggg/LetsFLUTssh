@@ -211,7 +211,7 @@ fn build_zip(conn: &Connection, input: &ExportInput) -> Result<Vec<u8>, Error> {
     }
 
     zw.finish()
-        .map_err(|e| Error::Io(format!("zip finish: {e}")))?;
+        .map_err(|e| Error::Archive(format!("zip finish: {e}")))?;
     Ok(buf.into_inner())
 }
 
@@ -469,11 +469,11 @@ fn write_json_entry(
     value: &Value,
 ) -> Result<(), Error> {
     let serialised =
-        serde_json::to_vec(value).map_err(|e| Error::Io(format!("json serialise {name}: {e}")))?;
+        serde_json::to_vec(value).map_err(|e| Error::Archive(format!("json serialise {name}: {e}")))?;
     zw.start_file(name, opts)
-        .map_err(|e| Error::Io(format!("zip start {name}: {e}")))?;
+        .map_err(|e| Error::Archive(format!("zip start {name}: {e}")))?;
     zw.write_all(&serialised)
-        .map_err(|e| Error::Io(format!("zip write {name}: {e}")))?;
+        .map_err(|e| Error::Archive(format!("zip write {name}: {e}")))?;
     Ok(())
 }
 
@@ -484,9 +484,9 @@ fn write_text_entry(
     text: &str,
 ) -> Result<(), Error> {
     zw.start_file(name, opts)
-        .map_err(|e| Error::Io(format!("zip start {name}: {e}")))?;
+        .map_err(|e| Error::Archive(format!("zip start {name}: {e}")))?;
     zw.write_all(text.as_bytes())
-        .map_err(|e| Error::Io(format!("zip write {name}: {e}")))?;
+        .map_err(|e| Error::Archive(format!("zip write {name}: {e}")))?;
     Ok(())
 }
 

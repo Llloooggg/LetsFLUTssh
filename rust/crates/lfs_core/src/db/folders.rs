@@ -31,13 +31,13 @@ pub fn list_all(conn: &Connection) -> Result<Vec<FolderRow>, Error> {
             "SELECT id, name, parent_id, sort_order, collapsed, created_at \
              FROM folders ORDER BY sort_order ASC, name ASC",
         )
-        .map_err(|e| Error::Io(format!("folders prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("folders prepare: {e}")))?;
     let rows = stmt
         .query_map([], row_from)
-        .map_err(|e| Error::Io(format!("folders query: {e}")))?;
+        .map_err(|e| Error::Db(format!("folders query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("folders row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("folders row: {e}")))?);
     }
     Ok(out)
 }
@@ -61,18 +61,18 @@ pub fn upsert(conn: &Connection, row: &FolderRow) -> Result<(), Error> {
             row.created_at_ms,
         ],
     )
-    .map_err(|e| Error::Io(format!("folders upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("folders upsert: {e}")))?;
     Ok(())
 }
 
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     conn.execute("DELETE FROM folders WHERE id = ?1", params![id])
-        .map_err(|e| Error::Io(format!("folders delete: {e}")))
+        .map_err(|e| Error::Db(format!("folders delete: {e}")))
 }
 
 pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
     conn.execute("DELETE FROM folders", [])
-        .map_err(|e| Error::Io(format!("folders delete_all: {e}")))
+        .map_err(|e| Error::Db(format!("folders delete_all: {e}")))
 }
 
 /// Walk a `/`-separated `path` (e.g. `infra/prod/web`) and ensure
@@ -139,7 +139,7 @@ pub fn toggle_collapsed(conn: &Connection, id: &str) -> Result<usize, Error> {
          WHERE id = ?1",
         params![id],
     )
-    .map_err(|e| Error::Io(format!("folders toggle_collapsed: {e}")))
+    .map_err(|e| Error::Db(format!("folders toggle_collapsed: {e}")))
 }
 
 /// Update name and/or parent_id. Either field may stay the same; the
@@ -155,12 +155,12 @@ pub fn update_name_parent(
 ) -> Result<usize, Error> {
     if let Some(target) = parent_id {
         if target == id {
-            return Err(Error::Io(format!(
+            return Err(Error::Db(format!(
                 "folders update_name_parent: cycle — parent_id == id ({id})",
             )));
         }
         if is_descendant_of(conn, target, id)? {
-            return Err(Error::Io(format!(
+            return Err(Error::Db(format!(
                 "folders update_name_parent: cycle — refused to move {id} under its own descendant {target}",
             )));
         }
@@ -169,7 +169,7 @@ pub fn update_name_parent(
         "UPDATE folders SET name = ?1, parent_id = ?2 WHERE id = ?3",
         params![name, parent_id, id],
     )
-    .map_err(|e| Error::Io(format!("folders update_name_parent: {e}")))
+    .map_err(|e| Error::Db(format!("folders update_name_parent: {e}")))
 }
 
 /// Walk up `candidate.parent_id` chain looking for `ancestor`. Used
@@ -234,13 +234,13 @@ pub fn rename_path_cascade(
     // Reject cycles: moving a folder under one of its own descendants
     // would orphan the rest of the subtree.
     if new_path.starts_with(&format!("{old_path}/")) {
-        return Err(Error::Io(format!(
+        return Err(Error::Db(format!(
             "folders rename_path_cascade: refused to move {old_path} under its own descendant {new_path}",
         )));
     }
     let tx = conn
         .transaction()
-        .map_err(|e| Error::Io(format!("folders rename_path_cascade tx: {e}")))?;
+        .map_err(|e| Error::Db(format!("folders rename_path_cascade tx: {e}")))?;
 
     let folders = list_all(&tx)?;
     let folder_map: std::collections::BTreeMap<String, FolderRow> =
@@ -253,7 +253,7 @@ pub fn rename_path_cascade(
 
     let segments: Vec<&str> = new_path.split('/').filter(|s| !s.is_empty()).collect();
     if segments.is_empty() {
-        return Err(Error::Io(format!(
+        return Err(Error::Db(format!(
             "folders rename_path_cascade: empty new_path after split: {new_path}",
         )));
     }
@@ -271,7 +271,7 @@ pub fn rename_path_cascade(
 
     let n = update_name_parent(&tx, &folder_id, &new_name, new_parent_id.as_deref())?;
     tx.commit()
-        .map_err(|e| Error::Io(format!("folders rename_path_cascade commit: {e}")))?;
+        .map_err(|e| Error::Db(format!("folders rename_path_cascade commit: {e}")))?;
     Ok(n)
 }
 
@@ -294,7 +294,7 @@ pub fn delete_recursive(conn: &Connection, id: &str) -> Result<usize, Error> {
          DELETE FROM folders WHERE id IN (SELECT id FROM descendants)",
         params![id],
     )
-    .map_err(|e| Error::Io(format!("folders delete_recursive: {e}")))
+    .map_err(|e| Error::Db(format!("folders delete_recursive: {e}")))
 }
 
 #[cfg(test)]
@@ -448,7 +448,7 @@ mod rename_tests {
                 "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
                 params![&b_id, &a_id],
             )
-            .map_err(|e| crate::error::Error::Io(format!("plant cycle a: {e}")))
+            .map_err(|e| crate::error::Error::Db(format!("plant cycle a: {e}")))
         })
         .unwrap();
         db.with_conn(|c| {
@@ -456,7 +456,7 @@ mod rename_tests {
                 "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
                 params![&a_id, &b_id],
             )
-            .map_err(|e| crate::error::Error::Io(format!("plant cycle b: {e}")))
+            .map_err(|e| crate::error::Error::Db(format!("plant cycle b: {e}")))
         })
         .unwrap();
 

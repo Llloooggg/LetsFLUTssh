@@ -33,13 +33,13 @@ pub fn list_for_session(
              FROM sftp_bookmarks WHERE session_id = ?1 \
              ORDER BY remote_path ASC",
         )
-        .map_err(|e| Error::Io(format!("sftp_bookmarks prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("sftp_bookmarks prepare: {e}")))?;
     let rows = stmt
         .query_map(params![session_id], row_from)
-        .map_err(|e| Error::Io(format!("sftp_bookmarks query: {e}")))?;
+        .map_err(|e| Error::Db(format!("sftp_bookmarks query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("sftp_bookmarks row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("sftp_bookmarks row: {e}")))?);
     }
     Ok(out)
 }
@@ -60,11 +60,11 @@ pub fn upsert(conn: &Connection, row: &SftpBookmarkRow) -> Result<(), Error> {
             row.created_at_ms,
         ],
     )
-    .map_err(|e| Error::Io(format!("sftp_bookmarks upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("sftp_bookmarks upsert: {e}")))?;
     Ok(())
 }
 
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     conn.execute("DELETE FROM sftp_bookmarks WHERE id = ?1", params![id])
-        .map_err(|e| Error::Io(format!("sftp_bookmarks delete: {e}")))
+        .map_err(|e| Error::Db(format!("sftp_bookmarks delete: {e}")))
 }

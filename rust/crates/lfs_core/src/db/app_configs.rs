@@ -14,7 +14,7 @@ pub struct AppConfigRow {
 pub fn get(conn: &Connection) -> Result<Option<AppConfigRow>, Error> {
     let mut stmt = conn
         .prepare_cached("SELECT data, updated_at, auto_lock_minutes FROM app_configs WHERE id = 1")
-        .map_err(|e| Error::Io(format!("app_configs prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("app_configs prepare: {e}")))?;
     let mut rows = stmt
         .query_map([], |row| {
             Ok(AppConfigRow {
@@ -23,10 +23,10 @@ pub fn get(conn: &Connection) -> Result<Option<AppConfigRow>, Error> {
                 auto_lock_minutes: row.get("auto_lock_minutes")?,
             })
         })
-        .map_err(|e| Error::Io(format!("app_configs query: {e}")))?;
+        .map_err(|e| Error::Db(format!("app_configs query: {e}")))?;
     match rows.next() {
         Some(Ok(r)) => Ok(Some(r)),
-        Some(Err(e)) => Err(Error::Io(format!("app_configs row: {e}"))),
+        Some(Err(e)) => Err(Error::Db(format!("app_configs row: {e}"))),
         None => Ok(None),
     }
 }
@@ -41,6 +41,6 @@ pub fn upsert(conn: &Connection, row: &AppConfigRow) -> Result<(), Error> {
            auto_lock_minutes = excluded.auto_lock_minutes",
         params![row.data, row.updated_at_ms, row.auto_lock_minutes],
     )
-    .map_err(|e| Error::Io(format!("app_configs upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("app_configs upsert: {e}")))?;
     Ok(())
 }

@@ -92,7 +92,7 @@ impl Db {
         // probe / schema bootstrap. These spans surface the actual
         // culprit on the next reproduction.
         let t0 = std::time::Instant::now();
-        let conn = Connection::open(path).map_err(|e| Error::Io(format!("db open: {e}")))?;
+        let conn = Connection::open(path).map_err(|e| Error::Db(format!("db open: {e}")))?;
         crate::app_log_info!(
             "DbOpen",
             "db open phase=connection elapsed={}ms",
@@ -112,9 +112,9 @@ impl Db {
             ));
             let pragma = format!("PRAGMA key = \"x'{}'\"", &*hex_key);
             conn.execute_batch(&pragma)
-                .map_err(|e| Error::Io(format!("PRAGMA key: {e}")))?;
+                .map_err(|e| Error::Db(format!("PRAGMA key: {e}")))?;
             conn.execute_batch("PRAGMA cipher_compatibility = 4")
-                .map_err(|e| Error::Io(format!("PRAGMA cipher_compatibility: {e}")))?;
+                .map_err(|e| Error::Db(format!("PRAGMA cipher_compatibility: {e}")))?;
             crate::app_log_info!(
                 "DbOpen",
                 "db open phase=pragma_key elapsed={}ms",
@@ -125,7 +125,7 @@ impl Db {
         conn.query_row("SELECT count(*) FROM sqlite_master", [], |row| {
             row.get::<_, i64>(0)
         })
-        .map_err(|e| Error::Io(format!("schema probe: {e}")))?;
+        .map_err(|e| Error::Db(format!("schema probe: {e}")))?;
         crate::app_log_info!(
             "DbOpen",
             "db open phase=schema_probe elapsed={}ms",
@@ -135,7 +135,7 @@ impl Db {
         // ON DELETE CASCADE / SET NULL behave consistently across
         // both engines while the migration is mid-flight.
         conn.execute_batch("PRAGMA foreign_keys = ON")
-            .map_err(|e| Error::Io(format!("PRAGMA foreign_keys: {e}")))?;
+            .map_err(|e| Error::Db(format!("PRAGMA foreign_keys: {e}")))?;
         bootstrap_schema(&conn)?;
         crate::app_log_info!(
             "DbOpen",
@@ -153,7 +153,7 @@ impl Db {
     pub fn schema_object_count(&self) -> Result<i64, Error> {
         let g = self.conn.lock().expect("db lock");
         g.query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))
-            .map_err(|e| Error::Io(format!("schema count: {e}")))
+            .map_err(|e| Error::Db(format!("schema count: {e}")))
     }
 
     /// Re-encrypt every page under `new_key`. Mirrors drift-side
@@ -231,9 +231,9 @@ pub const SCHEMA_VERSION: i32 = 1;
 /// the running build's expectation, not the on-disk legacy.
 pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
     conn.execute_batch(SCHEMA_SQL)
-        .map_err(|e| Error::Io(format!("bootstrap schema: {e}")))?;
+        .map_err(|e| Error::Db(format!("bootstrap schema: {e}")))?;
     conn.pragma_update(None, "user_version", SCHEMA_VERSION)
-        .map_err(|e| Error::Io(format!("bootstrap schema: stamp user_version: {e}")))?;
+        .map_err(|e| Error::Db(format!("bootstrap schema: stamp user_version: {e}")))?;
     Ok(())
 }
 
@@ -251,7 +251,7 @@ fn read_schema_version(conn: &Connection) -> Result<i32, Error> {
         value = row.get::<_, i32>(0)?;
         Ok(())
     })
-    .map_err(|e| Error::Io(format!("read user_version: {e}")))?;
+    .map_err(|e| Error::Db(format!("read user_version: {e}")))?;
     Ok(value)
 }
 

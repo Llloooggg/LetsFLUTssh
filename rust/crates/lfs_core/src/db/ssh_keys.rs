@@ -44,13 +44,13 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SshKeyRow>, Error> {
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys ORDER BY created_at DESC",
         )
-        .map_err(|e| Error::Io(format!("ssh_keys list prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys list prepare: {e}")))?;
     let rows = stmt
         .query_map([], row_from)
-        .map_err(|e| Error::Io(format!("ssh_keys list query: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys list query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("ssh_keys row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("ssh_keys row: {e}")))?);
     }
     Ok(out)
 }
@@ -61,13 +61,13 @@ pub fn get(conn: &Connection, id: &str) -> Result<Option<SshKeyRow>, Error> {
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys WHERE id = ?1",
         )
-        .map_err(|e| Error::Io(format!("ssh_keys get prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys get prepare: {e}")))?;
     let mut rows = stmt
         .query_map(params![id], row_from)
-        .map_err(|e| Error::Io(format!("ssh_keys get query: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys get query: {e}")))?;
     match rows.next() {
         Some(Ok(row)) => Ok(Some(row)),
-        Some(Err(e)) => Err(Error::Io(format!("ssh_keys get row: {e}"))),
+        Some(Err(e)) => Err(Error::Db(format!("ssh_keys get row: {e}"))),
         None => Ok(None),
     }
 }
@@ -93,7 +93,7 @@ pub fn upsert(conn: &Connection, row: &SshKeyRow) -> Result<(), Error> {
             row.created_at_ms,
         ],
     )
-    .map_err(|e| Error::Io(format!("ssh_keys upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("ssh_keys upsert: {e}")))?;
     Ok(())
 }
 
@@ -129,7 +129,7 @@ pub fn list_metadata(conn: &Connection) -> Result<Vec<SshKeyMetadata>, Error> {
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys ORDER BY created_at DESC",
         )
-        .map_err(|e| Error::Io(format!("ssh_keys list_metadata prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys list_metadata prepare: {e}")))?;
     let rows = stmt
         .query_map([], |row| {
             let private_key: String = row.get("private_key")?;
@@ -145,10 +145,10 @@ pub fn list_metadata(conn: &Connection) -> Result<Vec<SshKeyMetadata>, Error> {
                 public_key,
             })
         })
-        .map_err(|e| Error::Io(format!("ssh_keys list_metadata query: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys list_metadata query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("ssh_keys list_metadata row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("ssh_keys list_metadata row: {e}")))?);
     }
     Ok(out)
 }
@@ -177,7 +177,7 @@ fn normalized_sha256_hex(s: &str) -> String {
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     let n = conn
         .execute("DELETE FROM ssh_keys WHERE id = ?1", params![id])
-        .map_err(|e| Error::Io(format!("ssh_keys delete: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys delete: {e}")))?;
     Ok(n)
 }
 
@@ -198,7 +198,7 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
     use rand::RngCore;
     let tx = conn
         .transaction()
-        .map_err(|e| Error::Io(format!("ssh_keys import_for_merge tx: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys import_for_merge tx: {e}")))?;
 
     let public_target = crate::keys::normalized_text_fingerprint(&proposed.public_key);
     let private_target = crate::keys::normalized_text_fingerprint(&proposed.private_key);
@@ -251,7 +251,7 @@ pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Resu
         },
     )?;
     tx.commit()
-        .map_err(|e| Error::Io(format!("ssh_keys import_for_merge commit: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys import_for_merge commit: {e}")))?;
     Ok(new_id)
 }
 
@@ -271,7 +271,7 @@ pub fn private_key_secret_id(key_id: &str) -> String {
 pub fn stage_secret_into_store(conn: &Connection, key_id: &str) -> Result<bool, Error> {
     let mut stmt = conn
         .prepare_cached("SELECT private_key FROM ssh_keys WHERE id = ?1")
-        .map_err(|e| Error::Io(format!("ssh_keys stage prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("ssh_keys stage prepare: {e}")))?;
     let private_key: Option<String> = stmt.query_row(params![key_id], |row| row.get(0)).ok();
     let Some(pem) = private_key else {
         return Ok(false);

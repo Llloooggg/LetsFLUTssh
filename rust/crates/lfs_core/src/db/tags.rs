@@ -25,13 +25,13 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<TagRow> {
 pub fn list_all(conn: &Connection) -> Result<Vec<TagRow>, Error> {
     let mut stmt = conn
         .prepare_cached("SELECT id, name, color, created_at FROM tags ORDER BY name ASC")
-        .map_err(|e| Error::Io(format!("tags prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("tags prepare: {e}")))?;
     let rows = stmt
         .query_map([], row_from)
-        .map_err(|e| Error::Io(format!("tags query: {e}")))?;
+        .map_err(|e| Error::Db(format!("tags query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("tags row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("tags row: {e}")))?);
     }
     Ok(out)
 }
@@ -45,18 +45,18 @@ pub fn upsert(conn: &Connection, row: &TagRow) -> Result<(), Error> {
            color = excluded.color",
         params![row.id, row.name, row.color, row.created_at_ms],
     )
-    .map_err(|e| Error::Io(format!("tags upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("tags upsert: {e}")))?;
     Ok(())
 }
 
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     conn.execute("DELETE FROM tags WHERE id = ?1", params![id])
-        .map_err(|e| Error::Io(format!("tags delete: {e}")))
+        .map_err(|e| Error::Db(format!("tags delete: {e}")))
 }
 
 pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
     conn.execute("DELETE FROM tags", [])
-        .map_err(|e| Error::Io(format!("tags delete_all: {e}")))
+        .map_err(|e| Error::Db(format!("tags delete_all: {e}")))
 }
 
 /// Tags attached to a session, joined back to the `tags` table.
@@ -70,13 +70,13 @@ pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<TagRo
              WHERE st.session_id = ?1 \
              ORDER BY t.name ASC",
         )
-        .map_err(|e| Error::Io(format!("tags list_for_session prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("tags list_for_session prepare: {e}")))?;
     let rows = stmt
         .query_map(params![session_id], row_from)
-        .map_err(|e| Error::Io(format!("tags list_for_session query: {e}")))?;
+        .map_err(|e| Error::Db(format!("tags list_for_session query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("tags list_for_session row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("tags list_for_session row: {e}")))?);
     }
     Ok(out)
 }
@@ -91,13 +91,13 @@ pub fn list_for_folder(conn: &Connection, folder_id: &str) -> Result<Vec<TagRow>
              WHERE ft.folder_id = ?1 \
              ORDER BY t.name ASC",
         )
-        .map_err(|e| Error::Io(format!("tags list_for_folder prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("tags list_for_folder prepare: {e}")))?;
     let rows = stmt
         .query_map(params![folder_id], row_from)
-        .map_err(|e| Error::Io(format!("tags list_for_folder query: {e}")))?;
+        .map_err(|e| Error::Db(format!("tags list_for_folder query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("tags list_for_folder row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("tags list_for_folder row: {e}")))?);
     }
     Ok(out)
 }
@@ -109,7 +109,7 @@ pub fn link_session_tag(conn: &Connection, session_id: &str, tag_id: &str) -> Re
         "INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?1, ?2)",
         params![session_id, tag_id],
     )
-    .map_err(|e| Error::Io(format!("session_tags insert: {e}")))?;
+    .map_err(|e| Error::Db(format!("session_tags insert: {e}")))?;
     Ok(())
 }
 
@@ -122,19 +122,19 @@ pub fn unlink_session_tag(
         "DELETE FROM session_tags WHERE session_id = ?1 AND tag_id = ?2",
         params![session_id, tag_id],
     )
-    .map_err(|e| Error::Io(format!("session_tags delete: {e}")))
+    .map_err(|e| Error::Db(format!("session_tags delete: {e}")))
 }
 
 pub fn list_session_tag_ids(conn: &Connection, session_id: &str) -> Result<Vec<String>, Error> {
     let mut stmt = conn
         .prepare_cached("SELECT tag_id FROM session_tags WHERE session_id = ?1")
-        .map_err(|e| Error::Io(format!("session_tags prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("session_tags prepare: {e}")))?;
     let rows = stmt
         .query_map(params![session_id], |row| row.get::<_, String>(0))
-        .map_err(|e| Error::Io(format!("session_tags query: {e}")))?;
+        .map_err(|e| Error::Db(format!("session_tags query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("session_tags row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("session_tags row: {e}")))?);
     }
     Ok(out)
 }
@@ -144,7 +144,7 @@ pub fn link_folder_tag(conn: &Connection, folder_id: &str, tag_id: &str) -> Resu
         "INSERT OR IGNORE INTO folder_tags (folder_id, tag_id) VALUES (?1, ?2)",
         params![folder_id, tag_id],
     )
-    .map_err(|e| Error::Io(format!("folder_tags insert: {e}")))?;
+    .map_err(|e| Error::Db(format!("folder_tags insert: {e}")))?;
     Ok(())
 }
 
@@ -153,19 +153,19 @@ pub fn unlink_folder_tag(conn: &Connection, folder_id: &str, tag_id: &str) -> Re
         "DELETE FROM folder_tags WHERE folder_id = ?1 AND tag_id = ?2",
         params![folder_id, tag_id],
     )
-    .map_err(|e| Error::Io(format!("folder_tags delete: {e}")))
+    .map_err(|e| Error::Db(format!("folder_tags delete: {e}")))
 }
 
 pub fn list_folder_tag_ids(conn: &Connection, folder_id: &str) -> Result<Vec<String>, Error> {
     let mut stmt = conn
         .prepare_cached("SELECT tag_id FROM folder_tags WHERE folder_id = ?1")
-        .map_err(|e| Error::Io(format!("folder_tags prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("folder_tags prepare: {e}")))?;
     let rows = stmt
         .query_map(params![folder_id], |row| row.get::<_, String>(0))
-        .map_err(|e| Error::Io(format!("folder_tags query: {e}")))?;
+        .map_err(|e| Error::Db(format!("folder_tags query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("folder_tags row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("folder_tags row: {e}")))?);
     }
     Ok(out)
 }

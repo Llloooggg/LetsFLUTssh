@@ -31,13 +31,13 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SnippetRow>, Error> {
             "SELECT id, title, command, description, created_at, updated_at \
              FROM snippets ORDER BY title ASC",
         )
-        .map_err(|e| Error::Io(format!("snippets prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("snippets prepare: {e}")))?;
     let rows = stmt
         .query_map([], row_from)
-        .map_err(|e| Error::Io(format!("snippets query: {e}")))?;
+        .map_err(|e| Error::Db(format!("snippets query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("snippets row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("snippets row: {e}")))?);
     }
     Ok(out)
 }
@@ -60,18 +60,18 @@ pub fn upsert(conn: &Connection, row: &SnippetRow) -> Result<(), Error> {
             row.updated_at_ms,
         ],
     )
-    .map_err(|e| Error::Io(format!("snippets upsert: {e}")))?;
+    .map_err(|e| Error::Db(format!("snippets upsert: {e}")))?;
     Ok(())
 }
 
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     conn.execute("DELETE FROM snippets WHERE id = ?1", params![id])
-        .map_err(|e| Error::Io(format!("snippets delete: {e}")))
+        .map_err(|e| Error::Db(format!("snippets delete: {e}")))
 }
 
 pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
     conn.execute("DELETE FROM snippets", [])
-        .map_err(|e| Error::Io(format!("snippets delete_all: {e}")))
+        .map_err(|e| Error::Db(format!("snippets delete_all: {e}")))
 }
 
 // ---- session_snippets M2M ----------------------------------------------
@@ -85,7 +85,7 @@ pub fn link_session_snippet(
         "INSERT OR IGNORE INTO session_snippets (session_id, snippet_id) VALUES (?1, ?2)",
         params![session_id, snippet_id],
     )
-    .map_err(|e| Error::Io(format!("session_snippets insert: {e}")))?;
+    .map_err(|e| Error::Db(format!("session_snippets insert: {e}")))?;
     Ok(())
 }
 
@@ -98,7 +98,7 @@ pub fn unlink_session_snippet(
         "DELETE FROM session_snippets WHERE session_id = ?1 AND snippet_id = ?2",
         params![session_id, snippet_id],
     )
-    .map_err(|e| Error::Io(format!("session_snippets delete: {e}")))
+    .map_err(|e| Error::Db(format!("session_snippets delete: {e}")))
 }
 
 /// All snippets pinned to a session, joined back to the snippets
@@ -113,13 +113,13 @@ pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<Snipp
              WHERE ss.session_id = ?1 \
              ORDER BY s.title ASC",
         )
-        .map_err(|e| Error::Io(format!("snippets list_for_session prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("snippets list_for_session prepare: {e}")))?;
     let rows = stmt
         .query_map(params![session_id], row_from)
-        .map_err(|e| Error::Io(format!("snippets list_for_session query: {e}")))?;
+        .map_err(|e| Error::Db(format!("snippets list_for_session query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("snippets list_for_session row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("snippets list_for_session row: {e}")))?);
     }
     Ok(out)
 }
@@ -127,13 +127,13 @@ pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<Snipp
 pub fn list_session_snippet_ids(conn: &Connection, session_id: &str) -> Result<Vec<String>, Error> {
     let mut stmt = conn
         .prepare_cached("SELECT snippet_id FROM session_snippets WHERE session_id = ?1")
-        .map_err(|e| Error::Io(format!("session_snippets prepare: {e}")))?;
+        .map_err(|e| Error::Db(format!("session_snippets prepare: {e}")))?;
     let rows = stmt
         .query_map(params![session_id], |row| row.get::<_, String>(0))
-        .map_err(|e| Error::Io(format!("session_snippets query: {e}")))?;
+        .map_err(|e| Error::Db(format!("session_snippets query: {e}")))?;
     let mut out = Vec::new();
     for r in rows {
-        out.push(r.map_err(|e| Error::Io(format!("session_snippets row: {e}")))?);
+        out.push(r.map_err(|e| Error::Db(format!("session_snippets row: {e}")))?);
     }
     Ok(out)
 }

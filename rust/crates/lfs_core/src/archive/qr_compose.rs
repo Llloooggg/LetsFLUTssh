@@ -361,7 +361,7 @@ fn build_qr_export_json(conn: &Connection, input: &QrExportInput) -> Result<Stri
     }
 
     let json = serde_json::to_string(&Value::Object(payload))
-        .map_err(|e| Error::Io(format!("qr json serialise: {e}")))?;
+        .map_err(|e| Error::Archive(format!("qr json serialise: {e}")))?;
     Ok(json)
 }
 

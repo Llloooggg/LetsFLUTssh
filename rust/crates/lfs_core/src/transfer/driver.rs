@@ -120,7 +120,7 @@ impl WorkerPool {
         self.sender
             .send(task_id)
             .await
-            .map_err(|e| Error::Io(format!("transfer dispatch: {e}")))
+            .map_err(|e| Error::Transport(format!("transfer dispatch: {e}")))
     }
 
     /// Flip the cancel flag for `task_id`. Idempotent on a
@@ -204,13 +204,13 @@ impl TaskExecutor for SftpTaskExecutor {
             let actor = app
                 .connections
                 .get(&task.session_id)
-                .ok_or_else(|| Error::Io(format!("session {} not registered", task.session_id)))?;
+                .ok_or_else(|| Error::SessionUnavailable(format!("session {} not registered", task.session_id)))?;
             let session = {
                 let guard = actor
                     .lock()
                     .map_err(|_| Error::Io("actor mutex poisoned".to_string()))?;
                 guard.clone_session().ok_or_else(|| {
-                    Error::Io(format!("session {} has no live handle", task.session_id))
+                    Error::Transport(format!("session {} has no live handle", task.session_id))
                 })?
             };
             let sftp = session.open_sftp().await?;
@@ -246,7 +246,7 @@ async fn download(
         if !parent.as_os_str().is_empty() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .map_err(|e| Error::Io(format!("mkdir {}: {e}", parent.display())))?;
+                .map_err(|e| Error::Transport(format!("mkdir {}: {e}", parent.display())))?;
         }
     }
     // tokio::fs::File so the local I/O runs on the blocking pool —
@@ -256,7 +256,7 @@ async fn download(
     // task scheduled on it.
     let mut local = tokio::fs::File::create(&task.local_path)
         .await
-        .map_err(|e| Error::Io(format!("create {}: {e}", task.local_path)))?;
+        .map_err(|e| Error::Transport(format!("create {}: {e}", task.local_path)))?;
     // Single scratch buffer reused across every chunk read — the
     // pre-fix `read_chunk(TRANSFER_CHUNK_SIZE)` allocated a fresh
     // `vec![0; 256 KiB]` per iteration. On a 100 MB/s pipe that's
@@ -275,14 +275,14 @@ async fn download(
         local
             .write_all(&buf[..n])
             .await
-            .map_err(|e| Error::Io(format!("write {}: {e}", task.local_path)))?;
+            .map_err(|e| Error::Transport(format!("write {}: {e}", task.local_path)))?;
         written = written.saturating_add(n as u64);
         app.transfers.set_progress(&task.id, written, &app.bus);
     }
     local
         .sync_all()
         .await
-        .map_err(|e| Error::Io(format!("fsync {}: {e}", task.local_path)))?;
+        .map_err(|e| Error::Transport(format!("fsync {}: {e}", task.local_path)))?;
     Ok(())
 }
 
@@ -295,7 +295,7 @@ async fn upload(
     let app = crate::app::instance();
     let mut local = tokio::fs::File::open(&task.local_path)
         .await
-        .map_err(|e| Error::Io(format!("read {}: {e}", task.local_path)))?;
+        .map_err(|e| Error::Transport(format!("read {}: {e}", task.local_path)))?;
     let remote = sftp.create(&task.remote_path).await?;
     let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
     let mut written: u64 = 0;
@@ -306,7 +306,7 @@ async fn upload(
         let n = local
             .read(&mut buf)
             .await
-            .map_err(|e| Error::Io(format!("read {}: {e}", task.local_path)))?;
+            .map_err(|e| Error::Transport(format!("read {}: {e}", task.local_path)))?;
         if n == 0 {
             break;
         }
