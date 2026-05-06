@@ -80,6 +80,14 @@ part 'main_screen.dart';
 /// data over what is usually a transient packaging issue. Bail to a
 /// dedicated fatal screen instead so the wipe path is unreachable.
 Future<bool> _initRustCoreOrFatal() async {
+  // Track which sub-steps landed so the catch arm can roll the
+  // pieces back in reverse order. A partial init that leaks the
+  // RustLib + AppState handles into the fatal screen kept the
+  // native blob mapped + the singleton alive — a clean re-launch
+  // attempt would either re-init twice (now caught above) or
+  // serve stale state.
+  var rustLibInitialised = false;
+  var appInited = false;
   try {
     // `RustLib.init()` throws "Should not initialize twice" on a
     // re-entry — that happens under flutter_test where
@@ -89,17 +97,22 @@ Future<bool> _initRustCoreOrFatal() async {
     // lands on FatalErrorApp.
     try {
       await RustLib.init();
+      rustLibInitialised = true;
     } on StateError catch (e) {
       if (!e.message.contains('Should not initialize')) rethrow;
       AppLogger.instance.log(
         'RustLib already initialised — skipping re-init',
         name: 'RustCore',
       );
+      // Already initialised in this process — treat as ours so the
+      // rollback in the catch arm reaches it the same way.
+      rustLibInitialised = true;
     }
     // Initialise the AppState singleton in lfs_core. Subsequent
     // commands (secrets_*, sessions/connections/forwards) attach
     // to it. Idempotent.
     await rust_app.appInit();
+    appInited = true;
     // Wire the Rust `lfs_core::config_store::Store` actor so
     // `loadAppConfigFromDisk` (next step in `_mainBody`) parses
     // through the Rust-side `AppConfig::from_json_value` sanitizer
@@ -127,6 +140,29 @@ Future<bool> _initRustCoreOrFatal() async {
       error: e,
       stackTrace: st,
     );
+    // Roll back any sub-steps that landed before the failure. The
+    // FRB-side `appInit` / `bootstrapRustConfigStore` are idempotent
+    // and don't expose an explicit teardown — the native blob's
+    // `RustLib.dispose()` is what actually frees the singleton +
+    // releases the dynamic library. Best-effort: a failing dispose
+    // here is no worse than the prior shape (which left everything
+    // mapped) and the FatalErrorApp screen still paints.
+    if (appInited) {
+      // Nothing exposes a Rust-side `app_state.shutdown()` yet —
+      // the AppState singleton is reclaimed when RustLib.dispose
+      // unloads the native blob below.
+    }
+    if (rustLibInitialised) {
+      try {
+        RustLib.dispose();
+      } catch (disposeErr) {
+        AppLogger.instance.log(
+          'RustLib.dispose during fatal rollback failed: $disposeErr',
+          name: 'RustCore',
+          level: LogLevel.warn,
+        );
+      }
+    }
     runApp(
       const FatalErrorApp(
         summary: 'LetsFLUTssh cannot start.',
