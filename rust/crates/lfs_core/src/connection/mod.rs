@@ -184,18 +184,35 @@ pub struct ConnectionActor {
     session: Option<Arc<Session>>,
 }
 
+/// Bundled inputs for [`ConnectionActor::new`]. Eight fields land
+/// here so the constructor signature stays under clippy's
+/// too-many-arguments threshold; every field is load-bearing for
+/// the connection lifecycle so the bundle exists strictly to keep
+/// the call shape readable, not to compress.
+#[derive(Clone, Debug)]
+pub struct ConnectionActorInit {
+    pub id: ConnId,
+    pub label: String,
+    pub session_id: Option<String>,
+    pub bastion_id: Option<ConnId>,
+    pub internal: bool,
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+}
+
 impl ConnectionActor {
-    #[allow(clippy::too_many_arguments)] // every field is load-bearing for the lifecycle
-    pub fn new(
-        id: ConnId,
-        label: String,
-        session_id: Option<String>,
-        bastion_id: Option<ConnId>,
-        internal: bool,
-        host: String,
-        port: u16,
-        user: String,
-    ) -> Self {
+    pub fn new(init: ConnectionActorInit) -> Self {
+        let ConnectionActorInit {
+            id,
+            label,
+            session_id,
+            bastion_id,
+            internal,
+            host,
+            port,
+            user,
+        } = init;
         Self {
             id,
             label,
@@ -436,16 +453,16 @@ impl Default for ConnectionRegistry {
 /// bound. Awaiting in-place lets the FRB worker thread own the
 /// future without erasing the auto-trait constraint.
 pub async fn connect_async(id: ConnId, args: ConnectArgs) -> Result<ConnId, Error> {
-    let actor = ConnectionActor::new(
-        id.clone(),
-        args.label.clone(),
-        args.session_id.clone(),
-        args.bastion_id.clone(),
-        args.internal,
-        args.host.clone(),
-        args.port,
-        args.user.clone(),
-    );
+    let actor = ConnectionActor::new(ConnectionActorInit {
+        id: id.clone(),
+        label: args.label.clone(),
+        session_id: args.session_id.clone(),
+        bastion_id: args.bastion_id.clone(),
+        internal: args.internal,
+        host: args.host.clone(),
+        port: args.port,
+        user: args.user.clone(),
+    });
     let app = crate::app::instance();
     let handle = app.connections.insert(actor);
     run_connect_driver(id.clone(), args, handle).await;
@@ -801,14 +818,14 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
             },
             None,
         ) => {
-            Session::connect_pubkey_cert_with_secret_owned(
+            Session::connect_pubkey_cert_with_secret_owned(crate::ssh::ConnectPubkeyCertOwnedArgs {
                 host,
                 port,
                 user,
                 key_secret_id,
                 cert_secret_id,
                 passphrase_secret_id,
-            )
+            })
             .await
         }
         (
@@ -821,12 +838,14 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
         ) => {
             Session::connect_pubkey_cert_via_proxy_with_secret_owned(
                 parent,
-                host,
-                port,
-                user,
-                key_secret_id,
-                cert_secret_id,
-                passphrase_secret_id,
+                crate::ssh::ConnectPubkeyCertOwnedArgs {
+                    host,
+                    port,
+                    user,
+                    key_secret_id,
+                    cert_secret_id,
+                    passphrase_secret_id,
+                },
             )
             .await
         }
@@ -941,16 +960,16 @@ mod tests {
     #[test]
     fn insert_and_snapshot() {
         let reg = ConnectionRegistry::new();
-        let actor = ConnectionActor::new(
-            "c1".into(),
-            "Label".into(),
-            Some("s1".into()),
-            None,
-            false,
-            "host".into(),
-            22,
-            "user".into(),
-        );
+        let actor = ConnectionActor::new(ConnectionActorInit {
+            id: "c1".into(),
+            label: "Label".into(),
+            session_id: Some("s1".into()),
+            bastion_id: None,
+            internal: false,
+            host: "host".into(),
+            port: 22,
+            user: "user".into(),
+        });
         reg.insert(actor);
         let snap = reg.snapshot_all();
         assert_eq!(snap.len(), 1);
@@ -961,16 +980,16 @@ mod tests {
     #[tokio::test]
     async fn remove_drops_actor() {
         let reg = ConnectionRegistry::new();
-        let actor = ConnectionActor::new(
-            "c1".into(),
-            "L".into(),
-            None,
-            None,
-            false,
-            "h".into(),
-            22,
-            "u".into(),
-        );
+        let actor = ConnectionActor::new(ConnectionActorInit {
+            id: "c1".into(),
+            label: "L".into(),
+            session_id: None,
+            bastion_id: None,
+            internal: false,
+            host: "h".into(),
+            port: 22,
+            user: "u".into(),
+        });
         reg.insert(actor);
         assert_eq!(reg.count(), 1);
         reg.remove("c1");
@@ -981,16 +1000,16 @@ mod tests {
     #[tokio::test]
     async fn snapshot_carries_progress() {
         let reg = ConnectionRegistry::new();
-        let actor = ConnectionActor::new(
-            "c1".into(),
-            "L".into(),
-            None,
-            None,
-            false,
-            "h".into(),
-            22,
-            "u".into(),
-        );
+        let actor = ConnectionActor::new(ConnectionActorInit {
+            id: "c1".into(),
+            label: "L".into(),
+            session_id: None,
+            bastion_id: None,
+            internal: false,
+            host: "h".into(),
+            port: 22,
+            user: "u".into(),
+        });
         let handle = reg.insert(actor);
         {
             let mut a = handle.lock().expect("actor mutex poisoned");

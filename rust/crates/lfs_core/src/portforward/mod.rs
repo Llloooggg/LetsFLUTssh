@@ -85,6 +85,21 @@ impl RuleActor {
     }
 }
 
+/// Bundled inputs for [`PortForwardRegistry::register`]. Eight
+/// per-rule fields land here so the registration call signature
+/// stays under clippy's too-many-arguments threshold.
+#[derive(Clone, Debug)]
+pub struct RegisterRequest {
+    pub id: RuleId,
+    pub session_id: String,
+    pub connection_id: Option<crate::connection::ConnId>,
+    pub kind: RuleKind,
+    pub bind_host: String,
+    pub bind_port: i64,
+    pub remote_host: String,
+    pub remote_port: i64,
+}
+
 /// Process-singleton port-forward registry. Owned by `AppState`.
 pub struct PortForwardRegistry {
     inner: Mutex<RegistryInner>,
@@ -164,21 +179,19 @@ impl PortForwardRegistry {
     }
 
     /// Register a rule actor + emit `PortForwardRegistered`. The
-    /// listener-accept driver lands in the next 5.2 commit;
-    /// today the row carries `Idle` until something flips it.
-    #[allow(clippy::too_many_arguments)]
-    pub fn register(
-        &self,
-        id: RuleId,
-        session_id: String,
-        connection_id: Option<crate::connection::ConnId>,
-        kind: RuleKind,
-        bind_host: String,
-        bind_port: i64,
-        remote_host: String,
-        remote_port: i64,
-        bus: &EventBus,
-    ) -> RuleSnapshot {
+    /// listener-accept driver runs once the row is registered;
+    /// the row carries `Idle` until something flips it.
+    pub fn register(&self, req: RegisterRequest, bus: &EventBus) -> RuleSnapshot {
+        let RegisterRequest {
+            id,
+            session_id,
+            connection_id,
+            kind,
+            bind_host,
+            bind_port,
+            remote_host,
+            remote_port,
+        } = req;
         let actor = RuleActor {
             id: id.clone(),
             session_id,
@@ -259,14 +272,16 @@ mod tests {
         let bus = EventBus::new();
         let reg = PortForwardRegistry::new();
         reg.register(
-            "r1".into(),
-            "s1".into(),
-            None,
-            RuleKind::Local,
-            "127.0.0.1".into(),
-            8080,
-            "remote".into(),
-            80,
+            RegisterRequest {
+                id: "r1".into(),
+                session_id: "s1".into(),
+                connection_id: None,
+                kind: RuleKind::Local,
+                bind_host: "127.0.0.1".into(),
+                bind_port: 8080,
+                remote_host: "remote".into(),
+                remote_port: 80,
+            },
             &bus,
         );
         reg.set_status("r1", RuleStatus::Listening, None, &bus);

@@ -415,6 +415,23 @@ pub async fn try_connect_pubkey(
 /// `disconnect()` (or `Drop`) tears it down. Open shell / SFTP / port-
 /// forward channels off this object.
 ///
+/// Bundled inputs for the owned-arg cert-auth `_owned` family
+/// ([`Session::connect_pubkey_cert_with_secret_owned`] +
+/// [`Session::connect_pubkey_cert_via_proxy_with_secret_owned`]).
+/// Keeps each entry-point signature under clippy's
+/// too-many-arguments threshold; every field is load-bearing for
+/// the cert handshake so the bundle exists strictly to keep the
+/// call shape readable.
+#[derive(Clone, Debug)]
+pub struct ConnectPubkeyCertOwnedArgs {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub key_secret_id: String,
+    pub cert_secret_id: String,
+    pub passphrase_secret_id: Option<String>,
+}
+
 /// Shareable across tasks — every method takes `&self` because
 /// russh's `Handle` is internally `Sync`. Wrap in `Arc` if multiple
 /// owners need it.
@@ -834,23 +851,17 @@ impl Session {
 
     /// Owned-arg twin of [`connect_pubkey_cert_with_secret`]. Boxed
     /// for the same reason as [`connect_password_with_secret_owned`].
-    #[allow(clippy::too_many_arguments)] // every cert auth ingredient is load-bearing
     pub fn connect_pubkey_cert_with_secret_owned(
-        host: String,
-        port: u16,
-        user: String,
-        key_secret_id: String,
-        cert_secret_id: String,
-        passphrase_secret_id: Option<String>,
+        args: ConnectPubkeyCertOwnedArgs,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
         Box::pin(async move {
             Self::connect_pubkey_cert_with_secret(
-                &host,
-                port,
-                &user,
-                &key_secret_id,
-                &cert_secret_id,
-                passphrase_secret_id.as_deref(),
+                &args.host,
+                args.port,
+                &args.user,
+                &args.key_secret_id,
+                &args.cert_secret_id,
+                args.passphrase_secret_id.as_deref(),
             )
             .await
         })
@@ -938,25 +949,22 @@ impl Session {
     }
 
     /// OpenSSH-cert auth tunnelled through a ProxyJump parent.
-    #[allow(clippy::too_many_arguments)] // every cert auth ingredient is load-bearing
     pub fn connect_pubkey_cert_via_proxy_with_secret_owned(
         parent: Arc<Session>,
-        host: String,
-        port: u16,
-        user: String,
-        key_secret_id: String,
-        cert_secret_id: String,
-        passphrase_secret_id: Option<String>,
+        args: ConnectPubkeyCertOwnedArgs,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self, Error>> + Send>> {
         Box::pin(async move {
             let store = &crate::app::instance().secrets;
             let key_bytes = store
-                .get(&key_secret_id)
-                .ok_or_else(|| Error::Auth(format!("no cached key '{key_secret_id}'")))?;
+                .get(&args.key_secret_id)
+                .ok_or_else(|| Error::Auth(format!("no cached key '{}'", args.key_secret_id)))?;
             let cert_bytes = store
-                .get(&cert_secret_id)
-                .ok_or_else(|| Error::Auth(format!("no cached cert '{cert_secret_id}'")))?;
-            let pass_bytes = passphrase_secret_id.as_deref().and_then(|id| store.get(id));
+                .get(&args.cert_secret_id)
+                .ok_or_else(|| Error::Auth(format!("no cached cert '{}'", args.cert_secret_id)))?;
+            let pass_bytes = args
+                .passphrase_secret_id
+                .as_deref()
+                .and_then(|id| store.get(id));
             let passphrase = match pass_bytes.as_ref() {
                 Some(b) => Some(
                     std::str::from_utf8(b)
@@ -966,9 +974,9 @@ impl Session {
             };
             Self::connect_pubkey_cert_via_proxy(
                 &parent,
-                &host,
-                port,
-                &user,
+                &args.host,
+                args.port,
+                &args.user,
                 &key_bytes,
                 passphrase,
                 &cert_bytes,

@@ -265,16 +265,12 @@ impl Sftp {
     ) -> Result<(), Error> {
         let total_files = count_local_files(std::path::Path::new(local_dir)).await;
         let mut counter: u64 = 0;
-        upload_dir_inner(
-            self,
-            local_dir,
-            remote_dir,
+        let ctx = DirWalkCtx {
+            sftp: self,
             total_files,
-            &mut counter,
             progress,
-            0,
-        )
-        .await
+        };
+        upload_dir_inner(&ctx, local_dir, remote_dir, &mut counter, 0).await
     }
 
     /// Recursively download `remote_dir` into `local_dir`. Mirror
@@ -290,16 +286,12 @@ impl Sftp {
     ) -> Result<(), Error> {
         let total_files = count_remote_files(self, remote_dir, 0).await;
         let mut counter: u64 = 0;
-        download_dir_inner(
-            self,
-            remote_dir,
-            local_dir,
+        let ctx = DirWalkCtx {
+            sftp: self,
             total_files,
-            &mut counter,
             progress,
-            0,
-        )
-        .await
+        };
+        download_dir_inner(&ctx, remote_dir, local_dir, &mut counter, 0).await
     }
 }
 
@@ -371,14 +363,23 @@ fn count_remote_files<'a>(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
-fn upload_dir_inner<'a>(
+/// Immutable per-walk context shared across recursive
+/// upload_dir / download_dir calls. Bundling the invariants
+/// (sftp handle, total file count, progress callback) into one
+/// struct keeps the recursive signature under clippy's
+/// too-many-arguments threshold; the mutable counter and depth
+/// stay as separate args because they vary per recursive frame.
+struct DirWalkCtx<'a> {
     sftp: &'a Sftp,
+    total_files: u64,
+    progress: &'a (dyn Fn(TransferProgressEvent) -> bool + Send + Sync),
+}
+
+fn upload_dir_inner<'a>(
+    ctx: &'a DirWalkCtx<'a>,
     local_dir: &'a str,
     remote_dir: &'a str,
-    total_files: u64,
     counter: &'a mut u64,
-    progress: &'a (dyn Fn(TransferProgressEvent) -> bool + Send + Sync),
     depth: usize,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
     Box::pin(async move {
@@ -388,7 +389,7 @@ fn upload_dir_inner<'a>(
             )));
         }
         // mkdir is best-effort — directory may already exist on the remote.
-        let _ = sftp.mkdir(remote_dir).await;
+        let _ = ctx.sftp.mkdir(remote_dir).await;
 
         let mut rd = tokio::fs::read_dir(local_dir)
             .await
@@ -414,16 +415,16 @@ fn upload_dir_inner<'a>(
         }
 
         for (local_path, remote_path) in files {
-            stream_upload_file(sftp, &local_path, &remote_path).await?;
+            stream_upload_file(ctx.sftp, &local_path, &remote_path).await?;
             *counter = counter.saturating_add(1);
             let name = std::path::Path::new(&local_path)
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("")
                 .to_string();
-            let cont = progress(TransferProgressEvent {
+            let cont = (ctx.progress)(TransferProgressEvent {
                 file_name: name,
-                total_files,
+                total_files: ctx.total_files,
                 done_files: *counter,
                 is_upload: true,
             });
@@ -432,29 +433,17 @@ fn upload_dir_inner<'a>(
             }
         }
         for (local_child, remote_child) in subdirs {
-            upload_dir_inner(
-                sftp,
-                &local_child,
-                &remote_child,
-                total_files,
-                counter,
-                progress,
-                depth + 1,
-            )
-            .await?;
+            upload_dir_inner(ctx, &local_child, &remote_child, counter, depth + 1).await?;
         }
         Ok(())
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 fn download_dir_inner<'a>(
-    sftp: &'a Sftp,
+    ctx: &'a DirWalkCtx<'a>,
     remote_dir: &'a str,
     local_dir: &'a str,
-    total_files: u64,
     counter: &'a mut u64,
-    progress: &'a (dyn Fn(TransferProgressEvent) -> bool + Send + Sync),
     depth: usize,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
     Box::pin(async move {
@@ -466,7 +455,7 @@ fn download_dir_inner<'a>(
         tokio::fs::create_dir_all(local_dir)
             .await
             .map_err(|e| Error::Sftp(format!("create_dir_all {local_dir}: {e}")))?;
-        let entries = sftp.list(remote_dir).await?;
+        let entries = ctx.sftp.list(remote_dir).await?;
         let trimmed = remote_dir.trim_end_matches('/');
         let mut files: Vec<(String, String)> = Vec::new();
         let mut subdirs: Vec<(String, String)> = Vec::new();
@@ -481,16 +470,16 @@ fn download_dir_inner<'a>(
         }
 
         for (remote_path, local_path) in files {
-            stream_download_file(sftp, &remote_path, &local_path).await?;
+            stream_download_file(ctx.sftp, &remote_path, &local_path).await?;
             *counter = counter.saturating_add(1);
             let name = std::path::Path::new(&local_path)
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("")
                 .to_string();
-            let cont = progress(TransferProgressEvent {
+            let cont = (ctx.progress)(TransferProgressEvent {
                 file_name: name,
-                total_files,
+                total_files: ctx.total_files,
                 done_files: *counter,
                 is_upload: false,
             });
@@ -499,16 +488,7 @@ fn download_dir_inner<'a>(
             }
         }
         for (remote_child, local_child) in subdirs {
-            download_dir_inner(
-                sftp,
-                &remote_child,
-                &local_child,
-                total_files,
-                counter,
-                progress,
-                depth + 1,
-            )
-            .await?;
+            download_dir_inner(ctx, &remote_child, &local_child, counter, depth + 1).await?;
         }
         Ok(())
     })
