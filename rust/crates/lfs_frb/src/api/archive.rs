@@ -225,6 +225,47 @@ pub struct DbImportOpenResult {
 /// `letsflutssh://import?d=...` deeplink. The Dart caller may
 /// also pass the full URI — the leading `letsflutssh://import?d=`
 /// is stripped automatically.
+/// Pre-decrypt classifier for a candidate `.lfs` file. Mirrors
+/// `lfs_core::archive::probe::ProbeKind` so the Dart file-picker
+/// can branch on a typed enum without having to interpret a magic
+/// byte / size threshold itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DbArchiveProbeKind {
+    /// Doesn't start with the ZIP local-file-header magic — almost
+    /// certainly an encrypted `.lfs` (random 32-byte salt prefix).
+    /// Caller surfaces the password prompt.
+    EncryptedLfs,
+    /// Plain ZIP carrying at least one of our marker entries.
+    /// Caller imports without a password.
+    UnencryptedLfs,
+    /// Anything else — non-ZIP, ZIP without our markers (an `.apk`
+    /// picked by mistake), file too big, malformed ZIP, missing
+    /// file. Caller refuses the import with a friendly toast.
+    NotLfs,
+}
+
+impl From<lfs_core::archive::probe::ProbeKind> for DbArchiveProbeKind {
+    fn from(k: lfs_core::archive::probe::ProbeKind) -> Self {
+        match k {
+            lfs_core::archive::probe::ProbeKind::EncryptedLfs => Self::EncryptedLfs,
+            lfs_core::archive::probe::ProbeKind::UnencryptedLfs => Self::UnencryptedLfs,
+            lfs_core::archive::probe::ProbeKind::NotLfs => Self::NotLfs,
+        }
+    }
+}
+
+/// Classify the file at `path`. Pure best-effort: any I/O / parse
+/// error collapses to `NotLfs` so the caller surfaces a single
+/// rejection. The probe stays sub-millisecond on small files
+/// (header read + size stat) and milliseconds on large plain ZIPs
+/// (entry-list scan); blocking-pool wrapped to keep the FRB worker
+/// thread free.
+pub async fn db_archive_probe(path: String) -> DbArchiveProbeKind {
+    tokio::task::spawn_blocking(move || lfs_core::archive::probe::probe(&path).into())
+        .await
+        .unwrap_or(DbArchiveProbeKind::NotLfs)
+}
+
 pub async fn qr_import_open(payload: String) -> Result<DbImportOpenResult, String> {
     tokio::task::spawn_blocking(move || {
         let raw = lfs_core::qr_codec_decode::extract_payload_from_uri(&payload).unwrap_or(payload);

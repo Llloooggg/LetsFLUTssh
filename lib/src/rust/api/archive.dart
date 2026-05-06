@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 /// Compose and (optionally) encrypt the `.lfs` archive entirely
 /// inside Rust. Plaintext credentials never cross the FRB boundary
@@ -33,18 +33,15 @@ Future<int> dbExportQrPayloadSize({required DbQrExportInput input}) =>
 Future<String> dbExportQrPayload({required DbQrExportInput input}) =>
     RustLib.instance.api.crateApiArchiveDbExportQrPayload(input: input);
 
-/// Decode a QR / paste-link payload (deflated + base64url JSON,
-/// or v1 legacy raw base64url JSON), stage the resulting
-/// `PendingImport` under a freshly-generated handle id, and
-/// return the sanitised preview. Mirrors `db_import_open` for
-/// the QR / deeplink paths so the apply driver sees the same
-/// shape regardless of whether the bytes came from a `.lfs`
-/// archive or a QR scan.
-///
-/// `payload` is the value of the `d=` query parameter from a
-/// `letsflutssh://import?d=...` deeplink. The Dart caller may
-/// also pass the full URI — the leading `letsflutssh://import?d=`
-/// is stripped automatically.
+/// Classify the file at `path`. Pure best-effort: any I/O / parse
+/// error collapses to `NotLfs` so the caller surfaces a single
+/// rejection. The probe stays sub-millisecond on small files
+/// (header read + size stat) and milliseconds on large plain ZIPs
+/// (entry-list scan); blocking-pool wrapped to keep the FRB worker
+/// thread free.
+Future<DbArchiveProbeKind> dbArchiveProbe({required String path}) =>
+    RustLib.instance.api.crateApiArchiveDbArchiveProbe(path: path);
+
 Future<DbImportOpenResult> qrImportOpen({required String payload}) =>
     RustLib.instance.api.crateApiArchiveQrImportOpen(payload: payload);
 
@@ -219,6 +216,38 @@ class DbApplyResult {
           errors == other.errors &&
           configJson == other.configJson &&
           rolledBack == other.rolledBack;
+}
+
+/// Decode a QR / paste-link payload (deflated + base64url JSON,
+/// or v1 legacy raw base64url JSON), stage the resulting
+/// `PendingImport` under a freshly-generated handle id, and
+/// return the sanitised preview. Mirrors `db_import_open` for
+/// the QR / deeplink paths so the apply driver sees the same
+/// shape regardless of whether the bytes came from a `.lfs`
+/// archive or a QR scan.
+///
+/// `payload` is the value of the `d=` query parameter from a
+/// `letsflutssh://import?d=...` deeplink. The Dart caller may
+/// also pass the full URI — the leading `letsflutssh://import?d=`
+/// is stripped automatically.
+/// Pre-decrypt classifier for a candidate `.lfs` file. Mirrors
+/// `lfs_core::archive::probe::ProbeKind` so the Dart file-picker
+/// can branch on a typed enum without having to interpret a magic
+/// byte / size threshold itself.
+enum DbArchiveProbeKind {
+  /// Doesn't start with the ZIP local-file-header magic — almost
+  /// certainly an encrypted `.lfs` (random 32-byte salt prefix).
+  /// Caller surfaces the password prompt.
+  encryptedLfs,
+
+  /// Plain ZIP carrying at least one of our marker entries.
+  /// Caller imports without a password.
+  unencryptedLfs,
+
+  /// Anything else — non-ZIP, ZIP without our markers (an `.apk`
+  /// picked by mistake), file too big, malformed ZIP, missing
+  /// file. Caller refuses the import with a friendly toast.
+  notLfs,
 }
 
 /// Mirror of `ExportInput`. Pulled verbatim across the FRB

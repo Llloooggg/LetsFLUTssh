@@ -220,13 +220,13 @@ void main() {
     test('cancel mid-flight settles the task in `cancelled`', () async {
       // The upload loop in `lfs_core::transfer::driver::upload`
       // checks `cancel.is_cancelled()` at the top of every chunk
-      // (`TRANSFER_CHUNK_SIZE = 64 KiB`). On localhost loopback the
-      // 16 chunks for a 1 MiB file fly through faster than a Dart
+      // (`TRANSFER_CHUNK_SIZE = 256 KiB`). On localhost loopback the
+      // 16 chunks for a 4 MiB file fly through faster than a Dart
       // `cancel` round-trips through the FRB worker — the cancel
       // arrives after the upload has already settled in `completed`
       // and the assertion misses. Widening the race window deter-
       // ministically: install a per-`write` delay on the fixture's
-      // SFTP subsystem so each chunk takes ~50 ms. A 1 MiB file
+      // SFTP subsystem so each chunk takes ~50 ms. A 4 MiB file
       // becomes ≈800 ms; cancelling after 150 ms lands on chunk
       // ~2/16 and the next loop-top check terminates the task with
       // `upload cancelled`.
@@ -235,10 +235,10 @@ void main() {
       final localTmp = File(
         '${Directory.systemTemp.path}/lfs-xfer-cancel-${DateTime.now().microsecondsSinceEpoch}',
       );
-      // 1 MiB of zeros — content does not matter; only chunk count
+      // 4 MiB of zeros — content does not matter; only chunk count
       // does. 16 chunks × 50 ms gives plenty of room for the
       // cancel to land between any two writes.
-      final payload = Uint8List(1 * 1024 * 1024);
+      final payload = Uint8List(4 * 1024 * 1024);
       await localTmp.writeAsBytes(payload);
       addTearDown(() async {
         if (await localTmp.exists()) await localTmp.delete();

@@ -118,49 +118,24 @@ class ExportImport {
   ///
   /// Read/parse failures collapse to [LfsArchiveKind.notLfs] so the caller
   /// can show a single friendly rejection instead of surfacing an IO stack.
-  static LfsArchiveKind probeArchive(String filePath) {
+  ///
+  /// Routes through `lfs_core::archive::probe::probe` — the ZIP decoder,
+  /// size caps, and marker scan all live Rust-side so `package:archive`
+  /// can retire from the Dart deps tree once every consumer migrates.
+  /// Async because the Rust function runs on the blocking pool to keep
+  /// the FRB worker thread free for parallel callers (Settings can fire
+  /// the probe while a transfer driver is mid-loop).
+  static Future<LfsArchiveKind> probeArchive(String filePath) async {
     try {
-      final file = File(filePath);
-      final Uint8List head;
-      final raf = file.openSync();
-      try {
-        head = Uint8List(4);
-        final read = raf.readIntoSync(head);
-        if (read < 4) return LfsArchiveKind.notLfs;
-      } finally {
-        raf.closeSync();
+      final result = await rust_archive.dbArchiveProbe(path: filePath);
+      switch (result) {
+        case rust_archive.DbArchiveProbeKind.encryptedLfs:
+          return LfsArchiveKind.encryptedLfs;
+        case rust_archive.DbArchiveProbeKind.unencryptedLfs:
+          return LfsArchiveKind.unencryptedLfs;
+        case rust_archive.DbArchiveProbeKind.notLfs:
+          return LfsArchiveKind.notLfs;
       }
-      if (!isUnencryptedArchive(head)) return LfsArchiveKind.encryptedLfs;
-
-      // Plain ZIP — decode fully and look for our marker entries. APKs are
-      // also ZIPs but carry none of these, so they get filtered out here.
-      if (file.lengthSync() > maxArchiveBytes) return LfsArchiveKind.notLfs;
-      final Archive archive;
-      try {
-        archive = ZipDecoder().decodeBytes(file.readAsBytesSync());
-      } catch (e) {
-        // Best-effort probe — malformed ZIP / APK / random bytes all
-        // land here. Logging the reason saves a "why did import reject
-        // my file?" round-trip with the user — a corrupted .lfs and an
-        // .apk picked by mistake both surface as "notLfs" but have
-        // different root causes.
-        AppLogger.instance.log(
-          'probeArchive: ZIP decode failed (file classified as notLfs): $e',
-          name: 'ExportImport',
-        );
-        return LfsArchiveKind.notLfs;
-      }
-      // Probe is best-effort — a zip bomb here just means the file is not
-      // recognised as one of ours; classify as notLfs and let the caller
-      // surface a friendly rejection.
-      try {
-        enforceDecompressedSizeCap(archive);
-      } on LfsArchiveTooLargeException {
-        return LfsArchiveKind.notLfs;
-      }
-      const markers = [_manifestFile, _sessionsFile, _configFile, _keysFile];
-      final isOurs = markers.any((name) => archive.findFile(name) != null);
-      return isOurs ? LfsArchiveKind.unencryptedLfs : LfsArchiveKind.notLfs;
     } catch (e) {
       AppLogger.instance.log(
         'probeArchive failed — treating as notLfs',

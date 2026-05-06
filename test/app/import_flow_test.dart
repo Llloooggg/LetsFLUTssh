@@ -89,7 +89,7 @@ ImportFlowSeams _seams({
   LinkImportPreviewResult? linkDialogResult,
 }) {
   return ImportFlowSeams(
-    probeArchive: (path) {
+    probeArchive: (path) async {
       log.probeCalls.add(path);
       return probeKind;
     },

@@ -53,7 +53,7 @@ class ImportFlowSeams {
     showLinkPreviewDialog: LinkImportPreviewDialog.show,
   );
 
-  final LfsArchiveKind Function(String filePath) probeArchive;
+  final Future<LfsArchiveKind> Function(String filePath) probeArchive;
 
   final Future<rust_archive.DbImportOpenResult> Function({
     required String path,
@@ -279,7 +279,8 @@ Future<void> showLfsImportDialog(
     'LFS import started: ${filePath.split('/').last}',
     name: 'App',
   );
-  final kind = _seams.probeArchive(filePath);
+  final kind = await _seams.probeArchive(filePath);
+  if (!context.mounted) return;
   if (kind == LfsArchiveKind.notLfs) {
     Toast.show(
       context,

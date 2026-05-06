@@ -427,7 +427,8 @@ class _ExportImportTile extends ConsumerWidget {
     // extension filter is advisory (no registered MIME type), so users can
     // land on any file — including APKs, which are also ZIPs. `probeArchive`
     // rejects non-LFS content before we bother asking for a password.
-    final kind = ExportImport.probeArchive(path);
+    final kind = await ExportImport.probeArchive(path);
+    if (!context.mounted) return;
     if (kind == LfsArchiveKind.notLfs) {
       Toast.show(
         context,

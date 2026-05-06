@@ -440,6 +440,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbApplyResult dco_decode_db_apply_result(dynamic raw);
 
   @protected
+  DbArchiveProbeKind dco_decode_db_archive_probe_kind(dynamic raw);
+
+  @protected
   DbBiometricAvailability dco_decode_db_biometric_availability(dynamic raw);
 
   @protected
@@ -1443,6 +1446,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbApplyResult sse_decode_db_apply_result(SseDeserializer deserializer);
+
+  @protected
+  DbArchiveProbeKind sse_decode_db_archive_probe_kind(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbBiometricAvailability sse_decode_db_biometric_availability(
@@ -2728,6 +2736,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_apply_result(DbApplyResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_archive_probe_kind(
+    DbArchiveProbeKind self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_db_biometric_availability(

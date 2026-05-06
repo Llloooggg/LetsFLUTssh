@@ -38,6 +38,7 @@ pub mod apply;
 pub mod compose;
 pub mod envelope;
 pub(crate) mod iso8601;
+pub mod probe;
 pub mod qr_compose;
 
 pub use apply::{
