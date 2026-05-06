@@ -147,10 +147,25 @@ impl PersistedRateLimiterRegistry {
             .get(next_count as usize)
             .copied()
             .unwrap_or(0);
-        let next_retry_at_millis = if secs == 0 {
+        // Monotonic floor on the cooldown: a backward clock jump
+        // (NTP correction, daylight-saving rollback, suspended
+        // laptop with battery-drained RTC) MUST NOT shrink the
+        // already-issued cooldown. An attacker with system-clock
+        // write access could otherwise burn through the schedule
+        // — fail, set clock back, fail again, set back, … and
+        // skip the geometric backoff entirely. `current
+        // .next_retry_at_millis` is the previously-issued floor;
+        // we take the larger of "now + step" and that floor so
+        // failures only ever push the cooldown further out.
+        let candidate = if secs == 0 {
             None
         } else {
             Some((self.clock)() + (secs as i64) * 1000)
+        };
+        let next_retry_at_millis = match (candidate, current.next_retry_at_millis) {
+            (Some(new), Some(prev)) => Some(new.max(prev)),
+            (Some(new), None) => Some(new),
+            (None, prev) => prev,
         };
         let state = PersistedState {
             failure_count: next_count,
@@ -453,5 +468,64 @@ mod tests {
         let s = reg.init_or_get("gate", path, vec![1u8; 32]);
         assert!(s.is_locked());
         assert_eq!(s.failure_count as usize, BACKOFF_SCHEDULE.len() - 1);
+    }
+
+    /// Backward clock jump (NTP correction, suspended laptop, user
+    /// dropping their system time) MUST NOT shrink an already-issued
+    /// cooldown. An attacker with system-clock write access could
+    /// otherwise burn through the geometric backoff:
+    ///   1. Trigger N failures → cooldown ladder peaks.
+    ///   2. Set clock back N seconds.
+    ///   3. Each new `record_failure` would issue `now + step`
+    ///      against the rolled-back `now`, undershooting the
+    ///      previously-persisted floor and freeing the unlock
+    ///      dialog earlier than the schedule says.
+    ///
+    /// Monotonic floor clamps the new `next_retry_at_millis` to
+    /// `max(now + step, prev_next_retry_at_millis)` so backward
+    /// jumps cannot shrink the cooldown.
+    #[test]
+    fn backward_clock_jump_does_not_shrink_cooldown() {
+        let (reg, cell) = fresh_registry();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("rate_limit_state.bin");
+        reg.init_or_get("gate", path, vec![1u8; 32]);
+
+        // Step the clock forward + record three failures so the
+        // schedule lands on a non-trivial cooldown (BACKOFF_SCHEDULE
+        // = [0, 1, 2, 4, ...] — three failures arms a 4 s wait).
+        cell.store(10_000, Ordering::SeqCst);
+        reg.record_failure("gate");
+        reg.record_failure("gate");
+        let after_third = reg.record_failure("gate");
+        assert_eq!(after_third.failure_count, 3);
+        assert!(after_third.cooldown_remaining_ms >= 4_000);
+
+        // Roll the clock back 100 s — simulates the suspend / NTP
+        // jump / hostile timezone change. The third-failure cooldown
+        // floor is still pinned at wall-time 14 000 ms.
+        cell.store(10_000 - 100_000, Ordering::SeqCst);
+
+        // Fourth failure under the rolled-back clock. New cooldown
+        // step is BACKOFF_SCHEDULE[4] = 8 s; without the floor we
+        // would issue `(rolled_back) + 8000` ≈ -82 000 ms, far
+        // before the third-failure floor at 14 000 ms — and the
+        // status snapshot at any time after wall-time 0 would show
+        // "not locked" even though the user is mid-cooldown. The
+        // monotonic floor pins the new value to `max(new, prev)`
+        // so the cooldown end stays at 14 000 ms (or grows; it
+        // never shrinks).
+        reg.record_failure("gate");
+
+        // Snap the clock back to a wall-time still inside the
+        // previously-issued cooldown (13 500 ms < 14 000 ms floor).
+        // Without the floor this would read as expired (cooldown
+        // ms = 0); with the floor it reports the remaining 500 ms.
+        cell.store(13_500, Ordering::SeqCst);
+        let snapshot = reg.status("gate");
+        assert!(
+            snapshot.is_locked(),
+            "cooldown floor lost after backward clock jump: {snapshot:?}",
+        );
     }
 }
