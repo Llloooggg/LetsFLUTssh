@@ -16,6 +16,24 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<Uint8List> dbExportArchive({required DbExportInput input}) =>
     RustLib.instance.api.crateApiArchiveDbExportArchive(input: input);
 
+/// Size of the `.lfs` archive bytes for the current selection
+/// without running Argon2id KDF or AES-GCM encryption — drives the
+/// live "archive size" preview line in the export dialog. Reads
+/// sessions / keys / tags / snippets straight from the open
+/// SQLCipher connection by id, so manager-key PEM never crosses
+/// the FRB boundary into Dart memory for the gauge.
+///
+/// Sync — composition is a few hundred clones + the ZIP STORED-
+/// mode write pass, sub-millisecond on realistic export
+/// selections. The dialog calls this on every checkbox toggle so
+/// the no-async-hop overhead matters; `master_password` is only
+/// consulted to decide whether to add the LFSE envelope's fixed
+/// 75-byte overhead constant — the bytes themselves are never
+/// inspected, so the dialog can pass an empty `Vec<u8>` until the
+/// user reaches the password prompt.
+int dbLfsExportSize({required DbExportInput input}) =>
+    RustLib.instance.api.crateApiArchiveDbLfsExportSize(input: input);
+
 /// Same composition as [`db_export_qr_payload`] but skips the
 /// base64url encode step and returns the deflated payload's
 /// byte count. Drives the live "fits in QR" gauge in the Dart

@@ -3,15 +3,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../core/config/app_config.dart';
-import '../core/security/ssh_key.dart';
-import '../core/session/qr_codec.dart';
+import '../core/session/qr_codec.dart' show ExportOptions, qrMaxPayloadBytes;
 import '../core/session/session.dart';
-import '../core/snippets/snippet.dart';
-import '../core/ssh/ssh_config.dart';
-import '../core/tags/tag.dart';
 import '../features/settings/export_import.dart';
 import '../src/rust/api/archive.dart' as rust_archive;
-import '../src/rust/api/qr_codec_encode.dart' as rust_qr;
 import '../src/rust/api/qr_compose.dart' as rust_compose;
 import '../utils/format.dart' as utils_format;
 import 'unified_export_dialog.dart';
@@ -201,38 +196,37 @@ class UnifiedExportController extends ChangeNotifier {
   /// past the 2 KB ceiling — the user then got a bare "QR too large"
   /// toast with no indication that tags were the culprit.
   ///
-  /// Session↔tag / folder↔tag / session↔snippet link tables are NOT
-  /// included here because the dialog data carrier does not hold them
-  /// (they are collected lazily via DAO calls after the dialog closes).
-  /// The compressed size contribution of link tables is small versus
-  /// the tag / snippet bodies themselves, so the estimate remains
-  /// conservative — worst case we slightly under-count by a few tens
-  /// of bytes, not a kilobyte.
-  ///
-  /// Routes through `lfs_core::qr_compose::compose_and_size` (FRB
-  /// sync) so the v4 wire shape lives one place across the
-  /// estimator + the production export path.
+  /// Routes through `lfs_core::archive::qr_export_payload_size` (FRB
+  /// sync, id-based) so the wire shape stays one place across the
+  /// estimator + the production `db_export_qr_payload` path. The
+  /// composer reads sessions / keys / tags / snippets straight from
+  /// the open SQLCipher connection — manager-key PEM bytes never
+  /// cross the FRB boundary into Dart memory for the gauge.
   int _qrPayloadSize() {
-    final estimatorOptions = _options
-        .withIncludeManagerKeys(false)
-        .withIncludeAllManagerKeys(false);
-    final base = _qrEstimateSize(
-      sessions: selectedSessions,
-      emptyFolders: relevantEmptyFolders,
-      options: estimatorOptions,
-    );
-    return _options.hasManagerKeys ? base + managerKeysExtraSize : base;
+    return _qrEstimateSize(options: _options);
   }
 
-  /// Convert the typed Dart inputs into the FRB DTO shape and call
-  /// the Rust composer.
+  /// Hand the option flags + selected ids to the Rust composer; it
+  /// pulls every payload component (sessions, keys, tags, snippets,
+  /// link tables) from the DB by id.
+  ///
+  /// `sessionIds` defaults to the dialog's current selection. The
+  /// per-credential-type extras helpers below override it (e.g.
+  /// "size delta from embedded keys" filters to sessions that
+  /// actually carry embedded material).
   int _qrEstimateSize({
-    required List<Session> sessions,
-    required Set<String> emptyFolders,
     required ExportOptions options,
+    Iterable<String>? sessionIds,
+    Iterable<String>? emptyFolders,
   }) {
+    final ids = (sessionIds ?? selectedSessions.map((s) => s.id)).toList(
+      growable: false,
+    );
+    final folders = (emptyFolders ?? relevantEmptyFolders).toList(
+      growable: false,
+    );
     return rust_compose.qrEstimateExportSize(
-      input: rust_compose.DbQrPayloadInput(
+      input: rust_archive.DbQrExportInput(
         options: rust_archive.DbQrExportOptions(
           includeSessions: options.includeSessions,
           includeConfig: options.includeConfig,
@@ -244,159 +238,71 @@ class UnifiedExportController extends ChangeNotifier {
           includeTags: options.includeTags,
           includeSnippets: options.includeSnippets,
         ),
-        sessions: [for (final s in sessions) _toQrSessionInput(s)],
-        emptyFolders: emptyFolders.toList(growable: false),
+        selectedSessionIds: ids,
+        selectedEmptyFolders: folders,
         configJson: options.includeConfig && data.config != null
             ? jsonEncode(data.config!.toJson())
             : null,
-        knownHosts: options.includeKnownHosts
-            ? (data.knownHostsContent ?? '')
-            : '',
-        tags: options.includeTags
-            ? [for (final t in data.tags) _toQrTagInput(t)]
-            : const [],
-        // Link tables not held by the dialog's data carrier;
-        // see the docstring on `_qrPayloadSize` for the
-        // conservative-undercount caveat.
-        sessionTags: const [],
-        folderTags: const [],
-        snippets: options.includeSnippets
-            ? [for (final s in data.snippets) _toQrSnippetInput(s)]
-            : const [],
-        sessionSnippets: const [],
-        managerKeyEntries: options.hasManagerKeys
-            ? [
-                for (final e in data.managerKeyEntries.values)
-                  _toQrManagerKeyEntry(e),
-              ]
-            : const [],
       ),
     );
   }
 
-  rust_compose.DbQrSessionInput _toQrSessionInput(Session s) =>
-      rust_compose.DbQrSessionInput(
-        id: s.id,
-        label: s.label,
-        host: s.host,
-        port: s.port,
-        user: s.user,
-        authType: s.authType.name,
-        password: Uint8List.fromList(utf8.encode(s.password)),
-        keyId: s.keyId.isEmpty ? null : s.keyId,
-        keyData: s.keyData,
-        folderPath: s.folder,
-      );
-
-  rust_compose.DbQrTagInput _toQrTagInput(Tag t) =>
-      rust_compose.DbQrTagInput(id: t.id, name: t.name, color: t.color);
-
-  rust_compose.DbQrSnippetInput _toQrSnippetInput(Snippet s) =>
-      rust_compose.DbQrSnippetInput(
-        id: s.id,
-        title: s.title,
-        command: s.command,
-        description: s.description,
-      );
-
-  rust_compose.DbQrManagerKeyEntry _toQrManagerKeyEntry(SshKeyEntry k) =>
-      rust_compose.DbQrManagerKeyEntry(
-        id: k.id,
-        label: k.label,
-        keyType: k.keyType,
-        publicKey: k.publicKey,
-        privateKey: k.privateKey,
-      );
-
-  /// .lfs archive size: sum of UTF-8 byte counts per archive entry
-  /// + ZIP overhead + encrypted-header constant. Approximation by
-  /// design — the dialog tolerates a ±5% slop on the preview line
-  /// and we do not want to pay the cost of a real ZIP build (or
-  /// a Rust round-trip with DB lookups) on every checkbox toggle.
+  /// `.lfs` archive size for the live preview line. Routes through
+  /// `lfs_core::archive::export_archive_size` (FRB sync, id-based) —
+  /// the composer builds the inner ZIP exactly the way the
+  /// production `export_archive` does, then adds the LFSE envelope
+  /// overhead constant when the master-password slot is set. PEM
+  /// bytes for manager keys never cross the FRB boundary.
   int _lfsArchiveSize() {
-    final resolvedSessions = _resolveSessionsForLfsSize();
-    final keyEntries = _selectedManagerKeyEntries();
-    return ExportImport.calculateLfsSize(
-      LfsExportInput(
-        sessions: resolvedSessions,
-        config: data.config ?? AppConfig.defaults,
-        options: _options,
-        emptyFolders: relevantEmptyFolders,
-        knownHostsContent: data.knownHostsContent,
-        managerKeyEntries: keyEntries,
-        tags: _options.includeTags ? data.tags : const [],
-        snippets: _options.includeSnippets ? data.snippets : const [],
+    final selectedIds = selectedSessions
+        .map((s) => s.id)
+        .toList(growable: false);
+    return rust_archive.dbLfsExportSize(
+      input: rust_archive.DbExportInput(
+        options: rust_archive.DbExportOptions(
+          includeSessions: _options.includeSessions,
+          includeKnownHosts: _options.includeKnownHosts,
+          includeConfig: _options.includeConfig,
+          includeTags: _options.includeTags,
+          includeSnippets: _options.includeSnippets,
+          includeAllManagerKeys: _options.includeAllManagerKeys,
+          hasManagerKeys: _options.hasManagerKeys,
+        ),
+        selectedSessionIds: selectedIds,
+        selectedEmptyFolders: relevantEmptyFolders.toList(growable: false),
+        configJson: _options.includeConfig && data.config != null
+            ? jsonEncode((data.config ?? AppConfig.defaults).toJsonForExport())
+            : '',
+        schemaVersion: ExportImport.currentSchemaVersion,
+        appVersion: null,
+        // Empty bytes — the live preview runs before the user
+        // reaches the master-password prompt, so the estimator
+        // measures the unencrypted shape. The 75-byte LFSE
+        // envelope overhead is tiny vs typical archive sizes; the
+        // gauge is accurate within rounding.
+        masterPassword: Uint8List(0),
+        kdfMemoryKib: 0,
+        kdfIterations: 0,
+        kdfParallelism: 0,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
       ),
     );
   }
 
-  List<Session> _resolveSessionsForLfsSize() {
-    final entries = data.managerKeyEntries;
-    if (entries.isEmpty) return selectedSessions;
-    return selectedSessions.map((s) {
-      if (s.keyId.isEmpty || s.keyData.isNotEmpty) return s;
-      final entry = entries[s.keyId];
-      if (entry == null) return s;
-      return s.copyWith(auth: s.auth.copyWith(keyData: entry.privateKey));
-    }).toList();
-  }
-
-  List<SshKeyEntry> _selectedManagerKeyEntries() {
-    if (!_options.hasManagerKeys) return const [];
-    final all = data.managerKeyEntries;
-    if (all.isEmpty) return const [];
-    if (_options.includeAllManagerKeys) return all.values.toList();
-    final usedIds = selectedSessions
-        .where((s) => s.keyId.isNotEmpty)
-        .map((s) => s.keyId)
-        .toSet();
-    return all.entries
-        .where((e) => usedIds.contains(e.key))
-        .map((e) => e.value)
-        .toList();
-  }
-
-  /// Size contribution of one credential type, measured against a
-  /// baseline of sessions-only (no other credentials). Deflate
-  /// compression makes these non-additive, so values are approximate.
-  ///
-  /// Routes both baseline + with-credential estimates through
-  /// `lfs_core::qr_compose` (FRB sync via `_qrEstimateSize`) so
-  /// the wire-shape contract is single-sourced; the delta is the
-  /// only Dart-side arithmetic.
+  /// Size contribution of one credential type, measured as the
+  /// delta between two id-based estimator runs. Deflate
+  /// compression makes these non-additive, so values are
+  /// approximate. Both runs go through the same Rust composer, so
+  /// the delta is the only Dart-side arithmetic.
   int _credentialExtraSize({
     required bool includePasswords,
     required bool includeEmbeddedKeys,
     required bool includeManagerKeys,
+    Iterable<String>? sessionIds,
   }) {
-    if (selectedSessions.isEmpty) return 0;
-    final baselineOptions = _options
-        .withIncludePasswords(false)
-        .withIncludeEmbeddedKeys(false)
-        .withIncludeManagerKeys(false);
-    final baseline = _qrEstimateSize(
-      sessions: selectedSessions,
-      emptyFolders: const <String>{},
-      options: baselineOptions,
-    );
-    final withCred = _qrEstimateSize(
-      sessions: selectedSessions,
-      emptyFolders: const <String>{},
-      options: _options
-          .withIncludePasswords(includePasswords)
-          .withIncludeEmbeddedKeys(includeEmbeddedKeys)
-          .withIncludeManagerKeys(includeManagerKeys),
-    );
-    return (withCred - baseline).clamp(0, withCred);
-  }
-
-  int _credentialExtraSizeForSessions(
-    List<Session> sessions, {
-    required bool includePasswords,
-    required bool includeEmbeddedKeys,
-    required bool includeManagerKeys,
-  }) {
-    if (sessions.isEmpty) return 0;
+    final ids = sessionIds ?? selectedSessions.map((s) => s.id);
+    final idsList = ids.toList(growable: false);
+    if (idsList.isEmpty) return 0;
     const baselineOptions = ExportOptions(
       includeSessions: true,
       includeConfig: false,
@@ -406,13 +312,11 @@ class UnifiedExportController extends ChangeNotifier {
       includeManagerKeys: false,
     );
     final baseline = _qrEstimateSize(
-      sessions: sessions,
-      emptyFolders: const <String>{},
       options: baselineOptions,
+      sessionIds: idsList,
+      emptyFolders: const <String>{},
     );
     final withCred = _qrEstimateSize(
-      sessions: sessions,
-      emptyFolders: const <String>{},
       options: ExportOptions(
         includeSessions: true,
         includeConfig: false,
@@ -421,6 +325,8 @@ class UnifiedExportController extends ChangeNotifier {
         includeEmbeddedKeys: includeEmbeddedKeys,
         includeManagerKeys: includeManagerKeys,
       ),
+      sessionIds: idsList,
+      emptyFolders: const <String>{},
     );
     return (withCred - baseline).clamp(0, withCred);
   }
@@ -435,111 +341,66 @@ class UnifiedExportController extends ChangeNotifier {
 
   int get embeddedKeysExtraSize {
     if (_cachedEmbeddedKeysExtra != null) return _cachedEmbeddedKeysExtra!;
-    // Only size sessions that carry embedded keys (keyId empty). We
-    // check keyId (not keyData) because keyData may be populated from
-    // storage even for manager-key sessions; keyId uniquely identifies
-    // manager-key entries.
-    final sessionsWithEmbedded = selectedSessions
+    // Only size sessions that carry embedded keys (keyId empty).
+    // keyId (not keyData) uniquely identifies manager-key sessions
+    // because keyData may be populated from storage even for
+    // manager-key sessions.
+    final embeddedIds = selectedSessions
         .where((s) => s.keyId.isEmpty)
-        .toList();
-    if (sessionsWithEmbedded.isEmpty) {
-      return _cachedEmbeddedKeysExtra = 0;
-    }
-    return _cachedEmbeddedKeysExtra = _credentialExtraSizeForSessions(
-      sessionsWithEmbedded,
+        .map((s) => s.id)
+        .toList(growable: false);
+    if (embeddedIds.isEmpty) return _cachedEmbeddedKeysExtra = 0;
+    return _cachedEmbeddedKeysExtra = _credentialExtraSize(
       includePasswords: false,
       includeEmbeddedKeys: true,
       includeManagerKeys: false,
+      sessionIds: embeddedIds,
     );
   }
 
+  /// Size delta between "manager keys included" and "manager keys
+  /// excluded" estimator runs. The Rust composer pulls the keys
+  /// (and the per-session keyId references that anchor them) from
+  /// the SQLCipher row by id — the Dart heap never sees the PEM.
   int get managerKeysExtraSize {
     if (_cachedManagerKeysExtra != null) return _cachedManagerKeysExtra!;
-    // Derive `keyId → privateKey` lazily from `managerKeyEntries`
-    // instead of carrying a duplicate `Map<String, String>` on the
-    // dialog data. The PEM bytes still live in `managerKeyEntries`
-    // for the dialog lifetime — fully removing them would require a
-    // Rust-side `qr_estimate_manager_keys_size` API that takes only
-    // metadata (key type + length) and returns the deflate estimate;
-    // tracked as a follow-up.
-    var managerKeys = <String, String>{
-      for (final e in data.managerKeyEntries.entries) e.key: e.value.privateKey,
-    };
-    if (managerKeys.isEmpty) return _cachedManagerKeysExtra = 0;
-
-    // "Session keys" mode — filter to keys referenced by the current
-    // session selection.
-    if (_options.includeManagerKeys && !_options.includeAllManagerKeys) {
-      final usedKeyIds = selectedSessions
-          .where((s) => s.keyId.isNotEmpty)
-          .map((s) => s.keyId)
-          .toSet();
-      managerKeys = Map.fromEntries(
-        managerKeys.entries.where((e) => usedKeyIds.contains(e.key)),
-      );
-      if (managerKeys.isEmpty) return _cachedManagerKeysExtra = 0;
-    }
-
-    // Measure key-only payload size via a single dummy session.
-    final dummySession = Session(
-      label: 'x',
-      server: const ServerAddress(host: 'x', user: 'x'),
-    );
-
-    final keyToShortId = <String, String>{};
-    var keyCounter = 0;
-    for (final keyData in managerKeys.values) {
-      keyToShortId.putIfAbsent(keyData, () => 'k${keyCounter++}');
-    }
-
-    final keyMap = <String, String>{};
-    keyToShortId.forEach((keyData, shortId) => keyMap[shortId] = keyData);
-    final payload = <String, dynamic>{
-      'km': keyMap,
-      's': [encodeSessionCompact(dummySession)],
-    };
-    final json = jsonEncode(payload);
-    // Route the deflate + base64url through `lfs_core::qr_codec_encode`
-    // so size estimation here uses the same compressor parameters as
-    // the production encode path (qr_codec.dart + Rust archive
-    // exporter).
-    final withKeysSize = _payloadSize(json);
-
-    const baselineOptions = ExportOptions(
-      includeSessions: true,
-      includeConfig: false,
-      includeKnownHosts: false,
-      includePasswords: false,
-      includeEmbeddedKeys: false,
-      includeManagerKeys: false,
-    );
-    // Baseline routes through `_qrEstimateSize` so the
-    // dummy-session shape matches the canonical Rust composer.
-    final baselineSize = _qrEstimateSize(
-      sessions: [dummySession],
+    final ids = selectedSessions.map((s) => s.id).toList(growable: false);
+    if (ids.isEmpty) return _cachedManagerKeysExtra = 0;
+    final baseline = _qrEstimateSize(
+      options: const ExportOptions(
+        includeSessions: true,
+        includeConfig: false,
+        includeKnownHosts: false,
+        includePasswords: false,
+        includeEmbeddedKeys: false,
+        includeManagerKeys: false,
+      ),
+      sessionIds: ids,
       emptyFolders: const <String>{},
-      options: baselineOptions,
     );
-
-    return _cachedManagerKeysExtra = (withKeysSize - baselineSize).clamp(
-      0,
-      withKeysSize,
+    final withKeys = _qrEstimateSize(
+      options: ExportOptions(
+        includeSessions: true,
+        includeConfig: false,
+        includeKnownHosts: false,
+        includePasswords: false,
+        includeEmbeddedKeys: false,
+        includeManagerKeys: _options.includeManagerKeys,
+        includeAllManagerKeys: _options.includeAllManagerKeys,
+      ),
+      sessionIds: ids,
+      emptyFolders: const <String>{},
     );
+    return _cachedManagerKeysExtra = (withKeys - baseline).clamp(0, withKeys);
   }
-
-  /// Deflate + base64url encoded byte count of [json] via
-  /// `lfs_core::qr_codec_encode::compress_to_payload_size` —
-  /// `=` padding stripped to match the canonical no-pad wire shape.
-  int _payloadSize(String json) =>
-      rust_qr.qrCodecCompressToPayloadSize(json: json);
 
   int get configSize {
     if (_cachedConfigSize != null) return _cachedConfigSize!;
     if (data.config == null) return _cachedConfigSize = 0;
     return _cachedConfigSize = _qrEstimateSize(
-      sessions: const <Session>[],
-      emptyFolders: const <String>{},
       options: const ExportOptions(includeSessions: false, includeConfig: true),
+      sessionIds: const <String>[],
+      emptyFolders: const <String>{},
     );
   }
 
@@ -548,13 +409,13 @@ class UnifiedExportController extends ChangeNotifier {
     final content = data.knownHostsContent;
     if (content?.isNotEmpty != true) return _cachedKnownHostsSize = 0;
     return _cachedKnownHostsSize = _qrEstimateSize(
-      sessions: const <Session>[],
-      emptyFolders: const <String>{},
       options: const ExportOptions(
         includeSessions: false,
         includeConfig: false,
         includeKnownHosts: true,
       ),
+      sessionIds: const <String>[],
+      emptyFolders: const <String>{},
     );
   }
 
@@ -562,13 +423,13 @@ class UnifiedExportController extends ChangeNotifier {
     if (_cachedTagsSize != null) return _cachedTagsSize!;
     if (data.tags.isEmpty) return _cachedTagsSize = 0;
     return _cachedTagsSize = _qrEstimateSize(
-      sessions: const <Session>[],
-      emptyFolders: const <String>{},
       options: const ExportOptions(
         includeSessions: false,
         includeConfig: false,
         includeTags: true,
       ),
+      sessionIds: const <String>[],
+      emptyFolders: const <String>{},
     );
   }
 
@@ -576,13 +437,13 @@ class UnifiedExportController extends ChangeNotifier {
     if (_cachedSnippetsSize != null) return _cachedSnippetsSize!;
     if (data.snippets.isEmpty) return _cachedSnippetsSize = 0;
     return _cachedSnippetsSize = _qrEstimateSize(
-      sessions: const <Session>[],
-      emptyFolders: const <String>{},
       options: const ExportOptions(
         includeSessions: false,
         includeConfig: false,
         includeSnippets: true,
       ),
+      sessionIds: const <String>[],
+      emptyFolders: const <String>{},
     );
   }
 

@@ -4,7 +4,9 @@
 //! file-based, not DB-resident); Rust returns the encrypted archive
 //! bytes ready to write atomically.
 
-use lfs_core::archive::{ExportInput, ExportOptions, QrExportInput, QrExportOptions};
+use lfs_core::archive::{
+    export_archive_size, ExportInput, ExportOptions, QrExportInput, QrExportOptions,
+};
 
 fn require_db() -> Result<std::sync::Arc<lfs_core::db::Db>, String> {
     lfs_core::app::instance()
@@ -88,6 +90,56 @@ pub async fn db_export_archive(input: DbExportInput) -> Result<Vec<u8>, String> 
     })
     .await
     .map_err(|e| format!("export task: {e}"))?
+}
+
+/// Size of the `.lfs` archive bytes for the current selection
+/// without running Argon2id KDF or AES-GCM encryption — drives the
+/// live "archive size" preview line in the export dialog. Reads
+/// sessions / keys / tags / snippets straight from the open
+/// SQLCipher connection by id, so manager-key PEM never crosses
+/// the FRB boundary into Dart memory for the gauge.
+///
+/// Sync — composition is a few hundred clones + the ZIP STORED-
+/// mode write pass, sub-millisecond on realistic export
+/// selections. The dialog calls this on every checkbox toggle so
+/// the no-async-hop overhead matters; `master_password` is only
+/// consulted to decide whether to add the LFSE envelope's fixed
+/// 75-byte overhead constant — the bytes themselves are never
+/// inspected, so the dialog can pass an empty `Vec<u8>` until the
+/// user reaches the password prompt.
+#[flutter_rust_bridge::frb(sync)]
+pub fn db_lfs_export_size(input: DbExportInput) -> Result<u32, String> {
+    let core_input = ExportInput {
+        options: ExportOptions {
+            include_sessions: input.options.include_sessions,
+            include_known_hosts: input.options.include_known_hosts,
+            include_config: input.options.include_config,
+            include_tags: input.options.include_tags,
+            include_snippets: input.options.include_snippets,
+            include_all_manager_keys: input.options.include_all_manager_keys,
+            has_manager_keys: input.options.has_manager_keys,
+        },
+        selected_session_ids: input.selected_session_ids,
+        selected_empty_folders: input.selected_empty_folders,
+        config_json: input.config_json,
+        schema_version: input.schema_version,
+        app_version: input.app_version,
+        master_password: if input.master_password.is_empty() {
+            None
+        } else {
+            Some(
+                String::from_utf8(input.master_password)
+                    .map_err(|_| "master_password is not valid UTF-8".to_string())?,
+            )
+        },
+        kdf_memory_kib: input.kdf_memory_kib,
+        kdf_iterations: input.kdf_iterations,
+        kdf_parallelism: input.kdf_parallelism,
+        created_at_ms: input.created_at_ms,
+    };
+    let db = require_db()?;
+    db.with_conn(|c| export_archive_size(c, &core_input))
+        .map_err(|e| e.to_string())
 }
 
 /// Mirror of `QrExportOptions` over the FRB boundary.

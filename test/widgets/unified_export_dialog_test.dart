@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/core/security/ssh_key.dart';
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
 import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 import 'package:letsflutssh/theme/app_theme.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
@@ -21,12 +21,21 @@ void main() {
   setUpAll(requireFrbLoaded);
   late Directory tempDir;
 
-  setUp(() {
+  // The size readout in the dialog calls `qrEstimateExportSize` /
+  // `dbLfsExportSize`, both of which read sessions / keys / tags /
+  // snippets straight from the open SQLCipher DB. Bring up an
+  // in-memory DB per test so the estimator has somewhere to land —
+  // these UI-flow tests don't populate rows because they only
+  // verify checkbox + chip wiring (selection state, not byte
+  // counts), so an empty DB returning baseline sizes is fine.
+  setUp(() async {
     tempDir = Directory.systemTemp.createTempSync('unified_export_test_');
+    await rust_app.dbInit(path: ':memory:', key: const []);
   });
 
-  tearDown(() {
+  tearDown(() async {
     tempDir.deleteSync(recursive: true);
+    await rust_app.dbClose();
   });
 
   Session makeSession(
@@ -50,22 +59,7 @@ void main() {
     AppConfig? config,
     String? knownHostsContent,
     bool isQrMode = false,
-    Map<String, String> managerKeys = const {},
   }) {
-    // Same convenience-input shape as the controller's test helper:
-    // tests pass `managerKeys: {id: pem}`; the dialog data carries
-    // `managerKeyEntries` only.
-    final managerKeyEntries = <String, SshKeyEntry>{
-      for (final e in managerKeys.entries)
-        e.key: SshKeyEntry(
-          id: e.key,
-          label: 'k-${e.key}',
-          privateKey: e.value,
-          publicKey: '',
-          keyType: 'ed25519',
-          createdAt: DateTime(2025),
-        ),
-    };
     return MaterialApp(
       localizationsDelegates: S.localizationsDelegates,
       supportedLocales: S.supportedLocales,
@@ -78,7 +72,6 @@ void main() {
               emptyFolders: emptyFolders,
               config: config,
               knownHostsContent: knownHostsContent,
-              managerKeyEntries: managerKeyEntries,
             ),
             isQrMode: isQrMode,
           ),
@@ -556,24 +549,10 @@ void main() {
         required List<Session> sessions,
         AppConfig? config,
         String? knownHostsContent,
-        Map<String, String> managerKeys = const {},
         List<Tag> tags = const [],
         List<Snippet> snippets = const [],
         required ValueChanged<UnifiedExportResult?> onResult,
       }) {
-        // Convenience: callers pass `managerKeys: {id: pem}`; the
-        // dialog data carries `managerKeyEntries` only.
-        final managerKeyEntries = <String, SshKeyEntry>{
-          for (final e in managerKeys.entries)
-            e.key: SshKeyEntry(
-              id: e.key,
-              label: 'k-${e.key}',
-              privateKey: e.value,
-              publicKey: '',
-              keyType: 'ed25519',
-              createdAt: DateTime(2025),
-            ),
-        };
         return MaterialApp(
           localizationsDelegates: S.localizationsDelegates,
           supportedLocales: S.supportedLocales,
@@ -589,7 +568,6 @@ void main() {
                       emptyFolders: const {},
                       config: config,
                       knownHostsContent: knownHostsContent,
-                      managerKeyEntries: managerKeyEntries,
                       tags: tags,
                       snippets: snippets,
                     ),
@@ -769,7 +747,6 @@ void main() {
           await tester.pumpWidget(
             openerFor(
               sessions: [makeSession('1', 'A')],
-              managerKeys: {'k1': 'PRIVKEYPEM'},
               onResult: (r) => result = r,
             ),
           );
@@ -809,7 +786,6 @@ void main() {
           await tester.pumpWidget(
             openerFor(
               sessions: [makeSession('1', 'A')],
-              managerKeys: {'k1': 'PRIVKEYPEM'},
               onResult: (r) => result = r,
             ),
           );

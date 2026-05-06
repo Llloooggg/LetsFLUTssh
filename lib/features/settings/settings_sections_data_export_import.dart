@@ -212,12 +212,10 @@ class _ExportImportTile extends ConsumerWidget {
     final sessions = ref.read(sessionProvider);
     final notifier = ref.read(sessionProvider.notifier);
 
-    // Load counts for export dialog. Same pattern as the QR
-    // export tile — bytes live in `managerKeyEntries` for the
-    // dialog's lifetime; the duplicate `Map<String, String>` was
-    // dropped from the dialog data.
-    final keyStore = ref.read(sshKeysProvider.notifier);
-    final allKeys = await keyStore.loadAll();
+    // Load counts for export dialog. The size estimator + the
+    // submit path both pull manager-key bytes Rust-side from
+    // `letsflutssh.db` by id; the dialog itself only needs the
+    // tag / snippet lists for per-row rendering.
     final allTags = await ref.read(tagsProvider.notifier).loadAll();
     final allSnippets = await ref.read(snippetsProvider.notifier).loadAll();
     if (!context.mounted) return;
@@ -234,7 +232,6 @@ class _ExportImportTile extends ConsumerWidget {
         emptyFolders: notifier.emptyFolders,
         config: ref.read(configProvider),
         knownHostsContent: knownHostsContent,
-        managerKeyEntries: allKeys,
         tags: allTags,
         snippets: allSnippets,
       ),

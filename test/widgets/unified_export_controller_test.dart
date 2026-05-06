@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/config/app_config.dart';
-import 'package:letsflutssh/core/security/ssh_key.dart';
+import 'package:letsflutssh/core/db/mappers.dart' show sessionToRustRow;
 import 'package:letsflutssh/core/session/session.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 import 'package:letsflutssh/core/tags/tag.dart';
+import 'package:letsflutssh/src/rust/api/app.dart' as rust_app;
+import 'package:letsflutssh/src/rust/api/db.dart' as rust_db;
 import 'package:letsflutssh/widgets/unified_export_controller.dart';
 import 'package:letsflutssh/widgets/unified_export_dialog.dart';
 
@@ -36,51 +38,27 @@ Session _s(
   ),
 );
 
-SshKeyEntry _keyEntry(String id, String label, String privateKey) =>
-    SshKeyEntry(
-      id: id,
-      label: label,
-      privateKey: privateKey,
-      publicKey: 'pub-$id',
-      keyType: 'ed25519',
-      createdAt: DateTime(2025),
-    );
-
+/// Builds a controller for the test scope. Manager-key, session,
+/// tag, and snippet rows are inserted into the open in-memory DB
+/// inside [_populateDb] when the test reads `payloadSize` — the
+/// controller itself only carries the `Session` list (folders +
+/// labels for the dialog tree) and the tag / snippet arrays for
+/// per-row checkbox rendering.
 UnifiedExportController _ctrl({
   List<Session> sessions = const [],
   Set<String> emptyFolders = const {},
   AppConfig? config,
   String? knownHostsContent,
-  Map<String, String> managerKeys = const {},
-  Map<String, SshKeyEntry> managerKeyEntries = const {},
   List<Tag> tags = const [],
   List<Snippet> snippets = const [],
   bool isQrMode = false,
 }) {
-  // Tests pass `managerKeys: {id: pem}` for convenience; the dialog
-  // data carries `managerKeyEntries` only (PEM lives on the
-  // SshKeyEntry, no parallel String map). Synthesize the entries
-  // from the convenience input when the caller didn't pass them.
-  final mergedEntries = <String, SshKeyEntry>{
-    ...managerKeyEntries,
-    for (final e in managerKeys.entries)
-      if (!managerKeyEntries.containsKey(e.key))
-        e.key: SshKeyEntry(
-          id: e.key,
-          label: 'k-${e.key}',
-          privateKey: e.value,
-          publicKey: '',
-          keyType: 'ed25519',
-          createdAt: DateTime(2025),
-        ),
-  };
   return UnifiedExportController(
     data: UnifiedExportDialogData(
       sessions: sessions,
       emptyFolders: emptyFolders,
       config: config,
       knownHostsContent: knownHostsContent,
-      managerKeyEntries: mergedEntries,
       tags: tags,
       snippets: snippets,
     ),
@@ -88,11 +66,77 @@ UnifiedExportController _ctrl({
   );
 }
 
+/// Push every row the controller would otherwise need straight
+/// into the open in-memory `letsflutssh.db`. The id-based size
+/// estimator looks every payload component up by id Rust-side, so
+/// the test fixture has to mirror what the controller will ask
+/// for. Use a fresh in-memory DB per test (see `setUp`) so
+/// populates from one test never leak into the next.
+Future<void> _populateDb({
+  List<Session> sessions = const [],
+  Map<String, String> managerKeys = const {},
+  List<Tag> tags = const [],
+  List<Snippet> snippets = const [],
+}) async {
+  // Manager keys go in first because `sessions.key_id` is a FK
+  // into `ssh_keys.id` — inserting a session with a `keyId` whose
+  // row doesn't exist trips a `FOREIGN KEY constraint failed` panic.
+  for (final entry in managerKeys.entries) {
+    await rust_db.dbSshKeysUpsert(
+      row: rust_db.DbSshKey(
+        id: entry.key,
+        label: 'k-${entry.key}',
+        privateKey: entry.value,
+        publicKey: '',
+        keyType: 'ed25519',
+        isGenerated: false,
+        createdAtMs: DateTime(2025).millisecondsSinceEpoch,
+      ),
+    );
+  }
+  for (final s in sessions) {
+    await rust_db.dbSessionsUpsert(row: sessionToRustRow(s, folderId: null));
+  }
+  for (final t in tags) {
+    await rust_db.dbTagsUpsert(
+      row: rust_db.DbTag(
+        id: t.id,
+        name: t.name,
+        color: t.color,
+        createdAtMs: t.createdAt.millisecondsSinceEpoch,
+      ),
+    );
+  }
+  for (final sn in snippets) {
+    await rust_db.dbSnippetsUpsert(
+      row: rust_db.DbSnippet(
+        id: sn.id,
+        title: sn.title,
+        command: sn.command,
+        description: sn.description,
+        createdAtMs: sn.createdAt.millisecondsSinceEpoch,
+        updatedAtMs: sn.updatedAt.millisecondsSinceEpoch,
+      ),
+    );
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // Controller's payload-size cache calls AppConfig.toJson which
   // routes through the Rust canonical encoder. Bootstrap FRB.
   setUpAll(requireFrbLoaded);
+
+  // Each test gets a fresh in-memory `letsflutssh.db` so populated
+  // sessions / keys / tags / snippets from one test never leak
+  // into the next. The id-based size estimator looks up payload
+  // components by id straight from this DB Rust-side, so any test
+  // that asserts against `payloadSize` calls `_populateDb(...)`
+  // before reading it.
+  setUp(() async {
+    await rust_app.dbInit(path: ':memory:', key: const []);
+  });
+  tearDown(rust_app.dbClose);
 
   group('UnifiedExportController — initial state', () {
     test('QR mode initial options mirror "Sessions only" without keys', () {
@@ -397,11 +441,15 @@ void main() {
   });
 
   group('UnifiedExportController — cache invalidation', () {
-    test('payload size cache invalidates on selection change', () {
+    test('payload size cache invalidates on selection change', () async {
       // The cached-size fields are a common source of stale-data bugs.
       // We verify the contract: after mutation, the next payloadSize
       // read must reflect the new selection — not the prior value.
-      final c = _ctrl(sessions: [_s('1', 'A'), _s('2', 'B')], isQrMode: false);
+      // The id-based estimator looks sessions up Rust-side, so the
+      // test populates the DB before reading `payloadSize`.
+      final sessions = [_s('1', 'A'), _s('2', 'B')];
+      await _populateDb(sessions: sessions);
+      final c = _ctrl(sessions: sessions, isQrMode: false);
       final before = c.payloadSize;
       c.toggleAll(false);
       final after = c.payloadSize;
@@ -414,17 +462,18 @@ void main() {
       );
     });
 
-    test('payload size cache invalidates on option flip', () {
+    test('payload size cache invalidates on option flip', () async {
       // QR mode — the payload is deflate+base64 with no archive
       // framing, so a single credential-flag flip produces a
       // deterministic size delta. LFS mode has ZIP + AES-GCM padding
       // that can mask a tiny credential's contribution.
-      final c = _ctrl(
-        sessions: [
-          _s('1', 'A', password: 'some-reasonably-long-secret-password'),
-        ],
-        isQrMode: true,
+      final session = _s(
+        '1',
+        'A',
+        password: 'some-reasonably-long-secret-password',
       );
+      await _populateDb(sessions: [session]);
+      final c = _ctrl(sessions: [session], isQrMode: true);
       final before = c.payloadSize;
       c.setIncludePasswords(false);
       final after = c.payloadSize;
@@ -452,25 +501,29 @@ void main() {
   group('UnifiedExportController — LFS archive with filtered manager keys', () {
     test(
       '"session keys" mode narrows the archive to the referenced subset',
-      () {
-        // Spec (_selectedManagerKeyEntries): in session-keys mode we
-        // include only the keys referenced by selected sessions, not
-        // the entire manager. The archive-size path hits this branch
-        // when includeManagerKeys is on, includeAllManagerKeys is off,
-        // and at least one session carries a matching keyId.
-        final entries = {
-          'k1': _keyEntry('k1', 'prod', 'body-of-prod-key'),
-          'k2': _keyEntry('k2', 'stg', 'body-of-stg-key'),
-        };
+      () async {
+        // Spec (estimator's "session keys" branch): in that mode the
+        // archive carries only keys referenced by selected sessions,
+        // not the whole manager. The archive-size path hits this
+        // branch when includeManagerKeys is on, includeAllManagerKeys
+        // is off, and at least one session carries a matching keyId.
+        final session = _s('1', 'A', keyId: 'k1', authType: AuthType.key);
+        await _populateDb(
+          sessions: [session],
+          managerKeys: const {
+            'k1': 'body-of-prod-key',
+            'k2': 'body-of-stg-key',
+          },
+        );
         final c = _ctrl(
-          sessions: [_s('1', 'A', keyId: 'k1', authType: AuthType.key)],
+          sessions: [session],
           config: AppConfig.defaults,
-          managerKeyEntries: entries,
           isQrMode: false,
         );
         c.setIncludeManagerKeys(true);
-        // Just reading payloadSize exercises _selectedManagerKeyEntries'
-        // usedIds-filter branch — crashing there is a real bug.
+        // Reading `payloadSize` exercises the Rust estimator's
+        // session-keys filter — non-zero size means the matching
+        // key was selected and folded into the archive composition.
         expect(c.payloadSize, greaterThan(0));
       },
     );
@@ -552,37 +605,47 @@ void main() {
   });
 
   group('UnifiedExportController — tags/snippets count toward QR size', () {
-    test('enabling tags raises QR payloadSize by their compressed cost', () {
-      // Regression guard: a prior implementation set
-      // `options.includeTags = true` on the size-calc call but passed
-      // `tags: const []` (the default), so the encoder skipped the
-      // `tg` section entirely and the UI under-counted the QR payload.
-      // The real export path *does* pass the tags list in, so
-      // `fitsInQr` must agree with what the user will actually emit.
-      final tag = Tag(
-        id: 't',
-        name: 'production-web-servers-with-a-deliberately-long-name',
-        color: '#ff0000',
-        createdAt: DateTime(2025),
-      );
-      final base = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);
-      final withTags = _ctrl(
-        sessions: [_s('1', 'A')],
-        tags: [tag],
-        isQrMode: true,
-      );
-      expect(
-        withTags.payloadSize,
-        greaterThan(base.payloadSize),
-        reason:
-            'tag bytes must land in the compressed payload when '
-            'includeTags is on — otherwise fitsInQr lies',
-      );
-    });
+    test(
+      'enabling tags raises QR payloadSize by their compressed cost',
+      () async {
+        // Regression guard: a prior implementation set
+        // `options.includeTags = true` on the size-calc call but passed
+        // an empty tag list, so the encoder skipped the `tg` section
+        // entirely and the UI under-counted the QR payload. The id-
+        // based estimator now pulls tags Rust-side from the DB row,
+        // so `fitsInQr` must agree with what the user will actually
+        // emit.
+        final tag = Tag(
+          id: 't',
+          name: 'production-web-servers-with-a-deliberately-long-name',
+          color: '#ff0000',
+          createdAt: DateTime(2025),
+        );
+        final session = _s('1', 'A');
+        await _populateDb(sessions: [session]);
+        final base = _ctrl(sessions: [session], isQrMode: true);
+        final basePayload = base.payloadSize;
+        await rust_app.dbClose();
+        await rust_app.dbInit(path: ':memory:', key: const []);
+        await _populateDb(sessions: [session], tags: [tag]);
+        final withTags = _ctrl(
+          sessions: [session],
+          tags: [tag],
+          isQrMode: true,
+        );
+        expect(
+          withTags.payloadSize,
+          greaterThan(basePayload),
+          reason:
+              'tag bytes must land in the compressed payload when '
+              'includeTags is on — otherwise fitsInQr lies',
+        );
+      },
+    );
 
     test(
       'enabling snippets raises QR payloadSize by their compressed cost',
-      () {
+      () async {
         final snippet = Snippet(
           id: 'sn',
           title: 'restart-nginx-with-verification',
@@ -590,15 +653,21 @@ void main() {
           createdAt: DateTime(2025),
           updatedAt: DateTime(2025),
         );
-        final base = _ctrl(sessions: [_s('1', 'A')], isQrMode: true);
+        final session = _s('1', 'A');
+        await _populateDb(sessions: [session]);
+        final base = _ctrl(sessions: [session], isQrMode: true);
+        final basePayload = base.payloadSize;
+        await rust_app.dbClose();
+        await rust_app.dbInit(path: ':memory:', key: const []);
+        await _populateDb(sessions: [session], snippets: [snippet]);
         final withSnippets = _ctrl(
-          sessions: [_s('1', 'A')],
+          sessions: [session],
           snippets: [snippet],
           isQrMode: true,
         );
         expect(
           withSnippets.payloadSize,
-          greaterThan(base.payloadSize),
+          greaterThan(basePayload),
           reason: 'snippet bytes must land in the compressed QR payload',
         );
       },
@@ -622,7 +691,7 @@ void main() {
       expect(c.fitsInQr, isTrue);
     });
 
-    test('false once QR payload exceeds the hard ceiling', () {
+    test('false once QR payload exceeds the hard ceiling', () async {
       // High-entropy unique strings per session defeat deflate — the
       // payload stays close to its raw size and blows past the
       // ~2 KB QR ceiling. fitsInQr reads as false → Export button
@@ -636,17 +705,16 @@ void main() {
         return buf.toString();
       }
 
-      final c = _ctrl(
-        sessions: List.generate(
-          400,
-          (i) => _s(
-            '$i',
-            uniqueHighEntropy(i),
-            password: uniqueHighEntropy(i + 1000),
-          ),
+      final sessions = List.generate(
+        400,
+        (i) => _s(
+          '$i',
+          uniqueHighEntropy(i),
+          password: uniqueHighEntropy(i + 1000),
         ),
-        isQrMode: true,
       );
+      await _populateDb(sessions: sessions);
+      final c = _ctrl(sessions: sessions, isQrMode: true);
       expect(c.fitsInQr, isFalse);
     });
   });
@@ -788,17 +856,21 @@ void main() {
   });
 
   group('UnifiedExportController — credential extra sizes', () {
-    test('passwordsExtraSize > 0 when selected sessions carry passwords', () {
-      final c = _ctrl(
-        sessions: [_s('1', 'A', password: 'long-enough-secret')],
-        isQrMode: true,
-      );
-      expect(c.passwordsExtraSize, greaterThan(0));
-    });
+    test(
+      'passwordsExtraSize > 0 when selected sessions carry passwords',
+      () async {
+        final session = _s('1', 'A', password: 'long-enough-secret');
+        await _populateDb(sessions: [session]);
+        final c = _ctrl(sessions: [session], isQrMode: true);
+        expect(c.passwordsExtraSize, greaterThan(0));
+      },
+    );
 
     test('passwordsExtraSize == 0 when the selection is empty', () {
       // Spec (_credentialExtraSize: `if (selectedSessions.isEmpty) return 0`):
-      // no sessions = nothing the credential flag can inflate.
+      // no sessions = nothing the credential flag can inflate. No DB
+      // populate needed — the size getter short-circuits before
+      // reaching the Rust composer.
       final c = _ctrl(sessions: [_s('1', 'A', password: 'x')]);
       c.toggleAll(false);
       expect(c.passwordsExtraSize, 0);
@@ -806,92 +878,105 @@ void main() {
 
     test(
       'embeddedKeysExtraSize == 0 when every selected session is manager-keyed',
-      () {
+      () async {
         // Spec: only sessions with an empty keyId carry embedded keys.
         // If every selected session lives in the key manager, the
         // "embedded keys" row has no content to inflate.
-        final c = _ctrl(
-          sessions: [
-            _s(
-              '1',
-              'A',
-              keyId: 'k1',
-              authType: AuthType.key,
-              keyData: 'pem-body',
-            ),
-          ],
-          isQrMode: true,
+        final session = _s(
+          '1',
+          'A',
+          keyId: 'k1',
+          authType: AuthType.key,
+          keyData: 'pem-body',
         );
+        await _populateDb(
+          sessions: [session],
+          managerKeys: const {'k1': 'pem-body'},
+        );
+        final c = _ctrl(sessions: [session], isQrMode: true);
         expect(c.embeddedKeysExtraSize, 0);
       },
     );
 
-    test('embeddedKeysExtraSize > 0 when a session carries an inline key', () {
-      final c = _ctrl(
-        sessions: [
-          _s(
-            '1',
-            'A',
-            authType: AuthType.key,
-            keyData:
-                '-----BEGIN OPENSSH PRIVATE KEY-----\n'
-                'b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=\n'
-                '-----END OPENSSH PRIVATE KEY-----',
-          ),
-        ],
-        isQrMode: true,
-      );
-      expect(c.embeddedKeysExtraSize, greaterThan(0));
-    });
+    test(
+      'embeddedKeysExtraSize > 0 when a session carries an inline key',
+      () async {
+        final session = _s(
+          '1',
+          'A',
+          authType: AuthType.key,
+          keyData:
+              '-----BEGIN OPENSSH PRIVATE KEY-----\n'
+              'b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=\n'
+              '-----END OPENSSH PRIVATE KEY-----',
+        );
+        await _populateDb(sessions: [session]);
+        final c = _ctrl(sessions: [session], isQrMode: true);
+        expect(c.embeddedKeysExtraSize, greaterThan(0));
+      },
+    );
   });
 
   group('UnifiedExportController — managerKeysExtraSize', () {
-    test('zero when the manager has no keys at all', () {
-      final c = _ctrl(sessions: [_s('1', 'A')]);
+    test('zero when the manager has no keys at all', () async {
+      final session = _s('1', 'A');
+      await _populateDb(sessions: [session]);
+      final c = _ctrl(sessions: [session]);
       expect(c.managerKeysExtraSize, 0);
     });
 
     test(
       'zero in "session keys" mode when no selected session references a key',
-      () {
+      () async {
         // Spec: session-keys mode filters to usedKeyIds. With no
         // selected session referencing keyId, usedKeyIds is empty →
         // filtered map is empty → no inflation.
-        final c = _ctrl(
-          sessions: [_s('1', 'A')], // keyId empty
-          managerKeys: {'k1': 'pem-body'},
-          isQrMode: true,
+        final session = _s('1', 'A'); // keyId empty
+        await _populateDb(
+          sessions: [session],
+          managerKeys: const {'k1': 'pem-body'},
         );
+        final c = _ctrl(sessions: [session], isQrMode: true);
         c.setIncludeManagerKeys(true);
         expect(c.managerKeysExtraSize, 0);
       },
     );
 
-    test('non-zero when a session references a key and the flag is on', () {
-      final c = _ctrl(
-        sessions: [_s('1', 'A', keyId: 'k1', authType: AuthType.key)],
-        managerKeys: {'k1': 'pem-body-that-inflates-the-payload'},
-        isQrMode: true,
-      );
-      c.setIncludeManagerKeys(true);
-      expect(c.managerKeysExtraSize, greaterThan(0));
-    });
+    test(
+      'non-zero when a session references a key and the flag is on',
+      () async {
+        final session = _s('1', 'A', keyId: 'k1', authType: AuthType.key);
+        await _populateDb(
+          sessions: [session],
+          managerKeys: const {'k1': 'pem-body-that-inflates-the-payload'},
+        );
+        final c = _ctrl(sessions: [session], isQrMode: true);
+        c.setIncludeManagerKeys(true);
+        expect(c.managerKeysExtraSize, greaterThan(0));
+      },
+    );
 
-    test('non-zero in "all keys" mode even without a matching session', () {
-      // Spec: includeAllManagerKeys bypasses the usedKeyIds filter —
-      // every key in the manager lands in the payload regardless of
-      // session references. That's the "full-app backup" mode.
-      final c = _ctrl(
-        sessions: [_s('1', 'A')], // no keyId linkage
-        managerKeys: {'k1': 'pem-body-lives-on-its-own'},
-        isQrMode: true,
-      );
-      c.setIncludeAllManagerKeys(true);
-      expect(c.managerKeysExtraSize, greaterThan(0));
-    });
+    test(
+      'non-zero in "all keys" mode even without a matching session',
+      () async {
+        // Spec: includeAllManagerKeys bypasses the usedKeyIds filter —
+        // every key in the manager lands in the payload regardless
+        // of session references. That's the "full-app backup" mode.
+        final session = _s('1', 'A'); // no keyId linkage
+        await _populateDb(
+          sessions: [session],
+          managerKeys: const {'k1': 'pem-body-lives-on-its-own'},
+        );
+        final c = _ctrl(sessions: [session], isQrMode: true);
+        c.setIncludeAllManagerKeys(true);
+        expect(c.managerKeysExtraSize, greaterThan(0));
+      },
+    );
 
-    test('managerKeysExtraSize caches within a single state', () {
-      final c = _ctrl(sessions: [_s('1', 'A')], managerKeys: {'k1': 'pem'});
+    test('managerKeysExtraSize caches within a single state', () async {
+      final session = _s('1', 'A');
+      await _populateDb(sessions: [session], managerKeys: const {'k1': 'pem'});
+      final c = _ctrl(sessions: [session]);
       c.setIncludeAllManagerKeys(true);
       final first = c.managerKeysExtraSize;
       expect(identical(first, c.managerKeysExtraSize), isTrue);
@@ -899,38 +984,47 @@ void main() {
   });
 
   group('UnifiedExportController — LFS payload with resolved manager keys', () {
-    test('managerKeyEntries are folded into the .lfs payload on size calc', () {
-      // Spec (_resolveSessionsForLfsSize): sessions in the dialog
-      // cache don't carry keyData — it's lazy-loaded. For .lfs size
-      // estimation we must overlay the managerKeyEntries so the
-      // computed archive size reflects what will actually be written.
-      // Comparing with/without entries gives us signal the code path
-      // did overlay the key bytes.
-      final entries = {
-        'k1': _keyEntry(
-          'k1',
-          'prod',
-          '-----BEGIN KEY-----\nAAAAAAAA\n-----END KEY-----',
-        ),
-      };
-      final base = _ctrl(
-        sessions: [_s('1', 'A', keyId: 'k1', authType: AuthType.key)],
-        config: AppConfig.defaults,
-        isQrMode: false,
-      );
-      final withEntries = _ctrl(
-        sessions: [_s('1', 'A', keyId: 'k1', authType: AuthType.key)],
-        config: AppConfig.defaults,
-        managerKeyEntries: entries,
-        isQrMode: false,
-      );
-      expect(
-        withEntries.payloadSize,
-        greaterThanOrEqualTo(base.payloadSize),
-        reason:
-            'overlaying the real key bytes can only grow or match '
-            'the baseline — never shrink it',
-      );
-    });
+    test(
+      'manager keys are folded into the .lfs payload on size calc',
+      () async {
+        // The estimator's id-based composer pulls manager-key bytes
+        // from the DB row — populating the row before reading
+        // `payloadSize` exercises the path that resolves PEM bytes
+        // for the keys the selected sessions reference. Use a
+        // password-auth session for the baseline (no FK on key_id)
+        // and a key-auth session pointing at `k1` for the with-keys
+        // run; the size must grow once the key flag is on.
+        final baseSession = _s('1', 'A');
+        await _populateDb(sessions: [baseSession]);
+        final base = _ctrl(
+          sessions: [baseSession],
+          config: AppConfig.defaults,
+          isQrMode: false,
+        );
+        final basePayload = base.payloadSize;
+        await rust_app.dbClose();
+        await rust_app.dbInit(path: ':memory:', key: const []);
+        final keyedSession = _s('1', 'A', keyId: 'k1', authType: AuthType.key);
+        await _populateDb(
+          sessions: [keyedSession],
+          managerKeys: const {
+            'k1': '-----BEGIN KEY-----\nAAAAAAAA\n-----END KEY-----',
+          },
+        );
+        final withEntries = _ctrl(
+          sessions: [keyedSession],
+          config: AppConfig.defaults,
+          isQrMode: false,
+        );
+        withEntries.setIncludeManagerKeys(true);
+        expect(
+          withEntries.payloadSize,
+          greaterThanOrEqualTo(basePayload),
+          reason:
+              'overlaying the real key bytes can only grow or match '
+              'the baseline — never shrink it',
+        );
+      },
+    );
   });
 }

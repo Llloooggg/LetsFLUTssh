@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../core/config/app_config.dart';
-import '../core/security/ssh_key.dart';
 import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
 import '../core/session/session_tree.dart';
@@ -26,13 +25,6 @@ class UnifiedExportDialogData {
   final AppConfig? config;
   final String? knownHostsContent;
 
-  /// Full SshKeyEntry map for .lfs archive size estimation AND
-  /// QR-mode manager-key size estimation. The PEM bytes live here
-  /// for the lifetime of the dialog; QR size estimation derives
-  /// `keyId → privateKey` lazily from this map instead of holding
-  /// a duplicate plaintext copy in a parallel `Map<String, String>`.
-  final Map<String, SshKeyEntry> managerKeyEntries;
-
   /// All tags for size calculation and export.
   final List<Tag> tags;
 
@@ -44,7 +36,6 @@ class UnifiedExportDialogData {
     required this.emptyFolders,
     this.config,
     this.knownHostsContent,
-    this.managerKeyEntries = const {},
     this.tags = const [],
     this.snippets = const [],
   });

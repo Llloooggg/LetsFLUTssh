@@ -44,7 +44,7 @@ pub mod qr_compose;
 pub use apply::{
     apply_pending_import, apply_pending_import_merge, ApplyOptions, ApplyResult, ImportMode,
 };
-pub use compose::{export_archive, ExportInput, ExportOptions};
+pub use compose::{export_archive, export_archive_size, ExportInput, ExportOptions};
 pub use envelope::decrypt_archive_with_password;
 pub use qr_compose::{qr_export_payload, qr_export_payload_size, QrExportInput, QrExportOptions};
 

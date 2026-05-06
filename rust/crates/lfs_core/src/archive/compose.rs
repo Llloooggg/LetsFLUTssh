@@ -108,6 +108,36 @@ pub fn export_archive(conn: &Connection, input: &ExportInput) -> Result<Vec<u8>,
     )
 }
 
+/// LFSE envelope overhead added when `master_password` is set.
+/// Stays a constant regardless of inner ZIP size:
+/// magic (4) + version (1) + KDF params block (10 — algo byte +
+/// memory u32 BE + iterations u32 BE + parallelism u8) + salt (32)
+/// + IV (12) + AES-GCM tag (16) = 75 bytes.
+const LFSE_ENVELOPE_OVERHEAD: u32 = 4 + 1 + 10 + 32 + 12 + 16;
+
+/// Size of the `.lfs` archive bytes for the current selection,
+/// without running the Argon2id KDF or AES-GCM encryption pass.
+/// Drives the live "archive size" preview line in the Dart export
+/// dialog: composes the inner ZIP exactly the way `export_archive`
+/// would, then adds the LFSE envelope's fixed overhead when the
+/// master password slot is set.
+///
+/// `master_password` is only consulted to decide whether to add
+/// the envelope-overhead constant — the bytes themselves are never
+/// inspected, so the caller can hand an empty `Vec<u8>` if it
+/// hasn't asked the user for the password yet but wants the
+/// encrypted-shape size.
+pub fn export_archive_size(conn: &Connection, input: &ExportInput) -> Result<u32, Error> {
+    let zip_bytes = build_zip(conn, input)?;
+    let inner = u32::try_from(zip_bytes.len()).unwrap_or(u32::MAX);
+    let encrypted = !input.master_password.as_deref().unwrap_or("").is_empty();
+    Ok(if encrypted {
+        inner.saturating_add(LFSE_ENVELOPE_OVERHEAD)
+    } else {
+        inner
+    })
+}
+
 fn build_zip(conn: &Connection, input: &ExportInput) -> Result<Vec<u8>, Error> {
     let mut buf = Cursor::new(Vec::new());
     let mut zw = zip::ZipWriter::new(&mut buf);

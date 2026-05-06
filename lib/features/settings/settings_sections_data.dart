@@ -139,12 +139,13 @@ class _QrExportTile extends ConsumerWidget {
     final sessions = ref.read(sessionProvider);
     final notifier = ref.read(sessionProvider.notifier);
 
-    // Load counts for export dialog. The export orchestrator pulls
-    // bytes directly from `letsflutssh.db` Rust-side; the dialog
-    // carries the SshKeyEntry map only so the QR / .lfs size
-    // estimators can measure deflate-encoded payload bytes.
-    final keyStore = ref.read(sshKeysProvider.notifier);
-    final allKeys = await keyStore.loadAll();
+    // Load counts for export dialog. The export orchestrator (and
+    // the live size estimator) pulls every byte — sessions, keys,
+    // tags, snippets — straight from `letsflutssh.db` Rust-side by
+    // id, so the dialog never materialises manager-key PEM. Tags +
+    // snippets stay Dart-side for now so the dialog can render
+    // per-row checkboxes; the estimator path itself looks them up
+    // from the DB regardless of what the dialog holds.
     final allTags = await ref.read(tagsProvider.notifier).loadAll();
     final allSnippets = await ref.read(snippetsProvider.notifier).loadAll();
     if (!context.mounted) return;
@@ -161,7 +162,6 @@ class _QrExportTile extends ConsumerWidget {
         emptyFolders: notifier.emptyFolders,
         config: ref.read(configProvider),
         knownHostsContent: knownHostsContent,
-        managerKeyEntries: allKeys,
         tags: allTags,
         snippets: allSnippets,
       ),
