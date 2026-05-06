@@ -21,21 +21,43 @@ class TerminalConfig {
   static const defaults = TerminalConfig();
   static const _validThemes = ['dark', 'light', 'system'];
 
+  /// Upper bound on the user-supplied `scrollback`. xterm allocates
+  /// per-line buffers eagerly; an unclamped `cat /dev/urandom` into
+  /// a window with `maxLines: 1_000_000_000` would OOM the renderer.
+  /// 200 000 lines is enough for a full work-session of `tail -f` on
+  /// a chatty log file (~12 hours of 5-line/s output) and stays
+  /// below the ~50 MiB-per-pane cap on a typical 80x24 terminal.
+  static const int maxScrollback = 200000;
+
   String? validate() {
     if (fontSize < 6 || fontSize > 72) return 'Font size must be 6-72';
     if (!_validThemes.contains(theme)) {
       return 'Theme must be one of: ${_validThemes.join(', ')}';
     }
     if (scrollback < 100) return 'Scrollback must be at least 100';
+    if (scrollback > maxScrollback) {
+      return 'Scrollback must be at most $maxScrollback';
+    }
     return null;
   }
 
   TerminalConfig sanitized() {
     const d = TerminalConfig.defaults;
+    final int sanitizedScrollback;
+    if (scrollback < 100) {
+      // Too-small / non-positive — fall back to the default rather
+      // than the floor so a user who saw a confusing 100-line
+      // window after typing 0 lands on the working-default value.
+      sanitizedScrollback = d.scrollback;
+    } else if (scrollback > maxScrollback) {
+      sanitizedScrollback = maxScrollback;
+    } else {
+      sanitizedScrollback = scrollback;
+    }
     return TerminalConfig(
       fontSize: fontSize.clamp(6, 72),
       theme: _validThemes.contains(theme) ? theme : d.theme,
-      scrollback: scrollback < 100 ? d.scrollback : scrollback,
+      scrollback: sanitizedScrollback,
     );
   }
 

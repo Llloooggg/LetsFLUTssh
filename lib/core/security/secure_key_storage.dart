@@ -226,7 +226,13 @@ class SecureKeyStorage {
   }
 
   Future<void> deleteBiometricKey() async {
-    if (!await _linuxGatePass()) return;
+    // Delete must always run — even on Linux without the marker.
+    // The marker only gates *read* paths so a fresh install does
+    // not poke libsecret's session bus before the user opts in;
+    // the delete path may run on a wipe / tier-switch flow that
+    // followed an earlier write under the marker, and skipping
+    // it would leave a stale entry behind. The Rust delete is
+    // idempotent on a missing alias.
     try {
       await rust_storage.secureStorageDeleteBiometric(alias: _biometricKeyName);
     } catch (e) {
@@ -238,7 +244,8 @@ class SecureKeyStorage {
   }
 
   Future<void> deleteKey() async {
-    if (!await _linuxGatePass()) return;
+    // Same reasoning as `deleteBiometricKey` — the wipe flow must
+    // be able to clear leftover entries regardless of marker state.
     try {
       await rust_storage.secureStorageDelete(alias: _keyName);
     } catch (e) {

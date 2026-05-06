@@ -84,21 +84,33 @@ impl Store {
     }
 
     /// Initialise the actor against a support directory. Loads
-    /// the existing `config.json` if present; otherwise seeds
-    /// with `AppConfig::default()`. Returns the loaded config
-    /// JSON so the caller doesn't need a follow-up `get_json`.
+    /// the existing `config.json` if present; absent file seeds
+    /// with `AppConfig::default()`. **Parse failure on a present
+    /// file surfaces as `Err`** — the actor never silently
+    /// downgrades to defaults, because the next `update` would
+    /// flush those defaults over the on-disk content and lose the
+    /// user's settings. The Dart-side `loadAppConfigFromDisk`
+    /// catches `AppConfigParseException` and routes the user to
+    /// the fatal-error screen so they can recover the file
+    /// manually instead of seeing it overwritten.
     ///
-    /// Idempotent — re-init under a different support_dir is
-    /// allowed (test reset path), the previous in-memory state
-    /// is dropped without a flush. Production callers init once
-    /// at startup.
+    /// Idempotent on absent file / valid file under a different
+    /// support_dir (test reset path) — previous in-memory state
+    /// is dropped without a flush.
     pub fn init(&self, support_dir: PathBuf) -> Result<String, String> {
         let path = support_dir.join(FILE_NAME);
         let cfg = match std::fs::read_to_string(&path) {
             Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
                 Ok(v) => AppConfig::from_json_value(&v),
-                Err(_) => AppConfig::default(),
+                Err(e) => {
+                    return Err(format!("config_store::init: parse {}: {e}", path.display()));
+                }
             },
+            // Absent file — seed defaults. Any other I/O error (perm
+            // denied, transient FS hiccup) ALSO seeds defaults so a
+            // hostile-permissions install does not refuse to launch;
+            // the next successful `update` will atomically write the
+            // defaults to disk.
             Err(_) => AppConfig::default(),
         };
         let json = cfg.to_json_value().to_string();
@@ -303,14 +315,31 @@ mod tests {
     }
 
     #[test]
-    fn init_falls_back_to_defaults_for_corrupt_file() {
+    fn init_returns_err_for_corrupt_file() {
+        // Pre-fix: silently dropped the corrupt file's contents and
+        // seeded `AppConfig::default()`; the next `update` would
+        // flush those defaults over the on-disk content and lose
+        // the user's settings. The Dart-side `loadAppConfigFromDisk`
+        // catches the matching `AppConfigParseException` and routes
+        // the user to the fatal-error screen so they can recover
+        // the file manually.
         let dir = fresh_dir();
         let path = dir.path().join("config.json");
         std::fs::write(&path, "{not json").unwrap();
         let store = Store::for_tests();
+        let err = store.init(dir.path().to_path_buf()).unwrap_err();
+        assert!(err.contains("parse"), "unexpected error tag: {err}");
+    }
+
+    #[test]
+    fn init_seeds_defaults_when_file_absent() {
+        // Absent file is the legitimate first-launch path — seed
+        // defaults silently so a fresh install does not surface
+        // the fatal-error screen.
+        let dir = fresh_dir();
+        let store = Store::for_tests();
         let json = store.init(dir.path().to_path_buf()).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-        // Defaults — font_size = 14.0
         assert_eq!(
             value.get("font_size").and_then(serde_json::Value::as_f64),
             Some(14.0),

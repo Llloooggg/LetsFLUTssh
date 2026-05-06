@@ -214,11 +214,29 @@ pub fn run_on_startup(support_dir: &Path, registry: &Registry) -> Report {
     let mut fatal = None;
     for &idx in &ordered {
         let artefact = &*registry.artefacts[idx];
-        match migrate_artefact(support_dir, artefact, registry, &mut steps) {
-            ArtefactOutcome::Ok => {}
-            ArtefactOutcome::Future(f) => future.push(f),
-            ArtefactOutcome::Fatal(e) => {
+        // catch_unwind so a panic inside one artefact's `read_version`
+        // / `migrate` step does not abort the whole startup pass; the
+        // FRB layer's `migration_run_on_startup` doc claimed this
+        // invariant for years before it actually held. Caller routes
+        // a panic-derived fatal through the same recovery dialog the
+        // typed-error fatals use.
+        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            migrate_artefact(support_dir, artefact, registry, &mut steps)
+        }));
+        match res {
+            Ok(ArtefactOutcome::Ok) => {}
+            Ok(ArtefactOutcome::Future(f)) => future.push(f),
+            Ok(ArtefactOutcome::Fatal(e)) => {
                 fatal = Some(e);
+                break;
+            }
+            Err(panic) => {
+                let msg = panic
+                    .downcast_ref::<&'static str>()
+                    .map(|s| (*s).to_string())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| String::from("(non-string panic payload)"));
+                fatal = Some(format!("{}: panicked: {msg}", artefact.id()));
                 break;
             }
         }
