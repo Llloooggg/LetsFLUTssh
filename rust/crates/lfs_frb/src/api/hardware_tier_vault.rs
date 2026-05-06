@@ -1,11 +1,20 @@
 //! FRB adapter for the hardware-tier vault.
 //!
 //! Surfaces the unified `hardware_tier_vault_*` API consumed by the
-//! Dart `HardwareTierVault` façade plus the small Linux blob
-//! encode/decode helpers the TPM CLI driver still needs Dart-side.
-//! Apple SE / Android Keystore implementations live in
-//! `lfs_os_security`; Windows + Linux TPM still route through
-//! Flutter MethodChannel plugins.
+//! Dart `HardwareTierVault` façade. Per-platform backends:
+//!
+//! * Apple Secure Enclave + Android Keystore: `lfs_os_security`
+//!   (objc2 / JNI FFI).
+//! * Linux TPM2: `lfs_core::security::hardware_tier_vault::linux`
+//!   (subprocess to `tpm2-tools` + atomic write — orchestrator
+//!   lives in `lfs_core` because `lfs_os_security` cannot depend
+//!   on `lfs_core`).
+//! * Windows: still routes through the legacy MethodChannel C++
+//!   plugin until the Tier 4 Rust port lands (Task #16 backlog —
+//!   needs Windows host + TPM 2.0 for on-device validation).
+//!
+//! Per-platform dispatch lives in this file (the only crate that
+//! sees both `lfs_core` and `lfs_os_security`).
 
 use lfs_core::security::hardware_tier_vault as vault;
 
@@ -66,32 +75,50 @@ pub fn hardware_tier_vault_resolve_auth_value(
     )
 }
 
-// ---- Unified per-OS dispatch -------------------------------------
-//
-// Generic functions that route through `lfs_os_security::hardware_tier_vault`'s
-// cfg-dispatched public API: Apple targets land on `apple::*`,
-// Android targets land on `crate::android::hardware_vault::*`,
-// every other target returns a `PlatformUnsupported` error. The
-// Dart side calls these uniformly and only branches per-platform
-// for the genuinely-different paths (Linux TPM2 via `TpmClient`,
-// Windows hardware_vault MethodChannel until a Win Tier 4 Rust
-// port lands).
-
 #[flutter_rust_bridge::frb(sync)]
 pub fn hardware_tier_vault_is_available() -> bool {
-    lfs_os_security::hardware_tier_vault::is_available()
+    #[cfg(target_os = "linux")]
+    {
+        lfs_core::security::hardware_tier_vault::linux::is_available()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        lfs_os_security::hardware_tier_vault::is_available()
+    }
 }
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn hardware_tier_vault_probe_detail() -> String {
-    lfs_os_security::hardware_tier_vault::probe_detail()
-        .wire_name()
-        .to_string()
+    #[cfg(target_os = "linux")]
+    {
+        if lfs_core::security::hardware_tier_vault::linux::is_available() {
+            "available".to_string()
+        } else {
+            // Cause discovery (no `tpm2-tools` / no `/dev/tpmrm0` /
+            // probe rejected) ships through the existing Settings
+            // probe-detail strings; we collapse to a generic
+            // unavailable until a richer classifier lands.
+            "unknown".to_string()
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        lfs_os_security::hardware_tier_vault::probe_detail()
+            .wire_name()
+            .to_string()
+    }
 }
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn hardware_tier_vault_is_stored(support_dir: String) -> bool {
-    lfs_os_security::hardware_tier_vault::is_stored(&support_dir)
+    #[cfg(target_os = "linux")]
+    {
+        lfs_core::security::hardware_tier_vault::linux::is_stored(&support_dir)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        lfs_os_security::hardware_tier_vault::is_stored(&support_dir)
+    }
 }
 
 #[flutter_rust_bridge::frb(sync)]
@@ -99,17 +126,20 @@ pub fn hardware_tier_vault_is_biometric_password_stored(support_dir: String) -> 
     lfs_os_security::hardware_tier_vault::is_biometric_password_stored(&support_dir)
 }
 
+/// Store the wrapped DB key under the platform's hardware-tier
+/// vault. `salt` is required for the Linux TPM2 path (gets
+/// co-located inside `hardware_vault.bin`); Apple / Android
+/// ignore it and the caller persists it to a sibling
+/// `hardware_vault_salt.bin` separately.
 pub async fn hardware_tier_vault_store(
     support_dir: String,
     db_key: Vec<u8>,
+    salt: Vec<u8>,
     pin_hmac: Vec<u8>,
 ) -> Result<(), String> {
-    tokio::task::spawn_blocking(move || {
-        lfs_os_security::hardware_tier_vault::store(&support_dir, &db_key, &pin_hmac)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| format!("hw_vault store join: {e}"))?
+    tokio::task::spawn_blocking(move || dispatch_store(&support_dir, &db_key, &salt, &pin_hmac))
+        .await
+        .map_err(|e| format!("hw_vault store join: {e}"))?
 }
 
 /// Variant of [`hardware_tier_vault_store`] that pulls `db_key` from
@@ -123,6 +153,7 @@ pub async fn hardware_tier_vault_store(
 pub async fn hardware_tier_vault_store_from_secret(
     support_dir: String,
     secret_id: String,
+    salt: Vec<u8>,
     pin_hmac: Vec<u8>,
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
@@ -130,23 +161,38 @@ pub async fn hardware_tier_vault_store_from_secret(
             .secrets
             .get(&secret_id)
             .ok_or_else(|| format!("secret not found: {secret_id}"))?;
-        lfs_os_security::hardware_tier_vault::store(&support_dir, &bytes, &pin_hmac)
-            .map_err(|e| e.to_string())
+        dispatch_store(&support_dir, &bytes, &salt, &pin_hmac)
     })
     .await
     .map_err(|e| format!("hw_vault store_from_secret join: {e}"))?
+}
+
+/// Read the on-disk salt for the Linux hardware-vault envelope.
+/// Returns `None` for missing / malformed files. No-op `Ok(None)`
+/// on non-Linux targets (Apple / Android keep the salt in a
+/// sibling `hardware_vault_salt.bin` file Dart-side).
+#[flutter_rust_bridge::frb(sync)]
+pub fn hardware_tier_vault_read_blob_salt(support_dir: String) -> Option<Vec<u8>> {
+    #[cfg(target_os = "linux")]
+    {
+        lfs_core::security::hardware_tier_vault::linux::read_blob_salt(&support_dir)
+            .ok()
+            .flatten()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = support_dir;
+        None
+    }
 }
 
 pub async fn hardware_tier_vault_read(
     support_dir: String,
     pin_hmac: Vec<u8>,
 ) -> Result<Option<Vec<u8>>, String> {
-    tokio::task::spawn_blocking(move || {
-        lfs_os_security::hardware_tier_vault::read(&support_dir, &pin_hmac)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| format!("hw_vault read join: {e}"))?
+    tokio::task::spawn_blocking(move || dispatch_read(&support_dir, &pin_hmac))
+        .await
+        .map_err(|e| format!("hw_vault read join: {e}"))?
 }
 
 /// SecretRef variant of [`hardware_tier_vault_read`]. Unwraps the
@@ -160,27 +206,79 @@ pub async fn hardware_tier_vault_read_to_secret(
     pin_hmac: Vec<u8>,
     secret_id: String,
 ) -> Result<bool, String> {
-    tokio::task::spawn_blocking(move || {
-        match lfs_os_security::hardware_tier_vault::read(&support_dir, &pin_hmac)
-            .map_err(|e| e.to_string())?
-        {
-            Some(bytes) if !bytes.is_empty() => {
-                lfs_core::app::instance().secrets.put(&secret_id, &bytes);
-                Ok::<_, String>(true)
-            }
-            _ => Ok(false),
+    tokio::task::spawn_blocking(move || match dispatch_read(&support_dir, &pin_hmac)? {
+        Some(bytes) if !bytes.is_empty() => {
+            lfs_core::app::instance().secrets.put(&secret_id, &bytes);
+            Ok::<_, String>(true)
         }
+        _ => Ok(false),
     })
     .await
     .map_err(|e| format!("hw_vault read_to_secret join: {e}"))?
 }
 
 pub async fn hardware_tier_vault_clear(support_dir: String) -> Result<(), String> {
-    tokio::task::spawn_blocking(move || {
-        lfs_os_security::hardware_tier_vault::clear(&support_dir).map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| format!("hw_vault clear join: {e}"))?
+    tokio::task::spawn_blocking(move || dispatch_clear(&support_dir))
+        .await
+        .map_err(|e| format!("hw_vault clear join: {e}"))?
+}
+
+// ── Cfg-arm dispatchers ─────────────────────────────────────────
+//
+// `lfs_os_security::hardware_tier_vault` covers Apple + Android
+// (objc2 / JNI FFI). Linux's TPM CLI shell-out lives one crate up
+// in `lfs_core::security::hardware_tier_vault::linux` because
+// `lfs_os_security` cannot depend on `lfs_core` (one-way edge per
+// the architectural invariant). The FRB layer is the only place
+// where both crates are visible, so per-platform dispatch lands
+// here. Other targets fall through to `lfs_os_security`'s
+// `PlatformUnsupported` arm — same shape as before.
+
+fn dispatch_store(
+    support_dir: &str,
+    db_key: &[u8],
+    salt: &[u8],
+    pin_hmac: &[u8],
+) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        lfs_core::security::hardware_tier_vault::linux::store(support_dir, db_key, salt, pin_hmac)
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        // Apple / Android persist the salt next to the wrapped key
+        // in `hardware_vault_salt.bin` Dart-side; the Rust impls
+        // don't see the salt directly. Drop the parameter on these
+        // targets — caller's `_writeSaltFile` handles the half.
+        let _ = salt;
+        lfs_os_security::hardware_tier_vault::store(support_dir, db_key, pin_hmac)
+            .map_err(|e| e.to_string())
+    }
+}
+
+fn dispatch_read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, String> {
+    #[cfg(target_os = "linux")]
+    {
+        lfs_core::security::hardware_tier_vault::linux::read(support_dir, pin_hmac)
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        lfs_os_security::hardware_tier_vault::read(support_dir, pin_hmac).map_err(|e| e.to_string())
+    }
+}
+
+fn dispatch_clear(support_dir: &str) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        lfs_core::security::hardware_tier_vault::linux::clear(support_dir)
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        lfs_os_security::hardware_tier_vault::clear(support_dir).map_err(|e| e.to_string())
+    }
 }
 
 pub async fn hardware_tier_vault_store_biometric_password(

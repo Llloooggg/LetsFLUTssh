@@ -12,7 +12,6 @@ import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
-import 'linux/tpm_client.dart';
 
 /// Hardware-bound DB-key vault for L3 (Hardware + PIN) tier.
 ///
@@ -24,28 +23,24 @@ import 'linux/tpm_client.dart';
 /// attempts.
 ///
 /// Platform dispatch:
-/// - **Linux** — `TpmClient` + `tpm2-tools` shell-out (default) or
-///   native `tss-esapi` backend (`LFS_TPM_BACKEND=native` env opt-in,
-///   NI-1). Sealed blob lives in `hardware_vault.bin` alongside the
-///   salt.
+/// - **Linux** — `lfs_core::security::hardware_tier_vault::linux`
+///   via FRB. The orchestrator runs `tpm2-tools` as a Rust
+///   subprocess and writes `hardware_vault.bin` (salt + sealed
+///   blob co-located) atomically — no shell-out from Dart.
 /// - **iOS / macOS** — `lfs_os_security::hardware_tier_vault::apple`
 ///   via FRB. Direct `security-framework` + `objc2` calls; SE-bound
 ///   wrap (`ECIESEncryptionCofactorVariableIVX963SHA256AESGCM`) +
-///   on-disk envelope. Replaced the historical
-///   `HardwareVaultPlugin.swift` MethodChannel — no Apple plugin
-///   wired anymore.
+///   on-disk envelope.
 /// - **Android** — `lfs_os_security::android::hardware_vault` via
 ///   FRB. Direct JNI to `java.security.KeyStore` provider
 ///   `"AndroidKeyStore"` with `setIsStrongBoxBacked(true)` (API 28+,
 ///   silent fallback to TEE on `StrongBoxUnavailableException`).
-///   Replaced the historical `HardwareVaultPlugin.kt` MethodChannel.
 /// - **Windows** — MethodChannel to `hardware_vault_plugin.cpp`;
 ///   CNG `NCrypt` on the Microsoft Platform Crypto Provider (TPM
 ///   2.0) with RSA-OAEP-SHA-256 wrap. The only remaining native
-///   plugin in the L3 path — the Tier 4 Rust port for Windows
-///   (native `windows` crate CNG bindings) is a follow-up arc; until
-///   it lands, the C++ plugin is the canonical Windows path, not a
-///   fallback.
+///   plugin in the L3 path; the Tier 4 Rust port (native `windows`
+///   crate CNG bindings) is a follow-up arc — Task #16 in the
+///   backlog needs Windows host + TPM 2.0 for on-device validation.
 ///
 /// The PIN itself cannot be the auth value on Apple/Android/Windows
 /// because those APIs do not accept arbitrary secrets — they gate
@@ -53,62 +48,55 @@ import 'linux/tpm_client.dart';
 /// gate**: Dart computes `HMAC(pin, salt)` and hands it to the
 /// native side, which refuses to unseal unless the gate matches
 /// the value saved on `store`. Wrong PIN fails locally without
-/// waking the biometric prompt. Salt lives in
-/// `hardware_vault_salt.bin` so two installs with the same PIN
-/// produce different gates.
+/// waking the biometric prompt. On Apple / Android / Windows the
+/// salt lives in `hardware_vault_salt.bin` next to the wrapped
+/// key; on Linux it's co-located inside `hardware_vault.bin` since
+/// the entire envelope is one file.
 class HardwareTierVault {
   HardwareTierVault({
-    TpmClient? tpmClient,
     MethodChannel? channel,
-    Future<File> Function()? stateFileFactory,
     Future<File> Function()? saltFileFactory,
     Random? random,
-  }) : _tpm = tpmClient ?? TpmClient(),
-       _channel = channel ?? const MethodChannel(_channelName),
-       _stateFile = stateFileFactory ?? _defaultStateFile,
+  }) : _channel = channel ?? const MethodChannel(_channelName),
        _saltFile = saltFileFactory ?? _defaultSaltFile,
        _random = random ?? Random.secure();
 
   static const _channelName = 'com.letsflutssh/hardware_vault';
-  static const _fileName = 'hardware_vault.bin';
   static const _saltFileName = 'hardware_vault_salt.bin';
   static const _saltLength = 32;
 
-  final TpmClient _tpm;
   final MethodChannel _channel;
-  final Future<File> Function() _stateFile;
   final Future<File> Function() _saltFile;
   final Random _random;
-
-  static Future<File> _defaultStateFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _fileName));
-  }
 
   static Future<File> _defaultSaltFile() async {
     final dir = await getApplicationSupportDirectory();
     return File(p.join(dir.path, _saltFileName));
   }
 
-  /// True when the current platform is wired through Rust FRB (Apple
-  /// + Android). Linux uses `TpmClient` directly; Windows uses the
-  /// `com.letsflutssh/hardware_vault` MethodChannel until Win Tier 4
-  /// lands.
+  /// Every supported platform routes through Rust FRB now —
+  /// Apple SE + Android Keystore via `lfs_os_security`, Linux TPM2
+  /// via `lfs_core::security::hardware_tier_vault::linux` (TPM CLI
+  /// shell-out is a Rust subprocess; the FRB layer dispatches by
+  /// `cfg(target_os = "linux")`). The flag stays as a guard for
+  /// the Windows MethodChannel branch below — that's the only
+  /// non-Rust path remaining.
   bool get _usesRust =>
-      Platform.isMacOS || Platform.isIOS || Platform.isAndroid;
+      Platform.isMacOS ||
+      Platform.isIOS ||
+      Platform.isAndroid ||
+      Platform.isLinux;
 
   /// Sole remaining MethodChannel path: Windows Tier 4 (CNG/NCrypt
   /// hardware_vault). Will retire when the Win Tier 4 Rust port lands.
   bool get _usesWindowsMethodChannel => Platform.isWindows;
 
   /// True when the current platform can host the Hardware tier
-  /// *today*. Linux returns true iff `/dev/tpmrm0` is accessible
-  /// and `tpm2-tools` is installed; Apple + Android route through
-  /// the unified Rust dispatch in
-  /// `lfs_os_security::hardware_tier_vault`; Windows asks the native
-  /// CNG plugin.
+  /// *today*. The Rust FRB shim covers Apple SE / Android Keystore /
+  /// Linux TPM2 (CLI shell-out → subprocess inside Rust via
+  /// `lfs_core::platform::linux::tpm`); Windows asks the native
+  /// CNG plugin until the Tier 4 Rust port lands.
   Future<bool> isAvailable() async {
-    if (Platform.isLinux) return _tpm.isAvailable();
     if (_usesRust) {
       return rust_vault.hardwareTierVaultIsAvailable();
     }
@@ -162,14 +150,18 @@ class HardwareTierVault {
   /// required — a half-wiped state is a reset, not an unlock).
   Future<bool> isStored() async {
     try {
-      if (Platform.isLinux) {
-        final file = await _stateFile();
-        return file.exists();
-      }
       if (_usesRust) {
-        // Salt file is the Dart-owned half of the unseal contract,
-        // same as the Windows MethodChannel branch — both halves
-        // required.
+        if (Platform.isLinux) {
+          // Linux orchestrator co-locates salt + sealed inside
+          // `hardware_vault.bin` — single-file presence is the
+          // whole contract.
+          final dir = await getApplicationSupportDirectory();
+          return rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
+        }
+        // Apple / Android keep the wrapped key inside the platform
+        // vault; the salt rides next to it on disk under
+        // `hardware_vault_salt.bin`. Both halves required —
+        // half-wiped state is a reset, not an unlock.
         final saltFile = await _saltFile();
         if (!await saltFile.exists()) return false;
         final dir = await getApplicationSupportDirectory();
@@ -205,37 +197,22 @@ class HardwareTierVault {
       if (!await isAvailable()) return false;
       final salt = _randomBytes(_saltLength);
       final authValue = _deriveAuth(pin, salt);
-      if (Platform.isLinux) {
-        final sealed = await _tpm.seal(dbKey, authValue: authValue);
-        if (sealed == null) return false;
-
-        final file = await _stateFile();
-        await file.parent.create(recursive: true);
-        final blob = rust_vault.hardwareTierVaultEncodeLinuxBlob(
-          salt: salt,
-          sealed: sealed,
-        );
-        // Atomic write — a crash mid-flush on direct `writeAsBytes`
-        // could leave `hardware_vault.bin` half-written, bricking the
-        // tier (unseal path reads the JSON and throws on malformed
-        // input; user sees "unlock failed" with no recoverable state).
-        // `writeBytesAtomic` writes to `<path>.tmp` first, chmods it,
-        // then renames — either the previous sealed blob survives or
-        // the new one does, never a torn file.
-        await writeBytesAtomic(file.path, utf8.encode(blob));
-        return true;
-      }
       if (_usesRust) {
         try {
           final dir = await getApplicationSupportDirectory();
           await rust_vault.hardwareTierVaultStore(
             supportDir: dir.path,
             dbKey: dbKey,
+            salt: salt,
             pinHmac: authValue,
           );
-          // Rust side persisted the wrapped key; Dart keeps the salt
-          // so the unseal path can re-derive the HMAC gate.
-          await _writeSaltFile(salt);
+          // Apple / Android persist the salt to a sibling
+          // `hardware_vault_salt.bin` Dart-side; Linux co-locates
+          // it inside `hardware_vault.bin` so no separate write
+          // is needed (and would be redundant).
+          if (!Platform.isLinux) {
+            await _writeSaltFile(salt);
+          }
           return true;
         } catch (e) {
           AppLogger.instance.log(
@@ -282,32 +259,18 @@ class HardwareTierVault {
       if (!await isAvailable()) return false;
       final salt = _randomBytes(_saltLength);
       final authValue = _deriveAuth(pin, salt);
-      if (Platform.isLinux) {
-        // TPM CLI seal still takes raw bytes — pull from the store
-        // for this one materialisation; the original is left in the
-        // store so the caller can also feed drift via secrets_take.
-        final keyBytes = rust_secrets.secretsGet(id: secretId);
-        if (keyBytes.isEmpty) return false;
-        final sealed = await _tpm.seal(keyBytes, authValue: authValue);
-        if (sealed == null) return false;
-        final file = await _stateFile();
-        await file.parent.create(recursive: true);
-        final blob = rust_vault.hardwareTierVaultEncodeLinuxBlob(
-          salt: salt,
-          sealed: sealed,
-        );
-        await writeBytesAtomic(file.path, utf8.encode(blob));
-        return true;
-      }
       if (_usesRust) {
         try {
           final dir = await getApplicationSupportDirectory();
           await rust_vault.hardwareTierVaultStoreFromSecret(
             supportDir: dir.path,
             secretId: secretId,
+            salt: salt,
             pinHmac: authValue,
           );
-          await _writeSaltFile(salt);
+          if (!Platform.isLinux) {
+            await _writeSaltFile(salt);
+          }
           return true;
         } catch (e) {
           AppLogger.instance.log(
@@ -318,9 +281,8 @@ class HardwareTierVault {
         }
       }
       if (_usesWindowsMethodChannel) {
-        // Method-channel plugin still takes Uint8List — same one-shot
-        // materialisation as the Linux branch; the bytes never live
-        // beyond the plugin call.
+        // Method-channel plugin still takes Uint8List — pull the
+        // bytes from the SecretStore for this one materialisation.
         final keyBytes = rust_secrets.secretsGet(id: secretId);
         if (keyBytes.isEmpty) return false;
         final ok =
@@ -353,31 +315,18 @@ class HardwareTierVault {
   Future<Uint8List?> read(String? pin) async {
     try {
       if (!await isAvailable()) return null;
-      if (Platform.isLinux) {
-        final file = await _stateFile();
-        if (!await file.exists()) return null;
-
-        final raw = await file.readAsBytes();
-        final rust_vault.DbHardwareTierLinuxBlob decoded;
-        try {
-          decoded = rust_vault.hardwareTierVaultDecodeLinuxBlob(
-            blob: utf8.decode(raw),
-          );
-        } catch (_) {
-          // Disk blob unparseable / corrupt — caller routes back to
-          // password unlock.
-          return null;
-        }
-
-        final authValue = _deriveAuth(pin, decoded.salt);
-        return _tpm.unseal(decoded.sealed, authValue: authValue);
-      }
       if (_usesRust) {
         try {
-          final salt = await _readSaltFile();
+          final dir = await getApplicationSupportDirectory();
+          // Linux co-locates salt inside `hardware_vault.bin` and
+          // exposes it via `hardwareTierVaultReadBlobSalt`. Apple /
+          // Android keep it on disk in the sibling
+          // `hardware_vault_salt.bin`.
+          final salt = Platform.isLinux
+              ? rust_vault.hardwareTierVaultReadBlobSalt(supportDir: dir.path)
+              : await _readSaltFile();
           if (salt == null) return null;
           final authValue = _deriveAuth(pin, salt);
-          final dir = await getApplicationSupportDirectory();
           return await rust_vault.hardwareTierVaultRead(
             supportDir: dir.path,
             pinHmac: authValue,
@@ -414,28 +363,30 @@ class HardwareTierVault {
   /// on PIN change (before a new [store]).
   Future<void> clear() async {
     try {
-      if (Platform.isLinux) {
-        final file = await _stateFile();
-        if (await file.exists()) await file.delete();
-        return;
-      }
       if (_usesRust) {
         try {
           final dir = await getApplicationSupportDirectory();
           await rust_vault.hardwareTierVaultClear(supportDir: dir.path);
         } catch (e) {
           // Best-effort — the salt file is authoritative for "is
-          // stored", so failing the Rust-side clear still degrades
-          // safely into "locked out". Log so a support trace points
-          // at a stale native-side blob the next tier-switch has to
-          // tolerate.
+          // stored" on Apple / Android, so failing the Rust-side
+          // clear still degrades safely into "locked out". Log so
+          // a support trace points at a stale native-side blob the
+          // next tier-switch has to tolerate. Linux co-locates
+          // both halves so the Rust clear *is* the whole clear;
+          // failure there leaves a stuck file the next attempt
+          // overwrites.
           AppLogger.instance.log(
             'HardwareTierVault.clear (Rust) failed (salt delete continues): $e',
             name: 'HardwareTierVault',
           );
         }
-        final saltFile = await _saltFile();
-        if (await saltFile.exists()) await saltFile.delete();
+        // Apple / Android keep the salt in a sibling file Dart-side;
+        // drop it now. Linux co-locates and is already cleared above.
+        if (!Platform.isLinux) {
+          final saltFile = await _saltFile();
+          if (await saltFile.exists()) await saltFile.delete();
+        }
         return;
       }
       if (_usesWindowsMethodChannel) {

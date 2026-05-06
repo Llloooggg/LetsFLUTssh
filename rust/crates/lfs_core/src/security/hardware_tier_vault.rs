@@ -1,25 +1,20 @@
-//! Disk-blob format owner for the L3 hardware-tier vault's Linux
-//! TPM2 path.
+//! L3 hardware-tier vault — Linux TPM2 path orchestrator + shared
+//! blob-format helpers.
 //!
-//! `HardwareTierVault` (Dart) seals the DB key under a TPM primary
-//! with `HMAC(salt, pin)` as the auth value, then persists the
-//! sealed blob + salt as a JSON envelope in `hardware_vault.bin`
-//! under app-support. Method-channel platforms (Apple / Android /
-//! Windows) keep the wrapped key inside the native plugin and only
-//! ride the salt-file half of the contract; this module covers the
-//! Linux flavour where the whole blob lands Dart-side and the salt
-//! is co-located with the sealed bytes.
+//! Apple / Android live behind `lfs_os_security::hardware_tier_vault`
+//! (objc2 / JNI FFI). Linux's TPM CLI shell-out lives one crate up in
+//! `lfs_core::platform::linux::tpm`; the [`linux`] submodule below
+//! orchestrates the full store / read / clear flow Rust-internal so
+//! the DB key never crosses the FRB boundary on this path either.
 //!
 //! Wire format (JSON object, UTF-8 bytes on disk):
 //! ```json
 //! { "salt": "<base64>", "sealed": "<base64>" }
 //! ```
 //!
-//! What stays Dart-side: the TPM CLI shell-out
-//! (`TpmClient.seal` / `unseal` driving `tpm2-tools`), the
-//! method-channel calls into the per-platform native vault plugin,
-//! the standalone `hardware_vault_salt.bin` write/read for the
-//! method-channel platforms, and the file I/O for both flavours.
+//! `encode_linux_blob` / `decode_linux_blob` cover the wire shape;
+//! [`linux::store`] / [`linux::read`] / [`linux::clear`] cover the
+//! end-to-end orchestration.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde_json::Value;
@@ -123,6 +118,168 @@ pub fn resolve_auth_value(
         return Some(hmac_sha256(salt, pw.as_bytes()));
     }
     Some(Vec::new())
+}
+
+/// Linux TPM2 store / read / clear orchestrator. Mirrors the Apple
+/// / Android shape in `lfs_os_security::hardware_tier_vault` so
+/// every platform's hardware-tier vault has a Rust-internal
+/// orchestrator and the DB key never lands on the Dart heap on the
+/// store / read paths.
+#[cfg(target_os = "linux")]
+pub mod linux {
+    use std::path::{Path, PathBuf};
+
+    use crate::path::write_bytes_atomic;
+    use crate::platform::linux::tpm::{self, TpmConfig};
+
+    /// Filename inside `support_dir` carrying the encoded blob.
+    /// Matches the wipe-registry entry in
+    /// `lfs_core::security::wipe::MANAGED_FILES`.
+    const VAULT_FILE: &str = "hardware_vault.bin";
+
+    /// Errors the Linux orchestrator surfaces.
+    #[derive(Debug)]
+    pub enum LinuxVaultError {
+        /// `tpm2-tools` not reachable, `/dev/tpmrm0` missing, or the
+        /// TPM rejected the seal call.
+        TpmUnavailable(String),
+        /// `tpm2_create` / `tpm2_unseal` ran but returned an error.
+        Backend(String),
+        /// File-IO surface — read / write / atomic-rename failed.
+        Io(String),
+        /// On-disk blob malformed (missing JSON fields, bad base64,
+        /// etc.). Caller routes to "vault corrupt" recovery.
+        Corrupt(String),
+    }
+
+    impl std::fmt::Display for LinuxVaultError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Self::TpmUnavailable(s) => write!(f, "tpm unavailable: {s}"),
+                Self::Backend(s) => write!(f, "tpm backend: {s}"),
+                Self::Io(s) => write!(f, "io: {s}"),
+                Self::Corrupt(s) => write!(f, "corrupt: {s}"),
+            }
+        }
+    }
+
+    impl std::error::Error for LinuxVaultError {}
+
+    fn vault_path(support_dir: &str) -> PathBuf {
+        Path::new(support_dir).join(VAULT_FILE)
+    }
+
+    /// True when `tpm2-tools` + `/dev/tpmrm0` are both reachable.
+    /// Mirrors `lfs_os_security::hardware_tier_vault::is_available`
+    /// for non-Apple targets so the cfg-arm dispatch in the FRB
+    /// shim can route Linux through here.
+    #[must_use]
+    pub fn is_available() -> bool {
+        matches!(
+            tpm::probe(&TpmConfig::default()),
+            tpm::TpmProbeResult::Available
+        )
+    }
+
+    /// True when `support_dir/hardware_vault.bin` exists. Pure
+    /// path-stat; does not invoke the TPM.
+    #[must_use]
+    pub fn is_stored(support_dir: &str) -> bool {
+        vault_path(support_dir).exists()
+    }
+
+    /// Seal `db_key` under TPM-2.0 keyed by the caller-derived
+    /// `pin_hmac` (`HMAC(salt, pin)` over the freshly-generated
+    /// `salt` — same pre-derivation Apple / Android callers do
+    /// today). Writes `{salt, sealed}` JSON envelope to
+    /// `support_dir/hardware_vault.bin` atomically. `pin_hmac` MAY
+    /// be empty for the passwordless flow — caller and unseal
+    /// must agree.
+    ///
+    /// Linux co-locates the salt inside the envelope rather than
+    /// using a sibling `hardware_vault_salt.bin` file (Apple /
+    /// Android pattern). Caller still owns the salt — see
+    /// [`read_blob_salt`] for the unlock-side reverse.
+    pub fn store(
+        support_dir: &str,
+        db_key: &[u8],
+        salt: &[u8],
+        pin_hmac: &[u8],
+    ) -> Result<(), LinuxVaultError> {
+        if !is_available() {
+            return Err(LinuxVaultError::TpmUnavailable("tpm probe failed".into()));
+        }
+        let sealed = tpm::seal(&TpmConfig::default(), db_key, pin_hmac)
+            .map_err(|e| LinuxVaultError::Backend(e.to_string()))?;
+        let blob = super::encode_linux_blob(salt, &sealed);
+        let path = vault_path(support_dir);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| LinuxVaultError::Io(format!("mkdirp: {e}")))?;
+        }
+        write_bytes_atomic(&path, blob.as_bytes())
+            .map_err(|e| LinuxVaultError::Io(format!("write: {e}")))?;
+        Ok(())
+    }
+
+    /// Read `support_dir/hardware_vault.bin`, decode the salt +
+    /// sealed pair, and unseal under the caller-derived `pin_hmac`.
+    /// Caller MUST first read the on-disk salt via
+    /// [`read_blob_salt`] and derive `pin_hmac = HMAC(salt, pin)`
+    /// against it; the function does NOT re-derive.
+    ///
+    /// Returns:
+    /// * `Ok(Some(bytes))` — successful unseal, plaintext key bytes.
+    /// * `Ok(None)` — vault file absent, or wrong PIN / re-enrolment
+    ///   forced TPM-key invalidation. Caller routes to "needs
+    ///   password unlock".
+    /// * `Err(_)` — file present but corrupt, or TPM unreachable.
+    pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, LinuxVaultError> {
+        let path = vault_path(support_dir);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let raw = std::fs::read(&path).map_err(|e| LinuxVaultError::Io(format!("read: {e}")))?;
+        let text = std::str::from_utf8(&raw)
+            .map_err(|e| LinuxVaultError::Corrupt(format!("utf8: {e}")))?;
+        let decoded = super::decode_linux_blob(text).map_err(LinuxVaultError::Corrupt)?;
+        match tpm::unseal(&TpmConfig::default(), &decoded.sealed, pin_hmac) {
+            Ok(bytes) => Ok(Some(bytes)),
+            // Wrong auth or TPM-key invalidation surfaces as a
+            // generic backend error from `tpm2-tools`. Map to
+            // `Ok(None)` so the unlock UI routes back to password
+            // entry, matching the Apple `read` contract for "wrong
+            // PIN".
+            Err(_) => Ok(None),
+        }
+    }
+
+    /// Read just the salt half of the on-disk envelope so the
+    /// unlock dialog can derive `pin_hmac = HMAC(salt, pin)`
+    /// before calling [`read`]. Returns `Ok(None)` for missing /
+    /// malformed files.
+    pub fn read_blob_salt(support_dir: &str) -> Result<Option<Vec<u8>>, LinuxVaultError> {
+        let path = vault_path(support_dir);
+        if !path.exists() {
+            return Ok(None);
+        }
+        let raw = std::fs::read(&path).map_err(|e| LinuxVaultError::Io(format!("read: {e}")))?;
+        let text = std::str::from_utf8(&raw)
+            .map_err(|e| LinuxVaultError::Corrupt(format!("utf8: {e}")))?;
+        let decoded = super::decode_linux_blob(text).map_err(LinuxVaultError::Corrupt)?;
+        Ok(Some(decoded.salt))
+    }
+
+    /// Drop `support_dir/hardware_vault.bin`. Best-effort —
+    /// missing-file is `Ok(())`, file-system errors propagate.
+    pub fn clear(support_dir: &str) -> Result<(), LinuxVaultError> {
+        let path = vault_path(support_dir);
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(LinuxVaultError::Io(format!("remove: {e}"))),
+        }
+    }
 }
 
 #[cfg(test)]

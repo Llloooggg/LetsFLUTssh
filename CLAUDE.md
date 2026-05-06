@@ -57,7 +57,7 @@ These apply to every response without re-reading:
 - **Skip `make analyze` / `make test` for doc-only commits** — if the staged diff touches no `.dart` files and no `pubspec.yaml`, don't run analyzer or tests manually. The pre-commit hook runs `make check` automatically; running it first on a Markdown-only change is wasted loop time.
 - **Cross-platform verification** — Android change → also iOS; Windows change → also Linux + macOS.
 - **Best practices by default** — push back on hacky solutions, propose best-practice alternatives.
-- **Three pillars: ideal code, security, optimality.** Skip a migration / refactor only when moving it makes the system *worse* (concrete safety / perf regression, or the replacement cannot exist) — inconvenience is not the bar. Full rule: [AGENT_RULES § Three Pillars](docs/AGENT_RULES.md#three-pillars--ideal-code-security-optimality).
+- **Three pillars: ideal code, security, optimality.** Migration / refactor work goes end-to-end. **The user QAs every release on real hardware** — "I can't test this on my machine right now" is *not* a skip reason; write the code, document the on-device validation matrix, the user's release process catches what a Linux WSL session can't. The only legitimate skip is "the replacement primitive does not exist" (e.g. drift is Dart-only, no Rust analogue). Full rule: [AGENT_RULES § Three Pillars](docs/AGENT_RULES.md#three-pillars--ideal-code-security-optimality).
 - **Think systemically** — consider full scope and side effects, not just the literal instruction.
 - **Ask before guessing UI placement** — if ambiguous, ask once upfront.
 - **Every change ships with docs + tests + translations** — incomplete commit otherwise.

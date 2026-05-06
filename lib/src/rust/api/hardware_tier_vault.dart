@@ -6,6 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `dispatch_clear`, `dispatch_read`, `dispatch_store`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Encode the salt + sealed-blob pair as the JSON envelope written
@@ -72,13 +73,20 @@ bool hardwareTierVaultIsBiometricPasswordStored({required String supportDir}) =>
           supportDir: supportDir,
         );
 
+/// Store the wrapped DB key under the platform's hardware-tier
+/// vault. `salt` is required for the Linux TPM2 path (gets
+/// co-located inside `hardware_vault.bin`); Apple / Android
+/// ignore it and the caller persists it to a sibling
+/// `hardware_vault_salt.bin` separately.
 Future<void> hardwareTierVaultStore({
   required String supportDir,
   required List<int> dbKey,
+  required List<int> salt,
   required List<int> pinHmac,
 }) => RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultStore(
   supportDir: supportDir,
   dbKey: dbKey,
+  salt: salt,
   pinHmac: pinHmac,
 );
 
@@ -93,12 +101,23 @@ Future<void> hardwareTierVaultStore({
 Future<void> hardwareTierVaultStoreFromSecret({
   required String supportDir,
   required String secretId,
+  required List<int> salt,
   required List<int> pinHmac,
 }) => RustLib.instance.api
     .crateApiHardwareTierVaultHardwareTierVaultStoreFromSecret(
       supportDir: supportDir,
       secretId: secretId,
+      salt: salt,
       pinHmac: pinHmac,
+    );
+
+/// Read the on-disk salt for the Linux hardware-vault envelope.
+/// Returns `None` for missing / malformed files. No-op `Ok(None)`
+/// on non-Linux targets (Apple / Android keep the salt in a
+/// sibling `hardware_vault_salt.bin` file Dart-side).
+Uint8List? hardwareTierVaultReadBlobSalt({required String supportDir}) =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadBlobSalt(
+      supportDir: supportDir,
     );
 
 Future<Uint8List?> hardwareTierVaultRead({
