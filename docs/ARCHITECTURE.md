@@ -1522,11 +1522,11 @@ below):
 3. If `on_disk < target`, walk the Migration chain step by step.
    For each step:
    - Look up the `Migration` whose `artefact_id` matches and whose
-     `from_version == current`. **No registered migration = fatal
+     `source_version == current`. **No registered migration = fatal
      error**: the runner appends a failed `Step` and aborts the
      whole run with `report.fatal_error` set.
    - Call `apply`. If it returns `Err`, record the failure and
-     abort. Otherwise advance `current` to `step.to_version` and
+     abort. Otherwise advance `current` to `step.target_version` and
      continue.
 
 The runner returns a `Report` (FRB-mirrored as
@@ -1624,8 +1624,8 @@ bump today; the safety net is `run_on_startup` raising a fatal
 missing. Catch the gap at PR time by adding a unit test under
 `rust/crates/lfs_core/src/migration/registry.rs` that builds the
 registry and asserts every adjacent
-`(SchemaVersions::<X>, from_version → from_version + 1)` pair has a
-Migration registered.
+`(SchemaVersions::<X>, source_version → source_version + 1)` pair
+has a Migration registered.
 
 ###### Adding a brand-new envelope artefact
 
@@ -1666,12 +1666,12 @@ re-arranged a struct) of an artefact already in the registry.
 2. Implement a struct under
    `lfs_core::migration::artefacts::migrations` with a `Migration`
    impl covering the single
-   `(artefact_id, from_version → to_version)` transition. Body:
-   read the v(N-1) bytes, transform in memory, write the v(N)
-   bytes atomically. Return `Err` on any failure.
+   `(artefact_id, source_version → target_version)` transition.
+   Body: read the v(N-1) bytes, transform in memory, write the
+   v(N) bytes atomically. Return `Err` on any failure.
 3. Register the migration in `build_app_registry` via
    `registry.migrations.push(Box::new(<Type>))`. Duplicate
-   `(artefact_id, from_version)` pairs are rejected by a registry
+   `(artefact_id, source_version)` pairs are rejected by a registry
    unit test — there is exactly one path between adjacent versions.
 4. Update the writer in the producing module to stamp the new
    version constant. Update any reader to handle the new payload
