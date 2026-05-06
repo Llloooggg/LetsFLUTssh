@@ -141,51 +141,43 @@ pub fn is_being_debugged() -> bool {
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
-        // SAFETY: `sysctl` is a read-only kernel query; the
-        // returned `kinfo_proc` is a fixed-size struct stamped
-        // by the kernel. We pass our own buffer + length pair;
-        // the kernel does not retain the pointer.
+        // SAFETY: `proc_pidinfo` is a read-only kernel query that
+        // populates the typed `proc_bsdinfo` struct exposed by
+        // `libc`. We pass our own buffer + size; the kernel does
+        // not retain the pointer past the call. The previous
+        // implementation hard-coded `p_flag` at byte 32 inside
+        // `kinfo_proc.kp_proc` (sysctl + raw cast); the offset
+        // is stable on 64-bit Darwin since 10.4 but would break
+        // silently if Apple ever shipped a layout change. Routing
+        // through `proc_pidinfo(PROC_PIDTBSDINFO)` reads the
+        // typed `pbi_flags` field straight off `proc_bsdinfo`,
+        // so the binding mirrors the kernel ABI rather than
+        // depending on a frozen byte offset.
         use std::mem;
-        const CTL_KERN: libc::c_int = 1;
-        const KERN_PROC: libc::c_int = 14;
-        const KERN_PROC_PID: libc::c_int = 1;
-        const P_TRACED: i32 = 0x800;
-        // `kinfo_proc` is large + Apple-private; we only need
-        // the `p_flag` field's offset within `kp_proc.p_flag`.
-        // The struct layout is stable (Apple ABI); the offset
-        // for p_flag inside kinfo_proc is 32 bytes on every
-        // 64-bit Darwin since 10.4. Hard-code the offset rather
-        // than depend on bindgen.
-        let mut info = [0u8; 648]; // sizeof(kinfo_proc) on darwin64
-        let mut size: libc::size_t = info.len();
-        let mib: [libc::c_int; 4] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, unsafe {
-            libc::getpid()
-        }];
+        // `P_TRACED = 0x800` lives in `<sys/proc.h>` and is mirrored
+        // into `pbi_flags` by the kernel's `fill_tbsdinfo()` shim.
+        // libc does not export the constant, so we pin it locally.
+        const P_TRACED: u32 = 0x0000_0800;
+        let pid = unsafe { libc::getpid() };
+        let mut info: libc::proc_bsdinfo = unsafe { mem::zeroed() };
+        let info_size = mem::size_of::<libc::proc_bsdinfo>() as libc::c_int;
         let rc = unsafe {
-            libc::sysctl(
-                mib.as_ptr() as *mut libc::c_int,
-                mib.len() as libc::c_uint,
-                info.as_mut_ptr() as *mut libc::c_void,
-                &mut size,
-                std::ptr::null_mut(),
+            libc::proc_pidinfo(
+                pid,
+                libc::PROC_PIDTBSDINFO,
                 0,
+                &mut info as *mut _ as *mut libc::c_void,
+                info_size,
             )
         };
-        if rc != 0 {
+        // `proc_pidinfo` returns the number of bytes written; a
+        // partial / failed read is best-treated as "can't tell, not
+        // debugged" so we don't surface a false positive on a
+        // healthy host.
+        if rc != info_size {
             return false;
         }
-        // p_flag is at offset 32 inside kinfo_proc.kp_proc on
-        // 64-bit darwin; read as i32 little-endian.
-        if size < 36 {
-            return false;
-        }
-        let bytes: [u8; 4] = match info[32..36].try_into() {
-            Ok(b) => b,
-            Err(_) => return false,
-        };
-        let flags = i32::from_le_bytes(bytes);
-        let _ = mem::size_of::<libc::c_int>();
-        (flags & P_TRACED) != 0
+        (info.pbi_flags & P_TRACED) != 0
     }
 
     #[cfg(target_os = "windows")]
