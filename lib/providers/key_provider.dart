@@ -203,35 +203,6 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     ref.invalidateSelf();
   }
 
-  /// Find the id of a stored key whose material matches [entry].
-  /// Returns null if no match.
-  ///
-  /// Prefers the public-key fingerprint — public key bytes never leave
-  /// the secure store via this path, so dedup runs without pulling
-  /// private material through an isolate just to hash it. Falls back to
-  /// the private-key fingerprint only when [entry.publicKey] is empty
-  /// (a rare path for keys imported without an extracted public half).
-  Future<String?> findIdByKeyMaterial(SshKeyEntry entry) async {
-    final all = await loadAll();
-    final publicTarget = publicKeyFingerprint(entry.publicKey);
-    if (publicTarget.isNotEmpty) {
-      for (final stored in all.values) {
-        if (publicKeyFingerprint(stored.publicKey) == publicTarget) {
-          return stored.id;
-        }
-      }
-      return null;
-    }
-    final privateTarget = privateKeyFingerprint(entry.privateKey);
-    if (privateTarget.isEmpty) return null;
-    for (final stored in all.values) {
-      if (privateKeyFingerprint(stored.privateKey) == privateTarget) {
-        return stored.id;
-      }
-    }
-    return null;
-  }
-
   /// Import a key from another source (QR/.lfs), deduplicating by content.
   ///
   /// - If a stored key has the same public-key fingerprint (or private-

@@ -25,12 +25,8 @@ Future<int> dbSshKeysDelete({required String id}) =>
 /// lookup (public-key first, falling back to private-key) +
 /// label-uniqueness + insert in one transaction. Returns the id
 /// the caller should use downstream — existing on a content
-/// match, freshly inserted otherwise.
-///
-/// Replaces the multi-step Dart `KeyStore.importForMerge`
-/// orchestration (loadAll + findIdByKeyMaterial + uniqueLabel +
-/// save) with a single FRB call that runs entirely inside one
-/// sqlite transaction.
+/// match, freshly inserted otherwise. One FRB call so the whole
+/// sequence lands as a single sqlite transaction.
 Future<String> dbSshKeysImportForMerge({required DbSshKey proposed}) =>
     RustLib.instance.api.crateApiDbDbSshKeysImportForMerge(proposed: proposed);
 
