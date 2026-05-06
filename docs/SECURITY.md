@@ -327,7 +327,12 @@ architecture.
   on Android 13+). A 30-second auto-wipe timer on top only clears
   the clipboard when the live value still matches what the app
   wrote, so a user who copied something else mid-window never loses
-  their own data.
+  their own data. Failure posture is platform-aware: a Rust-path
+  failure on Windows / macOS / iOS / Android **refuses** the copy
+  and the caller surfaces a toast, because the stock fallback
+  would deposit the secret into a cloud-syncing pasteboard
+  without the opt-out flags. Linux has no cloud clipboard so the
+  fallback there is the same posture as the Rust path.
 - **Known hosts / TOFU verification** — DB-backed; the host-key
   callback refuses silent changes and surfaces an unambiguous dialog
   with both fingerprints.

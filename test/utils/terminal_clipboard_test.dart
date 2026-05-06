@@ -356,8 +356,9 @@ class _RecordingSecureClipboard implements SecureClipboard {
   final writes = <String>[];
 
   @override
-  Future<void> setText(String text) async {
+  Future<bool> setText(String text) async {
     writes.add(text);
+    return true;
   }
 
   @override

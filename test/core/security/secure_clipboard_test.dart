@@ -37,8 +37,15 @@ void main() {
   });
 
   test(
-    'Android path falls back to stock Clipboard.setData when the plugin is missing',
+    'Android path REFUSES the write when the plugin is missing — never falls back',
     () async {
+      // Plugin missing on Android means the native EXTRA_IS_SENSITIVE
+      // flag never lands; falling back to stock `Clipboard.setData`
+      // would deposit the secret into the Android 13+ clipboard
+      // history preview without the opt-out marker. The hardened
+      // posture is to refuse, surface the failure to the caller, and
+      // let the UI render a "copy failed" toast — same as the
+      // Win/macOS/iOS arms below.
       String? stockText;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
@@ -52,16 +59,17 @@ void main() {
             return null;
           });
 
-      await SecureClipboard(
+      final landed = await SecureClipboard(
         channel: channel,
         isAndroidPlatform: true,
       ).setText('hunter2');
 
-      expect(stockText, 'hunter2');
+      expect(landed, isFalse, reason: 'must refuse on plugin missing');
+      expect(stockText, isNull, reason: 'must NOT touch stock clipboard');
     },
   );
 
-  test('Android path falls back to stock clipboard on native error', () async {
+  test('Android path REFUSES the write on native error', () async {
     String? stockText;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
@@ -75,12 +83,13 @@ void main() {
           return null;
         });
 
-    await SecureClipboard(
+    final landed = await SecureClipboard(
       channel: channel,
       isAndroidPlatform: true,
     ).setText('hunter2');
 
-    expect(stockText, 'hunter2');
+    expect(landed, isFalse);
+    expect(stockText, isNull);
   });
 
   test(

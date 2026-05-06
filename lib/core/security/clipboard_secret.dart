@@ -50,19 +50,28 @@ class ClipboardSecret {
   /// [ClipboardSecret.autoWipeAfter]. Returns once the system
   /// clipboard has accepted the write; the wipe runs
   /// asynchronously in the background.
-  Future<void> copySecret(String plaintext) async {
+  ///
+  /// Returns `false` when the cloud-clipboard refusal gate in
+  /// [SecureClipboard.setText] declined the write (cloud-syncing
+  /// platforms whose secure path failed). Callers surface the
+  /// failure via toast — auto-wipe is NOT scheduled because the
+  /// payload never landed on the pasteboard.
+  Future<bool> copySecret(String plaintext) async {
     cancelPendingWipe();
+    final bool landed;
     try {
-      await _writer.setText(plaintext);
+      landed = await _writer.setText(plaintext);
     } catch (e) {
       AppLogger.instance.log(
         'ClipboardSecret.copySecret write failed: $e',
         name: 'ClipboardSecret',
       );
-      return;
+      return false;
     }
+    if (!landed) return false;
     _pendingValue = plaintext;
     _pendingTimer = Timer(_autoWipeAfter, _runWipe);
+    return true;
   }
 
   /// Cancel any scheduled wipe. No-op when no timer is pending.

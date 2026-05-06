@@ -59,17 +59,43 @@ class SecureClipboard {
   final bool _isAndroidPlatform;
 
   /// Write [text] to the system clipboard with the per-platform
-  /// cloud / history opt-out flags applied. Falls back to
-  /// [Clipboard.setData] when both the Rust path and the Android
-  /// MethodChannel fail — a best-effort write is better than
-  /// refusing to copy.
-  Future<void> setText(String text) async {
+  /// cloud / history opt-out flags applied. On platforms where the
+  /// stock `Clipboard.setData` would silently leak the payload
+  /// into a cloud-sync ring (Windows 10+, macOS Universal
+  /// Clipboard, iOS Handoff, Android 13+ history) the secure path
+  /// **refuses** to write on failure rather than fall back —
+  /// "best-effort write" against an attacker who scrapes the
+  /// cloud ring is no better than not writing at all. Linux has
+  /// no cloud-clipboard default, so the fallback there is the
+  /// same posture as a plain copy and the helper degrades to
+  /// `Clipboard.setData` on a Rust-side failure.
+  ///
+  /// Returns `true` when the secure path landed (or the Linux
+  /// plain fallback ran), `false` when the cloud-leak gate
+  /// refused the write. Callers surface a "copy failed, try
+  /// again" toast on `false` instead of silently dropping
+  /// material onto a syncing pasteboard.
+  Future<bool> setText(String text) async {
     if (_isAndroidPlatform) {
-      if (await _tryAndroidNative(text)) return;
-    } else if (_tryRustNative(text)) {
-      return;
+      return _tryAndroidNative(text);
     }
-    await Clipboard.setData(ClipboardData(text: text));
+    if (_tryRustNative(text)) return true;
+    if (Platform.isLinux) {
+      // No cloud-clipboard default on X11 / Wayland — the plain
+      // path is the same posture as the Rust path on Linux.
+      await Clipboard.setData(ClipboardData(text: text));
+      return true;
+    }
+    // Win 10+ / macOS / iOS — refusing is the only safe
+    // posture; the fallback would deposit the secret into a
+    // cloud-sync ring without the opt-out flags.
+    AppLogger.instance.log(
+      'SecureClipboard refusing fallback on ${Platform.operatingSystem} — '
+      'cloud-clipboard sync would land payload without opt-out flags',
+      name: 'SecureClipboard',
+      level: LogLevel.warn,
+    );
+    return false;
   }
 
   bool _tryRustNative(String text) {
