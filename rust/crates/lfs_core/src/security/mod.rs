@@ -54,14 +54,20 @@ pub enum SecurityTier {
     /// L0 — bare DB on disk, file permissions only.
     Plaintext,
     /// L1 — DB key in OS secure storage; auto-unlock on launch.
+    /// User-typed password gate is the orthogonal
+    /// `SecurityTierModifiers::password` switch (bank-style model);
+    /// "L1 + password" is `Keychain` + `modifiers.password = true`,
+    /// not its own enum variant.
     Keychain,
-    /// L2 — L1 + short user-typed password gate (UX, not crypto).
-    KeychainWithPassword,
-    /// L3 — DB key wrapped by hardware-bound vault; PIN +
-    /// optional biometric prompt.
+    /// L3 — DB key wrapped by hardware-bound vault; the
+    /// `password` modifier optionally adds a typed-password layer
+    /// on top, the `biometric` modifier optionally lets the user
+    /// release that password via a biometric prompt instead of
+    /// typing it.
     Hardware,
     /// Alternative branch — master password + Argon2id, never
-    /// stored in OS. Biometric forbidden by design.
+    /// stored in OS. Biometric forbidden by design (a stored
+    /// derived key would break the "no-OS-trust" contract).
     Paranoid,
 }
 
@@ -71,10 +77,7 @@ impl SecurityTier {
     }
 
     pub fn has_keychain(self) -> bool {
-        matches!(
-            self,
-            SecurityTier::Keychain | SecurityTier::KeychainWithPassword | SecurityTier::Hardware
-        )
+        matches!(self, SecurityTier::Keychain | SecurityTier::Hardware)
     }
 
     pub fn has_hardware_vault(self) -> bool {
@@ -85,11 +88,15 @@ impl SecurityTier {
     /// match `lib/core/config/app_config.dart::_tierToString`). Any
     /// drift here breaks round-trip with installs whose `config.json`
     /// already carries a tier string written by the Dart writer.
+    ///
+    /// Pre-v3 configs that stored `keychain_with_password` are
+    /// rewritten to `keychain` + `modifiers.password = true` by the
+    /// `ConfigV2ToV3` migration before the runtime ever reads the
+    /// value, so the legacy wire string never reaches `from_wire_name`.
     pub fn wire_name(self) -> &'static str {
         match self {
             SecurityTier::Plaintext => "plaintext",
             SecurityTier::Keychain => "keychain",
-            SecurityTier::KeychainWithPassword => "keychain_with_password",
             SecurityTier::Hardware => "hardware",
             SecurityTier::Paranoid => "paranoid",
         }
@@ -99,7 +106,6 @@ impl SecurityTier {
         match name {
             "plaintext" => Some(SecurityTier::Plaintext),
             "keychain" => Some(SecurityTier::Keychain),
-            "keychain_with_password" => Some(SecurityTier::KeychainWithPassword),
             "hardware" => Some(SecurityTier::Hardware),
             "paranoid" => Some(SecurityTier::Paranoid),
             _ => None,
@@ -241,13 +247,13 @@ impl SecurityConfig {
     }
 
     /// True when the tier stores the DB key in an OS keychain slot of
-    /// any kind (L1 or L2). Used by code paths that need to decide
-    /// between "read from keychain" and "derive fresh".
+    /// True when the tier stores the DB key in the OS keychain.
+    /// Used by code paths that need to decide between "read from
+    /// keychain" and "derive fresh". The bank-style password
+    /// modifier is orthogonal: `Keychain` covers both passwordless
+    /// L1 and L1 + typed password.
     pub fn uses_keychain(&self) -> bool {
-        matches!(
-            self.tier,
-            SecurityTier::Keychain | SecurityTier::KeychainWithPassword
-        )
+        matches!(self.tier, SecurityTier::Keychain)
     }
 
     /// True when the tier binds the key to a hardware-bound vault.
@@ -255,13 +261,17 @@ impl SecurityConfig {
         matches!(self.tier, SecurityTier::Hardware)
     }
 
-    /// True when the tier has any user-typed secret on the unlock
-    /// path (password, PIN, or master password).
+    /// True when the config has any user-typed secret on the unlock
+    /// path. Paranoid is mandatory-password by definition; for
+    /// Keychain / Hardware the answer depends on the modifier
+    /// (`Keychain` + `password = true` is the bank-style L2,
+    /// previously a dedicated `KeychainWithPassword` tier).
     pub fn has_user_secret(&self) -> bool {
-        matches!(
-            self.tier,
-            SecurityTier::KeychainWithPassword | SecurityTier::Hardware | SecurityTier::Paranoid
-        )
+        if self.tier == SecurityTier::Paranoid {
+            return true;
+        }
+        matches!(self.tier, SecurityTier::Keychain | SecurityTier::Hardware)
+            && self.modifiers.password
     }
 
     pub fn to_json_value(&self) -> serde_json::Value {
@@ -368,7 +378,11 @@ pub fn map_wizard_choice(
             pin: None,
         },
         WizardTier::Keychain if password => MappedSetupChoice {
-            tier: SecurityTier::KeychainWithPassword,
+            // Bank-style: L1 + password is `Keychain` with
+            // `modifiers.password = true`. Pre-v3 configs used a
+            // dedicated `KeychainWithPassword` tier; the
+            // `ConfigV2ToV3` migration rewrites them on read.
+            tier: SecurityTier::Keychain,
             modifiers,
             master_password: None,
             short_password: typed_secret,
@@ -407,7 +421,6 @@ mod tests {
         for tier in [
             SecurityTier::Plaintext,
             SecurityTier::Keychain,
-            SecurityTier::KeychainWithPassword,
             SecurityTier::Hardware,
             SecurityTier::Paranoid,
         ] {
@@ -416,10 +429,15 @@ mod tests {
     }
 
     #[test]
-    fn from_wire_name_rejects_unknown() {
+    fn from_wire_name_rejects_unknown_and_legacy() {
         assert_eq!(SecurityTier::from_wire_name(""), None);
         assert_eq!(SecurityTier::from_wire_name("L4"), None);
         assert_eq!(SecurityTier::from_wire_name("plaintext "), None);
+        // The pre-v3 wire string is no longer recognised — the
+        // ConfigV2ToV3 migration rewrites stored configs before the
+        // runtime parses them, so this branch only fires on a
+        // genuinely-malformed input from an external caller.
+        assert_eq!(SecurityTier::from_wire_name("keychain_with_password"), None);
     }
 
     #[test]
@@ -429,7 +447,6 @@ mod tests {
         assert!(SecurityTier::Hardware.has_hardware_vault());
         assert!(!SecurityTier::Keychain.has_hardware_vault());
         assert!(SecurityTier::Keychain.has_keychain());
-        assert!(SecurityTier::KeychainWithPassword.has_keychain());
         assert!(SecurityTier::Hardware.has_keychain());
         assert!(!SecurityTier::Plaintext.has_keychain());
         assert!(!SecurityTier::Paranoid.has_keychain());
@@ -530,7 +547,10 @@ mod tests {
     #[test]
     fn config_json_round_trip() {
         let original = SecurityConfig {
-            tier: SecurityTier::KeychainWithPassword,
+            // Bank-style L1 + password — previously a dedicated
+            // KeychainWithPassword tier, now Keychain + the
+            // password modifier.
+            tier: SecurityTier::Keychain,
             modifiers: SecurityTierModifiers {
                 password: true,
                 biometric: false,
@@ -557,42 +577,52 @@ mod tests {
 
     #[test]
     fn config_predicates_match_dart() {
-        for (tier, paranoid, plaintext, kc, hw, secret) in [
-            (SecurityTier::Plaintext, false, true, false, false, false),
-            (SecurityTier::Keychain, false, false, true, false, false),
-            (
-                SecurityTier::KeychainWithPassword,
-                false,
-                false,
-                true,
-                false,
-                true,
-            ),
-            (SecurityTier::Hardware, false, false, false, true, true),
-            (SecurityTier::Paranoid, true, false, false, false, true),
+        for (tier, password, paranoid, plaintext, kc, hw, secret) in [
+            (SecurityTier::Plaintext, false, false, true, false, false, false),
+            (SecurityTier::Keychain, false, false, false, true, false, false),
+            // Bank-style L1 + password — `has_user_secret` flips on
+            // the modifier, not on a dedicated tier value.
+            (SecurityTier::Keychain, true, false, false, true, false, true),
+            (SecurityTier::Hardware, false, false, false, false, true, false),
+            (SecurityTier::Hardware, true, false, false, false, true, true),
+            (SecurityTier::Paranoid, false, true, false, false, false, true),
         ] {
             let cfg = SecurityConfig {
                 tier,
-                modifiers: SecurityTierModifiers::default(),
+                modifiers: SecurityTierModifiers {
+                    password,
+                    ..SecurityTierModifiers::default()
+                },
             };
-            assert_eq!(cfg.is_paranoid(), paranoid, "{tier:?}");
-            assert_eq!(cfg.is_plaintext(), plaintext, "{tier:?}");
-            assert_eq!(cfg.uses_keychain(), kc, "{tier:?}");
-            assert_eq!(cfg.uses_hardware_vault(), hw, "{tier:?}");
-            assert_eq!(cfg.has_user_secret(), secret, "{tier:?}");
+            assert_eq!(cfg.is_paranoid(), paranoid, "{tier:?} pw={password}");
+            assert_eq!(cfg.is_plaintext(), plaintext, "{tier:?} pw={password}");
+            assert_eq!(cfg.uses_keychain(), kc, "{tier:?} pw={password}");
+            assert_eq!(cfg.uses_hardware_vault(), hw, "{tier:?} pw={password}");
+            assert_eq!(cfg.has_user_secret(), secret, "{tier:?} pw={password}");
         }
     }
 
     #[test]
     fn config_to_json_uses_snake_case_tier_name() {
         let cfg = SecurityConfig {
-            tier: SecurityTier::KeychainWithPassword,
-            modifiers: SecurityTierModifiers::default(),
+            tier: SecurityTier::Keychain,
+            modifiers: SecurityTierModifiers {
+                password: true,
+                ..SecurityTierModifiers::default()
+            },
         };
         let json = cfg.to_json_value();
         assert_eq!(
             json.get("tier").and_then(|v| v.as_str()),
-            Some("keychain_with_password")
+            Some("keychain"),
+        );
+        // The password modifier is what carries the "L1 + password"
+        // signal in the bank-style v3 wire shape.
+        assert_eq!(
+            json.get("modifiers")
+                .and_then(|m| m.get("password"))
+                .and_then(|v| v.as_bool()),
+            Some(true),
         );
     }
 
@@ -614,7 +644,10 @@ mod tests {
         assert_eq!(no_pw.short_password, None);
 
         let with_pw = map_wizard_choice(WizardTier::Keychain, true, false, Some("hunter2".into()));
-        assert_eq!(with_pw.tier, SecurityTier::KeychainWithPassword);
+        // Bank-style: L1 + password is `Keychain` + the password
+        // modifier, not a dedicated tier value.
+        assert_eq!(with_pw.tier, SecurityTier::Keychain);
+        assert!(with_pw.modifiers.password);
         assert_eq!(with_pw.short_password, Some("hunter2".into()));
         assert_eq!(with_pw.pin, None);
         assert_eq!(with_pw.master_password, None);

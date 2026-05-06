@@ -644,13 +644,16 @@ SecurityTier? _tierFromName(String s) {
       return SecurityTier.plaintext;
     case 'keychain':
       return SecurityTier.keychain;
-    case 'keychain_with_password':
-      return SecurityTier.keychainWithPassword;
     case 'hardware':
       return SecurityTier.hardware;
     case 'paranoid':
       return SecurityTier.paranoid;
     default:
+      // The pre-v3 `keychain_with_password` wire string is no
+      // longer recognised — the Rust-side `ConfigV2ToV3` migration
+      // rewrites stored configs to `keychain` + `modifiers
+      // .password = true` before the runtime parses them, so this
+      // branch only fires on a malformed external value.
       return null;
   }
 }

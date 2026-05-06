@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,7 +7,9 @@ import 'package:letsflutssh/core/security/lock_state.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/providers/known_hosts_provider.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
+import 'package:letsflutssh/core/config/app_config.dart';
 import 'package:letsflutssh/providers/auto_lock_provider.dart';
+import 'package:letsflutssh/providers/config_provider.dart';
 import 'package:letsflutssh/providers/connection_provider.dart';
 import 'package:letsflutssh/providers/security_provider.dart';
 import 'package:letsflutssh/widgets/auto_lock_detector.dart';
@@ -49,7 +50,9 @@ void main() {
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
           knownHostsProvider.overrideWith(KnownHostsNotifier.new),
-          connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager(const []),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -83,7 +86,9 @@ void main() {
           overrides: [
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
-            connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
+            connectionsProvider.overrideWith(
+              () => _StubConnectionManager(const []),
+            ),
           ],
         );
         addTearDown(container.dispose);
@@ -113,7 +118,9 @@ void main() {
             // 1-minute timeout so the test only advances wall-clock once.
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
-            connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
+            connectionsProvider.overrideWith(
+              () => _StubConnectionManager(const []),
+            ),
           ],
         );
         addTearDown(container.dispose);
@@ -169,7 +176,9 @@ void main() {
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
           knownHostsProvider.overrideWith(KnownHostsNotifier.new),
-          connectionsProvider.overrideWith(() => _StubConnectionManager([liveConn])),
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager([liveConn]),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -211,7 +220,9 @@ void main() {
             // Timer OFF — auto-lock disabled entirely.
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(0)),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
-            connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
+            connectionsProvider.overrideWith(
+              () => _StubConnectionManager(const []),
+            ),
           ],
         );
         addTearDown(container.dispose);
@@ -246,7 +257,9 @@ void main() {
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(15)),
           knownHostsProvider.overrideWith(KnownHostsNotifier.new),
-          connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager(const []),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -280,7 +293,9 @@ void main() {
         overrides: [
           autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
           knownHostsProvider.overrideWith(KnownHostsNotifier.new),
-          connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
+          connectionsProvider.overrideWith(
+            () => _StubConnectionManager(const []),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -317,17 +332,30 @@ void main() {
     testWidgets(
       'T1 + password tier arms the timer the same way Paranoid does',
       (tester) async {
+        // Bank-style v3: L1+password is `keychain` + `modifiers
+        // .password = true` — the detector's `_hasTypedSecret`
+        // reads the modifier off configProvider, so the test must
+        // pre-load a SecurityConfig with the password modifier on.
+        final cfgWithPassword = const AppConfig().copyWithSecurity(
+          security: const SecurityConfig(
+            tier: SecurityTier.keychain,
+            modifiers: SecurityTierModifiers(password: true),
+          ),
+        );
         final container = ProviderContainer(
           overrides: [
+            preloadedAppConfigProvider.overrideWithValue(cfgWithPassword),
             autoLockMinutesProvider.overrideWith(() => _AutoLockMinutes(1)),
             knownHostsProvider.overrideWith(KnownHostsNotifier.new),
-            connectionsProvider.overrideWith(() => _StubConnectionManager(const [])),
+            connectionsProvider.overrideWith(
+              () => _StubConnectionManager(const []),
+            ),
           ],
         );
         addTearDown(container.dispose);
         container
             .read(securityStateProvider.notifier)
-            .setActive(SecurityTier.keychainWithPassword, hasKey: true);
+            .setActive(SecurityTier.keychain, hasKey: true);
 
         await tester.pumpWidget(
           UncontrolledProviderScope(

@@ -78,7 +78,7 @@ void main() {
           biometric: false,
           typedSecret: 'hunter2',
         );
-        expect(mapped.tier, SecurityTier.keychainWithPassword);
+        expect(mapped.tier, SecurityTier.keychain);
         expect(mapped.shortPassword, 'hunter2');
         expect(mapped.modifiers.password, isTrue);
       },
@@ -91,7 +91,7 @@ void main() {
         biometric: true,
         typedSecret: 'hunter2',
       );
-      expect(mapped.tier, SecurityTier.keychainWithPassword);
+      expect(mapped.tier, SecurityTier.keychain);
       expect(mapped.modifiers.password, isTrue);
       expect(mapped.modifiers.biometric, isTrue);
       // Legacy alias must stay in sync.

@@ -123,14 +123,20 @@ extension _FirstLaunchFlows on SecurityInitController {
         await _firstLaunchParanoid(result, manager);
       case SecurityTier.hardware:
         await _firstLaunchHardware(result.takePin(), result.modifiers);
-      case SecurityTier.keychainWithPassword:
-        await _firstLaunchKeychainWithPassword(
-          keyStorage: keyStorage,
-          shortPassword: result.takeShortPassword(),
-          modifiers: result.modifiers,
-        );
       case SecurityTier.keychain:
-        await _firstLaunchKeychain(result, keyStorage);
+        // Bank-style v3: L1+password is `keychain` + `modifiers
+        // .password`; the dispatch was previously a dedicated
+        // `keychainWithPassword` arm and is now a modifier check
+        // inside the keychain arm.
+        if (result.modifiers.password) {
+          await _firstLaunchKeychainWithPassword(
+            keyStorage: keyStorage,
+            shortPassword: result.takeShortPassword(),
+            modifiers: result.modifiers,
+          );
+        } else {
+          await _firstLaunchKeychain(result, keyStorage);
+        }
       case SecurityTier.plaintext:
         final ok = await _runFirstLaunchOrchestrator(
           tier: SecurityTier.plaintext,
@@ -389,7 +395,11 @@ extension _FirstLaunchFlows on SecurityInitController {
     // String stays scoped to this function.
     final passwordBytes = Uint8List.fromList(utf8.encode(shortPassword));
     final ok = await _runFirstLaunchOrchestrator(
-      tier: SecurityTier.keychainWithPassword,
+      // Bank-style v3: the L1+password tier is `keychain` with
+      // `modifiers.password = true`; the orchestrator publishes
+      // events under the keychain tier and the modifier carries
+      // the password signal.
+      tier: SecurityTier.keychain,
       modifiers: modifiers,
       dispatch: () async {
         final outcome = await rust_orch.tierFirstLaunchKeychainWithPassword(
@@ -416,7 +426,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     if (stored) {
       await _injectDatabase(
         secretId: secretId,
-        level: SecurityTier.keychainWithPassword,
+        level: SecurityTier.keychain,
         modifiers: modifiers,
       );
       AppLogger.instance.log(

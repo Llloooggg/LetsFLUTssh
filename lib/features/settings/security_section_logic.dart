@@ -54,10 +54,12 @@ String? autoLockDisabledReason({
   required SecurityTier level,
   required SecurityTierModifiers modifiers,
 }) {
-  final hasPassword =
-      level == SecurityTier.paranoid ||
-      level == SecurityTier.keychainWithPassword ||
-      modifiers.password;
+  // Bank-style v3: "L1 + password" is `keychain` + `modifiers
+  // .password`, not a dedicated tier value. Paranoid is always
+  // password-true by construction, but we still check the tier
+  // explicitly so a malformed config (paranoid with the modifier
+  // somehow false) doesn't silently disable auto-lock gating.
+  final hasPassword = level == SecurityTier.paranoid || modifiers.password;
   if (hasPassword) return null;
   return l10n.autoLockRequiresPassword;
 }
@@ -91,10 +93,12 @@ BiometricModifierSpec? biometricSpecFor({
   if (tier != SecurityTier.keychain && tier != SecurityTier.hardware) {
     return null;
   }
-  final isCurrent =
-      tier == currentLevel ||
-      (tier == SecurityTier.keychain &&
-          currentLevel == SecurityTier.keychainWithPassword);
+  // Pre-v3 the L1+password tier had its own enum value, so the
+  // keychain card had to special-case "current is L2" via a
+  // distinct tier comparison. Post-v3 collapse: L2 is just
+  // keychain + modifiers.password=true, so `tier == currentLevel`
+  // covers it directly.
+  final isCurrent = tier == currentLevel;
 
   final platformReason = biometricPlatformReason(
     l10n: l10n,
@@ -128,10 +132,11 @@ BiometricModifierSpec? biometricSpecFor({
     );
   }
 
+  // Bank-style v3: paranoid is always password-true by
+  // construction, the formerly-dedicated L1+password tier is now
+  // just `currentModifiers.password` on the keychain tier.
   final hasPassword =
-      currentLevel == SecurityTier.paranoid ||
-      currentLevel == SecurityTier.keychainWithPassword ||
-      currentModifiers.password;
+      currentLevel == SecurityTier.paranoid || currentModifiers.password;
   if (!hasPassword) {
     return BiometricModifierSpec(
       enabled: false,
@@ -152,22 +157,37 @@ BiometricModifierSpec? biometricSpecFor({
 /// True when the [current] → [next] transition drops a *verifiable*
 /// password — meaning the tier change wants the user to re-enter the
 /// existing password before we discard it. Verifiable means the
-/// previous tier carries a password that can be cryptographically
-/// checked: KeychainWithPassword (gate verifier file) and Paranoid
-/// (KDF-derived key against the master verifier). Plaintext / plain
-/// Keychain / Hardware do not — the gate-down transition for those
-/// has nothing to verify against, so the helper returns false and
-/// the apply pipeline skips the prompt.
+/// previous config carries a password that can be cryptographically
+/// checked: keychain + password (gate verifier file) and paranoid
+/// (KDF-derived key against the master verifier). Plaintext, plain
+/// keychain, and hardware (with or without password) do not — the
+/// gate-down transition for those has nothing to verify against, so
+/// the helper returns false and the apply pipeline skips the prompt.
 ///
-/// Same-tier transitions (T2-with-pw → T2-with-pw, Paranoid →
-/// Paranoid) return false too: the user is reconfiguring modifiers,
-/// not dropping the password, so the prompt would be redundant.
-bool isVerifiablePasswordDrop(SecurityTier current, SecurityTier next) {
-  if (current == SecurityTier.keychainWithPassword &&
-      next != SecurityTier.keychainWithPassword) {
-    return true;
-  }
-  if (current == SecurityTier.paranoid && next != SecurityTier.paranoid) {
+/// Same-tier transitions (keychain+pw → keychain+pw, paranoid →
+/// paranoid) return false too: the user is reconfiguring modifiers,
+/// not dropping the password, so the prompt would be redundant. A
+/// keychain+pw → keychain (drop the modifier alone) IS a verifiable
+/// drop and triggers the prompt — the tier value stays but the
+/// password gate goes away.
+bool isVerifiablePasswordDrop({
+  required SecurityTier currentTier,
+  required SecurityTierModifiers currentModifiers,
+  required SecurityTier nextTier,
+  required SecurityTierModifiers nextModifiers,
+}) {
+  // Pre-v3 model carried L1+password as its own tier value, so this
+  // helper used to switch on tier alone. Bank-style v3 puts password
+  // on the modifier — a keychain+pw → keychain transition keeps the
+  // tier intact and only drops the modifier, so the modifier delta
+  // is what gates the prompt now.
+  final wasKeychainWithPassword =
+      currentTier == SecurityTier.keychain && currentModifiers.password;
+  final isKeychainWithPassword =
+      nextTier == SecurityTier.keychain && nextModifiers.password;
+  if (wasKeychainWithPassword && !isKeychainWithPassword) return true;
+  if (currentTier == SecurityTier.paranoid &&
+      nextTier != SecurityTier.paranoid) {
     return true;
   }
   return false;
@@ -218,8 +238,6 @@ String securityTierLogName(SecurityTier tier) {
       return 'plaintext';
     case SecurityTier.keychain:
       return 'keychain';
-    case SecurityTier.keychainWithPassword:
-      return 'keychain_with_password';
     case SecurityTier.hardware:
       return 'hardware';
     case SecurityTier.paranoid:
@@ -292,10 +310,19 @@ enum BiometricKeySource {
 /// the post-apply DB key.
 BiometricKeySource biometricKeySourceFor({
   required SecurityTier currentTier,
+  required SecurityTierModifiers currentModifiers,
   required SecurityTier nextTier,
+  required SecurityTierModifiers nextModifiers,
 }) {
+  // Cross-tier transitions still pull from the freshly-applied
+  // tier; the new card's password drives the rekey directly.
   if (currentTier != nextTier) return BiometricKeySource.pullFromAppliedTier;
-  if (currentTier == SecurityTier.keychainWithPassword) {
+  // Same-tier flip on bank-style L1+pw — re-prompt against the
+  // gate verifier file. The modifier-aware predicate replaces the
+  // pre-v3 dedicated `keychainWithPassword` enum check.
+  if (currentTier == SecurityTier.keychain &&
+      currentModifiers.password &&
+      nextModifiers.password) {
     return BiometricKeySource.promptAndVerifyKeychainGate;
   }
   if (currentTier == SecurityTier.paranoid) {
@@ -401,10 +428,14 @@ Future<void> applyPlaintextTier({
     SecurityTierModifiers mods,
   )
   applyAlwaysRekey,
-  required Future<void> Function(SecurityTier target) runClearPlan,
+  required Future<void> Function(
+    SecurityTier target,
+    SecurityTierModifiers modifiers,
+  )
+  runClearPlan,
 }) async {
   await applyAlwaysRekey(null, SecurityTier.plaintext, modifiers);
-  await runClearPlan(SecurityTier.plaintext);
+  await runClearPlan(SecurityTier.plaintext, modifiers);
 }
 
 /// Apply the Keychain (no password) tier — SecretRef variant.
@@ -432,7 +463,11 @@ Future<void> applyKeychainTier({
   )
   applyAlwaysRekeyFromSecret,
   required void Function(String secretId) dropStaged,
-  required Future<void> Function(SecurityTier target) runClearPlan,
+  required Future<void> Function(
+    SecurityTier target,
+    SecurityTierModifiers modifiers,
+  )
+  runClearPlan,
 }) async {
   final secretId = stageRandomKey();
   if (!await keychainWriteFromSecret(secretId)) {
@@ -440,7 +475,7 @@ Future<void> applyKeychainTier({
     throw StateError('keychain write failed');
   }
   await applyAlwaysRekeyFromSecret(secretId, SecurityTier.keychain, modifiers);
-  await runClearPlan(SecurityTier.keychain);
+  await runClearPlan(SecurityTier.keychain, modifiers);
 }
 
 /// Apply the Hardware tier. Generates a fresh DB key, seals it under
@@ -469,7 +504,11 @@ Future<void> applyHardwareTier({
   )
   applyAlwaysRekeyFromSecret,
   required void Function(String secretId) dropStaged,
-  required Future<void> Function(SecurityTier target) runClearPlan,
+  required Future<void> Function(
+    SecurityTier target,
+    SecurityTierModifiers modifiers,
+  )
+  runClearPlan,
 }) async {
   final secretId = stageRandomKey();
   final sealed = await hardwareStoreFromSecret(secretId: secretId, pin: pin);
@@ -478,7 +517,7 @@ Future<void> applyHardwareTier({
     throw StateError('hardware seal failed');
   }
   await applyAlwaysRekeyFromSecret(secretId, SecurityTier.hardware, modifiers);
-  await runClearPlan(SecurityTier.hardware);
+  await runClearPlan(SecurityTier.hardware, modifiers);
 }
 
 /// Apply the Paranoid tier. Enables the master-password manager,
@@ -504,7 +543,11 @@ Future<void> applyParanoidTier({
   )
   applyAlwaysRekeyFromSecret,
   required void Function(String secretId) dropStaged,
-  required Future<void> Function(SecurityTier target) runClearPlan,
+  required Future<void> Function(
+    SecurityTier target,
+    SecurityTierModifiers modifiers,
+  )
+  runClearPlan,
 }) async {
   if (masterPassword == null || masterPassword.isEmpty) {
     throw StateError('master password missing');
@@ -522,7 +565,7 @@ Future<void> applyParanoidTier({
     rethrow;
   }
   await applyAlwaysRekeyFromSecret(secretId, SecurityTier.paranoid, modifiers);
-  await runClearPlan(SecurityTier.paranoid);
+  await runClearPlan(SecurityTier.paranoid, modifiers);
 }
 
 /// Apply the KeychainWithPassword tier: stage the gate password,
@@ -552,7 +595,11 @@ Future<void> applyKeychainWithPasswordTier({
   )
   applyAlwaysRekeyFromSecret,
   required void Function(String secretId) dropStaged,
-  required Future<void> Function(SecurityTier target) runClearPlan,
+  required Future<void> Function(
+    SecurityTier target,
+    SecurityTierModifiers modifiers,
+  )
+  runClearPlan,
 }) async {
   if (shortPassword == null || shortPassword.isEmpty) {
     throw StateError('short password missing');
@@ -568,12 +615,11 @@ Future<void> applyKeychainWithPasswordTier({
     await gateClear();
     throw StateError('keychain write failed');
   }
-  await applyAlwaysRekeyFromSecret(
-    secretId,
-    SecurityTier.keychainWithPassword,
-    modifiers,
-  );
-  await runClearPlan(SecurityTier.keychainWithPassword);
+  // Bank-style v3: L1+password is `keychain` + `modifiers
+  // .password=true`; the rekey + clear-plan dispatch both bind on
+  // the same tier value as plain keychain.
+  await applyAlwaysRekeyFromSecret(secretId, SecurityTier.keychain, modifiers);
+  await runClearPlan(SecurityTier.keychain, modifiers);
 }
 
 /// Outcome of [confirmCurrentPasswordIfDropping]. Distinguishes the
@@ -615,12 +661,19 @@ enum ConfirmPasswordResult {
 ///    `true` → `ok`.
 Future<ConfirmPasswordResult> confirmCurrentPasswordIfDropping({
   required SecurityTier currentTier,
+  required SecurityTierModifiers currentModifiers,
   required SecurityTier targetTier,
+  required SecurityTierModifiers targetModifiers,
   required Future<String?> Function() promptCurrentPassword,
   required Future<bool> Function(Uint8List) verifyMaster,
   required Future<bool> Function(Uint8List) verifyKeychainGate,
 }) async {
-  if (!isVerifiablePasswordDrop(currentTier, targetTier)) {
+  if (!isVerifiablePasswordDrop(
+    currentTier: currentTier,
+    currentModifiers: currentModifiers,
+    nextTier: targetTier,
+    nextModifiers: targetModifiers,
+  )) {
     return ConfirmPasswordResult.notRequired;
   }
   final entered = await promptCurrentPassword();
@@ -673,7 +726,10 @@ Future<void> runVaultClearPlan({
 /// KeychainWithPassword,Hardware,Paranoid}Tier` — extracted so the
 /// matrix is one unit-testable surface instead of five inlined
 /// `await ref.read(...).clear()` chains that drifted independently.
-TierVaultClearPlan tierVaultClearPlanFor(SecurityTier target) {
+TierVaultClearPlan tierVaultClearPlanFor(
+  SecurityTier target,
+  SecurityTierModifiers modifiers,
+) {
   switch (target) {
     case SecurityTier.plaintext:
       // T0 — every vault wiped. The DB drops to plaintext, so no
@@ -686,21 +742,14 @@ TierVaultClearPlan tierVaultClearPlanFor(SecurityTier target) {
         clearBiometricVault: true,
       );
     case SecurityTier.keychain:
-      // T1 — apply just wrote a fresh DB key into the keychain;
-      // every other vault gets cleared.
-      return const TierVaultClearPlan(
+      // T1 — apply just wrote a fresh DB key into the keychain.
+      // The password gate file survives only when the bank-style
+      // password modifier is on (the pre-v3 `keychainWithPassword`
+      // tier value is now this branch with `modifiers.password ==
+      // true`); everything else clears.
+      return TierVaultClearPlan(
         clearKeychainKey: false,
-        clearKeychainGate: true,
-        clearHardwareVault: true,
-        clearMasterPassword: true,
-        clearBiometricVault: true,
-      );
-    case SecurityTier.keychainWithPassword:
-      // T1+pw — apply wrote both the keychain key + the password
-      // gate; everything else clears.
-      return const TierVaultClearPlan(
-        clearKeychainKey: false,
-        clearKeychainGate: false,
+        clearKeychainGate: !modifiers.password,
         clearHardwareVault: true,
         clearMasterPassword: true,
         clearBiometricVault: true,

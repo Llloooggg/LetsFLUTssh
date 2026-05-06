@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 
-use super::artefacts::{ConfigArtefact, ConfigV1ToV2, KdfArtefact};
+use super::artefacts::{ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, KdfArtefact};
 use super::{Artefact, Migration};
 
 /// Mutable registry of every artefact + migration the runner knows
@@ -38,6 +38,12 @@ pub fn build_app_registry() -> Registry {
     // value (object or `null`) on the wire; v1 writers omitted on
     // `None`, collapsing the round-trip distinction.
     reg.migrations.push(Box::new(ConfigV1ToV2));
+    // v2 → v3: collapse the legacy `keychain_with_password` tier
+    // wire value into `keychain` + `security_modifiers.password =
+    // true`. Finishes the half-migration to the bank-style tier
+    // model so the enum carries one value per key-storage strategy
+    // and password is purely a modifier.
+    reg.migrations.push(Box::new(ConfigV2ToV3));
 
     // Vault + password-gate layouts depend on tier read from config —
     // keep config ahead of every future vault artefact in the
@@ -99,6 +105,21 @@ mod tests {
                     && m.target_version() == 2),
             "ConfigV1ToV2 must be registered so v1 installs migrate \
              to v2 on the next launch",
+        );
+    }
+
+    #[test]
+    fn config_v2_to_v3_migration_registered() {
+        let reg = build_app_registry();
+        assert!(
+            reg.migrations
+                .iter()
+                .any(|m| m.artefact_id() == "config.json"
+                    && m.source_version() == 2
+                    && m.target_version() == 3),
+            "ConfigV2ToV3 must be registered so v2 installs migrate \
+             to v3 on the next launch (keychain_with_password tier \
+             collapse into bank-style modifier)",
         );
     }
 }

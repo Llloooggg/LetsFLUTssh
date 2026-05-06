@@ -48,6 +48,7 @@ extension _BiometricFlow on _SecuritySectionState {
   Future<void> _applyBiometricOnlyToggle(
     bool? pendingBiometric,
     SecurityTier currentTier,
+    SecurityTierModifiers currentModifiers,
   ) async {
     if (pendingBiometric == null) return;
     final l10n = S.of(context);
@@ -57,8 +58,14 @@ extension _BiometricFlow on _SecuritySectionState {
       // enable — asks for the current password, verifies it against
       // the live gate, stages the derived DB key in the SecretStore
       // under `kBiometricEnableStagingSecretId`. Bytes never cross
-      // the FRB boundary on this path.
-      capture = await _captureKeyForBiometricEnable(currentTier, currentTier);
+      // the FRB boundary on this path. Same-tier flip → modifiers
+      // also unchanged, so we pass `currentModifiers` for both.
+      capture = await _captureKeyForBiometricEnable(
+        currentTier,
+        currentModifiers,
+        currentTier,
+        currentModifiers,
+      );
       if (capture.kind == _BiometricKeyCaptureKind.cancelled) return;
     }
     if (!mounted) return;
@@ -105,7 +112,9 @@ extension _BiometricFlow on _SecuritySectionState {
   /// against that slot.
   Future<_BiometricKeyCapture> _captureKeyForBiometricEnable(
     SecurityTier current,
-    SecurityTier next, {
+    SecurityTierModifiers currentModifiers,
+    SecurityTier next,
+    SecurityTierModifiers nextModifiers, {
     String? shortPassword,
     String? pin,
     String? masterPassword,
@@ -116,7 +125,12 @@ extension _BiometricFlow on _SecuritySectionState {
     // everything else → empty sentinel) is unit-tested without a
     // pumpWidget round-trip. The dispatcher here only wires the
     // chosen source onto its prompt + read implementation.
-    switch (biometricKeySourceFor(currentTier: current, nextTier: next)) {
+    switch (biometricKeySourceFor(
+      currentTier: current,
+      currentModifiers: currentModifiers,
+      nextTier: next,
+      nextModifiers: nextModifiers,
+    )) {
       case BiometricKeySource.pullFromAppliedTier:
         return _BiometricKeyCapture.pullFromActiveAfterApply;
       case BiometricKeySource.promptAndVerifyKeychainGate:

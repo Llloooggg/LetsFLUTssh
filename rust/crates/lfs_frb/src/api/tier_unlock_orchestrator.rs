@@ -250,7 +250,8 @@ pub fn tier_unlock_biometric_commit(tier_wire_name: String, bytes: Vec<u8>) -> b
     let tier = match tier_wire_name.as_str() {
         "plaintext" => SecurityTier::Plaintext,
         "keychain" => SecurityTier::Keychain,
-        "keychain_with_password" => SecurityTier::KeychainWithPassword,
+        // Pre-v3 wire-name; v3 collapse rewrites stored configs already, but FRB callers may still hand the legacy string from in-flight bus events captured pre-restart. Map to Keychain identical to the new wire name.
+        "keychain_with_password" => SecurityTier::Keychain,
         "hardware" => SecurityTier::Hardware,
         "paranoid" => SecurityTier::Paranoid,
         _ => return false,
@@ -271,7 +272,8 @@ pub fn tier_unlock_biometric_commit_from_secret(tier_wire_name: String, secret_i
     let tier = match tier_wire_name.as_str() {
         "plaintext" => SecurityTier::Plaintext,
         "keychain" => SecurityTier::Keychain,
-        "keychain_with_password" => SecurityTier::KeychainWithPassword,
+        // Pre-v3 wire-name; v3 collapse rewrites stored configs already, but FRB callers may still hand the legacy string from in-flight bus events captured pre-restart. Map to Keychain identical to the new wire name.
+        "keychain_with_password" => SecurityTier::Keychain,
         "hardware" => SecurityTier::Hardware,
         "paranoid" => SecurityTier::Paranoid,
         _ => return false,
@@ -297,7 +299,7 @@ pub fn tier_unlock_keychain_cancel() {
 #[flutter_rust_bridge::frb(sync)]
 pub fn tier_unlock_keychain_with_password_cancel() {
     use lfs_core::security::SecurityTier;
-    tier_unlock_orchestrator::cancel_unlock(SecurityTier::KeychainWithPassword);
+    tier_unlock_orchestrator::cancel_unlock(SecurityTier::Keychain);
 }
 
 /// Cancel an in-flight L3 unlock attempt. Dispatches

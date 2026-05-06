@@ -102,18 +102,10 @@ void main() {
       );
     });
 
-    test('keychainWithPassword always allows auto-lock', () {
-      expect(
-        autoLockDisabledReason(
-          l10n: l10n,
-          level: SecurityTier.keychainWithPassword,
-          modifiers: const SecurityTierModifiers(),
-        ),
-        isNull,
-      );
-    });
-
     test('keychain + password modifier allows auto-lock', () {
+      // Bank-style v3: this case used to live as a dedicated
+      // `keychainWithPassword` tier value; the post-v3 collapse
+      // folds it into `keychain` + `modifiers.password = true`.
       expect(
         autoLockDisabledReason(
           l10n: l10n,
@@ -198,7 +190,7 @@ void main() {
       final spec = biometricSpecFor(
         l10n: l10n,
         tier: SecurityTier.keychain,
-        currentLevel: SecurityTier.keychainWithPassword,
+        currentLevel: SecurityTier.keychain,
         currentModifiers: const SecurityTierModifiers(password: true),
         tierAvailable: true,
         tierUnavailableReason: null,
@@ -236,7 +228,7 @@ void main() {
       final spec = biometricSpecFor(
         l10n: l10n,
         tier: SecurityTier.keychain,
-        currentLevel: SecurityTier.keychainWithPassword,
+        currentLevel: SecurityTier.keychain,
         currentModifiers: const SecurityTierModifiers(password: true),
         tierAvailable: true,
         tierUnavailableReason: null,
@@ -329,14 +321,36 @@ void main() {
   });
 
   group('isVerifiablePasswordDrop', () {
-    test('keychainWithPassword → anything other than keychainWithPassword '
-        'requires verification', () {
-      for (final next in SecurityTier.values) {
-        if (next == SecurityTier.keychainWithPassword) continue;
+    const noPw = SecurityTierModifiers.defaults;
+    const withPw = SecurityTierModifiers(password: true);
+
+    test(
+      'keychain+password → keychain (drop modifier alone) requires verification',
+      () {
         expect(
-          isVerifiablePasswordDrop(SecurityTier.keychainWithPassword, next),
+          isVerifiablePasswordDrop(
+            currentTier: SecurityTier.keychain,
+            currentModifiers: withPw,
+            nextTier: SecurityTier.keychain,
+            nextModifiers: noPw,
+          ),
           isTrue,
-          reason: 'Drop from keychainWithPassword to $next must verify',
+        );
+      },
+    );
+
+    test('keychain+password → other tiers requires verification', () {
+      for (final next in SecurityTier.values) {
+        if (next == SecurityTier.keychain) continue;
+        expect(
+          isVerifiablePasswordDrop(
+            currentTier: SecurityTier.keychain,
+            currentModifiers: withPw,
+            nextTier: next,
+            nextModifiers: noPw,
+          ),
+          isTrue,
+          reason: 'Drop from keychain+password to $next must verify',
         );
       }
     });
@@ -345,39 +359,56 @@ void main() {
       for (final next in SecurityTier.values) {
         if (next == SecurityTier.paranoid) continue;
         expect(
-          isVerifiablePasswordDrop(SecurityTier.paranoid, next),
+          isVerifiablePasswordDrop(
+            currentTier: SecurityTier.paranoid,
+            currentModifiers: withPw,
+            nextTier: next,
+            nextModifiers: noPw,
+          ),
           isTrue,
           reason: 'Drop from paranoid to $next must verify',
         );
       }
     });
 
-    test(
-      'same-tier transitions never trigger the prompt (modifier-only edit)',
-      () {
-        for (final t in SecurityTier.values) {
+    test('same-tier same-modifier transitions never trigger the prompt', () {
+      for (final t in SecurityTier.values) {
+        for (final mods in [noPw, withPw]) {
           expect(
-            isVerifiablePasswordDrop(t, t),
+            isVerifiablePasswordDrop(
+              currentTier: t,
+              currentModifiers: mods,
+              nextTier: t,
+              nextModifiers: mods,
+            ),
             isFalse,
-            reason: '$t → $t is a modifier-only edit, no verify prompt',
+            reason: '$t/$mods → same is a no-op, no verify prompt',
           );
         }
-      },
-    );
+      }
+    });
 
     test('non-verifiable source tiers never demand a verification prompt', () {
-      const sources = [
-        SecurityTier.plaintext,
-        SecurityTier.keychain,
-        SecurityTier.hardware,
+      const cases = [
+        (SecurityTier.plaintext, noPw),
+        (SecurityTier.keychain, noPw),
+        (SecurityTier.hardware, noPw),
+        (SecurityTier.hardware, withPw),
       ];
-      for (final src in sources) {
+      for (final (src, mods) in cases) {
         for (final next in SecurityTier.values) {
           if (src == next) continue;
           expect(
-            isVerifiablePasswordDrop(src, next),
+            isVerifiablePasswordDrop(
+              currentTier: src,
+              currentModifiers: mods,
+              nextTier: next,
+              nextModifiers: noPw,
+            ),
             isFalse,
-            reason: 'Source $src has no verifiable password — $src → $next',
+            reason:
+                'Source ($src, password=${mods.password}) has no verifiable '
+                'password — $src → $next',
           );
         }
       }
@@ -388,10 +419,6 @@ void main() {
     test('every tier has a stable snake_case marker', () {
       expect(securityTierLogName(SecurityTier.plaintext), 'plaintext');
       expect(securityTierLogName(SecurityTier.keychain), 'keychain');
-      expect(
-        securityTierLogName(SecurityTier.keychainWithPassword),
-        'keychain_with_password',
-      );
       expect(securityTierLogName(SecurityTier.hardware), 'hardware');
       expect(securityTierLogName(SecurityTier.paranoid), 'paranoid');
     });
@@ -406,9 +433,9 @@ void main() {
       // the only thing flipping. Fast path skips the full rekey.
       expect(
         classifyTierTransition(
-          currentLevel: SecurityTier.keychainWithPassword,
+          currentLevel: SecurityTier.keychain,
           currentModifiers: withPwd,
-          targetTier: SecurityTier.keychainWithPassword,
+          targetTier: SecurityTier.keychain,
           targetModifiers: withPwd,
           pendingBiometric: true,
         ),
@@ -517,14 +544,17 @@ void main() {
   group('buildTierMarkerPayload', () {
     test('payload is JSON {tier, mods} with snake_case tier name', () {
       final payload = buildTierMarkerPayload(
-        SecurityTier.keychainWithPassword,
+        SecurityTier.keychain,
         const SecurityTierModifiers(password: true),
       );
       // Round-trip through jsonDecode for shape assertions — never
       // assert on raw string layout (would lock to formatting).
+      // Bank-style v3: the L1+password case collapsed; the tier
+      // wire name stays `keychain` and the password signal lives
+      // in `mods.password`.
       final decoded = json.decode(payload);
       expect(decoded, isA<Map<String, dynamic>>());
-      expect(decoded['tier'], 'keychain_with_password');
+      expect(decoded['tier'], 'keychain');
       expect(decoded['mods'], isA<Map<String, dynamic>>());
       expect(decoded['mods']['password'], isTrue);
     });
@@ -586,7 +616,7 @@ void main() {
       // must align with this accept-set.
       for (final tier in [
         SecurityTier.keychain,
-        SecurityTier.keychainWithPassword,
+        SecurityTier.keychain,
         SecurityTier.hardware,
       ]) {
         expect(
@@ -627,7 +657,7 @@ void main() {
 
     test('keychainWithPassword → keychainGate', () {
       expect(
-        passwordVerifierKindFor(SecurityTier.keychainWithPassword),
+        passwordVerifierKindFor(SecurityTier.keychain),
         PasswordVerifierKind.keychainGate,
       );
     });
@@ -659,11 +689,17 @@ void main() {
       // the key from `securityStateProvider` after the rekey, never
       // re-prompt — the user already typed the new tier's secret
       // into the card and the rekey derived from it.
+      const noPw = SecurityTierModifiers.defaults;
       for (final current in SecurityTier.values) {
         for (final next in SecurityTier.values) {
           if (current == next) continue;
           expect(
-            biometricKeySourceFor(currentTier: current, nextTier: next),
+            biometricKeySourceFor(
+              currentTier: current,
+              currentModifiers: noPw,
+              nextTier: next,
+              nextModifiers: noPw,
+            ),
             BiometricKeySource.pullFromAppliedTier,
             reason: '$current → $next must NOT prompt for password',
           );
@@ -671,46 +707,55 @@ void main() {
       }
     });
 
-    test('same-tier T1+pw → promptAndVerifyKeychainGate', () {
+    test('same-tier keychain+password → promptAndVerifyKeychainGate', () {
+      const withPw = SecurityTierModifiers(password: true);
       expect(
         biometricKeySourceFor(
-          currentTier: SecurityTier.keychainWithPassword,
-          nextTier: SecurityTier.keychainWithPassword,
+          currentTier: SecurityTier.keychain,
+          currentModifiers: withPw,
+          nextTier: SecurityTier.keychain,
+          nextModifiers: withPw,
         ),
         BiometricKeySource.promptAndVerifyKeychainGate,
       );
     });
 
     test('same-tier Paranoid → promptAndVerifyMasterPassword', () {
+      const withPw = SecurityTierModifiers(password: true);
       expect(
         biometricKeySourceFor(
           currentTier: SecurityTier.paranoid,
+          currentModifiers: withPw,
           nextTier: SecurityTier.paranoid,
+          nextModifiers: withPw,
         ),
         BiometricKeySource.promptAndVerifyMasterPassword,
       );
     });
 
-    test(
-      'same-tier T0 / T1 / T2 → pullFromAppliedTier (no verifiable secret)',
-      () {
-        // No verifiable password to re-prompt against — the post-apply
-        // DB key is the only thing we can stash. Empty sentinel falls
-        // out as a no-op when the tier holds no key (plaintext / T1
-        // without password).
-        for (final tier in [
-          SecurityTier.plaintext,
-          SecurityTier.keychain,
-          SecurityTier.hardware,
-        ]) {
-          expect(
-            biometricKeySourceFor(currentTier: tier, nextTier: tier),
-            BiometricKeySource.pullFromAppliedTier,
-            reason: 'same-tier $tier has no verifiable secret to prompt for',
-          );
-        }
-      },
-    );
+    test('same-tier T0 / T1 / T2 (no password) → pullFromAppliedTier', () {
+      // No verifiable password to re-prompt against — the post-apply
+      // DB key is the only thing we can stash. Empty sentinel falls
+      // out as a no-op when the tier holds no key (plaintext / T1
+      // without password).
+      const noPw = SecurityTierModifiers.defaults;
+      for (final tier in [
+        SecurityTier.plaintext,
+        SecurityTier.keychain,
+        SecurityTier.hardware,
+      ]) {
+        expect(
+          biometricKeySourceFor(
+            currentTier: tier,
+            currentModifiers: noPw,
+            nextTier: tier,
+            nextModifiers: noPw,
+          ),
+          BiometricKeySource.pullFromAppliedTier,
+          reason: 'same-tier $tier has no verifiable secret to prompt for',
+        );
+      }
+    });
   });
 
   group('applyPlaintextTier', () {
@@ -721,7 +766,7 @@ void main() {
         applyAlwaysRekey: (key, level, _) async {
           calls.add('rekey(${key == null ? "null" : "key"},$level)');
         },
-        runClearPlan: (target) async {
+        runClearPlan: (target, _) async {
           calls.add('clearPlan($target)');
         },
       );
@@ -751,7 +796,7 @@ void main() {
             calls.add('rekey($level,$id)');
           },
           dropStaged: (id) => calls.add('drop($id)'),
-          runClearPlan: (target) async {
+          runClearPlan: (target, _) async {
             calls.add('clearPlan($target)');
           },
         );
@@ -783,7 +828,7 @@ void main() {
               calls.add('rekey-SHOULD-NOT-FIRE');
             },
             dropStaged: (id) => calls.add('drop($id)'),
-            runClearPlan: (_) async {
+            runClearPlan: (_, _) async {
               calls.add('clearPlan-SHOULD-NOT-FIRE');
             },
           ),
@@ -820,7 +865,7 @@ void main() {
           calls.add('rekey($level,$id)');
         },
         dropStaged: (id) => calls.add('drop($id)'),
-        runClearPlan: (target) async {
+        runClearPlan: (target, _) async {
           calls.add('clearPlan($target)');
         },
       );
@@ -845,7 +890,7 @@ void main() {
         },
         applyAlwaysRekeyFromSecret: (_, _, _) async {},
         dropStaged: (_) {},
-        runClearPlan: (_) async {},
+        runClearPlan: (_, _) async {},
       );
       expect(capturedPin, isNull);
     });
@@ -870,7 +915,7 @@ void main() {
               calls.add('rekey-SHOULD-NOT-FIRE');
             },
             dropStaged: (id) => calls.add('drop($id)'),
-            runClearPlan: (_) async {
+            runClearPlan: (_, _) async {
               calls.add('clearPlan-SHOULD-NOT-FIRE');
             },
           ),
@@ -908,7 +953,7 @@ void main() {
           calls.add('rekey($level,$id)');
         },
         dropStaged: (id) => calls.add('drop($id)'),
-        runClearPlan: (target) async {
+        runClearPlan: (target, _) async {
           calls.add('clearPlan($target)');
         },
       );
@@ -939,7 +984,7 @@ void main() {
             calls.add('rekey-SHOULD-NOT-FIRE');
           },
           dropStaged: (_) {},
-          runClearPlan: (_) async {
+          runClearPlan: (_, _) async {
             calls.add('clearPlan-SHOULD-NOT-FIRE');
           },
         ),
@@ -963,7 +1008,7 @@ void main() {
           masterEnableToSecret: (_, _) async {},
           applyAlwaysRekeyFromSecret: (_, _, _) async {},
           dropStaged: (_) {},
-          runClearPlan: (_) async {},
+          runClearPlan: (_, _) async {},
         ),
         throwsA(
           isA<StateError>().having(
@@ -1005,7 +1050,7 @@ void main() {
             calls.add('rekey($level,$id)');
           },
           dropStaged: (id) => calls.add('drop($id)'),
-          runClearPlan: (target) async {
+          runClearPlan: (target, _) async {
             calls.add('clearPlan($target)');
           },
         );
@@ -1023,8 +1068,8 @@ void main() {
           'gate.set(pw-1)',
           'stage',
           'keychainWrite(fake-id)',
-          'rekey(SecurityTier.keychainWithPassword,fake-id)',
-          'clearPlan(SecurityTier.keychainWithPassword)',
+          'rekey(SecurityTier.keychain,fake-id)',
+          'clearPlan(SecurityTier.keychain)',
         ]);
       },
     );
@@ -1043,7 +1088,7 @@ void main() {
           keychainWriteFromSecret: (_) async => true,
           applyAlwaysRekeyFromSecret: (_, _, _) async {},
           dropStaged: (_) {},
-          runClearPlan: (_) async {},
+          runClearPlan: (_, _) async {},
         ),
         throwsA(
           isA<StateError>().having(
@@ -1083,7 +1128,7 @@ void main() {
             keychainWriteFromSecret: (_) async => false,
             applyAlwaysRekeyFromSecret: (_, _, _) async {},
             dropStaged: (_) {},
-            runClearPlan: (_) async {},
+            runClearPlan: (_, _) async {},
           ),
           throwsA(
             isA<StateError>().having(
@@ -1107,14 +1152,20 @@ void main() {
   group('confirmCurrentPasswordIfDropping', () {
     Future<ConfirmPasswordResult> runWith({
       required SecurityTier current,
+      SecurityTierModifiers currentModifiers = const SecurityTierModifiers(
+        password: true,
+      ),
       required SecurityTier next,
+      SecurityTierModifiers nextModifiers = const SecurityTierModifiers(),
       required Future<String?> Function() prompt,
       bool masterAccepts = true,
       bool gateAccepts = true,
     }) {
       return confirmCurrentPasswordIfDropping(
         currentTier: current,
+        currentModifiers: currentModifiers,
         targetTier: next,
+        targetModifiers: nextModifiers,
         promptCurrentPassword: prompt,
         verifyMaster: (_) async => masterAccepts,
         verifyKeychainGate: (_) async => gateAccepts,
@@ -1122,10 +1173,15 @@ void main() {
     }
 
     test('non-verifiable transition short-circuits to notRequired', () async {
-      // T1 → T0 doesn't have a verifiable password to drop.
+      // Passwordless keychain → plaintext has no verifiable
+      // password to drop. The default `currentModifiers` in
+      // `runWith` flips on `password: true` (the bank-style
+      // L1+password case); here we override with passwordless so
+      // the predicate sees no password to verify.
       var prompted = 0;
       final r = await runWith(
         current: SecurityTier.keychain,
+        currentModifiers: const SecurityTierModifiers(),
         next: SecurityTier.plaintext,
         prompt: () async {
           prompted++;
@@ -1138,7 +1194,7 @@ void main() {
 
     test('null prompt → cancelled', () async {
       final r = await runWith(
-        current: SecurityTier.keychainWithPassword,
+        current: SecurityTier.keychain,
         next: SecurityTier.plaintext,
         prompt: () async => null,
       );
@@ -1147,7 +1203,7 @@ void main() {
 
     test('keychainGate verifier rejects → wrongPassword', () async {
       final r = await runWith(
-        current: SecurityTier.keychainWithPassword,
+        current: SecurityTier.keychain,
         next: SecurityTier.plaintext,
         prompt: () async => 'whatever',
         gateAccepts: false,
@@ -1157,7 +1213,7 @@ void main() {
 
     test('keychainGate verifier accepts → ok', () async {
       final r = await runWith(
-        current: SecurityTier.keychainWithPassword,
+        current: SecurityTier.keychain,
         next: SecurityTier.plaintext,
         prompt: () async => 'ok-pw',
         gateAccepts: true,
@@ -1192,7 +1248,9 @@ void main() {
       var gateCalled = 0;
       await confirmCurrentPasswordIfDropping(
         currentTier: SecurityTier.paranoid,
+        currentModifiers: const SecurityTierModifiers(password: true),
         targetTier: SecurityTier.plaintext,
+        targetModifiers: const SecurityTierModifiers(),
         promptCurrentPassword: () async => 'pw',
         verifyMaster: (_) async => true,
         verifyKeychainGate: (_) async {
@@ -1235,26 +1293,45 @@ void main() {
 
     test('plaintext plan walks every slot in canonical order', () async {
       final calls = await runPlan(
-        tierVaultClearPlanFor(SecurityTier.plaintext),
+        tierVaultClearPlanFor(
+          SecurityTier.plaintext,
+          const SecurityTierModifiers(),
+        ),
       );
       expect(calls, ['keychain', 'gate', 'hw', 'master.disable', 'bio']);
     });
 
     test('keychain plan skips the keychain key (just wrote it)', () async {
-      final calls = await runPlan(tierVaultClearPlanFor(SecurityTier.keychain));
+      final calls = await runPlan(
+        tierVaultClearPlanFor(
+          SecurityTier.keychain,
+          const SecurityTierModifiers(),
+        ),
+      );
       expect(calls, ['gate', 'hw', 'master.disable', 'bio']);
       expect(calls, isNot(contains('keychain')));
     });
 
-    test('keychainWithPassword plan skips both keychain key + gate', () async {
+    test('keychain + password plan skips both keychain key + gate', () async {
+      // Bank-style v3: this case folded out of a dedicated
+      // `keychainWithPassword` tier value; the modifier is what
+      // drives the plan branch now.
       final calls = await runPlan(
-        tierVaultClearPlanFor(SecurityTier.keychainWithPassword),
+        tierVaultClearPlanFor(
+          SecurityTier.keychain,
+          const SecurityTierModifiers(password: true),
+        ),
       );
       expect(calls, ['hw', 'master.disable', 'bio']);
     });
 
     test('hardware plan skips the hw vault (just sealed)', () async {
-      final calls = await runPlan(tierVaultClearPlanFor(SecurityTier.hardware));
+      final calls = await runPlan(
+        tierVaultClearPlanFor(
+          SecurityTier.hardware,
+          const SecurityTierModifiers(),
+        ),
+      );
       expect(calls, ['keychain', 'gate', 'master.disable', 'bio']);
       expect(calls, isNot(contains('hw')));
     });
@@ -1263,7 +1340,10 @@ void main() {
       'paranoid plan skips master password disable (just enabled)',
       () async {
         final calls = await runPlan(
-          tierVaultClearPlanFor(SecurityTier.paranoid),
+          tierVaultClearPlanFor(
+            SecurityTier.paranoid,
+            const SecurityTierModifiers(),
+          ),
         );
         expect(calls, ['keychain', 'gate', 'hw', 'bio']);
         expect(calls, isNot(contains('master.disable')));
@@ -1277,7 +1357,10 @@ void main() {
         // runner must skip the disable call (idempotent on a disabled
         // manager but the FRB round-trip is non-trivial).
         final calls = await runPlan(
-          tierVaultClearPlanFor(SecurityTier.plaintext),
+          tierVaultClearPlanFor(
+            SecurityTier.plaintext,
+            const SecurityTierModifiers(),
+          ),
           masterEnabled: false,
         );
         expect(calls, ['keychain', 'gate', 'hw', 'bio']);
@@ -1296,7 +1379,10 @@ void main() {
         // flag is true; assert the gate fires there.
         var enabledQueried = 0;
         await runVaultClearPlan(
-          plan: tierVaultClearPlanFor(SecurityTier.keychainWithPassword),
+          plan: tierVaultClearPlanFor(
+            SecurityTier.keychain,
+            const SecurityTierModifiers(),
+          ),
           clearKeychainKey: () async {},
           clearKeychainGate: () async {},
           clearHardwareVault: () async {},
@@ -1344,7 +1430,10 @@ void main() {
 
   group('tierVaultClearPlanFor', () {
     test('plaintext clears every vault — no key survives at T0', () {
-      final plan = tierVaultClearPlanFor(SecurityTier.plaintext);
+      final plan = tierVaultClearPlanFor(
+        SecurityTier.plaintext,
+        const SecurityTierModifiers(),
+      );
       expect(plan.clearKeychainKey, isTrue);
       expect(plan.clearKeychainGate, isTrue);
       expect(plan.clearHardwareVault, isTrue);
@@ -1353,7 +1442,10 @@ void main() {
     });
 
     test('keychain spares the keychain entry it just wrote', () {
-      final plan = tierVaultClearPlanFor(SecurityTier.keychain);
+      final plan = tierVaultClearPlanFor(
+        SecurityTier.keychain,
+        const SecurityTierModifiers(),
+      );
       expect(plan.clearKeychainKey, isFalse);
       expect(plan.clearKeychainGate, isTrue);
       expect(plan.clearHardwareVault, isTrue);
@@ -1361,8 +1453,13 @@ void main() {
       expect(plan.clearBiometricVault, isTrue);
     });
 
-    test('keychainWithPassword spares both keychain key + gate', () {
-      final plan = tierVaultClearPlanFor(SecurityTier.keychainWithPassword);
+    test('keychain + password spares both keychain key + gate', () {
+      // Bank-style v3: the modifier carries the password signal —
+      // the gate file survives only when `modifiers.password` is on.
+      final plan = tierVaultClearPlanFor(
+        SecurityTier.keychain,
+        const SecurityTierModifiers(password: true),
+      );
       expect(plan.clearKeychainKey, isFalse);
       expect(plan.clearKeychainGate, isFalse);
       expect(plan.clearHardwareVault, isTrue);
@@ -1370,8 +1467,26 @@ void main() {
       expect(plan.clearBiometricVault, isTrue);
     });
 
+    test('plain keychain (no password modifier) clears the gate file', () {
+      // Symmetric: passwordless L1 is the OTHER bank-style branch.
+      // The gate file would be stale here, so the plan flips
+      // `clearKeychainGate` to true.
+      final plan = tierVaultClearPlanFor(
+        SecurityTier.keychain,
+        const SecurityTierModifiers(),
+      );
+      expect(plan.clearKeychainKey, isFalse);
+      expect(plan.clearKeychainGate, isTrue);
+      expect(plan.clearHardwareVault, isTrue);
+      expect(plan.clearMasterPassword, isTrue);
+      expect(plan.clearBiometricVault, isTrue);
+    });
+
     test('hardware spares the hw vault it just sealed', () {
-      final plan = tierVaultClearPlanFor(SecurityTier.hardware);
+      final plan = tierVaultClearPlanFor(
+        SecurityTier.hardware,
+        const SecurityTierModifiers(),
+      );
       expect(plan.clearKeychainKey, isTrue);
       expect(plan.clearKeychainGate, isTrue);
       expect(plan.clearHardwareVault, isFalse);
@@ -1380,7 +1495,10 @@ void main() {
     });
 
     test('paranoid spares the master password it just enabled', () {
-      final plan = tierVaultClearPlanFor(SecurityTier.paranoid);
+      final plan = tierVaultClearPlanFor(
+        SecurityTier.paranoid,
+        const SecurityTierModifiers(),
+      );
       expect(plan.clearKeychainKey, isTrue);
       expect(plan.clearKeychainGate, isTrue);
       expect(plan.clearHardwareVault, isTrue);
@@ -1394,41 +1512,55 @@ void main() {
       // skip the bio clear.
       for (final tier in SecurityTier.values) {
         expect(
-          tierVaultClearPlanFor(tier).clearBiometricVault,
+          tierVaultClearPlanFor(
+            tier,
+            const SecurityTierModifiers(),
+          ).clearBiometricVault,
           isTrue,
           reason: 'tier $tier must clear biometric vault on switch',
         );
       }
     });
 
-    test('exactly one slot is `false` per tier — the slot the apply method '
-        'just wrote into (plaintext is the all-clear exception)', () {
+    test('exactly one slot is `false` per (tier, password) — the slot the '
+        'apply method just wrote into (plaintext is the all-clear exception, '
+        'keychain + password writes two slots)', () {
+      // Bank-style v3: the keychain branch's plan now depends on
+      // the password modifier. Walk both `password = false` and
+      // `password = true` to cover both halves of the formerly-
+      // dedicated keychain / keychainWithPassword tier values.
       for (final tier in SecurityTier.values) {
-        final plan = tierVaultClearPlanFor(tier);
-        final falseCount = [
-          plan.clearKeychainKey,
-          plan.clearKeychainGate,
-          plan.clearHardwareVault,
-          plan.clearMasterPassword,
-          plan.clearBiometricVault,
-        ].where((b) => !b).length;
-        if (tier == SecurityTier.plaintext) {
-          expect(falseCount, 0, reason: 'plaintext clears every vault');
-        } else if (tier == SecurityTier.keychainWithPassword) {
-          // keychainWithPassword is the only tier that writes to
-          // two slots — the keychain key and the password gate —
-          // so two `false`s.
-          expect(
-            falseCount,
-            2,
-            reason: 'keychainWithPassword writes both keychain key and gate',
+        for (final pw in [false, true]) {
+          final plan = tierVaultClearPlanFor(
+            tier,
+            SecurityTierModifiers(password: pw),
           );
-        } else {
-          expect(
-            falseCount,
-            1,
-            reason: 'tier $tier writes one vault slot only',
-          );
+          final falseCount = [
+            plan.clearKeychainKey,
+            plan.clearKeychainGate,
+            plan.clearHardwareVault,
+            plan.clearMasterPassword,
+            plan.clearBiometricVault,
+          ].where((b) => !b).length;
+          if (tier == SecurityTier.plaintext) {
+            expect(
+              falseCount,
+              0,
+              reason: 'plaintext clears every vault (pw=$pw)',
+            );
+          } else if (tier == SecurityTier.keychain && pw) {
+            expect(
+              falseCount,
+              2,
+              reason: 'keychain + password writes both keychain key and gate',
+            );
+          } else {
+            expect(
+              falseCount,
+              1,
+              reason: 'tier $tier (pw=$pw) writes one vault slot only',
+            );
+          }
         }
       }
     });

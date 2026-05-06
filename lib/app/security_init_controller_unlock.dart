@@ -123,7 +123,7 @@ extension _UnlockFlows on SecurityInitController {
     final bio = ref.read(biometricAuthProvider);
     if (await vault.isStored() && await bio.isAvailable()) {
       biometricAttempted = true;
-      final ok = await _tryBiometricCommit(SecurityTier.keychainWithPassword);
+      final ok = await _tryBiometricCommit(SecurityTier.keychain);
       if (ok) {
         final result = await unlockDone.timeout(
           tierUnlockedListenerWaitTimeout,
@@ -241,7 +241,7 @@ extension _UnlockFlows on SecurityInitController {
         }
       },
       biometricUnlock: () =>
-          _tryBiometricCommit(SecurityTier.keychainWithPassword),
+          _tryBiometricCommit(SecurityTier.keychain),
       autoTriggerBiometric: autoTriggerBiometric,
       onReset: () async {
         await WipeAllService(

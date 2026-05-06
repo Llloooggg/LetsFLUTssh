@@ -128,6 +128,14 @@ class SecuritySetupResult {
 class SecuritySetupDialog extends StatefulWidget {
   final SecurityTier? currentTier;
 
+  /// Bank-style v3 modifiers for [currentTier]. Carried alongside
+  /// the tier so the wizard can pre-fill the password toggle when
+  /// the user re-opens it from Settings (previously the L1+password
+  /// case was inferred from the dedicated `keychainWithPassword`
+  /// tier value alone). `null` matches `currentTier == null` —
+  /// first-launch entry, no existing config to honour.
+  final SecurityTierModifiers? currentModifiers;
+
   /// DI hook — when non-null the wizard skips the platform capability
   /// probe and renders against the injected caps. Production call
   /// sites never set this; tests supply a fixed [SecurityCapabilities]
@@ -145,6 +153,7 @@ class SecuritySetupDialog extends StatefulWidget {
   const SecuritySetupDialog({
     super.key,
     this.currentTier,
+    this.currentModifiers,
     this.capabilitiesOverride,
     this.dismissible = false,
   });
@@ -152,6 +161,7 @@ class SecuritySetupDialog extends StatefulWidget {
   static Future<SecuritySetupResult> show(
     BuildContext context, {
     SecurityTier? currentTier,
+    SecurityTierModifiers? currentModifiers,
     SecurityCapabilities? capabilitiesOverride,
     bool dismissible = false,
   }) async {
@@ -160,6 +170,7 @@ class SecuritySetupDialog extends StatefulWidget {
       barrierDismissible: dismissible,
       builder: (_) => SecuritySetupDialog(
         currentTier: currentTier,
+        currentModifiers: currentModifiers,
         capabilitiesOverride: capabilitiesOverride,
         dismissible: dismissible,
       ),
@@ -230,8 +241,11 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       case SecurityTier.plaintext:
         return WizardTier.plaintext;
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
-        _password = widget.currentTier == SecurityTier.keychainWithPassword;
+        // Bank-style v3: L1+password is `keychain` + the password
+        // modifier; the wizard pre-fills the toggle from
+        // `currentModifiers.password` instead of the prior dedicated
+        // `keychainWithPassword` tier check.
+        _password = widget.currentModifiers?.password ?? false;
         return WizardTier.keychain;
       case SecurityTier.hardware:
         _password = true;
@@ -424,9 +438,9 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     subtitle: l10n.tierKeychainSubtitle(_keychainName),
     accent: AppTheme.accent,
     selected: _selected == WizardTier.keychain,
-    current:
-        widget.currentTier == SecurityTier.keychain ||
-        widget.currentTier == SecurityTier.keychainWithPassword,
+    // Bank-style v3: L1+password is `keychain` + modifier; the
+    // pre-v3 dedicated `keychainWithPassword` enum check went away.
+    current: widget.currentTier == SecurityTier.keychain,
     recommended: _recommendedTier(caps) == WizardTier.keychain,
     // Prefer the classified probe reason over the generic
     // "tierKeychainUnavailable" copy so the user sees WHY

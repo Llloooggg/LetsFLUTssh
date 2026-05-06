@@ -22,11 +22,15 @@ extension _TierApply on _SecuritySectionState {
   /// "wrong password" toast.
   Future<bool> _confirmCurrentPasswordIfDropping(
     SecurityTier current,
+    SecurityTierModifiers currentModifiers,
     SecurityTier next,
+    SecurityTierModifiers nextModifiers,
   ) async {
     final result = await confirmCurrentPasswordIfDropping(
       currentTier: current,
+      currentModifiers: currentModifiers,
       targetTier: next,
+      targetModifiers: nextModifiers,
       promptCurrentPassword: _promptCurrentPasswordWithWipe,
       verifyMaster: ref.read(masterPasswordProvider).verify,
       verifyKeychainGate: ref.read(keychainPasswordGateProvider).verify,
@@ -71,9 +75,15 @@ extension _TierApply on _SecuritySectionState {
       case SecurityTier.plaintext:
         await _applyPlaintextTier(result);
       case SecurityTier.keychain:
-        await _applyKeychainTier(result);
-      case SecurityTier.keychainWithPassword:
-        await _applyKeychainWithPasswordTier(result);
+        // Bank-style v3: L1+password is keychain + modifiers.password.
+        // Pre-v3 had a dedicated `keychainWithPassword` enum value
+        // routed to `_applyKeychainWithPasswordTier`; the dispatch
+        // now branches on the modifier instead.
+        if (result.modifiers.password) {
+          await _applyKeychainWithPasswordTier(result);
+        } else {
+          await _applyKeychainTier(result);
+        }
       case SecurityTier.hardware:
         await _applyHardwareTier(result);
       case SecurityTier.paranoid:
@@ -173,10 +183,13 @@ extension _TierApply on _SecuritySectionState {
   /// off the slot the apply method just wrote into so the commit
   /// isn't immediately undone; the runner walks the remaining
   /// slots through the provider methods.
-  Future<void> _runVaultClearPlan(SecurityTier target) async {
+  Future<void> _runVaultClearPlan(
+    SecurityTier target,
+    SecurityTierModifiers modifiers,
+  ) async {
     final manager = ref.read(masterPasswordProvider);
     await runVaultClearPlan(
-      plan: tierVaultClearPlanFor(target),
+      plan: tierVaultClearPlanFor(target, modifiers),
       clearKeychainKey: ref.read(secureKeyStorageProvider).deleteKey,
       clearKeychainGate: ref.read(keychainPasswordGateProvider).clear,
       clearHardwareVault: ref.read(hardwareTierVaultProvider).clear,

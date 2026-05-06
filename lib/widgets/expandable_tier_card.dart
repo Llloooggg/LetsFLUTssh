@@ -327,7 +327,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       case SecurityTier.plaintext:
         return ThreatTier.plaintext;
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
         return ThreatTier.keychain;
       case SecurityTier.hardware:
         return ThreatTier.hardware;
@@ -337,15 +336,13 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   }
 
   /// Normalize the card's tier to the target tier the apply pipeline
-  /// expects. The UI treats T1 as a single tier card; on apply, the
-  /// presence of a short password flips it to `keychainWithPassword`
-  /// so `_applyTierChange` routes to the right handler.
-  SecurityTier _resolveTargetTier() {
-    if (widget.tier == SecurityTier.keychain && _passwordEnabled) {
-      return SecurityTier.keychainWithPassword;
-    }
-    return widget.tier;
-  }
+  /// expects. Bank-style v3: the UI treats T1 as a single tier card;
+  /// the presence of a short password used to flip the dispatch to a
+  /// dedicated `keychainWithPassword` tier value, but post-v3 collapse
+  /// the tier stays `keychain` and the password signal lives on the
+  /// modifier instead. `_applyTierChange` reads `result.modifiers
+  /// .password` to decide whether to drive the gate-bearing flow.
+  SecurityTier _resolveTargetTier() => widget.tier;
 
   SecurityTierModifiers _resolveModifiers() => SecurityTierModifiers(
     password: _passwordEnabled && widget.tier != SecurityTier.paranoid,
@@ -596,7 +593,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       case SecurityTier.plaintext:
         return 'T0';
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
         return 'T1';
       case SecurityTier.hardware:
         return 'T2';
@@ -610,7 +606,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       case SecurityTier.plaintext:
         return l10n.tierPlaintextLabel;
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
         return l10n.tierKeychainLabel;
       case SecurityTier.hardware:
         return l10n.tierHardwareLabel;
@@ -624,7 +619,6 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
       case SecurityTier.plaintext:
         return l10n.tierPlaintextSubtitle;
       case SecurityTier.keychain:
-      case SecurityTier.keychainWithPassword:
         return l10n.tierKeychainSubtitle(_keychainName());
       case SecurityTier.hardware:
         return l10n.tierHardwareSubtitleHonest;

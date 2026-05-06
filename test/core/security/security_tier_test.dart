@@ -11,17 +11,19 @@ void main() {
   setUpAll(requireFrbLoaded);
 
   group('SecurityTier enum', () {
-    test('carries all five named tiers', () {
-      // Freezes the tier vocabulary. Adding or removing a tier without
-      // updating wizard, settings, and locales is a bug that must
-      // surface here first.
-      expect(SecurityTier.values, hasLength(5));
+    test('carries the four bank-style tier values', () {
+      // Bank-style v3: one tier per key-storage strategy. The
+      // pre-v3 dedicated `keychainWithPassword` value is gone —
+      // L1 + password is `keychain` + `modifiers.password = true`.
+      // Adding or removing a tier without updating the wizard,
+      // settings, and locales is a bug that must surface here
+      // first.
+      expect(SecurityTier.values, hasLength(4));
       expect(
         SecurityTier.values,
         containsAll(<SecurityTier>[
           SecurityTier.plaintext,
           SecurityTier.keychain,
-          SecurityTier.keychainWithPassword,
           SecurityTier.hardware,
           SecurityTier.paranoid,
         ]),
@@ -30,32 +32,45 @@ void main() {
   });
 
   group('SecurityConfig predicates', () {
-    test('usesKeychain covers L1 and L2 but no other tier', () {
+    test('usesKeychain matches the keychain tier (modifier-agnostic)', () {
       for (final tier in SecurityTier.values) {
         final cfg = SecurityConfig(
           tier: tier,
           modifiers: SecurityTierModifiers.defaults,
         );
-        final expected =
-            tier == SecurityTier.keychain ||
-            tier == SecurityTier.keychainWithPassword;
-        expect(cfg.usesKeychain, expected, reason: 'tier=$tier');
+        expect(
+          cfg.usesKeychain,
+          tier == SecurityTier.keychain,
+          reason: 'tier=$tier',
+        );
       }
     });
 
-    test('hasUserSecret reflects every tier that prompts at unlock', () {
-      for (final tier in SecurityTier.values) {
-        final cfg = SecurityConfig(
-          tier: tier,
-          modifiers: SecurityTierModifiers.defaults,
-        );
-        final expected =
-            tier == SecurityTier.keychainWithPassword ||
-            tier == SecurityTier.hardware ||
-            tier == SecurityTier.paranoid;
-        expect(cfg.hasUserSecret, expected, reason: 'tier=$tier');
-      }
-    });
+    test(
+      'hasUserSecret reflects modifier-aware bank-style password gating',
+      () {
+        for (final tier in SecurityTier.values) {
+          for (final pw in [false, true]) {
+            final cfg = SecurityConfig(
+              tier: tier,
+              modifiers: SecurityTierModifiers(password: pw),
+            );
+            // Paranoid is mandatory-password by definition; keychain
+            // + pw is the bank-style L2, hardware + pw is the
+            // L3-with-typed-password variant. Plaintext stays out
+            // even when the modifier is on — there's no key store
+            // for the password to gate against, so the predicate
+            // returns false to keep the auto-lock helper from arming.
+            final expected =
+                tier == SecurityTier.paranoid ||
+                ((tier == SecurityTier.keychain ||
+                        tier == SecurityTier.hardware) &&
+                    pw);
+            expect(cfg.hasUserSecret, expected, reason: 'tier=$tier pw=$pw');
+          }
+        }
+      },
+    );
 
     test('isParanoid is strictly paranoid', () {
       for (final tier in SecurityTier.values) {

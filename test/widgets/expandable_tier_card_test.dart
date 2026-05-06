@@ -375,7 +375,7 @@ void main() {
           _wrap(
             const ExpandableTierCard(
               tier: SecurityTier.keychain,
-              currentTier: SecurityTier.keychainWithPassword,
+              currentTier: SecurityTier.keychain,
               currentModifiers: SecurityTierModifiers(password: true),
               tierAvailable: true,
               initiallyExpanded: true,

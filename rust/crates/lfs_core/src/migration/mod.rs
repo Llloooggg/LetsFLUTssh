@@ -49,13 +49,21 @@ impl SchemaVersions {
     /// stamped by the config writer on every write; a missing or
     /// mismatched field on read = corrupt.
     ///
-    /// v2 (current): `security_probe_cache` is always emitted as an
-    /// explicit value — either an object or `null`. Pre-v2 writers
-    /// omitted the field when `None`, collapsing the
-    /// "never probed" / "probed-but-no-cache" semantics on round-trip.
-    /// The v1→v2 migration ensures the field exists (as `null` if
-    /// absent) so post-migration reads can distinguish the two.
-    pub const CONFIG: i32 = 2;
+    /// v3 (current): the security-tier model is fully bank-style.
+    /// `security_tier` carries one of {plaintext, keychain, hardware,
+    /// paranoid} and the `password` / `biometric` switches live in
+    /// `security_modifiers`. v2 still carried `keychain_with_password`
+    /// as its own tier value alongside the modifiers — half-finished
+    /// migration from the per-combination enum shape to the bank-style
+    /// shape. v3 finishes that collapse; the v2→v3 migration rewrites
+    /// existing files (`security_tier == "keychain_with_password"` →
+    /// `tier == "keychain"` + `modifiers.password = true`).
+    ///
+    /// v2: `security_probe_cache` is always emitted as an explicit
+    /// value — either an object or `null`. v1→v2 ensures the field
+    /// exists (as `null` if absent) so post-migration reads can
+    /// distinguish "never probed" from "probed-but-empty".
+    pub const CONFIG: i32 = 3;
 
     /// `credentials.kdf` (Argon2id params + salt). Self-versioned
     /// inside the file via `'LFKD'` magic + version byte; tracked

@@ -21,21 +21,24 @@ void main() {
       expect(
         tierCardIsCurrent(
           cardTier: SecurityTier.keychain,
-          currentTier: SecurityTier.keychainWithPassword,
+          currentTier: SecurityTier.keychain,
         ),
         isTrue,
       );
     });
 
-    test('keychainWithPassword card does NOT subsume plain keychain', () {
-      // The off-diagonal match goes one direction only — the T1 card
-      // owns both T1 + T1+password applied states.
+    test('keychain card matches the keychain tier regardless of modifier', () {
+      // Bank-style v3: L1+password is `keychain` + `modifiers
+      // .password = true` (no dedicated tier value). The keychain
+      // card matches both the passwordless and the with-password
+      // applied state — the modifier is rendered as a separate
+      // toggle inside the same card.
       expect(
         tierCardIsCurrent(
-          cardTier: SecurityTier.keychainWithPassword,
+          cardTier: SecurityTier.keychain,
           currentTier: SecurityTier.keychain,
         ),
-        isFalse,
+        isTrue,
       );
     });
 
@@ -68,11 +71,22 @@ void main() {
       );
     });
 
-    test('KeychainWithPassword always reports password = true', () {
+    test('keychain reports password only when the modifier flag is on', () {
+      // Bank-style v3: the L1+password case folded into keychain
+      // + `modifiers.password = true`; no tier-only signal exists
+      // for it. Without the modifier the predicate stays false
+      // even on the keychain tier.
       expect(
         currentConfigHasPassword(
-          currentTier: SecurityTier.keychainWithPassword,
+          currentTier: SecurityTier.keychain,
           currentModifiers: noMods,
+        ),
+        isFalse,
+      );
+      expect(
+        currentConfigHasPassword(
+          currentTier: SecurityTier.keychain,
+          currentModifiers: passwordOn,
         ),
         isTrue,
       );
@@ -131,7 +145,7 @@ void main() {
       expect(
         derivePasswordModifierForCard(
           cardTier: SecurityTier.keychain,
-          currentTier: SecurityTier.keychainWithPassword,
+          currentTier: SecurityTier.keychain,
           currentModifiers: passwordOn,
         ),
         isTrue,

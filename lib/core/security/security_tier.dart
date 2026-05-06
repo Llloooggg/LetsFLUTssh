@@ -13,6 +13,13 @@ import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 ///
 /// Wizard and Settings both read this enum and render numbered badges
 /// + Paranoid label separately.
+/// **Bank-style model** (post-v3 schema): one tier per key-storage
+/// strategy + an orthogonal `password` modifier on top. Pre-v3
+/// configs that carried a dedicated `keychainWithPassword` value are
+/// rewritten by the Rust-side `ConfigV2ToV3` migration on next
+/// startup — stored as `tier: keychain` + `modifiers.password: true`.
+/// The legacy enum value is gone; runtime callers branching on
+/// "L1 + password" check `modifiers.password`, not the tier itself.
 enum SecurityTier {
   /// L0 — bare DB on disk. Only file permissions (0600 POSIX /
   /// user-only ACL Windows) stand between the data and anyone with
@@ -20,22 +27,22 @@ enum SecurityTier {
   plaintext,
 
   /// L1 — DB key lives in the OS secure storage (Keychain, Credential
-  /// Manager, libsecret, EncryptedSharedPreferences). No user secret
-  /// input; app auto-unlocks on launch.
+  /// Manager, libsecret, EncryptedSharedPreferences). With
+  /// `modifiers.password = false` the app auto-unlocks on launch
+  /// (passwordless L1); with `modifiers.password = true` the unlock
+  /// path adds a UX-gate short password checked against a salted
+  /// HMAC split across disk + keychain (the bank-style L2 — pre-v3
+  /// installs persisted this combo as a dedicated
+  /// `keychainWithPassword` tier value, now collapsed).
   keychain,
 
-  /// L2 — L1 + a short user-typed password checked on open. The
-  /// password is a UX gate against a coworker at the desk, **not** a
-  /// cryptographic layer (no Argon2id, no key wrapping on top of the
-  /// keychain storage). Compared against a salted HMAC held split
-  /// across disk + keychain.
-  keychainWithPassword,
-
   /// L3 — DB key wrapped by a hardware-bound vault (Secure Enclave,
-  /// StrongBox, TPM2, Windows Hello). Unlock requires a 4–6 digit PIN
-  /// or (optionally) a live biometric prompt; the hardware enforces
-  /// attempt rate limiting and lockout after N failures, so the short
-  /// PIN is cryptographically meaningful.
+  /// StrongBox, TPM2, Windows Hello). The `password` modifier
+  /// optionally adds a typed-password layer on top; `biometric`
+  /// optionally lets the user release that password via a
+  /// biometric prompt instead of typing it. The hardware enforces
+  /// attempt rate limiting + lockout after N failures, so a short
+  /// PIN-as-password is cryptographically meaningful.
   hardware,
 
   /// Alternative branch — master password + Argon2id slow KDF + DB
@@ -55,7 +62,6 @@ extension SecurityTierWireName on SecurityTier {
   String get wireName => switch (this) {
     SecurityTier.plaintext => 'plaintext',
     SecurityTier.keychain => 'keychain',
-    SecurityTier.keychainWithPassword => 'keychain_with_password',
     SecurityTier.hardware => 'hardware',
     SecurityTier.paranoid => 'paranoid',
   };
@@ -70,14 +76,20 @@ extension SecurityTierWireName on SecurityTier {
   /// `security_tier_ordering_guard_test` regex — which scans for
   /// `> SecurityTier.<member>` ordinal-comparison shapes and
   /// can't tell `=>` from `>` — does not trip on this file.
+  ///
+  /// The pre-v3 `keychain_with_password` wire string is no longer
+  /// recognised here — the `ConfigV2ToV3` migration rewrites stored
+  /// configs before the runtime ever parses them, so this branch
+  /// only fires on a genuinely-malformed value from an external
+  /// caller (typo, hand-edited config). Falling through to plaintext
+  /// keeps the existing safety posture (route into the wizard
+  /// rather than silently picking an unintended tier).
   static SecurityTier fromWireName(String wireName) {
     switch (wireName) {
       case 'plaintext':
         return SecurityTier.plaintext;
       case 'keychain':
         return SecurityTier.keychain;
-      case 'keychain_with_password':
-        return SecurityTier.keychainWithPassword;
       case 'hardware':
         return SecurityTier.hardware;
       case 'paranoid':
@@ -217,22 +229,29 @@ class SecurityConfig {
   bool get isParanoid => tier == SecurityTier.paranoid;
   bool get isPlaintext => tier == SecurityTier.plaintext;
 
-  /// True when the tier stores the DB key in an OS keychain slot of
-  /// any kind (L1 or L2). Used by code paths that need to decide
-  /// between "read from keychain" and "derive fresh".
-  bool get usesKeychain =>
-      tier == SecurityTier.keychain ||
-      tier == SecurityTier.keychainWithPassword;
+  /// True when the tier stores the DB key in the OS keychain.
+  /// Used by code paths that need to decide between "read from
+  /// keychain" and "derive fresh". The bank-style password
+  /// modifier is orthogonal: `keychain` covers both passwordless
+  /// L1 and L1 + typed password.
+  bool get usesKeychain => tier == SecurityTier.keychain;
 
   /// True when the tier binds the key to a hardware-bound vault.
   bool get usesHardwareVault => tier == SecurityTier.hardware;
 
-  /// True when the tier has any user-typed secret (password, PIN, or
-  /// master password) on the unlock path.
-  bool get hasUserSecret =>
-      tier == SecurityTier.keychainWithPassword ||
-      tier == SecurityTier.hardware ||
-      tier == SecurityTier.paranoid;
+  /// True when the config carries any user-typed secret on the
+  /// unlock path. Paranoid is mandatory-password by definition;
+  /// for `keychain` / `hardware` the answer depends on the
+  /// modifier (`tier: keychain, modifiers.password: true` is the
+  /// bank-style L2 — previously a dedicated `keychainWithPassword`
+  /// tier value).
+  bool get hasUserSecret {
+    if (tier == SecurityTier.paranoid) return true;
+    if (tier == SecurityTier.keychain || tier == SecurityTier.hardware) {
+      return modifiers.password;
+    }
+    return false;
+  }
 
   SecurityConfig copyWith({
     SecurityTier? tier,

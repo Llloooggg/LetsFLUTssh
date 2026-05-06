@@ -277,11 +277,12 @@ class DbExportInput {
   final PlatformInt64 schemaVersion;
   final String? appVersion;
 
-  /// Empty bytes → no encryption, raw ZIP. Non-empty → Argon2id
-  /// + AES-GCM envelope under the canonical `LFSE`-magic header.
-  /// Wire shape is `Vec<u8>` so the Dart caller stays on
-  /// `Uint8List.fromList(utf8.encode(text))`, mirroring the
-  /// master-password / keychain-gate / tier-orchestrator family.
+  /// Empty bytes → no encryption, raw ZIP. Non-empty → an
+  /// Argon2id + AES-GCM envelope under the canonical
+  /// `LFSE`-magic header. Wire shape is `Vec<u8>` so the Dart
+  /// caller stays on `Uint8List.fromList(utf8.encode(text))`,
+  /// mirroring the master-password / keychain-gate /
+  /// tier-orchestrator family.
   final Uint8List masterPassword;
   final int kdfMemoryKib;
   final int kdfIterations;

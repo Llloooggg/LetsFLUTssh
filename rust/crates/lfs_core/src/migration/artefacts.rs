@@ -125,6 +125,77 @@ impl Migration for ConfigV1ToV2 {
     }
 }
 
+/// `config.json` v2 → v3: collapse the `keychain_with_password`
+/// tier wire value into `keychain` + `security_modifiers.password
+/// = true`. The earlier model had `keychain_with_password` as its
+/// own tier enum value alongside the orthogonal `password` /
+/// `biometric` modifiers — a half-finished migration to the
+/// "bank-style" shape (one tier per key-storage strategy + a
+/// password modifier on top). v3 finishes the collapse: every
+/// stored config that carries the legacy wire value gets rewritten
+/// to the bank-style shape on next startup. Reads written under v3
+/// never see the legacy string again — the enum is dropped.
+///
+/// `security_modifiers` is created if absent and `password` is
+/// force-set to `true`; any pre-existing field-set on the
+/// modifiers (biometric / pin_length) carries over verbatim.
+///
+/// Atomic — writes via [`crate::path::write_bytes_atomic`] (tmp +
+/// fsync + rename) so a crash mid-migration leaves the v2 file
+/// untouched on disk and the runner re-attempts on next boot.
+pub struct ConfigV2ToV3;
+
+impl Migration for ConfigV2ToV3 {
+    fn artefact_id(&self) -> &'static str {
+        ConfigArtefact::FILE_NAME
+    }
+
+    fn source_version(&self) -> i32 {
+        2
+    }
+
+    fn target_version(&self) -> i32 {
+        3
+    }
+
+    fn apply(&self, support_dir: &Path) -> Result<(), String> {
+        let path = support_dir.join(ConfigArtefact::FILE_NAME);
+        let bytes = std::fs::read(&path)
+            .map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let mut value: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
+        let obj = value
+            .as_object_mut()
+            .ok_or_else(|| format!("{}: not a JSON object", ConfigArtefact::FILE_NAME))?;
+        // Rewrite the tier wire value if present + legacy.
+        if obj.get("security_tier").and_then(Value::as_str) == Some("keychain_with_password") {
+            obj.insert("security_tier".into(), Value::from("keychain"));
+            // Force `security_modifiers.password = true`. Create the
+            // sub-object if the v2 writer omitted it (legacy-default
+            // installs that picked KeychainWithPassword without the
+            // explicit modifiers shape).
+            let modifiers = obj
+                .entry("security_modifiers")
+                .or_insert_with(|| Value::Object(Default::default()));
+            if let Some(map) = modifiers.as_object_mut() {
+                map.insert("password".into(), Value::Bool(true));
+            } else {
+                // The field exists but isn't an object — replace
+                // outright with the canonical shape.
+                let mut map = serde_json::Map::new();
+                map.insert("password".into(), Value::Bool(true));
+                *modifiers = Value::Object(map);
+            }
+        }
+        obj.insert("config_schema_version".into(), Value::from(3));
+        let serialised = serde_json::to_vec(&value)
+            .map_err(|e| format!("{}: serialise: {e}", ConfigArtefact::FILE_NAME))?;
+        crate::path::write_bytes_atomic(&path, &serialised)
+            .map_err(|e| format!("{}: write: {e}", ConfigArtefact::FILE_NAME))?;
+        Ok(())
+    }
+}
+
 /// `credentials.kdf` — Argon2id parameter blob written by the KDF
 /// writer. Self-versioned inside the file via `'LFKD'` magic +
 /// version byte; reading the on-disk version is what lets the
@@ -361,10 +432,12 @@ mod tests {
     }
 
     #[test]
-    fn config_v1_to_v2_round_trip_through_runner() {
+    fn config_v1_through_runner_lands_at_current_version() {
         // Pin the framework path: a v1 file passes through the
-        // run_on_startup runner and lands at v2 on disk; the
-        // ConfigArtefact's `read_version` reports v2 afterwards.
+        // run_on_startup runner and lands at the current
+        // SchemaVersions::CONFIG. Counter equals the chain
+        // length, so this test stays correct when a future
+        // v3→v4 migration lands without a manual edit.
         let dir = TempDir::new().unwrap();
         fs::write(
             dir.path().join("config.json"),
@@ -374,7 +447,96 @@ mod tests {
         let reg = super::super::registry::build_app_registry();
         let report = super::super::run_on_startup(dir.path(), &reg);
         assert!(!report.has_failures(), "report: {report:?}");
-        assert_eq!(report.migrated_count(), 1);
-        assert_eq!(ConfigArtefact.read_version(dir.path()).unwrap(), 2);
+        let target = super::super::SchemaVersions::CONFIG;
+        // Each step writes one Step entry in the runner report;
+        // walking v1 → target costs (target - 1) steps.
+        assert_eq!(report.migrated_count(), (target as usize) - 1);
+        assert_eq!(ConfigArtefact.read_version(dir.path()).unwrap(), target);
+    }
+
+    #[test]
+    fn config_v2_to_v3_collapses_legacy_keychain_with_password() {
+        // v2-stamped config carrying the legacy
+        // `keychain_with_password` tier wire value lands at v3
+        // with the tier rewritten to `keychain` and
+        // `security_modifiers.password` force-set to true.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 2,
+                "security_tier": "keychain_with_password",
+                "security_modifiers": {"password": false, "biometric": false}
+            }"#,
+        )
+        .unwrap();
+        ConfigV2ToV3.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(3)));
+        assert_eq!(
+            obj.get("security_tier").and_then(Value::as_str),
+            Some("keychain"),
+        );
+        let modifiers = obj.get("security_modifiers").unwrap().as_object().unwrap();
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
+    }
+
+    #[test]
+    fn config_v2_to_v3_no_op_for_other_tiers() {
+        // v2 file already on a non-legacy tier value passes
+        // through unchanged except for the version bump.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 2,
+                "security_tier": "hardware",
+                "security_modifiers": {"password": true, "biometric": true}
+            }"#,
+        )
+        .unwrap();
+        ConfigV2ToV3.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(3)));
+        assert_eq!(
+            obj.get("security_tier").and_then(Value::as_str),
+            Some("hardware"),
+        );
+        let modifiers = obj.get("security_modifiers").unwrap().as_object().unwrap();
+        // The pre-existing modifier values must NOT get overwritten —
+        // only `password` is force-set during the legacy-tier path.
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
+        assert_eq!(modifiers.get("biometric"), Some(&Value::Bool(true)));
+    }
+
+    #[test]
+    fn config_v2_to_v3_creates_modifiers_when_absent() {
+        // Legacy install that picked KeychainWithPassword without
+        // ever materialising the `security_modifiers` sub-object —
+        // migration must mint the object on the spot, not crash.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version": 2,
+                "security_tier": "keychain_with_password"
+            }"#,
+        )
+        .unwrap();
+        ConfigV2ToV3.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let modifiers = value
+            .as_object()
+            .unwrap()
+            .get("security_modifiers")
+            .unwrap()
+            .as_object()
+            .unwrap();
+        assert_eq!(modifiers.get("password"), Some(&Value::Bool(true)));
     }
 }

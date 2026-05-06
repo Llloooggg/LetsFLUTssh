@@ -103,10 +103,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required String? unavailableReason,
     required S l10n,
   }) {
-    final isCurrent =
-        tier == currentLevel ||
-        (tier == SecurityTier.keychain &&
-            currentLevel == SecurityTier.keychainWithPassword);
+    // Bank-style v3: L1+password is `keychain` + modifier;
+    // pre-v3 needed a dedicated keychainWithPassword check.
+    final isCurrent = tier == currentLevel;
     return ExpandableTierCard(
       tier: tier,
       currentTier: currentLevel,
@@ -158,10 +157,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required S l10n,
   }) {
     if (tier == SecurityTier.plaintext) return null;
-    final isCurrent =
-        tier == currentLevel ||
-        (tier == SecurityTier.keychain &&
-            currentLevel == SecurityTier.keychainWithPassword);
+    // Bank-style v3: L1+password is `keychain` + modifier;
+    // pre-v3 needed a dedicated keychainWithPassword check.
+    final isCurrent = tier == currentLevel;
     // Same priority order as the biometric row (see
     // `_biometricSpecFor`), minus the platform-unavailable layer —
     // auto-lock is a software-only feature, always supported by
@@ -288,10 +286,19 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
       pendingBiometric: pendingBiometric,
     );
     if (transition == TierTransitionKind.biometricOnly) {
-      await _applyBiometricOnlyToggle(pendingBiometric, currentTier);
+      await _applyBiometricOnlyToggle(
+        pendingBiometric,
+        currentTier,
+        currentMods,
+      );
       return;
     }
-    if (!await _confirmCurrentPasswordIfDropping(currentTier, tier)) {
+    if (!await _confirmCurrentPasswordIfDropping(
+      currentTier,
+      currentMods,
+      tier,
+      modifiers,
+    )) {
       return;
     }
 
@@ -306,7 +313,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     if (pendingBiometric == true) {
       biometricCapture = await _captureKeyForBiometricEnable(
         currentTier,
+        currentMods,
         tier,
+        modifiers,
         shortPassword: shortPassword,
         pin: pin,
         masterPassword: masterPassword,

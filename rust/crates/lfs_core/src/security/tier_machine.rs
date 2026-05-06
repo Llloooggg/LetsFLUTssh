@@ -3,7 +3,7 @@
 //! Owns the state + event + transition table plus a `dispatch`
 //! that publishes [`crate::bus::Event::TierStateChanged`] on every
 //! committed transition. Per-tier orchestration (Plaintext /
-//! Keychain / KeychainWithPassword / Hardware / Paranoid) wires
+//! Keychain / Hardware / Paranoid) wires
 //! into the dispatch here while the Dart `SecurityInitController`
 //! continues to drive the production unlock flow until each
 //! per-tier handler ships behind its feature gate.
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn machine_full_unlock_cycle() {
-        let mut m = Machine::new(SecurityTier::KeychainWithPassword);
+        let mut m = Machine::new(SecurityTier::Keychain);
         m.dispatch(&TierEvent::UnlockRequested).unwrap();
         m.dispatch(&TierEvent::UnlockSucceeded).unwrap();
         assert_eq!(m.state(), TierState::Unlocked);
@@ -474,7 +474,6 @@ mod tests {
     fn try_advance_other_tiers_waits_for_handler() {
         for tier in [
             SecurityTier::Keychain,
-            SecurityTier::KeychainWithPassword,
             SecurityTier::Hardware,
             SecurityTier::Paranoid,
         ] {

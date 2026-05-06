@@ -194,7 +194,7 @@ pub async fn unlock_keychain() -> UnlockOutcome {
 /// store on-disk state under the same root).
 pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     instance_dispatch(
-        SecurityTier::KeychainWithPassword,
+        SecurityTier::Keychain,
         &TierEvent::UnlockRequested,
     );
 
@@ -211,7 +211,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     let l2_status = limiters.status(L2_UNLOCK_LIMITER_ID);
     if l2_status.is_locked() {
         instance_dispatch(
-            SecurityTier::KeychainWithPassword,
+            SecurityTier::Keychain,
             &TierEvent::UnlockFailed {
                 reason: UnlockFailureReason::WrongSecret,
             },
@@ -228,7 +228,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
         Ok(b) => b,
         Err(detail) => {
             instance_dispatch(
-                SecurityTier::KeychainWithPassword,
+                SecurityTier::Keychain,
                 &TierEvent::UnlockFailed {
                     reason: UnlockFailureReason::Corruption {
                         detail: detail.clone(),
@@ -242,7 +242,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     if !verified {
         limiters.record_failure(L2_UNLOCK_LIMITER_ID);
         instance_dispatch(
-            SecurityTier::KeychainWithPassword,
+            SecurityTier::Keychain,
             &TierEvent::UnlockFailed {
                 reason: UnlockFailureReason::WrongSecret,
             },
@@ -257,14 +257,14 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
         Ok(Some(bytes)) if !bytes.is_empty() => {
             stage_key(&bytes);
             instance_dispatch(
-                SecurityTier::KeychainWithPassword,
+                SecurityTier::Keychain,
                 &TierEvent::UnlockSucceeded,
             );
             UnlockOutcome::Staged
         }
         Ok(_) => {
             instance_dispatch(
-                SecurityTier::KeychainWithPassword,
+                SecurityTier::Keychain,
                 &TierEvent::UnlockFailed {
                     reason: UnlockFailureReason::PluginUnavailable {
                         code: "missing_keychain_entry_after_verify".into(),
@@ -276,7 +276,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
         Err(e) => {
             let code = format!("keychain_read_failed: {e}");
             instance_dispatch(
-                SecurityTier::KeychainWithPassword,
+                SecurityTier::Keychain,
                 &TierEvent::UnlockFailed {
                     reason: UnlockFailureReason::PluginUnavailable { code: code.clone() },
                 },
@@ -540,7 +540,7 @@ pub async fn first_launch_keychain() -> UnlockOutcome {
 /// subscriber, stages the bytes + emits the cascade.
 pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     instance_dispatch(
-        SecurityTier::KeychainWithPassword,
+        SecurityTier::Keychain,
         &TierEvent::UnlockRequested,
     );
     let support_dir = crate::security::master_password::pinned_support_dir();
@@ -548,7 +548,7 @@ pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOut
         crate::security::keychain_password_gate_actor::set_password(support_dir, &password).await
     {
         instance_dispatch(
-            SecurityTier::KeychainWithPassword,
+            SecurityTier::Keychain,
             &TierEvent::UnlockFailed {
                 reason: UnlockFailureReason::Corruption {
                     detail: detail.clone(),
@@ -562,7 +562,7 @@ pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOut
         Ok(()) => {
             stage_key(&key);
             instance_dispatch(
-                SecurityTier::KeychainWithPassword,
+                SecurityTier::Keychain,
                 &TierEvent::UnlockSucceeded,
             );
             UnlockOutcome::Staged
@@ -574,7 +574,7 @@ pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOut
             // can't reproduce after the failed first-launch.
             let _ = crate::security::keychain_password_gate_actor::clear(support_dir).await;
             instance_dispatch(
-                SecurityTier::KeychainWithPassword,
+                SecurityTier::Keychain,
                 &TierEvent::UnlockFailed {
                     reason: UnlockFailureReason::PluginUnavailable {
                         code: detail.clone(),

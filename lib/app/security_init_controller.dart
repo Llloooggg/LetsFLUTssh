@@ -518,7 +518,12 @@ class SecurityInitController {
   ) async {
     final currentSecurity = ref.read(configProvider).security;
     if (currentSecurity != null) {
-      await _unlockByTier(currentSecurity.tier, manager, keyStorage);
+      await _unlockByTier(
+        currentSecurity.tier,
+        currentSecurity.modifiers,
+        manager,
+        keyStorage,
+      );
       return;
     }
 
@@ -546,16 +551,23 @@ class SecurityInitController {
 
   Future<void> _unlockByTier(
     SecurityTier tier,
+    SecurityTierModifiers modifiers,
     MasterPasswordManager manager,
     SecureKeyStorage keyStorage,
   ) async {
     switch (tier) {
       case SecurityTier.hardware:
         await _unlockHardware();
-      case SecurityTier.keychainWithPassword:
-        await _unlockKeychainWithPassword();
       case SecurityTier.keychain:
-        await _unlockKeychain();
+        // Bank-style v3: L1+password is `keychain` + `modifiers
+        // .password`; the dispatch was previously a dedicated
+        // `keychainWithPassword` arm and is now a modifier check
+        // inside the keychain arm.
+        if (modifiers.password) {
+          await _unlockKeychainWithPassword();
+        } else {
+          await _unlockKeychain();
+        }
       case SecurityTier.paranoid:
         await _unlockParanoid(manager);
       case SecurityTier.plaintext:
