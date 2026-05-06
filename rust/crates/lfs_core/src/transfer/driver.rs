@@ -222,28 +222,40 @@ impl TaskExecutor for SftpTaskExecutor {
     }
 }
 
-/// Chunk size for streaming SFTP transfers. Matches russh-sftp's
-/// default packet payload (`SshFxpData` body), keeps memory bounded
-/// for multi-GB files, and leaves room for the protocol framing
-/// inside a single SSH channel window.
-const TRANSFER_CHUNK_SIZE: usize = 64 * 1024;
+/// Chunk size for streaming SFTP transfers. 256 KiB keeps the SSH
+/// channel window fed without flooding it: russh's default channel
+/// window is 2 MiB, so eight in-flight chunks saturate it without
+/// triggering a back-pressure stall. The previous 64 KiB cap left a
+/// single-stream transfer running at maybe a quarter of the pipe
+/// limit on 100+ Mbps links because each read awaited a full
+/// round-trip before the next packet went out. Larger sizes (1 MiB+)
+/// risk fragmentation against smaller server-side window settings;
+/// 256 KiB is the conservative mid-point.
+const TRANSFER_CHUNK_SIZE: usize = 256 * 1024;
 
 async fn download(
     sftp: &crate::sftp::Sftp,
     task: &TaskSnapshot,
     cancel: &CancellationToken,
 ) -> Result<(), Error> {
-    use std::io::Write;
+    use tokio::io::AsyncWriteExt;
     let app = crate::app::instance();
     let remote = sftp.open(&task.remote_path).await?;
     let local_path = std::path::Path::new(&task.local_path);
     if let Some(parent) = local_path.parent() {
         if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)
+            tokio::fs::create_dir_all(parent)
+                .await
                 .map_err(|e| Error::Io(format!("mkdir {}: {e}", parent.display())))?;
         }
     }
-    let mut local = std::fs::File::create(&task.local_path)
+    // tokio::fs::File so the local I/O runs on the blocking pool —
+    // the SFTP read at the top of the loop is async and does not
+    // block its worker thread, but a slow disk on the write side
+    // would otherwise pin the same worker and stall every other
+    // task scheduled on it.
+    let mut local = tokio::fs::File::create(&task.local_path)
+        .await
         .map_err(|e| Error::Io(format!("create {}: {e}", task.local_path)))?;
     let mut written: u64 = 0;
     loop {
@@ -256,12 +268,14 @@ async fn download(
         }
         local
             .write_all(&chunk)
+            .await
             .map_err(|e| Error::Io(format!("write {}: {e}", task.local_path)))?;
         written = written.saturating_add(chunk.len() as u64);
         app.transfers.set_progress(&task.id, written, &app.bus);
     }
     local
         .sync_all()
+        .await
         .map_err(|e| Error::Io(format!("fsync {}: {e}", task.local_path)))?;
     Ok(())
 }
@@ -271,9 +285,10 @@ async fn upload(
     task: &TaskSnapshot,
     cancel: &CancellationToken,
 ) -> Result<(), Error> {
-    use std::io::Read;
+    use tokio::io::AsyncReadExt;
     let app = crate::app::instance();
-    let mut local = std::fs::File::open(&task.local_path)
+    let mut local = tokio::fs::File::open(&task.local_path)
+        .await
         .map_err(|e| Error::Io(format!("read {}: {e}", task.local_path)))?;
     let remote = sftp.create(&task.remote_path).await?;
     let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
@@ -284,6 +299,7 @@ async fn upload(
         }
         let n = local
             .read(&mut buf)
+            .await
             .map_err(|e| Error::Io(format!("read {}: {e}", task.local_path)))?;
         if n == 0 {
             break;
