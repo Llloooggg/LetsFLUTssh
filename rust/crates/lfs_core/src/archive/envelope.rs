@@ -79,6 +79,20 @@ pub(super) fn encrypt_with_password(
     iterations: u32,
     parallelism: u32,
 ) -> Result<Vec<u8>, Error> {
+    // Mirror the import-side caps so a self-export never produces a
+    // file the same binary refuses to import. Without this, callers
+    // that pass `parallelism > MAX_IMPORT_PARALLELISM` (or memory /
+    // iterations above their caps) write a valid LFSE blob whose
+    // header trips the importer's identical check — a self-
+    // unimportable export footgun.
+    if memory_kib > MAX_IMPORT_MEMORY_KIB
+        || iterations > MAX_IMPORT_ITERATIONS
+        || parallelism > MAX_IMPORT_PARALLELISM
+    {
+        return Err(Error::Crypto(format!(
+            "Argon2id params exceed import caps (m={memory_kib}, t={iterations}, p={parallelism})"
+        )));
+    }
     let mut salt = [0u8; SALT_LEN];
     let mut iv = [0u8; IV_LEN];
     OsRng.fill_bytes(&mut salt);
@@ -273,6 +287,50 @@ mod tests {
     }
 
     #[test]
+    fn encrypt_rejects_parallelism_above_import_cap() {
+        // A self-export must never produce a file the same binary
+        // refuses to import. Encrypt with `parallelism = cap + 1`
+        // and assert the rejection message matches the importer's
+        // — the round-trip footgun closes on the encrypt side
+        // before any KDF work runs.
+        let err = encrypt_with_password(
+            SAMPLE_PAYLOAD,
+            "p",
+            16,
+            1,
+            MAX_IMPORT_PARALLELISM + 1,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("exceed import caps"), "got: {err}");
+    }
+
+    #[test]
+    fn encrypt_rejects_iterations_above_import_cap() {
+        let err = encrypt_with_password(
+            SAMPLE_PAYLOAD,
+            "p",
+            16,
+            MAX_IMPORT_ITERATIONS + 1,
+            1,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("exceed import caps"), "got: {err}");
+    }
+
+    #[test]
+    fn encrypt_rejects_memory_above_import_cap() {
+        let err = encrypt_with_password(
+            SAMPLE_PAYLOAD,
+            "p",
+            MAX_IMPORT_MEMORY_KIB + 1,
+            1,
+            1,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("exceed import caps"), "got: {err}");
+    }
+
+    #[test]
     fn decrypt_does_not_reject_iterations_exactly_at_cap() {
         // Boundary check: cap is `>` (strict), so params == cap
         // must NOT trip the cap branch. The KDF still runs past
@@ -356,14 +414,15 @@ mod tests {
         // Use small KDF params so the actual derive call finishes
         // in milliseconds — we only inspect the wire bytes here.
         // Argon2id requires `memory_kib >= 8 * parallelism`, so
-        // 64 KiB is the smallest legal value with p=7.
-        let env = encrypt_with_password(SAMPLE_PAYLOAD, "p", 64, 1, 7).unwrap();
+        // 32 KiB is the smallest legal value with p=4 (the import-
+        // cap maximum, which the encrypt path now also enforces).
+        let env = encrypt_with_password(SAMPLE_PAYLOAD, "p", 32, 1, 3).unwrap();
         assert_eq!(&env[0..4], &ENC_HEADER_MAGIC);
         assert_eq!(env[4], ENC_VERSION_ARGON2ID);
         assert_eq!(env[5], KDF_ALGO_ARGON2ID);
-        assert_eq!(&env[6..10], &64u32.to_be_bytes());
+        assert_eq!(&env[6..10], &32u32.to_be_bytes());
         assert_eq!(&env[10..14], &1u32.to_be_bytes());
-        assert_eq!(env[14], 7);
+        assert_eq!(env[14], 3);
         // ct begins after salt + iv.
         assert!(env.len() > 4 + 1 + 10 + SALT_LEN + IV_LEN);
     }
