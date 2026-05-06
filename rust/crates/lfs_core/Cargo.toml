@@ -24,7 +24,10 @@ lfs_os_security = { path = "../lfs_os_security" }
 russh = { workspace = true }
 # Direct dep solely to enable the `ppk` feature on the forked
 # ssh-key crate that russh pulls transitively. See workspace
-# Cargo.toml note for the version-pin rationale.
+# Cargo.toml note for the version-pin rationale. Cargo-machete
+# flags this as unused because there is no `use` statement; the
+# feature-flag activation is the real reason it's here, hence the
+# entry in `[package.metadata.cargo-machete] ignored = ...` below.
 internal-russh-forked-ssh-key = { workspace = true }
 russh-sftp = { workspace = true }
 thiserror = { workspace = true }
@@ -95,3 +98,10 @@ tempfile = "3"
 # anything WE write here.
 [lints.rust]
 unsafe_code = "forbid"
+
+[package.metadata.cargo-machete]
+# `internal-russh-forked-ssh-key` is feature-only — we depend on it
+# to flip the `ppk` feature flag on the forked ssh-key russh pulls
+# transitively, with no `use` statement of our own. Cargo-machete
+# would otherwise flag it as unused on every run.
+ignored = ["internal-russh-forked-ssh-key"]

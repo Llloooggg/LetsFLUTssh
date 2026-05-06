@@ -18,7 +18,6 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 lfs_core = { path = "../lfs_core" }
 lfs_os_security = { path = "../lfs_os_security" }
 flutter_rust_bridge = { workspace = true }
-anyhow = { workspace = true }
 tokio = { workspace = true }
 # Used by the security-config / capabilities FRB shims to round-trip
 # the `Map<String, dynamic>` payloads Dart consumers persist inside

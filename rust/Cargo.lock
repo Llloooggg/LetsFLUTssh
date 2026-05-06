@@ -1828,7 +1828,6 @@ dependencies = [
 name = "lfs_frb"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "flutter_rust_bridge",
  "lfs_core",
  "lfs_os_security",
