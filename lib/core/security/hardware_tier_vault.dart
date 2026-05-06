@@ -160,19 +160,23 @@ class HardwareTierVault {
       if (_usesRust) {
         try {
           final dir = await getApplicationSupportDirectory();
+          // Write the salt file BEFORE calling into the platform
+          // vault — see `storeFromSecret` for the full rationale.
+          // Salt-then-vault keeps the live state consistent against
+          // a crash between the two writes; vault-then-salt would
+          // leave the native side wrapping bytes against a salt
+          // that no longer exists on disk → permanent lockout.
+          // Linux co-locates the salt inside `hardware_vault.bin`
+          // itself so no separate write is needed there.
+          if (!Platform.isLinux) {
+            await _writeSaltFile(salt);
+          }
           await rust_vault.hardwareTierVaultStore(
             supportDir: dir.path,
             dbKey: dbKey,
             salt: salt,
             pinHmac: authValue,
           );
-          // Apple / Android / Windows persist the salt to a sibling
-          // `hardware_vault_salt.bin` Dart-side; Linux co-locates
-          // it inside `hardware_vault.bin` so no separate write
-          // is needed (and would be redundant).
-          if (!Platform.isLinux) {
-            await _writeSaltFile(salt);
-          }
           return true;
         } catch (e) {
           AppLogger.instance.log(
@@ -205,15 +209,28 @@ class HardwareTierVault {
       if (_usesRust) {
         try {
           final dir = await getApplicationSupportDirectory();
+          // Write the salt file BEFORE calling into the platform
+          // vault. A crash between the vault commit and the salt
+          // write would otherwise leave the native side wrapping
+          // bytes against a salt that no longer exists on disk —
+          // permanent lockout because the next read re-derives
+          // `_deriveAuth(pin, fresh_salt)` and the chip refuses to
+          // unwrap. Failing the salt write before touching the
+          // vault means the live state stays whatever it was
+          // before this call started; the user's prior entry (if
+          // any) is intact and the next attempt re-derives a
+          // fresh salt cleanly. Linux co-locates the salt inside
+          // `hardware_vault.bin` itself so no separate write is
+          // needed there.
+          if (!Platform.isLinux) {
+            await _writeSaltFile(salt);
+          }
           await rust_vault.hardwareTierVaultStoreFromSecret(
             supportDir: dir.path,
             secretId: secretId,
             salt: salt,
             pinHmac: authValue,
           );
-          if (!Platform.isLinux) {
-            await _writeSaltFile(salt);
-          }
           return true;
         } catch (e) {
           AppLogger.instance.log(
