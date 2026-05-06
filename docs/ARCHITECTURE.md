@@ -141,7 +141,7 @@ flowchart TD
 | OS-API call? | **Rust** through a maintained crate (`security-framework` / `windows` / `jni` / `zbus` / `objc2`) |
 | Parsing untrusted bytes? | **Rust** (always — memory-safety perimeter) |
 | Touches secrets? | **Rust** SecretStore (always — plaintext-discipline boundary, [§3.6](#36-security--encryption-coresecurity)) |
-| Persisted to disk? | **Rust** through atomic-write + chmod 0600 (`lfs_core::path::write_bytes_atomic`) |
+| Persisted to disk? | **Rust** through atomic-write + fsync + chmod 0600 (`lfs_core::path::write_bytes_atomic` — write tmp + `sync_data` + rename + parent-dir `sync_all` on Unix; payload survives a power-loss between rename and the kernel flushing the data pages) |
 | OS requires a JVM/UIKit class instance (Service / FragmentActivity / AVCaptureSession host)? | **Native shim** + JNI/objc2 callback into Rust |
 | Native UI surface (camera preview, file picker)? | **Native** plugin → Dart wrapper → bytes flow into Rust for parsing |
 
@@ -471,7 +471,7 @@ class RustSftpFs extends RemoteSftpFs {
 }
 ```
 
-**Chunked transfers.** `downloadFile` / `uploadFile` stream in 64 KiB chunks across the FRB boundary — the Rust side reads/writes from russh-sftp into a `Vec<u8>` of the requested size, returns it across the bridge, and Dart writes to the local `RandomAccessFile`. `try/finally` closes the local handle on every error path so a half-written download never leaks an open file descriptor. Progress events fire after each chunk via the `ProgressCallback`; the transfer queue (`features/transfer/`) translates them into `TransferProgress` rows for the UI.
+**Chunked transfers.** `lfs_core::transfer::driver::{download, upload}` stream in 256 KiB chunks (`TRANSFER_CHUNK_SIZE`). The chunk size matches russh's default 2 MiB SSH channel window divided by ~8 in-flight packets, so a single stream saturates the pipe without back-pressure stalls; the prior 64 KiB cap awaited a full round-trip before the next read went out and capped throughput at ~25% of the link on 100+ Mbps connections. Local file I/O runs through `tokio::fs::File` so the syscalls land on the blocking pool — the SFTP read/write at the top of each loop iteration is async and the runtime worker stays free to drive concurrent transfers. The driver allocates one scratch `Vec<u8>` per call and reuses it across iterations via `SftpFile::read_into`; the older `read_chunk(N)` path stays for the FRB shim where the Dart caller needs an owned `Vec` for SerDe. `try/finally`-equivalent ordering closes the local handle on every error path so a half-written download never leaks an open file descriptor. Progress events fire through `lfs_core::transfer::TransferQueue::set_progress`, **throttled** to one bus event per 256 KiB or 100 ms (whichever fires first; completion edge always publishes), so a 100 MB/s pipe produces ~10 events/s/task instead of the ~3200/s the unthrottled per-chunk emit would (Dart-side `_scheduleRefresh` rebuilt the full transfer-history snapshot per event — UI froze on large downloads). The transfer queue (`features/transfer/`) translates the throttled events into `TransferProgress` rows for the UI.
 
 #### FileSystem interface
 
@@ -1132,6 +1132,8 @@ All three share the backoff schedule `[0, 1, 2, 4, 8, 16, 32, 60, 60, 60] s` —
 
 `PersistedRateLimiter` writes `{failureCount, nextRetryAtMillis}` to `rate_limit_state.bin` framed with an HMAC-SHA256 tag under the L2 gate's own stored HMAC as key. Tamper detection: a mismatch on load clamps the counter to the schedule cap and sets `nextRetryAt` to `now + 60 s`, so an attacker who overwrites the state file with garbage lands in max cooldown rather than zero-failures. Writes are serialised on a `Future` chain so back-to-back `recordFailure` / `recordSuccess` calls never race at the filesystem.
 
+**Monotonic-floor cooldown (clock-jump hardening).** `record_failure` issues `next_retry_at_millis = max(now + step_ms, prev_next_retry_at_millis)` so a backward clock jump (NTP correction, suspended laptop with battery-drained RTC, hostile system-time write) cannot shrink an already-issued cooldown. Without the floor an attacker with system-clock write access could burn through the geometric backoff: fail → roll clock back → fail → roll back → repeat, issuing each new cooldown against rolled-back time and skipping the schedule entirely. Forward jumps still let the cooldown expire on schedule (legitimate NTP corrections + DST forward roll); only backward jumps are clamped. Regression: `persisted_rate_limit_actor::tests::backward_clock_jump_does_not_shrink_cooldown`.
+
 The unlock dialogs (`UnlockDialog`, `TierSecretUnlockDialog`) consult `rateLimitStatus()` on mount, refuse `verify` while locked, start a 1-Hz `Timer.periodic` to refresh the countdown, and disable the submit button until the cooldown clears. The rendered label uses the `tierCooldownHint(seconds)` l10n key in all 15 locales.
 
 **Rust-side gate — `tier_unlock_orchestrator`.** The Dart-side limiter above is the user-visible brake. Behind it, `lfs_core::security::tier_unlock_orchestrator::unlock_keychain_with_password` and `unlock_paranoid` consult a Rust-side [`InMemoryRateLimiterRegistry`](../rust/crates/lfs_core/src/rate_limit.rs) under fixed ids (`tier_unlock.keychain_with_password` / `tier_unlock.paranoid`) **before** the verifier runs. A direct FRB caller — programmatic test harness, future Tauri client, hostile process with the FFI surface mapped — would bypass the Dart dialog entirely; the Rust-side gate catches that path. Same exponential schedule as the Dart limiter (`[0, 1, 2, 4, 8, 16, 32, 60, 60, 60] s`) so the user-visible countdown matches what the Rust core enforces. `record_failure` increments after a wrong-password verify, `record_success` clears the counter after a correct one, and `status(id).is_locked()` short-circuits to `WrongSecret` while the cooldown holds — without ever touching the verifier (which would otherwise pay the Argon2id cost on Paranoid). Regression: `tests::unlock_keychain_with_password_short_circuits_when_limiter_locked` + `unlock_paranoid_short_circuits_when_limiter_locked`.
@@ -1414,8 +1416,13 @@ rust/crates/lfs_core/src/migration/
   registry.rs         — Registry + build_app_registry() (composition
                         root — no service-locator scan)
   artefacts.rs        — ConfigArtefact (parses config_schema_version
-                        from config.json), KdfArtefact (presence-only
-                        wrapper for credentials.kdf)
+                        from config.json), KdfArtefact (validates
+                        'LFKD' magic + reads the inner version byte
+                        from credentials.kdf — corrupt / missing
+                        magic / truncated files surface as fatal
+                        Err so the migration runner routes through
+                        the reset dialog instead of silently
+                        treating a torn-write blob as up-to-date)
 
 rust/crates/lfs_frb/src/api/migration.rs
                       — DbMigrationReport / DbMigrationStep /
@@ -2149,6 +2156,10 @@ TerminalPane
 
 Multi-pane connections run independent shell channels — each pane has its own xterm buffer, scrollback, and dimensions. A connection-level recorder would interleave bytes from N shells into a single timeline that no playback tool could un-mix. Per-shell keeps each recording straight-line.
 
+#### Coalesced FRB hops
+
+`recordOutput` / `recordInput` buffer their bytes in a per-direction `BytesBuilder` and drain across FRB on either an 8 KiB threshold (`_flushThresholdBytes` — sustained burst path) or a 10 ms deadline (`_flushDeadline` — interactive prompt path), whichever fires first. Pre-fix every shell-output packet from russh (~4-16 KiB each) crossed FRB independently with a fresh `Uint8List.fromList(bytes)` allocation; an interactive shell paid 3-10 hops/s, a streaming `cat` peaked at hundreds. The buffers preserve direction (output / input map to distinct asciinema events) so a typed key-press never gets attributed to the output stream; tokio's mpsc inside the Rust worker preserves FIFO so the on-disk event order matches the wire order regardless of how many writes are coalesced into one hop. `close()` drains buffers BEFORE enqueuing the close marker — without that flush a 10-ms-window burst arriving on a fast disconnect would be lost.
+
 #### Why asciinema v2 inside an encryption envelope
 
 asciinema is the de-facto interop format — `asciinema play file.cast` plays it on any platform without our app installed. Keeping the plaintext shape standard means a future "Export to .cast" action is one decrypt away: the bytes inside the envelope are already the asciinema JSON-Lines that any cast viewer accepts. A custom binary format would lock recordings inside the app forever.
@@ -2353,6 +2364,7 @@ Generated from `lib/providers/` — each row points at the file that defines the
 | Provider | Type | Source / depends on |
 |---|---|---|
 | `sessionProvider` | `NotifierProvider<SessionNotifier, List<Session>>` | `session_provider.dart` — FRB DAO (`db_sessions_*`) + `BusTopic::Sessions` |
+| `sessionsByIdProvider` | `Provider<Map<String, Session>>` | derives from `sessionProvider`. Use `ref.watch(sessionsByIdProvider.select((m) => m[id]))` for any per-session row widget that needs to resolve a foreign-key target by id (`SessionViaBadge` resolving `via_session_id` is the load-bearing case). Pre-fix every per-row widget ran an O(N) `firstWhere` on every list mutation → O(N²) per refresh; the derived map + `.select` collapses that to O(1) per badge with no rebuild when the specific bastion's row didn't change |
 | `sessionsLoadingProvider` | `NotifierProvider<SessionsLoadingNotifier, bool>` | `session_provider.dart` — `true` while the initial load is in flight |
 | `sessionSearchProvider` | `NotifierProvider<SessionSearchNotifier, String>` | `session_provider.dart` |
 | `filteredSessionsProvider` | `Provider<List<Session>>` | `sessionProvider` + `sessionSearchProvider` |
@@ -3912,7 +3924,7 @@ All long operations surface progress through this type — `ExportImport.export/
 
 `LfsDecryptionFailedException` (from `ExportImport`) wraps GCM auth-tag failures and ZIP decoder failures so the UI can render a single localized "wrong master password or corrupted archive" message without leaking `InvalidCipherTextException` stack traces.
 
-`LfsArchiveTooLargeException` is raised *before* any decryption when the encrypted file on disk exceeds `ExportImport.maxArchiveBytes` (50 MiB). Real archives are single-digit-MB; the cap catches zip-bomb-scale files before Argon2id + AES-GCM are forced to hold the full plaintext in memory. Legitimate UI paths surface both exceptions through `localizeError`.
+`LfsArchiveTooLargeException` is raised *before* any decryption when the encrypted file on disk exceeds 50 MiB (`lfs_core::archive::probe::MAX_ARCHIVE_BYTES`). Real archives are single-digit-MB; the cap catches zip-bomb-scale files before Argon2id + AES-GCM are forced to hold the full plaintext in memory. Per-entry declared-uncompressed size is also capped at 200 MiB (`MAX_DECOMPRESSED_BYTES`) to refuse a zip-bomb that claims petabytes of inflation before any decompression runs. Both checks live in [`lfs_core::archive::probe`](../rust/crates/lfs_core/src/archive/probe.rs) — the Dart caller (`ExportImport.probeArchive`) is a thin async wrapper. Legitimate UI paths surface both exceptions through `localizeError`.
 
 `UnsupportedLfsVersionException` fires when an archive is not at the current `SchemaVersions.archive`: missing `manifest.json`, malformed `schema_version`, a `schema_version` that does not match `ExportImport.currentSchemaVersion`, missing `LFSE` magic, or a header version byte other than the current Argon2id one. v1 is the permanent floor — users re-export from the current app version to recover.
 
@@ -4493,14 +4505,39 @@ same column shape. Future bumps:
   here.
 
 **Performance indexes are baked into the schema.**
-`bootstrap_schema` issues `CREATE INDEX IF NOT EXISTS` for hot
-query paths (`sessions(folder_id)`, `folders(parent_id)`,
-`sftp_bookmarks(session_id)`). They share the SCHEMA_VERSION
-stamp; adding a new index for an existing table is a one-line
-edit to the `SCHEMA_SQL` block — `IF NOT EXISTS` makes it
-idempotent without a version bump. Functional schema changes
-(columns, tables, constraints) still require a version bump
-and a migration step per the rule above.
+`bootstrap_schema` issues `CREATE INDEX IF NOT EXISTS` for every
+foreign-key column queried as a "join from the child side" —
+SQLite indexes the declared `PRIMARY KEY` automatically but does
+NOT index FK columns by default, so without these every reverse
+lookup (`SELECT … FROM sessions WHERE folder_id = ?`,
+`DELETE FROM sftp_bookmarks WHERE session_id = ?`,
+`tag → sessions / folders / snippets`) was a full table scan.
+Current set: `idx_sessions_folder_id`, `idx_sessions_via_session_id`,
+`idx_sessions_key_id`, `idx_folders_parent_id`,
+`idx_port_forward_rules_session_id`,
+`idx_sftp_bookmarks_session_id`,
+`idx_session_tags_tag_id`, `idx_folder_tags_tag_id`,
+`idx_session_snippets_snippet_id`. Composite-PK junction tables
+already have the leading column covered by the PK; the trailing
+column gets its own index for the reverse join.
+Existing databases pick the indexes up on next open via
+`IF NOT EXISTS` — no migration bump needed. Adding a new index
+for an existing table is a one-line edit to the `SCHEMA_SQL`
+block — `IF NOT EXISTS` makes it idempotent without a version
+bump. Functional schema changes (columns, tables, constraints)
+still require a version bump and a migration step per the rule
+above.
+
+**Prepared-statement cache.** Every query in `lfs_core::db::*`
+goes through `conn.prepare_cached(sql)` rather than
+`conn.prepare(sql)` — rusqlite memoises the compiled
+`sqlite3_stmt` keyed by SQL text so the parser + planner runs
+once per process per query string instead of once per call.
+`Connection::prepare_cached` takes `&self` (interior mutability
+via `RefCell`) so it drops in to the existing `&Connection`-shaped
+DAO functions without flipping signatures. Hot paths
+(`sessions::list_all`, `folders::list_all`, the per-id `get`
+forms) benefit most; one-shot startup queries are unchanged.
 
 The `bootstrap_schema` SCHEMA_VERSION + `PRAGMA user_version` machinery covers **only** intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework) (`core/migration/`), which runs on startup before `_initSecurity` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: `lfs_core::db::bootstrap_schema` owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so the DB still surfaces in the runner's dependency graph; a schema mismatch surfaces as a SQLCipher decrypt failure on `dbInit` and is routed via `DbCorruptDialog`.
 
@@ -4644,6 +4681,12 @@ _mainBody (synchronous, pre-runApp — PURE DART):
       bootstrapRustConfigStore()                        // config_store actor
       AppLogger.attachCoreLogPipe()                     // bus → file sink
       ProcessHardening.applyOnStartup()
+  AppLogger.hardenPendingLogPerms()                     // drains the
+                                                         // pre-FRB
+                                                         // chmod queue
+  activateDeepLinks(ref.read(deepLinkHandlerProvider))  // FRB-driven
+                                                         // initial-URI
+                                                         // pump
   _wireFrbDependentBootstrapListeners                   // every AppBus.subscribe
       HostKeyPromptListener.start()
       KeychainProbePromptListener.start()
@@ -4664,6 +4707,11 @@ _mainBody (synchronous, pre-runApp — PURE DART):
 **How to add a new pre-runApp step.** Use only `dart:io`, `dart:convert`, `path_provider`, `package:flutter/foundation`. Importing anything under `lib/src/rust/` from a file reachable on the cold-start path is a regression — fail loud at review.
 
 **How to add a new post-init listener / FRB-touching boot step.** Wire it inside `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` (for AppBus subscribers) or directly in `_bootstrap` after `_initRustCoreOrFatal` (for one-shot setup). Don't add it to `_MainScreenState.initState` — that fires during the first runApp frame, pre-FRB-init.
+
+**Pre-FRB FRB-touching surfaces that *must* defer.** Two surfaces look like they need a Dart-only path on the cold-start pre-runApp half but each actually queues work for the post-init drain:
+
+* **`AppLogger.setThreshold` → `_openSink` → `_restrictPermissions`.** The chmod is `lfs_core::path::harden_file_perms` (FRB). Pre-FRB calls queue the path in `AppLogger._deferredHardenPaths`; `_LetsFLUTsshAppState._bootstrap` drains the set via `AppLogger.hardenPendingLogPerms()` immediately after `_initRustCoreOrFatal` succeeds. Without the queue + drain the chmod throws `StateError` and the `try` swallows it silently — the log file lives at the umask-wide default (typically `0644`) for the rest of the session.
+* **Deep-link wireup.** `DeepLinkHandler.init()` runs `getInitialLink()` then `handleUri` → `rust_deeplink.deeplinkDispatch` (FRB). The handler now lives in `deepLinkHandlerProvider` (process-wide). `_MainScreenState.initState` registers callbacks via `wireDeepLinks(...)` (pure-Dart wiring); `_bootstrap` calls `activateDeepLinks(...)` post-FRB to fire `init()`. A cold-launch via `letsflutssh://` URL or a double-clicked `.lfs` file therefore never races the native-lib load on Win IoT.
 
 ### Single-instance protection (desktop only)
 
@@ -4750,7 +4798,7 @@ Paranoid is treated as "already opted out of OS trust" and never shows the upgra
 
   *Why the native side classifies rather than the Dart side:* the backing-level inference Linux does via file + process probes is not portable. On Apple the classifier needs the typed `LAError` code from `canEvaluatePolicy`, on Android it needs the `BiometricManager.canAuthenticate` status constant, on Windows it needs the `NCryptOpenStorageProvider` result. All three live on the native side already; the plugin returning a structured code is simpler than routing the raw error object through the method channel and re-classifying in Dart.
 
-- [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. On Linux the probe is a single concrete `gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.DBus.Peer.Ping` subprocess — exit 0 = service registered and responds, any other exit (bus down, no daemon, `gdbus` binary missing) = `linuxNoSecretService`. The same signal `libsecret` itself runs before every API call; probing up front lets us classify without spamming stderr on failure. Earlier iterations pattern-matched `WSL_DISTRO_NAME` or checked `DBUS_SESSION_BUS_ADDRESS` — both proxies: WSL2 + WSLg ships a session bus but no keyring daemon, so the env-var branches gave the wrong answer. Non-Linux platforms (Windows / macOS / iOS / Android) fall through to a live write-read-delete round-trip against `lfs_os_security::secure_key_storage`; failure = `probeFailed`.
+- [`keyringProbeDetailProvider`](../lib/providers/security_provider.dart) — maps a [`KeyringProbeResult`](../lib/core/security/secure_key_storage.dart) case to the `keyringProbe*` ARB keys. On Linux the probe routes through FRB into `lfs_os_security::secure_key_storage::secret_service_reachable` — a `zbus`-driven `SecretService::connect` against `org.freedesktop.secrets`. `Ok(connection)` = service registered and responds → `available`; transport failure / `ServiceUnknown` / no daemon → `linuxNoSecretService`. The same signal `libsecret` itself runs before every API call; probing up front lets us classify without spamming stderr on failure. The earlier `Process.run('gdbus', ...)` Dart subprocess was retired in favour of the in-process `zbus` connect so the keyring-data-path stays single-language end-to-end (per the "all data through Rust" architectural rule). Earlier iterations pattern-matched `WSL_DISTRO_NAME` or checked `DBUS_SESSION_BUS_ADDRESS` — both proxies: WSL2 + WSLg ships a session bus but no keyring daemon, so the env-var branches gave the wrong answer. Non-Linux platforms (Windows / macOS / iOS / Android) fall through to a live write-read-delete round-trip against `lfs_os_security::secure_key_storage`; failure = `probeFailed`.
 
 The Linux subprocess path is guarded by `SecureKeyStorage.enableRuntimeSubprocessProbes`, called from `main.dart` at app startup. Widget tests running under FakeAsync do not reach that entry point, so the flag stays false and the probe short-circuits to an optimistic `available` — necessary because `Process.run` inside FakeAsync-managed code leaks a Timer onto the pending-timer list and fails unrelated widget tests.
 

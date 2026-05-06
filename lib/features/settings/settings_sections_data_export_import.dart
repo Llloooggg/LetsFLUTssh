@@ -579,7 +579,9 @@ class _ExportImportTile extends ConsumerWidget {
         },
       );
       if (apply.rolledBack) {
-        throw ImportRolledBackException(List<String>.from(apply.errors));
+        throw LfsImportRolledBackException(
+          cause: apply.errors.isEmpty ? 'rolled back' : apply.errors.join('; '),
+        );
       }
       // Config restore (file IO, not a DB write) stays Dart-side.
       // Security tier setup is per-machine and never travels — keep
@@ -663,7 +665,9 @@ class _ExportImportTile extends ConsumerWidget {
         },
       );
       if (apply.rolledBack) {
-        throw ImportRolledBackException(List<String>.from(apply.errors));
+        throw LfsImportRolledBackException(
+          cause: apply.errors.isEmpty ? 'rolled back' : apply.errors.join('; '),
+        );
       }
       final cfg = importResult.config;
       if (cfg != null) {
