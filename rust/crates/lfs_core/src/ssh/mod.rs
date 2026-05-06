@@ -1173,8 +1173,16 @@ impl ForwardChannel {
             let msg = read.wait().await?;
             drop(read);
             match msg {
-                ChannelMsg::Data { data } => return Some(data.to_vec()),
-                ChannelMsg::ExtendedData { data, .. } => return Some(data.to_vec()),
+                // `Vec::from(Bytes)` reclaims the russh-owned heap
+                // buffer in-place when refcount == 1 (the typical
+                // case for a fresh `ChannelMsg::Data`) — the older
+                // `data.to_vec()` always copied. Saves one alloc +
+                // memcpy per shell-output packet on the hot path.
+                // PR #653 in russh `0.59.0` flipped `ChannelMsg::Data`
+                // from mlocked `CryptoVec` to plain `Bytes`
+                // specifically so downstream code can do this.
+                ChannelMsg::Data { data } => return Some(Vec::from(data)),
+                ChannelMsg::ExtendedData { data, .. } => return Some(Vec::from(data)),
                 ChannelMsg::Eof | ChannelMsg::Close => return None,
                 _ => continue,
             }
@@ -1277,9 +1285,13 @@ pub enum ShellEvent {
 impl ShellEvent {
     fn from_channel_msg(msg: ChannelMsg) -> Option<Self> {
         match msg {
-            ChannelMsg::Data { data } => Some(ShellEvent::Output(data.to_vec())),
+            // `Vec::from(Bytes)` is in-place buffer reclaim when
+            // the Bytes is the unique owner — see the docstring on
+            // [`Read::read`] above. Hot path: every shell output
+            // packet from the remote.
+            ChannelMsg::Data { data } => Some(ShellEvent::Output(Vec::from(data))),
             ChannelMsg::ExtendedData { data, .. } => {
-                Some(ShellEvent::ExtendedOutput(data.to_vec()))
+                Some(ShellEvent::ExtendedOutput(Vec::from(data)))
             }
             ChannelMsg::Eof => Some(ShellEvent::Eof),
             ChannelMsg::ExitStatus { exit_status } => Some(ShellEvent::ExitStatus(exit_status)),
