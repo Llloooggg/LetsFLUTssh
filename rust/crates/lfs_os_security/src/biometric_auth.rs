@@ -219,17 +219,12 @@ mod platform_impl {
 }
 
 // ── Linux: routes through Tier 2 fprintd via Dart wrapper ────
-
-#[cfg(target_os = "linux")]
-#[allow(dead_code)]
-mod _linux_doc {
-    // The Dart `BiometricAuth` short-circuits on
-    // `Platform.isLinux` and calls `FprintdClient.verify()`
-    // directly. The stub below in `mod platform_impl` exists
-    // for the symmetry of `check_availability` /
-    // `authenticate` returning a sensible default — never
-    // reached in production.
-}
+//
+// The Dart `BiometricAuth` short-circuits on `Platform.isLinux` and
+// calls `FprintdClient.verify()` directly. The stub in `platform_impl`
+// below exists for the symmetry of `check_availability` /
+// `authenticate` returning a sensible default — never reached in
+// production.
 
 // ── Android — direct JNI to androidx.biometric.BiometricPrompt ──
 

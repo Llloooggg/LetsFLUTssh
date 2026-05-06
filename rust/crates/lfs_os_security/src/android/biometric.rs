@@ -38,7 +38,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use jni::objects::{JObject, JValue};
+use jni::objects::JValue;
 use jni::sys::{jint, jlong};
 use tokio::sync::oneshot;
 
@@ -307,9 +307,3 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallbac
     deliver(req_id as u64, BiometricResult::Error(code as i32));
 }
 
-// Suppress the unused-import warning for `JObject` when the
-// module-level helpers don't trigger it on every cfg path.
-#[allow(dead_code)]
-fn _unused_jobject_imports() {
-    let _: Option<JObject> = None;
-}

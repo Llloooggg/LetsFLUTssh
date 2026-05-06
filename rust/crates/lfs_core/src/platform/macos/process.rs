@@ -7,8 +7,7 @@
 //!
 //! Mirrors the Dart `process_runner.dart` shape verb-for-verb.
 
-use std::io::Write;
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 
 /// Captured result of a one-shot subprocess. UTF-8-decoded
 /// stdout / stderr (lossy on invalid sequences — same fallback
@@ -39,17 +38,6 @@ impl ProcOutput {
 /// without touching the host.
 pub trait Runner: Send + Sync {
     fn run(&self, executable: &str, args: &[&str]) -> std::io::Result<ProcOutput>;
-
-    /// Same as [`run`] but pipes `stdin_bytes` into the child
-    /// before reading stdout / stderr. Used by `security
-    /// import` (legacy bash variant) and openssl calls that
-    /// take key material on stdin.
-    fn run_with_stdin(
-        &self,
-        executable: &str,
-        args: &[&str],
-        stdin_bytes: &[u8],
-    ) -> std::io::Result<ProcOutput>;
 }
 
 /// Production runner — `std::process::Command` directly. Used
@@ -62,25 +50,6 @@ impl Runner for SystemRunner {
         let output = Command::new(executable).args(args).output()?;
         Ok(ProcOutput::from_std(output))
     }
-
-    fn run_with_stdin(
-        &self,
-        executable: &str,
-        args: &[&str],
-        stdin_bytes: &[u8],
-    ) -> std::io::Result<ProcOutput> {
-        let mut child = Command::new(executable)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(stdin_bytes)?;
-        }
-        let output = child.wait_with_output()?;
-        Ok(ProcOutput::from_std(output))
-    }
 }
 
 #[cfg(test)]
@@ -89,20 +58,17 @@ pub(crate) mod test_support {
     use std::sync::Mutex;
 
     /// Records every spawn for assertion + replays canned
-    /// outputs. Each enqueued reply matches one `run` /
-    /// `run_with_stdin` call in the order the test pushed
-    /// them.
+    /// outputs. Each enqueued reply matches one `run` call in
+    /// the order the test pushed them.
     pub struct MockRunner {
         replies: Mutex<Vec<ProcOutput>>,
         log: Mutex<Vec<MockCall>>,
     }
 
     #[derive(Debug, Clone)]
-    #[allow(dead_code)]
     pub struct MockCall {
         pub executable: String,
         pub args: Vec<String>,
-        pub stdin: Option<Vec<u8>>,
     }
 
     impl MockRunner {
@@ -145,21 +111,6 @@ pub(crate) mod test_support {
             self.log.lock().unwrap().push(MockCall {
                 executable: executable.to_string(),
                 args: args.iter().map(|s| s.to_string()).collect(),
-                stdin: None,
-            });
-            Ok(self.next_reply())
-        }
-
-        fn run_with_stdin(
-            &self,
-            executable: &str,
-            args: &[&str],
-            stdin_bytes: &[u8],
-        ) -> std::io::Result<ProcOutput> {
-            self.log.lock().unwrap().push(MockCall {
-                executable: executable.to_string(),
-                args: args.iter().map(|s| s.to_string()).collect(),
-                stdin: Some(stdin_bytes.to_vec()),
             });
             Ok(self.next_reply())
         }
