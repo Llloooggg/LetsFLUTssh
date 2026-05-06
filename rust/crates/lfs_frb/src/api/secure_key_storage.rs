@@ -136,3 +136,16 @@ pub async fn secure_storage_write_biometric_from_secret(
 pub async fn secure_storage_delete_biometric(alias: String) -> Result<(), String> {
     map_unit(lfs_os_security::secure_key_storage::delete_biometric(&alias).await)
 }
+
+/// Linux secret-service reachability probe — returns `true` when
+/// `org.freedesktop.secrets` is up on the session bus, `false` when
+/// the daemon is not installed / not running. Non-Linux hosts return
+/// `true` unconditionally; the Dart caller probes those backends via
+/// a live keychain round-trip instead. Routes through
+/// `lfs_os_security::secure_key_storage::secret_service_reachable`,
+/// which uses `secret-service` crate's `SecretService::connect`
+/// (zbus session-bus connection) — the same probe libsecret would
+/// run before every read/write call.
+pub async fn secure_storage_secret_service_reachable() -> bool {
+    lfs_os_security::secure_key_storage::secret_service_reachable().await
+}

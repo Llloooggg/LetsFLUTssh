@@ -111,6 +111,18 @@ Future<void> secureStorageDeleteBiometric({required String alias}) => RustLib
     .api
     .crateApiSecureKeyStorageSecureStorageDeleteBiometric(alias: alias);
 
+/// Linux secret-service reachability probe — returns `true` when
+/// `org.freedesktop.secrets` is up on the session bus, `false` when
+/// the daemon is not installed / not running. Non-Linux hosts return
+/// `true` unconditionally; the Dart caller probes those backends via
+/// a live keychain round-trip instead. Routes through
+/// `lfs_os_security::secure_key_storage::secret_service_reachable`,
+/// which uses `secret-service` crate's `SecretService::connect`
+/// (zbus session-bus connection) — the same probe libsecret would
+/// run before every read/write call.
+Future<bool> secureStorageSecretServiceReachable() => RustLib.instance.api
+    .crateApiSecureKeyStorageSecureStorageSecretServiceReachable();
+
 @freezed
 sealed class DbSecureStorageOutcome with _$DbSecureStorageOutcome {
   const DbSecureStorageOutcome._();

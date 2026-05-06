@@ -113,6 +113,29 @@ pub async fn delete_biometric(alias: &str) -> Result<(), SecureStorageError> {
     platform_impl::delete(alias, true).await
 }
 
+/// Linux-only: reachability ping for `org.freedesktop.secrets`. True
+/// when the daemon is registered on the session bus and answers a
+/// trivial peer-ping; false on transport failure / `ServiceUnknown` /
+/// no daemon installed. Same signal `libsecret` itself runs before
+/// every API call — probing up front lets the Dart-side wizard
+/// classify "no daemon" without spamming stderr on failure.
+///
+/// On every other platform the function is a stub returning `true`
+/// — non-Linux hosts have a different keychain backend
+/// (`security-framework`, Credential Manager, AndroidKeyStore) that
+/// the Dart caller probes via a live write/read/delete round-trip
+/// instead.
+#[cfg(target_os = "linux")]
+pub async fn secret_service_reachable() -> bool {
+    use secret_service::{EncryptionType, SecretService};
+    SecretService::connect(EncryptionType::Dh).await.is_ok()
+}
+
+#[cfg(not(target_os = "linux"))]
+pub async fn secret_service_reachable() -> bool {
+    true
+}
+
 // ── Linux (secret-service / libsecret) ────────────────────────
 
 #[cfg(target_os = "linux")]

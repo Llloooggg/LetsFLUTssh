@@ -1,4 +1,4 @@
-import 'dart:io' show Platform, Process, ProcessException;
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import '../../src/rust/api/secure_key_storage.dart' as rust_storage;
@@ -89,28 +89,26 @@ class SecureKeyStorage {
       return KeyringProbeResult.available;
     }
     try {
-      final result = await Process.run('gdbus', const [
-        'call',
-        '--session',
-        '--dest',
-        'org.freedesktop.secrets',
-        '--object-path',
-        '/org/freedesktop/secrets',
-        '--method',
-        'org.freedesktop.DBus.Peer.Ping',
-      ], runInShell: false);
-      if (result.exitCode == 0) {
-        return KeyringProbeResult.available;
-      }
+      // Routes through `lfs_os_security::secure_key_storage::
+      // secret_service_reachable` — `zbus`-driven `SecretService::
+      // connect` against `org.freedesktop.secrets`. Same signal
+      // libsecret itself runs before every API call; running it
+      // up front lets the wizard classify "no daemon" without
+      // spamming stderr on failure. No subprocess spawn — the
+      // probe lives in the same Rust runtime as every other
+      // platform-data path.
+      final reachable = await rust_storage
+          .secureStorageSecretServiceReachable();
+      if (reachable) return KeyringProbeResult.available;
       AppLogger.instance.log(
-        'gdbus secret-service ping exit=${result.exitCode} '
-        'stderr=${result.stderr}',
+        'secret-service unreachable (zbus connect failed); '
+        'classifying as linuxNoSecretService',
         name: 'SecureKeyStorage',
       );
       return KeyringProbeResult.linuxNoSecretService;
-    } on ProcessException catch (e) {
+    } catch (e) {
       AppLogger.instance.log(
-        'gdbus binary missing — classifying as no secret-service: $e',
+        'secret-service probe threw: $e',
         name: 'SecureKeyStorage',
         level: LogLevel.warn,
       );
