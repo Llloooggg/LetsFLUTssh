@@ -2152,14 +2152,17 @@ void main() {
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
         await switchToAuth(tester);
-        // Extra pumps: _resolveKeyLabel is an async chain (keyStoreProvider →
-        // KeyStore.get → setState), so the label lands a microtask or two
-        // after the initial widget tree settles.
+        // Extra pumps: _resolveKeyLabel is an async chain
+        // (keyStoreProvider → loadAllMetadata → setState), so the label
+        // lands a microtask or two after the initial widget tree
+        // settles.
         await tester.pump();
         await tester.pump();
 
         expect(find.text('Saved laptop key'), findsOneWidget);
-        expect(fakeStore.getIds, ['k-abc']);
+        // Resolve must go through the metadata path (no PEM bytes
+        // pulled into the Dart heap for a label-only render).
+        expect(fakeStore.metadataLookups, 1);
       },
     );
   });
@@ -2167,25 +2170,40 @@ void main() {
 
 /// Minimal [SshKeysNotifier] test double.
 ///
-/// Overrides only [get] — the one method the key-picker flow relies on
-/// when resolving an already-stored `keyId` into a human label.
-/// Records the ids it is queried with so tests can assert the dialog
-/// only looks up what it needs. `build()` returns the seeded list so
-/// `ref.watch(sshKeysProvider)` resolves immediately.
+/// Overrides [loadAllMetadata] — the metadata-only path the key-picker
+/// flow uses when resolving an already-stored `keyId` into a human
+/// label. Records the lookups so tests can assert the dialog only
+/// pulls metadata and never PEM bytes. `build()` returns the seeded
+/// list so `ref.watch(sshKeysProvider)` resolves immediately.
 class _StubKeysNotifier extends SshKeysNotifier {
   _StubKeysNotifier(this._initial, {Map<String, SshKeyEntry>? lookup})
     : _entries = lookup ?? {for (final k in _initial) k.id: k};
 
   final List<SshKeyEntry> _initial;
   final Map<String, SshKeyEntry> _entries;
-  final List<String> getIds = [];
+
+  /// Number of `loadAllMetadata` invocations — `_resolveKeyLabel`
+  /// hits this once per key-picker open, never PEM-bearing `loadAll`.
+  int metadataLookups = 0;
 
   @override
   Future<List<SshKeyEntry>> build() async => _initial;
 
   @override
-  Future<SshKeyEntry?> get(String id) async {
-    getIds.add(id);
-    return _entries[id];
+  Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
+    metadataLookups += 1;
+    return {
+      for (final entry in _entries.values)
+        entry.id: SshKeyMetadata(
+          id: entry.id,
+          label: entry.label,
+          publicKey: entry.publicKey,
+          keyType: entry.keyType,
+          createdAt: entry.createdAt,
+          isGenerated: entry.isGenerated,
+          privateFingerprint: '',
+          publicFingerprint: '',
+        ),
+    };
   }
 }

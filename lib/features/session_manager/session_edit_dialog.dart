@@ -279,10 +279,14 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     setState(() => _forwards = loaded);
   }
 
-  /// Look up the key label from the store for display.
+  /// Look up the key label from the store for display. Pulls the
+  /// metadata-only listing — only `label` is rendered, so the PEM
+  /// bytes never need to materialise on the Dart heap for this
+  /// resolve step.
   Future<void> _resolveKeyLabel() async {
     final store = ref.read(sshKeysProvider.notifier);
-    final entry = await store.get(_selectedKeyId);
+    final metadata = await store.loadAllMetadata();
+    final entry = metadata[_selectedKeyId];
     if (entry != null && mounted) {
       setState(() => _selectedKeyLabel = entry.label);
     }

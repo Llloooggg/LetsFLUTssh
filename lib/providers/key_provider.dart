@@ -28,10 +28,10 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     // The UI consumers (key picker, key manager list, settings
     // export tile) only need label / type / fingerprints / dates;
     // the rare paths that genuinely need the PEM bytes (e.g.
-    // archive export staging, dedup-by-private-fingerprint) call
-    // [loadAll] / [get] explicitly. `loadAllMetadata` returns an
-    // empty map on FRB failure — same sentinel-empty contract
-    // [loadAllSafe] used to provide.
+    // archive export staging) call [loadAll] explicitly. The
+    // `try / on KeyStoreException` below collapses an FRB failure
+    // to an empty map so the UI list never throws on a transient
+    // backend miss.
     Map<String, SshKeyMetadata> map;
     try {
       map = await loadAllMetadata();
@@ -76,9 +76,12 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     ref.invalidateSelf();
   }
 
-  /// Load all stored keys (id-keyed). Throws on FRB failure so
-  /// callers that need a hard error path can react; use [loadAllSafe]
-  /// for the sentinel-empty version.
+  /// Load all stored keys with PEM bytes attached. Throws on FRB
+  /// failure. Reserved for the export-tile path that genuinely needs
+  /// the private material (size estimator + the actual archive /
+  /// QR encoder). Every other consumer must go through
+  /// [loadAllMetadata] so the Dart heap doesn't pin PEM bytes for
+  /// keys nobody is actively using.
   Future<Map<String, SshKeyEntry>> loadAll() async {
     if (_cache != null) return Map.of(_cache!);
     try {
@@ -93,19 +96,6 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
         error: e,
       );
       throw KeyStoreException('Failed to load keys.', cause: e);
-    }
-  }
-
-  /// Load all keys, returning an empty map on any error.
-  Future<Map<String, SshKeyEntry>> loadAllSafe() async {
-    try {
-      return await loadAll();
-    } on KeyStoreException catch (e) {
-      AppLogger.instance.log(
-        'loadAllSafe: returning empty map — $e',
-        name: 'SshKeysNotifier',
-      );
-      return {};
     }
   }
 
@@ -165,12 +155,6 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
       );
     }
     ref.invalidateSelf();
-  }
-
-  /// Get a single key entry.
-  Future<SshKeyEntry?> get(String id) async {
-    final all = await loadAll();
-    return all[id];
   }
 
   /// Add or update a key entry.
