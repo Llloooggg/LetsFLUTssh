@@ -230,6 +230,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // act of reading it once installs the listener for the process
     // lifetime.
     ref.read(foregroundActiveCountListenerProvider);
+    // Same pattern: install the `securityCapabilitiesProvider` →
+    // `config.security_probe_cache` listener for the process
+    // lifetime. The capabilities provider itself is now pure (no
+    // side-effects in its async build); this listener is the
+    // single writer for the persisted cache slot.
+    ref.read(securityProbeCachePersisterProvider);
   }
 
   void _maybeShowCredentialsResetToast() {

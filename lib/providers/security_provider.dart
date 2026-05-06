@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -82,18 +83,47 @@ final hardwareTierVaultProvider = Provider<HardwareTierVault>(
 final securityCapabilitiesProvider = FutureProvider<SecurityCapabilities>((
   ref,
 ) async {
+  // Pure-functional build: cache hit → return the cached snapshot,
+  // cache miss → run the probe. The persistence side-effect lives
+  // in [securityProbeCachePersisterProvider]; the build never
+  // mutates `configProvider`. The earlier inline `await ref.read(
+  // configProvider.notifier).update(…)` was race-free by ordering
+  // but gave Riverpod's dependency tracker no signal that this
+  // provider mutates `configProvider`, so a future caller adding
+  // `ref.watch(configProvider)` here would loop on its own writes.
   final cached = ref.read(configProvider).securityProbeCache;
   if (cached != null) return cached;
-  final fresh = await probeCapabilities();
-  // Persist the snapshot so the next cold start returns from the
-  // `cached != null` branch above. `update` is awaited so the save
-  // is durable before the provider settles — a crash between probe
-  // and write would drop the cache for the next launch, which is the
-  // safe direction.
-  await ref
-      .read(configProvider.notifier)
-      .update((c) => c.copyWithSecurity(securityProbeCache: fresh));
-  return fresh;
+  return probeCapabilities();
+});
+
+/// Side-effect provider that mirrors every fresh
+/// [securityCapabilitiesProvider] result back into `config.json`'s
+/// `security_probe_cache` slot. Watched from the bootstrap path so
+/// the listener stays alive for the process lifetime; cache hits
+/// (where the snapshot already matches the persisted value) are
+/// short-circuited via equality so a startup probe that confirms
+/// the cached snapshot doesn't trigger a redundant `configProvider`
+/// write.
+///
+/// The Settings "Re-check tier support" button still works the
+/// same way: clear the cache → invalidate the capabilities
+/// provider → re-await it. The fresh probe lands in the listener
+/// here exactly once, which writes the new snapshot.
+final securityProbeCachePersisterProvider = Provider<void>((ref) {
+  ref.listen<AsyncValue<SecurityCapabilities>>(securityCapabilitiesProvider, (
+    _,
+    next,
+  ) {
+    next.whenData((caps) {
+      final cached = ref.read(configProvider).securityProbeCache;
+      if (cached == caps) return;
+      unawaited(
+        ref
+            .read(configProvider.notifier)
+            .update((c) => c.copyWithSecurity(securityProbeCache: caps)),
+      );
+    });
+  });
 });
 
 /// Classified reason the hardware tier is unavailable on this host.
