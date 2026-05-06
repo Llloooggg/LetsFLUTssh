@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import '../core/bus/app_bus.dart';
 import '../core/security/hardware_tier_vault.dart';
@@ -64,14 +63,16 @@ class HardwareVaultSealPromptListener {
     rust_bus.BusEvent_HardwareVaultSealPromptRequest event,
   ) async {
     final id = event.promptId;
-    // Take (atomic read-and-remove) the staged secrets out of
-    // the SecretStore. The bytes never travelled inline through
-    // the broadcast channel — only the opaque ids did, so this
-    // is the first point where Dart actually sees the plaintext.
-    // After this single hand-off the Rust side has nothing
-    // pinned, and the Dart-heap residency is bounded by the
-    // single store() call below.
-    final dbKey = rust_app.secretsTake(id: event.dbKeySecretId);
+    // PIN bytes still come Dart-side because `_deriveAuth` HMAC's
+    // them under a fresh per-install salt before handing the
+    // computed auth value to the platform vault — that derivation
+    // is Dart-only, so a PIN String must materialise here.
+    // The DB key, by contrast, never crosses the FRB boundary as
+    // bytes: `storeFromSecret` reads it from `SecretStore` server-
+    // side and feeds the platform vault directly. The orchestrator
+    // (`tier_unlock_orchestrator::first_launch_hardware`) drains
+    // the SecretStore slot after we resolve, regardless of which
+    // branch fires.
     final pinSecretId = event.pinSecretId;
     String? pin;
     if (pinSecretId != null) {
@@ -79,8 +80,8 @@ class HardwareVaultSealPromptListener {
       pin = pinBytes.isEmpty ? null : utf8.decode(pinBytes);
     }
     try {
-      final stored = await _vault.store(
-        dbKey: Uint8List.fromList(dbKey),
+      final stored = await _vault.storeFromSecret(
+        secretId: event.dbKeySecretId,
         pin: pin,
       );
       if (stored) {
