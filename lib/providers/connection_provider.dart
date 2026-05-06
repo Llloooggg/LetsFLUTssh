@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,6 +21,18 @@ final foregroundServiceProvider = Provider<ForegroundServiceManager>((ref) {
 /// `ConnectionActiveCountChanged` bus event so the UI gets the same
 /// count the Android foreground-service binding sees, in lock-step.
 /// Yields `0` until the first event arrives.
+///
+/// Cold-start: this `StreamProvider`'s `build` may run during the
+/// first runApp pass (a top-bar badge watches the count). The
+/// pre-FRB invariant from ARCHITECTURE.md § Cold-start ordering
+/// holds because `AppBus.subscribe` is structurally pre-FRB safe —
+/// it short-circuits the FRB call when `RustLib.instance.initialized`
+/// is false and hands back the Dart-side broadcast stream; the
+/// matching Rust subscription is promoted later via
+/// `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` →
+/// `AppBus.retryFrbSubscriptions` once `_initRustCoreOrFatal`
+/// returns. `yield 0` paints the badge with a safe default until
+/// the first `ConnectionActiveCountChanged` event lands.
 final connectionActiveCountProvider = StreamProvider<int>((ref) async* {
   yield 0;
   await for (final event in AppBus.instance.subscribe(
