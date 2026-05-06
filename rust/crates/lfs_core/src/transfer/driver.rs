@@ -17,7 +17,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use tokio::sync::{mpsc, Mutex};
+use async_channel::{Receiver, Sender};
+use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 use crate::error::Error;
@@ -65,38 +66,43 @@ impl CancellationToken {
 /// per-task cancel flag map. Drop the pool to abort every
 /// worker; per-task `cancel` flips the matching token without
 /// killing the worker.
+///
+/// Backed by `async-channel` so every worker pulls directly off
+/// the same multi-consumer receiver — no `Arc<Mutex<Receiver>>`
+/// gate that would serialise workers across `recv().await`.
+/// `tokio::sync::mpsc` is single-consumer by design; cloning the
+/// receiver is what the prior shape attempted, holding the lock
+/// across the await collapsed `worker_count > 1` to effective
+/// `1` because every worker except the lock-holder was blocked
+/// outside the critical section.
 pub struct WorkerPool {
-    sender: mpsc::Sender<String>,
+    sender: Sender<String>,
     cancel_tokens: Arc<Mutex<HashMap<String, CancellationToken>>>,
     workers: Vec<JoinHandle<()>>,
 }
 
 impl WorkerPool {
     /// Spin up `worker_count` tokio workers backed by `executor`.
-    /// Channel capacity defaults to `2 * worker_count` — keeps
-    /// dispatch non-blocking under steady-state load while
-    /// flat-lining at a bounded queue depth so a runaway UI
-    /// can't OOM the pool.
+    /// Channel capacity defaults to `2 * worker_count` (lower
+    /// bound 8) — keeps dispatch non-blocking under steady-state
+    /// load while flat-lining at a bounded queue depth so a
+    /// runaway UI can't OOM the pool.
     pub fn spawn<E: TaskExecutor>(executor: Arc<E>, worker_count: usize) -> Self {
         let cap = (worker_count * 2).max(8);
-        let (tx, rx) = mpsc::channel::<String>(cap);
-        let rx = Arc::new(Mutex::new(rx));
+        let (tx, rx) = async_channel::bounded::<String>(cap);
         let cancel_tokens: Arc<Mutex<HashMap<String, CancellationToken>>> =
             Arc::new(Mutex::new(HashMap::new()));
 
         let mut workers = Vec::with_capacity(worker_count);
         for _ in 0..worker_count {
-            let rx = rx.clone();
+            let rx: Receiver<String> = rx.clone();
             let cancel_tokens = cancel_tokens.clone();
             let executor = executor.clone();
             let worker = tokio::spawn(async move {
                 loop {
-                    let task_id = {
-                        let mut guard = rx.lock().await;
-                        match guard.recv().await {
-                            Some(id) => id,
-                            None => return, // channel closed → pool shutdown
-                        }
+                    let task_id = match rx.recv().await {
+                        Ok(id) => id,
+                        Err(_) => return, // channel closed → pool shutdown
                     };
                     run_one(&task_id, &cancel_tokens, executor.as_ref()).await;
                 }

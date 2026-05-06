@@ -32,6 +32,7 @@ internal-russh-forked-ssh-key = { workspace = true }
 russh-sftp = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+async-channel = { workspace = true }
 zeroize = { workspace = true }
 subtle = { workspace = true }
 # Used by `keys::generate_*` for keypair RNG. Kept on rand 0.8 to

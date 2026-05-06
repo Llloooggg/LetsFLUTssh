@@ -192,6 +192,14 @@ reqwest = { version = "0.12", default-features = false, features = [
 # `Read` over an async stream — adapts `reqwest::Response::bytes_stream`
 # into a synchronous-ish chunk iterator the SHA-256 hasher feeds.
 futures-core = { version = "0.3", default-features = false }
+# Multi-consumer, multi-producer async channel. Used by
+# `lfs_core::transfer::driver::WorkerPool` so every worker `recv`s
+# directly from the same channel without holding a `Mutex`-guarded
+# `tokio::mpsc::Receiver` across the await — the `Mutex<Receiver>`
+# pattern serialises workers regardless of `worker_count`. tokio's
+# own mpsc is single-consumer by design and there is no broadcast-
+# style fit (every worker would see every message, not one).
+async-channel = "2"
 
 [profile.release]
 # Bundle-size-tightened profile. Flags:
