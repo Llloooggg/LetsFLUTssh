@@ -42,14 +42,11 @@ class _UpdateSection extends ConsumerWidget {
       icon: Icons.refresh,
       label: S.of(context).checkForUpdates,
       subtitle: S.of(context).currentVersion(version),
-      // The row's trailing action used to be a raw `OutlinedButton.icon`
-      // with ad-hoc `minimumSize` + `padding` overrides; it clashed
-      // visually with the `_Toggle` rows above (different radius, no
-      // `bg4` fill, larger font weight). `AppButton.secondary` keeps the
-      // row in the same visual language, `dense: true` pins the compact
-      // desktop height on every platform, and `loading: isChecking`
-      // swaps the leading icon for a matched-size spinner in place of
-      // the previous inline `CircularProgressIndicator`.
+      // `AppButton.secondary` keeps the row in the same visual
+      // language as the `_Toggle` rows above (matched radius, `bg4`
+      // fill, font weight); `dense: true` pins the compact desktop
+      // height on every platform; `loading: isChecking` swaps the
+      // leading icon for a matched-size spinner.
       child: AppButton.secondary(
         label: isChecking ? S.of(context).checking : S.of(context).checkNow,
         icon: Icons.refresh,

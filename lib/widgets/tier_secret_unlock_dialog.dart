@@ -17,10 +17,10 @@ import 'secure_screen_scope.dart';
 /// Localised text + input shape for a [TierSecretUnlockDialog].
 ///
 /// Bundles the four label strings with the input-mode flags
-/// (`numeric`, `maxLength`) that used to be separate `show()`
-/// parameters. Keeping them in one struct is both ergonomic at the
-/// call site (L2 / L3 paths in `main.dart` pass a single value) and
-/// keeps `show()` under the S107 parameter-count threshold.
+/// (`numeric`, `maxLength`). Keeping them in one struct is both
+/// ergonomic at the call site (L2 / L3 paths in `main.dart` pass a
+/// single value) and keeps `show()` under the S107 parameter-count
+/// threshold.
 class TierSecretUnlockLabels {
   final String title;
   final String hint;
