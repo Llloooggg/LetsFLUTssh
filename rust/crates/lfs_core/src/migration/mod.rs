@@ -48,7 +48,14 @@ impl SchemaVersions {
     /// `config.json` payload format. `config_schema_version` is
     /// stamped by the config writer on every write; a missing or
     /// mismatched field on read = corrupt.
-    pub const CONFIG: i32 = 1;
+    ///
+    /// v2 (current): `security_probe_cache` is always emitted as an
+    /// explicit value — either an object or `null`. Pre-v2 writers
+    /// omitted the field when `None`, collapsing the
+    /// "never probed" / "probed-but-no-cache" semantics on round-trip.
+    /// The v1→v2 migration ensures the field exists (as `null` if
+    /// absent) so post-migration reads can distinguish the two.
+    pub const CONFIG: i32 = 2;
 
     /// `credentials.kdf` (Argon2id params + salt). Self-versioned
     /// inside the file via `'LFKD'` magic + version byte; tracked

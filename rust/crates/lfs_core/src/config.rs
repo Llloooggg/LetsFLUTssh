@@ -514,9 +514,19 @@ impl AppConfig {
                 .collect();
             m.insert("security_modifiers".into(), Value::Object(modifiers_value));
         }
-        if let Some(ref cache) = self.security_probe_cache {
-            m.insert("security_probe_cache".into(), cache.to_json_value());
-        }
+        // Emit `security_probe_cache` as an explicit value (object or
+        // null) rather than omitting it on `None`. The v1 writer
+        // omitted, which collapsed "never probed" and "probed-but-
+        // empty" on the round-trip. v2 stamps the field unconditionally
+        // so the load path (and the cold-start cache hit / miss
+        // decision) sees the same shape every write produced.
+        m.insert(
+            "security_probe_cache".into(),
+            self.security_probe_cache
+                .as_ref()
+                .map(|c| c.to_json_value())
+                .unwrap_or(Value::Null),
+        );
         Value::Object(m)
     }
 

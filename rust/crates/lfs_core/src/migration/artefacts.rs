@@ -10,7 +10,7 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use super::{Artefact, SchemaVersions};
+use super::{Artefact, Migration, SchemaVersions};
 
 /// `config.json` payload format.
 ///
@@ -70,6 +70,58 @@ impl Artefact for ConfigArtefact {
                 Self::VERSION_FIELD
             )),
         }
+    }
+}
+
+/// `config.json` v1 → v2: stamp `security_probe_cache` as an
+/// explicit `null` when the v1 writer omitted the field, then bump
+/// `config_schema_version` to 2.
+///
+/// Legacy installs wrote the field only when `security_probe_cache`
+/// was `Some(_)`; on `None` they skipped it. That collapsed the
+/// "never probed" / "probed-but-empty" semantics on round-trip
+/// because `Option::None` and `field-absent` parsed identically.
+/// v2 fixes the wire shape so the field is always present (object
+/// or `null`); this migration carries every existing file across
+/// the cutover so v2 readers see the same explicit shape v2
+/// writers produce.
+///
+/// Atomic — writes via [`crate::path::write_bytes_atomic`] (tmp +
+/// fsync + rename) so a crash mid-migration leaves the original v1
+/// file untouched on disk.
+pub struct ConfigV1ToV2;
+
+impl Migration for ConfigV1ToV2 {
+    fn artefact_id(&self) -> &'static str {
+        ConfigArtefact::FILE_NAME
+    }
+
+    fn from_version(&self) -> i32 {
+        1
+    }
+
+    fn to_version(&self) -> i32 {
+        2
+    }
+
+    fn apply(&self, support_dir: &Path) -> Result<(), String> {
+        let path = support_dir.join(ConfigArtefact::FILE_NAME);
+        let bytes = std::fs::read(&path)
+            .map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let mut value: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
+        let obj = value.as_object_mut().ok_or_else(|| {
+            format!("{}: not a JSON object", ConfigArtefact::FILE_NAME)
+        })?;
+        // Explicit-null entry — distinguishes "never probed" from
+        // "probed-but-empty" on every subsequent round-trip.
+        obj.entry("security_probe_cache").or_insert(Value::Null);
+        obj.insert("config_schema_version".into(), Value::from(2));
+        let serialised = serde_json::to_vec(&value)
+            .map_err(|e| format!("{}: serialise: {e}", ConfigArtefact::FILE_NAME))?;
+        crate::path::write_bytes_atomic(&path, &serialised)
+            .map_err(|e| format!("{}: write: {e}", ConfigArtefact::FILE_NAME))?;
+        Ok(())
     }
 }
 
@@ -264,5 +316,65 @@ mod tests {
         fs::write(dir.path().join("credentials.kdf"), b"").unwrap();
         let err = KdfArtefact.read_version(dir.path()).unwrap_err();
         assert!(err.contains("truncated"));
+    }
+
+    // ── ConfigV1ToV2 ─────────────────────────────────────────────
+
+    #[test]
+    fn config_v1_to_v2_inserts_explicit_null_when_field_missing() {
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{"config_schema_version":1,"theme":"dark"}"#,
+        )
+        .unwrap();
+        ConfigV1ToV2.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(2)));
+        assert_eq!(obj.get("security_probe_cache"), Some(&Value::Null));
+        assert_eq!(obj.get("theme"), Some(&Value::String("dark".into())));
+    }
+
+    #[test]
+    fn config_v1_to_v2_preserves_existing_security_probe_cache_value() {
+        let dir = TempDir::new().unwrap();
+        // A v1 file that already had a probe-cache object: the
+        // migration must leave the cached object in place — only
+        // bump the version and stamp `null` on missing field.
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{"config_schema_version":1,"security_probe_cache":{"keychain_probe":"available","hardware_probe_code":"ok"}}"#,
+        )
+        .unwrap();
+        ConfigV1ToV2.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(2)));
+        let cache = obj.get("security_probe_cache").unwrap().as_object().unwrap();
+        assert_eq!(
+            cache.get("keychain_probe"),
+            Some(&Value::String("available".into()))
+        );
+    }
+
+    #[test]
+    fn config_v1_to_v2_round_trip_through_runner() {
+        // Pin the framework path: a v1 file passes through the
+        // run_on_startup runner and lands at v2 on disk; the
+        // ConfigArtefact's `read_version` reports v2 afterwards.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{"config_schema_version":1,"theme":"dark"}"#,
+        )
+        .unwrap();
+        let reg = super::super::registry::build_app_registry();
+        let report = super::super::run_on_startup(dir.path(), &reg);
+        assert!(!report.has_failures(), "report: {report:?}");
+        assert_eq!(report.migrated_count(), 1);
+        assert_eq!(ConfigArtefact.read_version(dir.path()).unwrap(), 2);
     }
 }

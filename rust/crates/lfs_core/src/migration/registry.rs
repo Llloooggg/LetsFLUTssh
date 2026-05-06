@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 
-use super::artefacts::{ConfigArtefact, KdfArtefact};
+use super::artefacts::{ConfigArtefact, ConfigV1ToV2, KdfArtefact};
 use super::{Artefact, Migration};
 
 /// Mutable registry of every artefact + migration the runner knows
@@ -34,6 +34,10 @@ pub fn build_app_registry() -> Registry {
     let mut reg = Registry::default();
     reg.artefacts.push(Box::new(ConfigArtefact));
     reg.artefacts.push(Box::new(KdfArtefact));
+    // v1 → v2: `security_probe_cache` always emitted as an explicit
+    // value (object or `null`) on the wire; v1 writers omitted on
+    // `None`, collapsing the round-trip distinction.
+    reg.migrations.push(Box::new(ConfigV1ToV2));
 
     // Vault + password-gate layouts depend on tier read from config —
     // keep config ahead of every future vault artefact in the
@@ -85,8 +89,16 @@ mod tests {
     }
 
     #[test]
-    fn no_migrations_registered_today() {
+    fn config_v1_to_v2_migration_registered() {
         let reg = build_app_registry();
-        assert!(reg.migrations.is_empty());
+        assert!(
+            reg.migrations
+                .iter()
+                .any(|m| m.artefact_id() == "config.json"
+                    && m.from_version() == 1
+                    && m.to_version() == 2),
+            "ConfigV1ToV2 must be registered so v1 installs migrate \
+             to v2 on the next launch",
+        );
     }
 }

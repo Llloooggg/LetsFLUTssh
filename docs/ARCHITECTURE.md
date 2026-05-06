@@ -1801,6 +1801,15 @@ class ConfigNotifier {
 }
 ```
 
+##### `config_schema_version` cutovers
+
+| Version | Wire-shape change | Migration |
+|---|---|---|
+| **v1** | Implicit floor — pre-cutover installs have no `config_schema_version` field; `ConfigArtefact::read_version` reports them as v1 so the upgrade path doesn't trigger a reset. `security_probe_cache` is omitted on `None`, present (object) on `Some`. | — |
+| **v2** (current) | `security_probe_cache` is always emitted as an explicit value — either an object or `null`. Distinguishes "never probed" from "probed-but-empty" on round-trip; the v1 writer collapsed both shapes by omitting the field. | `ConfigV1ToV2` (`lfs_core::migration::artefacts`): inserts `security_probe_cache: null` when missing, stamps `config_schema_version: 2`, writes via `path::write_bytes_atomic`. |
+
+Bumping further follows the framework's [§3.6 → Bumping an existing artefact's format](#bumping-an-existing-artefacts-format) checklist — every step lives in one place so the next bump doesn't have to re-derive the contract.
+
 ---
 
 ### 3.8 Deep Links (`core/deeplink/`)
