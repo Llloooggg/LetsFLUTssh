@@ -292,44 +292,6 @@ void main() {
   // _LiveLogViewer — reachable only through _LoggingSection
   // ---------------------------------------------------------------------------
   group('_LiveLogViewer', () {
-    testWidgets('renders placeholder when log file is empty', (tester) async {
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      // Delete the log file so readLog() returns '' and the viewer shows its
-      // "(no log entries yet)" placeholder. Sink must be closed first so the
-      // file isn't held open.
-      await tester.runAsync(() async {
-        await AppLogger.instance.setThreshold(null);
-        final logPath = AppLogger.instance.logPath;
-        if (logPath != null) {
-          final file = File(logPath);
-          if (await file.exists()) {
-            await file.delete();
-          }
-        }
-      });
-
-      final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(logLevel: LogLevel.info),
-      );
-      await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Live Log'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      // Let the initial async _refresh complete so the placeholder text lands.
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 300)),
-      );
-      await tester.pump();
-
-      expect(find.text('(no log entries yet)'), findsOneWidget);
-    });
-
     testWidgets('copy button writes log content to system clipboard', (
       tester,
     ) async {
@@ -386,113 +348,11 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('backgrounding the app stops polling, resuming restarts it', (
-      tester,
-    ) async {
-      // Guards the battery-drain fix: when the app is backgrounded, the
-      // 1Hz log-file poll must stop so it doesn't keep the CPU awake and
-      // prevent Android from entering doze.
-      tester.view.physicalSize = const Size(800, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      final config = AppConfig.defaults.copyWith(
-        behavior: const BehaviorConfig(logLevel: LogLevel.info),
-      );
-      await tester.pumpWidget(buildApp(initialConfig: config));
-      await tester.scrollUntilVisible(
-        find.text('Live Log'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.runAsync(
-        () => Future.delayed(const Duration(milliseconds: 200)),
-      );
-      await tester.pump();
-
-      // Drive the lifecycle through the legal order resumed → inactive →
-      // hidden → paused. The timer must be cancelled by the end so advancing
-      // fake-async by multiple polling intervals is a no-op.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      await tester.pump();
-
-      // If the timer were still alive, this would enqueue real async file
-      // reads every second; with it cancelled, nothing runs.
-      await tester.pump(const Duration(seconds: 3));
-
-      // Resume path: hidden → inactive → resumed. Timer restarts.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 2));
-
-      // Pause again before teardown so no timer is pending at dispose.
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
-      await tester.pump();
-      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      await tester.pump();
-
-      expect(find.text('Live Log'), findsOneWidget);
-    });
-
-    testWidgets(
-      'disposing the viewer cancels its periodic timer',
-      (tester) async {
-        tester.view.physicalSize = const Size(800, 2400);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        final config = AppConfig.defaults.copyWith(
-          behavior: const BehaviorConfig(logLevel: LogLevel.info),
-        );
-        await tester.pumpWidget(buildApp(initialConfig: config));
-        await tester.scrollUntilVisible(
-          find.text('Live Log'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        // Settle any in-flight real-time work (initial _refresh of the log
-        // viewer, keychain probe from the Security section) so the next
-        // pumpWidget's dispose pass isn't racing an open async operation
-        // on the FRB call path.
-        await tester.runAsync(
-          () => Future.delayed(const Duration(milliseconds: 200)),
-        );
-        await tester.pump();
-
-        // Replace the widget tree with something that does NOT contain
-        // _LiveLogViewer — this triggers dispose() and must cancel the timer.
-        // If the timer wasn't cancelled, the test framework would flag a
-        // pending timer after the test finishes.
-        await tester.pumpWidget(
-          const MaterialApp(home: Scaffold(body: Text('empty'))),
-        );
-        // Drain whatever disposal-triggered microtasks remain (the Security
-        // section's _checkState may still be awaiting an unmocked platform
-        // channel — without this flush those awaits keep the test binding
-        // stuck in pending-async-work and the --timeout 30s guard trips
-        // indirectly instead of the test completing cleanly).
-        await tester.runAsync(
-          () => Future.delayed(const Duration(milliseconds: 50)),
-        );
-        await tester.pump();
-
-        expect(find.text('empty'), findsOneWidget);
-        expect(find.text('Live Log'), findsNothing);
-      },
-      timeout: const Timeout(Duration(seconds: 15)),
-    );
+    // The lifecycle / timer-cancellation tests previously sitting here
+    // covered a 1-second `Timer.periodic` log-file poll. The viewer
+    // now subscribes to `AppLogger.liveEntries` instead, with no
+    // timer to start, stop, or cancel — the lifecycle hooks were
+    // removed alongside the polling. Nothing left to assert.
   });
 
   group('parseLogEntries', () {

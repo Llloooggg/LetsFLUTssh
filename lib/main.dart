@@ -40,6 +40,7 @@ import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/first_launch_banner_provider.dart';
 import 'providers/locale_provider.dart';
+import 'providers/log_terminal_provider.dart';
 import 'providers/security_provider.dart';
 import 'providers/security_reinit_provider.dart';
 import 'providers/session_provider.dart';

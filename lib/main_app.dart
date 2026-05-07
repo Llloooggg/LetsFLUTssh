@@ -247,6 +247,11 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // side-effects in its async build); this listener is the
     // single writer for the persisted cache slot.
     ref.read(securityProbeCachePersisterProvider);
+    // Prime the in-memory log Terminal from the on-disk log file
+    // so opening Settings → Logs is instant. Fire-and-forget —
+    // a slow / failing read just means the seed is empty;
+    // live entries from `AppLogger` keep populating either way.
+    unawaited(ref.read(logTerminalProvider).ensureSeeded());
   }
 
   void _maybeShowCredentialsResetToast() {

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../features/settings/settings_logging_parser.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../src/rust/api/format.dart' as rust_format;
 import '../src/rust/api/path.dart' as rust_path;
@@ -135,6 +136,23 @@ class AppLogger {
   // never reach `letsflutssh.log`. Held for the lifetime of the
   // logger; `dispose()` cancels it.
   StreamSubscription<rust_bus.BusEvent>? _coreLogSub;
+
+  // Live broadcast of every LogEntry that survives the threshold
+  // gate inside [log] / [logCritical]. The Settings → Logs viewer
+  // (xterm-backed) listens here and appends to a persistent
+  // Terminal buffer, so opening the tab is instant — the whole
+  // log surface lives in memory, no on-tab-mount file read. Cap
+  // is conceptual only (StreamController doesn't buffer) — the
+  // Terminal viewer's own scrollback bounds the long-term retain.
+  final StreamController<LogEntry> _entriesController =
+      StreamController<LogEntry>.broadcast();
+
+  /// Live broadcast of every routine + critical log entry, after
+  /// threshold + sanitisation. Subscribers see the same shape the
+  /// on-disk log file holds (sanitized message, optional error +
+  /// stack-trace continuations). Survives the lifetime of the
+  /// singleton; subscribers should `cancel()` on dispose.
+  Stream<LogEntry> get liveEntries => _entriesController.stream;
 
   AppLogger._();
 
@@ -356,25 +374,43 @@ class AppLogger {
     final tag = name ?? 'App';
     final safeMsg = sanitize(message);
     final safeError = error == null ? null : sanitize(error.toString());
-    try {
-      final now = DateTime.now();
-      final ts = _formatHmsForLog(now);
-      _sink!.writeln('$ts ${_levelChar(resolvedLevel)} [$tag] $safeMsg');
-      if (safeError != null) {
-        _sink!.writeln('  Error: $safeError');
+    final now = DateTime.now();
+    final ts = _formatHmsForLog(now);
+    final continuations = <String>[];
+    if (safeError != null) continuations.add('  Error: $safeError');
+    if (stackTrace != null) {
+      continuations.add('  Stack trace:');
+      for (final frame in sanitize('$stackTrace').split('\n')) {
+        if (frame.isEmpty) continue;
+        continuations.add('  $frame');
       }
-      if (stackTrace != null) {
-        _sink!.writeln('  Stack trace:');
-        // Indent every stack-trace line with two spaces so the viewer
-        // parser folds them into the parent entry instead of treating
-        // each `#N …` frame as its own dim-italic header row.
-        for (final frame in sanitize('$stackTrace').split('\n')) {
-          if (frame.isEmpty) continue;
-          _sink!.writeln('  $frame');
-        }
+    }
+    try {
+      _sink!.writeln('$ts ${_levelChar(resolvedLevel)} [$tag] $safeMsg');
+      for (final c in continuations) {
+        _sink!.writeln(c);
       }
     } catch (_) {
       // Don't crash the app for logging failures.
+    }
+    _emitEntry(
+      LogEntry(
+        level: resolvedLevel,
+        timestamp: ts,
+        tag: tag,
+        message: safeMsg,
+        continuations: List.unmodifiable(continuations),
+      ),
+    );
+  }
+
+  void _emitEntry(LogEntry entry) {
+    if (_entriesController.isClosed) return;
+    try {
+      _entriesController.add(entry);
+    } catch (_) {
+      // Subscribers' onError handlers manage their own failures;
+      // a broken stream here must never break logging.
     }
   }
 
@@ -406,22 +442,32 @@ class AppLogger {
     final safeMsg = sanitize(message);
     final safeError = error == null ? null : sanitize(error.toString());
     if (_logPath == null) return;
+    final now = DateTime.now();
+    final ts = _formatHmsForLog(now);
+    final continuations = <String>[];
+    if (safeError != null) continuations.add('  Error: $safeError');
+    if (stackTrace != null) {
+      continuations.add('  Stack trace:');
+      for (final frame in sanitize('$stackTrace').split('\n')) {
+        if (frame.isEmpty) continue;
+        continuations.add('  $frame');
+      }
+    }
+    _emitEntry(
+      LogEntry(
+        level: LogLevel.error,
+        timestamp: ts,
+        tag: tag,
+        message: safeMsg,
+        continuations: List.unmodifiable(continuations),
+      ),
+    );
     try {
-      final now = DateTime.now();
-      final ts = _formatHmsForLog(now);
       // logCritical is always error-level by contract.
       final buf = StringBuffer()
         ..writeln('$ts ${_levelChar(LogLevel.error)} [$tag] $safeMsg');
-      if (safeError != null) buf.writeln('  Error: $safeError');
-      if (stackTrace != null) {
-        buf.writeln('  Stack trace:');
-        // Indent every stack-trace line with two spaces — same rule
-        // as the routine [log] path so the viewer parser folds frames
-        // into the parent entry.
-        for (final frame in sanitize('$stackTrace').split('\n')) {
-          if (frame.isEmpty) continue;
-          buf.writeln('  $frame');
-        }
+      for (final c in continuations) {
+        buf.writeln(c);
       }
       final file = File(_logPath!);
       // Ensure the parent directory exists — [init] already creates
@@ -461,6 +507,9 @@ class AppLogger {
     await _coreLogSub?.cancel();
     _coreLogSub = null;
     await _closeSink();
+    if (!_entriesController.isClosed) {
+      await _entriesController.close();
+    }
   }
 
   /// Rotate log file if it exceeds [maxLogSizeBytes].

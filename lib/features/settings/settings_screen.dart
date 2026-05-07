@@ -33,6 +33,7 @@ import '../../providers/config_provider.dart';
 import '../../providers/connection_provider.dart';
 import '../../core/security/secure_key_storage.dart';
 import '../../providers/key_provider.dart';
+import '../../providers/log_terminal_provider.dart';
 import '../../providers/master_password_provider.dart';
 import '../../core/security/security_bootstrap.dart';
 import '../../providers/security_provider.dart';
@@ -73,8 +74,9 @@ import '../../widgets/paste_import_link_dialog.dart';
 import '../../widgets/security_setup_dialog.dart';
 import '../../widgets/ssh_dir_import_dialog.dart';
 import '../session_manager/qr_display_screen.dart';
+import 'package:xterm/xterm.dart';
+
 import 'export_import.dart';
-import 'settings_logging_parser.dart';
 
 part 'settings_dialogs.dart';
 part 'settings_logging.dart';

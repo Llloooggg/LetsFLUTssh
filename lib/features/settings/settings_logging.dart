@@ -162,14 +162,16 @@ class _LogViewerHost extends StatelessWidget {
   }
 }
 
-/// Inline live log viewer — polls the log file every second and displays the
-/// content in a dark terminal-style panel with Copy and Clear action buttons.
-///
-/// Polling is lifecycle-aware: the timer is paused when the app goes to the
-/// background (paused/inactive/hidden/detached) so it doesn't keep the CPU
-/// awake and drain battery when the user isn't looking. It resumes on
-/// AppLifecycleState.resumed.
-class _LiveLogViewer extends StatefulWidget {
+/// Inline live log viewer — `xterm.dart`-backed TerminalView mounted
+/// against the app-level `LogTerminal` singleton. Open is instant
+/// (the Terminal is primed at boot from the on-disk log file and
+/// fed live by `AppLogger.liveEntries`); selection / copy /
+/// scroll-back follow standard terminal UX. The viewer keeps the
+/// level chips + search box; toggling either calls
+/// `LogTerminal.applyFilter` which re-feeds the Terminal with the
+/// filtered subset. Selection is dropped on filter change —
+/// expected when the displayed corpus changes.
+class _LiveLogViewer extends ConsumerStatefulWidget {
   final VoidCallback onExport;
   final VoidCallback onClear;
 
@@ -187,19 +189,17 @@ class _LiveLogViewer extends StatefulWidget {
   });
 
   @override
-  State<_LiveLogViewer> createState() => _LiveLogViewerState();
+  ConsumerState<_LiveLogViewer> createState() => _LiveLogViewerState();
 }
 
-class _LiveLogViewerState extends State<_LiveLogViewer>
-    with WidgetsBindingObserver {
-  final _scrollController = ScrollController();
+class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
   final _searchController = TextEditingController();
-  String _content = '';
-  Timer? _timer;
+  late final TerminalController _terminalController;
 
   /// Which severity levels render in the viewer. All three start on;
   /// users can hide info noise to focus on warnings + errors during a
-  /// support session.
+  /// support session. Mutating either of these state slots calls
+  /// [_pushFilter] which re-feeds the Terminal.
   final Set<LogLevel> _visibleLevels = {...LogLevel.values};
 
   /// Case-insensitive substring filter on the message body. Applied
@@ -207,95 +207,33 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
   /// shows only warn rows whose message mentions keychain.
   String _query = '';
 
-  /// First-frame visibility gate. The list mounts with `opacity: 0`
-  /// on frame 1 so we can call `jumpTo(maxScrollExtent)` in the
-  /// post-frame callback against a laid-out viewport; the viewer
-  /// flips to `opacity: 1` on frame 2 so the user only ever sees the
-  /// already-positioned-at-bottom state. A straight
-  /// `jumpTo` after first build caused the visible "list appears at
-  /// top, then rips to bottom" rip — post-frame callbacks fire after
-  /// paint, so the pre-jump frame was painted first.
-  bool _initiallyPositioned = false;
-
-  /// Within how many pixels of the bottom we consider the user "at
-  /// the tail" and keep following new entries. Above that band we
-  /// leave the scroll alone so they can read history without each
-  /// timer tick dragging them back down.
-  static const _stickyBottomEpsilon = 24.0;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _refresh();
-    _startTimer();
+    _terminalController = TerminalController();
+    // Idempotent — `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners`
+    // already kicked the seed at boot; this call just reads the
+    // already-primed singleton. No await — if the seed is still
+    // running the live stream will populate the Terminal as
+    // entries arrive.
+    unawaited(ref.read(logTerminalProvider).ensureSeeded());
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _stopTimer();
-    _scrollController.dispose();
+    _terminalController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (_timer == null) {
-        _refresh();
-        _startTimer();
-      }
-    } else {
-      _stopTimer();
-    }
-  }
-
-  void _startTimer() {
-    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
-  }
-
-  void _stopTimer() {
-    _timer?.cancel();
-    _timer = null;
-  }
-
-  Future<void> _refresh() async {
-    final text = await AppLogger.instance.readLog();
-    if (!mounted) return;
-    if (text == _content && _initiallyPositioned) return;
-
-    // "Was the user parked at the tail before this rebuild?" —
-    // sampled against the *current* layout. If they were, we follow
-    // the new tail; if they scrolled up we leave their pixel offset
-    // alone so a support-session history read is not dragged back
-    // down every second. The first load hits the `!hasClients`
-    // branch → wasAtBottom = true → initial jump happens under the
-    // opacity-0 gate below.
-    final wasAtBottom = _isAtBottom();
-    setState(() => _content = text);
-
-    if (!wasAtBottom) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      // Once the list is pinned to the bottom on its first pass,
-      // reveal it (frame 2). Subsequent ticks stay at opacity 1
-      // because the flag is latched true.
-      if (!_initiallyPositioned) {
-        setState(() => _initiallyPositioned = true);
-      }
-    });
-  }
-
-  /// `true` on first mount (no clients yet → pretend user is at
-  /// tail so the initial jump fires) and any time the user's scroll
-  /// offset is within [_stickyBottomEpsilon] pixels of the bottom.
-  bool _isAtBottom() {
-    if (!_scrollController.hasClients) return true;
-    final pos = _scrollController.position;
-    return pos.pixels >= pos.maxScrollExtent - _stickyBottomEpsilon;
+  /// Push the current filter state into the LogTerminal so the
+  /// Terminal scrollback shows the filtered subset of entries.
+  /// Called from the level chip toggle and the search-query
+  /// `onChanged`.
+  void _pushFilter() {
+    ref
+        .read(logTerminalProvider)
+        .applyFilter(visibleLevels: _visibleLevels, query: _query);
   }
 
   @override
@@ -376,21 +314,60 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
     );
   }
 
+  /// Copy semantics:
+  /// - If the user has a Terminal selection active, copy that
+  ///   (via `terminalController.selection` → buffer text).
+  /// - Otherwise serialize every entry currently in the
+  ///   `LogTerminal._allEntries` list (filter-independent — a
+  ///   `Copy log` button means "all", not "what is shown after my
+  ///   level filter"). Falls back to a "log is empty" toast when
+  ///   nothing has been logged yet.
   void _copyLogToClipboard(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: _content));
+    final logTerminal = ref.read(logTerminalProvider);
+    final selection = _terminalController.selection;
+    String text;
+    if (selection != null) {
+      text = logTerminal.terminal.buffer.getText(selection);
+    } else {
+      final entries = logTerminal.allEntries;
+      final buf = StringBuffer();
+      for (final e in entries) {
+        if (e.isHeader) {
+          buf.writeln(e.message);
+          continue;
+        }
+        buf.writeln(
+          '${e.timestamp ?? ''} ${e.level == null ? '' : _levelMarker(e.level!)} '
+          '[${e.tag ?? 'App'}] ${e.message}',
+        );
+        for (final c in e.continuations) {
+          buf.writeln(c);
+        }
+      }
+      text = buf.toString();
+    }
+    Clipboard.setData(ClipboardData(text: text));
     Toast.show(
       context,
-      message: _content.isEmpty
+      message: text.isEmpty
           ? S.of(context).logIsEmpty
           : S.of(context).copiedToClipboard,
       level: ToastLevel.info,
     );
   }
 
+  static String _levelMarker(LogLevel l) => switch (l) {
+    LogLevel.info => 'I',
+    LogLevel.warn => 'W',
+    LogLevel.error => 'E',
+  };
+
   Future<void> _clearAndRefresh() async {
     widget.onClear();
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    await _refresh();
+    // The on-disk wipe is async (file delete); the in-memory
+    // Terminal mirror is wiped synchronously here so the viewer
+    // empties even if the file delete is still pending.
+    ref.read(logTerminalProvider).clearAll();
   }
 
   Widget _buildLogBox(double maxHeight, Color fg) {
@@ -410,7 +387,10 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
             query: _query,
             searchController: _searchController,
             onLevelToggle: _toggleLevel,
-            onQueryChanged: (q) => setState(() => _query = q),
+            onQueryChanged: (q) {
+              setState(() => _query = q);
+              _pushFilter();
+            },
           ),
           const SizedBox(height: 4),
           Expanded(child: _buildLogBody(fg)),
@@ -427,56 +407,31 @@ class _LiveLogViewerState extends State<_LiveLogViewer>
         _visibleLevels.add(level);
       }
     });
+    _pushFilter();
   }
 
   Widget _buildLogBody(Color fg) {
-    if (_content.isEmpty) {
-      return Center(
-        child: Text(
-          '(no log entries yet)',
-          style: TextStyle(
-            fontSize: AppFonts.sm,
-            fontFamily: 'monospace',
-            color: fg.withValues(alpha: 0.5),
-          ),
-        ),
-      );
-    }
-    // Hide the first frame while `_refresh` schedules its post-frame
-    // jumpTo(maxScrollExtent); flips to 1 in the same callback so the
-    // user never sees "appears at top, then rips down".
-    final listOpacity = _initiallyPositioned ? 1.0 : 0.0;
-    return Opacity(
-      opacity: listOpacity,
-      child: _LogList(
-        entries: _filterEntries(parseLogEntries(_content)),
-        controller: _scrollController,
-        defaultFg: fg,
+    final terminal = ref.watch(logTerminalProvider).terminal;
+    return TerminalView(
+      terminal,
+      controller: _terminalController,
+      // Read-only viewer — never accept keyboard input as terminal
+      // input. `hardwareKeyboardOnly: false` keeps standard text-
+      // selection shortcuts (Ctrl+C / Ctrl+A) reaching us through
+      // the surrounding shortcut layer. The selection itself is
+      // managed by `_terminalController`; copy lives in the
+      // toolbar.
+      autofocus: false,
+      hardwareKeyboardOnly: false,
+      backgroundOpacity: 1.0,
+      padding: const EdgeInsets.all(4),
+      theme: AppTheme.terminalTheme,
+      textStyle: TerminalStyle(
+        fontSize: AppFonts.sm,
+        fontFamily: AppFonts.monoFamily,
+        fontFamilyFallback: AppFonts.monoFallback,
       ),
     );
-  }
-
-  /// Apply the level + search filters to a parsed entry list. Headers
-  /// always render so the session banner stays visible even when
-  /// every level filter is off. Search matches against the message,
-  /// tag, or any continuation line so a query like "keychain" hits
-  /// the stack-trace body too.
-  List<LogEntry> _filterEntries(List<LogEntry> raw) {
-    final lower = _query.toLowerCase();
-    return raw.where((e) => _shouldShow(e, lower)).toList(growable: false);
-  }
-
-  bool _shouldShow(LogEntry e, String lower) {
-    if (e.isHeader) return true;
-    if (e.level != null && !_visibleLevels.contains(e.level)) return false;
-    if (lower.isEmpty) return true;
-    return _matchesQuery(e, lower);
-  }
-
-  bool _matchesQuery(LogEntry e, String lower) {
-    if (e.message.toLowerCase().contains(lower)) return true;
-    if (e.tag != null && e.tag!.toLowerCase().contains(lower)) return true;
-    return e.continuations.any((c) => c.toLowerCase().contains(lower));
   }
 }
 
@@ -626,169 +581,6 @@ class _LevelChip extends StatelessWidget {
             decoration: active ? null : TextDecoration.lineThrough,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _LogList extends StatelessWidget {
-  final List<LogEntry> entries;
-  final ScrollController controller;
-  final Color defaultFg;
-
-  const _LogList({
-    required this.entries,
-    required this.controller,
-    required this.defaultFg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // SelectionArea lets users drag-select across rows — individual
-    // Text widgets stay non-selectable on their own but the area
-    // wrapper stitches the selection together. Copy captures plain
-    // text, not TextSpan styles, so users pasting into a bug report
-    // get clean output.
-    //
-    // Forward (non-reverse) list: positional items, newest at the
-    // end. The parent state handles tail-follow + initial-mount
-    // positioning; this widget stays a plain projection of
-    // `entries` onto rows so tests can drive both without a mock
-    // scroll axis.
-    return SelectionArea(
-      // Adaptive toolbar gives right-click / long-press a `Copy` +
-      // `Select all` context menu. Without this builder the default
-      // SelectionArea on desktop hosts swallows the right-click and
-      // drops the active selection — the user has to drag-select
-      // again to copy. The `selectableRegion` factory builds the
-      // platform-native variant (Cupertino on macOS, Material on
-      // Linux / Windows) so the menu shape matches the rest of the
-      // app's right-click menus.
-      contextMenuBuilder: (context, state) =>
-          AdaptiveTextSelectionToolbar.selectableRegion(
-            selectableRegionState: state,
-          ),
-      child: ListView.builder(
-        controller: controller,
-        itemCount: entries.length,
-        itemBuilder: (ctx, i) =>
-            _LogRow(entry: entries[i], defaultFg: defaultFg),
-      ),
-    );
-  }
-}
-
-class _LogRow extends StatelessWidget {
-  final LogEntry entry;
-  final Color defaultFg;
-
-  const _LogRow({required this.entry, required this.defaultFg});
-
-  @override
-  Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: AppFonts.sm,
-      fontFamily: 'monospace',
-      height: 1.4,
-      color: defaultFg,
-    );
-    if (entry.isHeader) {
-      // A session banner — the "--- Log started ..." line + the
-      // following `Platform:` / `Dart:` lines — gets a top divider
-      // and extra vertical padding so it visually breaks the stream.
-      // Other unparseable lines fall back to a compact dim row. We
-      // deliberately do NOT italicise: italic monospace on Linux
-      // (DejaVu Sans Mono oblique) rendered faded + slanted in a way
-      // the user rejected. Bold + dim colour is enough separation.
-      final isSessionStart = entry.message.startsWith('--- Log started');
-      return Container(
-        margin: EdgeInsets.only(top: isSessionStart ? 12 : 0, bottom: 0),
-        padding: EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: isSessionStart ? 6 : 2,
-        ),
-        decoration: isSessionStart
-            ? BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: defaultFg.withValues(alpha: 0.35),
-                    width: 1,
-                  ),
-                ),
-              )
-            : null,
-        child: Text(
-          entry.message,
-          style: style.copyWith(
-            color: defaultFg.withValues(alpha: 0.75),
-            fontWeight: isSessionStart ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      );
-    }
-
-    final level = entry.level ?? LogLevel.info;
-    final levelColor = switch (level) {
-      LogLevel.error => AppTheme.red,
-      LogLevel.warn => AppTheme.yellow,
-      LogLevel.info => AppTheme.blue,
-    };
-    final hasTint = level == LogLevel.error || level == LogLevel.warn;
-    final tintBg = hasTint ? levelColor.withValues(alpha: 0.08) : null;
-
-    // Segmented TextSpans so the viewer can dim the timestamp + accent
-    // the tag without losing the monospace alignment. Continuations
-    // attach inline after the primary message with a newline so the
-    // error / stack trace sits under the tinted row.
-    // Continuations (stack frames, error lines) render at full default
-    // fg — the earlier 0.75 alpha read as "thin" next to the primary
-    // message, especially on stack-trace-heavy failures where half the
-    // row is follow-up frames.
-    final spans = <InlineSpan>[
-      TextSpan(
-        text: '${entry.timestamp} ',
-        style: style.copyWith(color: defaultFg.withValues(alpha: 0.7)),
-      ),
-      TextSpan(
-        text: '[${entry.tag}] ',
-        style: style.copyWith(color: levelColor, fontWeight: FontWeight.w600),
-      ),
-      TextSpan(text: entry.message, style: style),
-      for (final c in entry.continuations) TextSpan(text: '\n$c', style: style),
-    ];
-
-    // Rows must be physically contiguous so a drag-select inside
-    // `SelectionArea` doesn't silently drop the moment the cursor
-    // crosses a gap. The earlier `margin: vertical: 1` was the
-    // actual selection-breaker — that 2 px of unselectable space
-    // sat *outside* the Container and outside any selectable
-    // widget. Padding *inside* the Container is fine: the
-    // SelectionArea hit-tests the row's bounds when extending
-    // selection across rows, so vertical padding gives the row
-    // visual breathing room without producing an unselectable
-    // gap to the next row.
-    // The `SizedBox(width: double.infinity)` wrap is what makes
-    // a click anywhere on the row pick up the line. Without it
-    // `Text.rich` shrinks to the glyph extent, so the trailing
-    // empty space inside the Container is unselectable — drag-
-    // select only catches the line if you aim straight at the
-    // text. Stretching the Text widget across the full row width
-    // gives selection (and hit-testing) the whole horizontal
-    // band to work with.
-    return Container(
-      decoration: BoxDecoration(
-        color: tintBg,
-        border: Border(
-          left: BorderSide(
-            color: hasTint ? levelColor : Colors.transparent,
-            width: 3,
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: SizedBox(
-        width: double.infinity,
-        child: Text.rich(TextSpan(children: spans)),
       ),
     );
   }
