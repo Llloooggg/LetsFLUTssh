@@ -375,10 +375,17 @@ mod tests {
 
 pub mod backup_exclusion;
 pub mod biometric_auth;
+
+// Cross-platform helpers used by per-OS modules. Lives outside
+// any `cfg(target_os = "...")` gate so the unit tests inside it
+// run in `rust-ci` (which only fires `cargo test` on Linux);
+// helpers gated to a single OS would never see test execution
+// because `rust-cross-check` is compile-validation only.
 pub mod hardware_tier_vault;
 pub mod secure_clipboard;
 pub mod secure_key_storage;
 pub mod session_lock_listener;
+pub(crate) mod subprocess_util;
 // Cross-platform shape (`-1` outside Windows); real FFI behind
 // a target_os gate inside the module.
 pub mod winbio;

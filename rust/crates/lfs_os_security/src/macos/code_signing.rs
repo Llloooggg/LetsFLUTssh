@@ -42,6 +42,11 @@ use std::process::Stdio;
 use tokio::fs;
 use tokio::process::Command;
 
+use crate::subprocess_util::{
+    make_temp_dir, openssl_self_sign_config, run_subprocess as run_subprocess_util, walk_extension,
+    RunError, SubprocessFailure,
+};
+
 /// Outcome enum returned by [`resign_bundle`]. Mirrors the prior
 /// Dart `ResignOutcome` shape; the values are 1:1 with the
 /// settings-UI branches that consume them.
@@ -92,6 +97,25 @@ impl std::error::Error for Error {}
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
         Error::Io(e)
+    }
+}
+
+impl From<SubprocessFailure> for Error {
+    fn from(f: SubprocessFailure) -> Self {
+        Error::Subprocess {
+            stage: f.stage,
+            exit_code: f.exit_code,
+            stderr: f.stderr,
+        }
+    }
+}
+
+impl From<RunError> for Error {
+    fn from(e: RunError) -> Self {
+        match e {
+            RunError::NonZero(f) => Error::from(f),
+            RunError::Io(io) => Error::Io(io),
+        }
     }
 }
 
@@ -237,19 +261,19 @@ fn login_keychain_path() -> Result<PathBuf, Error> {
 }
 
 async fn generate_cert(common_name: &str) -> Result<CertMaterial, Error> {
-    // `tokio::fs` does not expose a `create_temp_dir`; fall back
-    // to the `tempfile` crate would add a workspace dep for one
-    // call site, so we hand-roll a non-colliding path under
-    // `std::env::temp_dir()` instead.
     let tmp_dir = make_temp_dir("lfs-macos-sign-").await?;
     let cnf_path = tmp_dir.join("cert.cnf");
     let key_path = tmp_dir.join("cert.key");
     let crt_path = tmp_dir.join("cert.crt");
     let p12_path = tmp_dir.join("cert.p12");
 
-    fs::write(&cnf_path, openssl_config(common_name, DEFAULT_ORGANISATION)).await?;
+    fs::write(
+        &cnf_path,
+        openssl_self_sign_config(common_name, DEFAULT_ORGANISATION),
+    )
+    .await?;
 
-    run_subprocess(
+    run_subprocess_util(
         OPENSSL,
         &[
             "req",
@@ -273,7 +297,7 @@ async fn generate_cert(common_name: &str) -> Result<CertMaterial, Error> {
     )
     .await?;
 
-    run_subprocess(
+    run_subprocess_util(
         OPENSSL,
         &[
             "pkcs12",
@@ -301,42 +325,8 @@ async fn generate_cert(common_name: &str) -> Result<CertMaterial, Error> {
     })
 }
 
-async fn make_temp_dir(prefix: &str) -> Result<PathBuf, Error> {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-    let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let pid = std::process::id();
-    // `nanos()` collides under sub-microsecond loops; combine
-    // with the per-process atomic so tests that hammer this
-    // function in parallel get distinct paths.
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.subsec_nanos())
-        .unwrap_or(0);
-    let path = std::env::temp_dir().join(format!("{prefix}{pid}-{n}-{nanos}"));
-    fs::create_dir_all(&path).await?;
-    Ok(path)
-}
-
-fn openssl_config(cn: &str, org: &str) -> String {
-    format!(
-        "[req]
-distinguished_name = dn
-prompt = no
-req_extensions = v3_req
-[dn]
-CN = {cn}
-O  = {org}
-[v3_req]
-keyUsage = critical,digitalSignature
-extendedKeyUsage = critical,codeSigning
-basicConstraints = critical,CA:FALSE
-"
-    )
-}
-
 async fn run_security_import(p12: &Path, keychain: &Path) -> Result<(), Error> {
-    run_subprocess(
+    run_subprocess_util(
         SECURITY,
         &[
             "import",
@@ -353,10 +343,11 @@ async fn run_security_import(p12: &Path, keychain: &Path) -> Result<(), Error> {
         "security_import",
     )
     .await
+    .map_err(Error::from)
 }
 
 async fn run_security_add_trusted_cert(crt: &Path, keychain: &Path) -> Result<(), Error> {
-    run_subprocess(
+    run_subprocess_util(
         SECURITY,
         &[
             "add-trusted-cert",
@@ -371,6 +362,7 @@ async fn run_security_add_trusted_cert(crt: &Path, keychain: &Path) -> Result<()
         "security_add_trusted_cert",
     )
     .await
+    .map_err(Error::from)
 }
 
 async fn is_writable(dir: &Path) -> bool {
@@ -466,7 +458,9 @@ async fn sign_one(path: &Path, common_name: &str, extra: &[&str]) -> Result<(), 
     let path_str = path.to_string_lossy();
     args.push(&path_str);
     let stage = format!("codesign:{}", path.display());
-    run_subprocess(CODESIGN, &args, &stage).await
+    run_subprocess_util(CODESIGN, &args, &stage)
+        .await
+        .map_err(Error::from)
 }
 
 async fn verify(bundle: &Path) -> Result<bool, Error> {
@@ -479,125 +473,4 @@ async fn verify(bundle: &Path) -> Result<bool, Error> {
         .status()
         .await?;
     Ok(res.success())
-}
-
-/// Recursive walk under `root` that yields paths whose final
-/// component ends with `suffix`, filtered to files vs
-/// directories. Mirrors the Dart `_walk` helper. Symlinks are
-/// not followed (matches Dart's `followLinks: false`).
-async fn walk_extension(root: &Path, suffix: &str, want_file: bool) -> Vec<PathBuf> {
-    let root = root.to_path_buf();
-    let suffix = suffix.to_string();
-    // The walk is sync `std::fs` because `tokio::fs` does not
-    // ship a recursive-walk helper and the directory tree is
-    // tiny (Flutter macOS bundle = a few hundred entries). Run
-    // it on the blocking pool so the FRB worker thread isn't
-    // pinned by the disk seeks.
-    tokio::task::spawn_blocking(move || {
-        let mut out = Vec::new();
-        walk_rec(&root, &suffix, want_file, &mut out);
-        out
-    })
-    .await
-    .unwrap_or_default()
-}
-
-fn walk_rec(dir: &Path, suffix: &str, want_file: bool, out: &mut Vec<PathBuf>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(it) => it,
-        Err(_) => return,
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let metadata = match entry.metadata() {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-        // Match the Dart `followLinks: false` behaviour.
-        if metadata.file_type().is_symlink() {
-            continue;
-        }
-        let is_dir = metadata.is_dir();
-        if path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n.ends_with(suffix))
-            && (if want_file { !is_dir } else { is_dir })
-        {
-            out.push(path.clone());
-        }
-        if is_dir {
-            walk_rec(&path, suffix, want_file, out);
-        }
-    }
-}
-
-async fn run_subprocess(program: &str, args: &[&str], stage: &str) -> Result<(), Error> {
-    let output = Command::new(program).args(args).output().await?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        Err(Error::Subprocess {
-            stage: stage.to_string(),
-            exit_code: output.status.code(),
-            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-        })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn openssl_config_holds_the_expected_extensions() {
-        let cfg = openssl_config("Test CN", "Test Org");
-        assert!(cfg.contains("CN = Test CN"));
-        assert!(cfg.contains("O  = Test Org"));
-        assert!(cfg.contains("keyUsage = critical,digitalSignature"));
-        assert!(cfg.contains("extendedKeyUsage = critical,codeSigning"));
-        assert!(cfg.contains("basicConstraints = critical,CA:FALSE"));
-    }
-
-    #[tokio::test]
-    async fn walk_extension_skips_symlinks_and_filters_by_suffix() {
-        let dir = make_temp_dir("lfs-walk-").await.unwrap();
-        std::fs::create_dir(dir.join("Contents")).unwrap();
-        std::fs::write(dir.join("Contents/a.dylib"), b"x").unwrap();
-        std::fs::write(dir.join("Contents/b.txt"), b"x").unwrap();
-        std::fs::create_dir(dir.join("Contents/Frameworks")).unwrap();
-        std::fs::create_dir(dir.join("Contents/Frameworks/Foo.framework")).unwrap();
-
-        let dylibs = walk_extension(&dir, ".dylib", true).await;
-        assert!(
-            dylibs.iter().any(|p| p.ends_with("a.dylib")),
-            "expected a.dylib in {dylibs:?}"
-        );
-        assert!(!dylibs.iter().any(|p| p.ends_with("b.txt")));
-
-        let frameworks =
-            walk_extension(&dir.join("Contents/Frameworks"), ".framework", false).await;
-        assert!(
-            frameworks.iter().any(|p| p.ends_with("Foo.framework")),
-            "expected Foo.framework in {frameworks:?}"
-        );
-
-        let _ = fs::remove_dir_all(&dir).await;
-    }
-
-    #[tokio::test]
-    async fn run_subprocess_surfaces_exit_code_and_stderr() {
-        // `false` exits 1 with no stderr — exercises the Err
-        // path without depending on macOS-specific tools.
-        let res = run_subprocess("/usr/bin/false", &[], "false_smoke").await;
-        match res {
-            Err(Error::Subprocess {
-                stage, exit_code, ..
-            }) => {
-                assert_eq!(stage, "false_smoke");
-                assert_eq!(exit_code, Some(1));
-            }
-            other => panic!("expected Subprocess error, got {other:?}"),
-        }
-    }
 }
