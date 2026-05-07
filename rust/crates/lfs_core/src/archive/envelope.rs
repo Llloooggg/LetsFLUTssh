@@ -293,40 +293,22 @@ mod tests {
         // and assert the rejection message matches the importer's
         // — the round-trip footgun closes on the encrypt side
         // before any KDF work runs.
-        let err = encrypt_with_password(
-            SAMPLE_PAYLOAD,
-            "p",
-            16,
-            1,
-            MAX_IMPORT_PARALLELISM + 1,
-        )
-        .unwrap_err();
+        let err = encrypt_with_password(SAMPLE_PAYLOAD, "p", 16, 1, MAX_IMPORT_PARALLELISM + 1)
+            .unwrap_err();
         assert!(err.to_string().contains("exceed import caps"), "got: {err}");
     }
 
     #[test]
     fn encrypt_rejects_iterations_above_import_cap() {
-        let err = encrypt_with_password(
-            SAMPLE_PAYLOAD,
-            "p",
-            16,
-            MAX_IMPORT_ITERATIONS + 1,
-            1,
-        )
-        .unwrap_err();
+        let err = encrypt_with_password(SAMPLE_PAYLOAD, "p", 16, MAX_IMPORT_ITERATIONS + 1, 1)
+            .unwrap_err();
         assert!(err.to_string().contains("exceed import caps"), "got: {err}");
     }
 
     #[test]
     fn encrypt_rejects_memory_above_import_cap() {
-        let err = encrypt_with_password(
-            SAMPLE_PAYLOAD,
-            "p",
-            MAX_IMPORT_MEMORY_KIB + 1,
-            1,
-            1,
-        )
-        .unwrap_err();
+        let err = encrypt_with_password(SAMPLE_PAYLOAD, "p", MAX_IMPORT_MEMORY_KIB + 1, 1, 1)
+            .unwrap_err();
         assert!(err.to_string().contains("exceed import caps"), "got: {err}");
     }
 

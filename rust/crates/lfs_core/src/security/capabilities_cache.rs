@@ -55,9 +55,7 @@ impl Cache {
     /// defaults".
     #[must_use]
     pub fn view(&self) -> Option<SecurityCapabilities> {
-        let g = self
-            .inner
-            .lock().unwrap_or_else(|e| e.into_inner());
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.current.clone()
     }
 
@@ -73,9 +71,7 @@ impl Cache {
     /// follow-up `view` call.
     pub fn set(&self, snapshot: SecurityCapabilities) {
         let changed = {
-            let mut g = self
-                .inner
-                .lock().unwrap_or_else(|e| e.into_inner());
+            let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             let differs = g.current.as_ref() != Some(&snapshot);
             if differs {
                 g.current = Some(snapshot.clone());
@@ -100,9 +96,7 @@ impl Cache {
     /// No-op when the cache is already empty (no event fires).
     pub fn clear(&self) {
         let was_present = {
-            let mut g = self
-                .inner
-                .lock().unwrap_or_else(|e| e.into_inner());
+            let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             g.current.take().is_some()
         };
         if was_present {

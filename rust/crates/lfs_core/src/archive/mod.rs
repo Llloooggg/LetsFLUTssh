@@ -313,7 +313,8 @@ pub fn read_archive_to_pending(
     path: &str,
     password: &str,
 ) -> Result<(PendingImport, ImportPreview), Error> {
-    let bytes = std::fs::read(path).map_err(|e| Error::Archive(format!("import read {path}: {e}")))?;
+    let bytes =
+        std::fs::read(path).map_err(|e| Error::Archive(format!("import read {path}: {e}")))?;
     let zip_bytes: zeroize::Zeroizing<Vec<u8>> =
         if bytes.len() >= 4 && bytes[..4] == ENC_HEADER_MAGIC {
             decrypt_archive_with_password(&bytes, password)?

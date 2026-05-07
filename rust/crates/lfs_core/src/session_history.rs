@@ -60,8 +60,7 @@ fn next_id() -> HandleId {
 /// Mint a fresh history actor and return its handle id.
 pub fn create() -> HandleId {
     let id = next_id();
-    let mut reg = registry()
-        .lock().unwrap_or_else(|e| e.into_inner());
+    let mut reg = registry().lock().unwrap_or_else(|e| e.into_inner());
     reg.insert(id, State::default());
     id
 }
@@ -69,8 +68,7 @@ pub fn create() -> HandleId {
 /// Dispose the actor for `id`. Idempotent — disposing twice is a
 /// no-op. Production callers tear down on `Notifier` dispose.
 pub fn drop_handle(id: HandleId) {
-    let mut reg = registry()
-        .lock().unwrap_or_else(|e| e.into_inner());
+    let mut reg = registry().lock().unwrap_or_else(|e| e.into_inner());
     reg.remove(&id);
 }
 
@@ -78,8 +76,7 @@ pub fn drop_handle(id: HandleId) {
 /// any new operation invalidates the redo path. Caps the undo
 /// stack at `MAX_STACK`; oldest entry drops when full.
 pub fn push_undo(id: HandleId, description: String, blob: Vec<u8>) {
-    let mut reg = registry()
-        .lock().unwrap_or_else(|e| e.into_inner());
+    let mut reg = registry().lock().unwrap_or_else(|e| e.into_inner());
     let Some(state) = reg.get_mut(&id) else {
         return;
     };
@@ -94,8 +91,7 @@ pub fn push_undo(id: HandleId, description: String, blob: Vec<u8>) {
 /// onto the redo stack. Returns the popped snapshot, or `None`
 /// when the undo stack is empty.
 pub fn undo(id: HandleId, current_description: String, current_blob: Vec<u8>) -> Option<Snapshot> {
-    let mut reg = registry()
-        .lock().unwrap_or_else(|e| e.into_inner());
+    let mut reg = registry().lock().unwrap_or_else(|e| e.into_inner());
     let state = reg.get_mut(&id)?;
     let popped = state.undo_stack.pop()?;
     state.redo_stack.push(Snapshot {
@@ -109,8 +105,7 @@ pub fn undo(id: HandleId, current_description: String, current_blob: Vec<u8>) ->
 /// onto the undo stack. Returns the popped snapshot, or `None`
 /// when the redo stack is empty.
 pub fn redo(id: HandleId, current_description: String, current_blob: Vec<u8>) -> Option<Snapshot> {
-    let mut reg = registry()
-        .lock().unwrap_or_else(|e| e.into_inner());
+    let mut reg = registry().lock().unwrap_or_else(|e| e.into_inner());
     let state = reg.get_mut(&id)?;
     let popped = state.redo_stack.pop()?;
     state.undo_stack.push(Snapshot {
@@ -122,8 +117,7 @@ pub fn redo(id: HandleId, current_description: String, current_blob: Vec<u8>) ->
 
 /// Clear both stacks.
 pub fn clear(id: HandleId) {
-    let mut reg = registry()
-        .lock().unwrap_or_else(|e| e.into_inner());
+    let mut reg = registry().lock().unwrap_or_else(|e| e.into_inner());
     if let Some(state) = reg.get_mut(&id) {
         state.undo_stack.clear();
         state.redo_stack.clear();

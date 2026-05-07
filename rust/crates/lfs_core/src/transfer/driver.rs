@@ -207,10 +207,9 @@ impl TaskExecutor for SftpTaskExecutor {
                 return Err(Error::Io("cancelled before start".to_string()));
             }
             let app = crate::app::instance();
-            let actor = app
-                .connections
-                .get(&task.session_id)
-                .ok_or_else(|| Error::SessionUnavailable(format!("session {} not registered", task.session_id)))?;
+            let actor = app.connections.get(&task.session_id).ok_or_else(|| {
+                Error::SessionUnavailable(format!("session {} not registered", task.session_id))
+            })?;
             let session = {
                 let guard = actor
                     .lock()

@@ -154,18 +154,14 @@ impl InMemoryRateLimiterRegistry {
     /// limiter for unknown ids — the first `status()` call after a
     /// hot reload should not throw.
     pub fn status(&self, id: &str) -> RateLimitStatus {
-        let mut g = self
-            .inner
-            .lock().unwrap_or_else(|e| e.into_inner());
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.entry(id.to_string()).or_default().status()
     }
 
     /// Register a failed attempt against `id`. Auto-creates a
     /// limiter on first failure.
     pub fn record_failure(&self, id: &str) {
-        let mut g = self
-            .inner
-            .lock().unwrap_or_else(|e| e.into_inner());
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.entry(id.to_string()).or_default().record_failure();
     }
 
@@ -173,9 +169,7 @@ impl InMemoryRateLimiterRegistry {
     /// limiter (idempotent) — `recordSuccess` on a never-failed
     /// id is a no-op.
     pub fn record_success(&self, id: &str) {
-        let mut g = self
-            .inner
-            .lock().unwrap_or_else(|e| e.into_inner());
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         g.entry(id.to_string()).or_default().record_success();
     }
 
@@ -183,15 +177,14 @@ impl InMemoryRateLimiterRegistry {
     /// reclaim memory; idempotent on a missing id.
     pub fn drop_id(&self, id: &str) -> bool {
         self.inner
-            .lock().unwrap_or_else(|e| e.into_inner())
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
             .remove(id)
             .is_some()
     }
 
     pub fn count(&self) -> usize {
-        self.inner
-            .lock().unwrap_or_else(|e| e.into_inner())
-            .len()
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 }
 

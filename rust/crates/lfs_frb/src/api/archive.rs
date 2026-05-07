@@ -348,15 +348,12 @@ pub async fn qr_import_open(payload: String) -> Result<DbImportOpenResult, Strin
 /// `password` empty → assumes a raw-ZIP archive (matches the
 /// "no encryption" export branch). Wrong password / malformed
 /// envelope surfaces as an error and no handle is registered.
-pub async fn db_import_open(
-    path: String,
-    password: Vec<u8>,
-) -> Result<DbImportOpenResult, String> {
+pub async fn db_import_open(path: String, password: Vec<u8>) -> Result<DbImportOpenResult, String> {
     tokio::task::spawn_blocking(move || {
         let pw = std::str::from_utf8(&password)
             .map_err(|_| "password is not valid UTF-8".to_string())?;
-        let (pending, preview) = lfs_core::archive::read_archive_to_pending(&path, pw)
-            .map_err(|e| e.to_string())?;
+        let (pending, preview) =
+            lfs_core::archive::read_archive_to_pending(&path, pw).map_err(|e| e.to_string())?;
         let app = lfs_core::app::instance();
         let handle_id = lfs_core::id::random_handle_hex_32();
         app.imports.insert(handle_id.clone(), pending);

@@ -94,9 +94,7 @@ impl AutoLockMachine {
     /// transitions. Called once during `AppState::new`. Replacing
     /// it later is allowed — the latest action wins.
     pub fn set_lock_action(&self, action: LockAction) {
-        *self
-            .lock_action
-            .write().unwrap_or_else(|e| e.into_inner()) = Some(action);
+        *self.lock_action.write().unwrap_or_else(|e| e.into_inner()) = Some(action);
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
@@ -190,7 +188,8 @@ impl AutoLockMachine {
         // state is zeroed at the same instant the event fires.
         let action = self
             .lock_action
-            .read().unwrap_or_else(|e| e.into_inner())
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
             .clone();
         if let Some(action) = action {
             (action)();

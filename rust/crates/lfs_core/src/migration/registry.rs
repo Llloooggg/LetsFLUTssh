@@ -10,9 +10,7 @@
 
 use std::collections::HashMap;
 
-use super::artefacts::{
-    ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, KdfArtefact,
-};
+use super::artefacts::{ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, KdfArtefact};
 use super::{Artefact, Migration};
 
 /// Mutable registry of every artefact + migration the runner knows

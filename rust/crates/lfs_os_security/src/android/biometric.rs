@@ -306,4 +306,3 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallbac
 ) {
     deliver(req_id as u64, BiometricResult::Error(code as i32));
 }
-

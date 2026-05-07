@@ -177,16 +177,15 @@ impl Registry {
     /// in microseconds.
     #[must_use]
     pub fn snapshot(&self) -> RegistryView {
-        self.inner
-            .read().unwrap_or_else(|e| e.into_inner())
-            .clone()
+        self.inner.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Number of sessions cached. Cheap — read lock only, no clone.
     #[must_use]
     pub fn session_count(&self) -> usize {
         self.inner
-            .read().unwrap_or_else(|e| e.into_inner())
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
             .sessions
             .len()
     }

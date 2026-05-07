@@ -335,8 +335,8 @@ fn write_0600(path: &Path, bytes: &[u8]) -> Result<(), Error> {
 }
 
 fn read_all(path: &Path) -> Result<Vec<u8>, Error> {
-    let mut f =
-        File::open(path).map_err(|e| Error::Platform(format!("tpm read {}: {e}", path.display())))?;
+    let mut f = File::open(path)
+        .map_err(|e| Error::Platform(format!("tpm read {}: {e}", path.display())))?;
     let mut buf = Vec::new();
     f.read_to_end(&mut buf)
         .map_err(|e| Error::Platform(format!("tpm read {}: {e}", path.display())))?;

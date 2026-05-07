@@ -193,10 +193,7 @@ pub async fn unlock_keychain() -> UnlockOutcome {
 /// (the L2 gate shares the same support-dir pin since both
 /// store on-disk state under the same root).
 pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
-    instance_dispatch(
-        SecurityTier::Keychain,
-        &TierEvent::UnlockRequested,
-    );
+    instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockRequested);
 
     // Rate-limit gate. The Dart unlock dialog's countdown was the
     // only brake on this verify path — a programmatic FRB caller
@@ -256,10 +253,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     match lfs_os_security::secure_key_storage::read(ENCRYPTION_KEY_SLOT).await {
         Ok(Some(bytes)) if !bytes.is_empty() => {
             stage_key(&bytes);
-            instance_dispatch(
-                SecurityTier::Keychain,
-                &TierEvent::UnlockSucceeded,
-            );
+            instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
             UnlockOutcome::Staged
         }
         Ok(_) => {
@@ -539,10 +533,7 @@ pub async fn first_launch_keychain() -> UnlockOutcome {
 /// random key, writes it to the OS keychain via the Dart
 /// subscriber, stages the bytes + emits the cascade.
 pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
-    instance_dispatch(
-        SecurityTier::Keychain,
-        &TierEvent::UnlockRequested,
-    );
+    instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockRequested);
     let support_dir = crate::security::master_password::pinned_support_dir();
     if let Err(detail) =
         crate::security::keychain_password_gate_actor::set_password(support_dir, &password).await
@@ -561,10 +552,7 @@ pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOut
     match write_to_keychain(&key).await {
         Ok(()) => {
             stage_key(&key);
-            instance_dispatch(
-                SecurityTier::Keychain,
-                &TierEvent::UnlockSucceeded,
-            );
+            instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockSucceeded);
             UnlockOutcome::Staged
         }
         Err(detail) => {

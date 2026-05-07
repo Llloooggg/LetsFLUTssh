@@ -468,8 +468,8 @@ fn write_json_entry(
     name: &str,
     value: &Value,
 ) -> Result<(), Error> {
-    let serialised =
-        serde_json::to_vec(value).map_err(|e| Error::Archive(format!("json serialise {name}: {e}")))?;
+    let serialised = serde_json::to_vec(value)
+        .map_err(|e| Error::Archive(format!("json serialise {name}: {e}")))?;
     zw.start_file(name, opts)
         .map_err(|e| Error::Archive(format!("zip start {name}: {e}")))?;
     zw.write_all(&serialised)

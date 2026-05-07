@@ -140,7 +140,8 @@ pub async fn download_to_file(
     let mut written: u64 = 0;
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let bytes = chunk.map_err(|e| Error::Update(format!("update download chunk {url}: {e}")))?;
+        let bytes =
+            chunk.map_err(|e| Error::Update(format!("update download chunk {url}: {e}")))?;
         hasher.update(&bytes);
         file.write_all(&bytes)
             .await

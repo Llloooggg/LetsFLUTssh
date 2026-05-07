@@ -27,7 +27,10 @@ pub fn security_config_to_json(
         .ok_or_else(|| format!("unknown tier wire name: {tier_wire_name}"))?;
     let cfg = SecurityConfig {
         tier,
-        modifiers: SecurityTierModifiers { password, biometric },
+        modifiers: SecurityTierModifiers {
+            password,
+            biometric,
+        },
     };
     Ok(cfg.to_json_value().to_string())
 }
@@ -37,7 +40,10 @@ pub fn security_config_to_json(
 /// outer `SecurityConfig` wrapper.
 #[flutter_rust_bridge::frb(sync)]
 pub fn security_tier_modifiers_to_json(password: bool, biometric: bool) -> String {
-    let m = SecurityTierModifiers { password, biometric };
+    let m = SecurityTierModifiers {
+        password,
+        biometric,
+    };
     let map = m.to_json_map();
     let value: serde_json::Map<String, serde_json::Value> =
         map.into_iter().map(|(k, v)| (k.to_string(), v)).collect();

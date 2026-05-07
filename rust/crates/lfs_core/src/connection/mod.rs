@@ -739,28 +739,27 @@ async fn run_auth(args: ConnectArgs) -> Result<Session, Error> {
     // lives Rust-side so the FRB call surfaces the wait + the
     // parent-failed branch in one place rather than splitting
     // it across the Dart connect orchestrator.
-    let bastion_session =
-        match bastion_id.as_deref() {
-            None => None,
-            Some(id) => {
-                wait_for_parent_ready(id).await?;
-                let app = crate::app::instance();
-                let handle = app
-                    .connections
-                    .get(id)
-                    .ok_or_else(|| Error::Transport(format!("ProxyJump parent '{id}' missing")))?;
-                let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
-                if actor.state != ConnectionState::Connected {
-                    return Err(Error::Transport(format!(
-                        "ProxyJump parent '{id}' not yet connected (state {:?})",
-                        actor.state
-                    )));
-                }
-                Some(actor.clone_session().ok_or_else(|| {
-                    Error::Transport(format!("ProxyJump parent '{id}' has no live session"))
-                })?)
+    let bastion_session = match bastion_id.as_deref() {
+        None => None,
+        Some(id) => {
+            wait_for_parent_ready(id).await?;
+            let app = crate::app::instance();
+            let handle = app
+                .connections
+                .get(id)
+                .ok_or_else(|| Error::Transport(format!("ProxyJump parent '{id}' missing")))?;
+            let actor = handle.lock().unwrap_or_else(|e| e.into_inner());
+            if actor.state != ConnectionState::Connected {
+                return Err(Error::Transport(format!(
+                    "ProxyJump parent '{id}' not yet connected (state {:?})",
+                    actor.state
+                )));
             }
-        };
+            Some(actor.clone_session().ok_or_else(|| {
+                Error::Transport(format!("ProxyJump parent '{id}' has no live session"))
+            })?)
+        }
+    };
 
     // Owned-arg `_owned` variants — `Session::connect_*_with_secret_owned`
     // (and `_via_proxy_with_secret_owned`) take `String`/`Arc<Session>`
