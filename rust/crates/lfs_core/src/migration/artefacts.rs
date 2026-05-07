@@ -106,13 +106,13 @@ impl Migration for ConfigV1ToV2 {
 
     fn apply(&self, support_dir: &Path) -> Result<(), String> {
         let path = support_dir.join(ConfigArtefact::FILE_NAME);
-        let bytes = std::fs::read(&path)
-            .map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let bytes =
+            std::fs::read(&path).map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
         let mut value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
-        let obj = value.as_object_mut().ok_or_else(|| {
-            format!("{}: not a JSON object", ConfigArtefact::FILE_NAME)
-        })?;
+        let obj = value
+            .as_object_mut()
+            .ok_or_else(|| format!("{}: not a JSON object", ConfigArtefact::FILE_NAME))?;
         // Explicit-null entry — distinguishes "never probed" from
         // "probed-but-empty" on every subsequent round-trip.
         obj.entry("security_probe_cache").or_insert(Value::Null);
@@ -137,8 +137,8 @@ impl Migration for ConfigV1ToV2 {
 /// never see the legacy string again — the enum is dropped.
 ///
 /// `security_modifiers` is created if absent and `password` is
-/// force-set to `true`; any pre-existing field-set on the
-/// modifiers (biometric / pin_length) carries over verbatim.
+/// force-set to `true`; any pre-existing modifier fields carry
+/// over verbatim.
 ///
 /// Atomic — writes via [`crate::path::write_bytes_atomic`] (tmp +
 /// fsync + rename) so a crash mid-migration leaves the v2 file
@@ -160,8 +160,8 @@ impl Migration for ConfigV2ToV3 {
 
     fn apply(&self, support_dir: &Path) -> Result<(), String> {
         let path = support_dir.join(ConfigArtefact::FILE_NAME);
-        let bytes = std::fs::read(&path)
-            .map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let bytes =
+            std::fs::read(&path).map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
         let mut value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
         let obj = value
@@ -196,28 +196,6 @@ impl Migration for ConfigV2ToV3 {
     }
 }
 
-/// `credentials.kdf` — Argon2id parameter blob written by the KDF
-/// writer. Self-versioned inside the file via `'LFKD'` magic +
-/// version byte; reading the on-disk version is what lets the
-/// migration runner distinguish "up-to-date", "needs migration",
-/// and "corrupt / wrong format".
-///
-/// Header layout (mirror of `master_password::encode_kdf_record`):
-/// ```text
-///   offset 0   magic 'LFKD'   (4 bytes)
-///   offset 4   file version   (1 byte)
-///   …          KDF params + salt
-/// ```
-///
-/// A missing file → `-1` (no install). A 0-byte / sub-header file or
-/// a wrong magic → fatal `Err`; the migration runner surfaces the
-/// reset dialog rather than silently treating the artefact as
-/// up-to-date and letting the first verify call fail with a cryptic
-/// "decrypt failed" error. A future-version file (version byte
-/// higher than the build's `SchemaVersions::KDF`) is reported as-is
-/// so the migration runner can tell the user "newer install present,
-/// please upgrade" instead of pretending it knows the format.
-
 /// `config.json` v3 → v4: drop the legacy `biometric_shortcut`
 /// and `pin_length` fields from `security_modifiers`. Both were
 /// retained as backward-compat fields after the bank-style
@@ -250,8 +228,8 @@ impl Migration for ConfigV3ToV4 {
 
     fn apply(&self, support_dir: &Path) -> Result<(), String> {
         let path = support_dir.join(ConfigArtefact::FILE_NAME);
-        let bytes = std::fs::read(&path)
-            .map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let bytes =
+            std::fs::read(&path).map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
         let mut value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
         let obj = value
@@ -479,7 +457,11 @@ mod tests {
         let value: Value = serde_json::from_slice(&bytes).unwrap();
         let obj = value.as_object().unwrap();
         assert_eq!(obj.get("config_schema_version"), Some(&Value::from(2)));
-        let cache = obj.get("security_probe_cache").unwrap().as_object().unwrap();
+        let cache = obj
+            .get("security_probe_cache")
+            .unwrap()
+            .as_object()
+            .unwrap();
         assert_eq!(
             cache.get("keychain_probe"),
             Some(&Value::String("available".into()))

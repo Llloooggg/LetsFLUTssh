@@ -312,10 +312,7 @@ pub struct MappedSetupChoice {
 /// Pure mapping — no I/O, no platform calls. Lives Rust-side so the
 /// tier-choice grammar (which slot the typed secret routes into,
 /// which tier variant is picked when password is on/off) stays one
-/// place across the Dart wizard + the in-flight tier machine. The
-/// `biometric_shortcut` field on `SecurityTierModifiers` mirrors
-/// `biometric` 1:1 here — same semantics as the Dart constructor's
-/// implicit `biometricShortcut: biometric`.
+/// place across the Dart wizard + the in-flight tier machine.
 #[must_use]
 pub fn map_wizard_choice(
     chosen: WizardTier,
@@ -323,7 +320,10 @@ pub fn map_wizard_choice(
     biometric: bool,
     typed_secret: Option<String>,
 ) -> MappedSetupChoice {
-    let modifiers = SecurityTierModifiers { password, biometric };
+    let modifiers = SecurityTierModifiers {
+        password,
+        biometric,
+    };
     match chosen {
         WizardTier::Plaintext => MappedSetupChoice {
             tier: SecurityTier::Plaintext,
@@ -412,26 +412,14 @@ mod tests {
         let valid = SecurityTierModifiers {
             password: true,
             biometric: true,
-            biometric_shortcut: true,
-            pin_length: 6,
         };
         assert!(valid.is_valid());
 
         let bad_biometric = SecurityTierModifiers {
             password: false,
             biometric: true,
-            biometric_shortcut: true,
-            pin_length: 6,
         };
         assert!(!bad_biometric.is_valid());
-
-        let bad_pin = SecurityTierModifiers {
-            password: true,
-            biometric: false,
-            biometric_shortcut: false,
-            pin_length: 3,
-        };
-        assert!(!bad_pin.is_valid());
     }
 
     #[test]
@@ -439,8 +427,6 @@ mod tests {
         let d = SecurityTierModifiers::default();
         assert!(!d.password);
         assert!(!d.biometric);
-        assert!(!d.biometric_shortcut);
-        assert_eq!(d.pin_length, 6);
     }
 
     #[test]
@@ -448,14 +434,13 @@ mod tests {
         let m = SecurityTierModifiers {
             password: true,
             biometric: true,
-            biometric_shortcut: true,
-            pin_length: 4,
         };
         let json = m.to_json_map();
         assert!(json.contains_key("password"));
         assert!(json.contains_key("biometric"));
-        assert!(json.contains_key("biometric_shortcut"));
-        assert!(json.contains_key("pin_length"));
+        // Legacy keys are no longer emitted post-v4.
+        assert!(!json.contains_key("biometric_shortcut"));
+        assert!(!json.contains_key("pin_length"));
     }
 
     #[test]
@@ -463,8 +448,6 @@ mod tests {
         let original = SecurityTierModifiers {
             password: true,
             biometric: true,
-            biometric_shortcut: true,
-            pin_length: 5,
         };
         let map = original.to_json_map();
         let json: serde_json::Map<String, serde_json::Value> =
@@ -474,29 +457,21 @@ mod tests {
     }
 
     #[test]
-    fn modifiers_from_json_falls_back_to_biometric_shortcut() {
-        // v1 persisted configs only carry `biometric_shortcut`.
-        // The decoder fills `biometric` from it so the bank-style
-        // wizard reads as if the user opted in.
+    fn modifiers_from_json_ignores_legacy_keys() {
+        // ConfigV3ToV4 strips these from disk on first read. If a
+        // hand-edited config still carries them, the decoder must
+        // silently ignore them rather than blow up.
         let mut json = serde_json::Map::new();
         json.insert("password".into(), serde_json::Value::Bool(true));
+        json.insert("biometric".into(), serde_json::Value::Bool(false));
         json.insert("biometric_shortcut".into(), serde_json::Value::Bool(true));
-        let m = SecurityTierModifiers::from_json_map(&json);
-        assert!(m.biometric);
-        assert!(m.biometric_shortcut);
-    }
-
-    #[test]
-    fn modifiers_from_json_clamps_oob_pin() {
-        let mut json = serde_json::Map::new();
         json.insert(
             "pin_length".into(),
-            serde_json::Value::Number(serde_json::Number::from(99i64)),
+            serde_json::Value::Number(serde_json::Number::from(6i64)),
         );
         let m = SecurityTierModifiers::from_json_map(&json);
-        // Clamps back to default rather than crashing the PIN widget
-        // with a 99-cell render.
-        assert_eq!(m.pin_length, 6);
+        assert!(m.password);
+        assert!(!m.biometric);
     }
 
     #[test]
@@ -509,8 +484,6 @@ mod tests {
             modifiers: SecurityTierModifiers {
                 password: true,
                 biometric: false,
-                biometric_shortcut: false,
-                pin_length: 6,
             },
         };
         let value = original.to_json_value();
@@ -533,14 +506,62 @@ mod tests {
     #[test]
     fn config_predicates_match_dart() {
         for (tier, password, paranoid, plaintext, kc, hw, secret) in [
-            (SecurityTier::Plaintext, false, false, true, false, false, false),
-            (SecurityTier::Keychain, false, false, false, true, false, false),
+            (
+                SecurityTier::Plaintext,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+            ),
+            (
+                SecurityTier::Keychain,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+            ),
             // Bank-style L1 + password — `has_user_secret` flips on
             // the modifier, not on a dedicated tier value.
-            (SecurityTier::Keychain, true, false, false, true, false, true),
-            (SecurityTier::Hardware, false, false, false, false, true, false),
-            (SecurityTier::Hardware, true, false, false, false, true, true),
-            (SecurityTier::Paranoid, false, true, false, false, false, true),
+            (
+                SecurityTier::Keychain,
+                true,
+                false,
+                false,
+                true,
+                false,
+                true,
+            ),
+            (
+                SecurityTier::Hardware,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+            ),
+            (
+                SecurityTier::Hardware,
+                true,
+                false,
+                false,
+                false,
+                true,
+                true,
+            ),
+            (
+                SecurityTier::Paranoid,
+                false,
+                true,
+                false,
+                false,
+                false,
+                true,
+            ),
         ] {
             let cfg = SecurityConfig {
                 tier,
@@ -567,10 +588,7 @@ mod tests {
             },
         };
         let json = cfg.to_json_value();
-        assert_eq!(
-            json.get("tier").and_then(|v| v.as_str()),
-            Some("keychain"),
-        );
+        assert_eq!(json.get("tier").and_then(|v| v.as_str()), Some("keychain"),);
         // The password modifier is what carries the "L1 + password"
         // signal in the bank-style v3 wire shape.
         assert_eq!(
@@ -616,7 +634,6 @@ mod tests {
         assert_eq!(r.short_password, None);
         assert_eq!(r.master_password, None);
         assert!(r.modifiers.biometric);
-        assert!(r.modifiers.biometric_shortcut);
     }
 
     #[test]
@@ -626,18 +643,5 @@ mod tests {
         assert_eq!(r.master_password, Some("longphrase".into()));
         assert_eq!(r.pin, None);
         assert_eq!(r.short_password, None);
-    }
-
-    #[test]
-    fn map_wizard_choice_biometric_shortcut_mirrors_biometric() {
-        // Mirrors the Dart constructor's implicit
-        // `biometricShortcut: biometric` — same boolean lands on
-        // both fields. Catches accidental divergence if either
-        // field is rewired separately later.
-        for biometric in [false, true] {
-            let r = map_wizard_choice(WizardTier::Hardware, true, biometric, None);
-            assert_eq!(r.modifiers.biometric, biometric);
-            assert_eq!(r.modifiers.biometric_shortcut, biometric);
-        }
     }
 }
