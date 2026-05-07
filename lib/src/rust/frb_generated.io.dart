@@ -31,6 +31,7 @@ import 'api/keys.dart';
 import 'api/known_hosts_parser.dart';
 import 'api/local_fs.dart';
 import 'api/log_sanitize.dart';
+import 'api/macos_installer.dart';
 import 'api/macos_resign.dart';
 import 'api/master_password.dart';
 import 'api/migration.dart';
@@ -888,6 +889,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SftpDirEntry> dco_decode_list_sftp_dir_entry(dynamic raw);
+
+  @protected
+  MacosInstallOutcome dco_decode_macos_install_outcome(dynamic raw);
 
   @protected
   MacosResignOutcome dco_decode_macos_resign_outcome(dynamic raw);
@@ -2009,6 +2013,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SftpDirEntry> sse_decode_list_sftp_dir_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MacosInstallOutcome sse_decode_macos_install_outcome(
     SseDeserializer deserializer,
   );
 
@@ -3434,6 +3443,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_sftp_dir_entry(
     List<SftpDirEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_macos_install_outcome(
+    MacosInstallOutcome self,
     SseSerializer serializer,
   );
 

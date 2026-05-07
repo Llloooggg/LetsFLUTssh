@@ -144,6 +144,46 @@ basicConstraints = critical,CA:FALSE
     )
 }
 
+/// Append `suffix` to the path's final component (e.g.
+/// `/Applications/foo.app` + `.new` → `/Applications/foo.app.new`).
+/// Used by the macOS installer to derive `<target>.new` and
+/// `<target>.backup` paths from the live target.
+pub(crate) fn append_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let parent = path.parent().unwrap_or(Path::new(""));
+    let file_name = path.file_name().map(|n| n.to_owned()).unwrap_or_default();
+    let mut composed = file_name;
+    composed.push(suffix);
+    parent.join(composed)
+}
+
+/// Return the first directory entry directly under `dir` whose
+/// final component ends with `extension` (e.g. `.app`). Single-
+/// level scan, no recursion. Symlinks not followed. Used by the
+/// macOS installer to locate the `.app` inside a freshly-mounted
+/// DMG without depending on the bundle's exact name.
+pub(crate) fn find_first_directory_with_extension(dir: &Path, extension: &str) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let metadata = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+        if metadata.is_dir()
+            && path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.ends_with(extension))
+        {
+            return Some(path);
+        }
+    }
+    None
+}
+
 /// Sequence-suffixed temp dir under `std::env::temp_dir()`. Used
 /// by per-OS modules that need a scratch tree for subprocess
 /// inputs (e.g. the macOS cert-factory's `cert.cnf`/`cert.key`/
@@ -253,6 +293,59 @@ mod tests {
             Err(RunError::Io(_)) => {}
             other => panic!("expected RunError::Io for missing program, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn append_suffix_glues_to_the_final_component() {
+        assert_eq!(
+            append_suffix(Path::new("/Applications/foo.app"), ".new"),
+            PathBuf::from("/Applications/foo.app.new")
+        );
+        assert_eq!(
+            append_suffix(Path::new("/foo.app"), ".backup"),
+            PathBuf::from("/foo.app.backup")
+        );
+        // Path with no parent — the suffix lands on the bare
+        // component without a leading separator.
+        assert_eq!(
+            append_suffix(Path::new("foo"), ".new"),
+            PathBuf::from("foo.new")
+        );
+    }
+
+    #[tokio::test]
+    async fn find_first_directory_with_extension_picks_first_app_bundle() {
+        let dir = make_temp_dir("lfs-find-").await.unwrap();
+        std::fs::create_dir(dir.join("Letsflutssh.app")).unwrap();
+        std::fs::write(dir.join("README.txt"), b"x").unwrap();
+        std::fs::create_dir(dir.join("Other")).unwrap();
+        let found = find_first_directory_with_extension(&dir, ".app");
+        assert_eq!(
+            found.as_deref().and_then(|p| p.file_name()),
+            Some(std::ffi::OsStr::new("Letsflutssh.app"))
+        );
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn find_first_directory_with_extension_returns_none_when_absent() {
+        let dir = make_temp_dir("lfs-find-empty-").await.unwrap();
+        std::fs::create_dir(dir.join("subfolder")).unwrap();
+        std::fs::write(dir.join("file.txt"), b"x").unwrap();
+        let found = find_first_directory_with_extension(&dir, ".app");
+        assert!(found.is_none(), "expected None, got {found:?}");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[tokio::test]
+    async fn find_first_directory_with_extension_skips_files_ending_in_app() {
+        let dir = make_temp_dir("lfs-find-files-").await.unwrap();
+        // A file (not a directory) whose name ends with `.app`
+        // must be ignored — `want directory only` semantics.
+        std::fs::write(dir.join("decoy.app"), b"x").unwrap();
+        let found = find_first_directory_with_extension(&dir, ".app");
+        assert!(found.is_none(), "expected None, got {found:?}");
+        let _ = tokio::fs::remove_dir_all(&dir).await;
     }
 
     #[tokio::test]

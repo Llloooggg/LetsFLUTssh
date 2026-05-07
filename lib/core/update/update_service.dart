@@ -14,11 +14,12 @@ import '../../src/rust/api/update_signing.dart' as rust_update_signing;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 
-/// Callback shape for the optional native macOS `.dmg` installer. Kept
-/// as a typedef at the core layer so `UpdateService` can invoke the
-/// installer without importing `lib/platform/macos/` — the UI wiring
-/// point (main.dart / update_provider) adapts the concrete
-/// `MacosInstaller` into this callback.
+/// Callback shape for the optional native macOS `.dmg` installer.
+/// Kept as a typedef at the core layer so `UpdateService` can
+/// invoke the installer without importing `lib/platform/macos/` —
+/// the UI wiring point (main.dart / update_provider) adapts the
+/// FRB call `rust_macos_installer.macosInstallerInstall` into
+/// this callback.
 ///
 /// Returns `true` when the installer has fully swapped the bundle and
 /// relaunched; `false` to request a fallback to the legacy

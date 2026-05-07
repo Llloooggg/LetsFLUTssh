@@ -16,3 +16,4 @@
 //! Rust thinks" invariant.
 
 pub mod code_signing;
+pub mod installer;
