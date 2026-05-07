@@ -39,6 +39,17 @@ extension _FolderActions on SessionPanelState {
         ),
         if (folderPath.isNotEmpty) ...[
           const ContextMenuItem.divider(),
+          StandardMenuAction.copy.item(
+            context,
+            shortcut: AppShortcut.sessionCopy,
+            onTap: () => _ctrl.copyFolderPath(folderPath),
+          ),
+          StandardMenuAction.cut.item(
+            context,
+            shortcut: AppShortcut.sessionCut,
+            onTap: () => _ctrl.cutFolderPath(folderPath),
+          ),
+          const ContextMenuItem.divider(),
           StandardMenuAction.renameFolder.item(
             context,
             onTap: () => _renameFolder(context, ref, folderPath),
@@ -108,6 +119,23 @@ extension _FolderActions on SessionPanelState {
                 },
               ),
               if (folderPath.isNotEmpty) ...[
+                const AppDivider(),
+                ListTile(
+                  leading: const Icon(Icons.copy),
+                  title: Text(S.of(ctx).copy),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _ctrl.copyFolderPath(folderPath);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.content_cut),
+                  title: Text(S.of(ctx).cut),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _ctrl.cutFolderPath(folderPath);
+                  },
+                ),
                 const AppDivider(),
                 ListTile(
                   leading: const Icon(Icons.drive_file_rename_outline),

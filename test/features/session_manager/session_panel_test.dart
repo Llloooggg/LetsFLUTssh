@@ -2960,6 +2960,16 @@ void main() {
       await tester.longPress(find.text('Production'));
       await tester.pumpAndSettle();
 
+      // The folder bottom sheet is taller than the test viewport once
+      // it carries the full New / Copy / Cut / Rename / Delete /
+      // Select stack — scroll the inner SingleChildScrollView so
+      // Select reaches the visible area before hit-testing.
+      await tester.scrollUntilVisible(
+        find.text('Select'),
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+
       await tester.tap(find.text('Select'));
       await tester.pumpAndSettle();
 

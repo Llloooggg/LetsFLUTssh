@@ -240,17 +240,35 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   /// [explicitTarget] overrides the focus-derived target — used by the
   /// folder-row context menu, which pastes into the right-clicked
   /// folder regardless of what is currently focused.
+  ///
+  /// Clipboard slot can be either a session id or a folder path
+  /// (mutually exclusive — see [SessionPanelController.copyFolderPath]).
+  /// Cut on a folder paths becomes [SessionNotifier.moveFolder]; copy
+  /// becomes [SessionNotifier.duplicateFolder] (deep duplicate of the
+  /// folder + every session and subfolder inside).
   @visibleForTesting
   void pasteCopiedSession({String? explicitTarget}) {
     final id = _ctrl.copiedSessionId;
-    if (id == null) return;
+    final folderPath = _ctrl.copiedFolderPath;
+    if (id == null && folderPath == null) return;
     final target = explicitTarget ?? _resolvePasteTargetFolder();
+    final notifier = ref.read(sessionProvider.notifier);
+    if (id != null) {
+      if (_ctrl.cutPending) {
+        notifier.moveSession(id, target);
+        _ctrl.clearClipboard();
+        return;
+      }
+      notifier.duplicate(id, targetFolder: target);
+      return;
+    }
+    // Folder-path branch.
     if (_ctrl.cutPending) {
-      ref.read(sessionProvider.notifier).moveSession(id, target);
+      notifier.moveFolder(folderPath!, target);
       _ctrl.clearClipboard();
       return;
     }
-    ref.read(sessionProvider.notifier).duplicate(id, targetFolder: target);
+    notifier.duplicateFolder(folderPath!, target);
   }
 
   /// Resolve where a paste should land. Focused folder wins, then
@@ -291,6 +309,46 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     _editSession(context, ref, session);
   }
 
+  /// Delete the focused folder (shows confirmation dialog). Mirror of
+  /// [deleteFocusedSession] for the folder side — without it the
+  /// `Delete` keyboard shortcut on a focused folder no-ops because
+  /// the binding only knew the session-id branch.
+  @visibleForTesting
+  void deleteFocusedFolder() {
+    final path = _ctrl.focusedFolderPath;
+    if (path == null || path.isEmpty) return;
+    _confirmDeleteFolder(context, ref, path);
+  }
+
+  /// Rename the focused folder (shows rename dialog). The session-edit
+  /// shortcut (F2 / Enter) doubles as folder-rename when a folder
+  /// row holds focus instead of a session.
+  @visibleForTesting
+  void renameFocusedFolder() {
+    final path = _ctrl.focusedFolderPath;
+    if (path == null || path.isEmpty) return;
+    _renameFolder(context, ref, path);
+  }
+
+  /// Folder path the next "create" should land in: focused folder if
+  /// any; otherwise the focused session's folder; otherwise root.
+  /// Same rule as [_resolvePasteTargetFolder] — a single focus pointer
+  /// drives every "create / paste lands here" affordance so the user
+  /// doesn't have to open a context menu just to scope a new entry.
+  String _resolveFocusedTargetFolder() {
+    final folder = _ctrl.focusedFolderPath;
+    if (folder != null) return folder;
+    final sid = _ctrl.focusedSessionId;
+    if (sid != null) {
+      final sess = ref
+          .read(sessionProvider)
+          .where((s) => s.id == sid)
+          .firstOrNull;
+      if (sess != null) return sess.folder;
+    }
+    return '';
+  }
+
   Map<ShortcutActivator, VoidCallback> _buildShortcutBindings() {
     return AppShortcutRegistry.instance.buildCallbackMap({
       AppShortcut.sessionUndo: () => ref.read(sessionProvider.notifier).undo(),
@@ -303,12 +361,22 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           _deleteSelected(context);
           return;
         }
-        if (_ctrl.focusedSessionId == null) return;
-        deleteFocusedSession();
+        if (_ctrl.focusedSessionId != null) {
+          deleteFocusedSession();
+          return;
+        }
+        if (_ctrl.focusedFolderPath != null) {
+          deleteFocusedFolder();
+        }
       },
       AppShortcut.sessionEdit: () {
-        if (_ctrl.focusedSessionId == null) return;
-        editFocusedSession();
+        if (_ctrl.focusedSessionId != null) {
+          editFocusedSession();
+          return;
+        }
+        if (_ctrl.focusedFolderPath != null) {
+          renameFocusedFolder();
+        }
       },
     });
   }
@@ -441,8 +509,14 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     }
     return [
       _PanelHeader(
-        onAddSession: () => _addSession(context, ref),
-        onAddFolder: () => _createFolder(context, ref, ''),
+        // Pick the focused folder (or the focused session's folder)
+        // as the parent for new entries — matches the user's mental
+        // model "I selected this folder, the new thing goes here".
+        // Falls back to root when nothing is focused.
+        onAddSession: () =>
+            _addSessionInFolder(context, ref, _resolveFocusedTargetFolder()),
+        onAddFolder: () =>
+            _createFolder(context, ref, _resolveFocusedTargetFolder()),
       ),
       _SearchBar(
         value: searchQuery,

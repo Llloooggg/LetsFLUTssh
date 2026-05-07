@@ -115,6 +115,45 @@ void main() {
       await notifier.moveFolder('A', 'Parent');
       expect(notifier.state.first.folder, 'Parent/A');
     });
+
+    test(
+      'duplicateFolder deep-copies the entire source tree into the target',
+      () async {
+        await notifier.add(makeSession(id: 's1', folder: 'A'));
+        await notifier.add(makeSession(id: 's2', folder: 'A/Sub'));
+        await notifier.add(makeSession(id: 's3', folder: 'B'));
+        await notifier.duplicateFolder('A', 'B');
+        // 3 originals + 2 duplicates (A → B/A, A/Sub → B/A/Sub).
+        expect(notifier.state.length, 5);
+        expect(notifier.state.where((s) => s.folder == 'B/A').length, 1);
+        expect(notifier.state.where((s) => s.folder == 'B/A/Sub').length, 1);
+        // Originals untouched.
+        expect(
+          notifier.state.any((s) => s.id == 's1' && s.folder == 'A'),
+          isTrue,
+        );
+        expect(
+          notifier.state.any((s) => s.id == 's2' && s.folder == 'A/Sub'),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'duplicateFolder refuses target inside source (cycle guard)',
+      () async {
+        await notifier.add(makeSession(id: 's1', folder: 'A'));
+        await notifier.duplicateFolder('A', 'A/Sub');
+        expect(notifier.state.length, 1);
+        expect(notifier.state.first.folder, 'A');
+      },
+    );
+
+    test('duplicateFolder is a no-op for an empty source path', () async {
+      await notifier.add(makeSession(id: 's1', folder: 'A'));
+      await notifier.duplicateFolder('', 'B');
+      expect(notifier.state.length, 1);
+    });
   });
 
   group('SessionNotifier error paths (ThrowingSessionNotifier)', () {

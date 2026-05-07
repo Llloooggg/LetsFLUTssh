@@ -631,38 +631,51 @@ class SessionNotifier extends Notifier<List<Session>> {
         }
       });
 
-  Future<void> deleteFolder(String folderPath) => _runUndoable(
-    'delete folder',
-    () async {
-      if (folderPath.isEmpty) return;
-      state = state
-          .where(
-            (s) =>
-                s.folder != folderPath && !s.folder.startsWith('$folderPath/'),
-          )
-          .toList();
-      _emptyFolders.removeWhere(
-        (g) => g == folderPath || g.startsWith('$folderPath/'),
-      );
-      _collapsedFolders.removeWhere(
-        (c) => c == folderPath || c.startsWith('$folderPath/'),
-      );
-      try {
-        final folderId = findFolderIdByPath(folderPath, _folderMap);
-        if (folderId != null) {
-          await rust_db.dbFoldersDeleteRecursive(id: folderId);
-          final folders = await rust_db.dbFoldersListAll();
-          _folderMap = buildFolderMap(folders);
-        }
-      } catch (e) {
-        AppLogger.instance.log(
-          'deleteFolder failed: $e',
-          name: 'SessionNotifier',
-          level: LogLevel.warn,
+  Future<void> deleteFolder(String folderPath) =>
+      _runUndoable('delete folder', () async {
+        if (folderPath.isEmpty) return;
+        // Collect every session rooted inside this folder (or any
+        // descendant folder) — they have to be DELETED alongside the
+        // folder rows. The schema's `sessions.folder_id` foreign key
+        // resolves with `ON DELETE SET NULL`, so a folder delete on
+        // its own would orphan these sessions into root and the user
+        // would see them reappear at the top level on the next reload —
+        // contradicting the confirm dialog's "will delete N sessions
+        // inside" promise and reading as "delete folder doesn't work".
+        final sessionIdsToDelete = state
+            .where(
+              (s) =>
+                  s.folder == folderPath || s.folder.startsWith('$folderPath/'),
+            )
+            .map((s) => s.id)
+            .toSet();
+        state = state.where((s) => !sessionIdsToDelete.contains(s.id)).toList();
+        _emptyFolders.removeWhere(
+          (g) => g == folderPath || g.startsWith('$folderPath/'),
         );
-      }
-    },
-  );
+        _collapsedFolders.removeWhere(
+          (c) => c == folderPath || c.startsWith('$folderPath/'),
+        );
+        try {
+          if (sessionIdsToDelete.isNotEmpty) {
+            await rust_db.dbSessionsDeleteMultiple(
+              ids: sessionIdsToDelete.toList(),
+            );
+          }
+          final folderId = findFolderIdByPath(folderPath, _folderMap);
+          if (folderId != null) {
+            await rust_db.dbFoldersDeleteRecursive(id: folderId);
+            final folders = await rust_db.dbFoldersListAll();
+            _folderMap = buildFolderMap(folders);
+          }
+        } catch (e) {
+          AppLogger.instance.log(
+            'deleteFolder failed: $e',
+            name: 'SessionNotifier',
+            level: LogLevel.warn,
+          );
+        }
+      });
 
   Future<void> moveFolder(String folderPath, String newParent) async {
     if (folderPath.isEmpty) return;
@@ -671,6 +684,106 @@ class SessionNotifier extends Notifier<List<Session>> {
     if (newPath == folderPath) return;
     if (newPath.startsWith('$folderPath/')) return;
     await renameFolder(folderPath, newPath);
+  }
+
+  /// Deep-duplicate [sourcePath] under [targetParent]: creates a new
+  /// folder (with a unique name when the source name collides under
+  /// the target), then duplicates every session inside the source
+  /// tree to the matching position in the new tree, and registers
+  /// every empty subfolder along the way. Pasting a folder onto its
+  /// own parent (or root) yields a sibling copy named "X (1)" /
+  /// "X (2)" etc.
+  ///
+  /// Refuses no-op + cycle inputs the same way [moveFolder] does:
+  /// duplicating a folder onto a path inside itself would recurse
+  /// indefinitely as the loop discovers its own freshly-created
+  /// children. Returns silently in that case.
+  Future<void> duplicateFolder(String sourcePath, String targetParent) async {
+    if (sourcePath.isEmpty) return;
+    if (targetParent == sourcePath || targetParent.startsWith('$sourcePath/')) {
+      return;
+    }
+    final sourceName = sourcePath.split('/').last;
+    final newName = _uniqueFolderNameUnder(targetParent, sourceName);
+    final newRoot = targetParent.isEmpty ? newName : '$targetParent/$newName';
+
+    // Create the destination root folder. addEmptyFolder upserts the
+    // DB row + cache + local empty-set in one shot.
+    await addEmptyFolder(newRoot);
+
+    // Snapshot the source-side data BEFORE we start adding new rows,
+    // otherwise the freshly-created destination folders would feed
+    // back into the iteration as we extend the cache.
+    final sourceSessions = state
+        .where(
+          (s) => s.folder == sourcePath || s.folder.startsWith('$sourcePath/'),
+        )
+        .toList();
+    final sourceEmptyFolders = _emptyFolders
+        .where((f) => f == sourcePath || f.startsWith('$sourcePath/'))
+        .toList();
+
+    // Recreate every empty subfolder. Translates "$sourcePath/X/Y" →
+    // "$newRoot/X/Y". Sessions handle their own folder ensure inside
+    // [duplicate] (`dbSessionsDuplicateWithPath`), so this only has
+    // to cover folders that hold no sessions.
+    for (final emptyPath in sourceEmptyFolders) {
+      if (emptyPath == sourcePath) continue; // already created above
+      final rel = emptyPath.substring(sourcePath.length); // '/X/Y'
+      await addEmptyFolder('$newRoot$rel');
+    }
+
+    // Duplicate every session under the source tree to its mirror
+    // position in the new tree. The transactional Rust helper
+    // ensures each session lands with a unique label and folder id.
+    for (final session in sourceSessions) {
+      final rel = session.folder.substring(sourcePath.length);
+      final destFolder = rel.isEmpty ? newRoot : '$newRoot$rel';
+      await duplicate(session.id, targetFolder: destFolder);
+    }
+  }
+
+  /// Pick a folder name that doesn't collide with an existing child
+  /// of [parentPath]. Appends "(1)", "(2)", ... until a free name
+  /// is found. Used by [duplicateFolder] to mirror file-manager
+  /// "Copy of X" semantics without surfacing a Dart-side rename
+  /// dialog.
+  String _uniqueFolderNameUnder(String parentPath, String baseName) {
+    final existingPaths = <String>{
+      ..._emptyFolders,
+      for (final f in _folderMap.values) _composeFolderPath(f, _folderMap),
+    };
+    bool collides(String name) {
+      final p = parentPath.isEmpty ? name : '$parentPath/$name';
+      return existingPaths.contains(p);
+    }
+
+    if (!collides(baseName)) return baseName;
+    for (var i = 1; i < 1000; i++) {
+      final candidate = '$baseName ($i)';
+      if (!collides(candidate)) return candidate;
+    }
+    return '$baseName (${DateTime.now().millisecondsSinceEpoch})';
+  }
+
+  /// Walk parent_id chain backwards to reconstruct the slash-joined
+  /// path of [f]. Used by [_uniqueFolderNameUnder] to build the
+  /// "exists" set.
+  String _composeFolderPath(
+    rust_db.DbFolder f,
+    Map<String, rust_db.DbFolder> map,
+  ) {
+    final segments = <String>[];
+    var cur = f;
+    while (true) {
+      segments.add(cur.name);
+      final parentId = cur.parentId;
+      if (parentId == null) break;
+      final parent = map[parentId];
+      if (parent == null) break;
+      cur = parent;
+    }
+    return segments.reversed.join('/');
   }
 
   // ── Snapshot / restore (for undo) ───────────────────────────────
