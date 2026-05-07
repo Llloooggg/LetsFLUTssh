@@ -490,19 +490,31 @@ mod platform_impl {
 
         let mut out: core_foundation_sys::base::CFTypeRef = std::ptr::null();
         let status = unsafe { SecItemCopyMatching(dict.as_concrete_TypeRef(), &mut out) };
+        // Eagerly take ownership of any non-null out-param so it
+        // is CFRelease'd on every code path, including the
+        // anomalous (status != 0 && out != null) case Apple's
+        // docs imply doesn't happen but doesn't forbid.
+        let owned: Option<CFData> = if out.is_null() {
+            None
+        } else {
+            Some(unsafe {
+                CFData::wrap_under_create_rule(out as *const core_foundation_sys::data::__CFData)
+            })
+        };
         if status == errSecItemNotFound {
             return Ok(None);
         }
-        if status != 0 || out.is_null() {
+        if status != 0 {
             // Any non-success (user cancel / biometric failure /
             // enrolment changed) maps to "no entry" so the Dart
-            // caller routes through the master-password prompt.
+            // caller routes through the master-password prompt;
+            // `owned` drops here and releases the CF ref if set.
             return Ok(None);
         }
-        let data: CFData = unsafe {
-            CFData::wrap_under_create_rule(out as *const core_foundation_sys::data::__CFData)
-        };
-        Ok(Some(data.bytes().to_vec()))
+        match owned {
+            Some(data) => Ok(Some(data.bytes().to_vec())),
+            None => Ok(None),
+        }
     }
 
     fn raw_delete(alias: &str) -> Result<(), SecureStorageError> {

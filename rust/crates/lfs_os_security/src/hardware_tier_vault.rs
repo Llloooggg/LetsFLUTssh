@@ -420,6 +420,14 @@ mod apple {
         let status = unsafe {
             SecItemCopyMatching(query.as_concrete_TypeRef(), &mut item as *mut *const c_void)
         };
+        // Wrap any non-null out-pointer eagerly so Drop releases
+        // the CF ref on every error branch, including the
+        // anomalous (status != 0 && item != null) case.
+        let owned = if item.is_null() {
+            None
+        } else {
+            Some(OwnedSecKey(item as SecKeyRef))
+        };
         if status == errSecItemNotFound {
             return Ok(None);
         }
@@ -428,10 +436,7 @@ mod apple {
                 "SecItemCopyMatching: OSStatus {status}"
             )));
         }
-        if item.is_null() {
-            return Ok(None);
-        }
-        Ok(Some(OwnedSecKey(item as SecKeyRef)))
+        Ok(owned)
     }
 
     /// Lookup the public half of a stored SE key. Returns
@@ -466,12 +471,17 @@ mod apple {
                 &mut err as *mut *mut core_foundation_sys::error::__CFError,
             )
         };
+        // Wrap a non-null err out-param eagerly so Drop releases
+        // it on every path (success or failure).
+        let owned_err = if err.is_null() {
+            None
+        } else {
+            Some(unsafe { CFError::wrap_under_create_rule(err) })
+        };
         if private_key.is_null() {
-            let cf_err = if err.is_null() {
-                "SecKeyCreateRandomKey: null".to_string()
-            } else {
-                let owned = unsafe { CFError::wrap_under_create_rule(err) };
-                format!("SecKeyCreateRandomKey: {owned:?}")
+            let cf_err = match owned_err {
+                Some(e) => format!("SecKeyCreateRandomKey: {e:?}"),
+                None => "SecKeyCreateRandomKey: null".to_string(),
             };
             return Err(HardwareVaultError::Backend(cf_err));
         }
@@ -523,12 +533,15 @@ mod apple {
                 &mut err as *mut *mut core_foundation_sys::error::__CFError,
             )
         };
+        let owned_err = if err.is_null() {
+            None
+        } else {
+            Some(unsafe { CFError::wrap_under_create_rule(err) })
+        };
         if ct_ref.is_null() {
-            let cf_err = if err.is_null() {
-                "SecKeyCreateEncryptedData: null".to_string()
-            } else {
-                let owned = unsafe { CFError::wrap_under_create_rule(err) };
-                format!("SecKeyCreateEncryptedData: {owned:?}")
+            let cf_err = match owned_err {
+                Some(e) => format!("SecKeyCreateEncryptedData: {e:?}"),
+                None => "SecKeyCreateEncryptedData: null".to_string(),
             };
             return Err(HardwareVaultError::Backend(cf_err));
         }
@@ -564,12 +577,15 @@ mod apple {
                 &mut err as *mut *mut core_foundation_sys::error::__CFError,
             )
         };
+        let owned_err = if err.is_null() {
+            None
+        } else {
+            Some(unsafe { CFError::wrap_under_create_rule(err) })
+        };
         if pt_ref.is_null() {
-            let cf_err = if err.is_null() {
-                "SecKeyCreateDecryptedData: null".to_string()
-            } else {
-                let owned = unsafe { CFError::wrap_under_create_rule(err) };
-                format!("SecKeyCreateDecryptedData: {owned:?}")
+            let cf_err = match owned_err {
+                Some(e) => format!("SecKeyCreateDecryptedData: {e:?}"),
+                None => "SecKeyCreateDecryptedData: null".to_string(),
             };
             return Err(HardwareVaultError::Backend(cf_err));
         }
@@ -595,30 +611,39 @@ mod apple {
                 &mut err as *mut *mut core_foundation_sys::error::__CFError,
             )
         };
+        // Wrap any non-null err out-param eagerly so it's
+        // released on every path, including the success path
+        // where Apple typically leaves err null but doesn't
+        // contractually forbid setting it.
+        let owned_err = if err.is_null() {
+            None
+        } else {
+            Some(unsafe { CFError::wrap_under_create_rule(err) })
+        };
         if key.is_null() {
             // `CFError::code()` returns `CFIndex` (= isize on
             // 64-bit). The errSecMissingEntitlement constant
             // is the i32 the OS surfaces; cast both sides
             // through i64 for a portable compare.
-            let mut code: i64 = 0;
-            if !err.is_null() {
-                let owned = unsafe { CFError::wrap_under_create_rule(err) };
-                code = owned.code() as i64;
-            }
+            let code: i64 = match owned_err {
+                Some(e) => e.code() as i64,
+                None => 0,
+            };
             if code == ERR_SEC_MISSING_ENTITLEMENT as i64 {
                 return HardwareProbeReason::AppleSigningIdentityMissing;
             }
             return HardwareProbeReason::AppleGeneric;
         }
+        // Wrap the SE key so Drop releases it after the
+        // best-effort delete below completes — replaces the
+        // earlier manual `CFRelease(key)` pattern.
+        let _owned_key = OwnedSecKey(key);
         // Best-effort cleanup. Even on delete failure the OS GCs
         // the key on next launch.
         let delete_query = unsafe { build_delete_query(PROBE_KEY_TAG) };
         unsafe {
             SecItemDelete(delete_query.as_concrete_TypeRef());
         }
-        // Hold the ref until after the delete completes so ARC
-        // can't drop it mid-call.
-        unsafe { core_foundation_sys::base::CFRelease(key as *const c_void) };
         HardwareProbeReason::Available
     }
 
