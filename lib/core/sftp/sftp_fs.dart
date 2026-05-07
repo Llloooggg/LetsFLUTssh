@@ -1,10 +1,7 @@
 // Engine-agnostic SFTP service surface — the subset of operations
 // `RemoteFS` (the FileSystem implementation behind file_browser)
-// needs. Backed by `RustSftpFs` (russh-sftp via the FRB bindings).
-//
-// Recursive directory walking (`uploadDir`, `downloadDir`, `removeDir`)
-// is supplied by this abstract class on top of the leaf primitives
-// (`upload`, `download`, `mkdir`, `remove`, `removeEmptyDir`, `list`).
+// needs. Backed by `RustSftpFs` (russh-sftp via the FRB bindings),
+// which delegates leaves and recursive walks to `lfs_core::sftp`.
 
 import 'dart:io';
 import 'dart:typed_data';
@@ -18,20 +15,11 @@ import 'errors.dart';
 import 'file_system.dart';
 import 'sftp_models.dart';
 
-/// Maximum recursion depth for directory walking. Guards against
-/// runaway traversal on cyclic symlinks or pathologically deep trees.
-const int sftpMaxRecursionDepth = 100;
-
-/// Files transferred in parallel within a single directory level by
-/// the default `uploadDir` / `downloadDir` walker. Modest on purpose:
-/// both transports pipeline SFTP ops over a single channel, and too
-/// many concurrent file handles can blow past the server-side
-/// MaxSessions / MaxStartups limits (OpenSSH defaults to 10).
-/// Subdirectories are walked sequentially so the global in-flight
-/// count stays bounded by this constant.
-const int sftpMaxConcurrentFileTransfers = 4;
-
-/// File-browser-shaped subset of an SFTP client.
+/// File-browser-shaped subset of an SFTP client. Recursive walks
+/// (`uploadDir`, `downloadDir`, `removeDir`) are part of the contract;
+/// the production `RustSftpFs` impl forwards them to the matching
+/// `lfs_core::sftp` Rust functions in a single FRB call so the per-
+/// entry recursion never crosses the bridge.
 abstract class RemoteSftpFs {
   Future<String> getwd();
   Future<List<FileEntry>> list(String path);
@@ -43,9 +31,9 @@ abstract class RemoteSftpFs {
   Future<void> mkdir(String path);
   Future<void> remove(String path);
 
-  /// Remove an empty directory (no recursion). Engines must implement
-  /// this — used by the default [removeDir] walker after it has
-  /// drained the directory contents.
+  /// Remove an empty directory (no recursion). Pairs with [removeDir]
+  /// — the latter drains the contents first, then drops the empty
+  /// shell.
   Future<void> removeEmptyDir(String path);
 
   Future<void> rename(String oldPath, String newPath);
@@ -69,217 +57,22 @@ abstract class RemoteSftpFs {
   /// Tear down the underlying client. Idempotent.
   void close();
 
-  /// Recursively delete a remote directory. Walks the tree depth-first,
-  /// removing files and empty directories, then drops [path] itself.
-  Future<void> removeDir(String path) => _removeDirRecursive(path, 0);
+  /// Recursively delete a remote directory.
+  Future<void> removeDir(String path);
 
-  Future<void> _removeDirRecursive(String path, int depth) async {
-    if (depth >= sftpMaxRecursionDepth) {
-      throw StateError(
-        'Maximum recursion depth ($sftpMaxRecursionDepth) exceeded',
-      );
-    }
-    final items = await list(path);
-    for (final item in items) {
-      if (item.isDir) {
-        await _removeDirRecursive(item.path, depth + 1);
-      } else {
-        await remove(item.path);
-      }
-    }
-    await removeEmptyDir(path);
-  }
-
-  /// Upload a local directory recursively to a remote path. Files at
-  /// each level transfer in parallel ([sftpMaxConcurrentFileTransfers]
-  /// in flight); subdirectories are walked sequentially so global
-  /// concurrency stays bounded.
+  /// Upload a local directory recursively to a remote path.
   Future<void> uploadDir(
     String localDir,
     String remoteDir,
     void Function(TransferProgress)? onProgress,
-  ) async {
-    var totalFiles = 0;
-    await for (final entity in Directory(localDir).list(recursive: true)) {
-      if (entity is File) totalFiles++;
-    }
-    final counter = _TransferCounter();
-    await _uploadDirRecursive(
-      localDir,
-      remoteDir,
-      onProgress,
-      totalFiles,
-      counter,
-      0,
-    );
-  }
+  );
 
-  Future<void> _uploadDirRecursive(
-    String localDir,
-    String remoteDir,
-    void Function(TransferProgress)? onProgress,
-    int totalFiles,
-    _TransferCounter counter,
-    int depth,
-  ) async {
-    if (depth >= sftpMaxRecursionDepth) {
-      throw StateError(
-        'Maximum recursion depth ($sftpMaxRecursionDepth) exceeded',
-      );
-    }
-    // mkdir is best-effort — directory may already exist on the remote.
-    // Engines surface SFTPError; downgrade to a log line and continue.
-    try {
-      await mkdir(remoteDir);
-    } catch (e) {
-      AppLogger.instance.log('mkdir $remoteDir: $e', name: 'SFTP');
-    }
-
-    final dir = Directory(localDir);
-    final files = <File>[];
-    final subdirs = <Directory>[];
-    await for (final entity in dir.list()) {
-      if (entity is Directory) {
-        subdirs.add(entity);
-      } else if (entity is File) {
-        files.add(entity);
-      }
-    }
-
-    await _parallelForEach(files, sftpMaxConcurrentFileTransfers, (file) async {
-      final name = p.basename(file.path);
-      final remotePath = p.posix.join(remoteDir, name);
-      await upload(file.path, remotePath, null);
-      counter.value++;
-      onProgress?.call(
-        TransferProgress(
-          fileName: name,
-          totalBytes: totalFiles,
-          doneBytes: counter.value,
-          isUpload: true,
-          isCompleted: counter.value >= totalFiles,
-        ),
-      );
-    });
-
-    for (final sub in subdirs) {
-      final name = p.basename(sub.path);
-      await _uploadDirRecursive(
-        sub.path,
-        p.posix.join(remoteDir, name),
-        onProgress,
-        totalFiles,
-        counter,
-        depth + 1,
-      );
-    }
-  }
-
-  /// Download a remote directory recursively to a local path. Same
-  /// concurrency model as [uploadDir].
+  /// Download a remote directory recursively to a local path.
   Future<void> downloadDir(
     String remoteDir,
     String localDir,
     void Function(TransferProgress)? onProgress,
-  ) async {
-    final totalFiles = await _countRemoteFiles(remoteDir, 0);
-    final counter = _TransferCounter();
-    await _downloadDirRecursive(
-      remoteDir,
-      localDir,
-      onProgress,
-      totalFiles,
-      counter,
-      0,
-    );
-  }
-
-  Future<int> _countRemoteFiles(String remoteDir, int depth) async {
-    if (depth >= sftpMaxRecursionDepth) return 0;
-    final items = await list(remoteDir);
-    var count = 0;
-    for (final item in items) {
-      if (item.isDir) {
-        count += await _countRemoteFiles(item.path, depth + 1);
-      } else {
-        count++;
-      }
-    }
-    return count;
-  }
-
-  Future<void> _downloadDirRecursive(
-    String remoteDir,
-    String localDir,
-    void Function(TransferProgress)? onProgress,
-    int totalFiles,
-    _TransferCounter counter,
-    int depth,
-  ) async {
-    if (depth >= sftpMaxRecursionDepth) {
-      throw StateError(
-        'Maximum recursion depth ($sftpMaxRecursionDepth) exceeded',
-      );
-    }
-    await Directory(localDir).create(recursive: true);
-
-    final items = await list(remoteDir);
-    final files = items.where((i) => !i.isDir).toList();
-    final subdirs = items.where((i) => i.isDir).toList();
-
-    await _parallelForEach(files, sftpMaxConcurrentFileTransfers, (item) async {
-      final localPath = p.join(localDir, item.name);
-      await download(item.path, localPath, null);
-      counter.value++;
-      onProgress?.call(
-        TransferProgress(
-          fileName: item.name,
-          totalBytes: totalFiles,
-          doneBytes: counter.value,
-          isUpload: false,
-          isCompleted: counter.value >= totalFiles,
-        ),
-      );
-    });
-
-    for (final sub in subdirs) {
-      await _downloadDirRecursive(
-        sub.path,
-        p.join(localDir, sub.name),
-        onProgress,
-        totalFiles,
-        counter,
-        depth + 1,
-      );
-    }
-  }
-}
-
-/// Mutable counter for tracking total files done across recursive calls.
-class _TransferCounter {
-  int value = 0;
-}
-
-/// Run [action] for every element in [items] with at most [concurrency]
-/// in-flight calls. Workers pull from a shared queue so slow entries do
-/// not stall the faster ones. Errors propagate from [Future.wait]; a
-/// failed worker aborts the remaining queue by design.
-Future<void> _parallelForEach<T>(
-  List<T> items,
-  int concurrency,
-  Future<void> Function(T) action,
-) async {
-  if (items.isEmpty) return;
-  final queue = List<T>.of(items);
-  final limit = concurrency.clamp(1, queue.length);
-  Future<void> worker() async {
-    while (queue.isNotEmpty) {
-      final next = queue.removeLast();
-      await action(next);
-    }
-  }
-
-  await Future.wait(List.generate(limit, (_) => worker()));
+  );
 }
 
 /// `RemoteSftpFs` implementation backed by the Rust core SFTP path

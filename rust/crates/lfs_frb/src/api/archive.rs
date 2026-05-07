@@ -57,10 +57,7 @@ pub struct DbExportInput {
 /// file at `output_path` (or no file when none existed). The Dart
 /// caller no longer maintains its own tmp + writeAsBytes + rename
 /// discipline.
-pub async fn db_export_archive(
-    input: DbExportInput,
-    output_path: String,
-) -> Result<i64, String> {
+pub async fn db_export_archive(input: DbExportInput, output_path: String) -> Result<i64, String> {
     let core_input = ExportInput {
         options: ExportOptions {
             include_sessions: input.options.include_sessions,

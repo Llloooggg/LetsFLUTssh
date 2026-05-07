@@ -53,35 +53,6 @@ pub fn reload_and_notify(app: &Arc<AppState>) {
     notify_changed(app);
 }
 
-/// Wrap a DAO `Result<T, _>` write outcome — when the result is
-/// `Ok(_)`, fire [`reload_and_notify`] against the running
-/// `AppState`; on `Err` do nothing so a failed write doesn't
-/// trigger a downstream re-fetch storm against state that didn't
-/// actually change. The FRB DAO shims used to inline the
-/// `app::instance()` walk + reload + notify_changed dance at
-/// every callsite (15+ sites in `lfs_frb::api::db`) — that's
-/// orchestration that belongs in the core, not duplicated
-/// through every bridge shim. Lives here so the shim stays a
-/// one-liner.
-pub fn notify_sessions_on_ok<T>(res: &Result<T, String>) {
-    if res.is_ok() {
-        reload_and_notify(&crate::app::instance());
-    }
-}
-
-/// Same shape as [`notify_sessions_on_ok`] but the notify only
-/// fires when the wrapped value satisfies a caller-supplied
-/// predicate. Used by DAO endpoints that return `0 / N rows
-/// affected` — `n > 0` is the typical predicate so a no-op delete
-/// (id resolves to nothing) doesn't waste a bus event.
-pub fn notify_sessions_on_ok_when<T>(res: &Result<T, String>, when: impl Fn(&T) -> bool) {
-    if let Ok(v) = res {
-        if when(v) {
-            reload_and_notify(&crate::app::instance());
-        }
-    }
-}
-
 /// Cached read view of the sessions / folders cache. Mirrors what
 /// `SessionStore._doLoad` Dart-side builds:
 ///

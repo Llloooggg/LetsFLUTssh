@@ -144,8 +144,8 @@ pub fn decode_state(bytes: &[u8], gate_hmac: &[u8]) -> Result<Option<PersistedSt
     // files keep decoding while the format migrates.
     let signing_key = derive_signing_key(gate_hmac);
     let expected_v1 = crypto::hmac_sha256(&signing_key, &payload_bytes);
-    let verified =
-        crypto::constant_time_eq(&claimed, &expected_v1) || verify_legacy(gate_hmac, &payload_bytes, &claimed);
+    let verified = crypto::constant_time_eq(&claimed, &expected_v1)
+        || verify_legacy(gate_hmac, &payload_bytes, &claimed);
     if !verified {
         return Ok(None);
     }

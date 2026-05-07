@@ -31,6 +31,87 @@ where
     .map_err(|e| format!("db task: {e}"))?
 }
 
+/// Same as [`run_db`] but for closures that need a `&mut Connection`
+/// (transactional DAOs that scope rollback / commit via
+/// `Connection::transaction`).
+pub(crate) async fn run_db_mut<F, R>(f: F) -> Result<R, String>
+where
+    F: FnOnce(&mut lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+{
+    tokio::task::spawn_blocking(move || {
+        let db = require_db()?;
+        db.with_conn_mut(f).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("db task: {e}"))?
+}
+
+/// `run_db` + always-fire `SessionsChanged` on Ok. The compile-time
+/// pairing means a write-DAO callsite can't accidentally skip the
+/// reload-and-notify dance the way explicit post-call helpers
+/// allowed.
+pub(crate) async fn run_db_writing_sessions<F, R>(f: F) -> Result<R, String>
+where
+    F: FnOnce(&lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+{
+    let res = run_db(f).await;
+    if res.is_ok() {
+        lfs_core::sessions::reload_and_notify(&lfs_core::app::instance());
+    }
+    res
+}
+
+/// Same shape as [`run_db_writing_sessions`] but the notify only
+/// fires when the wrapped value satisfies a caller-supplied
+/// predicate. Used by DAO endpoints that return `0 / N rows
+/// affected` — `n > 0` is the typical predicate so a no-op delete
+/// (id resolves to nothing) doesn't waste a bus event.
+pub(crate) async fn run_db_writing_sessions_when<F, R, W>(f: F, when: W) -> Result<R, String>
+where
+    F: FnOnce(&lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+    W: Fn(&R) -> bool,
+{
+    let res = run_db(f).await;
+    if let Ok(v) = &res {
+        if when(v) {
+            lfs_core::sessions::reload_and_notify(&lfs_core::app::instance());
+        }
+    }
+    res
+}
+
+/// `run_db_mut` + always-fire `SessionsChanged` on Ok.
+pub(crate) async fn run_db_mut_writing_sessions<F, R>(f: F) -> Result<R, String>
+where
+    F: FnOnce(&mut lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+{
+    let res = run_db_mut(f).await;
+    if res.is_ok() {
+        lfs_core::sessions::reload_and_notify(&lfs_core::app::instance());
+    }
+    res
+}
+
+/// `run_db_mut` + conditional `SessionsChanged` on Ok+predicate.
+pub(crate) async fn run_db_mut_writing_sessions_when<F, R, W>(f: F, when: W) -> Result<R, String>
+where
+    F: FnOnce(&mut lfs_core::db::Connection) -> Result<R, lfs_core::error::Error> + Send + 'static,
+    R: Send + 'static,
+    W: Fn(&R) -> bool,
+{
+    let res = run_db_mut(f).await;
+    if let Ok(v) = &res {
+        if when(v) {
+            lfs_core::sessions::reload_and_notify(&lfs_core::app::instance());
+        }
+    }
+    res
+}
+
 // ---- ssh_keys ----------------------------------------------------------
 
 #[derive(Debug, Clone)]
@@ -103,13 +184,7 @@ pub async fn db_ssh_keys_delete(id: String) -> Result<u32, String> {
 /// sequence lands as a single sqlite transaction.
 pub async fn db_ssh_keys_import_for_merge(proposed: DbSshKey) -> Result<String, String> {
     let row: lfs_core::db::ssh_keys::SshKeyRow = proposed.into();
-    tokio::task::spawn_blocking(move || {
-        let db = require_db()?;
-        db.with_conn_mut(|c| lfs_core::db::ssh_keys::import_key_for_merge(c, &row))
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| format!("db task: {e}"))?
+    run_db_mut(move |c| lfs_core::db::ssh_keys::import_key_for_merge(c, &row)).await
 }
 
 /// Stage the stored key's private PEM bytes into the SecretStore
@@ -205,33 +280,28 @@ pub async fn db_folders_list_all() -> Result<Vec<DbFolder>, String> {
 
 pub async fn db_folders_upsert(row: DbFolder) -> Result<(), String> {
     let row: lfs_core::db::folders::FolderRow = row.into();
-    let res = run_db(move |c| lfs_core::db::folders::upsert(c, &row)).await;
-    notify_sessions_on_ok(&res);
-    res
+    run_db_writing_sessions(move |c| lfs_core::db::folders::upsert(c, &row)).await
 }
 
 pub async fn db_folders_delete(id: String) -> Result<u32, String> {
-    let res = run_db(move |c| lfs_core::db::folders::delete(c, &id))
+    run_db_writing_sessions_when(move |c| lfs_core::db::folders::delete(c, &id), |n| *n > 0)
         .await
-        .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+        .map(|n| n as u32)
 }
 
 pub async fn db_folders_delete_all() -> Result<u32, String> {
-    let res = run_db(lfs_core::db::folders::delete_all)
+    run_db_writing_sessions_when(lfs_core::db::folders::delete_all, |n| *n > 0)
         .await
-        .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+        .map(|n| n as u32)
 }
 
 pub async fn db_folders_toggle_collapsed(id: String) -> Result<u32, String> {
-    let res = run_db(move |c| lfs_core::db::folders::toggle_collapsed(c, &id))
-        .await
-        .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    run_db_writing_sessions_when(
+        move |c| lfs_core::db::folders::toggle_collapsed(c, &id),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
 }
 
 pub async fn db_folders_update_name_parent(
@@ -239,13 +309,12 @@ pub async fn db_folders_update_name_parent(
     name: String,
     parent_id: Option<String>,
 ) -> Result<u32, String> {
-    let res = run_db(move |c| {
-        lfs_core::db::folders::update_name_parent(c, &id, &name, parent_id.as_deref())
-    })
+    run_db_writing_sessions_when(
+        move |c| lfs_core::db::folders::update_name_parent(c, &id, &name, parent_id.as_deref()),
+        |n| *n > 0,
+    )
     .await
-    .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    .map(|n| n as u32)
 }
 
 /// Composite folder rename / move — Rust resolves the existing
@@ -263,33 +332,22 @@ pub async fn db_folders_rename_path_cascade(
     new_path: String,
     now_ms: i64,
 ) -> Result<u32, String> {
-    let res = tokio::task::spawn_blocking(move || {
-        let db = require_db()?;
-        db.with_conn_mut(|c| {
-            lfs_core::db::folders::rename_path_cascade(c, &old_path, &new_path, now_ms)
-        })
-        .map_err(|e| e.to_string())
-    })
+    run_db_mut_writing_sessions_when(
+        move |c| lfs_core::db::folders::rename_path_cascade(c, &old_path, &new_path, now_ms),
+        |n| *n > 0,
+    )
     .await
-    .map_err(|e| format!("db task: {e}"))?
-    .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    .map(|n| n as u32)
 }
 
 pub async fn db_folders_delete_recursive(id: String) -> Result<u32, String> {
-    let res = run_db(move |c| lfs_core::db::folders::delete_recursive(c, &id))
-        .await
-        .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    run_db_writing_sessions_when(
+        move |c| lfs_core::db::folders::delete_recursive(c, &id),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
 }
-
-// Sessions-changed bus + registry-reload helpers live in
-// `lfs_core::sessions` (see `notify_sessions_on_ok` /
-// `notify_sessions_on_ok_when` there). Re-export so the rest of
-// this file's callsites stay short.
-use lfs_core::sessions::{notify_sessions_on_ok, notify_sessions_on_ok_when};
 
 // ---- sessions ----------------------------------------------------------
 
@@ -391,17 +449,13 @@ pub async fn db_sessions_get(id: String) -> Result<Option<DbSession>, String> {
 
 pub async fn db_sessions_upsert(row: DbSession) -> Result<(), String> {
     let row: lfs_core::db::sessions::SessionRow = row.into();
-    let res = run_db(move |c| lfs_core::db::sessions::upsert(c, &row)).await;
-    notify_sessions_on_ok(&res);
-    res
+    run_db_writing_sessions(move |c| lfs_core::db::sessions::upsert(c, &row)).await
 }
 
 pub async fn db_sessions_delete(id: String) -> Result<u32, String> {
-    let res = run_db(move |c| lfs_core::db::sessions::delete(c, &id))
+    run_db_writing_sessions_when(move |c| lfs_core::db::sessions::delete(c, &id), |n| *n > 0)
         .await
-        .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+        .map(|n| n as u32)
 }
 
 /// Mirror of [`lfs_core::db::sessions::StagedSecrets`] crossing FRB.
@@ -493,11 +547,12 @@ impl From<DbSessionMetadata> for lfs_core::db::sessions::SessionMetadata {
 /// reading the existing secret bytes back onto the Dart heap.
 pub async fn db_sessions_update_metadata(metadata: DbSessionMetadata) -> Result<u32, String> {
     let m: lfs_core::db::sessions::SessionMetadata = metadata.into();
-    let res = run_db(move |c| lfs_core::db::sessions::update_metadata(c, &m))
-        .await
-        .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    run_db_writing_sessions_when(
+        move |c| lfs_core::db::sessions::update_metadata(c, &m),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
 }
 
 /// Replace one credential column (`"password"` / `"key_data"` /
@@ -510,13 +565,12 @@ pub async fn db_sessions_set_secret(
     value: String,
     updated_at_ms: i64,
 ) -> Result<u32, String> {
-    let res = run_db(move |c| {
-        lfs_core::db::sessions::set_secret_column(c, &id, &slot, &value, updated_at_ms)
-    })
+    run_db_writing_sessions_when(
+        move |c| lfs_core::db::sessions::set_secret_column(c, &id, &slot, &value, updated_at_ms),
+        |n| *n > 0,
+    )
     .await
-    .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    .map(|n| n as u32)
 }
 
 /// Copy a saved session row to a new id + label, optionally
@@ -530,7 +584,7 @@ pub async fn db_sessions_duplicate(
     target_folder_id: Option<String>,
     now_ms: i64,
 ) -> Result<(), String> {
-    let res = run_db(move |c| {
+    run_db_writing_sessions(move |c| {
         lfs_core::db::sessions::duplicate_session(
             c,
             &src_id,
@@ -540,9 +594,7 @@ pub async fn db_sessions_duplicate(
             now_ms,
         )
     })
-    .await;
-    notify_sessions_on_ok(&res);
-    res
+    .await
 }
 
 /// FRB mirror of `lfs_core::db::sessions::RestoreSessionInput`.
@@ -617,19 +669,12 @@ pub async fn db_sessions_restore_snapshot(
     empty_folder_paths: Vec<String>,
     now_ms: i64,
 ) -> Result<(), String> {
-    let res = tokio::task::spawn_blocking(move || {
-        let db = require_db()?;
-        let typed: Vec<lfs_core::db::sessions::RestoreSessionInput> =
-            sessions.into_iter().map(Into::into).collect();
-        db.with_conn_mut(|c| {
-            lfs_core::db::sessions::restore_snapshot(c, typed, empty_folder_paths, now_ms)
-        })
-        .map_err(|e| e.to_string())
+    let typed: Vec<lfs_core::db::sessions::RestoreSessionInput> =
+        sessions.into_iter().map(Into::into).collect();
+    run_db_mut_writing_sessions(move |c| {
+        lfs_core::db::sessions::restore_snapshot(c, typed, empty_folder_paths, now_ms)
     })
     .await
-    .map_err(|e| format!("db task: {e}"))?;
-    notify_sessions_on_ok(&res);
-    res
 }
 
 /// Composite duplicate — Rust composes label-uniqueness +
@@ -643,33 +688,25 @@ pub async fn db_sessions_duplicate_with_path(
     target_folder_path: String,
     now_ms: i64,
 ) -> Result<String, String> {
-    let res = tokio::task::spawn_blocking(move || {
-        let db = require_db()?;
-        db.with_conn_mut(|c| {
-            lfs_core::db::sessions::duplicate_with_path(c, &src_id, &target_folder_path, now_ms)
-        })
-        .map_err(|e| e.to_string())
+    run_db_mut_writing_sessions(move |c| {
+        lfs_core::db::sessions::duplicate_with_path(c, &src_id, &target_folder_path, now_ms)
     })
     .await
-    .map_err(|e| format!("db task: {e}"))?;
-    notify_sessions_on_ok(&res);
-    res
 }
 
 pub async fn db_sessions_delete_multiple(ids: Vec<String>) -> Result<u32, String> {
-    let res = run_db(move |c| lfs_core::db::sessions::delete_multiple(c, &ids))
-        .await
-        .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    run_db_writing_sessions_when(
+        move |c| lfs_core::db::sessions::delete_multiple(c, &ids),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
 }
 
 pub async fn db_sessions_delete_all() -> Result<u32, String> {
-    let res = run_db(lfs_core::db::sessions::delete_all)
+    run_db_writing_sessions_when(lfs_core::db::sessions::delete_all, |n| *n > 0)
         .await
-        .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+        .map(|n| n as u32)
 }
 
 pub async fn db_sessions_move_to_folder(
@@ -677,13 +714,19 @@ pub async fn db_sessions_move_to_folder(
     folder_id: Option<String>,
     updated_at_ms: i64,
 ) -> Result<u32, String> {
-    let res = run_db(move |c| {
-        lfs_core::db::sessions::move_to_folder(c, &session_id, folder_id.as_deref(), updated_at_ms)
-    })
+    run_db_writing_sessions_when(
+        move |c| {
+            lfs_core::db::sessions::move_to_folder(
+                c,
+                &session_id,
+                folder_id.as_deref(),
+                updated_at_ms,
+            )
+        },
+        |n| *n > 0,
+    )
     .await
-    .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    .map(|n| n as u32)
 }
 
 pub async fn db_sessions_move_multiple(
@@ -691,13 +734,14 @@ pub async fn db_sessions_move_multiple(
     folder_id: Option<String>,
     updated_at_ms: i64,
 ) -> Result<u32, String> {
-    let res = run_db(move |c| {
-        lfs_core::db::sessions::move_multiple(c, &ids, folder_id.as_deref(), updated_at_ms)
-    })
+    run_db_writing_sessions_when(
+        move |c| {
+            lfs_core::db::sessions::move_multiple(c, &ids, folder_id.as_deref(), updated_at_ms)
+        },
+        |n| *n > 0,
+    )
     .await
-    .map(|n| n as u32);
-    notify_sessions_on_ok_when(&res, |n| *n > 0);
-    res
+    .map(|n| n as u32)
 }
 
 // ---- known_hosts -------------------------------------------------------

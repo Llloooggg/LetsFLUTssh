@@ -10,15 +10,15 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Compose, (optionally) encrypt, and atomically write the `.lfs`
 /// archive entirely inside Rust. Plaintext credentials never cross
-/// the FRB boundary outbound — the bytes flow DB → JSON → ZIP →
+/// the FRB boundary outbound: the bytes flow DB → JSON → ZIP →
 /// AES-GCM → atomic file write under `output_path`. Returns the
-/// archive byte count so the caller can log / surface progress
+/// archive byte count so the caller can log or surface progress
 /// without re-stat'ing the file. Atomic via
-/// [`lfs_core::path::write_bytes_atomic`] (tmp + fsync + rename
-/// + parent-dir fsync), so a crash mid-write leaves the previous
-/// file at `output_path` (or no file when none existed) — the Dart
-/// caller no longer maintains its own `tmp.writeAsBytes` +
-/// `tmp.rename` discipline.
+/// [`lfs_core::path::write_bytes_atomic`] (tmp + fsync + rename +
+/// parent-dir fsync), so a crash mid-write leaves the previous
+/// file at `output_path` (or no file when none existed). The Dart
+/// caller no longer maintains its own tmp + writeAsBytes + rename
+/// discipline.
 Future<PlatformInt64> dbExportArchive({
   required DbExportInput input,
   required String outputPath,

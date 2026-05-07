@@ -2282,12 +2282,18 @@ Why the SecretRef rule exists: the FRB stream sink buffers events behind the bro
 
 #### `lfs_frb` adapter purity
 
-`lfs_frb` is meant to be a thin pass-through: marshal Dart-friendly types in, delegate to `lfs_core`, marshal results back. Today the surface is mostly that, with a small set of acknowledged exceptions:
+`lfs_frb` is a thin pass-through: marshal Dart-friendly types in, delegate to `lfs_core`, marshal results back. Every public entry point is one of:
 
-- `forward.rs::port_forward_start_local/dynamic/remote` compose `DirectTcpipFactory` + `AppStatusReporter` + `SocketAddr` inside the adapter (≈30 LOC each). Slated to move into `lfs_core::portforward::driver::start_*`.
-- `bus.rs::connection_get_session` walks the connection registry and inspects state-machine `state != Connected`. Slated for `lfs_core::connection::get_session(id)`.
-- `db.rs::notify_sessions_on_ok / _when` fires `app.sessions_registry.reload(&db)` + `lfs_core::sessions::notify_changed(&app)` inline at every DAO write site. Slated to move inside the DAO functions or a `lfs_core::db::Db::with_conn_writing` wrapper.
-- OS FFI now lives entirely in `lfs_os_security` (`winbio.rs` moved out of `lfs_frb` so the adapter has zero `unsafe`).
+- A type-shape adapter (Rust enum / struct → FRB-visible mirror, plus the `From` impls in `bus.rs`).
+- A `lfs_core::*::*` call wrapped in `Result::map_err(|e| e.to_string())` for the FRB error shape.
+- An opaque-handle returner (`SshSession::from_arc`, `SshForwardChannel`, etc.) for long-lived Rust objects whose internal state never crosses the bridge.
+
+Composition that needs more than that lives in `lfs_core`. Concrete examples:
+
+- Port-forward listeners (`forward.rs::port_forward_start_local/dynamic/remote`) delegate one-line to `lfs_core::portforward::driver::start_*`; the `DirectTcpipFactory` + `AppStatusReporter` + `SocketAddr` plumbing lives inside the driver.
+- Connection lookup (`bus.rs::connection_get_session`) is a one-liner over `lfs_core::connection::ConnectionRegistry::connected_session(id)` — the registry walk + state-machine check are encapsulated there.
+- DAO writes that need to refresh the sessions cache go through `run_db_writing_sessions` / `run_db_mut_writing_sessions` (and the `_when` predicate variants) in `db.rs` — single `run_db_writing_sessions(...)` call per FRB function. The wrapper resolves the `Db` handle, runs the closure, and fires `lfs_core::sessions::reload_and_notify` on Ok. No DAO callsite in the adapter mixes the run + notify dance by hand.
+- OS FFI lives entirely in `lfs_os_security`. `lfs_frb` contains zero `unsafe`.
 
 When in doubt: the adapter contains *delegation* + Dart-shape adapters; orchestration belongs in `lfs_core`.
 
