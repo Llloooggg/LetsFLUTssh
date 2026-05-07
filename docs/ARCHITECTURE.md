@@ -436,7 +436,7 @@ Per-session "bounce through a bastion before reaching the final host" model. Sav
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `sftp_fs.dart` | `RemoteSftpFs` (abstract), `RustSftpFs` (impl over the russh-sftp engine), `RemoteFS` (`FileSystem` adapter) | Public SFTP surface used by [`features/file_browser/`](#52-file-browser-featuresfile_browser) and [`features/transfer/`](#33-transfer-queue-coretransfer). The abstract base ships the recursive composites (`removeDirRecursive`, `dirSize`, `mkdirParents`); concrete leaf primitives (open/read/write/list/stat/mkdir/remove/rename/chmod) come from the Rust SFTP engine over FRB. |
+| `sftp_fs.dart` | `RemoteSftpFs` (abstract), `RustSftpFs` (impl over the russh-sftp engine), `RemoteFS` (`FileSystem` adapter) | Public SFTP surface used by [`features/file_browser/`](#52-file-browser-featuresfile_browser) and [`features/transfer/`](#33-transfer-queue-coretransfer). Both leaf primitives (list / mkdir / remove / rename / upload / download) and the recursive composites (`uploadDir` / `downloadDir` / `removeDir`) route through the Rust SFTP engine in one FRB hop each — `lfs_core::sftp` owns the per-entry recursion so the bridge isn't crossed per file. |
 | `file_system.dart` | `FileSystem`, `LocalFS` | Engine-agnostic file-system interface used by `FilePaneController` so the same UI code drives local and remote panes. `LocalFS` wraps `dart:io`; `RemoteFS` (in `sftp_fs.dart`) wraps `RustSftpFs`. |
 | `sftp_models.dart` | `FileEntry`, `TransferProgress` | File/directory model (name, path, size, mode, modTime, isDir, owner) plus the progress event the transfer queue emits per chunk. |
 | `errors.dart` | `SFTPError` family | Typed errors layered over the russh-sftp status codes so the UI can localise "permission denied" / "no such file" / "disk full" without grepping strings. |
@@ -446,21 +446,27 @@ Per-session "bounce through a bastion before reaching the final host" model. Sav
 
 ```dart
 abstract class RemoteSftpFs {
-  // Leaf primitives (filled by RustSftpFs from the Rust engine):
+  // Leaf primitives — every call routes one FRB hop into lfs_core::sftp:
+  Future<String> getwd();
   Future<List<FileEntry>> list(String path);
-  Future<FileEntry> stat(String path);
+  Future<bool> exists(String path);
   Future<void> mkdir(String path);
-  Future<void> remove(String path);          // files only
-  Future<void> removeDir(String path);       // empty dirs only
+  Future<void> remove(String path);                      // files only
+  Future<void> removeEmptyDir(String path);              // empty dirs only
   Future<void> rename(String oldPath, String newPath);
-  Future<void> chmod(String path, int mode);
-  Future<void> downloadFile(String remote, String local, ProgressCallback? cb);
-  Future<void> uploadFile(String local, String remote, ProgressCallback? cb);
+  Future<void> upload(String localPath, String remotePath,
+                      void Function(TransferProgress)? onProgress);
+  Future<void> download(String remotePath, String localPath,
+                        void Function(TransferProgress)? onProgress);
+  void close();
 
-  // Composites (provided by the abstract class):
-  Future<void> removeDirRecursive(String path, {int depthLimit = 100});
-  Future<void> mkdirParents(String path);
-  Future<int>  dirSize(String path, {int depthLimit = 64});
+  // Recursive composites — Rust runs the per-entry walk in lfs_core::sftp,
+  // so a 1000-file tree is one FRB hop, not 1000:
+  Future<void> removeDir(String path);                   // recursive
+  Future<void> uploadDir(String localDir, String remoteDir,
+                         void Function(TransferProgress)? onProgress);
+  Future<void> downloadDir(String remoteDir, String localDir,
+                           void Function(TransferProgress)? onProgress);
 }
 
 class RustSftpFs extends RemoteSftpFs {
@@ -2193,9 +2199,15 @@ TerminalPane
 
 Multi-pane connections run independent shell channels — each pane has its own xterm buffer, scrollback, and dimensions. A connection-level recorder would interleave bytes from N shells into a single timeline that no playback tool could un-mix. Per-shell keeps each recording straight-line.
 
-#### Coalesced FRB hops
+#### Coalesced worker wake-ups
 
-`recordOutput` / `recordInput` buffer their bytes in a per-direction `BytesBuilder` and drain across FRB on either an 8 KiB threshold (`_flushThresholdBytes` — sustained burst path) or a 10 ms deadline (`_flushDeadline` — interactive prompt path), whichever fires first. Pre-fix every shell-output packet from russh (~4-16 KiB each) crossed FRB independently with a fresh `Uint8List.fromList(bytes)` allocation; an interactive shell paid 3-10 hops/s, a streaming `cat` peaked at hundreds. The buffers preserve direction (output / input map to distinct asciinema events) so a typed key-press never gets attributed to the output stream; tokio's mpsc inside the Rust worker preserves FIFO so the on-disk event order matches the wire order regardless of how many writes are coalesced into one hop. `close()` drains buffers BEFORE enqueuing the close marker — without that flush a 10-ms-window burst arriving on a fast disconnect would be lost.
+Each recording's `RecorderQueue` worker writes one asciinema event per mailbox entry. Without coalescing, every shell-output packet from russh (4-16 KiB each, 3-10/s on an interactive prompt and hundreds/s under `cat large_file`) would wake the writer worker individually — a worker wake + AES-GCM frame + disk write per packet.
+
+`lfs_core::recorder::queue::enqueue_event_chunk` absorbs the storm in a per-direction `EventBuffers` slot guarded by a `std::sync::Mutex` (held only across buffer math, never across an `await`). Each chunk extends the matching direction's `Vec<u8>` and either flushes the drained bytes onto the mailbox immediately on the 8 KiB `FLUSH_THRESHOLD_BYTES` overshoot, or schedules a single 10 ms tokio `flush_task` that drains both directions when no further chunk arrived to pre-empt it. Direction split keeps the asciinema timeline straight — a typed key-press never gets attributed to the output stream — and tokio's mpsc preserves FIFO so the on-disk event order matches the wire order regardless of how many chunks land in one frame.
+
+`Header` / `Rotate` / `Close` go through `enqueue_blocking`, which drains pending chunk bytes before sending its own entry: rotation never splits a frame across two files, and close never seals the file before trailing 10-ms-window bytes reach disk on a fast disconnect.
+
+The Dart `SessionRecorder.recordOutput` / `recordInput` is a one-line FRB call per chunk — no Dart-side `BytesBuilder` / `Timer`, no Dart heap retention beyond the FRB call site. Bytes leave Dart heap as soon as they arrive.
 
 #### Why asciinema v2 inside an encryption envelope
 
