@@ -1120,16 +1120,16 @@ abstract class RustLibApi extends BaseApi {
   bool crateApiLogSanitizeLooksSensitive({required String text});
 
   Future<void> crateApiMacosInstallerMacosInstallerCleanupBackup({
-    required String targetBundlePath,
+    required String executablePath,
   });
 
   Future<MacosInstallOutcome> crateApiMacosInstallerMacosInstallerInstall({
     required String dmgPath,
-    required String targetBundlePath,
+    required String executablePath,
   });
 
   Future<MacosResignOutcome> crateApiMacosResignMacosResignBundle({
-    required String bundlePath,
+    required String executablePath,
   });
 
   Future<bool> crateApiMacosResignMacosResignEnsureIdentity();
@@ -10335,13 +10335,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<void> crateApiMacosInstallerMacosInstallerCleanupBackup({
-    required String targetBundlePath,
+    required String executablePath,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(targetBundlePath, serializer);
+          sse_encode_String(executablePath, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -10354,7 +10354,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiMacosInstallerMacosInstallerCleanupBackupConstMeta,
-        argValues: [targetBundlePath],
+        argValues: [executablePath],
         apiImpl: this,
       ),
     );
@@ -10364,20 +10364,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiMacosInstallerMacosInstallerCleanupBackupConstMeta =>
       const TaskConstMeta(
         debugName: 'macos_installer_cleanup_backup',
-        argNames: ['targetBundlePath'],
+        argNames: ['executablePath'],
       );
 
   @override
   Future<MacosInstallOutcome> crateApiMacosInstallerMacosInstallerInstall({
     required String dmgPath,
-    required String targetBundlePath,
+    required String executablePath,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(dmgPath, serializer);
-          sse_encode_String(targetBundlePath, serializer);
+          sse_encode_String(executablePath, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -10390,7 +10390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiMacosInstallerMacosInstallerInstallConstMeta,
-        argValues: [dmgPath, targetBundlePath],
+        argValues: [dmgPath, executablePath],
         apiImpl: this,
       ),
     );
@@ -10399,18 +10399,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiMacosInstallerMacosInstallerInstallConstMeta =>
       const TaskConstMeta(
         debugName: 'macos_installer_install',
-        argNames: ['dmgPath', 'targetBundlePath'],
+        argNames: ['dmgPath', 'executablePath'],
       );
 
   @override
   Future<MacosResignOutcome> crateApiMacosResignMacosResignBundle({
-    required String bundlePath,
+    required String executablePath,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(bundlePath, serializer);
+          sse_encode_String(executablePath, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -10423,7 +10423,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiMacosResignMacosResignBundleConstMeta,
-        argValues: [bundlePath],
+        argValues: [executablePath],
         apiImpl: this,
       ),
     );
@@ -10432,7 +10432,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiMacosResignMacosResignBundleConstMeta =>
       const TaskConstMeta(
         debugName: 'macos_resign_bundle',
-        argNames: ['bundlePath'],
+        argNames: ['executablePath'],
       );
 
   @override

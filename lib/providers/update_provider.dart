@@ -78,17 +78,13 @@ final updateServiceProvider = Provider<UpdateService>((ref) {
   MacosDmgInstaller? installer;
   if (Platform.isMacOS) {
     installer = (dmgPath) async {
-      final resolved = Platform.resolvedExecutable;
       // `Platform.resolvedExecutable` points at
-      // `<bundle>/Contents/MacOS/letsflutssh` — walk up three times
-      // to reach the `.app` root (the target for the atomic swap).
-      final bundle = Directory(resolved)
-          .parent // Contents/MacOS
-          .parent // Contents
-          .parent; // <bundle>.app
+      // `<bundle>/Contents/MacOS/letsflutssh`; the Rust shim
+      // walks up to the `.app` root (atomic-swap target) inside
+      // `bundle_root_from_macos_executable`.
       final outcome = await rust_macos_installer.macosInstallerInstall(
         dmgPath: dmgPath,
-        targetBundlePath: bundle.path,
+        executablePath: Platform.resolvedExecutable,
       );
       return outcome == rust_macos_installer.MacosInstallOutcome.succeeded;
     };

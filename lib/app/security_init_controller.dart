@@ -1,6 +1,6 @@
 import 'dart:async' show unawaited;
 import 'dart:convert' show utf8;
-import 'dart:io' show Directory, Platform, exit;
+import 'dart:io' show Platform, exit;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';

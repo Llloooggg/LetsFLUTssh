@@ -9810,14 +9810,14 @@ fn wire__crate__api__macos_installer__macos_installer_cleanup_backup_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_target_bundle_path = <String>::sse_decode(&mut deserializer);
+            let api_executable_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
                             crate::api::macos_installer::macos_installer_cleanup_backup(
-                                api_target_bundle_path,
+                                api_executable_path,
                             )
                             .await?;
                         Ok(output_ok)
@@ -9851,14 +9851,14 @@ fn wire__crate__api__macos_installer__macos_installer_install_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_dmg_path = <String>::sse_decode(&mut deserializer);
-            let api_target_bundle_path = <String>::sse_decode(&mut deserializer);
+            let api_executable_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok = crate::api::macos_installer::macos_installer_install(
                             api_dmg_path,
-                            api_target_bundle_path,
+                            api_executable_path,
                         )
                         .await?;
                         Ok(output_ok)
@@ -9891,13 +9891,14 @@ fn wire__crate__api__macos_resign__macos_resign_bundle_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_bundle_path = <String>::sse_decode(&mut deserializer);
+            let api_executable_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
                         let output_ok =
-                            crate::api::macos_resign::macos_resign_bundle(api_bundle_path).await?;
+                            crate::api::macos_resign::macos_resign_bundle(api_executable_path)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,

@@ -9,7 +9,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import '../../core/security/biometric_auth.dart';
@@ -404,15 +403,6 @@ bool isResignAcceptable(MacosResignOutcome outcome) =>
 /// matched by an equally narrow accept-set on the result side.
 bool isPostIdentityRemovalTierAccepted(SecurityTier target) =>
     target == SecurityTier.plaintext || target == SecurityTier.paranoid;
-
-/// Walk up from `Platform.resolvedExecutable` to the `.app` bundle
-/// root. macOS layout is `<bundle>.app/Contents/MacOS/<exe>`, so the
-/// app bundle is three parents up from the executable. Pulled out of
-/// the inline `Directory(...).parent.parent.parent` chain in
-/// `_enableMacosKeychain` so the path math stays one testable
-/// transformation that doesn't hit the live filesystem.
-Directory appBundlePathFromExecutable(String executablePath) =>
-    Directory(executablePath).parent.parent.parent;
 
 /// Apply the Plaintext tier: rekey the DB to plaintext (null key)
 /// and run the per-tier vault-clear plan. Pulled out for parity with

@@ -386,6 +386,12 @@ pub mod secure_clipboard;
 pub mod secure_key_storage;
 pub mod session_lock_listener;
 pub(crate) mod subprocess_util;
+// Single helper exposed to `lfs_frb` for walking up from
+// `Platform.resolvedExecutable` to the `.app` bundle root —
+// path math the FRB shim runs before delegating into
+// `macos::code_signing` / `macos::installer`. Re-exported
+// without opening the whole `subprocess_util` module.
+pub use subprocess_util::bundle_root_from_macos_executable;
 // Cross-platform shape (`-1` outside Windows); real FFI behind
 // a target_os gate inside the module.
 pub mod winbio;

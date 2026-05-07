@@ -75,14 +75,19 @@ pub async fn macos_resign_ensure_identity() -> Result<bool, String> {
     }
 }
 
-/// Re-sign the bundle at `bundle_path` leaf-first with the
-/// self-sign cert. Caller must have run
+/// Re-sign the running app bundle leaf-first with the self-sign
+/// cert. Caller passes its own `Platform.resolvedExecutable`;
+/// the Rust side walks three parents up to the `.app` root and
+/// signs from there. Caller must have run
 /// [`macos_resign_ensure_identity`] earlier.
-pub async fn macos_resign_bundle(bundle_path: String) -> Result<MacosResignOutcome, String> {
+pub async fn macos_resign_bundle(executable_path: String) -> Result<MacosResignOutcome, String> {
     #[cfg(target_os = "macos")]
     {
+        let bundle_root = lfs_os_security::subprocess_util::bundle_root_from_macos_executable(
+            std::path::Path::new(&executable_path),
+        );
         lfs_os_security::macos::code_signing::resign_bundle(
-            std::path::Path::new(&bundle_path),
+            &bundle_root,
             lfs_os_security::macos::code_signing::DEFAULT_COMMON_NAME,
         )
         .await
@@ -91,7 +96,7 @@ pub async fn macos_resign_bundle(bundle_path: String) -> Result<MacosResignOutco
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = bundle_path;
+        let _ = executable_path;
         Err("macos code-signing is only available on macOS".into())
     }
 }

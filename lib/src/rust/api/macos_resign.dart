@@ -23,13 +23,16 @@ Future<bool> macosResignHasIdentity() =>
 Future<bool> macosResignEnsureIdentity() =>
     RustLib.instance.api.crateApiMacosResignMacosResignEnsureIdentity();
 
-/// Re-sign the bundle at `bundle_path` leaf-first with the
-/// self-sign cert. Caller must have run
+/// Re-sign the running app bundle leaf-first with the self-sign
+/// cert. Caller passes its own `Platform.resolvedExecutable`;
+/// the Rust side walks three parents up to the `.app` root and
+/// signs from there. Caller must have run
 /// [`macos_resign_ensure_identity`] earlier.
-Future<MacosResignOutcome> macosResignBundle({required String bundlePath}) =>
-    RustLib.instance.api.crateApiMacosResignMacosResignBundle(
-      bundlePath: bundlePath,
-    );
+Future<MacosResignOutcome> macosResignBundle({
+  required String executablePath,
+}) => RustLib.instance.api.crateApiMacosResignMacosResignBundle(
+  executablePath: executablePath,
+);
 
 /// Drop the self-sign identity + cert from the user's login
 /// keychain.

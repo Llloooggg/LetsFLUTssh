@@ -184,6 +184,24 @@ pub(crate) fn find_first_directory_with_extension(dir: &Path, extension: &str) -
     None
 }
 
+/// Walk up from `Platform.resolvedExecutable` to the `.app`
+/// bundle root. macOS layout is
+/// `<bundle>.app/Contents/MacOS/<exe>`, so the bundle is three
+/// parents up from the executable. Returns the executable path
+/// itself when there are fewer than three parents — defensively
+/// preserves the input rather than panicking on a non-bundle
+/// layout (e.g. `flutter_test` running the binary out of `target/`).
+pub fn bundle_root_from_macos_executable(executable_path: &Path) -> PathBuf {
+    let mut current = executable_path.to_path_buf();
+    for _ in 0..3 {
+        match current.parent() {
+            Some(parent) => current = parent.to_path_buf(),
+            None => return executable_path.to_path_buf(),
+        }
+    }
+    current
+}
+
 /// Sequence-suffixed temp dir under `std::env::temp_dir()`. Used
 /// by per-OS modules that need a scratch tree for subprocess
 /// inputs (e.g. the macOS cert-factory's `cert.cnf`/`cert.key`/
@@ -346,6 +364,39 @@ mod tests {
         let found = find_first_directory_with_extension(&dir, ".app");
         assert!(found.is_none(), "expected None, got {found:?}");
         let _ = tokio::fs::remove_dir_all(&dir).await;
+    }
+
+    #[test]
+    fn bundle_root_walks_up_three_parents() {
+        assert_eq!(
+            bundle_root_from_macos_executable(Path::new(
+                "/Applications/Letsflutssh.app/Contents/MacOS/letsflutssh"
+            )),
+            PathBuf::from("/Applications/Letsflutssh.app")
+        );
+    }
+
+    #[test]
+    fn bundle_root_handles_relative_path() {
+        assert_eq!(
+            bundle_root_from_macos_executable(Path::new(
+                "Letsflutssh.app/Contents/MacOS/letsflutssh"
+            )),
+            PathBuf::from("Letsflutssh.app")
+        );
+    }
+
+    #[test]
+    fn bundle_root_returns_input_on_too_few_parents() {
+        // `letsflutssh` has zero parents; the function preserves
+        // the input rather than panicking. Same shape as the
+        // flutter_test runner where the binary lives directly
+        // under `target/debug/`.
+        let only_name = Path::new("letsflutssh");
+        assert_eq!(
+            bundle_root_from_macos_executable(only_name),
+            PathBuf::from("letsflutssh"),
+        );
     }
 
     #[tokio::test]

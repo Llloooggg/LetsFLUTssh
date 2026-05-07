@@ -90,10 +90,9 @@ extension _FirstLaunchFlows on SecurityInitController {
     }
     try {
       await rust_macos_resign.macosResignEnsureIdentity();
-      final bundle = Directory(
-        Platform.resolvedExecutable,
-      ).parent.parent.parent;
-      await rust_macos_resign.macosResignBundle(bundlePath: bundle.path);
+      await rust_macos_resign.macosResignBundle(
+        executablePath: Platform.resolvedExecutable,
+      );
       await ref
           .read(configProvider.notifier)
           .update((c) => c.copyWithSecurity(securityProbeCache: null));

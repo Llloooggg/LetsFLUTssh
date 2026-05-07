@@ -8,27 +8,32 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
-/// Install `dmg_path` on top of `target_bundle_path`. The Rust
-/// side mounts the DMG with `hdiutil`, rsyncs into
-/// `<target>.new`, re-signs under the user's personal cert (if
-/// installed), verifies, and atomically swaps. On any failure
-/// before the swap, the live bundle is untouched and the
-/// outcome surfaces to the Dart caller for fallback.
+/// Install `dmg_path` on top of the running app bundle. Caller
+/// passes its own `Platform.resolvedExecutable`; the Rust side
+/// walks three parents up to the `.app` root and treats that as
+/// the swap target. The pipeline mounts the DMG with `hdiutil`,
+/// rsyncs into `<target>.new`, re-signs under the user's
+/// personal cert (if installed), verifies, and atomically
+/// swaps. On any failure before the swap, the live bundle is
+/// untouched and the outcome surfaces to the Dart caller for
+/// fallback.
 Future<MacosInstallOutcome> macosInstallerInstall({
   required String dmgPath,
-  required String targetBundlePath,
+  required String executablePath,
 }) => RustLib.instance.api.crateApiMacosInstallerMacosInstallerInstall(
   dmgPath: dmgPath,
-  targetBundlePath: targetBundlePath,
+  executablePath: executablePath,
 );
 
 /// Drop the `<target>.backup` directory once the new bundle has
 /// run cleanly. Called from `main._bootstrap` a few seconds
 /// after startup so a crash during early init still finds the
-/// backup. Best-effort.
-Future<void> macosInstallerCleanupBackup({required String targetBundlePath}) =>
+/// backup. Best-effort. `executable_path` is
+/// `Platform.resolvedExecutable`; Rust walks up to the bundle
+/// root and removes its sibling `.backup` directory.
+Future<void> macosInstallerCleanupBackup({required String executablePath}) =>
     RustLib.instance.api.crateApiMacosInstallerMacosInstallerCleanupBackup(
-      targetBundlePath: targetBundlePath,
+      executablePath: executablePath,
     );
 
 /// FRB-visible mirror of

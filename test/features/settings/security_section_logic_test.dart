@@ -629,25 +629,6 @@ void main() {
     });
   });
 
-  group('appBundlePathFromExecutable', () {
-    test('walks three parents up to reach the .app bundle root', () {
-      // macOS layout: <bundle>.app/Contents/MacOS/<exe>
-      final dir = appBundlePathFromExecutable(
-        '/Applications/LetsFLUTssh.app/Contents/MacOS/letsflutssh',
-      );
-      expect(dir.path, '/Applications/LetsFLUTssh.app');
-    });
-
-    test('handles a path with extra trailing segments correctly', () {
-      // Should still yield three parents up — caller's responsibility
-      // to hand a valid macOS executable path.
-      final dir = appBundlePathFromExecutable(
-        '/tmp/Foo.app/Contents/MacOS/foo',
-      );
-      expect(dir.path, '/tmp/Foo.app');
-    });
-  });
-
   group('passwordVerifierKindFor', () {
     test('paranoid → masterPassword', () {
       expect(

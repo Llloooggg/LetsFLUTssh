@@ -31,29 +31,32 @@ impl From<lfs_os_security::macos::installer::InstallOutcome> for MacosInstallOut
     }
 }
 
-/// Install `dmg_path` on top of `target_bundle_path`. The Rust
-/// side mounts the DMG with `hdiutil`, rsyncs into
-/// `<target>.new`, re-signs under the user's personal cert (if
-/// installed), verifies, and atomically swaps. On any failure
-/// before the swap, the live bundle is untouched and the
-/// outcome surfaces to the Dart caller for fallback.
+/// Install `dmg_path` on top of the running app bundle. Caller
+/// passes its own `Platform.resolvedExecutable`; the Rust side
+/// walks three parents up to the `.app` root and treats that as
+/// the swap target. The pipeline mounts the DMG with `hdiutil`,
+/// rsyncs into `<target>.new`, re-signs under the user's
+/// personal cert (if installed), verifies, and atomically
+/// swaps. On any failure before the swap, the live bundle is
+/// untouched and the outcome surfaces to the Dart caller for
+/// fallback.
 pub async fn macos_installer_install(
     dmg_path: String,
-    target_bundle_path: String,
+    executable_path: String,
 ) -> Result<MacosInstallOutcome, String> {
     #[cfg(target_os = "macos")]
     {
-        lfs_os_security::macos::installer::install(
-            std::path::Path::new(&dmg_path),
-            std::path::Path::new(&target_bundle_path),
-        )
-        .await
-        .map(MacosInstallOutcome::from)
-        .map_err(|e| e.to_string())
+        let bundle_root = lfs_os_security::bundle_root_from_macos_executable(std::path::Path::new(
+            &executable_path,
+        ));
+        lfs_os_security::macos::installer::install(std::path::Path::new(&dmg_path), &bundle_root)
+            .await
+            .map(MacosInstallOutcome::from)
+            .map_err(|e| e.to_string())
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (dmg_path, target_bundle_path);
+        let _ = (dmg_path, executable_path);
         Ok(MacosInstallOutcome::NotApplicable)
     }
 }
@@ -61,19 +64,21 @@ pub async fn macos_installer_install(
 /// Drop the `<target>.backup` directory once the new bundle has
 /// run cleanly. Called from `main._bootstrap` a few seconds
 /// after startup so a crash during early init still finds the
-/// backup. Best-effort.
-pub async fn macos_installer_cleanup_backup(target_bundle_path: String) -> Result<(), String> {
+/// backup. Best-effort. `executable_path` is
+/// `Platform.resolvedExecutable`; Rust walks up to the bundle
+/// root and removes its sibling `.backup` directory.
+pub async fn macos_installer_cleanup_backup(executable_path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        lfs_os_security::macos::installer::cleanup_backup(std::path::Path::new(
-            &target_bundle_path,
-        ))
-        .await;
+        let bundle_root = lfs_os_security::bundle_root_from_macos_executable(std::path::Path::new(
+            &executable_path,
+        ));
+        lfs_os_security::macos::installer::cleanup_backup(&bundle_root).await;
         Ok(())
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = target_bundle_path;
+        let _ = executable_path;
         Ok(())
     }
 }

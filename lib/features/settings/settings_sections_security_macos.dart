@@ -60,12 +60,12 @@ extension _MacosKeychain on _SecuritySectionState {
     rebuild(() => _enablingKeychain = true);
     try {
       await rust_macos_resign.macosResignEnsureIdentity();
-      // Bundle path math + outcome classification live in
-      // `security_section_logic` so they're unit-testable without
-      // a real macOS executable on disk.
-      final bundle = appBundlePathFromExecutable(Platform.resolvedExecutable);
+      // Bundle path math (walk three parents up from
+      // `Platform.resolvedExecutable` to the `.app` root) lives
+      // Rust-side in `subprocess_util::bundle_root_from_macos_executable`
+      // and is exercised by cross-platform tests there.
       final outcome = await rust_macos_resign.macosResignBundle(
-        bundlePath: bundle.path,
+        executablePath: Platform.resolvedExecutable,
       );
       if (!mounted) return;
       if (!isResignAcceptable(outcome)) {
