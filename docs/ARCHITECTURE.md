@@ -1902,7 +1902,7 @@ Key: Argon2id(password, salt, m=46 MiB, t=2, p=1) — see
   [`KdfParams.productionDefaults`](../lib/core/security/kdf_params.dart)
 
 Wire format for v3 encrypted archives (current writer):
-  [ 'LFSE' (4) | version = 0x02 (1) | KdfParams block (≤ 16) |
+  [ 'LFSE' (4) | version = 0x03 (1) | KdfParams block (≤ 16) |
     salt (32) | iv (12) | ciphertext + GCM tag ]
 
 The KdfParams block carries the algorithm id (1 byte, `0x01` = Argon2id)
@@ -1911,19 +1911,30 @@ u32 BE + iterations u32 BE + parallelism u8 = 9 bytes). The reader picks
 up the exact cost used to write the archive — a future release can tune
 parameters without having to break or re-encrypt existing files.
 
+**Header-bound AAD (v0x03).** The encoder now binds the entire
+pre-IV header (magic + version + KDF params + salt — 52 bytes) into
+the AES-GCM AAD. An attacker who flips a header byte to coerce
+different KDF params (drop memory cap, swap algo id, replace salt)
+invalidates the AEAD tag rather than feeding cooked params into the
+verifier. The IV is *not* in AAD — its uniqueness is the GCM
+contract; binding it would be redundant. v0x02 envelopes (pre-AAD
+legacy) still decode through a fallback branch with empty AAD so
+existing exports keep importing; new exports always emit v0x03.
+
 Argon2id is the only supported KDF. Archives with a header version byte
-other than `0x02`, missing `LFSE` magic, or no manifest are rejected at
-import with `UnsupportedLfsVersionException` — users must re-export
-from the current app version. Future breaking format changes ship a
-transform inside `lfs_core::archive::read_archive_to_pending` (the
-import path) — see [§3.6 → Migration framework](#migration-framework)
+other than `0x02` / `0x03`, missing `LFSE` magic, or no manifest are
+rejected at import with `UnsupportedLfsVersionException` — users must
+re-export from the current app version. Future breaking format changes
+ship a transform inside `lfs_core::archive::read_archive_to_pending`
+(the import path) — see [§3.6 → Migration framework](#migration-framework)
 for the architectural shape; archive migrations live with the archive
 reader rather than the on-disk migration framework because they run
 at import time, not startup.
 
 | On-disk form | Version byte | KDF | Notes |
 |---|---|---|---|
-| v1 (LFSE) | `0x02` | Argon2id @ header params | Current writer and the only supported reader. |
+| v1 (LFSE legacy) | `0x02` | Argon2id @ header params | Pre-AAD envelopes. Decoded through a fallback branch with empty AAD; never emitted by current writer. |
+| v1 (LFSE current) | `0x03` | Argon2id @ header params | Current writer. Pre-IV header bound into AES-GCM AAD. |
 
 Import caps bound Argon2id params from an untrusted header
 (`MAX_IMPORT_MEMORY_KIB = 1 GiB` desktop / 512 MiB mobile,
@@ -4909,10 +4920,12 @@ online service at verify time.
 
 ```
 v1 header:
-  ['LFSE' 4] [0x02 version 1] [KdfParams block ≤16] [salt 32B] [IV 12B]
+  ['LFSE' 4] [0x03 version 1] [KdfParams block ≤16] [salt 32B] [IV 12B]
   [AES-256-GCM(ZIP(sessions + keys + config + known_hosts + tags + snippets))]
 
 Key = Argon2id(password, salt, m=46 MiB, t=2, p=1)
+AAD = pre-IV header bytes (magic + version + KDF params + salt)
+Legacy 0x02 envelopes (pre-AAD) decode through a fallback branch.
 ```
 
 v1 is the permanent floor — archives with any other header version,

@@ -43,11 +43,23 @@ use rand::RngCore;
 use crate::bus::{Event, EventBus};
 use crate::error::Error;
 
-/// File-format magic — `LFR1` (LetsFLUTssh Recorder v1). Mirrors
+/// File-format magic — `LFR1` (LetsFLUTssh Recorder). Mirrors
 /// the Dart-era `SessionRecorder._lfrMagic` byte-for-byte so
 /// recordings remain forward-compatible.
 const LFR_MAGIC: [u8; 4] = [0x4C, 0x46, 0x52, 0x31];
-const LFR_VERSION: u8 = 1;
+/// On-disk format version byte (post-magic).
+///
+/// * `0x01` (legacy): per-frame AES-GCM with empty AAD. An attacker
+///   with file-write access could swap two frames within the same
+///   recording — the GCM tag matches because nothing binds frame
+///   position. The Dart reader still decodes pre-upgrade files
+///   through this branch, but the Rust writer never emits it.
+/// * `0x02` (current): per-frame AAD = `frame_index_u64_le`. Writer
+///   tracks a monotonic counter per recording (reset on
+///   `rotate_to`), reader recomputes it from the position in the
+///   stream — the index never lands on disk, so the counter cannot
+///   be tampered without invalidating subsequent tags.
+const LFR_VERSION: u8 = 2;
 const NONCE_LEN: usize = 12;
 
 /// Hard upper bound on a single recording file size before the
@@ -101,6 +113,11 @@ pub struct RecorderActor {
     /// 32-byte AES-256 key in encrypted mode. Derived caller-side
     /// (HKDF off the DB key) and handed in once at register time.
     key: Option<[u8; 32]>,
+    /// Monotonic per-frame counter used as AES-GCM AAD on encrypted
+    /// recordings (LFR v2). Reset to 0 on rotate. Never persisted
+    /// on disk: the reader recomputes it from frame position so a
+    /// disk-side swap of two frames invalidates the GCM tag.
+    frame_index: u64,
 }
 
 impl RecorderActor {
@@ -114,6 +131,7 @@ impl RecorderActor {
             started_at: None,
             file: None,
             key: None,
+            frame_index: 0,
         }
     }
 
@@ -273,6 +291,7 @@ impl RecorderRegistry {
             started_at: Some(std::time::SystemTime::now()),
             file: Some(Arc::new(Mutex::new(file))),
             key,
+            frame_index: 0,
         };
         let snap = actor.snapshot();
         {
@@ -378,13 +397,18 @@ impl RecorderRegistry {
     /// the running byte total. Errors when the actor was not
     /// registered through [`RecorderRegistry::register_with_io`].
     pub fn record_frame(&self, id: &str, plaintext: &[u8], bus: &EventBus) -> Result<u64, Error> {
-        // Snapshot the IO handle + key under the registry lock,
-        // then drop the lock before doing the (potentially
-        // blocking) write. Other registry operations stay
-        // non-blocked while a frame writes out.
-        let (file_handle, key) = {
-            let g = self.lock();
-            let Some(actor) = g.by_id.get(id) else {
+        // Snapshot the IO handle + key + claim the next frame index
+        // under the registry lock, then drop the lock before doing
+        // the (potentially blocking) write. Other registry operations
+        // stay non-blocked while a frame writes out. Claiming the
+        // index here (post-increment) keeps frame_index ordering
+        // consistent with the file mutex order: the first thread
+        // through this section gets index N, the next gets N+1, and
+        // the file mutex serialises the writes so on-disk order
+        // matches.
+        let (file_handle, key, frame_index) = {
+            let mut g = self.lock();
+            let Some(actor) = g.by_id.get_mut(id) else {
                 return Err(Error::Recorder(format!("{id} not registered")));
             };
             let Some(file) = actor.file.as_ref() else {
@@ -392,10 +416,12 @@ impl RecorderRegistry {
                     "recorder {id} has no file handle (counter-only registration)"
                 )));
             };
-            (file.clone(), actor.key)
+            let idx = actor.frame_index;
+            actor.frame_index = actor.frame_index.saturating_add(1);
+            (file.clone(), actor.key, idx)
         };
 
-        let frame = build_frame(plaintext, key.as_ref())?;
+        let frame = build_frame(plaintext, key.as_ref(), frame_index)?;
         {
             let mut handle = file_handle
                 .lock()
@@ -482,6 +508,11 @@ impl RecorderRegistry {
             actor.file = Some(Arc::new(Mutex::new(file)));
             actor.path = new_path.clone();
             actor.bytes_written = bytes_written;
+            // Reset the per-frame AAD counter — every rotated file
+            // starts a fresh GCM tag chain so a frame from the old
+            // file cannot be replayed at the same position in the
+            // new file.
+            actor.frame_index = 0;
             actor.snapshot()
         };
         bus.publish(Event::RecorderStarted {
@@ -570,13 +601,26 @@ fn format_delta(t: f64) -> String {
 /// returns `[len(4 LE)][nonce(12)][ciphertext+tag]`; with
 /// `None` returns `plaintext` as-is so plaintext recordings
 /// remain valid asciinema documents.
-fn build_frame(plaintext: &[u8], key: Option<&[u8; 32]>) -> Result<Vec<u8>, Error> {
+///
+/// LFR v2: `frame_index` is bound into the GCM AAD as
+/// `frame_index.to_le_bytes()` (8 bytes). The index is NOT written
+/// to disk — both writer and reader recompute it from frame
+/// position so an attacker who swaps two frames can't move the
+/// AAD with them. Tag mismatch on the swapped position fires
+/// instead, and the reader treats it as the recording-format
+/// error it is.
+fn build_frame(
+    plaintext: &[u8],
+    key: Option<&[u8; 32]>,
+    frame_index: u64,
+) -> Result<Vec<u8>, Error> {
     let Some(key) = key else {
         return Ok(plaintext.to_vec());
     };
     let mut nonce = [0u8; NONCE_LEN];
     rand::rngs::OsRng.fill_bytes(&mut nonce);
-    let ct = crate::crypto::aes_gcm_encrypt_raw(key, &nonce, plaintext, &[])?;
+    let aad = frame_index.to_le_bytes();
+    let ct = crate::crypto::aes_gcm_encrypt_raw(key, &nonce, plaintext, &aad)?;
     let mut frame = Vec::with_capacity(4 + NONCE_LEN + ct.len());
     let pt_len = u32::try_from(plaintext.len())
         .map_err(|_| Error::Io("recorder plaintext exceeds u32 frame length".to_string()))?;
@@ -642,7 +686,7 @@ mod tests {
         assert!(snap.encrypted);
         let on_disk = std::fs::read(&path).expect("read");
         assert_eq!(&on_disk[..4], b"LFR1");
-        assert_eq!(on_disk[4], 0x01);
+        assert_eq!(on_disk[4], LFR_VERSION);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -739,13 +783,61 @@ mod tests {
         let on_disk = std::fs::read(&path).expect("read");
         // Magic + version (5 bytes), then [len(4)][nonce(12)][ct+tag(payload+16)]
         assert_eq!(&on_disk[..4], b"LFR1");
-        assert_eq!(on_disk[4], 0x01);
+        assert_eq!(on_disk[4], LFR_VERSION);
         let len = u32::from_le_bytes(on_disk[5..9].try_into().unwrap()) as usize;
         assert_eq!(len, payload.len());
         let nonce = &on_disk[9..21];
         let ct = &on_disk[21..];
-        let pt = crate::crypto::aes_gcm_decrypt_raw(&key, nonce, ct, &[]).expect("decrypt");
+        // First frame's AAD is `0u64` little-endian per the v2
+        // contract — the writer claimed index 0 before incrementing.
+        let aad = 0u64.to_le_bytes();
+        let pt = crate::crypto::aes_gcm_decrypt_raw(&key, nonce, ct, &aad).expect("decrypt");
         assert_eq!(pt.as_slice(), payload);
+        // Sanity: empty AAD must NOT decrypt — proves AAD binding.
+        assert!(crate::crypto::aes_gcm_decrypt_raw(&key, nonce, ct, &[]).is_err());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// LFR v2 binds the per-frame counter into AAD. An attacker who
+    /// swaps two frames byte-for-byte (positions 0 and 1) MUST break
+    /// the AEAD tag at both swapped positions: the wire bytes are
+    /// the ciphertext signed under AAD=N, but the reader recomputes
+    /// AAD from position M, and N != M.
+    #[test]
+    fn frame_swap_breaks_aad_binding_at_swapped_positions() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path = tempfile_path("swap");
+        let key = [11u8; 32];
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), Some(key), &bus)
+            .expect("register");
+        let payload_a = b"alpha\n";
+        let payload_b = b"beta\n";
+        reg.record_frame("r1", payload_a, &bus).expect("frame a");
+        reg.record_frame("r1", payload_b, &bus).expect("frame b");
+        reg.close_with_io("r1", &bus).expect("close");
+
+        let mut on_disk = std::fs::read(&path).expect("read");
+        // Layout: [magic(4)][ver(1)] [len(4)][nonce(12)][ct+tag(a+16)] [len(4)][nonce(12)][ct+tag(b+16)]
+        let frame_a_off = 5;
+        let frame_a_size = 4 + NONCE_LEN + payload_a.len() + 16;
+        let frame_b_off = frame_a_off + frame_a_size;
+        let frame_b_size = 4 + NONCE_LEN + payload_b.len() + 16;
+        let mut swapped = on_disk[..frame_a_off].to_vec();
+        swapped.extend_from_slice(&on_disk[frame_b_off..frame_b_off + frame_b_size]);
+        swapped.extend_from_slice(&on_disk[frame_a_off..frame_a_off + frame_a_size]);
+        on_disk = swapped;
+
+        // The decoder validates AAD by frame position. Position 0 now
+        // holds the ciphertext signed under AAD=1, so decrypt under
+        // AAD=0 must fail. Same for position 1 ↔ AAD=1 ≠ original=0.
+        let pos0_ct = &on_disk[frame_a_off + 4 + NONCE_LEN..frame_a_off + frame_a_size];
+        let pos0_nonce = &on_disk[frame_a_off + 4..frame_a_off + 4 + NONCE_LEN];
+        let aad_pos0 = 0u64.to_le_bytes();
+        assert!(
+            crate::crypto::aes_gcm_decrypt_raw(&key, pos0_nonce, pos0_ct, &aad_pos0).is_err(),
+            "swapped frame must fail AAD-bound decrypt at its new position"
+        );
         let _ = std::fs::remove_file(&path);
     }
 

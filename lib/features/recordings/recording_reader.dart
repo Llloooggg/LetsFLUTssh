@@ -53,6 +53,15 @@ class RecordingHeader {
 ///   version + a stream of `[len(4 LE)][nonce(12)][cipher][tag(16)]`
 ///   AES-256-GCM frames whose plaintext is the same JSON-Lines.
 ///
+/// LFR encrypted versions:
+/// * `0x01` — per-frame AES-GCM with empty AAD (legacy). Files
+///   written before the AAD-binding upgrade keep decoding through
+///   this path; new files never emit at this level.
+/// * `0x02` — per-frame AAD = `frame_index_u64_le`. The writer
+///   tracks a monotonic counter per recording (resets on rotate);
+///   the reader recomputes it from frame position so a swap of two
+///   frames invalidates the GCM tag at both swapped positions.
+///
 /// The reader takes ownership of the file's read lifecycle:
 /// [openCast] / [openEncrypted] both expose a `Stream<RecordingFrame>`
 /// that yields header-then-events lazily, so a multi-MB recording
@@ -61,6 +70,8 @@ class RecordingReader {
   RecordingReader._();
 
   static const List<int> _expectedMagic = [0x4C, 0x46, 0x52, 0x31];
+  static const int _lfrVersionLegacyNoAad = 0x01;
+  static const int _lfrVersionAadFrameIndex = 0x02;
 
   /// Per-frame plaintext-length cap for `.lfsr` envelopes. The
   /// recorder writes asciinema-v2 event lines, where the largest
@@ -113,11 +124,14 @@ class RecordingReader {
           throw const RecordingFormatException('Bad magic — not an LFR1 file');
         }
       }
-      if (head[4] != 1) {
+      final version = head[4];
+      if (version != _lfrVersionLegacyNoAad &&
+          version != _lfrVersionAadFrameIndex) {
         throw RecordingFormatException(
-          'Unsupported recording version ${head[4]}',
+          'Unsupported recording version $version',
         );
       }
+      var frameIndex = 0;
       while (raf.positionSync() < raf.lengthSync()) {
         final lenBytes = raf.readSync(4);
         if (lenBytes.length < 4) break;
@@ -139,12 +153,20 @@ class RecordingReader {
         if (ct.length < ptLen + 16) {
           throw const RecordingFormatException('Truncated ciphertext frame');
         }
+        // v0x02: AAD = u64-LE encode of the per-position frame
+        // counter recomputed from stream position. v0x01: empty AAD
+        // for legacy files. The Rust writer never emits v0x01 post-
+        // upgrade — this branch only decodes pre-upgrade files.
+        final aad = version == _lfrVersionAadFrameIndex
+            ? _frameIndexAad(frameIndex)
+            : Uint8List(0);
         final pt = await rust_crypto.cryptoAesGcmDecryptRaw(
           key: key,
           nonce: nonce,
           ciphertext: ct,
-          aad: Uint8List(0),
+          aad: aad,
         );
+        frameIndex++;
         // Each frame's plaintext is one JSON-Lines record with a
         // trailing newline — strip the newline before yielding so
         // the parsed JSON does not carry surprise whitespace.
@@ -153,6 +175,16 @@ class RecordingReader {
     } finally {
       raf.closeSync();
     }
+  }
+
+  /// Mirror of the Rust writer's `frame_index.to_le_bytes()` AAD —
+  /// the LFR v2 contract serialises the per-position counter as
+  /// 8-byte little-endian. Pure helper for [openEncrypted]; lives
+  /// at class scope so the v2 wire shape has one source.
+  static Uint8List _frameIndexAad(int frameIndex) {
+    final bd = ByteData(8);
+    bd.setUint64(0, frameIndex, Endian.little);
+    return bd.buffer.asUint8List();
   }
 
   /// Read just the header line of a recording — used to populate

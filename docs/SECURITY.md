@@ -435,12 +435,18 @@ preserved. Users re-run the wizard only when setting up a new device
 from scratch.
 
 The encryption format is AES-256-GCM under an Argon2id-derived key,
-with the `LFSE 0x02` header carrying the KDF parameters. The import
-path enforces parameter caps (`maxImportArgon2idMemoryKiB`,
-`maxImportArgon2idIterations`, `maxImportArgon2idParallelism`) so a
-hostile header cannot pin the isolate into swap. Archives declaring
-a schema version the current build does not understand are rejected
-with `UnsupportedLfsVersionException` rather than silently dropping
+with the `LFSE 0x03` header carrying the KDF parameters. The pre-IV
+header (magic + version + KDF params + salt) is bound into the
+AES-GCM AAD so an attacker who flips header bytes to coerce a
+weaker KDF derivation invalidates the AEAD tag rather than feeding
+cooked params into the verifier. Pre-AAD legacy `0x02` envelopes
+still decode through a transparent fallback so existing exports
+keep importing. The import path enforces parameter caps
+(`maxImportArgon2idMemoryKiB`, `maxImportArgon2idIterations`,
+`maxImportArgon2idParallelism`) so a hostile header cannot pin the
+isolate into swap. Archives declaring a schema version the current
+build does not understand are rejected with
+`UnsupportedLfsVersionException` rather than silently dropping
 unknown fields.
 
 ## Known limits
