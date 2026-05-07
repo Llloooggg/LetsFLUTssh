@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 
 import '../../src/rust/api/os_security.dart' as rust_os;
+import '../../src/rust/frb_generated.dart' show RustLib;
 import '../../utils/logger.dart';
 
 /// Bridge between OS-level "workstation locked" / "session locked"
@@ -36,9 +37,32 @@ import '../../utils/logger.dart';
 class SessionLockListener {
   SessionLockListener({MethodChannel? channel, Stream<void>? lockEvents})
     : _channel = channel ?? const MethodChannel(_channelName),
-      _injectedEvents = lockEvents;
+      _injectedEvents = lockEvents {
+    _liveInstances.add(this);
+  }
 
   static const _channelName = 'com.letsflutssh/session_lock';
+
+  /// Live instances waiting for FRB readiness. The Linux subscribe
+  /// path goes through `lfs_os_security::session_lock_listener` (FRB);
+  /// AutoLockDetector mounts during the first runApp pass, so the
+  /// initial `addListener` lands BEFORE `_initRustCoreOrFatal`. The
+  /// pre-FRB attempt would throw `StateError` and emit a `SessionLockListener
+  /// Rust subscribe failed` line into the log; instead, the deferred
+  /// install is replayed from `_LetsFLUTsshAppState._wireFrbDependent
+  /// BootstrapListeners` via [retryAllPending] once Rust is up.
+  static final List<SessionLockListener> _liveInstances =
+      <SessionLockListener>[];
+
+  /// Replay the OS subscription on every cached listener whose
+  /// pre-FRB attempt was deferred. Idempotent — a listener already
+  /// installed (`_installed = true`) short-circuits in
+  /// [_ensureInstalled].
+  static void retryAllPending() {
+    for (final l in List<SessionLockListener>.from(_liveInstances)) {
+      l._ensureInstalled();
+    }
+  }
 
   final MethodChannel _channel;
   final Stream<void>? _injectedEvents;
@@ -62,6 +86,7 @@ class SessionLockListener {
     final sub = _streamSub;
     _streamSub = null;
     await sub?.cancel();
+    _liveInstances.remove(this);
   }
 
   /// Drive a lock event into the fan-out without touching the OS
@@ -71,17 +96,24 @@ class SessionLockListener {
 
   void _ensureInstalled() {
     if (_installed) return;
-    _installed = true;
 
     if (_injectedEvents != null) {
+      _installed = true;
       _streamSub = _injectedEvents.listen((_) => _fanOut());
       return;
     }
     if (Platform.isLinux) {
+      // FRB-gated. Pre-`_initRustCoreOrFatal` calls leave `_installed`
+      // false so [retryAllPending] re-attempts after the bootstrap
+      // chain promotes everything else through
+      // `_wireFrbDependentBootstrapListeners`.
+      if (!RustLib.instance.initialized) return;
+      _installed = true;
       _ensureRustStream();
       return;
     }
     if (Platform.isWindows || Platform.isMacOS) {
+      _installed = true;
       _ensureNativeChannel();
     }
     // iOS / Android: lifecycle-paused covers it. No subscription
@@ -96,6 +128,7 @@ class SessionLockListener {
           AppLogger.instance.log(
             'SessionLockListener Rust stream error: $e',
             name: 'SessionLockListener',
+            level: LogLevel.warn,
           );
         },
       );
@@ -103,6 +136,7 @@ class SessionLockListener {
       AppLogger.instance.log(
         'SessionLockListener Rust subscribe failed: $e',
         name: 'SessionLockListener',
+        level: LogLevel.warn,
       );
     }
   }

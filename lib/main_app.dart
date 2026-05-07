@@ -158,6 +158,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // through the live bus.
     unawaited(AutoLockDetector.replayPendingDispatches());
     mark('autolock_dispatches_drained');
+    // Replay any deferred OS-session-lock subscriptions. The
+    // Linux path routes through `lfs_os_security::session_lock_listener`
+    // (FRB); AutoLockDetector mounts pre-FRB so its initial
+    // `SessionLockListener.addListener` left `_installed = false`
+    // instead of throwing the now-silenced "Rust subscribe failed"
+    // line into the log. Promote them now that the core is up.
+    SessionLockListener.retryAllPending();
+    mark('session_lock_listeners_attached');
 
     // FRB-dependent listeners owned directly by the boot chain
     // (prompt subscribers, tier-state observer, foreground bridge)
@@ -251,7 +259,7 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // so opening Settings → Logs is instant. Fire-and-forget —
     // a slow / failing read just means the seed is empty;
     // live entries from `AppLogger` keep populating either way.
-    unawaited(ref.read(logTerminalProvider).ensureSeeded());
+    unawaited(ref.read(logStoreProvider).ensureSeeded());
   }
 
   void _maybeShowCredentialsResetToast() {

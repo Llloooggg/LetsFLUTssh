@@ -5017,21 +5017,45 @@ All error messages are sanitized before logging to prevent accidental exposure o
 
 Usage: `sanitizeErrorMessage(message)` before logging any error that may contain connection details or file paths.
 
-#### Live log viewer (`features/settings/settings_logging.dart` + `settings_logging_parser.dart`)
+#### Live log viewer (`features/settings/settings_logging.dart` + `settings_logging_parser.dart` + `core/logs/log_store.dart` + `providers/log_store_provider.dart`)
 
-Settings → Logging section renders the on-disk log inline with per-row severity tint. The viewer polls the log file every second (paused on background / resumed on foreground) and feeds the raw text through `parseLogEntries` (pure, testable — `settings_logging_parser.dart`) which:
+Settings → Logging section renders the live log inline with per-row severity tint. Data flows through a process-singleton [`LogStore` (`core/logs/log_store.dart`)] — a `ChangeNotifier` that subscribes once to `AppLogger.liveEntries`, retains every emitted entry in an in-memory buffer (soft cap 50 k entries), and publishes the filtered subset the `ListView.builder` iterates over. Boot priming via `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` calls `ensureSeeded()` after FRB init — that path async-reads the on-disk log file and folds its history into the buffer so opening the Logs tab is instant (no on-mount file read, no list rebuild).
 
-- splits primary `HH:MM:SS X [Tag] message` lines via regex `^(\d{2}:\d{2}:\d{2}) ([DIWE]) \[([^\]]+)\] (.*)$`
+`ensureSeeded` merges the disk seed with whatever live entries already arrived during construction: builds a `(timestamp, tag, message)` signature set from the parsed seed, drops any pre-seed live entries whose signature matches the seed (those duplicates appear because `AppLogger.log` writes to disk + emits on `liveEntries` in lock-step — the seed read picks the same bytes off disk), and keeps any truly-late live entries that arrived after the seed read started. Final order: seed (chronological from disk) at the top, leftover live entries at the bottom. Without this merge, boot logs ended up doubled and out of order — live appended at the start, the disk dump trailed behind starting with the `--- Log started ---` banner.
+
+`Off` honours the user's choice on cold-start: the `--dart-define=LETSFLUTSSH_LOG_LEVEL` override seeds the threshold ONLY when `loaded.loadedFromFile == false` (no `config.json` on disk yet — fresh install). After the user has saved any setting at all, the on-disk config wins, including an explicit `Off`. Without this gate, `make run`'s dart-define silently resurrected `info` on every restart, so `Off` looked broken: writes kept happening regardless of the user's pick. Release builds ship with the override null, so this branch is a no-op there.
+
+The Settings viewer shows when logging is on OR when the on-disk file is non-empty (archived from a previous session): `_LogViewerHost` checks `enabled || _logFileHasContent()` and falls through to the viewer with `active = enabled` so the toolbar reads "Live Log" / green dot vs "Archived log" / dim dot. Archived mode keeps export + clear reachable; no live writes happen because `setThreshold(null)` closed the sink.
+
+Parsing is shared between the boot seed and the legacy export-to-clipboard path. `parseLogEntries` (pure, testable — `settings_logging_parser.dart`) is what folds the on-disk text into `LogEntry`s:
+
+- splits primary `HH:MM:SS X [Tag] message` lines via regex `^(\d{2}:\d{2}:\d{2}) ([IWE]) \[([^\]]+)\] (.*)$`
 - folds indented continuation lines (`  Error: ...`, `  Stack trace:`, raw stack frames) into the parent `LogEntry.continuations`
 - tags header lines (`--- Log started <ISO> ---`, `Platform: ...`, `Dart: ...`) + any regex-miss line as `isHeader: true` so the viewer dims them
 
-Each non-header entry renders as a row with:
-- 3 px left border coloured per level (red / amber / blue / dim fg for D)
-- 8 % bg tint on `W` / `E` so error blocks scan at a glance without reading text
-- segment coloring inside the `Text.rich`: timestamp dim, `[Tag]` in the level accent, message in default fg
-- continuations rendered inline (newline-joined) under the parent row so the stack trace sits under the matching tint
+**Uniform row shape — single `Selectable` per entry, regardless of type.** Every entry flows through the same `_LogRow` widget which renders ONE `Container + Text.rich` with no nested selectable widgets. Only the `Container.decoration` border and the inline span sequence change per type:
 
-Filter toolbar above the list: four toggle chips (`D I W E`, D defaults off) + a live-substring search input that AND-combines with the level filter. `SelectionArea` wraps the `ListView.builder` so users drag-select across rows; copy captures plain text (no TextSpan styles leak into the clipboard).
+| Variant | Border | Spans |
+|---|---|---|
+| Routine | 2 px left, level-tinted | `[timestamp dim] [TAG colour] [message] [\n + continuation lines, dim]` |
+| Session-start banner (`--- Log started ... ---`) | 2 px left, `AppTheme.green` | message dim mono, verbatim — the green stripe is the only thing that distinguishes the run boundary from a routine row, keeping the row a uniform Container + Text.rich without bespoke geometry |
+| Plain header (legacy `Platform:` / `Dart:` rows from rotated pre-banner files) | none | message dim mono, verbatim |
+
+The tag is rendered inline as `[TAG]` in the level colour — NOT a `WidgetSpan` chip with its own `Text` child. A `WidgetSpan` would register the inner `Text` as a satellite `Selectable` and break the "single canvas" feel of drag-select: the tag would either skip selection or coalesce as a separate fragment, depending on which `Selectable` the drag rect intersected first. The flat `[TAG]` span keeps the entire row a single `Selectable`. Same reason the session-start line is rendered as a plain header rather than a bespoke banner widget — earlier iterations gave it hairlines + segment splitting + bright bold spans, and every variant introduced non-uniform geometry that broke the SelectionArea run. The `---` framing is enough visual signal on its own.
+
+Rows are physically contiguous (no vertical margins on the `Container`, `height: 1.55` on the base `TextStyle` so the `Text.rich` paint area fills the row vertically). No `Padding` widgets between rows, no per-type wrapper widgets — the `SelectionArea` walks a uniform run of single-`Selectable` rows in paint order, so drag-select doesn't drop on inter-row gaps or in-row padding zones.
+
+The on-disk shape of the session-start line is one row: `--- Log started <YYYY-MM-DD HH:MM:SS> | <os name os version> | LetsFLUTssh <appVersion> ---`. `AppLogger._bannerWritten` suppresses duplicate banners on subsequent reopens within the same process (toggle Off → On in Settings, rotation cycling the file in place); `clearLogs` resets it because a clear is a deliberate new-session boundary. The `LetsFLUTssh <appVersion>` segment is populated from `PackageInfo.fromPlatform()` via `AppLogger.setAppVersion(...)` called from `_mainBody` pre-`runApp`. One row replaces the previous three-row block (`Log started`, `Platform: ...`, `Dart: ...`) — same forensic signal, no duplicate-meaning rows. Older rotated files still carry the legacy three-row shape; those rows fall through to the same header path (no italic, no special weight).
+
+**Cross-process banner dedup at the read side.** `AppLogger._bannerWritten` is per-process — every fresh launch writes its own banner. When two processes start in quick succession without writing anything between them, the file accumulates back-to-back `--- Log started ---` markers (the user-reported "опять два раза лейбл о начале логов"). Writing through this on the disk side would require sync tail-of-file inspection in `_openSink`, which the `path_provider` mock plumbing doesn't make easy in tests. Instead, `LogStore._collapseAdjacentBanners` (run on every seed) and `LogStore._onEntry` (live-stream path) drop the older of two adjacent banners when no content sits between them — the later banner wins because it represents the session that's actually about to log. Other header rows (`Platform: ...`, `Dart: ...` from rotated legacy files) carry distinct content and don't coalesce.
+
+The `SelectionArea`'s right-click / long-press toolbar uses a custom `contextMenuBuilder` only to fix one Flutter default-behaviour gap: a right-click without a prior selection surfaces a `Select all`-only menu, which gives the user nowhere to land a "copy this thing I clicked on" intent. The custom builder appends a `ContextMenuButtonType.copy` item (system-localised "Copy" label, no custom string) that copies the entire buffer when no selection is active; with a live selection the default Copy item already appears and our fallback is suppressed, so the menu reads as the standard system one in both states.
+
+Filter toolbar above the list: three toggle chips (`I W E`, all on by default) + a live-substring search input that AND-combines with the level filter against message + tag + continuation text. Toggling either calls `LogStore.applyFilter` which recomputes the filtered subset against the full buffer and notifies the `ListenableBuilder` wrapping the `ListView.builder`.
+
+`SelectionArea` wraps the `ListView.builder` so drag-select crosses row boundaries natively, and the right-click / long-press context menu is Flutter's default `AdaptiveTextSelectionToolbar` (Copy + Select All) — no custom builder. Toolbar buttons (`Copy log` / `Save log` / `Clear logs`) sit above the box; `Copy log` serialises the buffer's `allEntries` list (filter-independent — the action means "everything captured", not "what is shown after my level filter").
+
+The viewer auto-scrolls to the bottom when new entries land — but only while the user has not manually scrolled away from the tail. Scrolling up flips an internal `_follow` flag off; scrolling back to the bottom flips it back on. This way a support session reading historical context does not get yanked back to the live tail by every routine emit.
 
 #### AppLogger (`utils/logger.dart`)
 

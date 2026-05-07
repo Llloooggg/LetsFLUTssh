@@ -103,7 +103,6 @@ void main() {
       await AppLogger.instance.setThreshold(LogLevel.info);
 
       final logFile = File(AppLogger.instance.logPath!);
-      // Flush to ensure header is written
       final content = await AppLogger.instance.readLog();
       expect(logFile.existsSync(), isTrue);
       expect(content, contains('--- Log started'));
@@ -269,13 +268,92 @@ void main() {
       expect(logsDir.existsSync(), isTrue);
     });
 
-    test('openSink writes platform header', () async {
+    test(
+      'openSink writes a single-line session banner with platform metadata',
+      () async {
+        await AppLogger.instance.init();
+        await AppLogger.instance.setThreshold(LogLevel.info);
+
+        final content = await AppLogger.instance.readLog();
+        // Single-line banner shape: `--- Log started <ts> | <platform> | … ---`.
+        // Replaces the prior three-row block (`Log started`, `Platform: …`,
+        // `Dart: …`) so the viewer shows one cohesive run-boundary instead
+        // of three duplicate-meaning header rows.
+        expect(content, contains('--- Log started'));
+        expect(content, contains('|'));
+        expect(content, contains(Platform.operatingSystem));
+        expect(content, isNot(contains('Dart:')));
+        expect(
+          content.split('\n').any((l) => l.startsWith('Platform:')),
+          isFalse,
+        );
+      },
+    );
+
+    test('openSink banner stamps app version when one was set', () async {
       await AppLogger.instance.init();
+      AppLogger.instance.setAppVersion('9.9.9');
       await AppLogger.instance.setThreshold(LogLevel.info);
 
       final content = await AppLogger.instance.readLog();
-      expect(content, contains('Platform:'));
-      expect(content, contains('Dart:'));
+      expect(content, contains('LetsFLUTssh 9.9.9'));
+    });
+
+    test(
+      'toggling Off → On in the same process does NOT duplicate the session banner',
+      () async {
+        // Reproduces the user-reported "опять два раза лейбл о начале
+        // логов" — every reopen used to write a fresh `--- Log started
+        // ---` line; pre-fix, two pictures of the same session boundary
+        // accumulated in the file (and the viewer rendered both as
+        // separate `_SessionBoundary` banners). Banner now lives behind
+        // the `_bannerWritten` flag — one banner per process, period.
+        await AppLogger.instance.init();
+        await AppLogger.instance.setThreshold(LogLevel.info);
+        AppLogger.instance.log('between', name: 'T');
+        await AppLogger.instance.setThreshold(null); // close
+        await AppLogger.instance.setThreshold(LogLevel.info); // reopen
+        AppLogger.instance.log('after-toggle', name: 'T');
+
+        final content = await AppLogger.instance.readLog();
+        final bannerCount = '--- Log started'.allMatches(content).length;
+        expect(bannerCount, 1);
+        // Both messages still landed.
+        expect(content, contains('between'));
+        expect(content, contains('after-toggle'));
+      },
+    );
+
+    test(
+      'clearLogs resets the banner gate so the next reopen labels the new session',
+      () async {
+        await AppLogger.instance.init();
+        await AppLogger.instance.setThreshold(LogLevel.info);
+        AppLogger.instance.log('pre-clear', name: 'T');
+        await AppLogger.instance.clearLogs();
+        AppLogger.instance.log('post-clear', name: 'T');
+
+        // Need to flush the new sink to read fresh content.
+        await AppLogger.instance.dispose();
+        await AppLogger.instance.init();
+        final content = await AppLogger.instance.readLog();
+        // After clear, the file starts fresh with one banner above the
+        // post-clear entries — the user explicitly created a new
+        // boundary, so the banner is the right forensic anchor.
+        final bannerCount = '--- Log started'.allMatches(content).length;
+        expect(bannerCount, 1);
+        expect(content, isNot(contains('pre-clear')));
+        expect(content, contains('post-clear'));
+      },
+    );
+
+    test('openSink banner omits version segment when none was set', () async {
+      await AppLogger.instance.init();
+      // No setAppVersion call.
+      await AppLogger.instance.setThreshold(LogLevel.info);
+
+      final content = await AppLogger.instance.readLog();
+      expect(content, isNot(contains('LetsFLUTssh ')));
     });
 
     test('rotation creates .log.1 when file exceeds max size', () async {

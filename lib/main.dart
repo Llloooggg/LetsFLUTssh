@@ -4,6 +4,7 @@ import 'dart:ui' show PlatformDispatcher;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'l10n/app_localizations.dart';
 import 'app/app_toolbar.dart';
@@ -26,6 +27,7 @@ import 'core/security/backup_exclusion.dart';
 import 'core/security/lock_state.dart';
 import 'core/security/process_hardening.dart';
 import 'core/security/secure_key_storage.dart';
+import 'core/security/session_lock_listener.dart';
 import 'features/mobile/mobile_shell.dart';
 import 'features/session_manager/session_connect.dart';
 import 'features/session_manager/session_edit_dialog.dart';
@@ -40,7 +42,7 @@ import 'providers/config_provider.dart';
 import 'providers/connection_provider.dart';
 import 'providers/first_launch_banner_provider.dart';
 import 'providers/locale_provider.dart';
-import 'providers/log_terminal_provider.dart';
+import 'providers/log_store_provider.dart';
 import 'providers/security_provider.dart';
 import 'providers/security_reinit_provider.dart';
 import 'providers/session_provider.dart';
@@ -391,14 +393,31 @@ Future<void> _mainBody() async {
   }
   final config = loaded.config;
   await loggerInit; // ensure log path resolved before enabling file logging
-  // `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` overrides the on-
-  // disk config on dev / beta-tester builds so fresh installs start
-  // with logs enabled without a Settings-tweak round-trip. Release
-  // builds ship without the flag → we honour whatever the user
-  // stored in config.json (default: null / off).
-  await AppLogger.instance.setThreshold(
-    buildTimeLogLevelOverride ?? config.logLevel,
-  );
+  // Stamp the app version into the logger before the sink opens —
+  // `setThreshold` below opens the sink which writes the session
+  // banner including the version. `PackageInfo.fromPlatform` rides on
+  // a Flutter platform channel, not the Rust core, so it works fine
+  // pre-FRB. Best-effort — a failed lookup leaves the banner with a
+  // version-less form.
+  try {
+    final pkg = await PackageInfo.fromPlatform();
+    AppLogger.instance.setAppVersion(pkg.version);
+  } catch (_) {
+    // Best-effort. The banner falls back to platform-only metadata.
+  }
+  // `--dart-define=LETSFLUTSSH_LOG_LEVEL=<level>` seeds the threshold
+  // ONLY on the very first launch (no `config.json` on disk yet). After
+  // that, the user's choice from Settings → Logging wins — including
+  // an explicit `Off`. Without this gate the dart-define silently
+  // overrides every restart on `make run`, which made the user
+  // observe "Off was broken — logs kept being written" because the
+  // dev-build override resurrected `info` on every cold start.
+  // Release builds ship without the flag → the override is null and
+  // the on-disk config is the only signal regardless of this branch.
+  final effectiveLevel = loaded.loadedFromFile
+      ? config.logLevel
+      : (buildTimeLogLevelOverride ?? config.logLevel);
+  await AppLogger.instance.setThreshold(effectiveLevel);
 
   // Already running inside `runZonedGuarded` from the outer `main()` —
   // launch the app directly; zone errors are routed through the outer

@@ -161,6 +161,24 @@ class AppLogger {
 
   IOSink? _sink;
   String? _logPath;
+  // App version stamped into the session-start banner the sink writes
+  // on first open. `_mainBody` resolves this from `PackageInfo.fromPlatform`
+  // before [setThreshold] flips logging on, so the banner already
+  // carries the right version without touching the file twice. Stays
+  // null in flutter_test contexts — the banner falls through to the
+  // platform string only.
+  String? _appVersion;
+  // Set on the first `_openSink` call; suppresses duplicate banners
+  // on subsequent reopens within the same process (Settings toggling
+  // Off → On, [_rotateIfNeeded] cycling the file). [clearLogs] resets
+  // it to false because a clear is a deliberate "new session"
+  // boundary — the next reopen lands a fresh banner above the new
+  // entries instead of leaving a banner-less file. [dispose] also
+  // resets so test setUp gets a clean slate. Cross-process duplicate
+  // banners (process A wrote a banner, exited; process B writes
+  // another) are NOT deduplicated here — `LogStore._appendEntry`
+  // collapses adjacent banners on the viewer side instead.
+  bool _bannerWritten = false;
   // Current minimum severity that hits the sink. `null` = logging
   // off; any LogLevel admits lines at or above that level. Critical
   // paths ([logCritical]) bypass this gate so crash breadcrumbs
@@ -198,6 +216,15 @@ class AppLogger {
 
   /// Path to the current log file, or null if not initialized.
   String? get logPath => _logPath;
+
+  /// Stamp the app version that the next [_openSink] writes into the
+  /// session-start banner. Wired from `_mainBody` after
+  /// `PackageInfo.fromPlatform` resolves; idempotent. Best-effort —
+  /// callers do not check for failures, the banner falls back to a
+  /// version-less form when this stays null.
+  void setAppVersion(String version) {
+    _appVersion = version;
+  }
 
   /// Whether file logging is currently enabled (threshold set).
   bool get enabled => _threshold != null;
@@ -285,18 +312,39 @@ class AppLogger {
       final file = File(_logPath!);
       _sink = file.openWrite(mode: FileMode.append);
       await _restrictPermissions(_logPath!);
-
-      final now = DateTime.now().toIso8601String();
-      _sink!.writeln('--- Log started $now ---');
-      _sink!.writeln(
-        'Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
-      );
-      _sink!.writeln('Dart: ${Platform.version.split(' ').first}');
-      _sink!.writeln('');
+      if (!_bannerWritten) {
+        _sink!.writeln(_buildSessionBanner());
+        _sink!.writeln('');
+        _bannerWritten = true;
+      }
     } catch (_) {
       // Sink open failed — leave _sink null so writes no-op; no OS-
       // logging fallback by design.
     }
+  }
+
+  /// Single-line session-start banner the viewer renders as
+  /// [`_SessionBoundary`]. Carries every piece of run-identifying
+  /// metadata in one row so a support session reading the file (or
+  /// scrolling the viewer) sees the boundary between two app runs at
+  /// a glance — without three separate header lines duplicating the
+  /// same "this is a new session" signal. Pipe-delimited so the
+  /// viewer can split into segments without a regex.
+  String _buildSessionBanner() {
+    final now = DateTime.now();
+    final timestamp =
+        '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')} '
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}:'
+        '${now.second.toString().padLeft(2, '0')}';
+    final platform =
+        '${Platform.operatingSystem} ${Platform.operatingSystemVersion}'.trim();
+    final parts = <String>['Log started $timestamp', platform];
+    final v = _appVersion;
+    if (v != null && v.isNotEmpty) parts.add('LetsFLUTssh $v');
+    return '--- ${parts.join(' | ')} ---';
   }
 
   /// Narrow the log file's POSIX permissions to owner-only (`0600`)
@@ -564,6 +612,8 @@ class AppLogger {
   /// a non-null value.
   Future<void> dispose() async {
     _threshold = null;
+    _appVersion = null;
+    _bannerWritten = false;
     await _coreLogSub?.cancel();
     _coreLogSub = null;
     await _closeSink();
@@ -602,6 +652,10 @@ class AppLogger {
         await file.delete();
       }
     }
+    // Clear is a deliberate "new session" boundary — let the next
+    // [_openSink] write a fresh banner above the post-clear entries
+    // instead of leaving a banner-less file.
+    _bannerWritten = false;
 
     if (previousThreshold != null) await _openSink();
   }
