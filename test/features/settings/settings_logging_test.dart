@@ -347,12 +347,6 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
     });
-
-    // The lifecycle / timer-cancellation tests previously sitting here
-    // covered a 1-second `Timer.periodic` log-file poll. The viewer
-    // now subscribes to `AppLogger.liveEntries` instead, with no
-    // timer to start, stop, or cancel — the lifecycle hooks were
-    // removed alongside the polling. Nothing left to assert.
   });
 
   group('parseLogEntries', () {

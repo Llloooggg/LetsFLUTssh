@@ -316,10 +316,23 @@ A long comment is almost always one of three things:
 **2. Current state only — no retrospective.** A comment describes the code *as it is now*. Forbidden phrases (search-replace any of these out when you see them):
 
 - `originally...` / `originally we tried...`
-- `previously...` / `the previous Dart-side...` / `earlier revisions...`
+- `previously...` / `the previous Dart-side...` / `earlier revisions...` / `the earlier <name>...`
 - `after the migration...` / `replaces the historical...` / `replaces the legacy...`
 - `now retired` / `now Rust-side` / `moved out of...` / `moved to...`
-- `the legacy path...` / `before we...` / `we used to...`
+- `the legacy path...` / `before we...` / `we used to...` / `Two sources used to break that...`
+- `Mirrors the prior Dart...` / `Matches the prior...` / `the prior Dart implementation`
+- `pre-fix...` / `Pre-fix shape...` / `pre-fix every shape was...`
+
+The "what was the bug, what is the new shape" prose belongs in the **commit message** that lands the change, not in the source. Once committed, the comment is the only thing that gets read — and "we used to do X, now we do Y" is wrong-by-construction the moment a reader scans it: X is gone, only Y exists. Future readers do not need a tour of the headstones.
+
+The exception is when **the prior shape can come back as a regression** and naming it teaches a future maintainer the trap. In that case write the *invariant* + a one-line *why* with a marker future grep can find:
+
+```dart
+// `\x1B[H` resets the cursor; `\x1B[2J` alone leaves it at the
+// last write position and the next paint redraws over stale lines.
+```
+
+The comment names the present rule + the hazard behind it. It does **not** say "we used to skip the cursor reset and got X". State the rule, name the trap, move on.
 
 History lives in git log + commit messages — readers who need it have those. A comment that explains "what this used to be and why we changed" is noise on top of noise: the "before" disappears from the code base immediately, so the comment is wrong by the time anyone reads it.
 
@@ -332,6 +345,10 @@ History lives in git log + commit messages — readers who need it have those. A
 **Editing existing long comments.** Same rule applies. Shorten them, drop the retrospective, link to `ARCHITECTURE.md` for any rationale that doesn't fit one line. Do not preserve "for context" — git history is the context.
 
 **Test before shipping a comment.** Read the line as a stranger picking up the file fresh. If removing it would make a future reader confused → keep it, in one short line. Otherwise → delete it.
+
+**Review check.** Before every commit grep the staged diff for `previously`, `pre-fix`, `Pre-fix`, `the prior`, `the earlier`, `Mirrors the prior`, `used to`, `originally`, `legacy` (in narrative voice — `legacy fallback path` describing a runtime alternative is fine; `replaces the legacy` is not). False positives are cheap; a leaked retrospective is forever.
+
+**Past offence (2026-05-07):** the macOS code-signing migration arc shipped `//! Mirrors the prior Dart MacosInstaller orchestrator step for step` and similar retrospectives across `lfs_os_security/src/macos/code_signing.rs` + `installer.rs` + `lib.rs`, plus `// The lifecycle / timer-cancellation tests previously sitting here` in `settings_logging_test.dart`. User caught the pattern and asked the rule strengthened. Same offender (this agent) had committed the same shape in earlier sessions despite the rule already existing — the failure mode is "I treated comment-writing as commit-message-writing". Don't.
 
 Same rule applies to Rust `//`/`///`/`//!` doc comments and to Dart `///` doc comments — short, current, no retrospective. Multi-paragraph module-level `//!` docstrings get the same `ARCHITECTURE.md`-link treatment.
 

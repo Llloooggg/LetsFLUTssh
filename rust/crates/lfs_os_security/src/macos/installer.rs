@@ -1,10 +1,9 @@
 //! Silent DMG installer for the macOS auto-update path.
 //!
-//! Mirrors the prior Dart `MacosInstaller` orchestrator step for
-//! step. The flow turns a downloaded `.dmg` into a swapped-in
-//! `.app` bundle without user interaction; failures roll back to
-//! the pre-install state, so a partial install never leaves the
-//! user with a corrupt bundle.
+//! Turns a downloaded `.dmg` into a swapped-in `.app` bundle
+//! without user interaction; any failure before the atomic swap
+//! rolls back so a partial install never leaves the user with a
+//! corrupt bundle.
 //!
 //! ## Pipeline
 //!
@@ -78,11 +77,10 @@ use crate::subprocess_util::{
     run_subprocess as run_subprocess_util, RunError,
 };
 
-/// Outcome enum returned by [`install`]. Mirrors the prior
-/// Dart `InstallOutcome` shape; consumers (the silent-update
-/// callback in `update_provider.dart`) collapse `Succeeded` →
-/// `true` and the others → `false` to drive the relaunch
-/// vs. fall-back-to-Finder branch.
+/// Outcome enum returned by [`install`]. Consumers (the silent-
+/// update callback in `update_provider.dart`) collapse
+/// `Succeeded` → `true` and the others → `false` to drive the
+/// relaunch vs. fall-back-to-Finder branch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InstallOutcome {
     /// Bundle swapped, re-signed under the existing personal

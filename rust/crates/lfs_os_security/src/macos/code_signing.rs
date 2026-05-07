@@ -1,9 +1,11 @@
 //! Self-sign / re-sign pipeline for the macOS bundle.
 //!
-//! Mirrors the prior Dart `lib/platform/macos/code_signing/`
-//! orchestrator function-for-function — same subprocess
-//! grammar, same ordering, same idempotency. Moving the logic
-//! here keeps Dart on the rendering side of the Rust split.
+//! Drives `/usr/bin/openssl`, `/usr/bin/security`, and
+//! `/usr/bin/codesign` to mint a user-owned signing identity in
+//! the login keychain and re-sign the running `.app` under it,
+//! so Keychain Services keep recognising the bundle as the same
+//! designated requirement across releases (the T1 / T2 secure
+//! tier rests on that stability).
 //!
 //! ## Pipeline overview
 //!
@@ -47,9 +49,8 @@ use crate::subprocess_util::{
     RunError, SubprocessFailure,
 };
 
-/// Outcome enum returned by [`resign_bundle`]. Mirrors the prior
-/// Dart `ResignOutcome` shape; the values are 1:1 with the
-/// settings-UI branches that consume them.
+/// Outcome enum returned by [`resign_bundle`]. Variants map 1:1
+/// to the settings-UI branches that consume them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResignOutcome {
     Succeeded,
@@ -397,7 +398,7 @@ async fn resign_inside_out(
     common_name: &str,
     entitlements_plist: Option<&str>,
 ) -> Result<(), Error> {
-    // Order of operations matches the prior Dart implementation:
+    // Leaf-first sign order, sequenced for codesign's ABI:
     //   1. every `*.dylib` under `Contents/`
     //   2. every `*.framework` dir under `Contents/Frameworks/`
     //   3. every `*.xpc` / `*.appex` helper under `Contents/`
