@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/connection.dart';
-import 'package:letsflutssh/core/connection/connection_extension.dart';
 import 'package:letsflutssh/core/ssh/ssh_config.dart';
 
 void main() {

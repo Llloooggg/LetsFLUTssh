@@ -14,7 +14,6 @@ import '../ssh/ssh_config.dart';
 import '../ssh/transport/ssh_transport.dart';
 import 'connection.dart';
 import 'connection_step.dart';
-import 'connection_step_mappers.dart';
 
 /// Active SSH connections — Riverpod-native [Notifier] that owns
 /// the in-memory `Connection` map + connect/reconnect/disconnect

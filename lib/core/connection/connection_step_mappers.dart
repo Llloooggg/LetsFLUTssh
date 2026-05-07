@@ -1,8 +1,4 @@
-import '../../src/rust/api/bus.dart' as rust_bus;
-import '../ssh/ssh_config.dart';
-import '../ssh/transport/ssh_transport.dart';
-import 'connection.dart';
-import 'connection_step.dart';
+part of 'connection.dart';
 
 /// Map the FRB-mirrored phase enum to the Dart enum the UI
 /// renders against. Lives in its own file so callers that don't

@@ -9,7 +9,7 @@ import '../features/settings/export_import.dart';
 import '../src/rust/api/archive.dart' as rust_archive;
 import '../src/rust/api/qr_compose.dart' as rust_compose;
 import '../utils/format.dart' as utils_format;
-import 'unified_export_dialog.dart';
+import 'unified_export_models.dart';
 
 /// Identity of the currently-active preset. Kept in the controller as a
 /// plain enum so widget layers can map it to a localized label without

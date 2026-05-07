@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:letsflutssh/core/connection/connection.dart';
 import 'package:letsflutssh/core/connection/connection_step.dart';
-import 'package:letsflutssh/core/connection/connection_step_mappers.dart';
 import 'package:letsflutssh/core/ssh/transport/ssh_transport.dart';
 import 'package:letsflutssh/src/rust/api/bus.dart' as rust_bus;
 

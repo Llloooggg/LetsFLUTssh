@@ -1,4 +1,4 @@
-import 'connection.dart';
+part of 'connection.dart';
 
 /// Lifecycle hook for features that ride along with an SSH connection.
 ///

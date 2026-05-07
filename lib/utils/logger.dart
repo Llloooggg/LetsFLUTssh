@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-import '../features/settings/settings_logging_parser.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
 import '../src/rust/api/format.dart' as rust_format;
 import '../src/rust/api/path.dart' as rust_path;
@@ -34,6 +33,40 @@ import 'sanitize.dart';
 ///   and bypasses the threshold so crash forensics are always on
 ///   disk. Red tint + left border.
 enum LogLevel { info, warn, error }
+
+/// One rendered row in the log viewer — either a parsed
+/// `HH:MM:SS X [Tag] message` line with its continuation lines
+/// (error / stack trace body), or a header / raw line that did
+/// not match the format.
+///
+/// Continuations are folded into the parent entry so a multi-line
+/// error + stack trace renders under a single tinted row instead
+/// of each indented line fighting for its own left-border.
+///
+/// Defined here (not in `lib/features/settings/settings_logging_parser.dart`)
+/// because [AppLogger] eagerly constructs a
+/// `StreamController<LogEntry>` field initializer; routing the
+/// type definition through a sibling that imports `logger.dart`
+/// back creates a circular import whose runtime initialisation
+/// order silently aborts boot before the zone error handler is
+/// installed.
+class LogEntry {
+  final LogLevel? level;
+  final String? timestamp;
+  final String? tag;
+  final String message;
+  final List<String> continuations;
+  final bool isHeader;
+
+  const LogEntry({
+    this.level,
+    this.timestamp,
+    this.tag,
+    required this.message,
+    this.continuations = const [],
+    this.isHeader = false,
+  });
+}
 
 /// Format the log timestamp prefix as `HH:MM:SS` via
 /// `lfs_core::format::format_clock_hms`. Only called from inside
@@ -441,7 +474,6 @@ class AppLogger {
     final tag = name ?? 'App';
     final safeMsg = sanitize(message);
     final safeError = error == null ? null : sanitize(error.toString());
-    if (_logPath == null) return;
     final now = DateTime.now();
     final ts = _formatHmsForLog(now);
     final continuations = <String>[];
@@ -452,6 +484,30 @@ class AppLogger {
         if (frame.isEmpty) continue;
         continuations.add('  $frame');
       }
+    }
+    // Stderr mirror — desktop only, critical path only. Routine
+    // `log()` calls never touch stderr (file-only by design,
+    // privacy-first). Critical writes mirror because the file
+    // sink can fail (disk full, permissions, missing path) and
+    // the whole point of `logCritical` is forensic visibility on
+    // a crashing app. On a desktop launched from a terminal the
+    // stderr line is the difference between "process died
+    // silently" and "I have a stack trace to grep".
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+      try {
+        stderr.writeln('$ts E [$tag] $safeMsg');
+        for (final c in continuations) {
+          stderr.writeln(c);
+        }
+      } catch (_) {
+        // Best-effort. Stderr write must never amplify into
+        // a second crash inside the crash handler.
+      }
+    }
+    if (_logPath == null) {
+      // No file sink — stderr above is the only forensic
+      // surface. Skip the file write + entry emit.
+      return;
     }
     _emitEntry(
       LogEntry(

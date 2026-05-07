@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../core/config/app_config.dart';
 import '../core/session/qr_codec.dart';
 import '../core/session/session.dart';
 import '../core/session/session_tree.dart';
 import '../widgets/shortcut_registry.dart';
-import '../core/snippets/snippet.dart';
-import '../core/tags/tag.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import 'app_dialog.dart';
@@ -14,32 +11,11 @@ import 'app_divider.dart';
 import 'data_checkboxes.dart';
 import 'hover_region.dart';
 import 'unified_export_controller.dart';
+import 'unified_export_models.dart';
+export 'unified_export_models.dart'
+    show UnifiedExportDialogData, UnifiedExportResult;
 
 part 'unified_export_dialog_tree.dart';
-
-/// Bundle of data displayed by [UnifiedExportDialog]. Groups related
-/// optional parameters so the dialog's `show()` stays small.
-class UnifiedExportDialogData {
-  final List<Session> sessions;
-  final Set<String> emptyFolders;
-  final AppConfig? config;
-  final String? knownHostsContent;
-
-  /// All tags for size calculation and export.
-  final List<Tag> tags;
-
-  /// All snippets for size calculation and export.
-  final List<Snippet> snippets;
-
-  const UnifiedExportDialogData({
-    required this.sessions,
-    required this.emptyFolders,
-    this.config,
-    this.knownHostsContent,
-    this.tags = const [],
-    this.snippets = const [],
-  });
-}
 
 /// Unified export dialog for both QR code and .lfs archive export.
 class UnifiedExportDialog extends StatefulWidget {
@@ -405,16 +381,4 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
       ),
     );
   }
-}
-
-class UnifiedExportResult {
-  final ExportOptions options;
-  final List<Session> selectedSessions;
-  final Set<String> selectedEmptyFolders;
-
-  const UnifiedExportResult({
-    required this.options,
-    required this.selectedSessions,
-    required this.selectedEmptyFolders,
-  });
 }

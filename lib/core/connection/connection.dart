@@ -9,9 +9,10 @@ import '../bus/app_bus.dart';
 import '../ssh/ssh_config.dart';
 import '../ssh/transport/rust_transport.dart';
 import '../ssh/transport/ssh_transport.dart';
-import 'connection_extension.dart';
 import 'connection_step.dart';
-import 'connection_step_mappers.dart';
+
+part 'connection_extension.dart';
+part 'connection_step_mappers.dart';
 
 /// SSH connection lifecycle state.
 enum SSHConnectionState { disconnected, connecting, connected }

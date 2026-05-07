@@ -186,6 +186,19 @@ Anything else — "this is convenient as-is", "tests would need a rewrite", "FRB
 
 The exception is real; the bar is "concrete regression we can point at", not "feels iffy". Both reverts ship with measurements (multi-minute hangs in the unlock cascade for the listener subscriptions, silent config overwrites for the AppConfig sanitize) and the rewrite drops scaffolding code (defensive guards, retry mechanisms) on net.
 
+**Cost is not a selection criterion, either.** When facing alternatives — different defence layers for the same fault class, two implementation paths, choice of library — the bar is *which one is the industrial best practice*, not *which one is cheapest to implement*. Two corollaries:
+
+- **When alternatives are complementary, the right answer is the union, not "pick one".** Static lint + runtime fallback + observability for the same fault class are layered defence; the best practice is all three, not the cheapest one. Defence-in-depth is the standard everywhere except at the most resource-constrained edges, and this project is neither size- nor compile-time-budget-constrained. "Pick one to keep things simple" is a different (lower) bar than the project asks for.
+- **Presenting alternatives ranked by cost is an anti-pattern.** Phrases like *"option A (cheap) / option B (medium) / option C (heavy)"* invert the selection axis — the conversation should be ranked by *which is the best practice* (or which combination is). Cost shows up only when telling the user how long the work will take, not when picking the approach. Past offence: when the user asked how to harden boot-crash detection, the agent offered three options ranked by cost; user pushed back ("нас не интересует цена реализации"). The right answer was the layered defence — all three, executed.
+
+Anti-patterns to suppress (the running list, expanded):
+
+- (a) offering exit ramps ("session closed?", "wrap up?", "continue or stop?") between every step
+- (b) pre-emptively declaring a sweep "subjective" / "needs your anchor" without trying first
+- (c) conflating "this WSL box can't test platform X" with "no point writing the code"
+- (d) `TODO` / `FIXME` / `XXX` markers in the code as "I'll get to it" deferrals
+- (e) ranking alternatives by implementation cost / "cheap / medium / heavy" — best practice is the criterion, and complementary alternatives compose into the union, not a pick
+
 **When this rule binds the conversation:** any time the user uses one of the batch-mode signals — `до идеала` (to the ideal), `три кита` (three pillars), `идеал кода`, `even from scratch`, `добиваем` (let's finish it off), `Делаем` (let's do it), or any equivalent paraphrase in any language. Once the signal lands, default to "go end-to-end, don't ask, emit one combined summary at the arc end". Don't pause to re-litigate the cost/benefit on individual items — the user has already decided.
 
 **When this rule does *not* bind:** a one-off bug fix or a feature add that is not a migration / refactor / consolidation arc. The pillars apply to the general direction; they don't compel rewriting unrelated code that happens to be touched.

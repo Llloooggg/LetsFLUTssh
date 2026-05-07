@@ -298,6 +298,31 @@ Future<void> _mainBody() async {
     );
   };
 
+  // Eager smoke-touch of critical singletons whose field
+  // initializers run on first access. Triggering them here —
+  // after FlutterError / PlatformDispatcher / Zone error
+  // handlers are installed — converts a silent VM abort during
+  // field init into a logCritical entry the watchdog can
+  // capture. Past offence: a circular import between AppLogger
+  // and a sibling file killed the VM during eager
+  // `StreamController<LogEntry>` field init before any
+  // watchdog could record the failure; only `--- Log started`
+  // landed on disk. Touching `liveEntries` here forces the
+  // initializer inside the watchdog window.
+  try {
+    AppLogger.instance.liveEntries;
+  } catch (e, st) {
+    unawaited(
+      AppLogger.instance.logCritical(
+        'AppLogger live-stream smoke-touch failed',
+        name: 'BootSmoke',
+        error: e,
+        stackTrace: st,
+      ),
+    );
+    rethrow;
+  }
+
   AppLogger.instance.log('App starting', name: 'App');
 
   // Single-instance enforcement happens in the native shell BEFORE

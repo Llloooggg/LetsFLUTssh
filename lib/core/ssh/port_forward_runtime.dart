@@ -3,7 +3,6 @@ import 'dart:async';
 import '../../src/rust/api/forward.dart' as rust_fwd;
 import '../../utils/logger.dart';
 import '../connection/connection.dart';
-import '../connection/connection_extension.dart';
 import 'port_forward_rule.dart';
 
 /// Spawns Rust-side port-forward listeners (`-L` / `-D` / `-R`)
