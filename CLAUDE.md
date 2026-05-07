@@ -47,7 +47,7 @@ These apply to every response without re-reading:
 - **HARD STOP between fixes** — implement → tests → docs → post-fix summary → ask to commit. Batch-mode signals from the user override (one combined summary at the arc's end). Full rule: [AGENT_RULES § Commits & Versioning](docs/AGENT_RULES.md#commits--versioning).
 - **Default branch is `dev`.** Never push to `main` directly.
 - **All files in English only** — code, comments, commits, docs.
-- **No plan-item IDs in public artifacts** — no `P1.2-*` / `Phase E1` / `Task 3.2` in commits, code, filenames, or any tracked doc. Full rule: [AGENT_RULES § Plan-Item IDs Stay Internal](docs/AGENT_RULES.md#plan-item-ids-stay-internal).
+- **No plan-item IDs in public artifacts** — no `P1.2-*` / `Phase E1` / `Task 3.2` / `§3.2` (ARCHITECTURE.md section numerals leaking outside the doc) in commits, code, filenames, or any tracked artefact. Refer to ARCHITECTURE.md sections by topic in commit messages and code comments ("the SFTP module description"), never by number. Full rule: [AGENT_RULES § Plan-Item IDs Stay Internal](docs/AGENT_RULES.md#plan-item-ids-stay-internal).
 - **Never suppress issues** — no `// ignore:`, `// NOSONAR`, `@SuppressWarnings`. Fix root cause.
 - **Comments stay short and reflect current state** — one line max, no retrospective (`originally...`, `previously...`, `replaces the legacy...`). Git log holds history; comments hold the present invariant. Long rationale → ARCHITECTURE.md + a one-line link comment. Full rule: [AGENT_RULES § Comments](docs/AGENT_RULES.md#comments--short-and-current).
 - **Never amend after push** — new commits only. Amend OK only before first push.
