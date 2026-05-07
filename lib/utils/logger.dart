@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../src/rust/api/bus.dart' as rust_bus;
-import '../src/rust/api/format.dart' as rust_format;
 import '../src/rust/api/path.dart' as rust_path;
 import 'sanitize.dart';
 
@@ -68,15 +67,20 @@ class LogEntry {
   });
 }
 
-/// Format the log timestamp prefix as `HH:MM:SS` via
-/// `lfs_core::format::format_clock_hms`. Only called from inside
-/// AppLogger.log's threshold-gated write path, so unbootstrapped
-/// tests that never enable file logging never reach this code.
-String _formatHmsForLog(DateTime now) => rust_format.formatClockHms(
-  hour: now.hour,
-  minute: now.minute,
-  second: now.second,
-);
+/// Format the log timestamp prefix as `HH:MM:SS`.
+///
+/// Pure Dart on purpose — `logCritical` is the crash-path logger
+/// the zone error handler in `main.dart` calls. The handler can
+/// fire while `RustLib.init()` is still pending or already
+/// failing; routing the timestamp through FRB would crash the
+/// crash handler with `flutter_rust_bridge has not been
+/// initialized` and swallow the original error, which is the
+/// exact failure mode the project's cold-start ordering rule
+/// exists to prevent.
+String _formatHmsForLog(DateTime now) =>
+    '${now.hour.toString().padLeft(2, '0')}:'
+    '${now.minute.toString().padLeft(2, '0')}:'
+    '${now.second.toString().padLeft(2, '0')}';
 
 String _levelChar(LogLevel l) => switch (l) {
   LogLevel.info => 'I',

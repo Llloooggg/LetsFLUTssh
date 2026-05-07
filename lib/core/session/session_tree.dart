@@ -45,10 +45,20 @@ class SessionTree {
   /// Build tree from flat session list.
   ///
   /// [emptyFolders] — folder paths that should appear even without sessions.
+  ///
+  /// Pre-FRB-init callers (Riverpod providers that build during the
+  /// first runApp pass — e.g. `filteredSessionTreeProvider` watched
+  /// by SessionPanel under the splash) get an empty list back.
+  /// `sessions` is empty in that window anyway because the data
+  /// providers also gate on FRB, so the empty tree matches the empty
+  /// session list. Once `_initRustCoreOrFatal` resolves and
+  /// `sessionProvider` reloads, Riverpod re-runs the dependent
+  /// providers and the real tree lands.
   static List<SessionTreeNode> build(
     List<Session> sessions, {
     Set<String> emptyFolders = const {},
   }) {
+    if (sessions.isEmpty && emptyFolders.isEmpty) return const [];
     final byId = {for (final s in sessions) s.id: s};
     final inputs = sessions
         .map(
@@ -60,11 +70,18 @@ class SessionTree {
           ),
         )
         .toList();
-    final raw = rust_tree.sessionTreeBuild(
-      sessions: inputs,
-      emptyFolders: emptyFolders.toList(),
-    );
-    return raw.map((n) => _wrap(n, byId)).toList();
+    try {
+      final raw = rust_tree.sessionTreeBuild(
+        sessions: inputs,
+        emptyFolders: emptyFolders.toList(),
+      );
+      return raw.map((n) => _wrap(n, byId)).toList();
+    } on StateError catch (e) {
+      if (e.message.contains('flutter_rust_bridge has not been initialized')) {
+        return const [];
+      }
+      rethrow;
+    }
   }
 
   static SessionTreeNode _wrap(

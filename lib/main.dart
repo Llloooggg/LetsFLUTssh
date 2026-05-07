@@ -303,12 +303,7 @@ Future<void> _mainBody() async {
   // after FlutterError / PlatformDispatcher / Zone error
   // handlers are installed — converts a silent VM abort during
   // field init into a logCritical entry the watchdog can
-  // capture. Past offence: a circular import between AppLogger
-  // and a sibling file killed the VM during eager
-  // `StreamController<LogEntry>` field init before any
-  // watchdog could record the failure; only `--- Log started`
-  // landed on disk. Touching `liveEntries` here forces the
-  // initializer inside the watchdog window.
+  // capture.
   try {
     AppLogger.instance.liveEntries;
   } catch (e, st) {
@@ -407,12 +402,7 @@ Future<void> _mainBody() async {
 
   // Already running inside `runZonedGuarded` from the outer `main()` —
   // launch the app directly; zone errors are routed through the outer
-  // handler. Previously we opened a second nested `runZonedGuarded`
-  // here, but Flutter's `WidgetsBinding.ensureInitialized` (called at
-  // the top of `_mainBody`) must execute in the same zone as the
-  // final `runApp` or the framework logs "Zone mismatch" on every
-  // startup. Collapsing the two zone-guards into the single outer
-  // one fixes that.
+  // handler.
   runApp(
     ProviderScope(
       overrides: [preloadedAppConfigProvider.overrideWithValue(config)],
