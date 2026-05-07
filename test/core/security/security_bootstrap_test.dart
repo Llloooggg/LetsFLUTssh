@@ -94,8 +94,6 @@ void main() {
       expect(mapped.tier, SecurityTier.keychain);
       expect(mapped.modifiers.password, isTrue);
       expect(mapped.modifiers.biometric, isTrue);
-      // Legacy alias must stay in sync.
-      expect(mapped.modifiers.biometricShortcut, isTrue);
     });
 
     test('hardware → hardware tier with pin populated from typedSecret', () {
@@ -122,43 +120,31 @@ void main() {
     });
   });
 
-  group('SecurityTierModifiers additive fields', () {
+  group('SecurityTierModifiers bank-style fields', () {
     test('defaults leave password + biometric off', () {
       const m = SecurityTierModifiers.defaults;
       expect(m.password, isFalse);
       expect(m.biometric, isFalse);
-      expect(m.biometricShortcut, isFalse);
     });
 
-    test('JSON round-trip preserves the new fields', () {
-      const m = SecurityTierModifiers(
-        password: true,
-        biometric: true,
-        biometricShortcut: true,
-        pinLength: 4,
-      );
+    test('JSON round-trip preserves the bank-style modifier fields', () {
+      const m = SecurityTierModifiers(password: true, biometric: true);
       final round = SecurityTierModifiers.fromJson(m.toJson());
       expect(round, m);
     });
 
-    test('legacy JSON (biometric_shortcut only) backfills biometric', () {
+    test('legacy biometric_shortcut / pin_length JSON keys are ignored', () {
+      // ConfigV3ToV4 strips these from disk on first read; if a
+      // hand-edited config still carries them, the runtime decoder
+      // must silently drop them rather than blow up.
       final m = SecurityTierModifiers.fromJson(const {
+        'password': true,
+        'biometric': false,
         'biometric_shortcut': true,
         'pin_length': 6,
       });
-      expect(
-        m.biometric,
-        isTrue,
-        reason:
-            'biometric must default to biometric_shortcut on legacy configs',
-      );
-      expect(m.biometricShortcut, isTrue);
-      expect(m.password, isFalse);
-    });
-
-    test('out-of-range pin_length clamps to the default', () {
-      final m = SecurityTierModifiers.fromJson(const {'pin_length': 99});
-      expect(m.pinLength, SecurityTierModifiers.defaults.pinLength);
+      expect(m.password, isTrue);
+      expect(m.biometric, isFalse);
     });
   });
 

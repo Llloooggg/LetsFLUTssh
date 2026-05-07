@@ -105,11 +105,11 @@ extension SecurityTierWireName on SecurityTier {
 /// wizard presents. `biometric` requires `password` (biometric is a
 /// shortcut for entering the password, never its replacement).
 ///
-/// `biometricShortcut` + `pinLength` are retained for backward
-/// compatibility: existing persisted configs carry those fields, and
-/// some call sites still read them. `biometricShortcut` is kept in
-/// sync with `biometric` by the wizard so both readers see the same
-/// flag.
+/// Pre-v4 configs also carried `biometric_shortcut` (a deprecated
+/// 1:1 alias for `biometric`) and `pin_length` (advisory in the
+/// bank-style model, no runtime caller). The Rust-side
+/// `ConfigV3ToV4` migration drops both fields on the next read;
+/// the runtime struct no longer carries them.
 class SecurityTierModifiers {
   /// User-typed password gate on the unlock path. Bank-style primary
   /// auth. Structurally irrelevant on `plaintext`; on `paranoid` the
@@ -123,38 +123,15 @@ class SecurityTierModifiers {
   /// user from typing it). Disabled in the UI when `password` is off.
   final bool biometric;
 
-  /// Deprecated alias for [biometric]. Kept so existing call sites
-  /// that still read `biometricShortcut` continue to work; the
-  /// wizard keeps both fields in sync on write.
-  final bool biometricShortcut;
-
-  /// PIN length for the hardware tier in the v1 model (4-6 digits).
-  /// In the bank-style model passwords are arbitrary text, so this
-  /// value is advisory — the wizard in the current transition window
-  /// still renders a digit cell grid at this length when the user
-  /// picks T2.
-  final int pinLength;
-
-  const SecurityTierModifiers({
-    this.password = false,
-    this.biometric = false,
-    this.biometricShortcut = false,
-    this.pinLength = 6,
-  });
+  const SecurityTierModifiers({this.password = false, this.biometric = false});
 
   static const defaults = SecurityTierModifiers();
 
-  SecurityTierModifiers copyWith({
-    bool? password,
-    bool? biometric,
-    bool? biometricShortcut,
-    int? pinLength,
-  }) => SecurityTierModifiers(
-    password: password ?? this.password,
-    biometric: biometric ?? this.biometric,
-    biometricShortcut: biometricShortcut ?? this.biometricShortcut,
-    pinLength: pinLength ?? this.pinLength,
-  );
+  SecurityTierModifiers copyWith({bool? password, bool? biometric}) =>
+      SecurityTierModifiers(
+        password: password ?? this.password,
+        biometric: biometric ?? this.biometric,
+      );
 
   /// Wire shape mirrored Rust-side in
   /// `lfs_core::security::SecurityTierModifiers::to_json_map`. The
@@ -164,26 +141,18 @@ class SecurityTierModifiers {
   Map<String, dynamic> toJson() => {
     'password': password,
     'biometric': biometric,
-    'biometric_shortcut': biometricShortcut,
-    'pin_length': pinLength,
   };
 
   /// Decode mirrors the Rust `from_json_map` strictness: missing
-  /// fields fall back to defaults; `biometric` falls back to
-  /// `biometric_shortcut` so a v1-persisted install reads as
-  /// bank-style after reload; `pin_length` outside 4..=8 clamps to
-  /// the default rather than crashing the PIN widget with an
-  /// out-of-range cell count.
+  /// fields fall back to defaults. Pre-v4 `biometric_shortcut` /
+  /// `pin_length` fields are stripped by the `ConfigV3ToV4`
+  /// migration before this reader sees them; if they linger in a
+  /// hand-edited config we silently ignore them.
   factory SecurityTierModifiers.fromJson(Map<String, dynamic> json) {
     const d = SecurityTierModifiers.defaults;
-    final rawPin = (json['pin_length'] as num?)?.toInt() ?? d.pinLength;
-    final biometricShortcut =
-        json['biometric_shortcut'] as bool? ?? d.biometricShortcut;
     return SecurityTierModifiers(
       password: json['password'] as bool? ?? d.password,
-      biometric: json['biometric'] as bool? ?? biometricShortcut,
-      biometricShortcut: biometricShortcut,
-      pinLength: rawPin < 4 || rawPin > 8 ? d.pinLength : rawPin,
+      biometric: json['biometric'] as bool? ?? d.biometric,
     );
   }
 
@@ -192,13 +161,10 @@ class SecurityTierModifiers {
       identical(this, other) ||
       other is SecurityTierModifiers &&
           password == other.password &&
-          biometric == other.biometric &&
-          biometricShortcut == other.biometricShortcut &&
-          pinLength == other.pinLength;
+          biometric == other.biometric;
 
   @override
-  int get hashCode =>
-      Object.hash(password, biometric, biometricShortcut, pinLength);
+  int get hashCode => Object.hash(password, biometric);
 }
 
 /// Complete security configuration — tier + modifiers.
@@ -269,8 +235,6 @@ class SecurityConfig {
       tierWireName: tier.wireName,
       password: modifiers.password,
       biometric: modifiers.biometric,
-      biometricShortcut: modifiers.biometricShortcut,
-      pinLength: modifiers.pinLength,
     );
     return jsonDecode(str) as Map<String, dynamic>;
   }
@@ -288,8 +252,6 @@ class SecurityConfig {
       modifiers: SecurityTierModifiers(
         password: decoded.password,
         biometric: decoded.biometric,
-        biometricShortcut: decoded.biometricShortcut,
-        pinLength: decoded.pinLength,
       ),
     );
   }

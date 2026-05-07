@@ -14,21 +14,17 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// existing `app_config.dart` consumers.
 ///
 /// `tier_wire_name` must be one of `plaintext`, `keychain`,
-/// `keychain_with_password`, `hardware`, `paranoid` (Dart `_tierToString`
-/// emits these). Unknown wire names surface as `Err` so the caller
-/// surfaces the misuse instead of silently picking plaintext.
+/// `hardware`, `paranoid`. Unknown wire names surface as `Err`
+/// so the caller surfaces the misuse instead of silently picking
+/// plaintext.
 String securityConfigToJson({
   required String tierWireName,
   required bool password,
   required bool biometric,
-  required bool biometricShortcut,
-  required int pinLength,
 }) => RustLib.instance.api.crateApiSecurityConfigSecurityConfigToJson(
   tierWireName: tierWireName,
   password: password,
   biometric: biometric,
-  biometricShortcut: biometricShortcut,
-  pinLength: pinLength,
 );
 
 /// Encode the modifiers blob alone — used by callers that want to
@@ -37,13 +33,9 @@ String securityConfigToJson({
 String securityTierModifiersToJson({
   required bool password,
   required bool biometric,
-  required bool biometricShortcut,
-  required int pinLength,
 }) => RustLib.instance.api.crateApiSecurityConfigSecurityTierModifiersToJson(
   password: password,
   biometric: biometric,
-  biometricShortcut: biometricShortcut,
-  pinLength: pinLength,
 );
 
 /// Parse the `security` JSON object. Mirrors `SecurityConfig.fromJson`
@@ -70,24 +62,16 @@ class DbSecurityConfig {
   final String tierWireName;
   final bool password;
   final bool biometric;
-  final bool biometricShortcut;
-  final int pinLength;
 
   const DbSecurityConfig({
     required this.tierWireName,
     required this.password,
     required this.biometric,
-    required this.biometricShortcut,
-    required this.pinLength,
   });
 
   @override
   int get hashCode =>
-      tierWireName.hashCode ^
-      password.hashCode ^
-      biometric.hashCode ^
-      biometricShortcut.hashCode ^
-      pinLength.hashCode;
+      tierWireName.hashCode ^ password.hashCode ^ biometric.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -96,31 +80,21 @@ class DbSecurityConfig {
           runtimeType == other.runtimeType &&
           tierWireName == other.tierWireName &&
           password == other.password &&
-          biometric == other.biometric &&
-          biometricShortcut == other.biometricShortcut &&
-          pinLength == other.pinLength;
+          biometric == other.biometric;
 }
 
 /// FRB-side mirror of just the modifiers block.
 class DbSecurityTierModifiers {
   final bool password;
   final bool biometric;
-  final bool biometricShortcut;
-  final int pinLength;
 
   const DbSecurityTierModifiers({
     required this.password,
     required this.biometric,
-    required this.biometricShortcut,
-    required this.pinLength,
   });
 
   @override
-  int get hashCode =>
-      password.hashCode ^
-      biometric.hashCode ^
-      biometricShortcut.hashCode ^
-      pinLength.hashCode;
+  int get hashCode => password.hashCode ^ biometric.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -128,7 +102,5 @@ class DbSecurityTierModifiers {
       other is DbSecurityTierModifiers &&
           runtimeType == other.runtimeType &&
           password == other.password &&
-          biometric == other.biometric &&
-          biometricShortcut == other.biometricShortcut &&
-          pinLength == other.pinLength;
+          biometric == other.biometric;
 }

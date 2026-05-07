@@ -35,8 +35,6 @@ class DbMappedSetupChoice {
   final String tierWireName;
   final bool password;
   final bool biometric;
-  final bool biometricShortcut;
-  final int pinLength;
   final String? masterPassword;
   final String? shortPassword;
   final String? pin;
@@ -45,8 +43,6 @@ class DbMappedSetupChoice {
     required this.tierWireName,
     required this.password,
     required this.biometric,
-    required this.biometricShortcut,
-    required this.pinLength,
     this.masterPassword,
     this.shortPassword,
     this.pin,
@@ -57,8 +53,6 @@ class DbMappedSetupChoice {
       tierWireName.hashCode ^
       password.hashCode ^
       biometric.hashCode ^
-      biometricShortcut.hashCode ^
-      pinLength.hashCode ^
       masterPassword.hashCode ^
       shortPassword.hashCode ^
       pin.hashCode;
@@ -71,8 +65,6 @@ class DbMappedSetupChoice {
           tierWireName == other.tierWireName &&
           password == other.password &&
           biometric == other.biometric &&
-          biometricShortcut == other.biometricShortcut &&
-          pinLength == other.pinLength &&
           masterPassword == other.masterPassword &&
           shortPassword == other.shortPassword &&
           pin == other.pin;

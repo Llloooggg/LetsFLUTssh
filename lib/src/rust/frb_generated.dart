@@ -1515,8 +1515,6 @@ abstract class RustLibApi extends BaseApi {
     required String tierWireName,
     required bool password,
     required bool biometric,
-    required bool biometricShortcut,
-    required int pinLength,
   });
 
   DbMappedSetupChoice crateApiWizardSetupSecurityMapWizardChoice({
@@ -1533,8 +1531,6 @@ abstract class RustLibApi extends BaseApi {
   String crateApiSecurityConfigSecurityTierModifiersToJson({
     required bool password,
     required bool biometric,
-    required bool biometricShortcut,
-    required int pinLength,
   });
 
   bool crateApiSessionHistorySessionHistoryCanRedo({required BigInt handleId});
@@ -13719,8 +13715,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String tierWireName,
     required bool password,
     required bool biometric,
-    required bool biometricShortcut,
-    required int pinLength,
   }) {
     return handler.executeSync(
       SyncTask(
@@ -13729,8 +13723,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(tierWireName, serializer);
           sse_encode_bool(password, serializer);
           sse_encode_bool(biometric, serializer);
-          sse_encode_bool(biometricShortcut, serializer);
-          sse_encode_u_32(pinLength, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13742,13 +13734,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiSecurityConfigSecurityConfigToJsonConstMeta,
-        argValues: [
-          tierWireName,
-          password,
-          biometric,
-          biometricShortcut,
-          pinLength,
-        ],
+        argValues: [tierWireName, password, biometric],
         apiImpl: this,
       ),
     );
@@ -13757,13 +13743,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSecurityConfigSecurityConfigToJsonConstMeta =>
       const TaskConstMeta(
         debugName: 'security_config_to_json',
-        argNames: [
-          'tierWireName',
-          'password',
-          'biometric',
-          'biometricShortcut',
-          'pinLength',
-        ],
+        argNames: ['tierWireName', 'password', 'biometric'],
       );
 
   @override
@@ -13843,8 +13823,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   String crateApiSecurityConfigSecurityTierModifiersToJson({
     required bool password,
     required bool biometric,
-    required bool biometricShortcut,
-    required int pinLength,
   }) {
     return handler.executeSync(
       SyncTask(
@@ -13852,8 +13830,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_bool(password, serializer);
           sse_encode_bool(biometric, serializer);
-          sse_encode_bool(biometricShortcut, serializer);
-          sse_encode_u_32(pinLength, serializer);
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -13865,7 +13841,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiSecurityConfigSecurityTierModifiersToJsonConstMeta,
-        argValues: [password, biometric, biometricShortcut, pinLength],
+        argValues: [password, biometric],
         apiImpl: this,
       ),
     );
@@ -13875,7 +13851,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiSecurityConfigSecurityTierModifiersToJsonConstMeta =>
       const TaskConstMeta(
         debugName: 'security_tier_modifiers_to_json',
-        argNames: ['password', 'biometric', 'biometricShortcut', 'pinLength'],
+        argNames: ['password', 'biometric'],
       );
 
   @override
@@ -19061,17 +19037,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbMappedSetupChoice dco_decode_db_mapped_setup_choice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return DbMappedSetupChoice(
       tierWireName: dco_decode_String(arr[0]),
       password: dco_decode_bool(arr[1]),
       biometric: dco_decode_bool(arr[2]),
-      biometricShortcut: dco_decode_bool(arr[3]),
-      pinLength: dco_decode_u_32(arr[4]),
-      masterPassword: dco_decode_opt_String(arr[5]),
-      shortPassword: dco_decode_opt_String(arr[6]),
-      pin: dco_decode_opt_String(arr[7]),
+      masterPassword: dco_decode_opt_String(arr[3]),
+      shortPassword: dco_decode_opt_String(arr[4]),
+      pin: dco_decode_opt_String(arr[5]),
     );
   }
 
@@ -19477,14 +19451,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbSecurityConfig dco_decode_db_security_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return DbSecurityConfig(
       tierWireName: dco_decode_String(arr[0]),
       password: dco_decode_bool(arr[1]),
       biometric: dco_decode_bool(arr[2]),
-      biometricShortcut: dco_decode_bool(arr[3]),
-      pinLength: dco_decode_u_32(arr[4]),
     );
   }
 
@@ -19498,13 +19470,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbSecurityTierModifiers dco_decode_db_security_tier_modifiers(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return DbSecurityTierModifiers(
       password: dco_decode_bool(arr[0]),
       biometric: dco_decode_bool(arr[1]),
-      biometricShortcut: dco_decode_bool(arr[2]),
-      pinLength: dco_decode_u_32(arr[3]),
     );
   }
 
@@ -22197,8 +22167,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final var_tierWireName = sse_decode_String(deserializer);
     final var_password = sse_decode_bool(deserializer);
     final var_biometric = sse_decode_bool(deserializer);
-    final var_biometricShortcut = sse_decode_bool(deserializer);
-    final var_pinLength = sse_decode_u_32(deserializer);
     final var_masterPassword = sse_decode_opt_String(deserializer);
     final var_shortPassword = sse_decode_opt_String(deserializer);
     final var_pin = sse_decode_opt_String(deserializer);
@@ -22206,8 +22174,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tierWireName: var_tierWireName,
       password: var_password,
       biometric: var_biometric,
-      biometricShortcut: var_biometricShortcut,
-      pinLength: var_pinLength,
       masterPassword: var_masterPassword,
       shortPassword: var_shortPassword,
       pin: var_pin,
@@ -22732,14 +22698,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     final var_tierWireName = sse_decode_String(deserializer);
     final var_password = sse_decode_bool(deserializer);
     final var_biometric = sse_decode_bool(deserializer);
-    final var_biometricShortcut = sse_decode_bool(deserializer);
-    final var_pinLength = sse_decode_u_32(deserializer);
     return DbSecurityConfig(
       tierWireName: var_tierWireName,
       password: var_password,
       biometric: var_biometric,
-      biometricShortcut: var_biometricShortcut,
-      pinLength: var_pinLength,
     );
   }
 
@@ -22757,13 +22719,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final var_password = sse_decode_bool(deserializer);
     final var_biometric = sse_decode_bool(deserializer);
-    final var_biometricShortcut = sse_decode_bool(deserializer);
-    final var_pinLength = sse_decode_u_32(deserializer);
     return DbSecurityTierModifiers(
       password: var_password,
       biometric: var_biometric,
-      biometricShortcut: var_biometricShortcut,
-      pinLength: var_pinLength,
     );
   }
 
@@ -26004,8 +25962,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.tierWireName, serializer);
     sse_encode_bool(self.password, serializer);
     sse_encode_bool(self.biometric, serializer);
-    sse_encode_bool(self.biometricShortcut, serializer);
-    sse_encode_u_32(self.pinLength, serializer);
     sse_encode_opt_String(self.masterPassword, serializer);
     sse_encode_opt_String(self.shortPassword, serializer);
     sse_encode_opt_String(self.pin, serializer);
@@ -26386,8 +26342,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.tierWireName, serializer);
     sse_encode_bool(self.password, serializer);
     sse_encode_bool(self.biometric, serializer);
-    sse_encode_bool(self.biometricShortcut, serializer);
-    sse_encode_u_32(self.pinLength, serializer);
   }
 
   @protected
@@ -26407,8 +26361,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self.password, serializer);
     sse_encode_bool(self.biometric, serializer);
-    sse_encode_bool(self.biometricShortcut, serializer);
-    sse_encode_u_32(self.pinLength, serializer);
   }
 
   @protected

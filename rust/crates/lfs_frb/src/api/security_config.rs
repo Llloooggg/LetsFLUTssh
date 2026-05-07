@@ -14,27 +14,20 @@ use lfs_core::security::{SecurityConfig, SecurityTier, SecurityTierModifiers};
 /// existing `app_config.dart` consumers.
 ///
 /// `tier_wire_name` must be one of `plaintext`, `keychain`,
-/// `keychain_with_password`, `hardware`, `paranoid` (Dart `_tierToString`
-/// emits these). Unknown wire names surface as `Err` so the caller
-/// surfaces the misuse instead of silently picking plaintext.
+/// `hardware`, `paranoid`. Unknown wire names surface as `Err`
+/// so the caller surfaces the misuse instead of silently picking
+/// plaintext.
 #[flutter_rust_bridge::frb(sync)]
 pub fn security_config_to_json(
     tier_wire_name: String,
     password: bool,
     biometric: bool,
-    biometric_shortcut: bool,
-    pin_length: u32,
 ) -> Result<String, String> {
     let tier = SecurityTier::from_wire_name(&tier_wire_name)
         .ok_or_else(|| format!("unknown tier wire name: {tier_wire_name}"))?;
     let cfg = SecurityConfig {
         tier,
-        modifiers: SecurityTierModifiers {
-            password,
-            biometric,
-            biometric_shortcut,
-            pin_length: pin_length.min(u8::MAX as u32) as u8,
-        },
+        modifiers: SecurityTierModifiers { password, biometric },
     };
     Ok(cfg.to_json_value().to_string())
 }
@@ -43,18 +36,8 @@ pub fn security_config_to_json(
 /// re-serialise `SecurityTierModifiers` without going through the
 /// outer `SecurityConfig` wrapper.
 #[flutter_rust_bridge::frb(sync)]
-pub fn security_tier_modifiers_to_json(
-    password: bool,
-    biometric: bool,
-    biometric_shortcut: bool,
-    pin_length: u32,
-) -> String {
-    let m = SecurityTierModifiers {
-        password,
-        biometric,
-        biometric_shortcut,
-        pin_length: pin_length.min(u8::MAX as u32) as u8,
-    };
+pub fn security_tier_modifiers_to_json(password: bool, biometric: bool) -> String {
+    let m = SecurityTierModifiers { password, biometric };
     let map = m.to_json_map();
     let value: serde_json::Map<String, serde_json::Value> =
         map.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
@@ -70,8 +53,6 @@ pub struct DbSecurityConfig {
     pub tier_wire_name: String,
     pub password: bool,
     pub biometric: bool,
-    pub biometric_shortcut: bool,
-    pub pin_length: u32,
 }
 
 /// Parse the `security` JSON object. Mirrors `SecurityConfig.fromJson`
@@ -87,8 +68,6 @@ pub fn security_config_from_json(json: String) -> Option<DbSecurityConfig> {
         tier_wire_name: cfg.tier.wire_name().to_string(),
         password: cfg.modifiers.password,
         biometric: cfg.modifiers.biometric,
-        biometric_shortcut: cfg.modifiers.biometric_shortcut,
-        pin_length: cfg.modifiers.pin_length as u32,
     })
 }
 
@@ -97,8 +76,6 @@ pub fn security_config_from_json(json: String) -> Option<DbSecurityConfig> {
 pub struct DbSecurityTierModifiers {
     pub password: bool,
     pub biometric: bool,
-    pub biometric_shortcut: bool,
-    pub pin_length: u32,
 }
 
 #[flutter_rust_bridge::frb(sync)]
@@ -109,7 +86,5 @@ pub fn security_tier_modifiers_from_json(json: String) -> Option<DbSecurityTierM
     Some(DbSecurityTierModifiers {
         password: m.password,
         biometric: m.biometric,
-        biometric_shortcut: m.biometric_shortcut,
-        pin_length: m.pin_length as u32,
     })
 }

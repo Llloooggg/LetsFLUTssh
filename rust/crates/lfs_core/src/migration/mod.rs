@@ -49,7 +49,13 @@ impl SchemaVersions {
     /// stamped by the config writer on every write; a missing or
     /// mismatched field on read = corrupt.
     ///
-    /// v3 (current): the security-tier model is fully bank-style.
+    /// v4 (current): drops the legacy `biometric_shortcut` /
+    /// `pin_length` fields from `security_modifiers`. Both were
+    /// retained as backward-compat aliases after the bank-style
+    /// password modifier landed; v4 retires them entirely (no
+    /// runtime caller, deprecated 1:1 alias).
+    ///
+    /// v3: the security-tier model is fully bank-style.
     /// `security_tier` carries one of {plaintext, keychain, hardware,
     /// paranoid} and the `password` / `biometric` switches live in
     /// `security_modifiers`. v2 still carried `keychain_with_password`
@@ -63,7 +69,7 @@ impl SchemaVersions {
     /// value — either an object or `null`. v1→v2 ensures the field
     /// exists (as `null` if absent) so post-migration reads can
     /// distinguish "never probed" from "probed-but-empty".
-    pub const CONFIG: i32 = 3;
+    pub const CONFIG: i32 = 4;
 
     /// `credentials.kdf` (Argon2id params + salt). Self-versioned
     /// inside the file via `'LFKD'` magic + version byte; tracked

@@ -299,7 +299,6 @@ MappedSetupChoice mapWizardChoice({
     modifiers: SecurityTierModifiers(
       password: r.password,
       biometric: r.biometric,
-      biometricShortcut: r.biometricShortcut,
     ),
     masterPassword: r.masterPassword,
     shortPassword: r.shortPassword,

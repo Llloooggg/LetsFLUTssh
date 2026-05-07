@@ -1243,10 +1243,7 @@ void main() {
           const config = AppConfig(
             security: SecurityConfig(
               tier: SecurityTier.hardware,
-              modifiers: SecurityTierModifiers(
-                biometricShortcut: true,
-                pinLength: 4,
-              ),
+              modifiers: SecurityTierModifiers(password: true, biometric: true),
             ),
           );
           final restored = AppConfig.fromJson(config.toJson());

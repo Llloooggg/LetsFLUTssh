@@ -217,6 +217,61 @@ impl Migration for ConfigV2ToV3 {
 /// higher than the build's `SchemaVersions::KDF`) is reported as-is
 /// so the migration runner can tell the user "newer install present,
 /// please upgrade" instead of pretending it knows the format.
+
+/// `config.json` v3 → v4: drop the legacy `biometric_shortcut`
+/// and `pin_length` fields from `security_modifiers`. Both were
+/// retained as backward-compat fields after the bank-style
+/// password modifier landed: `biometric_shortcut` mirrored
+/// `biometric` 1:1 (deprecated alias, no real consumer);
+/// `pin_length` was advisory in the bank-style model and had no
+/// runtime caller in either Dart or Rust. Dropping them on the
+/// next read closes the legacy schema window so the runtime
+/// struct stays slim — no parallel state to keep in sync, no
+/// drift surface for future agents to step on.
+///
+/// Idempotent on already-stripped configs (the migration just
+/// bumps the version stamp). Atomic — writes via
+/// [`crate::path::write_bytes_atomic`] (tmp + fsync + rename) so
+/// a crash mid-migration leaves the v3 file untouched.
+pub struct ConfigV3ToV4;
+
+impl Migration for ConfigV3ToV4 {
+    fn artefact_id(&self) -> &'static str {
+        ConfigArtefact::FILE_NAME
+    }
+
+    fn source_version(&self) -> i32 {
+        3
+    }
+
+    fn target_version(&self) -> i32 {
+        4
+    }
+
+    fn apply(&self, support_dir: &Path) -> Result<(), String> {
+        let path = support_dir.join(ConfigArtefact::FILE_NAME);
+        let bytes = std::fs::read(&path)
+            .map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let mut value: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
+        let obj = value
+            .as_object_mut()
+            .ok_or_else(|| format!("{}: not a JSON object", ConfigArtefact::FILE_NAME))?;
+        if let Some(modifiers) = obj.get_mut("security_modifiers") {
+            if let Some(map) = modifiers.as_object_mut() {
+                map.remove("biometric_shortcut");
+                map.remove("pin_length");
+            }
+        }
+        obj.insert("config_schema_version".into(), Value::from(4));
+        let serialised = serde_json::to_vec(&value)
+            .map_err(|e| format!("{}: serialise: {e}", ConfigArtefact::FILE_NAME))?;
+        crate::path::write_bytes_atomic(&path, &serialised)
+            .map_err(|e| format!("{}: write: {e}", ConfigArtefact::FILE_NAME))?;
+        Ok(())
+    }
+}
+
 pub struct KdfArtefact;
 
 impl KdfArtefact {

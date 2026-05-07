@@ -13267,16 +13267,12 @@ fn wire__crate__api__security_config__security_config_to_json_impl(
             let api_tier_wire_name = <String>::sse_decode(&mut deserializer);
             let api_password = <bool>::sse_decode(&mut deserializer);
             let api_biometric = <bool>::sse_decode(&mut deserializer);
-            let api_biometric_shortcut = <bool>::sse_decode(&mut deserializer);
-            let api_pin_length = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, String>((move || {
                 let output_ok = crate::api::security_config::security_config_to_json(
                     api_tier_wire_name,
                     api_password,
                     api_biometric,
-                    api_biometric_shortcut,
-                    api_pin_length,
                 )?;
                 Ok(output_ok)
             })())
@@ -13376,16 +13372,12 @@ fn wire__crate__api__security_config__security_tier_modifiers_to_json_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_password = <bool>::sse_decode(&mut deserializer);
             let api_biometric = <bool>::sse_decode(&mut deserializer);
-            let api_biometric_shortcut = <bool>::sse_decode(&mut deserializer);
-            let api_pin_length = <u32>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
                     crate::api::security_config::security_tier_modifiers_to_json(
                         api_password,
                         api_biometric,
-                        api_biometric_shortcut,
-                        api_pin_length,
                     ),
                 )?;
                 Ok(output_ok)
@@ -18972,8 +18964,6 @@ impl SseDecode for crate::api::wizard_setup::DbMappedSetupChoice {
         let mut var_tierWireName = <String>::sse_decode(deserializer);
         let mut var_password = <bool>::sse_decode(deserializer);
         let mut var_biometric = <bool>::sse_decode(deserializer);
-        let mut var_biometricShortcut = <bool>::sse_decode(deserializer);
-        let mut var_pinLength = <u32>::sse_decode(deserializer);
         let mut var_masterPassword = <Option<String>>::sse_decode(deserializer);
         let mut var_shortPassword = <Option<String>>::sse_decode(deserializer);
         let mut var_pin = <Option<String>>::sse_decode(deserializer);
@@ -18981,8 +18971,6 @@ impl SseDecode for crate::api::wizard_setup::DbMappedSetupChoice {
             tier_wire_name: var_tierWireName,
             password: var_password,
             biometric: var_biometric,
-            biometric_shortcut: var_biometricShortcut,
-            pin_length: var_pinLength,
             master_password: var_masterPassword,
             short_password: var_shortPassword,
             pin: var_pin,
@@ -19513,14 +19501,10 @@ impl SseDecode for crate::api::security_config::DbSecurityConfig {
         let mut var_tierWireName = <String>::sse_decode(deserializer);
         let mut var_password = <bool>::sse_decode(deserializer);
         let mut var_biometric = <bool>::sse_decode(deserializer);
-        let mut var_biometricShortcut = <bool>::sse_decode(deserializer);
-        let mut var_pinLength = <u32>::sse_decode(deserializer);
         return crate::api::security_config::DbSecurityConfig {
             tier_wire_name: var_tierWireName,
             password: var_password,
             biometric: var_biometric,
-            biometric_shortcut: var_biometricShortcut,
-            pin_length: var_pinLength,
         };
     }
 }
@@ -19546,13 +19530,9 @@ impl SseDecode for crate::api::security_config::DbSecurityTierModifiers {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_password = <bool>::sse_decode(deserializer);
         let mut var_biometric = <bool>::sse_decode(deserializer);
-        let mut var_biometricShortcut = <bool>::sse_decode(deserializer);
-        let mut var_pinLength = <u32>::sse_decode(deserializer);
         return crate::api::security_config::DbSecurityTierModifiers {
             password: var_password,
             biometric: var_biometric,
-            biometric_shortcut: var_biometricShortcut,
-            pin_length: var_pinLength,
         };
     }
 }
@@ -23237,8 +23217,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::wizard_setup::DbMappedSetupCh
             self.tier_wire_name.into_into_dart().into_dart(),
             self.password.into_into_dart().into_dart(),
             self.biometric.into_into_dart().into_dart(),
-            self.biometric_shortcut.into_into_dart().into_dart(),
-            self.pin_length.into_into_dart().into_dart(),
             self.master_password.into_into_dart().into_dart(),
             self.short_password.into_into_dart().into_dart(),
             self.pin.into_into_dart().into_dart(),
@@ -23937,8 +23915,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::security_config::DbSecurityCo
             self.tier_wire_name.into_into_dart().into_dart(),
             self.password.into_into_dart().into_dart(),
             self.biometric.into_into_dart().into_dart(),
-            self.biometric_shortcut.into_into_dart().into_dart(),
-            self.pin_length.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -23985,8 +23961,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::security_config::DbSecurityTi
         [
             self.password.into_into_dart().into_dart(),
             self.biometric.into_into_dart().into_dart(),
-            self.biometric_shortcut.into_into_dart().into_dart(),
-            self.pin_length.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -26094,8 +26068,6 @@ impl SseEncode for crate::api::wizard_setup::DbMappedSetupChoice {
         <String>::sse_encode(self.tier_wire_name, serializer);
         <bool>::sse_encode(self.password, serializer);
         <bool>::sse_encode(self.biometric, serializer);
-        <bool>::sse_encode(self.biometric_shortcut, serializer);
-        <u32>::sse_encode(self.pin_length, serializer);
         <Option<String>>::sse_encode(self.master_password, serializer);
         <Option<String>>::sse_encode(self.short_password, serializer);
         <Option<String>>::sse_encode(self.pin, serializer);
@@ -26468,8 +26440,6 @@ impl SseEncode for crate::api::security_config::DbSecurityConfig {
         <String>::sse_encode(self.tier_wire_name, serializer);
         <bool>::sse_encode(self.password, serializer);
         <bool>::sse_encode(self.biometric, serializer);
-        <bool>::sse_encode(self.biometric_shortcut, serializer);
-        <u32>::sse_encode(self.pin_length, serializer);
     }
 }
 
@@ -26498,8 +26468,6 @@ impl SseEncode for crate::api::security_config::DbSecurityTierModifiers {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.password, serializer);
         <bool>::sse_encode(self.biometric, serializer);
-        <bool>::sse_encode(self.biometric_shortcut, serializer);
-        <u32>::sse_encode(self.pin_length, serializer);
     }
 }
 

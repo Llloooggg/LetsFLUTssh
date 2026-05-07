@@ -15,11 +15,7 @@ void main() {
       final cfg = AppConfig.defaults.copyWithSecurity(
         security: const SecurityConfig(
           tier: SecurityTier.hardware,
-          modifiers: SecurityTierModifiers(
-            password: true,
-            biometric: true,
-            biometricShortcut: true,
-          ),
+          modifiers: SecurityTierModifiers(password: true, biometric: true),
         ),
       );
       final full = cfg.toJson();

@@ -913,11 +913,11 @@ bypasses the OS keychain layer).
   `NCRYPT_UI_PROTECT_KEY` on Windows) that holds the typed password;
   biometric unlock releases the password from that slot and replays
   the HMAC gate without requiring the user to retype.
-- `biometricShortcut` — legacy alias kept in sync with `biometric`
-  during the transition. Old configs that only carry
-  `biometric_shortcut` deserialise into `biometric` automatically.
-- `pinLength` — advisory only post-refactor. Retained so older
-  pre-refactor configs still deserialise.
+Pre-v4 configs also carried `biometric_shortcut` (a 1:1 alias of
+`biometric`) and `pin_length` (advisory only). Both fields are
+dropped by the `ConfigV3ToV4` Rust-side migration on first read; the
+runtime struct no longer carries them, and the JSON decoder silently
+ignores them on hand-edited configs that still mention them.
 
 Stores (`SessionNotifier`, `SshKeysNotifier`, `KnownHostsNotifier`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
 

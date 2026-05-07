@@ -10,7 +10,9 @@
 
 use std::collections::HashMap;
 
-use super::artefacts::{ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, KdfArtefact};
+use super::artefacts::{
+    ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, KdfArtefact,
+};
 use super::{Artefact, Migration};
 
 /// Mutable registry of every artefact + migration the runner knows
@@ -44,6 +46,12 @@ pub fn build_app_registry() -> Registry {
     // model so the enum carries one value per key-storage strategy
     // and password is purely a modifier.
     reg.migrations.push(Box::new(ConfigV2ToV3));
+    // v3 → v4: drop the legacy `biometric_shortcut` and
+    // `pin_length` fields from `security_modifiers`. Both were
+    // backward-compat carries (deprecated alias / advisory) with
+    // no runtime caller in either Rust or Dart by the time the
+    // bank-style password modifier landed; v4 retires them.
+    reg.migrations.push(Box::new(ConfigV3ToV4));
 
     // Vault + password-gate layouts depend on tier read from config —
     // keep config ahead of every future vault artefact in the
@@ -120,6 +128,21 @@ mod tests {
             "ConfigV2ToV3 must be registered so v2 installs migrate \
              to v3 on the next launch (keychain_with_password tier \
              collapse into bank-style modifier)",
+        );
+    }
+
+    #[test]
+    fn config_v3_to_v4_migration_registered() {
+        let reg = build_app_registry();
+        assert!(
+            reg.migrations
+                .iter()
+                .any(|m| m.artefact_id() == "config.json"
+                    && m.source_version() == 3
+                    && m.target_version() == 4),
+            "ConfigV3ToV4 must be registered so v3 installs migrate \
+             to v4 on the next launch (drop legacy biometric_shortcut \
+             + pin_length fields)",
         );
     }
 }

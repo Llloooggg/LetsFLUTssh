@@ -88,10 +88,23 @@ void main() {
   });
 
   group('SecurityConfig JSON round-trip', () {
-    test('hardware with 4-digit PIN + biometric shortcut round-trips', () {
+    test('hardware with password + biometric round-trips', () {
       const cfg = SecurityConfig(
         tier: SecurityTier.hardware,
-        modifiers: SecurityTierModifiers(biometricShortcut: true, pinLength: 4),
+        modifiers: SecurityTierModifiers(password: true, biometric: true),
+      );
+      final decoded = SecurityConfig.fromJson(cfg.toJson());
+      expect(decoded, cfg);
+    });
+
+    test('keychain with password modifier round-trips (bank-style L2)', () {
+      // Pre-v3 this combo was a dedicated `keychainWithPassword` tier;
+      // post-v3 it's tier=keychain + modifiers.password=true. The
+      // round-trip exercises both the encode (Rust `to_json_value`)
+      // and the decode (permissive parser).
+      const cfg = SecurityConfig(
+        tier: SecurityTier.keychain,
+        modifiers: SecurityTierModifiers(password: true),
       );
       final decoded = SecurityConfig.fromJson(cfg.toJson());
       expect(decoded, cfg);
@@ -114,65 +127,40 @@ void main() {
       expect(decoded.tier, SecurityTier.plaintext);
     });
 
-    test('out-of-range pinLength snaps back to the default', () {
+    test('legacy biometric_shortcut / pin_length fields are ignored', () {
+      // ConfigV3ToV4 strips these from disk on first read; if a
+      // hand-edited config still carries them, the runtime decoder
+      // must silently drop them rather than blow up.
       final decoded = SecurityTierModifiers.fromJson({
-        'biometric_shortcut': false,
-        'pin_length': 42,
+        'password': true,
+        'biometric': false,
+        'biometric_shortcut': true,
+        'pin_length': 6,
       });
-      expect(decoded.pinLength, SecurityTierModifiers.defaults.pinLength);
+      expect(decoded.password, isTrue);
+      expect(decoded.biometric, isFalse);
     });
-
-    test(
-      'pinLength at the low and high ends of the accepted range survives',
-      () {
-        for (final n in [4, 5, 6, 7, 8]) {
-          final decoded = SecurityTierModifiers.fromJson({
-            'biometric_shortcut': true,
-            'pin_length': n,
-          });
-          expect(decoded.pinLength, n);
-        }
-      },
-    );
   });
 
   group('SecurityConfig + SecurityTierModifiers value-type contract', () {
     test('SecurityTierModifiers.copyWith replaces only the named fields', () {
-      const base = SecurityTierModifiers(
-        password: true,
-        biometric: true,
-        biometricShortcut: true,
-        pinLength: 4,
-      );
-      final tweaked = base.copyWith(pinLength: 8);
-      expect(tweaked.pinLength, 8);
-      expect(tweaked.password, isTrue);
-      expect(tweaked.biometric, isTrue);
-      expect(tweaked.biometricShortcut, isTrue);
-      final swapped = base.copyWith(password: false, biometric: false);
-      expect(swapped.password, isFalse);
-      expect(swapped.biometric, isFalse);
-      expect(swapped.pinLength, 4);
+      const base = SecurityTierModifiers(password: true, biometric: true);
+      final pwOff = base.copyWith(password: false);
+      expect(pwOff.password, isFalse);
+      expect(pwOff.biometric, isTrue);
+      final bioOff = base.copyWith(biometric: false);
+      expect(bioOff.password, isTrue);
+      expect(bioOff.biometric, isFalse);
     });
 
     test(
       'SecurityTierModifiers == + hashCode agree on every compared field',
       () {
-        const a = SecurityTierModifiers(
-          password: true,
-          biometric: false,
-          biometricShortcut: true,
-          pinLength: 6,
-        );
-        const b = SecurityTierModifiers(
-          password: true,
-          biometric: false,
-          biometricShortcut: true,
-          pinLength: 6,
-        );
+        const a = SecurityTierModifiers(password: true, biometric: false);
+        const b = SecurityTierModifiers(password: true, biometric: false);
         expect(a, b);
         expect(a.hashCode, b.hashCode);
-        expect(a == b.copyWith(pinLength: 8), isFalse);
+        expect(a == b.copyWith(biometric: true), isFalse);
         expect(a == b.copyWith(password: false), isFalse);
       },
     );
@@ -188,21 +176,21 @@ void main() {
       expect(tierOnly, isNot(equals(base)));
 
       final modsOnly = base.copyWith(
-        modifiers: const SecurityTierModifiers(pinLength: 8),
+        modifiers: const SecurityTierModifiers(password: true),
       );
       expect(modsOnly.tier, base.tier);
-      expect(modsOnly.modifiers.pinLength, 8);
+      expect(modsOnly.modifiers.password, isTrue);
       expect(modsOnly, isNot(equals(base)));
     });
 
     test('SecurityConfig == + hashCode + identical() short-circuit', () {
       const a = SecurityConfig(
         tier: SecurityTier.paranoid,
-        modifiers: SecurityTierModifiers(password: true, pinLength: 6),
+        modifiers: SecurityTierModifiers(password: true),
       );
       const b = SecurityConfig(
         tier: SecurityTier.paranoid,
-        modifiers: SecurityTierModifiers(password: true, pinLength: 6),
+        modifiers: SecurityTierModifiers(password: true),
       );
       expect(a, b);
       expect(a.hashCode, b.hashCode);

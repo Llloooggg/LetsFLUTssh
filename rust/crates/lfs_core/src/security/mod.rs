@@ -120,29 +120,16 @@ impl SecurityTier {
 /// OS slot, never a replacement for typing the password. The Dart
 /// wizard enforces this; the Rust copy of the predicate enables the
 /// tier machine to validate config the same way.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// Pre-v4 configs also carried `biometric_shortcut` (a 1:1 alias
+/// for `biometric`, deprecated) and `pin_length` (advisory in the
+/// bank-style model, no runtime caller). The `ConfigV3ToV4`
+/// migration drops both fields on next read; the runtime struct
+/// no longer carries them.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct SecurityTierModifiers {
     pub password: bool,
     pub biometric: bool,
-    /// Deprecated alias kept in sync with `biometric` so v1
-    /// persisted configs keep round-tripping through the wizard.
-    pub biometric_shortcut: bool,
-    /// Hardware-tier PIN length cell count (4..=8). Advisory only
-    /// in the bank-style password model; the wizard renders a
-    /// digit cell grid at this length when the user picks the
-    /// hardware tier.
-    pub pin_length: u8,
-}
-
-impl Default for SecurityTierModifiers {
-    fn default() -> Self {
-        Self {
-            password: false,
-            biometric: false,
-            biometric_shortcut: false,
-            pin_length: 6,
-        }
-    }
 }
 
 impl SecurityTierModifiers {
@@ -152,7 +139,7 @@ impl SecurityTierModifiers {
         if self.biometric && !self.password {
             return false;
         }
-        (4..=8).contains(&self.pin_length)
+        true
     }
 
     /// Render to the same JSON shape `SecurityTierModifiers.toJson`
@@ -162,51 +149,26 @@ impl SecurityTierModifiers {
         let mut m: BTreeMap<&'static str, serde_json::Value> = BTreeMap::new();
         m.insert("password", serde_json::Value::Bool(self.password));
         m.insert("biometric", serde_json::Value::Bool(self.biometric));
-        m.insert(
-            "biometric_shortcut",
-            serde_json::Value::Bool(self.biometric_shortcut),
-        );
-        m.insert(
-            "pin_length",
-            serde_json::Value::Number(serde_json::Number::from(self.pin_length as i64)),
-        );
         m
     }
 
     /// Inverse of [`to_json_map`] — read the bag from a JSON object.
     /// Mirrors `SecurityTierModifiers.fromJson` Dart-side: missing
-    /// fields fall back to defaults; `biometric` falls back to
-    /// `biometric_shortcut` so v1-persisted configs round-trip
-    /// without a migration step; `pin_length` outside 4..=8 clamps
-    /// back to the default rather than crashing the PIN widget.
+    /// fields fall back to defaults. The `ConfigV3ToV4` migration
+    /// strips legacy `biometric_shortcut` / `pin_length` fields
+    /// before this reader sees them; if either still appears in a
+    /// hand-edited config we silently ignore it.
     pub fn from_json_map(json: &serde_json::Map<String, serde_json::Value>) -> Self {
         let d = SecurityTierModifiers::default();
-        let biometric_shortcut = json
-            .get("biometric_shortcut")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(d.biometric_shortcut);
-        let biometric = json
-            .get("biometric")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(biometric_shortcut);
-        let raw_pin = json
-            .get("pin_length")
-            .and_then(|v| v.as_i64())
-            .map(|v| v as i32)
-            .unwrap_or(d.pin_length as i32);
-        let pin_length = if !(4..=8).contains(&raw_pin) {
-            d.pin_length
-        } else {
-            raw_pin as u8
-        };
         SecurityTierModifiers {
             password: json
                 .get("password")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(d.password),
-            biometric,
-            biometric_shortcut,
-            pin_length,
+            biometric: json
+                .get("biometric")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(d.biometric),
         }
     }
 }
@@ -233,8 +195,6 @@ impl SecurityConfig {
             modifiers: SecurityTierModifiers {
                 password: false,
                 biometric: false,
-                biometric_shortcut: false,
-                pin_length: 6,
             },
         }
     }
@@ -363,12 +323,7 @@ pub fn map_wizard_choice(
     biometric: bool,
     typed_secret: Option<String>,
 ) -> MappedSetupChoice {
-    let modifiers = SecurityTierModifiers {
-        password,
-        biometric,
-        biometric_shortcut: biometric,
-        pin_length: SecurityTierModifiers::default().pin_length,
-    };
+    let modifiers = SecurityTierModifiers { password, biometric };
     match chosen {
         WizardTier::Plaintext => MappedSetupChoice {
             tier: SecurityTier::Plaintext,
