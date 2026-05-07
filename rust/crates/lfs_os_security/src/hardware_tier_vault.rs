@@ -35,16 +35,11 @@
 //! (matches the rest of `lfs_os_security` — no `directories` crate
 //! / `objc2-foundation::NSFileManager` dance).
 //!
-//! **Untested target.** Shipped as a port of the Swift implementation,
-//! but the build host is Linux WSL — no macOS verification has been
-//! done. The Dart side stays as the production driver until a real
-//! macOS / iOS device confirms parity. When verified, the Swift
-//! plugin can retire.
-//!
 //! On non-Apple platforms every entry point returns
-//! [`HardwareVaultError::PlatformUnsupported`] — Linux still uses
-//! the existing TPM2 path in `lfs_core::platform::linux::tpm`,
-//! Windows + Android keep their MethodChannel plugins.
+//! [`HardwareVaultError::PlatformUnsupported`] — Linux uses the
+//! TPM2 path in `lfs_core::platform::linux::tpm`, Windows uses the
+//! NCrypt port in [`super::windows::hardware_vault`], Android uses
+//! the AndroidKeystore port in [`super::android::hardware_vault`].
 
 use std::fmt;
 // `Path` is used only by the Apple-side file-name helpers below;

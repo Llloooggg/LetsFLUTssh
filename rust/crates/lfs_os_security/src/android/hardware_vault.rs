@@ -48,14 +48,15 @@
 //! frame wrapped under a biometric-bound variant of the
 //! wrapping key (alias `lfs.hardware_tier_vault.l3.bio`).
 //!
-//! ## Verification status
+//! ## StrongBox fallback
 //!
-//! Same NI-2 gate as the rest of the Android JNI surface.
-//! StrongBox availability + `StrongBoxUnavailableException`
-//! handling is the riskiest piece — needs validation on a
-//! Pixel-class device for happy path and a non-StrongBox
-//! device (most pre-2019 Android, low-end OEMs) for the
-//! fallback path.
+//! `setIsStrongBoxBacked(true)` is requested on every key-gen
+//! call. On devices without StrongBox the platform raises
+//! `StrongBoxUnavailableException` from `generateKey()`; the
+//! Rust wrapper catches it and retries without the flag, landing
+//! on the TEE-backed wrap key instead. The fallback is silent —
+//! the unlock cascade does not surface a UI-visible difference
+//! between the two paths.
 
 use std::path::PathBuf;
 

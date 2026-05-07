@@ -22,17 +22,14 @@
 //! held in a process-wide `Mutex<HashMap<u64, Sender>>` keyed
 //! on a `request_id` we generate per call.
 //!
-//! ## Verification status
+//! ## API gating
 //!
-//! Same NI-2 gate as the keystore module: source compiles
-//! against `aarch64-linux-android` via the rust-cross-check
-//! matrix; runtime correctness needs a real device or
-//! emulator with enrolled biometrics. The `BiometricPrompt`
-//! API has subtle version-gating (the `AUTH_BIOMETRIC_STRONG`
-//! constant is API 30+; the callback method signatures
-//! shifted between alpha and 1.0 of `androidx.biometric`)
-//! that integration tests must validate per
-//! `minSdkVersion`.
+//! The `BiometricPrompt` surface has subtle version-gating —
+//! `AUTH_BIOMETRIC_STRONG` is API 30+, the callback signatures
+//! shifted between alpha and 1.0 of `androidx.biometric`, and
+//! the prompt-on-main-thread requirement is permanent. The
+//! module uses the API-30+ subset; `minSdkVersion` is what pins
+//! that floor.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};

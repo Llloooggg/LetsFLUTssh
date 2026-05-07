@@ -29,26 +29,14 @@
 //! Same shape `super::super::hardware_tier_vault::write_len_prefixed`
 //! produces on the Apple path.
 //!
-//! ## On-device validation matrix (REQUIRED before flipping
-//! `_usesWindowsMethodChannel` Dart-side)
+//! ## Failure mapping
 //!
-//! 1. Win10 + TPM 2.0, no Hello PIN: store / read / clear cycle,
-//!    process restart between store and read, confirm unseal.
-//! 2. Win11 + Hello PIN: same cycle plus Hello prompt timing —
-//!    `NCRYPT_UI_PROTECT_KEY_FLAG` should fire the PIN dialog at
-//!    `NCryptDecrypt` time.
-//! 3. "TPM cleared from BIOS" recovery: confirm `NTE_BAD_KEYSET`
-//!    from `NCryptOpenKey` routes to `Ok(None)` (vault revoked,
-//!    Dart unlocks via TierResetDialog), not a crash.
-//! 4. Domain-managed Windows: confirm `NCRYPT_UI_PROTECT_KEY_FLAG`
-//!    survives the GPO that blocks UI-protection on persistent
-//!    keys; on the failure path, `NCryptCreatePersistedKey` should
-//!    surface `NTE_PERM` which we treat as `Backend(...)` (UI
-//!    falls through to plaintext / keychain).
-//!
-//! Until on-device validation lands the Dart-side
-//! `_usesWindowsMethodChannel` flag stays pointed at the C++ plugin —
-//! this module is staged but not load-bearing.
+//! `NCryptOpenKey` → `NTE_BAD_KEYSET` is treated as
+//! "vault revoked" (TPM cleared / persistent key removed): the
+//! caller sees `Ok(None)` and the unlock cascade falls through to
+//! the tier-reset dialog. Every other CNG failure surfaces as
+//! [`HardwareVaultError::Backend`] with the formatted HRESULT for
+//! triage logs.
 
 use std::path::{Path, PathBuf};
 
