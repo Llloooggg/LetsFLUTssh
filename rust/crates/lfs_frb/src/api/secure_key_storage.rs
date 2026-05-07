@@ -68,10 +68,6 @@ pub async fn secure_storage_read_biometric(
     map_read(lfs_os_security::secure_key_storage::read_biometric(&alias).await)
 }
 
-pub async fn secure_storage_write_biometric(alias: String, value: Vec<u8>) -> Result<(), String> {
-    map_unit(lfs_os_security::secure_key_storage::write_biometric(&alias, &value).await)
-}
-
 /// SecretRef variant of [`secure_storage_read`]. Reads the OS
 /// keychain entry under `alias` and stores the bytes in
 /// [`lfs_core::secrets::SecretStore`] under `secret_id` — the
@@ -117,11 +113,11 @@ pub async fn secure_storage_read_biometric_to_secret(
     }
 }
 
-/// SecretRef variant of [`secure_storage_write_biometric`]. Pulls
-/// the bytes from `SecretStore` under `secret_id` (entry preserved
-/// so downstream consumers can still read) and writes the
-/// biometric-gated keychain entry. Mirrors the no-FRB-byte-crossing
-/// shape of [`secure_storage_write_from_secret`].
+/// SecretRef-only biometric write. Pulls the bytes from
+/// `SecretStore` under `secret_id` (entry preserved so downstream
+/// consumers can still read) and writes the biometric-gated
+/// keychain entry. Mirrors the no-FRB-byte-crossing shape of
+/// [`secure_storage_write_from_secret`].
 pub async fn secure_storage_write_biometric_from_secret(
     alias: String,
     secret_id: String,

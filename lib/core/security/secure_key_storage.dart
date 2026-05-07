@@ -21,8 +21,8 @@ import 'linux_keychain_marker.dart';
 /// stderr the moment it cannot talk to a running/unlocked keyring
 /// daemon. The shared [LinuxKeychainMarker] gate suppresses that on
 /// cold launches before the user opts into keychain storage; the
-/// marker is written on a successful [writeKey] and cleared by
-/// [deleteKey].
+/// marker is written on a successful [writeKeyFromSecret] and
+/// cleared by [deleteKey].
 class SecureKeyStorage {
   static const _keyName = 'letsflutssh_encryption_key';
   static const _biometricKeyName = 'letsflutssh_biometric_encryption_key';
@@ -116,27 +116,10 @@ class SecureKeyStorage {
     }
   }
 
-  Future<Uint8List?> readKey() async {
-    if (!await _linuxGatePass()) return null;
-    try {
-      final outcome = await rust_storage.secureStorageRead(alias: _keyName);
-      return outcome is rust_storage.DbSecureStorageOutcome_Found
-          ? Uint8List.fromList(outcome.field0)
-          : null;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to read key from keychain: $e',
-        name: 'SecureKeyStorage',
-      );
-      return null;
-    }
-  }
-
-  /// SecretRef variant of [readKey]. Reads the OS keychain entry
-  /// and stages it directly under [secretId] in the Rust-side
-  /// `SecretStore` — bytes never cross the FRB boundary. Returns
-  /// true on success, false when the alias was absent or the read
-  /// returned empty.
+  /// SecretRef-only read. Reads the OS keychain entry and stages
+  /// it directly under [secretId] in the Rust-side `SecretStore` —
+  /// bytes never cross the FRB boundary. Returns true on success,
+  /// false when the alias was absent or the read returned empty.
   Future<bool> readKeyToSecret(String secretId) async {
     if (!await _linuxGatePass()) return false;
     try {
@@ -153,21 +136,7 @@ class SecureKeyStorage {
     }
   }
 
-  Future<bool> writeKey(Uint8List key) async {
-    try {
-      await rust_storage.secureStorageWrite(alias: _keyName, value: key);
-      if (Platform.isLinux) await _marker.set();
-      return true;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to write key to keychain: $e',
-        name: 'SecureKeyStorage',
-      );
-      return false;
-    }
-  }
-
-  /// SecretRef variant — pulls the key bytes from the Rust-side
+  /// SecretRef-only write — pulls the key bytes from the Rust-side
   /// `SecretStore` under [secretId] instead of marshalling them as
   /// `Uint8List` over the FRB boundary. Used by the first-launch +
   /// tier-apply flows that stage the key via
@@ -187,41 +156,6 @@ class SecureKeyStorage {
         name: 'SecureKeyStorage',
       );
       return false;
-    }
-  }
-
-  Future<bool> writeBiometricKey(Uint8List key) async {
-    try {
-      await rust_storage.secureStorageWriteBiometric(
-        alias: _biometricKeyName,
-        value: key,
-      );
-      if (Platform.isLinux) await _marker.set();
-      return true;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to write biometric key: $e',
-        name: 'SecureKeyStorage',
-      );
-      return false;
-    }
-  }
-
-  Future<Uint8List?> readBiometricKey() async {
-    if (!await _linuxGatePass()) return null;
-    try {
-      final outcome = await rust_storage.secureStorageReadBiometric(
-        alias: _biometricKeyName,
-      );
-      return outcome is rust_storage.DbSecureStorageOutcome_Found
-          ? Uint8List.fromList(outcome.field0)
-          : null;
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to read biometric key: $e',
-        name: 'SecureKeyStorage',
-      );
-      return null;
     }
   }
 

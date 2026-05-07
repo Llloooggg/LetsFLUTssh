@@ -138,28 +138,19 @@ class FakeSecureKeyStorage extends SecureKeyStorage {
   Future<KeyringProbeResult> probe() async => probeResult;
 
   @override
-  Future<Uint8List?> readKey() async => storedKey;
-
-  @override
-  Future<bool> writeKey(Uint8List key) async {
+  Future<bool> writeKeyFromSecret(String secretId) async {
     if (!writeKeySucceeds) return false;
-    storedKey = key;
+    storedKey = Uint8List(32);
     return true;
   }
+
+  @override
+  Future<bool> readKeyToSecret(String secretId) async => storedKey != null;
 
   @override
   Future<void> deleteKey() async {
     storedKey = null;
   }
-
-  @override
-  Future<bool> writeBiometricKey(Uint8List key) async {
-    biometricKey = key;
-    return true;
-  }
-
-  @override
-  Future<Uint8List?> readBiometricKey() async => biometricKey;
 
   @override
   Future<void> deleteBiometricKey() async {
