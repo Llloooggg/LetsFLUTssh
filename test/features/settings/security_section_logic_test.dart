@@ -7,7 +7,7 @@ import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/features/settings/security_section_logic.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/platform/macos/code_signing/resign_service.dart';
+import 'package:letsflutssh/platform/macos/code_signing_client.dart';
 
 /// Drive the section's pure decision helpers
 /// (`biometricPlatformReason`, `autoLockDisabledReason`,
@@ -580,28 +580,28 @@ void main() {
 
   group('isResignAcceptable', () {
     test('succeeded counts as acceptable', () {
-      expect(isResignAcceptable(ResignOutcome.succeeded), isTrue);
-    });
-    test('reusedExisting counts as acceptable', () {
-      expect(isResignAcceptable(ResignOutcome.reusedExisting), isTrue);
+      expect(isResignAcceptable(MacosResignOutcome.succeeded), isTrue);
     });
     test('cancelledOrFailed routes through the failure toast', () {
-      expect(isResignAcceptable(ResignOutcome.cancelledOrFailed), isFalse);
+      expect(isResignAcceptable(MacosResignOutcome.cancelledOrFailed), isFalse);
     });
     test('bundleNotWritable routes through the failure toast', () {
-      expect(isResignAcceptable(ResignOutcome.bundleNotWritable), isFalse);
+      expect(isResignAcceptable(MacosResignOutcome.bundleNotWritable), isFalse);
     });
-    test('every ResignOutcome value classifies into exactly one bucket', () {
-      // Belt-and-braces: a future enum addition (e.g. a "user
-      // declined keychain prompt") must consciously decide which
-      // bucket it falls into. The test exhausts the enum so a new
-      // variant trips a missing-classification analyzer error.
-      for (final o in ResignOutcome.values) {
-        // The function returns a bool — the call itself is the
-        // classification. We just assert it doesn't throw.
-        isResignAcceptable(o);
-      }
-    });
+    test(
+      'every MacosResignOutcome value classifies into exactly one bucket',
+      () {
+        // Belt-and-braces: a future enum addition (e.g. a "user
+        // declined keychain prompt") must consciously decide which
+        // bucket it falls into. The test exhausts the enum so a new
+        // variant trips a missing-classification analyzer error.
+        for (final o in MacosResignOutcome.values) {
+          // The function returns a bool — the call itself is the
+          // classification. We just assert it doesn't throw.
+          isResignAcceptable(o);
+        }
+      },
+    );
   });
 
   group('isPostIdentityRemovalTierAccepted', () {

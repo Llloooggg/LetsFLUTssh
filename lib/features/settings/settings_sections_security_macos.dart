@@ -59,13 +59,13 @@ extension _MacosKeychain on _SecuritySectionState {
   Future<void> _enableMacosKeychain() async {
     rebuild(() => _enablingKeychain = true);
     try {
-      final svc = ref.read(resignServiceProvider);
+      final svc = ref.read(macosCodeSigningClientProvider);
       await svc.ensureIdentity();
       // Bundle path math + outcome classification live in
       // `security_section_logic` so they're unit-testable without
       // a real macOS executable on disk.
       final bundle = appBundlePathFromExecutable(Platform.resolvedExecutable);
-      final outcome = await svc.resignBundle(appBundle: bundle);
+      final outcome = await svc.resignBundle(bundlePath: bundle.path);
       if (!mounted) return;
       if (!isResignAcceptable(outcome)) {
         Toast.show(
@@ -162,7 +162,7 @@ extension _MacosKeychain on _SecuritySectionState {
       await _applyTierChange(result);
       if (!mounted) return;
       // Tier switch succeeded → safe to drop the cert.
-      await ref.read(resignServiceProvider).uninstallIdentity();
+      await ref.read(macosCodeSigningClientProvider).uninstallIdentity();
       await ref
           .read(configProvider.notifier)
           .update((c) => c.copyWithSecurity(securityProbeCache: null));

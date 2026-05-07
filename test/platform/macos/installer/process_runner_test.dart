@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/platform/macos/code_signing/process_runner.dart';
+import 'package:letsflutssh/platform/macos/installer/process_runner.dart';
 
 /// [SystemProcessRunner] lives in `platform/macos/` but only thin-
 /// wraps `Process.run` / `Process.start` — the behaviour is POSIX-

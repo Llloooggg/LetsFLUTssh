@@ -24,7 +24,7 @@ crate-type = ["rlib"]
 # regardless of which OS-specific listener is wired underneath.
 # `sync` is needed by everyone for broadcast / oneshot.
 [dependencies]
-tokio = { workspace = true, features = ["sync", "io-util"] }
+tokio = { workspace = true, features = ["sync", "io-util", "process", "fs"] }
 # `subtle::ConstantTimeEq` for the PIN-HMAC compare in
 # `hardware_tier_vault` (Android JNI path) and any future
 # constant-time equality call sites the OS-side adds.

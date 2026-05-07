@@ -394,3 +394,12 @@ pub mod android;
 // retires the C++ MethodChannel plugin in `windows/runner/`).
 #[cfg(target_os = "windows")]
 pub mod windows;
+
+// macOS-only — self-sign / re-sign code-signing pipeline that
+// turns a freshly-installed `.app` into one with a stable
+// signing identity in the user's keychain. Subprocess-driven
+// over `/usr/bin/openssl` + `/usr/bin/security` +
+// `/usr/bin/codesign`; replaces the prior Dart implementation
+// in `lib/platform/macos/code_signing/`.
+#[cfg(target_os = "macos")]
+pub mod macos;

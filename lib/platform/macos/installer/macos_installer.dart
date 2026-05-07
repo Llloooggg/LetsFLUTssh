@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import '../code_signing/codesigner.dart';
-import '../code_signing/process_runner.dart';
-import '../code_signing/resign_service.dart';
+import '../code_signing_client.dart';
+import 'process_runner.dart';
 
 /// Outcome of an atomic DMG install. Surfaces back to `UpdateService`
 /// so the UI can pick the right copy — success kicks a relaunch,
@@ -45,13 +44,11 @@ enum InstallOutcome {
 /// the install root, which the next successful install cleans up.
 class MacosInstaller {
   final IProcessRunner runner;
-  final Codesigner codesigner;
-  final ResignService resignService;
+  final MacosCodeSigningClient codeSigning;
 
   const MacosInstaller({
     this.runner = const SystemProcessRunner(),
-    this.codesigner = const Codesigner(),
-    this.resignService = const ResignService(),
+    this.codeSigning = defaultMacosCodeSigningClient,
   });
 
   /// Install [dmgPath] on top of [targetBundle]. [targetBundle] is the
@@ -112,7 +109,9 @@ class MacosInstaller {
       //    -34018 trap we're trying to dodge — the staged bundle
       //    would pass `codesign --verify` (signature is valid) but
       //    hit `errSecMissingEntitlement` on the first T1 read.
-      final preResignEnt = await codesigner.extractEntitlements(stagedPath);
+      final preResignEnt = await codeSigning.extractEntitlements(
+        bundlePath: stagedPath.path,
+      );
 
       // 5. re-sign under the user's personal cert, but only if one
       //    is actually installed. `hasIdentity` short-circuits the
@@ -122,13 +121,13 @@ class MacosInstaller {
       //    `resignBundle` unconditionally would fail `codesign`
       //    subprocess with "no identity found" and rolling back the
       //    install on every update for users who never opted in.
-      if (await resignService.hasIdentity()) {
-        await resignService.resignBundle(appBundle: stagedPath);
+      if (await codeSigning.hasIdentity()) {
+        await codeSigning.resignBundle(bundlePath: stagedPath.path);
       }
 
       // 6. verify the staged bundle — if it fails, discard staging
       //    and leave target untouched.
-      if (!await codesigner.verify(stagedPath)) {
+      if (!await codeSigning.verifyBundle(bundlePath: stagedPath.path)) {
         stagedPath.deleteSync(recursive: true);
         return InstallOutcome.rolledBack;
       }
@@ -141,7 +140,9 @@ class MacosInstaller {
       //    before the atomic swap so the user stays on the working
       //    prior version.
       if (preResignEnt != null) {
-        final postResignEnt = await codesigner.extractEntitlements(stagedPath);
+        final postResignEnt = await codeSigning.extractEntitlements(
+          bundlePath: stagedPath.path,
+        );
         if (postResignEnt == null) {
           stagedPath.deleteSync(recursive: true);
           return InstallOutcome.rolledBack;

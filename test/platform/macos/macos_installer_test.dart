@@ -1,10 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:letsflutssh/platform/macos/code_signing/codesigner.dart';
-import 'package:letsflutssh/platform/macos/code_signing/process_runner.dart';
-import 'package:letsflutssh/platform/macos/code_signing/resign_service.dart';
+import 'package:letsflutssh/platform/macos/code_signing_client.dart';
 import 'package:letsflutssh/platform/macos/installer/macos_installer.dart';
+import 'package:letsflutssh/platform/macos/installer/process_runner.dart';
 
 class _ScriptedRunner implements IProcessRunner {
   final List<List<String>> calls = [];
@@ -140,8 +139,7 @@ void main() {
             stagedPrefix: target.path,
             rsyncOk: false,
           ),
-          codesigner: _FakeCodesigner(),
-          resignService: _FakeResign(hasId: false),
+          codeSigning: _FakeCodeSigning(),
         );
         expect(
           await installer.install(
@@ -165,8 +163,7 @@ void main() {
       final mountRef = Directory('');
       final installer = MacosInstaller(
         runner: buildRunner(mountPointRef: mountRef, stagedPrefix: target.path),
-        codesigner: _FakeCodesigner(verifyOk: false),
-        resignService: _FakeResign(hasId: false),
+        codeSigning: _FakeCodeSigning(verifyOk: false),
       );
       expect(
         await installer.install(
@@ -197,8 +194,7 @@ void main() {
             mountPointRef: mountRef,
             stagedPrefix: target.path,
           ),
-          codesigner: _DroppingEntitlementsCodesigner(),
-          resignService: _FakeResign(hasId: true),
+          codeSigning: _DroppingEntitlementsCodeSigning(),
         );
         expect(
           await installer.install(
@@ -221,8 +217,7 @@ void main() {
             mountPointRef: mountRef,
             stagedPrefix: target.path,
           ),
-          codesigner: _FakeCodesigner(),
-          resignService: _FakeResign(hasId: false),
+          codeSigning: _FakeCodeSigning(),
         );
         expect(
           await installer.install(
@@ -287,49 +282,80 @@ class _ScriptedRunnerWithSideEffects implements IProcessRunner {
   }
 }
 
-class _FakeCodesigner extends Codesigner {
-  _FakeCodesigner({this.verifyOk = true});
+/// Defaults that pass `verifyBundle`, return a non-empty
+/// entitlements plist, and treat `hasIdentity` as off so the
+/// re-sign step is skipped — exactly the shape the rsync-failure
+/// and verify-failure tests need. The verify-failure test flips
+/// `verifyOk` to `false` to drive the rolledBack branch.
+class _FakeCodeSigning implements MacosCodeSigningClient {
+  _FakeCodeSigning({this.verifyOk = true});
 
   final bool verifyOk;
 
   @override
-  Future<String?> extractEntitlements(Directory appBundle) async => '<plist/>';
+  Future<bool> hasIdentity({
+    String commonName = defaultMacosResignCommonName,
+  }) async => false;
 
   @override
-  Future<bool> verify(Directory bundle) async => verifyOk;
+  Future<bool> ensureIdentity({
+    String commonName = defaultMacosResignCommonName,
+  }) async => true;
+
+  @override
+  Future<MacosResignOutcome> resignBundle({
+    required String bundlePath,
+    String commonName = defaultMacosResignCommonName,
+  }) async => MacosResignOutcome.succeeded;
+
+  @override
+  Future<void> uninstallIdentity({
+    String commonName = defaultMacosResignCommonName,
+  }) async {}
+
+  @override
+  Future<String?> extractEntitlements({required String bundlePath}) async =>
+      '<plist/>';
+
+  @override
+  Future<bool> verifyBundle({required String bundlePath}) async => verifyOk;
 }
 
-/// Codesigner that returns a plist on the *first* call to
+/// Code-signing client that returns a plist on the *first* call to
 /// [extractEntitlements] (pre-resign) and `null` on subsequent calls
 /// (post-resign) — mirrors the `errSecMissingEntitlement` silent-drop
-/// bug the installer's post-resign probe is designed to catch.
-class _DroppingEntitlementsCodesigner extends Codesigner {
+/// bug the installer's post-resign probe is designed to catch. Has
+/// an identity present so the resign branch fires.
+class _DroppingEntitlementsCodeSigning implements MacosCodeSigningClient {
   int _calls = 0;
 
   @override
-  Future<String?> extractEntitlements(Directory appBundle) async {
+  Future<bool> hasIdentity({
+    String commonName = defaultMacosResignCommonName,
+  }) async => true;
+
+  @override
+  Future<bool> ensureIdentity({
+    String commonName = defaultMacosResignCommonName,
+  }) async => true;
+
+  @override
+  Future<MacosResignOutcome> resignBundle({
+    required String bundlePath,
+    String commonName = defaultMacosResignCommonName,
+  }) async => MacosResignOutcome.succeeded;
+
+  @override
+  Future<void> uninstallIdentity({
+    String commonName = defaultMacosResignCommonName,
+  }) async {}
+
+  @override
+  Future<String?> extractEntitlements({required String bundlePath}) async {
     _calls++;
     return _calls == 1 ? '<plist><dict/></plist>' : null;
   }
 
   @override
-  Future<bool> verify(Directory bundle) async => true;
-}
-
-class _FakeResign extends ResignService {
-  _FakeResign({required this.hasId});
-
-  final bool hasId;
-
-  @override
-  Future<bool> hasIdentity({String commonName = 'letsflutssh-self'}) async =>
-      hasId;
-
-  @override
-  Future<ResignOutcome> resignBundle({
-    required Directory appBundle,
-    String commonName = 'letsflutssh-self',
-  }) async {
-    return ResignOutcome.succeeded;
-  }
+  Future<bool> verifyBundle({required String bundlePath}) async => true;
 }

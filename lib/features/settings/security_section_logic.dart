@@ -15,7 +15,7 @@ import 'dart:typed_data';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
 import '../../l10n/app_localizations.dart';
-import '../../platform/macos/code_signing/resign_service.dart';
+import '../../platform/macos/code_signing_client.dart';
 import '../../widgets/expandable_tier_card.dart';
 
 /// Localised tooltip explaining why biometric is unreachable on this
@@ -388,16 +388,13 @@ class TierVaultClearPlan {
 }
 
 /// True when [outcome] means the inside-out re-sign step landed a
-/// usable signing identity on the bundle. Both `succeeded` (fresh
-/// cert + re-sign chain) and `reusedExisting` (cert already present,
-/// re-sign succeeded) leave the bundle in the desired state; the
-/// other two values (`bundleNotWritable`, `cancelledOrFailed`)
-/// represent the user-actionable failure surface and route through
-/// the toast path. Pulled out of `_enableMacosKeychain` so the
-/// success classification is one testable surface.
-bool isResignAcceptable(ResignOutcome outcome) =>
-    outcome == ResignOutcome.succeeded ||
-    outcome == ResignOutcome.reusedExisting;
+/// usable signing identity on the bundle. The other two values
+/// (`bundleNotWritable`, `cancelledOrFailed`) represent the
+/// user-actionable failure surface and route through the toast
+/// path. Pulled out of `_enableMacosKeychain` so the success
+/// classification is one testable surface.
+bool isResignAcceptable(MacosResignOutcome outcome) =>
+    outcome == MacosResignOutcome.succeeded;
 
 /// True when [target] is one of the tiers the macOS Remove-Identity
 /// flow allows the user to land on after the cert is dropped: T0

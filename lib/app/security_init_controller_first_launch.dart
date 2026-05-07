@@ -89,12 +89,12 @@ extension _FirstLaunchFlows on SecurityInitController {
       );
     }
     try {
-      final svc = ref.read(resignServiceProvider);
+      final svc = ref.read(macosCodeSigningClientProvider);
       await svc.ensureIdentity();
       final bundle = Directory(
         Platform.resolvedExecutable,
       ).parent.parent.parent;
-      await svc.resignBundle(appBundle: bundle);
+      await svc.resignBundle(bundlePath: bundle.path);
       await ref
           .read(configProvider.notifier)
           .update((c) => c.copyWithSecurity(securityProbeCache: null));

@@ -52,7 +52,9 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     bool? hasIdentity;
     if (plat.isMacosPlatform) {
       try {
-        hasIdentity = await ref.read(resignServiceProvider).hasIdentity();
+        hasIdentity = await ref
+            .read(macosCodeSigningClientProvider)
+            .hasIdentity();
       } catch (_) {
         hasIdentity = false;
       }
