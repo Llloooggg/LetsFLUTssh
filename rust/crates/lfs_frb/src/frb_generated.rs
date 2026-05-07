@@ -4313,11 +4313,14 @@ fn wire__crate__api__archive__db_export_archive_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_input = <crate::api::archive::DbExportInput>::sse_decode(&mut deserializer);
+            let api_output_path = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
-                        let output_ok = crate::api::archive::db_export_archive(api_input).await?;
+                        let output_ok =
+                            crate::api::archive::db_export_archive(api_input, api_output_path)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,

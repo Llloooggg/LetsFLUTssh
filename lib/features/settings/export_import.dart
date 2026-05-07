@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
@@ -119,7 +118,8 @@ class ExportImport {
     final configJson = config != null
         ? jsonEncode(config.toJsonForExport())
         : '';
-    final encrypted = await rust_archive.dbExportArchive(
+    progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
+    final byteCount = await rust_archive.dbExportArchive(
       input: rust_archive.DbExportInput(
         options: rust_archive.DbExportOptions(
           includeSessions: options.includeSessions,
@@ -141,29 +141,12 @@ class ExportImport {
         kdfParallelism: params.parallelism,
         createdAtMs: DateTime.now().millisecondsSinceEpoch,
       ),
+      outputPath: outputPath,
     );
     AppLogger.instance.log(
-      'Export: Rust orchestrator produced ${encrypted.length} bytes',
+      'Export: Rust orchestrator wrote $byteCount bytes to $outputPath',
       name: 'ExportImport',
     );
-
-    progress?.phase(l10n?.progressWritingArchive ?? 'Writing archive…');
-    final file = File(outputPath);
-    await file.parent.create(recursive: true);
-    final tmp = File('$outputPath.tmp');
-    try {
-      await tmp.writeAsBytes(encrypted, flush: true);
-      await tmp.rename(outputPath);
-    } catch (e) {
-      if (await tmp.exists()) {
-        try {
-          await tmp.delete();
-        } catch (_) {
-          // Best-effort cleanup; original error is what the user needs.
-        }
-      }
-      rethrow;
-    }
     return outputPath;
   }
 }

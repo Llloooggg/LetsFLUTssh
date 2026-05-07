@@ -532,8 +532,9 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiAppDbClose();
 
-  Future<Uint8List> crateApiArchiveDbExportArchive({
+  Future<PlatformInt64> crateApiArchiveDbExportArchive({
     required DbExportInput input,
+    required String outputPath,
   });
 
   Future<String> crateApiArchiveDbExportQrPayload({
@@ -5243,14 +5244,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'db_close', argNames: []);
 
   @override
-  Future<Uint8List> crateApiArchiveDbExportArchive({
+  Future<PlatformInt64> crateApiArchiveDbExportArchive({
     required DbExportInput input,
+    required String outputPath,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_box_autoadd_db_export_input(input, serializer);
+          sse_encode_String(outputPath, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -5259,18 +5262,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeSuccessData: sse_decode_i_64,
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiArchiveDbExportArchiveConstMeta,
-        argValues: [input],
+        argValues: [input, outputPath],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiArchiveDbExportArchiveConstMeta =>
-      const TaskConstMeta(debugName: 'db_export_archive', argNames: ['input']);
+      const TaskConstMeta(
+        debugName: 'db_export_archive',
+        argNames: ['input', 'outputPath'],
+      );
 
   @override
   Future<String> crateApiArchiveDbExportQrPayload({

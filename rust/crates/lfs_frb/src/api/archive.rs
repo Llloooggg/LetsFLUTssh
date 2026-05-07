@@ -46,11 +46,21 @@ pub struct DbExportInput {
     pub created_at_ms: i64,
 }
 
-/// Compose and (optionally) encrypt the `.lfs` archive entirely
-/// inside Rust. Plaintext credentials never cross the FRB boundary
-/// outbound — the bytes flow DB → JSON → ZIP → AES-GCM and only the
-/// finished archive returns to Dart.
-pub async fn db_export_archive(input: DbExportInput) -> Result<Vec<u8>, String> {
+/// Compose, (optionally) encrypt, and atomically write the `.lfs`
+/// archive entirely inside Rust. Plaintext credentials never cross
+/// the FRB boundary outbound: the bytes flow DB → JSON → ZIP →
+/// AES-GCM → atomic file write under `output_path`. Returns the
+/// archive byte count so the caller can log or surface progress
+/// without re-stat'ing the file. Atomic via
+/// [`lfs_core::path::write_bytes_atomic`] (tmp + fsync + rename +
+/// parent-dir fsync), so a crash mid-write leaves the previous
+/// file at `output_path` (or no file when none existed). The Dart
+/// caller no longer maintains its own tmp + writeAsBytes + rename
+/// discipline.
+pub async fn db_export_archive(
+    input: DbExportInput,
+    output_path: String,
+) -> Result<i64, String> {
     let core_input = ExportInput {
         options: ExportOptions {
             include_sessions: input.options.include_sessions,
@@ -80,10 +90,20 @@ pub async fn db_export_archive(input: DbExportInput) -> Result<Vec<u8>, String> 
         created_at_ms: input.created_at_ms,
     };
 
-    tokio::task::spawn_blocking(move || {
-        let db = require_db()?;
-        db.with_conn(|c| lfs_core::archive::export_archive(c, &core_input))
-            .map_err(|e| e.to_string())
+    tokio::task::spawn_blocking(move || -> Result<i64, String> {
+        let db = require_db().map_err(|e| e.to_string())?;
+        let bytes = db
+            .with_conn(|c| lfs_core::archive::export_archive(c, &core_input))
+            .map_err(|e| e.to_string())?;
+        let len = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
+        let path = std::path::PathBuf::from(&output_path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create parent dir for archive: {e}"))?;
+        }
+        lfs_core::path::write_bytes_atomic(&path, &bytes)
+            .map_err(|e| format!("write archive atomic: {e}"))?;
+        Ok(len)
     })
     .await
     .map_err(|e| format!("export task: {e}"))?
