@@ -127,6 +127,14 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
           ),
       };
     } catch (e) {
+      // Cold-start race: the provider's `build()` fires before the
+      // unlock handshake opens the DB. Returning an empty map is
+      // the expected pre-open shape — `ref.invalidateSelf()` runs
+      // post-unlock and pulls a fresh load. No log, no throw, this
+      // is normal lifecycle, not an error.
+      if (e.toString().contains('db not initialized')) {
+        return const {};
+      }
       AppLogger.instance.log(
         'Failed to load key metadata',
         name: 'SshKeysNotifier',

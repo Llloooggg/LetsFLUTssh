@@ -767,6 +767,14 @@ class _LogRow extends StatelessWidget {
     // selection across rows, so vertical padding gives the row
     // visual breathing room without producing an unselectable
     // gap to the next row.
+    // The `SizedBox(width: double.infinity)` wrap is what makes
+    // a click anywhere on the row pick up the line. Without it
+    // `Text.rich` shrinks to the glyph extent, so the trailing
+    // empty space inside the Container is unselectable — drag-
+    // select only catches the line if you aim straight at the
+    // text. Stretching the Text widget across the full row width
+    // gives selection (and hit-testing) the whole horizontal
+    // band to work with.
     return Container(
       decoration: BoxDecoration(
         color: tintBg,
@@ -778,7 +786,10 @@ class _LogRow extends StatelessWidget {
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Text.rich(TextSpan(children: spans)),
+      child: SizedBox(
+        width: double.infinity,
+        child: Text.rich(TextSpan(children: spans)),
+      ),
     );
   }
 }
