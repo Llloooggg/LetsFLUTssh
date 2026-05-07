@@ -12,6 +12,7 @@ import '../core/db/rust_db_init.dart';
 import '../core/security/active_dbkey.dart';
 import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/api/crypto.dart' as rust_crypto;
+import '../src/rust/api/macos_resign.dart' as rust_macos_resign;
 import '../src/rust/api/tier_unlock_orchestrator.dart' as rust_orch;
 import '../core/migration/migration_runner.dart';
 import '../core/security/keychain_password_gate.dart';

@@ -52,9 +52,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     bool? hasIdentity;
     if (plat.isMacosPlatform) {
       try {
-        hasIdentity = await ref
-            .read(macosCodeSigningClientProvider)
-            .hasIdentity();
+        hasIdentity = await rust_macos_resign.macosResignHasIdentity();
       } catch (_) {
         hasIdentity = false;
       }

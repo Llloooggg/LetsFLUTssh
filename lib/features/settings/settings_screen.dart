@@ -21,6 +21,7 @@ import 'security_tier_switcher.dart';
 import '../../widgets/shortcut_registry.dart';
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/crypto.dart' as rust_crypto;
+import '../../src/rust/api/macos_resign.dart' as rust_macos_resign;
 import '../../core/security/active_dbkey.dart';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';

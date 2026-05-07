@@ -8,71 +8,35 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
-/// Returns `true` when a cert under `common_name` exists in the
-/// user's login keychain. Read-only — never mutates the
-/// keychain. On non-macOS hosts always returns `false` so the
-/// settings UI keeps showing "Enable secure tiers" rather than
-/// failing loudly on the wrong OS.
-Future<bool> macosResignHasIdentity({required String commonName}) => RustLib
-    .instance
-    .api
-    .crateApiMacosResignMacosResignHasIdentity(commonName: commonName);
+/// Returns `true` when the self-sign cert exists in the user's
+/// login keychain. Read-only — never mutates the keychain. On
+/// non-macOS hosts always returns `false` so the settings UI
+/// keeps showing "Enable secure tiers" rather than failing
+/// loudly on the wrong OS.
+Future<bool> macosResignHasIdentity() =>
+    RustLib.instance.api.crateApiMacosResignMacosResignHasIdentity();
 
-/// Make sure a self-signed cert under `common_name` exists in
-/// the user's login keychain. Returns `true` when a fresh cert
-/// was created in this call (the macOS password prompt fired);
-/// `false` when an existing one was reused silently.
-Future<bool> macosResignEnsureIdentity({required String commonName}) => RustLib
-    .instance
-    .api
-    .crateApiMacosResignMacosResignEnsureIdentity(commonName: commonName);
+/// Make sure the self-sign cert exists in the keychain. Returns
+/// `true` when a fresh cert was created in this call (the macOS
+/// password prompt fired); `false` when an existing one was
+/// reused silently.
+Future<bool> macosResignEnsureIdentity() =>
+    RustLib.instance.api.crateApiMacosResignMacosResignEnsureIdentity();
 
-/// Re-sign the bundle at `bundle_path` leaf-first with the cert
-/// under `common_name`. Caller must have run
+/// Re-sign the bundle at `bundle_path` leaf-first with the
+/// self-sign cert. Caller must have run
 /// [`macos_resign_ensure_identity`] earlier.
-Future<MacosResignOutcome> macosResignBundle({
-  required String bundlePath,
-  required String commonName,
-}) => RustLib.instance.api.crateApiMacosResignMacosResignBundle(
-  bundlePath: bundlePath,
-  commonName: commonName,
-);
-
-/// Read the entitlements plist embedded in the bundle at
-/// `bundle_path`'s current signature. Returns `null` when the
-/// signature carries no entitlements (CI ad-hoc build) or the
-/// bundle is corrupt. The installer uses this to take pre-/
-/// post-resign snapshots and detect a re-sign that silently
-/// stripped `keychain-access-groups`.
-Future<String?> macosResignExtractEntitlements({required String bundlePath}) =>
-    RustLib.instance.api.crateApiMacosResignMacosResignExtractEntitlements(
+Future<MacosResignOutcome> macosResignBundle({required String bundlePath}) =>
+    RustLib.instance.api.crateApiMacosResignMacosResignBundle(
       bundlePath: bundlePath,
     );
 
-/// Run `codesign --verify --deep --strict --verbose=2` against
-/// the bundle at `bundle_path`. Used by the installer to gate
-/// the atomic-swap step on a structurally-sound staged bundle.
-Future<bool> macosResignVerifyBundle({required String bundlePath}) => RustLib
-    .instance
-    .api
-    .crateApiMacosResignMacosResignVerifyBundle(bundlePath: bundlePath);
-
-/// Drop the identity + cert under `common_name` from the user's
-/// login keychain.
-Future<void> macosResignUninstallIdentity({required String commonName}) =>
-    RustLib.instance.api.crateApiMacosResignMacosResignUninstallIdentity(
-      commonName: commonName,
-    );
-
-/// Stable subject CN used by the cert; mirrored in Dart so the
-/// settings UI labels stay in sync without hard-coding the
-/// string in two places.
-Future<String> macosResignDefaultCommonName() =>
-    RustLib.instance.api.crateApiMacosResignMacosResignDefaultCommonName();
+/// Drop the self-sign identity + cert from the user's login
+/// keychain.
+Future<void> macosResignUninstallIdentity() =>
+    RustLib.instance.api.crateApiMacosResignMacosResignUninstallIdentity();
 
 /// FRB-visible mirror of
-/// `lfs_os_security::macos::code_signing::ResignOutcome`.
-/// Stays a discriminator-only enum — the wire shape is one
-/// variant per Dart `ResignOutcome` branch the settings UI
-/// already understands.
+/// `lfs_os_security::macos::code_signing::ResignOutcome`. One
+/// variant per Dart settings-UI branch.
 enum MacosResignOutcome { succeeded, cancelledOrFailed, bundleNotWritable }

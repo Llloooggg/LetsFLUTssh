@@ -14,31 +14,12 @@ import '../src/rust/api/tpm.dart' as rust_tpm;
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
 import '../l10n/app_localizations.dart';
-import '../platform/macos/code_signing_client.dart';
 import '../utils/logger.dart';
 import 'config_provider.dart';
 
 /// Global [SecureKeyStorage] instance for OS keychain access.
 final secureKeyStorageProvider = Provider<SecureKeyStorage>(
   (_) => SecureKeyStorage(),
-);
-
-/// macOS self-sign / re-sign client. Thin Dart-side dispatch
-/// table over the FRB surface — actual cert generation, keychain
-/// import, trust grant, and codesign passes live in
-/// `lfs_os_security::macos::code_signing`. Non-macOS hosts still
-/// receive an instance; the FRB calls return harmless defaults
-/// (`hasIdentity` → `false`) or "unsupported" errors that the
-/// settings UI gates behind `plat.isMacosPlatform` already.
-///
-/// Consumers: the first-launch pre-prompt in [_offerMacosSelfSign],
-/// the Settings → Security "Enable / Remove identity" block, and
-/// the macOS installer adapter (re-sign the freshly-copied bundle
-/// during a silent update). See
-/// [docs/ARCHITECTURE.md §3.6 macOS self-sign lifecycle] for the
-/// full flow.
-final macosCodeSigningClientProvider = Provider<MacosCodeSigningClient>(
-  (_) => defaultMacosCodeSigningClient,
 );
 
 /// Biometric authentication probe + prompt. Used by the optional

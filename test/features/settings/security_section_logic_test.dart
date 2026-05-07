@@ -7,7 +7,8 @@ import 'package:letsflutssh/core/security/biometric_auth.dart';
 import 'package:letsflutssh/core/security/security_tier.dart';
 import 'package:letsflutssh/features/settings/security_section_logic.dart';
 import 'package:letsflutssh/l10n/app_localizations.dart';
-import 'package:letsflutssh/platform/macos/code_signing_client.dart';
+import 'package:letsflutssh/src/rust/api/macos_resign.dart'
+    show MacosResignOutcome;
 
 /// Drive the section's pure decision helpers
 /// (`biometricPlatformReason`, `autoLockDisabledReason`,

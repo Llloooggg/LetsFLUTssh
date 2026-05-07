@@ -15,7 +15,7 @@ import 'dart:typed_data';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
 import '../../l10n/app_localizations.dart';
-import '../../platform/macos/code_signing_client.dart';
+import '../../src/rust/api/macos_resign.dart' show MacosResignOutcome;
 import '../../widgets/expandable_tier_card.dart';
 
 /// Localised tooltip explaining why biometric is unreachable on this
