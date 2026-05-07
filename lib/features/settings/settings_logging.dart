@@ -656,6 +656,18 @@ class _LogList extends StatelessWidget {
     // `entries` onto rows so tests can drive both without a mock
     // scroll axis.
     return SelectionArea(
+      // Adaptive toolbar gives right-click / long-press a `Copy` +
+      // `Select all` context menu. Without this builder the default
+      // SelectionArea on desktop hosts swallows the right-click and
+      // drops the active selection — the user has to drag-select
+      // again to copy. The `selectableRegion` factory builds the
+      // platform-native variant (Cupertino on macOS, Material on
+      // Linux / Windows) so the menu shape matches the rest of the
+      // app's right-click menus.
+      contextMenuBuilder: (context, state) =>
+          AdaptiveTextSelectionToolbar.selectableRegion(
+            selectableRegionState: state,
+          ),
       child: ListView.builder(
         controller: controller,
         itemCount: entries.length,
@@ -747,19 +759,14 @@ class _LogRow extends StatelessWidget {
 
     // Rows must be physically contiguous so a drag-select inside
     // `SelectionArea` doesn't silently drop the moment the cursor
-    // crosses a gap. Two sources used to break that:
-    //
-    //   1. `margin: vertical: 1` on the Container — gone.
-    //   2. The Text widget's leading / trailing line-height padding
-    //      (`height: 1.4` reserves 1.4×font-size per line, leaving
-    //      ~3px of unselectable space above the first ascent and
-    //      below the last descent of every row). `TextHeightBehavior`
-    //      with both flags off strips that margin, so adjacent rows
-    //      meet at the actual glyph boxes.
-    //
-    // Container padding is dropped to zero for the same reason —
-    // every pixel of vertical space is now glyph or line-leading,
-    // both of which the selection covers.
+    // crosses a gap. The earlier `margin: vertical: 1` was the
+    // actual selection-breaker — that 2 px of unselectable space
+    // sat *outside* the Container and outside any selectable
+    // widget. Padding *inside* the Container is fine: the
+    // SelectionArea hit-tests the row's bounds when extending
+    // selection across rows, so vertical padding gives the row
+    // visual breathing room without producing an unselectable
+    // gap to the next row.
     return Container(
       decoration: BoxDecoration(
         color: tintBg,
@@ -770,14 +777,8 @@ class _LogRow extends StatelessWidget {
           ),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text.rich(
-        TextSpan(children: spans),
-        textHeightBehavior: const TextHeightBehavior(
-          applyHeightToFirstAscent: false,
-          applyHeightToLastDescent: false,
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Text.rich(TextSpan(children: spans)),
     );
   }
 }
