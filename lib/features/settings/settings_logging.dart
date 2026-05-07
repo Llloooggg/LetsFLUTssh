@@ -745,8 +745,22 @@ class _LogRow extends StatelessWidget {
       for (final c in entry.continuations) TextSpan(text: '\n$c', style: style),
     ];
 
+    // Rows must be physically contiguous so a drag-select inside
+    // `SelectionArea` doesn't silently drop the moment the cursor
+    // crosses a gap. Two sources used to break that:
+    //
+    //   1. `margin: vertical: 1` on the Container — gone.
+    //   2. The Text widget's leading / trailing line-height padding
+    //      (`height: 1.4` reserves 1.4×font-size per line, leaving
+    //      ~3px of unselectable space above the first ascent and
+    //      below the last descent of every row). `TextHeightBehavior`
+    //      with both flags off strips that margin, so adjacent rows
+    //      meet at the actual glyph boxes.
+    //
+    // Container padding is dropped to zero for the same reason —
+    // every pixel of vertical space is now glyph or line-leading,
+    // both of which the selection covers.
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 1),
       decoration: BoxDecoration(
         color: tintBg,
         border: Border(
@@ -756,8 +770,14 @@ class _LogRow extends StatelessWidget {
           ),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Text.rich(TextSpan(children: spans)),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text.rich(
+        TextSpan(children: spans),
+        textHeightBehavior: const TextHeightBehavior(
+          applyHeightToFirstAscent: false,
+          applyHeightToLastDescent: false,
+        ),
+      ),
     );
   }
 }
