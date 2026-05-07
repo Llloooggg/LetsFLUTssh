@@ -13,10 +13,12 @@
 //! disk in arrival order without the second clobbering the first.
 //!
 //! The Dart `PersistedRateLimiter` shrinks to a thin shim over the
-//! FRB sync entry points; the file path resolution + HMAC-key
-//! derivation stay Dart-side because both ride on platform
-//! plugins (path_provider + flutter_secure_storage). The actor
-//! takes pre-resolved `(file_path, hmac_key)` on `init_or_get`.
+//! FRB sync entry points; the file path resolution stays Dart-side
+//! because it rides on path_provider. The actor takes the gate
+//! HMAC verbatim on `init_or_get` (the `hmac_key` parameter) and
+//! derives the actual rate-limit signing key internally via HKDF —
+//! see [`super::persisted_rate_limit`] for the key-separation
+//! contract.
 
 use std::collections::HashMap;
 use std::path::PathBuf;

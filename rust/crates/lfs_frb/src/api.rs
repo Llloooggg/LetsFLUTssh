@@ -35,7 +35,6 @@ pub mod openssh_config_import;
 pub mod os_security;
 pub mod password_strength;
 pub mod path;
-pub mod persisted_rate_limit;
 pub mod persisted_rate_limit_actor;
 pub mod qr_codec_encode;
 pub mod qr_compose;

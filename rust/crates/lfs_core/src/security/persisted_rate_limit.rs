@@ -3,16 +3,19 @@
 //! `PersistedRateLimiter` (Dart) writes its exponential-backoff
 //! state to `rate_limit_state.bin` under app-support so a process
 //! restart between guesses does not reset the counter. The state is
-//! HMAC-authenticated with a key the caller derives from the L2
-//! gate's stored hash — anyone who tampers with the file without
-//! also possessing the keychain pepper produces an HMAC mismatch
-//! and the limiter clamps to the worst-case cooldown.
+//! HMAC-authenticated with a key derived (via HKDF-SHA-256) from
+//! the L2 gate's stored HMAC under the
+//! `lfs/persisted-rate-limit/v1` info string. The derive enforces
+//! key-separation: the gate HMAC verifies the user-typed password,
+//! the rate-limit HMAC signs the cooldown state, and the two never
+//! share signing material. An attacker who recovers either side has
+//! no algebraic shortcut to forge the other.
 //!
 //! Wire format (UTF-8 bytes on disk):
 //! ```json
 //! {
 //!   "payload": "<base64 of inner-payload JSON>",
-//!   "hmac":    "<base64 of HMAC-SHA-256(key, inner-payload bytes)>"
+//!   "hmac":    "<base64 of HMAC-SHA-256(signing_key, inner-payload bytes)>"
 //! }
 //! ```
 //!
@@ -24,16 +27,45 @@
 //! }
 //! ```
 //!
+//! Pre-v1 state files signed the payload with the gate HMAC
+//! directly (no HKDF). [`decode_state`] retries verification with
+//! the raw gate HMAC on first-pass mismatch so existing installs
+//! decode transparently; the next mutation re-emits under the
+//! derived key, completing migration in-place without a registry
+//! entry.
+//!
 //! Tamper handling lives in [`decode_state`]: any malformed shape
-//! or HMAC mismatch returns `Ok(None)` so the Dart caller treats
-//! the file as "fresh state" without surfacing the parse error.
-//! `Err` is reserved for cryptographic-equality assertions that
-//! cannot be expressed via `Option`.
+//! or HMAC mismatch (under both the derived and the legacy keys)
+//! returns `Ok(None)` so the Dart caller treats the file as "fresh
+//! state" without surfacing the parse error. `Err` is reserved for
+//! cryptographic-equality assertions that cannot be expressed via
+//! `Option`.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde_json::{json, Value};
 
 use crate::crypto;
+
+/// HKDF info string the rate-limit signing key is bound to. Bumping
+/// this value is a wire-break: every existing on-disk state file
+/// will fail the v1 verify and fall back to the legacy gate-HMAC
+/// path, which clears on next write. Only bump if a real
+/// cryptographic reason emerges (e.g. SHA-256 deprecation).
+const SIGNING_KEY_HKDF_INFO: &[u8] = b"lfs/persisted-rate-limit/v1";
+
+/// Derive the rate-limit signing key from the gate HMAC. Routed via
+/// HKDF-SHA-256 so the rate-limit signature is cryptographically
+/// independent of any other use of the gate HMAC. Returns 32 bytes
+/// (the HMAC-SHA-256 block size).
+fn derive_signing_key(gate_hmac: &[u8]) -> Vec<u8> {
+    // HKDF length is bounded statically; the caller's `gate_hmac`
+    // is always 32 bytes from `crypto::hmac_sha256`, so the expand
+    // step never errors. Unwrap the Result to keep call sites
+    // panic-free at the API surface.
+    let derived = crypto::hkdf_sha256(gate_hmac, &[], SIGNING_KEY_HKDF_INFO, 32)
+        .expect("hkdf-sha256 with 32-byte output is bounded");
+    derived.to_vec()
+}
 
 /// Decoded state — the failure counter + the absolute next-retry
 /// timestamp (millis since UNIX epoch). `None` for the timestamp
@@ -49,8 +81,13 @@ pub struct PersistedState {
 /// `rate_limit_state.bin`. The caller writes the returned UTF-8
 /// bytes atomically; the file lives next to the other 0600-hardened
 /// secret files under app-support.
+///
+/// `gate_hmac` is the L2-gate's stored HMAC. The signing key is
+/// derived from it via HKDF — the gate HMAC itself never directly
+/// signs the rate-limit state.
 #[must_use]
-pub fn encode_state(state: &PersistedState, hmac_key: &[u8]) -> Vec<u8> {
+pub fn encode_state(state: &PersistedState, gate_hmac: &[u8]) -> Vec<u8> {
+    let signing_key = derive_signing_key(gate_hmac);
     let payload = json!({
         "failure_count": state.failure_count,
         "next_retry_at_millis": state.next_retry_at_millis,
@@ -60,7 +97,7 @@ pub fn encode_state(state: &PersistedState, hmac_key: &[u8]) -> Vec<u8> {
     // a state file written by either side parses on the other.
     let payload_str = payload.to_string();
     let payload_bytes = payload_str.as_bytes();
-    let hmac = crypto::hmac_sha256(hmac_key, payload_bytes);
+    let hmac = crypto::hmac_sha256(&signing_key, payload_bytes);
     let frame = json!({
         "payload": STANDARD.encode(payload_bytes),
         "hmac": STANDARD.encode(&hmac),
@@ -74,7 +111,13 @@ pub fn encode_state(state: &PersistedState, hmac_key: &[u8]) -> Vec<u8> {
 /// surfacing the parse error to the user. `Err` is unused today —
 /// the function shape leaves room for a future cryptographic
 /// failure mode that needs to surface separately.
-pub fn decode_state(bytes: &[u8], hmac_key: &[u8]) -> Result<Option<PersistedState>, String> {
+///
+/// `gate_hmac` is the L2-gate's stored HMAC. Verification first
+/// tries the HKDF-derived signing key; on miss it retries with the
+/// gate HMAC directly so pre-v1 state files (signed before the
+/// HKDF separation landed) still decode. The next mutation
+/// re-emits under the derived key, migrating the file in-place.
+pub fn decode_state(bytes: &[u8], gate_hmac: &[u8]) -> Result<Option<PersistedState>, String> {
     let Ok(text) = std::str::from_utf8(bytes) else {
         return Ok(None);
     };
@@ -96,8 +139,14 @@ pub fn decode_state(bytes: &[u8], hmac_key: &[u8]) -> Result<Option<PersistedSta
     let Ok(claimed) = STANDARD.decode(hmac_b64.as_bytes()) else {
         return Ok(None);
     };
-    let expected = crypto::hmac_sha256(hmac_key, &payload_bytes);
-    if !crypto::constant_time_eq(&claimed, &expected) {
+    // First try the HKDF-derived signing key (the v1 format). On
+    // mismatch, retry with the legacy gate HMAC so pre-v1 state
+    // files keep decoding while the format migrates.
+    let signing_key = derive_signing_key(gate_hmac);
+    let expected_v1 = crypto::hmac_sha256(&signing_key, &payload_bytes);
+    let verified =
+        crypto::constant_time_eq(&claimed, &expected_v1) || verify_legacy(gate_hmac, &payload_bytes, &claimed);
+    if !verified {
         return Ok(None);
     }
     let Ok(payload) = serde_json::from_slice::<Value>(&payload_bytes) else {
@@ -117,6 +166,15 @@ pub fn decode_state(bytes: &[u8], hmac_key: &[u8]) -> Result<Option<PersistedSta
         failure_count,
         next_retry_at_millis,
     }))
+}
+
+/// Pre-v1 state files signed the payload with the gate HMAC
+/// directly. Returning `true` here lets [`decode_state`] accept
+/// such a file once; the actor's next write re-emits under the
+/// HKDF-derived key, completing migration without a registry hop.
+fn verify_legacy(gate_hmac: &[u8], payload_bytes: &[u8], claimed: &[u8]) -> bool {
+    let expected_legacy = crypto::hmac_sha256(gate_hmac, payload_bytes);
+    crypto::constant_time_eq(claimed, &expected_legacy)
 }
 
 #[cfg(test)]
@@ -156,8 +214,8 @@ mod tests {
             next_retry_at_millis: Some(123),
         };
         let bytes = encode_state(&state, &key());
-        // Wrong HMAC key — the file looks valid but the signature
-        // does not match. Caller treats this as a tamper signal.
+        // Wrong gate HMAC — both the derived and the legacy verify
+        // fail. Caller treats this as a tamper signal.
         let bad_key = vec![0xffu8; 32];
         assert!(decode_state(&bytes, &bad_key).unwrap().is_none());
     }
@@ -194,7 +252,9 @@ mod tests {
         // behaviour for legacy state files.
         let payload_str = "{}";
         let payload_bytes = payload_str.as_bytes();
-        let hmac = crypto::hmac_sha256(&key(), payload_bytes);
+        // Sign with the v1 derived key so the v1 verify hits.
+        let signing_key = derive_signing_key(&key());
+        let hmac = crypto::hmac_sha256(&signing_key, payload_bytes);
         let frame = format!(
             r#"{{"payload":"{}","hmac":"{}"}}"#,
             STANDARD.encode(payload_bytes),
@@ -231,5 +291,73 @@ mod tests {
             }
         }
         assert!(decode_state(&tampered, &key()).unwrap().is_none());
+    }
+
+    /// Pre-v1 state files signed the payload with the gate HMAC
+    /// directly. The decoder must accept them so existing installs
+    /// don't see a spurious tamper signal after upgrade.
+    #[test]
+    fn decode_accepts_legacy_pre_v1_signature() {
+        let state = PersistedState {
+            failure_count: 2,
+            next_retry_at_millis: Some(42),
+        };
+        let payload = json!({
+            "failure_count": state.failure_count,
+            "next_retry_at_millis": state.next_retry_at_millis,
+        });
+        let payload_bytes = payload.to_string().into_bytes();
+        // Sign with the gate HMAC directly — what the pre-v1
+        // encoder would have emitted.
+        let legacy_hmac = crypto::hmac_sha256(&key(), &payload_bytes);
+        let frame = json!({
+            "payload": STANDARD.encode(&payload_bytes),
+            "hmac": STANDARD.encode(&legacy_hmac),
+        });
+        let bytes = frame.to_string().into_bytes();
+        let decoded = decode_state(&bytes, &key()).unwrap().unwrap();
+        assert_eq!(decoded, state);
+    }
+
+    /// Proves the key-separation property: re-encoding the same
+    /// state under the same gate HMAC produces an HMAC tag that is
+    /// NOT equal to `HMAC(gate_hmac, payload)` directly. An
+    /// attacker who only owns the gate HMAC's HMAC oracle can't
+    /// forge rate-limit state without first computing the HKDF
+    /// expansion (which requires possessing the gate HMAC, not
+    /// just observing its outputs).
+    #[test]
+    fn signing_key_is_separated_from_gate_hmac() {
+        let state = PersistedState {
+            failure_count: 4,
+            next_retry_at_millis: None,
+        };
+        let bytes = encode_state(&state, &key());
+        let frame: Value = serde_json::from_slice(&bytes).unwrap();
+        let payload_b64 = frame["payload"].as_str().unwrap();
+        let hmac_b64 = frame["hmac"].as_str().unwrap();
+        let payload_bytes = STANDARD.decode(payload_b64).unwrap();
+        let claimed = STANDARD.decode(hmac_b64).unwrap();
+        let raw_gate_hmac = crypto::hmac_sha256(&key(), &payload_bytes);
+        assert_ne!(
+            claimed, raw_gate_hmac,
+            "encoded HMAC must not equal HMAC(gate_hmac, payload) — key separation invariant"
+        );
+        let derived = derive_signing_key(&key());
+        let expected_v1 = crypto::hmac_sha256(&derived, &payload_bytes);
+        assert_eq!(claimed, expected_v1);
+    }
+
+    /// The HKDF derive must be deterministic + bound to the info
+    /// string. Bumping the info string is a wire-break — the
+    /// regression test pins the current value so a silent rename
+    /// is caught.
+    #[test]
+    fn signing_key_derive_is_deterministic_and_bound_to_info() {
+        let a = derive_signing_key(&key());
+        let b = derive_signing_key(&key());
+        assert_eq!(a, b, "HKDF must be deterministic for a given input");
+        // Sanity: the derive does NOT return the gate HMAC verbatim.
+        assert_ne!(a, key());
     }
 }

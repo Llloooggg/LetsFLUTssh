@@ -37,7 +37,6 @@ import 'api/openssh_config_import.dart';
 import 'api/os_security.dart';
 import 'api/password_strength.dart';
 import 'api/path.dart';
-import 'api/persisted_rate_limit.dart';
 import 'api/persisted_rate_limit_actor.dart';
 import 'api/qr_codec_encode.dart';
 import 'api/qr_compose.dart';
@@ -307,10 +306,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost dco_decode_box_autoadd_db_known_host(dynamic raw);
 
   @protected
-  DbPersistedRateLimitState
-  dco_decode_box_autoadd_db_persisted_rate_limit_state(dynamic raw);
-
-  @protected
   DbPortForwardRule dco_decode_box_autoadd_db_port_forward_rule(dynamic raw);
 
   @protected
@@ -556,11 +551,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPasswordStrength dco_decode_db_password_strength(dynamic raw);
-
-  @protected
-  DbPersistedRateLimitState dco_decode_db_persisted_rate_limit_state(
-    dynamic raw,
-  );
 
   @protected
   DbPortForwardRule dco_decode_db_port_forward_rule(dynamic raw);
@@ -936,10 +926,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost? dco_decode_opt_box_autoadd_db_known_host(dynamic raw);
 
   @protected
-  DbPersistedRateLimitState?
-  dco_decode_opt_box_autoadd_db_persisted_rate_limit_state(dynamic raw);
-
-  @protected
   DbSecurityCapabilities? dco_decode_opt_box_autoadd_db_security_capabilities(
     dynamic raw,
   );
@@ -1254,12 +1240,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKnownHost sse_decode_box_autoadd_db_known_host(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  DbPersistedRateLimitState
-  sse_decode_box_autoadd_db_persisted_rate_limit_state(
     SseDeserializer deserializer,
   );
 
@@ -1587,11 +1567,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPasswordStrength sse_decode_db_password_strength(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  DbPersistedRateLimitState sse_decode_db_persisted_rate_limit_state(
     SseDeserializer deserializer,
   );
 
@@ -2079,12 +2054,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  DbPersistedRateLimitState?
-  sse_decode_opt_box_autoadd_db_persisted_rate_limit_state(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   DbSecurityCapabilities? sse_decode_opt_box_autoadd_db_security_capabilities(
     SseDeserializer deserializer,
   );
@@ -2469,12 +2438,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_known_host(
     DbKnownHost self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_db_persisted_rate_limit_state(
-    DbPersistedRateLimitState self,
     SseSerializer serializer,
   );
 
@@ -2892,12 +2855,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_password_strength(
     DbPasswordStrength self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_db_persisted_rate_limit_state(
-    DbPersistedRateLimitState self,
     SseSerializer serializer,
   );
 
@@ -3521,12 +3478,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_known_host(
     DbKnownHost? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_box_autoadd_db_persisted_rate_limit_state(
-    DbPersistedRateLimitState? self,
     SseSerializer serializer,
   );
 
