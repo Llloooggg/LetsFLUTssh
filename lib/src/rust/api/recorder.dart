@@ -125,6 +125,9 @@ Future<void> recorderQueueSpawn({required String id}) =>
 /// Enqueue an asciinema header line. Fire-and-forget — returns once
 /// the entry is in the worker's mailbox; the actual write happens
 /// out of band and emits the usual `RecorderBytesWritten` bus event.
+/// Uses `enqueue_blocking` so any pending chunk-buffer bytes drain
+/// before the header (in practice the buffer is empty pre-header,
+/// but the call shape stays uniform with rotate / close).
 Future<void> recorderQueueEnqueueHeader({
   required String id,
   required int width,
@@ -139,9 +142,11 @@ Future<void> recorderQueueEnqueueHeader({
 
 /// Enqueue a terminal event chunk. Same fire-and-forget shape as
 /// [`recorder_queue_enqueue_header`]. `bytes` is the raw chunk
-/// (output or input); the worker hands it to the registry which
-/// composes the asciinema event line and applies AES-GCM in
-/// encrypted mode.
+/// (output or input); the Rust-side accumulator coalesces 100/sec
+/// russh `Data` packets into one mailbox entry per ~10 ms / 8 KiB
+/// so the worker isn't woken on every PTY chunk. Dart callers fire
+/// this once per arriving russh `Data` packet without paying a
+/// worker wake-up per call.
 Future<void> recorderQueueEnqueueEvent({
   required String id,
   required DbRecordDirection direction,
@@ -155,7 +160,9 @@ Future<void> recorderQueueEnqueueEvent({
 /// Enqueue an atomic rotation to a fresh file. The Dart side owns
 /// path allocation (the platform `getApplicationSupportDirectory`
 /// plus `hardenFilePerms` sweeps); this enqueue just hands the
-/// worker the new destination.
+/// worker the new destination. `enqueue_blocking` drains any
+/// in-flight chunk buffer first so trailing bytes from the old
+/// recording land in the *old* file, not the new one.
 Future<void> recorderQueueEnqueueRotate({
   required String id,
   required String newPath,
@@ -166,6 +173,9 @@ Future<void> recorderQueueEnqueueRotate({
 
 /// Enqueue a close. The worker drains any in-flight entries, calls
 /// `close_with_io`, drops itself from the queue map, and exits.
+/// `enqueue_blocking` drains the chunk buffer first so the trailing
+/// bytes that arrived in the last 10 ms make it onto disk before
+/// the file is sealed.
 Future<void> recorderQueueEnqueueClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderQueueEnqueueClose(id: id);
 

@@ -263,6 +263,9 @@ pub async fn recorder_queue_spawn(id: String) {
 /// Enqueue an asciinema header line. Fire-and-forget — returns once
 /// the entry is in the worker's mailbox; the actual write happens
 /// out of band and emits the usual `RecorderBytesWritten` bus event.
+/// Uses `enqueue_blocking` so any pending chunk-buffer bytes drain
+/// before the header (in practice the buffer is empty pre-header,
+/// but the call shape stays uniform with rotate / close).
 pub async fn recorder_queue_enqueue_header(
     id: String,
     width: u32,
@@ -271,7 +274,7 @@ pub async fn recorder_queue_enqueue_header(
 ) -> Result<(), String> {
     let app = lfs_core::app::instance();
     app.recorder_queue
-        .enqueue(
+        .enqueue_blocking(
             &id,
             lfs_core::recorder::queue::QueueEntry::Header {
                 width,
@@ -285,9 +288,11 @@ pub async fn recorder_queue_enqueue_header(
 
 /// Enqueue a terminal event chunk. Same fire-and-forget shape as
 /// [`recorder_queue_enqueue_header`]. `bytes` is the raw chunk
-/// (output or input); the worker hands it to the registry which
-/// composes the asciinema event line and applies AES-GCM in
-/// encrypted mode.
+/// (output or input); the Rust-side accumulator coalesces 100/sec
+/// russh `Data` packets into one mailbox entry per ~10 ms / 8 KiB
+/// so the worker isn't woken on every PTY chunk. Dart callers fire
+/// this once per arriving russh `Data` packet without paying a
+/// worker wake-up per call.
 pub async fn recorder_queue_enqueue_event(
     id: String,
     direction: DbRecordDirection,
@@ -295,13 +300,7 @@ pub async fn recorder_queue_enqueue_event(
 ) -> Result<(), String> {
     let app = lfs_core::app::instance();
     app.recorder_queue
-        .enqueue(
-            &id,
-            lfs_core::recorder::queue::QueueEntry::Event {
-                kind: direction.into(),
-                bytes,
-            },
-        )
+        .enqueue_event_chunk(&id, direction.into(), bytes)
         .await
         .map_err(|e| e.to_string())
 }
@@ -309,11 +308,13 @@ pub async fn recorder_queue_enqueue_event(
 /// Enqueue an atomic rotation to a fresh file. The Dart side owns
 /// path allocation (the platform `getApplicationSupportDirectory`
 /// plus `hardenFilePerms` sweeps); this enqueue just hands the
-/// worker the new destination.
+/// worker the new destination. `enqueue_blocking` drains any
+/// in-flight chunk buffer first so trailing bytes from the old
+/// recording land in the *old* file, not the new one.
 pub async fn recorder_queue_enqueue_rotate(id: String, new_path: String) -> Result<(), String> {
     let app = lfs_core::app::instance();
     app.recorder_queue
-        .enqueue(
+        .enqueue_blocking(
             &id,
             lfs_core::recorder::queue::QueueEntry::Rotate { new_path },
         )
@@ -323,10 +324,13 @@ pub async fn recorder_queue_enqueue_rotate(id: String, new_path: String) -> Resu
 
 /// Enqueue a close. The worker drains any in-flight entries, calls
 /// `close_with_io`, drops itself from the queue map, and exits.
+/// `enqueue_blocking` drains the chunk buffer first so the trailing
+/// bytes that arrived in the last 10 ms make it onto disk before
+/// the file is sealed.
 pub async fn recorder_queue_enqueue_close(id: String) -> Result<(), String> {
     let app = lfs_core::app::instance();
     app.recorder_queue
-        .enqueue(&id, lfs_core::recorder::queue::QueueEntry::Close)
+        .enqueue_blocking(&id, lfs_core::recorder::queue::QueueEntry::Close)
         .await
         .map_err(|e| e.to_string())
 }
