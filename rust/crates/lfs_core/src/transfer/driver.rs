@@ -254,40 +254,61 @@ async fn download(
                 .map_err(|e| Error::Transport(format!("mkdir {}: {e}", parent.display())))?;
         }
     }
+    // Stage the download in `<dest>.<task-id>.part` and rename
+    // atomically once the SFTP read loop finishes. A retry after
+    // a mid-flight failure (cancel / network drop) finds the
+    // existing target file untouched — only the .part file is
+    // ever truncated. Closes the audit's "transfer/driver
+    // truncates partial files on every retry" gap.
+    let part_path = format!("{}.{}.part", task.local_path, task.id);
     // tokio::fs::File so the local I/O runs on the blocking pool —
     // the SFTP read at the top of the loop is async and does not
     // block its worker thread, but a slow disk on the write side
     // would otherwise pin the same worker and stall every other
     // task scheduled on it.
-    let mut local = tokio::fs::File::create(&task.local_path)
+    let mut local = tokio::fs::File::create(&part_path)
         .await
-        .map_err(|e| Error::Transport(format!("create {}: {e}", task.local_path)))?;
-    // Single scratch buffer reused across every chunk read — the
-    // pre-fix `read_chunk(TRANSFER_CHUNK_SIZE)` allocated a fresh
-    // `vec![0; 256 KiB]` per iteration. On a 100 MB/s pipe that's
-    // ~400 mallocs/s; the buffer reuse keeps the heap pressure
-    // off the tokio worker.
+        .map_err(|e| Error::Transport(format!("create {}: {e}", part_path)))?;
+    // Single scratch buffer reused across every chunk read.
     let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
     let mut written: u64 = 0;
-    loop {
-        if cancel.is_cancelled() {
-            return Err(Error::Io("download cancelled".to_string()));
-        }
-        let n = remote.read_into(&mut buf).await?;
-        if n == 0 {
-            break;
+    let result: Result<(), Error> = async {
+        loop {
+            if cancel.is_cancelled() {
+                return Err(Error::Io("download cancelled".to_string()));
+            }
+            let n = remote.read_into(&mut buf).await?;
+            if n == 0 {
+                break;
+            }
+            local
+                .write_all(&buf[..n])
+                .await
+                .map_err(|e| Error::Transport(format!("write {}: {e}", part_path)))?;
+            written = written.saturating_add(n as u64);
+            app.transfers.set_progress(&task.id, written, &app.bus);
         }
         local
-            .write_all(&buf[..n])
+            .sync_all()
             .await
-            .map_err(|e| Error::Transport(format!("write {}: {e}", task.local_path)))?;
-        written = written.saturating_add(n as u64);
-        app.transfers.set_progress(&task.id, written, &app.bus);
+            .map_err(|e| Error::Transport(format!("fsync {}: {e}", part_path)))?;
+        Ok(())
     }
-    local
-        .sync_all()
+    .await;
+    drop(local);
+    if result.is_err() {
+        // Best-effort cleanup — leaving the .part file behind
+        // would just trip the next retry's `File::create`
+        // truncate (which is fine semantically), but explicit
+        // delete keeps the support_dir tidy.
+        let _ = tokio::fs::remove_file(&part_path).await;
+        return result;
+    }
+    tokio::fs::rename(&part_path, &task.local_path)
         .await
-        .map_err(|e| Error::Transport(format!("fsync {}: {e}", task.local_path)))?;
+        .map_err(|e| {
+            Error::Transport(format!("rename {} → {}: {e}", part_path, task.local_path))
+        })?;
     Ok(())
 }
 
