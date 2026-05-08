@@ -58,8 +58,17 @@ pub mod kind {
 /// Compose a JSON envelope with the given kind + detail. Use
 /// when the caller has a typed error and wants to attach a
 /// stable wire-name without an explicit `From` impl.
+///
+/// Internal to `lfs_frb` — `pub(crate)` keeps codegen from
+/// exposing it as a Dart-callable function. The `#[frb(ignore)]`
+/// attribute is honoured but doesn't fully suppress the codegen
+/// pass that names this surface "wire" in `frb_generated.dart`,
+/// which then collides with the field name on the FFI dispatcher
+/// class and produces a "wire is not a class" compile error in
+/// the generated bindings. `pub(crate)` blocks codegen at the
+/// visibility level — the function stays internal to the crate.
 #[must_use]
-pub fn wire(kind: &str, detail: &str) -> String {
+pub(crate) fn wire(kind: &str, detail: &str) -> String {
     // Hand-built JSON so the wire shape stays stable without a
     // serde_json dep on the FRB crate (`lfs_core::error::Error`
     // is already kept dep-light to keep the FRB worker light).
@@ -71,7 +80,7 @@ pub fn wire(kind: &str, detail: &str) -> String {
 /// Convenience wrapper that maps a `Display` value to its wire
 /// envelope under a fixed kind.
 #[must_use]
-pub fn wire_str<E: std::fmt::Display>(kind: &str, e: E) -> String {
+pub(crate) fn wire_str<E: std::fmt::Display>(kind: &str, e: E) -> String {
     wire(kind, &e.to_string())
 }
 
@@ -80,7 +89,7 @@ pub fn wire_str<E: std::fmt::Display>(kind: &str, e: E) -> String {
 /// never substring-match on the (potentially localized /
 /// reworded) `detail` text.
 #[must_use]
-pub fn from_core(err: &CoreError) -> String {
+pub(crate) fn from_core(err: &CoreError) -> String {
     match err {
         CoreError::Connect(s) => wire(kind::CONNECT, s),
         CoreError::Handshake(s) => wire(kind::HANDSHAKE, s),

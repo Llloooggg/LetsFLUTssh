@@ -72,13 +72,8 @@ fn derive_signing_key(gate_hmac: &[u8]) -> zeroize::Zeroizing<Vec<u8>> {
     // is always 32 bytes from `crypto::hmac_sha256`, so the expand
     // step never errors. Unwrap the Result to keep call sites
     // panic-free at the API surface.
-    let derived = crypto::hkdf_sha256(
-        gate_hmac,
-        SIGNING_KEY_HKDF_SALT,
-        SIGNING_KEY_HKDF_INFO,
-        32,
-    )
-    .expect("hkdf-sha256 with 32-byte output is bounded");
+    let derived = crypto::hkdf_sha256(gate_hmac, SIGNING_KEY_HKDF_SALT, SIGNING_KEY_HKDF_INFO, 32)
+        .expect("hkdf-sha256 with 32-byte output is bounded");
     zeroize::Zeroizing::new(derived.to_vec())
 }
 

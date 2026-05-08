@@ -16,6 +16,12 @@ self-hosted-runner:
     # Native ARM64 Windows runner — used by build-windows-arm64
     # in build-release.yml for the Wave 5b Windows ARM64 channel.
     - windows-11-arm
+    # Windows 2025 + VS 2026 image — preview runner used by the
+    # Rust cross-check + release-build jobs to pin the toolchain
+    # ahead of GitHub's general-availability rotation. The label
+    # is a real GitHub-hosted runner; actionlint 1.7.5's bundled
+    # metadata predates its publication.
+    - windows-2025-vs2026
 
 paths:
   .github/workflows/**/*.yml:

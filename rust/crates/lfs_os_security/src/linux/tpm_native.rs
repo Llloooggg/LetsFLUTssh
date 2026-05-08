@@ -273,8 +273,7 @@ fn unpack(blob: &[u8]) -> Option<(&[u8], &[u8])> {
         return None;
     }
     let pub_bytes = &blob[4..priv_len_off];
-    let priv_len =
-        u32::from_be_bytes(blob[priv_len_off..priv_len_end].try_into().ok()?) as usize;
+    let priv_len = u32::from_be_bytes(blob[priv_len_off..priv_len_end].try_into().ok()?) as usize;
     let priv_off = priv_len_end;
     let priv_end = priv_off.checked_add(priv_len)?;
     if priv_end > blob.len() {

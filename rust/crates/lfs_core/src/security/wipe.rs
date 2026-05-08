@@ -161,8 +161,12 @@ pub struct FileSweepReport {
 /// the marker path must not coerce a recovery wipe.
 pub fn has_pending_wipe(support_dir: &Path) -> bool {
     let path = support_dir.join(WIPE_PENDING_MARKER);
-    let Ok(bytes) = crate::path::read_bytes_secure(&path) else { return false };
-    if bytes.len() < WIPE_PENDING_HEADER_LEN || &bytes[..WIPE_PENDING_MAGIC.len()] != WIPE_PENDING_MAGIC {
+    let Ok(bytes) = crate::path::read_bytes_secure(&path) else {
+        return false;
+    };
+    if bytes.len() < WIPE_PENDING_HEADER_LEN
+        || &bytes[..WIPE_PENDING_MAGIC.len()] != WIPE_PENDING_MAGIC
+    {
         return false;
     }
     bytes[WIPE_PENDING_MAGIC.len()] == WIPE_PENDING_VERSION

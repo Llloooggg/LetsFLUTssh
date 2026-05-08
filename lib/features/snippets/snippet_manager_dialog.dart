@@ -142,7 +142,16 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     // refuses to write rather than silently fall back when the
     // gate is unavailable. Linux degrades to a plain copy because
     // X11 / Wayland have no cloud default.
-    final ok = await SecureClipboard().setText(snippet.command);
+    bool ok;
+    try {
+      ok = await SecureClipboard().setText(snippet.command);
+    } catch (_) {
+      // Native channel / FRB unreachable (flutter_test, missing
+      // plugin) — surface the same failure-toast path the
+      // refused-cloud-leak case uses so the user gets a clear
+      // signal rather than a silent no-op.
+      ok = false;
+    }
     if (!mounted) return;
     Toast.show(
       context,

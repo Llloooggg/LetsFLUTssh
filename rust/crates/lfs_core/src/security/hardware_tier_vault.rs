@@ -100,7 +100,10 @@ pub enum AuthIntent<'a> {
 /// failed → treat as cancelled unlock" so we never silently fall
 /// back to an empty auth.
 #[must_use]
-pub fn resolve_auth_value(intent: AuthIntent<'_>, salt: &[u8]) -> Option<zeroize::Zeroizing<Vec<u8>>> {
+pub fn resolve_auth_value(
+    intent: AuthIntent<'_>,
+    salt: &[u8],
+) -> Option<zeroize::Zeroizing<Vec<u8>>> {
     match intent {
         AuthIntent::Passwordless => Some(zeroize::Zeroizing::new(Vec::new())),
         AuthIntent::Password("") | AuthIntent::Biometric([]) => None,

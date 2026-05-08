@@ -59,7 +59,16 @@ void main() {
       });
 
       test('returns true after a `.wipe-pending` marker is written', () async {
-        File('${tmp.path}/.wipe-pending').writeAsStringSync('');
+        // Marker now carries a `LFWP` magic + version-1 byte
+        // header so a foreign drop at the path doesn't coerce
+        // the next launch into a recovery wipe. Write the
+        // exact envelope shape the Rust writer emits.
+        final marker = File('${tmp.path}/.wipe-pending');
+        marker.writeAsBytesSync(<int>[
+          0x4C, 0x46, 0x57, 0x50, // 'L','F','W','P'
+          0x01, // version
+          ...'42\n'.codeUnits, // body — opaque breadcrumb
+        ]);
         expect(await service.hasPendingWipe(), isTrue);
       });
     });

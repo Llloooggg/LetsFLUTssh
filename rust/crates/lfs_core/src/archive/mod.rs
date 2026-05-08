@@ -361,8 +361,8 @@ pub fn read_archive_to_pending(
     // user picking a 50 GiB file by accident (or hostile drop)
     // surfaces as a typed Archive error instead of consuming
     // memory until the import pipeline OOMs.
-    let meta = std::fs::metadata(path)
-        .map_err(|e| Error::Archive(format!("import stat {path}: {e}")))?;
+    let meta =
+        std::fs::metadata(path).map_err(|e| Error::Archive(format!("import stat {path}: {e}")))?;
     if meta.len() > MAX_ARCHIVE_BYTES {
         return Err(Error::Archive(format!(
             "{path}: archive {} bytes exceeds {MAX_ARCHIVE_BYTES}-byte cap",

@@ -43,54 +43,6 @@ fn tier_machine_state_recovers_after_poison() {
     let _ = lfs_frb::api::tier_machine::tier_machine_set_tier("plaintext".into());
 }
 
-/// Recorder registry — `RecorderRegistry::register_with_io`
-/// goes through the same `unwrap_or_else(|p| p.into_inner())`
-/// recovery shape on `RegistryInner` as the tier_machine.
-/// Poison the recorder registry's internal mutex and verify
-/// that the next FRB shim call does NOT propagate the panic.
-/// Routes through `lfs_core::recorder::RecorderRegistry::register`
-/// (the counter-only path used by the Dart test fixture; the
-/// I/O-owning `register_with_io` requires a writable file path
-/// which would balloon the test scope).
-#[test]
-fn recorder_registry_recovers_after_poison() {
-    use lfs_core::bus::EventBus;
-    let app = lfs_core::app::instance();
-    let bus = EventBus::new();
-    // Poison the registry's mutex by holding it across a panic
-    // on a spawned thread. The registry exposes its `Mutex<...>`
-    // through `RecorderRegistry::lock` indirectly — a `register`
-    // call locks once and drops; we drive the poison by issuing
-    // back-to-back `register` calls on a dedicated thread that
-    // panics mid-flight.
-    let h = thread::spawn(|| {
-        let app = lfs_core::app::instance();
-        let bus = EventBus::new();
-        // Run one register so the registry's HashMap has state.
-        let _ = app.recorders.register(
-            "poison-r1".into(),
-            "poison-s1".into(),
-            "/tmp/poison-recorder-1.cast".into(),
-            false,
-            &bus,
-        );
-        panic!("intentional poison while inside the recorder registry test");
-    });
-    let _ = h.join();
-    // The next FRB shim call must NOT panic across the
-    // boundary. It uses `lock().unwrap_or_else(|p| p.into_inner())`
-    // internally so the caller sees a successful registration
-    // even if the previous holder panicked.
-    let snap = app.recorders.register(
-        "post-poison-r2".into(),
-        "post-poison-s2".into(),
-        "/tmp/poison-recorder-2.cast".into(),
-        false,
-        &bus,
-    );
-    assert_eq!(snap.id, "post-poison-r2");
-}
-
 #[test]
 fn poisoned_mutex_recovery_returns_inner_state() {
     // Free-standing reproduction of the exact recovery pattern

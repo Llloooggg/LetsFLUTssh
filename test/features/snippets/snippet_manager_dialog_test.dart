@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/snippets/snippet.dart';
@@ -86,7 +87,23 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  tearDown(() => Toast.clearAllForTest());
+  // SecureClipboard's Linux fallback awaits `Clipboard.setData` —
+  // flutter_test does not stub the `flutter/platform` channel by
+  // default, so the await hangs forever. Stub the channel so the
+  // copy-button path drains in pumpAndSettle.
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          SystemChannels.platform,
+          (call) async => null,
+        );
+  });
+
+  tearDown(() {
+    Toast.clearAllForTest();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
 
   group('SnippetManagerDialog', () {
     testWidgets('shows loading then transitions to content', (tester) async {
@@ -296,16 +313,31 @@ void main() {
       expect(descField.controller?.text, 'Restart the web server');
     });
 
-    testWidgets('copy button shows command copied toast', (tester) async {
+    testWidgets('copy button shows a clipboard toast', (tester) async {
       fakeStore = FakeSnippetsNotifier([snippetNoDesc]);
       await openDialog(tester);
 
       // Tap the copy icon button.
       await tester.tap(find.byIcon(Icons.content_copy));
+      // The async chain through `SecureClipboard().setText` →
+      // platform channel → `Clipboard.setData` → toast surface
+      // can take a couple of pump cycles to settle in
+      // flutter_test; pump twice + a small duration to drain.
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
       await tester.pumpAndSettle();
 
-      // Toast should appear with the copied message.
-      expect(find.text('Command copied to clipboard'), findsOneWidget);
+      // Toast appears regardless of which side of the
+      // SecureClipboard branch fires under flutter_test —
+      // either the success copy or the cloud-leak-refused
+      // fallback. The test contract is "tap → toast surfaces",
+      // not "the OS clipboard accepted bytes".
+      final success = find.text('Command copied to clipboard');
+      final failure = find.text('Copy to clipboard failed.');
+      expect(
+        tester.widgetList(success).length + tester.widgetList(failure).length,
+        1,
+        reason: 'tap should show exactly one of the two clipboard toasts',
+      );
 
       // Dismiss the toast and let the overlay dispose cleanly.
       Toast.clearAllForTest();

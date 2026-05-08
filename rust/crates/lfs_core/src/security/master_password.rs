@@ -356,8 +356,8 @@ fn read_kdf_record(support_dir: &Path) -> Result<KdfRecord, String> {
     if !path.exists() {
         return Err("Master password is not enabled".into());
     }
-    let bytes = crate::path::read_bytes_secure(&path)
-        .map_err(|e| format!("read {KDF_FILE_NAME}: {e}"))?;
+    let bytes =
+        crate::path::read_bytes_secure(&path).map_err(|e| format!("read {KDF_FILE_NAME}: {e}"))?;
     decode_kdf_record(&bytes)
 }
 

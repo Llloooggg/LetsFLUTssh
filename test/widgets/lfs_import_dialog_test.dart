@@ -177,8 +177,10 @@ void main() {
 
       expect(find.text('Master Password'), findsNothing);
       expect(find.byType(TextField), findsNothing);
-      // The plain-text warning is re-used from the export-side string.
-      expect(find.textContaining('not be encrypted'), findsOneWidget);
+      // Plain-ZIP `.lfs` archives now show a dedicated "not
+      // password-protected" warning surfaced by the
+      // `unencryptedArchiveWarning` localised key.
+      expect(find.textContaining('not password-protected'), findsOneWidget);
     });
 
     testWidgets('Import button submits without password', (tester) async {

@@ -188,25 +188,18 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    if (_busy) ...[
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.derivingKey,
-                        style: TextStyle(
-                          fontSize: AppFonts.sm,
-                          color: AppTheme.fgDim,
-                        ),
-                      ),
-                    ] else
-                      AppButton.primary(
-                        label: l10n.unlock,
-                        onTap: _submitPassword,
-                      ),
+                    // The button renders a busy ellipsis label
+                    // instead of the standard `CircularProgressIndicator`
+                    // shape: the spinner animates indefinitely under
+                    // flutter_test's `pumpAndSettle`, which the lock
+                    // screen tests need to use to traverse the
+                    // verify -> unlock state transition. The
+                    // ellipsis is a discrete state that pumpAndSettle
+                    // can settle on.
+                    AppButton.primary(
+                      label: _busy ? '...' : l10n.unlock,
+                      onTap: _busy ? null : _submitPassword,
+                    ),
                   ],
                 ),
               ),

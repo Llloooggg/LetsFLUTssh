@@ -256,8 +256,7 @@ pub fn harden_file_perms(_path: &std::path::Path) -> Result<(), String> {
 pub fn harden_dir_perms(path: &std::path::Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
     let perms = std::fs::Permissions::from_mode(0o700);
-    std::fs::set_permissions(path, perms)
-        .map_err(|e| format!("chmod 700 {}: {e}", path.display()))
+    std::fs::set_permissions(path, perms).map_err(|e| format!("chmod 700 {}: {e}", path.display()))
 }
 
 #[cfg(not(unix))]
@@ -307,8 +306,7 @@ pub fn read_bytes_secure(path: &std::path::Path) -> std::io::Result<Vec<u8>> {
 /// their inherited perms; this helper would lock the user out of
 /// their own Documents / Downloads.
 pub fn create_dir_all_secure(path: &std::path::Path) -> Result<(), String> {
-    std::fs::create_dir_all(path)
-        .map_err(|e| format!("create dir {}: {e}", path.display()))?;
+    std::fs::create_dir_all(path).map_err(|e| format!("create dir {}: {e}", path.display()))?;
     let _ = harden_dir_perms(path);
     Ok(())
 }

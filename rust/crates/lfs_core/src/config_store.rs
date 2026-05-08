@@ -108,10 +108,7 @@ impl Store {
                     }
                 },
                 Err(e) => {
-                    return Err(format!(
-                        "config_store::init: utf8 {}: {e}",
-                        path.display()
-                    ));
+                    return Err(format!("config_store::init: utf8 {}: {e}", path.display()));
                 }
             },
             // Absent file — seed defaults. Any other I/O error (perm

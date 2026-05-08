@@ -56,9 +56,11 @@ pub async fn verify_password(support_dir: &Path, password: &[u8]) -> Result<bool
     // for symlink-safe opens directly; routing through the sync
     // helper inside spawn_blocking keeps the symlink defence.
     let hash_path_for_read = hash_path.clone();
-    let raw = match tokio::task::spawn_blocking(move || crate::path::read_bytes_secure(&hash_path_for_read))
-        .await
-        .map_err(|e| format!("T1+pw verify: blocking task: {e}"))?
+    let raw = match tokio::task::spawn_blocking(move || {
+        crate::path::read_bytes_secure(&hash_path_for_read)
+    })
+    .await
+    .map_err(|e| format!("T1+pw verify: blocking task: {e}"))?
     {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),

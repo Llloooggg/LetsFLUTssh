@@ -115,10 +115,7 @@ pub async fn verify(timeout: Duration) -> bool {
         let lock_busy = msg.contains("AccessDenied")
             || msg.contains("PermissionDenied")
             || msg.contains("Device was already claimed");
-        crate::app_log_warn!(
-            "Fprintd",
-            "Claim failed (lock_busy={lock_busy}): {msg}"
-        );
+        crate::app_log_warn!("Fprintd", "Claim failed (lock_busy={lock_busy}): {msg}");
         return false;
     }
 

@@ -45,8 +45,12 @@ pub fn bytes_to_jbyte_array<'local>(
     // then throw `NegativeArraySizeException` after we'd already lost
     // size fidelity. `try_from` surfaces the overflow as our typed
     // error so the caller gets a clear bound-violation message.
-    let len: i32 = i32::try_from(bytes.len())
-        .map_err(|_| format!("jni: byte array length overflow ({} > i32::MAX)", bytes.len()))?;
+    let len: i32 = i32::try_from(bytes.len()).map_err(|_| {
+        format!(
+            "jni: byte array length overflow ({} > i32::MAX)",
+            bytes.len()
+        )
+    })?;
     let array = env
         .new_byte_array(len)
         .map_err(|e| format!("jni: new_byte_array: {e}"))?;
@@ -147,9 +151,7 @@ fn drain_exception(env: &mut JNIEnv, ctx: &str) {
     // describing should not block the clear.
     let _ = env.exception_describe();
     if let Err(clear_err) = env.exception_clear() {
-        eprintln!(
-            "JniHelpers: drain_exception failed to clear after {ctx}: {clear_err}"
-        );
+        eprintln!("JniHelpers: drain_exception failed to clear after {ctx}: {clear_err}");
     }
 }
 

@@ -684,7 +684,13 @@ mod tests {
         let path = tempfile_path("enc");
         let key = [42u8; 32];
         let snap = reg
-            .register_with_io("r1".into(), "s1".into(), path.clone(), Some(zeroize::Zeroizing::new(key)), &bus)
+            .register_with_io(
+                "r1".into(),
+                "s1".into(),
+                path.clone(),
+                Some(zeroize::Zeroizing::new(key)),
+                &bus,
+            )
             .expect("register");
         assert!(snap.encrypted);
         let on_disk = std::fs::read(&path).expect("read");
@@ -777,8 +783,14 @@ mod tests {
         let reg = RecorderRegistry::new();
         let path = tempfile_path("encwrite");
         let key = [7u8; 32];
-        reg.register_with_io("r1".into(), "s1".into(), path.clone(), Some(zeroize::Zeroizing::new(key)), &bus)
-            .expect("register");
+        reg.register_with_io(
+            "r1".into(),
+            "s1".into(),
+            path.clone(),
+            Some(zeroize::Zeroizing::new(key)),
+            &bus,
+        )
+        .expect("register");
         let payload = b"some recorded bytes\n";
         reg.record_frame("r1", payload, &bus).expect("frame");
         reg.close_with_io("r1", &bus).expect("close");
@@ -812,8 +824,14 @@ mod tests {
         let reg = RecorderRegistry::new();
         let path = tempfile_path("swap");
         let key = [11u8; 32];
-        reg.register_with_io("r1".into(), "s1".into(), path.clone(), Some(zeroize::Zeroizing::new(key)), &bus)
-            .expect("register");
+        reg.register_with_io(
+            "r1".into(),
+            "s1".into(),
+            path.clone(),
+            Some(zeroize::Zeroizing::new(key)),
+            &bus,
+        )
+        .expect("register");
         let payload_a = b"alpha\n";
         let payload_b = b"beta\n";
         reg.record_frame("r1", payload_a, &bus).expect("frame a");
@@ -868,8 +886,14 @@ mod tests {
         let path1 = tempfile_path("rot1");
         let path2 = tempfile_path("rot2");
         let key = [9u8; 32];
-        reg.register_with_io("r1".into(), "s1".into(), path1.clone(), Some(zeroize::Zeroizing::new(key)), &bus)
-            .expect("register");
+        reg.register_with_io(
+            "r1".into(),
+            "s1".into(),
+            path1.clone(),
+            Some(zeroize::Zeroizing::new(key)),
+            &bus,
+        )
+        .expect("register");
         reg.record_frame("r1", b"first\n", &bus).expect("frame");
         let pre = reg.snapshot("r1").unwrap();
         assert!(pre.bytes_written > 0);

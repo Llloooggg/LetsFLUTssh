@@ -433,21 +433,33 @@ mod tests {
 
     #[test]
     fn argon2id_known_answer_test() {
-        // RFC 9106 §5.3 KAT for Argon2id at t=3, m=32 KiB, p=4,
-        // length=32, password = 32 * 0x01, salt = 16 * 0x02. The
-        // RFC test vector also feeds 8-byte secret + 12-byte AD; our
-        // surface only takes (password, salt) so we verify the
-        // simpler constant-input round-trip is reproducible. Two
-        // runs with the same inputs must yield the same output.
+        // Argon2id KAT at t=3, m=32 KiB, p=4, length=32,
+        // password = 32 * 0x01, salt = 16 * 0x02. Same input
+        // shape as the RFC 9106 §5.3 reference vector minus the
+        // 8-byte secret + 12-byte AD (our surface does not feed
+        // either; the underlying `argon2` crate's
+        // `hash_password_into` runs with empty secret + empty AD
+        // by definition). The expected hex is the byte-exact
+        // output of `argon2 = "0.5"` with the workspace-pinned
+        // toolchain — pin it here so a silent algorithmic
+        // regression in any future bump fails the build before
+        // the bytes reach an installed user's vault.
         let pwd = vec![0x01u8; 32];
         let salt = vec![0x02u8; 16];
-        let a = argon2id_derive(&pwd, &salt, 32, 3, 4, 32).unwrap();
-        let b = argon2id_derive(&pwd, &salt, 32, 3, 4, 32).unwrap();
-        assert_eq!(a, b);
-        assert_eq!(a.len(), 32);
-        // Different params must yield different output.
-        let c = argon2id_derive(&pwd, &salt, 64, 3, 4, 32).unwrap();
-        assert_ne!(a, c);
+        let derived = argon2id_derive(&pwd, &salt, 32, 3, 4, 32).unwrap();
+        let expected =
+            hex_decode("03aab965c12001c9d7d0d2de33192c0494b684bb148196d73c1df1acaf6d0c2e");
+        assert_eq!(
+            *derived, expected,
+            "Argon2id KAT mismatch — algorithm regression?"
+        );
+        // Reproducibility — two runs with identical inputs must
+        // yield identical output.
+        let again = argon2id_derive(&pwd, &salt, 32, 3, 4, 32).unwrap();
+        assert_eq!(derived, again);
+        // Different memory cost must yield different output.
+        let different = argon2id_derive(&pwd, &salt, 64, 3, 4, 32).unwrap();
+        assert_ne!(derived, different);
     }
 
     #[test]
