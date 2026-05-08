@@ -523,11 +523,11 @@ Plans, session notes, backlogs, internal docs live **outside git** (`~/.claude/p
 
 This rule applies **even when the plan document lives in git**. Such documents are *temporary scaffolding* — they get deleted when the migration ships. Anything that outlives them (commit history, code comments) must not depend on their identifier scheme. Reference the *behaviour* the change brings, not the plan checkbox it ticks.
 
-**ARCHITECTURE.md `§N.M` section numerals are also banned outside the doc itself.** `ARCHITECTURE.md` uses `§3.2` / `§3.6` / `§3.13` / `§3.14` headings for cross-linking *inside the doc* — that's structural, fine where it lives. But the moment a numeral like `§3.2` leaks into a commit message or a code comment, it reads as a plan-item ID (same `Task 3.2` shape) and ages into noise the same way. **Refer to sections by topic outside `ARCHITECTURE.md`**: "the SFTP module description", "the macOS self-sign lifecycle section", "the lfs_frb adapter purity description" — never by number. Same content, no plan-id-shaped numeral leaking outside the doc.
+**Cross-references to ARCHITECTURE.md sections by `§N.M` numerals are FINE** — both inside the doc and from commit messages, code comments, or other tracked artefacts. ARCHITECTURE.md is a stable, long-lived document; pointing at "see [§3.6 Migration framework](docs/ARCHITECTURE.md#36-migration-framework)" is the same shape as any other doc cross-reference and ages with the doc, not against it. The earlier prohibition conflated two separate concerns: agent-internal plan IDs (`Phase E1`, `Task 3.2`, `P1.2-*`) which DO leak into noise as plans churn, and stable doc anchors which do not.
 
 If a commit needs to explain "why this change came with that change", describe the reason **prose-wise**: `"ships alongside the overlay methods added to the native plugins"` — not `"wraps up Phase D1"` and not `"Phase 4.2 stage 6.1 — store X on FRB"`. Plan IDs are an internal shorthand for in-session tracking only; readers of git history have no access to that context, and any ID reference ages into noise the moment the plan is superseded.
 
-**Review check:** before staging, grep your diff *and the staged commit message text* for `/P[0-9]/`, `/Phase [0-9A-Z]/`, `/stage [0-9]/`, `/Task [0-9]/`, `/[A-Z][0-9] /`, `/§[0-9]/`, `/Section [0-9]/` — false positives are cheap, leaked IDs are forever.
+**Review check:** before staging, grep your diff *and the staged commit message text* for `/P[0-9]/`, `/Phase [0-9A-Z]/`, `/stage [0-9]/`, `/Task [0-9]/`, `/[A-Z][0-9] /` — false positives are cheap, leaked IDs are forever. (Do NOT grep for `§[0-9]` or `Section [0-9]`: those are stable doc anchors and the previous version of this rule wrongly flagged them.)
 
 ## Code Quality — SonarCloud
 

@@ -69,7 +69,9 @@ uuid = { workspace = true }
 # Linux-only.
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = { workspace = true }
-futures-util = { workspace = true }
+# `futures-util` is already a workspace dep at the crate level
+# (line ~60); the duplicate target-specific entry was redundant
+# since cargo merges the same crate name across cfg arms.
 serde = { workspace = true }
 # Direct TSS2 ESAPI bindings — replaces the historical `tpm2-tools`
 # subprocess shell-out under `platform::linux::tpm`. Pinned to a

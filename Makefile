@@ -17,7 +17,7 @@ DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),a
         linux windows macos apk ios \
         package-linux package-windows release-linux \
         deps-linux deps-macos deps-windows fuzz-build hooks help \
-        lint-workflows rust-mutants
+        lint-workflows rust-mutants setup
 
 all: build
 
@@ -252,6 +252,9 @@ release-linux: package-linux ## Build Linux release packages
 
 
 ## ─── Dependencies ─────────────────────────────────────────────
+
+setup: deps hooks ## One-shot post-clone bootstrap: pub deps + git hooks
+	@echo "Setup complete. Run 'make run' or 'make build' to continue."
 
 deps: ## Install Flutter dependencies
 	$(FLUTTER) pub get

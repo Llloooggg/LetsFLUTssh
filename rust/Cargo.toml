@@ -189,9 +189,6 @@ reqwest = { version = "0.12", default-features = false, features = [
     "http2",
     "charset",
 ] }
-# `Read` over an async stream — adapts `reqwest::Response::bytes_stream`
-# into a synchronous-ish chunk iterator the SHA-256 hasher feeds.
-futures-core = { version = "0.3", default-features = false }
 # Multi-consumer, multi-producer async channel. Used by
 # `lfs_core::transfer::driver::WorkerPool` so every worker `recv`s
 # directly from the same channel without holding a `Mutex`-guarded
