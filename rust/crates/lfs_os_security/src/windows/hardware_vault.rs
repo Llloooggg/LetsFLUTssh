@@ -126,8 +126,8 @@ pub fn store(support_dir: &str, db_key: &[u8], pin_hmac: &[u8]) -> Result<(), Ha
 
     let path = vault_path(support_dir);
     let mut body = Vec::new();
-    write_len_prefixed(&mut body, pin_hmac);
-    write_len_prefixed(&mut body, &wrapped);
+    write_len_prefixed(&mut body, pin_hmac)?;
+    write_len_prefixed(&mut body, &wrapped)?;
     let blob = crate::hardware_tier_vault::prepend_envelope_header(
         crate::hardware_tier_vault::HW_VAULT_PLATFORM_WINDOWS,
         &body,
@@ -439,29 +439,43 @@ fn oaep_padding_info() -> BCRYPT_OAEP_PADDING_INFO {
 }
 
 fn parse_envelope(raw: &[u8]) -> Result<(&[u8], &[u8]), HardwareVaultError> {
+    // All length-prefix arithmetic uses `checked_add` so a hostile
+    // envelope with `hmac_len = u32::MAX - 3` cannot wrap the
+    // calculation around to a small `hmac_end`, slipping past the
+    // upcoming bounds check and reading attacker-controlled bytes
+    // out of the trailing slice. On 32-bit Windows targets the
+    // raw `hmac_end + 4` add could otherwise wrap silently.
     if raw.len() < 4 {
         return Err(HardwareVaultError::Backend("envelope: truncated".into()));
     }
     let hmac_len = u32::from_be_bytes([raw[0], raw[1], raw[2], raw[3]]) as usize;
-    if raw.len() < 4 + hmac_len + 4 {
+    let hmac_end = 4usize
+        .checked_add(hmac_len)
+        .ok_or_else(|| HardwareVaultError::Backend("envelope: hmac_len overflow".into()))?;
+    let after_hmac_len = hmac_end
+        .checked_add(4)
+        .ok_or_else(|| HardwareVaultError::Backend("envelope: hmac_end overflow".into()))?;
+    if raw.len() < after_hmac_len {
         return Err(HardwareVaultError::Backend(
             "envelope: truncated hmac".into(),
         ));
     }
-    let hmac_end = 4 + hmac_len;
     let wrapped_len = u32::from_be_bytes([
         raw[hmac_end],
         raw[hmac_end + 1],
         raw[hmac_end + 2],
         raw[hmac_end + 3],
     ]) as usize;
-    let wrapped_start = hmac_end + 4;
-    if raw.len() < wrapped_start + wrapped_len {
+    let wrapped_start = after_hmac_len;
+    let wrapped_end = wrapped_start
+        .checked_add(wrapped_len)
+        .ok_or_else(|| HardwareVaultError::Backend("envelope: wrapped_len overflow".into()))?;
+    if raw.len() < wrapped_end {
         return Err(HardwareVaultError::Backend(
             "envelope: truncated wrapped".into(),
         ));
     }
     let pin_hmac = &raw[4..hmac_end];
-    let wrapped = &raw[wrapped_start..wrapped_start + wrapped_len];
+    let wrapped = &raw[wrapped_start..wrapped_end];
     Ok((pin_hmac, wrapped))
 }

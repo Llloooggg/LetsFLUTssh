@@ -39,8 +39,16 @@ pub fn bytes_to_jbyte_array<'local>(
     env: &mut JNIEnv<'local>,
     bytes: &[u8],
 ) -> Result<JByteArray<'local>, String> {
+    // JNI's `new_byte_array` takes an `i32`; Rust's `usize` is 64-bit
+    // on every Android target we ship. A 2 GiB+ buffer would silently
+    // truncate to a negative `i32` under `as i32` and the JVM would
+    // then throw `NegativeArraySizeException` after we'd already lost
+    // size fidelity. `try_from` surfaces the overflow as our typed
+    // error so the caller gets a clear bound-violation message.
+    let len: i32 = i32::try_from(bytes.len())
+        .map_err(|_| format!("jni: byte array length overflow ({} > i32::MAX)", bytes.len()))?;
     let array = env
-        .new_byte_array(bytes.len() as i32)
+        .new_byte_array(len)
         .map_err(|e| format!("jni: new_byte_array: {e}"))?;
     if !bytes.is_empty() {
         // `i8` reinterpret of `u8` slice is safe — same memory
@@ -63,7 +71,12 @@ pub fn jbyte_array_to_bytes(env: &mut JNIEnv, array: &JObject) -> Result<Vec<u8>
     let len = env
         .get_array_length(&array)
         .map_err(|e| format!("jni: get_array_length: {e}"))?;
-    let mut buf = vec![0i8; len as usize];
+    // `get_array_length` returns `i32`; reject negative as a malformed
+    // JNI handle rather than letting `as usize` reinterpret to a
+    // huge value that allocates panics on Vec::with_capacity.
+    let buf_len = usize::try_from(len)
+        .map_err(|_| format!("jni: get_array_length returned negative ({len})"))?;
+    let mut buf = vec![0i8; buf_len];
     env.get_byte_array_region(&array, 0, &mut buf)
         .map_err(|e| format!("jni: get_byte_array_region: {e}"))?;
     Ok(buf.into_iter().map(|b| b as u8).collect())

@@ -318,10 +318,26 @@ fn read_len_prefixed(raw: &[u8], pos: &mut usize) -> Option<Vec<u8>> {
     not(any(test, target_os = "macos", target_os = "ios", target_os = "windows")),
     allow(dead_code)
 )]
-pub(crate) fn write_len_prefixed(out: &mut Vec<u8>, bytes: &[u8]) {
-    let len = u32::try_from(bytes.len()).unwrap_or(u32::MAX);
+pub(crate) fn write_len_prefixed(
+    out: &mut Vec<u8>,
+    bytes: &[u8],
+) -> Result<(), HardwareVaultError> {
+    // The previous shape silently capped any oversize buffer at
+    // `u32::MAX` and emitted a corrupt envelope (the buffer copy
+    // ran the full length but the length prefix lied). `try_from`
+    // surfaces overflow so a misuse (post-port enlargement of the
+    // wrap key, an unexpected platform field) lands as a typed
+    // error before we write a header that no reader can parse.
+    let len = u32::try_from(bytes.len()).map_err(|_| {
+        HardwareVaultError::Backend(format!(
+            "write_len_prefixed: bytes length exceeds u32 ({} > {})",
+            bytes.len(),
+            u32::MAX
+        ))
+    })?;
     out.extend_from_slice(&len.to_be_bytes());
     out.extend_from_slice(bytes);
+    Ok(())
 }
 
 /// Constant-time byte-slice equality. Used by [`read`] to compare
@@ -477,9 +493,16 @@ mod apple {
 
     /// Build the `SecPrivateKeyAttrs` sub-dictionary the SE uses to
     /// stamp the new key with its application tag + access control.
-    /// SAFETY: the `kSec*` symbols are static `CFString` constants
-    /// the framework ships; `wrap_under_get_rule` retains them for
-    /// the dictionary lifetime.
+    ///
+    /// # Safety
+    ///
+    /// Every `kSec*` symbol referenced inside is a static `CFString`
+    /// constant exported by Security.framework; `wrap_under_get_rule`
+    /// follows the get-rule (no extra retain) so the constant's
+    /// refcount stays balanced for the program's lifetime. The
+    /// returned `CFDictionary` borrows the wrapped constants through
+    /// `as_CFType` clones held inside the pair list — caller must
+    /// keep the dictionary alive across any FFI use.
     unsafe fn build_private_attrs(
         tag: &[u8],
         access: &SecAccessControl,
@@ -497,7 +520,12 @@ mod apple {
     }
 
     /// Build the full `SecKeyCreateRandomKey` attribute dictionary.
-    /// SAFETY: `kSec*` constants are framework-owned globals.
+    ///
+    /// # Safety
+    ///
+    /// Same get-rule contract as `build_private_attrs`. `kSec*`
+    /// constants live for program lifetime; the returned dictionary
+    /// borrows them via `as_CFType` clones held in the pair list.
     unsafe fn build_create_attrs(
         private_attrs: CFDictionary<CFString, CFType>,
     ) -> CFDictionary<CFString, CFType> {
@@ -518,6 +546,13 @@ mod apple {
 
     /// Build a `SecItemCopyMatching` query that resolves a stored
     /// SE private key by application tag.
+    ///
+    /// # Safety
+    ///
+    /// Same get-rule contract as `build_private_attrs`. The
+    /// returned dictionary is single-use — pass it directly into
+    /// `SecItemCopyMatching` while the wrapped tag bytes are still
+    /// alive.
     unsafe fn build_lookup_query(tag: &[u8]) -> CFDictionary<CFString, CFType> {
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
         let class_val = unsafe { CFString::wrap_under_get_rule(kSecClassKey) };
@@ -538,6 +573,11 @@ mod apple {
     /// Build the `SecItemDelete` query — by-tag delete is the
     /// canonical way to drop an SE key without first holding a
     /// `SecKeyRef`.
+    ///
+    /// # Safety
+    ///
+    /// Same get-rule contract as the sibling builders above; the
+    /// dictionary must outlive the `SecItemDelete` FFI call.
     unsafe fn build_delete_query(tag: &[u8]) -> CFDictionary<CFString, CFType> {
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
         let class_val = unsafe { CFString::wrap_under_get_rule(kSecClassKey) };
@@ -847,8 +887,8 @@ mod apple {
         let public_key = ensure_se_key(PRIMARY_KEY_TAG, &access)?;
         let wrapped = ecies_encrypt(&public_key, db_key)?;
         let mut body = Vec::with_capacity(8 + pin_hmac.len() + wrapped.len());
-        write_len_prefixed(&mut body, pin_hmac);
-        write_len_prefixed(&mut body, &wrapped);
+        write_len_prefixed(&mut body, pin_hmac)?;
+        write_len_prefixed(&mut body, &wrapped)?;
         let blob = super::prepend_envelope_header(super::HW_VAULT_PLATFORM_APPLE, &body);
         super::os_atomic_write_0600(&vault_file_path(support_dir), &blob)
     }
@@ -920,7 +960,7 @@ mod apple {
         let public_key = ensure_se_key(BIO_PASSWORD_KEY_TAG, &access)?;
         let wrapped = ecies_encrypt(&public_key, password_bytes)?;
         let mut body = Vec::with_capacity(4 + wrapped.len());
-        write_len_prefixed(&mut body, &wrapped);
+        write_len_prefixed(&mut body, &wrapped)?;
         let blob = super::prepend_envelope_header(super::HW_VAULT_PLATFORM_APPLE, &body);
         super::os_atomic_write_0600(&bio_password_file_path(support_dir), &blob)
     }
@@ -1265,9 +1305,9 @@ mod tests {
     #[test]
     fn len_prefix_round_trip() {
         let mut buf = Vec::new();
-        write_len_prefixed(&mut buf, b"hello");
-        write_len_prefixed(&mut buf, b"");
-        write_len_prefixed(&mut buf, b"world!");
+        write_len_prefixed(&mut buf, b"hello").unwrap();
+        write_len_prefixed(&mut buf, b"").unwrap();
+        write_len_prefixed(&mut buf, b"world!").unwrap();
         let mut pos = 0;
         assert_eq!(
             read_len_prefixed(&buf, &mut pos).as_deref(),

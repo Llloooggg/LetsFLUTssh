@@ -124,7 +124,7 @@ pub fn seal(cfg: &TpmConfig, secret: &[u8], auth_value: &[u8]) -> Result<Vec<u8>
         })
         .map_err(map_tss_err("seal"))?;
 
-    Ok(pack(&pub_bytes, &priv_bytes))
+    pack(&pub_bytes, &priv_bytes)
 }
 
 /// Inverse of [`seal`]. Recreates the primary, loads the sealed
@@ -242,32 +242,45 @@ fn build_sealed_template() -> Result<Public, tss_esapi::Error> {
         .build()
 }
 
-fn pack(pub_bytes: &[u8], priv_bytes: &[u8]) -> Vec<u8> {
+fn pack(pub_bytes: &[u8], priv_bytes: &[u8]) -> Result<Vec<u8>, Error> {
+    // Same length-prefix-fits-u32 invariant as the CLI variant in
+    // `tpm.rs`. TPM2B blobs are spec-bounded but `as u32` would
+    // silently truncate any future TPM that returned more —
+    // `try_from` surfaces the overflow as a typed Crypto error.
+    let pub_len = u32::try_from(pub_bytes.len())
+        .map_err(|_| Error::Crypto("tpm pack: pub_bytes length exceeds u32".into()))?;
+    let priv_len = u32::try_from(priv_bytes.len())
+        .map_err(|_| Error::Crypto("tpm pack: priv_bytes length exceeds u32".into()))?;
     let mut out = Vec::with_capacity(8 + pub_bytes.len() + priv_bytes.len());
-    out.extend_from_slice(&(pub_bytes.len() as u32).to_be_bytes());
+    out.extend_from_slice(&pub_len.to_be_bytes());
     out.extend_from_slice(pub_bytes);
-    out.extend_from_slice(&(priv_bytes.len() as u32).to_be_bytes());
+    out.extend_from_slice(&priv_len.to_be_bytes());
     out.extend_from_slice(priv_bytes);
-    out
+    Ok(out)
 }
 
 fn unpack(blob: &[u8]) -> Option<(&[u8], &[u8])> {
+    // Same `checked_add` invariant as `tpm.rs::unpack`. A hostile
+    // length prefix would otherwise wrap the offset calculation
+    // and slip past the in-bounds check.
     if blob.len() < 8 {
         return None;
     }
-    let pub_len = u32::from_be_bytes(blob[..4].try_into().unwrap()) as usize;
-    if 4 + pub_len + 4 > blob.len() {
+    let pub_len = u32::from_be_bytes(blob[..4].try_into().ok()?) as usize;
+    let priv_len_off = 4usize.checked_add(pub_len)?;
+    let priv_len_end = priv_len_off.checked_add(4)?;
+    if priv_len_end > blob.len() {
         return None;
     }
-    let pub_bytes = &blob[4..4 + pub_len];
-    let priv_len_off = 4 + pub_len;
+    let pub_bytes = &blob[4..priv_len_off];
     let priv_len =
-        u32::from_be_bytes(blob[priv_len_off..priv_len_off + 4].try_into().unwrap()) as usize;
-    let priv_off = priv_len_off + 4;
-    if priv_off + priv_len > blob.len() {
+        u32::from_be_bytes(blob[priv_len_off..priv_len_end].try_into().ok()?) as usize;
+    let priv_off = priv_len_end;
+    let priv_end = priv_off.checked_add(priv_len)?;
+    if priv_end > blob.len() {
         return None;
     }
-    let priv_bytes = &blob[priv_off..priv_off + priv_len];
+    let priv_bytes = &blob[priv_off..priv_end];
     Some((pub_bytes, priv_bytes))
 }
 
@@ -323,7 +336,7 @@ mod tests {
     fn pack_unpack_round_trips() {
         let pub_bytes = vec![1, 2, 3, 4];
         let priv_bytes = vec![5, 6, 7, 8, 9];
-        let packed = pack(&pub_bytes, &priv_bytes);
+        let packed = pack(&pub_bytes, &priv_bytes).expect("pack");
         let (got_pub, got_priv) = unpack(&packed).expect("unpack");
         assert_eq!(got_pub, pub_bytes.as_slice());
         assert_eq!(got_priv, priv_bytes.as_slice());

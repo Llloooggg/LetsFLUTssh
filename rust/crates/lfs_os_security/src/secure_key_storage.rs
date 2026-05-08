@@ -440,6 +440,15 @@ mod platform_impl {
         alias: &str,
         data: &[u8],
     ) -> Result<(), SecureStorageError> {
+        // SAFETY: every `wrap_under_get_rule` below takes a static
+        // `CFStringRef` exported by Security.framework / our extern
+        // binding; the foreign const lives for the program's lifetime
+        // and `wrap_under_get_rule` honours the get-rule (no extra
+        // CFRetain), so reference counts stay balanced. The
+        // `SecItemAdd` call passes a CFDictionary built on the stack
+        // whose keys + values are `CFString` / `CFData` Rust wrappers
+        // that hold the underlying CF refs across the call; the
+        // dictionary outlives `as_concrete_TypeRef()`.
         let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
         let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
@@ -480,6 +489,11 @@ mod platform_impl {
     fn raw_write_with_biometric_acl(alias: &str, data: &[u8]) -> Result<(), SecureStorageError> {
         let acl = build_access_control()?;
 
+        // SAFETY: see `raw_write_first_unlock_this_device` above —
+        // identical CFString get-rule + CFDictionary lifetime
+        // contract; the only difference is the `kSecAttrAccessControl`
+        // pair carrying the biometric `acl` instead of the
+        // accessibility-only attribute.
         let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
         let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
         let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
@@ -521,6 +535,15 @@ mod platform_impl {
     /// stored ACL and prompts the user for biometry on its own
     /// when the row matches.
     fn raw_read(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
+        // SAFETY: every `wrap_under_get_rule` below takes a static
+        // `CFStringRef` exported by Security.framework; refcount
+        // stays balanced. `SecItemCopyMatching` writes its result
+        // into `out` under the create-rule (we own the returned
+        // ref); the immediate `wrap_under_create_rule` takes
+        // ownership so the early-return paths drop and CFRelease
+        // exactly once. A non-null `out` paired with a non-zero
+        // `status` (Apple's docs imply impossible but don't forbid)
+        // would otherwise leak; the early ownership wrap closes that.
         let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
         let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
@@ -572,6 +595,10 @@ mod platform_impl {
     }
 
     fn raw_delete(alias: &str) -> Result<(), SecureStorageError> {
+        // SAFETY: same get-rule + CFDictionary contract as the
+        // sibling functions above; `SecItemDelete` returns 0 /
+        // `errSecItemNotFound` for our purposes — both treated
+        // as success.
         let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
         let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
         let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
