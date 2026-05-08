@@ -94,6 +94,18 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   /// list rebuild so a `connectionRevisionProvider(id)` consumer
   /// sees the new revision on the same frame the list-level
   /// rebuild fans out.
+  ///
+  /// `Progress` events fire at ~50 ms cadence per connect phase
+  /// and feed `Connection.progressStream` directly via the
+  /// per-id `AppBus.subscribeConnection(id)` subscription the
+  /// [Connection] class owns; list-watchers (workspace summary
+  /// projection, mobile-shell SFTP-button gate) never project
+  /// progress fields, so the list re-emit on every progress
+  /// tick was wasted work. Skip `_notify()` on Progress; the
+  /// per-id revision still bumps so a
+  /// `connectionRevisionProvider(id)` consumer (today: no UI
+  /// surface; reserved for a future fine-grained consumer) can
+  /// observe the tick without a list-level fan-out.
   void _handleBusEvent(rust_bus.BusEvent event) {
     final id = switch (event) {
       rust_bus.BusEvent_ConnectionStateChanged(:final id) => id,
@@ -105,6 +117,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     if (id != null) {
       _revisions[id] = (_revisions[id] ?? 0) + 1;
     }
+    if (event is rust_bus.BusEvent_ConnectionProgress) return;
     _notify();
   }
 

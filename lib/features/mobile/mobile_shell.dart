@@ -42,8 +42,13 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     final focusedPanel = findPanel(ws.root, ws.focusedPanelId);
     final activeTab = focusedPanel?.activeTab;
 
-    // Watch connection state changes so SFTP button updates when connect finishes
-    ref.watch(connectionsProvider);
+    // Watch the projected summary instead of the raw list — the
+    // SFTP-button gate only reads "is there a connected
+    // connection", which is exactly what `connectionSummaryProvider`
+    // projects via a four-field structural value, so consumer
+    // rebuilds collapse to "summary set membership / totals
+    // changed", not "any per-connection event fired".
+    ref.watch(connectionSummaryProvider);
 
     // Force rebuild when theme changes — static AppTheme colors update via
     // setBrightness() in the app root, but this widget must re-run build()
