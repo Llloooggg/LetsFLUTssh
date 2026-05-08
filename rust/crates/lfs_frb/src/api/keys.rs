@@ -124,3 +124,80 @@ pub fn keys_is_obvious_non_key_filename(filename: String) -> bool {
 pub fn keys_looks_like_ppk(text: String) -> bool {
     lfs_core::keys::looks_like_ppk(&text)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_encrypted_pem_recognises_proc_type_legacy() {
+        let pem = "-----BEGIN RSA PRIVATE KEY-----\n\
+Proc-Type: 4,ENCRYPTED\n\
+DEK-Info: AES-128-CBC,abcdef\n\
+\n\
+ciphertext...\n\
+-----END RSA PRIVATE KEY-----";
+        assert!(keys_is_encrypted_pem(pem.to_string()));
+    }
+
+    #[test]
+    fn is_encrypted_pem_passes_unencrypted_pem() {
+        let pem = "-----BEGIN OPENSSH PRIVATE KEY-----\n\
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB\n\
+-----END OPENSSH PRIVATE KEY-----";
+        assert!(!keys_is_encrypted_pem(pem.to_string()));
+    }
+
+    #[test]
+    fn normalized_text_fingerprint_returns_empty_for_empty_input() {
+        assert_eq!(keys_normalized_text_fingerprint("".into()), "");
+        assert_eq!(keys_normalized_text_fingerprint("   \n  \t".into()), "");
+    }
+
+    #[test]
+    fn normalized_text_fingerprint_normalises_crlf_and_whitespace() {
+        // CRLF and trailing whitespace must collapse so the same
+        // logical key text gets the same fingerprint regardless of
+        // line endings the source file used.
+        let lf = keys_normalized_text_fingerprint("hello\nworld\n".into());
+        let crlf = keys_normalized_text_fingerprint("hello\r\nworld\r\n".into());
+        let trailing = keys_normalized_text_fingerprint("hello\nworld\n   ".into());
+        assert!(!lf.is_empty());
+        assert_eq!(lf, crlf);
+        assert_eq!(lf, trailing);
+    }
+
+    #[test]
+    fn is_obvious_non_key_filename_filters_known_siblings() {
+        assert!(keys_is_obvious_non_key_filename("id_ed25519.pub".into()));
+        assert!(keys_is_obvious_non_key_filename("config".into()));
+        assert!(keys_is_obvious_non_key_filename("authorized_keys".into()));
+        assert!(keys_is_obvious_non_key_filename("known_hosts".into()));
+    }
+
+    #[test]
+    fn is_obvious_non_key_filename_passes_actual_keys() {
+        assert!(!keys_is_obvious_non_key_filename("id_ed25519".into()));
+        assert!(!keys_is_obvious_non_key_filename("id_rsa".into()));
+        assert!(!keys_is_obvious_non_key_filename("my_deploy_key".into()));
+    }
+
+    #[test]
+    fn looks_like_ppk_recognises_v2_and_v3_headers() {
+        assert!(keys_looks_like_ppk(
+            "PuTTY-User-Key-File-2: ssh-ed25519\n".into()
+        ));
+        assert!(keys_looks_like_ppk(
+            "PuTTY-User-Key-File-3: ssh-ed25519\n".into()
+        ));
+    }
+
+    #[test]
+    fn looks_like_ppk_passes_pem_and_other_text() {
+        assert!(!keys_looks_like_ppk(
+            "-----BEGIN RSA PRIVATE KEY-----\n".into()
+        ));
+        assert!(!keys_looks_like_ppk("plain text".into()));
+        assert!(!keys_looks_like_ppk("".into()));
+    }
+}
