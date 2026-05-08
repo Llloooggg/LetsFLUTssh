@@ -449,7 +449,6 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
         return Scrollbar(
           controller: _scrollController,
           child: SelectionArea(
-            contextMenuBuilder: _buildContextMenu,
             child: ListView.builder(
               controller: _scrollController,
               padding: EdgeInsets.zero,
@@ -459,37 +458,6 @@ class _LiveLogViewerState extends ConsumerState<_LiveLogViewer> {
           ),
         );
       },
-    );
-  }
-
-  /// Right-click / long-press toolbar.
-  ///
-  /// Flutter's default `SelectionArea` toolbar surfaces a Copy entry
-  /// only when there is a live selection — without one, a right-click
-  /// shows a `Select all`-only menu and the user has nowhere to land
-  /// a "copy this thing I clicked on" intent. We append a Copy item
-  /// (with `ContextMenuButtonType.copy` so the label is the localized
-  /// system "Copy", no custom string) that falls back to copying every
-  /// entry in the buffer when no selection is active. With a selection
-  /// the default Copy already appears and our fallback is suppressed,
-  /// so the menu reads as the standard system one in both states.
-  Widget _buildContextMenu(BuildContext context, SelectableRegionState state) {
-    final defaults = state.contextMenuButtonItems;
-    final hasCopy = defaults.any((b) => b.type == ContextMenuButtonType.copy);
-    final items = <ContextMenuButtonItem>[
-      if (!hasCopy)
-        ContextMenuButtonItem(
-          type: ContextMenuButtonType.copy,
-          onPressed: () {
-            ContextMenuController.removeAny();
-            _copyLogToClipboard(context);
-          },
-        ),
-      ...defaults,
-    ];
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: state.contextMenuAnchors,
-      buttonItems: items,
     );
   }
 }
@@ -549,7 +517,9 @@ class _LogRow extends StatelessWidget {
       border = isBanner
           ? Border(left: BorderSide(color: AppTheme.green, width: 2))
           : null;
-      spans = [TextSpan(text: entry.message, style: _dim(baseStyle))];
+      spans = [
+        TextSpan(text: '  ${entry.message}', style: _dim(baseStyle)),
+      ];
     } else {
       final color = _levelColor(entry.level);
       border = Border(left: BorderSide(color: color, width: 2));
@@ -558,8 +528,18 @@ class _LogRow extends StatelessWidget {
 
     return Container(
       decoration: border == null ? null : BoxDecoration(border: border),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text.rich(TextSpan(children: spans), softWrap: true),
+      // No `Container.padding` on purpose — paddings sit OUTSIDE the
+      // child `Text.rich` and are not part of any `Selectable`, so
+      // clicks landing on them dropped the active selection. The
+      // 2-space leading TextSpan in `spans` carries the visual indent
+      // INSIDE the row's single Selectable, and `textWidthBasis:
+      // parent` stretches that Selectable to the full row width so
+      // the right-side empty area also belongs to it.
+      child: Text.rich(
+        TextSpan(children: spans),
+        softWrap: true,
+        textWidthBasis: TextWidthBasis.parent,
+      ),
     );
   }
 
@@ -581,12 +561,16 @@ class _LogRow extends StatelessWidget {
       height: base.height,
     );
     return <InlineSpan>[
+      // Leading 2-space indent — inside the row's Selectable so a
+      // click on the leftmost column starts selection on this row
+      // instead of dropping any existing selection.
+      TextSpan(text: '  ', style: dim),
       if (entry.timestamp != null)
         TextSpan(text: '${entry.timestamp!} ', style: dim),
       TextSpan(text: '[${entry.tag ?? 'App'}] ', style: tag),
       TextSpan(text: entry.message, style: base),
       for (final cont in entry.continuations)
-        TextSpan(text: '\n$cont', style: dim),
+        TextSpan(text: '\n  $cont', style: dim),
     ];
   }
 
