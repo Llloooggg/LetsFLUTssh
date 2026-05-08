@@ -38,3 +38,53 @@ pub fn assess_password_strength(password: Vec<u8>) -> DbPasswordStrength {
     let password = String::from_utf8_lossy(&password);
     lfs_core::password_strength::assess(&password).into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_bytes_classify_as_empty() {
+        assert!(matches!(
+            assess_password_strength(vec![]),
+            DbPasswordStrength::Empty
+        ));
+    }
+
+    #[test]
+    fn short_simple_password_classifies_as_weak() {
+        assert!(matches!(
+            assess_password_strength(b"abc".to_vec()),
+            DbPasswordStrength::Weak
+        ));
+    }
+
+    #[test]
+    fn long_diverse_password_classifies_above_weak() {
+        // The exact bucket (Strong vs VeryStrong) is the meter's
+        // job; this assertion guards "long + diverse never demotes
+        // to Empty / Weak" — the load-bearing UI contract that the
+        // meter never tells the user a strong password is weak.
+        let strong = b"Tr0ub4dor&3-Pneumonoultramicroscopic-Silicovolcanoconiosis";
+        let s = assess_password_strength(strong.to_vec());
+        assert!(matches!(
+            s,
+            DbPasswordStrength::Moderate
+                | DbPasswordStrength::Strong
+                | DbPasswordStrength::VeryStrong
+        ));
+    }
+
+    #[test]
+    fn invalid_utf8_lossy_decodes_into_a_real_estimate() {
+        // The pre-fix path mapped invalid UTF-8 to Empty via
+        // `unwrap_or_default()`; this test pins the
+        // from_utf8_lossy contract by feeding a long byte run with
+        // a stray non-UTF-8 byte and asserting the meter does NOT
+        // collapse to Empty.
+        let mut bytes = vec![0xFFu8];
+        bytes.extend_from_slice(b"verylongpasswordwithinvalidleadingbyte!!");
+        let s = assess_password_strength(bytes);
+        assert!(!matches!(s, DbPasswordStrength::Empty));
+    }
+}

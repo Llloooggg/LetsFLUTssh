@@ -116,3 +116,72 @@ pub fn path_parse_windows_attrib_output(output: String) -> Vec<String> {
     out.sort();
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basename_strips_unix_dirs() {
+        assert_eq!(
+            path_basename("/home/alice/.ssh/id_ed25519".into()),
+            "id_ed25519"
+        );
+    }
+
+    #[test]
+    fn basename_normalises_windows_separators() {
+        assert_eq!(
+            path_basename(r"C:\Users\Alice\config.json".into()),
+            "config.json",
+        );
+    }
+
+    #[test]
+    fn is_suspicious_flags_traversal_segment() {
+        assert!(path_is_suspicious("/etc/../passwd".into()));
+        assert!(path_is_suspicious(r"C:\Users\..\System32\config".into()));
+    }
+
+    #[test]
+    fn is_suspicious_passes_clean_paths() {
+        assert!(!path_is_suspicious("/home/alice/.ssh/config".into()));
+        assert!(!path_is_suspicious("notes.txt".into()));
+    }
+
+    #[test]
+    fn shorten_to_two_segments_collapses_long_paths() {
+        let s = path_shorten_to_two_segments("/var/log/letsflutssh/recordings/run.lfsr".into());
+        assert!(s.starts_with(".../"), "got: {s}");
+        assert!(s.contains("recordings/"));
+        assert!(s.ends_with("run.lfsr"));
+    }
+
+    #[test]
+    fn sibling_candidate_appends_index() {
+        // GNOME Files / Finder shape: stem + " (N)" + extension.
+        let c = path_sibling_candidate("/tmp/photo.jpg".into(), 1, true);
+        assert!(c.contains("photo"));
+        assert!(c.ends_with(".jpg"));
+        assert!(c.contains("(1)") || c.contains(" 1"), "got: {c}");
+    }
+
+    #[test]
+    fn parse_windows_attrib_returns_sorted_basenames() {
+        // `attrib *` output: column 1 holds the flag set, the
+        // tail holds the absolute path. Hidden + System rows must
+        // come back as lowercase basenames, sorted, deduplicated.
+        let output = "\
+A H        C:\\Users\\Alice\\Hidden.bin                       \r\n\
+   S       C:\\Users\\Alice\\System.bin                       \r\n\
+A          C:\\Users\\Alice\\Plain.bin                        \r\n";
+        let basenames = path_parse_windows_attrib_output(output.to_string());
+        assert!(basenames.iter().any(|s| s == "hidden.bin"));
+        assert!(basenames.iter().any(|s| s == "system.bin"));
+        assert!(!basenames.iter().any(|s| s == "plain.bin"));
+        // Sorted.
+        let mut copy = basenames.clone();
+        copy.sort();
+        assert_eq!(basenames, copy);
+    }
+}

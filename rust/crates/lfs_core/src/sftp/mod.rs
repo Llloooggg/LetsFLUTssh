@@ -679,3 +679,147 @@ impl FileMetadata {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Unit tests for the SFTP module's pure helpers. The
+    //! per-method tests against a real SFTP server live in the
+    //! integration suite (`lfs_frb` / Dart `transfer_queue_test`);
+    //! the tests below cover the parts that don't need a transport.
+    use super::*;
+    use russh_sftp::protocol::FileAttributes;
+
+    fn touch(path: &std::path::Path) {
+        std::fs::File::create(path).expect("create test file");
+    }
+
+    #[tokio::test]
+    async fn count_local_files_empty_dir_returns_zero() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let n = count_local_files(tmp.path()).await;
+        assert_eq!(n, 0);
+    }
+
+    #[tokio::test]
+    async fn count_local_files_counts_flat_files() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        touch(&tmp.path().join("a.txt"));
+        touch(&tmp.path().join("b.txt"));
+        touch(&tmp.path().join("c.txt"));
+        let n = count_local_files(tmp.path()).await;
+        assert_eq!(n, 3);
+    }
+
+    #[tokio::test]
+    async fn count_local_files_recurses_into_subdirs() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let nested = tmp.path().join("sub").join("deep");
+        std::fs::create_dir_all(&nested).expect("mkdir -p");
+        touch(&tmp.path().join("root.txt"));
+        touch(&tmp.path().join("sub/mid.txt"));
+        touch(&nested.join("leaf.txt"));
+        let n = count_local_files(tmp.path()).await;
+        assert_eq!(n, 3);
+    }
+
+    #[tokio::test]
+    async fn count_local_files_missing_dir_returns_zero() {
+        // A missing path must return 0, not panic — matches the
+        // graceful-degradation contract count_remote_files honours.
+        let n = count_local_files(std::path::Path::new("/nonexistent/path-7c8f")).await;
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn file_metadata_from_russh_preserves_every_field_for_dir() {
+        // `FileAttributes::default()` already sets permissions to
+        // `0o777 | DIR`, so this tests the directory branch by
+        // augmenting the default with size + mtime.
+        let attr = FileAttributes {
+            size: Some(2048),
+            mtime: Some(1_700_000_000),
+            ..FileAttributes::default()
+        };
+        let m = FileMetadata::from_russh(&attr);
+        assert_eq!(m.size, 2048);
+        assert!(m.is_dir);
+        assert!(!m.is_symlink);
+        assert_eq!(m.modified_unix, Some(1_700_000_000));
+        assert_ne!(m.permissions & 0o777, 0);
+    }
+
+    #[test]
+    fn file_metadata_from_russh_folds_missing_optionals_to_safe_defaults() {
+        // Real SFTP servers omit fields the client didn't request —
+        // the converter must fold every gap into a safe default
+        // rather than panic. Build a fully-empty attribute set.
+        let attr = FileAttributes {
+            size: None,
+            uid: None,
+            user: None,
+            gid: None,
+            group: None,
+            permissions: None,
+            atime: None,
+            mtime: None,
+        };
+        let m = FileMetadata::from_russh(&attr);
+        assert_eq!(m.size, 0);
+        assert!(!m.is_dir);
+        assert!(!m.is_symlink);
+        assert_eq!(m.modified_unix, None);
+        assert_eq!(m.permissions, 0);
+    }
+
+    #[test]
+    fn file_metadata_from_russh_flags_regular_file() {
+        // A regular file: clear the DIR bit baked into Default and
+        // set the REG one. Confirms the converter returns
+        // `is_dir = false` for non-directory entries. Mutating
+        // setters used here (no struct-update shortcut available)
+        // because each setter ORs into the permissions field.
+        let mut attr = FileAttributes::default();
+        attr.remove_type(russh_sftp::protocol::FileMode::DIR);
+        attr.set_regular(true);
+        let m = FileMetadata::from_russh(&attr);
+        assert!(!m.is_dir);
+        assert!(!m.is_symlink);
+    }
+
+    #[test]
+    fn dir_entry_clone_round_trip() {
+        // Pre-fill a DirEntry, clone it, mutate the original — the
+        // clone must hold the original values. Guards against an
+        // accidental shared-reference field in a future refactor.
+        let entry = DirEntry {
+            name: "fileA".into(),
+            size: 1234,
+            is_dir: false,
+            is_symlink: false,
+            modified_unix: Some(42),
+            permissions: 0o644,
+        };
+        let cloned = entry.clone();
+        let mut original = entry;
+        original.name = "mutated".into();
+        original.size = 0;
+        assert_eq!(cloned.name, "fileA");
+        assert_eq!(cloned.size, 1234);
+        assert_eq!(cloned.permissions, 0o644);
+    }
+
+    #[test]
+    fn transfer_progress_event_clone_round_trip() {
+        let evt = TransferProgressEvent {
+            file_name: "x.bin".into(),
+            total_files: 10,
+            done_files: 3,
+            is_upload: true,
+        };
+        let cloned = evt.clone();
+        assert_eq!(cloned.file_name, "x.bin");
+        assert_eq!(cloned.total_files, 10);
+        assert_eq!(cloned.done_files, 3);
+        assert!(cloned.is_upload);
+    }
+}
