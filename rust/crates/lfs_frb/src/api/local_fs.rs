@@ -53,3 +53,92 @@ pub async fn local_fs_dir_size(path: String) -> Result<u64, String> {
 pub async fn local_fs_windows_hidden_names(dir: String) -> Vec<String> {
     lfs_core::fs::local::windows_hidden_names(dir).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn list_empty_dir_returns_empty_vec() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let path = tmp.path().to_str().expect("utf-8 path").to_string();
+        let entries = local_fs_list(path).await.expect("list empty");
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_returns_entries_with_populated_fields() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        std::fs::write(tmp.path().join("file.txt"), b"hello").expect("write");
+        std::fs::create_dir(tmp.path().join("sub")).expect("mkdir");
+        let path = tmp.path().to_str().expect("utf-8 path").to_string();
+        let entries = local_fs_list(path).await.expect("list");
+        assert_eq!(entries.len(), 2);
+        let file = entries
+            .iter()
+            .find(|e| e.name == "file.txt")
+            .expect("file row");
+        assert!(!file.is_dir);
+        assert_eq!(file.size, 5);
+        let sub = entries.iter().find(|e| e.name == "sub").expect("dir row");
+        assert!(sub.is_dir);
+    }
+
+    #[tokio::test]
+    async fn mkdir_creates_a_new_directory() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let target = tmp.path().join("new_subdir");
+        let target_str = target.to_str().expect("utf-8 path").to_string();
+        local_fs_mkdir(target_str).await.expect("mkdir");
+        assert!(target.is_dir());
+    }
+
+    #[tokio::test]
+    async fn remove_deletes_a_file() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let file = tmp.path().join("delete-me.txt");
+        std::fs::write(&file, b"x").expect("write");
+        let file_str = file.to_str().expect("utf-8 path").to_string();
+        local_fs_remove(file_str).await.expect("remove");
+        assert!(!file.exists());
+    }
+
+    #[tokio::test]
+    async fn remove_dir_drops_empty_directory() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().join("empty-subdir");
+        std::fs::create_dir(&dir).expect("mkdir");
+        let dir_str = dir.to_str().expect("utf-8 path").to_string();
+        local_fs_remove_dir(dir_str).await.expect("rmdir");
+        assert!(!dir.exists());
+    }
+
+    #[tokio::test]
+    async fn rename_relocates_a_file() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let src = tmp.path().join("src.txt");
+        let dst = tmp.path().join("dst.txt");
+        std::fs::write(&src, b"hello").expect("write");
+        local_fs_rename(
+            src.to_str().expect("utf-8").to_string(),
+            dst.to_str().expect("utf-8").to_string(),
+        )
+        .await
+        .expect("rename");
+        assert!(!src.exists());
+        assert!(dst.exists());
+        assert_eq!(std::fs::read(&dst).expect("read"), b"hello");
+    }
+
+    #[tokio::test]
+    async fn dir_size_sums_recursive_file_sizes() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        std::fs::write(tmp.path().join("a.bin"), [0u8; 100]).expect("write a");
+        std::fs::write(tmp.path().join("b.bin"), [0u8; 200]).expect("write b");
+        std::fs::create_dir(tmp.path().join("sub")).expect("mkdir");
+        std::fs::write(tmp.path().join("sub/c.bin"), [0u8; 50]).expect("write c");
+        let path = tmp.path().to_str().expect("utf-8 path").to_string();
+        let total = local_fs_dir_size(path).await.expect("dir_size");
+        assert_eq!(total, 350);
+    }
+}

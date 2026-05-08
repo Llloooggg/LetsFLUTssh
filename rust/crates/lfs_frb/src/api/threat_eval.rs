@@ -80,3 +80,52 @@ pub fn threat_evaluate(tier: DbThreatTier, password: bool, biometric: bool) -> V
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn protects(rows: &[DbThreatRow], threat: DbSecurityThreat) -> bool {
+        rows.iter().any(|r| {
+            std::mem::discriminant(&r.threat) == std::mem::discriminant(&threat)
+                && matches!(r.status, DbThreatStatus::Protects)
+        })
+    }
+
+    #[test]
+    fn plaintext_tier_does_not_protect_against_disk_theft() {
+        // Plaintext mode is the no-encryption baseline; the table
+        // says it protects against nothing on the cold-disk axis.
+        let rows = threat_evaluate(DbThreatTier::Plaintext, false, false);
+        assert!(!protects(&rows, DbSecurityThreat::ColdDiskTheft));
+    }
+
+    #[test]
+    fn paranoid_protects_against_offline_brute_force() {
+        // Argon2id master-password mode: the strongest tier
+        // protects against the offline-brute-force axis even
+        // without biometric.
+        let rows = threat_evaluate(DbThreatTier::Paranoid, true, false);
+        assert!(protects(&rows, DbSecurityThreat::OfflineBruteForce));
+    }
+
+    #[test]
+    fn keychain_protects_against_cold_disk_theft() {
+        // OS-keychain tier wraps the DB key in
+        // `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` (or
+        // libsecret on Linux); a stolen disk without OS auth can't
+        // recover it.
+        let rows = threat_evaluate(DbThreatTier::Keychain, false, false);
+        assert!(protects(&rows, DbSecurityThreat::ColdDiskTheft));
+    }
+
+    #[test]
+    fn evaluate_returns_a_row_for_every_security_threat() {
+        // The truth table covers every threat axis; the row
+        // count must match the enum cardinality so the UI's
+        // per-threat tile list never silently drops a row.
+        let rows = threat_evaluate(DbThreatTier::Plaintext, false, false);
+        // 6 SecurityThreat variants — see DbSecurityThreat above.
+        assert_eq!(rows.len(), 6);
+    }
+}
