@@ -19,7 +19,12 @@
 //! the leakiest part of the boundary; the typed `kind` lets the
 //! Dart wrapper pick a localised message and a UI route without
 //! ever inspecting `detail`.
-use lfs_core::error::Error as CoreError;
+// Re-export the alias so the codegen-emitted `use crate::api::frb_err::*;`
+// wildcard pulls `CoreError` into the generated file's scope. The
+// codegen wraps `CoreError` as a `RustAutoOpaque` for the
+// `Result<_, lfs_core::Error>` round-trip and references it
+// unqualified.
+pub use lfs_core::error::Error as CoreError;
 
 /// Stable wire-name discriminators. Add variants here when a new
 /// error kind needs explicit routing in Dart; bumping any of

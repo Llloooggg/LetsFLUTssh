@@ -112,7 +112,12 @@ class SecuritySetupResult {
   static String? _takeBytesAsString(String? id) {
     if (id == null) return null;
     final bytes = rust_app.secretsTake(id: id);
-    if (bytes.isEmpty) return null;
+    // `secretsTake` returns `null` for a missing slot; the previous
+    // `bytes.isEmpty` check collapsed missing-id and empty-bytes
+    // (a legitimate empty-password setup intent) into the same
+    // null. The wire shape is now `Option<Vec<u8>>` so the
+    // distinction round-trips intact.
+    if (bytes == null) return null;
     return utf8.decode(bytes);
   }
 }

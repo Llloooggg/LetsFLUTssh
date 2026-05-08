@@ -54,8 +54,19 @@ pub async fn ssh_try_connect_password(
     user: String,
     password: Vec<u8>,
 ) -> Result<(), String> {
-    let pw =
-        std::str::from_utf8(&password).map_err(|_| "password is not valid UTF-8".to_string())?;
+    // RFC 4252 §8 specifies the SSH password field as UTF-8.
+    // russh enforces this at its `auth_password(&str)` boundary,
+    // so we surface non-UTF-8 input as a typed FRB envelope
+    // (`kind=auth_failed`) rather than the previous plain-string
+    // error that the Dart router degraded to "generic". A user
+    // pasting a Latin-1-encoded password from a legacy tool now
+    // lands on the localised "password rejected" path.
+    let pw = std::str::from_utf8(&password).map_err(|_| {
+        crate::api::frb_err::wire(
+            crate::api::frb_err::kind::AUTH_FAILED,
+            "password is not valid UTF-8",
+        )
+    })?;
     lfs_core::ssh::try_connect_password(&host, port, &user, pw)
         .await
         .map_err(|e| crate::api::frb_err::from_core(&e))
@@ -314,20 +325,23 @@ pub async fn ssh_connect_pubkey_cert(
     passphrase: Option<String>,
     cert: Vec<u8>,
 ) -> Result<SshSession, String> {
-    let session = tokio::spawn(async move {
-        lfs_core::ssh::Session::connect_pubkey_cert(
-            &host,
-            port,
-            &user,
-            &private_key,
-            passphrase.as_deref(),
-            &cert,
-        )
-        .await
-        .map_err(|e| crate::api::frb_err::from_core(&e))
-    })
+    // Direct in-line `await` — sibling `ssh_connect_password` /
+    // `ssh_connect_pubkey` already use this shape. The previous
+    // `tokio::spawn` detached the connect future from the FRB
+    // task's cancellation: a Dart-side `dispose` on the dial-in-
+    // progress controller could not abort the spawned task, which
+    // kept holding the russh session through to handshake
+    // completion before noticing nobody wanted the result.
+    let session = lfs_core::ssh::Session::connect_pubkey_cert(
+        &host,
+        port,
+        &user,
+        &private_key,
+        passphrase.as_deref(),
+        &cert,
+    )
     .await
-    .map_err(|e| format!("cert connect task: {e}"))??;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 

@@ -7,7 +7,7 @@
 // error routing on the Dart side maps via `frb_err::from_core(&e)`
 // (or `frb_err::wire(kind, detail)`) instead of `e.to_string()`.
 #[allow(dead_code)]
-mod frb_err;
+pub mod frb_err;
 
 pub mod app;
 pub mod archive;

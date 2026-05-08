@@ -22,6 +22,7 @@ import 'api/folder_path.dart';
 import 'api/format.dart';
 import 'api/forward.dart';
 import 'api/fprintd.dart';
+import 'api/frb_err.dart';
 import 'api/hardware_tier_vault.dart';
 import 'api/host_info.dart';
 import 'api/keychain_marker.dart';
@@ -134,7 +135,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 222250811;
+  int get rustContentHash => -1196587333;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -872,6 +873,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<bool> crateApiFprintdFprintdVerify({required int timeoutMs});
 
+  Future<String> crateApiFrbErrFromCore({required CoreError err});
+
   Future<void> crateApiHardwareTierVaultHardwareTierVaultClear({
     required String supportDir,
   });
@@ -1427,7 +1430,7 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiAppSecretsDropMany({required List<String> ids});
 
-  Uint8List crateApiAppSecretsGet({required String id});
+  Uint8List? crateApiAppSecretsGet({required String id});
 
   bool crateApiAppSecretsHas({required String id});
 
@@ -1436,7 +1439,7 @@ abstract class RustLibApi extends BaseApi {
     required List<int> bytes,
   });
 
-  Uint8List crateApiAppSecretsTake({required String id});
+  Uint8List? crateApiAppSecretsTake({required String id});
 
   Future<void> crateApiSecureKeyStorageSecureStorageDelete({
     required String alias,
@@ -2018,6 +2021,19 @@ abstract class RustLibApi extends BaseApi {
     required String supportDir,
   });
 
+  Future<String> crateApiFrbErrWire({
+    required String kind,
+    required String detail,
+  });
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_CoreError;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_CoreError;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_CoreErrorPtr;
+
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_SshForwardChannel;
 
@@ -2107,8 +2123,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshForwardChannelEofConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardChannel_eof',
-        argNames: ['that'],
+        debugName: "SshForwardChannel_eof",
+        argNames: ["that"],
       );
 
   @override
@@ -2143,8 +2159,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshForwardChannelReadConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardChannel_read',
-        argNames: ['that'],
+        debugName: "SshForwardChannel_read",
+        argNames: ["that"],
       );
 
   @override
@@ -2181,8 +2197,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshForwardChannelWriteConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardChannel_write',
-        argNames: ['that', 'data'],
+        debugName: "SshForwardChannel_write",
+        argNames: ["that", "data"],
       );
 
   @override
@@ -2214,8 +2230,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiForwardSshForwardedConnectionAutoAccessorGetConnectedAddressConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_auto_accessor_get_connected_address',
-        argNames: ['that'],
+        debugName: "SshForwardedConnection_auto_accessor_get_connected_address",
+        argNames: ["that"],
       );
 
   @override
@@ -2247,8 +2263,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiForwardSshForwardedConnectionAutoAccessorGetConnectedPortConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_auto_accessor_get_connected_port',
-        argNames: ['that'],
+        debugName: "SshForwardedConnection_auto_accessor_get_connected_port",
+        argNames: ["that"],
       );
 
   @override
@@ -2281,8 +2297,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiForwardSshForwardedConnectionAutoAccessorGetOriginatorAddressConstMeta =>
       const TaskConstMeta(
         debugName:
-            'SshForwardedConnection_auto_accessor_get_originator_address',
-        argNames: ['that'],
+            "SshForwardedConnection_auto_accessor_get_originator_address",
+        argNames: ["that"],
       );
 
   @override
@@ -2314,8 +2330,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiForwardSshForwardedConnectionAutoAccessorGetOriginatorPortConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_auto_accessor_get_originator_port',
-        argNames: ['that'],
+        debugName: "SshForwardedConnection_auto_accessor_get_originator_port",
+        argNames: ["that"],
       );
 
   @override
@@ -2349,8 +2365,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiForwardSshForwardedConnectionAutoAccessorSetConnectedAddressConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_auto_accessor_set_connected_address',
-        argNames: ['that', 'connectedAddress'],
+        debugName: "SshForwardedConnection_auto_accessor_set_connected_address",
+        argNames: ["that", "connectedAddress"],
       );
 
   @override
@@ -2384,8 +2400,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiForwardSshForwardedConnectionAutoAccessorSetConnectedPortConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_auto_accessor_set_connected_port',
-        argNames: ['that', 'connectedPort'],
+        debugName: "SshForwardedConnection_auto_accessor_set_connected_port",
+        argNames: ["that", "connectedPort"],
       );
 
   @override
@@ -2420,8 +2436,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiForwardSshForwardedConnectionAutoAccessorSetOriginatorAddressConstMeta =>
       const TaskConstMeta(
         debugName:
-            'SshForwardedConnection_auto_accessor_set_originator_address',
-        argNames: ['that', 'originatorAddress'],
+            "SshForwardedConnection_auto_accessor_set_originator_address",
+        argNames: ["that", "originatorAddress"],
       );
 
   @override
@@ -2455,8 +2471,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiForwardSshForwardedConnectionAutoAccessorSetOriginatorPortConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_auto_accessor_set_originator_port',
-        argNames: ['that', 'originatorPort'],
+        debugName: "SshForwardedConnection_auto_accessor_set_originator_port",
+        argNames: ["that", "originatorPort"],
       );
 
   @override
@@ -2491,8 +2507,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshForwardedConnectionEofConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_eof',
-        argNames: ['that'],
+        debugName: "SshForwardedConnection_eof",
+        argNames: ["that"],
       );
 
   @override
@@ -2527,8 +2543,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshForwardedConnectionReadConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_read',
-        argNames: ['that'],
+        debugName: "SshForwardedConnection_read",
+        argNames: ["that"],
       );
 
   @override
@@ -2565,8 +2581,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshForwardedConnectionWriteConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshForwardedConnection_write',
-        argNames: ['that', 'data'],
+        debugName: "SshForwardedConnection_write",
+        argNames: ["that", "data"],
       );
 
   @override
@@ -2599,8 +2615,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshSessionDisconnectConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSession_disconnect',
-        argNames: ['that'],
+        debugName: "SshSession_disconnect",
+        argNames: ["that"],
       );
 
   @override
@@ -2640,8 +2656,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshSessionOpenShellConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSession_open_shell',
-        argNames: ['that', 'cols', 'rows'],
+        debugName: "SshSession_open_shell",
+        argNames: ["that", "cols", "rows"],
       );
 
   @override
@@ -2676,8 +2692,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpFileMetadataConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftpFile_metadata',
-        argNames: ['that'],
+        debugName: "SshSftpFile_metadata",
+        argNames: ["that"],
       );
 
   @override
@@ -2714,8 +2730,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpFileReadChunkConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftpFile_read_chunk',
-        argNames: ['that', 'maxBytes'],
+        debugName: "SshSftpFile_read_chunk",
+        argNames: ["that", "maxBytes"],
       );
 
   @override
@@ -2752,8 +2768,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpFileSeekConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftpFile_seek',
-        argNames: ['that', 'offset'],
+        debugName: "SshSftpFile_seek",
+        argNames: ["that", "offset"],
       );
 
   @override
@@ -2786,8 +2802,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpFileSyncAllConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftpFile_sync_all',
-        argNames: ['that'],
+        debugName: "SshSftpFile_sync_all",
+        argNames: ["that"],
       );
 
   @override
@@ -2824,8 +2840,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpFileWriteAllConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftpFile_write_all',
-        argNames: ['that', 'data'],
+        debugName: "SshSftpFile_write_all",
+        argNames: ["that", "data"],
       );
 
   @override
@@ -2862,8 +2878,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpCanonicalizeConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_canonicalize',
-        argNames: ['that', 'path'],
+        debugName: "SshSftp_canonicalize",
+        argNames: ["that", "path"],
       );
 
   @override
@@ -2907,8 +2923,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpDownloadDirConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_download_dir',
-        argNames: ['that', 'remoteDir', 'localDir', 'sink'],
+        debugName: "SshSftp_download_dir",
+        argNames: ["that", "remoteDir", "localDir", "sink"],
       );
 
   @override
@@ -2944,8 +2960,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSftpSshSftpListConstMeta => const TaskConstMeta(
-    debugName: 'SshSftp_list',
-    argNames: ['that', 'path'],
+    debugName: "SshSftp_list",
+    argNames: ["that", "path"],
   );
 
   @override
@@ -2981,8 +2997,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSftpSshSftpMkdirConstMeta => const TaskConstMeta(
-    debugName: 'SshSftp_mkdir',
-    argNames: ['that', 'path'],
+    debugName: "SshSftp_mkdir",
+    argNames: ["that", "path"],
   );
 
   @override
@@ -3019,8 +3035,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpReadFileConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_read_file',
-        argNames: ['that', 'path'],
+        debugName: "SshSftp_read_file",
+        argNames: ["that", "path"],
       );
 
   @override
@@ -3057,8 +3073,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpRemoveDirConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_remove_dir',
-        argNames: ['that', 'path'],
+        debugName: "SshSftp_remove_dir",
+        argNames: ["that", "path"],
       );
 
   @override
@@ -3095,8 +3111,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpRemoveDirRecursiveConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_remove_dir_recursive',
-        argNames: ['that', 'path'],
+        debugName: "SshSftp_remove_dir_recursive",
+        argNames: ["that", "path"],
       );
 
   @override
@@ -3133,8 +3149,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpRemoveFileConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_remove_file',
-        argNames: ['that', 'path'],
+        debugName: "SshSftp_remove_file",
+        argNames: ["that", "path"],
       );
 
   @override
@@ -3172,8 +3188,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSftpSshSftpRenameConstMeta => const TaskConstMeta(
-    debugName: 'SshSftp_rename',
-    argNames: ['that', 'oldPath', 'newPath'],
+    debugName: "SshSftp_rename",
+    argNames: ["that", "oldPath", "newPath"],
   );
 
   @override
@@ -3209,8 +3225,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSftpSshSftpStatConstMeta => const TaskConstMeta(
-    debugName: 'SshSftp_stat',
-    argNames: ['that', 'path'],
+    debugName: "SshSftp_stat",
+    argNames: ["that", "path"],
   );
 
   @override
@@ -3247,8 +3263,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpStatSymlinkConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_stat_symlink',
-        argNames: ['that', 'path'],
+        debugName: "SshSftp_stat_symlink",
+        argNames: ["that", "path"],
       );
 
   @override
@@ -3292,8 +3308,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpUploadDirConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_upload_dir',
-        argNames: ['that', 'localDir', 'remoteDir', 'sink'],
+        debugName: "SshSftp_upload_dir",
+        argNames: ["that", "localDir", "remoteDir", "sink"],
       );
 
   @override
@@ -3332,8 +3348,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpSshSftpWriteFileConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshSftp_write_file',
-        argNames: ['that', 'path', 'data'],
+        debugName: "SshSftp_write_file",
+        argNames: ["that", "path", "data"],
       );
 
   @override
@@ -3365,7 +3381,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSshSshShellEofConstMeta =>
-      const TaskConstMeta(debugName: 'SshShell_eof', argNames: ['that']);
+      const TaskConstMeta(debugName: "SshShell_eof", argNames: ["that"]);
 
   @override
   Stream<SshShellEvent> crateApiSshSshShellEventsStream({
@@ -3404,8 +3420,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshShellEventsStreamConstMeta =>
       const TaskConstMeta(
-        debugName: 'SshShell_events_stream',
-        argNames: ['that', 'sink'],
+        debugName: "SshShell_events_stream",
+        argNames: ["that", "sink"],
       );
 
   @override
@@ -3439,7 +3455,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSshSshShellNextEventConstMeta =>
-      const TaskConstMeta(debugName: 'SshShell_next_event', argNames: ['that']);
+      const TaskConstMeta(debugName: "SshShell_next_event", argNames: ["that"]);
 
   @override
   Future<void> crateApiSshSshShellResize({
@@ -3476,8 +3492,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSshSshShellResizeConstMeta => const TaskConstMeta(
-    debugName: 'SshShell_resize',
-    argNames: ['that', 'cols', 'rows'],
+    debugName: "SshShell_resize",
+    argNames: ["that", "cols", "rows"],
   );
 
   @override
@@ -3513,8 +3529,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSshSshShellWriteConstMeta => const TaskConstMeta(
-    debugName: 'SshShell_write',
-    argNames: ['that', 'data'],
+    debugName: "SshShell_write",
+    argNames: ["that", "data"],
   );
 
   @override
@@ -3542,7 +3558,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppAppInitConstMeta =>
-      const TaskConstMeta(debugName: 'app_init', argNames: []);
+      const TaskConstMeta(debugName: "app_init", argNames: []);
 
   @override
   String? crateApiArchiveStageArchiveStageEmptyFoldersToJson({
@@ -3569,8 +3585,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiArchiveStageArchiveStageEmptyFoldersToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'archive_stage_empty_folders_to_json',
-        argNames: ['paths'],
+        debugName: "archive_stage_empty_folders_to_json",
+        argNames: ["paths"],
       );
 
   @override
@@ -3598,8 +3614,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiArchiveStageArchiveStageFolderTagsToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'archive_stage_folder_tags_to_json',
-        argNames: ['rows'],
+        debugName: "archive_stage_folder_tags_to_json",
+        argNames: ["rows"],
       );
 
   @override
@@ -3626,8 +3642,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveStageArchiveStageKeysToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'archive_stage_keys_to_json',
-        argNames: ['rows'],
+        debugName: "archive_stage_keys_to_json",
+        argNames: ["rows"],
       );
 
   @override
@@ -3656,8 +3672,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiArchiveStageArchiveStageSessionSnippetsToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'archive_stage_session_snippets_to_json',
-        argNames: ['rows'],
+        debugName: "archive_stage_session_snippets_to_json",
+        argNames: ["rows"],
       );
 
   @override
@@ -3685,8 +3701,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiArchiveStageArchiveStageSessionTagsToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'archive_stage_session_tags_to_json',
-        argNames: ['rows'],
+        debugName: "archive_stage_session_tags_to_json",
+        argNames: ["rows"],
       );
 
   @override
@@ -3713,8 +3729,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveStageArchiveStageSessionsToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'archive_stage_sessions_to_json',
-        argNames: ['rows'],
+        debugName: "archive_stage_sessions_to_json",
+        argNames: ["rows"],
       );
 
   @override
@@ -3741,8 +3757,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveStageArchiveStageSnippetsToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'archive_stage_snippets_to_json',
-        argNames: ['rows'],
+        debugName: "archive_stage_snippets_to_json",
+        argNames: ["rows"],
       );
 
   @override
@@ -3769,8 +3785,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveStageArchiveStageTagsToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'archive_stage_tags_to_json',
-        argNames: ['rows'],
+        debugName: "archive_stage_tags_to_json",
+        argNames: ["rows"],
       );
 
   @override
@@ -3797,8 +3813,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiPasswordStrengthAssessPasswordStrengthConstMeta =>
       const TaskConstMeta(
-        debugName: 'assess_password_strength',
-        argNames: ['password'],
+        debugName: "assess_password_strength",
+        argNames: ["password"],
       );
 
   @override
@@ -3831,8 +3847,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxClearConstMeta =>
       const TaskConstMeta(
-        debugName: 'biometric_vault_linux_clear',
-        argNames: ['supportDir'],
+        debugName: "biometric_vault_linux_clear",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -3866,8 +3882,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxIsStoredConstMeta =>
       const TaskConstMeta(
-        debugName: 'biometric_vault_linux_is_stored',
-        argNames: ['supportDir'],
+        debugName: "biometric_vault_linux_is_stored",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -3903,8 +3919,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxReadToSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'biometric_vault_linux_read_to_secret',
-        argNames: ['supportDir', 'secretId'],
+        debugName: "biometric_vault_linux_read_to_secret",
+        argNames: ["supportDir", "secretId"],
       );
 
   @override
@@ -3940,8 +3956,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxStoreFromSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'biometric_vault_linux_store_from_secret',
-        argNames: ['supportDir', 'secretId'],
+        debugName: "biometric_vault_linux_store_from_secret",
+        argNames: ["supportDir", "secretId"],
       );
 
   @override
@@ -3972,7 +3988,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiBiometricKeyVaultBiometricVaultLinuxTpmReadyConstMeta =>
       const TaskConstMeta(
-        debugName: 'biometric_vault_linux_tpm_ready',
+        debugName: "biometric_vault_linux_tpm_ready",
         argNames: [],
       );
 
@@ -4002,7 +4018,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiBusBusDispatchConstMeta =>
-      const TaskConstMeta(debugName: 'bus_dispatch', argNames: ['command']);
+      const TaskConstMeta(debugName: "bus_dispatch", argNames: ["command"]);
 
   @override
   Stream<BusEvent> crateApiBusBusSubscribe({required BusTopic topic}) {
@@ -4035,8 +4051,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiBusBusSubscribeConstMeta => const TaskConstMeta(
-    debugName: 'bus_subscribe',
-    argNames: ['topic', 'sink'],
+    debugName: "bus_subscribe",
+    argNames: ["topic", "sink"],
   );
 
   @override
@@ -4061,7 +4077,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta
   get kCrateApiCapabilitiesOrchestratorCapabilitiesProbeClearConstMeta =>
-      const TaskConstMeta(debugName: 'capabilities_probe_clear', argNames: []);
+      const TaskConstMeta(debugName: "capabilities_probe_clear", argNames: []);
 
   @override
   Future<DbSecurityCapabilitiesSnapshot>
@@ -4095,8 +4111,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCapabilitiesOrchestratorCapabilitiesProbeRunConstMeta =>
       const TaskConstMeta(
-        debugName: 'capabilities_probe_run',
-        argNames: ['isLinuxHost'],
+        debugName: "capabilities_probe_run",
+        argNames: ["isLinuxHost"],
       );
 
   @override
@@ -4120,7 +4136,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConfigConfigAppConfigDefaultsJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'config_app_config_defaults_json',
+        debugName: "config_app_config_defaults_json",
         argNames: [],
       );
 
@@ -4148,8 +4164,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConfigConfigAppConfigSanitizeJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'config_app_config_sanitize_json',
-        argNames: ['inputJson'],
+        debugName: "config_app_config_sanitize_json",
+        argNames: ["inputJson"],
       );
 
   @override
@@ -4176,8 +4192,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConfigConfigAppConfigStripForExportConstMeta =>
       const TaskConstMeta(
-        debugName: 'config_app_config_strip_for_export',
-        argNames: ['inputJson'],
+        debugName: "config_app_config_strip_for_export",
+        argNames: ["inputJson"],
       );
 
   @override
@@ -4202,8 +4218,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConfigConfigAppConfigToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'config_app_config_to_json',
-        argNames: ['inputJson'],
+        debugName: "config_app_config_to_json",
+        argNames: ["inputJson"],
       );
 
   @override
@@ -4230,8 +4246,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConfigConfigAppConfigValidateJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'config_app_config_validate_json',
-        argNames: ['inputJson'],
+        debugName: "config_app_config_validate_json",
+        argNames: ["inputJson"],
       );
 
   @override
@@ -4254,7 +4270,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiConfigConfigStoreFlushConstMeta =>
-      const TaskConstMeta(debugName: 'config_store_flush', argNames: []);
+      const TaskConstMeta(debugName: "config_store_flush", argNames: []);
 
   @override
   String? crateApiConfigConfigStoreGetJson() {
@@ -4276,7 +4292,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiConfigConfigStoreGetJsonConstMeta =>
-      const TaskConstMeta(debugName: 'config_store_get_json', argNames: []);
+      const TaskConstMeta(debugName: "config_store_get_json", argNames: []);
 
   @override
   String crateApiConfigConfigStoreInit({required String supportDir}) {
@@ -4300,8 +4316,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConfigConfigStoreInitConstMeta =>
       const TaskConstMeta(
-        debugName: 'config_store_init',
-        argNames: ['supportDir'],
+        debugName: "config_store_init",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -4326,8 +4342,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConfigConfigStoreSetJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'config_store_set_json',
-        argNames: ['newJson'],
+        debugName: "config_store_set_json",
+        argNames: ["newJson"],
       );
 
   @override
@@ -4350,7 +4366,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiConfigConfigStoreTickIfDueConstMeta =>
-      const TaskConstMeta(debugName: 'config_store_tick_if_due', argNames: []);
+      const TaskConstMeta(debugName: "config_store_tick_if_due", argNames: []);
 
   @override
   List<String> crateApiConfigConfigSupportedLocales() {
@@ -4372,7 +4388,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiConfigConfigSupportedLocalesConstMeta =>
-      const TaskConstMeta(debugName: 'config_supported_locales', argNames: []);
+      const TaskConstMeta(debugName: "config_supported_locales", argNames: []);
 
   @override
   int crateApiConnectionConnectionBumpGeneration({required String id}) {
@@ -4396,8 +4412,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConnectionConnectionBumpGenerationConstMeta =>
       const TaskConstMeta(
-        debugName: 'connection_bump_generation',
-        argNames: ['id'],
+        debugName: "connection_bump_generation",
+        argNames: ["id"],
       );
 
   @override
@@ -4421,7 +4437,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConnectionConnectionClearGenerationsConstMeta =>
       const TaskConstMeta(
-        debugName: 'connection_clear_generations',
+        debugName: "connection_clear_generations",
         argNames: [],
       );
 
@@ -4456,8 +4472,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiBusConnectionConnectConstMeta =>
       const TaskConstMeta(
-        debugName: 'connection_connect',
-        argNames: ['id', 'args'],
+        debugName: "connection_connect",
+        argNames: ["id", "args"],
       );
 
   @override
@@ -4482,8 +4498,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConnectionConnectionDropGenerationConstMeta =>
       const TaskConstMeta(
-        debugName: 'connection_drop_generation',
-        argNames: ['id'],
+        debugName: "connection_drop_generation",
+        argNames: ["id"],
       );
 
   @override
@@ -4514,8 +4530,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiBusConnectionGetSessionConstMeta =>
       const TaskConstMeta(
-        debugName: 'connection_get_session',
-        argNames: ['id'],
+        debugName: "connection_get_session",
+        argNames: ["id"],
       );
 
   @override
@@ -4540,8 +4556,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConnectionConnectionInitGenerationConstMeta =>
       const TaskConstMeta(
-        debugName: 'connection_init_generation',
-        argNames: ['id'],
+        debugName: "connection_init_generation",
+        argNames: ["id"],
       );
 
   @override
@@ -4570,8 +4586,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConnectionConnectionIsCurrentGenerationConstMeta =>
       const TaskConstMeta(
-        debugName: 'connection_is_current_generation',
-        argNames: ['id', 'generation'],
+        debugName: "connection_is_current_generation",
+        argNames: ["id", "generation"],
       );
 
   @override
@@ -4603,8 +4619,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiAuthComposeConnectionPrepareAuthConstMeta =>
       const TaskConstMeta(
-        debugName: 'connection_prepare_auth',
-        argNames: ['input'],
+        debugName: "connection_prepare_auth",
+        argNames: ["input"],
       );
 
   @override
@@ -4627,7 +4643,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiConnectionConnectionSnapshotAllConstMeta =>
-      const TaskConstMeta(debugName: 'connection_snapshot_all', argNames: []);
+      const TaskConstMeta(debugName: "connection_snapshot_all", argNames: []);
 
   @override
   void crateApiCredentialPromptCredentialPromptCancel({
@@ -4653,8 +4669,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCredentialPromptCredentialPromptCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'credential_prompt_cancel',
-        argNames: ['promptId'],
+        debugName: "credential_prompt_cancel",
+        argNames: ["promptId"],
       );
 
   @override
@@ -4683,8 +4699,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCredentialPromptCredentialPromptResolveCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'credential_prompt_resolve_cancel',
-        argNames: ['promptId'],
+        debugName: "credential_prompt_resolve_cancel",
+        argNames: ["promptId"],
       );
 
   @override
@@ -4717,8 +4733,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCredentialPromptCredentialPromptResolveSubmitConstMeta =>
       const TaskConstMeta(
-        debugName: 'credential_prompt_resolve_submit',
-        argNames: ['promptId', 'secretBytes', 'rememberForSession'],
+        debugName: "credential_prompt_resolve_submit",
+        argNames: ["promptId", "secretBytes", "rememberForSession"],
       );
 
   @override
@@ -4752,8 +4768,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoAesGcmDecryptConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_aes_gcm_decrypt',
-        argNames: ['key', 'data'],
+        debugName: "crypto_aes_gcm_decrypt",
+        argNames: ["key", "data"],
       );
 
   @override
@@ -4791,8 +4807,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoAesGcmDecryptRawConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_aes_gcm_decrypt_raw',
-        argNames: ['key', 'nonce', 'ciphertext', 'aad'],
+        debugName: "crypto_aes_gcm_decrypt_raw",
+        argNames: ["key", "nonce", "ciphertext", "aad"],
       );
 
   @override
@@ -4826,8 +4842,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoAesGcmEncryptConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_aes_gcm_encrypt',
-        argNames: ['key', 'plaintext'],
+        debugName: "crypto_aes_gcm_encrypt",
+        argNames: ["key", "plaintext"],
       );
 
   @override
@@ -4865,8 +4881,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoAesGcmEncryptRawConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_aes_gcm_encrypt_raw',
-        argNames: ['key', 'nonce', 'plaintext', 'aad'],
+        debugName: "crypto_aes_gcm_encrypt_raw",
+        argNames: ["key", "nonce", "plaintext", "aad"],
       );
 
   @override
@@ -4889,7 +4905,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiCryptoCryptoAesGcmRandomKeyConstMeta =>
-      const TaskConstMeta(debugName: 'crypto_aes_gcm_random_key', argNames: []);
+      const TaskConstMeta(debugName: "crypto_aes_gcm_random_key", argNames: []);
 
   @override
   void crateApiCryptoCryptoAesGcmRandomKeyToSecret({required String id}) {
@@ -4913,8 +4929,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoAesGcmRandomKeyToSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_aes_gcm_random_key_to_secret',
-        argNames: ['id'],
+        debugName: "crypto_aes_gcm_random_key_to_secret",
+        argNames: ["id"],
       );
 
   @override
@@ -4956,14 +4972,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoArgon2IdDeriveConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_argon2id_derive',
+        debugName: "crypto_argon2id_derive",
         argNames: [
-          'password',
-          'salt',
-          'memoryKib',
-          'iterations',
-          'parallelism',
-          'length',
+          "password",
+          "salt",
+          "memoryKib",
+          "iterations",
+          "parallelism",
+          "length",
         ],
       );
 
@@ -4993,8 +5009,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoConstantTimeEqConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_constant_time_eq',
-        argNames: ['a', 'b'],
+        debugName: "crypto_constant_time_eq",
+        argNames: ["a", "b"],
       );
 
   @override
@@ -5030,8 +5046,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoEd25519VerifyConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_ed25519_verify',
-        argNames: ['publicKey', 'message', 'signature'],
+        debugName: "crypto_ed25519_verify",
+        argNames: ["publicKey", "message", "signature"],
       );
 
   @override
@@ -5069,8 +5085,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoHkdfSha256ConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_hkdf_sha256',
-        argNames: ['ikm', 'salt', 'info', 'length'],
+        debugName: "crypto_hkdf_sha256",
+        argNames: ["ikm", "salt", "info", "length"],
       );
 
   @override
@@ -5099,8 +5115,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiCryptoCryptoHmacSha256ConstMeta =>
       const TaskConstMeta(
-        debugName: 'crypto_hmac_sha256',
-        argNames: ['key', 'message'],
+        debugName: "crypto_hmac_sha256",
+        argNames: ["key", "message"],
       );
 
   @override
@@ -5124,7 +5140,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiCryptoCryptoSha256ConstMeta =>
-      const TaskConstMeta(debugName: 'crypto_sha256', argNames: ['bytes']);
+      const TaskConstMeta(debugName: "crypto_sha256", argNames: ["bytes"]);
 
   @override
   String crateApiCryptoCryptoSha256Hex({required List<int> bytes}) {
@@ -5147,7 +5163,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiCryptoCryptoSha256HexConstMeta =>
-      const TaskConstMeta(debugName: 'crypto_sha256_hex', argNames: ['bytes']);
+      const TaskConstMeta(debugName: "crypto_sha256_hex", argNames: ["bytes"]);
 
   @override
   Future<DbAppConfig?> crateApiDbDbAppConfigsGet() {
@@ -5174,7 +5190,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbAppConfigsGetConstMeta =>
-      const TaskConstMeta(debugName: 'db_app_configs_get', argNames: []);
+      const TaskConstMeta(debugName: "db_app_configs_get", argNames: []);
 
   @override
   Future<void> crateApiDbDbAppConfigsUpsert({required DbAppConfig row}) {
@@ -5203,8 +5219,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbAppConfigsUpsertConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_app_configs_upsert',
-        argNames: ['row'],
+        debugName: "db_app_configs_upsert",
+        argNames: ["row"],
       );
 
   @override
@@ -5235,7 +5251,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiArchiveDbArchiveProbeConstMeta =>
-      const TaskConstMeta(debugName: 'db_archive_probe', argNames: ['path']);
+      const TaskConstMeta(debugName: "db_archive_probe", argNames: ["path"]);
 
   @override
   Future<void> crateApiAppDbClose() {
@@ -5262,7 +5278,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppDbCloseConstMeta =>
-      const TaskConstMeta(debugName: 'db_close', argNames: []);
+      const TaskConstMeta(debugName: "db_close", argNames: []);
 
   @override
   Future<PlatformInt64> crateApiArchiveDbExportArchive({
@@ -5295,8 +5311,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveDbExportArchiveConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_export_archive',
-        argNames: ['input', 'outputPath'],
+        debugName: "db_export_archive",
+        argNames: ["input", "outputPath"],
       );
 
   @override
@@ -5328,8 +5344,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveDbExportQrPayloadConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_export_qr_payload',
-        argNames: ['input'],
+        debugName: "db_export_qr_payload",
+        argNames: ["input"],
       );
 
   @override
@@ -5361,8 +5377,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveDbExportQrPayloadSizeConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_export_qr_payload_size',
-        argNames: ['input'],
+        debugName: "db_export_qr_payload_size",
+        argNames: ["input"],
       );
 
   @override
@@ -5395,8 +5411,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbFolderTagsLinkConstMeta => const TaskConstMeta(
-    debugName: 'db_folder_tags_link',
-    argNames: ['folderId', 'tagId'],
+    debugName: "db_folder_tags_link",
+    argNames: ["folderId", "tagId"],
   );
 
   @override
@@ -5428,8 +5444,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbFolderTagsListIdsConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_folder_tags_list_ids',
-        argNames: ['folderId'],
+        debugName: "db_folder_tags_list_ids",
+        argNames: ["folderId"],
       );
 
   @override
@@ -5463,8 +5479,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbFolderTagsUnlinkConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_folder_tags_unlink',
-        argNames: ['folderId', 'tagId'],
+        debugName: "db_folder_tags_unlink",
+        argNames: ["folderId", "tagId"],
       );
 
   @override
@@ -5493,7 +5509,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbFoldersDeleteConstMeta =>
-      const TaskConstMeta(debugName: 'db_folders_delete', argNames: ['id']);
+      const TaskConstMeta(debugName: "db_folders_delete", argNames: ["id"]);
 
   @override
   Future<int> crateApiDbDbFoldersDeleteAll() {
@@ -5520,7 +5536,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbFoldersDeleteAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_folders_delete_all', argNames: []);
+      const TaskConstMeta(debugName: "db_folders_delete_all", argNames: []);
 
   @override
   Future<int> crateApiDbDbFoldersDeleteRecursive({required String id}) {
@@ -5549,8 +5565,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbFoldersDeleteRecursiveConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_folders_delete_recursive',
-        argNames: ['id'],
+        debugName: "db_folders_delete_recursive",
+        argNames: ["id"],
       );
 
   @override
@@ -5578,7 +5594,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbFoldersListAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_folders_list_all', argNames: []);
+      const TaskConstMeta(debugName: "db_folders_list_all", argNames: []);
 
   @override
   Future<int> crateApiDbDbFoldersRenamePathCascade({
@@ -5613,8 +5629,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbFoldersRenamePathCascadeConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_folders_rename_path_cascade',
-        argNames: ['oldPath', 'newPath', 'nowMs'],
+        debugName: "db_folders_rename_path_cascade",
+        argNames: ["oldPath", "newPath", "nowMs"],
       );
 
   @override
@@ -5644,8 +5660,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbFoldersToggleCollapsedConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_folders_toggle_collapsed',
-        argNames: ['id'],
+        debugName: "db_folders_toggle_collapsed",
+        argNames: ["id"],
       );
 
   @override
@@ -5681,8 +5697,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbFoldersUpdateNameParentConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_folders_update_name_parent',
-        argNames: ['id', 'name', 'parentId'],
+        debugName: "db_folders_update_name_parent",
+        argNames: ["id", "name", "parentId"],
       );
 
   @override
@@ -5711,7 +5727,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbFoldersUpsertConstMeta =>
-      const TaskConstMeta(debugName: 'db_folders_upsert', argNames: ['row']);
+      const TaskConstMeta(debugName: "db_folders_upsert", argNames: ["row"]);
 
   @override
   Future<DbApplyResult> crateApiArchiveDbImportApply({
@@ -5746,8 +5762,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveDbImportApplyConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_import_apply',
-        argNames: ['handleId', 'options', 'createdAtMs'],
+        debugName: "db_import_apply",
+        argNames: ["handleId", "options", "createdAtMs"],
       );
 
   @override
@@ -5776,7 +5792,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiArchiveDbImportDropConstMeta =>
-      const TaskConstMeta(debugName: 'db_import_drop', argNames: ['handleId']);
+      const TaskConstMeta(debugName: "db_import_drop", argNames: ["handleId"]);
 
   @override
   Future<DbImportOpenResult> crateApiArchiveDbImportOpen({
@@ -5809,8 +5825,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiArchiveDbImportOpenConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_import_open',
-        argNames: ['path', 'password'],
+        debugName: "db_import_open",
+        argNames: ["path", "password"],
       );
 
   @override
@@ -5839,7 +5855,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiArchiveDbImportStageConstMeta =>
-      const TaskConstMeta(debugName: 'db_import_stage', argNames: ['input']);
+      const TaskConstMeta(debugName: "db_import_stage", argNames: ["input"]);
 
   @override
   Future<void> crateApiAppDbInit({
@@ -5871,7 +5887,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppDbInitConstMeta =>
-      const TaskConstMeta(debugName: 'db_init', argNames: ['path', 'key']);
+      const TaskConstMeta(debugName: "db_init", argNames: ["path", "key"]);
 
   @override
   Future<void> crateApiAppDbInitFromSecret({
@@ -5904,8 +5920,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiAppDbInitFromSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_init_from_secret',
-        argNames: ['path', 'secretId'],
+        debugName: "db_init_from_secret",
+        argNames: ["path", "secretId"],
       );
 
   @override
@@ -5933,7 +5949,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbKnownHostsClearAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_known_hosts_clear_all', argNames: []);
+      const TaskConstMeta(debugName: "db_known_hosts_clear_all", argNames: []);
 
   @override
   Future<int> crateApiDbDbKnownHostsDeleteByHostPort({
@@ -5966,8 +5982,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbKnownHostsDeleteByHostPortConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_known_hosts_delete_by_host_port',
-        argNames: ['host', 'port'],
+        debugName: "db_known_hosts_delete_by_host_port",
+        argNames: ["host", "port"],
       );
 
   @override
@@ -5996,7 +6012,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbKnownHostsExportToStringConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_known_hosts_export_to_string',
+        debugName: "db_known_hosts_export_to_string",
         argNames: [],
       );
 
@@ -6031,8 +6047,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbKnownHostsGetByHostPortConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_known_hosts_get_by_host_port',
-        argNames: ['host', 'port'],
+        debugName: "db_known_hosts_get_by_host_port",
+        argNames: ["host", "port"],
       );
 
   @override
@@ -6066,8 +6082,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbKnownHostsImportFromStringConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_known_hosts_import_from_string',
-        argNames: ['content', 'nowMs'],
+        debugName: "db_known_hosts_import_from_string",
+        argNames: ["content", "nowMs"],
       );
 
   @override
@@ -6095,7 +6111,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbKnownHostsListAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_known_hosts_list_all', argNames: []);
+      const TaskConstMeta(debugName: "db_known_hosts_list_all", argNames: []);
 
   @override
   Future<PlatformInt64> crateApiDbDbKnownHostsUpsertByHostPort({
@@ -6134,8 +6150,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbKnownHostsUpsertByHostPortConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_known_hosts_upsert_by_host_port',
-        argNames: ['host', 'port', 'keyType', 'keyBase64', 'addedAtMs'],
+        debugName: "db_known_hosts_upsert_by_host_port",
+        argNames: ["host", "port", "keyType", "keyBase64", "addedAtMs"],
       );
 
   @override
@@ -6163,7 +6179,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiArchiveDbLfsExportSizeConstMeta =>
-      const TaskConstMeta(debugName: 'db_lfs_export_size', argNames: ['input']);
+      const TaskConstMeta(debugName: "db_lfs_export_size", argNames: ["input"]);
 
   @override
   Future<int> crateApiDbDbPortForwardsDelete({required String id}) {
@@ -6192,8 +6208,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbPortForwardsDeleteConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_port_forwards_delete',
-        argNames: ['id'],
+        debugName: "db_port_forwards_delete",
+        argNames: ["id"],
       );
 
   @override
@@ -6225,8 +6241,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbPortForwardsListForSessionConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_port_forwards_list_for_session',
-        argNames: ['sessionId'],
+        debugName: "db_port_forwards_list_for_session",
+        argNames: ["sessionId"],
       );
 
   @override
@@ -6258,8 +6274,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbPortForwardsUpsertConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_port_forwards_upsert',
-        argNames: ['row'],
+        debugName: "db_port_forwards_upsert",
+        argNames: ["row"],
       );
 
   @override
@@ -6288,7 +6304,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppDbRekeyConstMeta =>
-      const TaskConstMeta(debugName: 'db_rekey', argNames: ['newKey']);
+      const TaskConstMeta(debugName: "db_rekey", argNames: ["newKey"]);
 
   @override
   Future<void> crateApiAppDbRekeyFromSecret({required String secretId}) {
@@ -6317,8 +6333,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiAppDbRekeyFromSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_rekey_from_secret',
-        argNames: ['secretId'],
+        debugName: "db_rekey_from_secret",
+        argNames: ["secretId"],
       );
 
   @override
@@ -6346,7 +6362,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppDbSchemaObjectCountConstMeta =>
-      const TaskConstMeta(debugName: 'db_schema_object_count', argNames: []);
+      const TaskConstMeta(debugName: "db_schema_object_count", argNames: []);
 
   @override
   Future<void> crateApiDbDbSessionSnippetsLink({
@@ -6379,8 +6395,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionSnippetsLinkConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_session_snippets_link',
-        argNames: ['sessionId', 'snippetId'],
+        debugName: "db_session_snippets_link",
+        argNames: ["sessionId", "snippetId"],
       );
 
   @override
@@ -6412,8 +6428,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionSnippetsListIdsConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_session_snippets_list_ids',
-        argNames: ['sessionId'],
+        debugName: "db_session_snippets_list_ids",
+        argNames: ["sessionId"],
       );
 
   @override
@@ -6447,8 +6463,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionSnippetsUnlinkConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_session_snippets_unlink',
-        argNames: ['sessionId', 'snippetId'],
+        debugName: "db_session_snippets_unlink",
+        argNames: ["sessionId", "snippetId"],
       );
 
   @override
@@ -6482,8 +6498,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionTagsLinkConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_session_tags_link',
-        argNames: ['sessionId', 'tagId'],
+        debugName: "db_session_tags_link",
+        argNames: ["sessionId", "tagId"],
       );
 
   @override
@@ -6515,8 +6531,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionTagsListIdsConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_session_tags_list_ids',
-        argNames: ['sessionId'],
+        debugName: "db_session_tags_list_ids",
+        argNames: ["sessionId"],
       );
 
   @override
@@ -6550,8 +6566,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionTagsUnlinkConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_session_tags_unlink',
-        argNames: ['sessionId', 'tagId'],
+        debugName: "db_session_tags_unlink",
+        argNames: ["sessionId", "tagId"],
       );
 
   @override
@@ -6580,7 +6596,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSessionsDeleteConstMeta =>
-      const TaskConstMeta(debugName: 'db_sessions_delete', argNames: ['id']);
+      const TaskConstMeta(debugName: "db_sessions_delete", argNames: ["id"]);
 
   @override
   Future<int> crateApiDbDbSessionsDeleteAll() {
@@ -6607,7 +6623,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSessionsDeleteAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_sessions_delete_all', argNames: []);
+      const TaskConstMeta(debugName: "db_sessions_delete_all", argNames: []);
 
   @override
   Future<int> crateApiDbDbSessionsDeleteMultiple({required List<String> ids}) {
@@ -6636,8 +6652,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsDeleteMultipleConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_delete_multiple',
-        argNames: ['ids'],
+        debugName: "db_sessions_delete_multiple",
+        argNames: ["ids"],
       );
 
   @override
@@ -6677,8 +6693,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsDuplicateConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_duplicate',
-        argNames: ['srcId', 'newId', 'newLabel', 'targetFolderId', 'nowMs'],
+        debugName: "db_sessions_duplicate",
+        argNames: ["srcId", "newId", "newLabel", "targetFolderId", "nowMs"],
       );
 
   @override
@@ -6714,8 +6730,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsDuplicateWithPathConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_duplicate_with_path',
-        argNames: ['srcId', 'targetFolderPath', 'nowMs'],
+        debugName: "db_sessions_duplicate_with_path",
+        argNames: ["srcId", "targetFolderPath", "nowMs"],
       );
 
   @override
@@ -6744,7 +6760,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSessionsGetConstMeta =>
-      const TaskConstMeta(debugName: 'db_sessions_get', argNames: ['id']);
+      const TaskConstMeta(debugName: "db_sessions_get", argNames: ["id"]);
 
   @override
   Future<List<DbSession>> crateApiDbDbSessionsListAll() {
@@ -6771,7 +6787,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSessionsListAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_sessions_list_all', argNames: []);
+      const TaskConstMeta(debugName: "db_sessions_list_all", argNames: []);
 
   @override
   Future<int> crateApiDbDbSessionsMoveMultiple({
@@ -6806,8 +6822,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsMoveMultipleConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_move_multiple',
-        argNames: ['ids', 'folderId', 'updatedAtMs'],
+        debugName: "db_sessions_move_multiple",
+        argNames: ["ids", "folderId", "updatedAtMs"],
       );
 
   @override
@@ -6843,8 +6859,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsMoveToFolderConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_move_to_folder',
-        argNames: ['sessionId', 'folderId', 'updatedAtMs'],
+        debugName: "db_sessions_move_to_folder",
+        argNames: ["sessionId", "folderId", "updatedAtMs"],
       );
 
   @override
@@ -6880,8 +6896,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsRestoreSnapshotConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_restore_snapshot',
-        argNames: ['sessions', 'emptyFolderPaths', 'nowMs'],
+        debugName: "db_sessions_restore_snapshot",
+        argNames: ["sessions", "emptyFolderPaths", "nowMs"],
       );
 
   @override
@@ -6919,8 +6935,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsSetSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_set_secret',
-        argNames: ['id', 'slot', 'value', 'updatedAtMs'],
+        debugName: "db_sessions_set_secret",
+        argNames: ["id", "slot", "value", "updatedAtMs"],
       );
 
   @override
@@ -6952,8 +6968,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsStageSecretsConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_stage_secrets',
-        argNames: ['sessionId'],
+        debugName: "db_sessions_stage_secrets",
+        argNames: ["sessionId"],
       );
 
   @override
@@ -6985,8 +7001,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSessionsUpdateMetadataConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sessions_update_metadata',
-        argNames: ['metadata'],
+        debugName: "db_sessions_update_metadata",
+        argNames: ["metadata"],
       );
 
   @override
@@ -7015,7 +7031,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSessionsUpsertConstMeta =>
-      const TaskConstMeta(debugName: 'db_sessions_upsert', argNames: ['row']);
+      const TaskConstMeta(debugName: "db_sessions_upsert", argNames: ["row"]);
 
   @override
   Future<int> crateApiDbDbSftpBookmarksDelete({required String id}) {
@@ -7044,8 +7060,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSftpBookmarksDeleteConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sftp_bookmarks_delete',
-        argNames: ['id'],
+        debugName: "db_sftp_bookmarks_delete",
+        argNames: ["id"],
       );
 
   @override
@@ -7077,8 +7093,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSftpBookmarksListForSessionConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sftp_bookmarks_list_for_session',
-        argNames: ['sessionId'],
+        debugName: "db_sftp_bookmarks_list_for_session",
+        argNames: ["sessionId"],
       );
 
   @override
@@ -7108,8 +7124,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSftpBookmarksUpsertConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_sftp_bookmarks_upsert',
-        argNames: ['row'],
+        debugName: "db_sftp_bookmarks_upsert",
+        argNames: ["row"],
       );
 
   @override
@@ -7138,7 +7154,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSnippetsDeleteConstMeta =>
-      const TaskConstMeta(debugName: 'db_snippets_delete', argNames: ['id']);
+      const TaskConstMeta(debugName: "db_snippets_delete", argNames: ["id"]);
 
   @override
   Future<int> crateApiDbDbSnippetsDeleteAll() {
@@ -7165,7 +7181,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSnippetsDeleteAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_snippets_delete_all', argNames: []);
+      const TaskConstMeta(debugName: "db_snippets_delete_all", argNames: []);
 
   @override
   Future<List<DbSnippet>> crateApiDbDbSnippetsListAll() {
@@ -7192,7 +7208,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSnippetsListAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_snippets_list_all', argNames: []);
+      const TaskConstMeta(debugName: "db_snippets_list_all", argNames: []);
 
   @override
   Future<List<DbSnippet>> crateApiDbDbSnippetsListForSession({
@@ -7223,8 +7239,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSnippetsListForSessionConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_snippets_list_for_session',
-        argNames: ['sessionId'],
+        debugName: "db_snippets_list_for_session",
+        argNames: ["sessionId"],
       );
 
   @override
@@ -7253,7 +7269,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSnippetsUpsertConstMeta =>
-      const TaskConstMeta(debugName: 'db_snippets_upsert', argNames: ['row']);
+      const TaskConstMeta(debugName: "db_snippets_upsert", argNames: ["row"]);
 
   @override
   Future<int> crateApiDbDbSshKeysDelete({required String id}) {
@@ -7281,7 +7297,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSshKeysDeleteConstMeta =>
-      const TaskConstMeta(debugName: 'db_ssh_keys_delete', argNames: ['id']);
+      const TaskConstMeta(debugName: "db_ssh_keys_delete", argNames: ["id"]);
 
   @override
   Future<DbSshKey?> crateApiDbDbSshKeysGet({required String id}) {
@@ -7309,7 +7325,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSshKeysGetConstMeta =>
-      const TaskConstMeta(debugName: 'db_ssh_keys_get', argNames: ['id']);
+      const TaskConstMeta(debugName: "db_ssh_keys_get", argNames: ["id"]);
 
   @override
   Future<String> crateApiDbDbSshKeysImportForMerge({
@@ -7340,8 +7356,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSshKeysImportForMergeConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_ssh_keys_import_for_merge',
-        argNames: ['proposed'],
+        debugName: "db_ssh_keys_import_for_merge",
+        argNames: ["proposed"],
       );
 
   @override
@@ -7369,7 +7385,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSshKeysListAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_ssh_keys_list_all', argNames: []);
+      const TaskConstMeta(debugName: "db_ssh_keys_list_all", argNames: []);
 
   @override
   Future<List<DbSshKeyMetadata>> crateApiDbDbSshKeysListMetadata() {
@@ -7396,7 +7412,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSshKeysListMetadataConstMeta =>
-      const TaskConstMeta(debugName: 'db_ssh_keys_list_metadata', argNames: []);
+      const TaskConstMeta(debugName: "db_ssh_keys_list_metadata", argNames: []);
 
   @override
   Future<bool> crateApiDbDbSshKeysStageSecret({required String keyId}) {
@@ -7425,8 +7441,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbSshKeysStageSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_ssh_keys_stage_secret',
-        argNames: ['keyId'],
+        debugName: "db_ssh_keys_stage_secret",
+        argNames: ["keyId"],
       );
 
   @override
@@ -7455,7 +7471,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbSshKeysUpsertConstMeta =>
-      const TaskConstMeta(debugName: 'db_ssh_keys_upsert', argNames: ['row']);
+      const TaskConstMeta(debugName: "db_ssh_keys_upsert", argNames: ["row"]);
 
   @override
   Future<int> crateApiDbDbTagsDelete({required String id}) {
@@ -7483,7 +7499,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbTagsDeleteConstMeta =>
-      const TaskConstMeta(debugName: 'db_tags_delete', argNames: ['id']);
+      const TaskConstMeta(debugName: "db_tags_delete", argNames: ["id"]);
 
   @override
   Future<int> crateApiDbDbTagsDeleteAll() {
@@ -7510,7 +7526,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbTagsDeleteAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_tags_delete_all', argNames: []);
+      const TaskConstMeta(debugName: "db_tags_delete_all", argNames: []);
 
   @override
   Future<List<DbTag>> crateApiDbDbTagsListAll() {
@@ -7537,7 +7553,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbTagsListAllConstMeta =>
-      const TaskConstMeta(debugName: 'db_tags_list_all', argNames: []);
+      const TaskConstMeta(debugName: "db_tags_list_all", argNames: []);
 
   @override
   Future<List<DbTag>> crateApiDbDbTagsListForFolder({
@@ -7568,8 +7584,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbTagsListForFolderConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_tags_list_for_folder',
-        argNames: ['folderId'],
+        debugName: "db_tags_list_for_folder",
+        argNames: ["folderId"],
       );
 
   @override
@@ -7601,8 +7617,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiDbDbTagsListForSessionConstMeta =>
       const TaskConstMeta(
-        debugName: 'db_tags_list_for_session',
-        argNames: ['sessionId'],
+        debugName: "db_tags_list_for_session",
+        argNames: ["sessionId"],
       );
 
   @override
@@ -7631,7 +7647,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDbDbTagsUpsertConstMeta =>
-      const TaskConstMeta(debugName: 'db_tags_upsert', argNames: ['row']);
+      const TaskConstMeta(debugName: "db_tags_upsert", argNames: ["row"]);
 
   @override
   Future<DbDeeplinkOutcome> crateApiDeeplinkDeeplinkDispatch({
@@ -7661,7 +7677,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDeeplinkDeeplinkDispatchConstMeta =>
-      const TaskConstMeta(debugName: 'deeplink_dispatch', argNames: ['uri']);
+      const TaskConstMeta(debugName: "deeplink_dispatch", argNames: ["uri"]);
 
   @override
   List<String> crateApiFolderPathFolderAllPaths({
@@ -7690,7 +7706,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiFolderPathFolderAllPathsConstMeta =>
-      const TaskConstMeta(debugName: 'folder_all_paths', argNames: ['folders']);
+      const TaskConstMeta(debugName: "folder_all_paths", argNames: ["folders"]);
 
   @override
   String crateApiFolderPathFolderBuildPath({
@@ -7722,8 +7738,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFolderPathFolderBuildPathConstMeta =>
       const TaskConstMeta(
-        debugName: 'folder_build_path',
-        argNames: ['folderId', 'folders'],
+        debugName: "folder_build_path",
+        argNames: ["folderId", "folders"],
       );
 
   @override
@@ -7754,8 +7770,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFolderPathFolderDeriveCollapsedConstMeta =>
       const TaskConstMeta(
-        debugName: 'folder_derive_collapsed',
-        argNames: ['folders'],
+        debugName: "folder_derive_collapsed",
+        argNames: ["folders"],
       );
 
   @override
@@ -7788,8 +7804,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFolderPathFolderDeriveEmptyConstMeta =>
       const TaskConstMeta(
-        debugName: 'folder_derive_empty',
-        argNames: ['folders', 'usedFolderIds'],
+        debugName: "folder_derive_empty",
+        argNames: ["folders", "usedFolderIds"],
       );
 
   @override
@@ -7822,8 +7838,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFolderPathFolderFindIdByPathConstMeta =>
       const TaskConstMeta(
-        debugName: 'folder_find_id_by_path',
-        argNames: ['path', 'folders'],
+        debugName: "folder_find_id_by_path",
+        argNames: ["path", "folders"],
       );
 
   @override
@@ -7858,8 +7874,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFolderPathFolderRenamePathsCascadeConstMeta =>
       const TaskConstMeta(
-        debugName: 'folder_rename_paths_cascade',
-        argNames: ['paths', 'oldPath', 'newPath'],
+        debugName: "folder_rename_paths_cascade",
+        argNames: ["paths", "oldPath", "newPath"],
       );
 
   @override
@@ -7894,8 +7910,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFormatFormatClockHmsConstMeta =>
       const TaskConstMeta(
-        debugName: 'format_clock_hms',
-        argNames: ['hour', 'minute', 'second'],
+        debugName: "format_clock_hms",
+        argNames: ["hour", "minute", "second"],
       );
 
   @override
@@ -7929,8 +7945,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiFormatFormatDateConstMeta => const TaskConstMeta(
-    debugName: 'format_date',
-    argNames: ['year', 'month', 'day'],
+    debugName: "format_date",
+    argNames: ["year", "month", "day"],
   );
 
   @override
@@ -7958,7 +7974,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiFormatFormatDurationConstMeta =>
-      const TaskConstMeta(debugName: 'format_duration', argNames: ['millis']);
+      const TaskConstMeta(debugName: "format_duration", argNames: ["millis"]);
 
   @override
   String crateApiFormatFormatDurationSecondsFractional({
@@ -7988,8 +8004,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFormatFormatDurationSecondsFractionalConstMeta =>
       const TaskConstMeta(
-        debugName: 'format_duration_seconds_fractional',
-        argNames: ['seconds'],
+        debugName: "format_duration_seconds_fractional",
+        argNames: ["seconds"],
       );
 
   @override
@@ -8030,8 +8046,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFormatFormatFilesafeIsoTimestampConstMeta =>
       const TaskConstMeta(
-        debugName: 'format_filesafe_iso_timestamp',
-        argNames: ['year', 'month', 'day', 'hour', 'minute', 'second'],
+        debugName: "format_filesafe_iso_timestamp",
+        argNames: ["year", "month", "day", "hour", "minute", "second"],
       );
 
   @override
@@ -8059,7 +8075,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiFormatFormatSizeConstMeta =>
-      const TaskConstMeta(debugName: 'format_size', argNames: ['bytes']);
+      const TaskConstMeta(debugName: "format_size", argNames: ["bytes"]);
 
   @override
   String crateApiFormatFormatSizeIec({required PlatformInt64 bytes}) {
@@ -8086,7 +8102,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiFormatFormatSizeIecConstMeta =>
-      const TaskConstMeta(debugName: 'format_size_iec', argNames: ['bytes']);
+      const TaskConstMeta(debugName: "format_size_iec", argNames: ["bytes"]);
 
   @override
   String crateApiFormatFormatTimestampMinute({
@@ -8124,8 +8140,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFormatFormatTimestampMinuteConstMeta =>
       const TaskConstMeta(
-        debugName: 'format_timestamp_minute',
-        argNames: ['year', 'month', 'day', 'hour', 'minute'],
+        debugName: "format_timestamp_minute",
+        argNames: ["year", "month", "day", "hour", "minute"],
       );
 
   @override
@@ -8154,7 +8170,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFprintdFprintdGetEnrolmentHashConstMeta =>
       const TaskConstMeta(
-        debugName: 'fprintd_get_enrolment_hash',
+        debugName: "fprintd_get_enrolment_hash",
         argNames: [],
       );
 
@@ -8184,7 +8200,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFprintdFprintdHasEnrolledFingersConstMeta =>
       const TaskConstMeta(
-        debugName: 'fprintd_has_enrolled_fingers',
+        debugName: "fprintd_has_enrolled_fingers",
         argNames: [],
       );
 
@@ -8214,7 +8230,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFprintdFprintdIsServiceReachableConstMeta =>
       const TaskConstMeta(
-        debugName: 'fprintd_is_service_reachable',
+        debugName: "fprintd_is_service_reachable",
         argNames: [],
       );
 
@@ -8244,17 +8260,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiFprintdFprintdVerifyConstMeta =>
-      const TaskConstMeta(debugName: 'fprintd_verify', argNames: ['timeoutMs']);
+      const TaskConstMeta(debugName: "fprintd_verify", argNames: ["timeoutMs"]);
 
   @override
-  Future<void> crateApiHardwareTierVaultHardwareTierVaultClear({
-    required String supportDir,
-  }) {
+  Future<String> crateApiFrbErrFromCore({required CoreError err}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError(
+            err,
+            serializer,
+          );
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -8263,25 +8280,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
         ),
-        constMeta: kCrateApiHardwareTierVaultHardwareTierVaultClearConstMeta,
-        argValues: [supportDir],
+        constMeta: kCrateApiFrbErrFromCoreConstMeta,
+        argValues: [err],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiHardwareTierVaultHardwareTierVaultClearConstMeta =>
-      const TaskConstMeta(
-        debugName: 'hardware_tier_vault_clear',
-        argNames: ['supportDir'],
-      );
+  TaskConstMeta get kCrateApiFrbErrFromCoreConstMeta =>
+      const TaskConstMeta(debugName: "from_core", argNames: ["err"]);
 
   @override
-  Future<void>
-  crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword({
+  Future<void> crateApiHardwareTierVaultHardwareTierVaultClear({
     required String supportDir,
   }) {
     return handler.executeNormal(
@@ -8300,6 +8313,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_String,
         ),
+        constMeta: kCrateApiHardwareTierVaultHardwareTierVaultClearConstMeta,
+        argValues: [supportDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHardwareTierVaultHardwareTierVaultClearConstMeta =>
+      const TaskConstMeta(
+        debugName: "hardware_tier_vault_clear",
+        argNames: ["supportDir"],
+      );
+
+  @override
+  Future<void>
+  crateApiHardwareTierVaultHardwareTierVaultClearBiometricPassword({
+    required String supportDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(supportDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 195,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
         constMeta:
             kCrateApiHardwareTierVaultHardwareTierVaultClearBiometricPasswordConstMeta,
         argValues: [supportDir],
@@ -8311,8 +8358,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultClearBiometricPasswordConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_clear_biometric_password',
-        argNames: ['supportDir'],
+        debugName: "hardware_tier_vault_clear_biometric_password",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -8328,7 +8375,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 195,
+            funcId: 196,
           )!;
         },
         codec: SseCodec(
@@ -8346,8 +8393,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultDecodeLinuxBlobConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_decode_linux_blob',
-        argNames: ['blob'],
+        debugName: "hardware_tier_vault_decode_linux_blob",
+        argNames: ["blob"],
       );
 
   @override
@@ -8364,7 +8411,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 196,
+            funcId: 197,
           )!;
         },
         codec: SseCodec(
@@ -8382,8 +8429,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultEncodeLinuxBlobConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_encode_linux_blob',
-        argNames: ['salt', 'sealed'],
+        debugName: "hardware_tier_vault_encode_linux_blob",
+        argNames: ["salt", "sealed"],
       );
 
   @override
@@ -8395,7 +8442,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 197,
+            funcId: 198,
           )!;
         },
         codec: SseCodec(
@@ -8413,46 +8460,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultIsAvailableConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_is_available',
+        debugName: "hardware_tier_vault_is_available",
         argNames: [],
       );
 
   @override
   bool crateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStored({
-    required String supportDir,
-  }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
-          return pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 198,
-          )!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStoredConstMeta,
-        argValues: [supportDir],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStoredConstMeta =>
-      const TaskConstMeta(
-        debugName: 'hardware_tier_vault_is_biometric_password_stored',
-        argNames: ['supportDir'],
-      );
-
-  @override
-  bool crateApiHardwareTierVaultHardwareTierVaultIsStored({
     required String supportDir,
   }) {
     return handler.executeSync(
@@ -8470,6 +8483,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: null,
         ),
+        constMeta:
+            kCrateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStoredConstMeta,
+        argValues: [supportDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiHardwareTierVaultHardwareTierVaultIsBiometricPasswordStoredConstMeta =>
+      const TaskConstMeta(
+        debugName: "hardware_tier_vault_is_biometric_password_stored",
+        argNames: ["supportDir"],
+      );
+
+  @override
+  bool crateApiHardwareTierVaultHardwareTierVaultIsStored({
+    required String supportDir,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(supportDir, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 200,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
         constMeta: kCrateApiHardwareTierVaultHardwareTierVaultIsStoredConstMeta,
         argValues: [supportDir],
         apiImpl: this,
@@ -8480,8 +8527,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultIsStoredConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_is_stored',
-        argNames: ['supportDir'],
+        debugName: "hardware_tier_vault_is_stored",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -8493,7 +8540,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 200,
+            funcId: 201,
           )!;
         },
         codec: SseCodec(
@@ -8511,7 +8558,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultProbeDetailConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_probe_detail',
+        debugName: "hardware_tier_vault_probe_detail",
         argNames: [],
       );
 
@@ -8529,7 +8576,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 201,
+            funcId: 202,
             port: port_,
           );
         },
@@ -8546,8 +8593,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiHardwareTierVaultHardwareTierVaultReadConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_read',
-        argNames: ['supportDir', 'pinHmac'],
+        debugName: "hardware_tier_vault_read",
+        argNames: ["supportDir", "pinHmac"],
       );
 
   @override
@@ -8563,7 +8610,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 202,
+            funcId: 203,
             port: port_,
           );
         },
@@ -8582,8 +8629,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultReadBiometricPasswordConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_read_biometric_password',
-        argNames: ['supportDir'],
+        debugName: "hardware_tier_vault_read_biometric_password",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -8598,7 +8645,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 203,
+            funcId: 204,
           )!;
         },
         codec: SseCodec(
@@ -8616,8 +8663,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultReadBlobSaltConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_read_blob_salt',
-        argNames: ['supportDir'],
+        debugName: "hardware_tier_vault_read_blob_salt",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -8636,7 +8683,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 204,
+            funcId: 205,
             port: port_,
           );
         },
@@ -8655,8 +8702,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultReadToSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_read_to_secret',
-        argNames: ['supportDir', 'pinHmac', 'secretId'],
+        debugName: "hardware_tier_vault_read_to_secret",
+        argNames: ["supportDir", "pinHmac", "secretId"],
       );
 
   @override
@@ -8679,7 +8726,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 205,
+            funcId: 206,
           )!;
         },
         codec: SseCodec(
@@ -8697,13 +8744,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultResolveAuthValueConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_resolve_auth_value',
+        debugName: "hardware_tier_vault_resolve_auth_value",
         argNames: [
-          'password',
-          'biometric',
-          'salt',
-          'typedPassword',
-          'fprintdHash',
+          "password",
+          "biometric",
+          "salt",
+          "typedPassword",
+          "fprintdHash",
         ],
       );
 
@@ -8725,7 +8772,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 206,
+            funcId: 207,
             port: port_,
           );
         },
@@ -8742,8 +8789,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiHardwareTierVaultHardwareTierVaultStoreConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_store',
-        argNames: ['supportDir', 'dbKey', 'salt', 'pinHmac'],
+        debugName: "hardware_tier_vault_store",
+        argNames: ["supportDir", "dbKey", "salt", "pinHmac"],
       );
 
   @override
@@ -8761,7 +8808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 207,
+            funcId: 208,
             port: port_,
           );
         },
@@ -8780,8 +8827,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultStoreBiometricPasswordConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_store_biometric_password',
-        argNames: ['supportDir', 'passwordBytes'],
+        debugName: "hardware_tier_vault_store_biometric_password",
+        argNames: ["supportDir", "passwordBytes"],
       );
 
   @override
@@ -8802,7 +8849,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 208,
+            funcId: 209,
             port: port_,
           );
         },
@@ -8821,8 +8868,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiHardwareTierVaultHardwareTierVaultStoreFromSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_tier_vault_store_from_secret',
-        argNames: ['supportDir', 'secretId', 'salt', 'pinHmac'],
+        debugName: "hardware_tier_vault_store_from_secret",
+        argNames: ["supportDir", "secretId", "salt", "pinHmac"],
       );
 
   @override
@@ -8837,7 +8884,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 209,
+            funcId: 210,
           )!;
         },
         codec: SseCodec(
@@ -8855,8 +8902,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCapabilitiesOrchestratorHardwareVaultProbePromptCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_probe_prompt_cancel',
-        argNames: ['promptId'],
+        debugName: "hardware_vault_probe_prompt_cancel",
+        argNames: ["promptId"],
       );
 
   @override
@@ -8873,7 +8920,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 210,
+            funcId: 211,
           )!;
         },
         codec: SseCodec(
@@ -8891,8 +8938,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCapabilitiesOrchestratorHardwareVaultProbePromptResolveConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_probe_prompt_resolve',
-        argNames: ['promptId', 'code'],
+        debugName: "hardware_vault_probe_prompt_resolve",
+        argNames: ["promptId", "code"],
       );
 
   @override
@@ -8907,7 +8954,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 211,
+            funcId: 212,
           )!;
         },
         codec: SseCodec(
@@ -8925,8 +8972,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorHardwareVaultSealPromptCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_seal_prompt_cancel',
-        argNames: ['promptId'],
+        debugName: "hardware_vault_seal_prompt_cancel",
+        argNames: ["promptId"],
       );
 
   @override
@@ -8941,7 +8988,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 212,
+            funcId: 213,
           )!;
         },
         codec: SseCodec(
@@ -8959,8 +9006,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorHardwareVaultSealPromptResolveConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_seal_prompt_resolve',
-        argNames: ['promptId'],
+        debugName: "hardware_vault_seal_prompt_resolve",
+        argNames: ["promptId"],
       );
 
   @override
@@ -8977,7 +9024,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 213,
+            funcId: 214,
           )!;
         },
         codec: SseCodec(
@@ -8995,8 +9042,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorHardwareVaultSealPromptResolveErrorConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_seal_prompt_resolve_error',
-        argNames: ['promptId', 'message'],
+        debugName: "hardware_vault_seal_prompt_resolve_error",
+        argNames: ["promptId", "message"],
       );
 
   @override
@@ -9011,7 +9058,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 214,
+            funcId: 215,
           )!;
         },
         codec: SseCodec(
@@ -9029,8 +9076,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorHardwareVaultUnlockPromptCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_unlock_prompt_cancel',
-        argNames: ['promptId'],
+        debugName: "hardware_vault_unlock_prompt_cancel",
+        argNames: ["promptId"],
       );
 
   @override
@@ -9047,7 +9094,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 215,
+            funcId: 216,
           )!;
         },
         codec: SseCodec(
@@ -9065,8 +9112,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorHardwareVaultUnlockPromptResolveConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_unlock_prompt_resolve',
-        argNames: ['promptId', 'bytes'],
+        debugName: "hardware_vault_unlock_prompt_resolve",
+        argNames: ["promptId", "bytes"],
       );
 
   @override
@@ -9083,7 +9130,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 216,
+            funcId: 217,
           )!;
         },
         codec: SseCodec(
@@ -9101,8 +9148,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorHardwareVaultUnlockPromptResolveErrorConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_unlock_prompt_resolve_error',
-        argNames: ['promptId', 'message'],
+        debugName: "hardware_vault_unlock_prompt_resolve_error",
+        argNames: ["promptId", "message"],
       );
 
   @override
@@ -9117,7 +9164,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 217,
+            funcId: 218,
           )!;
         },
         codec: SseCodec(
@@ -9135,8 +9182,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorHardwareVaultUnlockPromptResolveWrongConstMeta =>
       const TaskConstMeta(
-        debugName: 'hardware_vault_unlock_prompt_resolve_wrong',
-        argNames: ['promptId'],
+        debugName: "hardware_vault_unlock_prompt_resolve_wrong",
+        argNames: ["promptId"],
       );
 
   @override
@@ -9148,7 +9195,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 218,
+            funcId: 219,
           )!;
         },
         codec: SseCodec(
@@ -9163,36 +9210,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiHostInfoHostInfoHomeDirectoryConstMeta =>
-      const TaskConstMeta(debugName: 'host_info_home_directory', argNames: []);
+      const TaskConstMeta(debugName: "host_info_home_directory", argNames: []);
 
   @override
   bool crateApiHostInfoHostInfoIsDesktop() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 219,
-          )!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiHostInfoHostInfoIsDesktopConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiHostInfoHostInfoIsDesktopConstMeta =>
-      const TaskConstMeta(debugName: 'host_info_is_desktop', argNames: []);
-
-  @override
-  bool crateApiHostInfoHostInfoIsMacos() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -9207,18 +9228,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiHostInfoHostInfoIsMacosConstMeta,
+        constMeta: kCrateApiHostInfoHostInfoIsDesktopConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiHostInfoHostInfoIsMacosConstMeta =>
-      const TaskConstMeta(debugName: 'host_info_is_macos', argNames: []);
+  TaskConstMeta get kCrateApiHostInfoHostInfoIsDesktopConstMeta =>
+      const TaskConstMeta(debugName: "host_info_is_desktop", argNames: []);
 
   @override
-  bool crateApiHostInfoHostInfoIsMobile() {
+  bool crateApiHostInfoHostInfoIsMacos() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -9233,6 +9254,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: null,
         ),
+        constMeta: kCrateApiHostInfoHostInfoIsMacosConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiHostInfoHostInfoIsMacosConstMeta =>
+      const TaskConstMeta(debugName: "host_info_is_macos", argNames: []);
+
+  @override
+  bool crateApiHostInfoHostInfoIsMobile() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 222,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
         constMeta: kCrateApiHostInfoHostInfoIsMobileConstMeta,
         argValues: [],
         apiImpl: this,
@@ -9241,7 +9288,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiHostInfoHostInfoIsMobileConstMeta =>
-      const TaskConstMeta(debugName: 'host_info_is_mobile', argNames: []);
+      const TaskConstMeta(debugName: "host_info_is_mobile", argNames: []);
 
   @override
   Future<void> crateApiInitApp() {
@@ -9252,7 +9299,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 222,
+            funcId: 223,
             port: port_,
           );
         },
@@ -9268,7 +9315,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiInitAppConstMeta =>
-      const TaskConstMeta(debugName: 'init_app', argNames: []);
+      const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
   DbKdfParams crateApiMasterPasswordKdfParamsDecode({
@@ -9282,7 +9329,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 223,
+            funcId: 224,
           )!;
         },
         codec: SseCodec(
@@ -9297,7 +9344,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiMasterPasswordKdfParamsDecodeConstMeta =>
-      const TaskConstMeta(debugName: 'kdf_params_decode', argNames: ['bytes']);
+      const TaskConstMeta(debugName: "kdf_params_decode", argNames: ["bytes"]);
 
   @override
   Uint8List crateApiMasterPasswordKdfParamsEncode({
@@ -9315,7 +9362,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 224,
+            funcId: 225,
           )!;
         },
         codec: SseCodec(
@@ -9331,8 +9378,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMasterPasswordKdfParamsEncodeConstMeta =>
       const TaskConstMeta(
-        debugName: 'kdf_params_encode',
-        argNames: ['memoryKib', 'iterations', 'parallelism'],
+        debugName: "kdf_params_encode",
+        argNames: ["memoryKib", "iterations", "parallelism"],
       );
 
   @override
@@ -9351,7 +9398,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 225,
+            funcId: 226,
           )!;
         },
         codec: SseCodec(
@@ -9369,8 +9416,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiKeychainPasswordGateKeychainGateComputeHmacConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_gate_compute_hmac',
-        argNames: ['pepper', 'salt', 'password'],
+        debugName: "keychain_gate_compute_hmac",
+        argNames: ["pepper", "salt", "password"],
       );
 
   @override
@@ -9385,7 +9432,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 226,
+            funcId: 227,
           )!;
         },
         codec: SseCodec(
@@ -9402,8 +9449,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiKeychainPasswordGateKeychainGateDecodeBlobConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_gate_decode_blob',
-        argNames: ['blob'],
+        debugName: "keychain_gate_decode_blob",
+        argNames: ["blob"],
       );
 
   @override
@@ -9420,7 +9467,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 227,
+            funcId: 228,
           )!;
         },
         codec: SseCodec(
@@ -9437,8 +9484,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiKeychainPasswordGateKeychainGateEncodeBlobConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_gate_encode_blob',
-        argNames: ['salt', 'hmac'],
+        debugName: "keychain_gate_encode_blob",
+        argNames: ["salt", "hmac"],
       );
 
   @override
@@ -9450,7 +9497,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 228,
+            funcId: 229,
           )!;
         },
         codec: SseCodec(
@@ -9466,7 +9513,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta
   get kCrateApiKeychainPasswordGateKeychainGateRandomSeedConstMeta =>
-      const TaskConstMeta(debugName: 'keychain_gate_random_seed', argNames: []);
+      const TaskConstMeta(debugName: "keychain_gate_random_seed", argNames: []);
 
   @override
   void crateApiKeychainMarkerKeychainMarkerClear({required String supportDir}) {
@@ -9478,7 +9525,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 229,
+            funcId: 230,
           )!;
         },
         codec: SseCodec(
@@ -9494,8 +9541,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeychainMarkerKeychainMarkerClearConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_marker_clear',
-        argNames: ['supportDir'],
+        debugName: "keychain_marker_clear",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -9510,7 +9557,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 230,
+            funcId: 231,
           )!;
         },
         codec: SseCodec(
@@ -9526,8 +9573,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeychainMarkerKeychainMarkerExistsConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_marker_exists',
-        argNames: ['supportDir'],
+        debugName: "keychain_marker_exists",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -9540,7 +9587,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 231,
+            funcId: 232,
           )!;
         },
         codec: SseCodec(
@@ -9556,8 +9603,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeychainMarkerKeychainMarkerSetConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_marker_set',
-        argNames: ['supportDir'],
+        debugName: "keychain_marker_set",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -9572,7 +9619,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 232,
+            funcId: 233,
             port: port_,
           );
         },
@@ -9591,8 +9638,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateClearConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_password_gate_clear',
-        argNames: ['supportDir'],
+        debugName: "keychain_password_gate_clear",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -9608,7 +9655,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 233,
+            funcId: 234,
             port: port_,
           );
         },
@@ -9627,8 +9674,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateIsConfiguredConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_password_gate_is_configured',
-        argNames: ['supportDir'],
+        debugName: "keychain_password_gate_is_configured",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -9646,7 +9693,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 234,
+            funcId: 235,
             port: port_,
           );
         },
@@ -9665,8 +9712,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateSetPasswordConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_password_gate_set_password',
-        argNames: ['supportDir', 'password'],
+        debugName: "keychain_password_gate_set_password",
+        argNames: ["supportDir", "password"],
       );
 
   @override
@@ -9683,7 +9730,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 235,
+            funcId: 236,
             port: port_,
           );
         },
@@ -9702,8 +9749,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiKeychainPasswordGateActorKeychainPasswordGateVerifyConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_password_gate_verify',
-        argNames: ['supportDir', 'password'],
+        debugName: "keychain_password_gate_verify",
+        argNames: ["supportDir", "password"],
       );
 
   @override
@@ -9718,7 +9765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 236,
+            funcId: 237,
           )!;
         },
         codec: SseCodec(
@@ -9736,8 +9783,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCapabilitiesOrchestratorKeychainProbePromptCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_probe_prompt_cancel',
-        argNames: ['promptId'],
+        debugName: "keychain_probe_prompt_cancel",
+        argNames: ["promptId"],
       );
 
   @override
@@ -9754,7 +9801,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 237,
+            funcId: 238,
           )!;
         },
         codec: SseCodec(
@@ -9772,8 +9819,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCapabilitiesOrchestratorKeychainProbePromptResolveConstMeta =>
       const TaskConstMeta(
-        debugName: 'keychain_probe_prompt_resolve',
-        argNames: ['promptId', 'wireName'],
+        debugName: "keychain_probe_prompt_resolve",
+        argNames: ["promptId", "wireName"],
       );
 
   @override
@@ -9788,7 +9835,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 238,
+            funcId: 239,
             port: port_,
           );
         },
@@ -9805,8 +9852,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeysKeysGenerateEd25519ConstMeta =>
       const TaskConstMeta(
-        debugName: 'keys_generate_ed25519',
-        argNames: ['comment'],
+        debugName: "keys_generate_ed25519",
+        argNames: ["comment"],
       );
 
   @override
@@ -9823,7 +9870,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 239,
+            funcId: 240,
             port: port_,
           );
         },
@@ -9840,8 +9887,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeysKeysGenerateRsaConstMeta =>
       const TaskConstMeta(
-        debugName: 'keys_generate_rsa',
-        argNames: ['bits', 'comment'],
+        debugName: "keys_generate_rsa",
+        argNames: ["bits", "comment"],
       );
 
   @override
@@ -9860,7 +9907,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 240,
+            funcId: 241,
             port: port_,
           );
         },
@@ -9877,8 +9924,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeysKeysImportOpensshConstMeta =>
       const TaskConstMeta(
-        debugName: 'keys_import_openssh',
-        argNames: ['pem', 'passphrase', 'comment'],
+        debugName: "keys_import_openssh",
+        argNames: ["pem", "passphrase", "comment"],
       );
 
   @override
@@ -9897,7 +9944,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 241,
+            funcId: 242,
             port: port_,
           );
         },
@@ -9913,8 +9960,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiKeysKeysImportPpkConstMeta => const TaskConstMeta(
-    debugName: 'keys_import_ppk',
-    argNames: ['ppkText', 'passphrase', 'comment'],
+    debugName: "keys_import_ppk",
+    argNames: ["ppkText", "passphrase", "comment"],
   );
 
   @override
@@ -9927,7 +9974,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 242,
+            funcId: 243,
           )!;
         },
         codec: SseCodec(
@@ -9943,8 +9990,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeysKeysIsEncryptedPemConstMeta =>
       const TaskConstMeta(
-        debugName: 'keys_is_encrypted_pem',
-        argNames: ['pem'],
+        debugName: "keys_is_encrypted_pem",
+        argNames: ["pem"],
       );
 
   @override
@@ -9957,7 +10004,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 243,
+            funcId: 244,
           )!;
         },
         codec: SseCodec(
@@ -9973,8 +10020,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeysKeysIsObviousNonKeyFilenameConstMeta =>
       const TaskConstMeta(
-        debugName: 'keys_is_obvious_non_key_filename',
-        argNames: ['filename'],
+        debugName: "keys_is_obvious_non_key_filename",
+        argNames: ["filename"],
       );
 
   @override
@@ -9987,7 +10034,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 244,
+            funcId: 245,
           )!;
         },
         codec: SseCodec(
@@ -10002,7 +10049,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiKeysKeysLooksLikePpkConstMeta =>
-      const TaskConstMeta(debugName: 'keys_looks_like_ppk', argNames: ['text']);
+      const TaskConstMeta(debugName: "keys_looks_like_ppk", argNames: ["text"]);
 
   @override
   String crateApiKeysKeysNormalizedTextFingerprint({required String text}) {
@@ -10014,7 +10061,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 245,
+            funcId: 246,
           )!;
         },
         codec: SseCodec(
@@ -10030,8 +10077,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKeysKeysNormalizedTextFingerprintConstMeta =>
       const TaskConstMeta(
-        debugName: 'keys_normalized_text_fingerprint',
-        argNames: ['text'],
+        debugName: "keys_normalized_text_fingerprint",
+        argNames: ["text"],
       );
 
   @override
@@ -10044,7 +10091,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 246,
+            funcId: 247,
           )!;
         },
         codec: SseCodec(
@@ -10060,8 +10107,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKnownHostsParserKnownHostsIsHashedLineConstMeta =>
       const TaskConstMeta(
-        debugName: 'known_hosts_is_hashed_line',
-        argNames: ['line'],
+        debugName: "known_hosts_is_hashed_line",
+        argNames: ["line"],
       );
 
   @override
@@ -10076,7 +10123,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 247,
+            funcId: 248,
           )!;
         },
         codec: SseCodec(
@@ -10092,8 +10139,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiKnownHostsParserKnownHostsParseLineConstMeta =>
       const TaskConstMeta(
-        debugName: 'known_hosts_parse_line',
-        argNames: ['line'],
+        debugName: "known_hosts_parse_line",
+        argNames: ["line"],
       );
 
   @override
@@ -10106,7 +10153,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 248,
+            funcId: 249,
             port: port_,
           );
         },
@@ -10122,7 +10169,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiLocalFsLocalFsDirSizeConstMeta =>
-      const TaskConstMeta(debugName: 'local_fs_dir_size', argNames: ['path']);
+      const TaskConstMeta(debugName: "local_fs_dir_size", argNames: ["path"]);
 
   @override
   Future<List<DbLocalFileEntry>> crateApiLocalFsLocalFsList({
@@ -10136,7 +10183,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 249,
+            funcId: 250,
             port: port_,
           );
         },
@@ -10152,38 +10199,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiLocalFsLocalFsListConstMeta =>
-      const TaskConstMeta(debugName: 'local_fs_list', argNames: ['path']);
+      const TaskConstMeta(debugName: "local_fs_list", argNames: ["path"]);
 
   @override
   Future<void> crateApiLocalFsLocalFsMkdir({required String path}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(path, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 250,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiLocalFsLocalFsMkdirConstMeta,
-        argValues: [path],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLocalFsLocalFsMkdirConstMeta =>
-      const TaskConstMeta(debugName: 'local_fs_mkdir', argNames: ['path']);
-
-  @override
-  Future<void> crateApiLocalFsLocalFsRemove({required String path}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -10200,18 +10219,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateApiLocalFsLocalFsRemoveConstMeta,
+        constMeta: kCrateApiLocalFsLocalFsMkdirConstMeta,
         argValues: [path],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiLocalFsLocalFsRemoveConstMeta =>
-      const TaskConstMeta(debugName: 'local_fs_remove', argNames: ['path']);
+  TaskConstMeta get kCrateApiLocalFsLocalFsMkdirConstMeta =>
+      const TaskConstMeta(debugName: "local_fs_mkdir", argNames: ["path"]);
 
   @override
-  Future<void> crateApiLocalFsLocalFsRemoveDir({required String path}) {
+  Future<void> crateApiLocalFsLocalFsRemove({required String path}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -10228,6 +10247,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_String,
         ),
+        constMeta: kCrateApiLocalFsLocalFsRemoveConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLocalFsLocalFsRemoveConstMeta =>
+      const TaskConstMeta(debugName: "local_fs_remove", argNames: ["path"]);
+
+  @override
+  Future<void> crateApiLocalFsLocalFsRemoveDir({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 253,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
         constMeta: kCrateApiLocalFsLocalFsRemoveDirConstMeta,
         argValues: [path],
         apiImpl: this,
@@ -10236,7 +10283,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiLocalFsLocalFsRemoveDirConstMeta =>
-      const TaskConstMeta(debugName: 'local_fs_remove_dir', argNames: ['path']);
+      const TaskConstMeta(debugName: "local_fs_remove_dir", argNames: ["path"]);
 
   @override
   Future<void> crateApiLocalFsLocalFsRename({
@@ -10252,7 +10299,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 253,
+            funcId: 254,
             port: port_,
           );
         },
@@ -10269,8 +10316,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiLocalFsLocalFsRenameConstMeta =>
       const TaskConstMeta(
-        debugName: 'local_fs_rename',
-        argNames: ['oldPath', 'newPath'],
+        debugName: "local_fs_rename",
+        argNames: ["oldPath", "newPath"],
       );
 
   @override
@@ -10285,7 +10332,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 254,
+            funcId: 255,
             port: port_,
           );
         },
@@ -10302,8 +10349,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiLocalFsLocalFsWindowsHiddenNamesConstMeta =>
       const TaskConstMeta(
-        debugName: 'local_fs_windows_hidden_names',
-        argNames: ['dir'],
+        debugName: "local_fs_windows_hidden_names",
+        argNames: ["dir"],
       );
 
   @override
@@ -10316,7 +10363,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 255,
+            funcId: 256,
           )!;
         },
         codec: SseCodec(
@@ -10331,7 +10378,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiLogSanitizeLooksSensitiveConstMeta =>
-      const TaskConstMeta(debugName: 'looks_sensitive', argNames: ['text']);
+      const TaskConstMeta(debugName: "looks_sensitive", argNames: ["text"]);
 
   @override
   Future<void> crateApiMacosInstallerMacosInstallerCleanupBackup({
@@ -10345,7 +10392,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 256,
+            funcId: 257,
             port: port_,
           );
         },
@@ -10363,8 +10410,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiMacosInstallerMacosInstallerCleanupBackupConstMeta =>
       const TaskConstMeta(
-        debugName: 'macos_installer_cleanup_backup',
-        argNames: ['executablePath'],
+        debugName: "macos_installer_cleanup_backup",
+        argNames: ["executablePath"],
       );
 
   @override
@@ -10381,7 +10428,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 257,
+            funcId: 258,
             port: port_,
           );
         },
@@ -10398,8 +10445,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMacosInstallerMacosInstallerInstallConstMeta =>
       const TaskConstMeta(
-        debugName: 'macos_installer_install',
-        argNames: ['dmgPath', 'executablePath'],
+        debugName: "macos_installer_install",
+        argNames: ["dmgPath", "executablePath"],
       );
 
   @override
@@ -10414,7 +10461,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 258,
+            funcId: 259,
             port: port_,
           );
         },
@@ -10431,8 +10478,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMacosResignMacosResignBundleConstMeta =>
       const TaskConstMeta(
-        debugName: 'macos_resign_bundle',
-        argNames: ['executablePath'],
+        debugName: "macos_resign_bundle",
+        argNames: ["executablePath"],
       );
 
   @override
@@ -10444,7 +10491,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 259,
+            funcId: 260,
             port: port_,
           );
         },
@@ -10461,7 +10508,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMacosResignMacosResignEnsureIdentityConstMeta =>
       const TaskConstMeta(
-        debugName: 'macos_resign_ensure_identity',
+        debugName: "macos_resign_ensure_identity",
         argNames: [],
       );
 
@@ -10474,7 +10521,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 260,
+            funcId: 261,
             port: port_,
           );
         },
@@ -10490,7 +10537,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiMacosResignMacosResignHasIdentityConstMeta =>
-      const TaskConstMeta(debugName: 'macos_resign_has_identity', argNames: []);
+      const TaskConstMeta(debugName: "macos_resign_has_identity", argNames: []);
 
   @override
   Future<void> crateApiMacosResignMacosResignUninstallIdentity() {
@@ -10501,7 +10548,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 261,
+            funcId: 262,
             port: port_,
           );
         },
@@ -10518,7 +10565,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMacosResignMacosResignUninstallIdentityConstMeta =>
       const TaskConstMeta(
-        debugName: 'macos_resign_uninstall_identity',
+        debugName: "macos_resign_uninstall_identity",
         argNames: [],
       );
 
@@ -10538,7 +10585,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 262,
+            funcId: 263,
             port: port_,
           );
         },
@@ -10555,8 +10602,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMasterPasswordMasterPasswordChangeConstMeta =>
       const TaskConstMeta(
-        debugName: 'master_password_change',
-        argNames: ['oldPassword', 'newPassword', 'params'],
+        debugName: "master_password_change",
+        argNames: ["oldPassword", "newPassword", "params"],
       );
 
   @override
@@ -10577,7 +10624,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 263,
+            funcId: 264,
             port: port_,
           );
         },
@@ -10595,8 +10642,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiMasterPasswordMasterPasswordChangeToSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'master_password_change_to_secret',
-        argNames: ['oldPassword', 'newPassword', 'params', 'secretId'],
+        debugName: "master_password_change_to_secret",
+        argNames: ["oldPassword", "newPassword", "params", "secretId"],
       );
 
   @override
@@ -10608,7 +10655,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 264,
+            funcId: 265,
           )!;
         },
         codec: SseCodec(
@@ -10623,7 +10670,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiMasterPasswordMasterPasswordDisableConstMeta =>
-      const TaskConstMeta(debugName: 'master_password_disable', argNames: []);
+      const TaskConstMeta(debugName: "master_password_disable", argNames: []);
 
   @override
   Future<Uint8List> crateApiMasterPasswordMasterPasswordEnable({
@@ -10639,7 +10686,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 265,
+            funcId: 266,
             port: port_,
           );
         },
@@ -10656,8 +10703,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMasterPasswordMasterPasswordEnableConstMeta =>
       const TaskConstMeta(
-        debugName: 'master_password_enable',
-        argNames: ['password', 'params'],
+        debugName: "master_password_enable",
+        argNames: ["password", "params"],
       );
 
   @override
@@ -10676,7 +10723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 266,
+            funcId: 267,
             port: port_,
           );
         },
@@ -10694,8 +10741,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiMasterPasswordMasterPasswordEnableToSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'master_password_enable_to_secret',
-        argNames: ['password', 'params', 'secretId'],
+        debugName: "master_password_enable_to_secret",
+        argNames: ["password", "params", "secretId"],
       );
 
   @override
@@ -10710,7 +10757,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 267,
+            funcId: 268,
           )!;
         },
         codec: SseCodec(
@@ -10726,8 +10773,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMasterPasswordMasterPasswordInitConstMeta =>
       const TaskConstMeta(
-        debugName: 'master_password_init',
-        argNames: ['supportDir'],
+        debugName: "master_password_init",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -10739,7 +10786,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 268,
+            funcId: 269,
           )!;
         },
         codec: SseCodec(
@@ -10755,7 +10802,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMasterPasswordMasterPasswordIsEnabledConstMeta =>
       const TaskConstMeta(
-        debugName: 'master_password_is_enabled',
+        debugName: "master_password_is_enabled",
         argNames: [],
       );
 
@@ -10768,7 +10815,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 269,
+            funcId: 270,
           )!;
         },
         codec: SseCodec(
@@ -10783,7 +10830,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiMasterPasswordMasterPasswordResetConstMeta =>
-      const TaskConstMeta(debugName: 'master_password_reset', argNames: []);
+      const TaskConstMeta(debugName: "master_password_reset", argNames: []);
 
   @override
   Future<Uint8List?> crateApiMasterPasswordMasterPasswordVerifyAndDerive({
@@ -10797,7 +10844,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 270,
+            funcId: 271,
             port: port_,
           );
         },
@@ -10816,8 +10863,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiMasterPasswordMasterPasswordVerifyAndDeriveConstMeta =>
       const TaskConstMeta(
-        debugName: 'master_password_verify_and_derive',
-        argNames: ['password'],
+        debugName: "master_password_verify_and_derive",
+        argNames: ["password"],
       );
 
   @override
@@ -10834,7 +10881,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 271,
+            funcId: 272,
             port: port_,
           );
         },
@@ -10853,8 +10900,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiMasterPasswordMasterPasswordVerifyAndDeriveToSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'master_password_verify_and_derive_to_secret',
-        argNames: ['password', 'secretId'],
+        debugName: "master_password_verify_and_derive_to_secret",
+        argNames: ["password", "secretId"],
       );
 
   @override
@@ -10866,7 +10913,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 272,
+            funcId: 273,
           )!;
         },
         codec: SseCodec(
@@ -10882,7 +10929,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMigrationMigrationArchiveTargetVersionConstMeta =>
       const TaskConstMeta(
-        debugName: 'migration_archive_target_version',
+        debugName: "migration_archive_target_version",
         argNames: [],
       );
 
@@ -10895,7 +10942,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 273,
+            funcId: 274,
           )!;
         },
         codec: SseCodec(
@@ -10911,7 +10958,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMigrationMigrationConfigTargetVersionConstMeta =>
       const TaskConstMeta(
-        debugName: 'migration_config_target_version',
+        debugName: "migration_config_target_version",
         argNames: [],
       );
 
@@ -10927,7 +10974,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 274,
+            funcId: 275,
             port: port_,
           );
         },
@@ -10944,8 +10991,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMigrationMigrationConfigVersionOnDiskConstMeta =>
       const TaskConstMeta(
-        debugName: 'migration_config_version_on_disk',
-        argNames: ['supportDir'],
+        debugName: "migration_config_version_on_disk",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -10960,7 +11007,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 275,
+            funcId: 276,
             port: port_,
           );
         },
@@ -10977,8 +11024,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiMigrationMigrationRunOnStartupConstMeta =>
       const TaskConstMeta(
-        debugName: 'migration_run_on_startup',
-        argNames: ['supportDir'],
+        debugName: "migration_run_on_startup",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -11001,7 +11048,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 276,
+            funcId: 277,
           )!;
         },
         codec: SseCodec(
@@ -11025,13 +11072,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiOpensshConfigImportOpensshConfigBuildPreviewConstMeta =>
       const TaskConstMeta(
-        debugName: 'openssh_config_build_preview',
+        debugName: "openssh_config_build_preview",
         argNames: [
-          'configContent',
-          'folderLabel',
-          'keyLabelSuffix',
-          'baseDir',
-          'maxIncludeDepth',
+          "configContent",
+          "folderLabel",
+          "keyLabelSuffix",
+          "baseDir",
+          "maxIncludeDepth",
         ],
       );
 
@@ -11047,7 +11094,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 277,
+            funcId: 278,
           )!;
         },
         codec: SseCodec(
@@ -11064,8 +11111,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiOpensshConfigImportOpensshConfigExpandHomeConstMeta =>
       const TaskConstMeta(
-        debugName: 'openssh_config_expand_home',
-        argNames: ['path'],
+        debugName: "openssh_config_expand_home",
+        argNames: ["path"],
       );
 
   @override
@@ -11077,7 +11124,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 278,
+            funcId: 279,
           )!;
         },
         codec: SseCodec(
@@ -11094,7 +11141,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiOsSecurityOsSecurityApplyStartupHardeningConstMeta =>
       const TaskConstMeta(
-        debugName: 'os_security_apply_startup_hardening',
+        debugName: "os_security_apply_startup_hardening",
         argNames: [],
       );
 
@@ -11110,7 +11157,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 279,
+            funcId: 280,
             port: port_,
           );
         },
@@ -11128,8 +11175,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiOsSecurityOsSecurityBiometricAuthenticateConstMeta =>
       const TaskConstMeta(
-        debugName: 'os_security_biometric_authenticate',
-        argNames: ['reason'],
+        debugName: "os_security_biometric_authenticate",
+        argNames: ["reason"],
       );
 
   @override
@@ -11142,7 +11189,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 280,
+            funcId: 281,
             port: port_,
           );
         },
@@ -11160,7 +11207,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiOsSecurityOsSecurityBiometricAvailabilityConstMeta =>
       const TaskConstMeta(
-        debugName: 'os_security_biometric_availability',
+        debugName: "os_security_biometric_availability",
         argNames: [],
       );
 
@@ -11174,7 +11221,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 281,
+            funcId: 282,
           )!;
         },
         codec: SseCodec(
@@ -11190,8 +11237,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiOsSecurityOsSecurityExcludeFromBackupConstMeta =>
       const TaskConstMeta(
-        debugName: 'os_security_exclude_from_backup',
-        argNames: ['path'],
+        debugName: "os_security_exclude_from_backup",
+        argNames: ["path"],
       );
 
   @override
@@ -11208,7 +11255,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 282,
+            funcId: 283,
           )!;
         },
         codec: SseCodec(
@@ -11224,8 +11271,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiOsSecurityOsSecurityLockMemoryConstMeta =>
       const TaskConstMeta(
-        debugName: 'os_security_lock_memory',
-        argNames: ['addr', 'len'],
+        debugName: "os_security_lock_memory",
+        argNames: ["addr", "len"],
       );
 
   @override
@@ -11240,7 +11287,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 283,
+              funcId: 284,
               port: port_,
             );
           },
@@ -11260,8 +11307,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiOsSecurityOsSecuritySessionLockSubscribeConstMeta =>
       const TaskConstMeta(
-        debugName: 'os_security_session_lock_subscribe',
-        argNames: ['sink'],
+        debugName: "os_security_session_lock_subscribe",
+        argNames: ["sink"],
       );
 
   @override
@@ -11274,7 +11321,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 284,
+            funcId: 285,
           )!;
         },
         codec: SseCodec(
@@ -11290,8 +11337,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiOsSecurityOsSecuritySetSecureClipboardConstMeta =>
       const TaskConstMeta(
-        debugName: 'os_security_set_secure_clipboard',
-        argNames: ['text'],
+        debugName: "os_security_set_secure_clipboard",
+        argNames: ["text"],
       );
 
   @override
@@ -11308,7 +11355,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 285,
+            funcId: 286,
           )!;
         },
         codec: SseCodec(
@@ -11324,8 +11371,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiOsSecurityOsSecurityUnlockMemoryConstMeta =>
       const TaskConstMeta(
-        debugName: 'os_security_unlock_memory',
-        argNames: ['addr', 'len'],
+        debugName: "os_security_unlock_memory",
+        argNames: ["addr", "len"],
       );
 
   @override
@@ -11338,7 +11385,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 286,
+            funcId: 287,
           )!;
         },
         codec: SseCodec(
@@ -11353,7 +11400,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiDeeplinkParseConnectUriConstMeta =>
-      const TaskConstMeta(debugName: 'parse_connect_uri', argNames: ['uri']);
+      const TaskConstMeta(debugName: "parse_connect_uri", argNames: ["uri"]);
 
   @override
   List<DbOpenSshHostEntry> crateApiSshConfigParseOpensshConfig({
@@ -11367,7 +11414,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 287,
+            funcId: 288,
           )!;
         },
         codec: SseCodec(
@@ -11383,8 +11430,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshConfigParseOpensshConfigConstMeta =>
       const TaskConstMeta(
-        debugName: 'parse_openssh_config',
-        argNames: ['content'],
+        debugName: "parse_openssh_config",
+        argNames: ["content"],
       );
 
   @override
@@ -11403,7 +11450,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 288,
+            funcId: 289,
           )!;
         },
         codec: SseCodec(
@@ -11419,8 +11466,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshConfigParseOpensshConfigResolvingConstMeta =>
       const TaskConstMeta(
-        debugName: 'parse_openssh_config_resolving',
-        argNames: ['content', 'baseDir', 'maxIncludeDepth'],
+        debugName: "parse_openssh_config_resolving",
+        argNames: ["content", "baseDir", "maxIncludeDepth"],
       );
 
   @override
@@ -11441,7 +11488,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 289,
+            funcId: 290,
           )!;
         },
         codec: SseCodec(
@@ -11457,39 +11504,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshConfigParseOpensshConfigWithIncludesConstMeta =>
       const TaskConstMeta(
-        debugName: 'parse_openssh_config_with_includes',
-        argNames: ['content', 'baseDir', 'includes', 'maxIncludeDepth'],
+        debugName: "parse_openssh_config_with_includes",
+        argNames: ["content", "baseDir", "includes", "maxIncludeDepth"],
       );
 
   @override
   String crateApiPathPathBasename({required String path}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(path, serializer);
-          return pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 290,
-          )!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiPathPathBasenameConstMeta,
-        argValues: [path],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiPathPathBasenameConstMeta =>
-      const TaskConstMeta(debugName: 'path_basename', argNames: ['path']);
-
-  @override
-  String crateApiPathPathExpandTilde({required String path}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -11505,6 +11525,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_String,
           decodeErrorData: null,
         ),
+        constMeta: kCrateApiPathPathBasenameConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPathPathBasenameConstMeta =>
+      const TaskConstMeta(debugName: "path_basename", argNames: ["path"]);
+
+  @override
+  String crateApiPathPathExpandTilde({required String path}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 292,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
         constMeta: kCrateApiPathPathExpandTildeConstMeta,
         argValues: [path],
         apiImpl: this,
@@ -11513,7 +11560,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiPathPathExpandTildeConstMeta =>
-      const TaskConstMeta(debugName: 'path_expand_tilde', argNames: ['path']);
+      const TaskConstMeta(debugName: "path_expand_tilde", argNames: ["path"]);
 
   @override
   Future<void> crateApiPathPathHardenFilePerms({required String path}) {
@@ -11525,7 +11572,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 292,
+            funcId: 293,
             port: port_,
           );
         },
@@ -11542,8 +11589,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiPathPathHardenFilePermsConstMeta =>
       const TaskConstMeta(
-        debugName: 'path_harden_file_perms',
-        argNames: ['path'],
+        debugName: "path_harden_file_perms",
+        argNames: ["path"],
       );
 
   @override
@@ -11556,7 +11603,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 293,
+            funcId: 294,
           )!;
         },
         codec: SseCodec(
@@ -11571,7 +11618,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiPathPathIsSuspiciousConstMeta =>
-      const TaskConstMeta(debugName: 'path_is_suspicious', argNames: ['path']);
+      const TaskConstMeta(debugName: "path_is_suspicious", argNames: ["path"]);
 
   @override
   List<String> crateApiPathPathParseWindowsAttribOutput({
@@ -11585,7 +11632,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 294,
+            funcId: 295,
           )!;
         },
         codec: SseCodec(
@@ -11601,8 +11648,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiPathPathParseWindowsAttribOutputConstMeta =>
       const TaskConstMeta(
-        debugName: 'path_parse_windows_attrib_output',
-        argNames: ['output'],
+        debugName: "path_parse_windows_attrib_output",
+        argNames: ["output"],
       );
 
   @override
@@ -11615,7 +11662,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 295,
+            funcId: 296,
           )!;
         },
         codec: SseCodec(
@@ -11631,8 +11678,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiPathPathShortenToTwoSegmentsConstMeta =>
       const TaskConstMeta(
-        debugName: 'path_shorten_to_two_segments',
-        argNames: ['path'],
+        debugName: "path_shorten_to_two_segments",
+        argNames: ["path"],
       );
 
   @override
@@ -11651,7 +11698,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 296,
+            funcId: 297,
           )!;
         },
         codec: SseCodec(
@@ -11667,8 +11714,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiPathPathSiblingCandidateConstMeta =>
       const TaskConstMeta(
-        debugName: 'path_sibling_candidate',
-        argNames: ['path', 'n', 'posix'],
+        debugName: "path_sibling_candidate",
+        argNames: ["path", "n", "posix"],
       );
 
   @override
@@ -11685,7 +11732,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 297,
+            funcId: 298,
           )!;
         },
         codec: SseCodec(
@@ -11701,8 +11748,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiPathPathWriteBytesAtomicConstMeta =>
       const TaskConstMeta(
-        debugName: 'path_write_bytes_atomic',
-        argNames: ['path', 'bytes'],
+        debugName: "path_write_bytes_atomic",
+        argNames: ["path", "bytes"],
       );
 
   @override
@@ -11717,7 +11764,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 298,
+            funcId: 299,
           )!;
         },
         codec: SseCodec(
@@ -11735,8 +11782,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiPersistedRateLimitActorPersistedRateLimitActorClearConstMeta =>
       const TaskConstMeta(
-        debugName: 'persisted_rate_limit_actor_clear',
-        argNames: ['id'],
+        debugName: "persisted_rate_limit_actor_clear",
+        argNames: ["id"],
       );
 
   @override
@@ -11751,7 +11798,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 299,
+            funcId: 300,
             port: port_,
           );
         },
@@ -11770,8 +11817,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiPersistedRateLimitActorPersistedRateLimitActorFlushConstMeta =>
       const TaskConstMeta(
-        debugName: 'persisted_rate_limit_actor_flush',
-        argNames: ['id'],
+        debugName: "persisted_rate_limit_actor_flush",
+        argNames: ["id"],
       );
 
   @override
@@ -11791,7 +11838,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 300,
+            funcId: 301,
           )!;
         },
         codec: SseCodec(
@@ -11809,8 +11856,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiPersistedRateLimitActorPersistedRateLimitActorInitOrGetConstMeta =>
       const TaskConstMeta(
-        debugName: 'persisted_rate_limit_actor_init_or_get',
-        argNames: ['id', 'filePath', 'hmacKey'],
+        debugName: "persisted_rate_limit_actor_init_or_get",
+        argNames: ["id", "filePath", "hmacKey"],
       );
 
   @override
@@ -11826,7 +11873,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 301,
+            funcId: 302,
           )!;
         },
         codec: SseCodec(
@@ -11844,8 +11891,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiPersistedRateLimitActorPersistedRateLimitActorRecordFailureConstMeta =>
       const TaskConstMeta(
-        debugName: 'persisted_rate_limit_actor_record_failure',
-        argNames: ['id'],
+        debugName: "persisted_rate_limit_actor_record_failure",
+        argNames: ["id"],
       );
 
   @override
@@ -11860,7 +11907,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 302,
+            funcId: 303,
           )!;
         },
         codec: SseCodec(
@@ -11878,8 +11925,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiPersistedRateLimitActorPersistedRateLimitActorRecordSuccessConstMeta =>
       const TaskConstMeta(
-        debugName: 'persisted_rate_limit_actor_record_success',
-        argNames: ['id'],
+        debugName: "persisted_rate_limit_actor_record_success",
+        argNames: ["id"],
       );
 
   @override
@@ -11895,7 +11942,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 303,
+            funcId: 304,
           )!;
         },
         codec: SseCodec(
@@ -11913,8 +11960,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiPersistedRateLimitActorPersistedRateLimitActorStatusConstMeta =>
       const TaskConstMeta(
-        debugName: 'persisted_rate_limit_actor_status',
-        argNames: ['id'],
+        debugName: "persisted_rate_limit_actor_status",
+        argNames: ["id"],
       );
 
   @override
@@ -11926,7 +11973,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 304,
+            funcId: 305,
           )!;
         },
         codec: SseCodec(
@@ -11941,7 +11988,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiPingConstMeta =>
-      const TaskConstMeta(debugName: 'ping', argNames: []);
+      const TaskConstMeta(debugName: "ping", argNames: []);
 
   @override
   Future<int> crateApiForwardPortForwardStartDynamic({
@@ -11961,7 +12008,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 305,
+            funcId: 306,
             port: port_,
           );
         },
@@ -11978,69 +12025,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardPortForwardStartDynamicConstMeta =>
       const TaskConstMeta(
-        debugName: 'port_forward_start_dynamic',
-        argNames: ['ruleId', 'connectionId', 'bindHost', 'bindPort'],
+        debugName: "port_forward_start_dynamic",
+        argNames: ["ruleId", "connectionId", "bindHost", "bindPort"],
       );
 
   @override
   Future<int> crateApiForwardPortForwardStartLocal({
-    required String ruleId,
-    required String connectionId,
-    required String bindHost,
-    required int bindPort,
-    required String targetHost,
-    required int targetPort,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(ruleId, serializer);
-          sse_encode_String(connectionId, serializer);
-          sse_encode_String(bindHost, serializer);
-          sse_encode_u_32(bindPort, serializer);
-          sse_encode_String(targetHost, serializer);
-          sse_encode_u_32(targetPort, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 306,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_32,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiForwardPortForwardStartLocalConstMeta,
-        argValues: [
-          ruleId,
-          connectionId,
-          bindHost,
-          bindPort,
-          targetHost,
-          targetPort,
-        ],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiForwardPortForwardStartLocalConstMeta =>
-      const TaskConstMeta(
-        debugName: 'port_forward_start_local',
-        argNames: [
-          'ruleId',
-          'connectionId',
-          'bindHost',
-          'bindPort',
-          'targetHost',
-          'targetPort',
-        ],
-      );
-
-  @override
-  Future<int> crateApiForwardPortForwardStartRemote({
     required String ruleId,
     required String connectionId,
     required String bindHost,
@@ -12069,6 +12059,63 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_u_32,
           decodeErrorData: sse_decode_String,
         ),
+        constMeta: kCrateApiForwardPortForwardStartLocalConstMeta,
+        argValues: [
+          ruleId,
+          connectionId,
+          bindHost,
+          bindPort,
+          targetHost,
+          targetPort,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiForwardPortForwardStartLocalConstMeta =>
+      const TaskConstMeta(
+        debugName: "port_forward_start_local",
+        argNames: [
+          "ruleId",
+          "connectionId",
+          "bindHost",
+          "bindPort",
+          "targetHost",
+          "targetPort",
+        ],
+      );
+
+  @override
+  Future<int> crateApiForwardPortForwardStartRemote({
+    required String ruleId,
+    required String connectionId,
+    required String bindHost,
+    required int bindPort,
+    required String targetHost,
+    required int targetPort,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(ruleId, serializer);
+          sse_encode_String(connectionId, serializer);
+          sse_encode_String(bindHost, serializer);
+          sse_encode_u_32(bindPort, serializer);
+          sse_encode_String(targetHost, serializer);
+          sse_encode_u_32(targetPort, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 308,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: sse_decode_String,
+        ),
         constMeta: kCrateApiForwardPortForwardStartRemoteConstMeta,
         argValues: [
           ruleId,
@@ -12085,50 +12132,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardPortForwardStartRemoteConstMeta =>
       const TaskConstMeta(
-        debugName: 'port_forward_start_remote',
+        debugName: "port_forward_start_remote",
         argNames: [
-          'ruleId',
-          'connectionId',
-          'bindHost',
-          'bindPort',
-          'targetHost',
-          'targetPort',
+          "ruleId",
+          "connectionId",
+          "bindHost",
+          "bindPort",
+          "targetHost",
+          "targetPort",
         ],
       );
 
   @override
   Future<bool> crateApiForwardPortForwardStopDynamic({required String ruleId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(ruleId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 308,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiForwardPortForwardStopDynamicConstMeta,
-        argValues: [ruleId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiForwardPortForwardStopDynamicConstMeta =>
-      const TaskConstMeta(
-        debugName: 'port_forward_stop_dynamic',
-        argNames: ['ruleId'],
-      );
-
-  @override
-  Future<bool> crateApiForwardPortForwardStopLocal({required String ruleId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -12145,21 +12161,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateApiForwardPortForwardStopLocalConstMeta,
+        constMeta: kCrateApiForwardPortForwardStopDynamicConstMeta,
         argValues: [ruleId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiForwardPortForwardStopLocalConstMeta =>
+  TaskConstMeta get kCrateApiForwardPortForwardStopDynamicConstMeta =>
       const TaskConstMeta(
-        debugName: 'port_forward_stop_local',
-        argNames: ['ruleId'],
+        debugName: "port_forward_stop_dynamic",
+        argNames: ["ruleId"],
       );
 
   @override
-  Future<bool> crateApiForwardPortForwardStopRemote({required String ruleId}) {
+  Future<bool> crateApiForwardPortForwardStopLocal({required String ruleId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -12176,6 +12192,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: sse_decode_String,
         ),
+        constMeta: kCrateApiForwardPortForwardStopLocalConstMeta,
+        argValues: [ruleId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiForwardPortForwardStopLocalConstMeta =>
+      const TaskConstMeta(
+        debugName: "port_forward_stop_local",
+        argNames: ["ruleId"],
+      );
+
+  @override
+  Future<bool> crateApiForwardPortForwardStopRemote({required String ruleId}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(ruleId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 311,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_String,
+        ),
         constMeta: kCrateApiForwardPortForwardStopRemoteConstMeta,
         argValues: [ruleId],
         apiImpl: this,
@@ -12185,8 +12232,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardPortForwardStopRemoteConstMeta =>
       const TaskConstMeta(
-        debugName: 'port_forward_stop_remote',
-        argNames: ['ruleId'],
+        debugName: "port_forward_stop_remote",
+        argNames: ["ruleId"],
       );
 
   @override
@@ -12199,7 +12246,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 311,
+            funcId: 312,
           )!;
         },
         codec: SseCodec(
@@ -12215,8 +12262,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiQrCodecEncodeQrCodecCompressToPayloadConstMeta =>
       const TaskConstMeta(
-        debugName: 'qr_codec_compress_to_payload',
-        argNames: ['json'],
+        debugName: "qr_codec_compress_to_payload",
+        argNames: ["json"],
       );
 
   @override
@@ -12231,7 +12278,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 312,
+            funcId: 313,
           )!;
         },
         codec: SseCodec(
@@ -12248,8 +12295,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiQrCodecEncodeQrCodecCompressToPayloadSizeConstMeta =>
       const TaskConstMeta(
-        debugName: 'qr_codec_compress_to_payload_size',
-        argNames: ['json'],
+        debugName: "qr_codec_compress_to_payload_size",
+        argNames: ["json"],
       );
 
   @override
@@ -12264,7 +12311,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 313,
+            funcId: 314,
           )!;
         },
         codec: SseCodec(
@@ -12281,8 +12328,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiQrCodecEncodeQrCodecEncodeSessionCompactConstMeta =>
       const TaskConstMeta(
-        debugName: 'qr_codec_encode_session_compact',
-        argNames: ['inputs'],
+        debugName: "qr_codec_encode_session_compact",
+        argNames: ["inputs"],
       );
 
   @override
@@ -12295,7 +12342,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 314,
+            funcId: 315,
           )!;
         },
         codec: SseCodec(
@@ -12311,8 +12358,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiQrComposeQrEstimateExportSizeConstMeta =>
       const TaskConstMeta(
-        debugName: 'qr_estimate_export_size',
-        argNames: ['input'],
+        debugName: "qr_estimate_export_size",
+        argNames: ["input"],
       );
 
   @override
@@ -12327,7 +12374,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 315,
+            funcId: 316,
             port: port_,
           );
         },
@@ -12343,7 +12390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiArchiveQrImportOpenConstMeta =>
-      const TaskConstMeta(debugName: 'qr_import_open', argNames: ['payload']);
+      const TaskConstMeta(debugName: "qr_import_open", argNames: ["payload"]);
 
   @override
   Uint32List crateApiRateLimitRateLimitBackoffScheduleSeconds() {
@@ -12354,7 +12401,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 316,
+            funcId: 317,
           )!;
         },
         codec: SseCodec(
@@ -12371,7 +12418,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiRateLimitRateLimitBackoffScheduleSecondsConstMeta =>
       const TaskConstMeta(
-        debugName: 'rate_limit_backoff_schedule_seconds',
+        debugName: "rate_limit_backoff_schedule_seconds",
         argNames: [],
       );
 
@@ -12385,7 +12432,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 317,
+            funcId: 318,
           )!;
         },
         codec: SseCodec(
@@ -12400,40 +12447,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiRateLimitRateLimitDropConstMeta =>
-      const TaskConstMeta(debugName: 'rate_limit_drop', argNames: ['id']);
+      const TaskConstMeta(debugName: "rate_limit_drop", argNames: ["id"]);
 
   @override
   void crateApiRateLimitRateLimitRecordFailure({required String id}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(id, serializer);
-          return pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 318,
-          )!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiRateLimitRateLimitRecordFailureConstMeta,
-        argValues: [id],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiRateLimitRateLimitRecordFailureConstMeta =>
-      const TaskConstMeta(
-        debugName: 'rate_limit_record_failure',
-        argNames: ['id'],
-      );
-
-  @override
-  void crateApiRateLimitRateLimitRecordSuccess({required String id}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -12449,6 +12466,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
+        constMeta: kCrateApiRateLimitRateLimitRecordFailureConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRateLimitRateLimitRecordFailureConstMeta =>
+      const TaskConstMeta(
+        debugName: "rate_limit_record_failure",
+        argNames: ["id"],
+      );
+
+  @override
+  void crateApiRateLimitRateLimitRecordSuccess({required String id}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 320,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
         constMeta: kCrateApiRateLimitRateLimitRecordSuccessConstMeta,
         argValues: [id],
         apiImpl: this,
@@ -12458,8 +12505,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRateLimitRateLimitRecordSuccessConstMeta =>
       const TaskConstMeta(
-        debugName: 'rate_limit_record_success',
-        argNames: ['id'],
+        debugName: "rate_limit_record_success",
+        argNames: ["id"],
       );
 
   @override
@@ -12472,7 +12519,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 320,
+            funcId: 321,
           )!;
         },
         codec: SseCodec(
@@ -12487,7 +12534,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiRateLimitRateLimitStatusConstMeta =>
-      const TaskConstMeta(debugName: 'rate_limit_status', argNames: ['id']);
+      const TaskConstMeta(debugName: "rate_limit_status", argNames: ["id"]);
 
   @override
   Future<void> crateApiRecorderRecorderClose({required String id}) {
@@ -12499,7 +12546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 321,
+            funcId: 322,
             port: port_,
           );
         },
@@ -12515,7 +12562,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiRecorderRecorderCloseConstMeta =>
-      const TaskConstMeta(debugName: 'recorder_close', argNames: ['id']);
+      const TaskConstMeta(debugName: "recorder_close", argNames: ["id"]);
 
   @override
   Future<Uint8List> crateApiRecorderRecorderDeriveKeyFromActive() {
@@ -12526,7 +12573,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 322,
+            funcId: 323,
             port: port_,
           );
         },
@@ -12543,7 +12590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderDeriveKeyFromActiveConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_derive_key_from_active',
+        debugName: "recorder_derive_key_from_active",
         argNames: [],
       );
 
@@ -12556,7 +12603,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 323,
+            funcId: 324,
             port: port_,
           );
         },
@@ -12572,7 +12619,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiRecorderRecorderMaxFileBytesConstMeta =>
-      const TaskConstMeta(debugName: 'recorder_max_file_bytes', argNames: []);
+      const TaskConstMeta(debugName: "recorder_max_file_bytes", argNames: []);
 
   @override
   Future<void> crateApiRecorderRecorderQueueEnqueueClose({required String id}) {
@@ -12584,7 +12631,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 324,
+            funcId: 325,
             port: port_,
           );
         },
@@ -12601,8 +12648,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderQueueEnqueueCloseConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_queue_enqueue_close',
-        argNames: ['id'],
+        debugName: "recorder_queue_enqueue_close",
+        argNames: ["id"],
       );
 
   @override
@@ -12621,7 +12668,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 325,
+            funcId: 326,
             port: port_,
           );
         },
@@ -12638,8 +12685,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderQueueEnqueueEventConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_queue_enqueue_event',
-        argNames: ['id', 'direction', 'bytes'],
+        debugName: "recorder_queue_enqueue_event",
+        argNames: ["id", "direction", "bytes"],
       );
 
   @override
@@ -12660,7 +12707,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 326,
+            funcId: 327,
             port: port_,
           );
         },
@@ -12677,8 +12724,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderQueueEnqueueHeaderConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_queue_enqueue_header',
-        argNames: ['id', 'width', 'height', 'shellLabel'],
+        debugName: "recorder_queue_enqueue_header",
+        argNames: ["id", "width", "height", "shellLabel"],
       );
 
   @override
@@ -12695,7 +12742,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 327,
+            funcId: 328,
             port: port_,
           );
         },
@@ -12712,8 +12759,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderQueueEnqueueRotateConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_queue_enqueue_rotate',
-        argNames: ['id', 'newPath'],
+        debugName: "recorder_queue_enqueue_rotate",
+        argNames: ["id", "newPath"],
       );
 
   @override
@@ -12726,7 +12773,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 328,
+            funcId: 329,
             port: port_,
           );
         },
@@ -12742,7 +12789,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiRecorderRecorderQueueSpawnConstMeta =>
-      const TaskConstMeta(debugName: 'recorder_queue_spawn', argNames: ['id']);
+      const TaskConstMeta(debugName: "recorder_queue_spawn", argNames: ["id"]);
 
   @override
   Future<BigInt> crateApiRecorderRecorderRecordEvent({
@@ -12760,7 +12807,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 329,
+            funcId: 330,
             port: port_,
           );
         },
@@ -12777,8 +12824,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderRecordEventConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_record_event',
-        argNames: ['id', 'direction', 'bytes'],
+        debugName: "recorder_record_event",
+        argNames: ["id", "direction", "bytes"],
       );
 
   @override
@@ -12799,7 +12846,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 330,
+            funcId: 331,
             port: port_,
           );
         },
@@ -12816,8 +12863,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderRecordHeaderConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_record_header',
-        argNames: ['id', 'width', 'height', 'shellLabel'],
+        debugName: "recorder_record_header",
+        argNames: ["id", "width", "height", "shellLabel"],
       );
 
   @override
@@ -12838,7 +12885,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 331,
+            funcId: 332,
             port: port_,
           );
         },
@@ -12855,8 +12902,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderRegisterConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_register',
-        argNames: ['id', 'sessionId', 'path', 'key'],
+        debugName: "recorder_register",
+        argNames: ["id", "sessionId", "path", "key"],
       );
 
   @override
@@ -12875,7 +12922,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 332,
+            funcId: 333,
             port: port_,
           );
         },
@@ -12892,8 +12939,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderRegisterFromActiveConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_register_from_active',
-        argNames: ['id', 'sessionId', 'path'],
+        debugName: "recorder_register_from_active",
+        argNames: ["id", "sessionId", "path"],
       );
 
   @override
@@ -12910,7 +12957,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 333,
+            funcId: 334,
             port: port_,
           );
         },
@@ -12927,39 +12974,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiRecorderRecorderRotateToConstMeta =>
       const TaskConstMeta(
-        debugName: 'recorder_rotate_to',
-        argNames: ['id', 'newPath'],
+        debugName: "recorder_rotate_to",
+        argNames: ["id", "newPath"],
       );
 
   @override
   String crateApiLogSanitizeRedactSecrets({required String input}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(input, serializer);
-          return pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 334,
-          )!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_String,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiLogSanitizeRedactSecretsConstMeta,
-        argValues: [input],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiLogSanitizeRedactSecretsConstMeta =>
-      const TaskConstMeta(debugName: 'redact_secrets', argNames: ['input']);
-
-  @override
-  String crateApiLogSanitizeSanitizeErrorMessage({required String input}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -12975,6 +12995,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_String,
           decodeErrorData: null,
         ),
+        constMeta: kCrateApiLogSanitizeRedactSecretsConstMeta,
+        argValues: [input],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLogSanitizeRedactSecretsConstMeta =>
+      const TaskConstMeta(debugName: "redact_secrets", argNames: ["input"]);
+
+  @override
+  String crateApiLogSanitizeSanitizeErrorMessage({required String input}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(input, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 336,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
         constMeta: kCrateApiLogSanitizeSanitizeErrorMessageConstMeta,
         argValues: [input],
         apiImpl: this,
@@ -12984,8 +13031,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiLogSanitizeSanitizeErrorMessageConstMeta =>
       const TaskConstMeta(
-        debugName: 'sanitize_error_message',
-        argNames: ['input'],
+        debugName: "sanitize_error_message",
+        argNames: ["input"],
       );
 
   @override
@@ -12997,7 +13044,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 336,
+            funcId: 337,
             port: port_,
           );
         },
@@ -13013,7 +13060,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppSecretsClearConstMeta =>
-      const TaskConstMeta(debugName: 'secrets_clear', argNames: []);
+      const TaskConstMeta(debugName: "secrets_clear", argNames: []);
 
   @override
   void crateApiAppSecretsDrop({required String id}) {
@@ -13025,7 +13072,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 337,
+            funcId: 338,
           )!;
         },
         codec: SseCodec(
@@ -13040,7 +13087,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppSecretsDropConstMeta =>
-      const TaskConstMeta(debugName: 'secrets_drop', argNames: ['id']);
+      const TaskConstMeta(debugName: "secrets_drop", argNames: ["id"]);
 
   @override
   void crateApiAppSecretsDropMany({required List<String> ids}) {
@@ -13052,7 +13099,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 338,
+            funcId: 339,
           )!;
         },
         codec: SseCodec(
@@ -13067,10 +13114,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppSecretsDropManyConstMeta =>
-      const TaskConstMeta(debugName: 'secrets_drop_many', argNames: ['ids']);
+      const TaskConstMeta(debugName: "secrets_drop_many", argNames: ["ids"]);
 
   @override
-  Uint8List crateApiAppSecretsGet({required String id}) {
+  Uint8List? crateApiAppSecretsGet({required String id}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -13079,11 +13126,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 339,
+            funcId: 340,
           )!;
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeSuccessData: sse_decode_opt_list_prim_u_8_strict,
           decodeErrorData: null,
         ),
         constMeta: kCrateApiAppSecretsGetConstMeta,
@@ -13094,7 +13141,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppSecretsGetConstMeta =>
-      const TaskConstMeta(debugName: 'secrets_get', argNames: ['id']);
+      const TaskConstMeta(debugName: "secrets_get", argNames: ["id"]);
 
   @override
   bool crateApiAppSecretsHas({required String id}) {
@@ -13106,7 +13153,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 340,
+            funcId: 341,
           )!;
         },
         codec: SseCodec(
@@ -13121,7 +13168,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppSecretsHasConstMeta =>
-      const TaskConstMeta(debugName: 'secrets_has', argNames: ['id']);
+      const TaskConstMeta(debugName: "secrets_has", argNames: ["id"]);
 
   @override
   Future<void> crateApiAppSecretsPut({
@@ -13137,7 +13184,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 341,
+            funcId: 342,
             port: port_,
           );
         },
@@ -13153,10 +13200,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppSecretsPutConstMeta =>
-      const TaskConstMeta(debugName: 'secrets_put', argNames: ['id', 'bytes']);
+      const TaskConstMeta(debugName: "secrets_put", argNames: ["id", "bytes"]);
 
   @override
-  Uint8List crateApiAppSecretsTake({required String id}) {
+  Uint8List? crateApiAppSecretsTake({required String id}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -13165,11 +13212,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 342,
+            funcId: 343,
           )!;
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeSuccessData: sse_decode_opt_list_prim_u_8_strict,
           decodeErrorData: null,
         ),
         constMeta: kCrateApiAppSecretsTakeConstMeta,
@@ -13180,43 +13227,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiAppSecretsTakeConstMeta =>
-      const TaskConstMeta(debugName: 'secrets_take', argNames: ['id']);
+      const TaskConstMeta(debugName: "secrets_take", argNames: ["id"]);
 
   @override
   Future<void> crateApiSecureKeyStorageSecureStorageDelete({
-    required String alias,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(alias, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 343,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiSecureKeyStorageSecureStorageDeleteConstMeta,
-        argValues: [alias],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSecureKeyStorageSecureStorageDeleteConstMeta =>
-      const TaskConstMeta(
-        debugName: 'secure_storage_delete',
-        argNames: ['alias'],
-      );
-
-  @override
-  Future<void> crateApiSecureKeyStorageSecureStorageDeleteBiometric({
     required String alias,
   }) {
     return handler.executeNormal(
@@ -13235,6 +13249,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_String,
         ),
+        constMeta: kCrateApiSecureKeyStorageSecureStorageDeleteConstMeta,
+        argValues: [alias],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSecureKeyStorageSecureStorageDeleteConstMeta =>
+      const TaskConstMeta(
+        debugName: "secure_storage_delete",
+        argNames: ["alias"],
+      );
+
+  @override
+  Future<void> crateApiSecureKeyStorageSecureStorageDeleteBiometric({
+    required String alias,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(alias, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 345,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
         constMeta:
             kCrateApiSecureKeyStorageSecureStorageDeleteBiometricConstMeta,
         argValues: [alias],
@@ -13246,8 +13293,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecureKeyStorageSecureStorageDeleteBiometricConstMeta =>
       const TaskConstMeta(
-        debugName: 'secure_storage_delete_biometric',
-        argNames: ['alias'],
+        debugName: "secure_storage_delete_biometric",
+        argNames: ["alias"],
       );
 
   @override
@@ -13262,7 +13309,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 345,
+            funcId: 346,
             port: port_,
           );
         },
@@ -13279,8 +13326,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSecureKeyStorageSecureStorageReadConstMeta =>
       const TaskConstMeta(
-        debugName: 'secure_storage_read',
-        argNames: ['alias'],
+        debugName: "secure_storage_read",
+        argNames: ["alias"],
       );
 
   @override
@@ -13294,7 +13341,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 346,
+            funcId: 347,
             port: port_,
           );
         },
@@ -13312,49 +13359,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecureKeyStorageSecureStorageReadBiometricConstMeta =>
       const TaskConstMeta(
-        debugName: 'secure_storage_read_biometric',
-        argNames: ['alias'],
+        debugName: "secure_storage_read_biometric",
+        argNames: ["alias"],
       );
 
   @override
   Future<bool> crateApiSecureKeyStorageSecureStorageReadBiometricToSecret({
-    required String alias,
-    required String secretId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(alias, serializer);
-          sse_encode_String(secretId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 347,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta:
-            kCrateApiSecureKeyStorageSecureStorageReadBiometricToSecretConstMeta,
-        argValues: [alias, secretId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiSecureKeyStorageSecureStorageReadBiometricToSecretConstMeta =>
-      const TaskConstMeta(
-        debugName: 'secure_storage_read_biometric_to_secret',
-        argNames: ['alias', 'secretId'],
-      );
-
-  @override
-  Future<bool> crateApiSecureKeyStorageSecureStorageReadToSecret({
     required String alias,
     required String secretId,
   }) {
@@ -13375,6 +13385,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: sse_decode_String,
         ),
+        constMeta:
+            kCrateApiSecureKeyStorageSecureStorageReadBiometricToSecretConstMeta,
+        argValues: [alias, secretId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSecureKeyStorageSecureStorageReadBiometricToSecretConstMeta =>
+      const TaskConstMeta(
+        debugName: "secure_storage_read_biometric_to_secret",
+        argNames: ["alias", "secretId"],
+      );
+
+  @override
+  Future<bool> crateApiSecureKeyStorageSecureStorageReadToSecret({
+    required String alias,
+    required String secretId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(alias, serializer);
+          sse_encode_String(secretId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 349,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_String,
+        ),
         constMeta: kCrateApiSecureKeyStorageSecureStorageReadToSecretConstMeta,
         argValues: [alias, secretId],
         apiImpl: this,
@@ -13385,8 +13432,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecureKeyStorageSecureStorageReadToSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'secure_storage_read_to_secret',
-        argNames: ['alias', 'secretId'],
+        debugName: "secure_storage_read_to_secret",
+        argNames: ["alias", "secretId"],
       );
 
   @override
@@ -13398,7 +13445,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 349,
+            funcId: 350,
             port: port_,
           );
         },
@@ -13417,7 +13464,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecureKeyStorageSecureStorageSecretServiceReachableConstMeta =>
       const TaskConstMeta(
-        debugName: 'secure_storage_secret_service_reachable',
+        debugName: "secure_storage_secret_service_reachable",
         argNames: [],
       );
 
@@ -13435,7 +13482,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 350,
+            funcId: 351,
             port: port_,
           );
         },
@@ -13452,49 +13499,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSecureKeyStorageSecureStorageWriteConstMeta =>
       const TaskConstMeta(
-        debugName: 'secure_storage_write',
-        argNames: ['alias', 'value'],
+        debugName: "secure_storage_write",
+        argNames: ["alias", "value"],
       );
 
   @override
   Future<void> crateApiSecureKeyStorageSecureStorageWriteBiometricFromSecret({
-    required String alias,
-    required String secretId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(alias, serializer);
-          sse_encode_String(secretId, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 351,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta:
-            kCrateApiSecureKeyStorageSecureStorageWriteBiometricFromSecretConstMeta,
-        argValues: [alias, secretId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiSecureKeyStorageSecureStorageWriteBiometricFromSecretConstMeta =>
-      const TaskConstMeta(
-        debugName: 'secure_storage_write_biometric_from_secret',
-        argNames: ['alias', 'secretId'],
-      );
-
-  @override
-  Future<void> crateApiSecureKeyStorageSecureStorageWriteFromSecret({
     required String alias,
     required String secretId,
   }) {
@@ -13516,6 +13526,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta:
+            kCrateApiSecureKeyStorageSecureStorageWriteBiometricFromSecretConstMeta,
+        argValues: [alias, secretId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSecureKeyStorageSecureStorageWriteBiometricFromSecretConstMeta =>
+      const TaskConstMeta(
+        debugName: "secure_storage_write_biometric_from_secret",
+        argNames: ["alias", "secretId"],
+      );
+
+  @override
+  Future<void> crateApiSecureKeyStorageSecureStorageWriteFromSecret({
+    required String alias,
+    required String secretId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(alias, serializer);
+          sse_encode_String(secretId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 353,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
             kCrateApiSecureKeyStorageSecureStorageWriteFromSecretConstMeta,
         argValues: [alias, secretId],
         apiImpl: this,
@@ -13526,8 +13573,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecureKeyStorageSecureStorageWriteFromSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'secure_storage_write_from_secret',
-        argNames: ['alias', 'secretId'],
+        debugName: "secure_storage_write_from_secret",
+        argNames: ["alias", "secretId"],
       );
 
   @override
@@ -13547,7 +13594,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 353,
+            funcId: 354,
           )!;
         },
         codec: SseCodec(
@@ -13565,8 +13612,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecurityCapabilitiesSecurityCapabilitiesCanOfferBiometricModifierConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_capabilities_can_offer_biometric_modifier',
-        argNames: ['biometricAvailable', 'fprintdAvailable', 'isLinuxHost'],
+        debugName: "security_capabilities_can_offer_biometric_modifier",
+        argNames: ["biometricAvailable", "fprintdAvailable", "isLinuxHost"],
       );
 
   @override
@@ -13578,7 +13625,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 354,
+            funcId: 355,
           )!;
         },
         codec: SseCodec(
@@ -13595,7 +13642,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCapabilitiesCacheSecurityCapabilitiesClearConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_capabilities_clear',
+        debugName: "security_capabilities_clear",
         argNames: [],
       );
 
@@ -13612,7 +13659,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 355,
+            funcId: 356,
           )!;
         },
         codec: SseCodec(
@@ -13631,8 +13678,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecurityCapabilitiesSecurityCapabilitiesFromJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_capabilities_from_json',
-        argNames: ['json'],
+        debugName: "security_capabilities_from_json",
+        argNames: ["json"],
       );
 
   @override
@@ -13650,7 +13697,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 356,
+            funcId: 357,
           )!;
         },
         codec: SseCodec(
@@ -13667,8 +13714,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCapabilitiesCacheSecurityCapabilitiesSetConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_capabilities_set',
-        argNames: ['snapshot'],
+        debugName: "security_capabilities_set",
+        argNames: ["snapshot"],
       );
 
   @override
@@ -13695,7 +13742,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 357,
+            funcId: 358,
           )!;
         },
         codec: SseCodec(
@@ -13721,15 +13768,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecurityCapabilitiesSecurityCapabilitiesToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_capabilities_to_json',
+        debugName: "security_capabilities_to_json",
         argNames: [
-          'keychainAvailable',
-          'hardwareVaultAvailable',
-          'biometricAvailable',
-          'fprintdAvailable',
-          'isLinuxHost',
-          'keychainProbeWireName',
-          'hardwareProbeCode',
+          "keychainAvailable",
+          "hardwareVaultAvailable",
+          "biometricAvailable",
+          "fprintdAvailable",
+          "isLinuxHost",
+          "keychainProbeWireName",
+          "hardwareProbeCode",
         ],
       );
 
@@ -13743,7 +13790,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 358,
+            funcId: 359,
           )!;
         },
         codec: SseCodec(
@@ -13761,7 +13808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiCapabilitiesCacheSecurityCapabilitiesViewConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_capabilities_view',
+        debugName: "security_capabilities_view",
         argNames: [],
       );
 
@@ -13777,7 +13824,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 359,
+            funcId: 360,
           )!;
         },
         codec: SseCodec(
@@ -13793,8 +13840,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSecurityConfigSecurityConfigFromJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_config_from_json',
-        argNames: ['json'],
+        debugName: "security_config_from_json",
+        argNames: ["json"],
       );
 
   @override
@@ -13813,7 +13860,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 360,
+            funcId: 361,
           )!;
         },
         codec: SseCodec(
@@ -13829,8 +13876,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSecurityConfigSecurityConfigToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_config_to_json',
-        argNames: ['tierWireName', 'password', 'biometric'],
+        debugName: "security_config_to_json",
+        argNames: ["tierWireName", "password", "biometric"],
       );
 
   @override
@@ -13851,7 +13898,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 361,
+            funcId: 362,
           )!;
         },
         codec: SseCodec(
@@ -13867,8 +13914,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiWizardSetupSecurityMapWizardChoiceConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_map_wizard_choice',
-        argNames: ['tierWireName', 'password', 'biometric', 'typedSecret'],
+        debugName: "security_map_wizard_choice",
+        argNames: ["tierWireName", "password", "biometric", "typedSecret"],
       );
 
   @override
@@ -13883,7 +13930,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 362,
+            funcId: 363,
           )!;
         },
         codec: SseCodec(
@@ -13902,8 +13949,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecurityConfigSecurityTierModifiersFromJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_tier_modifiers_from_json',
-        argNames: ['json'],
+        debugName: "security_tier_modifiers_from_json",
+        argNames: ["json"],
       );
 
   @override
@@ -13920,7 +13967,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 363,
+            funcId: 364,
           )!;
         },
         codec: SseCodec(
@@ -13937,42 +13984,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSecurityConfigSecurityTierModifiersToJsonConstMeta =>
       const TaskConstMeta(
-        debugName: 'security_tier_modifiers_to_json',
-        argNames: ['password', 'biometric'],
+        debugName: "security_tier_modifiers_to_json",
+        argNames: ["password", "biometric"],
       );
 
   @override
   bool crateApiSessionHistorySessionHistoryCanRedo({required BigInt handleId}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_u_64(handleId, serializer);
-          return pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 364,
-          )!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSessionHistorySessionHistoryCanRedoConstMeta,
-        argValues: [handleId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSessionHistorySessionHistoryCanRedoConstMeta =>
-      const TaskConstMeta(
-        debugName: 'session_history_can_redo',
-        argNames: ['handleId'],
-      );
-
-  @override
-  bool crateApiSessionHistorySessionHistoryCanUndo({required BigInt handleId}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -13988,6 +14005,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: null,
         ),
+        constMeta: kCrateApiSessionHistorySessionHistoryCanRedoConstMeta,
+        argValues: [handleId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSessionHistorySessionHistoryCanRedoConstMeta =>
+      const TaskConstMeta(
+        debugName: "session_history_can_redo",
+        argNames: ["handleId"],
+      );
+
+  @override
+  bool crateApiSessionHistorySessionHistoryCanUndo({required BigInt handleId}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_64(handleId, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 366,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
         constMeta: kCrateApiSessionHistorySessionHistoryCanUndoConstMeta,
         argValues: [handleId],
         apiImpl: this,
@@ -13997,8 +14044,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionHistorySessionHistoryCanUndoConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_history_can_undo',
-        argNames: ['handleId'],
+        debugName: "session_history_can_undo",
+        argNames: ["handleId"],
       );
 
   @override
@@ -14011,7 +14058,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 366,
+            funcId: 367,
           )!;
         },
         codec: SseCodec(
@@ -14027,8 +14074,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionHistorySessionHistoryClearConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_history_clear',
-        argNames: ['handleId'],
+        debugName: "session_history_clear",
+        argNames: ["handleId"],
       );
 
   @override
@@ -14040,7 +14087,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 367,
+            funcId: 368,
           )!;
         },
         codec: SseCodec(
@@ -14055,7 +14102,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSessionHistorySessionHistoryCreateConstMeta =>
-      const TaskConstMeta(debugName: 'session_history_create', argNames: []);
+      const TaskConstMeta(debugName: "session_history_create", argNames: []);
 
   @override
   void crateApiSessionHistorySessionHistoryDrop({required BigInt handleId}) {
@@ -14067,7 +14114,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 368,
+            funcId: 369,
           )!;
         },
         codec: SseCodec(
@@ -14083,8 +14130,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionHistorySessionHistoryDropConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_history_drop',
-        argNames: ['handleId'],
+        debugName: "session_history_drop",
+        argNames: ["handleId"],
       );
 
   @override
@@ -14103,7 +14150,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 369,
+            funcId: 370,
           )!;
         },
         codec: SseCodec(
@@ -14119,8 +14166,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionHistorySessionHistoryPushUndoConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_history_push_undo',
-        argNames: ['handleId', 'description', 'blob'],
+        debugName: "session_history_push_undo",
+        argNames: ["handleId", "description", "blob"],
       );
 
   @override
@@ -14139,7 +14186,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 370,
+            funcId: 371,
           )!;
         },
         codec: SseCodec(
@@ -14156,8 +14203,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionHistorySessionHistoryRedoConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_history_redo',
-        argNames: ['handleId', 'currentDescription', 'currentBlob'],
+        debugName: "session_history_redo",
+        argNames: ["handleId", "currentDescription", "currentBlob"],
       );
 
   @override
@@ -14172,7 +14219,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 371,
+            funcId: 372,
           )!;
         },
         codec: SseCodec(
@@ -14190,8 +14237,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSessionHistorySessionHistoryRedoDescriptionConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_history_redo_description',
-        argNames: ['handleId'],
+        debugName: "session_history_redo_description",
+        argNames: ["handleId"],
       );
 
   @override
@@ -14210,7 +14257,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 372,
+            funcId: 373,
           )!;
         },
         codec: SseCodec(
@@ -14227,8 +14274,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionHistorySessionHistoryUndoConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_history_undo',
-        argNames: ['handleId', 'currentDescription', 'currentBlob'],
+        debugName: "session_history_undo",
+        argNames: ["handleId", "currentDescription", "currentBlob"],
       );
 
   @override
@@ -14243,7 +14290,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 373,
+            funcId: 374,
           )!;
         },
         codec: SseCodec(
@@ -14261,8 +14308,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSessionHistorySessionHistoryUndoDescriptionConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_history_undo_description',
-        argNames: ['handleId'],
+        debugName: "session_history_undo_description",
+        argNames: ["handleId"],
       );
 
   @override
@@ -14279,7 +14326,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 374,
+            funcId: 375,
           )!;
         },
         codec: SseCodec(
@@ -14295,8 +14342,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionTreeSessionTreeBuildConstMeta =>
       const TaskConstMeta(
-        debugName: 'session_tree_build',
-        argNames: ['sessions', 'emptyFolders'],
+        debugName: "session_tree_build",
+        argNames: ["sessions", "emptyFolders"],
       );
 
   @override
@@ -14313,7 +14360,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 375,
+            funcId: 376,
           )!;
         },
         codec: SseCodec(
@@ -14329,8 +14376,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionsSessionsCountInFolderConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_count_in_folder',
-        argNames: ['sessionFolders', 'folderPath'],
+        debugName: "sessions_count_in_folder",
+        argNames: ["sessionFolders", "folderPath"],
       );
 
   @override
@@ -14345,7 +14392,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 376,
+            funcId: 377,
           )!;
         },
         codec: SseCodec(
@@ -14361,8 +14408,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionsSessionsDistinctFoldersConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_distinct_folders',
-        argNames: ['sessionFolders'],
+        debugName: "sessions_distinct_folders",
+        argNames: ["sessionFolders"],
       );
 
   @override
@@ -14379,7 +14426,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 377,
+            funcId: 378,
           )!;
         },
         codec: SseCodec(
@@ -14395,8 +14442,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionsSessionsFilterConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_filter',
-        argNames: ['items', 'query'],
+        debugName: "sessions_filter",
+        argNames: ["items", "query"],
       );
 
   @override
@@ -14408,7 +14455,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 378,
+            funcId: 379,
           )!;
         },
         codec: SseCodec(
@@ -14423,7 +14470,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSessionsRegistrySessionsRegistryCountConstMeta =>
-      const TaskConstMeta(debugName: 'sessions_registry_count', argNames: []);
+      const TaskConstMeta(debugName: "sessions_registry_count", argNames: []);
 
   @override
   int crateApiSessionsRegistrySessionsRegistryCountInFolder({
@@ -14437,7 +14484,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 379,
+            funcId: 380,
           )!;
         },
         codec: SseCodec(
@@ -14455,8 +14502,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSessionsRegistrySessionsRegistryCountInFolderConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_registry_count_in_folder',
-        argNames: ['folderPath'],
+        debugName: "sessions_registry_count_in_folder",
+        argNames: ["folderPath"],
       );
 
   @override
@@ -14468,7 +14515,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 380,
+            funcId: 381,
           )!;
         },
         codec: SseCodec(
@@ -14486,7 +14533,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSessionsRegistrySessionsRegistryDistinctFoldersConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_registry_distinct_folders',
+        debugName: "sessions_registry_distinct_folders",
         argNames: [],
       );
 
@@ -14502,7 +14549,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 381,
+            funcId: 382,
           )!;
         },
         codec: SseCodec(
@@ -14519,8 +14566,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSessionsRegistrySessionsRegistryFilterIdsConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_registry_filter_ids',
-        argNames: ['query'],
+        debugName: "sessions_registry_filter_ids",
+        argNames: ["query"],
       );
 
   @override
@@ -14535,7 +14582,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 382,
+            funcId: 383,
           )!;
         },
         codec: SseCodec(
@@ -14553,8 +14600,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSessionsRegistrySessionsRegistryIdsByExactFolderConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_registry_ids_by_exact_folder',
-        argNames: ['folderPath'],
+        debugName: "sessions_registry_ids_by_exact_folder",
+        argNames: ["folderPath"],
       );
 
   @override
@@ -14566,7 +14613,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 383,
+            funcId: 384,
             port: port_,
           );
         },
@@ -14582,7 +14629,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSessionsRegistrySessionsRegistryReloadConstMeta =>
-      const TaskConstMeta(debugName: 'sessions_registry_reload', argNames: []);
+      const TaskConstMeta(debugName: "sessions_registry_reload", argNames: []);
 
   @override
   DbSessionRegistryView crateApiSessionsRegistrySessionsRegistrySnapshot() {
@@ -14593,7 +14640,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 384,
+            funcId: 385,
           )!;
         },
         codec: SseCodec(
@@ -14610,7 +14657,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSessionsRegistrySessionsRegistrySnapshotConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_registry_snapshot',
+        debugName: "sessions_registry_snapshot",
         argNames: [],
       );
 
@@ -14628,7 +14675,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 385,
+            funcId: 386,
           )!;
         },
         codec: SseCodec(
@@ -14644,8 +14691,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionsSessionsUniqueLabelConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_unique_label',
-        argNames: ['base', 'taken'],
+        debugName: "sessions_unique_label",
+        argNames: ["base", "taken"],
       );
 
   @override
@@ -14664,7 +14711,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 386,
+            funcId: 387,
           )!;
         },
         codec: SseCodec(
@@ -14680,8 +14727,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSessionsSessionsValidateFieldsConstMeta =>
       const TaskConstMeta(
-        debugName: 'sessions_validate_fields',
-        argNames: ['host', 'port', 'user'],
+        debugName: "sessions_validate_fields",
+        argNames: ["host", "port", "user"],
       );
 
   @override
@@ -14698,7 +14745,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 387,
+            funcId: 388,
           )!;
         },
         codec: SseCodec(
@@ -14714,8 +14761,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpModelsSftpModeStringConstMeta =>
       const TaskConstMeta(
-        debugName: 'sftp_mode_string',
-        argNames: ['mode', 'isDir'],
+        debugName: "sftp_mode_string",
+        argNames: ["mode", "isDir"],
       );
 
   @override
@@ -14730,7 +14777,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 388,
+            funcId: 389,
           )!;
         },
         codec: SseCodec(
@@ -14746,8 +14793,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSftpModelsSftpSortFileEntriesConstMeta =>
       const TaskConstMeta(
-        debugName: 'sftp_sort_file_entries',
-        argNames: ['keys'],
+        debugName: "sftp_sort_file_entries",
+        argNames: ["keys"],
       );
 
   @override
@@ -14764,7 +14811,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 389,
+            funcId: 390,
           )!;
         },
         codec: SseCodec(
@@ -14782,8 +14829,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiSnippetTemplateSnippetTemplateFillUnresolvedConstMeta =>
       const TaskConstMeta(
-        debugName: 'snippet_template_fill_unresolved',
-        argNames: ['partiallyRendered', 'values'],
+        debugName: "snippet_template_fill_unresolved",
+        argNames: ["partiallyRendered", "values"],
       );
 
   @override
@@ -14800,7 +14847,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 390,
+            funcId: 391,
           )!;
         },
         codec: SseCodec(
@@ -14816,8 +14863,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSnippetTemplateSnippetTemplateRenderConstMeta =>
       const TaskConstMeta(
-        debugName: 'snippet_template_render',
-        argNames: ['template', 'context'],
+        debugName: "snippet_template_render",
+        argNames: ["template", "context"],
       );
 
   @override
@@ -14839,7 +14886,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 391,
+            funcId: 392,
             port: port_,
           );
         },
@@ -14856,8 +14903,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshCancelRemoteForwardConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_cancel_remote_forward',
-        argNames: ['session', 'address', 'port'],
+        debugName: "ssh_cancel_remote_forward",
+        argNames: ["session", "address", "port"],
       );
 
   @override
@@ -14874,7 +14921,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 392,
+            funcId: 393,
           )!;
         },
         codec: SseCodec(
@@ -14890,8 +14937,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshConfigSshConfigGlobMatchesConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_config_glob_matches',
-        argNames: ['pattern', 'text'],
+        debugName: "ssh_config_glob_matches",
+        argNames: ["pattern", "text"],
       );
 
   @override
@@ -14906,7 +14953,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 393,
+            funcId: 394,
           )!;
         },
         codec: SseCodec(
@@ -14922,8 +14969,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshConfigSshConfigSplitHostPatternsConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_config_split_host_patterns',
-        argNames: ['value'],
+        debugName: "ssh_config_split_host_patterns",
+        argNames: ["value"],
       );
 
   @override
@@ -14938,7 +14985,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 394,
+            funcId: 395,
           )!;
         },
         codec: SseCodec(
@@ -14954,8 +15001,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshConfigSshConfigSplitKeywordValueConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_config_split_keyword_value',
-        argNames: ['line'],
+        debugName: "ssh_config_split_keyword_value",
+        argNames: ["line"],
       );
 
   @override
@@ -14968,7 +15015,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 395,
+            funcId: 396,
           )!;
         },
         codec: SseCodec(
@@ -14984,8 +15031,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshConfigSshConfigStripCommentConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_config_strip_comment',
-        argNames: ['line'],
+        debugName: "ssh_config_strip_comment",
+        argNames: ["line"],
       );
 
   @override
@@ -14998,7 +15045,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 396,
+            funcId: 397,
           )!;
         },
         codec: SseCodec(
@@ -15013,7 +15060,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSshConfigSshConfigUnquoteConstMeta =>
-      const TaskConstMeta(debugName: 'ssh_config_unquote', argNames: ['value']);
+      const TaskConstMeta(debugName: "ssh_config_unquote", argNames: ["value"]);
 
   @override
   Future<SshSession> crateApiSshSshConnectAgent({
@@ -15031,7 +15078,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 397,
+            funcId: 398,
             port: port_,
           );
         },
@@ -15048,8 +15095,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSshSshConnectAgentConstMeta => const TaskConstMeta(
-    debugName: 'ssh_connect_agent',
-    argNames: ['host', 'port', 'user'],
+    debugName: "ssh_connect_agent",
+    argNames: ["host", "port", "user"],
   );
 
   @override
@@ -15070,7 +15117,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 398,
+            funcId: 399,
             port: port_,
           );
         },
@@ -15088,8 +15135,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPasswordConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_password',
-        argNames: ['host', 'port', 'user', 'password'],
+        debugName: "ssh_connect_password",
+        argNames: ["host", "port", "user", "password"],
       );
 
   @override
@@ -15115,7 +15162,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 399,
+            funcId: 400,
             port: port_,
           );
         },
@@ -15133,8 +15180,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPasswordViaProxyConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_password_via_proxy',
-        argNames: ['parent', 'host', 'port', 'user', 'password'],
+        debugName: "ssh_connect_password_via_proxy",
+        argNames: ["parent", "host", "port", "user", "password"],
       );
 
   @override
@@ -15155,7 +15202,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 400,
+            funcId: 401,
             port: port_,
           );
         },
@@ -15173,8 +15220,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPasswordWithSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_password_with_secret',
-        argNames: ['host', 'port', 'user', 'passwordSecretId'],
+        debugName: "ssh_connect_password_with_secret",
+        argNames: ["host", "port", "user", "passwordSecretId"],
       );
 
   @override
@@ -15197,7 +15244,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 401,
+            funcId: 402,
             port: port_,
           );
         },
@@ -15215,8 +15262,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPubkeyConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_pubkey',
-        argNames: ['host', 'port', 'user', 'privateKey', 'passphrase'],
+        debugName: "ssh_connect_pubkey",
+        argNames: ["host", "port", "user", "privateKey", "passphrase"],
       );
 
   @override
@@ -15241,7 +15288,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 402,
+            funcId: 403,
             port: port_,
           );
         },
@@ -15259,8 +15306,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPubkeyCertConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_pubkey_cert',
-        argNames: ['host', 'port', 'user', 'privateKey', 'passphrase', 'cert'],
+        debugName: "ssh_connect_pubkey_cert",
+        argNames: ["host", "port", "user", "privateKey", "passphrase", "cert"],
       );
 
   @override
@@ -15290,7 +15337,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 403,
+            funcId: 404,
             port: port_,
           );
         },
@@ -15308,15 +15355,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPubkeyCertViaProxyConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_pubkey_cert_via_proxy',
+        debugName: "ssh_connect_pubkey_cert_via_proxy",
         argNames: [
-          'parent',
-          'host',
-          'port',
-          'user',
-          'privateKey',
-          'passphrase',
-          'cert',
+          "parent",
+          "host",
+          "port",
+          "user",
+          "privateKey",
+          "passphrase",
+          "cert",
         ],
       );
 
@@ -15342,7 +15389,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 404,
+            funcId: 405,
             port: port_,
           );
         },
@@ -15367,14 +15414,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPubkeyCertWithSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_pubkey_cert_with_secret',
+        debugName: "ssh_connect_pubkey_cert_with_secret",
         argNames: [
-          'host',
-          'port',
-          'user',
-          'keySecretId',
-          'certSecretId',
-          'passphraseSecretId',
+          "host",
+          "port",
+          "user",
+          "keySecretId",
+          "certSecretId",
+          "passphraseSecretId",
         ],
       );
 
@@ -15403,7 +15450,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 405,
+            funcId: 406,
             port: port_,
           );
         },
@@ -15421,14 +15468,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPubkeyViaProxyConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_pubkey_via_proxy',
+        debugName: "ssh_connect_pubkey_via_proxy",
         argNames: [
-          'parent',
-          'host',
-          'port',
-          'user',
-          'privateKey',
-          'passphrase',
+          "parent",
+          "host",
+          "port",
+          "user",
+          "privateKey",
+          "passphrase",
         ],
       );
 
@@ -15452,7 +15499,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 406,
+            funcId: 407,
             port: port_,
           );
         },
@@ -15470,8 +15517,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshConnectPubkeyWithSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_connect_pubkey_with_secret',
-        argNames: ['host', 'port', 'user', 'keySecretId', 'passphraseSecretId'],
+        debugName: "ssh_connect_pubkey_with_secret",
+        argNames: ["host", "port", "user", "keySecretId", "passphraseSecretId"],
       );
 
   @override
@@ -15484,7 +15531,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 407,
+            funcId: 408,
           )!;
         },
         codec: SseCodec(
@@ -15499,7 +15546,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSshDirScanSshDirScanConstMeta =>
-      const TaskConstMeta(debugName: 'ssh_dir_scan', argNames: ['directory']);
+      const TaskConstMeta(debugName: "ssh_dir_scan", argNames: ["directory"]);
 
   @override
   String crateApiSshSshFormatHostKeyFingerprint({required List<int> keyBytes}) {
@@ -15511,7 +15558,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 408,
+            funcId: 409,
           )!;
         },
         codec: SseCodec(
@@ -15527,8 +15574,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshFormatHostKeyFingerprintConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_format_host_key_fingerprint',
-        argNames: ['keyBytes'],
+        debugName: "ssh_format_host_key_fingerprint",
+        argNames: ["keyBytes"],
       );
 
   @override
@@ -15546,7 +15593,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 409,
+            funcId: 410,
             port: port_,
           );
         },
@@ -15564,8 +15611,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshNextForwardedConnectionConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_next_forwarded_connection',
-        argNames: ['session'],
+        debugName: "ssh_next_forwarded_connection",
+        argNames: ["session"],
       );
 
   @override
@@ -15591,7 +15638,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 410,
+            funcId: 411,
             port: port_,
           );
         },
@@ -15615,13 +15662,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshOpenDirectTcpipConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_open_direct_tcpip',
+        debugName: "ssh_open_direct_tcpip",
         argNames: [
-          'session',
-          'hostToConnect',
-          'portToConnect',
-          'originatorAddress',
-          'originatorPort',
+          "session",
+          "hostToConnect",
+          "portToConnect",
+          "originatorAddress",
+          "originatorPort",
         ],
       );
 
@@ -15638,7 +15685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 411,
+            funcId: 412,
             port: port_,
           );
         },
@@ -15655,7 +15702,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSftpSshOpenSftpConstMeta =>
-      const TaskConstMeta(debugName: 'ssh_open_sftp', argNames: ['session']);
+      const TaskConstMeta(debugName: "ssh_open_sftp", argNames: ["session"]);
 
   @override
   Future<int> crateApiForwardSshRequestRemoteForward({
@@ -15676,7 +15723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 412,
+            funcId: 413,
             port: port_,
           );
         },
@@ -15693,50 +15740,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiForwardSshRequestRemoteForwardConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_request_remote_forward',
-        argNames: ['session', 'address', 'port'],
+        debugName: "ssh_request_remote_forward",
+        argNames: ["session", "address", "port"],
       );
 
   @override
   Future<SshSftpFile> crateApiSftpSshSftpCreate({
-    required SshSftp sftp,
-    required String path,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshSftp(
-            sftp,
-            serializer,
-          );
-          sse_encode_String(path, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 413,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshSftpFile,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiSftpSshSftpCreateConstMeta,
-        argValues: [sftp, path],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSftpSshSftpCreateConstMeta => const TaskConstMeta(
-    debugName: 'ssh_sftp_create',
-    argNames: ['sftp', 'path'],
-  );
-
-  @override
-  Future<SshSftpFile> crateApiSftpSshSftpOpen({
     required SshSftp sftp,
     required String path,
   }) {
@@ -15761,6 +15770,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
               sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshSftpFile,
           decodeErrorData: sse_decode_String,
         ),
+        constMeta: kCrateApiSftpSshSftpCreateConstMeta,
+        argValues: [sftp, path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSftpSshSftpCreateConstMeta => const TaskConstMeta(
+    debugName: "ssh_sftp_create",
+    argNames: ["sftp", "path"],
+  );
+
+  @override
+  Future<SshSftpFile> crateApiSftpSshSftpOpen({
+    required SshSftp sftp,
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshSftp(
+            sftp,
+            serializer,
+          );
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 415,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshSftpFile,
+          decodeErrorData: sse_decode_String,
+        ),
         constMeta: kCrateApiSftpSshSftpOpenConstMeta,
         argValues: [sftp, path],
         apiImpl: this,
@@ -15769,8 +15816,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiSftpSshSftpOpenConstMeta => const TaskConstMeta(
-    debugName: 'ssh_sftp_open',
-    argNames: ['sftp', 'path'],
+    debugName: "ssh_sftp_open",
+    argNames: ["sftp", "path"],
   );
 
   @override
@@ -15791,7 +15838,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 415,
+            funcId: 416,
             port: port_,
           );
         },
@@ -15808,8 +15855,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshTryConnectPasswordConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_try_connect_password',
-        argNames: ['host', 'port', 'user', 'password'],
+        debugName: "ssh_try_connect_password",
+        argNames: ["host", "port", "user", "password"],
       );
 
   @override
@@ -15832,7 +15879,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 416,
+            funcId: 417,
             port: port_,
           );
         },
@@ -15849,8 +15896,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSshSshTryConnectPubkeyConstMeta =>
       const TaskConstMeta(
-        debugName: 'ssh_try_connect_pubkey',
-        argNames: ['host', 'port', 'user', 'privateKey', 'passphrase'],
+        debugName: "ssh_try_connect_pubkey",
+        argNames: ["host", "port", "user", "privateKey", "passphrase"],
       );
 
   @override
@@ -15865,7 +15912,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 417,
+            funcId: 418,
           )!;
         },
         codec: SseCodec(
@@ -15882,8 +15929,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTestHooksTestSshServerSetSftpWriteDelayMsConstMeta =>
       const TaskConstMeta(
-        debugName: 'test_ssh_server_set_sftp_write_delay_ms',
-        argNames: ['delayMs'],
+        debugName: "test_ssh_server_set_sftp_write_delay_ms",
+        argNames: ["delayMs"],
       );
 
   @override
@@ -15895,7 +15942,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 418,
+            funcId: 419,
             port: port_,
           );
         },
@@ -15911,7 +15958,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTestHooksTestSshServerStartConstMeta =>
-      const TaskConstMeta(debugName: 'test_ssh_server_start', argNames: []);
+      const TaskConstMeta(debugName: "test_ssh_server_start", argNames: []);
 
   @override
   void crateApiTestHooksTestSshServerStopAll() {
@@ -15922,7 +15969,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 419,
+            funcId: 420,
           )!;
         },
         codec: SseCodec(
@@ -15937,7 +15984,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTestHooksTestSshServerStopAllConstMeta =>
-      const TaskConstMeta(debugName: 'test_ssh_server_stop_all', argNames: []);
+      const TaskConstMeta(debugName: "test_ssh_server_stop_all", argNames: []);
 
   @override
   List<DbThreatRow> crateApiThreatEvalThreatEvaluate({
@@ -15955,7 +16002,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 420,
+            funcId: 421,
           )!;
         },
         codec: SseCodec(
@@ -15971,8 +16018,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiThreatEvalThreatEvaluateConstMeta =>
       const TaskConstMeta(
-        debugName: 'threat_evaluate',
-        argNames: ['tier', 'password', 'biometric'],
+        debugName: "threat_evaluate",
+        argNames: ["tier", "password", "biometric"],
       );
 
   @override
@@ -15986,7 +16033,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 421,
+            funcId: 422,
             port: port_,
           );
         },
@@ -16005,8 +16052,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierFirstLaunchHardwareConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_first_launch_hardware',
-        argNames: ['pin'],
+        debugName: "tier_first_launch_hardware",
+        argNames: ["pin"],
       );
 
   @override
@@ -16019,7 +16066,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 422,
+            funcId: 423,
             port: port_,
           );
         },
@@ -16038,49 +16085,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierFirstLaunchKeychainConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_first_launch_keychain',
+        debugName: "tier_first_launch_keychain",
         argNames: [],
       );
 
   @override
   Future<DbUnlockOutcome>
   crateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPassword({
-    required List<int> password,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_prim_u_8_loose(password, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 423,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_db_unlock_outcome,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPasswordConstMeta,
-        argValues: [password],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPasswordConstMeta =>
-      const TaskConstMeta(
-        debugName: 'tier_first_launch_keychain_with_password',
-        argNames: ['password'],
-      );
-
-  @override
-  Future<DbUnlockOutcome>
-  crateApiTierUnlockOrchestratorTierFirstLaunchParanoid({
     required List<int> password,
   }) {
     return handler.executeNormal(
@@ -16100,6 +16111,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta:
+            kCrateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPasswordConstMeta,
+        argValues: [password],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiTierUnlockOrchestratorTierFirstLaunchKeychainWithPasswordConstMeta =>
+      const TaskConstMeta(
+        debugName: "tier_first_launch_keychain_with_password",
+        argNames: ["password"],
+      );
+
+  @override
+  Future<DbUnlockOutcome>
+  crateApiTierUnlockOrchestratorTierFirstLaunchParanoid({
+    required List<int> password,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(password, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 425,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_db_unlock_outcome,
+          decodeErrorData: null,
+        ),
+        constMeta:
             kCrateApiTierUnlockOrchestratorTierFirstLaunchParanoidConstMeta,
         argValues: [password],
         apiImpl: this,
@@ -16110,8 +16157,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierFirstLaunchParanoidConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_first_launch_paranoid',
-        argNames: ['password'],
+        debugName: "tier_first_launch_paranoid",
+        argNames: ["password"],
       );
 
   @override
@@ -16123,7 +16170,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 425,
+            funcId: 426,
           )!;
         },
         codec: SseCodec(
@@ -16141,7 +16188,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierFirstLaunchPlaintextConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_first_launch_plaintext',
+        debugName: "tier_first_launch_plaintext",
         argNames: [],
       );
 
@@ -16154,7 +16201,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 426,
+            funcId: 427,
           )!;
         },
         codec: SseCodec(
@@ -16171,7 +16218,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierMachineTierMachineActiveTierWireNameConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_machine_active_tier_wire_name',
+        debugName: "tier_machine_active_tier_wire_name",
         argNames: [],
       );
 
@@ -16187,7 +16234,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 427,
+            funcId: 428,
           )!;
         },
         codec: SseCodec(
@@ -16203,8 +16250,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTierMachineTierMachineDispatchConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_machine_dispatch',
-        argNames: ['event'],
+        debugName: "tier_machine_dispatch",
+        argNames: ["event"],
       );
 
   @override
@@ -16217,7 +16264,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 428,
+            funcId: 429,
           )!;
         },
         codec: SseCodec(
@@ -16233,8 +16280,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTierMachineTierMachineSetTierConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_machine_set_tier',
-        argNames: ['tierWireName'],
+        debugName: "tier_machine_set_tier",
+        argNames: ["tierWireName"],
       );
 
   @override
@@ -16246,7 +16293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 429,
+            funcId: 430,
           )!;
         },
         codec: SseCodec(
@@ -16261,7 +16308,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTierMachineTierMachineStateConstMeta =>
-      const TaskConstMeta(debugName: 'tier_machine_state', argNames: []);
+      const TaskConstMeta(debugName: "tier_machine_state", argNames: []);
 
   @override
   DbTierState? crateApiTierMachineTierMachineTryAdvance() {
@@ -16272,7 +16319,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 430,
+            funcId: 431,
           )!;
         },
         codec: SseCodec(
@@ -16287,7 +16334,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTierMachineTierMachineTryAdvanceConstMeta =>
-      const TaskConstMeta(debugName: 'tier_machine_try_advance', argNames: []);
+      const TaskConstMeta(debugName: "tier_machine_try_advance", argNames: []);
 
   @override
   void crateApiTierTransitionMarkerTierTransitionMarkerClear({
@@ -16301,7 +16348,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 431,
+            funcId: 432,
           )!;
         },
         codec: SseCodec(
@@ -16319,8 +16366,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierTransitionMarkerTierTransitionMarkerClearConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_transition_marker_clear',
-        argNames: ['supportDir'],
+        debugName: "tier_transition_marker_clear",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -16335,7 +16382,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 432,
+            funcId: 433,
           )!;
         },
         codec: SseCodec(
@@ -16353,8 +16400,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierTransitionMarkerTierTransitionMarkerReadConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_transition_marker_read',
-        argNames: ['supportDir'],
+        debugName: "tier_transition_marker_read",
+        argNames: ["supportDir"],
       );
 
   @override
@@ -16371,7 +16418,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 433,
+            funcId: 434,
           )!;
         },
         codec: SseCodec(
@@ -16389,8 +16436,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierTransitionMarkerTierTransitionMarkerWriteConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_transition_marker_write',
-        argNames: ['supportDir', 'payload'],
+        debugName: "tier_transition_marker_write",
+        argNames: ["supportDir", "payload"],
       );
 
   @override
@@ -16407,7 +16454,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 434,
+            funcId: 435,
           )!;
         },
         codec: SseCodec(
@@ -16425,8 +16472,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockBiometricCommitConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_unlock_biometric_commit',
-        argNames: ['tierWireName', 'bytes'],
+        debugName: "tier_unlock_biometric_commit",
+        argNames: ["tierWireName", "bytes"],
       );
 
   @override
@@ -16443,7 +16490,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 435,
+            funcId: 436,
           )!;
         },
         codec: SseCodec(
@@ -16461,8 +16508,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockBiometricCommitFromSecretConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_unlock_biometric_commit_from_secret',
-        argNames: ['tierWireName', 'secretId'],
+        debugName: "tier_unlock_biometric_commit_from_secret",
+        argNames: ["tierWireName", "secretId"],
       );
 
   @override
@@ -16477,7 +16524,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 436,
+            funcId: 437,
             port: port_,
           );
         },
@@ -16494,7 +16541,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockHardwareConstMeta =>
-      const TaskConstMeta(debugName: 'tier_unlock_hardware', argNames: ['pin']);
+      const TaskConstMeta(debugName: "tier_unlock_hardware", argNames: ["pin"]);
 
   @override
   void crateApiTierUnlockOrchestratorTierUnlockHardwareCancel() {
@@ -16505,7 +16552,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 437,
+            funcId: 438,
           )!;
         },
         codec: SseCodec(
@@ -16523,7 +16570,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockHardwareCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_unlock_hardware_cancel',
+        debugName: "tier_unlock_hardware_cancel",
         argNames: [],
       );
 
@@ -16536,7 +16583,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 438,
+            funcId: 439,
             port: port_,
           );
         },
@@ -16553,7 +16600,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockKeychainConstMeta =>
-      const TaskConstMeta(debugName: 'tier_unlock_keychain', argNames: []);
+      const TaskConstMeta(debugName: "tier_unlock_keychain", argNames: []);
 
   @override
   void crateApiTierUnlockOrchestratorTierUnlockKeychainCancel() {
@@ -16564,7 +16611,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 439,
+            funcId: 440,
           )!;
         },
         codec: SseCodec(
@@ -16582,7 +16629,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockKeychainCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_unlock_keychain_cancel',
+        debugName: "tier_unlock_keychain_cancel",
         argNames: [],
       );
 
@@ -16599,7 +16646,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 440,
+            funcId: 441,
             port: port_,
           );
         },
@@ -16618,8 +16665,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockKeychainWithPasswordConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_unlock_keychain_with_password',
-        argNames: ['password'],
+        debugName: "tier_unlock_keychain_with_password",
+        argNames: ["password"],
       );
 
   @override
@@ -16631,7 +16678,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 441,
+            funcId: 442,
           )!;
         },
         codec: SseCodec(
@@ -16649,7 +16696,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockKeychainWithPasswordCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_unlock_keychain_with_password_cancel',
+        debugName: "tier_unlock_keychain_with_password_cancel",
         argNames: [],
       );
 
@@ -16665,7 +16712,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 442,
+            funcId: 443,
             port: port_,
           );
         },
@@ -16683,8 +16730,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockParanoidConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_unlock_paranoid',
-        argNames: ['password'],
+        debugName: "tier_unlock_paranoid",
+        argNames: ["password"],
       );
 
   @override
@@ -16696,7 +16743,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 443,
+            funcId: 444,
           )!;
         },
         codec: SseCodec(
@@ -16714,7 +16761,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockParanoidCancelConstMeta =>
       const TaskConstMeta(
-        debugName: 'tier_unlock_paranoid_cancel',
+        debugName: "tier_unlock_paranoid_cancel",
         argNames: [],
       );
 
@@ -16727,7 +16774,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 444,
+            funcId: 445,
           )!;
         },
         codec: SseCodec(
@@ -16743,7 +16790,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta
   get kCrateApiTierUnlockOrchestratorTierUnlockPlaintextConstMeta =>
-      const TaskConstMeta(debugName: 'tier_unlock_plaintext', argNames: []);
+      const TaskConstMeta(debugName: "tier_unlock_plaintext", argNames: []);
 
   @override
   Future<DbTpmProbeResult> crateApiTpmTpmProbe({
@@ -16761,7 +16808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 445,
+            funcId: 446,
             port: port_,
           );
         },
@@ -16777,8 +16824,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTpmTpmProbeConstMeta => const TaskConstMeta(
-    debugName: 'tpm_probe',
-    argNames: ['binary', 'device', 'timeoutMs'],
+    debugName: "tpm_probe",
+    argNames: ["binary", "device", "timeoutMs"],
   );
 
   @override
@@ -16801,7 +16848,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 446,
+            funcId: 447,
             port: port_,
           );
         },
@@ -16817,8 +16864,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTpmTpmSealConstMeta => const TaskConstMeta(
-    debugName: 'tpm_seal',
-    argNames: ['secret', 'authValue', 'binary', 'device', 'timeoutMs'],
+    debugName: "tpm_seal",
+    argNames: ["secret", "authValue", "binary", "device", "timeoutMs"],
   );
 
   @override
@@ -16841,7 +16888,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 447,
+            funcId: 448,
             port: port_,
           );
         },
@@ -16857,8 +16904,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTpmTpmUnsealConstMeta => const TaskConstMeta(
-    debugName: 'tpm_unseal',
-    argNames: ['blob', 'authValue', 'binary', 'device', 'timeoutMs'],
+    debugName: "tpm_unseal",
+    argNames: ["blob", "authValue", "binary", "device", "timeoutMs"],
   );
 
   @override
@@ -16871,7 +16918,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 448,
+            funcId: 449,
             port: port_,
           );
         },
@@ -16887,7 +16934,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTransferTransferCancelConstMeta =>
-      const TaskConstMeta(debugName: 'transfer_cancel', argNames: ['taskId']);
+      const TaskConstMeta(debugName: "transfer_cancel", argNames: ["taskId"]);
 
   @override
   Future<int> crateApiTransferTransferClearHistory() {
@@ -16898,7 +16945,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 449,
+            funcId: 450,
             port: port_,
           );
         },
@@ -16914,7 +16961,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTransferTransferClearHistoryConstMeta =>
-      const TaskConstMeta(debugName: 'transfer_clear_history', argNames: []);
+      const TaskConstMeta(debugName: "transfer_clear_history", argNames: []);
 
   @override
   DbConflictAction? crateApiTransferConflictTransferConflictCached({
@@ -16928,7 +16975,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 450,
+            funcId: 451,
           )!;
         },
         codec: SseCodec(
@@ -16944,44 +16991,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTransferConflictTransferConflictCachedConstMeta =>
       const TaskConstMeta(
-        debugName: 'transfer_conflict_cached',
-        argNames: ['handle'],
+        debugName: "transfer_conflict_cached",
+        argNames: ["handle"],
       );
 
   @override
   void crateApiTransferConflictTransferConflictCreate({
     required String handle,
   }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(handle, serializer);
-          return pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 451,
-          )!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiTransferConflictTransferConflictCreateConstMeta,
-        argValues: [handle],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiTransferConflictTransferConflictCreateConstMeta =>
-      const TaskConstMeta(
-        debugName: 'transfer_conflict_create',
-        argNames: ['handle'],
-      );
-
-  @override
-  void crateApiTransferConflictTransferConflictDrop({required String handle}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -16997,6 +17014,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
+        constMeta: kCrateApiTransferConflictTransferConflictCreateConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTransferConflictTransferConflictCreateConstMeta =>
+      const TaskConstMeta(
+        debugName: "transfer_conflict_create",
+        argNames: ["handle"],
+      );
+
+  @override
+  void crateApiTransferConflictTransferConflictDrop({required String handle}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(handle, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 453,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
         constMeta: kCrateApiTransferConflictTransferConflictDropConstMeta,
         argValues: [handle],
         apiImpl: this,
@@ -17006,8 +17053,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTransferConflictTransferConflictDropConstMeta =>
       const TaskConstMeta(
-        debugName: 'transfer_conflict_drop',
-        argNames: ['handle'],
+        debugName: "transfer_conflict_drop",
+        argNames: ["handle"],
       );
 
   @override
@@ -17022,7 +17069,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 453,
+            funcId: 454,
           )!;
         },
         codec: SseCodec(
@@ -17040,8 +17087,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTransferConflictTransferConflictIsCancelledConstMeta =>
       const TaskConstMeta(
-        debugName: 'transfer_conflict_is_cancelled',
-        argNames: ['handle'],
+        debugName: "transfer_conflict_is_cancelled",
+        argNames: ["handle"],
       );
 
   @override
@@ -17060,7 +17107,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 454,
+            funcId: 455,
           )!;
         },
         codec: SseCodec(
@@ -17078,8 +17125,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiTransferConflictTransferConflictRecordDecisionConstMeta =>
       const TaskConstMeta(
-        debugName: 'transfer_conflict_record_decision',
-        argNames: ['handle', 'action', 'applyToAll'],
+        debugName: "transfer_conflict_record_decision",
+        argNames: ["handle", "action", "applyToAll"],
       );
 
   @override
@@ -17092,7 +17139,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 455,
+            funcId: 456,
             port: port_,
           );
         },
@@ -17108,7 +17155,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTransferTransferDispatchConstMeta =>
-      const TaskConstMeta(debugName: 'transfer_dispatch', argNames: ['taskId']);
+      const TaskConstMeta(debugName: "transfer_dispatch", argNames: ["taskId"]);
 
   @override
   Future<bool> crateApiTransferTransferDropTerminal({required String taskId}) {
@@ -17120,7 +17167,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 456,
+            funcId: 457,
             port: port_,
           );
         },
@@ -17137,8 +17184,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTransferTransferDropTerminalConstMeta =>
       const TaskConstMeta(
-        debugName: 'transfer_drop_terminal',
-        argNames: ['taskId'],
+        debugName: "transfer_drop_terminal",
+        argNames: ["taskId"],
       );
 
   @override
@@ -17163,7 +17210,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 457,
+            funcId: 458,
             port: port_,
           );
         },
@@ -17180,14 +17227,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiTransferTransferEnqueueConstMeta =>
       const TaskConstMeta(
-        debugName: 'transfer_enqueue',
+        debugName: "transfer_enqueue",
         argNames: [
-          'id',
-          'kind',
-          'sessionId',
-          'remotePath',
-          'localPath',
-          'bytesTotal',
+          "id",
+          "kind",
+          "sessionId",
+          "remotePath",
+          "localPath",
+          "bytesTotal",
         ],
       );
 
@@ -17200,7 +17247,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 458,
+            funcId: 459,
             port: port_,
           );
         },
@@ -17216,7 +17263,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiTransferTransferSnapshotAllConstMeta =>
-      const TaskConstMeta(debugName: 'transfer_snapshot_all', argNames: []);
+      const TaskConstMeta(debugName: "transfer_snapshot_all", argNames: []);
 
   @override
   String? crateApiUpdateMetadataUpdateAssetSuffix({required String platform}) {
@@ -17228,7 +17275,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 459,
+            funcId: 460,
           )!;
         },
         codec: SseCodec(
@@ -17244,8 +17291,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateMetadataUpdateAssetSuffixConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_asset_suffix',
-        argNames: ['platform'],
+        debugName: "update_asset_suffix",
+        argNames: ["platform"],
       );
 
   @override
@@ -17262,7 +17309,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 460,
+            funcId: 461,
           )!;
         },
         codec: SseCodec(
@@ -17278,8 +17325,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateMetadataUpdateAssetUrlForPlatformConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_asset_url_for_platform',
-        argNames: ['assets', 'platform'],
+        debugName: "update_asset_url_for_platform",
+        argNames: ["assets", "platform"],
       );
 
   @override
@@ -17296,7 +17343,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 461,
+            funcId: 462,
           )!;
         },
         codec: SseCodec(
@@ -17314,8 +17361,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiUpdateMetadataUpdateBuildCumulativeChangelogConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_build_cumulative_changelog',
-        argNames: ['releases', 'currentVersion'],
+        debugName: "update_build_cumulative_changelog",
+        argNames: ["releases", "currentVersion"],
       );
 
   @override
@@ -17332,7 +17379,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 462,
+            funcId: 463,
             port: port_,
           );
         },
@@ -17349,8 +17396,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateHttpUpdateCheckConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_check',
-        argNames: ['currentVersion', 'repo'],
+        debugName: "update_check",
+        argNames: ["currentVersion", "repo"],
       );
 
   @override
@@ -17369,7 +17416,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 463,
+            funcId: 464,
             port: port_,
           );
         },
@@ -17386,8 +17433,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateHttpUpdateCheckFromBodyConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_check_from_body',
-        argNames: ['body', 'currentVersion', 'repo'],
+        debugName: "update_check_from_body",
+        argNames: ["body", "currentVersion", "repo"],
       );
 
   @override
@@ -17404,7 +17451,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 464,
+            funcId: 465,
           )!;
         },
         codec: SseCodec(
@@ -17420,8 +17467,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateMetadataUpdateCompareVersionsConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_compare_versions',
-        argNames: ['a', 'b'],
+        debugName: "update_compare_versions",
+        argNames: ["a", "b"],
       );
 
   @override
@@ -17438,7 +17485,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 465,
+            funcId: 466,
             port: port_,
           );
         },
@@ -17455,8 +17502,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateHttpUpdateDownloadToFileConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_download_to_file',
-        argNames: ['url', 'targetPath'],
+        debugName: "update_download_to_file",
+        argNames: ["url", "targetPath"],
       );
 
   @override
@@ -17475,7 +17522,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 466,
+            funcId: 467,
             port: port_,
           );
         },
@@ -17493,8 +17540,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiUpdateHttpUpdateDownloadWithVerificationConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_download_with_verification',
-        argNames: ['url', 'targetDir', 'expectedDigest'],
+        debugName: "update_download_with_verification",
+        argNames: ["url", "targetDir", "expectedDigest"],
       );
 
   @override
@@ -17507,7 +17554,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 467,
+            funcId: 468,
             port: port_,
           );
         },
@@ -17523,7 +17570,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiUpdateHttpUpdateFetchTextConstMeta =>
-      const TaskConstMeta(debugName: 'update_fetch_text', argNames: ['url']);
+      const TaskConstMeta(debugName: "update_fetch_text", argNames: ["url"]);
 
   @override
   bool crateApiUpdateMetadataUpdateIsTrustedReleaseAssetUri({
@@ -17537,7 +17584,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 468,
+            funcId: 469,
           )!;
         },
         codec: SseCodec(
@@ -17555,8 +17602,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiUpdateMetadataUpdateIsTrustedReleaseAssetUriConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_is_trusted_release_asset_uri',
-        argNames: ['uri'],
+        debugName: "update_is_trusted_release_asset_uri",
+        argNames: ["uri"],
       );
 
   @override
@@ -17571,7 +17618,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 469,
+            funcId: 470,
           )!;
         },
         codec: SseCodec(
@@ -17587,8 +17634,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateMetadataUpdateParseAssetVersionConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_parse_asset_version',
-        argNames: ['assetName'],
+        debugName: "update_parse_asset_version",
+        argNames: ["assetName"],
       );
 
   @override
@@ -17603,7 +17650,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 470,
+            funcId: 471,
           )!;
         },
         codec: SseCodec(
@@ -17619,8 +17666,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiUpdateMetadataUpdateParseSha256ManifestConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_parse_sha256_manifest',
-        argNames: ['content'],
+        debugName: "update_parse_sha256_manifest",
+        argNames: ["content"],
       );
 
   @override
@@ -17637,7 +17684,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 471,
+            funcId: 472,
           )!;
         },
         codec: SseCodec(
@@ -17654,8 +17701,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta
   get kCrateApiUpdateSigningUpdateVerifyReleaseSignatureConstMeta =>
       const TaskConstMeta(
-        debugName: 'update_verify_release_signature',
-        argNames: ['message', 'signature'],
+        debugName: "update_verify_release_signature",
+        argNames: ["message", "signature"],
       );
 
   @override
@@ -17667,7 +17714,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 472,
+            funcId: 473,
           )!;
         },
         codec: SseCodec(
@@ -17682,40 +17729,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiWinbioWinbioCountUnitsConstMeta =>
-      const TaskConstMeta(debugName: 'winbio_count_units', argNames: []);
+      const TaskConstMeta(debugName: "winbio_count_units", argNames: []);
 
   @override
   bool crateApiWipeWipeHasAnyState({required String supportDir}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(supportDir, serializer);
-          return pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 473,
-          )!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiWipeWipeHasAnyStateConstMeta,
-        argValues: [supportDir],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiWipeWipeHasAnyStateConstMeta =>
-      const TaskConstMeta(
-        debugName: 'wipe_has_any_state',
-        argNames: ['supportDir'],
-      );
-
-  @override
-  bool crateApiWipeWipeHasPending({required String supportDir}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -17731,6 +17748,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: null,
         ),
+        constMeta: kCrateApiWipeWipeHasAnyStateConstMeta,
+        argValues: [supportDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiWipeWipeHasAnyStateConstMeta =>
+      const TaskConstMeta(
+        debugName: "wipe_has_any_state",
+        argNames: ["supportDir"],
+      );
+
+  @override
+  bool crateApiWipeWipeHasPending({required String supportDir}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(supportDir, serializer);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 475,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
         constMeta: kCrateApiWipeWipeHasPendingConstMeta,
         argValues: [supportDir],
         apiImpl: this,
@@ -17739,8 +17786,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiWipeWipeHasPendingConstMeta => const TaskConstMeta(
-    debugName: 'wipe_has_pending',
-    argNames: ['supportDir'],
+    debugName: "wipe_has_pending",
+    argNames: ["supportDir"],
   );
 
   @override
@@ -17752,7 +17799,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 475,
+            funcId: 476,
           )!;
         },
         codec: SseCodec(
@@ -17768,7 +17815,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiWipeKeychainWipeKeychainManagedKeysConstMeta =>
       const TaskConstMeta(
-        debugName: 'wipe_keychain_managed_keys',
+        debugName: "wipe_keychain_managed_keys",
         argNames: [],
       );
 
@@ -17781,7 +17828,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 476,
+            funcId: 477,
             port: port_,
           );
         },
@@ -17797,7 +17844,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiWipeKeychainWipeKeychainRunConstMeta =>
-      const TaskConstMeta(debugName: 'wipe_keychain_run', argNames: []);
+      const TaskConstMeta(debugName: "wipe_keychain_run", argNames: []);
 
   @override
   Future<DbFileSweepReport> crateApiWipeWipeSweepFiles({
@@ -17811,7 +17858,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 477,
+            funcId: 478,
             port: port_,
           );
         },
@@ -17827,9 +17874,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta get kCrateApiWipeWipeSweepFilesConstMeta => const TaskConstMeta(
-    debugName: 'wipe_sweep_files',
-    argNames: ['supportDir'],
+    debugName: "wipe_sweep_files",
+    argNames: ["supportDir"],
   );
+
+  @override
+  Future<String> crateApiFrbErrWire({
+    required String kind,
+    required String detail,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(kind, serializer);
+          sse_encode_String(detail, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 479,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiFrbErrWireConstMeta,
+        argValues: [kind, detail],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrbErrWireConstMeta =>
+      const TaskConstMeta(debugName: "wire", argNames: ["kind", "detail"]);
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_CoreError => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_CoreError => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_SshForwardChannel => wire
@@ -17953,6 +18040,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CoreError
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return CoreErrorImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   SshForwardChannel
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel(
     dynamic raw,
@@ -18016,6 +18112,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         raw,
       ).map((e) => MapEntry(e.$1, e.$2)),
     );
+  }
+
+  @protected
+  CoreError
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return CoreErrorImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -18391,9 +18496,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 1:
         return BusCommand_ConnectionDisconnect(id: dco_decode_String(raw[1]));
       case 2:
-        return const BusCommand_ConnectionDisconnectAll();
+        return BusCommand_ConnectionDisconnectAll();
       case 3:
-        return const BusCommand_AutoLockOnPointerActivity();
+        return BusCommand_AutoLockOnPointerActivity();
       case 4:
         return BusCommand_AutoLockOnLifecycleChange(
           background: dco_decode_bool(raw[1]),
@@ -18401,16 +18506,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         return BusCommand_AutoLockSetTimeout(minutes: dco_decode_i_64(raw[1]));
       case 6:
-        return const BusCommand_AutoLockRequestLock();
+        return BusCommand_AutoLockRequestLock();
       case 7:
-        return const BusCommand_AutoLockUnlock();
+        return BusCommand_AutoLockUnlock();
       case 8:
         return BusCommand_KnownHostPromptResponse(
           promptId: dco_decode_String(raw[1]),
           accepted: dco_decode_bool(raw[2]),
         );
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -18450,9 +18555,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           passphraseSecretId: dco_decode_opt_String(raw[3]),
         );
       case 3:
-        return const BusConnectAuthRef_Agent();
+        return BusConnectAuthRef_Agent();
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -18496,9 +18601,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           count: dco_decode_i_64(raw[1]),
         );
       case 6:
-        return const BusEvent_AutoLockLocked();
+        return BusEvent_AutoLockLocked();
       case 7:
-        return const BusEvent_AutoLockUnlocked();
+        return BusEvent_AutoLockUnlocked();
       case 8:
         return BusEvent_AutoLockTimeoutChanged(
           minutes: dco_decode_i_64(raw[1]),
@@ -18568,9 +18673,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           path: dco_decode_String(raw[2]),
         );
       case 24:
-        return const BusEvent_KnownHostsChanged();
+        return BusEvent_KnownHostsChanged();
       case 25:
-        return const BusEvent_SessionsChanged();
+        return BusEvent_SessionsChanged();
       case 26:
         return BusEvent_ConfigChanged(json: dco_decode_String(raw[1]));
       case 27:
@@ -18627,7 +18732,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           message: dco_decode_String(raw[3]),
         );
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -18737,19 +18842,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return const DbBiometricAvailability_Available();
+        return DbBiometricAvailability_Available();
       case 1:
-        return const DbBiometricAvailability_PlatformUnsupported();
+        return DbBiometricAvailability_PlatformUnsupported();
       case 2:
-        return const DbBiometricAvailability_NoSensor();
+        return DbBiometricAvailability_NoSensor();
       case 3:
-        return const DbBiometricAvailability_NotEnrolled();
+        return DbBiometricAvailability_NotEnrolled();
       case 4:
-        return const DbBiometricAvailability_SystemServiceMissing();
+        return DbBiometricAvailability_SystemServiceMissing();
       case 5:
         return DbBiometricAvailability_Probe(dco_decode_String(raw[1]));
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -18829,11 +18934,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         return DbDeeplinkOutcome_OpenKeyFile(path: dco_decode_String(raw[1]));
       case 5:
-        return const DbDeeplinkOutcome_Unknown();
+        return DbDeeplinkOutcome_Unknown();
       case 6:
-        return const DbDeeplinkOutcome_Duplicate();
+        return DbDeeplinkOutcome_Duplicate();
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -19314,7 +19419,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           passphraseSecretId: dco_decode_opt_String(raw[2]),
         );
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -19477,9 +19582,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           dco_decode_list_prim_u_8_strict(raw[1]),
         );
       case 1:
-        return const DbSecureStorageOutcome_NotFound();
+        return DbSecureStorageOutcome_NotFound();
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -19934,19 +20039,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return const DbTierEvent_UnlockRequested();
+        return DbTierEvent_UnlockRequested();
       case 1:
-        return const DbTierEvent_UnlockSucceeded();
+        return DbTierEvent_UnlockSucceeded();
       case 2:
         return DbTierEvent_UnlockFailed(
           reason: dco_decode_box_autoadd_db_unlock_failure_reason(raw[1]),
         );
       case 3:
-        return const DbTierEvent_LockRequested();
+        return DbTierEvent_LockRequested();
       case 4:
-        return const DbTierEvent_Wiped();
+        return DbTierEvent_Wiped();
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -20012,19 +20117,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return const DbUnlockFailureReason_WrongSecret();
+        return DbUnlockFailureReason_WrongSecret();
       case 1:
         return DbUnlockFailureReason_PluginUnavailable(
           code: dco_decode_String(raw[1]),
         );
       case 2:
-        return const DbUnlockFailureReason_UserCancelled();
+        return DbUnlockFailureReason_UserCancelled();
       case 3:
         return DbUnlockFailureReason_Corruption(
           detail: dco_decode_String(raw[1]),
         );
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -20033,17 +20138,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return const DbUnlockOutcome_Staged();
+        return DbUnlockOutcome_Staged();
       case 1:
-        return const DbUnlockOutcome_WrongSecret();
+        return DbUnlockOutcome_WrongSecret();
       case 2:
-        return const DbUnlockOutcome_Cancelled();
+        return DbUnlockOutcome_Cancelled();
       case 3:
         return DbUnlockOutcome_PluginError(dco_decode_String(raw[1]));
       case 4:
         return DbUnlockOutcome_Corruption(dco_decode_String(raw[1]));
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -20700,13 +20805,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           dco_decode_list_prim_u_8_strict(raw[1]),
         );
       case 2:
-        return const SshShellEvent_Eof();
+        return SshShellEvent_Eof();
       case 3:
         return SshShellEvent_ExitStatus(dco_decode_u_32(raw[1]));
       case 4:
         return SshShellEvent_ExitSignal(dco_decode_String(raw[1]));
       default:
-        throw Exception('unreachable');
+        throw Exception("unreachable");
     }
   }
 
@@ -20764,7 +20869,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_String(deserializer);
+    var inner = sse_decode_String(deserializer);
     return AnyhowException(inner);
   }
 
@@ -20853,6 +20958,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CoreError
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return CoreErrorImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   SshForwardChannel
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel(
     SseDeserializer deserializer,
@@ -20929,8 +21046,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_list_record_string_string(deserializer);
+    var inner = sse_decode_list_record_string_string(deserializer);
     return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
+  CoreError
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return CoreErrorImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
   }
 
   @protected
@@ -21039,7 +21168,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_list_prim_u_8_strict(deserializer);
+    var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
   }
 
@@ -21370,31 +21499,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BusCommand sse_decode_bus_command(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        final var_payload = sse_decode_String(deserializer);
+        var var_payload = sse_decode_String(deserializer);
         return BusCommand_NoopEcho(payload: var_payload);
       case 1:
-        final var_id = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
         return BusCommand_ConnectionDisconnect(id: var_id);
       case 2:
-        return const BusCommand_ConnectionDisconnectAll();
+        return BusCommand_ConnectionDisconnectAll();
       case 3:
-        return const BusCommand_AutoLockOnPointerActivity();
+        return BusCommand_AutoLockOnPointerActivity();
       case 4:
-        final var_background = sse_decode_bool(deserializer);
+        var var_background = sse_decode_bool(deserializer);
         return BusCommand_AutoLockOnLifecycleChange(background: var_background);
       case 5:
-        final var_minutes = sse_decode_i_64(deserializer);
+        var var_minutes = sse_decode_i_64(deserializer);
         return BusCommand_AutoLockSetTimeout(minutes: var_minutes);
       case 6:
-        return const BusCommand_AutoLockRequestLock();
+        return BusCommand_AutoLockRequestLock();
       case 7:
-        return const BusCommand_AutoLockUnlock();
+        return BusCommand_AutoLockUnlock();
       case 8:
-        final var_promptId = sse_decode_String(deserializer);
-        final var_accepted = sse_decode_bool(deserializer);
+        var var_promptId = sse_decode_String(deserializer);
+        var var_accepted = sse_decode_bool(deserializer);
         return BusCommand_KnownHostPromptResponse(
           promptId: var_promptId,
           accepted: var_accepted,
@@ -21407,14 +21536,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   BusConnectArgs sse_decode_bus_connect_args(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_label = sse_decode_String(deserializer);
-    final var_sessionId = sse_decode_opt_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_u_16(deserializer);
-    final var_user = sse_decode_String(deserializer);
-    final var_auth = sse_decode_bus_connect_auth_ref(deserializer);
-    final var_bastionId = sse_decode_opt_String(deserializer);
-    final var_internal = sse_decode_bool(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_opt_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_u_16(deserializer);
+    var var_user = sse_decode_String(deserializer);
+    var var_auth = sse_decode_bus_connect_auth_ref(deserializer);
+    var var_bastionId = sse_decode_opt_String(deserializer);
+    var var_internal = sse_decode_bool(deserializer);
     return BusConnectArgs(
       label: var_label,
       sessionId: var_sessionId,
@@ -21433,29 +21562,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        final var_secretId = sse_decode_String(deserializer);
+        var var_secretId = sse_decode_String(deserializer);
         return BusConnectAuthRef_Password(secretId: var_secretId);
       case 1:
-        final var_keySecretId = sse_decode_String(deserializer);
-        final var_passphraseSecretId = sse_decode_opt_String(deserializer);
+        var var_keySecretId = sse_decode_String(deserializer);
+        var var_passphraseSecretId = sse_decode_opt_String(deserializer);
         return BusConnectAuthRef_Pubkey(
           keySecretId: var_keySecretId,
           passphraseSecretId: var_passphraseSecretId,
         );
       case 2:
-        final var_keySecretId = sse_decode_String(deserializer);
-        final var_certSecretId = sse_decode_String(deserializer);
-        final var_passphraseSecretId = sse_decode_opt_String(deserializer);
+        var var_keySecretId = sse_decode_String(deserializer);
+        var var_certSecretId = sse_decode_String(deserializer);
+        var var_passphraseSecretId = sse_decode_opt_String(deserializer);
         return BusConnectAuthRef_PubkeyCert(
           keySecretId: var_keySecretId,
           certSecretId: var_certSecretId,
           passphraseSecretId: var_passphraseSecretId,
         );
       case 3:
-        return const BusConnectAuthRef_Agent();
+        return BusConnectAuthRef_Agent();
       default:
         throw UnimplementedError('');
     }
@@ -21466,7 +21595,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return BusConnectionPhase.values[inner];
   }
 
@@ -21475,7 +21604,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return BusConnectionState.values[inner];
   }
 
@@ -21483,168 +21612,168 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BusEvent sse_decode_bus_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        final var_payload = sse_decode_String(deserializer);
+        var var_payload = sse_decode_String(deserializer);
         return BusEvent_Echoed(payload: var_payload);
       case 1:
-        final var_id = sse_decode_String(deserializer);
-        final var_state = sse_decode_bus_connection_state(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_state = sse_decode_bus_connection_state(deserializer);
         return BusEvent_ConnectionStateChanged(id: var_id, state: var_state);
       case 2:
-        final var_id = sse_decode_String(deserializer);
-        final var_step = sse_decode_box_autoadd_bus_progress_step(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_step = sse_decode_box_autoadd_bus_progress_step(deserializer);
         return BusEvent_ConnectionProgress(id: var_id, step: var_step);
       case 3:
-        final var_id = sse_decode_String(deserializer);
-        final var_detail = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_detail = sse_decode_String(deserializer);
         return BusEvent_ConnectionError(id: var_id, detail: var_detail);
       case 4:
-        final var_id = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
         return BusEvent_ConnectionRemoved(id: var_id);
       case 5:
-        final var_count = sse_decode_i_64(deserializer);
+        var var_count = sse_decode_i_64(deserializer);
         return BusEvent_ConnectionActiveCountChanged(count: var_count);
       case 6:
-        return const BusEvent_AutoLockLocked();
+        return BusEvent_AutoLockLocked();
       case 7:
-        return const BusEvent_AutoLockUnlocked();
+        return BusEvent_AutoLockUnlocked();
       case 8:
-        final var_minutes = sse_decode_i_64(deserializer);
+        var var_minutes = sse_decode_i_64(deserializer);
         return BusEvent_AutoLockTimeoutChanged(minutes: var_minutes);
       case 9:
-        final var_id = sse_decode_String(deserializer);
-        final var_path = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_path = sse_decode_String(deserializer);
         return BusEvent_RecorderStarted(id: var_id, path: var_path);
       case 10:
-        final var_id = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
         return BusEvent_RecorderStopped(id: var_id);
       case 11:
-        final var_id = sse_decode_String(deserializer);
-        final var_totalBytes = sse_decode_u_64(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_totalBytes = sse_decode_u_64(deserializer);
         return BusEvent_RecorderBytesWritten(
           id: var_id,
           totalBytes: var_totalBytes,
         );
       case 12:
-        final var_id = sse_decode_String(deserializer);
-        final var_bytesWritten = sse_decode_u_64(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_bytesWritten = sse_decode_u_64(deserializer);
         return BusEvent_RecorderRotateRequested(
           id: var_id,
           bytesWritten: var_bytesWritten,
         );
       case 13:
-        final var_id = sse_decode_String(deserializer);
-        final var_kind = sse_decode_String(deserializer);
-        final var_detail = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_kind = sse_decode_String(deserializer);
+        var var_detail = sse_decode_String(deserializer);
         return BusEvent_RecorderWriteFailed(
           id: var_id,
           kind: var_kind,
           detail: var_detail,
         );
       case 14:
-        final var_id = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
         return BusEvent_TransferTaskAdded(id: var_id);
       case 15:
-        final var_id = sse_decode_String(deserializer);
-        final var_state = sse_decode_bus_task_state(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_state = sse_decode_bus_task_state(deserializer);
         return BusEvent_TransferTaskState(id: var_id, state: var_state);
       case 16:
-        final var_id = sse_decode_String(deserializer);
-        final var_bytesDone = sse_decode_u_64(deserializer);
-        final var_bytesTotal = sse_decode_u_64(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_bytesDone = sse_decode_u_64(deserializer);
+        var var_bytesTotal = sse_decode_u_64(deserializer);
         return BusEvent_TransferTaskProgress(
           id: var_id,
           bytesDone: var_bytesDone,
           bytesTotal: var_bytesTotal,
         );
       case 17:
-        final var_id = sse_decode_String(deserializer);
-        final var_detail = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_detail = sse_decode_String(deserializer);
         return BusEvent_TransferTaskError(id: var_id, detail: var_detail);
       case 18:
-        final var_id = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
         return BusEvent_PortForwardRegistered(id: var_id);
       case 19:
-        final var_id = sse_decode_String(deserializer);
-        final var_status = sse_decode_bus_rule_status(deserializer);
-        final var_detail = sse_decode_opt_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
+        var var_status = sse_decode_bus_rule_status(deserializer);
+        var var_detail = sse_decode_opt_String(deserializer);
         return BusEvent_PortForwardStatus(
           id: var_id,
           status: var_status,
           detail: var_detail,
         );
       case 20:
-        final var_id = sse_decode_String(deserializer);
+        var var_id = sse_decode_String(deserializer);
         return BusEvent_PortForwardRemoved(id: var_id);
       case 21:
-        final var_url = sse_decode_String(deserializer);
-        final var_writtenBytes = sse_decode_u_64(deserializer);
-        final var_totalBytes = sse_decode_opt_box_autoadd_u_64(deserializer);
+        var var_url = sse_decode_String(deserializer);
+        var var_writtenBytes = sse_decode_u_64(deserializer);
+        var var_totalBytes = sse_decode_opt_box_autoadd_u_64(deserializer);
         return BusEvent_UpdateDownloadProgress(
           url: var_url,
           writtenBytes: var_writtenBytes,
           totalBytes: var_totalBytes,
         );
       case 22:
-        final var_url = sse_decode_String(deserializer);
+        var var_url = sse_decode_String(deserializer);
         return BusEvent_UpdateVerifyingStarted(url: var_url);
       case 23:
-        final var_url = sse_decode_String(deserializer);
-        final var_path = sse_decode_String(deserializer);
+        var var_url = sse_decode_String(deserializer);
+        var var_path = sse_decode_String(deserializer);
         return BusEvent_UpdateDownloadCompleted(url: var_url, path: var_path);
       case 24:
-        return const BusEvent_KnownHostsChanged();
+        return BusEvent_KnownHostsChanged();
       case 25:
-        return const BusEvent_SessionsChanged();
+        return BusEvent_SessionsChanged();
       case 26:
-        final var_json = sse_decode_String(deserializer);
+        var var_json = sse_decode_String(deserializer);
         return BusEvent_ConfigChanged(json: var_json);
       case 27:
-        final var_stateWireName = sse_decode_String(deserializer);
+        var var_stateWireName = sse_decode_String(deserializer);
         return BusEvent_TierStateChanged(stateWireName: var_stateWireName);
       case 28:
-        final var_promptId = sse_decode_String(deserializer);
-        final var_sessionId = sse_decode_String(deserializer);
-        final var_kindWireName = sse_decode_String(deserializer);
+        var var_promptId = sse_decode_String(deserializer);
+        var var_sessionId = sse_decode_String(deserializer);
+        var var_kindWireName = sse_decode_String(deserializer);
         return BusEvent_CredentialPromptRequest(
           promptId: var_promptId,
           sessionId: var_sessionId,
           kindWireName: var_kindWireName,
         );
       case 29:
-        final var_promptId = sse_decode_String(deserializer);
+        var var_promptId = sse_decode_String(deserializer);
         return BusEvent_KeychainProbePromptRequest(promptId: var_promptId);
       case 30:
-        final var_promptId = sse_decode_String(deserializer);
+        var var_promptId = sse_decode_String(deserializer);
         return BusEvent_HardwareVaultProbePromptRequest(promptId: var_promptId);
       case 31:
-        final var_promptId = sse_decode_String(deserializer);
-        final var_pin = sse_decode_opt_String(deserializer);
+        var var_promptId = sse_decode_String(deserializer);
+        var var_pin = sse_decode_opt_String(deserializer);
         return BusEvent_HardwareVaultUnlockPromptRequest(
           promptId: var_promptId,
           pin: var_pin,
         );
       case 32:
-        final var_promptId = sse_decode_String(deserializer);
-        final var_dbKeySecretId = sse_decode_String(deserializer);
-        final var_pinSecretId = sse_decode_opt_String(deserializer);
+        var var_promptId = sse_decode_String(deserializer);
+        var var_dbKeySecretId = sse_decode_String(deserializer);
+        var var_pinSecretId = sse_decode_opt_String(deserializer);
         return BusEvent_HardwareVaultSealPromptRequest(
           promptId: var_promptId,
           dbKeySecretId: var_dbKeySecretId,
           pinSecretId: var_pinSecretId,
         );
       case 33:
-        final var_json = sse_decode_String(deserializer);
+        var var_json = sse_decode_String(deserializer);
         return BusEvent_SecurityCapabilitiesChanged(json: var_json);
       case 34:
-        final var_promptId = sse_decode_String(deserializer);
-        final var_host = sse_decode_String(deserializer);
-        final var_port = sse_decode_i_64(deserializer);
-        final var_keyType = sse_decode_String(deserializer);
-        final var_fingerprint = sse_decode_String(deserializer);
-        final var_kind = sse_decode_bus_known_host_prompt_kind(deserializer);
+        var var_promptId = sse_decode_String(deserializer);
+        var var_host = sse_decode_String(deserializer);
+        var var_port = sse_decode_i_64(deserializer);
+        var var_keyType = sse_decode_String(deserializer);
+        var var_fingerprint = sse_decode_String(deserializer);
+        var var_kind = sse_decode_bus_known_host_prompt_kind(deserializer);
         return BusEvent_KnownHostPromptRequest(
           promptId: var_promptId,
           host: var_host,
@@ -21654,16 +21783,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           kind: var_kind,
         );
       case 35:
-        final var_promptId = sse_decode_String(deserializer);
-        final var_accepted = sse_decode_bool(deserializer);
+        var var_promptId = sse_decode_String(deserializer);
+        var var_accepted = sse_decode_bool(deserializer);
         return BusEvent_KnownHostPromptResolved(
           promptId: var_promptId,
           accepted: var_accepted,
         );
       case 36:
-        final var_levelWireName = sse_decode_String(deserializer);
-        final var_name = sse_decode_String(deserializer);
-        final var_message = sse_decode_String(deserializer);
+        var var_levelWireName = sse_decode_String(deserializer);
+        var var_name = sse_decode_String(deserializer);
+        var var_message = sse_decode_String(deserializer);
         return BusEvent_CoreLog(
           levelWireName: var_levelWireName,
           name: var_name,
@@ -21679,16 +21808,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return BusKnownHostPromptKind.values[inner];
   }
 
   @protected
   BusProgressStep sse_decode_bus_progress_step(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_phase = sse_decode_bus_connection_phase(deserializer);
-    final var_status = sse_decode_bus_step_status(deserializer);
-    final var_detail = sse_decode_opt_String(deserializer);
+    var var_phase = sse_decode_bus_connection_phase(deserializer);
+    var var_status = sse_decode_bus_step_status(deserializer);
+    var var_detail = sse_decode_opt_String(deserializer);
     return BusProgressStep(
       phase: var_phase,
       status: var_status,
@@ -21699,37 +21828,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   BusRuleStatus sse_decode_bus_rule_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return BusRuleStatus.values[inner];
   }
 
   @protected
   BusStepStatus sse_decode_bus_step_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return BusStepStatus.values[inner];
   }
 
   @protected
   BusTaskState sse_decode_bus_task_state(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return BusTaskState.values[inner];
   }
 
   @protected
   BusTopic sse_decode_bus_topic(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return BusTopic.values[inner];
   }
 
   @protected
   DbAppConfig sse_decode_db_app_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_data = sse_decode_String(deserializer);
-    final var_updatedAtMs = sse_decode_i_64(deserializer);
-    final var_autoLockMinutes = sse_decode_i_64(deserializer);
+    var var_data = sse_decode_String(deserializer);
+    var var_updatedAtMs = sse_decode_i_64(deserializer);
+    var var_autoLockMinutes = sse_decode_i_64(deserializer);
     return DbAppConfig(
       data: var_data,
       updatedAtMs: var_updatedAtMs,
@@ -21740,12 +21869,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbApplyOptions sse_decode_db_apply_options(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_mode = sse_decode_db_import_mode(deserializer);
-    final var_applySessions = sse_decode_bool(deserializer);
-    final var_applyKeys = sse_decode_bool(deserializer);
-    final var_applyTags = sse_decode_bool(deserializer);
-    final var_applySnippets = sse_decode_bool(deserializer);
-    final var_applyKnownHosts = sse_decode_bool(deserializer);
+    var var_mode = sse_decode_db_import_mode(deserializer);
+    var var_applySessions = sse_decode_bool(deserializer);
+    var var_applyKeys = sse_decode_bool(deserializer);
+    var var_applyTags = sse_decode_bool(deserializer);
+    var var_applySnippets = sse_decode_bool(deserializer);
+    var var_applyKnownHosts = sse_decode_bool(deserializer);
     return DbApplyOptions(
       mode: var_mode,
       applySessions: var_applySessions,
@@ -21759,19 +21888,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbApplyResult sse_decode_db_apply_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_sessionsApplied = sse_decode_i_64(deserializer);
-    final var_keysApplied = sse_decode_i_64(deserializer);
-    final var_keysSkippedDedup = sse_decode_i_64(deserializer);
-    final var_tagsApplied = sse_decode_i_64(deserializer);
-    final var_snippetsApplied = sse_decode_i_64(deserializer);
-    final var_knownHostsApplied = sse_decode_i_64(deserializer);
-    final var_foldersApplied = sse_decode_i_64(deserializer);
-    final var_sessionTagsApplied = sse_decode_i_64(deserializer);
-    final var_folderTagsApplied = sse_decode_i_64(deserializer);
-    final var_sessionSnippetsApplied = sse_decode_i_64(deserializer);
-    final var_errors = sse_decode_list_String(deserializer);
-    final var_configJson = sse_decode_opt_String(deserializer);
-    final var_rolledBack = sse_decode_bool(deserializer);
+    var var_sessionsApplied = sse_decode_i_64(deserializer);
+    var var_keysApplied = sse_decode_i_64(deserializer);
+    var var_keysSkippedDedup = sse_decode_i_64(deserializer);
+    var var_tagsApplied = sse_decode_i_64(deserializer);
+    var var_snippetsApplied = sse_decode_i_64(deserializer);
+    var var_knownHostsApplied = sse_decode_i_64(deserializer);
+    var var_foldersApplied = sse_decode_i_64(deserializer);
+    var var_sessionTagsApplied = sse_decode_i_64(deserializer);
+    var var_folderTagsApplied = sse_decode_i_64(deserializer);
+    var var_sessionSnippetsApplied = sse_decode_i_64(deserializer);
+    var var_errors = sse_decode_list_String(deserializer);
+    var var_configJson = sse_decode_opt_String(deserializer);
+    var var_rolledBack = sse_decode_bool(deserializer);
     return DbApplyResult(
       sessionsApplied: var_sessionsApplied,
       keysApplied: var_keysApplied,
@@ -21794,7 +21923,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbArchiveProbeKind.values[inner];
   }
 
@@ -21804,20 +21933,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        return const DbBiometricAvailability_Available();
+        return DbBiometricAvailability_Available();
       case 1:
-        return const DbBiometricAvailability_PlatformUnsupported();
+        return DbBiometricAvailability_PlatformUnsupported();
       case 2:
-        return const DbBiometricAvailability_NoSensor();
+        return DbBiometricAvailability_NoSensor();
       case 3:
-        return const DbBiometricAvailability_NotEnrolled();
+        return DbBiometricAvailability_NotEnrolled();
       case 4:
-        return const DbBiometricAvailability_SystemServiceMissing();
+        return DbBiometricAvailability_SystemServiceMissing();
       case 5:
-        final var_field0 = sse_decode_String(deserializer);
+        var var_field0 = sse_decode_String(deserializer);
         return DbBiometricAvailability_Probe(var_field0);
       default:
         throw UnimplementedError('');
@@ -21829,24 +21958,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_tag = sse_decode_String(deserializer);
-    final var_body = sse_decode_String(deserializer);
+    var var_tag = sse_decode_String(deserializer);
+    var var_body = sse_decode_String(deserializer);
     return DbChangelogRelease(tag: var_tag, body: var_body);
   }
 
   @protected
   DbConflictAction sse_decode_db_conflict_action(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbConflictAction.values[inner];
   }
 
   @protected
   DbConnectLink sse_decode_db_connect_link(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_u_16(deserializer);
-    final var_user = sse_decode_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_u_16(deserializer);
+    var var_user = sse_decode_String(deserializer);
     return DbConnectLink(host: var_host, port: var_port, user: var_user);
   }
 
@@ -21855,16 +21984,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_sessionId = sse_decode_opt_String(deserializer);
-    final var_bastionId = sse_decode_opt_String(deserializer);
-    final var_internal = sse_decode_bool(deserializer);
-    final var_stateWireName = sse_decode_String(deserializer);
-    final var_error = sse_decode_opt_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_u_16(deserializer);
-    final var_user = sse_decode_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_opt_String(deserializer);
+    var var_bastionId = sse_decode_opt_String(deserializer);
+    var var_internal = sse_decode_bool(deserializer);
+    var var_stateWireName = sse_decode_String(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_u_16(deserializer);
+    var var_user = sse_decode_String(deserializer);
     return DbConnectionSnapshot(
       id: var_id,
       label: var_label,
@@ -21885,20 +22014,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        final var_host = sse_decode_String(deserializer);
-        final var_port = sse_decode_u_16(deserializer);
-        final var_user = sse_decode_String(deserializer);
+        var var_host = sse_decode_String(deserializer);
+        var var_port = sse_decode_u_16(deserializer);
+        var var_user = sse_decode_String(deserializer);
         return DbDeeplinkOutcome_Connect(
           host: var_host,
           port: var_port,
           user: var_user,
         );
       case 1:
-        final var_handleId = sse_decode_String(deserializer);
-        final var_preview = sse_decode_box_autoadd_db_import_preview(
+        var var_handleId = sse_decode_String(deserializer);
+        var var_preview = sse_decode_box_autoadd_db_import_preview(
           deserializer,
         );
         return DbDeeplinkOutcome_QrImport(
@@ -21906,22 +22035,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           preview: var_preview,
         );
       case 2:
-        final var_found = sse_decode_i_64(deserializer);
-        final var_supported = sse_decode_i_64(deserializer);
+        var var_found = sse_decode_i_64(deserializer);
+        var var_supported = sse_decode_i_64(deserializer);
         return DbDeeplinkOutcome_QrImportRejected(
           found: var_found,
           supported: var_supported,
         );
       case 3:
-        final var_path = sse_decode_String(deserializer);
+        var var_path = sse_decode_String(deserializer);
         return DbDeeplinkOutcome_OpenLfs(path: var_path);
       case 4:
-        final var_path = sse_decode_String(deserializer);
+        var var_path = sse_decode_String(deserializer);
         return DbDeeplinkOutcome_OpenKeyFile(path: var_path);
       case 5:
-        return const DbDeeplinkOutcome_Unknown();
+        return DbDeeplinkOutcome_Unknown();
       case 6:
-        return const DbDeeplinkOutcome_Duplicate();
+        return DbDeeplinkOutcome_Duplicate();
       default:
         throw UnimplementedError('');
     }
@@ -21932,20 +22061,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbDownloadErrorKind.values[inner];
   }
 
   @protected
   DbDownloadResult sse_decode_db_download_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_asset = sse_decode_opt_box_autoadd_db_downloaded_asset(
+    var var_asset = sse_decode_opt_box_autoadd_db_downloaded_asset(
       deserializer,
     );
-    final var_errorKind = sse_decode_opt_box_autoadd_db_download_error_kind(
+    var var_errorKind = sse_decode_opt_box_autoadd_db_download_error_kind(
       deserializer,
     );
-    final var_errorDetail = sse_decode_opt_String(deserializer);
+    var var_errorDetail = sse_decode_opt_String(deserializer);
     return DbDownloadResult(
       asset: var_asset,
       errorKind: var_errorKind,
@@ -21958,9 +22087,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_assetPath = sse_decode_String(deserializer);
-    final var_manifestPath = sse_decode_String(deserializer);
-    final var_manifestSigPath = sse_decode_String(deserializer);
+    var var_assetPath = sse_decode_String(deserializer);
+    var var_manifestPath = sse_decode_String(deserializer);
+    var var_manifestSigPath = sse_decode_String(deserializer);
     return DbDownloadedAsset(
       assetPath: var_assetPath,
       manifestPath: var_manifestPath,
@@ -21971,17 +22100,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbExportInput sse_decode_db_export_input(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_options = sse_decode_db_export_options(deserializer);
-    final var_selectedSessionIds = sse_decode_list_String(deserializer);
-    final var_selectedEmptyFolders = sse_decode_list_String(deserializer);
-    final var_configJson = sse_decode_String(deserializer);
-    final var_schemaVersion = sse_decode_i_64(deserializer);
-    final var_appVersion = sse_decode_opt_String(deserializer);
-    final var_masterPassword = sse_decode_list_prim_u_8_strict(deserializer);
-    final var_kdfMemoryKib = sse_decode_u_32(deserializer);
-    final var_kdfIterations = sse_decode_u_32(deserializer);
-    final var_kdfParallelism = sse_decode_u_32(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_options = sse_decode_db_export_options(deserializer);
+    var var_selectedSessionIds = sse_decode_list_String(deserializer);
+    var var_selectedEmptyFolders = sse_decode_list_String(deserializer);
+    var var_configJson = sse_decode_String(deserializer);
+    var var_schemaVersion = sse_decode_i_64(deserializer);
+    var var_appVersion = sse_decode_opt_String(deserializer);
+    var var_masterPassword = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_kdfMemoryKib = sse_decode_u_32(deserializer);
+    var var_kdfIterations = sse_decode_u_32(deserializer);
+    var var_kdfParallelism = sse_decode_u_32(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
     return DbExportInput(
       options: var_options,
       selectedSessionIds: var_selectedSessionIds,
@@ -22000,13 +22129,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbExportOptions sse_decode_db_export_options(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_includeSessions = sse_decode_bool(deserializer);
-    final var_includeKnownHosts = sse_decode_bool(deserializer);
-    final var_includeConfig = sse_decode_bool(deserializer);
-    final var_includeTags = sse_decode_bool(deserializer);
-    final var_includeSnippets = sse_decode_bool(deserializer);
-    final var_includeAllManagerKeys = sse_decode_bool(deserializer);
-    final var_hasManagerKeys = sse_decode_bool(deserializer);
+    var var_includeSessions = sse_decode_bool(deserializer);
+    var var_includeKnownHosts = sse_decode_bool(deserializer);
+    var var_includeConfig = sse_decode_bool(deserializer);
+    var var_includeTags = sse_decode_bool(deserializer);
+    var var_includeSnippets = sse_decode_bool(deserializer);
+    var var_includeAllManagerKeys = sse_decode_bool(deserializer);
+    var var_hasManagerKeys = sse_decode_bool(deserializer);
     return DbExportOptions(
       includeSessions: var_includeSessions,
       includeKnownHosts: var_includeKnownHosts,
@@ -22021,8 +22150,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbFileSortKey sse_decode_db_file_sort_key(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_isDir = sse_decode_bool(deserializer);
-    final var_nameLower = sse_decode_String(deserializer);
+    var var_isDir = sse_decode_bool(deserializer);
+    var var_nameLower = sse_decode_String(deserializer);
     return DbFileSortKey(isDir: var_isDir, nameLower: var_nameLower);
   }
 
@@ -22031,8 +22160,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_deletedFiles = sse_decode_list_String(deserializer);
-    final var_failedFiles = sse_decode_list_String(deserializer);
+    var var_deletedFiles = sse_decode_list_String(deserializer);
+    var var_failedFiles = sse_decode_list_String(deserializer);
     return DbFileSweepReport(
       deletedFiles: var_deletedFiles,
       failedFiles: var_failedFiles,
@@ -22042,12 +22171,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbFolder sse_decode_db_folder(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_name = sse_decode_String(deserializer);
-    final var_parentId = sse_decode_opt_String(deserializer);
-    final var_sortOrder = sse_decode_i_64(deserializer);
-    final var_collapsed = sse_decode_bool(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_parentId = sse_decode_opt_String(deserializer);
+    var var_sortOrder = sse_decode_i_64(deserializer);
+    var var_collapsed = sse_decode_bool(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
     return DbFolder(
       id: var_id,
       name: var_name,
@@ -22061,9 +22190,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbHardeningStep sse_decode_db_hardening_step(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_label = sse_decode_String(deserializer);
-    final var_code = sse_decode_i_64(deserializer);
-    final var_error = sse_decode_opt_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_code = sse_decode_i_64(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
     return DbHardeningStep(label: var_label, code: var_code, error: var_error);
   }
 
@@ -22072,15 +22201,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_salt = sse_decode_list_prim_u_8_strict(deserializer);
-    final var_sealed = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_salt = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_sealed = sse_decode_list_prim_u_8_strict(deserializer);
     return DbHardwareTierLinuxBlob(salt: var_salt, sealed: var_sealed);
   }
 
   @protected
   DbImportMode sse_decode_db_import_mode(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbImportMode.values[inner];
   }
 
@@ -22089,23 +22218,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_handleId = sse_decode_String(deserializer);
-    final var_preview = sse_decode_db_import_preview(deserializer);
+    var var_handleId = sse_decode_String(deserializer);
+    var var_preview = sse_decode_db_import_preview(deserializer);
     return DbImportOpenResult(handleId: var_handleId, preview: var_preview);
   }
 
   @protected
   DbImportPreview sse_decode_db_import_preview(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_schemaVersion = sse_decode_i_64(deserializer);
-    final var_sessionCount = sse_decode_i_64(deserializer);
-    final var_sessionLabels = sse_decode_list_String(deserializer);
-    final var_managerKeyCount = sse_decode_i_64(deserializer);
-    final var_tagCount = sse_decode_i_64(deserializer);
-    final var_snippetCount = sse_decode_i_64(deserializer);
-    final var_emptyFolderCount = sse_decode_i_64(deserializer);
-    final var_hasConfig = sse_decode_bool(deserializer);
-    final var_hasKnownHosts = sse_decode_bool(deserializer);
+    var var_schemaVersion = sse_decode_i_64(deserializer);
+    var var_sessionCount = sse_decode_i_64(deserializer);
+    var var_sessionLabels = sse_decode_list_String(deserializer);
+    var var_managerKeyCount = sse_decode_i_64(deserializer);
+    var var_tagCount = sse_decode_i_64(deserializer);
+    var var_snippetCount = sse_decode_i_64(deserializer);
+    var var_emptyFolderCount = sse_decode_i_64(deserializer);
+    var var_hasConfig = sse_decode_bool(deserializer);
+    var var_hasKnownHosts = sse_decode_bool(deserializer);
     return DbImportPreview(
       schemaVersion: var_schemaVersion,
       sessionCount: var_sessionCount,
@@ -22122,9 +22251,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbKdfParams sse_decode_db_kdf_params(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_memoryKib = sse_decode_u_32(deserializer);
-    final var_iterations = sse_decode_u_32(deserializer);
-    final var_parallelism = sse_decode_u_32(deserializer);
+    var var_memoryKib = sse_decode_u_32(deserializer);
+    var var_iterations = sse_decode_u_32(deserializer);
+    var var_parallelism = sse_decode_u_32(deserializer);
     return DbKdfParams(
       memoryKib: var_memoryKib,
       iterations: var_iterations,
@@ -22137,8 +22266,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_salt = sse_decode_list_prim_u_8_strict(deserializer);
-    final var_hmac = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_salt = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_hmac = sse_decode_list_prim_u_8_strict(deserializer);
     return DbKeychainGateBlob(salt: var_salt, hmac: var_hmac);
   }
 
@@ -22147,8 +22276,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_salt = sse_decode_list_prim_u_8_strict(deserializer);
-    final var_pepper = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_salt = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_pepper = sse_decode_list_prim_u_8_strict(deserializer);
     return DbKeychainGateSeed(salt: var_salt, pepper: var_pepper);
   }
 
@@ -22157,8 +22286,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_key = sse_decode_String(deserializer);
-    final var_status = sse_decode_String(deserializer);
+    var var_key = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
     return DbKeychainKeyWipe(key: var_key, status: var_status);
   }
 
@@ -22167,10 +22296,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_entries = sse_decode_list_db_keychain_key_wipe(deserializer);
-    final var_succeededCount = sse_decode_u_32(deserializer);
-    final var_failedCount = sse_decode_u_32(deserializer);
-    final var_allSucceeded = sse_decode_bool(deserializer);
+    var var_entries = sse_decode_list_db_keychain_key_wipe(deserializer);
+    var var_succeededCount = sse_decode_u_32(deserializer);
+    var var_failedCount = sse_decode_u_32(deserializer);
+    var var_allSucceeded = sse_decode_bool(deserializer);
     return DbKeychainWipeReport(
       entries: var_entries,
       succeededCount: var_succeededCount,
@@ -22182,12 +22311,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbKnownHost sse_decode_db_known_host(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_i_64(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_i_64(deserializer);
-    final var_keyType = sse_decode_String(deserializer);
-    final var_keyBase64 = sse_decode_String(deserializer);
-    final var_addedAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_i_64(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_i_64(deserializer);
+    var var_keyType = sse_decode_String(deserializer);
+    var var_keyBase64 = sse_decode_String(deserializer);
+    var var_addedAtMs = sse_decode_i_64(deserializer);
     return DbKnownHost(
       id: var_id,
       host: var_host,
@@ -22203,9 +22332,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_added = sse_decode_i_64(deserializer);
-    final var_skippedExisting = sse_decode_i_64(deserializer);
-    final var_skippedHashed = sse_decode_i_64(deserializer);
+    var var_added = sse_decode_i_64(deserializer);
+    var var_skippedExisting = sse_decode_i_64(deserializer);
+    var var_skippedHashed = sse_decode_i_64(deserializer);
     return DbKnownHostsImportSummary(
       added: var_added,
       skippedExisting: var_skippedExisting,
@@ -22218,12 +22347,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_path = sse_decode_String(deserializer);
-    final var_size = sse_decode_u_64(deserializer);
-    final var_mode = sse_decode_u_32(deserializer);
-    final var_modTimeUnixMs = sse_decode_i_64(deserializer);
-    final var_isDir = sse_decode_bool(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_size = sse_decode_u_64(deserializer);
+    var var_mode = sse_decode_u_32(deserializer);
+    var var_modTimeUnixMs = sse_decode_i_64(deserializer);
+    var var_isDir = sse_decode_bool(deserializer);
     return DbLocalFileEntry(
       name: var_name,
       path: var_path,
@@ -22239,12 +22368,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_tierWireName = sse_decode_String(deserializer);
-    final var_password = sse_decode_bool(deserializer);
-    final var_biometric = sse_decode_bool(deserializer);
-    final var_masterPassword = sse_decode_opt_String(deserializer);
-    final var_shortPassword = sse_decode_opt_String(deserializer);
-    final var_pin = sse_decode_opt_String(deserializer);
+    var var_tierWireName = sse_decode_String(deserializer);
+    var var_password = sse_decode_bool(deserializer);
+    var var_biometric = sse_decode_bool(deserializer);
+    var var_masterPassword = sse_decode_opt_String(deserializer);
+    var var_shortPassword = sse_decode_opt_String(deserializer);
+    var var_pin = sse_decode_opt_String(deserializer);
     return DbMappedSetupChoice(
       tierWireName: var_tierWireName,
       password: var_password,
@@ -22260,11 +22389,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_steps = sse_decode_list_db_migration_step(deserializer);
-    final var_futureVersions = sse_decode_list_db_unsupported_future_version(
+    var var_steps = sse_decode_list_db_migration_step(deserializer);
+    var var_futureVersions = sse_decode_list_db_unsupported_future_version(
       deserializer,
     );
-    final var_fatalError = sse_decode_opt_String(deserializer);
+    var var_fatalError = sse_decode_opt_String(deserializer);
     return DbMigrationReport(
       steps: var_steps,
       futureVersions: var_futureVersions,
@@ -22275,11 +22404,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbMigrationStep sse_decode_db_migration_step(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_artefactId = sse_decode_String(deserializer);
-    final var_fromVersion = sse_decode_i_32(deserializer);
-    final var_toVersion = sse_decode_i_32(deserializer);
-    final var_succeeded = sse_decode_bool(deserializer);
-    final var_error = sse_decode_opt_String(deserializer);
+    var var_artefactId = sse_decode_String(deserializer);
+    var var_fromVersion = sse_decode_i_32(deserializer);
+    var var_toVersion = sse_decode_i_32(deserializer);
+    var var_succeeded = sse_decode_bool(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
     return DbMigrationStep(
       artefactId: var_artefactId,
       fromVersion: var_fromVersion,
@@ -22294,7 +22423,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbOpenSshAuthType.values[inner];
   }
 
@@ -22303,12 +22432,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_host = sse_decode_String(deserializer);
-    final var_hostName = sse_decode_opt_String(deserializer);
-    final var_user = sse_decode_opt_String(deserializer);
-    final var_port = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_identityFiles = sse_decode_list_String(deserializer);
-    final var_preferredAuthTypes = sse_decode_opt_list_db_open_ssh_auth_type(
+    var var_host = sse_decode_String(deserializer);
+    var var_hostName = sse_decode_opt_String(deserializer);
+    var var_user = sse_decode_opt_String(deserializer);
+    var var_port = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_identityFiles = sse_decode_list_String(deserializer);
+    var var_preferredAuthTypes = sse_decode_opt_list_db_open_ssh_auth_type(
       deserializer,
     );
     return DbOpenSshHostEntry(
@@ -22326,13 +22455,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_privatePem = sse_decode_String(deserializer);
-    final var_publicOpenssh = sse_decode_String(deserializer);
-    final var_keyType = sse_decode_String(deserializer);
-    final var_fingerprint = sse_decode_String(deserializer);
-    final var_createdAtUnixMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_privatePem = sse_decode_String(deserializer);
+    var var_publicOpenssh = sse_decode_String(deserializer);
+    var var_keyType = sse_decode_String(deserializer);
+    var var_fingerprint = sse_decode_String(deserializer);
+    var var_createdAtUnixMs = sse_decode_i_64(deserializer);
     return DbOpenSshImportKey(
       id: var_id,
       label: var_label,
@@ -22349,13 +22478,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_sessions = sse_decode_list_db_open_ssh_import_session(
-      deserializer,
-    );
-    final var_keys = sse_decode_list_db_open_ssh_import_key(deserializer);
-    final var_parsedHosts = sse_decode_u_32(deserializer);
-    final var_hostsWithMissingKeys = sse_decode_list_String(deserializer);
-    final var_hostsWithEncryptedKeys = sse_decode_list_String(deserializer);
+    var var_sessions = sse_decode_list_db_open_ssh_import_session(deserializer);
+    var var_keys = sse_decode_list_db_open_ssh_import_key(deserializer);
+    var var_parsedHosts = sse_decode_u_32(deserializer);
+    var var_hostsWithMissingKeys = sse_decode_list_String(deserializer);
+    var var_hostsWithEncryptedKeys = sse_decode_list_String(deserializer);
     return DbOpenSshImportPreview(
       sessions: var_sessions,
       keys: var_keys,
@@ -22370,14 +22497,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_folder = sse_decode_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_u_32(deserializer);
-    final var_user = sse_decode_String(deserializer);
-    final var_authType = sse_decode_db_open_ssh_auth_type(deserializer);
-    final var_keyId = sse_decode_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_folder = sse_decode_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_u_32(deserializer);
+    var var_user = sse_decode_String(deserializer);
+    var var_authType = sse_decode_db_open_ssh_auth_type(deserializer);
+    var var_keyId = sse_decode_String(deserializer);
     return DbOpenSshImportSession(
       id: var_id,
       label: var_label,
@@ -22395,9 +22522,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_hostPort = sse_decode_String(deserializer);
-    final var_keyType = sse_decode_String(deserializer);
-    final var_keyBase64 = sse_decode_String(deserializer);
+    var var_hostPort = sse_decode_String(deserializer);
+    var var_keyType = sse_decode_String(deserializer);
+    var var_keyBase64 = sse_decode_String(deserializer);
     return DbParsedHostEntry(
       hostPort: var_hostPort,
       keyType: var_keyType,
@@ -22410,7 +22537,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbPasswordStrength.values[inner];
   }
 
@@ -22419,17 +22546,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_sessionId = sse_decode_String(deserializer);
-    final var_kind = sse_decode_String(deserializer);
-    final var_bindHost = sse_decode_String(deserializer);
-    final var_bindPort = sse_decode_i_64(deserializer);
-    final var_remoteHost = sse_decode_String(deserializer);
-    final var_remotePort = sse_decode_i_64(deserializer);
-    final var_description = sse_decode_String(deserializer);
-    final var_enabled = sse_decode_bool(deserializer);
-    final var_sortOrder = sse_decode_i_64(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_kind = sse_decode_String(deserializer);
+    var var_bindHost = sse_decode_String(deserializer);
+    var var_bindPort = sse_decode_i_64(deserializer);
+    var var_remoteHost = sse_decode_String(deserializer);
+    var var_remotePort = sse_decode_i_64(deserializer);
+    var var_description = sse_decode_String(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    var var_sortOrder = sse_decode_i_64(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
     return DbPortForwardRule(
       id: var_id,
       sessionId: var_sessionId,
@@ -22450,11 +22577,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_sessionId = sse_decode_opt_String(deserializer);
-    final var_keyId = sse_decode_String(deserializer);
-    final var_keyData = sse_decode_String(deserializer);
-    final var_password = sse_decode_String(deserializer);
-    final var_passphrase = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_opt_String(deserializer);
+    var var_keyId = sse_decode_String(deserializer);
+    var var_keyData = sse_decode_String(deserializer);
+    var var_password = sse_decode_String(deserializer);
+    var var_passphrase = sse_decode_String(deserializer);
     return DbPrepareAuthInput(
       sessionId: var_sessionId,
       keyId: var_keyId,
@@ -22467,8 +22594,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbPreparedAuth sse_decode_db_prepared_auth(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_auth = sse_decode_db_prepared_auth_ref(deserializer);
-    final var_transientSecretIds = sse_decode_list_String(deserializer);
+    var var_auth = sse_decode_db_prepared_auth_ref(deserializer);
+    var var_transientSecretIds = sse_decode_list_String(deserializer);
     return DbPreparedAuth(
       auth: var_auth,
       transientSecretIds: var_transientSecretIds,
@@ -22481,14 +22608,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        final var_secretId = sse_decode_String(deserializer);
+        var var_secretId = sse_decode_String(deserializer);
         return DbPreparedAuthRef_Password(secretId: var_secretId);
       case 1:
-        final var_keySecretId = sse_decode_String(deserializer);
-        final var_passphraseSecretId = sse_decode_opt_String(deserializer);
+        var var_keySecretId = sse_decode_String(deserializer);
+        var var_passphraseSecretId = sse_decode_opt_String(deserializer);
         return DbPreparedAuthRef_Pubkey(
           keySecretId: var_keySecretId,
           passphraseSecretId: var_passphraseSecretId,
@@ -22501,10 +22628,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbQrExportInput sse_decode_db_qr_export_input(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_options = sse_decode_db_qr_export_options(deserializer);
-    final var_selectedSessionIds = sse_decode_list_String(deserializer);
-    final var_selectedEmptyFolders = sse_decode_list_String(deserializer);
-    final var_configJson = sse_decode_opt_String(deserializer);
+    var var_options = sse_decode_db_qr_export_options(deserializer);
+    var var_selectedSessionIds = sse_decode_list_String(deserializer);
+    var var_selectedEmptyFolders = sse_decode_list_String(deserializer);
+    var var_configJson = sse_decode_opt_String(deserializer);
     return DbQrExportInput(
       options: var_options,
       selectedSessionIds: var_selectedSessionIds,
@@ -22518,15 +22645,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_includeSessions = sse_decode_bool(deserializer);
-    final var_includeConfig = sse_decode_bool(deserializer);
-    final var_includeKnownHosts = sse_decode_bool(deserializer);
-    final var_includePasswords = sse_decode_bool(deserializer);
-    final var_includeEmbeddedKeys = sse_decode_bool(deserializer);
-    final var_includeManagerKeys = sse_decode_bool(deserializer);
-    final var_includeAllManagerKeys = sse_decode_bool(deserializer);
-    final var_includeTags = sse_decode_bool(deserializer);
-    final var_includeSnippets = sse_decode_bool(deserializer);
+    var var_includeSessions = sse_decode_bool(deserializer);
+    var var_includeConfig = sse_decode_bool(deserializer);
+    var var_includeKnownHosts = sse_decode_bool(deserializer);
+    var var_includePasswords = sse_decode_bool(deserializer);
+    var var_includeEmbeddedKeys = sse_decode_bool(deserializer);
+    var var_includeManagerKeys = sse_decode_bool(deserializer);
+    var var_includeAllManagerKeys = sse_decode_bool(deserializer);
+    var var_includeTags = sse_decode_bool(deserializer);
+    var var_includeSnippets = sse_decode_bool(deserializer);
     return DbQrExportOptions(
       includeSessions: var_includeSessions,
       includeConfig: var_includeConfig,
@@ -22545,8 +22672,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_failureCount = sse_decode_u_32(deserializer);
-    final var_cooldownRemainingMs = sse_decode_i_64(deserializer);
+    var var_failureCount = sse_decode_u_32(deserializer);
+    var var_cooldownRemainingMs = sse_decode_i_64(deserializer);
     return DbRateLimitStatus(
       failureCount: var_failureCount,
       cooldownRemainingMs: var_cooldownRemainingMs,
@@ -22558,7 +22685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbRecordDirection.values[inner];
   }
 
@@ -22567,11 +22694,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_sessionId = sse_decode_String(deserializer);
-    final var_path = sse_decode_String(deserializer);
-    final var_bytesWritten = sse_decode_u_64(deserializer);
-    final var_encrypted = sse_decode_bool(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_bytesWritten = sse_decode_u_64(deserializer);
+    var var_encrypted = sse_decode_bool(deserializer);
     return DbRecorderSnapshot(
       id: var_id,
       sessionId: var_sessionId,
@@ -22584,8 +22711,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbReleaseAsset sse_decode_db_release_asset(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_browserDownloadUrl = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_browserDownloadUrl = sse_decode_String(deserializer);
     return DbReleaseAsset(
       name: var_name,
       browserDownloadUrl: var_browserDownloadUrl,
@@ -22597,8 +22724,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_rendered = sse_decode_String(deserializer);
-    final var_unresolved = sse_decode_list_String(deserializer);
+    var var_rendered = sse_decode_String(deserializer);
+    var var_unresolved = sse_decode_list_String(deserializer);
     return DbRenderedSnippet(
       rendered: var_rendered,
       unresolved: var_unresolved,
@@ -22610,28 +22737,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_folderPath = sse_decode_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_i_64(deserializer);
-    final var_user = sse_decode_String(deserializer);
-    final var_authType = sse_decode_String(deserializer);
-    final var_password = sse_decode_String(deserializer);
-    final var_keyPath = sse_decode_String(deserializer);
-    final var_keyData = sse_decode_String(deserializer);
-    final var_keyId = sse_decode_opt_String(deserializer);
-    final var_passphrase = sse_decode_String(deserializer);
-    final var_sortOrder = sse_decode_i_64(deserializer);
-    final var_notes = sse_decode_String(deserializer);
-    final var_lastConnectedAtMs = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_extras = sse_decode_String(deserializer);
-    final var_viaSessionId = sse_decode_opt_String(deserializer);
-    final var_viaHost = sse_decode_opt_String(deserializer);
-    final var_viaPort = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_viaUser = sse_decode_opt_String(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
-    final var_updatedAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_folderPath = sse_decode_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_i_64(deserializer);
+    var var_user = sse_decode_String(deserializer);
+    var var_authType = sse_decode_String(deserializer);
+    var var_password = sse_decode_String(deserializer);
+    var var_keyPath = sse_decode_String(deserializer);
+    var var_keyData = sse_decode_String(deserializer);
+    var var_keyId = sse_decode_opt_String(deserializer);
+    var var_passphrase = sse_decode_String(deserializer);
+    var var_sortOrder = sse_decode_i_64(deserializer);
+    var var_notes = sse_decode_String(deserializer);
+    var var_lastConnectedAtMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_extras = sse_decode_String(deserializer);
+    var var_viaSessionId = sse_decode_opt_String(deserializer);
+    var var_viaHost = sse_decode_opt_String(deserializer);
+    var var_viaPort = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_viaUser = sse_decode_opt_String(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_updatedAtMs = sse_decode_i_64(deserializer);
     return DbRestoreSessionInput(
       id: var_id,
       label: var_label,
@@ -22661,9 +22788,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbScannedKey sse_decode_db_scanned_key(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_path = sse_decode_String(deserializer);
-    final var_pem = sse_decode_String(deserializer);
-    final var_suggestedLabel = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_pem = sse_decode_String(deserializer);
+    var var_suggestedLabel = sse_decode_String(deserializer);
     return DbScannedKey(
       path: var_path,
       pem: var_pem,
@@ -22676,11 +22803,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_folder = sse_decode_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_user = sse_decode_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_folder = sse_decode_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_user = sse_decode_String(deserializer);
     return DbSearchableSession(
       id: var_id,
       label: var_label,
@@ -22696,13 +22823,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        final var_field0 = sse_decode_list_prim_u_8_strict(deserializer);
+        var var_field0 = sse_decode_list_prim_u_8_strict(deserializer);
         return DbSecureStorageOutcome_Found(var_field0);
       case 1:
-        return const DbSecureStorageOutcome_NotFound();
+        return DbSecureStorageOutcome_NotFound();
       default:
         throw UnimplementedError('');
     }
@@ -22713,13 +22840,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_keychainAvailable = sse_decode_bool(deserializer);
-    final var_hardwareVaultAvailable = sse_decode_bool(deserializer);
-    final var_biometricAvailable = sse_decode_bool(deserializer);
-    final var_fprintdAvailable = sse_decode_bool(deserializer);
-    final var_isLinuxHost = sse_decode_bool(deserializer);
-    final var_keychainProbeWireName = sse_decode_String(deserializer);
-    final var_hardwareProbeCode = sse_decode_String(deserializer);
+    var var_keychainAvailable = sse_decode_bool(deserializer);
+    var var_hardwareVaultAvailable = sse_decode_bool(deserializer);
+    var var_biometricAvailable = sse_decode_bool(deserializer);
+    var var_fprintdAvailable = sse_decode_bool(deserializer);
+    var var_isLinuxHost = sse_decode_bool(deserializer);
+    var var_keychainProbeWireName = sse_decode_String(deserializer);
+    var var_hardwareProbeCode = sse_decode_String(deserializer);
     return DbSecurityCapabilities(
       keychainAvailable: var_keychainAvailable,
       hardwareVaultAvailable: var_hardwareVaultAvailable,
@@ -22736,13 +22863,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_keychainAvailable = sse_decode_bool(deserializer);
-    final var_hardwareVaultAvailable = sse_decode_bool(deserializer);
-    final var_biometricAvailable = sse_decode_bool(deserializer);
-    final var_fprintdAvailable = sse_decode_bool(deserializer);
-    final var_isLinuxHost = sse_decode_bool(deserializer);
-    final var_keychainProbeWireName = sse_decode_String(deserializer);
-    final var_hardwareProbeCode = sse_decode_String(deserializer);
+    var var_keychainAvailable = sse_decode_bool(deserializer);
+    var var_hardwareVaultAvailable = sse_decode_bool(deserializer);
+    var var_biometricAvailable = sse_decode_bool(deserializer);
+    var var_fprintdAvailable = sse_decode_bool(deserializer);
+    var var_isLinuxHost = sse_decode_bool(deserializer);
+    var var_keychainProbeWireName = sse_decode_String(deserializer);
+    var var_hardwareProbeCode = sse_decode_String(deserializer);
     return DbSecurityCapabilitiesSnapshot(
       keychainAvailable: var_keychainAvailable,
       hardwareVaultAvailable: var_hardwareVaultAvailable,
@@ -22757,9 +22884,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbSecurityConfig sse_decode_db_security_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_tierWireName = sse_decode_String(deserializer);
-    final var_password = sse_decode_bool(deserializer);
-    final var_biometric = sse_decode_bool(deserializer);
+    var var_tierWireName = sse_decode_String(deserializer);
+    var var_password = sse_decode_bool(deserializer);
+    var var_biometric = sse_decode_bool(deserializer);
     return DbSecurityConfig(
       tierWireName: var_tierWireName,
       password: var_password,
@@ -22770,7 +22897,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbSecurityThreat sse_decode_db_security_threat(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbSecurityThreat.values[inner];
   }
 
@@ -22779,8 +22906,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_password = sse_decode_bool(deserializer);
-    final var_biometric = sse_decode_bool(deserializer);
+    var var_password = sse_decode_bool(deserializer);
+    var var_biometric = sse_decode_bool(deserializer);
     return DbSecurityTierModifiers(
       password: var_password,
       biometric: var_biometric,
@@ -22790,28 +22917,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbSession sse_decode_db_session(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_folderId = sse_decode_opt_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_i_64(deserializer);
-    final var_user = sse_decode_String(deserializer);
-    final var_authType = sse_decode_String(deserializer);
-    final var_password = sse_decode_String(deserializer);
-    final var_keyPath = sse_decode_String(deserializer);
-    final var_keyData = sse_decode_String(deserializer);
-    final var_keyId = sse_decode_opt_String(deserializer);
-    final var_passphrase = sse_decode_String(deserializer);
-    final var_sortOrder = sse_decode_i_64(deserializer);
-    final var_notes = sse_decode_String(deserializer);
-    final var_lastConnectedAtMs = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_extras = sse_decode_String(deserializer);
-    final var_viaSessionId = sse_decode_opt_String(deserializer);
-    final var_viaHost = sse_decode_opt_String(deserializer);
-    final var_viaPort = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_viaUser = sse_decode_opt_String(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
-    final var_updatedAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_folderId = sse_decode_opt_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_i_64(deserializer);
+    var var_user = sse_decode_String(deserializer);
+    var var_authType = sse_decode_String(deserializer);
+    var var_password = sse_decode_String(deserializer);
+    var var_keyPath = sse_decode_String(deserializer);
+    var var_keyData = sse_decode_String(deserializer);
+    var var_keyId = sse_decode_opt_String(deserializer);
+    var var_passphrase = sse_decode_String(deserializer);
+    var var_sortOrder = sse_decode_i_64(deserializer);
+    var var_notes = sse_decode_String(deserializer);
+    var var_lastConnectedAtMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_extras = sse_decode_String(deserializer);
+    var var_viaSessionId = sse_decode_opt_String(deserializer);
+    var var_viaHost = sse_decode_opt_String(deserializer);
+    var var_viaPort = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_viaUser = sse_decode_opt_String(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_updatedAtMs = sse_decode_i_64(deserializer);
     return DbSession(
       id: var_id,
       label: var_label,
@@ -22843,8 +22970,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_description = sse_decode_String(deserializer);
-    final var_blob = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_description = sse_decode_String(deserializer);
+    var var_blob = sse_decode_list_prim_u_8_strict(deserializer);
     return DbSessionHistorySnapshot(
       description: var_description,
       blob: var_blob,
@@ -22856,23 +22983,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_folderId = sse_decode_opt_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_i_64(deserializer);
-    final var_user = sse_decode_String(deserializer);
-    final var_authType = sse_decode_String(deserializer);
-    final var_keyPath = sse_decode_String(deserializer);
-    final var_keyId = sse_decode_opt_String(deserializer);
-    final var_sortOrder = sse_decode_i_64(deserializer);
-    final var_notes = sse_decode_String(deserializer);
-    final var_extras = sse_decode_String(deserializer);
-    final var_viaSessionId = sse_decode_opt_String(deserializer);
-    final var_viaHost = sse_decode_opt_String(deserializer);
-    final var_viaPort = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_viaUser = sse_decode_opt_String(deserializer);
-    final var_updatedAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_folderId = sse_decode_opt_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_i_64(deserializer);
+    var var_user = sse_decode_String(deserializer);
+    var var_authType = sse_decode_String(deserializer);
+    var var_keyPath = sse_decode_String(deserializer);
+    var var_keyId = sse_decode_opt_String(deserializer);
+    var var_sortOrder = sse_decode_i_64(deserializer);
+    var var_notes = sse_decode_String(deserializer);
+    var var_extras = sse_decode_String(deserializer);
+    var var_viaSessionId = sse_decode_opt_String(deserializer);
+    var var_viaHost = sse_decode_opt_String(deserializer);
+    var var_viaPort = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_viaUser = sse_decode_opt_String(deserializer);
+    var var_updatedAtMs = sse_decode_i_64(deserializer);
     return DbSessionMetadata(
       id: var_id,
       label: var_label,
@@ -22899,10 +23026,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_sessions = sse_decode_list_db_session(deserializer);
-    final var_folders = sse_decode_list_db_folder(deserializer);
-    final var_emptyFolders = sse_decode_list_String(deserializer);
-    final var_collapsedFolders = sse_decode_list_String(deserializer);
+    var var_sessions = sse_decode_list_db_session(deserializer);
+    var var_folders = sse_decode_list_db_folder(deserializer);
+    var var_emptyFolders = sse_decode_list_String(deserializer);
+    var var_collapsedFolders = sse_decode_list_String(deserializer);
     return DbSessionRegistryView(
       sessions: var_sessions,
       folders: var_folders,
@@ -22916,10 +23043,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_folder = sse_decode_String(deserializer);
-    final var_displayName = sse_decode_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_folder = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
     return DbSessionTreeInput(
       id: var_id,
       label: var_label,
@@ -22933,11 +23060,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_fullPath = sse_decode_String(deserializer);
-    final var_sessionId = sse_decode_opt_String(deserializer);
-    final var_sessionCount = sse_decode_u_32(deserializer);
-    final var_children = sse_decode_list_db_session_tree_node(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_fullPath = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_opt_String(deserializer);
+    var var_sessionCount = sse_decode_u_32(deserializer);
+    var var_children = sse_decode_list_db_session_tree_node(deserializer);
     return DbSessionTreeNode(
       name: var_name,
       fullPath: var_fullPath,
@@ -22950,11 +23077,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbSftpBookmark sse_decode_db_sftp_bookmark(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_sessionId = sse_decode_String(deserializer);
-    final var_remotePath = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_remotePath = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
     return DbSftpBookmark(
       id: var_id,
       sessionId: var_sessionId,
@@ -22969,20 +23096,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_hash = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_hash = sse_decode_String(deserializer);
     return DbSha256ManifestEntry(name: var_name, hash: var_hash);
   }
 
   @protected
   DbSnippet sse_decode_db_snippet(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_title = sse_decode_String(deserializer);
-    final var_command = sse_decode_String(deserializer);
-    final var_description = sse_decode_String(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
-    final var_updatedAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_command = sse_decode_String(deserializer);
+    var var_description = sse_decode_String(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_updatedAtMs = sse_decode_i_64(deserializer);
     return DbSnippet(
       id: var_id,
       title: var_title,
@@ -22996,13 +23123,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbSshKey sse_decode_db_ssh_key(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_privateKey = sse_decode_String(deserializer);
-    final var_publicKey = sse_decode_String(deserializer);
-    final var_keyType = sse_decode_String(deserializer);
-    final var_isGenerated = sse_decode_bool(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_privateKey = sse_decode_String(deserializer);
+    var var_publicKey = sse_decode_String(deserializer);
+    var var_keyType = sse_decode_String(deserializer);
+    var var_isGenerated = sse_decode_bool(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
     return DbSshKey(
       id: var_id,
       label: var_label,
@@ -23019,14 +23146,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_publicKey = sse_decode_String(deserializer);
-    final var_keyType = sse_decode_String(deserializer);
-    final var_isGenerated = sse_decode_bool(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
-    final var_privateFingerprint = sse_decode_String(deserializer);
-    final var_publicFingerprint = sse_decode_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_publicKey = sse_decode_String(deserializer);
+    var var_keyType = sse_decode_String(deserializer);
+    var var_isGenerated = sse_decode_bool(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_privateFingerprint = sse_decode_String(deserializer);
+    var var_publicFingerprint = sse_decode_String(deserializer);
     return DbSshKeyMetadata(
       id: var_id,
       label: var_label,
@@ -23044,25 +23171,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_folderPath = sse_decode_String(deserializer);
-    final var_tagId = sse_decode_String(deserializer);
+    var var_folderPath = sse_decode_String(deserializer);
+    var var_tagId = sse_decode_String(deserializer);
     return DbStagedFolderTagLink(folderPath: var_folderPath, tagId: var_tagId);
   }
 
   @protected
   DbStagedImport sse_decode_db_staged_import(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_manifestJson = sse_decode_opt_String(deserializer);
-    final var_sessionsJson = sse_decode_opt_String(deserializer);
-    final var_keysJson = sse_decode_opt_String(deserializer);
-    final var_tagsJson = sse_decode_opt_String(deserializer);
-    final var_sessionTagsJson = sse_decode_opt_String(deserializer);
-    final var_folderTagsJson = sse_decode_opt_String(deserializer);
-    final var_snippetsJson = sse_decode_opt_String(deserializer);
-    final var_sessionSnippetsJson = sse_decode_opt_String(deserializer);
-    final var_emptyFoldersJson = sse_decode_opt_String(deserializer);
-    final var_configJson = sse_decode_opt_String(deserializer);
-    final var_knownHostsText = sse_decode_opt_String(deserializer);
+    var var_manifestJson = sse_decode_opt_String(deserializer);
+    var var_sessionsJson = sse_decode_opt_String(deserializer);
+    var var_keysJson = sse_decode_opt_String(deserializer);
+    var var_tagsJson = sse_decode_opt_String(deserializer);
+    var var_sessionTagsJson = sse_decode_opt_String(deserializer);
+    var var_folderTagsJson = sse_decode_opt_String(deserializer);
+    var var_snippetsJson = sse_decode_opt_String(deserializer);
+    var var_sessionSnippetsJson = sse_decode_opt_String(deserializer);
+    var var_emptyFoldersJson = sse_decode_opt_String(deserializer);
+    var var_configJson = sse_decode_opt_String(deserializer);
+    var var_knownHostsText = sse_decode_opt_String(deserializer);
     return DbStagedImport(
       manifestJson: var_manifestJson,
       sessionsJson: var_sessionsJson,
@@ -23083,13 +23210,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_privateKey = sse_decode_String(deserializer);
-    final var_publicKey = sse_decode_String(deserializer);
-    final var_keyType = sse_decode_String(deserializer);
-    final var_isGenerated = sse_decode_bool(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_privateKey = sse_decode_String(deserializer);
+    var var_publicKey = sse_decode_String(deserializer);
+    var var_keyType = sse_decode_String(deserializer);
+    var var_isGenerated = sse_decode_bool(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
     return DbStagedKeyImport(
       id: var_id,
       label: var_label,
@@ -23104,10 +23231,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbStagedSecrets sse_decode_db_staged_secrets(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_authType = sse_decode_String(deserializer);
-    final var_hasPassword = sse_decode_bool(deserializer);
-    final var_hasKeyData = sse_decode_bool(deserializer);
-    final var_hasPassphrase = sse_decode_bool(deserializer);
+    var var_authType = sse_decode_String(deserializer);
+    var var_hasPassword = sse_decode_bool(deserializer);
+    var var_hasKeyData = sse_decode_bool(deserializer);
+    var var_hasPassphrase = sse_decode_bool(deserializer);
     return DbStagedSecrets(
       authType: var_authType,
       hasPassword: var_hasPassword,
@@ -23121,25 +23248,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_label = sse_decode_String(deserializer);
-    final var_folder = sse_decode_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_i_64(deserializer);
-    final var_user = sse_decode_String(deserializer);
-    final var_authType = sse_decode_String(deserializer);
-    final var_password = sse_decode_String(deserializer);
-    final var_keyPath = sse_decode_String(deserializer);
-    final var_keyData = sse_decode_String(deserializer);
-    final var_passphrase = sse_decode_String(deserializer);
-    final var_keyId = sse_decode_opt_String(deserializer);
-    final var_extrasJson = sse_decode_String(deserializer);
-    final var_viaSessionId = sse_decode_opt_String(deserializer);
-    final var_viaOverrideHost = sse_decode_opt_String(deserializer);
-    final var_viaOverridePort = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_viaOverrideUser = sse_decode_opt_String(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
-    final var_updatedAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_folder = sse_decode_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_i_64(deserializer);
+    var var_user = sse_decode_String(deserializer);
+    var var_authType = sse_decode_String(deserializer);
+    var var_password = sse_decode_String(deserializer);
+    var var_keyPath = sse_decode_String(deserializer);
+    var var_keyData = sse_decode_String(deserializer);
+    var var_passphrase = sse_decode_String(deserializer);
+    var var_keyId = sse_decode_opt_String(deserializer);
+    var var_extrasJson = sse_decode_String(deserializer);
+    var var_viaSessionId = sse_decode_opt_String(deserializer);
+    var var_viaOverrideHost = sse_decode_opt_String(deserializer);
+    var var_viaOverridePort = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_viaOverrideUser = sse_decode_opt_String(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_updatedAtMs = sse_decode_i_64(deserializer);
     return DbStagedSessionImport(
       id: var_id,
       label: var_label,
@@ -23168,8 +23295,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_sessionId = sse_decode_String(deserializer);
-    final var_snippetId = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_snippetId = sse_decode_String(deserializer);
     return DbStagedSessionSnippetLink(
       sessionId: var_sessionId,
       snippetId: var_snippetId,
@@ -23181,8 +23308,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_sessionId = sse_decode_String(deserializer);
-    final var_tagId = sse_decode_String(deserializer);
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_tagId = sse_decode_String(deserializer);
     return DbStagedSessionTagLink(sessionId: var_sessionId, tagId: var_tagId);
   }
 
@@ -23191,12 +23318,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_title = sse_decode_String(deserializer);
-    final var_command = sse_decode_String(deserializer);
-    final var_description = sse_decode_String(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
-    final var_updatedAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_command = sse_decode_String(deserializer);
+    var var_description = sse_decode_String(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_updatedAtMs = sse_decode_i_64(deserializer);
     return DbStagedSnippetImport(
       id: var_id,
       title: var_title,
@@ -23212,10 +23339,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_name = sse_decode_String(deserializer);
-    final var_color = sse_decode_opt_String(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_color = sse_decode_opt_String(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
     return DbStagedTagImport(
       id: var_id,
       name: var_name,
@@ -23227,10 +23354,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbTag sse_decode_db_tag(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_name = sse_decode_String(deserializer);
-    final var_color = sse_decode_opt_String(deserializer);
-    final var_createdAtMs = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_color = sse_decode_opt_String(deserializer);
+    var var_createdAtMs = sse_decode_i_64(deserializer);
     return DbTag(
       id: var_id,
       name: var_name,
@@ -23242,22 +23369,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbThreatRow sse_decode_db_threat_row(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_threat = sse_decode_db_security_threat(deserializer);
-    final var_status = sse_decode_db_threat_status(deserializer);
+    var var_threat = sse_decode_db_security_threat(deserializer);
+    var var_status = sse_decode_db_threat_status(deserializer);
     return DbThreatRow(threat: var_threat, status: var_status);
   }
 
   @protected
   DbThreatStatus sse_decode_db_threat_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbThreatStatus.values[inner];
   }
 
   @protected
   DbThreatTier sse_decode_db_threat_tier(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbThreatTier.values[inner];
   }
 
@@ -23265,21 +23392,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbTierEvent sse_decode_db_tier_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        return const DbTierEvent_UnlockRequested();
+        return DbTierEvent_UnlockRequested();
       case 1:
-        return const DbTierEvent_UnlockSucceeded();
+        return DbTierEvent_UnlockSucceeded();
       case 2:
-        final var_reason = sse_decode_box_autoadd_db_unlock_failure_reason(
+        var var_reason = sse_decode_box_autoadd_db_unlock_failure_reason(
           deserializer,
         );
         return DbTierEvent_UnlockFailed(reason: var_reason);
       case 3:
-        return const DbTierEvent_LockRequested();
+        return DbTierEvent_LockRequested();
       case 4:
-        return const DbTierEvent_Wiped();
+        return DbTierEvent_Wiped();
       default:
         throw UnimplementedError('');
     }
@@ -23288,7 +23415,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbTierState sse_decode_db_tier_state(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbTierState.values[inner];
   }
 
@@ -23297,14 +23424,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbTpmProbeResult.values[inner];
   }
 
   @protected
   DbTransferKind sse_decode_db_transfer_kind(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbTransferKind.values[inner];
   }
 
@@ -23313,10 +23440,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_fileName = sse_decode_String(deserializer);
-    final var_totalFiles = sse_decode_u_64(deserializer);
-    final var_doneFiles = sse_decode_u_64(deserializer);
-    final var_isUpload = sse_decode_bool(deserializer);
+    var var_fileName = sse_decode_String(deserializer);
+    var var_totalFiles = sse_decode_u_64(deserializer);
+    var var_doneFiles = sse_decode_u_64(deserializer);
+    var var_isUpload = sse_decode_bool(deserializer);
     return DbTransferProgress(
       fileName: var_fileName,
       totalFiles: var_totalFiles,
@@ -23330,15 +23457,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_kind = sse_decode_db_transfer_kind(deserializer);
-    final var_sessionId = sse_decode_String(deserializer);
-    final var_remotePath = sse_decode_String(deserializer);
-    final var_localPath = sse_decode_String(deserializer);
-    final var_state = sse_decode_db_transfer_state(deserializer);
-    final var_bytesDone = sse_decode_u_64(deserializer);
-    final var_bytesTotal = sse_decode_u_64(deserializer);
-    final var_error = sse_decode_opt_String(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_kind = sse_decode_db_transfer_kind(deserializer);
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_remotePath = sse_decode_String(deserializer);
+    var var_localPath = sse_decode_String(deserializer);
+    var var_state = sse_decode_db_transfer_state(deserializer);
+    var var_bytesDone = sse_decode_u_64(deserializer);
+    var var_bytesTotal = sse_decode_u_64(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
     return DbTransferSnapshot(
       id: var_id,
       kind: var_kind,
@@ -23355,7 +23482,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbTransferState sse_decode_db_transfer_state(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbTransferState.values[inner];
   }
 
@@ -23365,17 +23492,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        return const DbUnlockFailureReason_WrongSecret();
+        return DbUnlockFailureReason_WrongSecret();
       case 1:
-        final var_code = sse_decode_String(deserializer);
+        var var_code = sse_decode_String(deserializer);
         return DbUnlockFailureReason_PluginUnavailable(code: var_code);
       case 2:
-        return const DbUnlockFailureReason_UserCancelled();
+        return DbUnlockFailureReason_UserCancelled();
       case 3:
-        final var_detail = sse_decode_String(deserializer);
+        var var_detail = sse_decode_String(deserializer);
         return DbUnlockFailureReason_Corruption(detail: var_detail);
       default:
         throw UnimplementedError('');
@@ -23386,19 +23513,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DbUnlockOutcome sse_decode_db_unlock_outcome(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        return const DbUnlockOutcome_Staged();
+        return DbUnlockOutcome_Staged();
       case 1:
-        return const DbUnlockOutcome_WrongSecret();
+        return DbUnlockOutcome_WrongSecret();
       case 2:
-        return const DbUnlockOutcome_Cancelled();
+        return DbUnlockOutcome_Cancelled();
       case 3:
-        final var_field0 = sse_decode_String(deserializer);
+        var var_field0 = sse_decode_String(deserializer);
         return DbUnlockOutcome_PluginError(var_field0);
       case 4:
-        final var_field0 = sse_decode_String(deserializer);
+        var var_field0 = sse_decode_String(deserializer);
         return DbUnlockOutcome_Corruption(var_field0);
       default:
         throw UnimplementedError('');
@@ -23410,9 +23537,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_artefactId = sse_decode_String(deserializer);
-    final var_onDiskVersion = sse_decode_i_32(deserializer);
-    final var_knownTargetVersion = sse_decode_i_32(deserializer);
+    var var_artefactId = sse_decode_String(deserializer);
+    var var_onDiskVersion = sse_decode_i_32(deserializer);
+    var var_knownTargetVersion = sse_decode_i_32(deserializer);
     return DbUnsupportedFutureVersion(
       artefactId: var_artefactId,
       onDiskVersion: var_onDiskVersion,
@@ -23423,12 +23550,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbUpdateInfo sse_decode_db_update_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_latestVersion = sse_decode_String(deserializer);
-    final var_currentVersion = sse_decode_String(deserializer);
-    final var_releaseUrl = sse_decode_String(deserializer);
-    final var_assetUrl = sse_decode_opt_String(deserializer);
-    final var_assetDigest = sse_decode_opt_String(deserializer);
-    final var_changelog = sse_decode_opt_String(deserializer);
+    var var_latestVersion = sse_decode_String(deserializer);
+    var var_currentVersion = sse_decode_String(deserializer);
+    var var_releaseUrl = sse_decode_String(deserializer);
+    var var_assetUrl = sse_decode_opt_String(deserializer);
+    var var_assetDigest = sse_decode_opt_String(deserializer);
+    var var_changelog = sse_decode_opt_String(deserializer);
     return DbUpdateInfo(
       latestVersion: var_latestVersion,
       currentVersion: var_currentVersion,
@@ -23442,7 +23569,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbVersionOrder.values[inner];
   }
 
@@ -23467,9 +23594,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   KeyMaterial sse_decode_key_material(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_privatePem = sse_decode_String(deserializer);
-    final var_publicOpenssh = sse_decode_String(deserializer);
-    final var_keyType = sse_decode_String(deserializer);
+    var var_privatePem = sse_decode_String(deserializer);
+    var var_publicOpenssh = sse_decode_String(deserializer);
+    var var_keyType = sse_decode_String(deserializer);
     return KeyMaterial(
       privatePem: var_privatePem,
       publicOpenssh: var_publicOpenssh,
@@ -23481,8 +23608,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String> sse_decode_list_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <String>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
     }
@@ -23495,8 +23622,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbChangelogRelease>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbChangelogRelease>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_changelog_release(deserializer));
     }
@@ -23509,8 +23636,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbConnectionSnapshot>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbConnectionSnapshot>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_connection_snapshot(deserializer));
     }
@@ -23523,8 +23650,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbFileSortKey>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbFileSortKey>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_file_sort_key(deserializer));
     }
@@ -23535,8 +23662,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbFolder> sse_decode_list_db_folder(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbFolder>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbFolder>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_folder(deserializer));
     }
@@ -23549,8 +23676,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbHardeningStep>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbHardeningStep>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_hardening_step(deserializer));
     }
@@ -23563,8 +23690,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbKeychainKeyWipe>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbKeychainKeyWipe>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_keychain_key_wipe(deserializer));
     }
@@ -23577,8 +23704,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbKnownHost>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbKnownHost>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_known_host(deserializer));
     }
@@ -23591,8 +23718,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbLocalFileEntry>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbLocalFileEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_local_file_entry(deserializer));
     }
@@ -23605,8 +23732,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbMigrationStep>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbMigrationStep>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_migration_step(deserializer));
     }
@@ -23619,8 +23746,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbOpenSshAuthType>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbOpenSshAuthType>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_open_ssh_auth_type(deserializer));
     }
@@ -23633,8 +23760,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbOpenSshHostEntry>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbOpenSshHostEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_open_ssh_host_entry(deserializer));
     }
@@ -23647,8 +23774,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbOpenSshImportKey>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbOpenSshImportKey>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_open_ssh_import_key(deserializer));
     }
@@ -23661,8 +23788,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbOpenSshImportSession>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbOpenSshImportSession>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_open_ssh_import_session(deserializer));
     }
@@ -23675,8 +23802,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbParsedHostEntry>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbParsedHostEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_parsed_host_entry(deserializer));
     }
@@ -23689,8 +23816,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbPortForwardRule>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbPortForwardRule>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_port_forward_rule(deserializer));
     }
@@ -23703,8 +23830,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbReleaseAsset>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbReleaseAsset>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_release_asset(deserializer));
     }
@@ -23717,8 +23844,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbRestoreSessionInput>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbRestoreSessionInput>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_restore_session_input(deserializer));
     }
@@ -23731,8 +23858,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbScannedKey>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbScannedKey>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_scanned_key(deserializer));
     }
@@ -23745,8 +23872,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSearchableSession>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSearchableSession>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_searchable_session(deserializer));
     }
@@ -23757,8 +23884,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbSession> sse_decode_list_db_session(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSession>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSession>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_session(deserializer));
     }
@@ -23771,8 +23898,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSessionTreeInput>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSessionTreeInput>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_session_tree_input(deserializer));
     }
@@ -23785,8 +23912,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSessionTreeNode>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSessionTreeNode>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_session_tree_node(deserializer));
     }
@@ -23799,8 +23926,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSftpBookmark>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSftpBookmark>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_sftp_bookmark(deserializer));
     }
@@ -23813,8 +23940,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSha256ManifestEntry>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSha256ManifestEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_sha_256_manifest_entry(deserializer));
     }
@@ -23825,8 +23952,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbSnippet> sse_decode_list_db_snippet(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSnippet>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSnippet>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_snippet(deserializer));
     }
@@ -23837,8 +23964,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbSshKey> sse_decode_list_db_ssh_key(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSshKey>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSshKey>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_ssh_key(deserializer));
     }
@@ -23851,8 +23978,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbSshKeyMetadata>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbSshKeyMetadata>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_ssh_key_metadata(deserializer));
     }
@@ -23865,8 +23992,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbStagedFolderTagLink>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbStagedFolderTagLink>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_staged_folder_tag_link(deserializer));
     }
@@ -23879,8 +24006,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbStagedKeyImport>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbStagedKeyImport>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_staged_key_import(deserializer));
     }
@@ -23893,8 +24020,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbStagedSessionImport>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbStagedSessionImport>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_staged_session_import(deserializer));
     }
@@ -23906,8 +24033,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   sse_decode_list_db_staged_session_snippet_link(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbStagedSessionSnippetLink>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbStagedSessionSnippetLink>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_staged_session_snippet_link(deserializer));
     }
@@ -23920,8 +24047,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbStagedSessionTagLink>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbStagedSessionTagLink>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_staged_session_tag_link(deserializer));
     }
@@ -23934,8 +24061,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbStagedSnippetImport>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbStagedSnippetImport>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_staged_snippet_import(deserializer));
     }
@@ -23948,8 +24075,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbStagedTagImport>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbStagedTagImport>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_staged_tag_import(deserializer));
     }
@@ -23960,8 +24087,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DbTag> sse_decode_list_db_tag(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbTag>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbTag>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_tag(deserializer));
     }
@@ -23974,8 +24101,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbThreatRow>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbThreatRow>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_threat_row(deserializer));
     }
@@ -23988,8 +24115,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbTransferSnapshot>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbTransferSnapshot>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_transfer_snapshot(deserializer));
     }
@@ -24001,8 +24128,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   sse_decode_list_db_unsupported_future_version(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbUnsupportedFutureVersion>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbUnsupportedFutureVersion>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_unsupported_future_version(deserializer));
     }
@@ -24012,21 +24139,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final len_ = sse_decode_i_32(deserializer);
+    var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint32List(len_);
   }
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final len_ = sse_decode_i_32(deserializer);
+    var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
   }
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final len_ = sse_decode_i_32(deserializer);
+    var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
   }
 
@@ -24036,8 +24163,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <(String, String)>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, String)>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_record_string_string(deserializer));
     }
@@ -24050,8 +24177,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <SftpDirEntry>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SftpDirEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_sftp_dir_entry(deserializer));
     }
@@ -24063,7 +24190,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return MacosInstallOutcome.values[inner];
   }
 
@@ -24072,7 +24199,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return MacosResignOutcome.values[inner];
   }
 
@@ -24407,16 +24534,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_label = sse_decode_String(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_user = sse_decode_String(deserializer);
-    final var_port = sse_decode_u_16(deserializer);
-    final var_folder = sse_decode_String(deserializer);
-    final var_authType = sse_decode_String(deserializer);
-    final var_keyShort = sse_decode_opt_String(deserializer);
-    final var_isManager = sse_decode_bool(deserializer);
-    final var_includePasswords = sse_decode_bool(deserializer);
-    final var_password = sse_decode_list_prim_u_8_strict(deserializer);
+    var var_label = sse_decode_String(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_user = sse_decode_String(deserializer);
+    var var_port = sse_decode_u_16(deserializer);
+    var var_folder = sse_decode_String(deserializer);
+    var var_authType = sse_decode_String(deserializer);
+    var var_keyShort = sse_decode_opt_String(deserializer);
+    var var_isManager = sse_decode_bool(deserializer);
+    var var_includePasswords = sse_decode_bool(deserializer);
+    var var_password = sse_decode_list_prim_u_8_strict(deserializer);
     return QrSessionCompactInputs(
       label: var_label,
       host: var_host,
@@ -24436,20 +24563,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_field0 = sse_decode_String(deserializer);
-    final var_field1 = sse_decode_String(deserializer);
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_String(deserializer);
     return (var_field0, var_field1);
   }
 
   @protected
   SftpDirEntry sse_decode_sftp_dir_entry(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_size = sse_decode_u_64(deserializer);
-    final var_isDir = sse_decode_bool(deserializer);
-    final var_isSymlink = sse_decode_bool(deserializer);
-    final var_modifiedUnix = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_permissions = sse_decode_u_32(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_size = sse_decode_u_64(deserializer);
+    var var_isDir = sse_decode_bool(deserializer);
+    var var_isSymlink = sse_decode_bool(deserializer);
+    var var_modifiedUnix = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_permissions = sse_decode_u_32(deserializer);
     return SftpDirEntry(
       name: var_name,
       size: var_size,
@@ -24463,11 +24590,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SftpFileMetadata sse_decode_sftp_file_metadata(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_size = sse_decode_u_64(deserializer);
-    final var_isDir = sse_decode_bool(deserializer);
-    final var_isSymlink = sse_decode_bool(deserializer);
-    final var_modifiedUnix = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_permissions = sse_decode_u_32(deserializer);
+    var var_size = sse_decode_u_64(deserializer);
+    var var_isDir = sse_decode_bool(deserializer);
+    var var_isSymlink = sse_decode_bool(deserializer);
+    var var_modifiedUnix = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_permissions = sse_decode_u_32(deserializer);
     return SftpFileMetadata(
       size: var_size,
       isDir: var_isDir,
@@ -24481,21 +24608,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SshShellEvent sse_decode_ssh_shell_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        final var_field0 = sse_decode_list_prim_u_8_strict(deserializer);
+        var var_field0 = sse_decode_list_prim_u_8_strict(deserializer);
         return SshShellEvent_Output(var_field0);
       case 1:
-        final var_field0 = sse_decode_list_prim_u_8_strict(deserializer);
+        var var_field0 = sse_decode_list_prim_u_8_strict(deserializer);
         return SshShellEvent_ExtendedOutput(var_field0);
       case 2:
-        return const SshShellEvent_Eof();
+        return SshShellEvent_Eof();
       case 3:
-        final var_field0 = sse_decode_u_32(deserializer);
+        var var_field0 = sse_decode_u_32(deserializer);
         return SshShellEvent_ExitStatus(var_field0);
       case 4:
-        final var_field0 = sse_decode_String(deserializer);
+        var var_field0 = sse_decode_String(deserializer);
         return SshShellEvent_ExitSignal(var_field0);
       default:
         throw UnimplementedError('');
@@ -24507,11 +24634,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_port = sse_decode_u_16(deserializer);
-    final var_hostPubkeyAlgorithm = sse_decode_String(deserializer);
-    final var_hostPubkeyB64 = sse_decode_String(deserializer);
-    final var_password = sse_decode_String(deserializer);
-    final var_sftpRoot = sse_decode_String(deserializer);
+    var var_port = sse_decode_u_16(deserializer);
+    var var_hostPubkeyAlgorithm = sse_decode_String(deserializer);
+    var var_hostPubkeyB64 = sse_decode_String(deserializer);
+    var var_password = sse_decode_String(deserializer);
+    var var_sftpRoot = sse_decode_String(deserializer);
     return TestSshServerInfo(
       port: var_port,
       hostPubkeyAlgorithm: var_hostPubkeyAlgorithm,
@@ -24658,6 +24785,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError(
+    CoreError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as CoreErrorImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel(
     SshForwardChannel self,
     SseSerializer serializer,
@@ -24742,6 +24882,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_record_string_string(
       self.entries.map((e) => (e.key, e.value)).toList(),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoreError(
+    CoreError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as CoreErrorImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -27903,6 +28056,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
   }
+}
+
+@sealed
+class CoreErrorImpl extends RustOpaque implements CoreError {
+  // Not to be used by end users
+  CoreErrorImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  CoreErrorImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_CoreError,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_CoreError,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_CoreErrorPtr,
+  );
 }
 
 @sealed

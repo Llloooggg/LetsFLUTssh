@@ -64,17 +64,31 @@ pub async fn port_forward_start_local(
     target_host: String,
     target_port: u32,
 ) -> Result<u32, String> {
+    let bind_port = u16_port(bind_port, "bind_port")?;
+    let target_port = u16_port(target_port, "target_port")?;
     lfs_core::portforward::driver::start_local(
         rule_id,
         connection_id,
         bind_host,
-        bind_port,
+        u32::from(bind_port),
         target_host,
-        target_port as u16,
+        target_port,
     )
     .await
     .map(|p| p as u32)
     .map_err(|e| crate::api::frb_err::from_core(&e))
+}
+
+/// Validate a wire-typed port (Dart `int` lands as `u32`) fits in
+/// the canonical `u16` shape. The previous `as u16` cast would
+/// silently truncate `100_000` to `34464` and dial the wrong port.
+fn u16_port(value: u32, label: &str) -> Result<u16, String> {
+    u16::try_from(value).map_err(|_| {
+        crate::api::frb_err::wire(
+            crate::api::frb_err::kind::GENERIC,
+            &format!("{label} {value} exceeds u16::MAX (65535)"),
+        )
+    })
 }
 
 /// Stop a listener spawned by [`port_forward_start_local`].
@@ -94,10 +108,16 @@ pub async fn port_forward_start_dynamic(
     bind_host: String,
     bind_port: u32,
 ) -> Result<u32, String> {
-    lfs_core::portforward::driver::start_dynamic(rule_id, connection_id, bind_host, bind_port)
-        .await
-        .map(|p| p as u32)
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+    let bind_port = u16_port(bind_port, "bind_port")?;
+    lfs_core::portforward::driver::start_dynamic(
+        rule_id,
+        connection_id,
+        bind_host,
+        u32::from(bind_port),
+    )
+    .await
+    .map(|p| p as u32)
+    .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Stop a SOCKS5 listener spawned by
@@ -120,13 +140,15 @@ pub async fn port_forward_start_remote(
     target_host: String,
     target_port: u32,
 ) -> Result<u32, String> {
+    let bind_port = u16_port(bind_port, "bind_port")?;
+    let target_port = u16_port(target_port, "target_port")?;
     lfs_core::portforward::driver::start_remote(
         rule_id,
         connection_id,
         bind_host,
-        bind_port,
+        u32::from(bind_port),
         target_host,
-        target_port as u16,
+        target_port,
     )
     .await
     .map_err(|e| crate::api::frb_err::from_core(&e))

@@ -60,7 +60,13 @@ pub struct QrSessionCompactInputs {
 /// passwords would be a security regression.
 #[flutter_rust_bridge::frb(sync)]
 pub fn qr_codec_encode_session_compact(inputs: QrSessionCompactInputs) -> String {
-    let password = String::from_utf8(inputs.password).unwrap_or_default();
+    // QR payload JSON is UTF-8; non-UTF-8 input bytes route
+    // through `from_utf8_lossy` so the user still gets a session
+    // that pastes back. The previous `unwrap_or_default()` would
+    // silently drop the password entirely on a non-UTF-8 byte
+    // (typically a paste from a legacy Latin-1 source) and ship
+    // an "empty password" QR that imports as auth-failed.
+    let password = String::from_utf8_lossy(&inputs.password);
     qr_codec_encode::encode_session_compact_json(&qr_codec_encode::SessionCompactInputs {
         label: &inputs.label,
         host: &inputs.host,

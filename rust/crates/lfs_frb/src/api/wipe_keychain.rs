@@ -16,8 +16,11 @@ use lfs_core::security::wipe_keychain;
 #[derive(Debug, Clone)]
 pub struct DbKeychainKeyWipe {
     pub key: String,
-    /// `"deleted"` on success, `"failed: <msg>"` on plugin error,
-    /// `"cancelled"` when the prompt was abandoned.
+    /// `"deleted"` on success, `"failed: <msg>"` on plugin error.
+    /// The wipe driver fans out one delete per key without a user-
+    /// facing prompt that could be cancelled, so the cancellation
+    /// outcome the previous doc claimed cannot reach this status
+    /// field.
     pub status: String,
 }
 

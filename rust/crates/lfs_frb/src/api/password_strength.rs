@@ -29,8 +29,12 @@ impl From<lfs_core::password_strength::PasswordStrength> for DbPasswordStrength 
 pub fn assess_password_strength(password: Vec<u8>) -> DbPasswordStrength {
     // Wire-shape parity with the rest of the password-marshalling
     // family. Invalid UTF-8 (Dart-side encoding bug, never user
-    // typing) collapses to `Empty` via `unwrap_or_default()` — the
-    // same shape an empty-string call would produce.
-    let password = String::from_utf8(password).unwrap_or_default();
+    // typing) routes through `from_utf8_lossy` so the strength
+    // estimator still sees the input bytes as a best-effort
+    // Unicode string — the previous `unwrap_or_default()` collapsed
+    // any non-UTF-8 input to `Empty`, masking a real password
+    // estimation behind a mid-meter "weak" hint when the user's
+    // bytes happened to start with a stray byte from a paste.
+    let password = String::from_utf8_lossy(&password);
     lfs_core::password_strength::assess(&password).into()
 }

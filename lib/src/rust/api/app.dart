@@ -39,10 +39,14 @@ void secretsDrop({required String id}) =>
 /// pre-listener path where the tier orchestrator returned the
 /// bytes through its FRB return value.
 ///
-/// Returns an empty `Vec` when the id is missing (preserves
-/// the FRB-friendly non-nullable signature; the caller branches
-/// on `bytes.isEmpty` for the absent case).
-Uint8List secretsTake({required String id}) =>
+/// Returns `None` when the id is missing, `Some(bytes)` when the
+/// secret is staged. The previous shape collapsed missing-id and
+/// empty-bytes into a single `Vec::new()` return — the audit
+/// flagged this because an empty `Vec` is a legal staged secret
+/// (zero-byte keys / passwords from a sentinel tier-reset path),
+/// and a caller can't distinguish "no secret here" from "this
+/// secret is intentionally empty" off `Vec::isEmpty` alone.
+Uint8List? secretsTake({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsTake(id: id);
 
 /// Read the bytes stored under [`id`] WITHOUT removing the entry.
@@ -50,9 +54,8 @@ Uint8List secretsTake({required String id}) =>
 /// for a TPM CLI shell-out / Windows MethodChannel call but want
 /// the SecretStore entry to survive so the follow-up
 /// `secrets_take` for drift's sqlcipher rekey still has something
-/// to consume. Returns an empty `Vec` when the id is missing —
-/// caller branches on `bytes.isEmpty`.
-Uint8List secretsGet({required String id}) =>
+/// to consume. Returns `None` when the id is missing.
+Uint8List? secretsGet({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsGet(id: id);
 
 /// Drop every secret in [ids] in a single FRB hop. Used by the

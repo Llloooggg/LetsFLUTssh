@@ -72,7 +72,7 @@ Future<Uint8List> tpmUnseal({
   timeoutMs: timeoutMs,
 );
 
-/// Mirror of `lfs_core::platform::linux::tpm::TpmProbeResult` so
+/// Mirror of `lfs_os_security::linux::tpm::TpmProbeResult` so
 /// the Dart UI can branch on a typed enum instead of a magic
 /// number.
 enum DbTpmProbeResult {

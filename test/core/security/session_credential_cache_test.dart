@@ -33,9 +33,9 @@ void main() {
       expect(rust_app.secretsHas(id: 'sess.passphrase.s1'), isTrue);
 
       // Bytes round-trip via UTF-8.
-      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s1')), 'pw');
-      expect(utf8.decode(rust_app.secretsTake(id: 'sess.key.s1')), 'PEM');
-      expect(utf8.decode(rust_app.secretsTake(id: 'sess.passphrase.s1')), 'pp');
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s1')!), 'pw');
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.key.s1')!), 'PEM');
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.passphrase.s1')!), 'pp');
     });
 
     test('store with null slots drops instead of staging', () async {
@@ -78,7 +78,7 @@ void main() {
       await cache.store(sessionId: 's4', password: 'second');
 
       expect(
-        utf8.decode(rust_app.secretsTake(id: 'sess.password.s4')),
+        utf8.decode(rust_app.secretsTake(id: 'sess.password.s4')!),
         'second',
       );
     });
@@ -87,8 +87,8 @@ void main() {
       await cache.store(sessionId: 's5', password: 'pw5');
       await cache.store(sessionId: 's6', password: 'pw6');
 
-      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s5')), 'pw5');
-      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s6')), 'pw6');
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s5')!), 'pw5');
+      expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s6')!), 'pw6');
     });
 
     test('evict drops every slot for one sessionId only', () async {

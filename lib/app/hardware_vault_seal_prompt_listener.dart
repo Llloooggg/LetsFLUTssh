@@ -77,7 +77,11 @@ class HardwareVaultSealPromptListener {
     String? pin;
     if (pinSecretId != null) {
       final pinBytes = rust_app.secretsTake(id: pinSecretId);
-      pin = pinBytes.isEmpty ? null : utf8.decode(pinBytes);
+      // `secretsTake` now returns `null` when the slot is missing
+      // and `Some(empty)` when an explicit empty PIN was staged
+      // (passwordless hardware tier). Caller branches on null only;
+      // an empty Vec is a legitimate "user picked passwordless".
+      pin = pinBytes == null ? null : utf8.decode(pinBytes);
     }
     try {
       final stored = await _vault.storeFromSecret(
