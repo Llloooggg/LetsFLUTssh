@@ -12,3 +12,40 @@
 pub fn update_verify_release_signature(message: Vec<u8>, signature: Vec<u8>) -> bool {
     lfs_core::update_signing::verify_release_signature(&message, &signature)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malformed_signature_returns_false_not_panic() {
+        // The Dart caller's only negative branch is "verify returned
+        // false → fail closed". A zero-byte signature, a partial one,
+        // and a 64-byte all-zero buffer must all collapse to `false`
+        // without unwinding through FRB.
+        assert!(!update_verify_release_signature(b"hello".to_vec(), vec![]));
+        assert!(!update_verify_release_signature(
+            b"hello".to_vec(),
+            vec![0u8; 8]
+        ));
+        assert!(!update_verify_release_signature(
+            b"hello".to_vec(),
+            vec![0u8; 64]
+        ));
+    }
+
+    #[test]
+    fn random_signature_against_random_message_returns_false() {
+        // Cryptographically negligible chance a random 64-byte
+        // string verifies under the pinned public key — verify
+        // closes that branch deterministically.
+        let msg = b"arbitrary update manifest bytes".to_vec();
+        let sig: Vec<u8> = (0u8..64).collect();
+        assert!(!update_verify_release_signature(msg, sig));
+    }
+
+    #[test]
+    fn empty_message_with_empty_signature_returns_false() {
+        assert!(!update_verify_release_signature(vec![], vec![]));
+    }
+}

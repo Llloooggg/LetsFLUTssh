@@ -1843,6 +1843,7 @@ dependencies = [
  "lfs_core",
  "lfs_os_security",
  "serde_json",
+ "tempfile",
  "tokio",
  "zeroize",
 ]

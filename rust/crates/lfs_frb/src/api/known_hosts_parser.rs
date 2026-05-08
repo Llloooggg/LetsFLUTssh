@@ -37,3 +37,44 @@ pub fn known_hosts_parse_line(line: String) -> Vec<DbParsedHostEntry> {
 pub fn known_hosts_is_hashed_line(line: String) -> bool {
     lfs_core::known_hosts_parser::is_hashed_hosts_line(&line)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_line_extracts_simple_host_entry() {
+        let line = "edge.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5".to_string();
+        let entries = known_hosts_parse_line(line);
+        assert_eq!(entries.len(), 1);
+        let e = &entries[0];
+        assert!(e.host_port.contains("edge.example.com"));
+        assert_eq!(e.key_type, "ssh-ed25519");
+        assert!(e.key_base64.starts_with("AAAA"));
+    }
+
+    #[test]
+    fn parse_line_drops_blank_and_comment() {
+        // Blank lines + `#`-prefixed comments produce no entries.
+        // The importer's per-line walk relies on this so it can
+        // count "valid" rows accurately.
+        assert!(known_hosts_parse_line("".into()).is_empty());
+        assert!(known_hosts_parse_line("   ".into()).is_empty());
+        assert!(known_hosts_parse_line("# some comment".into()).is_empty());
+    }
+
+    #[test]
+    fn is_hashed_line_recognises_hashed_prefix() {
+        // OpenSSH HashKnownHosts shape: `|1|<base64-salt>|<base64-hash>`.
+        assert!(known_hosts_is_hashed_line(
+            "|1|salt|hash ssh-ed25519 AAAA".into()
+        ));
+    }
+
+    #[test]
+    fn is_hashed_line_passes_plain_host_lines() {
+        assert!(!known_hosts_is_hashed_line(
+            "edge.example.com ssh-ed25519 AAAA".into()
+        ));
+    }
+}

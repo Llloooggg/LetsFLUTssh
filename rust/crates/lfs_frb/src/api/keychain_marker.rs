@@ -32,3 +32,43 @@ pub fn keychain_marker_set(support_dir: String) -> Result<(), String> {
 pub fn keychain_marker_clear(support_dir: String) -> Result<(), String> {
     keychain_marker::clear(Path::new(&support_dir))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marker_lifecycle_set_then_exists_then_clear() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 tmp path").to_string();
+
+        // Initial state: marker absent.
+        assert!(!keychain_marker_exists(dir.clone()));
+
+        // After set: marker present.
+        keychain_marker_set(dir.clone()).expect("set");
+        assert!(keychain_marker_exists(dir.clone()));
+
+        // After clear: marker absent again.
+        keychain_marker_clear(dir.clone()).expect("clear");
+        assert!(!keychain_marker_exists(dir));
+    }
+
+    #[test]
+    fn set_is_idempotent() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 tmp path").to_string();
+        keychain_marker_set(dir.clone()).expect("first set");
+        keychain_marker_set(dir.clone()).expect("second set must not error");
+        assert!(keychain_marker_exists(dir));
+    }
+
+    #[test]
+    fn clear_on_missing_marker_is_idempotent() {
+        // Calling clear without a prior set must not surface an
+        // error — the wipe / logout flow runs this unconditionally.
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 tmp path").to_string();
+        keychain_marker_clear(dir).expect("clear on missing");
+    }
+}

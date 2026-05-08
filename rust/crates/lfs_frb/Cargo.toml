@@ -28,6 +28,14 @@ serde_json = { workspace = true }
 # lingering in `Vec<u8>` allocations across the boundary.
 zeroize = { workspace = true }
 
+[dev-dependencies]
+# Per-test scratch directories for the keychain-marker lifecycle
+# tests + any future filesystem fixture under
+# `crates/lfs_frb/src/api/`. Pinned to the same major as
+# lfs_core's own dev-dependency; the dependency stays out of
+# the production cdylib.
+tempfile = "3"
+
 # FRB's `cargo expand` step injects `--cfg frb_expand` to drive its
 # macro expansion. Whitelist that single cfg so `clippy -D warnings`
 # does not trip over the otherwise-unknown gate. Do not blanket-allow
