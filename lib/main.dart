@@ -331,27 +331,28 @@ Future<void> _mainBody() async {
   // `gtk_window_present` of the existing window in `activate`,
   // and macOS's `Info.plist` carries `LSMultipleInstancesProhibited`
   // (NSApplication enforces it natively). All three reject the
-  // duplicate launch in milliseconds, before paying the cost of
-  // engine init / `lfs_frb.dll` Defender scan / Dart bootstrap, and
-  // the standard "focus existing window" UX is what the OS file
-  // managers expect. The previous Dart-side `SingleInstance.acquire`
-  // gate did the same intent one process-lifetime layer too late.
+  // duplicate launch before paying the cost of engine init + Dart
+  // bootstrap, and the standard "focus existing window" UX is what
+  // the OS file managers expect. The previous Dart-side
+  // `SingleInstance.acquire` gate did the same intent one process-
+  // lifetime layer too late.
   // Mobile (iOS / Android) doesn't need any of this — both OSes
   // manage single instance natively as part of the activity / scene
   // lifecycle.
 
   // Rust core (RustLib.init + appInit + ProcessHardening + log
-  // pipe + config-store actor) is DEFERRED into the post-frame
-  // bootstrap so the splash overlay paints immediately — without
-  // that defer, Win IoT users stare at a blank desktop for ~3 s
-  // while Defender scans the bundled `.so/.dll` before the first
-  // frame. This is safe now because the two cold-start callers
-  // that previously needed FRB pre-`runApp` (`AppConfig.fromJson`
-  // → Rust sanitize, `SecurityCapabilities.fromJson`) both fall
-  // back to a pure-Dart path when `RustLib.instance.initialized`
-  // is false; the post-frame canonicalisation re-applies the same
-  // pipeline once the core is up. See `_LetsFLUTsshAppState._bootstrap`
-  // and the docstrings on those two factories.
+  // pipe + config-store actor) runs from `_LetsFLUTsshAppState
+  // ._bootstrap` after the first frame, NOT pre-`runApp`. The
+  // structural invariant that follows: nothing reachable from
+  // `_mainBody` synchronously, from any `Notifier.build` triggered
+  // during the first runApp pass, or from any `initState` of the
+  // first-frame widget tree may call FRB. The two cold-start
+  // callers that historically needed FRB pre-`runApp` (`AppConfig
+  // .fromJson` → Rust sanitize, `SecurityCapabilities.fromJson`)
+  // both fall back to a pure-Dart path; post-frame canonicalisation
+  // re-applies the same pipeline once the core is up. See
+  // `_LetsFLUTsshAppState._bootstrap` and the docstrings on those
+  // two factories.
 
   // Load config before first frame to prevent light-theme flash.
   // The pre-loaded value is injected via [preloadedAppConfigProvider]

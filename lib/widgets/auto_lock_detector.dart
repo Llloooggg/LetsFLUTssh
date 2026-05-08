@@ -228,9 +228,9 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   }
 
   /// Best-effort dispatch into the Rust auto-lock state machine.
-  /// Pre-FRB lifecycle events (`AutoLockDetector` mounts during the
-  /// first runApp pass; on Win IoT the native blob takes ~3 s to
-  /// load) **queue** into [AutoLockDetector._pendingPreFrbDispatches]
+  /// Pre-FRB lifecycle events — `AutoLockDetector` mounts during
+  /// the first runApp pass, before `_initRustCoreOrFatal` runs —
+  /// **queue** into [AutoLockDetector._pendingPreFrbDispatches]
   /// instead of disappearing into a silent catch.
   /// [AutoLockDetector.replayPendingDispatches] — invoked from
   /// `_LetsFLUTsshAppState._bootstrap` once the Rust core is up —

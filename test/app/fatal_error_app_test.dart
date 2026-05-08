@@ -21,14 +21,24 @@ void main() {
       );
     });
 
-    testWidgets('shows an error icon and a Quit button', (tester) async {
+    testWidgets('shows an error icon plus Quit and Wipe buttons', (
+      tester,
+    ) async {
       await tester.pumpWidget(const FatalErrorApp(summary: 's', detail: 'd'));
       await tester.pump();
       // The icon is the highest-level visual cue that something broke
       // — pin its presence so a redesign doesn't accidentally render
       // a blank failure screen.
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Quit'), findsOneWidget);
+      // Two recovery affordances: plain Quit (no data touched) +
+      // Wipe (last-resort self-recovery for a corrupt-on-disk
+      // artefact that prevents the app from getting past the
+      // bootstrap chain).
+      expect(find.widgetWithText(OutlinedButton, 'Quit'), findsOneWidget);
+      expect(
+        find.widgetWithText(FilledButton, 'Wipe all data'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('runs without a parent ProviderScope or theme registry', (

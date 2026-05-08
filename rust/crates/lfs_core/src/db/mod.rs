@@ -87,10 +87,10 @@ impl Db {
     /// PRAGMA — see the module docstring for the migration plan.
     pub fn open(path: &Path, key: &[u8]) -> Result<Self, Error> {
         // Per-step timing — the Dart-side `RustDbInit` Stopwatch
-        // reported the whole `dbInit` FRB hop taking 5+ seconds on
-        // Windows IoT, but couldn't split SQLCipher PRAGMA / smoke
-        // probe / schema bootstrap. These spans surface the actual
-        // culprit on the next reproduction.
+        // logs the whole `dbInit` FRB hop but cannot split SQLCipher
+        // PRAGMA / smoke probe / schema bootstrap. These spans
+        // surface the actual culprit when a slow open shows up in
+        // a support trace.
         let t0 = std::time::Instant::now();
         let conn = Connection::open(path).map_err(|e| Error::Db(format!("db open: {e}")))?;
         crate::app_log_info!(

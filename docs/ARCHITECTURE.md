@@ -3770,6 +3770,22 @@ DbCorruptDialog.show(context) → Future<DbCorruptChoice>
 ```
 Outcome dialog for DB-corruption / wrong-key startup. Three choices: reset the DB and run setup again, retry with a different security tier (config.security gets re-prompted), or exit.
 
+### FatalErrorApp
+
+```dart
+class FatalErrorApp extends StatefulWidget {
+  final String summary;
+  final String detail;
+  ...
+}
+```
+Bare `MaterialApp` shown when the bootstrap chain stops before the regular dialog stack can run — `loadAppConfigFromDisk` cannot parse `config.json`, or `_initRustCoreOrFatal` fails to load the bundled native blob. Carries two recovery affordances:
+
+* **Quit** (`OutlinedButton`) — exits without touching anything on disk.
+* **Wipe all data** (`FilledButton`, red) — last-resort self-recovery for a corrupt-on-disk artefact the user wants to drop. The handler tries the canonical path first: lazily loads `RustLib.init()` + `appInit()` and routes through `WipeAllService.wipeAll()` (files + keychain + hardware vault + crash-safety marker). Only when `RustLib.init` itself fails — the native blob is the broken artefact — does the handler fall through to [`earlyWipeAppSupportFiles`](../lib/app/early_wipe.dart), a pure-Dart sweep of the same catalogue `lfs_core::security::wipe::MANAGED_FILES` declares. Keychain / hardware-vault orphans left by the Dart-only fallback resurface on the next launch and route through `_handleLegacyStateIfPresent` → `TierResetDialog` for the proper Rust-backed cleanup.
+
+Rust core init runs on click, not on dialog open: a broken FRB load must not block the recovery dialog from rendering.
+
 ### SshDirImportDialog
 
 ```dart
@@ -4741,7 +4757,7 @@ _mainBody (synchronous, pre-runApp — PURE DART):
   setThreshold(config.logLevel)                         // file open
   runApp(LetsFLUTsshApp)                                // first frame ← splash visible
 ──── post-frame _bootstrap (FRB OK from this point):
-  _initRustCoreOrFatal:                                 // ~3 s on Win IoT
+  _initRustCoreOrFatal:
       RustLib.init()                                    // load .so/.dll
       rust_app.appInit()                                // AppState singleton
       bootstrapRustConfigStore()                        // config_store actor
@@ -4768,7 +4784,7 @@ _mainBody (synchronous, pre-runApp — PURE DART):
 
 **Invariant — STRICT.** No code reachable from `_mainBody` synchronously, from any Dart `Notifier.build()` triggered during the first runApp pass, or from any `initState` of the widgets that mount during the first frame may call into FRB. The check is mechanical: nothing on those paths imports `package:letsflutssh/src/rust/...` (with the narrow exception of save-side code that runs only post-bootstrap, e.g. `AppConfig.toJson` → `rust_config.configAppConfigToJson`). The pure-Dart pipeline produces canonical results for healthy `config.json` content because every sub-config's `fromJson` factory calls its own `.sanitized()` clamp pipeline (clamp out-of-range numbers, fall through unknown enum names to defaults).
 
-**Why the invariant exists.** Win IoT's Defender real-time scan adds ~3 s to the bundled `liblfs_frb.dll` load. Painting the splash overlay through that wait demands `runApp` fire before `RustLib.init`. Earlier code violated this on the cold-start path (`AppConfig.fromJson` calling `rust_config.configAppConfigSanitizeJson`, `SecurityCapabilities.fromJson` calling `rust_caps.securityCapabilitiesFromJson`, `MainScreen.initState` wiring `*PromptListener.start()` → `AppBus.subscribe`); the violations manifested as silent config overwrites, hung unlock cascades, and FRB-not-initialised crash loops in the global error handlers. The fix routed each violation through pure Dart so the deferral is structurally safe rather than guarded by scattered `RustLib.instance.initialized` checks.
+**Why the invariant exists.** Pre-FRB FRB calls throw `StateError("flutter_rust_bridge has not been initialized")`, and when those throws hit the cold-start path the failure modes were ugly: the zone error handler in `main.dart` itself called FRB-backed helpers (e.g. `formatClockHms` for log timestamps), so an FRB-not-init in the path under test would re-trip in the handler and swallow the original error; `MainScreen.initState` wiring `*PromptListener.start()` → `AppBus.subscribe` left dead `_SharedTopic` entries that never recovered to live FRB subscriptions; `AppConfig.fromJson` → `rust_config.configAppConfigSanitizeJson` raced the native lib load and on the losing race silently overwrote the on-disk config with defaults; the unlock cascade hung for minutes when one of its FRB-backed steps fired pre-init and the retry loop kept re-entering the same throw. Every one of these shipped at some point as a real bug. The fix is structural — keep every cold-start surface pure Dart so the deferral is safe by construction, not by scattered `RustLib.instance.initialized` guards that get forgotten.
 
 **How to add a new pre-runApp step.** Use only `dart:io`, `dart:convert`, `path_provider`, `package:flutter/foundation`. Importing anything under `lib/src/rust/` from a file reachable on the cold-start path is a regression — fail loud at review.
 
@@ -4777,9 +4793,9 @@ _mainBody (synchronous, pre-runApp — PURE DART):
 **Pre-FRB FRB-touching surfaces that *must* defer.** Two surfaces look like they need a Dart-only path on the cold-start pre-runApp half but each actually queues work for the post-init drain:
 
 * **`AppLogger.setThreshold` → `_openSink` → `_restrictPermissions`.** The chmod is `lfs_core::path::harden_file_perms` (FRB). Pre-FRB calls queue the path in `AppLogger._deferredHardenPaths`; `_LetsFLUTsshAppState._bootstrap` drains the set via `AppLogger.hardenPendingLogPerms()` immediately after `_initRustCoreOrFatal` succeeds. Without the queue + drain the chmod throws `StateError` and the `try` swallows it silently — the log file lives at the umask-wide default (typically `0644`) for the rest of the session.
-* **Deep-link wireup.** `DeepLinkHandler.init()` runs `getInitialLink()` then `handleUri` → `rust_deeplink.deeplinkDispatch` (FRB). The handler now lives in `deepLinkHandlerProvider` (process-wide). `_MainScreenState.initState` registers callbacks via `wireDeepLinks(...)` (pure-Dart wiring); `_bootstrap` calls `activateDeepLinks(...)` post-FRB to fire `init()`. A cold-launch via `letsflutssh://` URL or a double-clicked `.lfs` file therefore never races the native-lib load on Win IoT.
+* **Deep-link wireup.** `DeepLinkHandler.init()` runs `getInitialLink()` then `handleUri` → `rust_deeplink.deeplinkDispatch` (FRB). The handler now lives in `deepLinkHandlerProvider` (process-wide). `_MainScreenState.initState` registers callbacks via `wireDeepLinks(...)` (pure-Dart wiring); `_bootstrap` calls `activateDeepLinks(...)` post-FRB to fire `init()`. A cold-launch via `letsflutssh://` URL or a double-clicked `.lfs` file therefore never races the native-lib load.
 
-**`AppBus.subscribe` is the only structural escape hatch.** A single Riverpod provider — `connectionActiveCountProvider` (`lib/providers/connection_provider.dart`) — has a `build` that may run during the first runApp pass (a top-bar badge watches the count) and calls `AppBus.subscribe` from inside that build. The invariant survives because `AppBus.subscribe` is pre-FRB safe by construction: `_SharedTopic.ensureFrbSub` checks `RustLib.instance.initialized` first and returns early when the core has not loaded, handing back the Dart-side `StreamController.broadcast` stream regardless. `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` then calls `AppBus.retryFrbSubscriptions()` immediately after `_initRustCoreOrFatal` returns; the dead `_SharedTopic` entry is promoted to a live FRB subscription, and listeners that already attached to the broadcast stream start receiving events without re-listening. Any *new* pre-FRB subscriber lands here for free — no additional wiring needed — but every other surface still defers per the rules above. The reason this one provider is allowed pre-FRB is that the alternative (a Dart-only fallback or a `bootstrapDoneProvider` gate) would block the badge from rendering its initial `0` until after the ~3 s native blob load on Win IoT, defeating the same splash-overlay reason `runApp` fires before `RustLib.init`.
+**`AppBus.subscribe` is the only structural escape hatch.** A single Riverpod provider — `connectionActiveCountProvider` (`lib/providers/connection_provider.dart`) — has a `build` that may run during the first runApp pass (a top-bar badge watches the count) and calls `AppBus.subscribe` from inside that build. The invariant survives because `AppBus.subscribe` is pre-FRB safe by construction: `_SharedTopic.ensureFrbSub` checks `RustLib.instance.initialized` first and returns early when the core has not loaded, handing back the Dart-side `StreamController.broadcast` stream regardless. `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` then calls `AppBus.retryFrbSubscriptions()` immediately after `_initRustCoreOrFatal` returns; the dead `_SharedTopic` entry is promoted to a live FRB subscription, and listeners that already attached to the broadcast stream start receiving events without re-listening. Any *new* pre-FRB subscriber lands here for free — no additional wiring needed — but every other surface still defers per the rules above.
 
 ### Single-instance protection (desktop only)
 
@@ -4803,7 +4819,7 @@ Prevents multiple app instances from running simultaneously, which would corrupt
 
 **Mobile:** Android + iOS manage single instance through their activity / scene lifecycle — no app code involved.
 
-**Why native, not Dart.** The previous implementation was `lib/core/single_instance/single_instance.dart` using `RandomAccessFile.lock` (and before that an `lfs_os_security::single_instance` Rust module via FRB). Both ran AFTER the Flutter engine + the bundled `lfs_frb.dll` had already loaded — the duplicate process paid the entire engine boot cost (~500 ms on healthy hosts, ~3 s on Win IoT under Defender real-time scan), then showed an `AlreadyRunningApp` blocker the user had to dismiss. Three concrete benefits of moving the gate into the native shell:
+**Why native, not Dart.** The previous implementation was `lib/core/single_instance/single_instance.dart` using `RandomAccessFile.lock` (and before that an `lfs_os_security::single_instance` Rust module via FRB). Both ran AFTER the Flutter engine had already booted — the duplicate process paid the entire engine boot before reaching the duplicate-check, then showed an `AlreadyRunningApp` blocker the user had to dismiss. Three concrete benefits of moving the gate into the native shell:
 
 * **Faster reject** — duplicate launches return in milliseconds instead of seconds.
 * **Standard UX** — focus the existing window instead of showing a custom error dialog.

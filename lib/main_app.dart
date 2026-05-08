@@ -100,17 +100,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       );
     }
 
-    // Rust core load — DEFERRED past the first frame on purpose.
-    // `_mainBody` painted the splash overlay immediately (via
-    // `runApp(LetsFLUTsshApp)`), so the user already sees the
-    // spinner; the ~3 s Defender scan of the bundled `.so/.dll`
-    // on Windows IoT happens here, behind the splash, instead of
-    // in front of a blank desktop. Pre-`runApp` callers that need
-    // FRB (`AppConfig.fromJson` → Rust sanitize, `SecurityCapabilities
-    // .fromJson`) detect `!RustLib.instance.initialized` and use a
-    // pure-Dart fallback path; their result is canonically the same
-    // for healthy `config.json` content because the per-sub-config
-    // `fromJson` factories run their own `.sanitized()` clamps.
+    // Rust core load runs here, in the post-frame `_bootstrap`,
+    // not pre-`runApp`. The cold-start ordering rule (no FRB on
+    // any path reachable during the first runApp pass) makes the
+    // deferral structurally safe: `AppConfig.fromJson` and
+    // `SecurityCapabilities.fromJson` detect
+    // `!RustLib.instance.initialized` and use a pure-Dart fallback,
+    // canonically equivalent for healthy `config.json` content
+    // because each per-sub-config `fromJson` runs its own
+    // `.sanitized()` clamp.
     if (!await _initRustCoreOrFatal()) return;
     mark('rust_core');
 
@@ -150,10 +148,9 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
 
     // Drain any auto-lock lifecycle dispatches that the
     // `AutoLockDetector` queued during the first runApp pass —
-    // pre-FRB lifecycle transitions on Win IoT (the ~3 s native
-    // blob load window) used to silently disappear into a
-    // try/catch swallow, so the Rust state machine never saw
-    // the early `app paused` / `inactive` events. The detector
+    // pre-FRB lifecycle transitions used to silently disappear
+    // into a try/catch swallow, so the Rust state machine never
+    // saw the early `app paused` / `inactive` events. The detector
     // now queues into a module-static buffer; this drains it
     // through the live bus.
     unawaited(AutoLockDetector.replayPendingDispatches());
@@ -469,8 +466,7 @@ class _StartupSplash extends StatelessWidget {
     // to hard-off route / implicit animations the user can't opt out
     // of, NOT a load indicator that's the only signal the app isn't
     // hung. Re-enable the ticker here via `MediaQuery` override so
-    // the spinner actually rotates while bootstrap (Windows IoT
-    // sees ~5 s of `dbInit` + `hardenFilePerms`) is in flight.
+    // the spinner actually rotates while bootstrap is in flight.
     // Tests skip the splash entirely via [debugShowStartupSplash],
     // so re-enabling animations here doesn't pin `pumpAndSettle`.
     // The splash sits in the same Stack as MaterialApp's `home` but
