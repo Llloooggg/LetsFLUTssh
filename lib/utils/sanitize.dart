@@ -83,6 +83,21 @@ String redactBidi(String input) {
   return out.toString();
 }
 
+/// True when [host] contains any codepoint outside ASCII. Hosts
+/// that fail this are IDN candidates: a TOFU prompt that displays
+/// the rendered Unicode form alone is vulnerable to a homograph
+/// attack (a Cyrillic 'а' rendering identical to Latin 'a' in the
+/// dialog while the connect resolver saw the IDN-encoded
+/// punycode). Caller layers a "non-ASCII hostname — verify by eye"
+/// hint on top of the trust prompt.
+bool hostnameHasNonAscii(String host) {
+  if (host.isEmpty) return false;
+  for (final cp in host.runes) {
+    if (cp > 0x7F) return true;
+  }
+  return false;
+}
+
 /// True when [text] looks like it carries secret material — a PEM
 /// private-key block or a long base64 run (≥ 200 chars). Used by
 /// the terminal clipboard auto-wipe + log redactor to agree on

@@ -52,7 +52,7 @@ class _TierRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: AppTheme.radiusSm,
             ),
             child: Text(
               badge,
@@ -87,7 +87,7 @@ class _TierRow extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: AppTheme.fgDim.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: AppTheme.radiusSm,
                         ),
                         child: Text(
                           S.of(context).currentTierBadge,
@@ -107,7 +107,7 @@ class _TierRow extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: AppTheme.green.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: AppTheme.radiusSm,
                         ),
                         child: Text(
                           S.of(context).recommendedBadge,
@@ -145,7 +145,7 @@ class _TierRow extends StatelessWidget {
             color: selected ? accent : AppTheme.borderLight,
             width: selected ? 1.5 : 1,
           ),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: AppTheme.radiusMd,
         ),
         child: Opacity(opacity: disabled ? 0.55 : 1.0, child: content),
       ),
@@ -306,7 +306,7 @@ class _PlaintextAckPanel extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: AppTheme.red.withValues(alpha: 0.6)),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: AppTheme.radiusMd,
         color: AppTheme.red.withValues(alpha: 0.05),
       ),
       child: Column(
@@ -371,7 +371,7 @@ class _HonestyNote extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         border: Border.all(color: AppTheme.yellow.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: AppTheme.radiusMd,
         color: AppTheme.yellow.withValues(alpha: 0.05),
       ),
       child: Row(

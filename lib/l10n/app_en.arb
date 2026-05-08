@@ -1365,5 +1365,9 @@
   "clipboardCopyFailed": "Copy to clipboard failed.",
   "@clipboardCopyFailed": {
     "description": "Toast shown when SecureClipboard.setText refused the write (cloud-sync gate unavailable)."
+  },
+  "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
+  "@nonAsciiHostnameWarning": {
+    "description": "TOFU host-key dialog warning when the hostname contains non-ASCII codepoints (IDN homograph hint)."
   }
 }

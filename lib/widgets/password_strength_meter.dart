@@ -64,7 +64,7 @@ class _PasswordStrengthMeterState extends State<PasswordStrengthMeter> {
             height: 4,
             decoration: BoxDecoration(
               color: AppTheme.bg3,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: AppTheme.radiusXxs,
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
@@ -72,7 +72,7 @@ class _PasswordStrengthMeterState extends State<PasswordStrengthMeter> {
               child: Container(
                 decoration: BoxDecoration(
                   color: color,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: AppTheme.radiusXxs,
                 ),
               ),
             ),

@@ -122,6 +122,13 @@ class _HostKeyDialogWidget extends StatelessWidget {
             label: S.of(context).host,
             value: '${redactBidi(host)}:$port',
           ),
+          if (hostnameHasNonAscii(host)) ...[
+            const SizedBox(height: 4),
+            Text(
+              S.of(context).nonAsciiHostnameWarning,
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
+            ),
+          ],
           const SizedBox(height: 6),
           _InfoRow(label: S.of(context).keyType, value: keyType),
           const SizedBox(height: 6),

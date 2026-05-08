@@ -2438,4 +2438,8 @@ class SKo extends S {
 
   @override
   String get clipboardCopyFailed => 'Copy to clipboard failed.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.';
 }

@@ -4424,6 +4424,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Copy to clipboard failed.'**
   String get clipboardCopyFailed;
+
+  /// TOFU host-key dialog warning when the hostname contains non-ASCII codepoints (IDN homograph hint).
+  ///
+  /// In en, this message translates to:
+  /// **'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.'**
+  String get nonAsciiHostnameWarning;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

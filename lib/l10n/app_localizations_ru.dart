@@ -2521,4 +2521,8 @@ class SRu extends S {
 
   @override
   String get clipboardCopyFailed => 'Не удалось скопировать в буфер.';
+
+  @override
+  String get nonAsciiHostnameWarning =>
+      'Имя хоста содержит не-ASCII символы — проверьте каждый символ. Визуально похожие кодпоинты (кириллица / греческий) могут подменить латинский домен.';
 }

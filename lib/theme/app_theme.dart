@@ -330,6 +330,16 @@ abstract final class AppTheme {
   static const double popupMaxHeight = 400;
 
   // ── Border radius scale ──
+  /// 2 px — strength meter / progress-bar segments. The thinnest
+  /// rung; reaches for visual softening on bars 2-4 px tall where
+  /// `radiusSm` would round away too much of the visible body.
+  static const radiusXxs = BorderRadius.all(Radius.circular(2));
+
+  /// 3 px — tier-card chevrons, security-setup expandable headers.
+  /// Sits between `radiusXxs` (bar segments) and `radiusSm` (input
+  /// rounding) for elements that need a softer-than-input look.
+  static const radiusXs = BorderRadius.all(Radius.circular(3));
+
   /// 4 px — inputs, buttons, small elements.
   static const radiusSm = BorderRadius.all(Radius.circular(4));
 
@@ -338,6 +348,10 @@ abstract final class AppTheme {
 
   /// 8 px — toasts, mobile elements, larger containers.
   static const radiusLg = BorderRadius.all(Radius.circular(8));
+
+  /// 10 px — first-launch security toast / large highlight cards
+  /// where the surface needs more visual lift than `radiusLg`.
+  static const radiusXl = BorderRadius.all(Radius.circular(10));
 
   static ThemeData dark() => _buildTheme(
     scheme: const ColorScheme(

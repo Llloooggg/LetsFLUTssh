@@ -260,7 +260,7 @@ class _Toggle extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: value ? accent : AppTheme.bg4,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: AppTheme.radiusLg,
       ),
       child: AnimatedAlign(
         duration: const Duration(milliseconds: 120),

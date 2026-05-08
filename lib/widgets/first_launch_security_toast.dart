@@ -150,7 +150,7 @@ class _ToastCard extends StatelessWidget {
                     ),
                     InkWell(
                       onTap: onDismiss,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: AppTheme.radiusXl,
                       child: Padding(
                         padding: const EdgeInsets.all(4),
                         child: Icon(

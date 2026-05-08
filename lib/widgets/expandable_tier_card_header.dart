@@ -46,7 +46,7 @@ class _Header extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: AppTheme.radiusXs,
                   border: Border.all(color: accent, width: 1),
                 ),
                 child: Text(
@@ -117,7 +117,7 @@ class _CurrentBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: AppTheme.green.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: AppTheme.radiusSm,
         border: Border.all(color: AppTheme.green, width: 1),
       ),
       child: Row(

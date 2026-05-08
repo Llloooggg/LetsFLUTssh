@@ -665,15 +665,15 @@ class _LogFilterBar extends StatelessWidget {
                   vertical: 4,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.borderLight),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.borderLight),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: AppTheme.radiusSm,
                   borderSide: BorderSide(color: AppTheme.blue, width: 1.2),
                 ),
               ),
@@ -704,7 +704,7 @@ class _LevelChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: AppTheme.radiusSm,
       child: Container(
         width: 28,
         height: 28,
@@ -714,7 +714,7 @@ class _LevelChip extends StatelessWidget {
             color: active ? color : AppTheme.fg.withValues(alpha: 0.2),
             width: 1,
           ),
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: AppTheme.radiusSm,
         ),
         alignment: Alignment.center,
         child: Text(
