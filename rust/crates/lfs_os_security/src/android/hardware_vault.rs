@@ -115,19 +115,27 @@ pub fn store(support_dir: &str, db_key: &[u8], pin_hmac: &[u8]) -> Result<(), Ha
         /*strongbox=*/ true,
     )
     .map_err(map_err)?;
-    let blob = encode_pin_envelope(pin_hmac, &iv, &ct);
+    let body = encode_pin_envelope(pin_hmac, &iv, &ct);
+    let blob = crate::hardware_tier_vault::prepend_envelope_header(
+        crate::hardware_tier_vault::HW_VAULT_PLATFORM_ANDROID,
+        &body,
+    );
     let path = PathBuf::from(support_dir).join(VAULT_FILE);
-    write_atomic_0600(&path, &blob).map_err(map_err)
+    crate::hardware_tier_vault::os_atomic_write_0600(&path, &blob)
 }
 
 pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, HardwareVaultError> {
     let path = PathBuf::from(support_dir).join(VAULT_FILE);
-    let blob = match std::fs::read(&path) {
+    let raw = match std::fs::read(&path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(map_err(format!("read vault file: {e}"))),
     };
-    let (stored_hmac, iv, ct) = decode_pin_envelope(&blob).map_err(map_err)?;
+    let body = crate::hardware_tier_vault::parse_envelope_header(
+        &raw,
+        crate::hardware_tier_vault::HW_VAULT_PLATFORM_ANDROID,
+    )?;
+    let (stored_hmac, iv, ct) = decode_pin_envelope(body).map_err(map_err)?;
     // Constant-time compare on PIN HMAC — wrong PIN returns
     // None without invoking the keystore unwrap (matches the
     // Apple SE flow's gate).
@@ -161,19 +169,27 @@ pub fn store_biometric_password(
         /*strongbox=*/ true,
     )
     .map_err(map_err)?;
-    let blob = encode_bio_envelope(&iv, &ct);
+    let body = encode_bio_envelope(&iv, &ct);
+    let blob = crate::hardware_tier_vault::prepend_envelope_header(
+        crate::hardware_tier_vault::HW_VAULT_PLATFORM_ANDROID,
+        &body,
+    );
     let path = PathBuf::from(support_dir).join(VAULT_FILE_BIO);
-    write_atomic_0600(&path, &blob).map_err(map_err)
+    crate::hardware_tier_vault::os_atomic_write_0600(&path, &blob)
 }
 
 pub fn read_biometric_password(support_dir: &str) -> Result<Option<Vec<u8>>, HardwareVaultError> {
     let path = PathBuf::from(support_dir).join(VAULT_FILE_BIO);
-    let blob = match std::fs::read(&path) {
+    let raw = match std::fs::read(&path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(map_err(format!("read bio vault file: {e}"))),
     };
-    let (iv, ct) = decode_bio_envelope(&blob).map_err(map_err)?;
+    let body = crate::hardware_tier_vault::parse_envelope_header(
+        &raw,
+        crate::hardware_tier_vault::HW_VAULT_PLATFORM_ANDROID,
+    )?;
+    let (iv, ct) = decode_bio_envelope(body).map_err(map_err)?;
     let plain = unwrap(VAULT_ALIAS_BIO, &iv, ct).map_err(map_err)?;
     Ok(Some(plain))
 }
@@ -551,22 +567,7 @@ fn read_frame<'a>(buf: &'a [u8], label: &'static str) -> Result<(&'a [u8], &'a [
     Ok((&buf[4..end], &buf[end..]))
 }
 
-fn write_atomic_0600(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
-    use std::io::Write;
-    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("mkdir parent: {e}"))?;
-    }
-    let tmp = path.with_extension("tmp");
-    {
-        let mut opts = std::fs::OpenOptions::new();
-        opts.create(true).write(true).truncate(true).mode(0o600);
-        let mut f = opts.open(&tmp).map_err(|e| format!("open tmp: {e}"))?;
-        f.write_all(bytes).map_err(|e| format!("write tmp: {e}"))?;
-        f.sync_all().map_err(|e| format!("sync tmp: {e}"))?;
-    }
-    std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))
-        .map_err(|e| format!("chmod tmp: {e}"))?;
-    std::fs::rename(&tmp, path).map_err(|e| format!("rename tmp: {e}"))?;
-    Ok(())
-}
+// `write_atomic_0600` retired — every store now routes through
+// `crate::hardware_tier_vault::os_atomic_write_0600` so the
+// random tmp-suffix + sync_data + parent-dir fsync hardening
+// lands uniformly across platforms.

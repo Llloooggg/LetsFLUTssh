@@ -133,6 +133,158 @@ impl fmt::Display for HardwareVaultError {
 
 impl std::error::Error for HardwareVaultError {}
 
+// ── Common envelope header ────────────────────────────────────────
+//
+// Every platform's hardware-vault on-disk format prepends a
+// fixed-shape `magic + version + platform_id` header so the
+// migration framework can sniff the format without per-platform
+// probes. v1 had no header; v2 readers reject v1 outright (no
+// migration ships in this revision — `SchemaVersions::HW_VAULT_*`
+// bumped to 2 and existing installs hit `HardwareVaultError::Corrupt`
+// → tier-reset cascade).
+
+const HW_VAULT_MAGIC: &[u8; 4] = b"LFHV";
+const HW_VAULT_VERSION: u8 = 2;
+pub const HW_VAULT_PLATFORM_APPLE: u8 = 1;
+pub const HW_VAULT_PLATFORM_WINDOWS: u8 = 2;
+pub const HW_VAULT_PLATFORM_ANDROID: u8 = 3;
+pub const HW_VAULT_PLATFORM_LINUX: u8 = 4;
+pub const HW_VAULT_HEADER_LEN: usize = 6;
+
+/// Prepend `magic[4] + version[1] + platform[1]` to `body` and
+/// return the assembled envelope ready for atomic write.
+#[cfg_attr(
+    not(any(
+        test,
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "android"
+    )),
+    allow(dead_code)
+)]
+pub fn prepend_envelope_header(platform: u8, body: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(HW_VAULT_HEADER_LEN + body.len());
+    out.extend_from_slice(HW_VAULT_MAGIC);
+    out.push(HW_VAULT_VERSION);
+    out.push(platform);
+    out.extend_from_slice(body);
+    out
+}
+
+/// Strip + verify the common envelope header. Returns the body
+/// slice on success; `Err(HardwareVaultError::Corrupt)` for
+/// truncated input, magic mismatch, version mismatch, or
+/// platform-id mismatch (= cross-platform file copy or downgrade
+/// attempt).
+#[cfg_attr(
+    not(any(
+        test,
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "android"
+    )),
+    allow(dead_code)
+)]
+pub fn parse_envelope_header(
+    raw: &[u8],
+    expected_platform: u8,
+) -> Result<&[u8], HardwareVaultError> {
+    if raw.len() < HW_VAULT_HEADER_LEN
+        || &raw[0..4] != HW_VAULT_MAGIC
+        || raw[4] != HW_VAULT_VERSION
+        || raw[5] != expected_platform
+    {
+        return Err(HardwareVaultError::Corrupt);
+    }
+    Ok(&raw[HW_VAULT_HEADER_LEN..])
+}
+
+/// Atomic 0600 write mirroring `lfs_core::path::write_bytes_atomic`.
+/// Cannot reach into `lfs_core` directly (lfs_os_security is the
+/// lower edge of the dependency direction), so the helper lives
+/// here. Random tmp suffix avoids per-process tmp-name collisions;
+/// `sync_data` + parent-dir fsync close the torn-write window on
+/// power loss.
+#[cfg_attr(
+    not(any(
+        test,
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "windows",
+        target_os = "android"
+    )),
+    allow(dead_code)
+)]
+pub fn os_atomic_write_0600(
+    path: &std::path::Path,
+    bytes: &[u8],
+) -> Result<(), HardwareVaultError> {
+    use std::io::Write as _;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    // tmp-file suffix for collision avoidance — does not need to be
+    // cryptographically random. Fold pid + monotonic counter + nanos
+    // so concurrent writers in the same process pick distinct names
+    // even if SystemTime resolution is coarse.
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let suffix = (std::process::id() ^ nanos).wrapping_add(counter);
+    let parent = path.parent().unwrap_or(std::path::Path::new("."));
+    std::fs::create_dir_all(parent)
+        .map_err(|e| HardwareVaultError::Io(format!("mkdir parent: {e}")))?;
+    let stem = path
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| String::from("blob"));
+    let tmp = parent.join(format!("{stem}.tmp{suffix:08x}"));
+    {
+        let mut opts = std::fs::OpenOptions::new();
+        opts.create(true).write(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let mut f = opts
+            .open(&tmp)
+            .map_err(|e| HardwareVaultError::Io(format!("open tmp: {e}")))?;
+        if let Err(e) = f.write_all(bytes) {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(HardwareVaultError::Io(format!("write tmp: {e}")));
+        }
+        if let Err(e) = f.sync_data() {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(HardwareVaultError::Io(format!("sync tmp: {e}")));
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| HardwareVaultError::Io(format!("chmod tmp: {e}")))?;
+    }
+    if let Err(e) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(HardwareVaultError::Io(format!("rename: {e}")));
+    }
+    // Parent-dir fsync so the rename is durable (Unix only —
+    // Windows does not expose directory fsync via std).
+    #[cfg(unix)]
+    {
+        if let Ok(dir) = std::fs::File::open(parent) {
+            let _ = dir.sync_all();
+        }
+    }
+    Ok(())
+}
+
 /// Length-prefixed binary frame:
 /// `u32(len_be) || bytes`. Used by both the vault and biometric
 /// overlay file formats. `pos` is the input cursor.
@@ -686,10 +838,11 @@ mod apple {
         let access = build_access_control(0)?;
         let public_key = ensure_se_key(PRIMARY_KEY_TAG, &access)?;
         let wrapped = ecies_encrypt(&public_key, db_key)?;
-        let mut blob = Vec::with_capacity(8 + pin_hmac.len() + wrapped.len());
-        write_len_prefixed(&mut blob, pin_hmac);
-        write_len_prefixed(&mut blob, &wrapped);
-        write_atomic_0600(&vault_file_path(support_dir), &blob)
+        let mut body = Vec::with_capacity(8 + pin_hmac.len() + wrapped.len());
+        write_len_prefixed(&mut body, pin_hmac);
+        write_len_prefixed(&mut body, &wrapped);
+        let blob = super::prepend_envelope_header(super::HW_VAULT_PLATFORM_APPLE, &body);
+        super::os_atomic_write_0600(&vault_file_path(support_dir), &blob)
     }
 
     /// Read the on-disk envelope, constant-time-compare `pin_hmac`
@@ -714,14 +867,15 @@ mod apple {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(HardwareVaultError::Io(format!("{}: {e}", path.display()))),
         };
+        let body = super::parse_envelope_header(&raw, super::HW_VAULT_PLATFORM_APPLE)?;
         let mut pos = 0;
-        let stored_hmac = match read_len_prefixed(&raw, &mut pos) {
+        let stored_hmac = match read_len_prefixed(body, &mut pos) {
             Some(b) => b,
-            None => return Ok(None),
+            None => return Err(HardwareVaultError::Corrupt),
         };
-        let wrapped = match read_len_prefixed(&raw, &mut pos) {
+        let wrapped = match read_len_prefixed(body, &mut pos) {
             Some(b) => b,
-            None => return Ok(None),
+            None => return Err(HardwareVaultError::Corrupt),
         };
         if !constant_time_eq(&stored_hmac, pin_hmac) {
             return Ok(None);
@@ -757,9 +911,10 @@ mod apple {
         let access = build_access_control(kSecAccessControlBiometryCurrentSet as u64)?;
         let public_key = ensure_se_key(BIO_PASSWORD_KEY_TAG, &access)?;
         let wrapped = ecies_encrypt(&public_key, password_bytes)?;
-        let mut blob = Vec::with_capacity(4 + wrapped.len());
-        write_len_prefixed(&mut blob, &wrapped);
-        write_atomic_0600(&bio_password_file_path(support_dir), &blob)
+        let mut body = Vec::with_capacity(4 + wrapped.len());
+        write_len_prefixed(&mut body, &wrapped);
+        let blob = super::prepend_envelope_header(super::HW_VAULT_PLATFORM_APPLE, &body);
+        super::os_atomic_write_0600(&bio_password_file_path(support_dir), &blob)
     }
 
     /// Unwrap the biometric overlay password — invokes the system
@@ -775,10 +930,11 @@ mod apple {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(HardwareVaultError::Io(format!("{}: {e}", path.display()))),
         };
+        let body = super::parse_envelope_header(&raw, super::HW_VAULT_PLATFORM_APPLE)?;
         let mut pos = 0;
-        let wrapped = match read_len_prefixed(&raw, &mut pos) {
+        let wrapped = match read_len_prefixed(body, &mut pos) {
             Some(b) => b,
-            None => return Ok(None),
+            None => return Err(HardwareVaultError::Corrupt),
         };
         let private_key = load_private_key(BIO_PASSWORD_KEY_TAG)?
             .ok_or_else(|| HardwareVaultError::Backend("biometric key missing".to_string()))?;
@@ -795,24 +951,10 @@ mod apple {
         Ok(())
     }
 
-    /// Atomic write + chmod 0600. macOS lacks the iOS data-protection
-    /// classes, so POSIX permissions are the only file-level
-    /// hardening we can apply.
-    fn write_atomic_0600(path: &std::path::Path, bytes: &[u8]) -> Result<(), HardwareVaultError> {
-        let parent = path
-            .parent()
-            .ok_or_else(|| HardwareVaultError::Io("path has no parent".to_string()))?;
-        fs::create_dir_all(parent)
-            .map_err(|e| HardwareVaultError::Io(format!("{}: {e}", parent.display())))?;
-        let tmp = path.with_extension("tmp");
-        fs::write(&tmp, bytes)
-            .map_err(|e| HardwareVaultError::Io(format!("{}: {e}", tmp.display())))?;
-        fs::set_permissions(&tmp, fs::Permissions::from_mode(0o600))
-            .map_err(|e| HardwareVaultError::Io(format!("chmod {}: {e}", tmp.display())))?;
-        fs::rename(&tmp, path)
-            .map_err(|e| HardwareVaultError::Io(format!("rename {}: {e}", path.display())))?;
-        Ok(())
-    }
+    // `write_atomic_0600` retired — every store now routes through
+    // the parent module's `os_atomic_write_0600` so the random
+    // tmp-suffix + sync_data + parent-dir fsync hardening lands
+    // uniformly across Apple, Windows, Android, Linux paths.
 }
 
 /// LAContext device-owner-policy probe — split out so the

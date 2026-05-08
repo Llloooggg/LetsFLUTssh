@@ -200,14 +200,17 @@ pub mod linux {
         }
         let sealed = tpm::seal(&TpmConfig::default(), db_key, pin_hmac)
             .map_err(|e| LinuxVaultError::Backend(e.to_string()))?;
-        let blob = super::encode_linux_blob(salt, &sealed);
+        let body = super::encode_linux_blob(salt, &sealed);
+        let blob = lfs_os_security::hardware_tier_vault::prepend_envelope_header(
+            lfs_os_security::hardware_tier_vault::HW_VAULT_PLATFORM_LINUX,
+            body.as_bytes(),
+        );
         let path = vault_path(support_dir);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| LinuxVaultError::Io(format!("mkdirp: {e}")))?;
         }
-        write_bytes_atomic(&path, blob.as_bytes())
-            .map_err(|e| LinuxVaultError::Io(format!("write: {e}")))?;
+        write_bytes_atomic(&path, &blob).map_err(|e| LinuxVaultError::Io(format!("write: {e}")))?;
         Ok(())
     }
 
@@ -229,7 +232,12 @@ pub mod linux {
             return Ok(None);
         }
         let raw = std::fs::read(&path).map_err(|e| LinuxVaultError::Io(format!("read: {e}")))?;
-        let text = std::str::from_utf8(&raw)
+        let body = lfs_os_security::hardware_tier_vault::parse_envelope_header(
+            &raw,
+            lfs_os_security::hardware_tier_vault::HW_VAULT_PLATFORM_LINUX,
+        )
+        .map_err(|_| LinuxVaultError::Corrupt("envelope header mismatch".into()))?;
+        let text = std::str::from_utf8(body)
             .map_err(|e| LinuxVaultError::Corrupt(format!("utf8: {e}")))?;
         let decoded = super::decode_linux_blob(text).map_err(LinuxVaultError::Corrupt)?;
         match tpm::unseal(&TpmConfig::default(), &decoded.sealed, pin_hmac) {
@@ -253,7 +261,12 @@ pub mod linux {
             return Ok(None);
         }
         let raw = std::fs::read(&path).map_err(|e| LinuxVaultError::Io(format!("read: {e}")))?;
-        let text = std::str::from_utf8(&raw)
+        let body = lfs_os_security::hardware_tier_vault::parse_envelope_header(
+            &raw,
+            lfs_os_security::hardware_tier_vault::HW_VAULT_PLATFORM_LINUX,
+        )
+        .map_err(|_| LinuxVaultError::Corrupt("envelope header mismatch".into()))?;
+        let text = std::str::from_utf8(body)
             .map_err(|e| LinuxVaultError::Corrupt(format!("utf8: {e}")))?;
         let decoded = super::decode_linux_blob(text).map_err(LinuxVaultError::Corrupt)?;
         Ok(Some(decoded.salt))

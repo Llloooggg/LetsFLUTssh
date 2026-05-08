@@ -81,10 +81,18 @@ impl SchemaVersions {
     pub const PASS_GATE: i32 = 1;
 
     /// `hardware_vault_*.bin` — per-platform hw vault blob.
-    pub const HW_VAULT_ANDROID: i32 = 1;
-    pub const HW_VAULT_APPLE: i32 = 1;
-    pub const HW_VAULT_WINDOWS: i32 = 1;
-    pub const HW_VAULT_LINUX: i32 = 1;
+    ///
+    /// v2: every platform's blob now carries a `LFHV` magic + version
+    ///     + platform-id prefix so format evolution can be sniffed
+    ///     without per-platform header probes. v1 had no magic; v2
+    ///     readers reject v1 files outright (no migration ships in
+    ///     this revision — existing installs hit
+    ///     `HardwareVaultError::Corrupt` and route through the
+    ///     documented tier-reset cascade).
+    pub const HW_VAULT_ANDROID: i32 = 2;
+    pub const HW_VAULT_APPLE: i32 = 2;
+    pub const HW_VAULT_WINDOWS: i32 = 2;
+    pub const HW_VAULT_LINUX: i32 = 2;
 
     /// `hardware_vault_salt.bin` — raw 32-byte salt.
     pub const HW_SALT: i32 = 1;

@@ -46,10 +46,10 @@ use windows::Win32::Security::Cryptography::{
     NCryptCreatePersistedKey, NCryptDecrypt, NCryptDeleteKey, NCryptEncrypt, NCryptFinalizeKey,
     NCryptFreeObject, NCryptOpenKey, NCryptOpenStorageProvider, NCryptSetProperty,
     BCRYPT_OAEP_PADDING_INFO, BCRYPT_RSA_ALGORITHM, BCRYPT_SHA256_ALGORITHM, CERT_KEY_SPEC,
-    MS_PLATFORM_KEY_STORAGE_PROVIDER, NCRYPT_FLAGS, NCRYPT_HANDLE, NCRYPT_KEY_HANDLE,
-    NCRYPT_LENGTH_PROPERTY, NCRYPT_OVERWRITE_KEY_FLAG, NCRYPT_PAD_OAEP_FLAG, NCRYPT_PROV_HANDLE,
-    NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG, NCRYPT_UI_POLICY, NCRYPT_UI_POLICY_PROPERTY,
-    NCRYPT_UI_PROTECT_KEY_FLAG,
+    MS_PLATFORM_KEY_STORAGE_PROVIDER, NCRYPT_EXPORT_POLICY_PROPERTY, NCRYPT_FLAGS, NCRYPT_HANDLE,
+    NCRYPT_KEY_HANDLE, NCRYPT_LENGTH_PROPERTY, NCRYPT_OVERWRITE_KEY_FLAG, NCRYPT_PAD_OAEP_FLAG,
+    NCRYPT_PROV_HANDLE, NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG, NCRYPT_UI_POLICY,
+    NCRYPT_UI_POLICY_PROPERTY, NCRYPT_UI_PROTECT_KEY_FLAG,
 };
 
 use crate::hardware_tier_vault::{write_len_prefixed, HardwareVaultError};
@@ -125,17 +125,14 @@ pub fn store(support_dir: &str, db_key: &[u8], pin_hmac: &[u8]) -> Result<(), Ha
     let wrapped = result?;
 
     let path = vault_path(support_dir);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| HardwareVaultError::Io(format!("mkdirp: {e}")))?;
-    }
-    let mut blob = Vec::new();
-    write_len_prefixed(&mut blob, pin_hmac);
-    write_len_prefixed(&mut blob, &wrapped);
-    let tmp = path.with_extension("bin.tmp");
-    std::fs::write(&tmp, &blob).map_err(|e| HardwareVaultError::Io(format!("write tmp: {e}")))?;
-    std::fs::rename(&tmp, &path).map_err(|e| HardwareVaultError::Io(format!("rename: {e}")))?;
-    Ok(())
+    let mut body = Vec::new();
+    write_len_prefixed(&mut body, pin_hmac);
+    write_len_prefixed(&mut body, &wrapped);
+    let blob = crate::hardware_tier_vault::prepend_envelope_header(
+        crate::hardware_tier_vault::HW_VAULT_PLATFORM_WINDOWS,
+        &body,
+    );
+    crate::hardware_tier_vault::os_atomic_write_0600(&path, &blob)
 }
 
 /// Read + unwrap. Returns `Ok(None)` for missing file, `pin_hmac`
@@ -149,7 +146,11 @@ pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, Hardw
         return Ok(None);
     }
     let raw = std::fs::read(&path).map_err(|e| HardwareVaultError::Io(format!("read: {e}")))?;
-    let (saved_hmac, wrapped) = parse_envelope(&raw)?;
+    let body = crate::hardware_tier_vault::parse_envelope_header(
+        &raw,
+        crate::hardware_tier_vault::HW_VAULT_PLATFORM_WINDOWS,
+    )?;
+    let (saved_hmac, wrapped) = parse_envelope(body)?;
 
     use subtle::ConstantTimeEq;
     if pin_hmac.ct_eq(saved_hmac).unwrap_u8() != 1 {
@@ -341,6 +342,24 @@ fn open_or_create_key(
     } {
         free_obj(key.0);
         return Err(fmt_win("NCryptSetProperty(UI_POLICY)", e));
+    }
+
+    // Pin export policy to 0 (NONE) so the private key is non-
+    // exportable. The TPM-backed `MS_PLATFORM_KEY_STORAGE_PROVIDER`
+    // already enforces non-exportability, but the software-KSP
+    // fallback path defaults to exportable; setting the property
+    // explicitly closes the gap defense-in-depth.
+    let export_policy: u32 = 0;
+    if let Err(e) = unsafe {
+        NCryptSetProperty(
+            NCRYPT_HANDLE(key.0),
+            NCRYPT_EXPORT_POLICY_PROPERTY,
+            &export_policy.to_le_bytes(),
+            NCRYPT_FLAGS(0),
+        )
+    } {
+        free_obj(key.0);
+        return Err(fmt_win("NCryptSetProperty(EXPORT_POLICY)", e));
     }
 
     if let Err(e) = unsafe { NCryptFinalizeKey(key, NCRYPT_FLAGS(0)) } {

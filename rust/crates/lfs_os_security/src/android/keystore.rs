@@ -476,7 +476,31 @@ fn generate_wrap_key(
             "(I)Landroid/security/keystore/KeyGenParameterSpec$Builder;",
             &[JValue::Int(60)],
         );
+
+        // setInvalidatedByBiometricEnrollment(true): adding /
+        // removing / re-enrolling a finger or face invalidates
+        // the key, mirroring Apple's `biometryCurrentSet` ACL.
+        // Available API 24+; ignore failures on older devices.
+        let _ = h::call_obj(
+            env,
+            &builder,
+            "setInvalidatedByBiometricEnrollment",
+            "(Z)Landroid/security/keystore/KeyGenParameterSpec$Builder;",
+            &[JValue::Bool(1)],
+        );
     }
+
+    // setUnlockedDeviceRequired(true): the key is only usable
+    // while the screen is unlocked. Available API 28+; ignore
+    // failures on older devices (the call returns the same
+    // builder but the flag is silently dropped pre-28).
+    let _ = h::call_obj(
+        env,
+        &builder,
+        "setUnlockedDeviceRequired",
+        "(Z)Landroid/security/keystore/KeyGenParameterSpec$Builder;",
+        &[JValue::Bool(1)],
+    );
 
     // KeyGenParameterSpec spec = builder.build();
     let spec = h::call_obj(
