@@ -101,14 +101,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     }
 
     // Rust core load runs here, in the post-frame `_bootstrap`,
-    // not pre-`runApp`. The cold-start ordering rule (no FRB on
-    // any path reachable during the first runApp pass) makes the
-    // deferral structurally safe: `AppConfig.fromJson` and
-    // `SecurityCapabilities.fromJson` detect
-    // `!RustLib.instance.initialized` and use a pure-Dart fallback,
-    // canonically equivalent for healthy `config.json` content
-    // because each per-sub-config `fromJson` runs its own
-    // `.sanitized()` clamp.
+    // not pre-`runApp`. The cold-start ordering rule keeps the
+    // structural invariant (no FRB on any path reachable during
+    // the first `runApp` pass — see CLAUDE.md's strict cold-start
+    // invariant + `ARCHITECTURE.md § Cold-start ordering`).
+    // FRB-touching listeners + setup wire from
+    // `_wireFrbDependentBootstrapListeners` AFTER this guard
+    // returns; nothing on the cold-start path imports
+    // `lib/src/rust/...` or calls FRB.
     if (!await _initRustCoreOrFatal()) return;
     mark('rust_core');
 
