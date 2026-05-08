@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import '../../core/connection/connection.dart';
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_fs.dart';
-import '../../utils/android_storage_permission.dart';
 import '../../utils/logger.dart';
 import 'file_browser_controller.dart';
 
@@ -13,15 +10,16 @@ class SFTPInitResult {
   final FilePaneController remoteCtrl;
   final RemoteSftpFs filesystem;
 
-  /// True if Android storage permission was denied during init.
-  final bool storagePermissionDenied;
-
   SFTPInitResult({
     required this.localCtrl,
     required this.remoteCtrl,
     required this.filesystem,
-    this.storagePermissionDenied = false,
   });
+
+  /// Compatibility shim — Android no longer routes through a
+  /// MANAGE_EXTERNAL_STORAGE permission gate; the file picker
+  /// uses SAF (`file_picker`) which is always available.
+  bool get storagePermissionDenied => false;
 
   void dispose() {
     localCtrl.dispose();
@@ -44,7 +42,6 @@ class SFTPInitializer {
     FileSystem Function()? localFsFactory,
   }) async {
     RemoteSftpFs filesystem;
-    var permissionDenied = false;
 
     if (filesystemFactory != null) {
       filesystem = await filesystemFactory(connection);
@@ -54,15 +51,6 @@ class SFTPInitializer {
         throw StateError('SSH transport not available');
       }
       filesystem = await RustSftpFs.create(transport);
-
-      if (Platform.isAndroid) {
-        final granted = await requestAndroidStoragePermission();
-        permissionDenied = !granted;
-        AppLogger.instance.log(
-          'Android storage permission: ${granted ? 'granted' : 'denied'}',
-          name: 'SFTPInit',
-        );
-      }
     }
 
     final localCtrl = FilePaneController(
@@ -91,15 +79,10 @@ class SFTPInitializer {
       rethrow;
     }
 
-    AppLogger.instance.log(
-      'SFTP panes initialized (android perm denied=$permissionDenied)',
-      name: 'SFTPInit',
-    );
     return SFTPInitResult(
       localCtrl: localCtrl,
       remoteCtrl: remoteCtrl,
       filesystem: filesystem,
-      storagePermissionDenied: permissionDenied,
     );
   }
 }

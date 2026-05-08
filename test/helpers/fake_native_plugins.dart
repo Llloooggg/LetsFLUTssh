@@ -30,13 +30,9 @@ class NativeCall {
 /// flip one dimension per test without rewriting handlers.
 class FakeNativePluginsConfig {
   FakeNativePluginsConfig({
-    this.storagePermissionGranted = true,
     this.qrScanResult,
     this.secureClipboardSucceeds = true,
   });
-
-  /// `requestStoragePermission` response.
-  final bool storagePermissionGranted;
 
   /// `scan` response from the QR scanner channel. `null` simulates a
   /// user cancellation / denied permission.
@@ -102,13 +98,8 @@ NativeCallLog installFakeNativePlugins({FakeNativePluginsConfig? config}) {
   // com.letsflutssh/backup_exclusion — fire-and-forget.
   mock('com.letsflutssh/backup_exclusion', (call) async => null);
 
-  // com.letsflutssh/permissions — single storage-permission gate.
-  mock('com.letsflutssh/permissions', (call) async {
-    if (call.method == 'requestStoragePermission') {
-      return cfg.storagePermissionGranted;
-    }
-    return null;
-  });
+  // com.letsflutssh/permissions retired — Android MANAGE_EXTERNAL_STORAGE
+  // gate replaced by SAF (file_picker). No mock needed.
 
   // com.letsflutssh/secure_screen — no-op on the test host.
   mock('com.letsflutssh/secure_screen', (call) async => null);

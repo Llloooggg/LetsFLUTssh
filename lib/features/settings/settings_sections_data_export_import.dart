@@ -361,20 +361,8 @@ class _ExportImportTile extends ConsumerWidget {
         allowedExtensions: [extension],
       );
     }
-    if (Platform.isAndroid) {
-      final granted = await requestAndroidStoragePermission();
-      if (granted) {
-        if (!context.mounted) return null;
-        final dir = await LocalDirectoryPicker.show(
-          context,
-          title: title,
-          initialPath: initDir ?? '/storage/emulated/0',
-        );
-        if (dir == null) return null;
-        return p.join(dir, defaultName);
-      }
-    }
-    // iOS or Android without all-files access — fall back to SAF picker.
+    // iOS / Android — SAF picker (FilePicker.platform.saveFile on iOS,
+    // FilePicker.platform.getDirectoryPath on Android).
     // SAF can throw (e.g. the system picker crashes or the OEM skin blocks it
     // entirely). Surface a localized toast instead of bubbling up a raw
     // `PlatformException`, and log so we have diagnostics on OEMs that ship

@@ -7,12 +7,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
-    <!-- Storage: local file browser for SFTP transfers -->
+    <!-- Storage: local file browser for SFTP transfers.
+         MANAGE_EXTERNAL_STORAGE retired — Play Store treats it as a
+         restricted Special Permission for non-file-manager apps. The
+         SSH-key file picker now goes through file_picker (SAF), which
+         already covers the only flow that consumed the broad access. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <!-- Camera: QR scanner (used only for the "Scan QR" action in Settings) -->
     <uses-permission android:name="android.permission.CAMERA" />

@@ -215,39 +215,26 @@ void main() {
       remoteCtrl.dispose();
     });
 
-    test('storagePermissionDenied defaults to false', () async {
-      final conn = Connection(
-        id: 'perm-1',
-        label: 'Test',
-        sshConfig: const SSHConfig(
-          server: ServerAddress(host: 'h', user: 'u'),
-        ),
-      );
+    test(
+      'storagePermissionDenied is always false (Android MANAGE_EXTERNAL_STORAGE retired)',
+      () async {
+        final conn = Connection(
+          id: 'perm-1',
+          label: 'Test',
+          sshConfig: const SSHConfig(
+            server: ServerAddress(host: 'h', user: 'u'),
+          ),
+        );
 
-      final result = await SFTPInitializer.init(
-        conn,
-        filesystemFactory: (_) async => _FakeSftpFs(cwd: '/r'),
-        localFsFactory: () => _MockFS(),
-      );
+        final result = await SFTPInitializer.init(
+          conn,
+          filesystemFactory: (_) async => _FakeSftpFs(cwd: '/r'),
+          localFsFactory: () => _MockFS(),
+        );
 
-      expect(result.storagePermissionDenied, isFalse);
-      result.dispose();
-    });
-
-    test('storagePermissionDenied can be set to true', () {
-      final localCtrl = FilePaneController(fs: _MockFS(), label: 'Local');
-      final remoteCtrl = FilePaneController(fs: _MockFS(), label: 'Remote');
-      final fakeFs = _FakeSftpFs();
-
-      final result = SFTPInitResult(
-        localCtrl: localCtrl,
-        remoteCtrl: remoteCtrl,
-        filesystem: fakeFs,
-        storagePermissionDenied: true,
-      );
-
-      expect(result.storagePermissionDenied, isTrue);
-      result.dispose();
-    });
+        expect(result.storagePermissionDenied, isFalse);
+        result.dispose();
+      },
+    );
   });
 }

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection.dart';
 import '../../l10n/app_localizations.dart';
@@ -13,7 +12,6 @@ import '../../core/sftp/sftp_models.dart';
 import '../../providers/config_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
-import '../../utils/logger.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../widgets/mobile_selection_bar.dart';
 import '../file_browser/breadcrumb_path.dart';
@@ -53,7 +51,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
   @override
   String? sftpError;
   bool _showRemote = true; // Start on remote pane
-  bool _storagePermissionDenied = false;
   @override
   final progressKey = GlobalKey<ConnectionProgressState>();
 
@@ -64,7 +61,8 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
 
   @override
   void onSftpReady(SFTPInitResult result) {
-    _storagePermissionDenied = result.storagePermissionDenied;
+    // No-op — Android storage permission flow retired (SAF replaces
+    // the legacy MANAGE_EXTERNAL_STORAGE gate).
   }
 
   FilePaneController? get _localCtrl => sftpResult?.localCtrl;
@@ -93,8 +91,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
     return Column(
       children: [
         _buildToolbar(context),
-        if (Platform.isAndroid && !_showRemote && _storagePermissionDenied)
-          _buildPermissionBanner(context),
         Expanded(
           // Horizontal swipe toggles Local ↔ Remote — mobile users
           // expect the same gesture they get from every tab-style UI
@@ -230,13 +226,13 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
           onTap: _pickLocalFolder,
           tooltip: S.of(context).pickFolder,
         ),
-      if (Platform.isAndroid && !_showRemote && _storagePermissionDenied)
+      if (Platform.isAndroid && !_showRemote)
         AppIconButton(
-          icon: Icons.security,
+          icon: Icons.folder_open,
           size: 20,
           boxSize: 36,
-          onTap: _requestAndRefreshPermission,
-          tooltip: S.of(context).grantPermission,
+          onTap: _pickLocalFolder,
+          tooltip: S.of(context).pickFolder,
         ),
     ];
   }
@@ -383,54 +379,6 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
         }
       },
     );
-  }
-
-  Widget _buildPermissionBanner(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: theme.colorScheme.errorContainer,
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber, size: 20, color: theme.colorScheme.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              S.of(context).storagePermissionLimited,
-              style: TextStyle(
-                fontSize: AppFonts.sm,
-                color: theme.colorScheme.onErrorContainer,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          AppButton.secondary(
-            label: S.of(context).grantPermission,
-            dense: true,
-            onTap: _requestAndRefreshPermission,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _requestAndRefreshPermission() async {
-    const channel = MethodChannel('com.letsflutssh/permissions');
-    try {
-      final granted = await channel.invokeMethod<bool>(
-        'requestStoragePermission',
-      );
-      if (granted == true && mounted) {
-        setState(() => _storagePermissionDenied = false);
-        // Re-navigate to shared storage now that we have permission
-        await _localCtrl?.navigateTo('/storage/emulated/0');
-      }
-    } catch (e) {
-      AppLogger.instance.log(
-        'Permission re-request failed: $e',
-        name: 'MobileFileBrowser',
-      );
-    }
   }
 
   Future<void> _pickLocalFolder() async {
