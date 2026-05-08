@@ -265,15 +265,27 @@ impl Db {
 pub const SCHEMA_VERSION: i32 = 1;
 
 /// Create every table the DAOs expect, idempotently, and stamp
-/// `PRAGMA user_version = SCHEMA_VERSION` on the file. Tables are
-/// `CREATE IF NOT EXISTS` so the call is safe to re-run on every
-/// open; the version stamp is unconditional so the value reflects
-/// the running build's expectation, not the on-disk legacy.
+/// `PRAGMA user_version = SCHEMA_VERSION` if and only if the DB
+/// is fresh (current value `0`). The unconditional stamp the
+/// audit flagged would silently downgrade a future schema bump:
+/// if a user opened a v2 DB with a v1 build, the stamp would
+/// rewrite `user_version` to 1 and the next v2 build would mistake
+/// the file for a v1 install needing a forward migration that
+/// already ran. Tables are `CREATE IF NOT EXISTS` so the call is
+/// safe to re-run on every open.
 pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
     conn.execute_batch(SCHEMA_SQL)
         .map_err(|e| Error::Db(format!("bootstrap schema: {e}")))?;
-    conn.pragma_update(None, "user_version", SCHEMA_VERSION)
-        .map_err(|e| Error::Db(format!("bootstrap schema: stamp user_version: {e}")))?;
+    let mut current: i32 = 0;
+    conn.pragma_query(None, "user_version", |row| {
+        current = row.get::<_, i32>(0)?;
+        Ok(())
+    })
+    .map_err(|e| Error::Db(format!("bootstrap schema: read user_version: {e}")))?;
+    if current == 0 {
+        conn.pragma_update(None, "user_version", SCHEMA_VERSION)
+            .map_err(|e| Error::Db(format!("bootstrap schema: stamp user_version: {e}")))?;
+    }
     Ok(())
 }
 

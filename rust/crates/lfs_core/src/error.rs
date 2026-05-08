@@ -118,12 +118,16 @@ pub enum Error {
     Cancelled,
 
     /// `.lfs` archive's manifest reports a `schema_version` newer
-    /// than `migration::SchemaVersions::ARCHIVE`. The Display
-    /// format is parsed Dart-side into `UnsupportedLfsVersionException`,
-    /// which the import dialog renders with the "update the app"
-    /// message — keep the `found=` / `supported=` shape stable.
+    /// than `migration::SchemaVersions::ARCHIVE`, or an
+    /// out-of-range value (`<= 0`). The Display format is parsed
+    /// Dart-side into `UnsupportedLfsVersionException`, which the
+    /// import dialog renders with the "update the app" message —
+    /// keep the `found=` / `supported=` shape stable. `found` is
+    /// `i64` so the raw manifest value reaches the user / log
+    /// trace verbatim instead of being clamped to `i32::MAX` (the
+    /// audit B-MIG-2 fidelity gap).
     #[error("unsupported_archive_version: found={found}, supported={supported}")]
-    ArchiveFutureVersion { found: i32, supported: i32 },
+    ArchiveFutureVersion { found: i64, supported: i32 },
 }
 
 impl From<russh::Error> for Error {

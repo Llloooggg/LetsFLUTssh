@@ -290,7 +290,22 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
             "empty_folders.json" => pending.empty_folders_json = Some(buf),
             "config.json" => pending.config_json = Some(buf),
             "known_hosts.txt" => pending.known_hosts_text = Some(buf),
-            _ => {}
+            other => {
+                // Unknown entry — log so a forward-compat archive
+                // (a future build that ships an extra payload like
+                // `recordings_index.json`) is greppable in support
+                // traces, then drop. The schema-version check at
+                // the caller catches the "future build" case
+                // explicitly; logging here means a malformed v1
+                // archive with stray content also leaves a trail
+                // rather than silently disappearing into the void.
+                crate::app_log_warn!(
+                    "ArchiveImport",
+                    "unknown archive entry '{}' (size={}): dropped",
+                    other,
+                    buf.len()
+                );
+            }
         }
     }
 
@@ -330,9 +345,14 @@ pub fn read_archive_to_pending(
         };
     let (pending, schema_version) = parse_pending_import(&zip_bytes)?;
     let supported = i64::from(crate::migration::SchemaVersions::ARCHIVE);
-    if schema_version > supported {
+    // Reject out-of-range values explicitly. Negative or zero
+    // can only come from a malformed manifest (a sentinel); the
+    // pre-check posture rejects future-version too. The error
+    // variant carries the raw `i64` so a 64-bit value lands on
+    // the wire / log trace verbatim.
+    if !(1..=supported).contains(&schema_version) {
         return Err(Error::ArchiveFutureVersion {
-            found: schema_version.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+            found: schema_version,
             supported: crate::migration::SchemaVersions::ARCHIVE,
         });
     }

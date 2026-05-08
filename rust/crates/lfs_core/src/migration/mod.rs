@@ -395,10 +395,26 @@ fn topo_sort(registry: &Registry) -> Result<Vec<usize>, String> {
 
     for (id, after) in &registry.dependencies {
         let Some(&dep_idx) = id_to_idx.get(id.as_str()) else {
+            // Dependency declared on an unregistered artefact —
+            // dead-weight relationship that can only be a bug
+            // (the dependency graph has nothing to enforce). Warn
+            // so support traces catch the drift; previously the
+            // sibling `continue` silently swallowed.
+            crate::app_log_warn!(
+                "MigrationRegistry",
+                "topo_sort: dependency declared on unregistered artefact '{}'",
+                id
+            );
             continue;
         };
         for pre in after {
             let Some(&pre_idx) = id_to_idx.get(pre.as_str()) else {
+                crate::app_log_warn!(
+                    "MigrationRegistry",
+                    "topo_sort: artefact '{}' depends on unregistered '{}'",
+                    id,
+                    pre
+                );
                 continue;
             };
             adjacency[pre_idx].push(dep_idx);

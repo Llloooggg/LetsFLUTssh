@@ -51,26 +51,14 @@ pub fn build_app_registry() -> Registry {
     // bank-style password modifier landed; v4 retires them.
     reg.migrations.push(Box::new(ConfigV3ToV4));
 
-    // Vault + password-gate layouts depend on tier read from config —
-    // keep config ahead of every future vault artefact in the
-    // dependency graph. Declared up front so vault artefacts can be
-    // added later without having to re-state the relationship.
-    let dependents = [
-        "hardware_vault.bin",
-        "hardware_vault_android.bin",
-        "hardware_vault_ios.bin",
-        "hardware_vault_macos.bin",
-        "hardware_vault_windows.bin",
-        "hardware_vault_linux.bin",
-        "hardware_vault_salt.bin",
-        "security_pass_hash.bin",
-    ];
-    for id in dependents {
-        reg.dependencies
-            .entry(id.to_string())
-            .or_default()
-            .push(ConfigArtefact::FILE_NAME.to_string());
-    }
+    // The hw-vault + password-gate artefacts have their own
+    // version envelopes (`HW_VAULT_*` / DISK_BLOB_VERSION) and
+    // run their own corruption-detection cascade outside the
+    // generic `migration` framework, so a dependency declaration
+    // here is dead weight — no `Artefact` is registered to match,
+    // and `topo_sort` would silently skip them. Removing the
+    // forward declarations keeps the registry's invariant honest:
+    // every dependency endpoint is a registered artefact.
     reg
 }
 
@@ -87,16 +75,28 @@ mod tests {
     }
 
     #[test]
-    fn vault_artefacts_depend_on_config() {
+    fn every_dependency_endpoint_is_a_registered_artefact() {
+        // Invariant: a dependency declaration references an artefact
+        // that the registry actually knows about. Forward-declared
+        // entries on unregistered artefacts (the audit's B-MIG-3
+        // gap) would silently no-op in `topo_sort` and degrade
+        // future cross-checks. Pin the invariant here so a future
+        // commit that re-introduces a dead dependency edge fails
+        // at test time.
         let reg = build_app_registry();
-        for id in [
-            "hardware_vault.bin",
-            "hardware_vault_linux.bin",
-            "hardware_vault_salt.bin",
-            "security_pass_hash.bin",
-        ] {
-            let deps = reg.dependencies.get(id).expect(id);
-            assert!(deps.contains(&"config.json".to_string()));
+        let registered: std::collections::HashSet<&'static str> =
+            reg.artefacts.iter().map(|a| a.id()).collect();
+        for (id, deps) in &reg.dependencies {
+            assert!(
+                registered.contains(id.as_str()),
+                "dependency declared on unregistered artefact '{id}' (no Artefact in registry)"
+            );
+            for pre in deps {
+                assert!(
+                    registered.contains(pre.as_str()),
+                    "artefact '{id}' depends on unregistered '{pre}'"
+                );
+            }
         }
     }
 
