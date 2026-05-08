@@ -1,4 +1,4 @@
-//! Async actor commands for the L2 keychain-password gate.
+//! Async actor commands for the T1+pw keychain-password gate.
 //!
 //! The verify pipeline composes existing Rust building blocks:
 //! 1. Read the `security_pass_hash.bin` disk blob from the
@@ -26,7 +26,7 @@ use crate::security::keychain_password_gate::{
 
 /// Storage key for the keychain pepper. Mirrors the Dart-era
 /// `KeychainPasswordGate._pepperKey` const — both implementations
-/// must agree on the slot or an L2-configured install would lose
+/// must agree on the slot or an T1+pw-configured install would lose
 /// its pepper across the cutover.
 const PEPPER_KEY: &str = "letsflutssh_l2_pepper";
 
@@ -37,12 +37,12 @@ const PEPPER_KEY: &str = "letsflutssh_l2_pepper";
 /// `KeychainPasswordGate._clearRateLimitState`.
 const RATE_LIMIT_STATE_FILE: &str = "rate_limit_state.bin";
 
-/// File name under the support directory that holds the L2
+/// File name under the support directory that holds the T1+pw
 /// gate's `{salt, hmac}` JSON envelope. Mirrors the Dart-era
 /// `_hashFileName` const.
 const HASH_FILE_NAME: &str = "security_pass_hash.bin";
 
-/// Verify the L2 password against the on-disk hash + the
+/// Verify the T1+pw password against the on-disk hash + the
 /// keychain pepper. Returns `Ok(true)` on match.
 pub async fn verify_password(support_dir: &Path, password: &[u8]) -> Result<bool, String> {
     // Step 1: read the disk hash. Missing file = gate not
@@ -52,7 +52,7 @@ pub async fn verify_password(support_dir: &Path, password: &[u8]) -> Result<bool
     let raw = match std::fs::read(&hash_path) {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-        Err(e) => return Err(format!("L2 verify: read hash file: {e}")),
+        Err(e) => return Err(format!("T1+pw verify: read hash file: {e}")),
     };
 
     // Step 2: decode the {salt, hmac} envelope.
@@ -109,7 +109,7 @@ pub async fn is_configured(support_dir: &Path) -> Result<bool, String> {
 /// `is_configured` returns false rather than leaving a half-
 /// configured gate that perma-rejects the correct password.
 ///
-/// Two invariants, both load-bearing for L2:
+/// Two invariants, both load-bearing for T1+pw:
 /// 1. Atomic disk write — a `write_bytes_atomic` crash mid-flush
 ///    yields torn JSON; next launch's `verify` returns false on
 ///    decode and falls back to the T0 plaintext-tier unlock.
@@ -132,10 +132,10 @@ pub async fn set_password(support_dir: &Path, password: &[u8]) -> Result<(), Str
     let hash_path = support_dir.join(HASH_FILE_NAME);
     if let Some(parent) = hash_path.parent() {
         std::fs::create_dir_all(parent)
-            .map_err(|e| format!("L2 set_password: create support dir: {e}"))?;
+            .map_err(|e| format!("T1+pw set_password: create support dir: {e}"))?;
     }
     crate::path::write_bytes_atomic(&hash_path, blob.as_bytes())
-        .map_err(|e| format!("L2 set_password: atomic write: {e}"))?;
+        .map_err(|e| format!("T1+pw set_password: atomic write: {e}"))?;
 
     // Now hand the pepper to the keychain.
     if let Err(write_err) = lfs_os_security::secure_key_storage::write(PEPPER_KEY, &pepper).await {
@@ -144,14 +144,14 @@ pub async fn set_password(support_dir: &Path, password: &[u8]) -> Result<(), Str
         // wizard instead of perma-rejecting the correct password.
         if let Err(rollback_err) = std::fs::remove_file(&hash_path) {
             return Err(format!(
-                "L2 set_password: keychain write failed ({write_err}); \
+                "T1+pw set_password: keychain write failed ({write_err}); \
                  rollback delete failed ({rollback_err}) — gate is \
                  half-configured, next launch will see is_configured=true \
                  but verify can never succeed",
             ));
         }
         return Err(format!(
-            "L2 set_password: keychain write failed ({write_err}); \
+            "T1+pw set_password: keychain write failed ({write_err}); \
              rolled back disk hash"
         ));
     }
@@ -195,7 +195,7 @@ pub async fn clear(support_dir: &Path) -> Result<(), String> {
     if errors.is_empty() {
         Ok(())
     } else {
-        Err(format!("L2 clear: {}", errors.join("; ")))
+        Err(format!("T1+pw clear: {}", errors.join("; ")))
     }
 }
 
@@ -207,7 +207,7 @@ mod tests {
     };
     use tempfile::TempDir;
 
-    /// Set up a fresh L2 gate config on disk + return the pepper
+    /// Set up a fresh T1+pw gate config on disk + return the pepper
     /// the test stand-in would inject — kept for shape parity
     /// with the prior actor tests even though the post-bus rewrite
     /// no longer surfaces the pepper through a registry.

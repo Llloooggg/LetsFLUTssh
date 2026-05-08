@@ -15,7 +15,7 @@ import 'rate_limit.dart';
 ///
 /// `file_path` is the absolute path to the `rate_limit_state.bin`
 /// file (Dart resolves it via `getApplicationSupportDirectory`).
-/// `hmac_key` is the 32-byte HMAC key derived from the L2 gate's
+/// `hmac_key` is the 32-byte HMAC key derived from the T1+pw gate's
 /// keychain pepper.
 DbRateLimitStatus persistedRateLimitActorInitOrGet({
   required String id,

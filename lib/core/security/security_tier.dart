@@ -31,7 +31,7 @@ enum SecurityTier {
   /// `modifiers.password = false` the app auto-unlocks on launch
   /// (passwordless T1); with `modifiers.password = true` the unlock
   /// path adds a UX-gate short password checked against a salted
-  /// HMAC split across disk + keychain (the bank-style L2 — pre-v3
+  /// HMAC split across disk + keychain (the bank-style T1+pw — pre-v3
   /// installs persisted this combo as a dedicated
   /// `keychainWithPassword` tier value, now collapsed).
   keychain,
@@ -209,7 +209,7 @@ class SecurityConfig {
   /// unlock path. Paranoid is mandatory-password by definition;
   /// for `keychain` / `hardware` the answer depends on the
   /// modifier (`tier: keychain, modifiers.password: true` is the
-  /// bank-style L2 — previously a dedicated `keychainWithPassword`
+  /// bank-style T1+pw — previously a dedicated `keychainWithPassword`
   /// tier value).
   bool get hasUserSecret {
     if (tier == SecurityTier.paranoid) return true;

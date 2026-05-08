@@ -408,7 +408,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     );
     if (ok) {
       AppLogger.instance.log(
-        'First launch: keychain+password (L2) enabled',
+        'First launch: keychain+password (T1+pw) enabled',
         name: 'App',
       );
       return;
@@ -428,7 +428,7 @@ extension _FirstLaunchFlows on SecurityInitController {
         modifiers: modifiers,
       );
       AppLogger.instance.log(
-        'First launch: keychain+password (L2) enabled (fallback)',
+        'First launch: keychain+password (T1+pw) enabled (fallback)',
         name: 'App',
       );
       return;
@@ -437,7 +437,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     await gate.clear();
     await _injectDatabase();
     AppLogger.instance.log(
-      'First launch: L2 keychain write failed — plaintext fallback',
+      'First launch: T1+pw keychain write failed — plaintext fallback',
       name: 'App',
       level: LogLevel.warn,
     );

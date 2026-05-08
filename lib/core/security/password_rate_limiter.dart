@@ -25,7 +25,7 @@ import '../../utils/logger.dart';
 /// [InMemoryRateLimiter] drops everything on restart (fine for
 /// Paranoid master-password mode, where the Argon2id cost is the
 /// real brake), [PersistedRateLimiter] writes an HMAC-authenticated
-/// record to disk (used by L2 keychain-with-password, where the
+/// record to disk (used by T1+pw keychain-with-password, where the
 /// wrap-less check would otherwise permit immediate retry after a
 /// relaunch).
 abstract class PasswordRateLimiter {
@@ -182,13 +182,13 @@ class InMemoryRateLimiter extends PasswordRateLimiter {
   }
 }
 
-/// Disk-backed rate limiter — used by the L2 keychain-with-password
+/// Disk-backed rate limiter — used by the T1+pw keychain-with-password
 /// path where the password is a bystander gate with no cryptographic
 /// strength, and a restart-reset counter would let an attacker just
 /// relaunch the process between attempts.
 ///
 /// State file holds `{failureCount, nextRetryAtMillis, hmac}`. The
-/// HMAC is computed with a secret key the caller supplies — in L2's
+/// HMAC is computed with a secret key the caller supplies — in T1+pw's
 /// case the SHA-256 of the comparison-hash already held in the
 /// keychain, so an attacker who tampers with the state file without
 /// also possessing the keychain entry ends up with a detectable HMAC

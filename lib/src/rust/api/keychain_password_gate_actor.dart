@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// True when the L2 gate is configured on this install — disk
+/// True when the T1+pw gate is configured on this install — disk
 /// hash present AND keychain pepper present.
 ///
 /// Returns `Ok(false)` on any non-fatal miss (file absent, pepper
@@ -43,7 +43,7 @@ Future<void> keychainPasswordGateClear({required String supportDir}) => RustLib
       supportDir: supportDir,
     );
 
-/// Verify the L2 password against the on-disk hash + the keychain
+/// Verify the T1+pw password against the on-disk hash + the keychain
 /// pepper. Returns `Ok(true)` on match, `Ok(false)` on every
 /// other outcome (file missing / corrupt blob / pepper missing /
 /// HMAC mismatch). `Err` is reserved for filesystem read errors

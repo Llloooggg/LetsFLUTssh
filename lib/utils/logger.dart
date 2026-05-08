@@ -18,7 +18,7 @@ import 'sanitize.dart';
 /// dropdown bloat and "what counts as debug?" call-site bikeshedding.
 ///
 /// * [info] — routine operational state transition. "Session loaded",
-///   "tier switched to L2", "DB open". The default level for every
+///   "tier switched to T1+pw", "DB open". The default level for every
 ///   `log(...)` call that does not pass `error:` or an explicit
 ///   `level:`.
 /// * [warn] — degraded but recoverable. Fallback paths ("fell back to

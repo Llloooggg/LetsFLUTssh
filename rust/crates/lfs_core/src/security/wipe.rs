@@ -433,9 +433,9 @@ mod tests {
         let known: &[&str] = &[
             crate::security::tier_transition_marker::MARKER_FILE_NAME,
             crate::security::keychain_marker::MARKER_FILE_NAME,
-            // Rate-limit on-disk state for the L2 keychain gate.
+            // Rate-limit on-disk state for the T1+pw keychain gate.
             "rate_limit_state.bin",
-            // L2 password verifier hash.
+            // T1+pw password verifier hash.
             "security_pass_hash.bin",
             // KDF + verifier + key for the Paranoid tier.
             crate::security::master_password::KDF_FILE_NAME,

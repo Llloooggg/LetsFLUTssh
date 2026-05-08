@@ -1,6 +1,6 @@
 //! FRB adapter for `lfs_core::security::keychain_password_gate_actor`.
 //!
-//! The actor composes the L2 verify / set / clear / is_configured
+//! The actor composes the T1+pw verify / set / clear / is_configured
 //! pipeline directly against
 //! [`lfs_os_security::secure_key_storage`] — no Dart-side bus
 //! listener is in the unlock path. Each FRB function takes the
@@ -11,7 +11,7 @@ use std::path::Path;
 
 use lfs_core::security::keychain_password_gate_actor as actor;
 
-/// True when the L2 gate is configured on this install — disk
+/// True when the T1+pw gate is configured on this install — disk
 /// hash present AND keychain pepper present.
 ///
 /// Returns `Ok(false)` on any non-fatal miss (file absent, pepper
@@ -41,7 +41,7 @@ pub async fn keychain_password_gate_clear(support_dir: String) -> Result<(), Str
     actor::clear(Path::new(&support_dir)).await
 }
 
-/// Verify the L2 password against the on-disk hash + the keychain
+/// Verify the T1+pw password against the on-disk hash + the keychain
 /// pepper. Returns `Ok(true)` on match, `Ok(false)` on every
 /// other outcome (file missing / corrupt blob / pepper missing /
 /// HMAC mismatch). `Err` is reserved for filesystem read errors

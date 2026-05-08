@@ -19,7 +19,7 @@
 //! simplest (no secret); subsequent tiers compose with the OS
 //! keychain / biometric stack directly via
 //! [`lfs_os_security::secure_key_storage`] +
-//! [`lfs_os_security::biometric_auth`] for the T1/L2 paths, and
+//! [`lfs_os_security::biometric_auth`] for the T1/T1+pw paths, and
 //! with the still-Dart-side hardware-vault prompt registries
 //! (`hardware_vault_unlock_prompt`, `hardware_vault_seal_prompt`)
 //! for T2 — the latter own platform-bound surfaces (Hello PIN
@@ -53,7 +53,7 @@ pub const TIER_UNLOCK_KEY_ID: &str = crate::secrets::ACTIVE_DBKEY_SECRET_ID;
 /// `secrets_take` on the same `TierStateChanged.unlocked` event
 /// the orchestrator just emitted.
 ///
-/// The dialog tiers (L2/T2/Paranoid) interpret the variants for
+/// The dialog tiers (T1+pw/T2/Paranoid) interpret the variants for
 /// their UI:
 ///   - `Staged` → close the dialog, the listener owns the rest.
 ///   - `WrongSecret` → keep the dialog open, surface the
@@ -83,7 +83,7 @@ fn stage_key(bytes: &[u8]) {
         .put(TIER_UNLOCK_KEY_ID, bytes);
 }
 
-/// Storage key for the T1 / L2 DB encryption key in the OS
+/// Storage key for the T1 / T1+pw DB encryption key in the OS
 /// keychain. Mirrors the Dart-era
 /// `SecureKeyStorage._keyName` const — both implementations
 /// must agree on the slot or an existing install would lose
@@ -96,7 +96,7 @@ const ENCRYPTION_KEY_SLOT: &str = "letsflutssh_encryption_key";
 /// in the process-singleton `app::instance().rate_limiters`
 /// registry; survive the lifetime of the process and reset on
 /// `record_success` (correct password lands).
-const L2_UNLOCK_LIMITER_ID: &str = "tier_unlock.keychain_with_password";
+const KEYCHAIN_PW_UNLOCK_LIMITER_ID: &str = "tier_unlock.keychain_with_password";
 const PARANOID_UNLOCK_LIMITER_ID: &str = "tier_unlock.paranoid";
 
 /// Plaintext tier — no secret, no plugin call, no user prompt.
@@ -173,7 +173,7 @@ pub async fn unlock_keychain() -> UnlockOutcome {
     }
 }
 
-/// KeychainWithPassword tier (L2) — verify the typed user
+/// KeychainWithPassword tier (T1+pw) — verify the typed user
 /// password through the on-disk gate (HMAC-SHA-256 against the
 /// stored salt + the keychain pepper), then on success read
 /// the DB encryption key from the OS keychain and return its
@@ -190,7 +190,7 @@ pub async fn unlock_keychain() -> UnlockOutcome {
 ///
 /// Reads the support dir from the pinned singleton — caller
 /// must have invoked `master_password_init` at app startup
-/// (the L2 gate shares the same support-dir pin since both
+/// (the T1+pw gate shares the same support-dir pin since both
 /// store on-disk state under the same root).
 pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     instance_dispatch(SecurityTier::Keychain, &TierEvent::UnlockRequested);
@@ -198,14 +198,14 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     // Rate-limit gate. The Dart unlock dialog's countdown was the
     // only brake on this verify path — a programmatic FRB caller
     // could fire `unlock_keychain_with_password` in a tight loop
-    // and brute-force the L2 gate password (4-12 chars typical) at
+    // and brute-force the T1+pw gate password (4-12 chars typical) at
     // wall-clock speed. The InMemoryRateLimiter applies the same
     // exponential schedule (1, 5, 15, 30, 60s cap) the Dart-side
     // limiter used. The persisted variant lives on disk and is
-    // owned by the L2 gate; the in-memory mirror here is the
+    // owned by the T1+pw gate; the in-memory mirror here is the
     // boundary-level gate that catches direct callers.
     let limiters = &crate::app::instance().rate_limiters;
-    let l2_status = limiters.status(L2_UNLOCK_LIMITER_ID);
+    let l2_status = limiters.status(KEYCHAIN_PW_UNLOCK_LIMITER_ID);
     if l2_status.is_locked() {
         instance_dispatch(
             SecurityTier::Keychain,
@@ -237,7 +237,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
     };
 
     if !verified {
-        limiters.record_failure(L2_UNLOCK_LIMITER_ID);
+        limiters.record_failure(KEYCHAIN_PW_UNLOCK_LIMITER_ID);
         instance_dispatch(
             SecurityTier::Keychain,
             &TierEvent::UnlockFailed {
@@ -246,7 +246,7 @@ pub async fn unlock_keychain_with_password(password: Vec<u8>) -> UnlockOutcome {
         );
         return UnlockOutcome::WrongSecret;
     }
-    limiters.record_success(L2_UNLOCK_LIMITER_ID);
+    limiters.record_success(KEYCHAIN_PW_UNLOCK_LIMITER_ID);
 
     // Password verified — read the DB encryption key directly
     // from the OS keychain.
@@ -528,7 +528,7 @@ pub async fn first_launch_keychain() -> UnlockOutcome {
     }
 }
 
-/// First-launch L2 (KeychainWithPassword). Sets the gate password
+/// First-launch T1+pw (KeychainWithPassword). Sets the gate password
 /// (Rust-side actor writes the salt + verifier files), generates a
 /// random key, writes it to the OS keychain via the Dart
 /// subscriber, stages the bytes + emits the cascade.
@@ -659,7 +659,7 @@ async fn write_to_keychain(bytes: &[u8]) -> Result<(), String> {
 /// `Locked → Unlocking → Unlocked` cascade for [`tier`] without
 /// going through a per-tier verify (gate / Argon2id /
 /// keychain-read / hardware unseal). Used by the biometric
-/// fast-path on L2/T2 — the bytes come from the OS-managed
+/// fast-path on T1+pw/T2 — the bytes come from the OS-managed
 /// `BiometricKeyVault` (Dart-side flutter plugin), so the
 /// per-tier orchestrator's verify step is bypassed; the
 /// cascade still has to fire so the [`TierUnlockedListener`]
@@ -784,10 +784,10 @@ mod tests {
         // a fresh id-suffix to avoid bleed between tests in
         // this binary.
         for _ in 0..crate::rate_limit::BACKOFF_SCHEDULE.len() {
-            limiters.record_failure(L2_UNLOCK_LIMITER_ID);
+            limiters.record_failure(KEYCHAIN_PW_UNLOCK_LIMITER_ID);
         }
         assert!(
-            limiters.status(L2_UNLOCK_LIMITER_ID).is_locked(),
+            limiters.status(KEYCHAIN_PW_UNLOCK_LIMITER_ID).is_locked(),
             "limiter must be locked before invoking the orchestrator"
         );
 
@@ -795,8 +795,8 @@ mod tests {
         assert_eq!(outcome, UnlockOutcome::WrongSecret);
 
         // Cleanup so subsequent tests in this binary that touch
-        // the L2 limiter start fresh.
-        limiters.record_success(L2_UNLOCK_LIMITER_ID);
+        // the T1+pw limiter start fresh.
+        limiters.record_success(KEYCHAIN_PW_UNLOCK_LIMITER_ID);
     }
 
     /// Mirror of the above for the Paranoid tier. Argon2id is

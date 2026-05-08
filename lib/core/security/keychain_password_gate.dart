@@ -12,7 +12,7 @@ import '../../src/rust/api/keychain_password_gate_actor.dart' as rust_actor;
 import '../../utils/logger.dart';
 import 'password_rate_limiter.dart';
 
-/// UX-only password gate for L2 (keychain + password).
+/// UX-only password gate for T1+pw (keychain + password).
 ///
 /// Design: the DB key lives in the OS keychain exactly like T1.
 /// A short user-typed password is held as a salted HMAC so the
@@ -133,7 +133,7 @@ class KeychainPasswordGate {
   /// Drop every artifact the gate writes via
   /// `lfs_core::security::keychain_password_gate_actor::clear` —
   /// the disk delete + the `flutter_secure_storage.delete`
-  /// round-trip live in Rust. Called on tier switch away from L2
+  /// round-trip live in Rust. Called on tier switch away from T1+pw
   /// and on breaking-change reset.
   Future<void> clear() async {
     final file = await _hashFile();

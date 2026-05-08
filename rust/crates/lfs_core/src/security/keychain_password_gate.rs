@@ -1,4 +1,4 @@
-//! Disk-blob format owner for the L2 keychain-with-password gate.
+//! Disk-blob format owner for the T1+pw keychain-with-password gate.
 //!
 //! `KeychainPasswordGate` (Dart) splits the gate's secret across
 //! disk + keychain: a salt + comparison-HMAC blob lives in

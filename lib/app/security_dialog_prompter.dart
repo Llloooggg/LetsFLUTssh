@@ -24,7 +24,7 @@ import 'security_dialogs.dart';
 ///
 /// The interface is intentionally narrow — it only captures the calls
 /// whose default implementation would block on a real user interaction.
-/// `TierSecretUnlockDialog.show` (used for L2 unlock + first-launch L2
+/// `TierSecretUnlockDialog.show` (used for T1+pw unlock + first-launch T1+pw
 /// confirmation) has a more complex closure-based signature and is still
 /// driven through its own null-context fallback; covering it needs
 /// either a follow-up method here or a dedicated fixture.
@@ -51,7 +51,7 @@ abstract class SecurityDialogPrompter {
   /// password reset.
   Future<bool?> showMasterPasswordUnlock(MasterPasswordManager manager);
 
-  /// Tier-secret unlock dialog (L2 short password / T2 hardware PIN).
+  /// Tier-secret unlock dialog (T1+pw short password / T2 hardware PIN).
   /// Production wraps [TierSecretUnlockDialog.show] — the widget owns
   /// the retry loop + rate-limit cooldown + biometric retry.
   ///

@@ -73,7 +73,7 @@ pub async fn tier_unlock_keychain() -> DbUnlockOutcome {
     tier_unlock_orchestrator::unlock_keychain().await.into()
 }
 
-/// KeychainWithPassword tier (L2) — verify the typed user
+/// KeychainWithPassword tier (T1+pw) — verify the typed user
 /// password through the on-disk gate, then read the DB
 /// encryption key from the OS keychain. Stages bytes in the
 /// SecretStore on success + returns the outcome.
@@ -181,7 +181,7 @@ pub async fn tier_first_launch_keychain() -> DbUnlockOutcome {
         .into()
 }
 
-/// First-launch L2 (KeychainWithPassword). Sets the on-disk gate
+/// First-launch T1+pw (KeychainWithPassword). Sets the on-disk gate
 /// password (HMAC-SHA-256 salt + verifier files), generates a
 /// fresh AES-GCM key, writes it to the OS keychain via the Dart
 /// subscriber, stages + emits cascade. On a keychain write
@@ -292,9 +292,9 @@ pub fn tier_unlock_keychain_cancel() {
     tier_unlock_orchestrator::cancel_unlock(SecurityTier::Keychain);
 }
 
-/// Cancel an in-flight L2 unlock attempt. Dispatches
+/// Cancel an in-flight T1+pw unlock attempt. Dispatches
 /// `UnlockFailed { UserCancelled }` so the tier machine flips
-/// back to `Locked` when the user dismisses the L2 unlock
+/// back to `Locked` when the user dismisses the T1+pw unlock
 /// dialog without submitting a password.
 #[flutter_rust_bridge::frb(sync)]
 pub fn tier_unlock_keychain_with_password_cancel() {

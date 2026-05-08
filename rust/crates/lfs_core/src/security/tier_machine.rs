@@ -29,7 +29,7 @@ pub enum TierState {
     Locked,
     /// User has dismissed an unlock prompt or the bootstrap has
     /// requested unlock; we're waiting for the secret to land
-    /// (passing through the typed prompt registry for L2 / T2 /
+    /// (passing through the typed prompt registry for T1+pw / T2 /
     /// Paranoid). For T0 / T1 this state is transient — the
     /// transition fires immediately on `UnlockRequested`.
     Unlocking,
@@ -64,7 +64,7 @@ impl TierState {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum UnlockFailureReason {
     /// User-supplied secret rejected by the verifier (master
-    /// password mismatch / L2 password mismatch / TPM auth value
+    /// password mismatch / T1+pw password mismatch / TPM auth value
     /// mismatch / wrong biometric enrolment).
     WrongSecret,
     /// Verifier fired but the platform plugin (keychain read,

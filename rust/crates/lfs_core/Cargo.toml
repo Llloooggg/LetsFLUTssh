@@ -76,7 +76,7 @@ serde = { workspace = true }
 # specific minor: tss-esapi's API has churned across major versions,
 # and pinning here keeps a future minor bump from silently changing
 # the seal template's marshalled bytes (which would brick existing
-# users' L3 hardware-tier envelopes). When bumping, re-verify
+# users' T2 hardware-tier envelopes). When bumping, re-verify
 # round-trip seal/unseal against an envelope sealed under the
 # previous minor.
 tss-esapi = "7.5"

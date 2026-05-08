@@ -1,11 +1,11 @@
-//! In-memory + on-disk actor for the L2 keychain-gate's
+//! In-memory + on-disk actor for the T1+pw keychain-gate's
 //! `PersistedRateLimiter`. Wraps the existing
 //! `persisted_rate_limit::{encode_state, decode_state}` HMAC-frame
 //! ser/de with the cache + serialised disk-write coordination that
 //! used to live Dart-side.
 //!
 //! The actor lives as a process-singleton registry keyed on `id` so
-//! the L2 gate can register one limiter at startup
+//! the T1+pw gate can register one limiter at startup
 //! (`init_or_get`) and every subsequent unlock attempt routes
 //! `status` / `record_failure` / `record_success` through the same
 //! registry entry. Disk writes go through `tokio::spawn_blocking`
@@ -81,7 +81,7 @@ impl PersistedRateLimiterRegistry {
     ///
     /// If a different `(file_path, hmac_key)` pair was registered
     /// earlier under the same `id`, the new pair wins — the
-    /// L2-gate's password change / wipe path may legitimately
+    /// T1+pw-gate's password change / wipe path may legitimately
     /// re-init with a fresh HMAC key.
     pub fn init_or_get(&self, id: &str, file_path: PathBuf, hmac_key: Vec<u8>) -> RateLimitStatus {
         let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
@@ -224,7 +224,7 @@ impl Default for PersistedRateLimiterRegistry {
     }
 }
 
-/// Process-singleton registry instance — the L2 gate registers
+/// Process-singleton registry instance — the T1+pw gate registers
 /// once per app launch, every unlock dialog routes through this.
 static GLOBAL: OnceLock<PersistedRateLimiterRegistry> = OnceLock::new();
 

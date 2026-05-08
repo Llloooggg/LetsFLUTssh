@@ -413,7 +413,7 @@ When you notice existing code missing a log on one of the above, add it in the s
 
 | Level | Use when | Examples |
 |---|---|---|
-| `LogLevel.info` | (default) Routine operational state transition. "Session loaded", "tier switched to L2", "DB opened at $path", "SFTP connected". One line per meaningful event, never per-frame / per-packet. | `log('SFTP connected', name: 'SFTP')` |
+| `LogLevel.info` | (default) Routine operational state transition. "Session loaded", "tier switched to T1+pw", "DB opened at $path", "SFTP connected". One line per meaningful event, never per-frame / per-packet. | `log('SFTP connected', name: 'SFTP')` |
 | `LogLevel.warn` | Degraded but recoverable. Fallback paths ("fell back to plaintext"), missing optional state ("biometric not enrolled — password-only"), rate-limit kick-ins, skipped duplicates, probe failures that route to a weaker default. The operation *continued*; the user keeps a working app with a slightly weaker guarantee. **Override the error-auto-promote** explicitly when a recoverable path also carries a suppressed exception object: `log('X failed, falling back', error: e, level: LogLevel.warn)` — otherwise the viewer tints it red and the user thinks the fallback itself broke. | `log('Keychain write failed, falling back to plaintext', name: 'App', level: LogLevel.warn)` |
 | `LogLevel.error` | Failure the user likely cares about. Migration fatal, DB corruption, lost credentials, unrecoverable connection drop, crash-handler breadcrumb. Operation aborted or entered a recovery flow that requires user action. | `log('Migration fatal', name: 'App', error: e)` — auto-promoted; or `logCritical(...)` on crash paths |
 

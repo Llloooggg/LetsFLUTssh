@@ -2,7 +2,7 @@
 //!
 //! Sync everywhere — every op is a base64 encode/decode + a JSON
 //! parse + (for the hmac) a single SHA-256 digest pass. The async
-//! hop overhead would dwarf the per-call work, and the L2 unlock
+//! hop overhead would dwarf the per-call work, and the T1+pw unlock
 //! dialog wants the verify decision before the keychain prompt
 //! finishes animating.
 //!

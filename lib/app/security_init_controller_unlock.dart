@@ -1,6 +1,6 @@
 part of 'security_init_controller.dart';
 
-/// Per-tier unlock flows + the L2 / T2 dialog scaffolding. Lives as
+/// Per-tier unlock flows + the T1+pw / T2 dialog scaffolding. Lives as
 /// an extension on [SecurityInitController] so the methods reach the
 /// private `_dialogs` / `_credentialsWereReset` / `_injectDatabase`
 /// fields without exposing them publicly; `part of` joins the file
@@ -107,7 +107,7 @@ extension _UnlockFlows on SecurityInitController {
   Future<void> _unlockKeychainWithPassword() async {
     final gate = ref.read(keychainPasswordGateProvider);
     if (!await gate.isConfigured()) {
-      await _handleVaultStateMissing('L2 keychain+password');
+      await _handleVaultStateMissing('T1+pw keychain+password');
       return;
     }
     // Multi-attempt dialog routes through the orchestrator + listener
@@ -131,13 +131,13 @@ extension _UnlockFlows on SecurityInitController {
         );
         if (result == TierUnlockOutcome.unlocked) {
           AppLogger.instance.log(
-            'L2 keychain+password unlocked via biometrics',
+            'T1+pw keychain+password unlocked via biometrics',
             name: 'App',
           );
           return;
         }
         AppLogger.instance.log(
-          'L2 biometric staged but listener returned $result — '
+          'T1+pw biometric staged but listener returned $result — '
           'falling through to dialog',
           name: 'App',
           level: LogLevel.warn,
@@ -154,11 +154,11 @@ extension _UnlockFlows on SecurityInitController {
         onTimeout: () => TierUnlockOutcome.failed,
       );
       if (result == TierUnlockOutcome.unlocked) {
-        AppLogger.instance.log('L2 keychain+password unlocked', name: 'App');
+        AppLogger.instance.log('T1+pw keychain+password unlocked', name: 'App');
         return;
       }
       AppLogger.instance.log(
-        'L2 dialog returned success but listener resolved $result — '
+        'T1+pw dialog returned success but listener resolved $result — '
         'falling back to plaintext',
         name: 'App',
         level: LogLevel.warn,
@@ -180,7 +180,7 @@ extension _UnlockFlows on SecurityInitController {
     }
     await _injectDatabase();
     AppLogger.instance.log(
-      'L2 reset — plaintext fallback',
+      'T1+pw reset — plaintext fallback',
       name: 'App',
       level: LogLevel.warn,
     );

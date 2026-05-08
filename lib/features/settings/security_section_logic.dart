@@ -93,8 +93,8 @@ BiometricModifierSpec? biometricSpecFor({
     return null;
   }
   // Pre-v3 the T1+password tier had its own enum value, so the
-  // keychain card had to special-case "current is L2" via a
-  // distinct tier comparison. Post-v3 collapse: L2 is just
+  // keychain card had to special-case "current is T1+pw" via a
+  // distinct tier comparison. Post-v3 collapse: T1+pw is just
   // keychain + modifiers.password=true, so `tier == currentLevel`
   // covers it directly.
   final isCurrent = tier == currentLevel;

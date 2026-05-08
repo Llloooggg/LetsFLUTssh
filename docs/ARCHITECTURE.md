@@ -271,7 +271,7 @@ lib/
 │   ├── tag_dots.dart                # Colored tag dots for session/folder tree rows
 │   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
 │   ├── tier_reset_dialog.dart       # Non-dismissible reset prompt when the resolved tier no longer matches on-disk artefacts
-│   ├── tier_secret_unlock_dialog.dart # Shared L2 short-password / T2 PIN unlock shell with retry + cooldown
+│   ├── tier_secret_unlock_dialog.dart # Shared T1+pw short-password / T2 PIN unlock shell with retry + cooldown
 │   ├── toast.dart                   # Stacked notification toasts
 │   ├── unified_export_controller.dart # Headless selection / options / sizing
 │   ├── unified_export_dialog.dart   # Unified QR and .lfs export dialog
@@ -1060,7 +1060,7 @@ Every master-password unlock verifies the password *and* produces the derived DB
 
 #### Switching tiers on the fly — always-rekey invariant
 
-Every tier switch — T0↔T1↔L2↔T2↔Paranoid, **including `password`-modifier flips on the same tier** — generates a fresh random 32-byte DB key and rekeys the whole DB under it. The previous wrapper (keychain entry, hardware-sealed blob, Argon2id verifier) is invalidated by the rekey, so a previously leaked wrapper cannot decrypt post-switch data.
+Every tier switch — T0↔T1↔T1+pw↔T2↔Paranoid, **including `password`-modifier flips on the same tier** — generates a fresh random 32-byte DB key and rekeys the whole DB under it. The previous wrapper (keychain entry, hardware-sealed blob, Argon2id verifier) is invalidated by the rekey, so a previously leaked wrapper cannot decrypt post-switch data.
 
 **Exception — biometric-only toggle.** Flipping the `biometric` modifier on an otherwise-identical config (same tier, same `password` state) does **not** trigger a rekey. The DB-key wrapping is unchanged — biometric is purely additive, a secondary copy of the typed password in a biometric-gated slot (see [#biometric-unlock](#biometric-unlock)) — so a rekey would cost the user a re-prompt for the password with zero cryptographic gain. `settings_sections_security._applyBiometricOnlyToggle` handles this path: it calls `_applyPendingBiometric` directly (password prompt on enable, vault clear on disable) and skips `_applyTierChange` entirely. The tier-card Apply button routes here when the only pending diff is the biometric flag.
 
@@ -1078,9 +1078,9 @@ A crash between steps 3 and 7 leaves the marker on disk. `main._initSecurity` lo
 
 Settings exposes the switcher through a single "Change Security Tier" action that reopens the wizard pre-marked with the current tier and routes the result through `_applyTierChange` (`settings_sections_security.dart`) — every on-disk tier switch goes through the same orchestration path.
 
-#### L2 keychain-password gate (`KeychainPasswordGate`)
+#### T1+pw keychain-password gate (`KeychainPasswordGate`)
 
-L2 layers a UX-only short password in front of the T1 keychain-stored DB key. The password is **not** a cryptographic layer: an attacker who can read both the disk and the OS keychain already has every ingredient for the DB key, password or not. The gate exists to deny a coworker at the desk, not to resist offline attack.
+T1+pw layers a UX-only short password in front of the T1 keychain-stored DB key. The password is **not** a cryptographic layer: an attacker who can read both the disk and the OS keychain already has every ingredient for the DB key, password or not. The gate exists to deny a coworker at the desk, not to resist offline attack.
 
 State layout:
 
@@ -1131,13 +1131,13 @@ A torn blob on any platform otherwise yields `readVault` → null → `isStored`
 | Tier | Limiter | Persistence | Rationale |
 |---|---|---|---|
 | **T0 / T1** | none | n/a | T0 has no user secret; T1 auto-unlocks via keychain, no retry surface |
-| **L2** | `PersistedRateLimiter` | disk, HMAC-authenticated | UX-gate password has no cryptographic strength; a process-restart reset would be free for an attacker |
+| **T1+pw** | `PersistedRateLimiter` | disk, HMAC-authenticated | UX-gate password has no cryptographic strength; a process-restart reset would be free for an attacker |
 | **T2** | `HardwareRateLimiter` | in-memory | Thin software counter on top of the platform's hardware lockout — defense-in-depth if the hardware layer is misconfigured |
 | **Paranoid** | `InMemoryRateLimiter` | in-memory | Argon2id is the real brake; persisting a forgot-password wait across restarts is user-hostile for no extra safety |
 
 All three share the backoff schedule `[0, 1, 2, 4, 8, 16, 32, 60, 60, 60] s` — capped at 60 s so a legitimate user who genuinely forgot their password never waits more than a minute between retries.
 
-`PersistedRateLimiter` writes `{failureCount, nextRetryAtMillis}` to `rate_limit_state.bin` framed with an HMAC-SHA256 tag. The signing key is **HKDF-derived** from the L2 gate's stored HMAC under the `lfs/persisted-rate-limit/v1` info string — the gate HMAC verifies the user-typed password and the rate-limit HMAC signs the cooldown state, with HKDF enforcing key-separation so an attacker who recovers either side has no algebraic shortcut to forge the other. Pre-v1 state files signed the payload with the gate HMAC directly; the decoder retries verification with the raw gate HMAC on first-pass mismatch and the next mutation re-emits under the derived key, migrating the file in-place without a registry hop. Tamper detection: a mismatch on load (against both the derived and the legacy keys) clamps the counter to the schedule cap and sets `nextRetryAt` to `now + 60 s`, so an attacker who overwrites the state file with garbage lands in max cooldown rather than zero-failures. Writes are serialised on a `Future` chain so back-to-back `recordFailure` / `recordSuccess` calls never race at the filesystem.
+`PersistedRateLimiter` writes `{failureCount, nextRetryAtMillis}` to `rate_limit_state.bin` framed with an HMAC-SHA256 tag. The signing key is **HKDF-derived** from the T1+pw gate's stored HMAC under the `lfs/persisted-rate-limit/v1` info string — the gate HMAC verifies the user-typed password and the rate-limit HMAC signs the cooldown state, with HKDF enforcing key-separation so an attacker who recovers either side has no algebraic shortcut to forge the other. Pre-v1 state files signed the payload with the gate HMAC directly; the decoder retries verification with the raw gate HMAC on first-pass mismatch and the next mutation re-emits under the derived key, migrating the file in-place without a registry hop. Tamper detection: a mismatch on load (against both the derived and the legacy keys) clamps the counter to the schedule cap and sets `nextRetryAt` to `now + 60 s`, so an attacker who overwrites the state file with garbage lands in max cooldown rather than zero-failures. Writes are serialised on a `Future` chain so back-to-back `recordFailure` / `recordSuccess` calls never race at the filesystem.
 
 **Monotonic-floor cooldown (clock-jump hardening).** `record_failure` issues `next_retry_at_millis = max(now + step_ms, prev_next_retry_at_millis)` so a backward clock jump (NTP correction, suspended laptop with battery-drained RTC, hostile system-time write) cannot shrink an already-issued cooldown. Without the floor an attacker with system-clock write access could burn through the geometric backoff: fail → roll clock back → fail → roll back → repeat, issuing each new cooldown against rolled-back time and skipping the schedule entirely. Forward jumps still let the cooldown expire on schedule (legitimate NTP corrections + DST forward roll); only backward jumps are clamped. Regression: `persisted_rate_limit_actor::tests::backward_clock_jump_does_not_shrink_cooldown`.
 
@@ -1226,7 +1226,7 @@ The app's at-rest DB encryption runs on **SQLCipher 4.x**, statically linked int
 
 #### Password strength meter
 
-Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Uses a coarse length + character-class heuristic in [`assessPasswordStrength`](../lib/core/security/password_strength.dart) — five-tier enum, pure function, no `zxcvbn` wordlist (would bloat the binary for a feature that never blocks Save). The [`PasswordStrengthMeter`](../lib/widgets/password_strength_meter.dart) widget listens on the password controller and renders a coloured bar + localised label, hiding itself when the field is empty. The meter never blocks submit: a four-character password shows a red bar and still commits on OK, by design — users who want short passwords get a warning, not a wall. Labels are localised across all 15 locales (`passwordStrengthWeak` / `Moderate` / `Strong` / `VeryStrong`). The short-password and PIN forms (L2 / T2) do not render the meter — those tiers are governed by the rate limiter + hardware lockout, not entropy.
+Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Uses a coarse length + character-class heuristic in [`assessPasswordStrength`](../lib/core/security/password_strength.dart) — five-tier enum, pure function, no `zxcvbn` wordlist (would bloat the binary for a feature that never blocks Save). The [`PasswordStrengthMeter`](../lib/widgets/password_strength_meter.dart) widget listens on the password controller and renders a coloured bar + localised label, hiding itself when the field is empty. The meter never blocks submit: a four-character password shows a red bar and still commits on OK, by design — users who want short passwords get a warning, not a wall. Labels are localised across all 15 locales (`passwordStrengthWeak` / `Moderate` / `Strong` / `VeryStrong`). The short-password and PIN forms (T1+pw / T2) do not render the meter — those tiers are governed by the rate limiter + hardware lockout, not entropy.
 
 #### Auto-lock
 
@@ -3750,7 +3750,7 @@ TierSecretUnlockDialog.show(context, {
   BiometricSpec? biometric,
 }) → Future<TierUnlockAttempt>
 ```
-Shared L2 (short password) / T2 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns a typed `TierUnlockAttempt` outcome — `staged` (the unlock orchestrator put the resolved key in SecretStore), `wrongSecret` (kept open + decrements the limiter), `error` (closes with failure for plaintext / corruption fallback), or `cancelled` (inner sub-prompt dismissed, dialog stays open). The dialog never sees raw key bytes; the [`TierUnlockedListener`](../lib/app/tier_unlocked_listener.dart) takes them via `secrets_take` off the `TierStateChanged.unlocked` bus event and hands them to drift. Cooldown back-off is wired through the `rateLimiter` parameter.
+Shared T1+pw (short password) / T2 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns a typed `TierUnlockAttempt` outcome — `staged` (the unlock orchestrator put the resolved key in SecretStore), `wrongSecret` (kept open + decrements the limiter), `error` (closes with failure for plaintext / corruption fallback), or `cancelled` (inner sub-prompt dismissed, dialog stays open). The dialog never sees raw key bytes; the [`TierUnlockedListener`](../lib/app/tier_unlocked_listener.dart) takes them via `secrets_take` off the `TierStateChanged.unlocked` bus event and hands them to drift. Cooldown back-off is wired through the `rateLimiter` parameter.
 
 ### TierResetDialog
 
@@ -4498,8 +4498,8 @@ All files live in the platform's app-support directory (see **Location** below).
 | `credentials.verify` | No | AES-256-GCM | Encrypted known-plaintext blob — used to verify the entered master password matches | Master password setup |
 | `credentials.key` | AES-256-GCM (under master-password-derived KEK) | Length-prefixed envelope | The 32-byte DB encryption key, wrapped under the master-password-derived KEK. Lets the verify path reuse the same Argon2id pass for both verify + key resolution rather than running it twice | Master password setup; rewritten on every tier switch |
 | `keychain_enabled` | No | Marker file (presence) | Sentinel for the T1 keychain-backed tier — written when the T1 setup wizard finishes, removed on tier downgrade or wipe | T1 enable |
-| `rate_limit_state.bin` | HMAC-SHA256-authenticated framing | `{failureCount, nextRetryAtMillis}` blob | Persisted L2 password-gate rate-limit counters. Survives process restart so a relaunch can't reset the cooldown | First L2 failure |
-| `security_pass_hash.bin` | No | Argon2id salt + verifier | L2 keychain-password gate hash + per-install pepper handle. Verifies the short-password the keychain unlock prompt collects | L2+password setup |
+| `rate_limit_state.bin` | HMAC-SHA256-authenticated framing | `{failureCount, nextRetryAtMillis}` blob | Persisted T1+pw password-gate rate-limit counters. Survives process restart so a relaunch can't reset the cooldown | First T1+pw failure |
+| `security_pass_hash.bin` | No | Argon2id salt + verifier | T1+pw keychain-password gate hash + per-install pepper handle. Verifies the short-password the keychain unlock prompt collects | T1+pw+password setup |
 | `hardware_vault_*.bin` | Hardware-backed wrap | Per-platform envelope | Hardware-vault sealed DB-key blob (one per platform — Apple / Android / Windows / Linux + per-platform overlay variants). See [§3.6 T2 hardware vault](#l3-hardware-vault-hardwaretiervault) for the per-platform shape | T2 enable |
 | `.tier-transition-pending` | No | JSON | Crash-recovery marker written before a tier-switch rekey. Absence = previous tier switch completed cleanly; presence on startup signals an interrupted switch and routes through the recovery path | Every tier switch (cleared on success) |
 | `.wipe-pending` | No | Empty file | Crash-recovery marker written before a wipe sweep starts. Presence on startup re-runs the sweep idempotently | Wipe start (cleared on success) |
@@ -4845,7 +4845,7 @@ The full per-tier model lives in [§3.6 Three-Tier + Paranoid Model](#three-tier
 |---|---|---|---|
 | **Plaintext (T0)** | None | `letsflutssh.db` — opened via rusqlite/SQLCipher with no `PRAGMA key` | `letsflutssh.db` |
 | **Keychain (T1)** | OS keychain via `lfs_os_security::secure_key_storage` (Apple SecItem / Linux libsecret / Windows CredMan / Android Keystore JNI) | `letsflutssh.db` — SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `keychain_enabled` |
-| **Keychain + password (L2)** | OS keychain + L2 password gate (Argon2id verifier with HMAC-bound rate-limiter) | SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `security_pass_hash.bin`, `rate_limit_state.bin`, `keychain_enabled` |
+| **Keychain + password (T1+pw)** | OS keychain + T1+pw password gate (Argon2id verifier with HMAC-bound rate-limiter) | SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `security_pass_hash.bin`, `rate_limit_state.bin`, `keychain_enabled` |
 | **Hardware (T2)** | Hardware-sealed wrap (TPM 2.0 / Secure Enclave / AndroidKeyStore strongbox / CNG TPM) | SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `hardware_vault_*.bin`, optional overlay (.password_overlay) |
 | **Paranoid** | Argon2id-derived from master password — never stored in the OS | SQLCipher 4.x (`PRAGMA key`) + `credentials.kdf` + `credentials.verify` + `credentials.key` | `letsflutssh.db`, three `credentials.*` files |
 

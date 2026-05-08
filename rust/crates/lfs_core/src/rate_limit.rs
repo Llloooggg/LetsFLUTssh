@@ -2,7 +2,7 @@
 //!
 //! Owns the exponential-backoff schedule + transition rules used
 //! across every password-bearing tier. The persistent variant
-//! (HMAC-authenticated state file used by the L2 keychain gate)
+//! (HMAC-authenticated state file used by the T1+pw keychain gate)
 //! lives next door in
 //! [`crate::security::persisted_rate_limit_actor`] — both share
 //! [`BACKOFF_SCHEDULE`] so the timing is identical regardless of

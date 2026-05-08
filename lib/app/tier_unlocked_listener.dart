@@ -58,7 +58,7 @@ class TierUnlockedListener {
 
   /// When true, the in-flight `_pending` future ignores intermediate
   /// `locked` terminal events (orchestrator emits one per failed
-  /// attempt in multi-attempt dialog tiers — L2/T2/Paranoid). Only
+  /// attempt in multi-attempt dialog tiers — T1+pw/T2/Paranoid). Only
   /// `unlocked` or an explicit [cancelPending] resolves the wait.
   /// T0/T1 (single-shot) keep the default `false` so a missing
   /// keychain entry surfaces as `locked` instead of hanging.
@@ -98,7 +98,7 @@ class TierUnlockedListener {
   /// arm picks up a stale completion).
   ///
   /// [onlyUnlocked]: ignore intermediate `locked` events. The
-  /// multi-attempt dialog tiers (L2/T2/Paranoid) re-enter the
+  /// multi-attempt dialog tiers (T1+pw/T2/Paranoid) re-enter the
   /// orchestrator on every wrong-secret submit; each attempt
   /// fires a paired `UnlockFailed` → `Locked` transition. The
   /// caller awaits the FINAL `Unlocked` (set when the user

@@ -66,7 +66,7 @@ pub fn hkdf_sha256(
 /// the right password / PIN without ever decrypting the wrapped key
 /// material:
 ///
-/// * `KeychainPasswordGate` (L2) — gate-stored hash:
+/// * `KeychainPasswordGate` (T1+pw) — gate-stored hash:
 ///   `HMAC(pepper, salt || password)`. Mismatch ≠ keychain unlock.
 /// * `HardwareTierVault` (T2) — TPM auth value:
 ///   `HMAC(salt, password)` (or `HMAC(salt, fprintdHash)` on the
@@ -128,7 +128,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 ///
 /// Backed by `subtle::ConstantTimeEq` — never replace with `==` on
 /// MAC tags, derived keys, or any value where mismatch leaks part of
-/// a secret. The Dart-side `_constantTimeEqual` helpers in the L2
+/// a secret. The Dart-side `_constantTimeEqual` helpers in the T1+pw
 /// gate + persisted-rate-limiter route through this via
 /// `crypto_constant_time_eq` so the implementation lives one place.
 #[must_use]

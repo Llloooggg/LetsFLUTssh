@@ -224,7 +224,7 @@ impl SecurityConfig {
     /// True when the config has any user-typed secret on the unlock
     /// path. Paranoid is mandatory-password by definition; for
     /// Keychain / Hardware the answer depends on the modifier
-    /// (`Keychain` + `password = true` is the bank-style L2,
+    /// (`Keychain` + `password = true` is the bank-style T1+pw,
     /// previously a dedicated `KeychainWithPassword` tier).
     pub fn has_user_secret(&self) -> bool {
         if self.tier == SecurityTier::Paranoid {

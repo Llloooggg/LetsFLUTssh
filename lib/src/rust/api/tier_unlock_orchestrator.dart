@@ -33,7 +33,7 @@ void tierUnlockPlaintext() =>
 Future<DbUnlockOutcome> tierUnlockKeychain() =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockKeychain();
 
-/// KeychainWithPassword tier (L2) — verify the typed user
+/// KeychainWithPassword tier (T1+pw) — verify the typed user
 /// password through the on-disk gate, then read the DB
 /// encryption key from the OS keychain. Stages bytes in the
 /// SecretStore on success + returns the outcome.
@@ -142,7 +142,7 @@ Future<DbUnlockOutcome> tierFirstLaunchParanoid({
 Future<DbUnlockOutcome> tierFirstLaunchKeychain() => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierFirstLaunchKeychain();
 
-/// First-launch L2 (KeychainWithPassword). Sets the on-disk gate
+/// First-launch T1+pw (KeychainWithPassword). Sets the on-disk gate
 /// password (HMAC-SHA-256 salt + verifier files), generates a
 /// fresh AES-GCM key, writes it to the OS keychain via the Dart
 /// subscriber, stages + emits cascade. On a keychain write
@@ -242,9 +242,9 @@ bool tierUnlockBiometricCommitFromSecret({
 void tierUnlockKeychainCancel() => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierUnlockKeychainCancel();
 
-/// Cancel an in-flight L2 unlock attempt. Dispatches
+/// Cancel an in-flight T1+pw unlock attempt. Dispatches
 /// `UnlockFailed { UserCancelled }` so the tier machine flips
-/// back to `Locked` when the user dismisses the L2 unlock
+/// back to `Locked` when the user dismisses the T1+pw unlock
 /// dialog without submitting a password.
 void tierUnlockKeychainWithPasswordCancel() => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierUnlockKeychainWithPasswordCancel();

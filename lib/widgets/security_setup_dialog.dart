@@ -53,7 +53,7 @@ class SecuritySetupResult {
   final String? masterPasswordSecretId;
 
   /// SecretStore id of the bank-style password chosen for T1+password.
-  /// `null` when the chosen tier is not L2.
+  /// `null` when the chosen tier is not T1+pw.
   final String? shortPasswordSecretId;
 
   /// SecretStore id of the secret routed into the hardware-tier PIN
@@ -101,7 +101,7 @@ class SecuritySetupResult {
   /// returned String immediately and let it drop.
   String? takeMasterPassword() => _takeBytesAsString(masterPasswordSecretId);
 
-  /// Same shape as [takeMasterPassword] but for the L2 + password
+  /// Same shape as [takeMasterPassword] but for the T1+pw + password
   /// short-password slot.
   String? takeShortPassword() => _takeBytesAsString(shortPasswordSecretId);
 

@@ -1,10 +1,10 @@
-//! Disk-blob format owner for the L2-tier `PersistedRateLimiter`.
+//! Disk-blob format owner for the T1+pw-tier `PersistedRateLimiter`.
 //!
 //! `PersistedRateLimiter` (Dart) writes its exponential-backoff
 //! state to `rate_limit_state.bin` under app-support so a process
 //! restart between guesses does not reset the counter. The state is
 //! HMAC-authenticated with a key derived (via HKDF-SHA-256) from
-//! the L2 gate's stored HMAC under the
+//! the T1+pw gate's stored HMAC under the
 //! `lfs/persisted-rate-limit/v1` info string. The derive enforces
 //! key-separation: the gate HMAC verifies the user-typed password,
 //! the rate-limit HMAC signs the cooldown state, and the two never
@@ -82,7 +82,7 @@ pub struct PersistedState {
 /// bytes atomically; the file lives next to the other 0600-hardened
 /// secret files under app-support.
 ///
-/// `gate_hmac` is the L2-gate's stored HMAC. The signing key is
+/// `gate_hmac` is the T1+pw-gate's stored HMAC. The signing key is
 /// derived from it via HKDF — the gate HMAC itself never directly
 /// signs the rate-limit state.
 #[must_use]
@@ -112,7 +112,7 @@ pub fn encode_state(state: &PersistedState, gate_hmac: &[u8]) -> Vec<u8> {
 /// the function shape leaves room for a future cryptographic
 /// failure mode that needs to surface separately.
 ///
-/// `gate_hmac` is the L2-gate's stored HMAC. Verification first
+/// `gate_hmac` is the T1+pw-gate's stored HMAC. Verification first
 /// tries the HKDF-derived signing key; on miss it retries with the
 /// gate HMAC directly so pre-v1 state files (signed before the
 /// HKDF separation landed) still decode. The next mutation

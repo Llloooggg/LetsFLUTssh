@@ -33,7 +33,7 @@ final biometricKeyVaultProvider = Provider<BiometricKeyVault>(
   (_) => BiometricKeyVault(),
 );
 
-/// L2 keychain-password gate. Split-storage salted HMAC; fronts the
+/// T1+pw keychain-password gate. Split-storage salted HMAC; fronts the
 /// keychain-stored DB key with a short-password check dialog.
 final keychainPasswordGateProvider = Provider<KeychainPasswordGate>(
   (_) => KeychainPasswordGate(),
