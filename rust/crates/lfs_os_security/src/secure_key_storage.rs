@@ -278,18 +278,19 @@ mod platform_impl {
     use security_framework_sys::access_control::kSecAccessControlBiometryCurrentSet;
     use security_framework_sys::base::errSecItemNotFound;
     use security_framework_sys::item::{
-        kSecAttrAccessControl, kSecAttrAccount, kSecAttrService, kSecClass,
+        kSecAttrAccessControl, kSecAttrAccessible, kSecAttrAccount, kSecAttrService, kSecClass,
         kSecClassGenericPassword, kSecMatchLimit, kSecReturnData, kSecValueData,
     };
     use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
 
     // `kSecMatchLimitOne` isn't bound by security-framework-sys
     // 2.17 (only `kSecMatchLimit` + `kSecMatchLimitAll` ship).
-    // Declare it ourselves — the symbol is exported by
-    // `Security.framework` which security-framework-sys already
-    // links, so linkage resolves at run time.
+    // Same for `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
+    // — Security.framework exports the symbols, security-framework-sys
+    // already links the framework, so linkage resolves at run time.
     extern "C" {
         static kSecMatchLimitOne: CFStringRef;
+        static kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly: CFStringRef;
     }
 
     pub(super) async fn read(alias: &str) -> Result<Option<Vec<u8>>, SecureStorageError> {
@@ -352,11 +353,17 @@ mod platform_impl {
                 // `AccessControlFlag.biometryCurrentSet` had.
                 raw_write_with_biometric_acl(&alias_owned, &value_owned)
             } else {
-                // Non-biometric path: the high-level helper
-                // wraps SecItemAdd with the default
-                // accessibility (`AccessibleWhenUnlocked`).
-                set_generic_password(SERVICE_NAME, &alias_owned, &value_owned)
-                    .map_err(|e| SecureStorageError::Backend(e.to_string()))
+                // Non-biometric path: SecItemAdd directly with
+                // `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
+                // The high-level `set_generic_password` helper
+                // hands SecItemAdd no `kSecAttrAccessible`, which
+                // defaults to `AccessibleWhenUnlocked` — that
+                // includes "this-device-only? No" (Apple may sync
+                // the entry to iCloud Keychain) which the threat
+                // model excludes. Pinning to
+                // `…ThisDeviceOnly` keeps the entry to this
+                // physical device's keychain.
+                raw_write_first_unlock_this_device(&alias_owned, &value_owned)
             }
         })
         .await
@@ -423,6 +430,53 @@ mod platform_impl {
     /// pattern is correct. CFDictionary + value owners are
     /// constructed on the stack and live across the SecItemAdd
     /// call.
+    /// Non-biometric SecItemAdd with explicit
+    /// `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. Replaces
+    /// the high-level `set_generic_password` helper which defaults
+    /// to the broader `kSecAttrAccessibleWhenUnlocked` (no
+    /// "this-device-only" suffix → Apple may sync to iCloud
+    /// Keychain).
+    fn raw_write_first_unlock_this_device(
+        alias: &str,
+        data: &[u8],
+    ) -> Result<(), SecureStorageError> {
+        let class = unsafe { CFString::wrap_under_get_rule(kSecClassGenericPassword) };
+        let class_key = unsafe { CFString::wrap_under_get_rule(kSecClass) };
+        let service_key = unsafe { CFString::wrap_under_get_rule(kSecAttrService) };
+        let account_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccount) };
+        let value_key = unsafe { CFString::wrap_under_get_rule(kSecValueData) };
+        let access_key = unsafe { CFString::wrap_under_get_rule(kSecAttrAccessible) };
+        let access_value = unsafe {
+            CFString::wrap_under_get_rule(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
+        };
+
+        let svc = CFString::new(SERVICE_NAME);
+        let acc = CFString::new(alias);
+        let val = CFData::from_buffer(data);
+
+        let pairs: Vec<(CFString, CFType)> = vec![
+            (class_key, class.into_CFType()),
+            (service_key, svc.into_CFType()),
+            (account_key, acc.into_CFType()),
+            (value_key, val.into_CFType()),
+            (access_key, access_value.into_CFType()),
+        ];
+        let dict = CFDictionary::from_CFType_pairs(&pairs);
+
+        // Best-effort delete first so SecItemAdd doesn't bounce
+        // on `errSecDuplicateItem` for an existing entry under
+        // the same alias.
+        let _ = raw_delete(alias);
+
+        let status = unsafe { SecItemAdd(dict.as_concrete_TypeRef(), std::ptr::null_mut()) };
+        if status != 0 {
+            return Err(SecureStorageError::Backend(format!(
+                "SecItemAdd (FirstUnlockThisDeviceOnly) failed: OSStatus {status}"
+            )));
+        }
+        Ok(())
+    }
+
     fn raw_write_with_biometric_acl(alias: &str, data: &[u8]) -> Result<(), SecureStorageError> {
         let acl = build_access_control()?;
 
