@@ -474,11 +474,15 @@ pub async fn connect_async(id: ConnId, args: ConnectArgs) -> Result<ConnId, Erro
 /// returns immediately. Stale-generation results are discarded so a
 /// reconnect issued mid-handshake never overwrites the newer state.
 async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<ConnectionActor>>) {
+    // Drop host:port + user from the trace — both are markers
+    // covered by the `<host>` / `<user>` redaction tokens the
+    // project sanitiser already enforces, but interpolating them
+    // verbatim here meant the bare hostname slipped through
+    // (the sanitiser's regex preserves bare hostnames so a
+    // `host:port` shape doesn't false-flag). Bastion id is opaque
+    // and stays.
     trace_connect!(
-        "run_connect_driver enter id={id} host={}:{} user={} bastion={:?}",
-        args.host,
-        args.port,
-        args.user,
+        "run_connect_driver enter id={id} host=<host> user=<user> bastion={:?}",
         args.bastion_id
     );
     let app = crate::app::instance();
@@ -590,7 +594,13 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
         }
         Err(err) => {
             let detail = err.to_string();
-            trace_connect!(
+            // FAILURE path lands as `app_log_warn!` — the connect
+            // driver's failure is surfaced to the user through the
+            // progress bus + UI; the log line is for support traces
+            // and a real connect failure is a `Warn`-level event,
+            // not the `Info` that `trace_connect!` emits.
+            crate::app_log_warn!(
+                "CoreConnect",
                 "run_connect_driver FAILURE id={id_dbg} phase={:?} detail={detail}",
                 failure_phase(&err)
             );

@@ -133,9 +133,14 @@ class SecretBuffer implements Finalizable {
         len: BigInt.from(len),
       );
       if (!ok) {
+        // Promoted from Info to Warn: a declined memory lock means
+        // the secret buffer is paging-eligible, which is a real
+        // security degrade the user should be able to see in
+        // support traces without lowering the global log threshold.
         AppLogger.instance.log(
           'Memory lock declined — secret buffer not pinned',
           name: 'SecretBuffer',
+          level: LogLevel.warn,
         );
       }
       return ok;

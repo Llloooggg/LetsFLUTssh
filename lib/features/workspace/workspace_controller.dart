@@ -554,9 +554,14 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     final manager = ref.read(connectionsProvider.notifier);
     for (final tab in closedTabs) {
       if (!remainingConnIds.contains(tab.connection.id)) {
+        // `tab.label` is free-form user-supplied (session label or
+        // a custom tab rename) — interpolating it verbatim into a
+        // log line leaks free-form bytes past the sanitiser. Use
+        // the marker shape the project rule prescribes; the id is
+        // already redaction-safe.
         AppLogger.instance.log(
           'Disconnecting orphaned connection ${tab.connection.id} '
-          '(tab "${tab.label}" closed, no remaining references)',
+          '(tab <label> closed, no remaining references)',
           name: 'Workspace',
         );
         manager.disconnect(tab.connection.id);
