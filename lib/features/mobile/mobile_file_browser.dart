@@ -416,6 +416,12 @@ class _MobileFileListState extends State<MobileFileList> {
   void initState() {
     super.initState();
     ctrl.addListener(_onChanged);
+    // Selection mutators bump `selectedListenable` instead of the
+    // broad ChangeNotifier; subscribe separately so the mobile
+    // selection bar (`MobileSelectionBar`'s selected-count badge,
+    // its enable-state for delete/transfer actions) repaints on
+    // every per-row tap.
+    ctrl.selectedListenable.addListener(_onChanged);
   }
 
   @override
@@ -423,7 +429,9 @@ class _MobileFileListState extends State<MobileFileList> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onChanged);
+      oldWidget.controller.selectedListenable.removeListener(_onChanged);
       widget.controller.addListener(_onChanged);
+      widget.controller.selectedListenable.addListener(_onChanged);
       _selectionMode = false;
     }
   }
@@ -431,6 +439,7 @@ class _MobileFileListState extends State<MobileFileList> {
   @override
   void dispose() {
     ctrl.removeListener(_onChanged);
+    ctrl.selectedListenable.removeListener(_onChanged);
     super.dispose();
   }
 

@@ -236,22 +236,56 @@ void main() {
       expect(ctrl.entries, isEmpty);
     });
 
-    test('notifyListeners fires on state changes', () async {
+    test('selectedListenable bumps on selection changes', () async {
+      // Selection mutators stopped firing the broad
+      // `notifyListeners()` to keep the per-row + footer
+      // selection visuals fine-grained — they bump
+      // `selectedListenable` instead, so the file_pane row +
+      // footer-counter `ValueListenableBuilder`s redraw without
+      // a whole-pane setState. The contract under test is that
+      // every selection mutator pushes a new value through the
+      // listenable.
       await ctrl.init();
-      var count = 0;
-      ctrl.addListener(() => count++);
+      var bumps = 0;
+      ctrl.selectedListenable.addListener(() => bumps++);
 
       ctrl.selectSingle('/home/readme.md');
-      expect(count, 1);
+      expect(bumps, 1);
+      expect(ctrl.selectedListenable.value, contains('/home/readme.md'));
 
       ctrl.toggleSelect('/home/app.dart');
-      expect(count, 2);
+      expect(bumps, 2);
+      expect(ctrl.selectedListenable.value, contains('/home/app.dart'));
 
       ctrl.clearSelection();
-      expect(count, 3);
+      expect(bumps, 3);
+      expect(ctrl.selectedListenable.value, isEmpty);
 
       ctrl.selectAll();
-      expect(count, 4);
+      expect(bumps, 4);
+    });
+
+    test('selection mutators do NOT trigger broad notifyListeners', () async {
+      // Inverse of the contract above — guards against a future
+      // edit re-introducing `notifyListeners()` to a selection
+      // mutator and undoing the per-row rebuild win.
+      await ctrl.init();
+      var broadCount = 0;
+      ctrl.addListener(() => broadCount++);
+
+      ctrl.selectSingle('/home/readme.md');
+      ctrl.toggleSelect('/home/app.dart');
+      ctrl.clearSelection();
+      ctrl.selectAll();
+      ctrl.selectPaths({'/home/notes.txt'});
+
+      expect(
+        broadCount,
+        0,
+        reason:
+            'selection mutators must not fan out through the broad '
+            'ChangeNotifier — see FilePaneController selection-mutator note',
+      );
     });
 
     test('dispose can be called safely', () async {

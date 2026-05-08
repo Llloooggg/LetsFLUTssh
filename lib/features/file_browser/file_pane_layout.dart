@@ -443,38 +443,58 @@ extension _Layout on _FilePaneState {
     ({bool size, bool modified, bool mode, bool owner}) cols,
   ) {
     final entry = ctrl.entries[index];
-    final isSelected = ctrl.selected.contains(entry.path);
 
-    // Directories with the size column enabled subscribe to the folder-size
-    // revision directly, so a completed background dir-size probe refreshes
-    // just this row's trailing text instead of going through the pane's
-    // main ChangeNotifier (which would rebuild the entire 700+ line tree).
+    // Selection state is read off `selectedListenable` so a per-row
+    // toggle redraws only the affected rows, not the whole pane.
+    // Selection mutators bump the listenable without firing the
+    // broad ChangeNotifier — see `FilePaneController` selection-
+    // mutator note. Folder-size rows compose two listenables in
+    // tandem (selection + size revision).
     if (entry.isDir && widget.showFolderSizes) {
-      return ValueListenableBuilder<int>(
-        valueListenable: ctrl.folderSizeRevision,
-        builder: (context, _, child) {
-          final cachedSize = ctrl.folderSize(entry.path);
-          final folderSizeText = switch (cachedSize) {
-            FolderSizeOk(:final bytes) => formatSize(bytes),
-            FolderSizeFailed() => '?',
-            null => () {
-              ctrl.requestFolderSize(entry.path);
-              return '...';
-            }(),
-          };
-          return _buildFileRowWrapper(
-            context,
-            theme,
-            entry,
-            isSelected,
-            cols,
-            folderSizeText,
+      return ValueListenableBuilder<Set<String>>(
+        valueListenable: ctrl.selectedListenable,
+        builder: (context, sel, _) {
+          final isSelected = sel.contains(entry.path);
+          return ValueListenableBuilder<int>(
+            valueListenable: ctrl.folderSizeRevision,
+            builder: (context, _, _) {
+              final cachedSize = ctrl.folderSize(entry.path);
+              final folderSizeText = switch (cachedSize) {
+                FolderSizeOk(:final bytes) => formatSize(bytes),
+                FolderSizeFailed() => '?',
+                null => () {
+                  ctrl.requestFolderSize(entry.path);
+                  return '...';
+                }(),
+              };
+              return _buildFileRowWrapper(
+                context,
+                theme,
+                entry,
+                isSelected,
+                cols,
+                folderSizeText,
+              );
+            },
           );
         },
       );
     }
 
-    return _buildFileRowWrapper(context, theme, entry, isSelected, cols, null);
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: ctrl.selectedListenable,
+      builder: (context, sel, _) {
+        final isSelected = sel.contains(entry.path);
+        return _buildFileRowWrapper(
+          context,
+          theme,
+          entry,
+          isSelected,
+          cols,
+          null,
+        );
+      },
+    );
   }
 
   Widget _buildFileRowWrapper(
@@ -556,9 +576,12 @@ extension _Layout on _FilePaneState {
 
   Widget _buildFooter(ThemeData theme) {
     final count = ctrl.entries.length;
-    final selCount = ctrl.selected.length;
     final style = AppFonts.mono(fontSize: AppFonts.xs, color: AppTheme.fgFaint);
 
+    // Selection-count chip subscribes to `selectedListenable` so a
+    // per-row toggle redraws only the chip, not the whole footer.
+    // The leading "N items / total size" text doesn't depend on
+    // selection — it stays outside the listenable rebuild scope.
     return Container(
       height: AppTheme.barHeightSm,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -574,16 +597,27 @@ extension _Layout on _FilePaneState {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (selCount > 0) ...[
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                '($selCount selected)',
-                style: style,
-                overflow: TextOverflow.ellipsis,
-              ),
+          // `ValueListenableBuilder` returns a Flexible directly so
+          // the parent `ClippedRow` (Flex-derived) accepts the
+          // FlexParentData. Empty selection collapses to a
+          // SizedBox.shrink — also Flexible-compatible since the
+          // builder return type is uniform.
+          Flexible(
+            child: ValueListenableBuilder<Set<String>>(
+              valueListenable: ctrl.selectedListenable,
+              builder: (context, sel, _) {
+                if (sel.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 8),
+                  child: Text(
+                    '(${sel.length} selected)',
+                    style: style,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              },
             ),
-          ],
+          ),
         ],
       ),
     );

@@ -257,6 +257,14 @@ class FilePaneController extends ChangeNotifier {
     _cachedSelectedEntries = null;
   }
 
+  // Selection mutators bump [_selectedListenable] but DO NOT call
+  // `notifyListeners()`. Selection consumers (file_pane row badge,
+  // footer counter) subscribe to the listenable via
+  // `ValueListenableBuilder` so a per-row toggle redraws only the
+  // affected rows + the counter, not the whole 700+-line pane
+  // tree. The broad ChangeNotifier still fires for entries / path /
+  // loading / sort changes.
+
   /// Toggle selection of a file entry.
   void toggleSelect(String path) {
     final newSet = Set<String>.from(_selected);
@@ -268,7 +276,6 @@ class FilePaneController extends ChangeNotifier {
     _selected = newSet;
     _invalidateSelectionCache();
     _selectedListenable.value = _selected;
-    notifyListeners();
   }
 
   /// Select a single entry (clear others).
@@ -276,7 +283,6 @@ class FilePaneController extends ChangeNotifier {
     _selected = {path};
     _invalidateSelectionCache();
     _selectedListenable.value = _selected;
-    notifyListeners();
   }
 
   /// Clear selection.
@@ -284,7 +290,6 @@ class FilePaneController extends ChangeNotifier {
     _selected = {};
     _invalidateSelectionCache();
     _selectedListenable.value = _selected;
-    notifyListeners();
   }
 
   /// Select all entries.
@@ -292,7 +297,6 @@ class FilePaneController extends ChangeNotifier {
     _selected = _entries.map((e) => e.path).toSet();
     _invalidateSelectionCache();
     _selectedListenable.value = _selected;
-    notifyListeners();
   }
 
   /// Change sort column/direction.
@@ -330,12 +334,12 @@ class FilePaneController extends ChangeNotifier {
     });
   }
 
-  /// Set selection to a specific set of paths.
+  /// Set selection to a specific set of paths. See the selection-
+  /// mutator note above for why this skips `notifyListeners()`.
   void selectPaths(Set<String> paths) {
     _selected = paths;
     _invalidateSelectionCache();
     _selectedListenable.value = _selected;
-    notifyListeners();
   }
 
   /// Total size of all non-directory entries (cached).
