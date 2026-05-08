@@ -198,7 +198,7 @@ class FilePaneDialogs {
           name: 'FilePane',
           error: e,
         );
-        errors.add(l10n.failedToDeleteItem(entry.name, e.toString()));
+        errors.add(l10n.failedToDeleteItem(entry.name, localizeError(l10n, e)));
       }
     }
     if (errors.isNotEmpty && context.mounted) {

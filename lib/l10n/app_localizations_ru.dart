@@ -2525,4 +2525,8 @@ class SRu extends S {
   @override
   String get nonAsciiHostnameWarning =>
       'Имя хоста содержит не-ASCII символы — проверьте каждый символ. Визуально похожие кодпоинты (кириллица / греческий) могут подменить латинский домен.';
+
+  @override
+  String get recordingPlayLocked =>
+      'Разблокируйте приложение, чтобы воспроизвести зашифрованную запись';
 }

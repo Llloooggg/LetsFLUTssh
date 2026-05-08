@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/format.dart' show localizeError;
 import 'app_dialog.dart';
 import 'app_icon_button.dart';
 
@@ -95,7 +96,10 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
       setState(() {
         _children = const [];
         _loading = false;
-        _error = e.toString();
+        // Route through `localizeError` so the user sees the
+        // localised "permission denied" / "directory not found"
+        // copy instead of the raw `FileSystemException` toString.
+        _error = localizeError(S.of(context), e);
       });
     }
   }

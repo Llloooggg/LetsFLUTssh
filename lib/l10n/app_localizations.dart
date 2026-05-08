@@ -4430,6 +4430,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.'**
   String get nonAsciiHostnameWarning;
+
+  /// Tooltip / disabled-row hint when an encrypted recording cannot be played because the active DB key slot is empty (plaintext tier or auto-locked).
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock the app to play this encrypted recording'**
+  String get recordingPlayLocked;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

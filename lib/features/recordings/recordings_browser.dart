@@ -179,23 +179,31 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
         final duration = e.meta != null
             ? _formatDuration(e.meta!.durationSeconds)
             : '?';
+        // Encrypted recordings are unplayable when the running
+        // tier has no active DB key (plaintext / auto-locked).
+        // The previous shape silently no-op'd on tap; the audit's
+        // B-UX-6 finding asked for a disabled row + tooltip so
+        // the user sees WHY playback won't fire.
+        final canPlay =
+            !e.encrypted || rust_secrets.secretsHas(id: kActiveDbKeySecretId);
         final secondary = [
           e.fileTimestamp.toLocal().toString().split('.').first,
           duration,
           _formatSize(e.sizeBytes),
           if (e.encrypted) 'encrypted',
+          if (!canPlay) l10n.recordingPlayLocked,
         ].join('  •  ');
         return AppDataRow(
           icon: e.encrypted ? Icons.lock_outline : Icons.play_circle_outline,
           iconColor: e.encrypted ? AppTheme.accent : AppTheme.fgDim,
           title: label,
           secondary: secondary,
-          onTap: () => _play(e),
+          onTap: canPlay ? () => _play(e) : null,
           trailing: [
             AppIconButton(
               icon: Icons.play_arrow,
-              tooltip: l10n.playRecording,
-              onTap: () => _play(e),
+              tooltip: canPlay ? l10n.playRecording : l10n.recordingPlayLocked,
+              onTap: canPlay ? () => _play(e) : null,
             ),
             AppIconButton(
               icon: Icons.delete_outline,
