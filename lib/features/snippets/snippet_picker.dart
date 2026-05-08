@@ -149,7 +149,7 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
 
   Widget _sectionHeader(String label) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 4),
       child: Text(
         label.toUpperCase(),
         style: TextStyle(

@@ -57,7 +57,7 @@ class SessionViaBadge extends ConsumerWidget {
       // when the resolved bastion label happens to be long.
       fit: FlexFit.loose,
       child: Padding(
-        padding: const EdgeInsets.only(left: 6),
+        padding: const EdgeInsetsDirectional.only(start: 6),
         child: Container(
           // Hard cap so a maliciously long bastion label cannot
           // squeeze the session name to a single character either.

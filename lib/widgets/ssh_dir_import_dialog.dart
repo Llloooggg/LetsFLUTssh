@@ -400,7 +400,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         // Indented list keeps the per-host rows visually distinct from the
         // section-wide "select all" row above.
         Padding(
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsetsDirectional.only(start: 16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 220),
             child: SingleChildScrollView(
@@ -434,7 +434,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
   }
 
   Widget _emptyStatePlaceholder(String text) => Padding(
-    padding: const EdgeInsets.only(left: 28, top: 4, bottom: 4),
+    padding: const EdgeInsetsDirectional.only(start: 28, top: 4, bottom: 4),
     child: Text(
       text,
       style: AppFonts.inter(fontSize: AppFonts.sm, color: AppTheme.fgDim),
@@ -492,7 +492,7 @@ class _SshDirImportDialogState extends State<SshDirImportDialog> {
         ),
         const AppDivider(),
         Padding(
-          padding: const EdgeInsets.only(left: 16),
+          padding: const EdgeInsetsDirectional.only(start: 16),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 220),
             child: SingleChildScrollView(

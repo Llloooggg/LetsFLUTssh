@@ -91,7 +91,7 @@ extension _FolderActions on SessionPanelState {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 8),
                 child: Text(
                   folderName,
                   style: TextStyle(

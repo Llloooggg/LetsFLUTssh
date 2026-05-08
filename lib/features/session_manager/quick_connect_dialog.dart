@@ -269,7 +269,7 @@ class _QuickConnectDialogState extends State<QuickConnectDialog> {
               const SizedBox(height: 16),
               // Buttons
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 16),
                 child: Row(
                   children: [
                     Expanded(

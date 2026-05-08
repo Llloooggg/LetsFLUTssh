@@ -340,7 +340,7 @@ class _CollapsibleSectionState extends State<_CollapsibleSection> {
         ),
         initiallyExpanded: _expanded,
         onExpansionChanged: (v) => setState(() => _expanded = v),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        childrenPadding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 12),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         children: [widget.child],
       ),

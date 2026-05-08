@@ -127,7 +127,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     ),
                     Flexible(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 0),
                         child: SingleChildScrollView(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -155,7 +155,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     // above — content scrolls under it instead of
                     // pushing it out of view.
                     Container(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 12),
                       decoration: BoxDecoration(
                         color: AppTheme.bg1,
                         border: Border(

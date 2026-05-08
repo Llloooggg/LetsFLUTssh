@@ -695,7 +695,7 @@ class _MobileTerminalPage extends ConsumerWidget {
               ),
               if (onOpenSftp != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: _MobileCompanionButton(
                     label: S.of(context).files,
                     icon: Icons.folder_open,
@@ -788,7 +788,7 @@ class _MobileSftpPage extends ConsumerWidget {
               ),
               if (onOpenSsh != null)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: _MobileCompanionButton(
                     label: S.of(context).terminal,
                     icon: Icons.terminal,

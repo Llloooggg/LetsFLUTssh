@@ -20,7 +20,7 @@ extension _TreeBuilders on _UnifiedExportDialogState {
   Widget _buildGroupItem(SessionTreeNode node, int depth) {
     final tristate = _ctrl.isFolderPartial(node.fullPath);
     return Padding(
-      padding: EdgeInsets.only(left: depth * 20.0),
+      padding: EdgeInsetsDirectional.only(start: depth * 20.0),
       child: HoverRegion(
         onTap: () => _ctrl.toggleFolder(node.fullPath),
         builder: (hovered) => Container(
@@ -56,7 +56,7 @@ extension _TreeBuilders on _UnifiedExportDialogState {
     final isSelected = _ctrl.selectedIds.contains(session.id);
     final isIncomplete = !session.isValid;
     return Padding(
-      padding: EdgeInsets.only(left: depth * 20.0),
+      padding: EdgeInsetsDirectional.only(start: depth * 20.0),
       child: HoverRegion(
         onTap: () => _ctrl.toggleSession(session.id),
         builder: (hovered) => Container(

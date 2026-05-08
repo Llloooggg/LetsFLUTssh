@@ -124,7 +124,7 @@ extension _Internals on _SessionTreeViewState {
   }) {
     return Container(
       height: _rowHeight,
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsetsDirectional.only(end: 8),
       decoration: decoration,
       color: decoration == null ? color : null,
       child: Row(children: children),
@@ -371,7 +371,7 @@ extension _Internals on _SessionTreeViewState {
         ),
       ),
       Padding(
-        padding: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsetsDirectional.only(start: 4),
         child: Text(
           '${node.sessionCount}',
           style: TextStyle(
@@ -525,7 +525,7 @@ extension _Internals on _SessionTreeViewState {
         ),
       if (!session.isValid)
         Padding(
-          padding: const EdgeInsets.only(right: 4),
+          padding: const EdgeInsetsDirectional.only(end: 4),
           child: Tooltip(
             message: S.of(context).credentialsNotSet,
             child: Icon(

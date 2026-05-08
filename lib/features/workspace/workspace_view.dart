@@ -495,7 +495,7 @@ class _PanelConnectionBar extends ConsumerWidget {
         ? AppTheme.accent
         : scheme.onSurface.withValues(alpha: 0.6);
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsetsDirectional.only(start: 4),
       child: Tooltip(
         message: label,
         child: HoverRegion(

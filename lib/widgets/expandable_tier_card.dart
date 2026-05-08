@@ -480,7 +480,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
   /// inside `build` pushed the method past the limit.
   Widget _buildExpandedBody(S l10n) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

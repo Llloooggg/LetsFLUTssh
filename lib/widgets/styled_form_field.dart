@@ -188,7 +188,7 @@ class StyledInput extends StatelessWidget {
         ),
         suffixIcon: suffixIcon != null
             ? Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsetsDirectional.only(end: 8),
                 child: suffixIcon,
               )
             : null,

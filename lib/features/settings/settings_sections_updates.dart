@@ -178,7 +178,7 @@ class _UpdateSection extends ConsumerWidget {
           contentPadding: EdgeInsets.zero,
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 8),
+          padding: const EdgeInsetsDirectional.only(start: 8),
           child: Wrap(
             spacing: 8,
             children: [
@@ -259,7 +259,7 @@ class _UpdateSection extends ConsumerWidget {
           contentPadding: EdgeInsets.zero,
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 8),
+          padding: const EdgeInsetsDirectional.only(start: 8),
           child: Wrap(
             spacing: 8,
             children: [
@@ -291,7 +291,7 @@ class _UpdateSection extends ConsumerWidget {
           contentPadding: EdgeInsets.zero,
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 8),
+          padding: const EdgeInsetsDirectional.only(start: 8),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
             child: AppButton.secondary(

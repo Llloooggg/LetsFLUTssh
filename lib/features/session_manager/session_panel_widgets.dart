@@ -299,7 +299,7 @@ class _SidebarFooter extends ConsumerWidget {
 
     return Container(
       height: AppTheme.barHeightSm,
-      padding: const EdgeInsets.only(left: 12, right: 8),
+      padding: const EdgeInsetsDirectional.only(start: 12, end: 8),
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
