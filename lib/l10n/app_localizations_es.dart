@@ -242,7 +242,14 @@ class SEs extends S {
 
   @override
   String importedSessions(int count) {
-    return '$count sesión/sesiones importadas';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sesiones importadas',
+      one: '1 sesión importada',
+      zero: 'No se importaron sesiones',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -301,7 +308,13 @@ class SEs extends S {
 
   @override
   String nSelectedCount(int count) {
-    return '$count seleccionados';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seleccionados',
+      one: '1 seleccionado',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -350,12 +363,26 @@ class SEs extends S {
 
   @override
   String nSessions(int count) {
-    return '$count sesión/sesiones';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sesiones',
+      one: '1 sesión',
+      zero: '0 sesiones',
+    );
+    return '$_temp0';
   }
 
   @override
   String nFolders(int count) {
-    return '$count carpeta(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count carpetas',
+      one: '1 carpeta',
+      zero: '0 carpetas',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -365,7 +392,13 @@ class SEs extends S {
 
   @override
   String willDeleteSessionsInside(int count) {
-    return 'También se eliminarán $count sesión/sesiones dentro.';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'También se eliminarán $count sesiones dentro.',
+      one: 'También se eliminará 1 sesión dentro.',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -707,7 +740,14 @@ class SEs extends S {
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) encontrado(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hosts encontrados',
+      one: '1 host encontrado',
+      zero: '0 hosts encontrados',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -759,7 +799,13 @@ class SEs extends S {
 
   @override
   String importSshKeysFound(int count) {
-    return '$count clave(s) encontrada(s) — elige cuáles importar';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count claves encontradas — elige cuáles importar',
+      one: '1 clave encontrada — elige si importarla',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1373,7 +1419,14 @@ class SEs extends S {
 
   @override
   String nSubitems(int count) {
-    return '$count elemento(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count elementos',
+      one: '1 elemento',
+      zero: '0 elementos',
+    );
+    return '$_temp0';
   }
 
   @override

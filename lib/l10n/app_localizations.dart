@@ -558,7 +558,7 @@ abstract class S {
   /// No description provided for @importedSessions.
   ///
   /// In en, this message translates to:
-  /// **'Imported {count} session(s)'**
+  /// **'{count, plural, =0{No sessions imported} =1{Imported 1 session} other{Imported {count} sessions}}'**
   String importedSessions(int count);
 
   /// No description provided for @importFailed.
@@ -726,13 +726,13 @@ abstract class S {
   /// No description provided for @nSessions.
   ///
   /// In en, this message translates to:
-  /// **'{count} session(s)'**
+  /// **'{count, plural, =0{0 sessions} =1{1 session} other{{count} sessions}}'**
   String nSessions(int count);
 
   /// No description provided for @nFolders.
   ///
   /// In en, this message translates to:
-  /// **'{count} folder(s)'**
+  /// **'{count, plural, =0{0 folders} =1{1 folder} other{{count} folders}}'**
   String nFolders(int count);
 
   /// No description provided for @deleteFolderConfirm.
@@ -744,7 +744,7 @@ abstract class S {
   /// No description provided for @willDeleteSessionsInside.
   ///
   /// In en, this message translates to:
-  /// **'This will also delete {count} session(s) inside.'**
+  /// **'{count, plural, =1{This will also delete 1 session inside.} other{This will also delete {count} sessions inside.}}'**
   String willDeleteSessionsInside(int count);
 
   /// No description provided for @deleteSessionConfirm.
@@ -1374,7 +1374,7 @@ abstract class S {
   /// No description provided for @sshConfigPreviewHostsFound.
   ///
   /// In en, this message translates to:
-  /// **'{count} host(s) found'**
+  /// **'{count, plural, =0{0 hosts found} =1{1 host found} other{{count} hosts found}}'**
   String sshConfigPreviewHostsFound(int count);
 
   /// No description provided for @sshConfigPreviewNoHosts.
@@ -1458,7 +1458,7 @@ abstract class S {
   /// No description provided for @importSshKeysFound.
   ///
   /// In en, this message translates to:
-  /// **'{count} key(s) found — pick which to import'**
+  /// **'{count, plural, =1{1 key found — pick to import} other{{count} keys found — pick which to import}}'**
   String importSshKeysFound(int count);
 
   /// No description provided for @importSshKeysNoneFound.
@@ -2520,7 +2520,7 @@ abstract class S {
   /// No description provided for @nSubitems.
   ///
   /// In en, this message translates to:
-  /// **'{count} item(s)'**
+  /// **'{count, plural, =0{0 items} =1{1 item} other{{count} items}}'**
   String nSubitems(int count);
 
   /// No description provided for @subitems.

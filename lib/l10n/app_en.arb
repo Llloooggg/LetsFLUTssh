@@ -117,7 +117,7 @@
       }
     }
   },
-  "importedSessions": "Imported {count} session(s)",
+  "importedSessions": "{count, plural, =0{No sessions imported} =1{Imported 1 session} other{Imported {count} sessions}}",
   "@importedSessions": {
     "placeholders": {
       "count": {
@@ -189,7 +189,7 @@
       }
     }
   },
-  "nSessions": "{count} session(s)",
+  "nSessions": "{count, plural, =0{0 sessions} =1{1 session} other{{count} sessions}}",
   "@nSessions": {
     "placeholders": {
       "count": {
@@ -197,7 +197,7 @@
       }
     }
   },
-  "nFolders": "{count} folder(s)",
+  "nFolders": "{count, plural, =0{0 folders} =1{1 folder} other{{count} folders}}",
   "@nFolders": {
     "placeholders": {
       "count": {
@@ -213,7 +213,7 @@
       }
     }
   },
-  "willDeleteSessionsInside": "This will also delete {count} session(s) inside.",
+  "willDeleteSessionsInside": "{count, plural, =1{This will also delete 1 session inside.} other{This will also delete {count} sessions inside.}}",
   "@willDeleteSessionsInside": {
     "placeholders": {
       "count": {
@@ -384,7 +384,7 @@
   "maxHistory": "Max History",
   "calculateFolderSizes": "Calculate Folder Sizes",
   "exportData": "Export Data",
-  "sshConfigPreviewHostsFound": "{count} host(s) found",
+  "sshConfigPreviewHostsFound": "{count, plural, =0{0 hosts found} =1{1 host found} other{{count} hosts found}}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
       "count": {
@@ -412,7 +412,7 @@
   "importFromSshDirSubtitle": "Pick hosts from config and/or private keys from ~/.ssh",
   "sshDirImportHostsSection": "Hosts from config",
   "sshDirImportKeysSection": "Keys in ~/.ssh",
-  "importSshKeysFound": "{count} key(s) found — pick which to import",
+  "importSshKeysFound": "{count, plural, =1{1 key found — pick to import} other{{count} keys found — pick which to import}}",
   "@importSshKeysFound": {
     "placeholders": {
       "count": {
@@ -786,7 +786,7 @@
   "protocol": "Protocol",
   "typeLabel": "Type",
   "folder": "Folder",
-  "nSubitems": "{count} item(s)",
+  "nSubitems": "{count, plural, =0{0 items} =1{1 item} other{{count} items}}",
   "@nSubitems": {
     "placeholders": {
       "count": {

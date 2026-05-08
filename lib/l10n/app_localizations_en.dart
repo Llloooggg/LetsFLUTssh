@@ -241,7 +241,14 @@ class SEn extends S {
 
   @override
   String importedSessions(int count) {
-    return 'Imported $count session(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Imported $count sessions',
+      one: 'Imported 1 session',
+      zero: 'No sessions imported',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -349,12 +356,26 @@ class SEn extends S {
 
   @override
   String nSessions(int count) {
-    return '$count session(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions',
+      one: '1 session',
+      zero: '0 sessions',
+    );
+    return '$_temp0';
   }
 
   @override
   String nFolders(int count) {
-    return '$count folder(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count folders',
+      one: '1 folder',
+      zero: '0 folders',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -364,7 +385,13 @@ class SEn extends S {
 
   @override
   String willDeleteSessionsInside(int count) {
-    return 'This will also delete $count session(s) inside.';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'This will also delete $count sessions inside.',
+      one: 'This will also delete 1 session inside.',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -703,7 +730,14 @@ class SEn extends S {
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count host(s) found';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hosts found',
+      one: '1 host found',
+      zero: '0 hosts found',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -755,7 +789,13 @@ class SEn extends S {
 
   @override
   String importSshKeysFound(int count) {
-    return '$count key(s) found — pick which to import';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count keys found — pick which to import',
+      one: '1 key found — pick to import',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1359,7 +1399,14 @@ class SEn extends S {
 
   @override
   String nSubitems(int count) {
-    return '$count item(s)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items',
+      one: '1 item',
+      zero: '0 items',
+    );
+    return '$_temp0';
   }
 
   @override

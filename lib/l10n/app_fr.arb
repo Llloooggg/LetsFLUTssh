@@ -70,7 +70,7 @@
   "versionAvailable": "Version {version} disponible",
   "currentVersion": "Actuelle : v{version}",
   "sshKeyReceived": "Clé SSH reçue : {filename}",
-  "importedSessions": "{count} session(s) importée(s)",
+  "importedSessions": "{count, plural, =0{Aucune session importée} =1{1 session importée} other{{count} sessions importées}}",
   "importFailed": "Échec de l'import : {error}",
   "importSkippedLinks": "{count, plural, one{{count} association ignorée (cible manquante)} other{{count} associations ignorées (cibles manquantes)}}",
   "importSkippedSessions": "{count, plural, one{{count} session corrompue ignorée} other{{count} sessions corrompues ignorées}}",
@@ -82,7 +82,7 @@
   "noSavedSessions": "Aucune session enregistrée",
   "addSession": "Ajouter une session",
   "noSessions": "Aucune session",
-  "nSelectedCount": "{count} sélectionné(s)",
+  "nSelectedCount": "{count, plural, =1{1 sélectionné} other{{count} sélectionnés}}",
   "selectAll": "Tout sélectionner",
   "deselectAll": "Tout désélectionner",
   "moveTo": "Déplacer vers...",
@@ -97,10 +97,10 @@
   "deleteFolder": "Supprimer le dossier",
   "deleteSelected": "Supprimer la sélection",
   "deleteNSessionsAndFolders": "Supprimer {parts} ?\n\nCette action est irréversible.",
-  "nSessions": "{count} session(s)",
-  "nFolders": "{count} dossier(s)",
+  "nSessions": "{count, plural, =0{0 session} =1{1 session} other{{count} sessions}}",
+  "nFolders": "{count, plural, =0{0 dossier} =1{1 dossier} other{{count} dossiers}}",
   "deleteFolderConfirm": "Supprimer le dossier « {name} » ?",
-  "willDeleteSessionsInside": "Cela supprimera également {count} session(s) à l'intérieur.",
+  "willDeleteSessionsInside": "{count, plural, =1{Cela supprimera également 1 session à l'intérieur.} other{Cela supprimera également {count} sessions à l'intérieur.}}",
   "deleteSessionConfirm": "Supprimer « {name} » ?",
   "connection": "Connexion",
   "auth": "Authentification",
@@ -204,7 +204,7 @@
   "maxHistory": "Historique max",
   "calculateFolderSizes": "Calculer la taille des dossiers",
   "exportData": "Exporter les données",
-  "sshConfigPreviewHostsFound": "{count} hôte(s) trouvé(s)",
+  "sshConfigPreviewHostsFound": "{count, plural, =0{0 hôte trouvé} =1{1 hôte trouvé} other{{count} hôtes trouvés}}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
       "count": {
@@ -235,7 +235,7 @@
   "exportQrCodeSubtitle": "Partager les sessions et clés sélectionnées via un code QR",
   "importArchive": "Importer une archive",
   "importArchiveSubtitle": "Charger les données depuis un fichier .lfs",
-  "importSshKeysFound": "{count} clé(s) trouvée(s) — choisissez lesquelles importer",
+  "importSshKeysFound": "{count, plural, =1{1 clé trouvée — choisissez si vous l'importez} other{{count} clés trouvées — choisissez lesquelles importer}}",
   "@importSshKeysFound": {
     "placeholders": {
       "count": {
@@ -411,7 +411,7 @@
   "protocol": "Protocole",
   "typeLabel": "Type",
   "folder": "Dossier",
-  "nSubitems": "{count} élément(s)",
+  "nSubitems": "{count, plural, =0{0 élément} =1{1 élément} other{{count} éléments}}",
   "@nSubitems": {
     "placeholders": {
       "count": {

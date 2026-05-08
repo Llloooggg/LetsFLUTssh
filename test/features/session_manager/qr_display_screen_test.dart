@@ -25,7 +25,7 @@ void main() {
       await tester.pumpWidget(buildApp(data: testPayload, sessionCount: 3));
       await tester.pumpAndSettle();
 
-      expect(find.text('3 session(s)'), findsOneWidget);
+      expect(find.text('3 sessions'), findsOneWidget);
     });
 
     testWidgets('shows scan instructions', (tester) async {
@@ -109,7 +109,7 @@ void main() {
       await tester.tap(find.text('Show'));
       await tester.pumpAndSettle();
 
-      expect(find.text('5 session(s)'), findsOneWidget);
+      expect(find.text('5 sessions'), findsOneWidget);
       expect(find.text('Scan QR Code'), findsOneWidget);
     });
 
@@ -124,7 +124,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('1 session(s)'), findsOneWidget);
+      expect(find.text('1 session'), findsOneWidget);
     });
 
     testWidgets('works with light theme', (tester) async {
@@ -138,7 +138,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('1 session(s)'), findsOneWidget);
+      expect(find.text('1 session'), findsOneWidget);
     });
 
     testWidgets('shows Copy Link button', (tester) async {

@@ -243,7 +243,14 @@ class SDe extends S {
 
   @override
   String importedSessions(int count) {
-    return '$count Sitzung(en) importiert';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Sitzungen importiert',
+      one: '1 Sitzung importiert',
+      zero: 'Keine Sitzungen importiert',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -351,12 +358,25 @@ class SDe extends S {
 
   @override
   String nSessions(int count) {
-    return '$count Sitzung(en)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Sitzungen',
+      one: '1 Sitzung',
+      zero: '0 Sitzungen',
+    );
+    return '$_temp0';
   }
 
   @override
   String nFolders(int count) {
-    return '$count Ordner';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Ordner',
+      one: '1 Ordner',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -366,7 +386,13 @@ class SDe extends S {
 
   @override
   String willDeleteSessionsInside(int count) {
-    return 'Dadurch werden auch $count Sitzung(en) darin gelöscht.';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Dadurch werden auch $count Sitzungen darin gelöscht.',
+      one: 'Dadurch wird auch 1 Sitzung darin gelöscht.',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -709,7 +735,14 @@ class SDe extends S {
 
   @override
   String sshConfigPreviewHostsFound(int count) {
-    return '$count Host(s) gefunden';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Hosts gefunden',
+      one: '1 Host gefunden',
+      zero: 'Keine Hosts gefunden',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -761,7 +794,14 @@ class SDe extends S {
 
   @override
   String importSshKeysFound(int count) {
-    return '$count Schlüssel gefunden — auswählen, welche importiert werden sollen';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count Schlüssel gefunden — auswählen, welche importiert werden sollen',
+      one: '1 Schlüssel gefunden — auswählen, ob importiert wird',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -1378,7 +1418,14 @@ class SDe extends S {
 
   @override
   String nSubitems(int count) {
-    return '$count Element(e)';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Elemente',
+      one: '1 Element',
+      zero: '0 Elemente',
+    );
+    return '$_temp0';
   }
 
   @override

@@ -623,7 +623,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.textContaining('This will also delete 2 session(s) inside.'),
+        find.textContaining('This will also delete 2 sessions inside.'),
         findsOneWidget,
       );
     });
@@ -1537,7 +1537,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Delete Folder'), findsOneWidget);
-        expect(find.textContaining('session(s) inside'), findsNothing);
+        expect(find.textContaining('sessions inside'), findsNothing);
 
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
@@ -2329,7 +2329,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Selected'), findsOneWidget);
-      expect(find.textContaining('1 session(s)'), findsOneWidget);
+      expect(find.textContaining('1 session'), findsOneWidget);
     });
 
     testWidgets('Move shows folder dialog', (tester) async {
@@ -2668,7 +2668,7 @@ void main() {
 
       // Should show bulk delete dialog, not single session delete
       expect(find.text('Delete Selected'), findsOneWidget);
-      expect(find.textContaining('2 session(s)'), findsOneWidget);
+      expect(find.textContaining('2 sessions'), findsOneWidget);
     });
 
     testWidgets('F2 opens edit dialog for focused session', (tester) async {

@@ -158,7 +158,7 @@ void main() {
       );
       await tester.pump();
 
-      final selectAll = tester.getRect(find.text('2 host(s) found'));
+      final selectAll = tester.getRect(find.text('2 hosts found'));
       final firstHost = tester.getRect(find.text('h0'));
       // First host row label sits to the right of the select-all label.
       expect(firstHost.left, greaterThan(selectAll.left));
@@ -223,7 +223,7 @@ void main() {
         );
         await tester.pump();
 
-        // 1 initial host + select-all = "1 host(s) found" trailing.
+        // 1 initial host + select-all = "1 host found" trailing.
         expect(find.text('h0'), findsOneWidget);
         expect(find.text('extra'), findsNothing);
 
@@ -451,8 +451,8 @@ void main() {
 
       expect(hostValues(), [true, true, true]);
 
-      // Tap "N host(s) found" — the select-all row label.
-      await tester.tap(find.text('3 host(s) found'));
+      // Tap "N hosts found" — the select-all row label.
+      await tester.tap(find.text('3 hosts found'));
       await tester.pump();
 
       expect(hostValues(), [
@@ -461,7 +461,7 @@ void main() {
         false,
       ], reason: 'fully-on → tap clears all');
 
-      await tester.tap(find.text('3 host(s) found'));
+      await tester.tap(find.text('3 hosts found'));
       await tester.pump();
       expect(hostValues(), [
         true,

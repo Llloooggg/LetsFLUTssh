@@ -70,7 +70,7 @@
   "versionAvailable": "Versión {version} disponible",
   "currentVersion": "Actual: v{version}",
   "sshKeyReceived": "Clave SSH recibida: {filename}",
-  "importedSessions": "{count} sesión/sesiones importadas",
+  "importedSessions": "{count, plural, =0{No se importaron sesiones} =1{1 sesión importada} other{{count} sesiones importadas}}",
   "importFailed": "Error al importar: {error}",
   "importSkippedLinks": "{count, plural, one{{count} asociación descartada (destino faltante)} other{{count} asociaciones descartadas (destinos faltantes)}}",
   "importSkippedSessions": "{count, plural, one{{count} sesión corrupta omitida} other{{count} sesiones corruptas omitidas}}",
@@ -82,7 +82,7 @@
   "noSavedSessions": "No hay sesiones guardadas",
   "addSession": "Añadir sesión",
   "noSessions": "Sin sesiones",
-  "nSelectedCount": "{count} seleccionados",
+  "nSelectedCount": "{count, plural, =1{1 seleccionado} other{{count} seleccionados}}",
   "selectAll": "Seleccionar todo",
   "deselectAll": "Deseleccionar todo",
   "moveTo": "Mover a...",
@@ -97,10 +97,10 @@
   "deleteFolder": "Eliminar carpeta",
   "deleteSelected": "Eliminar seleccionados",
   "deleteNSessionsAndFolders": "¿Eliminar {parts}?\n\nEsta acción no se puede deshacer.",
-  "nSessions": "{count} sesión/sesiones",
-  "nFolders": "{count} carpeta(s)",
+  "nSessions": "{count, plural, =0{0 sesiones} =1{1 sesión} other{{count} sesiones}}",
+  "nFolders": "{count, plural, =0{0 carpetas} =1{1 carpeta} other{{count} carpetas}}",
   "deleteFolderConfirm": "¿Eliminar la carpeta \"{name}\"?",
-  "willDeleteSessionsInside": "También se eliminarán {count} sesión/sesiones dentro.",
+  "willDeleteSessionsInside": "{count, plural, =1{También se eliminará 1 sesión dentro.} other{También se eliminarán {count} sesiones dentro.}}",
   "deleteSessionConfirm": "¿Eliminar \"{name}\"?",
   "connection": "Conexión",
   "auth": "Autenticación",
@@ -204,7 +204,7 @@
   "maxHistory": "Historial máximo",
   "calculateFolderSizes": "Calcular tamaños de carpetas",
   "exportData": "Exportar datos",
-  "sshConfigPreviewHostsFound": "{count} host(s) encontrado(s)",
+  "sshConfigPreviewHostsFound": "{count, plural, =0{0 hosts encontrados} =1{1 host encontrado} other{{count} hosts encontrados}}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
       "count": {
@@ -235,7 +235,7 @@
   "exportQrCodeSubtitle": "Compartir sesiones y claves seleccionadas mediante código QR",
   "importArchive": "Importar archivo",
   "importArchiveSubtitle": "Cargar datos desde archivo .lfs",
-  "importSshKeysFound": "{count} clave(s) encontrada(s) — elige cuáles importar",
+  "importSshKeysFound": "{count, plural, =1{1 clave encontrada — elige si importarla} other{{count} claves encontradas — elige cuáles importar}}",
   "@importSshKeysFound": {
     "placeholders": {
       "count": {
@@ -411,7 +411,7 @@
   "protocol": "Protocolo",
   "typeLabel": "Tipo",
   "folder": "Carpeta",
-  "nSubitems": "{count} elemento(s)",
+  "nSubitems": "{count, plural, =0{0 elementos} =1{1 elemento} other{{count} elementos}}",
   "@nSubitems": {
     "placeholders": {
       "count": {

@@ -70,7 +70,7 @@
   "versionAvailable": "Versão {version} disponível",
   "currentVersion": "Atual: v{version}",
   "sshKeyReceived": "Chave SSH recebida: {filename}",
-  "importedSessions": "{count} sessão(ões) importada(s)",
+  "importedSessions": "{count, plural, =0{Nenhuma sessão importada} =1{1 sessão importada} other{{count} sessões importadas}}",
   "importFailed": "Falha na importação: {error}",
   "importSkippedLinks": "{count, plural, one{{count} associação descartada (alvo ausente)} other{{count} associações descartadas (alvos ausentes)}}",
   "importSkippedSessions": "{count, plural, one{{count} sessão corrompida ignorada} other{{count} sessões corrompidas ignoradas}}",
@@ -82,7 +82,7 @@
   "noSavedSessions": "Nenhuma sessão salva",
   "addSession": "Adicionar Sessão",
   "noSessions": "Nenhuma sessão",
-  "nSelectedCount": "{count} selecionado(s)",
+  "nSelectedCount": "{count, plural, =1{1 selecionado} other{{count} selecionados}}",
   "selectAll": "Selecionar Tudo",
   "deselectAll": "Desmarcar Tudo",
   "moveTo": "Mover para...",
@@ -97,10 +97,10 @@
   "deleteFolder": "Excluir Pasta",
   "deleteSelected": "Excluir Selecionados",
   "deleteNSessionsAndFolders": "Excluir {parts}?\n\nEsta ação não pode ser desfeita.",
-  "nSessions": "{count} sessão(ões)",
-  "nFolders": "{count} pasta(s)",
+  "nSessions": "{count, plural, =0{0 sessões} =1{1 sessão} other{{count} sessões}}",
+  "nFolders": "{count, plural, =0{0 pastas} =1{1 pasta} other{{count} pastas}}",
   "deleteFolderConfirm": "Excluir pasta \"{name}\"?",
-  "willDeleteSessionsInside": "Isso também excluirá {count} sessão(ões) dentro dela.",
+  "willDeleteSessionsInside": "{count, plural, =1{Isso também excluirá 1 sessão dentro dela.} other{Isso também excluirá {count} sessões dentro dela.}}",
   "deleteSessionConfirm": "Excluir \"{name}\"?",
   "connection": "Conexão",
   "auth": "Autenticação",
@@ -204,7 +204,7 @@
   "maxHistory": "Histórico Máximo",
   "calculateFolderSizes": "Calcular Tamanho das Pastas",
   "exportData": "Exportar Dados",
-  "sshConfigPreviewHostsFound": "{count} host(s) encontrado(s)",
+  "sshConfigPreviewHostsFound": "{count, plural, =0{0 hosts encontrados} =1{1 host encontrado} other{{count} hosts encontrados}}",
   "@sshConfigPreviewHostsFound": {
     "placeholders": {
       "count": {
@@ -235,7 +235,7 @@
   "exportQrCodeSubtitle": "Compartilhar sessões e chaves selecionadas via código QR",
   "importArchive": "Importar arquivo",
   "importArchiveSubtitle": "Carregar dados de arquivo .lfs",
-  "importSshKeysFound": "{count} chave(s) encontrada(s) — escolha quais importar",
+  "importSshKeysFound": "{count, plural, =1{1 chave encontrada — escolha se quer importar} other{{count} chaves encontradas — escolha quais importar}}",
   "@importSshKeysFound": {
     "placeholders": {
       "count": {
@@ -411,7 +411,7 @@
   "protocol": "Protocolo",
   "typeLabel": "Tipo",
   "folder": "Pasta",
-  "nSubitems": "{count} item(ns)",
+  "nSubitems": "{count, plural, =0{0 itens} =1{1 item} other{{count} itens}}",
   "@nSubitems": {
     "placeholders": {
       "count": {
