@@ -80,3 +80,94 @@ pub fn qr_codec_encode_session_compact(inputs: QrSessionCompactInputs) -> String
         password: &password,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_inputs() -> QrSessionCompactInputs {
+        QrSessionCompactInputs {
+            label: "edge".into(),
+            host: "edge.example".into(),
+            user: "deploy".into(),
+            port: 22,
+            folder: "".into(),
+            auth_type: "password".into(),
+            key_short: None,
+            is_manager: false,
+            include_passwords: false,
+            password: vec![],
+        }
+    }
+
+    #[test]
+    fn compress_to_payload_round_trips_size_to_byte_count() {
+        // The size getter must agree with the full encoder's
+        // length to a byte — UI gauges read the size directly to
+        // decide "fits in QR" before the user commits to a write.
+        let payload = qr_codec_compress_to_payload("{\"k\":\"v\"}".into());
+        let size = qr_codec_compress_to_payload_size("{\"k\":\"v\"}".into());
+        assert_eq!(payload.len() as u32, size);
+    }
+
+    #[test]
+    fn encode_session_compact_emits_required_keys() {
+        let json = qr_codec_encode_session_compact(default_inputs());
+        // Required keys: label, host, user. Default port (22),
+        // password auth, empty folder, and missing key collapse
+        // out per the compact-export contract.
+        assert!(json.contains("\"l\""));
+        assert!(json.contains("\"h\""));
+        assert!(json.contains("\"u\""));
+        // Default-omit fields stay absent.
+        assert!(!json.contains("\"p\""), "default port must collapse");
+        assert!(!json.contains("\"g\""), "empty folder must collapse");
+        assert!(!json.contains("\"a\""), "default auth must collapse");
+        assert!(
+            !json.contains("\"pw\""),
+            "password gated by include_passwords"
+        );
+    }
+
+    #[test]
+    fn encode_session_compact_omits_password_unless_opt_in() {
+        let mut inputs = default_inputs();
+        inputs.password = b"hunter2".to_vec();
+        // include_passwords stays false → pw must NOT surface.
+        let json = qr_codec_encode_session_compact(inputs);
+        assert!(!json.contains("hunter2"));
+        assert!(!json.contains("\"pw\""));
+    }
+
+    #[test]
+    fn encode_session_compact_includes_password_when_opted_in() {
+        let mut inputs = default_inputs();
+        inputs.password = b"hunter2".to_vec();
+        inputs.include_passwords = true;
+        let json = qr_codec_encode_session_compact(inputs);
+        assert!(json.contains("hunter2"));
+        assert!(json.contains("\"pw\""));
+    }
+
+    #[test]
+    fn encode_session_compact_preserves_invalid_utf8_lossy() {
+        let mut inputs = default_inputs();
+        inputs.password = vec![0xFF, b'a', b'b'];
+        inputs.include_passwords = true;
+        let json = qr_codec_encode_session_compact(inputs);
+        // The lossy decoder folds the leading non-UTF-8 byte to
+        // U+FFFD; the trailing valid bytes survive. Without this
+        // path a malformed paste would silently strip the entire
+        // password.
+        assert!(json.contains("ab"));
+    }
+
+    #[test]
+    fn encode_session_compact_surfaces_non_default_port() {
+        let mut inputs = default_inputs();
+        inputs.port = 2222;
+        let json = qr_codec_encode_session_compact(inputs);
+        assert!(json.contains("\"p\""));
+        assert!(json.contains("2222"));
+    }
+}

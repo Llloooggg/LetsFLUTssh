@@ -73,3 +73,67 @@ pub fn format_filesafe_iso_timestamp(
 ) -> String {
     format::format_filesafe_iso_timestamp(year, month, day, hour, minute, second)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_size_picks_correct_unit() {
+        assert_eq!(format_size(0), "0 B");
+        assert!(format_size(2 * 1024).contains("KB"));
+        assert!(format_size(5 * 1024 * 1024).contains("MB"));
+    }
+
+    #[test]
+    fn format_size_iec_uses_binary_prefix() {
+        assert!(format_size_iec(2 * 1024).contains("KiB"));
+        assert!(format_size_iec(5 * 1024 * 1024).contains("MiB"));
+    }
+
+    #[test]
+    fn format_duration_smoke() {
+        // The exact rendered units live in `lfs_core::format`; the
+        // FRB layer only needs to verify pass-through. Each call
+        // must return non-empty text on every magnitude rather
+        // than collapse a sub-second to "".
+        assert!(!format_duration(500).is_empty());
+        assert!(!format_duration(60_000).is_empty());
+        assert!(!format_duration(3_600_000).is_empty());
+    }
+
+    #[test]
+    fn format_duration_seconds_fractional_smoke() {
+        let s = format_duration_seconds_fractional(75.5);
+        assert!(!s.is_empty());
+    }
+
+    #[test]
+    fn format_timestamp_minute_pads_zero() {
+        // YYYY-MM-DD HH:MM shape: every component zero-padded to
+        // its declared width, no overflow on single-digit months.
+        let s = format_timestamp_minute(2026, 5, 9, 7, 4);
+        assert!(s.starts_with("2026-05-09"));
+        assert!(s.contains("07:04"));
+    }
+
+    #[test]
+    fn format_date_pads_zero() {
+        assert_eq!(format_date(2026, 1, 5), "2026-01-05");
+    }
+
+    #[test]
+    fn format_clock_hms_pads_zero() {
+        assert_eq!(format_clock_hms(7, 4, 9), "07:04:09");
+    }
+
+    #[test]
+    fn format_filesafe_iso_timestamp_drops_colons() {
+        // Colons are illegal in Windows filenames; verify the shape
+        // uses `-` between time components so a recording file
+        // path is portable across platforms.
+        let s = format_filesafe_iso_timestamp(2026, 5, 9, 7, 4, 9);
+        assert!(!s.contains(':'), "got: {s}");
+        assert!(s.contains("2026-05-09"));
+    }
+}
