@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import '../utils/sanitize.dart';
 import 'app_dialog.dart';
 import 'app_icon_button.dart';
 
@@ -117,7 +118,10 @@ class _HostKeyDialogWidget extends StatelessWidget {
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
           const SizedBox(height: 12),
-          _InfoRow(label: S.of(context).host, value: '$host:$port'),
+          _InfoRow(
+            label: S.of(context).host,
+            value: '${redactBidi(host)}:$port',
+          ),
           const SizedBox(height: 6),
           _InfoRow(label: S.of(context).keyType, value: keyType),
           const SizedBox(height: 6),

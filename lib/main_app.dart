@@ -371,74 +371,76 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   Widget _buildAppShell(BuildContext context, Widget? child, double uiScale) {
     final mediaQuery = MediaQuery.of(context);
     final locked = ref.watch(lockStateProvider);
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: MediaQuery(
-        // Hard-off every animation/transition in the app — route page
-        // transitions, Material implicit animations, AnimatedSwitcher,
-        // etc. Flutter honours this flag across the framework; we use
-        // the same knob the OS "Reduce motion" accessibility toggle
-        // would set, applied unconditionally. Keep alongside
-        // textScaler so a single MediaQuery wrap controls both
-        // signals.
-        data: mediaQuery.copyWith(
-          textScaler: TextScaler.linear(uiScale),
-          disableAnimations: true,
-        ),
-        // AutoLockDetector wraps the real UI so every pointer/key
-        // event resets the idle timer. LockScreen overlays on top
-        // with zero hit-test for the app beneath while locked.
-        //
-        // `SelectionArea` cannot live at this layer — its
-        // `SelectableRegion` walks up the widget tree for an
-        // `Overlay` ancestor, and `Overlay` is provided by the
-        // `Navigator` *inside* MaterialApp's home, i.e. below this
-        // builder. A global wrap here fails with "No Overlay widget
-        // found". Per-route / per-dialog `SelectionArea` is the only
-        // working shape: MainScreen wraps the desktop + mobile
-        // shells, `AppDialog` wraps every dialog path, and pushed
-        // mobile routes wrap themselves (see
-        // `SettingsScreen._MobileSettingsScreen`).
-        child: AutoLockDetector(
-          child: Stack(
-            children: [
-              ?child,
-              if (locked) const Positioned.fill(child: LockScreen()),
-              // Startup splash — covers the empty-workspace skeleton
-              // while bootstrap (FRB load + migrations + tier unlock +
-              // DB cipher probe) is still in flight. Flips off via the
-              // controller's [ValueNotifier] the moment
-              // `_markSecurityReady()` fires. Sits ABOVE the lock
-              // overlay because the auto-lock idle timer can't fire
-              // before bootstrap finishes anyway, and visually it's
-              // the same "you can't interact yet" state.
-              //
-              // Hides itself while a `PopupRoute` (dialog / bottom
-              // sheet / menu) sits on top of the navigator —
-              // bootstrap-time recovery dialogs (showTierReset,
-              // showDbCorrupt) live inside the navigator and would
-              // otherwise paint *under* the opaque splash overlay,
-              // blocking the user from acting on them. Tracked via
-              // the singleton `overlayModalRouteObserver` attached to
-              // `MaterialApp.navigatorObservers` above.
-              if (debugShowStartupSplash)
-                Positioned.fill(
-                  child: ValueListenableBuilder<bool>(
-                    valueListenable: _securityController.readiness,
-                    builder: (context, ready, _) {
-                      if (ready) return const SizedBox.shrink();
-                      return ValueListenableBuilder<int>(
-                        valueListenable: activeOverlayModalCount,
-                        builder: (context, modalCount, _) {
-                          if (modalCount > 0) return const SizedBox.shrink();
-                          return const _StartupSplash();
-                        },
-                      );
-                    },
-                  ),
+    // Drop the LTR override — supportedLocales advertises ar / fa,
+    // and `MaterialApp.localizationsDelegates` already resolves the
+    // ambient TextDirection from the system locale. Forcing LTR
+    // here pinned every padding / alignment to LTR even on RTL
+    // builds.
+    return MediaQuery(
+      // Hard-off every animation/transition in the app — route page
+      // transitions, Material implicit animations, AnimatedSwitcher,
+      // etc. Flutter honours this flag across the framework; we use
+      // the same knob the OS "Reduce motion" accessibility toggle
+      // would set, applied unconditionally. Keep alongside
+      // textScaler so a single MediaQuery wrap controls both
+      // signals.
+      data: mediaQuery.copyWith(
+        textScaler: TextScaler.linear(uiScale),
+        disableAnimations: true,
+      ),
+      // AutoLockDetector wraps the real UI so every pointer/key
+      // event resets the idle timer. LockScreen overlays on top
+      // with zero hit-test for the app beneath while locked.
+      //
+      // `SelectionArea` cannot live at this layer — its
+      // `SelectableRegion` walks up the widget tree for an
+      // `Overlay` ancestor, and `Overlay` is provided by the
+      // `Navigator` *inside* MaterialApp's home, i.e. below this
+      // builder. A global wrap here fails with "No Overlay widget
+      // found". Per-route / per-dialog `SelectionArea` is the only
+      // working shape: MainScreen wraps the desktop + mobile
+      // shells, `AppDialog` wraps every dialog path, and pushed
+      // mobile routes wrap themselves (see
+      // `SettingsScreen._MobileSettingsScreen`).
+      child: AutoLockDetector(
+        child: Stack(
+          children: [
+            ?child,
+            if (locked) const Positioned.fill(child: LockScreen()),
+            // Startup splash — covers the empty-workspace skeleton
+            // while bootstrap (FRB load + migrations + tier unlock +
+            // DB cipher probe) is still in flight. Flips off via the
+            // controller's [ValueNotifier] the moment
+            // `_markSecurityReady()` fires. Sits ABOVE the lock
+            // overlay because the auto-lock idle timer can't fire
+            // before bootstrap finishes anyway, and visually it's
+            // the same "you can't interact yet" state.
+            //
+            // Hides itself while a `PopupRoute` (dialog / bottom
+            // sheet / menu) sits on top of the navigator —
+            // bootstrap-time recovery dialogs (showTierReset,
+            // showDbCorrupt) live inside the navigator and would
+            // otherwise paint *under* the opaque splash overlay,
+            // blocking the user from acting on them. Tracked via
+            // the singleton `overlayModalRouteObserver` attached to
+            // `MaterialApp.navigatorObservers` above.
+            if (debugShowStartupSplash)
+              Positioned.fill(
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _securityController.readiness,
+                  builder: (context, ready, _) {
+                    if (ready) return const SizedBox.shrink();
+                    return ValueListenableBuilder<int>(
+                      valueListenable: activeOverlayModalCount,
+                      builder: (context, modalCount, _) {
+                        if (modalCount > 0) return const SizedBox.shrink();
+                        return const _StartupSplash();
+                      },
+                    );
+                  },
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

@@ -279,7 +279,10 @@ class TransfersNotifier extends Notifier<TransfersState> {
               targetPath: target,
               status: TransferStatus.queued,
               percent: percent,
-              message: 'Queued',
+              // Localised label is resolved at render time off the
+              // status enum; carrying an English-only literal here
+              // would leak through to RTL / non-EN locales.
+              message: '',
             ),
           );
         case rust_transfer.DbTransferState.running:

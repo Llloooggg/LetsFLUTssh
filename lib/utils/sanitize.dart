@@ -40,6 +40,49 @@ String redactSecrets(String input) {
       .replaceAll(_longB64Re, '[REDACTED BASE64]');
 }
 
+/// Bidi / Trojan-Source control characters. Same set CVE-2021-42574
+/// flagged: hostile filename / hostname / log payload can embed
+/// these to flip rendered text visually relative to its underlying
+/// bytes — e.g. an embedded U+202E (RIGHT-TO-LEFT OVERRIDE) flips
+/// the suffix of a hostname so the rendered version no longer
+/// matches the underlying ASCII the connect resolver sees.
+/// `redactBidi` strips them from any string the UI renders verbatim
+/// (TOFU host display, file row, log viewer).
+const _bidiCodepoints = <int>[
+  0x200E, // LEFT-TO-RIGHT MARK
+  0x200F, // RIGHT-TO-LEFT MARK
+  0x202A, // LEFT-TO-RIGHT EMBEDDING
+  0x202B, // RIGHT-TO-LEFT EMBEDDING
+  0x202C, // POP DIRECTIONAL FORMATTING
+  0x202D, // LEFT-TO-RIGHT OVERRIDE
+  0x202E, // RIGHT-TO-LEFT OVERRIDE
+  0x2066, // LEFT-TO-RIGHT ISOLATE
+  0x2067, // RIGHT-TO-LEFT ISOLATE
+  0x2068, // FIRST STRONG ISOLATE
+  0x2069, // POP DIRECTIONAL ISOLATE
+];
+
+/// Drop bidi-override characters from [input]. Returns the input
+/// unchanged when no offending codepoint is present (fast path —
+/// most strings have none). When at least one is found, the
+/// codepoint is replaced with `\u{HHHH}` so the rendered hex still
+/// signals "this string contained an override" without flipping
+/// the visual order.
+String redactBidi(String input) {
+  if (input.isEmpty) return input;
+  // Fast-path scan over codepoints.
+  if (!input.runes.any(_bidiCodepoints.contains)) return input;
+  final out = StringBuffer();
+  for (final cp in input.runes) {
+    if (_bidiCodepoints.contains(cp)) {
+      out.write('\\u{${cp.toRadixString(16).padLeft(4, '0')}}');
+    } else {
+      out.writeCharCode(cp);
+    }
+  }
+  return out.toString();
+}
+
 /// True when [text] looks like it carries secret material — a PEM
 /// private-key block or a long base64 run (≥ 200 chars). Used by
 /// the terminal clipboard auto-wipe + log redactor to agree on
