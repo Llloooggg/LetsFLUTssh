@@ -2,6 +2,13 @@
 //! `mod keys`, `mod agent`, ...) — each one a thin wrapper over
 //! the equivalent module in `lfs_core`.
 
+// Wire-format error envelope helpers — see `frb_err.rs`.
+// Adopted incrementally: a callsite that wants kind-discriminated
+// error routing on the Dart side maps via `frb_err::from_core(&e)`
+// (or `frb_err::wire(kind, detail)`) instead of `e.to_string()`.
+#[allow(dead_code)]
+mod frb_err;
+
 pub mod app;
 pub mod archive;
 pub mod archive_stage;

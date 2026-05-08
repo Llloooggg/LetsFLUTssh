@@ -58,7 +58,7 @@ pub async fn ssh_try_connect_password(
         std::str::from_utf8(&password).map_err(|_| "password is not valid UTF-8".to_string())?;
     lfs_core::ssh::try_connect_password(&host, port, &user, pw)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Probe an SSH server with username + private key.
@@ -78,7 +78,7 @@ pub async fn ssh_try_connect_pubkey(
 ) -> Result<(), String> {
     lfs_core::ssh::try_connect_pubkey(&host, port, &user, &private_key, passphrase.as_deref())
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 // ---- Long-lived session (1.3) -----------------------------------------
@@ -148,7 +148,7 @@ impl SshSession {
         let shell = session
             .open_shell(cols, rows)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         Ok(SshShell {
             inner: Arc::new(shell),
         })
@@ -160,7 +160,10 @@ impl SshSession {
     #[frb(ignore)]
     pub(crate) async fn open_sftp_inner(&self) -> Result<lfs_core::sftp::Sftp, String> {
         let session = self.snapshot().await?;
-        session.open_sftp().await.map_err(|e| e.to_string())
+        session
+            .open_sftp()
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     #[frb(ignore)]
@@ -173,7 +176,7 @@ impl SshSession {
         session
             .request_remote_forward(address, port)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     #[frb(ignore)]
@@ -186,7 +189,7 @@ impl SshSession {
         session
             .cancel_remote_forward(address, port)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     #[frb(ignore)]
@@ -215,7 +218,7 @@ impl SshSession {
                 originator_port,
             )
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Send `SSH_MSG_DISCONNECT`. Idempotent — clearing the slot
@@ -229,7 +232,10 @@ impl SshSession {
             guard.take()
         };
         match session {
-            Some(arc) => arc.disconnect().await.map_err(|e| e.to_string()),
+            Some(arc) => arc
+                .disconnect()
+                .await
+                .map_err(|e| crate::api::frb_err::from_core(&e)),
             None => Ok(()),
         }
     }
@@ -248,7 +254,7 @@ pub async fn ssh_connect_password(
         std::str::from_utf8(&password).map_err(|_| "password is not valid UTF-8".to_string())?;
     let session = lfs_core::ssh::Session::connect_password(&host, port, &user, pw)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 
@@ -282,7 +288,7 @@ pub async fn ssh_connect_agent(
     let session = tokio::task::spawn_blocking(move || {
         handle
             .block_on(lfs_core::ssh::Session::connect_agent(&host, port, &user))
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("agent task: {e}"))??;
@@ -318,7 +324,7 @@ pub async fn ssh_connect_pubkey_cert(
             &cert,
         )
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("cert connect task: {e}"))??;
@@ -344,7 +350,7 @@ pub async fn ssh_connect_pubkey(
         passphrase.as_deref(),
     )
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 
@@ -371,7 +377,7 @@ pub async fn ssh_connect_password_with_secret(
         &password_secret_id,
     )
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 
@@ -392,7 +398,7 @@ pub async fn ssh_connect_pubkey_with_secret(
         passphrase_secret_id.as_deref(),
     )
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 
@@ -414,7 +420,7 @@ pub async fn ssh_connect_pubkey_cert_with_secret(
         passphrase_secret_id.as_deref(),
     )
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 
@@ -447,7 +453,7 @@ pub async fn ssh_connect_password_via_proxy(
     let session =
         lfs_core::ssh::Session::connect_password_via_proxy(&parent_session, &host, port, &user, pw)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 
@@ -470,7 +476,7 @@ pub async fn ssh_connect_pubkey_via_proxy(
         passphrase.as_deref(),
     )
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 
@@ -495,7 +501,7 @@ pub async fn ssh_connect_pubkey_cert_via_proxy(
         &cert,
     )
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSession::from_core(session))
 }
 
@@ -524,7 +530,10 @@ pub struct SshShell {
 impl SshShell {
     /// Send stdin bytes to the remote shell.
     pub async fn write(&self, data: Vec<u8>) -> Result<(), String> {
-        self.inner.write(&data).await.map_err(|e| e.to_string())
+        self.inner
+            .write(&data)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Wait for the next event from the remote — output bytes,
@@ -542,13 +551,16 @@ impl SshShell {
         self.inner
             .resize(cols, rows)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Send EOF on stdin. The server typically interprets this as
     /// "user closed stdin" and exits the foreground program.
     pub async fn eof(&self) -> Result<(), String> {
-        self.inner.eof().await.map_err(|e| e.to_string())
+        self.inner
+            .eof()
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Long-running task that pumps shell events into a Dart-side
