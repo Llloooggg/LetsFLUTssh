@@ -61,18 +61,25 @@ pub fn compute_gate_hmac(pepper: &[u8], salt: &[u8], password: &[u8]) -> Vec<u8>
     crate::crypto::hmac_sha256(pepper, &msg)
 }
 
-/// Encode the salt + hmac pair as the JSON envelope written to
-/// `security_pass_hash.bin`. Caller writes the returned string's
-/// UTF-8 bytes atomically + hardens to 0600.
+/// Wire-format version stamped into every freshly-emitted
+/// `security_pass_hash.bin`. Future format change → bump this
+/// + ship a migration that rewrites the disk blob; readers
+///   reject `v` values they do not recognise.
+pub const DISK_BLOB_VERSION: u32 = 1;
+
+/// Encode the `{salt, hmac}` pair as the JSON envelope written
+/// to `security_pass_hash.bin`. Caller writes the returned
+/// string's UTF-8 bytes atomically + hardens to 0600.
 #[must_use]
 pub fn encode_disk_blob(salt: &[u8], hmac: &[u8]) -> String {
     // Hand-build the JSON object so the field order is stable
-    // ({"salt": …, "hmac": …}) — `serde_json::to_string` preserves
-    // map insertion order under the default features the workspace
-    // pins, but the explicit literal removes any doubt for the
-    // wire-format documentation.
+    // ({"v": 1, "salt": …, "hmac": …}) — `serde_json::to_string`
+    // preserves map insertion order under the default features
+    // the workspace pins, but the explicit literal removes any
+    // doubt for the wire-format documentation.
     format!(
-        "{{\"salt\":\"{}\",\"hmac\":\"{}\"}}",
+        "{{\"v\":{},\"salt\":\"{}\",\"hmac\":\"{}\"}}",
+        DISK_BLOB_VERSION,
         STANDARD.encode(salt),
         STANDARD.encode(hmac)
     )
@@ -96,6 +103,16 @@ pub fn decode_disk_blob(blob: &str) -> Result<DiskBlob, String> {
     let obj = value
         .as_object()
         .ok_or_else(|| String::from("blob: not a JSON object"))?;
+    // Accept v=1 explicitly + a missing `v` field (legacy
+    // pre-version installs) so the next change-password
+    // re-emits with the field present. Unknown / future
+    // versions reject so a downgrade can't silently parse a
+    // newer-format blob.
+    if let Some(v) = obj.get("v").and_then(|x| x.as_u64()) {
+        if v != DISK_BLOB_VERSION as u64 {
+            return Err(format!("blob: unsupported version {v}"));
+        }
+    }
     let salt_b64 = obj
         .get("salt")
         .and_then(|v| v.as_str())
