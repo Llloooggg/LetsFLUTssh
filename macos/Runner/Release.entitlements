@@ -6,5 +6,18 @@
 	<false/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
+	<!--
+	  Required once a Developer ID + Hardened Runtime build replaces
+	  the current ad-hoc-signed shape: SSH local-port-forward (-L) +
+	  remote-listener (-R) call bind() / connect() under the
+	  Hardened Runtime sandbox, and missing entitlements turn into
+	  silent EPERM. Wired here now so enabling Hardened Runtime is a
+	  one-line build-config flip, not a "why does -L not work" debug
+	  loop after the fact.
+	-->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
+	<true/>
 </dict>
 </plist>

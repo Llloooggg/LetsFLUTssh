@@ -192,10 +192,7 @@ class _RustDirectTcpip implements SshDirectTcpipChannel {
   Future<void> write(Uint8List data) => _inner.write(data: data);
 
   @override
-  Future<Uint8List?> read() async {
-    final bytes = await _inner.read();
-    return bytes == null ? null : Uint8List.fromList(bytes);
-  }
+  Future<Uint8List?> read() => _inner.read();
 
   @override
   Future<void> eof() => _inner.eof();

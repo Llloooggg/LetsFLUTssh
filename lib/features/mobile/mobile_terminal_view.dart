@@ -249,7 +249,10 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       _terminal.onOutput = (data) {
         final transformed =
             _keyboardKey.currentState?.applyModifiers(data) ?? data;
-        _shellConn?.write(Uint8List.fromList(utf8.encode(transformed)));
+        // `utf8.encode` already returns Uint8List on dart:convert
+        // ≥ 2.18 — the wrapping `Uint8List.fromList` was a no-op
+        // copy on every keystroke.
+        _shellConn?.write(utf8.encode(transformed));
       };
 
       if (mounted) setState(() {});

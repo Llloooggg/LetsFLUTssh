@@ -61,12 +61,26 @@ android {
 
     buildTypes {
         release {
-            // Use release signing when key.properties is present (CI/production),
-            // otherwise fall back to debug so `flutter run --release` still works.
+            // Real-key release signing when android/key.properties is
+            // present (CI / production). Local builds opt into the
+            // debug-keystore fallback explicitly via
+            // `-PallowDebugRelease=true` so `flutter run --release`
+            // still works for hot-iteration; without the flag a
+            // missing key.properties fails the build instead of
+            // silently producing a debug-key APK that real-key updates
+            // can never replace (INSTALL_FAILED_UPDATE_INCOMPATIBLE).
+            val allowDebugRelease =
+                (project.findProperty("allowDebugRelease") as? String)?.toBoolean() == true
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
-            } else {
+            } else if (allowDebugRelease) {
                 signingConfigs.getByName("debug")
+            } else {
+                throw GradleException(
+                    "Release build requires android/key.properties. " +
+                        "Pass -PallowDebugRelease=true to fall back to the " +
+                        "debug keystore for local iteration."
+                )
             }
         }
     }

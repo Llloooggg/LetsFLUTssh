@@ -101,7 +101,10 @@ class ShellHelper {
     });
 
     terminal.onOutput = (data) {
-      final bytes = Uint8List.fromList(utf8.encode(data));
+      // utf8.encode already returns Uint8List on dart:convert ≥
+      // 2.18; the prior Uint8List.fromList wrap doubled the
+      // keystroke buffer for nothing.
+      final bytes = utf8.encode(data);
       shell.write(bytes);
       recorder?.recordInput(bytes);
     };

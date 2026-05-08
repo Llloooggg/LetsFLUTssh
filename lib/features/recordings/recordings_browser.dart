@@ -16,6 +16,7 @@ import '../../widgets/app_data_row.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_empty_state.dart';
 import '../../widgets/app_icon_button.dart';
+import '../../widgets/confirm_dialog.dart';
 import 'recording_playback_dialog.dart';
 import 'recording_reader.dart';
 import 'recordings_logic.dart';
@@ -111,6 +112,18 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
   }
 
   Future<void> _delete(_RecordingEntry entry) async {
+    final l10n = S.of(context);
+    final label = _resolveSessionLabel(
+      entry.sessionId,
+      ref.read(sessionProvider),
+    );
+    final timestamp = entry.fileTimestamp.toLocal().toString().split('.').first;
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l10n.deleteRecording,
+      content: Text('$label\n$timestamp'),
+    );
+    if (!confirmed) return;
     try {
       await entry.file.delete();
     } catch (_) {
