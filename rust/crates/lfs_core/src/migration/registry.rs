@@ -78,11 +78,10 @@ mod tests {
     fn every_dependency_endpoint_is_a_registered_artefact() {
         // Invariant: a dependency declaration references an artefact
         // that the registry actually knows about. Forward-declared
-        // entries on unregistered artefacts (the audit's B-MIG-3
-        // gap) would silently no-op in `topo_sort` and degrade
-        // future cross-checks. Pin the invariant here so a future
-        // commit that re-introduces a dead dependency edge fails
-        // at test time.
+        // entries on unregistered artefacts would silently no-op
+        // in `topo_sort` and degrade future cross-checks. Pin the
+        // invariant here so a future commit that re-introduces a
+        // dead dependency edge fails at test time.
         let reg = build_app_registry();
         let registered: std::collections::HashSet<&'static str> =
             reg.artefacts.iter().map(|a| a.id()).collect();

@@ -181,9 +181,8 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
             : '?';
         // Encrypted recordings are unplayable when the running
         // tier has no active DB key (plaintext / auto-locked).
-        // The previous shape silently no-op'd on tap; the audit's
-        // B-UX-6 finding asked for a disabled row + tooltip so
-        // the user sees WHY playback won't fire.
+        // Disable the row + show a tooltip so the user sees WHY
+        // playback won't fire instead of a silent no-op on tap.
         final canPlay =
             !e.encrypted || rust_secrets.secretsHas(id: kActiveDbKeySecretId);
         final secondary = [

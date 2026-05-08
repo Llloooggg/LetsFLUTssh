@@ -97,9 +97,8 @@
 	     handles the inbound URL stream and routes through the
 	     `DeeplinkDispatcher` Rust singleton. Leaving the flag on
 	     would intercept the launch URL through Flutter's own
-	     handler before app_links sees it (the audit's B-PI-4
-	     finding) and the deep link would land twice in the
-	     dispatch queue. -->
+	     handler before app_links sees it, and the deep link
+	     would land twice in the dispatch queue. -->
 
 	<!-- Privacy descriptions -->
 	<key>NSLocalNetworkUsageDescription</key>
@@ -126,10 +125,10 @@
 
 	<!-- iOS doesn't allow indefinite background TCP — Apple's
 	     suspended-app contract closes every socket the moment the
-	     app loses foreground. The audit's B-PLAT-5 / B-PI-1 ask is
-	     for a graceful "session resumed → reconnect last connection"
-	     path on foreground-return rather than chasing a background
-	     mode the platform won't honour. The lifecycle observer in
+	     app loses foreground. The chosen design is a graceful
+	     "session resumed → reconnect last connection" path on
+	     foreground-return rather than chasing a background mode
+	     the platform won't honour. The lifecycle observer in
 	     `lib/main_app.dart` tracks `AppLifecycleState.resumed`; the
 	     reconnect surfaces in the connection bar as a "Reconnect?"
 	     prompt the user can dismiss or accept.

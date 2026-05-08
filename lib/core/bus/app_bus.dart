@@ -156,10 +156,11 @@ class _SharedTopic {
   /// callsites that mount during the first runApp frame land on
   /// the `StateError` catch below, leave `_frbSub` null, and
   /// promote on the next `subscribe` call after init via
-  /// `retryFrbSubscriptions`. The previous defensive
+  /// `retryFrbSubscriptions`. No defensive
   /// `if (!RustLib.instance.initialized) return` short-circuit
-  /// was redundant against the invariant + the typed catch and
-  /// has been removed as part of the audit's A11 sweep.
+  /// — that pattern is redundant against the invariant + the
+  /// typed catch, and a pre-FRB read of `RustLib.instance`
+  /// would itself violate the cold-start rule.
   void ensureFrbSub() {
     if (_frbSub != null) return;
     try {

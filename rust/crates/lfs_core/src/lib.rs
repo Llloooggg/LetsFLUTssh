@@ -9,13 +9,12 @@
 //!   - Crypto-material equality via `subtle::ConstantTimeEq`.
 //!
 //! Module-visibility posture: every top-level `pub mod` below is a
-//! deliberate consumer surface for `lfs_frb` — the audit's
-//! B-WS-5 review confirmed each one has at least one
-//! `lfs_core::<mod>::...` reference under `lfs_frb/src/api/` or
-//! `lfs_os_security`. Submodules under `db/` / `archive/` /
-//! `security/` already use `pub(crate)` where the layer split
-//! permits; widening any of those to `pub` requires the same
-//! cross-crate-consumer check.
+//! deliberate consumer surface for `lfs_frb`. Each one has at
+//! least one `lfs_core::<mod>::...` reference under
+//! `lfs_frb/src/api/` or `lfs_os_security`. Submodules under
+//! `db/` / `archive/` / `security/` already use `pub(crate)`
+//! where the layer split permits; widening any of those to `pub`
+//! requires the same cross-crate-consumer check.
 
 pub mod app;
 pub mod app_log;

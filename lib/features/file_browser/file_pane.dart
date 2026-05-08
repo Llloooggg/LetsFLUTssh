@@ -155,10 +155,9 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final reg = AppShortcutRegistry.instance;
 
-    // Arrow-key navigation across rows + Enter to open. Closes
-    // the audit's A20 "file pane row list keyboard-unreachable"
-    // gap: focus on the pane previously gave shortcut hits but
-    // had no way to move the cursor without a mouse / touch.
+    // Arrow-key navigation across rows + Enter to open. Focus on
+    // the pane gives shortcut hits + cursor movement without a
+    // mouse / touch device.
     if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
         event.logicalKey == LogicalKeyboardKey.arrowUp) {
       final entries = ctrl.entries;

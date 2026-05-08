@@ -40,12 +40,11 @@ use std::sync::Mutex;
 // public surface: every DAO under `db/*.rs` calls `prepare`,
 // `query_row`, `transaction`, etc. directly, and the `run_db_*`
 // helpers in `lfs_frb::api::db` thread the type through their
-// `FnOnce(&Connection) -> Result<_, Error>` bound. Wrapping in a
-// newtype was considered (audit B-WS-4) but would require either
-// re-exposing every rusqlite method as a pass-through (~40+
-// methods across `Connection` + `Transaction`) or routing every
-// DAO query through a typed builder, neither of which carry
-// daily benefit beyond the documentation we add here. The
+// `FnOnce(&Connection) -> Result<_, Error>` bound. A newtype
+// wrap would require either re-exposing every rusqlite method
+// as a pass-through (~40+ methods across `Connection` +
+// `Transaction`) or routing every DAO query through a typed
+// builder, neither of which carry daily benefit. The
 // alternative — `pub(crate) use` — would force `lfs_frb`'s
 // generic helpers to either inline into `lfs_core` or clone the
 // dispatch boilerplate per DAO; both regress the layer split.

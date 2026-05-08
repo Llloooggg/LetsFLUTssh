@@ -176,9 +176,9 @@ fn normalized_sha256_hex(s: &str) -> String {
 
 /// Replace the entire `ssh_keys` table contents with `rows`
 /// inside a single transaction. Used by `KeysNotifier.saveAll`
-/// in place of N delete + N upsert FRB hops; the audit's B-PERF-3
-/// finding called the per-row hop the dominant cost when the
-/// notifier flushed its in-memory cache.
+/// in place of N delete + N upsert FRB hops — the per-row hop
+/// is the dominant cost when the notifier flushes its in-memory
+/// cache.
 ///
 /// Atomicity: the delete + upserts run inside a single
 /// `conn.transaction()`; a failure mid-loop rolls back so the

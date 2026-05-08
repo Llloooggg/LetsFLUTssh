@@ -343,8 +343,7 @@ class _KeyButton extends StatelessWidget {
         // Icon-only keys (arrows, Tab, Esc) need an explicit
         // accessibility label — the icon glyph alone is silent for
         // VoiceOver / TalkBack. Text-labelled keys (a / b / 1 / 2 /
-        // …) reuse the visible label as their semantic name. Closes
-        // the audit's B-A11Y-5 finding.
+        // …) reuse the visible label as their semantic name.
         button: true,
         label: semanticLabel ?? label ?? '',
         child: Material(

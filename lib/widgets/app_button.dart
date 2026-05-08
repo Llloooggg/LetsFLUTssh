@@ -145,13 +145,13 @@ class AppButton extends StatelessWidget {
       button = SizedBox(width: double.infinity, child: button);
     }
     // Surface to screen readers as a button with the visible
-    // label. Closes the audit's B-A11Y-4 gap — `HoverRegion`
-    // alone delivers a tappable rectangle but no `button: true`
-    // semantic flag, so VoiceOver / TalkBack announced "AppButton"
-    // / nothing instead of "<label>, button". `enabled: tapActive`
-    // mirrors the visual disabled state into the accessibility
-    // tree so the user hears "dimmed" / "unavailable" instead of
-    // a button that does nothing on activation.
+    // label. `HoverRegion` alone delivers a tappable rectangle
+    // but no `button: true` semantic flag, so VoiceOver /
+    // TalkBack would announce "AppButton" / nothing instead of
+    // "<label>, button". `enabled: tapActive` mirrors the visual
+    // disabled state into the accessibility tree so the user
+    // hears "dimmed" / "unavailable" instead of a button that
+    // does nothing on activation.
     return Semantics(
       button: true,
       enabled: style.tapActive,

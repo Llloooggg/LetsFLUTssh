@@ -386,12 +386,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       // signals.
       //
       // Honour the OS textScaleFactor: multiply our UI-scale slider
-      // by the inherited scaler instead of replacing it. Cap at 3.0
-      // — the audit's B-A11Y-1 target — so a user at the system's
-      // 200% accessibility setting plus our 1.5x in-app slider
-      // still gets readable text without runaway layout overflow.
-      // Previous shape pinned `TextScaler.linear(uiScale)` and
-      // discarded the OS scaler entirely, blocking the standard
+      // by the inherited scaler instead of replacing it. Cap at
+      // 3.0 so a user at the system's 200% accessibility setting
+      // plus our 1.5x in-app slider still gets readable text
+      // without runaway layout overflow. The previous shape
+      // pinned `TextScaler.linear(uiScale)` and discarded the OS
+      // scaler entirely, blocking the standard
       // platform a11y path.
       data: mediaQuery.copyWith(
         textScaler: TextScaler.linear(

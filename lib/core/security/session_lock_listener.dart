@@ -96,10 +96,9 @@ class SessionLockListener {
       // `_installed` false on `StateError` so [retryAllPending]
       // re-attempts after the bootstrap chain promotes everything
       // else through `_wireFrbDependentBootstrapListeners`. The
-      // defensive `RustLib.instance.initialized` guard the audit's
-      // A11 sweep removed: the typed-catch shape is structurally
-      // equivalent and aligns with the strict cold-start invariant
-      // (no `RustLib.instance` reads on the cold-start path).
+      // typed-catch shape aligns with the strict cold-start
+      // invariant (no `RustLib.instance` reads on the cold-start
+      // path).
       try {
         _ensureRustStream();
         _installed = true;

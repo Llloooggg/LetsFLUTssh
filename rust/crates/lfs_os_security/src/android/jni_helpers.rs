@@ -133,11 +133,10 @@ pub fn static_int_field(env: &mut JNIEnv, class_name: &str, field: &str) -> Resu
 /// `app_log_warn!` so support traces show what threw, then clear
 /// the slot so subsequent JNI calls on the same thread can run.
 ///
-/// Closes the audit's B-OSFFI-4 "JNI exception clear gap":
-/// previously every `call_method` failure returned the Rust-side
-/// `Err(String)` but left the Java exception parked on the JNI
-/// frame, occasionally surfacing as a hard process abort on the
-/// next JNI hop.
+/// Without this drain, every `call_method` failure returns the
+/// Rust-side `Err(String)` but leaves the Java exception parked
+/// on the JNI frame, occasionally surfacing as a hard process
+/// abort on the next JNI hop.
 fn drain_exception(env: &mut JNIEnv, ctx: &str) {
     let occurred = env.exception_check().unwrap_or(false);
     if !occurred {

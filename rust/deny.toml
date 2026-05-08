@@ -36,10 +36,10 @@ ignore = [
   #
   # Re-review by 2026-12-31. cargo-deny 0.19 does not support a
   # native `expiration` field, so the date lives in this comment
-  # and the audit (B-SUP-2) tracks the calendar reminder. If the
-  # upstream RustCrypto/RSA fix is still pending past that date,
-  # update the date with a fresh look at the threat model — never
-  # silently extend without re-reviewing.
+  # and the `reason:` string. If the upstream RustCrypto/RSA fix
+  # is still pending past that date, update the date with a
+  # fresh look at the threat model — never silently extend
+  # without re-reviewing.
   { id = "RUSTSEC-2023-0071", reason = "marvin-attack-rsa-no-fix-yet (re-review by 2026-12-31)" },
 ]
 
