@@ -231,6 +231,16 @@ impl RecorderRegistry {
         self.lock().by_id.len()
     }
 
+    /// Test escape hatch: panics while holding the registry's
+    /// inner mutex so an integration-test thread can poison it.
+    /// `#[doc(hidden)]` keeps it out of the rendered API surface;
+    /// calling this at runtime is unconditionally a panic.
+    #[doc(hidden)]
+    pub fn force_poison_for_tests(&self) -> ! {
+        let _g = self.inner.lock().unwrap();
+        panic!("RecorderRegistry::force_poison_for_tests");
+    }
+
     /// Bump the byte counter for an actor — used by the
     /// counter-only path where Dart still owns file IO. Pair
     /// with [`RecorderRegistry::register`] (no file handle on

@@ -20,8 +20,11 @@
 //!   3. Call the FRB shim — it must NOT propagate the panic;
 //!      it must return successfully via `into_inner` recovery.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
+
+use lfs_core::bus::EventBus;
+use lfs_core::recorder::RecorderRegistry;
 
 #[test]
 fn tier_machine_state_recovers_after_poison() {
@@ -41,6 +44,45 @@ fn tier_machine_state_recovers_after_poison() {
     let _ = lfs_frb::api::tier_machine::tier_machine_active_tier_wire_name();
     let _ = lfs_frb::api::tier_machine::tier_machine_try_advance();
     let _ = lfs_frb::api::tier_machine::tier_machine_set_tier("plaintext".into());
+}
+
+#[test]
+fn recorder_registry_recovers_after_poison() {
+    // Extend poison-recovery coverage to the recorder registry's
+    // inner mutex. `RecorderRegistry::lock()` applies the same
+    // `unwrap_or_else(into_inner)` shape as tier_machine; this
+    // test exercises the path through public accessors after a
+    // thread has poisoned the inner mutex.
+    let registry = Arc::new(RecorderRegistry::new());
+    let bus = EventBus::new();
+
+    // Pre-seed one entry so post-poison snapshot lookup has
+    // something deterministic to find.
+    registry.register(
+        "rec-1".into(),
+        "session-1".into(),
+        "/tmp/poison-test.lfsr".into(),
+        false,
+        &bus,
+    );
+
+    // Spawn a thread that grabs the inner mutex and panics —
+    // poisons the lock for every subsequent caller.
+    let r = registry.clone();
+    let h = thread::spawn(move || r.force_poison_for_tests());
+    let _ = h.join();
+
+    // The panic must NOT propagate through public accessors.
+    // Each touches `lock()` and must recover via `into_inner`.
+    let n = registry.count();
+    assert_eq!(n, 1, "count() must read seeded state through poison");
+
+    let snap = registry.snapshot("rec-1");
+    assert!(snap.is_some(), "snapshot(id) must read through poison");
+    assert_eq!(
+        snap.as_ref().map(|s| s.session_id.as_str()),
+        Some("session-1")
+    );
 }
 
 #[test]

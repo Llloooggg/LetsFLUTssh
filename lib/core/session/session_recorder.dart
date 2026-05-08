@@ -223,6 +223,16 @@ class SessionRecorder {
   Future<String?> close() async {
     if (_closed) return _currentPath;
     _closed = true;
+    // Drain every in-flight `_dispatchEnqueue` future before sending
+    // the close marker. Without this, a back-to-back
+    // `recordOutput → close` race can schedule Close ahead of the
+    // unawaited event FRB calls — the Rust worker then processes
+    // Close before the trailing chunk lands and the user sees a
+    // truncated recording. Each future already swallows its own
+    // exception, so this barrier never throws.
+    if (_pendingEnqueues.isNotEmpty) {
+      await Future.wait(_pendingEnqueues.toList());
+    }
     // Rust-side `enqueue_blocking` drains any in-flight chunk
     // buffer before the close marker, so the trailing bytes that
     // arrived in the last 10 ms make it onto disk before the file
@@ -262,19 +272,31 @@ class SessionRecorder {
     return dir;
   }
 
+  /// In-flight `_dispatchEnqueue` futures. [close] awaits these before
+  /// sending the close marker so the Rust-side worker drains every
+  /// chunk into the mailbox in arrival order. Without the gate, a
+  /// fast close after two back-to-back `recordOutput` calls can
+  /// schedule the close FRB call ahead of the unawaited event FRB
+  /// calls — the worker then processes Close before the events
+  /// arrive and the trailing chunk is lost.
+  final Set<Future<void>> _pendingEnqueues = <Future<void>>{};
+
   /// Hand one PTY chunk to the Rust-side recorder queue. The Rust
   /// `enqueue_event_chunk` accumulator coalesces 100/sec russh
   /// `Data` packets into one mailbox entry per ~10 ms / 8 KiB so
   /// the writer worker isn't woken on every chunk; FRB ordering
-  /// preserves arrival order across calls. Fire-and-forget — the
-  /// caller's hot path (terminal pump) never blocks on disk.
+  /// preserves arrival order across calls. Fire-and-forget for the
+  /// caller — the terminal pump never blocks on disk — but [close]
+  /// barriers on every in-flight future before the close marker.
   void _enqueueEvent(List<int> bytes, RecordDirection dir) {
     if (_closed || bytes.isEmpty) return;
     final direction = switch (dir) {
       RecordDirection.output => rust_recorder.DbRecordDirection.output,
       RecordDirection.input => rust_recorder.DbRecordDirection.input,
     };
-    unawaited(_dispatchEnqueue(bytes, direction));
+    final future = _dispatchEnqueue(bytes, direction);
+    _pendingEnqueues.add(future);
+    future.whenComplete(() => _pendingEnqueues.remove(future));
   }
 
   Future<void> _dispatchEnqueue(
