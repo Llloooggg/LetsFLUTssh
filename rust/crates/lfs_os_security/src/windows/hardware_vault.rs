@@ -88,7 +88,9 @@ pub fn is_available() -> bool {
     let result =
         unsafe { NCryptOpenStorageProvider(&mut provider, MS_PLATFORM_KEY_STORAGE_PROVIDER, 0) };
     if result.is_ok() {
-        let _ = unsafe { NCryptFreeObject(NCRYPT_HANDLE(provider.0)) };
+        // Wrapping in Owned so an early panic in the bool-cast
+        // (impossible today but cheap insurance) still releases.
+        let _ = OwnedNCryptProvHandle(provider);
         true
     } else {
         false
@@ -110,19 +112,12 @@ pub fn is_stored(support_dir: &str) -> bool {
 /// `NCRYPT_UI_PROTECT_KEY_FLAG | NCRYPT_UI_FORCE_HIGH_PROTECTION_FLAG`
 /// so unseal fires the Hello / PIN UI automatically.
 pub fn store(support_dir: &str, db_key: &[u8], pin_hmac: &[u8]) -> Result<(), HardwareVaultError> {
-    let provider = open_provider()?;
-    let key = match open_or_create_key(provider) {
-        Ok(k) => k,
-        Err(e) => {
-            free_obj(provider.0);
-            return Err(e);
-        }
-    };
+    let provider = OwnedNCryptProvHandle(open_provider()?);
+    let key = OwnedNCryptKeyHandle(open_or_create_key(provider.handle())?);
 
-    let result = encrypt_under_key(key, db_key);
-    free_obj(key.0);
-    free_obj(provider.0);
-    let wrapped = result?;
+    let wrapped = encrypt_under_key(key.handle(), db_key)?;
+    drop(key);
+    drop(provider);
 
     let path = vault_path(support_dir);
     let mut body = Vec::new();
@@ -157,13 +152,13 @@ pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, Hardw
         return Ok(None);
     }
 
-    let provider = open_provider()?;
-    let key = match open_existing_key(provider) {
-        Ok(k) => k,
+    let provider = OwnedNCryptProvHandle(open_provider()?);
+    let key = match open_existing_key(provider.handle()) {
+        Ok(k) => OwnedNCryptKeyHandle(k),
         Err(e) => {
-            free_obj(provider.0);
             // TPM cleared / persistent key revoked → vault is gone.
-            // Dart routes through TierResetDialog.
+            // Dart routes through TierResetDialog. The provider's
+            // Drop releases its handle as we return.
             return match e {
                 HardwareVaultError::Backend(ref msg)
                     if msg.contains(&format!("{:08x}", NTE_BAD_KEYSET.0 as u32)) =>
@@ -175,9 +170,9 @@ pub fn read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, Hardw
         }
     };
 
-    let result = decrypt_under_key(key, wrapped);
-    free_obj(key.0);
-    free_obj(provider.0);
+    let result = decrypt_under_key(key.handle(), wrapped);
+    drop(key);
+    drop(provider);
     result.map(Some)
 }
 
@@ -197,11 +192,12 @@ pub fn clear(support_dir: &str) -> Result<(), HardwareVaultError> {
     // Best-effort NCrypt key delete. If the persistent key was
     // never created, `NCryptOpenKey` returns `NTE_BAD_KEYSET` —
     // swallow and continue.
-    if let Ok(provider) = open_provider() {
+    if let Ok(provider_raw) = open_provider() {
+        let provider = OwnedNCryptProvHandle(provider_raw);
         let mut key = NCRYPT_KEY_HANDLE::default();
         let open_status = unsafe {
             NCryptOpenKey(
-                provider,
+                provider.handle(),
                 &mut key,
                 PCWSTR(VAULT_KEY_NAME.as_ptr()),
                 CERT_KEY_SPEC(0),
@@ -209,10 +205,13 @@ pub fn clear(support_dir: &str) -> Result<(), HardwareVaultError> {
             )
         };
         if open_status.is_ok() {
+            // `NCryptDeleteKey` consumes the handle (frees on
+            // success, leaves it valid for `NCryptFreeObject` on
+            // failure). The Owned wrapper handles either path.
             let _ = unsafe { NCryptDeleteKey(key, 0) };
-            free_obj(key.0);
+            let _ = OwnedNCryptKeyHandle(key);
         }
-        free_obj(provider.0);
+        // `provider` Drop fires here.
     }
     Ok(())
 }
@@ -252,6 +251,40 @@ pub fn is_biometric_password_stored(_support_dir: &str) -> bool {
 fn free_obj(handle: usize) {
     if handle != 0 {
         let _ = unsafe { NCryptFreeObject(NCRYPT_HANDLE(handle)) };
+    }
+}
+
+/// RAII wrapper around an `NCRYPT_PROV_HANDLE`. Drop calls
+/// `NCryptFreeObject` so every code path — Ok return, `?` early
+/// exit, panic — releases the handle. Replaces the per-error-arm
+/// `free_obj(provider.0)` calls the audit flagged.
+struct OwnedNCryptProvHandle(NCRYPT_PROV_HANDLE);
+
+impl OwnedNCryptProvHandle {
+    fn handle(&self) -> NCRYPT_PROV_HANDLE {
+        self.0
+    }
+}
+
+impl Drop for OwnedNCryptProvHandle {
+    fn drop(&mut self) {
+        free_obj(self.0 .0);
+    }
+}
+
+/// RAII wrapper around an `NCRYPT_KEY_HANDLE`. Same shape as
+/// `OwnedNCryptProvHandle`.
+struct OwnedNCryptKeyHandle(NCRYPT_KEY_HANDLE);
+
+impl OwnedNCryptKeyHandle {
+    fn handle(&self) -> NCRYPT_KEY_HANDLE {
+        self.0
+    }
+}
+
+impl Drop for OwnedNCryptKeyHandle {
+    fn drop(&mut self) {
+        free_obj(self.0 .0);
     }
 }
 

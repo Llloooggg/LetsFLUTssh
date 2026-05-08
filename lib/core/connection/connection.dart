@@ -191,13 +191,17 @@ class Connection {
           if (!_removed.isCompleted) _removed.complete();
         }
       });
-    } catch (e) {
-      // FRB native lib not loaded (flutter_test). Tests drive
-      // progress via direct `addProgressStep` and set
-      // `transport` / `state` directly; the bus subscription
-      // is opt-in.
+    } on StateError catch (e) {
+      // FRB native lib not loaded (flutter_test). The init guard
+      // throws `StateError("flutter_rust_bridge has not been
+      // initialized")`; tests drive progress via direct
+      // `addProgressStep` and set `transport` / `state` directly,
+      // so the bus subscription is opt-in. Narrowed from the
+      // earlier `catch (e)` so a real bug (a typed FRB error,
+      // a `MissingPluginException` from a stub plugin) surfaces
+      // instead of silently degrading to "no progress events".
       AppLogger.instance.log(
-        'Connection.subscribeProgressBus skipped: $e',
+        'Connection.subscribeProgressBus skipped (FRB not initialised): $e',
         name: 'Connection',
       );
     }

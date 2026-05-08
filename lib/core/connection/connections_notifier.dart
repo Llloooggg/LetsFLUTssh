@@ -57,7 +57,14 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       busSub = AppBus.instance
           .subscribe(rust_bus.BusTopic.connection)
           .listen((_) => _notify());
-    } catch (_) {}
+    } on StateError catch (e) {
+      // FRB-not-initialised in flutter_test. Narrowed catch so a
+      // typed FRB envelope error still surfaces.
+      AppLogger.instance.log(
+        'connections_notifier: bus subscribe skipped (FRB not init): $e',
+        name: 'ConnectionsNotifier',
+      );
+    }
     ref.onDispose(() {
       _disposed = true;
       if (busSub != null) unawaited(busSub.cancel());
@@ -76,13 +83,15 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   void _initGeneration(String id) {
     try {
       rust_connection.connectionInitGeneration(id: id);
-    } catch (_) {}
+    } on StateError {
+      // FRB stub in tests — caller doesn't branch on the result.
+    }
   }
 
   int _bumpGeneration(String id) {
     try {
       return rust_connection.connectionBumpGeneration(id: id);
-    } catch (_) {
+    } on StateError {
       return 1;
     }
   }
@@ -90,13 +99,17 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   void _dropGeneration(String id) {
     try {
       rust_connection.connectionDropGeneration(id: id);
-    } catch (_) {}
+    } on StateError {
+      // FRB stub in tests — caller doesn't branch on the result.
+    }
   }
 
   void _clearGenerations() {
     try {
       rust_connection.connectionClearGenerations();
-    } catch (_) {}
+    } on StateError {
+      // FRB stub in tests — caller doesn't branch on the result.
+    }
   }
 
   /// Whether a newer reconnect generation has superseded
@@ -109,7 +122,9 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
         id: id,
         generation: generation,
       );
-    } catch (_) {
+    } on StateError {
+      // FRB stub in tests — every generation is "current" so the
+      // reconnect path doesn't short-circuit on the no-op stub.
       return false;
     }
   }

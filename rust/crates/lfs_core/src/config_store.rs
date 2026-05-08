@@ -263,16 +263,44 @@ pub fn start_background_ticker() {
     }
     tokio::spawn(async {
         let mut interval = tokio::time::interval(TICK_INTERVAL);
+        // Edge-trigger logging: log only the first failure in a
+        // consecutive run so a transient FS hiccup does not flood
+        // the log every 100 ms while the user types in a settings
+        // slider. The flag clears on a successful tick — the next
+        // failure run logs once more.
+        let mut last_was_err = false;
         loop {
             interval.tick().await;
             // `tick_if_due` does sync std::fs work via
             // `write_bytes_atomic` — park on `spawn_blocking` so
             // the disk syscall does not stall the runtime worker
-            // for ~100 ms on a slow filesystem. Errors stay
-            // ignored: the next tick retries against the same
-            // pending state; the bus event publisher already
-            // records writes that did land.
-            let _ = tokio::task::spawn_blocking(|| instance().tick_if_due()).await;
+            // for ~100 ms on a slow filesystem.
+            let result = tokio::task::spawn_blocking(|| instance().tick_if_due()).await;
+            match result {
+                Err(join_err) => {
+                    if !last_was_err {
+                        crate::app_log_warn!(
+                            "ConfigStore",
+                            "ticker spawn_blocking join failed: {}",
+                            join_err
+                        );
+                    }
+                    last_was_err = true;
+                }
+                Ok(Err(write_err)) => {
+                    if !last_was_err {
+                        crate::app_log_warn!(
+                            "ConfigStore",
+                            "ticker disk write failed: {}",
+                            write_err
+                        );
+                    }
+                    last_was_err = true;
+                }
+                Ok(Ok(_)) => {
+                    last_was_err = false;
+                }
+            }
         }
     });
 }

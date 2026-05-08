@@ -93,8 +93,11 @@ struct WorkerHandle {
     sender: mpsc::Sender<QueueEntry>,
     /// Held to keep the worker task alive until [`Self`] drops; the
     /// worker exits cleanly when the channel sender drops or a
-    /// `Close` entry arrives.
-    _join: JoinHandle<()>,
+    /// `Close` entry arrives. `Drop` aborts as a safety net so a
+    /// `WorkerHandle` removed mid-shutdown (registry torn down
+    /// before a tail `Close` flushed) doesn't leak a lingering
+    /// task into the next runtime cycle.
+    join: JoinHandle<()>,
     /// Per-direction byte accumulator that coalesces high-frequency
     /// russh `Data` packets into one mailbox entry per
     /// `FLUSH_THRESHOLD_BYTES` / `FLUSH_DEADLINE` so the writer
@@ -102,6 +105,17 @@ struct WorkerHandle {
     /// of the mailbox; Dart calls `enqueue_event_chunk` for every
     /// chunk and the buffer decides when to wake the worker.
     buffers: Arc<StdMutex<EventBuffers>>,
+}
+
+impl Drop for WorkerHandle {
+    fn drop(&mut self) {
+        // Abort is idempotent — safe to call on an already-completed
+        // worker. Closes the audit's "WorkerHandle removed mid-
+        // shutdown could leak the task" gap; clean exits via
+        // `Close` entry still finish the queue normally before this
+        // drop runs.
+        self.join.abort();
+    }
 }
 
 /// Per-direction byte accumulator + the in-flight 10 ms flush task
@@ -169,7 +183,7 @@ impl RecorderQueue {
             id,
             WorkerHandle {
                 sender: tx,
-                _join: join,
+                join,
                 buffers: Arc::new(StdMutex::new(EventBuffers::new())),
             },
         );
@@ -244,9 +258,25 @@ impl RecorderQueue {
                             b.drain()
                         };
                         for (k, bs) in drained {
-                            let _ = sender_for_task
+                            // The receiver only drops once the
+                            // worker is closing — surface the
+                            // first send-failure as a warn so a
+                            // race between the deadline-flush and
+                            // a `Close` entry is greppable in
+                            // support traces. Subsequent failures
+                            // in the same drain stay silent
+                            // (log-spam guard).
+                            if let Err(e) = sender_for_task
                                 .send(QueueEntry::Event { kind: k, bytes: bs })
-                                .await;
+                                .await
+                            {
+                                crate::app_log_warn!(
+                                    "RecorderQueue",
+                                    "deadline-flush send failed (worker closed): {}",
+                                    e
+                                );
+                                break;
+                            }
                         }
                     }));
                 }

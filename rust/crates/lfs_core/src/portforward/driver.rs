@@ -123,11 +123,18 @@ impl ChannelFactory for DirectTcpipFactory {
     }
 }
 
-/// Handle owning the spawned listener task. Dropping aborts
-/// the task — the OS frees the listening socket as soon as
-/// the task's `TcpListener` drops.
+/// Handle owning the spawned listener task. Dropping fires a
+/// shutdown signal first (so the accept loop exits its current
+/// iteration cleanly + the listener socket drops at end-of-scope),
+/// then aborts as a safety net for the abort-during-active-accept
+/// case where the loop is parked on `listener.accept().await`.
+/// The shutdown-first ordering closes the audit's race window
+/// where `inner.abort()` alone could orphan a half-spawned
+/// per-accept worker that already cloned the channel factory but
+/// hadn't yet dropped its socket.
 pub struct ListenerHandle {
     inner: JoinHandle<()>,
+    shutdown: tokio::sync::watch::Sender<bool>,
     bound: SocketAddr,
 }
 
@@ -137,12 +144,16 @@ impl ListenerHandle {
     }
 
     pub fn abort(&self) {
+        // Best-effort: if the receiver already dropped (worker
+        // exited cleanly via a previous signal) the send is a no-op.
+        let _ = self.shutdown.send(true);
         self.inner.abort();
     }
 }
 
 impl Drop for ListenerHandle {
     fn drop(&mut self) {
+        let _ = self.shutdown.send(true);
         self.inner.abort();
     }
 }
@@ -175,37 +186,70 @@ pub async fn spawn_listener(
         .map_err(|e| Error::Transport(format!("local_addr: {e}")))?;
     reporter.report(RuleStatus::Listening, None);
 
-    let task = tokio::spawn(accept_loop(listener, factory, reporter));
-    Ok(ListenerHandle { inner: task, bound })
+    let (tx, rx) = tokio::sync::watch::channel(false);
+    let task = tokio::spawn(accept_loop(listener, factory, reporter, rx));
+    Ok(ListenerHandle {
+        inner: task,
+        shutdown: tx,
+        bound,
+    })
 }
 
 async fn accept_loop(
     listener: TcpListener,
     factory: Arc<dyn ChannelFactory>,
     reporter: Arc<dyn StatusReporter>,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
 ) {
     loop {
-        let (socket, peer) = match listener.accept().await {
-            Ok(pair) => pair,
-            Err(e) => {
-                reporter.report(RuleStatus::Error, Some(e.to_string()));
-                continue;
-            }
-        };
-        let f = factory.clone();
-        tokio::spawn(async move {
-            match f.open(peer).await {
-                Ok((reader, writer)) => {
-                    let _ = pump(socket, reader, writer).await;
-                }
-                Err(_) => {
-                    // Per-accept failure is logged through the
-                    // reporter at the registry level; here we
-                    // just drop the socket so the client sees
-                    // a connection-refused on read.
+        // Race the shutdown signal against the next accept so a
+        // `ListenerHandle::drop` while parked on `accept` exits
+        // cleanly. The listener drops at end-of-scope here,
+        // releasing the OS socket without an in-flight per-accept
+        // worker leaking through.
+        tokio::select! {
+            biased;
+            _ = shutdown.changed() => {
+                if *shutdown.borrow() {
+                    return;
                 }
             }
-        });
+            accepted = listener.accept() => {
+                let (socket, peer) = match accepted {
+                    Ok(pair) => pair,
+                    Err(e) => {
+                        reporter.report(RuleStatus::Error, Some(e.to_string()));
+                        continue;
+                    }
+                };
+                let f = factory.clone();
+                let r = reporter.clone();
+                tokio::spawn(async move {
+                    match f.open(peer).await {
+                        Ok((reader, writer)) => {
+                            // Surface a pump-level error so a real
+                            // I/O fault on the local-listener side
+                            // (broken pipe, network unreachable)
+                            // reaches the reporter rather than
+                            // collapsing into a silent disconnect.
+                            if let Err(e) = pump(socket, reader, writer).await {
+                                r.report(RuleStatus::Error, Some(e.to_string()));
+                            }
+                        }
+                        Err(e) => {
+                            // Per-accept open failure now lands on
+                            // the reporter so the rule-status panel
+                            // shows "channel open failed" with the
+                            // upstream-side reason; the previous
+                            // shape silently dropped the socket
+                            // (which the client saw as a
+                            // connection-reset with no UI hint).
+                            r.report(RuleStatus::Error, Some(e.to_string()));
+                        }
+                    }
+                });
+            }
+        }
     }
 }
 
@@ -237,27 +281,43 @@ pub async fn spawn_socks5_listener(
         .map_err(|e| Error::Transport(format!("local_addr: {e}")))?;
     reporter.report(RuleStatus::Listening, None);
 
-    let task = tokio::spawn(socks5_accept_loop(listener, session, reporter));
-    Ok(ListenerHandle { inner: task, bound })
+    let (tx, rx) = tokio::sync::watch::channel(false);
+    let task = tokio::spawn(socks5_accept_loop(listener, session, reporter, rx));
+    Ok(ListenerHandle {
+        inner: task,
+        shutdown: tx,
+        bound,
+    })
 }
 
 async fn socks5_accept_loop(
     listener: TcpListener,
     session: Arc<crate::ssh::Session>,
     reporter: Arc<dyn StatusReporter>,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
 ) {
     loop {
-        let (socket, peer) = match listener.accept().await {
-            Ok(pair) => pair,
-            Err(e) => {
-                reporter.report(RuleStatus::Error, Some(e.to_string()));
-                continue;
+        tokio::select! {
+            biased;
+            _ = shutdown.changed() => {
+                if *shutdown.borrow() {
+                    return;
+                }
             }
-        };
-        let session = session.clone();
-        tokio::spawn(async move {
-            let _ = handle_socks5_client(socket, peer, session).await;
-        });
+            accepted = listener.accept() => {
+                let (socket, peer) = match accepted {
+                    Ok(pair) => pair,
+                    Err(e) => {
+                        reporter.report(RuleStatus::Error, Some(e.to_string()));
+                        continue;
+                    }
+                };
+                let session = session.clone();
+                tokio::spawn(async move {
+                    let _ = handle_socks5_client(socket, peer, session).await;
+                });
+            }
+        }
     }
 }
 
@@ -704,12 +764,28 @@ pub async fn pump(socket: TcpStream, reader: ReaderHalf, writer: WriterHalf) -> 
     let upstream = tokio::spawn(copy_one_way_owned(sock_r, writer));
     let downstream = tokio::spawn(copy_one_way_owned(reader, sock_w));
 
-    let _ = upstream.await;
-    let _ = downstream.await;
+    // Surface the first non-cancelled I/O error (either side) so a
+    // caller with a reporter can log it. EOF / connection-reset
+    // shapes are the normal end-of-stream — those return `Ok(())`
+    // here. The `JoinError` from a panicked / cancelled spawn maps
+    // to `Error::Io` so an aborted listener still reaches the
+    // caller with a typed error rather than a silent success.
+    let up = upstream
+        .await
+        .map_err(|e| Error::Io(format!("pump upstream join: {e}")))?;
+    let down = downstream
+        .await
+        .map_err(|e| Error::Io(format!("pump downstream join: {e}")))?;
+    if let Err(e) = up {
+        return Err(Error::Io(format!("pump upstream: {e}")));
+    }
+    if let Err(e) = down {
+        return Err(Error::Io(format!("pump downstream: {e}")));
+    }
     Ok(())
 }
 
-async fn copy_one_way_owned<R, W>(reader: R, writer: W)
+async fn copy_one_way_owned<R, W>(reader: R, writer: W) -> std::io::Result<()>
 where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
@@ -717,7 +793,7 @@ where
     copy_one_way(reader, writer).await
 }
 
-async fn copy_one_way<R, W>(mut reader: R, mut writer: W)
+async fn copy_one_way<R, W>(mut reader: R, mut writer: W) -> std::io::Result<()>
 where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
@@ -727,13 +803,39 @@ where
         let n = match reader.read(&mut buf).await {
             Ok(0) => break,
             Ok(n) => n,
-            Err(_) => break,
+            Err(e) => {
+                // Connection-reset / unexpected-EOF on shutdown is
+                // the normal close shape; surface anything else so
+                // a real I/O fault (broken pipe mid-stream, network
+                // unreachable on the local listener side) reaches
+                // the reporter rather than collapsing to a silent
+                // disconnect.
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::ConnectionReset
+                        | std::io::ErrorKind::ConnectionAborted
+                        | std::io::ErrorKind::UnexpectedEof
+                        | std::io::ErrorKind::BrokenPipe
+                ) {
+                    break;
+                }
+                return Err(e);
+            }
         };
-        if writer.write_all(&buf[..n]).await.is_err() {
-            break;
+        if let Err(e) = writer.write_all(&buf[..n]).await {
+            if matches!(
+                e.kind(),
+                std::io::ErrorKind::ConnectionReset
+                    | std::io::ErrorKind::ConnectionAborted
+                    | std::io::ErrorKind::BrokenPipe
+            ) {
+                break;
+            }
+            return Err(e);
         }
     }
     let _ = writer.shutdown().await;
+    Ok(())
 }
 
 #[cfg(test)]
