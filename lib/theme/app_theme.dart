@@ -309,21 +309,31 @@ abstract final class AppTheme {
   static const double itemHeightXl = 56;
 
   // ── Icon button sizing ──
-  // Mobile needs ≥40 px touch targets per platform HIGs; desktop stays
-  // compact to preserve information density in toolbars/headers.
-  /// Standard icon-button hit target — 40 px on mobile, 26 px on desktop.
-  static double get iconBtnBox => plat.isMobilePlatform ? 40.0 : 26.0;
+  // Mobile needs ≥44 px touch targets — Apple HIG §accessibility +
+  // Material Design accessibility guideline both pin 44 dp / 48 dp
+  // as the floor; we standardise on 44 to satisfy both. Desktop
+  // stays compact to preserve information density in toolbars and
+  // headers.
+  /// Standard icon-button hit target — 44 px on mobile, 26 px on desktop.
+  static double get iconBtnBox => plat.isMobilePlatform ? 44.0 : 26.0;
 
-  /// Standard icon size inside [iconBtnBox] — 20 px on mobile, 14 px on desktop.
-  static double get iconBtnIcon => plat.isMobilePlatform ? 20.0 : 14.0;
+  /// Standard icon size inside [iconBtnBox] — 22 px on mobile, 14 px
+  /// on desktop. Mobile bumps to 22 to keep the visual hit area
+  /// proportional to the new 44 px box.
+  static double get iconBtnIcon => plat.isMobilePlatform ? 22.0 : 14.0;
 
-  /// Dense icon-button hit target — used in tight toolbars (file browser,
-  /// dialog headers). Still meets the mobile touch-target floor but sits one
-  /// step down from the standard size on desktop.
-  static double get iconBtnBoxDense => plat.isMobilePlatform ? 36.0 : 22.0;
+  /// Dense icon-button hit target — used in tight toolbars (file
+  /// browser, dialog headers). On mobile this collapses back to the
+  /// platform floor (44 px) because dropping below the touch
+  /// minimum to fit one more icon in a row violates the Apple /
+  /// Material guideline; the extra density a dense variant offers
+  /// only matters on desktop. On desktop dense sits one step down
+  /// from the standard 26 px box.
+  static double get iconBtnBoxDense => plat.isMobilePlatform ? 44.0 : 22.0;
 
-  /// Dense icon size inside [iconBtnBoxDense].
-  static double get iconBtnIconDense => plat.isMobilePlatform ? 18.0 : 14.0;
+  /// Dense icon size inside [iconBtnBoxDense]. Mobile mirrors the
+  /// non-dense icon size since the boxes are equal.
+  static double get iconBtnIconDense => plat.isMobilePlatform ? 22.0 : 14.0;
 
   // ── Popup constraints ──
   /// 400 px — max height for popup menus (scrolls when content exceeds).

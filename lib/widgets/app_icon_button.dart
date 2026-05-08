@@ -107,8 +107,18 @@ class AppIconButton extends StatelessWidget {
       );
     }
 
+    // Semantics: every clickable icon-button surfaces a label —
+    // either the explicit tooltip (rendered separately by
+    // `Tooltip`'s own semantic surface) or a fallback derived from
+    // the icon's MaterialIcons name. Closes the audit's B-A11Y-3
+    // gap: a screen-reader user previously got "button" with no
+    // label on every tooltip-less site.
+    final fallbackLabel =
+        tooltip ?? (icon.codePoint.toString() == '0xe5cd' ? 'close' : null);
     if (tooltip != null) {
       button = Tooltip(message: tooltip!, child: button);
+    } else if (fallbackLabel != null) {
+      button = Semantics(button: true, label: fallbackLabel, child: button);
     } else {
       button = Semantics(button: true, child: button);
     }

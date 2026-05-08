@@ -233,17 +233,36 @@ class AppDialogFooter extends StatelessWidget {
 /// operation is responsible for popping the dialog in a `finally`.
 class AppProgressBarDialog extends StatelessWidget {
   final ProgressReporter reporter;
-  const AppProgressBarDialog({super.key, required this.reporter});
+
+  /// Optional cancel callback. When non-null, the dialog renders a
+  /// "Cancel" action under the progress panel and routes the tap
+  /// to this callback. Caller is responsible for popping the
+  /// dialog (the cancel handler typically flips a cancellation
+  /// flag and lets the surrounding `finally` close the dialog
+  /// once the operation observes the flag and unwinds).
+  final VoidCallback? onCancel;
+
+  const AppProgressBarDialog({
+    super.key,
+    required this.reporter,
+    this.onCancel,
+  });
 
   /// Show a non-dismissible progress bar.  The caller must pop it after
   /// the operation completes (success or failure) — typically in a
-  /// `try/finally` pair with a `mounted` check.
-  static void show(BuildContext context, ProgressReporter reporter) {
+  /// `try/finally` pair with a `mounted` check. Pass `onCancel` to
+  /// surface a Cancel button.
+  static void show(
+    BuildContext context,
+    ProgressReporter reporter, {
+    VoidCallback? onCancel,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
       animationStyle: AnimationStyle.noAnimation,
-      builder: (_) => AppProgressBarDialog(reporter: reporter),
+      builder: (_) =>
+          AppProgressBarDialog(reporter: reporter, onCancel: onCancel),
     );
   }
 
@@ -258,9 +277,21 @@ class AppProgressBarDialog extends StatelessWidget {
           borderRadius: AppTheme.radiusLg,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: ValueListenableBuilder<ProgressState>(
-              valueListenable: reporter.state,
-              builder: (_, s, _) => _ProgressPanel(state: s),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ValueListenableBuilder<ProgressState>(
+                  valueListenable: reporter.state,
+                  builder: (_, s, _) => _ProgressPanel(state: s),
+                ),
+                if (onCancel != null) ...[
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: AppButton.cancel(onTap: onCancel),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

@@ -216,18 +216,22 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_left,
+                semanticLabel: 'Arrow left',
                 onTap: () => _send(SshKeySequences.arrowLeft),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_up,
+                semanticLabel: 'Arrow up',
                 onTap: () => _send(SshKeySequences.arrowUp),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_down,
+                semanticLabel: 'Arrow down',
                 onTap: () => _send(SshKeySequences.arrowDown),
               ),
               _KeyButton(
                 icon: Icons.keyboard_arrow_right,
+                semanticLabel: 'Arrow right',
                 onTap: () => _send(SshKeySequences.arrowRight),
               ),
               _KeyButton(label: '|', onTap: () => _send('|')),
@@ -238,14 +242,23 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
           ),
         ),
         if (widget.onSnippets != null)
-          _KeyButton(icon: Icons.code, onTap: () => widget.onSnippets!.call()),
+          _KeyButton(
+            icon: Icons.code,
+            semanticLabel: 'Snippets',
+            onTap: () => widget.onSnippets!.call(),
+          ),
         _KeyButton(
           icon: Icons.paste,
+          semanticLabel: 'Paste',
           onTap: () {
             widget.onPaste?.call();
           },
         ),
-        _KeyButton(icon: Icons.copy, onTap: _enterCopyMode),
+        _KeyButton(
+          icon: Icons.copy,
+          semanticLabel: 'Copy mode',
+          onTap: _enterCopyMode,
+        ),
         _KeyButton(
           label: 'Fn',
           isActive: _showFnKeys,
@@ -270,10 +283,12 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
     final actionButton = widget.anchorSet
         ? _KeyButton(
             icon: Icons.copy,
+            semanticLabel: 'Copy selection',
             onTap: () => widget.onCopyPressed?.call(),
           )
         : _KeyButton(
             icon: Icons.adjust,
+            semanticLabel: 'Set anchor',
             onTap: () => widget.onAnchorPressed?.call(),
           );
     return Row(
@@ -294,7 +309,11 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
           ),
         ),
         actionButton,
-        _KeyButton(icon: Icons.close, onTap: exitCopyMode),
+        _KeyButton(
+          icon: Icons.close,
+          semanticLabel: 'Exit copy mode',
+          onTap: exitCopyMode,
+        ),
       ],
     );
   }
@@ -303,12 +322,14 @@ class SshKeyboardBarState extends State<SshKeyboardBar> {
 class _KeyButton extends StatelessWidget {
   final String? label;
   final IconData? icon;
+  final String? semanticLabel;
   final VoidCallback onTap;
   final bool isActive;
 
   const _KeyButton({
     this.label,
     this.icon,
+    this.semanticLabel,
     required this.onTap,
     this.isActive = false,
   });
@@ -318,40 +339,51 @@ class _KeyButton extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 2),
-      child: Material(
-        color: isActive
-            ? theme.colorScheme.primary.withValues(alpha: 0.3)
-            : theme.colorScheme.surfaceContainerHigh,
-        borderRadius: AppTheme.radiusLg,
-        // `canRequestFocus: false` so tapping an `Esc`/`Tab`/`Ctrl`
-        // key does not steal focus from the `TerminalView`, which
-        // would dismiss the system keyboard mid-type. The xterm
-        // input connection is tied to its internal `FocusNode`;
-        // every InkWell tap would otherwise trip
-        // `CustomTextEdit._onFocusChange → _closeInputConnection`
-        // and the Gboard surface would slide away on every
-        // modifier keypress.
-        child: InkWell(
-          canRequestFocus: false,
-          onTap: () {
-            HapticFeedback.lightImpact();
-            onTap();
-          },
+      child: Semantics(
+        // Icon-only keys (arrows, Tab, Esc) need an explicit
+        // accessibility label — the icon glyph alone is silent for
+        // VoiceOver / TalkBack. Text-labelled keys (a / b / 1 / 2 /
+        // …) reuse the visible label as their semantic name. Closes
+        // the audit's B-A11Y-5 finding.
+        button: true,
+        label: semanticLabel ?? label ?? '',
+        child: Material(
+          color: isActive
+              ? theme.colorScheme.primary.withValues(alpha: 0.3)
+              : theme.colorScheme.surfaceContainerHigh,
           borderRadius: AppTheme.radiusLg,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 38),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            alignment: Alignment.center,
-            child: icon != null
-                ? Icon(icon, size: 20, color: theme.colorScheme.onSurface)
-                : Text(
-                    label!,
-                    style: TextStyle(
-                      fontSize: AppFonts.lg,
-                      fontWeight: FontWeight.w500,
-                      color: theme.colorScheme.onSurface,
+          // `canRequestFocus: false` so tapping an `Esc`/`Tab`/`Ctrl`
+          // key does not steal focus from the `TerminalView`, which
+          // would dismiss the system keyboard mid-type. The xterm
+          // input connection is tied to its internal `FocusNode`;
+          // every InkWell tap would otherwise trip
+          // `CustomTextEdit._onFocusChange → _closeInputConnection`
+          // and the Gboard surface would slide away on every
+          // modifier keypress.
+          child: InkWell(
+            canRequestFocus: false,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onTap();
+            },
+            borderRadius: AppTheme.radiusLg,
+            child: Container(
+              // Bumped from 38 to 44 so each key meets the platform
+              // touch-target floor (Apple HIG 44 / Material 48 dp).
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              alignment: Alignment.center,
+              child: icon != null
+                  ? Icon(icon, size: 22, color: theme.colorScheme.onSurface)
+                  : Text(
+                      label!,
+                      style: TextStyle(
+                        fontSize: AppFonts.lg,
+                        fontWeight: FontWeight.w500,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
+            ),
           ),
         ),
       ),

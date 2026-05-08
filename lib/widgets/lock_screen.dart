@@ -188,19 +188,25 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    // The button renders as a plain `Text('...')` under
-                    // the busy flag rather than `loading: _busy`. A
-                    // real `CircularProgressIndicator` here ticks
-                    // forever on test `pumpAndSettle` — the verify
-                    // call kicks the state machine through `_busy`
-                    // during the async gap the tests wait on, and a
-                    // spinning indicator prevents settle from ever
-                    // resolving. The string variant matches the
-                    // pre-migration behaviour exactly.
-                    AppButton.primary(
-                      label: _busy ? '...' : l10n.unlock,
-                      onTap: _busy ? null : _submitPassword,
-                    ),
+                    if (_busy) ...[
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.derivingKey,
+                        style: TextStyle(
+                          fontSize: AppFonts.sm,
+                          color: AppTheme.fgDim,
+                        ),
+                      ),
+                    ] else
+                      AppButton.primary(
+                        label: l10n.unlock,
+                        onTap: _submitPassword,
+                      ),
                   ],
                 ),
               ),
