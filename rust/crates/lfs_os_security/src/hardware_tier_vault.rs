@@ -326,20 +326,20 @@ pub(crate) fn write_len_prefixed(out: &mut Vec<u8>, bytes: &[u8]) {
 
 /// Constant-time byte-slice equality. Used by [`read`] to compare
 /// the caller-supplied PIN HMAC against the stored one before the
-/// SE is exercised.
+/// SE is exercised. Routes through `subtle::ConstantTimeEq` so the
+/// timing posture is whatever the audited primitive guarantees;
+/// the local hand-rolled XOR loop relied on the compiler not
+/// short-circuiting, which is not a contract LLVM owes us.
 #[cfg_attr(
     not(any(test, target_os = "macos", target_os = "ios")),
     allow(dead_code)
 )]
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    use subtle::ConstantTimeEq;
     if a.len() != b.len() {
         return false;
     }
-    let mut diff: u8 = 0;
-    for (x, y) in a.iter().zip(b.iter()) {
-        diff |= x ^ y;
-    }
-    diff == 0
+    a.ct_eq(b).into()
 }
 
 // Apple-side filenames. On Android the parallel constants live

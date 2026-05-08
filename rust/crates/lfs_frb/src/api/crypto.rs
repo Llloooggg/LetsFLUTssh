@@ -41,7 +41,12 @@ pub async fn crypto_hkdf_sha256(
 /// load) so the async hop overhead would dwarf the work.
 #[flutter_rust_bridge::frb(sync)]
 pub fn crypto_hmac_sha256(key: Vec<u8>, message: Vec<u8>) -> Vec<u8> {
-    lfs_core::crypto::hmac_sha256(&key, &message)
+    // `Zeroizing` derefs to `Vec<u8>`; `into_inner` would unwrap
+    // and lose the zero-on-drop, but the FRB wire shape is `Vec<u8>`
+    // so we have to materialise. Cloning the inner bytes lets the
+    // `Zeroizing` wrapper still wipe its copy on drop while the
+    // FRB-owned `Vec` ships across.
+    lfs_core::crypto::hmac_sha256(&key, &message).to_vec()
 }
 
 /// SHA-256 digest over `bytes`. Returns the 32-byte hash. Sync —

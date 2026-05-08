@@ -112,7 +112,10 @@ pub struct RecorderActor {
     file: Option<Arc<Mutex<std::fs::File>>>,
     /// 32-byte AES-256 key in encrypted mode. Derived caller-side
     /// (HKDF off the DB key) and handed in once at register time.
-    key: Option<[u8; 32]>,
+    /// Wrapped in `Zeroizing` so the bytes wipe on `RecorderActor`
+    /// drop instead of lingering in the registry's process memory
+    /// after the recording closes.
+    key: Option<zeroize::Zeroizing<[u8; 32]>>,
     /// Monotonic per-frame counter used as AES-GCM AAD on encrypted
     /// recordings (LFR v2). Reset to 0 on rotate. Never persisted
     /// on disk: the reader recomputes it from frame position so a
@@ -258,7 +261,7 @@ impl RecorderRegistry {
         id: RecorderId,
         session_id: String,
         path: String,
-        key: Option<[u8; 32]>,
+        key: Option<zeroize::Zeroizing<[u8; 32]>>,
         bus: &EventBus,
     ) -> Result<RecorderSnapshot, Error> {
         let mut file = OpenOptions::new()
@@ -418,10 +421,10 @@ impl RecorderRegistry {
             };
             let idx = actor.frame_index;
             actor.frame_index = actor.frame_index.saturating_add(1);
-            (file.clone(), actor.key, idx)
+            (file.clone(), actor.key.clone(), idx)
         };
 
-        let frame = build_frame(plaintext, key.as_ref(), frame_index)?;
+        let frame = build_frame(plaintext, key.as_deref(), frame_index)?;
         {
             let mut handle = file_handle
                 .lock()
@@ -681,7 +684,7 @@ mod tests {
         let path = tempfile_path("enc");
         let key = [42u8; 32];
         let snap = reg
-            .register_with_io("r1".into(), "s1".into(), path.clone(), Some(key), &bus)
+            .register_with_io("r1".into(), "s1".into(), path.clone(), Some(zeroize::Zeroizing::new(key)), &bus)
             .expect("register");
         assert!(snap.encrypted);
         let on_disk = std::fs::read(&path).expect("read");
@@ -774,7 +777,7 @@ mod tests {
         let reg = RecorderRegistry::new();
         let path = tempfile_path("encwrite");
         let key = [7u8; 32];
-        reg.register_with_io("r1".into(), "s1".into(), path.clone(), Some(key), &bus)
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), Some(zeroize::Zeroizing::new(key)), &bus)
             .expect("register");
         let payload = b"some recorded bytes\n";
         reg.record_frame("r1", payload, &bus).expect("frame");
@@ -809,7 +812,7 @@ mod tests {
         let reg = RecorderRegistry::new();
         let path = tempfile_path("swap");
         let key = [11u8; 32];
-        reg.register_with_io("r1".into(), "s1".into(), path.clone(), Some(key), &bus)
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), Some(zeroize::Zeroizing::new(key)), &bus)
             .expect("register");
         let payload_a = b"alpha\n";
         let payload_b = b"beta\n";
@@ -865,7 +868,7 @@ mod tests {
         let path1 = tempfile_path("rot1");
         let path2 = tempfile_path("rot2");
         let key = [9u8; 32];
-        reg.register_with_io("r1".into(), "s1".into(), path1.clone(), Some(key), &bus)
+        reg.register_with_io("r1".into(), "s1".into(), path1.clone(), Some(zeroize::Zeroizing::new(key)), &bus)
             .expect("register");
         reg.record_frame("r1", b"first\n", &bus).expect("frame");
         let pre = reg.snapshot("r1").unwrap();

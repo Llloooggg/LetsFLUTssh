@@ -81,16 +81,23 @@ pub fn hkdf_sha256(
 /// HMAC key, message as the data) keeps wire-byte parity with
 /// existing on-disk blobs across the migration.
 #[must_use]
-pub fn hmac_sha256(key: &[u8], message: &[u8]) -> Vec<u8> {
+pub fn hmac_sha256(key: &[u8], message: &[u8]) -> Zeroizing<Vec<u8>> {
     // `Mac::new_from_slice` accepts any key length (HMAC's spec
     // pads/hashes to the block size internally) — the unwrap is safe.
     // Disambiguate against `KeyInit::new_from_slice` (also in scope
     // via the `aes_gcm::aead` re-export) so the compiler picks the
     // HMAC-flavoured trait method.
+    //
+    // Returns `Zeroizing<Vec<u8>>` so the 32-byte tag is wiped on
+    // drop. The tag is keyed on a pepper / salt that is itself
+    // secret (vault encryption key inputs, persisted rate-limit
+    // signing key, T1+pw verification HMAC); leaking the bytes
+    // through a heap allocation that lives past the call site
+    // would let a memory dump fingerprint the keyed input.
     let mut mac =
         <HmacSha256 as Mac>::new_from_slice(key).expect("HMAC-SHA-256 accepts any key length");
     mac.update(message);
-    mac.finalize().into_bytes().to_vec()
+    Zeroizing::new(mac.finalize().into_bytes().to_vec())
 }
 
 /// SHA-256 digest over `bytes`. Returns the 32-byte hash. Used by
@@ -456,7 +463,7 @@ mod tests {
         let mac = hmac_sha256(&key, b"Hi There");
         assert_eq!(mac.len(), 32);
         assert_eq!(
-            mac,
+            *mac,
             hex_decode("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7")
         );
     }

@@ -100,9 +100,9 @@ pub enum AuthIntent<'a> {
 /// failed → treat as cancelled unlock" so we never silently fall
 /// back to an empty auth.
 #[must_use]
-pub fn resolve_auth_value(intent: AuthIntent<'_>, salt: &[u8]) -> Option<Vec<u8>> {
+pub fn resolve_auth_value(intent: AuthIntent<'_>, salt: &[u8]) -> Option<zeroize::Zeroizing<Vec<u8>>> {
     match intent {
-        AuthIntent::Passwordless => Some(Vec::new()),
+        AuthIntent::Passwordless => Some(zeroize::Zeroizing::new(Vec::new())),
         AuthIntent::Password("") | AuthIntent::Biometric([]) => None,
         AuthIntent::Password(pw) => Some(hmac_sha256(salt, pw.as_bytes())),
         AuthIntent::Biometric(hash) => Some(hmac_sha256(salt, hash)),
@@ -334,7 +334,7 @@ mod tests {
     fn resolve_passwordless_returns_empty_vec() {
         let salt = vec![0x01u8; 32];
         let v = resolve_auth_value(AuthIntent::Passwordless, &salt);
-        assert_eq!(v, Some(Vec::new()));
+        assert_eq!(v.map(|z| z.to_vec()), Some(Vec::new()));
     }
 
     #[test]
@@ -342,7 +342,7 @@ mod tests {
         let salt = vec![0x02u8; 32];
         let with_pw = resolve_auth_value(AuthIntent::Password("hunter2"), &salt);
         let manual = hmac_sha256(&salt, b"hunter2");
-        assert_eq!(with_pw, Some(manual));
+        assert_eq!(with_pw.map(|z| z.to_vec()), Some(manual.to_vec()));
     }
 
     #[test]
@@ -357,7 +357,7 @@ mod tests {
         let hash = vec![0xAB; 32];
         let v = resolve_auth_value(AuthIntent::Biometric(&hash), &salt);
         let manual = hmac_sha256(&salt, &hash);
-        assert_eq!(v, Some(manual));
+        assert_eq!(v.map(|z| z.to_vec()), Some(manual.to_vec()));
     }
 
     #[test]

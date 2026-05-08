@@ -98,6 +98,7 @@ const ENCRYPTION_KEY_SLOT: &str = "letsflutssh_encryption_key";
 /// `record_success` (correct password lands).
 const KEYCHAIN_PW_UNLOCK_LIMITER_ID: &str = "tier_unlock.keychain_with_password";
 const PARANOID_UNLOCK_LIMITER_ID: &str = "tier_unlock.paranoid";
+const HARDWARE_UNLOCK_LIMITER_ID: &str = "tier_unlock.hardware";
 
 /// Plaintext tier — no secret, no plugin call, no user prompt.
 /// Idempotent: re-entry while already `Unlocked` is a no-op
@@ -394,6 +395,29 @@ pub async fn unlock_paranoid(password: Vec<u8>) -> UnlockOutcome {
 pub async fn unlock_hardware(pin: Option<String>) -> UnlockOutcome {
     instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockRequested);
 
+    // Rate-limit gate (parity with `unlock_keychain_with_password` /
+    // `unlock_paranoid`). The Dart unlock dialog's countdown was
+    // the only brake on a programmatic FRB caller firing
+    // `unlock_hardware` in a tight loop — the platform plugin's
+    // own per-attempt cool-down kicks in too late on Linux
+    // (TPM2 unseal returns non-rate-limited immediately on a wrong
+    // PIN). The InMemoryRateLimiter applies the shared exponential
+    // schedule the keychain-pw and paranoid limiters use, so a
+    // direct caller hits the same boundary-level gate.
+    let limiters = &crate::app::instance().rate_limiters;
+    let hw_status = limiters.status(HARDWARE_UNLOCK_LIMITER_ID);
+    if hw_status.is_locked() {
+        instance_dispatch(
+            SecurityTier::Hardware,
+            &TierEvent::UnlockFailed {
+                reason: UnlockFailureReason::PluginUnavailable {
+                    code: "hardware_vault_rate_limited".into(),
+                },
+            },
+        );
+        return UnlockOutcome::PluginError("hardware_vault_rate_limited".into());
+    }
+
     let prompt_id = generate_prompt_id();
     let receiver = hardware_vault_unlock_prompt::instance().register(prompt_id.clone());
     crate::app::instance()
@@ -406,10 +430,12 @@ pub async fn unlock_hardware(pin: Option<String>) -> UnlockOutcome {
     match receiver.await {
         Ok(Ok(Some(bytes))) if !bytes.is_empty() => {
             stage_key(&bytes);
+            limiters.record_success(HARDWARE_UNLOCK_LIMITER_ID);
             instance_dispatch(SecurityTier::Hardware, &TierEvent::UnlockSucceeded);
             UnlockOutcome::Staged
         }
         Ok(Ok(_)) => {
+            limiters.record_failure(HARDWARE_UNLOCK_LIMITER_ID);
             instance_dispatch(
                 SecurityTier::Hardware,
                 &TierEvent::UnlockFailed {
@@ -419,6 +445,7 @@ pub async fn unlock_hardware(pin: Option<String>) -> UnlockOutcome {
             UnlockOutcome::WrongSecret
         }
         Ok(Err(detail)) => {
+            limiters.record_failure(HARDWARE_UNLOCK_LIMITER_ID);
             instance_dispatch(
                 SecurityTier::Hardware,
                 &TierEvent::UnlockFailed {
@@ -430,6 +457,8 @@ pub async fn unlock_hardware(pin: Option<String>) -> UnlockOutcome {
             UnlockOutcome::PluginError(detail)
         }
         Err(_) => {
+            // Cancellation isn't a failed attempt — don't burn a
+            // limiter slot on a user who closed the prompt.
             hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
             instance_dispatch(
                 SecurityTier::Hardware,

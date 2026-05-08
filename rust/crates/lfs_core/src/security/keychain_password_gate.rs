@@ -54,8 +54,12 @@ pub fn random_salt_and_pepper() -> (Vec<u8>, Vec<u8>) {
 /// wire change here (key vs. message ordering, salt-prefix vs.
 /// trailing) immediately invalidates every install on disk.
 #[must_use]
-pub fn compute_gate_hmac(pepper: &[u8], salt: &[u8], password: &[u8]) -> Vec<u8> {
-    let mut msg = Vec::with_capacity(salt.len() + password.len());
+pub fn compute_gate_hmac(
+    pepper: &[u8],
+    salt: &[u8],
+    password: &[u8],
+) -> zeroize::Zeroizing<Vec<u8>> {
+    let mut msg = zeroize::Zeroizing::new(Vec::with_capacity(salt.len() + password.len()));
     msg.extend_from_slice(salt);
     msg.extend_from_slice(password);
     crate::crypto::hmac_sha256(pepper, &msg)

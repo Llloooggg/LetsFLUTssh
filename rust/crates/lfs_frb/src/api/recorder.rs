@@ -44,7 +44,7 @@ pub async fn recorder_register(
             .as_slice()
             .try_into()
             .map_err(|_| "recorder key must be 32 bytes".to_string())?;
-        Some(arr)
+        Some(zeroize::Zeroizing::new(arr))
     };
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
@@ -122,7 +122,7 @@ pub async fn recorder_register_from_active(
                     .as_slice()
                     .try_into()
                     .map_err(|_| "recorder derived key length".to_string())?;
-                Some(arr)
+                Some(zeroize::Zeroizing::new(arr))
             }
             _ => None,
         };

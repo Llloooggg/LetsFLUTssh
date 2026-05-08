@@ -37,7 +37,7 @@ pub fn keychain_gate_random_seed() -> DbKeychainGateSeed {
 /// install on disk.
 #[flutter_rust_bridge::frb(sync)]
 pub fn keychain_gate_compute_hmac(pepper: Vec<u8>, salt: Vec<u8>, password: Vec<u8>) -> Vec<u8> {
-    gate::compute_gate_hmac(&pepper, &salt, &password)
+    gate::compute_gate_hmac(&pepper, &salt, &password).to_vec()
 }
 
 /// Encode the salt + hmac pair as the JSON envelope written to

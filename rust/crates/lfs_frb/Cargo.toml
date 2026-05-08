@@ -23,6 +23,10 @@ tokio = { workspace = true }
 # the `Map<String, dynamic>` payloads Dart consumers persist inside
 # `config.json`. Same crate `lfs_core` already pins.
 serde_json = { workspace = true }
+# `Zeroizing` wrapper for the recorder AES-256 key on the FRB
+# entry path so the derived bytes wipe on drop instead of
+# lingering in `Vec<u8>` allocations across the boundary.
+zeroize = { workspace = true }
 
 # FRB's `cargo expand` step injects `--cfg frb_expand` to drive its
 # macro expansion. Whitelist that single cfg so `clippy -D warnings`

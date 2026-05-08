@@ -1844,6 +1844,7 @@ dependencies = [
  "lfs_os_security",
  "serde_json",
  "tokio",
+ "zeroize",
 ]
 
 [[package]]

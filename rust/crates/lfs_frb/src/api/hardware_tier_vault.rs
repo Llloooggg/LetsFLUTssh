@@ -71,7 +71,11 @@ pub fn hardware_tier_vault_resolve_auth_value(
     } else {
         vault::AuthIntent::Passwordless
     };
-    vault::resolve_auth_value(intent, &salt)
+    // FRB wire shape demands `Vec<u8>`; `Zeroizing` derefs and we
+    // copy the inner bytes across — the `Zeroizing` wrapper still
+    // wipes its half on drop (the FRB-owned `Vec` carries the hash
+    // outward).
+    vault::resolve_auth_value(intent, &salt).map(|z| z.to_vec())
 }
 
 #[flutter_rust_bridge::frb(sync)]
