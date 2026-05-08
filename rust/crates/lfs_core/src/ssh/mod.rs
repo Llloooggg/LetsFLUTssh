@@ -143,7 +143,47 @@ pub struct ForwardedConnection {
 }
 
 fn default_client_config() -> Arc<client::Config> {
-    Arc::new(client::Config {
+    use russh::client::Config;
+    use russh::keys::ssh_key::{Algorithm, EcdsaCurve, HashAlg};
+    use russh::{mac, Preferred};
+    use std::borrow::Cow;
+
+    // Algorithm whitelist — drops the legacy entries russh ships in
+    // `Preferred::DEFAULT` that the audit flagged:
+    //   * `Algorithm::Rsa { hash: None }` (legacy ssh-rsa SHA-1
+    //     host-key signature; OpenSSH 8.7+ disabled it after the
+    //     2019 SHA-1 collision; NIST SP 800-131A treats SHA-1 in
+    //     SSH auth as deprecated).
+    //   * `mac::HMAC_SHA1_ETM` / `mac::HMAC_SHA1` — drop both, keep
+    //     only the SHA-2 entries.
+    // Keeps every modern algo russh's default already had so most
+    // real servers negotiate identically to before.
+    let host_keys: Cow<'static, [Algorithm]> = Cow::Owned(vec![
+        Algorithm::Ed25519,
+        Algorithm::Ecdsa {
+            curve: EcdsaCurve::NistP256,
+        },
+        Algorithm::Ecdsa {
+            curve: EcdsaCurve::NistP384,
+        },
+        Algorithm::Ecdsa {
+            curve: EcdsaCurve::NistP521,
+        },
+        Algorithm::Rsa {
+            hash: Some(HashAlg::Sha512),
+        },
+        Algorithm::Rsa {
+            hash: Some(HashAlg::Sha256),
+        },
+    ]);
+    let macs: Cow<'static, [mac::Name]> = Cow::Owned(vec![
+        mac::HMAC_SHA512_ETM,
+        mac::HMAC_SHA256_ETM,
+        mac::HMAC_SHA512,
+        mac::HMAC_SHA256,
+    ]);
+
+    Arc::new(Config {
         // No inactivity timeout — interactive SSH sessions sit idle
         // for arbitrary stretches between user keystrokes / shell
         // opens, and any cap tears the freshly-authenticated session
@@ -152,7 +192,12 @@ fn default_client_config() -> Arc<client::Config> {
         // dead-link detector, mirroring an OpenSSH client without
         // ServerAliveInterval set.
         inactivity_timeout: None,
-        ..client::Config::default()
+        preferred: Preferred {
+            key: host_keys,
+            mac: macs,
+            ..Preferred::DEFAULT
+        },
+        ..Config::default()
     })
 }
 

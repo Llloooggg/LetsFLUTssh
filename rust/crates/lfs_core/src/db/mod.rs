@@ -136,6 +136,16 @@ impl Db {
         // both engines while the migration is mid-flight.
         conn.execute_batch("PRAGMA foreign_keys = ON")
             .map_err(|e| Error::Db(format!("PRAGMA foreign_keys: {e}")))?;
+        // WAL journal — concurrent readers don't block the writer,
+        // crash recovery is faster, and the wipe registry already
+        // lists `letsflutssh.db-wal` / `-shm` so the cleanup contract
+        // exists for it. NORMAL fsync is the WAL-paired default
+        // (DELETE-mode FULL is the historic default, the standard
+        // SQLite recommendation pairs WAL with NORMAL).
+        conn.execute_batch("PRAGMA journal_mode = WAL")
+            .map_err(|e| Error::Db(format!("PRAGMA journal_mode = WAL: {e}")))?;
+        conn.execute_batch("PRAGMA synchronous = NORMAL")
+            .map_err(|e| Error::Db(format!("PRAGMA synchronous = NORMAL: {e}")))?;
         bootstrap_schema(&conn)?;
         crate::app_log_info!(
             "DbOpen",
