@@ -45,6 +45,23 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
   SessionCredentialCache? _credentialCache;
   bool _disposed = false;
 
+  /// Per-connection revision counter. Bumped every time a bus
+  /// event for that id arrives — `state_changed`, `progress`,
+  /// `error`, `removed`. Consumers that want fine-grained
+  /// rebuilds (`connectionByIdProvider` family) watch
+  /// `connectionRevisionProvider(id)` so siblings' state
+  /// transitions don't repaint a row tied to a different id.
+  /// Without this, every consumer of `connectionsProvider`
+  /// rebuilt on every event because the list rebuild fan-out
+  /// can't be deduplicated by id at the list level.
+  final Map<String, int> _revisions = <String, int>{};
+
+  /// Read the current revision for [id]. `0` for an id that has
+  /// never received a bus event. Increments monotonically; never
+  /// decreases, never wraps in practice (`int` is 64-bit on every
+  /// supported platform).
+  int revisionFor(String id) => _revisions[id] ?? 0;
+
   @override
   List<Connection> build() {
     _credentialCache = ref.watch(sessionCredentialCacheProvider);
@@ -56,7 +73,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     try {
       busSub = AppBus.instance
           .subscribe(rust_bus.BusTopic.connection)
-          .listen((_) => _notify());
+          .listen(_handleBusEvent);
     } on StateError catch (e) {
       // FRB-not-initialised in flutter_test. Narrowed catch so a
       // typed FRB envelope error still surfaces.
@@ -71,6 +88,24 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       _disconnectAll();
     });
     return const [];
+  }
+
+  /// Bus → notifier glue. Bumps the per-id revision before the
+  /// list rebuild so a `connectionRevisionProvider(id)` consumer
+  /// sees the new revision on the same frame the list-level
+  /// rebuild fans out.
+  void _handleBusEvent(rust_bus.BusEvent event) {
+    final id = switch (event) {
+      rust_bus.BusEvent_ConnectionStateChanged(:final id) => id,
+      rust_bus.BusEvent_ConnectionProgress(:final id) => id,
+      rust_bus.BusEvent_ConnectionError(:final id) => id,
+      rust_bus.BusEvent_ConnectionRemoved(:final id) => id,
+      _ => null,
+    };
+    if (id != null) {
+      _revisions[id] = (_revisions[id] ?? 0) + 1;
+    }
+    _notify();
   }
 
   // ── Generation counter (Rust-backed) ──────────────────────────

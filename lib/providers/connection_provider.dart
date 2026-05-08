@@ -83,6 +83,36 @@ final foregroundActiveCountListenerProvider = Provider<void>((ref) {
   });
 });
 
+/// Per-connection revision counter — bumps every time a bus
+/// event for [id] arrives. Consumers that want fine-grained
+/// rebuilds (a row keyed on one connection's lifecycle) watch
+/// this family instead of [connectionsProvider]; sibling
+/// transitions then can't repaint the row.
+///
+/// Riverpod re-emits a Provider's value only when `==` differs.
+/// `revisionFor(id)` returns the same `int` until the next
+/// bump for that id, so unrelated bus events that fan out
+/// through [connectionsProvider] don't propagate downstream.
+final connectionRevisionProvider = Provider.family<int, String>((ref, id) {
+  // Watch so the family re-evaluates on every list-level rebuild;
+  // the Provider's own `==` then dedupes when no bump happened
+  // for this specific id.
+  ref.watch(connectionsProvider);
+  return ref.read(connectionsProvider.notifier).revisionFor(id);
+});
+
+/// Look up one connection by id with id-grained rebuilds. The
+/// underlying [Connection] reference is mutable, so this provider
+/// returns the current snapshot — wrap in `select` if you only
+/// care about a sub-field.
+final connectionByIdProvider = Provider.family<Connection?, String>((ref, id) {
+  // Reading the revision creates the dependency; the actual
+  // Connection is read off the notifier's map so a missing id
+  // collapses to null cleanly.
+  ref.watch(connectionRevisionProvider(id));
+  return ref.read(connectionsProvider.notifier).get(id);
+});
+
 /// Active SSH connections — Riverpod-native [NotifierProvider].
 ///
 /// `state` is the live `List<Connection>` (excludes internal

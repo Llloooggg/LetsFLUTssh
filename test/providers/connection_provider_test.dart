@@ -31,6 +31,24 @@ void main() {
       expect(container.read(connectionsProvider), isEmpty);
     });
 
+    test('connectionRevisionProvider returns 0 for unknown ids', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      // Per-id revision is 0 until the first bus event for that id;
+      // consumers reading the provider before any state transition
+      // get a deterministic baseline rather than null.
+      expect(container.read(connectionRevisionProvider('never-seen')), 0);
+    });
+
+    test('connectionByIdProvider returns null for an unknown id', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      // The family is the fine-grained surface — looking up an id
+      // the notifier doesn't track must collapse to null cleanly so
+      // a row can render the empty state without an exception.
+      expect(container.read(connectionByIdProvider('never-seen')), isNull);
+    });
+
     test(
       'connectionSummaryProvider is empty when no connections are registered',
       () {
