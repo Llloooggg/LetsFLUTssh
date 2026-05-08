@@ -251,6 +251,47 @@ impl std::error::Error for DownloadError {}
 ///
 /// Errors clean up the partial files (`asset`, `manifest`,
 /// `manifest.sig`) so a retry starts from a known-empty target dir.
+/// Drop-guard that wipes any tracked partial files unless the
+/// caller explicitly disarms it. Closes the cancellation hole in
+/// `download_with_verification` — a `task::abort` mid-download
+/// previously left bytes on disk that the next retry would hash
+/// against an incomplete file.
+struct PartialDownloadGuard {
+    paths: Vec<String>,
+    armed: bool,
+}
+
+impl PartialDownloadGuard {
+    fn new() -> Self {
+        Self {
+            paths: Vec::new(),
+            armed: true,
+        }
+    }
+
+    fn track(&mut self, path: String) {
+        self.paths.push(path);
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for PartialDownloadGuard {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        // Drop runs sync — best-effort cleanup. Async tokio::fs
+        // would need a runtime which may be torn down already
+        // when the guard drops (process shutdown / runtime stop).
+        for p in self.paths.drain(..) {
+            let _ = std::fs::remove_file(&p);
+        }
+    }
+}
+
 pub async fn download_with_verification(
     url: &str,
     target_dir: &str,
@@ -268,6 +309,8 @@ pub async fn download_with_verification(
     let asset_path_str = asset_path.to_string_lossy().into_owned();
 
     let app = crate::app::instance();
+    let mut guard = PartialDownloadGuard::new();
+    guard.track(asset_path_str.clone());
 
     let url_for_progress = url.to_string();
     let app_for_progress = app.clone();
@@ -291,13 +334,11 @@ pub async fn download_with_verification(
         match sha256_file(&asset_path_str).await {
             Ok(actual) if actual.eq_ignore_ascii_case(expected) => {}
             Ok(actual) => {
-                let _ = tokio::fs::remove_file(&asset_path_str).await;
                 return Err(DownloadError::InvalidSignature(format!(
                     "SHA-256 mismatch: expected {expected}, got {actual}"
                 )));
             }
             Err(e) => {
-                let _ = tokio::fs::remove_file(&asset_path_str).await;
                 return Err(DownloadError::Network(e));
             }
         }
@@ -315,7 +356,6 @@ pub async fn download_with_verification(
     if !update_metadata::is_trusted_release_asset_uri(&manifest_url)
         || !update_metadata::is_trusted_release_asset_uri(&manifest_sig_url)
     {
-        let _ = tokio::fs::remove_file(&asset_path_str).await;
         return Err(DownloadError::Untrusted(format!(
             "manifest pair: {manifest_url} / {manifest_sig_url}"
         )));
@@ -327,29 +367,26 @@ pub async fn download_with_verification(
     let manifest_sig_path_str = manifest_sig_path.to_string_lossy().into_owned();
 
     if let Err(e) = update_http::download_to_file(&manifest_url, &manifest_path, |_, _| {}).await {
-        let _ = tokio::fs::remove_file(&asset_path_str).await;
-        let _ = tokio::fs::remove_file(&manifest_path_str).await;
+        guard.track(manifest_path_str.clone());
         return Err(DownloadError::ManifestUnavailable(format!(
             "fetch manifest: {e}"
         )));
     }
+    guard.track(manifest_path_str.clone());
+
     if let Err(e) =
         update_http::download_to_file(&manifest_sig_url, &manifest_sig_path, |_, _| {}).await
     {
-        let _ = tokio::fs::remove_file(&asset_path_str).await;
-        let _ = tokio::fs::remove_file(&manifest_path_str).await;
-        let _ = tokio::fs::remove_file(&manifest_sig_path_str).await;
+        guard.track(manifest_sig_path_str.clone());
         return Err(DownloadError::ManifestUnavailable(format!(
             "fetch manifest sig: {e}"
         )));
     }
+    guard.track(manifest_sig_path_str.clone());
 
     let manifest_bytes = match tokio::fs::read(&manifest_path_str).await {
         Ok(b) => b,
         Err(e) => {
-            let _ = tokio::fs::remove_file(&asset_path_str).await;
-            let _ = tokio::fs::remove_file(&manifest_path_str).await;
-            let _ = tokio::fs::remove_file(&manifest_sig_path_str).await;
             return Err(DownloadError::ManifestUnavailable(format!(
                 "read manifest: {e}"
             )));
@@ -358,9 +395,6 @@ pub async fn download_with_verification(
     let sig_bytes = match tokio::fs::read(&manifest_sig_path_str).await {
         Ok(b) => b,
         Err(e) => {
-            let _ = tokio::fs::remove_file(&asset_path_str).await;
-            let _ = tokio::fs::remove_file(&manifest_path_str).await;
-            let _ = tokio::fs::remove_file(&manifest_sig_path_str).await;
             return Err(DownloadError::ManifestUnavailable(format!(
                 "read manifest sig: {e}"
             )));
@@ -368,9 +402,6 @@ pub async fn download_with_verification(
     };
 
     if !update_signing::verify_release_signature(&manifest_bytes, &sig_bytes) {
-        let _ = tokio::fs::remove_file(&asset_path_str).await;
-        let _ = tokio::fs::remove_file(&manifest_path_str).await;
-        let _ = tokio::fs::remove_file(&manifest_sig_path_str).await;
         return Err(DownloadError::InvalidSignature(
             "manifest signature did not verify against the pinned Ed25519 key".into(),
         ));
@@ -382,9 +413,6 @@ pub async fn download_with_verification(
     let expected_hash = match manifest.get(asset_name) {
         Some(h) => h.clone(),
         None => {
-            let _ = tokio::fs::remove_file(&asset_path_str).await;
-            let _ = tokio::fs::remove_file(&manifest_path_str).await;
-            let _ = tokio::fs::remove_file(&manifest_sig_path_str).await;
             return Err(DownloadError::InvalidSignature(format!(
                 "manifest has no entry for {asset_name}"
             )));
@@ -395,9 +423,6 @@ pub async fn download_with_verification(
         .await
         .map_err(DownloadError::Network)?;
     if !actual_hash.eq_ignore_ascii_case(&expected_hash) {
-        let _ = tokio::fs::remove_file(&asset_path_str).await;
-        let _ = tokio::fs::remove_file(&manifest_path_str).await;
-        let _ = tokio::fs::remove_file(&manifest_sig_path_str).await;
         return Err(DownloadError::InvalidSignature(format!(
             "SHA-256 mismatch for {asset_name}: manifest={expected_hash} actual={actual_hash}"
         )));
@@ -408,6 +433,7 @@ pub async fn download_with_verification(
         path: asset_path_str.clone(),
     });
 
+    guard.disarm();
     Ok(DownloadedAsset {
         asset_path: asset_path_str,
         manifest_path: manifest_path_str,

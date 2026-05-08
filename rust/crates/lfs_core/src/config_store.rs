@@ -256,12 +256,14 @@ pub fn start_background_ticker() {
         let mut interval = tokio::time::interval(TICK_INTERVAL);
         loop {
             interval.tick().await;
-            // Ignore tick errors — `tick_if_due` returns Err only
-            // when the disk write fails, and the next tick will
-            // retry against the same pending state. Logging here
-            // would spam on a stuck disk; the bus event publisher
-            // already records writes that did land.
-            let _ = instance().tick_if_due();
+            // `tick_if_due` does sync std::fs work via
+            // `write_bytes_atomic` — park on `spawn_blocking` so
+            // the disk syscall does not stall the runtime worker
+            // for ~100 ms on a slow filesystem. Errors stay
+            // ignored: the next tick retries against the same
+            // pending state; the bus event publisher already
+            // records writes that did land.
+            let _ = tokio::task::spawn_blocking(|| instance().tick_if_due()).await;
         }
     });
 }

@@ -132,15 +132,25 @@ pub mod linux {
             .secrets
             .get(secret_id)
             .ok_or_else(|| LinuxBioVaultError::SecretStore(format!("missing id: {secret_id}")))?;
-        let sealed = tpm::seal(&tpm::TpmConfig::default(), &bytes, &auth_hash)
-            .map_err(|e| LinuxBioVaultError::Backend(e.to_string()))?;
-        let path = vault_path(support_dir);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| LinuxBioVaultError::Io(format!("mkdirp: {e}")))?;
-        }
-        write_bytes_atomic(&path, &sealed)
-            .map_err(|e| LinuxBioVaultError::Io(format!("write: {e}")))?;
+        let support_dir_owned = support_dir.to_string();
+        // tpm::seal is a subprocess; create_dir_all + write_bytes_atomic
+        // are sync std::fs. Park the whole blocking section on a
+        // dedicated thread so the FRB worker can keep serving other
+        // calls during the seal.
+        tokio::task::spawn_blocking(move || -> Result<(), LinuxBioVaultError> {
+            let sealed = tpm::seal(&tpm::TpmConfig::default(), &bytes, &auth_hash)
+                .map_err(|e| LinuxBioVaultError::Backend(e.to_string()))?;
+            let path = vault_path(&support_dir_owned);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| LinuxBioVaultError::Io(format!("mkdirp: {e}")))?;
+            }
+            write_bytes_atomic(&path, &sealed)
+                .map_err(|e| LinuxBioVaultError::Io(format!("write: {e}")))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| LinuxBioVaultError::Io(format!("blocking task: {e}")))??;
         Ok(())
     }
 
@@ -168,18 +178,31 @@ pub mod linux {
         let Some(auth_hash) = fprintd::get_enrolment_hash().await else {
             return Ok(false);
         };
-        let blob =
-            std::fs::read(&path).map_err(|e| LinuxBioVaultError::Io(format!("read: {e}")))?;
-        match tpm::unseal(&tpm::TpmConfig::default(), &blob, &auth_hash) {
-            Ok(plain) => {
+        // tpm::unseal is a subprocess; std::fs::read is sync. Park
+        // both on spawn_blocking so the FRB worker is free during
+        // the unseal.
+        let unsealed =
+            tokio::task::spawn_blocking(move || -> Result<Option<Vec<u8>>, LinuxBioVaultError> {
+                let blob = std::fs::read(&path)
+                    .map_err(|e| LinuxBioVaultError::Io(format!("read: {e}")))?;
+                match tpm::unseal(&tpm::TpmConfig::default(), &blob, &auth_hash) {
+                    Ok(plain) => Ok(Some(plain)),
+                    // Treat unseal failure as "wrong auth /
+                    // re-enrolment" — caller's documented "fall back"
+                    // path. Strict taxonomy would parse tpm2-tools
+                    // stderr; today the CLI only returns a generic
+                    // backend error here.
+                    Err(_) => Ok(None),
+                }
+            })
+            .await
+            .map_err(|e| LinuxBioVaultError::Io(format!("blocking task: {e}")))??;
+        match unsealed {
+            Some(plain) => {
                 crate::app::instance().secrets.put(secret_id, &plain);
                 Ok(true)
             }
-            // Treat unseal failure as "wrong auth / re-enrolment" —
-            // not an error, just "fall back". The TPM CLI returns
-            // a generic backend error in this case; a stricter
-            // taxonomy would need parsing tpm2-tools stderr.
-            Err(_) => Ok(false),
+            None => Ok(false),
         }
     }
 

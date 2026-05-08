@@ -232,8 +232,19 @@ async fn install_with_mount(
         return Ok(InstallOutcome::NotApplicable);
     }
 
-    // 2. locate the .app inside the mount
-    let mounted_app = match find_first_directory_with_extension(mount_point, ".app") {
+    // 2. locate the .app inside the mount. `read_dir` is sync —
+    // park on `spawn_blocking` so the install task does not stall
+    // the runtime worker on a slow DMG.
+    let mounted_app_owned = {
+        let mount_point_owned = mount_point.to_path_buf();
+        tokio::task::spawn_blocking(move || {
+            find_first_directory_with_extension(&mount_point_owned, ".app")
+        })
+        .await
+        .ok()
+        .flatten()
+    };
+    let mounted_app = match mounted_app_owned {
         Some(p) => p,
         None => {
             detach(mount_point).await;

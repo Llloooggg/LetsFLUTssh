@@ -161,19 +161,19 @@ mod platform_impl {
     /// dropped the convenience `.get()` method that earlier
     /// versions exposed; the canonical replacement is to poll
     /// `Status()` and call `GetResults()` once it leaves the
-    /// `Started` state. The 5 ms sleep is benign — the
-    /// UserConsentVerifier paths land in single-digit ms (the
-    /// availability check is a synchronous registry / WMI
-    /// lookup wrapped in the IAsyncOperation contract; the
-    /// verification call is bounded by user response time, which
-    /// dominates over the polling cost).
+    /// `Started` state. The verification path is gated by user
+    /// response time (a Hello prompt waits for a touch / face),
+    /// so the loop interval is dominated by the human latency,
+    /// not the polling cost — a 50 ms interval keeps the poll
+    /// rate at 20 Hz, well below the dispatcher cost of a
+    /// SetCompleted-driven oneshot.
     fn block_on<T: windows::core::RuntimeType + 'static>(
         op: IAsyncOperation<T>,
     ) -> windows::core::Result<T> {
         loop {
             match op.Status()? {
                 AsyncStatus::Started => {
-                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    std::thread::sleep(std::time::Duration::from_millis(50));
                 }
                 _ => return op.GetResults(),
             }

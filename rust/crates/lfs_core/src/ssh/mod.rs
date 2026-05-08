@@ -201,7 +201,27 @@ async fn check_server_key_via_tofu(
         .decode(&key_b64)
         .map_err(|e| Error::Transport(format!("known-hosts: base64 decode: {e}")))?;
     let port_i64 = port as i64;
-    let result = crate::known_hosts::check_host(&db, host, port_i64, &key_type, &key_b64)?;
+    // `check_host` calls into rusqlite (sync). russh hands this
+    // function the async handler context; running the sync DB
+    // lookup directly on it would block the russh task. Park on
+    // `spawn_blocking` so the SSH driver stays responsive.
+    let result = {
+        let db = db.clone();
+        let host_owned = host.to_string();
+        let key_type_owned = key_type.clone();
+        let key_b64_owned = key_b64.clone();
+        tokio::task::spawn_blocking(move || {
+            crate::known_hosts::check_host(
+                &db,
+                &host_owned,
+                port_i64,
+                &key_type_owned,
+                &key_b64_owned,
+            )
+        })
+        .await
+        .map_err(|e| Error::Io(format!("known-hosts blocking task: {e}")))??
+    };
     if matches!(result, crate::known_hosts::HostCheckResult::Accepted) {
         return Ok(true);
     }
@@ -231,21 +251,29 @@ async fn check_server_key_via_tofu(
     if accepted {
         // Persist the freshly-accepted key. Upserting overrides a
         // stored Changed entry under the same `host:port` PK — the
-        // user explicitly opted into the new fingerprint.
+        // user explicitly opted into the new fingerprint. Same
+        // spawn_blocking discipline as the lookup above — the
+        // upsert touches sync rusqlite from inside the russh
+        // handler.
         let now_ms = current_unix_ms();
         let host_owned = host.to_string();
         let key_type_owned = key_type;
         let key_b64_owned = key_b64;
-        db.with_conn(move |conn| {
-            crate::db::known_hosts::upsert_by_host_port(
-                conn,
-                &host_owned,
-                port_i64,
-                &key_type_owned,
-                &key_b64_owned,
-                now_ms,
-            )
-        })?;
+        let db_for_task = db.clone();
+        tokio::task::spawn_blocking(move || {
+            db_for_task.with_conn(move |conn| {
+                crate::db::known_hosts::upsert_by_host_port(
+                    conn,
+                    &host_owned,
+                    port_i64,
+                    &key_type_owned,
+                    &key_b64_owned,
+                    now_ms,
+                )
+            })
+        })
+        .await
+        .map_err(|e| Error::Io(format!("known-hosts upsert blocking task: {e}")))??;
         crate::known_hosts::notify_changed(&app);
     }
     Ok(accepted)

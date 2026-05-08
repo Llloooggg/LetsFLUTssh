@@ -47,9 +47,10 @@ const HASH_FILE_NAME: &str = "security_pass_hash.bin";
 pub async fn verify_password(support_dir: &Path, password: &[u8]) -> Result<bool, String> {
     // Step 1: read the disk hash. Missing file = gate not
     // configured = no match (caller still records as a failure
-    // for the rate limiter).
+    // for the rate limiter). `tokio::fs::read` so the FRB worker
+    // is not blocked on the syscall.
     let hash_path = support_dir.join(HASH_FILE_NAME);
-    let raw = match std::fs::read(&hash_path) {
+    let raw = match tokio::fs::read(&hash_path).await {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(e) => return Err(format!("T1+pw verify: read hash file: {e}")),
@@ -131,18 +132,30 @@ pub async fn set_password(support_dir: &Path, password: &[u8]) -> Result<(), Str
 
     let hash_path = support_dir.join(HASH_FILE_NAME);
     if let Some(parent) = hash_path.parent() {
-        std::fs::create_dir_all(parent)
+        tokio::fs::create_dir_all(parent)
+            .await
             .map_err(|e| format!("T1+pw set_password: create support dir: {e}"))?;
     }
-    crate::path::write_bytes_atomic(&hash_path, blob.as_bytes())
+    // `write_bytes_atomic` is sync (random-suffix tmp + sync_data +
+    // parent-dir fsync). Park on `spawn_blocking` so the FRB worker
+    // is free during the rename window.
+    {
+        let hash_path_clone = hash_path.clone();
+        let blob_bytes = blob.into_bytes();
+        tokio::task::spawn_blocking(move || {
+            crate::path::write_bytes_atomic(&hash_path_clone, &blob_bytes)
+        })
+        .await
+        .map_err(|e| format!("T1+pw set_password: blocking task: {e}"))?
         .map_err(|e| format!("T1+pw set_password: atomic write: {e}"))?;
+    }
 
     // Now hand the pepper to the keychain.
     if let Err(write_err) = lfs_os_security::secure_key_storage::write(PEPPER_KEY, &pepper).await {
         // Rollback: delete the disk hash so `is_configured`
         // returns false and the next open routes through the
         // wizard instead of perma-rejecting the correct password.
-        if let Err(rollback_err) = std::fs::remove_file(&hash_path) {
+        if let Err(rollback_err) = tokio::fs::remove_file(&hash_path).await {
             return Err(format!(
                 "T1+pw set_password: keychain write failed ({write_err}); \
                  rollback delete failed ({rollback_err}) — gate is \
@@ -159,13 +172,13 @@ pub async fn set_password(support_dir: &Path, password: &[u8]) -> Result<(), Str
     // Best-effort rate-limit-state wipe so the next limiter
     // starts with a zero counter under the new HMAC key.
     let state_path = support_dir.join(RATE_LIMIT_STATE_FILE);
-    if state_path.exists() {
-        if let Err(e) = std::fs::remove_file(&state_path) {
+    match tokio::fs::remove_file(&state_path).await {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => {
             // Non-fatal — log via the bus would tie the actor to
-            // an UI-shaped event; emit a stderr-equivalent through
-            // a swallow + Ok so the password write itself stays
-            // durable. The Dart side does the same swallow.
-            let _ = e;
+            // an UI-shaped event; swallow so the password write
+            // itself stays durable. Dart side does the same swallow.
         }
     }
 
@@ -182,10 +195,10 @@ pub async fn clear(support_dir: &Path) -> Result<(), String> {
     let mut errors = Vec::new();
 
     let hash_path = support_dir.join(HASH_FILE_NAME);
-    if hash_path.exists() {
-        if let Err(e) = std::fs::remove_file(&hash_path) {
-            errors.push(format!("disk hash delete: {e}"));
-        }
+    match tokio::fs::remove_file(&hash_path).await {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => errors.push(format!("disk hash delete: {e}")),
     }
 
     if let Err(e) = lfs_os_security::secure_key_storage::delete(PEPPER_KEY).await {

@@ -440,12 +440,12 @@ pub async fn ssh_connect_password_via_proxy(
 ) -> Result<SshSession, String> {
     let pw =
         std::str::from_utf8(&password).map_err(|_| "password is not valid UTF-8".to_string())?;
-    let parent_guard = parent.inner.lock().await;
-    let parent_session = parent_guard
-        .as_ref()
-        .ok_or_else(|| "proxy parent session disconnected".to_string())?;
+    // Drop the parent's mutex before awaiting the handshake — clone
+    // the Arc out via `snapshot()` so concurrent `*_via_proxy` calls
+    // against the same parent never serialise behind one mutex.
+    let parent_session = parent.snapshot().await?;
     let session =
-        lfs_core::ssh::Session::connect_password_via_proxy(parent_session, &host, port, &user, pw)
+        lfs_core::ssh::Session::connect_password_via_proxy(&parent_session, &host, port, &user, pw)
             .await
             .map_err(|e| e.to_string())?;
     Ok(SshSession::from_core(session))
@@ -460,12 +460,9 @@ pub async fn ssh_connect_pubkey_via_proxy(
     private_key: Vec<u8>,
     passphrase: Option<String>,
 ) -> Result<SshSession, String> {
-    let parent_guard = parent.inner.lock().await;
-    let parent_session = parent_guard
-        .as_ref()
-        .ok_or_else(|| "proxy parent session disconnected".to_string())?;
+    let parent_session = parent.snapshot().await?;
     let session = lfs_core::ssh::Session::connect_pubkey_via_proxy(
-        parent_session,
+        &parent_session,
         &host,
         port,
         &user,
@@ -487,12 +484,9 @@ pub async fn ssh_connect_pubkey_cert_via_proxy(
     passphrase: Option<String>,
     cert: Vec<u8>,
 ) -> Result<SshSession, String> {
-    let parent_guard = parent.inner.lock().await;
-    let parent_session = parent_guard
-        .as_ref()
-        .ok_or_else(|| "proxy parent session disconnected".to_string())?;
+    let parent_session = parent.snapshot().await?;
     let session = lfs_core::ssh::Session::connect_pubkey_cert_via_proxy(
-        parent_session,
+        &parent_session,
         &host,
         port,
         &user,
