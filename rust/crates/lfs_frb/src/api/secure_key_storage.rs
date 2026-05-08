@@ -25,7 +25,7 @@ fn map_read(
 fn map_unit(
     res: Result<(), lfs_os_security::secure_key_storage::SecureStorageError>,
 ) -> Result<(), String> {
-    res.map_err(|e| e.to_string())
+    res.map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
 }
 
 pub async fn secure_storage_read(alias: String) -> Result<DbSecureStorageOutcome, String> {
@@ -83,7 +83,7 @@ pub async fn secure_storage_read_to_secret(
 ) -> Result<bool, String> {
     match lfs_os_security::secure_key_storage::read(&alias)
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))?
     {
         Some(bytes) if !bytes.is_empty() => {
             lfs_core::app::instance().secrets.put(&secret_id, &bytes);
@@ -103,7 +103,7 @@ pub async fn secure_storage_read_biometric_to_secret(
 ) -> Result<bool, String> {
     match lfs_os_security::secure_key_storage::read_biometric(&alias)
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))?
     {
         Some(bytes) if !bytes.is_empty() => {
             lfs_core::app::instance().secrets.put(&secret_id, &bytes);

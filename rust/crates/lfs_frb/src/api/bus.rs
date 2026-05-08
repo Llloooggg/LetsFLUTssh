@@ -688,7 +688,7 @@ pub async fn connection_connect(id: String, args: BusConnectArgs) -> Result<(), 
     lfs_core::connection::connect_async(id, args.into())
         .await
         .map(|_| ())
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Pull the live `SshSession` handle off a connected actor. Returns
@@ -717,7 +717,7 @@ pub async fn bus_dispatch(command: BusCommand) -> Result<(), String> {
     let core = lfs_core::bus::Command::from(command);
     lfs_core::bus::dispatch(core)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Subscribe to events filtered by [`BusTopic`]. Yields the matching

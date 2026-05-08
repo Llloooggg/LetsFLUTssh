@@ -82,14 +82,21 @@ impl From<lfs_core::sftp::FileMetadata> for SftpFileMetadata {
 impl SshSftp {
     /// List a directory.
     pub async fn list(&self, path: String) -> Result<Vec<SftpDirEntry>, String> {
-        let entries = self.inner.list(&path).await.map_err(|e| e.to_string())?;
+        let entries = self
+            .inner
+            .list(&path)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         Ok(entries.into_iter().map(SftpDirEntry::from).collect())
     }
 
     /// Read a small file fully into memory. Use the streaming
     /// surface for files larger than a few MB.
     pub async fn read_file(&self, path: String) -> Result<Vec<u8>, String> {
-        self.inner.read_file(&path).await.map_err(|e| e.to_string())
+        self.inner
+            .read_file(&path)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Overwrite a small file with `data`.
@@ -97,7 +104,7 @@ impl SshSftp {
         self.inner
             .write_file(&path, &data)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Stat a path (resolves symlinks).
@@ -106,7 +113,7 @@ impl SshSftp {
             .stat(&path)
             .await
             .map(SftpFileMetadata::from)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Stat a path without resolving symlinks.
@@ -115,7 +122,7 @@ impl SshSftp {
             .stat_symlink(&path)
             .await
             .map(SftpFileMetadata::from)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Rename / move.
@@ -123,12 +130,15 @@ impl SshSftp {
         self.inner
             .rename(&old_path, &new_path)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Create a directory (single level — caller walks for `mkdir -p`).
     pub async fn mkdir(&self, path: String) -> Result<(), String> {
-        self.inner.mkdir(&path).await.map_err(|e| e.to_string())
+        self.inner
+            .mkdir(&path)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Remove a regular file.
@@ -136,7 +146,7 @@ impl SshSftp {
         self.inner
             .remove_file(&path)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Remove an empty directory.
@@ -144,7 +154,7 @@ impl SshSftp {
         self.inner
             .remove_dir(&path)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Recursively delete a remote directory tree. The walk is
@@ -156,7 +166,7 @@ impl SshSftp {
         self.inner
             .remove_dir_recursive(&path)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Recursively upload a local directory tree into a remote
@@ -194,7 +204,7 @@ impl SshSftp {
                 ok
             })
             .await;
-        result.map_err(|e| e.to_string())
+        result.map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Recursively download a remote directory tree into a local
@@ -228,7 +238,7 @@ impl SshSftp {
                 ok
             })
             .await;
-        result.map_err(|e| e.to_string())
+        result.map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Resolve a path against the server's working directory.
@@ -237,7 +247,7 @@ impl SshSftp {
         self.inner
             .canonicalize(&path)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 }
 
@@ -267,22 +277,31 @@ impl SshSftpFile {
         self.inner
             .read_chunk(max_bytes as usize)
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Write the entire `data` slice at the current cursor.
     pub async fn write_all(&self, data: Vec<u8>) -> Result<(), String> {
-        self.inner.write_all(&data).await.map_err(|e| e.to_string())
+        self.inner
+            .write_all(&data)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Move the cursor to `offset` bytes from the start of the file.
     pub async fn seek(&self, offset: u64) -> Result<(), String> {
-        self.inner.seek(offset).await.map_err(|e| e.to_string())
+        self.inner
+            .seek(offset)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Flush + fsync (best-effort — server may ignore).
     pub async fn sync_all(&self) -> Result<(), String> {
-        self.inner.sync_all().await.map_err(|e| e.to_string())
+        self.inner
+            .sync_all()
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Stat the open handle (no extra round-trip).
@@ -291,7 +310,7 @@ impl SshSftpFile {
             .metadata()
             .await
             .map(SftpFileMetadata::from)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 }
 
@@ -299,7 +318,11 @@ impl SshSftpFile {
 /// to pump bytes, or `metadata` first to grab `size` for progress
 /// reporting.
 pub async fn ssh_sftp_open(sftp: &SshSftp, path: String) -> Result<SshSftpFile, String> {
-    let file = sftp.inner.open(&path).await.map_err(|e| e.to_string())?;
+    let file = sftp
+        .inner
+        .open(&path)
+        .await
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSftpFile {
         inner: Arc::new(file),
     })
@@ -307,7 +330,11 @@ pub async fn ssh_sftp_open(sftp: &SshSftp, path: String) -> Result<SshSftpFile, 
 
 /// Open a remote file for writing, truncating any existing content.
 pub async fn ssh_sftp_create(sftp: &SshSftp, path: String) -> Result<SshSftpFile, String> {
-    let file = sftp.inner.create(&path).await.map_err(|e| e.to_string())?;
+    let file = sftp
+        .inner
+        .create(&path)
+        .await
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(SshSftpFile {
         inner: Arc::new(file),
     })

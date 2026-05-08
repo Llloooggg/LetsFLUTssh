@@ -25,7 +25,10 @@ pub struct SshForwardChannel {
 impl SshForwardChannel {
     /// Send bytes to the remote endpoint.
     pub async fn write(&self, data: Vec<u8>) -> Result<(), String> {
-        self.inner.write(&data).await.map_err(|e| e.to_string())
+        self.inner
+            .write(&data)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Wait for the next chunk of remote bytes. Returns `null` on
@@ -37,7 +40,10 @@ impl SshForwardChannel {
     /// Half-close the write side. Server typically interprets this
     /// as "client done sending" and closes its end after draining.
     pub async fn eof(&self) -> Result<(), String> {
-        self.inner.eof().await.map_err(|e| e.to_string())
+        self.inner
+            .eof()
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 }
 
@@ -68,7 +74,7 @@ pub async fn port_forward_start_local(
     )
     .await
     .map(|p| p as u32)
-    .map_err(|e| e.to_string())
+    .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Stop a listener spawned by [`port_forward_start_local`].
@@ -91,7 +97,7 @@ pub async fn port_forward_start_dynamic(
     lfs_core::portforward::driver::start_dynamic(rule_id, connection_id, bind_host, bind_port)
         .await
         .map(|p| p as u32)
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Stop a SOCKS5 listener spawned by
@@ -123,7 +129,7 @@ pub async fn port_forward_start_remote(
         target_port as u16,
     )
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Stop a `-R` handle spawned by [`port_forward_start_remote`].
@@ -196,7 +202,10 @@ impl SshForwardedConnection {
     /// Send bytes to the originator (to whoever connected to the
     /// server-side listener).
     pub async fn write(&self, data: Vec<u8>) -> Result<(), String> {
-        self.inner.write(&data).await.map_err(|e| e.to_string())
+        self.inner
+            .write(&data)
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 
     /// Wait for the next chunk of bytes from the originator. `null`
@@ -207,7 +216,10 @@ impl SshForwardedConnection {
 
     /// Half-close our write side of the channel.
     pub async fn eof(&self) -> Result<(), String> {
-        self.inner.eof().await.map_err(|e| e.to_string())
+        self.inner
+            .eof()
+            .await
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
 }
 

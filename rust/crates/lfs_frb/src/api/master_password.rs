@@ -43,7 +43,7 @@ pub fn master_password_init(support_dir: String) -> String {
 /// before any master_password op runs) surfaces as a `String`
 /// across the boundary instead of panicking the FRB worker.
 fn support_dir() -> Result<&'static std::path::Path, String> {
-    master_password::try_pinned_support_dir().map_err(|e| e.to_string())
+    master_password::try_pinned_support_dir().map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// FRB mirror of `lfs_core::security::master_password::KdfParams`.

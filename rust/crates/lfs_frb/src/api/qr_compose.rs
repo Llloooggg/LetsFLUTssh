@@ -53,5 +53,5 @@ pub fn qr_estimate_export_size(input: DbQrExportInput) -> Result<u32, String> {
     };
     let db = require_db()?;
     db.with_conn(|c| qr_export_payload_size(c, &core_input))
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }

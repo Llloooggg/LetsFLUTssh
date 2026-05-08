@@ -43,7 +43,9 @@ pub async fn sessions_registry_reload() -> Result<(), String> {
     tokio::task::spawn_blocking(|| {
         let app = lfs_core::app::instance();
         let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
-        app.sessions_registry.reload(&db).map_err(|e| e.to_string())
+        app.sessions_registry
+            .reload(&db)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("registry reload task: {e}"))?

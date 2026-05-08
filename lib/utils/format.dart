@@ -14,6 +14,7 @@ import '../features/settings/export_import.dart'
         UnsupportedLfsVersionException;
 import '../l10n/app_localizations.dart';
 import '../src/rust/api/format.dart' as rust_format;
+import 'frb_error.dart';
 import 'sanitize.dart';
 
 /// Format byte size to human-readable string via
@@ -134,6 +135,14 @@ String localizeError(S l10n, Object error) {
     return l10n.errReleaseManifestUnavailable;
   }
 
+  // FRB typed-envelope routing — preferred over substring matching
+  // on rendered text. New FRB callsites emit JSON `{kind, detail}`;
+  // [_localizeFrbKind] switches on `kind` and falls through `null`
+  // for legacy plain-string errors so the existing branches below
+  // still handle them.
+  final frb = _localizeFrbKind(l10n, error);
+  if (frb != null) return frb;
+
   final lfs = _tryLocalizeLfsError(l10n, error);
   if (lfs != null) return lfs;
 
@@ -144,6 +153,31 @@ String localizeError(S l10n, Object error) {
 
   // OS errors: extract errno and map to localized message.
   return _localizeOsError(l10n, error);
+}
+
+/// Try to parse [error] as a typed FRB envelope and route by `kind`.
+/// Returns null when the error is not a JSON envelope (legacy plain
+/// strings, typed Dart exceptions, OS errors, etc.) so the caller
+/// keeps walking the fallback chain.
+String? _localizeFrbKind(S l10n, Object error) {
+  if (error is! String) return null;
+  if (!error.startsWith('{')) return null;
+  final wire = FrbError.fromWire(error);
+  if (wire.kind == 'generic') return null;
+  switch (wire.kind) {
+    case 'auth_failed':
+      return l10n.errSshAuthFailed('?', '?');
+    case 'host_key_rejected':
+      return l10n.errSshHostKeyRejected('?', 0);
+    case 'timeout':
+      return l10n.errConnectionTimedOut;
+    default:
+      // Other kinds (passphrase_required / passphrase_incorrect /
+      // cancelled / sftp / db / archive / vault / ...) don't yet
+      // have dedicated localized templates — fall through to the
+      // generic path so the detail text still surfaces sanitized.
+      return null;
+  }
 }
 
 /// Localize every archive / import-time exception. Returns null when

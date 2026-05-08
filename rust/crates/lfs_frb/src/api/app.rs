@@ -107,7 +107,7 @@ pub async fn db_init(path: String, key: Vec<u8>) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         lfs_core::app::instance()
             .db_init(std::path::Path::new(&path), &key)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("db_init task: {e}"))?
@@ -135,14 +135,14 @@ pub async fn db_init_from_secret(path: String, secret_id: String) -> Result<(), 
                 .drop_id(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID);
             return app
                 .db_init(std::path::Path::new(&path), &[])
-                .map_err(|e| e.to_string());
+                .map_err(|e| crate::api::frb_err::from_core(&e));
         }
         let key = app
             .secrets
             .get(&secret_id)
             .ok_or_else(|| format!("secret not found: {secret_id}"))?;
         app.db_init(std::path::Path::new(&path), &key)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         // Promote source → active. `rename` is atomic; a no-op when
         // source already matches the active slot id.
         app.secrets
@@ -170,7 +170,8 @@ pub async fn db_rekey(new_key: Vec<u8>) -> Result<(), String> {
         let db = lfs_core::app::instance()
             .db()
             .ok_or_else(|| "db not initialized".to_string())?;
-        db.rekey(&new_key).map_err(|e| e.to_string())
+        db.rekey(&new_key)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("db_rekey task: {e}"))?
@@ -192,7 +193,8 @@ pub async fn db_rekey_from_secret(secret_id: String) -> Result<(), String> {
             .get(&secret_id)
             .ok_or_else(|| format!("secret not found: {secret_id}"))?;
         let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
-        db.rekey(&new_key).map_err(|e| e.to_string())?;
+        db.rekey(&new_key)
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         app.secrets
             .rename(&secret_id, lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID);
         Ok(())
@@ -209,7 +211,8 @@ pub async fn db_schema_object_count() -> Result<i64, String> {
         let db = lfs_core::app::instance()
             .db()
             .ok_or_else(|| "db not initialized".to_string())?;
-        db.schema_object_count().map_err(|e| e.to_string())
+        db.schema_object_count()
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("db_schema_object_count task: {e}"))?

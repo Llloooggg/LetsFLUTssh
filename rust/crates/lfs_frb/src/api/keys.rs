@@ -30,7 +30,7 @@ pub async fn keys_generate_ed25519(comment: String) -> Result<KeyMaterial, Strin
     let km = tokio::task::spawn_blocking(move || lfs_core::keys::generate_ed25519(&comment))
         .await
         .map_err(|e| format!("ed25519 keygen task: {e}"))?
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(km.into())
 }
 
@@ -41,7 +41,7 @@ pub async fn keys_generate_rsa(bits: u32, comment: String) -> Result<KeyMaterial
         tokio::task::spawn_blocking(move || lfs_core::keys::generate_rsa(bits as usize, &comment))
             .await
             .map_err(|e| format!("rsa keygen task: {e}"))?
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(km.into())
 }
 
@@ -58,7 +58,7 @@ pub async fn keys_import_openssh(
     })
     .await
     .map_err(|e| format!("import task: {e}"))?
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(km.into())
 }
 
@@ -77,7 +77,7 @@ pub async fn keys_import_ppk(
     })
     .await
     .map_err(|e| format!("import-ppk task: {e}"))?
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(km.into())
 }
 

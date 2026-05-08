@@ -95,7 +95,7 @@ pub async fn tpm_seal(
         })
         .await
         .map_err(|e| format!("tpm seal task: {e}"))?
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -122,7 +122,7 @@ pub async fn tpm_unseal(
         })
         .await
         .map_err(|e| format!("tpm unseal task: {e}"))?
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
     }
     #[cfg(not(target_os = "linux"))]
     {

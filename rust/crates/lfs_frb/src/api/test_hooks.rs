@@ -70,7 +70,9 @@ fn slot() -> &'static Mutex<Vec<TestServerHandle>> {
 /// keypair + a fresh SFTP-root tempdir, so multiple concurrent
 /// fixtures stay independent.
 pub async fn test_ssh_server_start() -> Result<TestSshServerInfo, String> {
-    let handle = test_server::start().await.map_err(|e| e.to_string())?;
+    let handle = test_server::start()
+        .await
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     let info = TestSshServerInfo {
         port: handle.port,
         host_pubkey_algorithm: handle.host_pubkey_algorithm.clone(),

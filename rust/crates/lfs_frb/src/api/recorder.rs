@@ -57,7 +57,7 @@ pub async fn recorder_register(
             &app.bus,
         )
         .map(DbRecorderSnapshot::from)
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("recorder register task: {e}"))?
@@ -135,7 +135,7 @@ pub async fn recorder_register_from_active(
             &app.bus,
         )
         .map(DbRecorderSnapshot::from)
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("recorder register from active task: {e}"))?
@@ -172,7 +172,7 @@ pub async fn recorder_record_header(
         let app = lfs_core::app::instance();
         app.recorders
             .record_header(&id, width, height, &shell_label, &app.bus)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("recorder header task: {e}"))?
@@ -192,7 +192,7 @@ pub async fn recorder_record_event(
         let app = lfs_core::app::instance();
         app.recorders
             .record_event(&id, direction.into(), &bytes, &app.bus)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("recorder event task: {e}"))?
@@ -213,7 +213,7 @@ pub async fn recorder_rotate_to(
         app.recorders
             .rotate_to(&id, new_path, &app.bus)
             .map(DbRecorderSnapshot::from)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("recorder rotate task: {e}"))?
@@ -233,7 +233,7 @@ pub async fn recorder_close(id: String) -> Result<(), String> {
         let app = lfs_core::app::instance();
         app.recorders
             .close_with_io(&id, &app.bus)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("recorder close task: {e}"))?
@@ -283,7 +283,7 @@ pub async fn recorder_queue_enqueue_header(
             },
         )
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Enqueue a terminal event chunk. Same fire-and-forget shape as
@@ -302,7 +302,7 @@ pub async fn recorder_queue_enqueue_event(
     app.recorder_queue
         .enqueue_event_chunk(&id, direction.into(), bytes)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Enqueue an atomic rotation to a fresh file. The Dart side owns
@@ -319,7 +319,7 @@ pub async fn recorder_queue_enqueue_rotate(id: String, new_path: String) -> Resu
             lfs_core::recorder::queue::QueueEntry::Rotate { new_path },
         )
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Enqueue a close. The worker drains any in-flight entries, calls
@@ -332,5 +332,5 @@ pub async fn recorder_queue_enqueue_close(id: String) -> Result<(), String> {
     app.recorder_queue
         .enqueue_blocking(&id, lfs_core::recorder::queue::QueueEntry::Close)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }

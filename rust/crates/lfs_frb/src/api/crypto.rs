@@ -25,7 +25,7 @@ pub async fn crypto_hkdf_sha256(
     tokio::task::spawn_blocking(move || {
         lfs_core::crypto::hkdf_sha256(&ikm, &salt, &info, length_usize)
             .map(|z| z.to_vec())
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("hkdf task: {e}"))?
@@ -135,7 +135,8 @@ pub fn crypto_aes_gcm_random_key_to_secret(id: String) {
 /// envelopes round-trip without a format bump.
 pub async fn crypto_aes_gcm_encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
-        lfs_core::crypto::aes_gcm_encrypt(&key, &plaintext).map_err(|e| e.to_string())
+        lfs_core::crypto::aes_gcm_encrypt(&key, &plaintext)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("aes-gcm encrypt task: {e}"))?
@@ -148,7 +149,7 @@ pub async fn crypto_aes_gcm_decrypt(key: Vec<u8>, data: Vec<u8>) -> Result<Vec<u
     tokio::task::spawn_blocking(move || {
         lfs_core::crypto::aes_gcm_decrypt(&key, &data)
             .map(|z| z.to_vec())
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("aes-gcm decrypt task: {e}"))?
@@ -165,7 +166,7 @@ pub async fn crypto_aes_gcm_encrypt_raw(
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
         lfs_core::crypto::aes_gcm_encrypt_raw(&key, &nonce, &plaintext, &aad)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("aes-gcm encrypt-raw task: {e}"))?
@@ -181,7 +182,7 @@ pub async fn crypto_aes_gcm_decrypt_raw(
     tokio::task::spawn_blocking(move || {
         lfs_core::crypto::aes_gcm_decrypt_raw(&key, &nonce, &ciphertext, &aad)
             .map(|z| z.to_vec())
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("aes-gcm decrypt-raw task: {e}"))?
@@ -209,7 +210,7 @@ pub async fn crypto_argon2id_derive(
             length,
         )
         .map(|z| z.to_vec())
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("argon2id task: {e}"))?

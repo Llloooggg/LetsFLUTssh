@@ -13,7 +13,7 @@
 pub async fn update_fetch_text(url: String) -> Result<String, String> {
     lfs_core::update_http::fetch_text(&url)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// GET `url`, stream the body into `target_path` while hashing
@@ -38,7 +38,7 @@ pub async fn update_download_to_file(url: String, target_path: String) -> Result
             });
     })
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// FRB mirror of `lfs_core::update_orchestrator::UpdateInfo`. Same
@@ -82,7 +82,7 @@ pub async fn update_check(current_version: String, repo: String) -> Result<DbUpd
     lfs_core::update_orchestrator::check_for_update(&current_version, target_repo)
         .await
         .map(DbUpdateInfo::from)
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Same orchestration walk as [`update_check`] but against a
@@ -104,7 +104,7 @@ pub fn update_check_from_body(
     };
     lfs_core::update_orchestrator::check_for_update_from_body(&body, &current_version, target_repo)
         .map(DbUpdateInfo::from)
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// FRB mirror of `lfs_core::update_orchestrator::DownloadedAsset`.

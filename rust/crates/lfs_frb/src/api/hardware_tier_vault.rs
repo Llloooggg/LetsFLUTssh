@@ -242,7 +242,7 @@ fn dispatch_store(
     #[cfg(target_os = "linux")]
     {
         lfs_core::security::hardware_tier_vault::linux::store(support_dir, db_key, salt, pin_hmac)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -252,7 +252,7 @@ fn dispatch_store(
         // targets — caller's `_writeSaltFile` handles the half.
         let _ = salt;
         lfs_os_security::hardware_tier_vault::store(support_dir, db_key, pin_hmac)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     }
 }
 
@@ -260,11 +260,12 @@ fn dispatch_read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, 
     #[cfg(target_os = "linux")]
     {
         lfs_core::security::hardware_tier_vault::linux::read(support_dir, pin_hmac)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     }
     #[cfg(not(target_os = "linux"))]
     {
-        lfs_os_security::hardware_tier_vault::read(support_dir, pin_hmac).map_err(|e| e.to_string())
+        lfs_os_security::hardware_tier_vault::read(support_dir, pin_hmac)
+            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     }
 }
 
@@ -272,11 +273,12 @@ fn dispatch_clear(support_dir: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         lfs_core::security::hardware_tier_vault::linux::clear(support_dir)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     }
     #[cfg(not(target_os = "linux"))]
     {
-        lfs_os_security::hardware_tier_vault::clear(support_dir).map_err(|e| e.to_string())
+        lfs_os_security::hardware_tier_vault::clear(support_dir)
+            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     }
 }
 
@@ -289,7 +291,7 @@ pub async fn hardware_tier_vault_store_biometric_password(
             &support_dir,
             &password_bytes,
         )
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     })
     .await
     .map_err(|e| format!("hw_vault store_bio_pw join: {e}"))?
@@ -300,7 +302,7 @@ pub async fn hardware_tier_vault_read_biometric_password(
 ) -> Result<Option<Vec<u8>>, String> {
     tokio::task::spawn_blocking(move || {
         lfs_os_security::hardware_tier_vault::read_biometric_password(&support_dir)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     })
     .await
     .map_err(|e| format!("hw_vault read_bio_pw join: {e}"))?
@@ -311,7 +313,7 @@ pub async fn hardware_tier_vault_clear_biometric_password(
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         lfs_os_security::hardware_tier_vault::clear_biometric_password(&support_dir)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
     })
     .await
     .map_err(|e| format!("hw_vault clear_bio_pw join: {e}"))?

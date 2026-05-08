@@ -88,10 +88,10 @@ pub async fn db_export_archive(input: DbExportInput, output_path: String) -> Res
     };
 
     tokio::task::spawn_blocking(move || -> Result<i64, String> {
-        let db = require_db().map_err(|e| e.to_string())?;
+        let db = require_db()?;
         let bytes = db
             .with_conn(|c| lfs_core::archive::export_archive(c, &core_input))
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         let len = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
         let path = std::path::PathBuf::from(&output_path);
         if let Some(parent) = path.parent() {
@@ -153,7 +153,7 @@ pub fn db_lfs_export_size(input: DbExportInput) -> Result<u32, String> {
     };
     let db = require_db()?;
     db.with_conn(|c| export_archive_size(c, &core_input))
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Mirror of `QrExportOptions` over the FRB boundary.
@@ -205,7 +205,7 @@ pub async fn db_export_qr_payload_size(input: DbQrExportInput) -> Result<u32, St
     tokio::task::spawn_blocking(move || {
         let db = require_db()?;
         db.with_conn(|c| lfs_core::archive::qr_export_payload_size(c, &core_input))
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("qr export size task: {e}"))?
@@ -237,7 +237,7 @@ pub async fn db_export_qr_payload(input: DbQrExportInput) -> Result<String, Stri
     tokio::task::spawn_blocking(move || {
         let db = require_db()?;
         db.with_conn(|c| lfs_core::archive::qr_export_payload(c, &core_input))
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("qr export task: {e}"))?
@@ -341,7 +341,8 @@ pub async fn db_archive_probe(path: String) -> DbArchiveProbeKind {
 pub async fn qr_import_open(payload: String) -> Result<DbImportOpenResult, String> {
     tokio::task::spawn_blocking(move || {
         let raw = lfs_core::qr_codec_decode::extract_payload_from_uri(&payload).unwrap_or(payload);
-        let decoded = lfs_core::qr_codec_decode::decode_payload(&raw).map_err(|e| e.to_string())?;
+        let decoded = lfs_core::qr_codec_decode::decode_payload(&raw)
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         let preview = decoded.pending.preview(decoded.schema_version);
         let app = lfs_core::app::instance();
         let handle_id = lfs_core::id::random_handle_hex_32();
@@ -369,8 +370,8 @@ pub async fn db_import_open(path: String, password: Vec<u8>) -> Result<DbImportO
     tokio::task::spawn_blocking(move || {
         let pw = std::str::from_utf8(&password)
             .map_err(|_| "password is not valid UTF-8".to_string())?;
-        let (pending, preview) =
-            lfs_core::archive::read_archive_to_pending(&path, pw).map_err(|e| e.to_string())?;
+        let (pending, preview) = lfs_core::archive::read_archive_to_pending(&path, pw)
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         let app = lfs_core::app::instance();
         let handle_id = lfs_core::id::random_handle_hex_32();
         app.imports.insert(handle_id.clone(), pending);
@@ -560,7 +561,7 @@ pub async fn db_import_apply(
             .with_conn_mut(|c| {
                 lfs_core::archive::apply_pending_import(c, &pending, &core_options, created_at_ms)
             })
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::api::frb_err::from_core(&e))?;
         let mut frb_result = DbApplyResult::from(result);
         frb_result.config_json = staged_config_json;
         Ok(frb_result)

@@ -48,7 +48,7 @@ pub async fn biometric_vault_linux_store_from_secret(
 ) -> Result<(), String> {
     lfs_core::security::biometric_key_vault::linux::store_from_secret(&support_dir, &secret_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -71,7 +71,7 @@ pub async fn biometric_vault_linux_read_to_secret(
 ) -> Result<bool, String> {
     lfs_core::security::biometric_key_vault::linux::read_to_secret(&support_dir, &secret_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -84,7 +84,8 @@ pub async fn biometric_vault_linux_read_to_secret(
 
 #[cfg(target_os = "linux")]
 pub async fn biometric_vault_linux_clear(support_dir: String) -> Result<(), String> {
-    lfs_core::security::biometric_key_vault::linux::clear(&support_dir).map_err(|e| e.to_string())
+    lfs_core::security::biometric_key_vault::linux::clear(&support_dir)
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
 }
 
 #[cfg(not(target_os = "linux"))]

@@ -52,7 +52,7 @@ pub async fn macos_installer_install(
         lfs_os_security::macos::installer::install(std::path::Path::new(&dmg_path), &bundle_root)
             .await
             .map(MacosInstallOutcome::from)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     }
     #[cfg(not(target_os = "macos"))]
     {

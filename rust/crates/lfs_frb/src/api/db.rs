@@ -25,7 +25,8 @@ where
 {
     tokio::task::spawn_blocking(move || {
         let db = require_db()?;
-        db.with_conn(f).map_err(|e| e.to_string())
+        db.with_conn(f)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("db task: {e}"))?
@@ -41,7 +42,8 @@ where
 {
     tokio::task::spawn_blocking(move || {
         let db = require_db()?;
-        db.with_conn_mut(f).map_err(|e| e.to_string())
+        db.with_conn_mut(f)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("db task: {e}"))?
@@ -858,7 +860,7 @@ pub async fn db_known_hosts_import_from_string(
         let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
         lfs_core::known_hosts::import_from_string(&db, &app.bus, &content, now_ms)
             .map(DbKnownHostsImportSummary::from)
-            .map_err(|e| e.to_string())
+            .map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("known-hosts import task: {e}"))?
@@ -871,7 +873,7 @@ pub async fn db_known_hosts_export_to_string() -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         let app = lfs_core::app::instance();
         let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
-        lfs_core::known_hosts::export_to_string(&db).map_err(|e| e.to_string())
+        lfs_core::known_hosts::export_to_string(&db).map_err(|e| crate::api::frb_err::from_core(&e))
     })
     .await
     .map_err(|e| format!("known-hosts export task: {e}"))?

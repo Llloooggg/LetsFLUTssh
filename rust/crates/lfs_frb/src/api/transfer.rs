@@ -141,7 +141,9 @@ pub async fn transfer_enqueue(
         &app.bus,
     );
     let pool = pool_arc();
-    pool.dispatch(id).await.map_err(|e| e.to_string())?;
+    pool.dispatch(id)
+        .await
+        .map_err(|e| crate::api::frb_err::from_core(&e))?;
     Ok(snap.into())
 }
 
@@ -151,7 +153,9 @@ pub async fn transfer_enqueue(
 /// older single-step shape.
 pub async fn transfer_dispatch(task_id: String) -> Result<(), String> {
     let pool = pool_arc();
-    pool.dispatch(task_id).await.map_err(|e| e.to_string())
+    pool.dispatch(task_id)
+        .await
+        .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
 /// Flip the cancel flag for a running task. Idempotent on a
