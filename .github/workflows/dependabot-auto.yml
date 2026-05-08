@@ -1,5 +1,13 @@
 name: Dependabot
 
+# Cancel superseded runs of the same workflow on the same ref. The
+# default GitHub behaviour stacks queued runs, which on a busy push
+# day for solo-maint repos burns runner minutes verifying SHAs that
+# the next push already obsoleted.
+concurrency:
+  group: dependabot-auto-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]

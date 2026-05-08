@@ -11,10 +11,37 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    # Group related Dart deps so a coordinated Riverpod / Drift
+    # / Flutter SDK release lands as one PR instead of N split
+    # bumps that each trigger a fresh CI run + per-PR review.
+    groups:
+      flutter-tooling:
+        patterns:
+          - "flutter_*"
+          - "build_runner*"
+          - "freezed*"
+          - "json_serializable*"
+          - "json_annotation*"
+      riverpod:
+        patterns:
+          - "*riverpod*"
+      drift:
+        patterns:
+          - "drift*"
+          - "sqlite3*"
+      crypto-stack:
+        patterns:
+          - "cryptography*"
+          - "pointycastle"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      actions-core:
+        patterns:
+          - "actions/*"
+          - "github/*"
   # Rust security/transport core under rust/. Bumps crossing a russh
   # major (e.g. 0.59 → 0.60) need manual review — currently blocked on
   # the upstream RustCrypto release-candidate set (pkcs8 0.11 RC).
@@ -22,3 +49,35 @@ updates:
     directory: "/rust"
     schedule:
       interval: "monthly"
+    groups:
+      tokio-stack:
+        patterns:
+          - "tokio*"
+          - "futures*"
+          - "async-*"
+      russh-stack:
+        patterns:
+          - "russh*"
+          - "ssh-*"
+      rustcrypto:
+        patterns:
+          - "aes*"
+          - "ahash"
+          - "argon2"
+          - "blake3"
+          - "chacha20*"
+          - "digest*"
+          - "hmac"
+          - "p256"
+          - "rsa"
+          - "rand*"
+          - "rust-crypto"
+          - "sha2*"
+          - "subtle"
+          - "x25519*"
+          - "zeroize*"
+      reqwest-stack:
+        patterns:
+          - "reqwest*"
+          - "rustls*"
+          - "hyper*"

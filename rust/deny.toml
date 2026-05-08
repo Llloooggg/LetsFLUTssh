@@ -33,7 +33,14 @@ ignore = [
   # Mitigation: track the upstream RustCrypto/RSA constant-time
   # milestone (https://github.com/RustCrypto/RSA/issues/626) and
   # drop this allow when it lands.
-  "RUSTSEC-2023-0071",
+  #
+  # Re-review by 2026-12-31. cargo-deny 0.19 does not support a
+  # native `expiration` field, so the date lives in this comment
+  # and the audit (B-SUP-2) tracks the calendar reminder. If the
+  # upstream RustCrypto/RSA fix is still pending past that date,
+  # update the date with a fresh look at the threat model — never
+  # silently extend without re-reviewing.
+  { id = "RUSTSEC-2023-0071", reason = "marvin-attack-rsa-no-fix-yet (re-review by 2026-12-31)" },
 ]
 
 [licenses]

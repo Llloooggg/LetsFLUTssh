@@ -1,5 +1,13 @@
 name: Rust Security Audit
 
+# Cancel superseded runs of the same workflow on the same ref. The
+# default GitHub behaviour stacks queued runs, which on a busy push
+# day for solo-maint repos burns runner minutes verifying SHAs that
+# the next push already obsoleted.
+concurrency:
+  group: rust-audit-${{ github.ref }}
+  cancel-in-progress: true
+
 # Weekly RustSec advisory database scan against `rust/Cargo.lock`.
 # Complements `ci.yml::rust-ci`'s on-PR `cargo deny check` — that job
 # only fires on the dependency-bump PR itself, so a CVE that lands

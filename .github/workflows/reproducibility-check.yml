@@ -1,5 +1,13 @@
 name: Reproducibility Check
 
+# Cancel superseded runs of the same workflow on the same ref. The
+# default GitHub behaviour stacks queued runs, which on a busy push
+# day for solo-maint repos burns runner minutes verifying SHAs that
+# the next push already obsoleted.
+concurrency:
+  group: reproducibility-check-${{ github.ref }}
+  cancel-in-progress: true
+
 # Nightly job that builds the Linux release artefacts twice on the
 # same SHA and diffs sha256. The build-release.yml comments claim
 # "two runs of the same commit produce byte-identical output" via

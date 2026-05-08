@@ -12,12 +12,13 @@ IS_MACOS := $(filter Darwin,$(UNAME))
 # Map uname arch to Debian arch
 DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),arm64,$(ARCH)))
 
-.PHONY: all build run clean test analyze check format gen watch deps upgrade doctor \
+.PHONY: all build run run-release clean test analyze check format gen watch deps upgrade doctor \
         build-linux build-windows build-macos build-apk build-aab build-ios \
         linux windows macos apk ios \
-        package-linux package-windows release-linux \
+        package-linux package-appimage package-deb package-windows package-exe release-linux \
         deps-linux deps-macos deps-windows fuzz-build hooks help \
-        lint-workflows rust-mutants setup
+        lint-workflows lint-release-hardening rust-mutants setup \
+        rust-fmt rust-fmt-check rust-lint rust-test rust-build rust-codegen rust-clean rust-check rust-deny
 
 all: build
 
@@ -126,7 +127,7 @@ lint-release-hardening: ## Guard against debuggable release builds + dSYM-embedd
 	fi
 	@echo "Release hardening OK"
 
-check: analyze lint-workflows lint-release-hardening ## Run analyzer + workflow lint + release hardening + tests (sequential — each must pass first)
+check: analyze lint-workflows lint-release-hardening rust-fmt-check rust-lint rust-test ## Run Dart analyzer + workflow lint + release hardening + Rust gates + tests (sequential — each must pass first)
 	@$(MAKE) test
 
 hooks: ## Install local git hooks (pre-commit runs make check)
