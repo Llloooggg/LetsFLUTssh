@@ -172,13 +172,19 @@ impl AutoLockMachine {
         self.waker.notify_one();
     }
 
-    /// True when the machine is in the locked state.
-    pub fn is_locked(&self) -> bool {
+    /// True when the machine is in the locked state. Test-only —
+    /// production callers consume `Event::AutoLockLocked` /
+    /// `AutoLockUnlocked` from the bus instead so the canonical
+    /// state lives in one place.
+    #[cfg(test)]
+    pub(crate) fn is_locked(&self) -> bool {
         self.lock().locked
     }
 
-    /// Configured timeout in minutes (0 = off).
-    pub fn timeout_minutes(&self) -> i64 {
+    /// Configured timeout in minutes (0 = off). Test-only — see
+    /// [`is_locked`] for why the production path doesn't read this.
+    #[cfg(test)]
+    pub(crate) fn timeout_minutes(&self) -> i64 {
         self.lock().lock_after_ms / 60_000
     }
 

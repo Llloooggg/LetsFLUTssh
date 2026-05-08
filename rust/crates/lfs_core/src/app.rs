@@ -51,8 +51,11 @@ pub struct AppState {
     pub connections: ConnectionRegistry,
     /// Auto-lock state machine. Owns the canonical idle timer +
     /// lifecycle state; emits `AutoLockLocked` /
-    /// `AutoLockUnlocked` events when transitions fire.
-    pub autolock: Arc<AutoLockMachine>,
+    /// `AutoLockUnlocked` events when transitions fire. Crate-
+    /// internal: external callers reach the machine through bus
+    /// events, never the field, so the type stays sealed inside
+    /// `lfs_core` together with [`crate::autolock`].
+    pub(crate) autolock: Arc<AutoLockMachine>,
     /// Recorder registry. Owns the canonical state of every
     /// active recording — Dart-side `SessionRecorder` swaps to
     /// thin views over this once the frame-write driver lands.

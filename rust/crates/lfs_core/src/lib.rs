@@ -15,12 +15,19 @@
 //! `db/` / `archive/` / `security/` already use `pub(crate)`
 //! where the layer split permits; widening any of those to `pub`
 //! requires the same cross-crate-consumer check.
+//!
+//! Two top-level modules are intentionally `pub(crate)`:
+//! [`app_log`] (macros are `#[macro_export]`-d to the crate root,
+//! so external callers reach them via `lfs_core::app_log_info!`
+//! not `lfs_core::app_log::log!`) and [`autolock`] (consumed only
+//! through `crate::app::App::autolock`, which itself stays
+//! `pub(crate)` so the machine's lifecycle remains owned here).
 
 pub mod app;
-pub mod app_log;
+pub(crate) mod app_log;
 pub mod archive;
 pub mod archive_stage;
-pub mod autolock;
+pub(crate) mod autolock;
 pub mod bus;
 pub mod config;
 pub mod config_store;
