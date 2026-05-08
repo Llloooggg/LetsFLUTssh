@@ -102,3 +102,58 @@ pub fn openssh_config_build_preview(
 pub fn openssh_config_expand_home(path: String) -> String {
     lfs_core::import::openssh_config::expand_home(&path)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_preview_empty_config_returns_empty_collections() {
+        let p = openssh_config_build_preview(
+            String::new(),
+            "imported".into(),
+            "2026-05-09".into(),
+            "/tmp/nonexistent-base".into(),
+            16,
+        );
+        assert!(p.sessions.is_empty());
+        assert!(p.keys.is_empty());
+        assert_eq!(p.parsed_hosts, 0);
+        assert!(p.hosts_with_missing_keys.is_empty());
+        assert!(p.hosts_with_encrypted_keys.is_empty());
+    }
+
+    #[test]
+    fn build_preview_recognises_a_simple_host_block() {
+        // Single Host stanza, no IdentityFile so the preview
+        // emits the session shape under password auth and no key
+        // entries.
+        let cfg = "\
+Host edge\n\
+    HostName edge.example.com\n\
+    User deploy\n\
+    Port 2222\n";
+        let p = openssh_config_build_preview(
+            cfg.to_string(),
+            "imported".into(),
+            "2026-05-09".into(),
+            "/tmp/nonexistent-base".into(),
+            16,
+        );
+        assert!(p.parsed_hosts >= 1);
+        assert_eq!(p.sessions.len(), 1);
+        let s = &p.sessions[0];
+        assert!(s.host.contains("edge.example.com"));
+        assert_eq!(s.user, "deploy");
+        assert_eq!(s.port, 2222);
+    }
+
+    #[test]
+    fn expand_home_passes_a_plain_path_through() {
+        // A path with no leading `~` returns unchanged.
+        assert_eq!(
+            openssh_config_expand_home("/etc/ssh/ssh_config".into()),
+            "/etc/ssh/ssh_config"
+        );
+    }
+}
