@@ -36,6 +36,14 @@ exec make check
 HOOK
 chmod +x "$hook_dir/pre-commit"
 
+# Agent-only plan-ID gate. Symlinked so editing
+# scripts/agent-plan-id-gate.sh picks up immediately. Fires only
+# on agent commits (Co-Authored-By: Claude trailer present);
+# maintainer's own commits skip the check entirely.
+ln -sf "../../scripts/agent-plan-id-gate.sh" "$hook_dir/commit-msg"
+chmod +x "$repo_root/scripts/agent-plan-id-gate.sh"
+
 echo "install-hooks: wrote $hook_dir/pre-commit"
-echo "install-hooks: subsequent commits will run \`make check\` first."
-echo "install-hooks: SKIP_PRECOMMIT=1 git commit ... bypasses it for emergencies."
+echo "install-hooks: linked $hook_dir/commit-msg -> scripts/agent-plan-id-gate.sh"
+echo "install-hooks: pre-commit runs \`make check\`; commit-msg gate fires only on agent commits."
+echo "install-hooks: SKIP_PRECOMMIT=1 git commit ... bypasses make check for emergencies."
