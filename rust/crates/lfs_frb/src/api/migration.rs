@@ -130,3 +130,61 @@ pub async fn migration_run_on_startup(support_dir: String) -> DbMigrationReport 
         fatal_error: Some(format!("migration runner task: {e}")),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_target_version_matches_lfs_core_constant() {
+        // The FRB shim must round-trip the workspace constant
+        // exactly — a drift here would let the legacy-state probe
+        // fall out of sync with the registry's actual chain.
+        assert_eq!(
+            migration_config_target_version(),
+            lfs_core::migration::SchemaVersions::CONFIG
+        );
+    }
+
+    #[test]
+    fn archive_target_version_matches_lfs_core_constant() {
+        assert_eq!(
+            migration_archive_target_version(),
+            lfs_core::migration::SchemaVersions::ARCHIVE
+        );
+    }
+
+    #[test]
+    fn config_target_version_is_at_or_above_v1() {
+        // Floors are always positive; the legacy-state probe in
+        // `SecurityInitController` reads `>= 1` to decide whether
+        // the build supports any version of the artefact.
+        assert!(migration_config_target_version() >= 1);
+        assert!(migration_archive_target_version() >= 1);
+    }
+
+    #[tokio::test]
+    async fn config_version_on_disk_returns_minus_one_for_missing_dir() {
+        // No `config.json` under `/nonexistent/...` — the probe
+        // must collapse to `-1` rather than `Err`. Same shape Dart
+        // expects for a fresh install.
+        let v = migration_config_version_on_disk("/nonexistent/scan/path-7c8f".into())
+            .await
+            .expect("missing path must collapse to -1, not Err");
+        assert_eq!(v, -1);
+    }
+
+    #[tokio::test]
+    async fn run_on_startup_against_empty_dir_yields_no_steps_no_fatal() {
+        // A fresh app-support directory has no artefacts to walk;
+        // the runner must return an empty report (no steps, no
+        // future-versions, no fatal-error) so the Dart caller's
+        // happy-path branch fires.
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let path = tmp.path().to_str().expect("utf-8 tmp path").to_string();
+        let report = migration_run_on_startup(path).await;
+        assert!(report.steps.is_empty());
+        assert!(report.future_versions.is_empty());
+        assert!(report.fatal_error.is_none());
+    }
+}
