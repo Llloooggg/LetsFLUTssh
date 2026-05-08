@@ -43,7 +43,8 @@ const FLUSH_THRESHOLD_BYTES: usize = 8 * 1024;
 
 /// Maximum wall time a buffered byte may sit before the worker mailbox
 /// receives it. A 10 ms budget mirrors a single 60 FPS animation
-/// frame — the same horizon the Dart-era buffer used.
+/// frame — the user-facing typing-to-render lag stays under one
+/// frame.
 const FLUSH_DEADLINE: Duration = Duration::from_millis(10);
 
 /// One unit of work sent to a recording's worker. The worker

@@ -43,9 +43,9 @@ use rand::RngCore;
 use crate::bus::{Event, EventBus};
 use crate::error::Error;
 
-/// File-format magic — `LFR1` (LetsFLUTssh Recorder). Mirrors
-/// the Dart-era `SessionRecorder._lfrMagic` byte-for-byte so
-/// recordings remain forward-compatible.
+/// File-format magic — `LFR1` (LetsFLUTssh Recorder). Pinned so
+/// every reader (Rust playback path + on-disk integrity probe)
+/// branches consistently on the first four bytes.
 const LFR_MAGIC: [u8; 4] = [0x4C, 0x46, 0x52, 0x31];
 /// On-disk format version byte (post-magic).
 ///

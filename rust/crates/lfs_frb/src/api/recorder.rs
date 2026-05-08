@@ -63,10 +63,11 @@ pub async fn recorder_register(
     .map_err(|e| format!("recorder register task: {e}"))?
 }
 
-/// HKDF-SHA256 info string the Dart-era recorder used. Pinned
-/// here so the byte-for-byte derivation matches whatever the old
-/// recorder wrote — recordings produced before the SecretRef
-/// migration must remain decryptable.
+/// HKDF-SHA256 info string for the per-recording AES-256 key
+/// derivation. Pinned to this exact byte sequence — bumping it
+/// makes every existing on-disk `.lfsr` recording undecryptable
+/// because the reader recomputes the same HKDF chain off the
+/// active DB key.
 const RECORDER_HKDF_INFO: &[u8] = b"letsflutssh-recording-v1";
 
 /// Derive the per-recording AES-256 key from the active DB key

@@ -22,7 +22,9 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
-/// Cap on each stack — matches the Dart-era `_maxHistory = 50`.
+/// Cap on each per-pane history stack. 50 entries fit a typical
+/// browsing session (cd → ls → cd back) without unbounded growth
+/// when a script churns through directories in a tight loop.
 const MAX_STACK: usize = 50;
 
 /// Opaque handle the caller stores. `create` mints one; `drop_handle`
