@@ -393,19 +393,32 @@ fn format_ipv6(bytes: &[u8; 16]) -> String {
 }
 
 /// Handle owning the spawned `-R` dispatcher task plus the
-/// session-side route registration. Dropping aborts the bridge
-/// task, withdraws the route from the session's dispatcher, and
-/// asks the server to stop listening on the bound port.
+/// session-side route registration.
 ///
-/// The post-Drop teardown is fire-and-forget — the unregister +
-/// cancel run on a detached tokio task because `Drop` cannot be
-/// async itself. The handle goes away promptly; the network-side
-/// withdrawal lands a moment later.
+/// **Preferred shutdown:** call [`RemoteForwardHandle::teardown`]
+/// from FRB before letting the handle drop. `teardown` awaits the
+/// `unregister_remote_forward_route` + `cancel_remote_forward`
+/// calls so the network-side withdrawal completes before the
+/// caller continues, AND flips an internal flag so `Drop`'s
+/// fallback path is a no-op (no detached task spawned, nothing
+/// races a runtime shutdown).
+///
+/// **Drop fallback:** when the handle drops without an explicit
+/// `teardown`, `Drop` aborts the bridge task and detaches the
+/// network-side withdrawal onto a tokio task. Same shape as
+/// before — fire-and-forget — except the detach is now skipped
+/// when teardown already ran.
 pub struct RemoteForwardHandle {
     inner: JoinHandle<()>,
     session: Arc<crate::ssh::Session>,
     bind_host: String,
     bound_port: u32,
+    /// Set once `teardown` has run; tells `Drop` to skip the
+    /// fallback detached cleanup. Guards against the runtime-
+    /// shutdown race the audit flagged where `tokio::spawn` on
+    /// `Drop` could fail to complete if the runtime tore down
+    /// between the spawn and the network call.
+    torn_down: bool,
 }
 
 impl RemoteForwardHandle {
@@ -416,17 +429,44 @@ impl RemoteForwardHandle {
     pub fn abort(&self) {
         self.inner.abort();
     }
+
+    /// Awaitable teardown — withdraws the session-side route +
+    /// asks the server to stop listening, both inline. Idempotent;
+    /// safe to call once before drop. After this returns the
+    /// handle's `Drop` becomes a no-op for the network-side work.
+    pub async fn teardown(&mut self) {
+        if self.torn_down {
+            return;
+        }
+        self.torn_down = true;
+        self.inner.abort();
+        self.session
+            .unregister_remote_forward_route(&self.bind_host, self.bound_port)
+            .await;
+        // Best-effort — the channel may already be torn down by
+        // the abort above or a peer-initiated close.
+        let _ = self
+            .session
+            .cancel_remote_forward(&self.bind_host, self.bound_port)
+            .await;
+    }
 }
 
 impl Drop for RemoteForwardHandle {
     fn drop(&mut self) {
         self.inner.abort();
+        if self.torn_down {
+            return;
+        }
         let session = self.session.clone();
         let host = self.bind_host.clone();
         let port = self.bound_port;
+        // Fallback path — the explicit `teardown` was not called.
+        // Detach the network-side cleanup; loses the runtime-
+        // shutdown race in the worst case but matches the prior
+        // behaviour for any caller still relying on bare drop.
         tokio::spawn(async move {
             session.unregister_remote_forward_route(&host, port).await;
-            // Best-effort — the channel may already be torn down.
             let _ = session.cancel_remote_forward(&host, port).await;
         });
     }
@@ -478,6 +518,7 @@ pub async fn spawn_remote_forward(
         session,
         bind_host,
         bound_port,
+        torn_down: false,
     })
 }
 

@@ -94,14 +94,33 @@ mod platform_impl {
         // its own thread so the main runtime is free; the block
         // calls back from a UI / system thread and forwards the
         // result through the oneshot channel.
+        //
+        // LAContext lifetime: the OS reply block keeps a reference
+        // to the LAContext that fired `evaluatePolicy_…_reply`.
+        // The earlier shape constructed `ctx` as a stack-local in
+        // the spawn_blocking closure, so it dropped the moment
+        // the closure returned — long before LocalAuthentication
+        // invoked the reply. Apple-documented EXC_BAD_ACCESS /
+        // observable callback failure. Fix: capture a clone of
+        // the `Retained<LAContext>` Arc-equivalent into the
+        // `RcBlock` itself, so the context outlives the closure
+        // and is released only after the reply runs.
         tokio::task::spawn_blocking(move || unsafe {
             let ctx: Retained<LAContext> = LAContext::new();
             let reason_ns: Retained<NSString> = NSString::from_str(&reason_owned);
 
             let tx_cell = std::sync::Arc::new(std::sync::Mutex::new(Some(tx)));
             let tx_for_block = tx_cell.clone();
+            let ctx_for_block = ctx.clone();
             let block: RcBlock<dyn Fn(Bool, *mut NSError)> =
                 RcBlock::new(move |success: Bool, _error: *mut NSError| {
+                    // Touch `ctx_for_block` so the compiler keeps
+                    // the capture alive for the block's duration.
+                    // The block holds the Retained clone; it
+                    // releases when the block itself drops, which
+                    // is after LocalAuthentication's last
+                    // reference goes away.
+                    let _ = &ctx_for_block;
                     if let Ok(mut guard) = tx_for_block.lock() {
                         if let Some(sender) = guard.take() {
                             let _ = sender.send(success.as_bool());
@@ -116,7 +135,14 @@ mod platform_impl {
             );
         });
 
-        rx.await.unwrap_or(false)
+        // 60-second timeout caps the wait so a stuck reply (the
+        // user walked away from a Touch ID prompt that never
+        // fires the cancel callback, or LocalAuthentication
+        // wedged) doesn't pin the await forever.
+        match tokio::time::timeout(std::time::Duration::from_secs(60), rx).await {
+            Ok(Ok(v)) => v,
+            Ok(Err(_)) | Err(_) => false,
+        }
     }
 }
 
