@@ -16,16 +16,15 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - [6. Port forwarding](#6-port-forwarding)
 - [7. ProxyJump bastion chains](#7-proxyjump-bastion-chains)
 - [8. Snippets with `{{tokens}}`](#8-snippets-with-tokens)
-- [9. Broadcast input across split panes](#9-broadcast-input-across-split-panes)
-- [10. Session recording + playback](#10-session-recording--playback)
-- [11. SSH key manager + PuTTY `.ppk` import](#11-ssh-key-manager--putty-ppk-import)
-- [12. Tags](#12-tags)
-- [13. Known hosts (TOFU)](#13-known-hosts-tofu)
-- [14. Security tiers](#14-security-tiers)
-- [15. Import / export](#15-import--export)
-- [16. Updates](#16-updates)
-- [17. Mobile differences](#17-mobile-differences)
-- [18. Troubleshooting](#18-troubleshooting)
+- [9. Session recording + playback](#9-session-recording--playback)
+- [10. SSH key manager + PuTTY `.ppk` import](#10-ssh-key-manager--putty-ppk-import)
+- [11. Tags](#11-tags)
+- [12. Known hosts (TOFU)](#12-known-hosts-tofu)
+- [13. Security tiers](#13-security-tiers)
+- [14. Import / export](#14-import--export)
+- [15. Updates](#15-updates)
+- [16. Mobile differences](#16-mobile-differences)
+- [17. Troubleshooting](#17-troubleshooting)
 
 ---
 
@@ -33,7 +32,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 
 1. Install per [README → Installation](../README.md#installation).
 2. App opens to the **Sessions** sidebar (empty) and a **Welcome** placeholder in the main area.
-3. **Security tier is set up silently on the first launch** (see [§14 Security tiers](#14-security-tiers)). When the OS keychain is reachable (the common case on every supported platform), the app auto-selects **T1 — Keychain** without prompting, and surfaces a one-shot banner saying so. Only when the keychain is unreachable (e.g. Linux without `gnome-keyring` / KWallet, ad-hoc-signed macOS without an installed signing identity) does a tier-picker wizard appear with T0 / Paranoid as alternatives. T2 hardware-bound and any of the modifiers (master password, biometric shortcut) are opt-in via **Settings → Security** at any time.
+3. **Security tier is set up silently on the first launch** (see [§13 Security tiers](#13-security-tiers)). When the OS keychain is reachable (the common case on every supported platform), the app auto-selects **T1 — Keychain** without prompting, and surfaces a one-shot banner saying so. Only when the keychain is unreachable (e.g. Linux without `gnome-keyring` / KWallet, ad-hoc-signed macOS without an installed signing identity) does a tier-picker wizard appear with T0 / Paranoid as alternatives. T2 hardware-bound and any of the modifiers (master password, biometric shortcut) are opt-in via **Settings → Security** at any time.
 4. **Add your first session:** sidebar → "+" or `Ctrl+N`. Fill host / port / username + auth (password or key). Save.
 5. **Connect:** double-click the session, or right-click → Terminal / Files.
 
@@ -47,7 +46,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - **Tabs:** Connection / Auth / Options / Forwarding.
 - **Connection tab:** name, host, port, username, plus the [Connect via](#7-proxyjump-bastion-chains) selector at the bottom.
 - **Auth tab:** [§3 Authentication](#3-authentication).
-- **Options tab:** tags, [Record session toggle](#10-session-recording--playback).
+- **Options tab:** tags, [Record session toggle](#9-session-recording--playback).
 - **Forwarding tab:** [§6 Port forwarding](#6-port-forwarding).
 - **Footer buttons:** Cancel / Save / Save & Connect.
 
@@ -78,11 +77,6 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - Right-click a session → Export → QR code (small payloads) or Copy share link.
 - The recipient pastes the link via Settings → Data → Import → "From link" (no camera needed) or scans the QR via the in-app scanner.
 
-### Quick connect (without saving)
-
-- Toolbar → Quick Connect → fill host / port / user / auth → Connect.
-- Session is not persisted; closing the tab loses the config.
-
 ---
 
 ## 3. Authentication
@@ -101,7 +95,7 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 
 ### Key from manager
 
-- Drop-down references a key already imported via Tools → SSH Keys (see [§11](#11-ssh-key-manager--putty-ppk-import)).
+- Drop-down references a key already imported via Tools → SSH Keys (see [§10](#10-ssh-key-manager--putty-ppk-import)).
 - Preferred over file paths for portability — the key travels with the session via export/import.
 
 ### PEM key text
@@ -115,7 +109,7 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 
 ### Combining password + key
 
-- "Two-factor": both fields filled. Server must accept both. Auth chain order: key first, password as fallback / second factor.
+- Both fields filled — the auth chain takes the **key** branch and uses the typed passphrase to decrypt it. The typed password is **not** sent as a separate fallback; SSH "key + password" two-factor flows are not currently implemented.
 
 ### Encrypted PEM detection
 
@@ -129,7 +123,6 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 
 - Double-click a session in the sidebar.
 - Or right-click → Terminal.
-- Or sidebar entry `Quick Connect` → Connect.
 
 ### What you see
 
@@ -143,19 +136,10 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 | `Ctrl+Shift+C` | Copy selection |
 | `Ctrl+Shift+V` | Paste |
 | `Ctrl+Shift+F` | Search inside scrollback |
-| `Ctrl+\` | Split right (new pane in same tab) |
-| `Ctrl+Shift+\` | Split down |
-| `Ctrl+W` | Close active pane / tab |
+| `Ctrl+W` | Close active tab |
 | `Ctrl++` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
 | `Shift` (hold while dragging) | Bypass app's mouse-mode capture for text selection in TUI apps (htop, vim, mc) |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
-
-### Splits (tiling)
-
-- Split a pane → it becomes two, separated by a draggable divider.
-- Drag the divider to resize. Min pane width 80 px.
-- Each pane runs its own SSH shell channel on the same connection (no new auth handshake).
-- Close a pane: hover the pane header → close icon, or `Ctrl+W` in the focused pane.
 
 ### Reconnect
 
@@ -184,16 +168,6 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 - Multi-select with `Ctrl`/`Shift`+click for bulk transfers.
 - Right-click → Cut / Copy / Paste between panes (cross-pane = transfer).
 - Transfer panel (bottom) shows queue, parallel workers, progress per file, retry on failure.
-
-### Bookmarks
-
-- Pin a remote path: address bar → star icon. Saved as `SftpBookmark` in DB, scoped to the session.
-- Quick-jump from the bookmark dropdown.
-
-### Editing remote files (round-trip)
-
-- Right-click a remote file → Open in editor → downloads to a temp dir, opens in OS-default editor, watches for save → re-uploads.
-- Closing the editor cleans up the temp file.
 
 ---
 
@@ -371,33 +345,7 @@ Reusable shell commands with placeholder substitution.
 
 ---
 
-## 9. Broadcast input across split panes
-
-Type once, send to many panes. Desktop-only.
-
-### Setting it up
-
-1. Split a terminal into multiple panes (`Ctrl+\` / `Ctrl+Shift+\`).
-2. **Driver pane** (the source): right-click → **"Broadcast from this pane"**. The pane border turns yellow + thick.
-3. **Receiver panes**: right-click → **"Receive broadcast here"** on each. Their borders turn yellow + thin.
-4. Type in the driver. Every keystroke (including arrow keys, Ctrl-sequences) replays on every receiver.
-
-### Paste guard
-
-- `Ctrl+Shift+V` in the driver pane while broadcast is active → modal: "Send N characters to M panes?"
-- Confirm to send; cancel to abort. Prevents accidentally pasting an SSH key / password into 8 servers.
-
-### Stopping
-
-- Right-click any participating pane → **"Stop all broadcasting"**. Or toggle individual receivers off via the same context menu.
-
-### Mobile
-
-- Mobile has no split panes → no broadcast. The context-menu entries are hidden.
-
----
-
-## 10. Session recording + playback
+## 9. Session recording + playback
 
 Per-session terminal output + input capture, encrypted at rest, playable in-app or exportable.
 
@@ -406,7 +354,7 @@ Per-session terminal output + input capture, encrypted at rest, playable in-app 
 1. Edit the session.
 2. **Options** tab → toggle **"Record session"** ON.
 3. Save → connect → recording starts automatically.
-4. Each shell channel records to its own file (multi-pane connections produce one file per pane).
+4. Each shell channel records to its own file.
 
 ### File location
 
@@ -445,7 +393,7 @@ Per-session terminal output + input capture, encrypted at rest, playable in-app 
 
 ---
 
-## 11. SSH key manager + PuTTY `.ppk` import
+## 10. SSH key manager + PuTTY `.ppk` import
 
 Centralised key store so a single key can be referenced from many sessions.
 
@@ -480,7 +428,7 @@ Centralised key store so a single key can be referenced from many sessions.
 
 ---
 
-## 12. Tags
+## 11. Tags
 
 Color-coded labels for sessions and folders.
 
@@ -504,7 +452,7 @@ Color-coded labels for sessions and folders.
 
 ---
 
-## 13. Known hosts (TOFU)
+## 12. Known hosts (TOFU)
 
 The app verifies SSH host keys via Trust-On-First-Use, the same model OpenSSH uses with `~/.ssh/known_hosts`.
 
@@ -543,7 +491,7 @@ The app verifies SSH host keys via Trust-On-First-Use, the same model OpenSSH us
 
 ---
 
-## 14. Security tiers
+## 13. Security tiers
 
 How the app protects credentials at rest. First launch auto-selects **T1 — Keychain** silently when the OS keychain is reachable (typical on every supported platform). The tier-picker wizard only renders when the keychain is unreachable — it offers T0 / Paranoid plus T2 (hardware) when a TPM 2.0 / Secure Enclave / StrongBox is also detected. T2 and the modifiers (master password, biometric) are opt-in any time via **Settings → Security** even when first-launch auto-applied T1.
 
@@ -576,7 +524,7 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 
 ---
 
-## 15. Import / export
+## 14. Import / export
 
 ### Export to encrypted `.lfs` archive
 
@@ -624,7 +572,7 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 
 ---
 
-## 16. Updates
+## 15. Updates
 
 - Settings → Updates → **Check for updates**.
 - Optional **Check on startup** toggle (default on).
@@ -634,7 +582,7 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 
 ---
 
-## 17. Mobile differences
+## 16. Mobile differences
 
 | Feature | Android | iOS | Notes |
 |---|---|---|---|
@@ -653,8 +601,7 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 | `.ppk` import | ✅ | ✅ | File picker. |
 | QR scan | ✅ | ✅ | CameraX (Android) / AVFoundation (iOS). |
 | Deep links | ✅ | ✅ | `letsflutssh://` URI scheme. |
-| Splits / broadcast | ❌ | ❌ | No tiling on mobile. |
-| Drag & drop | partial | partial | Sessions can be reordered; SFTP drag-drop works in-pane only. |
+| Drag & drop | partial | partial | Sessions can be reordered; SFTP drag-drop works inside one browser pane only. |
 | Foreground service | ✅ | n/a | Android keeps the SSH connection alive in background via a foreground notification while ≥ 1 connection is active. |
 
 ### iOS background caveat
@@ -710,7 +657,7 @@ If sideloading isn't an option for you, the desktop builds (Linux / macOS / Wind
 
 ---
 
-## 18. Troubleshooting
+## 17. Troubleshooting
 
 ### "Bastion failed to connect (caused by: bastion not connected)"
 

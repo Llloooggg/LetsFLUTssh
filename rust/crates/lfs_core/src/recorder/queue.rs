@@ -95,12 +95,12 @@ struct WorkerHandle {
     /// worker exits cleanly when the channel sender drops or a
     /// `Close` entry arrives.
     _join: JoinHandle<()>,
-    /// Per-direction byte accumulator that absorbs 100/sec russh
-    /// `Data` packets into one mailbox entry per ~10 ms / 8 KiB so
-    /// the writer worker isn't woken on every PTY chunk. Lives on
-    /// the FRB side of the mailbox; Dart calls
-    /// `enqueue_event_chunk` for every chunk and the buffer decides
-    /// when to wake the worker.
+    /// Per-direction byte accumulator that coalesces high-frequency
+    /// russh `Data` packets into one mailbox entry per
+    /// `FLUSH_THRESHOLD_BYTES` / `FLUSH_DEADLINE` so the writer
+    /// worker isn't woken on every PTY chunk. Lives on the FRB side
+    /// of the mailbox; Dart calls `enqueue_event_chunk` for every
+    /// chunk and the buffer decides when to wake the worker.
     buffers: Arc<StdMutex<EventBuffers>>,
 }
 

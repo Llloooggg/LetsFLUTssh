@@ -288,11 +288,11 @@ pub async fn recorder_queue_enqueue_header(
 
 /// Enqueue a terminal event chunk. Same fire-and-forget shape as
 /// [`recorder_queue_enqueue_header`]. `bytes` is the raw chunk
-/// (output or input); the Rust-side accumulator coalesces 100/sec
-/// russh `Data` packets into one mailbox entry per ~10 ms / 8 KiB
-/// so the worker isn't woken on every PTY chunk. Dart callers fire
-/// this once per arriving russh `Data` packet without paying a
-/// worker wake-up per call.
+/// (output or input); the Rust-side accumulator coalesces
+/// high-frequency russh `Data` packets into one mailbox entry per
+/// flush window (size + deadline) so the worker isn't woken on
+/// every PTY chunk. Dart callers fire this once per arriving russh
+/// `Data` packet without paying a worker wake-up per call.
 pub async fn recorder_queue_enqueue_event(
     id: String,
     direction: DbRecordDirection,

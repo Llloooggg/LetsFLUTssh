@@ -9,9 +9,9 @@
 //! The single-instance file lock used to live here as a sibling
 //! module; it now lives in `lib/core/single_instance/` as pure
 //! Dart on top of `RandomAccessFile.lock`. The Rust route forced
-//! the lock check to wait on `RustLib.init()` (~3 s on Windows
-//! IoT), which conflicted with painting the splash before the
-//! native blob load. `dart:io` calls the same `flock` /
+//! the lock check to wait on `RustLib.init()` before the splash
+//! could paint, which broke the load-order goal of "splash first,
+//! native blob second". `dart:io` calls the same `flock` /
 //! `LockFileEx` syscalls the Rust module did, so going back to
 //! Dart costs nothing and removes the load-order dependency.
 //!

@@ -113,6 +113,20 @@ pub fn import_ppk(
             "input does not start with the PuTTY PPK magic header".into(),
         ));
     }
+    // Reject PPK v3 files whose Argon2id memory cost exceeds the cap.
+    // A hostile `.ppk` could declare an arbitrarily large `Argon2-Memory`
+    // value; without a pre-parse cap, russh-keys would forward it to the
+    // Argon2 derive call and the runtime would try to allocate that
+    // many KiB before the file is even validated. 1 GiB matches the
+    // ceiling enforced on the LFSE archive envelope's KDF params.
+    if let Some(memory_kib) = parse_ppk_argon2_memory(trimmed) {
+        const PPK_ARGON2_MEMORY_CAP_KIB: u32 = 1024 * 1024; // 1 GiB
+        if memory_kib > PPK_ARGON2_MEMORY_CAP_KIB {
+            return Err(Error::KeyParse(format!(
+                "ppk: Argon2-Memory {memory_kib} KiB exceeds {PPK_ARGON2_MEMORY_CAP_KIB} KiB cap"
+            )));
+        }
+    }
     let key = PrivateKey::from_ppk(trimmed, passphrase.map(|p| p.to_owned())).map_err(|e| {
         // Mirror the OpenSSH path's "passphrase incorrect vs format
         // failure" split so callers can prompt for re-entry.
@@ -124,6 +138,20 @@ pub fn import_ppk(
         }
     })?;
     finish(key, comment)
+}
+
+/// Find `Argon2-Memory: N` in a PPK v3 header and return the
+/// declared memory cost in KiB. Returns `None` for v2 (no
+/// Argon2 line) or malformed values; callers treat absence as
+/// "no cap to enforce". Pure header sniff, no `russh_keys`
+/// invocation.
+fn parse_ppk_argon2_memory(ppk_text: &str) -> Option<u32> {
+    for line in ppk_text.lines() {
+        if let Some(rest) = line.strip_prefix("Argon2-Memory:") {
+            return rest.trim().parse::<u32>().ok();
+        }
+    }
+    None
 }
 
 /// True when [`text`] looks like a PuTTY PPK file (first line

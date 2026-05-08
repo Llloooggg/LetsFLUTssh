@@ -18,10 +18,10 @@ use crate::bus::{Event, EventBus};
 
 /// Minimum byte-delta between two progress publishes for the same
 /// task. Caps the bus event rate at one per 256 KiB regardless of
-/// chunk size — without this the SFTP read loop emits an event per
-/// 64 KiB chunk (~3200 events / s on a 100 MB/s pipe), which
-/// detonates Dart-side: each event triggers a `_scheduleRefresh`
-/// that rebuilds the full transfer history snapshot.
+/// chunk size — without this the SFTP read loop emits one event
+/// per chunk, which detonates Dart-side: every event triggers a
+/// `_scheduleRefresh` that rebuilds the full transfer history
+/// snapshot.
 const PROGRESS_BYTES_THRESHOLD: u64 = 256 * 1024;
 
 /// Minimum wall time between two progress publishes for the same

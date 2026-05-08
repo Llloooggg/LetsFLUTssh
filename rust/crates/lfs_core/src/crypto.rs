@@ -173,8 +173,7 @@ pub fn aes_gcm_random_key() -> Zeroizing<Vec<u8>> {
 }
 
 /// Encrypt `plaintext` with AES-256-GCM. Generates a fresh random
-/// 12-byte nonce, returns `nonce || ciphertext || tag` — matches the
-/// wire shape `lib/core/security/aes_gcm.dart` ships today.
+/// 12-byte nonce, returns `nonce || ciphertext || tag`.
 pub fn aes_gcm_encrypt(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, Error> {
     let cipher = build_cipher(key)?;
     let mut nonce_bytes = [0u8; AES_GCM_IV_LEN];
