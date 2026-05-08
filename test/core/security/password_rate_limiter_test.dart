@@ -12,17 +12,26 @@ void main() {
 
   group('HardwareRateLimiter', () {
     test('follows the shared backoff schedule on failures', () {
-      final clock = DateTime(2026, 1, 1, 12, 0, 0);
-      final limiter = HardwareRateLimiter(now: () => clock);
+      // FRB path: status snapshots Rust's nextRetryAt minus
+      // SystemTime::now. We assert milli-second ranges instead of
+      // an exact integer-seconds match because the FRB hop runs at
+      // a few hundred microseconds — `inSeconds` rounds 999 ms down
+      // to 0. The schedule math (1 s → 2 s → ...) lives in Rust;
+      // the test here is "the limiter applied the schedule", not
+      // "the constants are 1 and 2".
+      final limiter = HardwareRateLimiter();
+      addTearDown(limiter.dispose);
       limiter.recordFailure();
-      expect(limiter.status().cooldownRemaining!.inSeconds, 1);
+      final after1 = limiter.status().cooldownRemaining!.inMilliseconds;
+      expect(after1, inInclusiveRange(900, 1000));
       limiter.recordFailure();
-      expect(limiter.status().cooldownRemaining!.inSeconds, 2);
+      final after2 = limiter.status().cooldownRemaining!.inMilliseconds;
+      expect(after2, inInclusiveRange(1900, 2000));
     });
 
     test('recordSuccess resets state', () {
-      final clock = DateTime(2026, 1, 1, 12, 0, 0);
-      final limiter = HardwareRateLimiter(now: () => clock);
+      final limiter = HardwareRateLimiter();
+      addTearDown(limiter.dispose);
       limiter.recordFailure();
       limiter.recordSuccess();
       expect(limiter.status().isLocked, isFalse);
@@ -44,14 +53,10 @@ void main() {
 
     File stateFile() => File('${tempDir.path}/rate_limit_state.bin');
 
-    Future<PersistedRateLimiter> makeLimiter({
-      DateTime Function()? now,
-      Uint8List? key,
-    }) async {
+    Future<PersistedRateLimiter> makeLimiter({Uint8List? key}) async {
       return PersistedRateLimiter(
         hmacKey: key ?? hmacKey,
         stateFileFactory: () async => stateFile(),
-        now: now,
       );
     }
 
@@ -63,8 +68,7 @@ void main() {
     });
 
     test('recordFailure persists and survives restart', () async {
-      final clock = DateTime(2026, 1, 1, 12, 0, 0);
-      final first = await makeLimiter(now: () => clock);
+      final first = await makeLimiter();
       // statusAsync triggers `_ensureBackend` which calls
       // `init_or_get(state_file_path)` against the Rust actor — the
       // sync probe path in `recordFailure` doesn't know the file
@@ -78,29 +82,27 @@ void main() {
       await first.awaitPendingSave();
       expect(await stateFile().exists(), isTrue);
 
-      final reborn = await makeLimiter(now: () => clock);
+      final reborn = await makeLimiter();
       final status = await reborn.statusAsync();
       expect(status.failureCount, 2);
       expect(status.isLocked, isTrue);
     });
 
     test('recordSuccess persists reset', () async {
-      final clock = DateTime(2026, 1, 1, 12, 0, 0);
-      final first = await makeLimiter(now: () => clock);
+      final first = await makeLimiter();
       await first.statusAsync();
       first.recordFailure();
       first.recordSuccess();
       await first.awaitPendingSave();
 
-      final reborn = await makeLimiter(now: () => clock);
+      final reborn = await makeLimiter();
       final status = await reborn.statusAsync();
       expect(status.failureCount, 0);
       expect(status.isLocked, isFalse);
     });
 
     test('tampered state file is detected and forces max cooldown', () async {
-      final clock = DateTime(2026, 1, 1, 12, 0, 0);
-      final first = await makeLimiter(now: () => clock);
+      final first = await makeLimiter();
       await first.statusAsync();
       first.recordFailure();
       await first.awaitPendingSave();
@@ -108,21 +110,20 @@ void main() {
       // Overwrite the file with garbage.
       await stateFile().writeAsString('not json');
 
-      final reborn = await makeLimiter(now: () => clock);
+      final reborn = await makeLimiter();
       final status = await reborn.statusAsync();
       expect(status.isLocked, isTrue);
       expect(status.cooldownRemaining!.inSeconds, inInclusiveRange(1, 120));
     });
 
     test('wrong hmac key (e.g. password cycled) fails tamper check', () async {
-      final clock = DateTime(2026, 1, 1, 12, 0, 0);
-      final first = await makeLimiter(now: () => clock);
+      final first = await makeLimiter();
       await first.statusAsync();
       first.recordFailure();
       await first.awaitPendingSave();
 
       final wrongKey = Uint8List.fromList(List<int>.filled(32, 0xFF));
-      final reborn = await makeLimiter(now: () => clock, key: wrongKey);
+      final reborn = await makeLimiter(key: wrongKey);
       final status = await reborn.statusAsync();
       expect(status.isLocked, isTrue);
     });

@@ -44,10 +44,7 @@ abstract class PasswordRateLimiter {
 
   static List<int>? _cachedBackoff;
 
-  /// Clock injection for deterministic tests.
-  final DateTime Function() _now;
-
-  PasswordRateLimiter({DateTime Function()? now}) : _now = now ?? DateTime.now;
+  PasswordRateLimiter();
 
   /// Describes the limiter's current state to the caller. When a
   /// cooldown is active, [cooldownRemaining] is non-null and the
@@ -61,24 +58,6 @@ abstract class PasswordRateLimiter {
   /// Register a successful attempt. Wipes the counter so the next
   /// unlock starts fresh.
   void recordSuccess();
-
-  /// How long the user must wait from [fromNow] before the next
-  /// retry is allowed, or `Duration.zero` if no cooldown is active.
-  Duration _cooldownRemaining(DateTime? nextRetryAt) {
-    if (nextRetryAt == null) return Duration.zero;
-    final diff = nextRetryAt.difference(_now());
-    return diff.isNegative ? Duration.zero : diff;
-  }
-
-  /// Compute the next-retry timestamp from the current failure count.
-  DateTime? _nextRetryAfterFailure(int failureCount) {
-    final idx = failureCount < backoffSchedule.length
-        ? failureCount
-        : backoffSchedule.length - 1;
-    final seconds = backoffSchedule[idx];
-    if (seconds == 0) return null;
-    return _now().add(Duration(seconds: seconds));
-  }
 }
 
 /// Current state of a [PasswordRateLimiter]. `cooldownRemaining`
@@ -114,7 +93,7 @@ class RateLimitStatus {
 /// path covers paranoid mode where Argon2id provides the real
 /// brake regardless of the limiter clock.
 class InMemoryRateLimiter extends PasswordRateLimiter {
-  InMemoryRateLimiter({super.now}) : _id = const Uuid().v4();
+  InMemoryRateLimiter() : _id = const Uuid().v4();
 
   final String _id;
   bool _disposed = false;
@@ -204,7 +183,6 @@ class PersistedRateLimiter extends PasswordRateLimiter {
     required Uint8List hmacKey,
     Future<File> Function()? stateFileFactory,
     String? id,
-    super.now,
   }) : _hmacKey = hmacKey,
        _stateFile = stateFileFactory ?? _defaultStateFile,
        _id = id ?? const Uuid().v4();
@@ -372,34 +350,87 @@ class PersistedRateLimiter extends PasswordRateLimiter {
 /// still slows the attacker via the same exp-backoff schedule the
 /// other limiters use.
 ///
+/// State lives in `lfs_core::rate_limit::InMemoryRateLimiterRegistry`,
+/// the same registry [`InMemoryRateLimiter`] uses; the canonical
+/// schedule + counter math lives one place across both Dart limiter
+/// shims so the hardware-overlay can never drift from the in-memory
+/// path. Each instance allocates a unique id so multiple unlock
+/// flows (production + tests) never share counters.
+///
 /// State is in-memory — the hardware layer is the source of truth
 /// for persistent lockout semantics. Resets on process restart;
 /// anyone restarting the process already paid the cost of talking
 /// to the hardware again, which itself is rate-limited.
+///
+/// The injected `now` clock is no longer honoured — Rust uses
+/// `SystemTime::now`. Mirrors [`InMemoryRateLimiter`].
 class HardwareRateLimiter extends PasswordRateLimiter {
-  HardwareRateLimiter({super.now});
+  HardwareRateLimiter() : _id = const Uuid().v4();
 
-  int _failureCount = 0;
-  DateTime? _nextRetryAt;
+  final String _id;
+  bool _disposed = false;
 
   @override
-  RateLimitStatus status() => RateLimitStatus(
-    failureCount: _failureCount,
-    cooldownRemaining: _cooldownRemaining(_nextRetryAt),
-  );
+  RateLimitStatus status() {
+    if (_disposed) return _zero;
+    try {
+      final s = rust_rate_limit.rateLimitStatus(id: _id);
+      return RateLimitStatus(
+        failureCount: s.failureCount.toInt(),
+        cooldownRemaining: Duration(
+          milliseconds: s.cooldownRemainingMs.toInt(),
+        ),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitStatus FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+      return _zero;
+    }
+  }
 
   @override
   void recordFailure() {
-    final cap = PasswordRateLimiter.backoffSchedule.length - 1;
-    final next = _failureCount + 1;
-    _failureCount = next > cap ? cap : next;
-    _nextRetryAt = _nextRetryAfterFailure(_failureCount);
+    if (_disposed) return;
+    try {
+      rust_rate_limit.rateLimitRecordFailure(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitRecordFailure FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+    }
   }
 
   @override
   void recordSuccess() {
-    _failureCount = 0;
-    _nextRetryAt = null;
+    if (_disposed) return;
+    try {
+      rust_rate_limit.rateLimitRecordSuccess(id: _id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'rateLimitRecordSuccess FRB failed: $e',
+        name: 'RateLimit',
+        level: LogLevel.warn,
+      );
+    }
+  }
+
+  /// Drop the Rust-side limiter slot for this instance's id.
+  /// Idempotent; safe to call repeatedly. Mirrors
+  /// [`InMemoryRateLimiter.dispose`] — the hardware overlay's state
+  /// is in the same registry.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    try {
+      rust_rate_limit.rateLimitDrop(id: _id);
+    } catch (_) {
+      // FRB unavailable in flutter_test; nothing to drop.
+    }
   }
 }
 

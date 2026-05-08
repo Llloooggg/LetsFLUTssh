@@ -240,8 +240,7 @@ extension _UnlockFlows on SecurityInitController {
           return TierUnlockAttempt.error;
         }
       },
-      biometricUnlock: () =>
-          _tryBiometricCommit(SecurityTier.keychain),
+      biometricUnlock: () => _tryBiometricCommit(SecurityTier.keychain),
       autoTriggerBiometric: autoTriggerBiometric,
       onReset: () async {
         await WipeAllService(
@@ -380,6 +379,26 @@ extension _UnlockFlows on SecurityInitController {
     if (ctx == null) return false;
     final l10n = S.of(ctx);
     final limiter = HardwareRateLimiter();
+    try {
+      return await _showL3UnlockDialogInner(
+        limiter,
+        ctx,
+        l10n,
+        mods,
+        autoTriggerBiometric: autoTriggerBiometric,
+      );
+    } finally {
+      limiter.dispose();
+    }
+  }
+
+  Future<bool?> _showL3UnlockDialogInner(
+    HardwareRateLimiter limiter,
+    BuildContext ctx,
+    S l10n,
+    SecurityTierModifiers? mods, {
+    required bool autoTriggerBiometric,
+  }) async {
     return _dialogs.showTierSecretUnlock(
       ctx: ctx,
       labels: TierSecretUnlockLabels(
