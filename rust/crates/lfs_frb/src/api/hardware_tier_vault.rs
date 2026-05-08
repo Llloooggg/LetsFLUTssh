@@ -3,15 +3,12 @@
 //! Surfaces the unified `hardware_tier_vault_*` API consumed by the
 //! Dart `HardwareTierVault` façade. Per-platform backends:
 //!
-//! * Apple Secure Enclave + Android Keystore: `lfs_os_security`
-//!   (objc2 / JNI FFI).
+//! * Apple Secure Enclave + Android Keystore + Windows NCrypt:
+//!   `lfs_os_security` (objc2 / JNI / `windows` crate FFI).
 //! * Linux TPM2: `lfs_core::security::hardware_tier_vault::linux`
 //!   (subprocess to `tpm2-tools` + atomic write — orchestrator
 //!   lives in `lfs_core` because `lfs_os_security` cannot depend
 //!   on `lfs_core`).
-//! * Windows: still routes through the legacy MethodChannel C++
-//!   plugin until the Tier 4 Rust port lands (Task #16 backlog —
-//!   needs Windows host + TPM 2.0 for on-device validation).
 //!
 //! Per-platform dispatch lives in this file (the only crate that
 //! sees both `lfs_core` and `lfs_os_security`).

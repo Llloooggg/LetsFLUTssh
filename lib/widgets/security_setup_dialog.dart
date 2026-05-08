@@ -678,7 +678,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
   String get _keychainName {
     if (Platform.isMacOS || Platform.isIOS) return 'Keychain';
     if (Platform.isWindows) return 'Credential Manager';
-    if (Platform.isAndroid) return 'EncryptedSharedPreferences';
+    if (Platform.isAndroid) return 'AndroidKeyStore';
     return 'libsecret';
   }
 }

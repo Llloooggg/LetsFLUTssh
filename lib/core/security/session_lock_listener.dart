@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show VoidCallback, visibleForTesting;
 
 import '../../src/rust/api/os_security.dart' as rust_os;
 import '../../src/rust/frb_generated.dart' show RustLib;
@@ -19,31 +18,23 @@ import '../../utils/logger.dart';
 /// zero and the user has NOT actually been idle inside our app in
 /// the last idle-minutes.
 ///
-/// Platform-level routing:
-/// - **Linux**: `lfs_os_security::session_lock_listener::subscribe`
-///   (zbus → `org.freedesktop.login1.Session.Lock` signal). FRB
-///   Stream forwards events into the Dart-side fan-out.
-/// - **Windows**: `WM_WTSSESSION_CHANGE` + `WTS_SESSION_LOCK` on
-///   the main Flutter window's `MessageHandler`. Native side posts
-///   "sessionLocked" to the `com.letsflutssh/session_lock`
-///   MethodChannel. Kept Dart-bound because the WTS subscription
-///   is HWND-scoped.
+/// Platform-level routing — every desktop OS goes through the
+/// `lfs_os_security::session_lock_listener` Rust subscriber and
+/// reaches Dart via FRB:
+/// - **Linux**: zbus `org.freedesktop.login1.Session.Lock` signal.
+/// - **Windows**: WTS session-change + `WTS_SESSION_LOCK` posted
+///   from the Rust-side MessageHandler.
 /// - **macOS**: `NSDistributedNotificationCenter` observer for
-///   `com.apple.screenIsLocked` on the main run loop. Same channel
-///   as Windows. Kept Dart-bound because the observer needs the
-///   Cocoa run loop the Flutter app already pumps.
+///   `com.apple.screenIsLocked` on the main run loop.
 /// - **iOS / Android**: Flutter's lifecycle-paused hook already
 ///   catches lock; this class is a no-op.
 class SessionLockListener {
-  SessionLockListener({MethodChannel? channel, Stream<void>? lockEvents})
-    : _channel = channel ?? const MethodChannel(_channelName),
-      _injectedEvents = lockEvents {
+  SessionLockListener({Stream<void>? lockEvents})
+    : _injectedEvents = lockEvents {
     _liveInstances.add(this);
   }
 
-  static const _channelName = 'com.letsflutssh/session_lock';
-
-  /// Live instances waiting for FRB readiness. The Linux subscribe
+  /// Live instances waiting for FRB readiness. The desktop subscribe
   /// path goes through `lfs_os_security::session_lock_listener` (FRB);
   /// AutoLockDetector mounts during the first runApp pass, so the
   /// initial `addListener` lands BEFORE `_initRustCoreOrFatal`. The
@@ -64,7 +55,6 @@ class SessionLockListener {
     }
   }
 
-  final MethodChannel _channel;
   final Stream<void>? _injectedEvents;
   final List<VoidCallback> _listeners = [];
 
@@ -102,7 +92,7 @@ class SessionLockListener {
       _streamSub = _injectedEvents.listen((_) => _fanOut());
       return;
     }
-    if (Platform.isLinux) {
+    if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
       // FRB-gated. Pre-`_initRustCoreOrFatal` calls leave `_installed`
       // false so [retryAllPending] re-attempts after the bootstrap
       // chain promotes everything else through
@@ -111,10 +101,6 @@ class SessionLockListener {
       _installed = true;
       _ensureRustStream();
       return;
-    }
-    if (Platform.isWindows || Platform.isMacOS) {
-      _installed = true;
-      _ensureNativeChannel();
     }
     // iOS / Android: lifecycle-paused covers it. No subscription
     // installed.
@@ -139,21 +125,6 @@ class SessionLockListener {
         level: LogLevel.warn,
       );
     }
-  }
-
-  void _ensureNativeChannel() {
-    _channel.setMethodCallHandler((call) async {
-      if (call.method == 'sessionLocked') {
-        _fanOut();
-      }
-      return null;
-    });
-    _channel.invokeMethod<void>('start').catchError((Object e) {
-      AppLogger.instance.log(
-        'SessionLockListener start failed: $e',
-        name: 'SessionLockListener',
-      );
-    });
   }
 
   void _fanOut() {
