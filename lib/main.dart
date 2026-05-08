@@ -24,6 +24,7 @@ import 'app/update_dialog_flow.dart';
 import 'widgets/shortcut_registry.dart';
 import 'core/bus/app_bus.dart';
 import 'core/security/backup_exclusion.dart';
+import 'core/session/session.dart';
 import 'core/security/lock_state.dart';
 import 'core/security/process_hardening.dart';
 import 'core/security/secure_key_storage.dart';

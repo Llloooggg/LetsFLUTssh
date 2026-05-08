@@ -335,11 +335,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Future<void> _connectSessionSftp(
     BuildContext context,
     WidgetRef ref,
-    session,
+    Session session,
   ) => SessionConnect.connectSftp(context, ref, session);
 
-  Future<void> _connectSession(BuildContext context, WidgetRef ref, session) =>
-      SessionConnect.connectTerminal(context, ref, session);
+  Future<void> _connectSession(
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+  ) => SessionConnect.connectTerminal(context, ref, session);
 
   Future<void> _newSession(BuildContext context, WidgetRef ref) async {
     final result = await SessionEditDialog.show(context);

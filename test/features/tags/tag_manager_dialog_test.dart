@@ -13,7 +13,7 @@ import 'package:letsflutssh/widgets/toast.dart';
 /// can resolve against the same state.
 class FakeTagsNotifier extends TagsNotifier {
   FakeTagsNotifier([List<Tag>? initial])
-    : _tags = {for (final t in initial ?? []) t.id: t};
+    : _tags = {for (final t in initial ?? <Tag>[]) t.id: t};
 
   final Map<String, Tag> _tags;
   final Map<String, Set<String>> _sessionTags = {};

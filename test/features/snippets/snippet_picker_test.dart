@@ -16,7 +16,7 @@ import '../../helpers/frb_bootstrap.dart';
 /// override can resolve against the same state.
 class FakeSnippetsNotifier extends SnippetsNotifier {
   FakeSnippetsNotifier([List<Snippet>? initial])
-    : _snippets = {for (final s in initial ?? []) s.id: s},
+    : _snippets = {for (final s in initial ?? <Snippet>[]) s.id: s},
       _sessionLinks = {};
 
   final Map<String, Snippet> _snippets;
