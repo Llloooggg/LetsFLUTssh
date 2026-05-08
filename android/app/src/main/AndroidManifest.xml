@@ -25,6 +25,25 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
+    <!-- API 33+ (Android 13+) requires runtime POST_NOTIFICATIONS for
+         every app that posts a notification, including the foreground
+         service that keeps SSH alive. Without it, Android 13+ silently
+         suppresses the persistent notification — the foreground service
+         still runs but the user has no UI cue that an SSH connection is
+         alive in the background. The runtime grant is requested via
+         flutter_foreground_task's `requestPermission` API on first start. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Optional opt-in: REQUEST_IGNORE_BATTERY_OPTIMIZATIONS lets
+         the user grant the app a Doze allowlist slot from Settings →
+         Battery. Without it, Android Doze can suspend the foreground
+         service after extended idle (~30 min screen-off) and SSH
+         connections drop silently. The grant is opt-in only; the app
+         never auto-prompts (Play Store policy) — the Settings →
+         Connection panel surfaces a "Disable battery optimization"
+         button that fires the system dialog. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <application
         android:label="LFssh"
         android:name="${applicationName}"
