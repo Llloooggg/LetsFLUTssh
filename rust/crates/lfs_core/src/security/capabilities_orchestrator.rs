@@ -138,7 +138,7 @@ async fn run_hardware_vault_probe(is_linux_host: bool) -> String {
         // Linux flows through the in-process TPM CLI probe at
         // the provider layer; the orchestrator leaves the code
         // at "unknown" so the provider can overwrite it after
-        // calling `lfs_core::platform::linux::tpm::probe`. A
+        // calling `lfs_os_security::linux::tpm::probe`. A
         // future refactor folds that probe in here too once the
         // Linux provider's ordering constraints are sorted.
         return "unknown".to_string();

@@ -1,7 +1,7 @@
 //! Per-prompt registry for the hardware-vault probe the
 //! capabilities orchestrator runs on Apple / Android / Windows.
 //!
-//! Linux uses the in-process `lfs_core::platform::linux::tpm`
+//! Linux uses the in-process `lfs_os_security::linux::tpm`
 //! probe directly (no Dart round-trip needed); the other three
 //! platforms route through `MethodChannel('com.letsflutssh/
 //! hardware_vault').invokeMethod('probeDetail')` which only

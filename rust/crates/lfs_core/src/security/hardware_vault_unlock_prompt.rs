@@ -9,7 +9,7 @@
 //! all sit behind plugins or method channels with no mature
 //! parallel Rust crate covering every platform's behavioural
 //! quirks. The Linux variant could in principle route directly
-//! through `lfs_core::platform::linux::tpm` without a prompt;
+//! through `lfs_os_security::linux::tpm` without a prompt;
 //! the orchestrator picks that branch where it can and falls
 //! back to the prompt path on every other host.
 //!

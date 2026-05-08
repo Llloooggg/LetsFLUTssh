@@ -3,7 +3,7 @@
 //!
 //! Apple / Android live behind `lfs_os_security::hardware_tier_vault`
 //! (objc2 / JNI FFI). Linux's TPM CLI shell-out lives one crate up in
-//! `lfs_core::platform::linux::tpm`; the [`linux`] submodule below
+//! `lfs_os_security::linux::tpm`; the [`linux`] submodule below
 //! orchestrates the full store / read / clear flow Rust-internal so
 //! the DB key never crosses the FRB boundary on this path either.
 //!
@@ -119,7 +119,7 @@ pub mod linux {
     use std::path::{Path, PathBuf};
 
     use crate::path::write_bytes_atomic;
-    use crate::platform::linux::tpm::{self, TpmConfig};
+    use lfs_os_security::linux::tpm::{self, TpmConfig};
 
     /// Filename inside `support_dir` carrying the encoded blob.
     /// Matches the wipe-registry entry in

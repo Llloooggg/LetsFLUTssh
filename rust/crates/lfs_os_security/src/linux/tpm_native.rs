@@ -39,7 +39,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 use super::tpm::{TpmConfig, TpmProbeResult, MAX_SEAL_BYTES};
-use crate::error::Error;
+use crate::linux::TpmError as Error;
 
 /// TPM2B size prefix is two bytes, big-endian per TCG spec.
 const TPM2B_SIZE_PREFIX: usize = 2;

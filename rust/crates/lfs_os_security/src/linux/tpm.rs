@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
-use crate::error::Error;
+use crate::linux::TpmError as Error;
 
 const DEFAULT_BINARY: &str = "tpm2";
 const DEFAULT_DEVICE: &str = "/dev/tpmrm0";

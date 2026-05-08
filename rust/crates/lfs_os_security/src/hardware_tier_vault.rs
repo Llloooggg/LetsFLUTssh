@@ -37,7 +37,7 @@
 //!
 //! On non-Apple platforms every entry point returns
 //! [`HardwareVaultError::PlatformUnsupported`] — Linux uses the
-//! TPM2 path in `lfs_core::platform::linux::tpm`, Windows uses the
+//! TPM2 path in `lfs_os_security::linux::tpm`, Windows uses the
 //! NCrypt port in [`super::windows::hardware_vault`], Android uses
 //! the AndroidKeystore port in [`super::android::hardware_vault`].
 

@@ -61,27 +61,13 @@ futures-util = { workspace = true }
 uuid = { workspace = true }
 
 # Linux-only D-Bus client for the fprintd shim under
-# `platform::linux::fprintd`, plus the TSS2 ESAPI bindings for the
-# native TPM2 seal/unseal path under `platform::linux::tpm`. Gated
-# per-target so non-Linux builds (Windows / macOS / iOS / Android)
-# don't pull either dep — `tss-esapi` requires the libtss2-dev
-# system headers + dynamic link to libtss2-esys, both of which are
-# Linux-only.
+# `platform::linux::fprintd`. The TSS2 ESAPI binding (`tss-esapi`)
+# moved into `lfs_os_security::linux::tpm` so the OS-FFI
+# perimeter stays single-edge — `lfs_core` reaches the TPM
+# orchestrator through that crate.
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = { workspace = true }
-# `futures-util` is already a workspace dep at the crate level
-# (line ~60); the duplicate target-specific entry was redundant
-# since cargo merges the same crate name across cfg arms.
 serde = { workspace = true }
-# Direct TSS2 ESAPI bindings — replaces the historical `tpm2-tools`
-# subprocess shell-out under `platform::linux::tpm`. Pinned to a
-# specific minor: tss-esapi's API has churned across major versions,
-# and pinning here keeps a future minor bump from silently changing
-# the seal template's marshalled bytes (which would brick existing
-# users' T2 hardware-tier envelopes). When bumping, re-verify
-# round-trip seal/unseal against an envelope sealed under the
-# previous minor.
-tss-esapi = "7.5"
 
 
 [dev-dependencies]

@@ -408,6 +408,13 @@ pub mod android;
 #[cfg(target_os = "windows")]
 pub mod windows;
 
+// Linux-only — TSS2 ESAPI bindings under `linux::tpm` /
+// `linux::tpm_native`. Moved here from `lfs_core` so the audit
+// invariant "lfs_os_security is the single OS-FFI perimeter"
+// holds end-to-end across every supported platform.
+#[cfg(target_os = "linux")]
+pub mod linux;
+
 // macOS-only — self-sign / re-sign code-signing pipeline that
 // turns a freshly-installed `.app` into one with a stable
 // signing identity in the user's keychain. Subprocess-driven

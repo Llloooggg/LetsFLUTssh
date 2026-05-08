@@ -29,6 +29,10 @@ tokio = { workspace = true, features = ["sync", "io-util", "process", "fs"] }
 # `hardware_tier_vault` (Android JNI path) and any future
 # constant-time equality call sites the OS-side adds.
 subtle = { workspace = true }
+# OsRng for the `linux::tpm::WorkDir` mkdtemp suffix. Cross-target
+# because cfg-gated imports compile on every host even when their
+# bodies never run.
+rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 libc = { version = "0.2", default-features = false }
@@ -92,6 +96,14 @@ arboard = { version = "3", default-features = false }
 zbus = { workspace = true }
 futures-util = { workspace = true }
 secret-service = { version = "5", default-features = false, features = ["rt-tokio-crypto-rust"] }
+# Direct TSS2 ESAPI bindings — moved here from `lfs_core` so the
+# OS-FFI perimeter stays single-edge. Pinned to a specific minor:
+# tss-esapi's API has churned across major versions, and pinning
+# here keeps a future minor bump from silently changing the seal
+# template's marshalled bytes (which would brick existing users'
+# T2 hardware-tier envelopes). When bumping, re-verify round-trip
+# seal/unseal against an envelope sealed under the previous minor.
+tss-esapi = "7.5"
 
 # Apple-only deps for `backup_exclusion` (NSURL.setResourceValues:
 # isExcludedFromBackup), `secure_clipboard` (NSPasteboard /

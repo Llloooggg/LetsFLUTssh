@@ -1,4 +1,4 @@
-//! FRB adapter for `lfs_core::platform::linux::tpm`.
+//! FRB adapter for `lfs_os_security::linux::tpm`.
 //!
 //! Async — every call shells out to `tpm2-tools`; the spawn +
 //! wait would block the FRB tokio worker thread otherwise. The
@@ -14,7 +14,7 @@
 //! a misrouted call surfaces a clear error instead of a mystery
 //! linker symbol.
 
-/// Mirror of `lfs_core::platform::linux::tpm::TpmProbeResult` so
+/// Mirror of `lfs_os_security::linux::tpm::TpmProbeResult` so
 /// the Dart UI can branch on a typed enum instead of a magic
 /// number.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,8 +28,8 @@ pub enum DbTpmProbeResult {
 }
 
 #[cfg(target_os = "linux")]
-fn map_probe(r: lfs_core::platform::linux::tpm::TpmProbeResult) -> DbTpmProbeResult {
-    use lfs_core::platform::linux::tpm::TpmProbeResult as R;
+fn map_probe(r: lfs_os_security::linux::tpm::TpmProbeResult) -> DbTpmProbeResult {
+    use lfs_os_security::linux::tpm::TpmProbeResult as R;
     match r {
         R::Available => DbTpmProbeResult::Available,
         R::DeviceNodeMissing => DbTpmProbeResult::DeviceNodeMissing,
@@ -56,9 +56,9 @@ pub async fn tpm_probe(
     #[cfg(target_os = "linux")]
     {
         let cfg = build_cfg(binary, device, timeout_ms);
-        let r = tokio::task::spawn_blocking(move || lfs_core::platform::linux::tpm::probe(&cfg))
+        let r = tokio::task::spawn_blocking(move || lfs_os_security::linux::tpm::probe(&cfg))
             .await
-            .unwrap_or(lfs_core::platform::linux::tpm::TpmProbeResult::ProbeFailed);
+            .unwrap_or(lfs_os_security::linux::tpm::TpmProbeResult::ProbeFailed);
         map_probe(r)
     }
     #[cfg(not(target_os = "linux"))]
@@ -91,11 +91,11 @@ pub async fn tpm_seal(
     {
         let cfg = build_cfg(binary, device, timeout_ms);
         tokio::task::spawn_blocking(move || {
-            lfs_core::platform::linux::tpm::seal(&cfg, &secret, &auth_value)
+            lfs_os_security::linux::tpm::seal(&cfg, &secret, &auth_value)
         })
         .await
         .map_err(|e| format!("tpm seal task: {e}"))?
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::CRYPTO, e))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -118,11 +118,11 @@ pub async fn tpm_unseal(
     {
         let cfg = build_cfg(binary, device, timeout_ms);
         tokio::task::spawn_blocking(move || {
-            lfs_core::platform::linux::tpm::unseal(&cfg, &blob, &auth_value)
+            lfs_os_security::linux::tpm::unseal(&cfg, &blob, &auth_value)
         })
         .await
         .map_err(|e| format!("tpm unseal task: {e}"))?
-        .map_err(|e| crate::api::frb_err::from_core(&e))
+        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::CRYPTO, e))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -136,8 +136,8 @@ fn build_cfg(
     binary: Option<String>,
     device: Option<String>,
     timeout_ms: Option<u64>,
-) -> lfs_core::platform::linux::tpm::TpmConfig {
-    let mut cfg = lfs_core::platform::linux::tpm::TpmConfig::default();
+) -> lfs_os_security::linux::tpm::TpmConfig {
+    let mut cfg = lfs_os_security::linux::tpm::TpmConfig::default();
     if let Some(b) = binary {
         cfg.binary = b;
     }

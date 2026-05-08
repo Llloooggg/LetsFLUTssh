@@ -20,7 +20,7 @@
 //! Both now live here. The orchestrator pulls the DB-key bytes from
 //! the SecretStore under the caller-supplied `secret_id`, derives
 //! the fprintd enrolment hash via [`crate::platform::linux::fprintd`],
-//! seals through [`crate::platform::linux::tpm`], and writes the
+//! seals through [`lfs_os_security::linux::tpm`], and writes the
 //! resulting blob to `support_dir/biometric_vault.tpm` atomically.
 //! On read it does the reverse and stages the unsealed bytes into
 //! the SecretStore under the caller-supplied target id — Dart sees
@@ -37,7 +37,8 @@ pub mod linux {
     use std::path::{Path, PathBuf};
 
     use crate::path::write_bytes_atomic;
-    use crate::platform::linux::{fprintd, tpm};
+    use crate::platform::linux::fprintd;
+    use lfs_os_security::linux::tpm;
 
     /// Filename inside `support_dir` carrying the TPM-sealed blob.
     /// Matches the wipe-registry entry in
