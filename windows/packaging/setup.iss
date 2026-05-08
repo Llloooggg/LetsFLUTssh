@@ -70,9 +70,20 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
 [Registry]
+; URL scheme letsflutssh:// — opens deep links from browser/Mail/etc.
 Root: HKCU; Subkey: "Software\Classes\letsflutssh"; ValueType: string; ValueName: ""; ValueData: "URL:LetsFLUTssh Protocol"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\letsflutssh"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\letsflutssh\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+; File class for the LetsFLUTssh archive bundle.
+Root: HKCU; Subkey: "Software\Classes\LetsFLUTssh.Archive"; ValueType: string; ValueName: ""; ValueData: "LetsFLUTssh Archive"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\LetsFLUTssh.Archive\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
+; Per-extension associations: .lfs (archive), .pem / .key / .pub (SSH keys).
+Root: HKCU; Subkey: "Software\Classes\.lfs"; ValueType: string; ValueName: ""; ValueData: "LetsFLUTssh.Archive"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\.pem\OpenWithProgids"; ValueType: string; ValueName: "LetsFLUTssh.Archive"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.key\OpenWithProgids"; ValueType: string; ValueName: "LetsFLUTssh.Archive"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\.pub\OpenWithProgids"; ValueType: string; ValueName: "LetsFLUTssh.Archive"; ValueData: ""; Flags: uninsdeletevalue
 
 ; ─────────────────────────────────────────────────────────────────
 ; Uninstaller: optional removal of user data

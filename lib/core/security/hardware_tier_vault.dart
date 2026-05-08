@@ -11,7 +11,7 @@ import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
-/// Hardware-bound DB-key vault for L3 (Hardware + PIN) tier.
+/// Hardware-bound DB-key vault for T2 (Hardware + PIN) tier.
 ///
 /// The DB key is sealed inside a hardware module under an auth value
 /// derived from the user's PIN. The platform's hardware-enforced
@@ -294,7 +294,7 @@ class HardwareTierVault {
     }
   }
 
-  /// Drop the sealed blob. Called on tier switch away from L3 and
+  /// Drop the sealed blob. Called on tier switch away from T2 and
   /// on PIN change (before a new [store]).
   Future<void> clear() async {
     try {

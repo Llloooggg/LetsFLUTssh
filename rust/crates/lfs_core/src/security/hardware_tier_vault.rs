@@ -1,4 +1,4 @@
-//! L3 hardware-tier vault — Linux TPM2 path orchestrator + shared
+//! T2 hardware-tier vault — Linux TPM2 path orchestrator + shared
 //! blob-format helpers.
 //!
 //! Apple / Android live behind `lfs_os_security::hardware_tier_vault`

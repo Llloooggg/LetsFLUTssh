@@ -377,7 +377,7 @@ sealed class BusEvent with _$BusEvent {
     required String promptId,
   }) = BusEvent_HardwareVaultProbePromptRequest;
 
-  /// L3 tier-unlock orchestrator needs the hardware vault
+  /// T2 tier-unlock orchestrator needs the hardware vault
   /// to unseal the DB key. Dart subscriber calls
   /// `HardwareTierVault.read(pin)` which routes through FRB
   /// into the per-platform Rust vault (Apple SE / Android
@@ -391,7 +391,7 @@ sealed class BusEvent with _$BusEvent {
     String? pin,
   }) = BusEvent_HardwareVaultUnlockPromptRequest;
 
-  /// Hardware-vault seal — fired by the L3 first-launch
+  /// Hardware-vault seal — fired by the T2 first-launch
   /// orchestrator. Dart subscriber takes the staged bytes via
   /// `secrets_take(db_key_secret_id)` and (when present)
   /// `secrets_take(pin_secret_id)`, wraps them via

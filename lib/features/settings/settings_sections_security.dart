@@ -103,7 +103,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required String? unavailableReason,
     required S l10n,
   }) {
-    // Bank-style v3: L1+password is `keychain` + modifier;
+    // Bank-style v3: T1+password is `keychain` + modifier;
     // pre-v3 needed a dedicated keychainWithPassword check.
     final isCurrent = tier == currentLevel;
     return ExpandableTierCard(
@@ -157,7 +157,7 @@ class _SecuritySectionState extends ConsumerState<_SecuritySection> {
     required S l10n,
   }) {
     if (tier == SecurityTier.plaintext) return null;
-    // Bank-style v3: L1+password is `keychain` + modifier;
+    // Bank-style v3: T1+password is `keychain` + modifier;
     // pre-v3 needed a dedicated keychainWithPassword check.
     final isCurrent = tier == currentLevel;
     // Same priority order as the biometric row (see

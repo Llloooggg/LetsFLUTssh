@@ -19,10 +19,10 @@
 //! simplest (no secret); subsequent tiers compose with the OS
 //! keychain / biometric stack directly via
 //! [`lfs_os_security::secure_key_storage`] +
-//! [`lfs_os_security::biometric_auth`] for the L1/L2 paths, and
+//! [`lfs_os_security::biometric_auth`] for the T1/L2 paths, and
 //! with the still-Dart-side hardware-vault prompt registries
 //! (`hardware_vault_unlock_prompt`, `hardware_vault_seal_prompt`)
-//! for L3 — the latter own platform-bound surfaces (Hello PIN
+//! for T2 — the latter own platform-bound surfaces (Hello PIN
 //! sub-dialog, Touch ID prompt) that have to drive Flutter UI.
 
 use crate::bus::Event;
@@ -53,7 +53,7 @@ pub const TIER_UNLOCK_KEY_ID: &str = crate::secrets::ACTIVE_DBKEY_SECRET_ID;
 /// `secrets_take` on the same `TierStateChanged.unlocked` event
 /// the orchestrator just emitted.
 ///
-/// The dialog tiers (L2/L3/Paranoid) interpret the variants for
+/// The dialog tiers (L2/T2/Paranoid) interpret the variants for
 /// their UI:
 ///   - `Staged` → close the dialog, the listener owns the rest.
 ///   - `WrongSecret` → keep the dialog open, surface the
@@ -83,7 +83,7 @@ fn stage_key(bytes: &[u8]) {
         .put(TIER_UNLOCK_KEY_ID, bytes);
 }
 
-/// Storage key for the L1 / L2 DB encryption key in the OS
+/// Storage key for the T1 / L2 DB encryption key in the OS
 /// keychain. Mirrors the Dart-era
 /// `SecureKeyStorage._keyName` const — both implementations
 /// must agree on the slot or an existing install would lose
@@ -122,7 +122,7 @@ pub fn unlock_plaintext() {
     instance_dispatch(SecurityTier::Plaintext, &TierEvent::UnlockSucceeded);
 }
 
-/// Keychain tier (L1) — read the DB encryption key directly from
+/// Keychain tier (T1) — read the DB encryption key directly from
 /// the OS keychain via [`lfs_os_security::secure_key_storage`],
 /// stage it under [`TIER_UNLOCK_KEY_ID`], dispatch the cascade.
 ///
@@ -374,7 +374,7 @@ pub async fn unlock_paranoid(password: Vec<u8>) -> UnlockOutcome {
     }
 }
 
-/// Hardware tier (L3) — unseal the DB key via the platform
+/// Hardware tier (T2) — unseal the DB key via the platform
 /// hardware vault (Linux TPM via `tpm2-tools`, Apple Secure
 /// Enclave / Android StrongBox / Windows Hello via method
 /// channel). Dispatches the cascade events along the way;
@@ -385,7 +385,7 @@ pub async fn unlock_paranoid(password: Vec<u8>) -> UnlockOutcome {
 /// variant; pass `None` for the passwordless variant where
 /// the vault was sealed without a user secret.
 ///
-/// The Dart caller owns the L3 unlock dialog UI (PIN input,
+/// The Dart caller owns the T2 unlock dialog UI (PIN input,
 /// rate-limit countdown, biometric option, "forgot PIN" reset)
 /// and the platform channel call itself; the orchestrator
 /// publishes a `HardwareVaultUnlockPromptRequest` and the
@@ -455,7 +455,7 @@ pub async fn unlock_hardware(pin: Option<String>) -> UnlockOutcome {
 // config persist) for both paths so the Dart-side first-launch
 // helpers shrink to "dispatch + await listener".
 
-/// First-launch L0 (Plaintext). No secret, no plugin call. Stages
+/// First-launch T0 (Plaintext). No secret, no plugin call. Stages
 /// the empty buffer + emits the cascade so the listener opens the
 /// DB unencrypted via `ensureRustDbOpen(key: empty)`.
 pub fn first_launch_plaintext() {
@@ -499,7 +499,7 @@ pub async fn first_launch_paranoid(password: Vec<u8>) -> UnlockOutcome {
     UnlockOutcome::Corruption(detail)
 }
 
-/// First-launch L1 (Keychain). Generates a random AES-GCM key,
+/// First-launch T1 (Keychain). Generates a random AES-GCM key,
 /// writes it directly to the OS keychain via
 /// [`lfs_os_security::secure_key_storage::write`], then stages
 /// the bytes + emits the cascade. On a write failure dispatches
@@ -574,7 +574,7 @@ pub async fn first_launch_keychain_with_password(password: Vec<u8>) -> UnlockOut
     }
 }
 
-/// First-launch L3 (Hardware). Generates a fresh AES-GCM key,
+/// First-launch T2 (Hardware). Generates a fresh AES-GCM key,
 /// publishes a `HardwareVaultSealPromptRequest` so the Dart
 /// subscriber wraps it via `HardwareTierVault.store(dbKey: bytes,
 /// pin: pin)`, stages the same bytes + emits the cascade. `pin`
@@ -659,7 +659,7 @@ async fn write_to_keychain(bytes: &[u8]) -> Result<(), String> {
 /// `Locked → Unlocking → Unlocked` cascade for [`tier`] without
 /// going through a per-tier verify (gate / Argon2id /
 /// keychain-read / hardware unseal). Used by the biometric
-/// fast-path on L2/L3 — the bytes come from the OS-managed
+/// fast-path on L2/T2 — the bytes come from the OS-managed
 /// `BiometricKeyVault` (Dart-side flutter plugin), so the
 /// per-tier orchestrator's verify step is bypassed; the
 /// cascade still has to fire so the [`TierUnlockedListener`]

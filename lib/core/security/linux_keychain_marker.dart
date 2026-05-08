@@ -18,7 +18,7 @@ import '../../utils/logger.dart';
 /// `gnome-keyring-daemon` / `kwalletd`) spam stderr on every launch.
 ///
 /// Every class that reads the OS keychain behind
-/// `flutter_secure_storage` (`SecureKeyStorage` for L1 DB key,
+/// `flutter_secure_storage` (`SecureKeyStorage` for T1 DB key,
 /// `BiometricKeyVault` for the biometric-gated fallback) refuses to
 /// talk to libsecret until this marker file says the user has already
 /// completed a successful keychain write — i.e. the keyring was

@@ -769,5 +769,19 @@
   "recommendedBadge": "권장",
   "tierHardwareSubtitleHonest": "고급: 하드웨어에 바인딩된 키. 이 기기의 칩이 분실되거나 교체되면 데이터를 복구할 수 없습니다.",
   "tierParanoidSubtitleHonest": "대안: 마스터 비밀번호를 사용하며 OS를 신뢰하지 않습니다. OS 침해로부터 보호하지만 T1/T2에 비해 런타임 보호는 향상되지 않습니다.",
-  "mitigationsNoteRuntimeThreats": "runtime 위협(동일 사용자 malware, 실행 중 프로세스 메모리 덤프)은 모든 티어에서 ✗로 표시됩니다. 이는 티어 선택과 무관하게 적용되는 별도의 완화 기능으로 대응됩니다."
+  "mitigationsNoteRuntimeThreats": "runtime 위협(동일 사용자 malware, 실행 중 프로세스 메모리 덤프)은 모든 티어에서 ✗로 표시됩니다. 이는 티어 선택과 무관하게 적용되는 별도의 완화 기능으로 대응됩니다.",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything"
 }

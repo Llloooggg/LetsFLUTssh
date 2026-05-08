@@ -18,7 +18,7 @@ import 'secure_screen_scope.dart';
 ///
 /// Bundles the four label strings with the input-mode flags
 /// (`numeric`, `maxLength`). Keeping them in one struct is both
-/// ergonomic at the call site (L2 / L3 paths in `main.dart` pass a
+/// ergonomic at the call site (L2 / T2 paths in `main.dart` pass a
 /// single value) and keeps `show()` under the S107 parameter-count
 /// threshold.
 class TierSecretUnlockLabels {
@@ -66,7 +66,7 @@ class TierSecretUnlockBiometric {
 }
 
 /// Shared unlock-dialog shell for the tier-secret paths (L2 short
-/// password, L3 PIN). Owns the retry loop: the host supplies a
+/// password, T2 PIN). Owns the retry loop: the host supplies a
 /// [verify] callback that returns a [TierUnlockAttempt]; the dialog
 /// re-prompts on `wrongSecret`, closes on `staged` (success →
 /// pop(true) so the caller awaits the post-unlock listener cascade)

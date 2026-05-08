@@ -39,7 +39,7 @@ final keychainPasswordGateProvider = Provider<KeychainPasswordGate>(
   (_) => KeychainPasswordGate(),
 );
 
-/// L3 hardware-bound DB key vault (TPM2 on Linux, stubbed elsewhere
+/// T2 hardware-bound DB key vault (TPM2 on Linux, stubbed elsewhere
 /// until per-platform plugins land).
 final hardwareTierVaultProvider = Provider<HardwareTierVault>(
   (_) => HardwareTierVault(),

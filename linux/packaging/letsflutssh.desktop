@@ -7,6 +7,6 @@ Icon=letsflutssh
 Type=Application
 Categories=Network;RemoteAccess;
 Keywords=ssh;sftp;terminal;remote;
-MimeType=x-scheme-handler/letsflutssh;
+MimeType=x-scheme-handler/letsflutssh;application/x-letsflutssh-archive;application/x-pem-file;application/pkcs8;
 StartupWMClass=letsflutssh
 Terminal=false

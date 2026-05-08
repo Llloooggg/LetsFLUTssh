@@ -28,7 +28,7 @@ use serde_json::{json, Value};
 /// change and gets the same migration discipline as a disk
 /// artefact rename.
 pub const MANAGED_KEYS: &[&str] = &[
-    // L1 / L2 DB encryption key (legacy slot — pre-tier-machine
+    // T1 / L2 DB encryption key (legacy slot — pre-tier-machine
     // installs keep using this one until the tier flip rotates it).
     "letsflutssh_encryption_key",
     // L2 biometric overlay encryption key.

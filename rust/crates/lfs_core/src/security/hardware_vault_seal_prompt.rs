@@ -5,7 +5,7 @@
 //! failure.
 //!
 //! Used by `tier_unlock_orchestrator::first_launch_hardware` so
-//! the L3 first-launch arm goes through the same orchestrator +
+//! the T2 first-launch arm goes through the same orchestrator +
 //! listener pattern as the unlock arms — the orchestrator
 //! generates a fresh DB key, asks the Dart subscriber to seal it
 //! through `HardwareTierVault.store(key, pin)`, then stages the

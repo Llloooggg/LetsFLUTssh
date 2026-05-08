@@ -68,7 +68,7 @@ pub fn hkdf_sha256(
 ///
 /// * `KeychainPasswordGate` (L2) — gate-stored hash:
 ///   `HMAC(pepper, salt || password)`. Mismatch ≠ keychain unlock.
-/// * `HardwareTierVault` (L3) — TPM auth value:
+/// * `HardwareTierVault` (T2) — TPM auth value:
 ///   `HMAC(salt, password)` (or `HMAC(salt, fprintdHash)` on the
 ///   biometric branch). Mismatch ≠ TPM unseal — the hardware
 ///   enforces the per-attempt rate limit.

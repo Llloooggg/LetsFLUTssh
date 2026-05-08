@@ -1,4 +1,4 @@
-//! Hardware-bound L3 vault for Apple platforms.
+//! Hardware-bound T2 vault for Apple platforms.
 //!
 //! Mirrors `macos/Runner/HardwareVaultPlugin.swift` +
 //! `ios/Runner/HardwareVaultPlugin.swift` byte-for-byte:
@@ -60,7 +60,7 @@ pub enum HardwareProbeReason {
     /// `touchIDNotAvailable` — typically a pre-T2 Intel Mac with no
     /// SE hardware at all.
     AppleNoSecureEnclave,
-    /// SE hardware present but device passcode unset; L3 requires
+    /// SE hardware present but device passcode unset; T2 requires
     /// one for the `WhenPasscodeSet` access-control binding.
     ApplePasscodeNotSet,
     /// `SecKeyCreateRandomKey` rejected the SE binding with
@@ -432,7 +432,7 @@ mod apple {
     use std::os::unix::fs::PermissionsExt;
     use std::ptr;
 
-    /// Application-tag bytes the primary L3 SE key is registered
+    /// Application-tag bytes the primary T2 SE key is registered
     /// under. Mirrors the Swift `keyTag` constant — bumping is a
     /// wire break (existing on-disk vaults would unwrap against the
     /// wrong key).
@@ -827,7 +827,7 @@ mod apple {
         matches!(probe_detail(), HardwareProbeReason::Available)
     }
 
-    /// Wrap `db_key` against the primary L3 SE key and write the
+    /// Wrap `db_key` against the primary T2 SE key and write the
     /// `(pin_hmac, wrapped)` envelope to disk. Re-uses the existing
     /// SE key when one is registered; creates one otherwise.
     pub(super) fn store(

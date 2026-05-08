@@ -2475,4 +2475,53 @@ class SRu extends S {
 
   @override
   String get masterPasswordLabel => 'Мастер-пароль';
+
+  @override
+  String get globalErrorTitle => 'Непредвиденная ошибка';
+
+  @override
+  String get globalErrorBody =>
+      'Произошла непредвиденная ошибка. Приложение продолжит работу.';
+
+  @override
+  String get globalErrorLogSavedNote => 'Подробности записаны в журнал.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'Включите логирование в настройках, чтобы сохранять детали ошибок.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'Ошибка: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'Включить логирование';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'Логирование включено — ошибки будут сохраняться в журнал';
+
+  @override
+  String get fatalErrorQuitButton => 'Выйти';
+
+  @override
+  String get fatalErrorWipeButton => 'Удалить все данные';
+
+  @override
+  String get fatalErrorWipingButton => 'Удаление…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'Удаление сотрёт все файлы приложения (конфигурацию, базу, vault-блобы, логи) — следующий запуск начнётся с чистой установки. Это необратимо.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'Удалить все данные?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'Это безвозвратно удалит все файлы конфигурации, базы данных и хранилищ. Приложение перезапустится с пустой установкой. Продолжить?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'Удалить всё';
 }

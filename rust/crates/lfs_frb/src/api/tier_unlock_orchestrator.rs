@@ -59,7 +59,7 @@ pub fn tier_unlock_plaintext() {
     tier_unlock_orchestrator::unlock_plaintext();
 }
 
-/// Keychain tier (L1) — read the DB encryption key from the OS
+/// Keychain tier (T1) — read the DB encryption key from the OS
 /// keychain via the prompt registry; emit cascade events along
 /// the way; stage the bytes in the SecretStore. Returns the
 /// outcome discriminant — bytes never cross FRB.
@@ -103,7 +103,7 @@ pub async fn tier_unlock_paranoid(password: Vec<u8>) -> DbUnlockOutcome {
         .into()
 }
 
-/// Hardware tier (L3) — fan out a hardware-vault-unlock prompt
+/// Hardware tier (T2) — fan out a hardware-vault-unlock prompt
 /// to the Dart subscriber + emit cascade events. `pin` is the
 /// typed user secret for the password modifier; pass `None`
 /// for the passwordless variant. Stages the unsealed bytes in
@@ -151,7 +151,7 @@ pub fn hardware_vault_unlock_prompt_cancel(prompt_id: String) {
     hardware_vault_unlock_prompt::instance().cancel(&prompt_id);
 }
 
-/// First-launch L0 (Plaintext). Dispatches the cascade with an
+/// First-launch T0 (Plaintext). Dispatches the cascade with an
 /// empty staged key so the listener opens the DB unencrypted via
 /// `ensureRustDbOpen(key: empty)`. Identical wire shape to
 /// `tier_unlock_plaintext` — first-launch and re-unlock converge
@@ -171,7 +171,7 @@ pub async fn tier_first_launch_paranoid(password: Vec<u8>) -> DbUnlockOutcome {
         .into()
 }
 
-/// First-launch L1 (Keychain). Generates a fresh AES-GCM key,
+/// First-launch T1 (Keychain). Generates a fresh AES-GCM key,
 /// publishes a `KeychainOpPromptRequest { Write }` so the Dart
 /// subscriber writes it via `flutter_secure_storage`, stages
 /// the bytes + emits the cascade.
@@ -193,7 +193,7 @@ pub async fn tier_first_launch_keychain_with_password(password: Vec<u8>) -> DbUn
         .into()
 }
 
-/// First-launch L3 (Hardware). Generates a fresh AES-GCM key,
+/// First-launch T2 (Hardware). Generates a fresh AES-GCM key,
 /// publishes a `HardwareVaultSealPromptRequest` so the Dart
 /// subscriber wraps it via `HardwareTierVault.store(...)`,
 /// stages + emits cascade. Pass `pin: None` for the passwordless
@@ -281,10 +281,10 @@ pub fn tier_unlock_biometric_commit_from_secret(tier_wire_name: String, secret_i
     tier_unlock_orchestrator::commit_biometric_unlock_from_secret(tier, &secret_id)
 }
 
-/// Cancel an in-flight Keychain (L1) unlock attempt. Dispatches
+/// Cancel an in-flight Keychain (T1) unlock attempt. Dispatches
 /// `UnlockFailed { UserCancelled }` so the tier machine flips
 /// back to `Locked`. Used by the Dart unlock-flow caller when
-/// the L1 cascade is torn down before the keychain read lands
+/// the T1 cascade is torn down before the keychain read lands
 /// (e.g. user invoked a tier reset mid-unlock).
 #[flutter_rust_bridge::frb(sync)]
 pub fn tier_unlock_keychain_cancel() {
@@ -302,9 +302,9 @@ pub fn tier_unlock_keychain_with_password_cancel() {
     tier_unlock_orchestrator::cancel_unlock(SecurityTier::Keychain);
 }
 
-/// Cancel an in-flight L3 unlock attempt. Dispatches
+/// Cancel an in-flight T2 unlock attempt. Dispatches
 /// `UnlockFailed { UserCancelled }` so the tier machine flips
-/// back to `Locked` when the user dismisses the L3 PIN dialog
+/// back to `Locked` when the user dismisses the T2 PIN dialog
 /// without submitting.
 #[flutter_rust_bridge::frb(sync)]
 pub fn tier_unlock_hardware_cancel() {

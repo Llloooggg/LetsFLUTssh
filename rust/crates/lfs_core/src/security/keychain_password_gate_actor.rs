@@ -67,7 +67,7 @@ pub async fn verify_password(support_dir: &Path, password: &[u8]) -> Result<bool
 
     // Step 3: fetch the keychain pepper. A backend error or
     // missing entry both collapse to Ok(false) — the rate limiter
-    // counts the attempt and the caller routes through the L0
+    // counts the attempt and the caller routes through the T0
     // fallback. `Err` here is reserved for the disk read above.
     let pepper = match lfs_os_security::secure_key_storage::read(PEPPER_KEY).await {
         Ok(Some(bytes)) if !bytes.is_empty() => bytes,
@@ -87,7 +87,7 @@ pub async fn verify_password(support_dir: &Path, password: &[u8]) -> Result<bool
 /// hash exists AND the keychain holds the pepper.
 ///
 /// Returns `Ok(false)` on any non-fatal miss (file absent, pepper
-/// absent, backend error). The L0 fallback path already treats
+/// absent, backend error). The T0 fallback path already treats
 /// the gate as not-configured in any of those cases — surfacing
 /// `Err` would only force the caller to map it back to the same
 /// false branch.
@@ -112,7 +112,7 @@ pub async fn is_configured(support_dir: &Path) -> Result<bool, String> {
 /// Two invariants, both load-bearing for L2:
 /// 1. Atomic disk write — a `write_bytes_atomic` crash mid-flush
 ///    yields torn JSON; next launch's `verify` returns false on
-///    decode and falls back to the L0 plaintext-tier unlock.
+///    decode and falls back to the T0 plaintext-tier unlock.
 /// 2. Disk before keychain — old order (keychain-first) could
 ///    crash between steps and leave the keychain holding the
 ///    NEW pepper while disk holds the OLD salt+HMAC; on next

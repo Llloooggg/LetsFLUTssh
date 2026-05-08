@@ -14,7 +14,7 @@ import 'password_rate_limiter.dart';
 
 /// UX-only password gate for L2 (keychain + password).
 ///
-/// Design: the DB key lives in the OS keychain exactly like L1.
+/// Design: the DB key lives in the OS keychain exactly like T1.
 /// A short user-typed password is held as a salted HMAC so the
 /// unlock dialog can reject the wrong value *before* touching the
 /// keychain. The hash is stored split across disk + keychain —

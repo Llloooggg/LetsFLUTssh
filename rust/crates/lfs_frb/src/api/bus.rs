@@ -260,7 +260,7 @@ pub enum BusEvent {
     /// `lfs_os_security::hardware_tier_vault::probe_detail`
     /// — and dispatches the platform reason code verbatim.
     HardwareVaultProbePromptRequest { prompt_id: String },
-    /// L3 tier-unlock orchestrator needs the hardware vault
+    /// T2 tier-unlock orchestrator needs the hardware vault
     /// to unseal the DB key. Dart subscriber calls
     /// `HardwareTierVault.read(pin)` which routes through FRB
     /// into the per-platform Rust vault (Apple SE / Android
@@ -273,7 +273,7 @@ pub enum BusEvent {
         prompt_id: String,
         pin: Option<String>,
     },
-    /// Hardware-vault seal — fired by the L3 first-launch
+    /// Hardware-vault seal — fired by the T2 first-launch
     /// orchestrator. Dart subscriber takes the staged bytes via
     /// `secrets_take(db_key_secret_id)` and (when present)
     /// `secrets_take(pin_secret_id)`, wraps them via

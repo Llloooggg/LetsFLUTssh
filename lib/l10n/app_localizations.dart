@@ -4346,6 +4346,90 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Master password'**
   String get masterPasswordLabel;
+
+  /// No description provided for @globalErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected Error'**
+  String get globalErrorTitle;
+
+  /// No description provided for @globalErrorBody.
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected error occurred. The app will continue running.'**
+  String get globalErrorBody;
+
+  /// No description provided for @globalErrorLogSavedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Full details have been saved to the log file.'**
+  String get globalErrorLogSavedNote;
+
+  /// No description provided for @globalErrorLogDisabledNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable logging in Settings to save error details.'**
+  String get globalErrorLogDisabledNote;
+
+  /// No description provided for @globalErrorTechnicalLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {detail}'**
+  String globalErrorTechnicalLine(String detail);
+
+  /// No description provided for @globalErrorEnableLoggingButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Logging'**
+  String get globalErrorEnableLoggingButton;
+
+  /// No description provided for @globalErrorLoggingEnabledToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Logging enabled — errors will be saved to log file'**
+  String get globalErrorLoggingEnabledToast;
+
+  /// No description provided for @fatalErrorQuitButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Quit'**
+  String get fatalErrorQuitButton;
+
+  /// No description provided for @fatalErrorWipeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe all data'**
+  String get fatalErrorWipeButton;
+
+  /// No description provided for @fatalErrorWipingButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Wiping…'**
+  String get fatalErrorWipingButton;
+
+  /// No description provided for @fatalErrorWipeExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.'**
+  String get fatalErrorWipeExplanation;
+
+  /// No description provided for @fatalErrorWipeConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe all data?'**
+  String get fatalErrorWipeConfirmTitle;
+
+  /// No description provided for @fatalErrorWipeConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?'**
+  String get fatalErrorWipeConfirmBody;
+
+  /// No description provided for @fatalErrorWipeConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Wipe everything'**
+  String get fatalErrorWipeConfirmAction;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

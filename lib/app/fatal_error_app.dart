@@ -3,6 +3,7 @@ import 'dart:io' show exit;
 import 'package:flutter/material.dart';
 
 import '../core/security/wipe_all_service.dart';
+import '../l10n/app_localizations.dart';
 import '../src/rust/api/app.dart' as rust_app;
 import '../src/rust/frb_generated.dart' show RustLib;
 import '../theme/app_theme.dart';
@@ -54,6 +55,28 @@ class _FatalErrorAppState extends State<FatalErrorApp> {
 
   Future<void> _onWipe() async {
     if (_wiping) return;
+    final l10n = S.of(context);
+    final ctx = context;
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(l10n.fatalErrorWipeConfirmTitle),
+        content: Text(l10n.fatalErrorWipeConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.red),
+            child: Text(l10n.fatalErrorWipeConfirmAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     setState(() => _wiping = true);
     // Prefer the canonical Rust path: it covers keychain + hardware
     // vault + writes the `.wipe-pending` crash-safety marker. We only
@@ -88,67 +111,80 @@ class _FatalErrorAppState extends State<FatalErrorApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: Scaffold(
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: AppTheme.fgDim),
-                  const SizedBox(height: 16),
-                  Text(
-                    widget.summary,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: AppFonts.lg),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    widget.detail,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: AppFonts.sm,
-                      color: AppTheme.fgDim,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
+      localizationsDelegates: S.localizationsDelegates,
+      supportedLocales: S.supportedLocales,
+      home: Builder(
+        builder: (innerCtx) {
+          final l10n = S.of(innerCtx);
+          return Scaffold(
+            body: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      OutlinedButton(
-                        onPressed: _wiping ? null : () => exit(1),
-                        child: const Text('Quit'),
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: AppTheme.fgDim,
                       ),
-                      FilledButton(
-                        onPressed: _wiping ? null : _onWipe,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppTheme.red,
+                      const SizedBox(height: 16),
+                      Text(
+                        widget.summary,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: AppFonts.lg),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.detail,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: AppFonts.sm,
+                          color: AppTheme.fgDim,
                         ),
-                        child: Text(_wiping ? 'Wiping…' : 'Wipe all data'),
+                      ),
+                      const SizedBox(height: 24),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          OutlinedButton(
+                            onPressed: _wiping ? null : () => exit(1),
+                            child: Text(l10n.fatalErrorQuitButton),
+                          ),
+                          FilledButton(
+                            onPressed: _wiping ? null : _onWipe,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppTheme.red,
+                            ),
+                            child: Text(
+                              _wiping
+                                  ? l10n.fatalErrorWipingButton
+                                  : l10n.fatalErrorWipeButton,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.fatalErrorWipeExplanation,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: AppFonts.xs,
+                          color: AppTheme.fgFaint,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Wipe deletes every app-support file (config, '
-                    'database, vault blobs, logs) so the next launch '
-                    'starts from a clean install. Cannot be undone.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: AppFonts.xs,
-                      color: AppTheme.fgFaint,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

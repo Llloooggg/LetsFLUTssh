@@ -210,7 +210,7 @@ pub enum Event {
     /// Linux uses the in-process TPM probe and never
     /// publishes this event.
     HardwareVaultProbePromptRequest { prompt_id: String },
-    /// Hardware-vault unlock — fired by the L3 tier-unlock
+    /// Hardware-vault unlock — fired by the T2 tier-unlock
     /// orchestrator. Dart subscriber calls
     /// `HardwareTierVault.read(pin)` which routes through FRB
     /// into the per-platform Rust vault (Apple SE / Android
@@ -225,7 +225,7 @@ pub enum Event {
         prompt_id: String,
         pin: Option<String>,
     },
-    /// Hardware-vault seal — fired by the L3 first-launch
+    /// Hardware-vault seal — fired by the T2 first-launch
     /// orchestrator. Dart subscriber takes the staged bytes via
     /// [`crate::secrets::SecretStore::take`] (atomic
     /// read-and-remove), calls

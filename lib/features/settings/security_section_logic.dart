@@ -53,7 +53,7 @@ String? autoLockDisabledReason({
   required SecurityTier level,
   required SecurityTierModifiers modifiers,
 }) {
-  // Bank-style v3: "L1 + password" is `keychain` + `modifiers
+  // Bank-style v3: "T1 + password" is `keychain` + `modifiers
   // .password`, not a dedicated tier value. Paranoid is always
   // password-true by construction, but we still check the tier
   // explicitly so a malformed config (paranoid with the modifier
@@ -92,7 +92,7 @@ BiometricModifierSpec? biometricSpecFor({
   if (tier != SecurityTier.keychain && tier != SecurityTier.hardware) {
     return null;
   }
-  // Pre-v3 the L1+password tier had its own enum value, so the
+  // Pre-v3 the T1+password tier had its own enum value, so the
   // keychain card had to special-case "current is L2" via a
   // distinct tier comparison. Post-v3 collapse: L2 is just
   // keychain + modifiers.password=true, so `tier == currentLevel`
@@ -132,7 +132,7 @@ BiometricModifierSpec? biometricSpecFor({
   }
 
   // Bank-style v3: paranoid is always password-true by
-  // construction, the formerly-dedicated L1+password tier is now
+  // construction, the formerly-dedicated T1+password tier is now
   // just `currentModifiers.password` on the keychain tier.
   final hasPassword =
       currentLevel == SecurityTier.paranoid || currentModifiers.password;
@@ -175,7 +175,7 @@ bool isVerifiablePasswordDrop({
   required SecurityTier nextTier,
   required SecurityTierModifiers nextModifiers,
 }) {
-  // Pre-v3 model carried L1+password as its own tier value, so this
+  // Pre-v3 model carried T1+password as its own tier value, so this
   // helper used to switch on tier alone. Bank-style v3 puts password
   // on the modifier — a keychain+pw → keychain transition keeps the
   // tier intact and only drops the modifier, so the modifier delta
@@ -316,7 +316,7 @@ BiometricKeySource biometricKeySourceFor({
   // Cross-tier transitions still pull from the freshly-applied
   // tier; the new card's password drives the rekey directly.
   if (currentTier != nextTier) return BiometricKeySource.pullFromAppliedTier;
-  // Same-tier flip on bank-style L1+pw — re-prompt against the
+  // Same-tier flip on bank-style T1+pw — re-prompt against the
   // gate verifier file. The modifier-aware predicate replaces the
   // pre-v3 dedicated `keychainWithPassword` enum check.
   if (currentTier == SecurityTier.keychain &&
@@ -602,7 +602,7 @@ Future<void> applyKeychainWithPasswordTier({
     await gateClear();
     throw StateError('keychain write failed');
   }
-  // Bank-style v3: L1+password is `keychain` + `modifiers
+  // Bank-style v3: T1+password is `keychain` + `modifiers
   // .password=true`; the rekey + clear-plan dispatch both bind on
   // the same tier value as plain keychain.
   await applyAlwaysRekeyFromSecret(secretId, SecurityTier.keychain, modifiers);

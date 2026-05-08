@@ -769,5 +769,19 @@
   "recommendedBadge": "अनुशंसित",
   "tierHardwareSubtitleHonest": "उन्नत: हार्डवेयर-बाध्य कुंजी। यदि इस डिवाइस की चिप खो जाती है या बदल दी जाती है, तो डेटा पुनर्प्राप्त नहीं किया जा सकता।",
   "tierParanoidSubtitleHonest": "विकल्प: master password, OS पर भरोसा नहीं। OS compromise होने पर बचाता है। T1/T2 की तुलना में runtime security बेहतर नहीं करता।",
-  "mitigationsNoteRuntimeThreats": "runtime के खतरे (समान उपयोगकर्ता का malware, चलती प्रक्रिया का मेमोरी डंप) हर tier में ✗ के रूप में दिखाए जाते हैं। इन्हें अलग mitigation सुविधाओं द्वारा संबोधित किया जाता है जो चुने गए tier से स्वतंत्र रूप से लागू होती हैं।"
+  "mitigationsNoteRuntimeThreats": "runtime के खतरे (समान उपयोगकर्ता का malware, चलती प्रक्रिया का मेमोरी डंप) हर tier में ✗ के रूप में दिखाए जाते हैं। इन्हें अलग mitigation सुविधाओं द्वारा संबोधित किया जाता है जो चुने गए tier से स्वतंत्र रूप से लागू होती हैं।",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything"
 }

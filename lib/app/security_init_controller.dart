@@ -560,7 +560,7 @@ class SecurityInitController {
       case SecurityTier.hardware:
         await _unlockHardware();
       case SecurityTier.keychain:
-        // Bank-style v3: L1+password is `keychain` + `modifiers
+        // Bank-style v3: T1+password is `keychain` + `modifiers
         // .password`; the dispatch was previously a dedicated
         // `keychainWithPassword` arm and is now a modifier check
         // inside the keychain arm.
@@ -586,7 +586,7 @@ class SecurityInitController {
         // never fires + the test harness drives drift open via
         // the manual call below).
         await _runPlaintextUnlockCascade();
-        AppLogger.instance.log('Plaintext mode (tier=L0)', name: 'App');
+        AppLogger.instance.log('Plaintext mode (tier=T0)', name: 'App');
     }
   }
 

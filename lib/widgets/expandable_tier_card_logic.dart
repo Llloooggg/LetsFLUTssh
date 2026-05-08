@@ -17,10 +17,10 @@ bool tierCardIsCurrent({
   required SecurityTier cardTier,
   required SecurityTier currentTier,
 }) {
-  // Bank-style v3: L1+password is `keychain` + the password
+  // Bank-style v3: T1+password is `keychain` + the password
   // modifier; pre-v3 it was a dedicated `keychainWithPassword`
   // tier value that needed a special-case match against the
-  // keychain card. Now both passwordless L1 and L1+password
+  // keychain card. Now both passwordless T1 and T1+password
   // resolve to the same `keychain` tier, so the direct
   // comparison covers both.
   return cardTier == currentTier;

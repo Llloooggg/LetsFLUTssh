@@ -51,7 +51,7 @@ abstract class SecurityDialogPrompter {
   /// password reset.
   Future<bool?> showMasterPasswordUnlock(MasterPasswordManager manager);
 
-  /// Tier-secret unlock dialog (L2 short password / L3 hardware PIN).
+  /// Tier-secret unlock dialog (L2 short password / T2 hardware PIN).
   /// Production wraps [TierSecretUnlockDialog.show] — the widget owns
   /// the retry loop + rate-limit cooldown + biometric retry.
   ///

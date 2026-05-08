@@ -197,7 +197,7 @@ shim — the Kotlin side carries only the JavaVM bootstrap object
 `LfsBiometricCallback`, both pure plumbing). Biometric variant uses
 `setUserAuthenticationValidityDurationSeconds(60)` for cross-API
 time-bound auth. StrongBox-backed wrap keys (`setIsStrongBoxBacked(true)`,
-API 28+) are requested for the L3 hardware tier; failure
+API 28+) are requested for the T2 hardware tier; failure
 silently falls back to TEE.
 
 ## Orthogonal modifiers

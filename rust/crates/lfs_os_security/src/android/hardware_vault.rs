@@ -1,4 +1,4 @@
-//! L3 hardware-tier vault Android backend — StrongBox-backed
+//! T2 hardware-tier vault Android backend — StrongBox-backed
 //! AES-GCM wrapping key in AndroidKeyStore + PIN HMAC frame on
 //! disk.
 //!
@@ -11,7 +11,7 @@
 //! ## Key shape
 //!
 //! Wrapping key alias: `lfs.hardware_tier_vault.l3` — separate
-//! from the `secure_key_storage` aliases so the L3 envelope is
+//! from the `secure_key_storage` aliases so the T2 envelope is
 //! distinguishable from per-credential entries.
 //!
 //! `KeyGenParameterSpec` includes:
@@ -24,7 +24,7 @@
 //!   `StrongBoxUnavailableException` from `generateKey()` is
 //!   caught and the fallback path retries without StrongBox.
 //! * `setUserAuthenticationRequired(true)` is **not** set here
-//!   — the L3 vault is unlocked by the PIN HMAC gate in our
+//!   — the T2 vault is unlocked by the PIN HMAC gate in our
 //!   own code (constant-time HMAC compare before unwrap),
 //!   matching the Apple SE flow that uses
 //!   `kSecAccessControlPrivateKeyUsage` without
@@ -83,7 +83,7 @@ fn map_err<S: AsRef<str>>(msg: S) -> HardwareVaultError {
 pub fn is_available() -> bool {
     // Probe by attempting to instantiate KeyStore "AndroidKeyStore".
     // If the JNI call fails (no JavaVM bootstrap, missing
-    // BouncyCastle provider, etc.) the L3 tier is genuinely
+    // BouncyCastle provider, etc.) the T2 tier is genuinely
     // unavailable on this device.
     h::with_env(|env| {
         let provider = h::jstring(env, "AndroidKeyStore")?;
@@ -151,7 +151,7 @@ pub fn clear(support_dir: &str) -> Result<(), HardwareVaultError> {
     let _ = std::fs::remove_file(&path);
     delete_keystore_alias(VAULT_ALIAS).map_err(map_err)?;
     // Also clear the biometric overlay if present — clearing
-    // the L3 vault implies the user is fully resetting.
+    // the T2 vault implies the user is fully resetting.
     let bio_path = PathBuf::from(support_dir).join(VAULT_FILE_BIO);
     let _ = std::fs::remove_file(&bio_path);
     delete_keystore_alias(VAULT_ALIAS_BIO).map_err(map_err)?;

@@ -769,5 +769,19 @@
   "recommendedBadge": "DIREKOMENDASIKAN",
   "tierHardwareSubtitleHonest": "Lanjutan: kunci terikat pada perangkat keras. Data tidak dapat dipulihkan jika chip perangkat ini hilang atau diganti.",
   "tierParanoidSubtitleHonest": "Alternatif: kata sandi utama, tanpa memercayai OS. Melindungi dari OS yang disusupi. Tidak meningkatkan proteksi runtime dibandingkan T1/T2.",
-  "mitigationsNoteRuntimeThreats": "Ancaman runtime (malware dari pengguna yang sama, dump memori proses yang sedang berjalan) ditampilkan sebagai ✗ di setiap tingkat. Ancaman tersebut ditangani oleh fitur mitigasi terpisah yang berlaku tanpa memandang tingkat yang dipilih."
+  "mitigationsNoteRuntimeThreats": "Ancaman runtime (malware dari pengguna yang sama, dump memori proses yang sedang berjalan) ditampilkan sebagai ✗ di setiap tingkat. Ancaman tersebut ditangani oleh fitur mitigasi terpisah yang berlaku tanpa memandang tingkat yang dipilih.",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything"
 }

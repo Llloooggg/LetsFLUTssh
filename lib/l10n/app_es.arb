@@ -769,5 +769,19 @@
   "recommendedBadge": "RECOMENDADO",
   "tierHardwareSubtitleHonest": "Avanzado: clave vinculada al hardware. Los datos son irrecuperables si el chip de este dispositivo se pierde o se reemplaza.",
   "tierParanoidSubtitleHonest": "Alternativa: contraseña maestra, sin confianza en el OS. Protege contra el compromiso del OS. No mejora la protección en tiempo de ejecución respecto a T1/T2.",
-  "mitigationsNoteRuntimeThreats": "Las amenazas en runtime (malware del mismo usuario, volcado de memoria del proceso en ejecución) se muestran como ✗ en todos los niveles. Se abordan mediante funciones de mitigación independientes que se aplican sin importar el nivel elegido."
+  "mitigationsNoteRuntimeThreats": "Las amenazas en runtime (malware del mismo usuario, volcado de memoria del proceso en ejecución) se muestran como ✗ en todos los niveles. Se abordan mediante funciones de mitigación independientes que se aplican sin importar el nivel elegido.",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything"
 }

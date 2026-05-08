@@ -227,12 +227,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // MethodChannel round-trip on Apple / Android / Windows. Linux
     // never fires this prompt.
     HardwareVaultProbePromptListener.start();
-    // Hardware-vault unlock subscriber — drives the L3 tier
+    // Hardware-vault unlock subscriber — drives the T2 tier
     // orchestrator's `HardwareTierVault.read(pin)` call which fans
     // out to tpm2-tools (Linux) or the platform method channel
     // (Apple / Android / Windows).
     HardwareVaultUnlockPromptListener.start();
-    // Hardware-vault seal subscriber — drives the L3 first-launch
+    // Hardware-vault seal subscriber — drives the T2 first-launch
     // orchestrator's `HardwareTierVault.store(dbKey, pin)` call (the
     // wrap-and-persist counterpart of the unlock prompt).
     HardwareVaultSealPromptListener.start();

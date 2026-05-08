@@ -12,7 +12,7 @@ import '../utils/logger.dart';
 /// `HardwareVaultSealPromptRequest` events by calling the
 /// existing Dart `HardwareTierVault.store(dbKey, pin)` helper.
 ///
-/// Mirrors the unlock-prompt listener shape — the L3 first-launch
+/// Mirrors the unlock-prompt listener shape — the T2 first-launch
 /// orchestrator generates a fresh DB key Rust-side, publishes the
 /// seal-prompt request, and waits for this subscriber to write the
 /// platform-vault blob. On success the orchestrator stages the

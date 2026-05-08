@@ -1,4 +1,4 @@
-//! Typed L0-L3 + Paranoid tier state machine.
+//! Typed T0-T2 + Paranoid tier state machine.
 //!
 //! Owns the state + event + transition table plus a `dispatch`
 //! that publishes [`crate::bus::Event::TierStateChanged`] on every
@@ -29,8 +29,8 @@ pub enum TierState {
     Locked,
     /// User has dismissed an unlock prompt or the bootstrap has
     /// requested unlock; we're waiting for the secret to land
-    /// (passing through the typed prompt registry for L2 / L3 /
-    /// Paranoid). For L0 / L1 this state is transient — the
+    /// (passing through the typed prompt registry for L2 / T2 /
+    /// Paranoid). For T0 / T1 this state is transient — the
     /// transition fires immediately on `UnlockRequested`.
     Unlocking,
     /// DB is open under the active tier's key; the rest of the app

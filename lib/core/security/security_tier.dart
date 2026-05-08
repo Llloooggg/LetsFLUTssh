@@ -4,7 +4,7 @@ import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 
 /// Named security tiers.
 ///
-/// The user-facing UI presents four numbered tiers (L0–L3) in a linear
+/// The user-facing UI presents four numbered tiers (T0–T2) in a linear
 /// "more backend = higher number" ladder, plus a separate `paranoid`
 /// branch shown as an **alternative** — master password, no OS trust,
 /// not on the numbered ladder. The enum never orders its values; any
@@ -19,24 +19,24 @@ import '../../src/rust/api/security_config.dart' as rust_sec_cfg;
 /// rewritten by the Rust-side `ConfigV2ToV3` migration on next
 /// startup — stored as `tier: keychain` + `modifiers.password: true`.
 /// The legacy enum value is gone; runtime callers branching on
-/// "L1 + password" check `modifiers.password`, not the tier itself.
+/// "T1 + password" check `modifiers.password`, not the tier itself.
 enum SecurityTier {
-  /// L0 — bare DB on disk. Only file permissions (0600 POSIX /
+  /// T0 — bare DB on disk. Only file permissions (0600 POSIX /
   /// user-only ACL Windows) stand between the data and anyone with
   /// filesystem access. Shown with a red warning in the wizard.
   plaintext,
 
-  /// L1 — DB key lives in the OS secure storage (Keychain, Credential
+  /// T1 — DB key lives in the OS secure storage (Keychain, Credential
   /// Manager, libsecret, EncryptedSharedPreferences). With
   /// `modifiers.password = false` the app auto-unlocks on launch
-  /// (passwordless L1); with `modifiers.password = true` the unlock
+  /// (passwordless T1); with `modifiers.password = true` the unlock
   /// path adds a UX-gate short password checked against a salted
   /// HMAC split across disk + keychain (the bank-style L2 — pre-v3
   /// installs persisted this combo as a dedicated
   /// `keychainWithPassword` tier value, now collapsed).
   keychain,
 
-  /// L3 — DB key wrapped by a hardware-bound vault (Secure Enclave,
+  /// T2 — DB key wrapped by a hardware-bound vault (Secure Enclave,
   /// StrongBox, TPM2, Windows Hello). The `password` modifier
   /// optionally adds a typed-password layer on top; `biometric`
   /// optionally lets the user release that password via a
@@ -199,7 +199,7 @@ class SecurityConfig {
   /// Used by code paths that need to decide between "read from
   /// keychain" and "derive fresh". The bank-style password
   /// modifier is orthogonal: `keychain` covers both passwordless
-  /// L1 and L1 + typed password.
+  /// T1 and T1 + typed password.
   bool get usesKeychain => tier == SecurityTier.keychain;
 
   /// True when the tier binds the key to a hardware-bound vault.

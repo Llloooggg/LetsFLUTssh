@@ -205,7 +205,7 @@ class BiometricAuth {
   /// `lfs_os_security::android::keystore` which gates wrap-keys with
   /// `setUserAuthenticationRequired` + `setIsStrongBoxBacked` when
   /// available, so the level is reported as
-  /// [BiometricBackingLevel.software] here and the L3 hw-vault
+  /// [BiometricBackingLevel.software] here and the T2 hw-vault
   /// surfaces the more specific StrongBox answer separately.
   /// Windows is reported as software; the hw-vault probe returns
   /// `hardware_tpm` when CNG's Platform Crypto Provider backed the

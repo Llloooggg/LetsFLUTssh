@@ -105,7 +105,7 @@ class SecuritySetupResult {
   /// short-password slot.
   String? takeShortPassword() => _takeBytesAsString(shortPasswordSecretId);
 
-  /// Same shape as [takeMasterPassword] but for the L3 + password
+  /// Same shape as [takeMasterPassword] but for the T2 + password
   /// PIN slot.
   String? takePin() => _takeBytesAsString(pinSecretId);
 
@@ -130,7 +130,7 @@ class SecuritySetupDialog extends StatefulWidget {
 
   /// Bank-style v3 modifiers for [currentTier]. Carried alongside
   /// the tier so the wizard can pre-fill the password toggle when
-  /// the user re-opens it from Settings (previously the L1+password
+  /// the user re-opens it from Settings (previously the T1+password
   /// case was inferred from the dedicated `keychainWithPassword`
   /// tier value alone). `null` matches `currentTier == null` —
   /// first-launch entry, no existing config to honour.
@@ -241,7 +241,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       case SecurityTier.plaintext:
         return WizardTier.plaintext;
       case SecurityTier.keychain:
-        // Bank-style v3: L1+password is `keychain` + the password
+        // Bank-style v3: T1+password is `keychain` + the password
         // modifier; the wizard pre-fills the toggle from
         // `currentModifiers.password` instead of the prior dedicated
         // `keychainWithPassword` tier check.
@@ -438,7 +438,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
     subtitle: l10n.tierKeychainSubtitle(_keychainName),
     accent: AppTheme.accent,
     selected: _selected == WizardTier.keychain,
-    // Bank-style v3: L1+password is `keychain` + modifier; the
+    // Bank-style v3: T1+password is `keychain` + modifier; the
     // pre-v3 dedicated `keychainWithPassword` enum check went away.
     current: widget.currentTier == SecurityTier.keychain,
     recommended: _recommendedTier(caps) == WizardTier.keychain,

@@ -769,5 +769,19 @@
   "recommendedBadge": "توصیه‌شده",
   "tierHardwareSubtitleHonest": "پیشرفته: کلید به سخت‌افزار گره خورده است. اگر تراشه این دستگاه گم یا تعویض شود، داده‌ها قابل بازیابی نیستند.",
   "tierParanoidSubtitleHonest": "جایگزین: رمز عبور اصلی، بدون اعتماد به سیستم‌عامل. در برابر نفوذ OS محافظت می‌کند. حفاظت زمان اجرا را نسبت به T1/T2 بهبود نمی‌دهد.",
-  "mitigationsNoteRuntimeThreats": "تهدیدهای runtime (malware از همان کاربر، دامپ حافظهٔ فرآیند فعال) در همهٔ سطح‌ها به‌صورت ✗ نمایش داده می‌شوند. این موارد توسط قابلیت‌های کاهش ریسک جداگانه‌ای برطرف می‌شوند که مستقل از انتخاب سطح اعمال می‌گردند."
+  "mitigationsNoteRuntimeThreats": "تهدیدهای runtime (malware از همان کاربر، دامپ حافظهٔ فرآیند فعال) در همهٔ سطح‌ها به‌صورت ✗ نمایش داده می‌شوند. این موارد توسط قابلیت‌های کاهش ریسک جداگانه‌ای برطرف می‌شوند که مستقل از انتخاب سطح اعمال می‌گردند.",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything"
 }

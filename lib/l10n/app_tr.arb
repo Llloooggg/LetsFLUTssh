@@ -769,5 +769,19 @@
   "recommendedBadge": "ÖNERİLEN",
   "tierHardwareSubtitleHonest": "Gelişmiş: donanıma bağlı anahtar. Bu cihazın çipi kaybolursa veya değiştirilirse veriler geri getirilemez.",
   "tierParanoidSubtitleHonest": "Alternatif: ana parola, OS'e güven yok. OS'in ele geçirilmesine karşı korur. Çalışma zamanı korumasını T1/T2'ye göre iyileştirmez.",
-  "mitigationsNoteRuntimeThreats": "Runtime tehditleri (aynı kullanıcıdan malware, çalışan süreç bellek dökümü) her kademede ✗ olarak gösterilir. Bunlar, kademe seçiminden bağımsız olarak uygulanan ayrı azaltma özellikleriyle ele alınır."
+  "mitigationsNoteRuntimeThreats": "Runtime tehditleri (aynı kullanıcıdan malware, çalışan süreç bellek dökümü) her kademede ✗ olarak gösterilir. Bunlar, kademe seçiminden bağımsız olarak uygulanan ayrı azaltma özellikleriyle ele alınır.",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything"
 }

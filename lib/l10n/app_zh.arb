@@ -769,5 +769,19 @@
   "recommendedBadge": "推荐",
   "tierHardwareSubtitleHonest": "进阶：密钥与硬件绑定。若此设备的芯片丢失或更换，数据将无法恢复。",
   "tierParanoidSubtitleHonest": "备选：使用主密码，不信任操作系统。可防御 OS 被攻破，但运行时防护不优于 T1/T2。",
-  "mitigationsNoteRuntimeThreats": "运行时 (runtime) 威胁（同用户 malware、活动进程内存转储）在所有层级均显示为 ✗。它们由独立的缓解功能处理，不受层级选择影响。"
+  "mitigationsNoteRuntimeThreats": "运行时 (runtime) 威胁（同用户 malware、活动进程内存转储）在所有层级均显示为 ✗。它们由独立的缓解功能处理，不受层级选择影响。",
+  "globalErrorTitle": "Unexpected Error",
+  "globalErrorBody": "An unexpected error occurred. The app will continue running.",
+  "globalErrorLogSavedNote": "Full details have been saved to the log file.",
+  "globalErrorLogDisabledNote": "Enable logging in Settings to save error details.",
+  "globalErrorTechnicalLine": "Error: {detail}",
+  "globalErrorEnableLoggingButton": "Enable Logging",
+  "globalErrorLoggingEnabledToast": "Logging enabled — errors will be saved to log file",
+  "fatalErrorQuitButton": "Quit",
+  "fatalErrorWipeButton": "Wipe all data",
+  "fatalErrorWipingButton": "Wiping…",
+  "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
+  "fatalErrorWipeConfirmTitle": "Wipe all data?",
+  "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
+  "fatalErrorWipeConfirmAction": "Wipe everything"
 }

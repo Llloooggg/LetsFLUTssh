@@ -271,7 +271,7 @@ lib/
 │   ├── tag_dots.dart                # Colored tag dots for session/folder tree rows
 │   ├── threshold_draggable.dart     # Draggable with minimum distance threshold
 │   ├── tier_reset_dialog.dart       # Non-dismissible reset prompt when the resolved tier no longer matches on-disk artefacts
-│   ├── tier_secret_unlock_dialog.dart # Shared L2 short-password / L3 PIN unlock shell with retry + cooldown
+│   ├── tier_secret_unlock_dialog.dart # Shared L2 short-password / T2 PIN unlock shell with retry + cooldown
 │   ├── toast.dart                   # Stacked notification toasts
 │   ├── unified_export_controller.dart # Headless selection / options / sizing
 │   ├── unified_export_dialog.dart   # Unified QR and .lfs export dialog
@@ -1060,7 +1060,7 @@ Every master-password unlock verifies the password *and* produces the derived DB
 
 #### Switching tiers on the fly — always-rekey invariant
 
-Every tier switch — L0↔L1↔L2↔L3↔Paranoid, **including `password`-modifier flips on the same tier** — generates a fresh random 32-byte DB key and rekeys the whole DB under it. The previous wrapper (keychain entry, hardware-sealed blob, Argon2id verifier) is invalidated by the rekey, so a previously leaked wrapper cannot decrypt post-switch data.
+Every tier switch — T0↔T1↔L2↔T2↔Paranoid, **including `password`-modifier flips on the same tier** — generates a fresh random 32-byte DB key and rekeys the whole DB under it. The previous wrapper (keychain entry, hardware-sealed blob, Argon2id verifier) is invalidated by the rekey, so a previously leaked wrapper cannot decrypt post-switch data.
 
 **Exception — biometric-only toggle.** Flipping the `biometric` modifier on an otherwise-identical config (same tier, same `password` state) does **not** trigger a rekey. The DB-key wrapping is unchanged — biometric is purely additive, a secondary copy of the typed password in a biometric-gated slot (see [#biometric-unlock](#biometric-unlock)) — so a rekey would cost the user a re-prompt for the password with zero cryptographic gain. `settings_sections_security._applyBiometricOnlyToggle` handles this path: it calls `_applyPendingBiometric` directly (password prompt on enable, vault clear on disable) and skips `_applyTierChange` entirely. The tier-card Apply button routes here when the only pending diff is the biometric flag.
 
@@ -1080,7 +1080,7 @@ Settings exposes the switcher through a single "Change Security Tier" action tha
 
 #### L2 keychain-password gate (`KeychainPasswordGate`)
 
-L2 layers a UX-only short password in front of the L1 keychain-stored DB key. The password is **not** a cryptographic layer: an attacker who can read both the disk and the OS keychain already has every ingredient for the DB key, password or not. The gate exists to deny a coworker at the desk, not to resist offline attack.
+L2 layers a UX-only short password in front of the T1 keychain-stored DB key. The password is **not** a cryptographic layer: an attacker who can read both the disk and the OS keychain already has every ingredient for the DB key, password or not. The gate exists to deny a coworker at the desk, not to resist offline attack.
 
 State layout:
 
@@ -1091,9 +1091,9 @@ State layout:
 
 **Write order + atomicity.** `setPassword` writes the disk hash through [`writeBytesAtomic`](../lib/utils/file_utils.dart) **before** touching the keychain, and rolls back the disk hash if the keychain write fails. Two invariants hang off that ordering. First, a torn disk write would leave `security_pass_hash.bin` with truncated JSON; on the next launch `verify()` throws inside `jsonDecode`, `isConfigured()` reports false (the `containsKey(pepper)` still returns true, but the torn disk blob routes the unlock path to the plaintext-tier fallback), and the user silently lands on T0 when they thought they were on T2. Second, keychain-first ordering would allow a crash between the two writes to leave the keychain holding the NEW pepper while disk still held the OLD `{salt, HMAC}` — the correct password would stop verifying (HMAC keyed under NEW pepper while disk HMAC was built under OLD pepper), locking the user out until a full reset. Disk-first + atomic-rename keeps the recoverable state either "both old" (crash before keychain write) or "both new" (crash after keychain write); the rollback branch on keychain failure returns to "neither" and routes the next launch through the first-launch wizard cleanly. Regression guards: `test/core/security/keychain_password_gate_test.dart` "setPassword writes atomically" + "setPassword writes disk hash before keychain pepper".
 
-#### L3 hardware vault (`HardwareTierVault`)
+#### T2 hardware vault (`HardwareTierVault`)
 
-L3 seals the DB key inside a hardware module under an auth value derived as `HMAC-SHA256(pin, salt)`. The hardware module enforces rate-limiting and lockout after N failed attempts — that is what makes a 4–6 digit PIN cryptographically meaningful; dictionary attack against such a short secret is infeasible only because the hardware refuses retries.
+T2 seals the DB key inside a hardware module under an auth value derived as `HMAC-SHA256(pin, salt)`. The hardware module enforces rate-limiting and lockout after N failed attempts — that is what makes a 4–6 digit PIN cryptographically meaningful; dictionary attack against such a short secret is infeasible only because the hardware refuses retries.
 
 Per-platform dispatch:
 
@@ -1130,9 +1130,9 @@ A torn blob on any platform otherwise yields `readVault` → null → `isStored`
 
 | Tier | Limiter | Persistence | Rationale |
 |---|---|---|---|
-| **L0 / L1** | none | n/a | L0 has no user secret; L1 auto-unlocks via keychain, no retry surface |
+| **T0 / T1** | none | n/a | T0 has no user secret; T1 auto-unlocks via keychain, no retry surface |
 | **L2** | `PersistedRateLimiter` | disk, HMAC-authenticated | UX-gate password has no cryptographic strength; a process-restart reset would be free for an attacker |
-| **L3** | `HardwareRateLimiter` | in-memory | Thin software counter on top of the platform's hardware lockout — defense-in-depth if the hardware layer is misconfigured |
+| **T2** | `HardwareRateLimiter` | in-memory | Thin software counter on top of the platform's hardware lockout — defense-in-depth if the hardware layer is misconfigured |
 | **Paranoid** | `InMemoryRateLimiter` | in-memory | Argon2id is the real brake; persisting a forgot-password wait across restarts is user-hostile for no extra safety |
 
 All three share the backoff schedule `[0, 1, 2, 4, 8, 16, 32, 60, 60, 60] s` — capped at 60 s so a legitimate user who genuinely forgot their password never waits more than a minute between retries.
@@ -1157,7 +1157,7 @@ Optional on **T1+password and T2+password only**. Paranoid is intentionally excl
 
 **Linux — `fprintd` D-Bus binding.** On Linux `BiometricAuth.availability()` calls FRB into [`lfs_core::platform::linux::fprintd`](../rust/crates/lfs_core/src/platform/linux/fprintd.rs), a thin async wrapper over the `net.reactivated.Fprint` system bus driven by the `zbus` Rust crate. The ladder is strict: if the daemon is not registered (`GetDefaultDevice` fails or the bus name is unknown) → `systemServiceMissing`; if the default device reports an empty `ListEnrolledFingers("")` → `notEnrolled`; otherwise biometrics are ready. `authenticate()` on Linux issues a `Claim` → subscribes to `VerifyStatus` → calls `VerifyStart("any")` → awaits the terminal signal with a 30 s timeout, and always `Release`s the device on every exit path so a failed verify does not leave the reader stuck. The D-Bus walk lives Rust-side specifically so the unsealed DB key path stays single-language end-to-end (per the "all data through Rust" architectural rule) — Dart sees the boolean / unavailability-reason answer over FRB but never the raw protocol bytes.
 
-**Atomic writes — biometric vault.** [`lfs_core::security::biometric_key_vault::linux::store_from_secret`](../rust/crates/lfs_core/src/security/biometric_key_vault.rs) writes the TPM-sealed `biometric_vault.tpm` through `lfs_core::path::write_bytes_atomic` — matching the same invariant the L3 hardware vault already enforces (`hardware_vault.bin`, `hardware_vault_salt.bin`). A torn write would leave `isStored()` returning true against a truncated blob; next launch the unseal returns garbage, and `_tryBiometricCommit` silently falls back to the password dialog with no "vault broken" hint, forcing the user to type the PIN on every launch even though they enabled biometric specifically to avoid that. Regression guard: `lfs_core::security::biometric_key_vault::tests::*`.
+**Atomic writes — biometric vault.** [`lfs_core::security::biometric_key_vault::linux::store_from_secret`](../rust/crates/lfs_core/src/security/biometric_key_vault.rs) writes the TPM-sealed `biometric_vault.tpm` through `lfs_core::path::write_bytes_atomic` — matching the same invariant the T2 hardware vault already enforces (`hardware_vault.bin`, `hardware_vault_salt.bin`). A torn write would leave `isStored()` returning true against a truncated blob; next launch the unseal returns garbage, and `_tryBiometricCommit` silently falls back to the password dialog with no "vault broken" hint, forcing the user to type the PIN on every launch even though they enabled biometric specifically to avoid that. Regression guard: `lfs_core::security::biometric_key_vault::tests::*`.
 
 **TPM auth value never crosses argv.** On every `tpm2 create -p …` / `tpm2 unseal -p …` call, the Rust seal/unseal pipeline ([`lfs_core::platform::linux::tpm`](../rust/crates/lfs_core/src/platform/linux/tpm.rs), called directly from FRB) writes the HMAC auth value to a sibling file inside the per-call temp directory and passes `-p file:<path>` to the CLI. The earlier `-p hex:<hex>` form embedded the exact bytes an attacker needs to unseal the blob in the process command line; `/proc/<pid>/cmdline` is readable cross-UID on distros that default to `hidepid=0`, so the leak bypassed every cooldown except the TPM's own lockout. The temp file lives under a per-call workdir that the Rust pipeline zero-overwrites and unlinks on every exit path, so the auth file is self-cleaning. Per `docs/AGENT_RULES.md` § Self-Contained Binary the tpm2-tools dependency is a rung-3 opt-in, but the threat-model invariant applies regardless of whether the install is bundled.
 
@@ -1167,9 +1167,9 @@ Optional on **T1+password and T2+password only**. Paranoid is intentionally excl
 
 Platform requirements: iOS `Info.plist` carries `NSFaceIDUsageDescription`; Android manifest holds `USE_BIOMETRIC` + `USE_FINGERPRINT` and `MainActivity` extends `FlutterFragmentActivity` (required by `BiometricPrompt`'s Fragment host).
 
-#### Android hardware-backed L3 vault (shipped; device-testing pass pending)
+#### Android hardware-backed T2 vault (shipped; device-testing pass pending)
 
-`lfs_os_security::android::hardware_vault` exposes the Keystore-backed L3 path via direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"` (no Kotlin shim, no MethodChannel). `MainActivity.configureFlutterEngine` calls `LfsJniBootstrap.register(this)` which captures the JavaVM + the FragmentActivity handle into process-wide `OnceLock`s that the JNI helpers read on every call; `build.gradle.kts` pins `androidx.biometric:1.1.0` + `androidx.fragment:1.6.2` so the `BiometricPrompt` + `FragmentActivity` surfaces resolve from JNI cleanly.
+`lfs_os_security::android::hardware_vault` exposes the Keystore-backed T2 path via direct JNI to `java.security.KeyStore` provider `"AndroidKeyStore"` (no Kotlin shim, no MethodChannel). `MainActivity.configureFlutterEngine` calls `LfsJniBootstrap.register(this)` which captures the JavaVM + the FragmentActivity handle into process-wide `OnceLock`s that the JNI helpers read on every call; `build.gradle.kts` pins `androidx.biometric:1.1.0` + `androidx.fragment:1.6.2` so the `BiometricPrompt` + `FragmentActivity` surfaces resolve from JNI cleanly.
 
 1. **Key creation.** `KeyGenParameterSpec.Builder` with `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)` — the key *must* be presented inside a `BiometricPrompt.CryptoObject` session, and any change to the device's enrolled biometrics atomically invalidates the key. This is the Android-native equivalent of `.biometryCurrentSet`.
 2. **Storage backing.** `setIsStrongBoxBacked(true)` is attempted on SDK ≥ 28; the Keystore silently falls through to TEE-backed storage on devices that do not expose a StrongBox chip. `KeyInfo.securityLevel` (SDK ≥ 31) + `isInsideSecureHardware` (pre-31) drive the `backingLevel` return value — `hardware_strongbox` / `hardware_tee` / `software`.
@@ -1226,7 +1226,7 @@ The app's at-rest DB encryption runs on **SQLCipher 4.x**, statically linked int
 
 #### Password strength meter
 
-Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Uses a coarse length + character-class heuristic in [`assessPasswordStrength`](../lib/core/security/password_strength.dart) — five-tier enum, pure function, no `zxcvbn` wordlist (would bloat the binary for a feature that never blocks Save). The [`PasswordStrengthMeter`](../lib/widgets/password_strength_meter.dart) widget listens on the password controller and renders a coloured bar + localised label, hiding itself when the field is empty. The meter never blocks submit: a four-character password shows a red bar and still commits on OK, by design — users who want short passwords get a warning, not a wall. Labels are localised across all 15 locales (`passwordStrengthWeak` / `Moderate` / `Strong` / `VeryStrong`). The short-password and PIN forms (L2 / L3) do not render the meter — those tiers are governed by the rate limiter + hardware lockout, not entropy.
+Informational-only indicator on the Paranoid branch of `SecuritySetupDialog`. Uses a coarse length + character-class heuristic in [`assessPasswordStrength`](../lib/core/security/password_strength.dart) — five-tier enum, pure function, no `zxcvbn` wordlist (would bloat the binary for a feature that never blocks Save). The [`PasswordStrengthMeter`](../lib/widgets/password_strength_meter.dart) widget listens on the password controller and renders a coloured bar + localised label, hiding itself when the field is empty. The meter never blocks submit: a four-character password shows a red bar and still commits on OK, by design — users who want short passwords get a warning, not a wall. Labels are localised across all 15 locales (`passwordStrengthWeak` / `Moderate` / `Strong` / `VeryStrong`). The short-password and PIN forms (L2 / T2) do not render the meter — those tiers are governed by the rate limiter + hardware lockout, not entropy.
 
 #### Auto-lock
 
@@ -3750,7 +3750,7 @@ TierSecretUnlockDialog.show(context, {
   BiometricSpec? biometric,
 }) → Future<TierUnlockAttempt>
 ```
-Shared L2 (short password) / L3 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns a typed `TierUnlockAttempt` outcome — `staged` (the unlock orchestrator put the resolved key in SecretStore), `wrongSecret` (kept open + decrements the limiter), `error` (closes with failure for plaintext / corruption fallback), or `cancelled` (inner sub-prompt dismissed, dialog stays open). The dialog never sees raw key bytes; the [`TierUnlockedListener`](../lib/app/tier_unlocked_listener.dart) takes them via `secrets_take` off the `TierStateChanged.unlocked` bus event and hands them to drift. Cooldown back-off is wired through the `rateLimiter` parameter.
+Shared L2 (short password) / T2 (PIN) unlock shell. Owns the retry loop: the host supplies a `verify` callback that returns a typed `TierUnlockAttempt` outcome — `staged` (the unlock orchestrator put the resolved key in SecretStore), `wrongSecret` (kept open + decrements the limiter), `error` (closes with failure for plaintext / corruption fallback), or `cancelled` (inner sub-prompt dismissed, dialog stays open). The dialog never sees raw key bytes; the [`TierUnlockedListener`](../lib/app/tier_unlocked_listener.dart) takes them via `secrets_take` off the `TierStateChanged.unlocked` bus event and hands them to drift. Cooldown back-off is wired through the `rateLimiter` parameter.
 
 ### TierResetDialog
 
@@ -4497,10 +4497,10 @@ All files live in the platform's app-support directory (see **Location** below).
 | `credentials.kdf` | No | `'LFKD'` magic + version + KdfParams + 32-byte salt | Argon2id salt + params for master-password key derivation. Presence = master password is enabled | Master password setup |
 | `credentials.verify` | No | AES-256-GCM | Encrypted known-plaintext blob — used to verify the entered master password matches | Master password setup |
 | `credentials.key` | AES-256-GCM (under master-password-derived KEK) | Length-prefixed envelope | The 32-byte DB encryption key, wrapped under the master-password-derived KEK. Lets the verify path reuse the same Argon2id pass for both verify + key resolution rather than running it twice | Master password setup; rewritten on every tier switch |
-| `keychain_enabled` | No | Marker file (presence) | Sentinel for the L1 keychain-backed tier — written when the L1 setup wizard finishes, removed on tier downgrade or wipe | L1 enable |
+| `keychain_enabled` | No | Marker file (presence) | Sentinel for the T1 keychain-backed tier — written when the T1 setup wizard finishes, removed on tier downgrade or wipe | T1 enable |
 | `rate_limit_state.bin` | HMAC-SHA256-authenticated framing | `{failureCount, nextRetryAtMillis}` blob | Persisted L2 password-gate rate-limit counters. Survives process restart so a relaunch can't reset the cooldown | First L2 failure |
 | `security_pass_hash.bin` | No | Argon2id salt + verifier | L2 keychain-password gate hash + per-install pepper handle. Verifies the short-password the keychain unlock prompt collects | L2+password setup |
-| `hardware_vault_*.bin` | Hardware-backed wrap | Per-platform envelope | Hardware-vault sealed DB-key blob (one per platform — Apple / Android / Windows / Linux + per-platform overlay variants). See [§3.6 L3 hardware vault](#l3-hardware-vault-hardwaretiervault) for the per-platform shape | L3 enable |
+| `hardware_vault_*.bin` | Hardware-backed wrap | Per-platform envelope | Hardware-vault sealed DB-key blob (one per platform — Apple / Android / Windows / Linux + per-platform overlay variants). See [§3.6 T2 hardware vault](#l3-hardware-vault-hardwaretiervault) for the per-platform shape | T2 enable |
 | `.tier-transition-pending` | No | JSON | Crash-recovery marker written before a tier-switch rekey. Absence = previous tier switch completed cleanly; presence on startup signals an interrupted switch and routes through the recovery path | Every tier switch (cleared on success) |
 | `.wipe-pending` | No | Empty file | Crash-recovery marker written before a wipe sweep starts. Presence on startup re-runs the sweep idempotently | Wipe start (cleared on success) |
 | `migration_history.json` | No | JSON | Legacy artefact, kept in [`MANAGED_FILES`](../rust/crates/lfs_core/src/security/wipe.rs) for cleanup on installs that still carry it. No code path writes or reads it. | Legacy installs only |
@@ -4846,7 +4846,7 @@ The full per-tier model lives in [§3.6 Three-Tier + Paranoid Model](#three-tier
 | **Plaintext (T0)** | None | `letsflutssh.db` — opened via rusqlite/SQLCipher with no `PRAGMA key` | `letsflutssh.db` |
 | **Keychain (T1)** | OS keychain via `lfs_os_security::secure_key_storage` (Apple SecItem / Linux libsecret / Windows CredMan / Android Keystore JNI) | `letsflutssh.db` — SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `keychain_enabled` |
 | **Keychain + password (L2)** | OS keychain + L2 password gate (Argon2id verifier with HMAC-bound rate-limiter) | SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `security_pass_hash.bin`, `rate_limit_state.bin`, `keychain_enabled` |
-| **Hardware (L3)** | Hardware-sealed wrap (TPM 2.0 / Secure Enclave / AndroidKeyStore strongbox / CNG TPM) | SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `hardware_vault_*.bin`, optional overlay (.password_overlay) |
+| **Hardware (T2)** | Hardware-sealed wrap (TPM 2.0 / Secure Enclave / AndroidKeyStore strongbox / CNG TPM) | SQLCipher 4.x (`PRAGMA key`) | `letsflutssh.db`, `hardware_vault_*.bin`, optional overlay (.password_overlay) |
 | **Paranoid** | Argon2id-derived from master password — never stored in the OS | SQLCipher 4.x (`PRAGMA key`) + `credentials.kdf` + `credentials.verify` + `credentials.key` | `letsflutssh.db`, three `credentials.*` files |
 
 Encryption is applied at the database level via SQLCipher 4.x (AES-256-CBC + HMAC-SHA512) — a single encrypted DB file replaces the old per-store AES-256-GCM files.

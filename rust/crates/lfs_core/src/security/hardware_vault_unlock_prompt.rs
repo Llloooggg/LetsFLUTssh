@@ -24,7 +24,7 @@ use super::prompt_registry::PromptRegistry as Generic;
 ///   DB key.
 /// * `Ok(None)` — wrong PIN / user cancel / hardware reported
 ///   failure with no recoverable detail. Caller routes through
-///   the L3 reset path.
+///   the T2 reset path.
 /// * `Err(msg)` — plugin error / channel unreachable. Caller
 ///   surfaces the message in the support log + falls back to
 ///   plaintext.

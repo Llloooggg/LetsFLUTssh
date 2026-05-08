@@ -2391,4 +2391,54 @@ class SKo extends S {
 
   @override
   String get masterPasswordLabel => '마스터 비밀번호';
+
+  @override
+  String get globalErrorTitle => 'Unexpected Error';
+
+  @override
+  String get globalErrorBody =>
+      'An unexpected error occurred. The app will continue running.';
+
+  @override
+  String get globalErrorLogSavedNote =>
+      'Full details have been saved to the log file.';
+
+  @override
+  String get globalErrorLogDisabledNote =>
+      'Enable logging in Settings to save error details.';
+
+  @override
+  String globalErrorTechnicalLine(String detail) {
+    return 'Error: $detail';
+  }
+
+  @override
+  String get globalErrorEnableLoggingButton => 'Enable Logging';
+
+  @override
+  String get globalErrorLoggingEnabledToast =>
+      'Logging enabled — errors will be saved to log file';
+
+  @override
+  String get fatalErrorQuitButton => 'Quit';
+
+  @override
+  String get fatalErrorWipeButton => 'Wipe all data';
+
+  @override
+  String get fatalErrorWipingButton => 'Wiping…';
+
+  @override
+  String get fatalErrorWipeExplanation =>
+      'Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.';
+
+  @override
+  String get fatalErrorWipeConfirmTitle => 'Wipe all data?';
+
+  @override
+  String get fatalErrorWipeConfirmBody =>
+      'This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?';
+
+  @override
+  String get fatalErrorWipeConfirmAction => 'Wipe everything';
 }

@@ -18,7 +18,7 @@ import '../utils/logger.dart';
 /// - Apple SE / Android Keystore / Windows CNG:
 ///   `lfs_os_security::hardware_tier_vault::*`.
 ///
-/// The Rust L3 tier-unlock orchestrator publishes the request
+/// The Rust T2 tier-unlock orchestrator publishes the request
 /// through the bus; this subscriber owns the FRB call because
 /// the prompt protocol is the boundary between the
 /// Rust-orchestrated tier machine and Dart-owned UI dialogs.

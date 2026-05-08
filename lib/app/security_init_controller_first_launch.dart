@@ -122,7 +122,7 @@ extension _FirstLaunchFlows on SecurityInitController {
       case SecurityTier.hardware:
         await _firstLaunchHardware(result.takePin(), result.modifiers);
       case SecurityTier.keychain:
-        // Bank-style v3: L1+password is `keychain` + `modifiers
+        // Bank-style v3: T1+password is `keychain` + `modifiers
         // .password`; the dispatch was previously a dedicated
         // `keychainWithPassword` arm and is now a modifier check
         // inside the keychain arm.
@@ -148,7 +148,7 @@ extension _FirstLaunchFlows on SecurityInitController {
           await _injectDatabase();
         }
         AppLogger.instance.log(
-          'First launch: plaintext mode (L0)',
+          'First launch: plaintext mode (T0)',
           name: 'App',
         );
     }
@@ -393,7 +393,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     // String stays scoped to this function.
     final passwordBytes = Uint8List.fromList(utf8.encode(shortPassword));
     final ok = await _runFirstLaunchOrchestrator(
-      // Bank-style v3: the L1+password tier is `keychain` with
+      // Bank-style v3: the T1+password tier is `keychain` with
       // `modifiers.password = true`; the orchestrator publishes
       // events under the keychain tier and the modifier carries
       // the password signal.
@@ -457,7 +457,7 @@ extension _FirstLaunchFlows on SecurityInitController {
     );
     if (ok) {
       AppLogger.instance.log(
-        'First launch: hardware vault (L3) sealed',
+        'First launch: hardware vault (T2) sealed',
         name: 'App',
       );
       return;
@@ -476,7 +476,7 @@ extension _FirstLaunchFlows on SecurityInitController {
         modifiers: modifiers,
       );
       AppLogger.instance.log(
-        'First launch: hardware vault (L3) sealed (fallback)',
+        'First launch: hardware vault (T2) sealed (fallback)',
         name: 'App',
       );
       return;

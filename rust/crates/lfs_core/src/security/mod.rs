@@ -42,7 +42,7 @@ pub mod wipe_keychain;
 
 /// Named security tiers. Mirror of the Dart enum case-for-case.
 ///
-/// The user-facing UI presents four numbered tiers (L0–L3) on a
+/// The user-facing UI presents four numbered tiers (T0–T2) on a
 /// linear "more backend = higher number" ladder, plus a separate
 /// `Paranoid` branch shown as an alternative. Comparison
 /// operators (`<` / `>`) are intentionally NOT implemented — the
@@ -51,15 +51,15 @@ pub mod wipe_keychain;
 /// `has_hardware_vault`, `is_paranoid`) for branch logic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SecurityTier {
-    /// L0 — bare DB on disk, file permissions only.
+    /// T0 — bare DB on disk, file permissions only.
     Plaintext,
-    /// L1 — DB key in OS secure storage; auto-unlock on launch.
+    /// T1 — DB key in OS secure storage; auto-unlock on launch.
     /// User-typed password gate is the orthogonal
     /// `SecurityTierModifiers::password` switch (bank-style model);
-    /// "L1 + password" is `Keychain` + `modifiers.password = true`,
+    /// "T1 + password" is `Keychain` + `modifiers.password = true`,
     /// not its own enum variant.
     Keychain,
-    /// L3 — DB key wrapped by hardware-bound vault; the
+    /// T2 — DB key wrapped by hardware-bound vault; the
     /// `password` modifier optionally adds a typed-password layer
     /// on top, the `biometric` modifier optionally lets the user
     /// release that password via a biometric prompt instead of
@@ -211,7 +211,7 @@ impl SecurityConfig {
     /// Used by code paths that need to decide between "read from
     /// keychain" and "derive fresh". The bank-style password
     /// modifier is orthogonal: `Keychain` covers both passwordless
-    /// L1 and L1 + typed password.
+    /// T1 and T1 + typed password.
     pub fn uses_keychain(&self) -> bool {
         matches!(self.tier, SecurityTier::Keychain)
     }
@@ -333,7 +333,7 @@ pub fn map_wizard_choice(
             pin: None,
         },
         WizardTier::Keychain if password => MappedSetupChoice {
-            // Bank-style: L1 + password is `Keychain` with
+            // Bank-style: T1 + password is `Keychain` with
             // `modifiers.password = true`. Pre-v3 configs used a
             // dedicated `KeychainWithPassword` tier; the
             // `ConfigV2ToV3` migration rewrites them on read.
@@ -477,7 +477,7 @@ mod tests {
     #[test]
     fn config_json_round_trip() {
         let original = SecurityConfig {
-            // Bank-style L1 + password — previously a dedicated
+            // Bank-style T1 + password — previously a dedicated
             // KeychainWithPassword tier, now Keychain + the
             // password modifier.
             tier: SecurityTier::Keychain,
@@ -524,7 +524,7 @@ mod tests {
                 false,
                 false,
             ),
-            // Bank-style L1 + password — `has_user_secret` flips on
+            // Bank-style T1 + password — `has_user_secret` flips on
             // the modifier, not on a dedicated tier value.
             (
                 SecurityTier::Keychain,
@@ -589,7 +589,7 @@ mod tests {
         };
         let json = cfg.to_json_value();
         assert_eq!(json.get("tier").and_then(|v| v.as_str()), Some("keychain"),);
-        // The password modifier is what carries the "L1 + password"
+        // The password modifier is what carries the "T1 + password"
         // signal in the bank-style v3 wire shape.
         assert_eq!(
             json.get("modifiers")
@@ -617,7 +617,7 @@ mod tests {
         assert_eq!(no_pw.short_password, None);
 
         let with_pw = map_wizard_choice(WizardTier::Keychain, true, false, Some("hunter2".into()));
-        // Bank-style: L1 + password is `Keychain` + the password
+        // Bank-style: T1 + password is `Keychain` + the password
         // modifier, not a dedicated tier value.
         assert_eq!(with_pw.tier, SecurityTier::Keychain);
         assert!(with_pw.modifiers.password);

@@ -1,6 +1,6 @@
 part of 'security_init_controller.dart';
 
-/// Per-tier unlock flows + the L2 / L3 dialog scaffolding. Lives as
+/// Per-tier unlock flows + the L2 / T2 dialog scaffolding. Lives as
 /// an extension on [SecurityInitController] so the methods reach the
 /// private `_dialogs` / `_credentialsWereReset` / `_injectDatabase`
 /// fields without exposing them publicly; `part of` joins the file
@@ -76,7 +76,7 @@ extension _UnlockFlows on SecurityInitController {
           onTimeout: () => TierUnlockOutcome.failed,
         );
         if (result == TierUnlockOutcome.unlocked) {
-          AppLogger.instance.log('Keychain key loaded (tier=L1)', name: 'App');
+          AppLogger.instance.log('Keychain key loaded (tier=T1)', name: 'App');
           return;
         }
         AppLogger.instance.log(
@@ -101,7 +101,7 @@ extension _UnlockFlows on SecurityInitController {
     // keychain entry. Surface the recovery dialog up front so the
     // user can pick exit / retry / wipe knowing what actually
     // happened.
-    await _handleVaultStateMissing('L1 keychain');
+    await _handleVaultStateMissing('T1 keychain');
   }
 
   Future<void> _unlockKeychainWithPassword() async {
@@ -258,7 +258,7 @@ extension _UnlockFlows on SecurityInitController {
   Future<void> _unlockHardware() async {
     final vault = ref.read(hardwareTierVaultProvider);
     if (!await vault.isStored()) {
-      await _handleVaultStateMissing('L3 hardware');
+      await _handleVaultStateMissing('T2 hardware');
       return;
     }
     final mods = ref.read(configProvider).security?.modifiers;
@@ -279,13 +279,13 @@ extension _UnlockFlows on SecurityInitController {
           );
           if (result == TierUnlockOutcome.unlocked) {
             AppLogger.instance.log(
-              'L3 hardware-vault unlocked (passwordless)',
+              'T2 hardware-vault unlocked (passwordless)',
               name: 'App',
             );
             return;
           }
           AppLogger.instance.log(
-            'L3 passwordless listener returned $result after Staged',
+            'T2 passwordless listener returned $result after Staged',
             name: 'App',
             level: LogLevel.warn,
           );
@@ -301,7 +301,7 @@ extension _UnlockFlows on SecurityInitController {
       _credentialsWereReset = true;
       await _injectDatabase();
       AppLogger.instance.log(
-        'L3 passwordless unseal failed — plaintext fallback',
+        'T2 passwordless unseal failed — plaintext fallback',
         name: 'App',
         level: LogLevel.warn,
       );
@@ -320,13 +320,13 @@ extension _UnlockFlows on SecurityInitController {
         );
         if (result == TierUnlockOutcome.unlocked) {
           AppLogger.instance.log(
-            'L3 hardware-vault unlocked via biometrics',
+            'T2 hardware-vault unlocked via biometrics',
             name: 'App',
           );
           return;
         }
         AppLogger.instance.log(
-          'L3 biometric staged but listener returned $result',
+          'T2 biometric staged but listener returned $result',
           name: 'App',
           level: LogLevel.warn,
         );
@@ -342,11 +342,11 @@ extension _UnlockFlows on SecurityInitController {
         onTimeout: () => TierUnlockOutcome.failed,
       );
       if (result == TierUnlockOutcome.unlocked) {
-        AppLogger.instance.log('L3 hardware-vault unlocked', name: 'App');
+        AppLogger.instance.log('T2 hardware-vault unlocked', name: 'App');
         return;
       }
       AppLogger.instance.log(
-        'L3 dialog returned success but listener resolved $result',
+        'T2 dialog returned success but listener resolved $result',
         name: 'App',
         level: LogLevel.warn,
       );
@@ -366,7 +366,7 @@ extension _UnlockFlows on SecurityInitController {
     }
     await _injectDatabase();
     AppLogger.instance.log(
-      'L3 reset — plaintext fallback',
+      'T2 reset — plaintext fallback',
       name: 'App',
       level: LogLevel.warn,
     );
