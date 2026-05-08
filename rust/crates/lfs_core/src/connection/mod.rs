@@ -508,18 +508,34 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
     .await;
     trace_connect!("run_connect_driver about to enter run_auth id={id}");
 
-    // 30-second connect timeout. russh `client::connect` does not
-    // bound the TCP connect on its own; an unreachable host (typo in
-    // address, firewall drop) would otherwise pin the actor for the
-    // OS-level TCP timeout (60–130 s on Linux). Wrapping the whole
-    // handshake — TCP dial, host-key exchange, userauth — keeps the
-    // worst case bounded; legitimate slow networks finish well under
-    // the cap. Mirrors `ConnectionManager.connectionTimeout` from
-    // the Dart-era driver.
+    // SSH connect timeout — sourced from `AppConfig.ssh_timeout_sec`
+    // (`config.json`) so the user's "Connection timeout (s)"
+    // setting in Settings → Connection actually flows into the
+    // dial. russh `client::connect` doesn't bound the TCP connect
+    // on its own; an unreachable host would otherwise pin the
+    // actor for the OS-level TCP timeout (60–130 s on Linux).
+    // Wrapping the whole handshake — TCP dial, host-key exchange,
+    // userauth — keeps the worst case bounded by the configured
+    // value; legitimate slow networks finish well under the cap.
+    // Pull `ssh_timeout_sec` from the config-store JSON (the
+    // Dart-side serialiser writes the canonical shape; defaults
+    // to 10 s when the field is absent, capped to ≥1 s so a
+    // hostile / corrupt entry can't disable the bound entirely).
+    let timeout_secs = crate::config_store::instance()
+        .get_json()
+        .as_deref()
+        .and_then(|j| serde_json::from_str::<serde_json::Value>(j).ok())
+        .and_then(|v| v.get("ssh_timeout_sec").and_then(|x| x.as_i64()))
+        .filter(|s| *s > 0)
+        .unwrap_or(30) as u64;
     let result =
-        match tokio::time::timeout(std::time::Duration::from_secs(30), run_auth(args)).await {
+        match tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), run_auth(args))
+            .await
+        {
             Ok(r) => r,
-            Err(_) => Err(Error::Connect("connect timed out (30 s)".into())),
+            Err(_) => Err(Error::Connect(format!(
+                "connect timed out ({timeout_secs} s)"
+            ))),
         };
     trace_connect!(
         "run_connect_driver run_auth returned id={id} ok={} err={:?}",

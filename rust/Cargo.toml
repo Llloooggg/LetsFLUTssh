@@ -13,6 +13,21 @@ license = "Apache-2.0 OR MIT"
 repository = "https://github.com/Llloooggg/LetsFLUTssh"
 rust-version = "1.85"
 
+# Workspace-wide lint floor. Each crate inherits via
+# `[lints] workspace = true` so a clippy / rustc severity bump
+# lands in one place rather than three. CI's `cargo clippy
+# --workspace -- -D warnings` keeps the per-PR gate; this table
+# keeps the same severity inside `cargo check` / IDE LSP.
+[workspace.lints.rust]
+# Default — `-D warnings` rolls every other rustc warning
+# straight into errors via the CLI flag. `unsafe_code` overrides
+# stay per-crate (lfs_core forbids; lfs_os_security allows the
+# audited FFI blocks).
+
+[workspace.lints.clippy]
+# Match the `-D warnings` clippy gate CI runs. Per-crate
+# `[lints]` blocks can still relax specific lints if needed.
+
 # Shared versions for cross-crate dep pinning. Adapter crates inherit
 # these via `{ workspace = true }` so a bump only happens in one place.
 [workspace.dependencies]
