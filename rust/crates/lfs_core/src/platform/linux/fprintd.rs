@@ -100,9 +100,25 @@ pub async fn verify(timeout: Duration) -> bool {
         return false;
     };
 
+    // Probe + claim. fprintd's `Claim` returns
+    // `org.freedesktop.DBus.Error.AccessDenied` when another
+    // process holds the reader (typical: a concurrent
+    // `pam_fprintd` verify from a sudo / login attempt). The
+    // previous shape collapsed that into the same boolean as
+    // "no reader present" — the user saw "biometric
+    // unavailable" with no hint that the device was simply
+    // busy. Log the typed reason at warn so support traces show
+    // WHICH failure shape fired.
     let claim_res = call_method::<&str, ()>(&conn, &device_path, "Claim", &"").await;
-    let claimed = claim_res.is_ok();
-    if !claimed {
+    if let Err(e) = claim_res {
+        let msg = e.to_string();
+        let lock_busy = msg.contains("AccessDenied")
+            || msg.contains("PermissionDenied")
+            || msg.contains("Device was already claimed");
+        crate::app_log_warn!(
+            "Fprintd",
+            "Claim failed (lock_busy={lock_busy}): {msg}"
+        );
         return false;
     }
 

@@ -123,6 +123,37 @@ pub fn static_int_field(env: &mut JNIEnv, class_name: &str, field: &str) -> Resu
         .map_err(|e| format!("jni: static int {class_name}.{field}: {e}"))
 }
 
+/// Drain any pending JVM exception left after a failing JNI call.
+///
+/// JNI's contract: a Java method that throws leaves the exception
+/// object posted on the JVM's per-thread "pending" slot. The next
+/// JNI call from the same thread will see it AS an exception
+/// (most calls then immediately abort + the JVM aborts the
+/// process on the second call). We log the exception text via
+/// `app_log_warn!` so support traces show what threw, then clear
+/// the slot so subsequent JNI calls on the same thread can run.
+///
+/// Closes the audit's B-OSFFI-4 "JNI exception clear gap":
+/// previously every `call_method` failure returned the Rust-side
+/// `Err(String)` but left the Java exception parked on the JNI
+/// frame, occasionally surfacing as a hard process abort on the
+/// next JNI hop.
+fn drain_exception(env: &mut JNIEnv, ctx: &str) {
+    let occurred = env.exception_check().unwrap_or(false);
+    if !occurred {
+        return;
+    }
+    // `exception_describe` writes to logcat directly — informative
+    // on Android, harmless on host JVM. Best-effort: a failure
+    // describing should not block the clear.
+    let _ = env.exception_describe();
+    if let Err(clear_err) = env.exception_clear() {
+        eprintln!(
+            "JniHelpers: drain_exception failed to clear after {ctx}: {clear_err}"
+        );
+    }
+}
+
 /// Convenience wrapper around `env.call_method` that converts
 /// the resulting `JValueOwned` into a `JObject` — the most
 /// common return type for our chains.
@@ -133,9 +164,13 @@ pub fn call_obj<'local>(
     sig: &'static str,
     args: &[JValue],
 ) -> Result<JObject<'local>, String> {
-    env.call_method(obj, name, sig, args)
-        .and_then(|v| v.l())
-        .map_err(|e| format!("jni: {name}{sig}: {e}"))
+    match env.call_method(obj, name, sig, args).and_then(|v| v.l()) {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            drain_exception(env, &format!("call_obj {name}{sig}"));
+            Err(format!("jni: {name}{sig}: {e}"))
+        }
+    }
 }
 
 /// Call a static method that returns an Object.
@@ -146,12 +181,23 @@ pub fn call_static_obj<'local>(
     sig: &'static str,
     args: &[JValue],
 ) -> Result<JObject<'local>, String> {
-    let class = env
-        .find_class(class_name)
-        .map_err(|e| format!("jni: find_class {class_name}: {e}"))?;
-    env.call_static_method(class, name, sig, args)
+    let class = match env.find_class(class_name) {
+        Ok(c) => c,
+        Err(e) => {
+            drain_exception(env, &format!("find_class {class_name}"));
+            return Err(format!("jni: find_class {class_name}: {e}"));
+        }
+    };
+    match env
+        .call_static_method(class, name, sig, args)
         .and_then(|v| v.l())
-        .map_err(|e| format!("jni: static {name}{sig}: {e}"))
+    {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            drain_exception(env, &format!("call_static_obj {name}{sig}"));
+            Err(format!("jni: static {name}{sig}: {e}"))
+        }
+    }
 }
 
 /// Call a method that returns a primitive boolean.
@@ -162,9 +208,13 @@ pub fn call_bool(
     sig: &'static str,
     args: &[JValue],
 ) -> Result<bool, String> {
-    env.call_method(obj, name, sig, args)
-        .and_then(|v| v.z())
-        .map_err(|e| format!("jni: {name}{sig}: {e}"))
+    match env.call_method(obj, name, sig, args).and_then(|v| v.z()) {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            drain_exception(env, &format!("call_bool {name}{sig}"));
+            Err(format!("jni: {name}{sig}: {e}"))
+        }
+    }
 }
 
 /// Call a void method.
@@ -175,7 +225,11 @@ pub fn call_void(
     sig: &'static str,
     args: &[JValue],
 ) -> Result<(), String> {
-    env.call_method(obj, name, sig, args)
-        .map_err(|e| format!("jni: {name}{sig}: {e}"))?;
-    Ok(())
+    match env.call_method(obj, name, sig, args) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            drain_exception(env, &format!("call_void {name}{sig}"));
+            Err(format!("jni: {name}{sig}: {e}"))
+        }
+    }
 }
