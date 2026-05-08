@@ -100,7 +100,7 @@ String? _sanitizeErrnoMessage(String msg) {
   // FileSystemException: "OS Error: <localized text>, errno = N"
   final errnoMatch = RegExp(r'errno\s*=\s*(\d+)').firstMatch(msg);
   if (errnoMatch != null) {
-    final english = _errnoEnglish[int.parse(errnoMatch.group(1)!)];
+    final english = _errnoEnglishOf(int.parse(errnoMatch.group(1)!));
     if (english != null) {
       final pathMatch = RegExp(r"path\s*=\s*'([^']*)'").firstMatch(msg);
       final path = pathMatch?.group(1);
@@ -113,7 +113,7 @@ String? _sanitizeErrnoMessage(String msg) {
     r'OS Error:\s*[^,]+,\s*errno\s*=\s*(\d+)',
   ).firstMatch(msg);
   if (osErrorMatch != null) {
-    final english = _errnoEnglish[int.parse(osErrorMatch.group(1)!)];
+    final english = _errnoEnglishOf(int.parse(osErrorMatch.group(1)!));
     if (english != null) return english;
   }
 
@@ -361,95 +361,78 @@ String _localizeOsError(S l10n, Object error) {
   return msg;
 }
 
-/// Map errno code to localized string, or null if unknown.
-String? _errnoLocalized(S l10n, int errno) => switch (errno) {
+/// errno → (localized accessor, English fallback) — single source
+/// of truth for the two errno-keyed lookups (sanitizer logging
+/// path + UI localizer). Previously these were two separate
+/// maps that drifted independently; consolidating means a new
+/// errno entry adds one row, not two.
+class _ErrnoEntry {
+  const _ErrnoEntry(this.localized, this.english);
+  final String Function(S) localized;
+  final String english;
+}
+
+final Map<int, _ErrnoEntry> _errnoTable = <int, _ErrnoEntry>{
   // POSIX / Linux
-  1 => l10n.errOperationNotPermitted,
-  2 => l10n.errNoSuchFileOrDirectory,
-  3 => l10n.errNoSuchProcess,
-  5 => l10n.errIoError,
-  9 => l10n.errBadFileDescriptor,
-  11 => l10n.errResourceTemporarilyUnavailable,
-  12 => l10n.errOutOfMemory,
-  13 => l10n.errPermissionDenied,
-  17 => l10n.errFileExists,
-  20 => l10n.errNotADirectory,
-  21 => l10n.errIsADirectory,
-  22 => l10n.errInvalidArgument,
-  23 => l10n.errTooManyOpenFiles,
-  28 => l10n.errNoSpaceLeftOnDevice,
-  30 => l10n.errReadOnlyFileSystem,
-  32 => l10n.errBrokenPipe,
-  36 => l10n.errFileNameTooLong,
-  39 => l10n.errDirectoryNotEmpty,
-  98 => l10n.errAddressAlreadyInUse,
-  99 => l10n.errCannotAssignAddress,
-  100 => l10n.errNetworkIsDown,
-  101 => l10n.errNetworkIsUnreachable,
-  104 => l10n.errConnectionResetByPeer,
-  110 => l10n.errConnectionTimedOut,
-  111 => l10n.errConnectionRefused,
-  112 => l10n.errHostIsDown,
-  113 => l10n.errNoRouteToHost,
+  1: _ErrnoEntry((s) => s.errOperationNotPermitted, 'Operation not permitted'),
+  2: _ErrnoEntry((s) => s.errNoSuchFileOrDirectory, 'No such file or directory'),
+  3: _ErrnoEntry((s) => s.errNoSuchProcess, 'No such process'),
+  5: _ErrnoEntry((s) => s.errIoError, 'I/O error'),
+  9: _ErrnoEntry((s) => s.errBadFileDescriptor, 'Bad file descriptor'),
+  11: _ErrnoEntry(
+    (s) => s.errResourceTemporarilyUnavailable,
+    'Resource temporarily unavailable',
+  ),
+  12: _ErrnoEntry((s) => s.errOutOfMemory, 'Out of memory'),
+  13: _ErrnoEntry((s) => s.errPermissionDenied, 'Permission denied'),
+  17: _ErrnoEntry((s) => s.errFileExists, 'File exists'),
+  20: _ErrnoEntry((s) => s.errNotADirectory, 'Not a directory'),
+  21: _ErrnoEntry((s) => s.errIsADirectory, 'Is a directory'),
+  22: _ErrnoEntry((s) => s.errInvalidArgument, 'Invalid argument'),
+  23: _ErrnoEntry((s) => s.errTooManyOpenFiles, 'Too many open files'),
+  28: _ErrnoEntry((s) => s.errNoSpaceLeftOnDevice, 'No space left on device'),
+  30: _ErrnoEntry((s) => s.errReadOnlyFileSystem, 'Read-only file system'),
+  32: _ErrnoEntry((s) => s.errBrokenPipe, 'Broken pipe'),
+  36: _ErrnoEntry((s) => s.errFileNameTooLong, 'File name too long'),
+  39: _ErrnoEntry((s) => s.errDirectoryNotEmpty, 'Directory not empty'),
+  98: _ErrnoEntry((s) => s.errAddressAlreadyInUse, 'Address already in use'),
+  99: _ErrnoEntry(
+    (s) => s.errCannotAssignAddress,
+    'Cannot assign requested address',
+  ),
+  100: _ErrnoEntry((s) => s.errNetworkIsDown, 'Network is down'),
+  101: _ErrnoEntry((s) => s.errNetworkIsUnreachable, 'Network is unreachable'),
+  104: _ErrnoEntry((s) => s.errConnectionResetByPeer, 'Connection reset by peer'),
+  110: _ErrnoEntry((s) => s.errConnectionTimedOut, 'Connection timed out'),
+  111: _ErrnoEntry((s) => s.errConnectionRefused, 'Connection refused'),
+  112: _ErrnoEntry((s) => s.errHostIsDown, 'Host is down'),
+  113: _ErrnoEntry((s) => s.errNoRouteToHost, 'No route to host'),
   // Windows Winsock (WSA*)
-  10013 => l10n.errPermissionDenied,
-  10048 => l10n.errAddressAlreadyInUse,
-  10049 => l10n.errCannotAssignAddress,
-  10050 => l10n.errNetworkIsDown,
-  10051 => l10n.errNetworkIsUnreachable,
-  10053 => l10n.errConnectionAborted,
-  10054 => l10n.errConnectionResetByPeer,
-  10056 => l10n.errAlreadyConnected,
-  10057 => l10n.errNotConnected,
-  10060 => l10n.errConnectionTimedOut,
-  10061 => l10n.errConnectionRefused,
-  10064 => l10n.errHostIsDown,
-  10065 => l10n.errNoRouteToHost,
-  _ => null,
+  10013: _ErrnoEntry((s) => s.errPermissionDenied, 'Permission denied'),
+  10048: _ErrnoEntry((s) => s.errAddressAlreadyInUse, 'Address already in use'),
+  10049: _ErrnoEntry(
+    (s) => s.errCannotAssignAddress,
+    'Cannot assign requested address',
+  ),
+  10050: _ErrnoEntry((s) => s.errNetworkIsDown, 'Network is down'),
+  10051: _ErrnoEntry((s) => s.errNetworkIsUnreachable, 'Network is unreachable'),
+  10053: _ErrnoEntry((s) => s.errConnectionAborted, 'Connection aborted'),
+  10054: _ErrnoEntry(
+    (s) => s.errConnectionResetByPeer,
+    'Connection reset by peer',
+  ),
+  10056: _ErrnoEntry((s) => s.errAlreadyConnected, 'Already connected'),
+  10057: _ErrnoEntry((s) => s.errNotConnected, 'Not connected'),
+  10060: _ErrnoEntry((s) => s.errConnectionTimedOut, 'Connection timed out'),
+  10061: _ErrnoEntry((s) => s.errConnectionRefused, 'Connection refused'),
+  10064: _ErrnoEntry((s) => s.errHostIsDown, 'Host is down'),
+  10065: _ErrnoEntry((s) => s.errNoRouteToHost, 'No route to host'),
 };
 
-/// English-only errno map — used by [sanitizeError] for logging.
-const _errnoEnglish = <int, String>{
-  // POSIX / Linux
-  1: 'Operation not permitted',
-  2: 'No such file or directory',
-  3: 'No such process',
-  5: 'I/O error',
-  9: 'Bad file descriptor',
-  11: 'Resource temporarily unavailable',
-  12: 'Out of memory',
-  13: 'Permission denied',
-  17: 'File exists',
-  20: 'Not a directory',
-  21: 'Is a directory',
-  22: 'Invalid argument',
-  23: 'Too many open files',
-  28: 'No space left on device',
-  30: 'Read-only file system',
-  32: 'Broken pipe',
-  36: 'File name too long',
-  39: 'Directory not empty',
-  98: 'Address already in use',
-  99: 'Cannot assign requested address',
-  100: 'Network is down',
-  101: 'Network is unreachable',
-  104: 'Connection reset by peer',
-  110: 'Connection timed out',
-  111: 'Connection refused',
-  112: 'Host is down',
-  113: 'No route to host',
-  // Windows Winsock (WSA*)
-  10013: 'Permission denied',
-  10048: 'Address already in use',
-  10049: 'Cannot assign requested address',
-  10050: 'Network is down',
-  10051: 'Network is unreachable',
-  10053: 'Connection aborted',
-  10054: 'Connection reset by peer',
-  10056: 'Already connected',
-  10057: 'Not connected',
-  10060: 'Connection timed out',
-  10061: 'Connection refused',
-  10064: 'Host is down',
-  10065: 'No route to host',
-};
+/// Map errno code to localized string, or null if unknown.
+String? _errnoLocalized(S l10n, int errno) =>
+    _errnoTable[errno]?.localized(l10n);
+
+/// English-only errno fallback — used by [sanitizeError] for logging
+/// where no [S] is in scope.
+String? _errnoEnglishOf(int errno) => _errnoTable[errno]?.english;
