@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
-import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
 
 /// One asciinema-v2 event read out of a recording file. The fields
@@ -69,21 +67,6 @@ class RecordingHeader {
 class RecordingReader {
   RecordingReader._();
 
-  static const List<int> _expectedMagic = [0x4C, 0x46, 0x52, 0x31];
-  static const int _lfrVersionLegacyNoAad = 0x01;
-  static const int _lfrVersionAadFrameIndex = 0x02;
-
-  /// Per-frame plaintext-length cap for `.lfsr` envelopes. The
-  /// recorder writes asciinema-v2 event lines, where the largest
-  /// realistic frame is a paste-storm worth of bytes — well under
-  /// 16 MiB. The header was a 4-byte uint32 with no sanity check,
-  /// so a malformed / hostile file with `0xffffffff` pulled a 4 GiB
-  /// allocation in the runtime before the AEAD failure had a
-  /// chance to fire. Cap the read at a value that fits every
-  /// realistic recording with room to spare and rejects anything
-  /// larger as a `RecordingFormatException`.
-  static const int _maxFramePlaintextBytes = 16 * 1024 * 1024;
-
   /// Walk a `.cast` plaintext recording. The first event is the
   /// asciinema header (a JSON object); subsequent events are
   /// `[t, dir, data]` arrays.
@@ -98,93 +81,37 @@ class RecordingReader {
     }
   }
 
-  /// Walk an encrypted `.lfsr` recording. The recording key is
-  /// derived Rust-side from
-  /// `lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID` via
-  /// `recorderDeriveKeyFromActive` — the DB key never lands on the
-  /// Dart heap on this path. Throws when the active slot is empty
-  /// (plaintext tier — encrypted recordings cannot be opened).
+  /// Walk an encrypted `.lfsr` recording. The whole decode path
+  /// (magic / version sniff, per-frame AES-256-GCM with the
+  /// HKDF-derived recording key, per-frame AAD recomputation,
+  /// length-cap rejection) lives Rust-side in
+  /// `lfs_core::recorder::reader::open_lfsr_iter` — Dart subscribes
+  /// to the `recorderOpenForPlayback` Stream FRB endpoint and
+  /// receives the already-decoded JSON-Lines records. The DB key
+  /// + the derived recording key never cross the FRB boundary.
+  /// Errors during the magic sniff / decrypt land as Dart
+  /// `RecordingFormatException`s (FRB envelope error → mapped
+  /// here so the playback UI keeps its existing branch shape).
   static Stream<RecordingDecodedLine> openEncrypted(File file) async* {
-    final key = await rust_recorder.recorderDeriveKeyFromActive();
-    if (key.isEmpty) {
-      throw const RecordingFormatException(
-        'No active DB key — encrypted recording cannot be opened',
-      );
+    // The Rust playback adapter emits a tagged `DbPlaybackEvent`
+    // per frame: `line` carries the decoded record, `error` (when
+    // set) carries the abort reason. The shape works around FRB's
+    // unawaited return-channel future: a `Result::Err` from the
+    // Rust side would leak as an uncaught zone error, never
+    // reaching `await for`. Emitting errors as in-stream events
+    // keeps them on the consumer's catch surface.
+    await for (final event in rust_recorder.recorderOpenForPlayback(
+      path: file.path,
+    )) {
+      final err = event.error;
+      if (err != null) {
+        throw RecordingFormatException(err);
+      }
+      final line = event.line;
+      if (line != null) {
+        yield RecordingDecodedLine(line);
+      }
     }
-    final raf = file.openSync();
-    try {
-      // Magic + version sniff. Throw early so the playback UI can
-      // show "wrong format" instead of feeding garbage to GCM.
-      final head = raf.readSync(5);
-      if (head.length < 5) {
-        throw const RecordingFormatException('Truncated header');
-      }
-      for (var i = 0; i < 4; i++) {
-        if (head[i] != _expectedMagic[i]) {
-          throw const RecordingFormatException('Bad magic — not an LFR1 file');
-        }
-      }
-      final version = head[4];
-      if (version != _lfrVersionLegacyNoAad &&
-          version != _lfrVersionAadFrameIndex) {
-        throw RecordingFormatException(
-          'Unsupported recording version $version',
-        );
-      }
-      var frameIndex = 0;
-      while (raf.positionSync() < raf.lengthSync()) {
-        final lenBytes = raf.readSync(4);
-        if (lenBytes.length < 4) break;
-        final ptLen = ByteData.sublistView(
-          lenBytes,
-        ).getUint32(0, Endian.little);
-        if (ptLen > _maxFramePlaintextBytes) {
-          throw RecordingFormatException(
-            'Frame plaintext length $ptLen exceeds cap '
-            '$_maxFramePlaintextBytes — refusing to allocate',
-          );
-        }
-        final nonce = raf.readSync(12);
-        if (nonce.length < 12) {
-          throw const RecordingFormatException('Truncated nonce');
-        }
-        // ciphertext = plaintext-len + 16 (GCM tag)
-        final ct = raf.readSync(ptLen + 16);
-        if (ct.length < ptLen + 16) {
-          throw const RecordingFormatException('Truncated ciphertext frame');
-        }
-        // v0x02: AAD = u64-LE encode of the per-position frame
-        // counter recomputed from stream position. v0x01: empty AAD
-        // for legacy files. The Rust writer never emits v0x01 post-
-        // upgrade — this branch only decodes pre-upgrade files.
-        final aad = version == _lfrVersionAadFrameIndex
-            ? _frameIndexAad(frameIndex)
-            : Uint8List(0);
-        final pt = await rust_crypto.cryptoAesGcmDecryptRaw(
-          key: key,
-          nonce: nonce,
-          ciphertext: ct,
-          aad: aad,
-        );
-        frameIndex++;
-        // Each frame's plaintext is one JSON-Lines record with a
-        // trailing newline — strip the newline before yielding so
-        // the parsed JSON does not carry surprise whitespace.
-        yield RecordingDecodedLine(utf8.decode(pt).trimRight());
-      }
-    } finally {
-      raf.closeSync();
-    }
-  }
-
-  /// Mirror of the Rust writer's `frame_index.to_le_bytes()` AAD —
-  /// the LFR v2 contract serialises the per-position counter as
-  /// 8-byte little-endian. Pure helper for [openEncrypted]; lives
-  /// at class scope so the v2 wire shape has one source.
-  static Uint8List _frameIndexAad(int frameIndex) {
-    final bd = ByteData(8);
-    bd.setUint64(0, frameIndex, Endian.little);
-    return bd.buffer.asUint8List();
   }
 
   /// Read just the header line of a recording — used to populate

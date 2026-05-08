@@ -32,6 +32,7 @@
 //! `LFR1` + version byte `0x01`.
 
 pub mod queue;
+pub mod reader;
 
 use std::collections::HashMap;
 use std::fs::OpenOptions;
@@ -45,22 +46,33 @@ use crate::error::Error;
 
 /// File-format magic — `LFR1` (LetsFLUTssh Recorder). Pinned so
 /// every reader (Rust playback path + on-disk integrity probe)
-/// branches consistently on the first four bytes.
-const LFR_MAGIC: [u8; 4] = [0x4C, 0x46, 0x52, 0x31];
+/// branches consistently on the first four bytes. `pub(crate)`
+/// so the playback adapter in `lfs_frb::api::recorder` reads off
+/// the same constant the writer emits.
+pub(crate) const LFR_MAGIC: [u8; 4] = [0x4C, 0x46, 0x52, 0x31];
 /// On-disk format version byte (post-magic).
 ///
 /// * `0x01` (legacy): per-frame AES-GCM with empty AAD. An attacker
 ///   with file-write access could swap two frames within the same
 ///   recording — the GCM tag matches because nothing binds frame
-///   position. The Dart reader still decodes pre-upgrade files
-///   through this branch, but the Rust writer never emits it.
+///   position. Older `.lfsr` files written before the AAD-binding
+///   upgrade keep decoding through this branch (`reader::open`
+///   threads the version flag down); the Rust writer never emits
+///   v0x01 since the upgrade landed.
 /// * `0x02` (current): per-frame AAD = `frame_index_u64_le`. Writer
 ///   tracks a monotonic counter per recording (reset on
 ///   `rotate_to`), reader recomputes it from the position in the
 ///   stream — the index never lands on disk, so the counter cannot
 ///   be tampered without invalidating subsequent tags.
 const LFR_VERSION: u8 = 2;
-const NONCE_LEN: usize = 12;
+pub(crate) const NONCE_LEN: usize = 12;
+/// Per-frame plaintext-length cap for `.lfsr` envelopes. Mirrors
+/// the Dart reader's `_maxFramePlaintextBytes` cap — a malformed
+/// (or hostile) file with a `0xffffffff` length prefix would
+/// otherwise pull a 4 GiB allocation before the AEAD failure had
+/// a chance to fire. 16 MiB fits every realistic recording (long
+/// asciinema event line + paste storm) with room to spare.
+pub(crate) const MAX_FRAME_PLAINTEXT_BYTES: u32 = 16 * 1024 * 1024;
 
 /// Hard upper bound on a single recording file size before the
 /// driver rolls to a new file under the same session. 100 MB is

@@ -70,6 +70,119 @@ pub async fn recorder_register(
 /// active DB key.
 const RECORDER_HKDF_INFO: &[u8] = b"letsflutssh-recording-v1";
 
+/// One playback event. `line` carries a decoded JSON-Lines record;
+/// `error` (when set) carries a typed reason the playback aborted.
+/// Exactly one field is non-null per event. The tagged shape lets
+/// errors surface IN the stream rather than through the
+/// `Result<(), String>` return — FRB's generated Dart wrapper
+/// drops the return-channel future via `unawaited(...)`, so a
+/// `return Err(...)` would leak as an uncaught zone error rather
+/// than reach the `await for` consumer.
+#[derive(Debug, Clone)]
+pub struct DbPlaybackEvent {
+    pub line: Option<String>,
+    pub error: Option<String>,
+}
+
+/// Open an encrypted `.lfsr` recording and stream every decoded
+/// JSON-Lines record to `sink` as a [`DbPlaybackEvent`]. The
+/// recording key is derived Rust-side from
+/// `secrets::ACTIVE_DBKEY_SECRET_ID` via the pinned
+/// `letsflutssh-recording-v1` HKDF chain; bytes never cross the
+/// FRB boundary back to Dart on this path.
+///
+/// Errors during the magic / version sniff + per-frame decrypt
+/// surface as a final `DbPlaybackEvent { error: Some(detail) }`
+/// before the stream closes. Stream cancellation (Dart
+/// subscription cancelled) closes the sink → next `add` fails →
+/// the spawn_blocking task drops out of the iteration loop.
+pub async fn recorder_open_for_playback(
+    path: String,
+    sink: crate::frb_generated::StreamSink<DbPlaybackEvent>,
+) {
+    let _ = tokio::task::spawn_blocking(move || {
+        let app = lfs_core::app::instance();
+        let key_arr: [u8; 32] = match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
+            None => {
+                let _ = sink.add(DbPlaybackEvent {
+                    line: None,
+                    error: Some(
+                        "no active DB key — encrypted recording cannot be opened".to_string(),
+                    ),
+                });
+                return;
+            }
+            Some(db_key) if db_key.is_empty() => {
+                let _ = sink.add(DbPlaybackEvent {
+                    line: None,
+                    error: Some(
+                        "no active DB key — encrypted recording cannot be opened".to_string(),
+                    ),
+                });
+                return;
+            }
+            Some(db_key) => {
+                match lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32) {
+                    Ok(rk) => match rk[..].try_into() {
+                        Ok(arr) => arr,
+                        Err(_) => {
+                            let _ = sink.add(DbPlaybackEvent {
+                                line: None,
+                                error: Some("recording key wrong size".to_string()),
+                            });
+                            return;
+                        }
+                    },
+                    Err(e) => {
+                        let _ = sink.add(DbPlaybackEvent {
+                            line: None,
+                            error: Some(format!("recorder hkdf: {e}")),
+                        });
+                        return;
+                    }
+                }
+            }
+        };
+        let iter = match lfs_core::recorder::reader::open_lfsr_iter(
+            std::path::Path::new(&path),
+            key_arr,
+        ) {
+            Ok(it) => it,
+            Err(e) => {
+                let _ = sink.add(DbPlaybackEvent {
+                    line: None,
+                    error: Some(e.to_string()),
+                });
+                return;
+            }
+        };
+        for frame in iter {
+            match frame {
+                Ok(line) => {
+                    if sink
+                        .add(DbPlaybackEvent {
+                            line: Some(line),
+                            error: None,
+                        })
+                        .is_err()
+                    {
+                        // Cancelled Dart-side.
+                        break;
+                    }
+                }
+                Err(e) => {
+                    let _ = sink.add(DbPlaybackEvent {
+                        line: None,
+                        error: Some(e.to_string()),
+                    });
+                    break;
+                }
+            }
+        }
+    })
+    .await;
+}
+
 /// Derive the per-recording AES-256 key from the active DB key
 /// in [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] using the same
 /// HKDF-SHA256 chain [`recorder_register_from_active`] uses for

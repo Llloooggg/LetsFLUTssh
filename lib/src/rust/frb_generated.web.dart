@@ -236,6 +236,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<BusEvent> dco_decode_StreamSink_bus_event_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<DbPlaybackEvent> dco_decode_StreamSink_db_playback_event_Sse(
+    dynamic raw,
+  );
+
+  @protected
   RustStreamSink<DbTransferProgress>
   dco_decode_StreamSink_db_transfer_progress_Sse(dynamic raw);
 
@@ -555,6 +560,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbPasswordStrength dco_decode_db_password_strength(dynamic raw);
+
+  @protected
+  DbPlaybackEvent dco_decode_db_playback_event(dynamic raw);
 
   @protected
   DbPortForwardRule dco_decode_db_port_forward_rule(dynamic raw);
@@ -1156,6 +1164,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<DbPlaybackEvent> sse_decode_StreamSink_db_playback_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustStreamSink<DbTransferProgress>
   sse_decode_StreamSink_db_transfer_progress_Sse(SseDeserializer deserializer);
 
@@ -1579,6 +1592,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbPasswordStrength sse_decode_db_password_strength(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbPlaybackEvent sse_decode_db_playback_event(SseDeserializer deserializer);
 
   @protected
   DbPortForwardRule sse_decode_db_port_forward_rule(
@@ -2340,6 +2356,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_db_playback_event_Sse(
+    RustStreamSink<DbPlaybackEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_db_transfer_progress_Sse(
     RustStreamSink<DbTransferProgress> self,
     SseSerializer serializer,
@@ -2875,6 +2897,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_password_strength(
     DbPasswordStrength self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_playback_event(
+    DbPlaybackEvent self,
     SseSerializer serializer,
   );
 

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256
 /// key (encrypted mode) or empty bytes (plaintext mode — writes
@@ -22,6 +22,21 @@ Future<DbRecorderSnapshot> recorderRegister({
   path: path,
   key: key,
 );
+
+/// Open an encrypted `.lfsr` recording and stream every decoded
+/// JSON-Lines record to `sink` as a [`DbPlaybackEvent`]. The
+/// recording key is derived Rust-side from
+/// `secrets::ACTIVE_DBKEY_SECRET_ID` via the pinned
+/// `letsflutssh-recording-v1` HKDF chain; bytes never cross the
+/// FRB boundary back to Dart on this path.
+///
+/// Errors during the magic / version sniff + per-frame decrypt
+/// surface as a final `DbPlaybackEvent { error: Some(detail) }`
+/// before the stream closes. Stream cancellation (Dart
+/// subscription cancelled) closes the sink → next `add` fails →
+/// the spawn_blocking task drops out of the iteration loop.
+Stream<DbPlaybackEvent> recorderOpenForPlayback({required String path}) =>
+    RustLib.instance.api.crateApiRecorderRecorderOpenForPlayback(path: path);
 
 /// Derive the per-recording AES-256 key from the active DB key
 /// in [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] using the same
@@ -178,6 +193,32 @@ Future<void> recorderQueueEnqueueRotate({
 /// the file is sealed.
 Future<void> recorderQueueEnqueueClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderQueueEnqueueClose(id: id);
+
+/// One playback event. `line` carries a decoded JSON-Lines record;
+/// `error` (when set) carries a typed reason the playback aborted.
+/// Exactly one field is non-null per event. The tagged shape lets
+/// errors surface IN the stream rather than through the
+/// `Result<(), String>` return — FRB's generated Dart wrapper
+/// drops the return-channel future via `unawaited(...)`, so a
+/// `return Err(...)` would leak as an uncaught zone error rather
+/// than reach the `await for` consumer.
+class DbPlaybackEvent {
+  final String? line;
+  final String? error;
+
+  const DbPlaybackEvent({this.line, this.error});
+
+  @override
+  int get hashCode => line.hashCode ^ error.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbPlaybackEvent &&
+          runtimeType == other.runtimeType &&
+          line == other.line &&
+          error == other.error;
+}
 
 /// FRB mirror of [`lfs_core::recorder::RecordDirection`].
 enum DbRecordDirection { output, input }
