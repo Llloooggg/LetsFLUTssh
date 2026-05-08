@@ -144,16 +144,16 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     }
   }
 
-  /// Save all keys (replaces entire store).
+  /// Save all keys (replaces entire store). Routes through the
+  /// new `db_ssh_keys_replace_all` FRB endpoint so the operation
+  /// lands as a single FRB hop + one rusqlite transaction. The
+  /// previous shape paid 2N FRB hops (N delete + N upsert) and
+  /// allowed a half-cleared table mid-loop on a transient FRB
+  /// failure.
   Future<void> saveAll(Map<String, SshKeyEntry> keys) async {
     try {
-      final existing = await rust_db.dbSshKeysListAll();
-      for (final r in existing) {
-        await rust_db.dbSshKeysDelete(id: r.id);
-      }
-      for (final entry in keys.values) {
-        await rust_db.dbSshKeysUpsert(row: _toRow(entry));
-      }
+      final rows = keys.values.map(_toRow).toList(growable: false);
+      await rust_db.dbSshKeysReplaceAll(rows: rows);
       _cache = Map.of(keys);
     } catch (e) {
       AppLogger.instance.log(

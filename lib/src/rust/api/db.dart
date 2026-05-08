@@ -18,6 +18,14 @@ Future<DbSshKey?> dbSshKeysGet({required String id}) =>
 Future<void> dbSshKeysUpsert({required DbSshKey row}) =>
     RustLib.instance.api.crateApiDbDbSshKeysUpsert(row: row);
 
+/// Atomic full-table replace. The Dart `KeysNotifier.saveAll`
+/// previously paid 2N FRB hops (N delete + N upsert); this single
+/// call lands the whole replacement inside one rusqlite
+/// transaction, also closing the half-cleared-table race the
+/// previous shape allowed mid-loop.
+Future<void> dbSshKeysReplaceAll({required List<DbSshKey> rows}) =>
+    RustLib.instance.api.crateApiDbDbSshKeysReplaceAll(rows: rows);
+
 Future<int> dbSshKeysDelete({required String id}) =>
     RustLib.instance.api.crateApiDbDbSshKeysDelete(id: id);
 

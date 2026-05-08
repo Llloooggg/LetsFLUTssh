@@ -52,14 +52,16 @@ class WorkspaceViewState extends ConsumerState<WorkspaceView> {
   @override
   Widget build(BuildContext context) {
     final ws = ref.watch(workspaceProvider);
-    // Watch only connection id→state changes so status dots update.
-    // Using a derived string avoids full workspace rebuild on unrelated
-    // connection events (e.g. keep-alive pings, progress updates).
-    ref.watch(
-      connectionsProvider.select(
-        (conns) => conns.map((c) => '${c.id}:${c.state.index}').join(','),
-      ),
-    );
+    // Subscribe to the derived `connectionSummaryProvider` instead
+    // of recomputing a comma-joined `${c.id}:${c.state.index}` string
+    // off the full `connectionsProvider`. The summary's `==` is a
+    // four-field structural compare (connected/connecting set + the
+    // two totals) so unrelated `Connection` mutations (cached
+    // passphrase store, transport swap, progress steps appended,
+    // keep-alive ping) don't propagate. Status-dot transitions
+    // affect set membership in the summary, which is exactly what
+    // workspace_view needs to repaint on.
+    ref.watch(connectionSummaryProvider);
 
     // Clean up stale keys.
     final allTabIds = collectAllTabs(ws.root).map((t) => t.id).toSet();

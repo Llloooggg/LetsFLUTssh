@@ -172,6 +172,16 @@ pub async fn db_ssh_keys_upsert(row: DbSshKey) -> Result<(), String> {
     run_db(move |c| lfs_core::db::ssh_keys::upsert(c, &row)).await
 }
 
+/// Atomic full-table replace. The Dart `KeysNotifier.saveAll`
+/// previously paid 2N FRB hops (N delete + N upsert); this single
+/// call lands the whole replacement inside one rusqlite
+/// transaction, also closing the half-cleared-table race the
+/// previous shape allowed mid-loop.
+pub async fn db_ssh_keys_replace_all(rows: Vec<DbSshKey>) -> Result<(), String> {
+    let rows: Vec<lfs_core::db::ssh_keys::SshKeyRow> = rows.into_iter().map(Into::into).collect();
+    run_db_mut(move |c| lfs_core::db::ssh_keys::replace_all(c, &rows)).await
+}
+
 pub async fn db_ssh_keys_delete(id: String) -> Result<u32, String> {
     run_db(move |c| lfs_core::db::ssh_keys::delete(c, &id))
         .await

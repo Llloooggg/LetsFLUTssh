@@ -174,6 +174,46 @@ fn normalized_sha256_hex(s: &str) -> String {
     hex
 }
 
+/// Replace the entire `ssh_keys` table contents with `rows`
+/// inside a single transaction. Used by `KeysNotifier.saveAll`
+/// in place of N delete + N upsert FRB hops; the audit's B-PERF-3
+/// finding called the per-row hop the dominant cost when the
+/// notifier flushed its in-memory cache.
+///
+/// Atomicity: the delete + upserts run inside a single
+/// `conn.transaction()`; a failure mid-loop rolls back so the
+/// table never lands half-cleared.
+pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Error> {
+    let tx = conn
+        .transaction()
+        .map_err(|e| Error::Db(format!("ssh_keys replace_all: begin tx: {e}")))?;
+    tx.execute("DELETE FROM ssh_keys", [])
+        .map_err(|e| Error::Db(format!("ssh_keys replace_all: clear: {e}")))?;
+    {
+        let mut stmt = tx
+            .prepare_cached(
+                "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            )
+            .map_err(|e| Error::Db(format!("ssh_keys replace_all: prepare insert: {e}")))?;
+        for row in rows {
+            stmt.execute(params![
+                row.id,
+                row.label,
+                row.private_key,
+                row.public_key,
+                row.key_type,
+                if row.is_generated { 1 } else { 0 },
+                row.created_at_ms,
+            ])
+            .map_err(|e| Error::Db(format!("ssh_keys replace_all: insert: {e}")))?;
+        }
+    }
+    tx.commit()
+        .map_err(|e| Error::Db(format!("ssh_keys replace_all: commit: {e}")))?;
+    Ok(())
+}
+
 pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
     let n = conn
         .execute("DELETE FROM ssh_keys WHERE id = ?1", params![id])
