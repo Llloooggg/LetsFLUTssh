@@ -608,7 +608,15 @@ mod platform_impl {
             }
             let cred = &*out;
             let len = cred.credential_blob_size as usize;
-            let bytes = std::slice::from_raw_parts(cred.credential_blob, len).to_vec();
+            // SAFETY: CredReadW MAY return a zero-length blob with a NULL
+            // `credential_blob` pointer; `slice::from_raw_parts` requires a
+            // non-null pointer regardless of length. Treat a NULL or zero-length
+            // blob as an empty value rather than constructing a UB slice.
+            let bytes = if cred.credential_blob.is_null() || len == 0 {
+                Vec::new()
+            } else {
+                std::slice::from_raw_parts(cred.credential_blob, len).to_vec()
+            };
             CredFree(out as *mut c_void);
             Ok(Some(bytes))
         })
@@ -632,7 +640,13 @@ mod platform_impl {
             }
             let cred = &*out;
             let len = cred.credential_blob_size as usize;
-            let bytes = std::slice::from_raw_parts(cred.credential_blob, len).to_vec();
+            // SAFETY: see `read()` above — CredReadW NULL/zero-length
+            // blob fast path before `slice::from_raw_parts`.
+            let bytes = if cred.credential_blob.is_null() || len == 0 {
+                Vec::new()
+            } else {
+                std::slice::from_raw_parts(cred.credential_blob, len).to_vec()
+            };
             CredFree(out as *mut c_void);
             Ok(Some(bytes))
         })

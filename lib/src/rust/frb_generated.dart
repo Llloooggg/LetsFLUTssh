@@ -10744,7 +10744,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
+          decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiMasterPasswordMasterPasswordIsEnabledConstMeta,
         argValues: [],
@@ -18521,86 +18521,92 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           bytesWritten: dco_decode_u_64(raw[2]),
         );
       case 13:
-        return BusEvent_TransferTaskAdded(id: dco_decode_String(raw[1]));
+        return BusEvent_RecorderWriteFailed(
+          id: dco_decode_String(raw[1]),
+          kind: dco_decode_String(raw[2]),
+          detail: dco_decode_String(raw[3]),
+        );
       case 14:
+        return BusEvent_TransferTaskAdded(id: dco_decode_String(raw[1]));
+      case 15:
         return BusEvent_TransferTaskState(
           id: dco_decode_String(raw[1]),
           state: dco_decode_bus_task_state(raw[2]),
         );
-      case 15:
+      case 16:
         return BusEvent_TransferTaskProgress(
           id: dco_decode_String(raw[1]),
           bytesDone: dco_decode_u_64(raw[2]),
           bytesTotal: dco_decode_u_64(raw[3]),
         );
-      case 16:
+      case 17:
         return BusEvent_TransferTaskError(
           id: dco_decode_String(raw[1]),
           detail: dco_decode_String(raw[2]),
         );
-      case 17:
-        return BusEvent_PortForwardRegistered(id: dco_decode_String(raw[1]));
       case 18:
+        return BusEvent_PortForwardRegistered(id: dco_decode_String(raw[1]));
+      case 19:
         return BusEvent_PortForwardStatus(
           id: dco_decode_String(raw[1]),
           status: dco_decode_bus_rule_status(raw[2]),
           detail: dco_decode_opt_String(raw[3]),
         );
-      case 19:
-        return BusEvent_PortForwardRemoved(id: dco_decode_String(raw[1]));
       case 20:
+        return BusEvent_PortForwardRemoved(id: dco_decode_String(raw[1]));
+      case 21:
         return BusEvent_UpdateDownloadProgress(
           url: dco_decode_String(raw[1]),
           writtenBytes: dco_decode_u_64(raw[2]),
           totalBytes: dco_decode_opt_box_autoadd_u_64(raw[3]),
         );
-      case 21:
-        return BusEvent_UpdateVerifyingStarted(url: dco_decode_String(raw[1]));
       case 22:
+        return BusEvent_UpdateVerifyingStarted(url: dco_decode_String(raw[1]));
+      case 23:
         return BusEvent_UpdateDownloadCompleted(
           url: dco_decode_String(raw[1]),
           path: dco_decode_String(raw[2]),
         );
-      case 23:
-        return const BusEvent_KnownHostsChanged();
       case 24:
-        return const BusEvent_SessionsChanged();
+        return const BusEvent_KnownHostsChanged();
       case 25:
-        return BusEvent_ConfigChanged(json: dco_decode_String(raw[1]));
+        return const BusEvent_SessionsChanged();
       case 26:
+        return BusEvent_ConfigChanged(json: dco_decode_String(raw[1]));
+      case 27:
         return BusEvent_TierStateChanged(
           stateWireName: dco_decode_String(raw[1]),
         );
-      case 27:
+      case 28:
         return BusEvent_CredentialPromptRequest(
           promptId: dco_decode_String(raw[1]),
           sessionId: dco_decode_String(raw[2]),
           kindWireName: dco_decode_String(raw[3]),
         );
-      case 28:
+      case 29:
         return BusEvent_KeychainProbePromptRequest(
           promptId: dco_decode_String(raw[1]),
         );
-      case 29:
+      case 30:
         return BusEvent_HardwareVaultProbePromptRequest(
           promptId: dco_decode_String(raw[1]),
         );
-      case 30:
+      case 31:
         return BusEvent_HardwareVaultUnlockPromptRequest(
           promptId: dco_decode_String(raw[1]),
           pin: dco_decode_opt_String(raw[2]),
         );
-      case 31:
+      case 32:
         return BusEvent_HardwareVaultSealPromptRequest(
           promptId: dco_decode_String(raw[1]),
           dbKeySecretId: dco_decode_String(raw[2]),
           pinSecretId: dco_decode_opt_String(raw[3]),
         );
-      case 32:
+      case 33:
         return BusEvent_SecurityCapabilitiesChanged(
           json: dco_decode_String(raw[1]),
         );
-      case 33:
+      case 34:
         return BusEvent_KnownHostPromptRequest(
           promptId: dco_decode_String(raw[1]),
           host: dco_decode_String(raw[2]),
@@ -18609,12 +18615,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           fingerprint: dco_decode_String(raw[5]),
           kind: dco_decode_bus_known_host_prompt_kind(raw[6]),
         );
-      case 34:
+      case 35:
         return BusEvent_KnownHostPromptResolved(
           promptId: dco_decode_String(raw[1]),
           accepted: dco_decode_bool(raw[2]),
         );
-      case 35:
+      case 36:
         return BusEvent_CoreLog(
           levelWireName: dco_decode_String(raw[1]),
           name: dco_decode_String(raw[2]),
@@ -21530,12 +21536,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 13:
         final var_id = sse_decode_String(deserializer);
-        return BusEvent_TransferTaskAdded(id: var_id);
+        final var_kind = sse_decode_String(deserializer);
+        final var_detail = sse_decode_String(deserializer);
+        return BusEvent_RecorderWriteFailed(
+          id: var_id,
+          kind: var_kind,
+          detail: var_detail,
+        );
       case 14:
+        final var_id = sse_decode_String(deserializer);
+        return BusEvent_TransferTaskAdded(id: var_id);
+      case 15:
         final var_id = sse_decode_String(deserializer);
         final var_state = sse_decode_bus_task_state(deserializer);
         return BusEvent_TransferTaskState(id: var_id, state: var_state);
-      case 15:
+      case 16:
         final var_id = sse_decode_String(deserializer);
         final var_bytesDone = sse_decode_u_64(deserializer);
         final var_bytesTotal = sse_decode_u_64(deserializer);
@@ -21544,14 +21559,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           bytesDone: var_bytesDone,
           bytesTotal: var_bytesTotal,
         );
-      case 16:
+      case 17:
         final var_id = sse_decode_String(deserializer);
         final var_detail = sse_decode_String(deserializer);
         return BusEvent_TransferTaskError(id: var_id, detail: var_detail);
-      case 17:
+      case 18:
         final var_id = sse_decode_String(deserializer);
         return BusEvent_PortForwardRegistered(id: var_id);
-      case 18:
+      case 19:
         final var_id = sse_decode_String(deserializer);
         final var_status = sse_decode_bus_rule_status(deserializer);
         final var_detail = sse_decode_opt_String(deserializer);
@@ -21560,10 +21575,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           status: var_status,
           detail: var_detail,
         );
-      case 19:
+      case 20:
         final var_id = sse_decode_String(deserializer);
         return BusEvent_PortForwardRemoved(id: var_id);
-      case 20:
+      case 21:
         final var_url = sse_decode_String(deserializer);
         final var_writtenBytes = sse_decode_u_64(deserializer);
         final var_totalBytes = sse_decode_opt_box_autoadd_u_64(deserializer);
@@ -21572,24 +21587,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           writtenBytes: var_writtenBytes,
           totalBytes: var_totalBytes,
         );
-      case 21:
+      case 22:
         final var_url = sse_decode_String(deserializer);
         return BusEvent_UpdateVerifyingStarted(url: var_url);
-      case 22:
+      case 23:
         final var_url = sse_decode_String(deserializer);
         final var_path = sse_decode_String(deserializer);
         return BusEvent_UpdateDownloadCompleted(url: var_url, path: var_path);
-      case 23:
-        return const BusEvent_KnownHostsChanged();
       case 24:
-        return const BusEvent_SessionsChanged();
+        return const BusEvent_KnownHostsChanged();
       case 25:
+        return const BusEvent_SessionsChanged();
+      case 26:
         final var_json = sse_decode_String(deserializer);
         return BusEvent_ConfigChanged(json: var_json);
-      case 26:
+      case 27:
         final var_stateWireName = sse_decode_String(deserializer);
         return BusEvent_TierStateChanged(stateWireName: var_stateWireName);
-      case 27:
+      case 28:
         final var_promptId = sse_decode_String(deserializer);
         final var_sessionId = sse_decode_String(deserializer);
         final var_kindWireName = sse_decode_String(deserializer);
@@ -21598,20 +21613,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sessionId: var_sessionId,
           kindWireName: var_kindWireName,
         );
-      case 28:
-        final var_promptId = sse_decode_String(deserializer);
-        return BusEvent_KeychainProbePromptRequest(promptId: var_promptId);
       case 29:
         final var_promptId = sse_decode_String(deserializer);
-        return BusEvent_HardwareVaultProbePromptRequest(promptId: var_promptId);
+        return BusEvent_KeychainProbePromptRequest(promptId: var_promptId);
       case 30:
+        final var_promptId = sse_decode_String(deserializer);
+        return BusEvent_HardwareVaultProbePromptRequest(promptId: var_promptId);
+      case 31:
         final var_promptId = sse_decode_String(deserializer);
         final var_pin = sse_decode_opt_String(deserializer);
         return BusEvent_HardwareVaultUnlockPromptRequest(
           promptId: var_promptId,
           pin: var_pin,
         );
-      case 31:
+      case 32:
         final var_promptId = sse_decode_String(deserializer);
         final var_dbKeySecretId = sse_decode_String(deserializer);
         final var_pinSecretId = sse_decode_opt_String(deserializer);
@@ -21620,10 +21635,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           dbKeySecretId: var_dbKeySecretId,
           pinSecretId: var_pinSecretId,
         );
-      case 32:
+      case 33:
         final var_json = sse_decode_String(deserializer);
         return BusEvent_SecurityCapabilitiesChanged(json: var_json);
-      case 33:
+      case 34:
         final var_promptId = sse_decode_String(deserializer);
         final var_host = sse_decode_String(deserializer);
         final var_port = sse_decode_i_64(deserializer);
@@ -21638,14 +21653,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           fingerprint: var_fingerprint,
           kind: var_kind,
         );
-      case 34:
+      case 35:
         final var_promptId = sse_decode_String(deserializer);
         final var_accepted = sse_decode_bool(deserializer);
         return BusEvent_KnownHostPromptResolved(
           promptId: var_promptId,
           accepted: var_accepted,
         );
-      case 35:
+      case 36:
         final var_levelWireName = sse_decode_String(deserializer);
         final var_name = sse_decode_String(deserializer);
         final var_message = sse_decode_String(deserializer);
@@ -25409,11 +25424,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(12, serializer);
         sse_encode_String(id, serializer);
         sse_encode_u_64(bytesWritten, serializer);
-      case BusEvent_TransferTaskAdded(id: final id):
+      case BusEvent_RecorderWriteFailed(
+        id: final id,
+        kind: final kind,
+        detail: final detail,
+      ):
         sse_encode_i_32(13, serializer);
         sse_encode_String(id, serializer);
-      case BusEvent_TransferTaskState(id: final id, state: final state):
+        sse_encode_String(kind, serializer);
+        sse_encode_String(detail, serializer);
+      case BusEvent_TransferTaskAdded(id: final id):
         sse_encode_i_32(14, serializer);
+        sse_encode_String(id, serializer);
+      case BusEvent_TransferTaskState(id: final id, state: final state):
+        sse_encode_i_32(15, serializer);
         sse_encode_String(id, serializer);
         sse_encode_bus_task_state(state, serializer);
       case BusEvent_TransferTaskProgress(
@@ -25421,75 +25445,75 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         bytesDone: final bytesDone,
         bytesTotal: final bytesTotal,
       ):
-        sse_encode_i_32(15, serializer);
+        sse_encode_i_32(16, serializer);
         sse_encode_String(id, serializer);
         sse_encode_u_64(bytesDone, serializer);
         sse_encode_u_64(bytesTotal, serializer);
       case BusEvent_TransferTaskError(id: final id, detail: final detail):
-        sse_encode_i_32(16, serializer);
+        sse_encode_i_32(17, serializer);
         sse_encode_String(id, serializer);
         sse_encode_String(detail, serializer);
       case BusEvent_PortForwardRegistered(id: final id):
-        sse_encode_i_32(17, serializer);
+        sse_encode_i_32(18, serializer);
         sse_encode_String(id, serializer);
       case BusEvent_PortForwardStatus(
         id: final id,
         status: final status,
         detail: final detail,
       ):
-        sse_encode_i_32(18, serializer);
+        sse_encode_i_32(19, serializer);
         sse_encode_String(id, serializer);
         sse_encode_bus_rule_status(status, serializer);
         sse_encode_opt_String(detail, serializer);
       case BusEvent_PortForwardRemoved(id: final id):
-        sse_encode_i_32(19, serializer);
+        sse_encode_i_32(20, serializer);
         sse_encode_String(id, serializer);
       case BusEvent_UpdateDownloadProgress(
         url: final url,
         writtenBytes: final writtenBytes,
         totalBytes: final totalBytes,
       ):
-        sse_encode_i_32(20, serializer);
+        sse_encode_i_32(21, serializer);
         sse_encode_String(url, serializer);
         sse_encode_u_64(writtenBytes, serializer);
         sse_encode_opt_box_autoadd_u_64(totalBytes, serializer);
       case BusEvent_UpdateVerifyingStarted(url: final url):
-        sse_encode_i_32(21, serializer);
+        sse_encode_i_32(22, serializer);
         sse_encode_String(url, serializer);
       case BusEvent_UpdateDownloadCompleted(url: final url, path: final path):
-        sse_encode_i_32(22, serializer);
+        sse_encode_i_32(23, serializer);
         sse_encode_String(url, serializer);
         sse_encode_String(path, serializer);
       case BusEvent_KnownHostsChanged():
-        sse_encode_i_32(23, serializer);
-      case BusEvent_SessionsChanged():
         sse_encode_i_32(24, serializer);
-      case BusEvent_ConfigChanged(json: final json):
+      case BusEvent_SessionsChanged():
         sse_encode_i_32(25, serializer);
+      case BusEvent_ConfigChanged(json: final json):
+        sse_encode_i_32(26, serializer);
         sse_encode_String(json, serializer);
       case BusEvent_TierStateChanged(stateWireName: final stateWireName):
-        sse_encode_i_32(26, serializer);
+        sse_encode_i_32(27, serializer);
         sse_encode_String(stateWireName, serializer);
       case BusEvent_CredentialPromptRequest(
         promptId: final promptId,
         sessionId: final sessionId,
         kindWireName: final kindWireName,
       ):
-        sse_encode_i_32(27, serializer);
+        sse_encode_i_32(28, serializer);
         sse_encode_String(promptId, serializer);
         sse_encode_String(sessionId, serializer);
         sse_encode_String(kindWireName, serializer);
       case BusEvent_KeychainProbePromptRequest(promptId: final promptId):
-        sse_encode_i_32(28, serializer);
+        sse_encode_i_32(29, serializer);
         sse_encode_String(promptId, serializer);
       case BusEvent_HardwareVaultProbePromptRequest(promptId: final promptId):
-        sse_encode_i_32(29, serializer);
+        sse_encode_i_32(30, serializer);
         sse_encode_String(promptId, serializer);
       case BusEvent_HardwareVaultUnlockPromptRequest(
         promptId: final promptId,
         pin: final pin,
       ):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(31, serializer);
         sse_encode_String(promptId, serializer);
         sse_encode_opt_String(pin, serializer);
       case BusEvent_HardwareVaultSealPromptRequest(
@@ -25497,12 +25521,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         dbKeySecretId: final dbKeySecretId,
         pinSecretId: final pinSecretId,
       ):
-        sse_encode_i_32(31, serializer);
+        sse_encode_i_32(32, serializer);
         sse_encode_String(promptId, serializer);
         sse_encode_String(dbKeySecretId, serializer);
         sse_encode_opt_String(pinSecretId, serializer);
       case BusEvent_SecurityCapabilitiesChanged(json: final json):
-        sse_encode_i_32(32, serializer);
+        sse_encode_i_32(33, serializer);
         sse_encode_String(json, serializer);
       case BusEvent_KnownHostPromptRequest(
         promptId: final promptId,
@@ -25512,7 +25536,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         fingerprint: final fingerprint,
         kind: final kind,
       ):
-        sse_encode_i_32(33, serializer);
+        sse_encode_i_32(34, serializer);
         sse_encode_String(promptId, serializer);
         sse_encode_String(host, serializer);
         sse_encode_i_64(port, serializer);
@@ -25523,7 +25547,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         promptId: final promptId,
         accepted: final accepted,
       ):
-        sse_encode_i_32(34, serializer);
+        sse_encode_i_32(35, serializer);
         sse_encode_String(promptId, serializer);
         sse_encode_bool(accepted, serializer);
       case BusEvent_CoreLog(
@@ -25531,7 +25555,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         name: final name,
         message: final message,
       ):
-        sse_encode_i_32(35, serializer);
+        sse_encode_i_32(36, serializer);
         sse_encode_String(levelWireName, serializer);
         sse_encode_String(name, serializer);
         sse_encode_String(message, serializer);

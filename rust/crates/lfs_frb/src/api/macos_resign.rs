@@ -83,9 +83,9 @@ pub async fn macos_resign_ensure_identity() -> Result<bool, String> {
 pub async fn macos_resign_bundle(executable_path: String) -> Result<MacosResignOutcome, String> {
     #[cfg(target_os = "macos")]
     {
-        let bundle_root = lfs_os_security::bundle_root_from_macos_executable(
-            std::path::Path::new(&executable_path),
-        );
+        let bundle_root = lfs_os_security::bundle_root_from_macos_executable(std::path::Path::new(
+            &executable_path,
+        ));
         lfs_os_security::macos::code_signing::resign_bundle(
             &bundle_root,
             lfs_os_security::macos::code_signing::DEFAULT_COMMON_NAME,

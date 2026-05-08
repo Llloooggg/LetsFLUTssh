@@ -110,9 +110,11 @@ fn can_authenticate_blocking() -> Result<i32, String> {
 pub async fn authenticate(title: &str, subtitle: &str) -> BiometricResult {
     let (tx, rx) = oneshot::channel();
     let req_id = NEXT_REQ_ID.fetch_add(1, Ordering::Relaxed);
+    // Poison-recovery contract: never panic across the FRB worker on
+    // a poisoned pending-map mutex; recover the inner state.
     pending()
         .lock()
-        .expect("pending map poisoned")
+        .unwrap_or_else(|p| p.into_inner())
         .insert(req_id, tx);
 
     let title = title.to_string();
@@ -125,7 +127,7 @@ pub async fn authenticate(title: &str, subtitle: &str) -> BiometricResult {
         // as a generic error.
         pending()
             .lock()
-            .expect("pending map poisoned")
+            .unwrap_or_else(|p| p.into_inner())
             .remove(&req_id);
         return BiometricResult::Error(-1);
     }

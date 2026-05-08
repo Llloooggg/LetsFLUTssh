@@ -76,48 +76,37 @@ pub fn decode_linux_blob(blob: &str) -> Result<LinuxBlob, String> {
     Ok(LinuxBlob { salt, sealed })
 }
 
-/// Resolve the hardware-tier vault auth value for a (password,
-/// biometric) modifier combo. Mirrors the Dart
-/// `HardwareTierVault.resolveAuthValue` semantics:
+/// Hardware-tier vault auth-value source. Replaces the prior
+/// `(password: bool, biometric: bool, typed_password, fprintd_hash)`
+/// boolean-flag API where a forgotten `password=true` flag could
+/// silently degrade to an empty `Vec`. Now a single enum:
 ///
-/// * `password=false`, `biometric=false` → empty `Vec` (isolation-
-///   only; wrong callers still need TPM / Secure Enclave access,
-///   but there is no user-typed gate).
-/// * `password=true`, `biometric=false` → `HMAC(salt, typed_password)`.
-/// * `biometric=true` → `HMAC(salt, fprintd_hash)`. The `password`
-///   flag must also be true by the wizard invariant (biometric is a
-///   shortcut for entering the password, never its replacement),
-///   but the resolver itself treats biometric as the authoritative
-///   auth source when both are requested.
-///
-/// Returns `None` for an inconsistent request (`password=true`
-/// without `typed_password`, `biometric=true` without
-/// `fprintd_hash`). Callers surface `None` as "modifier resolution
-/// failed — treat as a cancelled unlock" so we never silently fall
+/// * `Passwordless` — isolation only; no user-typed gate.
+/// * `Password(pw)` — `HMAC(salt, pw)` over typed bytes.
+/// * `Biometric(hash)` — `HMAC(salt, hash)` over a fprintd-derived
+///   hash. The wizard invariant still expects the user has set a
+///   master password too, but the resolver treats biometric as the
+///   authoritative source when chosen.
+#[derive(Debug, Clone, Copy)]
+pub enum AuthIntent<'a> {
+    Passwordless,
+    Password(&'a str),
+    Biometric(&'a [u8]),
+}
+
+/// Resolve the hardware-tier vault auth value for an `AuthIntent`.
+/// Returns `None` for an empty payload (empty typed password / empty
+/// biometric hash) — callers surface `None` as "modifier resolution
+/// failed → treat as cancelled unlock" so we never silently fall
 /// back to an empty auth.
 #[must_use]
-pub fn resolve_auth_value(
-    password: bool,
-    biometric: bool,
-    salt: &[u8],
-    typed_password: Option<&str>,
-    fprintd_hash: Option<&[u8]>,
-) -> Option<Vec<u8>> {
-    if biometric {
-        let hash = fprintd_hash?;
-        if hash.is_empty() {
-            return None;
-        }
-        return Some(hmac_sha256(salt, hash));
+pub fn resolve_auth_value(intent: AuthIntent<'_>, salt: &[u8]) -> Option<Vec<u8>> {
+    match intent {
+        AuthIntent::Passwordless => Some(Vec::new()),
+        AuthIntent::Password("") | AuthIntent::Biometric([]) => None,
+        AuthIntent::Password(pw) => Some(hmac_sha256(salt, pw.as_bytes())),
+        AuthIntent::Biometric(hash) => Some(hmac_sha256(salt, hash)),
     }
-    if password {
-        let pw = typed_password?;
-        if pw.is_empty() {
-            return None;
-        }
-        return Some(hmac_sha256(salt, pw.as_bytes()));
-    }
-    Some(Vec::new())
 }
 
 /// Linux TPM2 store / read / clear orchestrator. Mirrors the Apple
@@ -330,57 +319,37 @@ mod tests {
 
     #[test]
     fn resolve_passwordless_returns_empty_vec() {
-        // Isolation-only tier — caller expects an empty auth value,
-        // never `None`. Same auth bytes round-trip on every store /
-        // read pair so a passwordless seal always unseals
-        // passwordless.
         let salt = vec![0x01u8; 32];
-        let v = resolve_auth_value(false, false, &salt, None, None);
+        let v = resolve_auth_value(AuthIntent::Passwordless, &salt);
         assert_eq!(v, Some(Vec::new()));
     }
 
     #[test]
     fn resolve_password_branch_hmacs_typed_secret() {
         let salt = vec![0x02u8; 32];
-        let with_pw = resolve_auth_value(true, false, &salt, Some("hunter2"), None);
+        let with_pw = resolve_auth_value(AuthIntent::Password("hunter2"), &salt);
         let manual = hmac_sha256(&salt, b"hunter2");
         assert_eq!(with_pw, Some(manual));
     }
 
     #[test]
-    fn resolve_password_branch_rejects_missing_secret() {
+    fn resolve_password_branch_rejects_empty_secret() {
         let salt = vec![0x03u8; 32];
-        assert_eq!(resolve_auth_value(true, false, &salt, None, None), None);
-        assert_eq!(
-            resolve_auth_value(true, false, &salt, Some(""), None),
-            None,
-            "empty password is treated as a missing one — caller surfaces a cancelled unlock",
-        );
+        assert_eq!(resolve_auth_value(AuthIntent::Password(""), &salt), None);
     }
 
     #[test]
     fn resolve_biometric_branch_hmacs_fprintd_hash() {
         let salt = vec![0x04u8; 32];
         let hash = vec![0xAB; 32];
-        let v = resolve_auth_value(true, true, &salt, Some("ignored"), Some(&hash));
+        let v = resolve_auth_value(AuthIntent::Biometric(&hash), &salt);
         let manual = hmac_sha256(&salt, &hash);
-        assert_eq!(
-            v,
-            Some(manual),
-            "biometric overrides the typed password when both are present"
-        );
+        assert_eq!(v, Some(manual));
     }
 
     #[test]
-    fn resolve_biometric_branch_rejects_missing_hash() {
+    fn resolve_biometric_branch_rejects_empty_hash() {
         let salt = vec![0x05u8; 32];
-        assert_eq!(
-            resolve_auth_value(true, true, &salt, Some("hunter2"), None),
-            None,
-        );
-        assert_eq!(
-            resolve_auth_value(true, true, &salt, Some("hunter2"), Some(&[])),
-            None,
-        );
+        assert_eq!(resolve_auth_value(AuthIntent::Biometric(&[]), &salt), None);
     }
 }

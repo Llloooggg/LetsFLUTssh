@@ -38,11 +38,12 @@ pub fn master_password_init(support_dir: String) -> String {
         .into_owned()
 }
 
-/// Re-export of `master_password::pinned_support_dir` so the
-/// rest of this file reads as it did before the pin moved into
-/// core.
-fn support_dir() -> &'static std::path::Path {
-    master_password::pinned_support_dir()
+/// FRB-safe re-export of `master_password::try_pinned_support_dir`.
+/// Returns a typed `Result` so a misordered FRB call (the pin set
+/// before any master_password op runs) surfaces as a `String`
+/// across the boundary instead of panicking the FRB worker.
+fn support_dir() -> Result<&'static std::path::Path, String> {
+    master_password::try_pinned_support_dir().map_err(|e| e.to_string())
 }
 
 /// FRB mirror of `lfs_core::security::master_password::KdfParams`.
@@ -72,10 +73,12 @@ impl From<DbKdfParams> for KdfParams {
 }
 
 /// True when `credentials.kdf` exists under the pinned support
-/// dir — the master-password tier is enabled.
+/// dir — the master-password tier is enabled. `Err` only when the
+/// pin has not been set (FRB-callable misorder), not when the file
+/// is absent (that is the documented `Ok(false)`).
 #[flutter_rust_bridge::frb(sync)]
-pub fn master_password_is_enabled() -> bool {
-    master_password::is_enabled(support_dir())
+pub fn master_password_is_enabled() -> Result<bool, String> {
+    Ok(master_password::is_enabled(support_dir()?))
 }
 
 /// Encode the algo-id + Argon2id params block to the 10-byte
@@ -117,7 +120,7 @@ pub async fn master_password_enable(
     params: DbKdfParams,
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
-        master_password::enable(support_dir(), &password, &params.into()).map(|z| z.to_vec())
+        master_password::enable(support_dir()?, &password, &params.into()).map(|z| z.to_vec())
     })
     .await
     .map_err(|e| format!("master_password_enable task: {e}"))?
@@ -138,7 +141,7 @@ pub async fn master_password_enable_to_secret(
     secret_id: String,
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
-        let key = master_password::enable(support_dir(), &password, &params.into())?;
+        let key = master_password::enable(support_dir()?, &password, &params.into())?;
         lfs_core::app::instance().secrets.put(&secret_id, &key);
         Ok::<_, String>(())
     })
@@ -157,7 +160,7 @@ pub async fn master_password_change(
 ) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
         master_password::change_password(
-            support_dir(),
+            support_dir()?,
             &old_password,
             &new_password,
             &params.into(),
@@ -189,7 +192,7 @@ pub async fn master_password_change_to_secret(
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         let key = master_password::change_password(
-            support_dir(),
+            support_dir()?,
             &old_password,
             &new_password,
             &params.into(),
@@ -206,7 +209,7 @@ pub async fn master_password_change_to_secret(
 /// `credentials.key`.
 #[flutter_rust_bridge::frb(sync)]
 pub fn master_password_disable() -> Result<(), String> {
-    master_password::disable(support_dir())
+    master_password::disable(support_dir()?)
 }
 
 /// Drop everything: KDF + verifier + key file. Destructive — only
@@ -214,7 +217,7 @@ pub fn master_password_disable() -> Result<(), String> {
 /// confirmed the data loss.
 #[flutter_rust_bridge::frb(sync)]
 pub fn master_password_reset() -> Result<(), String> {
-    master_password::reset(support_dir())
+    master_password::reset(support_dir()?)
 }
 
 /// Single-KDF unlock: derive the key, decrypt-and-match the verifier,
@@ -224,7 +227,7 @@ pub async fn master_password_verify_and_derive(
     password: Vec<u8>,
 ) -> Result<Option<Vec<u8>>, String> {
     tokio::task::spawn_blocking(move || {
-        master_password::verify_and_derive(support_dir(), &password)
+        master_password::verify_and_derive(support_dir()?, &password)
             .map(|opt| opt.map(|z| z.to_vec()))
     })
     .await
@@ -244,7 +247,7 @@ pub async fn master_password_verify_and_derive_to_secret(
     secret_id: String,
 ) -> Result<bool, String> {
     tokio::task::spawn_blocking(move || {
-        match master_password::verify_and_derive(support_dir(), &password)? {
+        match master_password::verify_and_derive(support_dir()?, &password)? {
             Some(key) => {
                 lfs_core::app::instance().secrets.put(&secret_id, &key);
                 Ok::<_, String>(true)

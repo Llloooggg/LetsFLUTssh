@@ -261,6 +261,18 @@ sealed class BusEvent with _$BusEvent {
     required BigInt bytesWritten,
   }) = BusEvent_RecorderRotateRequested;
 
+  /// Recorder — `record_header` / `record_event` / `rotate_to` /
+  /// `close_with_io` returned an error. Dart subscribes, flips
+  /// the recording row to an error chip, and surfaces the
+  /// detail in the row tooltip. Worker keeps draining its
+  /// mailbox so transient failures on a single frame do not
+  /// stop subsequent ones.
+  const factory BusEvent.recorderWriteFailed({
+    required String id,
+    required String kind,
+    required String detail,
+  }) = BusEvent_RecorderWriteFailed;
+
   /// Transfer queue — task entered the queue.
   const factory BusEvent.transferTaskAdded({required String id}) =
       BusEvent_TransferTaskAdded;

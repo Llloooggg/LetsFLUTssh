@@ -278,6 +278,22 @@ pub enum Event {
     /// emits one event regardless of how many writes follow
     /// before the rotate enqueue arrives.
     RecorderRotateRequested { id: String, bytes_written: u64 },
+    /// Recorder — surfaced by the per-id worker when one of
+    /// `record_header` / `record_event` / `rotate_to` /
+    /// `close_with_io` returns an error. Dart side switches the
+    /// row to an error chip; the worker keeps draining its
+    /// mailbox so a transient failure on a single frame does
+    /// not stop subsequent ones.
+    ///
+    /// `kind` is a stable wire-name discriminator (`"header"`,
+    /// `"event"`, `"rotate"`, `"close"`); `detail` carries the
+    /// underlying error message (sanitized upstream by the log
+    /// pipeline so paths / hostnames don't surface here).
+    RecorderWriteFailed {
+        id: String,
+        kind: String,
+        detail: String,
+    },
 
     /// Transfer queue — task entered the queue.
     TransferTaskAdded { id: String },
@@ -416,7 +432,8 @@ impl Event {
             Event::RecorderStarted { .. }
             | Event::RecorderStopped { .. }
             | Event::RecorderBytesWritten { .. }
-            | Event::RecorderRotateRequested { .. } => EventTopic::Recorder,
+            | Event::RecorderRotateRequested { .. }
+            | Event::RecorderWriteFailed { .. } => EventTopic::Recorder,
             Event::TransferTaskAdded { .. }
             | Event::TransferTaskState { .. }
             | Event::TransferTaskProgress { .. }

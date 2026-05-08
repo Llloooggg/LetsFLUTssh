@@ -26,7 +26,9 @@ String masterPasswordInit({required String supportDir}) => RustLib.instance.api
     .crateApiMasterPasswordMasterPasswordInit(supportDir: supportDir);
 
 /// True when `credentials.kdf` exists under the pinned support
-/// dir — the master-password tier is enabled.
+/// dir — the master-password tier is enabled. `Err` only when the
+/// pin has not been set (FRB-callable misorder), not when the file
+/// is absent (that is the documented `Ok(false)`).
 bool masterPasswordIsEnabled() =>
     RustLib.instance.api.crateApiMasterPasswordMasterPasswordIsEnabled();
 

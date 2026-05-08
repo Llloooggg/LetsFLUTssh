@@ -38,6 +38,7 @@ use rand::RngCore;
 use zeroize::Zeroizing;
 
 use crate::crypto;
+use crate::error::Error;
 
 /// File names under the platform's app-support directory. Mirror of
 /// the Dart-side constants in `master_password.dart`.
@@ -58,8 +59,12 @@ const IV_LENGTH: usize = 12;
 const VERIFIER_PLAINTEXT: &[u8] = b"LetsFLUTssh-verify";
 
 const ARGON2ID_ALGO_ID: u8 = 0x01;
-const DEFAULT_MEMORY_KIB: u32 = 46 * 1024;
-const DEFAULT_ITERATIONS: u32 = 2;
+// OWASP-2024 floor is m=46MiB / t=2 / p=1; raised here to m=64MiB / t=3
+// for desktop/mobile UX where the unlock dialog can absorb the extra
+// derive cost. Existing installs keep their stored params (forward-
+// compatible bumps); next change-password re-derives at the new floor.
+const DEFAULT_MEMORY_KIB: u32 = 64 * 1024;
+const DEFAULT_ITERATIONS: u32 = 3;
 const DEFAULT_PARALLELISM: u8 = 1;
 
 const ARGON2ID_MAX_MEMORY_KIB: u32 = 1024 * 1024;
@@ -75,8 +80,10 @@ pub struct KdfParams {
 }
 
 impl KdfParams {
-    /// OWASP-2024 floor: 46 MiB / 2 iters / 1 lane. Bumps are
-    /// forward-compatible — old files keep their stored params.
+    /// Defense-in-depth floor: 64 MiB / 3 iters / 1 lane (one tier
+    /// above the OWASP-2024 minimum). Bumps are forward-compatible —
+    /// old files keep their stored params, next change-password
+    /// re-derives at the current default.
     pub fn defaults() -> Self {
         Self {
             memory_kib: DEFAULT_MEMORY_KIB,
@@ -212,10 +219,28 @@ pub fn pin_support_dir(support_dir: std::path::PathBuf) -> std::path::PathBuf {
 /// "no pin was set" case — production callers fire
 /// [`pin_support_dir`] at startup before any other op
 /// routes through the singleton.
+///
+/// FRB-callable paths MUST use [`try_pinned_support_dir`]
+/// instead so a single ordering misorder surfaces as a typed
+/// error rather than panicking across the FRB worker. This
+/// `pinned_support_dir` overload stays for internal Rust call
+/// sites already gated by their own ordering invariants.
 pub fn pinned_support_dir() -> &'static Path {
     SUPPORT_DIR.get().expect(
         "pin_support_dir must be called before any master_password op routes through the singleton",
     )
+}
+
+/// FRB-safe variant of [`pinned_support_dir`]: returns a typed
+/// error instead of panicking when no pin is set. Used by FRB
+/// shims so a misordered call lands as `Error::Platform`, not
+/// a worker-thread abort.
+pub fn try_pinned_support_dir() -> Result<&'static Path, Error> {
+    SUPPORT_DIR.get().map(|p| p.as_path()).ok_or_else(|| {
+        Error::Platform(
+            "support_dir not pinned: pin_support_dir must be called at startup".to_string(),
+        )
+    })
 }
 
 /// True when `credentials.kdf` exists under [`support_dir`] —

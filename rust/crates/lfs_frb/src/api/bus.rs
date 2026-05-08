@@ -178,6 +178,17 @@ pub enum BusEvent {
     /// Dart shim subscribes, prepares a fresh path, and fires
     /// `recorder_queue_enqueue_rotate` to roll the recording over.
     RecorderRotateRequested { id: String, bytes_written: u64 },
+    /// Recorder — `record_header` / `record_event` / `rotate_to` /
+    /// `close_with_io` returned an error. Dart subscribes, flips
+    /// the recording row to an error chip, and surfaces the
+    /// detail in the row tooltip. Worker keeps draining its
+    /// mailbox so transient failures on a single frame do not
+    /// stop subsequent ones.
+    RecorderWriteFailed {
+        id: String,
+        kind: String,
+        detail: String,
+    },
 
     /// Transfer queue — task entered the queue.
     TransferTaskAdded { id: String },
@@ -402,6 +413,9 @@ impl BusEvent {
             }
             lfs_core::bus::Event::RecorderRotateRequested { id, bytes_written } => {
                 BusEvent::RecorderRotateRequested { id, bytes_written }
+            }
+            lfs_core::bus::Event::RecorderWriteFailed { id, kind, detail } => {
+                BusEvent::RecorderWriteFailed { id, kind, detail }
             }
             lfs_core::bus::Event::TransferTaskAdded { id } => BusEvent::TransferTaskAdded { id },
             lfs_core::bus::Event::TransferTaskState { id, state } => BusEvent::TransferTaskState {

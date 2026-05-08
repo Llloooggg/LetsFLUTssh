@@ -49,15 +49,16 @@ pub fn hardware_tier_vault_decode_linux_blob(
 }
 
 /// Resolve the hardware-tier vault auth value for the
-/// (password, biometric) modifier combo. Returns `None` for an
-/// inconsistent request (`password=true` without `typed_password`,
-/// `biometric=true` without `fprintd_hash`); the empty `Vec` case
-/// (passwordless isolation) surfaces as `Some([])`.
+/// (password, biometric) modifier combo. Returns `None` when the
+/// chosen modifier has no payload (`password=true` without
+/// `typed_password`, `biometric=true` without `fprintd_hash`, or
+/// either with empty bytes); the empty `Vec` case (passwordless
+/// isolation) surfaces as `Some([])`.
 ///
-/// Same auth-value grammar the Linux TPM seal + the Apple /
-/// Android / Windows method-channel plugins all derive against —
-/// having the resolver Rust-side keeps every platform's vault
-/// agreeing on the byte shape.
+/// FRB layer keeps the boolean wire shape (Dart side already
+/// computes `(password, biometric)` from the security profile)
+/// and constructs the `AuthIntent` enum here so the core resolver
+/// can no longer be foot-gunned by a forgotten flag.
 #[flutter_rust_bridge::frb(sync)]
 pub fn hardware_tier_vault_resolve_auth_value(
     password: bool,
@@ -66,13 +67,14 @@ pub fn hardware_tier_vault_resolve_auth_value(
     typed_password: Option<String>,
     fprintd_hash: Option<Vec<u8>>,
 ) -> Option<Vec<u8>> {
-    vault::resolve_auth_value(
-        password,
-        biometric,
-        &salt,
-        typed_password.as_deref(),
-        fprintd_hash.as_deref(),
-    )
+    let intent = if biometric {
+        vault::AuthIntent::Biometric(fprintd_hash.as_deref()?)
+    } else if password {
+        vault::AuthIntent::Password(typed_password.as_deref()?)
+    } else {
+        vault::AuthIntent::Passwordless
+    };
+    vault::resolve_auth_value(intent, &salt)
 }
 
 #[flutter_rust_bridge::frb(sync)]
