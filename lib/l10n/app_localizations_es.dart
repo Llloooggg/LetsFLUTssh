@@ -2583,4 +2583,18 @@ class SEs extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH activo';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count conexiones activas',
+      one: '1 conexión activa',
+    );
+    return '$_temp0';
+  }
 }

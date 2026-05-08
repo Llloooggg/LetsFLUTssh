@@ -2498,4 +2498,18 @@ class SFa extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH فعال';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count اتصال فعال',
+      one: '۱ اتصال فعال',
+    );
+    return '$_temp0';
+  }
 }

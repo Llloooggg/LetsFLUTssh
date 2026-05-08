@@ -2512,4 +2512,18 @@ class SId extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH aktif';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count koneksi aktif',
+      one: '1 koneksi aktif',
+    );
+    return '$_temp0';
+  }
 }

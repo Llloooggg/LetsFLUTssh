@@ -4436,6 +4436,18 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Unlock the app to play this encrypted recording'**
   String get recordingPlayLocked;
+
+  /// No description provided for @foregroundServiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH active'**
+  String get foregroundServiceTitle;
+
+  /// No description provided for @foregroundServiceConnections.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 active connection} other{{count} active connections}}'**
+  String foregroundServiceConnections(int count);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

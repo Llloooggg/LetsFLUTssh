@@ -2448,4 +2448,18 @@ class SJa extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH 接続中';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '接続 $count 件',
+      one: '接続 1 件',
+    );
+    return '$_temp0';
+  }
 }

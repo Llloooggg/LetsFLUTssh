@@ -2497,4 +2497,18 @@ class SVi extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH đang hoạt động';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count kết nối đang hoạt động',
+      one: '1 kết nối đang hoạt động',
+    );
+    return '$_temp0';
+  }
 }

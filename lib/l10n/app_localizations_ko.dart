@@ -2446,4 +2446,18 @@ class SKo extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH 활성';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '활성 연결 $count개',
+      one: '활성 연결 1개',
+    );
+    return '$_temp0';
+  }
 }

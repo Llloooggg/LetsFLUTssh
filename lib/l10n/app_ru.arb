@@ -784,5 +784,14 @@
   "unencryptedArchiveWarning": "Архив не защищён паролем. Любой, у кого есть файл, может прочитать содержимое.",
   "clipboardCopyFailed": "Не удалось скопировать в буфер.",
   "nonAsciiHostnameWarning": "Имя хоста содержит не-ASCII символы — проверьте каждый символ. Визуально похожие кодпоинты (кириллица / греческий) могут подменить латинский домен.",
-  "recordingPlayLocked": "Разблокируйте приложение, чтобы воспроизвести зашифрованную запись"
+  "recordingPlayLocked": "Разблокируйте приложение, чтобы воспроизвести зашифрованную запись",
+  "foregroundServiceTitle": "SSH активен",
+  "foregroundServiceConnections": "{count, plural, =0{Нет активных подключений} =1{1 активное подключение} few{{count} активных подключения} other{{count} активных подключений}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

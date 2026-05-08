@@ -2577,4 +2577,18 @@ class SPt extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH ativo';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count conexões ativas',
+      one: '1 conexão ativa',
+    );
+    return '$_temp0';
+  }
 }

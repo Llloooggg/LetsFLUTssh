@@ -2580,4 +2580,18 @@ class SDe extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH aktiv';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count aktive Verbindungen',
+      one: '1 aktive Verbindung',
+    );
+    return '$_temp0';
+  }
 }

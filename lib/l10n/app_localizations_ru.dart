@@ -2529,4 +2529,20 @@ class SRu extends S {
   @override
   String get recordingPlayLocked =>
       'Разблокируйте приложение, чтобы воспроизвести зашифрованную запись';
+
+  @override
+  String get foregroundServiceTitle => 'SSH активен';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count активных подключений',
+      few: '$count активных подключения',
+      one: '1 активное подключение',
+      zero: 'Нет активных подключений',
+    );
+    return '$_temp0';
+  }
 }

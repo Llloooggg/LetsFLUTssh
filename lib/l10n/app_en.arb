@@ -1373,5 +1373,14 @@
   "recordingPlayLocked": "Unlock the app to play this encrypted recording",
   "@recordingPlayLocked": {
     "description": "Tooltip / disabled-row hint when an encrypted recording cannot be played because the active DB key slot is empty (plaintext tier or auto-locked)."
+  },
+  "foregroundServiceTitle": "SSH active",
+  "foregroundServiceConnections": "{count, plural, =1{1 active connection} other{{count} active connections}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

@@ -2594,4 +2594,18 @@ class SFr extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH actif';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count connexions actives',
+      one: '1 connexion active',
+    );
+    return '$_temp0';
+  }
 }

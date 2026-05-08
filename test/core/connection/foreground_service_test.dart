@@ -1,5 +1,8 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/connection/foreground_service.dart';
+import 'package:letsflutssh/l10n/app_localizations.dart';
 
 /// Records all calls to the foreground service binding for verification.
 class FakeBinding implements ForegroundServiceBinding {
@@ -16,13 +19,13 @@ class FakeBinding implements ForegroundServiceBinding {
   void initService() => initCalled = true;
 
   @override
-  Future<bool> startService(int count) async {
+  Future<bool> startService(int count, S localizations) async {
     startCounts.add(count);
     return startSucceeds;
   }
 
   @override
-  Future<void> updateNotification(int count) async {
+  Future<void> updateNotification(int count, S localizations) async {
     updateCounts.add(count);
   }
 
@@ -191,16 +194,22 @@ void main() {
   });
 
   group('notificationText', () {
+    late S en;
+
+    setUpAll(() async {
+      en = await S.delegate.load(const Locale('en'));
+    });
+
     test('singular for 1 connection', () {
-      expect(notificationText(1), '1 active connection');
+      expect(notificationText(en, 1), '1 active connection');
     });
 
     test('plural for 0 connections', () {
-      expect(notificationText(0), '0 active connections');
+      expect(notificationText(en, 0), '0 active connections');
     });
 
     test('plural for multiple connections', () {
-      expect(notificationText(3), '3 active connections');
+      expect(notificationText(en, 3), '3 active connections');
     });
   });
 }

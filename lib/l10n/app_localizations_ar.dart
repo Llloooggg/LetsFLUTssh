@@ -2511,4 +2511,19 @@ class SAr extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH نشط';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count اتصالات نشطة',
+      one: 'اتصال نشط واحد',
+      zero: 'لا توجد اتصالات نشطة',
+    );
+    return '$_temp0';
+  }
 }

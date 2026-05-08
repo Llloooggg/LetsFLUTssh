@@ -784,5 +784,14 @@
   "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
   "clipboardCopyFailed": "Copy to clipboard failed.",
   "nonAsciiHostnameWarning": "Hostname contains non-ASCII characters — verify each character against the literal you typed. Visually similar codepoints (Cyrillic / Greek) can spoof a Latin domain.",
-  "recordingPlayLocked": "Unlock the app to play this encrypted recording"
+  "recordingPlayLocked": "Unlock the app to play this encrypted recording",
+  "foregroundServiceTitle": "SSH 활성",
+  "foregroundServiceConnections": "{count, plural, =1{활성 연결 1개} other{활성 연결 {count}개}}",
+  "@foregroundServiceConnections": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

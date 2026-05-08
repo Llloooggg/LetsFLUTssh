@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui' show Locale;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,7 +8,9 @@ import '../core/bus/app_bus.dart';
 import '../core/connection/connection.dart';
 import '../core/connection/connections_notifier.dart';
 import '../core/connection/foreground_service.dart';
+import '../l10n/app_localizations.dart';
 import '../src/rust/api/bus.dart' as rust_bus;
+import 'locale_provider.dart';
 
 export 'known_hosts_provider.dart' show knownHostsProvider;
 
@@ -49,8 +54,28 @@ final connectionActiveCountProvider = StreamProvider<int>((ref) async* {
 /// to the Android foreground-service binding. Watch from the app's
 /// root scope (`main.dart`) so the listener is alive for the
 /// process lifetime.
+///
+/// Also pushes the active [S] into the manager whenever the chosen
+/// locale changes so the foreground-notification text renders in
+/// the user's selected language. Defaults to English when the user
+/// chose "System Default" and the platform locale isn't in
+/// [S.supportedLocales].
 final foregroundActiveCountListenerProvider = Provider<void>((ref) {
   final foreground = ref.watch(foregroundServiceProvider);
+
+  Future<void> pushLocalizations(Locale? locale) async {
+    final resolved = (locale != null && S.delegate.isSupported(locale))
+        ? Locale(locale.languageCode)
+        : const Locale('en');
+    foreground.setLocalizations(await S.delegate.load(resolved));
+  }
+
+  // Prime the manager with the current locale, then refresh on each change.
+  unawaited(pushLocalizations(ref.read(localeProvider)));
+  ref.listen<Locale?>(localeProvider, (prev, next) {
+    unawaited(pushLocalizations(next));
+  });
+
   ref.listen<AsyncValue<int>>(connectionActiveCountProvider, (prev, next) {
     next.whenData((count) {
       foreground.onConnectionCountChanged(count);

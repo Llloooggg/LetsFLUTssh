@@ -2509,4 +2509,18 @@ class SHi extends S {
   @override
   String get recordingPlayLocked =>
       'Unlock the app to play this encrypted recording';
+
+  @override
+  String get foregroundServiceTitle => 'SSH सक्रिय';
+
+  @override
+  String foregroundServiceConnections(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count सक्रिय कनेक्शन',
+      one: '1 सक्रिय कनेक्शन',
+    );
+    return '$_temp0';
+  }
 }
