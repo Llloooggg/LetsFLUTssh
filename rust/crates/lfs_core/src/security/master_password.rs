@@ -261,8 +261,8 @@ pub fn enable(
     let mut salt = [0u8; SALT_LENGTH];
     OsRng.fill_bytes(&mut salt);
     let key = derive_key(password, &salt, params)?;
-    let verifier = encrypt_verifier(&key)?;
     let kdf_bytes = encode_kdf_record(params, &salt);
+    let verifier = encrypt_verifier(&key, &kdf_bytes)?;
     write_atomic(&support_dir.join(KDF_FILE_NAME), &kdf_bytes)?;
     write_atomic(&support_dir.join(VERIFIER_FILE_NAME), &verifier)?;
     Ok(key)
@@ -337,7 +337,17 @@ pub fn verify_and_derive(
     let verifier =
         fs::read(&verifier_path).map_err(|e| format!("read {VERIFIER_FILE_NAME}: {e}"))?;
     let key = derive_key(password, &record.salt, &record.params)?;
-    let ok = verify_against_verifier(&key, &verifier);
+    // Bind the kdf header (magic + version + algo id + params +
+    // salt) into the AES-GCM AAD so a tampered credentials.kdf
+    // header (memory_kib bumped to 1 GiB to DoS-lock the user)
+    // fails verification instead of silently driving Argon2id
+    // through the attacker-supplied params. Old verifiers (no
+    // AAD) still verify because legacy_verify_against_verifier
+    // is tried as a one-shot fallback when the AAD-bound match
+    // fails — next change-password re-emits with the AAD-bound
+    // shape.
+    let kdf_header = encode_kdf_record(&record.params, &record.salt);
+    let ok = verify_against_verifier(&key, &verifier, &kdf_header);
     Ok(if ok { Some(key) } else { None })
 }
 
@@ -366,13 +376,31 @@ fn derive_key(
     .map_err(|e| format!("argon2id: {e}"))
 }
 
-fn encrypt_verifier(key: &[u8]) -> Result<Vec<u8>, String> {
-    crypto::aes_gcm_encrypt(key, VERIFIER_PLAINTEXT).map_err(|e| format!("aes-gcm encrypt: {e}"))
+fn encrypt_verifier(key: &[u8], kdf_header: &[u8]) -> Result<Vec<u8>, String> {
+    use rand::RngCore;
+    let mut nonce = [0u8; IV_LENGTH];
+    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    let body = crypto::aes_gcm_encrypt_raw(key, &nonce, VERIFIER_PLAINTEXT, kdf_header)
+        .map_err(|e| format!("aes-gcm encrypt-raw: {e}"))?;
+    let mut out = Vec::with_capacity(IV_LENGTH + body.len());
+    out.extend_from_slice(&nonce);
+    out.extend_from_slice(&body);
+    Ok(out)
 }
 
-fn verify_against_verifier(key: &[u8], verifier: &[u8]) -> bool {
+fn verify_against_verifier(key: &[u8], verifier: &[u8], kdf_header: &[u8]) -> bool {
     if verifier.len() < IV_LENGTH + 1 {
         return false;
+    }
+    // Try the AAD-bound shape first (current emit). Fall back
+    // to the legacy AAD-less envelope so installs whose
+    // credentials.verify pre-dates this change still verify;
+    // the next change-password re-emits under the AAD-bound
+    // shape.
+    let nonce = &verifier[..IV_LENGTH];
+    let body = &verifier[IV_LENGTH..];
+    if let Ok(pt) = crypto::aes_gcm_decrypt_raw(key, nonce, body, kdf_header) {
+        return crypto::constant_time_eq(&pt, VERIFIER_PLAINTEXT);
     }
     match crypto::aes_gcm_decrypt(key, verifier) {
         Ok(pt) => crypto::constant_time_eq(&pt, VERIFIER_PLAINTEXT),
