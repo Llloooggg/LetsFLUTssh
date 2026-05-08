@@ -641,9 +641,6 @@
   "invalidImportLink": "链接不包含有效的 LetsFLUTssh 数据",
   "importAction": "导入",
   "emptyFolder": "空文件夹",
-  "exportWithoutPassword": "不设密码导出？",
-  "exportWithoutPasswordWarning": "归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。",
-  "continueWithoutPassword": "不设密码继续",
   "tierHardwareUnavailable": "此安装不支持硬件保险库。",
   "pinLabel": "密码",
   "l2UnlockTitle": "需要密码",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

@@ -2268,16 +2268,6 @@ class SEs extends S {
       'Consultar GitHub por una nueva versión al iniciar la app';
 
   @override
-  String get exportWithoutPassword => '¿Exportar sin contraseña?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'El archivo no se cifrará. Cualquiera con acceso al archivo podrá leer tus datos, incluidas contraseñas y claves privadas.';
-
-  @override
-  String get continueWithoutPassword => 'Continuar sin contraseña';
-
-  @override
   String get threatColdDiskTheft => 'Robo de disco apagado';
 
   @override
@@ -2525,4 +2515,8 @@ class SEs extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

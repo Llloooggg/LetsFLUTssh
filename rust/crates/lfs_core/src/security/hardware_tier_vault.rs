@@ -207,7 +207,7 @@ pub mod linux {
         );
         let path = vault_path(support_dir);
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
+            crate::path::create_dir_all_secure(parent)
                 .map_err(|e| LinuxVaultError::Io(format!("mkdirp: {e}")))?;
         }
         write_bytes_atomic(&path, &blob).map_err(|e| LinuxVaultError::Io(format!("write: {e}")))?;

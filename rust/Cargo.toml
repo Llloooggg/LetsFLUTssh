@@ -189,6 +189,12 @@ serde = { version = "1", default-features = false }
 # where `winbio.lib` is absent — the unit count probe degrades
 # to `0` rather than producing a link error.
 libloading = "0.8"
+# Unix syscall constants (`O_NOFOLLOW`, `O_EXCL`) used by the
+# secret-bearing read/write helpers in `lfs_core::path` to defend
+# against symlink-attack vectors at the persisted-format paths.
+# Pulled cfg-gated to Unix targets in each crate that needs the
+# constants.
+libc = { version = "0.2", default-features = false }
 # HTTP client for the auto-update fetch path
 # (`lfs_core::update_http`). `rustls-tls` keeps the dep tree
 # pure-Rust (no openssl system link) — same TLS stack russh

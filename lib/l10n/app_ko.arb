@@ -641,9 +641,6 @@
   "invalidImportLink": "링크에 유효한 LetsFLUTssh 페이로드가 없습니다",
   "importAction": "가져오기",
   "emptyFolder": "빈 폴더",
-  "exportWithoutPassword": "비밀번호 없이 내보내시겠습니까?",
-  "exportWithoutPasswordWarning": "아카이브가 암호화되지 않습니다. 파일에 접근할 수 있는 사람은 비밀번호와 개인 키를 포함한 모든 데이터를 읽을 수 있습니다.",
-  "continueWithoutPassword": "비밀번호 없이 계속",
   "tierHardwareUnavailable": "이 설치본에서는 하드웨어 볼트를 사용할 수 없습니다.",
   "pinLabel": "비밀번호",
   "l2UnlockTitle": "비밀번호 필요",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

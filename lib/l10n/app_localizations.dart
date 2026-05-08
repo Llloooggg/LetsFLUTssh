@@ -3987,24 +3987,6 @@ abstract class S {
   /// **'Query GitHub for a new release when the app launches'**
   String get checkForUpdatesOnStartupSubtitle;
 
-  /// No description provided for @exportWithoutPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Export Without Password?'**
-  String get exportWithoutPassword;
-
-  /// No description provided for @exportWithoutPasswordWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.'**
-  String get exportWithoutPasswordWarning;
-
-  /// No description provided for @continueWithoutPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue Without Password'**
-  String get continueWithoutPassword;
-
   /// No description provided for @threatColdDiskTheft.
   ///
   /// In en, this message translates to:
@@ -4430,6 +4412,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Wipe everything'**
   String get fatalErrorWipeConfirmAction;
+
+  /// Warning shown on the import dialog when the user picked a plain-ZIP .lfs archive (no password protection).
+  ///
+  /// In en, this message translates to:
+  /// **'This archive is not password-protected. Anyone with the file can read its contents.'**
+  String get unencryptedArchiveWarning;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

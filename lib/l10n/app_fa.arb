@@ -641,9 +641,6 @@
   "invalidImportLink": "پیوند بار معتبر LetsFLUTssh را شامل نیست",
   "importAction": "وارد کردن",
   "emptyFolder": "پوشه خالی",
-  "exportWithoutPassword": "بدون رمز عبور خروجی گرفته شود؟",
-  "exportWithoutPasswordWarning": "آرشیو رمزگذاری نخواهد شد. هر کسی که به فایل دسترسی داشته باشد می‌تواند داده‌های شما از جمله رمزهای عبور و کلیدهای خصوصی را بخواند.",
-  "continueWithoutPassword": "بدون رمز عبور ادامه بده",
   "tierHardwareUnavailable": "Vault سخت‌افزاری در این نصب در دسترس نیست.",
   "pinLabel": "رمز عبور",
   "l2UnlockTitle": "گذرواژه لازم است",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

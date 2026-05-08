@@ -2253,16 +2253,6 @@ class STr extends S {
       'Uygulama başlatıldığında GitHub\'da yeni sürümü denetle';
 
   @override
-  String get exportWithoutPassword => 'Parolasız dışa aktarılsın mı?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'Arşiv şifrelenmeyecek. Dosyaya erişimi olan herkes, parolalar ve özel anahtarlar dahil olmak üzere verilerinizi okuyabilir.';
-
-  @override
-  String get continueWithoutPassword => 'Parolasız devam et';
-
-  @override
   String get threatColdDiskTheft => 'Kapalı makineden disk hırsızlığı';
 
   @override
@@ -2510,4 +2500,8 @@ class STr extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

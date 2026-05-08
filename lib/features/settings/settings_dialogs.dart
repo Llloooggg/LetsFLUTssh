@@ -45,11 +45,11 @@ Widget _passwordTextField(
 
 /// Password dialog for archive export.
 ///
-/// Allowing an empty password is intentional: the user sometimes wants a
-/// plain ZIP they can inspect or import without master password prompts.
-/// Submitting with both fields empty pops a confirmation first so the user
-/// acknowledges that the archive will ship unencrypted — anyone with the
-/// file gets every saved password and private key in plain text.
+/// A non-empty password is required: the plain-ZIP `.lfs` shape carries
+/// no integrity tag, so an unencrypted export cannot detect a tampered
+/// entry on import. The import side still reads plain ZIPs from older
+/// installs (backward-compatible read), but new exports only ship the
+/// encrypted shape.
 class _ExportPasswordDialog extends StatefulWidget {
   final TextEditingController passwordCtrl;
   final TextEditingController confirmCtrl;
@@ -91,13 +91,14 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
     final pw = widget.passwordCtrl.text;
     final confirm = widget.confirmCtrl.text;
 
-    // Empty + empty → offer an unencrypted export after confirmation.
-    if (pw.isEmpty && confirm.isEmpty) {
-      final proceed = await _confirmUnencrypted(context);
-      if (!mounted) return;
-      if (proceed) {
-        Navigator.pop(context, '');
-      }
+    // Empty password rejected on emit. The plain-ZIP `.lfs`
+    // shape carries no integrity tag, so shipping one to a user
+    // is functionally an unauthenticated export — readers cannot
+    // detect a tampered entry. The import path still accepts
+    // plain ZIPs from earlier installs (the wire shape stays
+    // backward-compatible); export is the only side now refused.
+    if (pw.isEmpty) {
+      setState(() => _mismatch = true);
       return;
     }
 
@@ -160,33 +161,6 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
       ],
     );
   }
-}
-
-/// Warn the user that the archive will be exported without encryption.
-/// Returns true if the user chose to proceed.
-Future<bool> _confirmUnencrypted(BuildContext context) async {
-  final l10n = S.of(context);
-  final confirmed = await AppDialog.show<bool>(
-    context,
-    builder: (ctx) => AppDialog(
-      title: l10n.exportWithoutPassword,
-      content: Text(
-        l10n.exportWithoutPasswordWarning,
-        style: TextStyle(
-          fontSize: AppFonts.md,
-          color: Theme.of(ctx).colorScheme.error,
-        ),
-      ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
-        AppButton.primary(
-          label: l10n.continueWithoutPassword,
-          onTap: () => Navigator.pop(ctx, true),
-        ),
-      ],
-    ),
-  );
-  return confirmed ?? false;
 }
 
 // ── Import password dialog ──

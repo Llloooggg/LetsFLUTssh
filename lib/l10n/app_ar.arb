@@ -641,9 +641,6 @@
   "invalidImportLink": "الرابط لا يحتوي على حمولة LetsFLUTssh صالحة",
   "importAction": "استيراد",
   "emptyFolder": "مجلد فارغ",
-  "exportWithoutPassword": "تصدير بدون كلمة مرور؟",
-  "exportWithoutPasswordWarning": "لن يتم تشفير الأرشيف. يمكن لأي شخص لديه حق الوصول إلى الملف قراءة بياناتك، بما في ذلك كلمات المرور والمفاتيح الخاصة.",
-  "continueWithoutPassword": "المتابعة بدون كلمة مرور",
   "tierHardwareUnavailable": "خزينة الأجهزة غير متاحة في هذا التثبيت.",
   "pinLabel": "كلمة المرور",
   "l2UnlockTitle": "كلمة المرور مطلوبة",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

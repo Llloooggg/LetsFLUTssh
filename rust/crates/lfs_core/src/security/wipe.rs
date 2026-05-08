@@ -25,6 +25,14 @@ use std::time::SystemTime;
 /// `_initSecurity`.
 pub const WIPE_PENDING_MARKER: &str = ".wipe-pending";
 
+/// Wire-format magic + version for `.wipe-pending`. Every emit
+/// stamps the prefix; readers reject anything else, so a hostile
+/// drop of a same-named file does not coerce the next launch into
+/// a recovery wipe.
+const WIPE_PENDING_MAGIC: &[u8; 4] = b"LFWP";
+const WIPE_PENDING_VERSION: u8 = 1;
+const WIPE_PENDING_HEADER_LEN: usize = WIPE_PENDING_MAGIC.len() + 1;
+
 /// Every file the app writes under the app-support directory. New
 /// artefacts MUST be added here so the wipe stays total. Ordered
 /// from "safest to delete first" (markers, overlays) → "most
@@ -147,11 +155,17 @@ pub struct FileSweepReport {
 /// True when the `.wipe-pending` marker is on disk under
 /// `support_dir` — the previous run started a wipe that did not
 /// finish. Call sites check this on startup and re-run the service
-/// before `_initSecurity`. Any I/O failure is treated as
-/// "no marker present" — a broken support-dir probe must not
-/// block startup.
+/// before `_initSecurity`. Any I/O failure or magic / version
+/// mismatch is treated as "no marker present" — a broken
+/// support-dir probe must not block startup, and a foreign file at
+/// the marker path must not coerce a recovery wipe.
 pub fn has_pending_wipe(support_dir: &Path) -> bool {
-    support_dir.join(WIPE_PENDING_MARKER).exists()
+    let path = support_dir.join(WIPE_PENDING_MARKER);
+    let Ok(bytes) = crate::path::read_bytes_secure(&path) else { return false };
+    if bytes.len() < WIPE_PENDING_HEADER_LEN || &bytes[..WIPE_PENDING_MAGIC.len()] != WIPE_PENDING_MAGIC {
+        return false;
+    }
+    bytes[WIPE_PENDING_MAGIC.len()] == WIPE_PENDING_VERSION
 }
 
 /// True when **any security-bearing** managed artefact lives in the
@@ -220,20 +234,22 @@ pub fn sweep_files(support_dir: &Path) -> FileSweepReport {
 }
 
 fn write_pending_marker(support_dir: &Path) -> Result<(), String> {
-    fs::create_dir_all(support_dir)
-        .map_err(|e| format!("create {}: {e}", support_dir.display()))?;
+    crate::path::create_dir_all_secure(support_dir)?;
     let path = support_dir.join(WIPE_PENDING_MARKER);
     let now = SystemTime::now();
-    let payload = match now.duration_since(SystemTime::UNIX_EPOCH) {
-        // ISO-style stamp would require chrono; the Dart side wrote
-        // an ISO string, but the marker's load-bearing property is
-        // only "file exists" — readers never parse the body. Write
-        // a Unix-epoch millisecond stamp to keep a breadcrumb that
-        // doesn't pull a date crate.
+    let body = match now.duration_since(SystemTime::UNIX_EPOCH) {
+        // The marker's load-bearing property is "magic + version
+        // present" — body is an opaque breadcrumb. Unix-epoch
+        // milliseconds keeps the previous diagnostic without
+        // pulling a date crate.
         Ok(d) => format!("{}\n", d.as_millis()),
         Err(_) => String::from("0\n"),
     };
-    fs::write(&path, payload).map_err(|e| format!("write {}: {e}", path.display()))
+    let mut buf = Vec::with_capacity(WIPE_PENDING_HEADER_LEN + body.len());
+    buf.extend_from_slice(WIPE_PENDING_MAGIC);
+    buf.push(WIPE_PENDING_VERSION);
+    buf.extend_from_slice(body.as_bytes());
+    crate::path::write_bytes_atomic(&path, &buf)
 }
 
 fn clear_pending_marker(support_dir: &Path) -> Result<(), String> {
@@ -279,8 +295,27 @@ mod tests {
     #[test]
     fn pending_wipe_is_true_when_marker_present() {
         let dir = TempDir::new().unwrap();
-        std::fs::write(dir.path().join(WIPE_PENDING_MARKER), "stamp").unwrap();
+        write_pending_marker(dir.path()).unwrap();
         assert!(has_pending_wipe(dir.path()));
+    }
+
+    #[test]
+    fn pending_wipe_rejects_file_without_magic() {
+        let dir = TempDir::new().unwrap();
+        // Foreign drop / leftover from an unrelated tool. has_pending_wipe
+        // must not coerce the next launch into a recovery wipe.
+        std::fs::write(dir.path().join(WIPE_PENDING_MARKER), "stamp").unwrap();
+        assert!(!has_pending_wipe(dir.path()));
+    }
+
+    #[test]
+    fn pending_wipe_rejects_unknown_version() {
+        let dir = TempDir::new().unwrap();
+        let mut bytes = Vec::from(*WIPE_PENDING_MAGIC);
+        bytes.push(WIPE_PENDING_VERSION + 1);
+        bytes.extend_from_slice(b"42");
+        std::fs::write(dir.path().join(WIPE_PENDING_MARKER), &bytes).unwrap();
+        assert!(!has_pending_wipe(dir.path()));
     }
 
     #[test]

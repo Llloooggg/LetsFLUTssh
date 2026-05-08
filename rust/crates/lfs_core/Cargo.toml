@@ -69,6 +69,12 @@ uuid = { workspace = true }
 zbus = { workspace = true }
 serde = { workspace = true }
 
+# Unix-only syscall constants (`O_NOFOLLOW`, `O_EXCL`) for the
+# symlink-defended read / write helpers in `lfs_core::path`.
+# Pulled cfg(unix) so Windows builds skip the dep entirely.
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

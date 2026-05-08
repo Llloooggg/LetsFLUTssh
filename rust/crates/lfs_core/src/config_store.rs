@@ -99,18 +99,27 @@ impl Store {
     /// is dropped without a flush.
     pub fn init(&self, support_dir: PathBuf) -> Result<String, String> {
         let path = support_dir.join(FILE_NAME);
-        let cfg = match std::fs::read_to_string(&path) {
-            Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
-                Ok(v) => AppConfig::from_json_value(&v),
+        let cfg = match crate::path::read_bytes_secure(&path) {
+            Ok(bytes) => match std::str::from_utf8(&bytes) {
+                Ok(text) => match serde_json::from_str::<serde_json::Value>(text) {
+                    Ok(v) => AppConfig::from_json_value(&v),
+                    Err(e) => {
+                        return Err(format!("config_store::init: parse {}: {e}", path.display()));
+                    }
+                },
                 Err(e) => {
-                    return Err(format!("config_store::init: parse {}: {e}", path.display()));
+                    return Err(format!(
+                        "config_store::init: utf8 {}: {e}",
+                        path.display()
+                    ));
                 }
             },
             // Absent file — seed defaults. Any other I/O error (perm
-            // denied, transient FS hiccup) ALSO seeds defaults so a
-            // hostile-permissions install does not refuse to launch;
-            // the next successful `update` will atomically write the
-            // defaults to disk.
+            // denied, transient FS hiccup, ELOOP from a symlink
+            // hijack at the path) ALSO seeds defaults so a hostile-
+            // environment install does not refuse to launch; the
+            // next successful `update` will atomically write the
+            // defaults to disk via the symlink-safe write path.
             Err(_) => AppConfig::default(),
         };
         let json = cfg.to_json_value().to_string();
@@ -276,7 +285,8 @@ const TICK_INTERVAL: Duration = Duration::from_millis(100);
 
 fn write_to_disk(path: &std::path::Path, json: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("config_store: create dir: {e}"))?;
+        crate::path::create_dir_all_secure(parent)
+            .map_err(|e| format!("config_store: create dir: {e}"))?;
     }
     write_bytes_atomic(path, json.as_bytes()).map_err(|e| format!("config_store: write: {e}"))
 }

@@ -239,6 +239,14 @@ pub fn os_atomic_write_0600(
     let parent = path.parent().unwrap_or(std::path::Path::new("."));
     std::fs::create_dir_all(parent)
         .map_err(|e| HardwareVaultError::Io(format!("mkdir parent: {e}")))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        // Best-effort 0700 on the parent so secret-bearing
+        // artefacts inside don't sit under an inherited 0755 umask.
+        // Failure is non-fatal — the file write itself remains 0600.
+        let _ = std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700));
+    }
     let stem = path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())

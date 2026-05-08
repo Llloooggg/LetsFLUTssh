@@ -2239,16 +2239,6 @@ class SFa extends S {
       'هنگام راه‌اندازی برنامه از گیت‌هاب نسخهٔ جدید را بررسی کن';
 
   @override
-  String get exportWithoutPassword => 'بدون رمز عبور خروجی گرفته شود؟';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'آرشیو رمزگذاری نخواهد شد. هر کسی که به فایل دسترسی داشته باشد می‌تواند داده‌های شما از جمله رمزهای عبور و کلیدهای خصوصی را بخواند.';
-
-  @override
-  String get continueWithoutPassword => 'بدون رمز عبور ادامه بده';
-
-  @override
   String get threatColdDiskTheft => 'سرقت دیسک آفلاین';
 
   @override
@@ -2493,4 +2483,8 @@ class SFa extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

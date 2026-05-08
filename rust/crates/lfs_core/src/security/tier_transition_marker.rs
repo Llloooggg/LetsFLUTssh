@@ -24,17 +24,33 @@ use crate::path::write_bytes_atomic;
 /// Mirror of the Dart-side `_markerFileName` constant.
 pub const MARKER_FILE_NAME: &str = ".tier-transition-pending";
 
+/// Wire-format magic + version stamped at the head of every marker
+/// emit. A reader that finds a foreign file at the marker path (a
+/// hostile drop, leftover from an unrelated tool) skips it as if
+/// absent — only files the writer here emitted reach the switcher.
+const MAGIC: &[u8; 4] = b"LFTM";
+const VERSION: u8 = 1;
+const HEADER_LEN: usize = MAGIC.len() + 1;
+
 /// Read the marker payload, or `None` when the marker is absent.
 /// Any I/O failure (broken support-dir probe, permission flap)
 /// returns `None` so a corrupt marker never blocks startup — the
 /// switcher falls back to "no pending transition" and proceeds with
-/// the on-disk config.
+/// the on-disk config. A magic / version mismatch is treated the
+/// same way: the file is not one we wrote, so we must not act on it.
 pub fn read(support_dir: &Path) -> Option<String> {
     let path = support_dir.join(MARKER_FILE_NAME);
     if !path.exists() {
         return None;
     }
-    fs::read_to_string(&path).ok()
+    let bytes = crate::path::read_bytes_secure(&path).ok()?;
+    if bytes.len() < HEADER_LEN || &bytes[..MAGIC.len()] != MAGIC {
+        return None;
+    }
+    if bytes[MAGIC.len()] != VERSION {
+        return None;
+    }
+    String::from_utf8(bytes[HEADER_LEN..].to_vec()).ok()
 }
 
 /// Write the marker with [`payload`] as its body. Routes through
@@ -43,9 +59,12 @@ pub fn read(support_dir: &Path) -> Option<String> {
 /// keeps concurrent switches (e.g. user double-clicks the apply
 /// button) from colliding on the intermediate file.
 pub fn write(support_dir: &Path, payload: &str) -> Result<(), String> {
-    fs::create_dir_all(support_dir)
-        .map_err(|e| format!("create {}: {e}", support_dir.display()))?;
-    write_bytes_atomic(&support_dir.join(MARKER_FILE_NAME), payload.as_bytes())
+    crate::path::create_dir_all_secure(support_dir)?;
+    let mut buf = Vec::with_capacity(HEADER_LEN + payload.len());
+    buf.extend_from_slice(MAGIC);
+    buf.push(VERSION);
+    buf.extend_from_slice(payload.as_bytes());
+    write_bytes_atomic(&support_dir.join(MARKER_FILE_NAME), &buf)
 }
 
 /// Drop the marker. Idempotent on a missing file — startup callers
@@ -83,6 +102,33 @@ mod tests {
         write(dir.path(), "first").unwrap();
         write(dir.path(), "second").unwrap();
         assert_eq!(read(dir.path()).as_deref(), Some("second"));
+    }
+
+    #[test]
+    fn read_rejects_file_without_magic() {
+        let dir = TempDir::new().unwrap();
+        // A leftover from an unrelated tool / hostile drop. Read
+        // must treat it as absent so the switcher does not act on
+        // an attacker-shaped payload.
+        std::fs::write(dir.path().join(MARKER_FILE_NAME), b"{\"target\":\"x\"}").unwrap();
+        assert!(read(dir.path()).is_none());
+    }
+
+    #[test]
+    fn read_rejects_unknown_version() {
+        let dir = TempDir::new().unwrap();
+        let mut bytes = Vec::from(*MAGIC);
+        bytes.push(VERSION + 1);
+        bytes.extend_from_slice(b"body");
+        std::fs::write(dir.path().join(MARKER_FILE_NAME), &bytes).unwrap();
+        assert!(read(dir.path()).is_none());
+    }
+
+    #[test]
+    fn read_rejects_truncated_header() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join(MARKER_FILE_NAME), b"LF").unwrap();
+        assert!(read(dir.path()).is_none());
     }
 
     #[test]

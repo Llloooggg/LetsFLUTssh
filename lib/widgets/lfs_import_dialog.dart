@@ -115,7 +115,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                l10n.exportWithoutPasswordWarning,
+                l10n.unencryptedArchiveWarning,
                 style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
               ),
             ),

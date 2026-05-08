@@ -334,7 +334,7 @@ fn write_state_sync(
     state: &PersistedState,
 ) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+        crate::path::create_dir_all_secure(parent).map_err(std::io::Error::other)?;
     }
     let bytes = encode_persisted(state, hmac_key);
     // Atomic write — non-atomic `std::fs::write` would torpedo the

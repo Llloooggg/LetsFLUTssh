@@ -2263,16 +2263,6 @@ class SPt extends S {
       'Consultar o GitHub por uma nova versão ao iniciar o app';
 
   @override
-  String get exportWithoutPassword => 'Exportar sem senha?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'O arquivo não será criptografado. Qualquer pessoa com acesso ao arquivo poderá ler seus dados, incluindo senhas e chaves privadas.';
-
-  @override
-  String get continueWithoutPassword => 'Continuar sem senha';
-
-  @override
   String get threatColdDiskTheft => 'Furto de disco desligado';
 
   @override
@@ -2519,4 +2509,8 @@ class SPt extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

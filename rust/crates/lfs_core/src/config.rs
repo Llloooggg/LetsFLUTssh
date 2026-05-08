@@ -490,6 +490,22 @@ impl AppConfig {
     /// `SchemaVersions::CONFIG` on every write so the migration
     /// runner can route any non-current value through its chain on
     /// the next launch.
+    ///
+    /// Threat model: config.json is plaintext + unauthenticated by
+    /// design. The file is user-modifiable (support / hand-debug
+    /// flow). A tampered `security_tier` downgrades the indicator
+    /// only; the DB cipher key is the actual security boundary, so
+    /// an attacker who flips the tier still fails to open the DB
+    /// and the user lands on the reset dialog (the intended
+    /// detection path — see `security::wipe::has_any_state` and
+    /// the cipher-mismatch fatal-error route). A tampered
+    /// `config_schema_version` is mitigated by
+    /// `migration_history.json`, which records what actually ran
+    /// rather than trusting the version field on its own.
+    /// Filesystem hardening — 0700 parent dir, `O_NOFOLLOW` on
+    /// read and write — closes the remaining symlink-attack
+    /// surface; full AEAD on the body is not feasible because no
+    /// key source exists pre-DB-unlock.
     pub fn to_json_value(&self) -> Value {
         let mut m = serde_json::Map::new();
         m.insert(

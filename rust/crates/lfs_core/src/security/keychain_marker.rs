@@ -55,8 +55,7 @@ pub fn exists(support_dir: &Path) -> bool {
 /// concurrent `set` calls cannot trip on the intermediate file
 /// (random tmp suffix).
 pub fn set(support_dir: &Path) -> Result<(), String> {
-    fs::create_dir_all(support_dir)
-        .map_err(|e| format!("create {}: {e}", support_dir.display()))?;
+    crate::path::create_dir_all_secure(support_dir)?;
     write_bytes_atomic(&support_dir.join(MARKER_FILE_NAME), b"1")
 }
 

@@ -2269,16 +2269,6 @@ class SRu extends S {
       'Проверять новую версию на GitHub при запуске приложения';
 
   @override
-  String get exportWithoutPassword => 'Экспортировать без пароля?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.';
-
-  @override
-  String get continueWithoutPassword => 'Продолжить без пароля';
-
-  @override
   String get threatColdDiskTheft => 'Кража диска с выключенной машины';
 
   @override
@@ -2524,4 +2514,8 @@ class SRu extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Удалить всё';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'Архив не защищён паролем. Любой, у кого есть файл, может прочитать содержимое.';
 }

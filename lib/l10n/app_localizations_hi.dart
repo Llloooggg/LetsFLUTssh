@@ -2249,16 +2249,6 @@ class SHi extends S {
       'ऐप शुरू होने पर GitHub से नया संस्करण जाँचें';
 
   @override
-  String get exportWithoutPassword => 'पासवर्ड के बिना निर्यात करें?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'संग्रह एन्क्रिप्ट नहीं किया जाएगा। फ़ाइल तक पहुंच रखने वाला कोई भी व्यक्ति आपके डेटा को पढ़ सकता है, जिसमें पासवर्ड और निजी कुंजियां शामिल हैं।';
-
-  @override
-  String get continueWithoutPassword => 'बिना पासवर्ड के जारी रखें';
-
-  @override
   String get threatColdDiskTheft => 'बंद डिस्क की चोरी';
 
   @override
@@ -2504,4 +2494,8 @@ class SHi extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

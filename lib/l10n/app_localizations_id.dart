@@ -2250,16 +2250,6 @@ class SId extends S {
       'Cek rilis baru di GitHub saat aplikasi dijalankan';
 
   @override
-  String get exportWithoutPassword => 'Ekspor tanpa kata sandi?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.';
-
-  @override
-  String get continueWithoutPassword => 'Lanjutkan tanpa kata sandi';
-
-  @override
   String get threatColdDiskTheft => 'Pencurian disk saat mati';
 
   @override
@@ -2507,4 +2497,8 @@ class SId extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

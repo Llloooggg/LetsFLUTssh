@@ -641,9 +641,6 @@
   "invalidImportLink": "लिंक में मान्य LetsFLUTssh पेलोड नहीं है",
   "importAction": "आयात करें",
   "emptyFolder": "खाली फ़ोल्डर",
-  "exportWithoutPassword": "पासवर्ड के बिना निर्यात करें?",
-  "exportWithoutPasswordWarning": "संग्रह एन्क्रिप्ट नहीं किया जाएगा। फ़ाइल तक पहुंच रखने वाला कोई भी व्यक्ति आपके डेटा को पढ़ सकता है, जिसमें पासवर्ड और निजी कुंजियां शामिल हैं।",
-  "continueWithoutPassword": "बिना पासवर्ड के जारी रखें",
   "tierHardwareUnavailable": "इस इंस्टॉल पर हार्डवेयर वॉल्ट उपलब्ध नहीं है।",
   "pinLabel": "पासवर्ड",
   "l2UnlockTitle": "पासवर्ड आवश्यक",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

@@ -143,7 +143,7 @@ pub mod linux {
                 .map_err(|e| LinuxBioVaultError::Backend(e.to_string()))?;
             let path = vault_path(&support_dir_owned);
             if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)
+                crate::path::create_dir_all_secure(parent)
                     .map_err(|e| LinuxBioVaultError::Io(format!("mkdirp: {e}")))?;
             }
             write_bytes_atomic(&path, &sealed)
@@ -184,7 +184,7 @@ pub mod linux {
         // the unseal.
         let unsealed =
             tokio::task::spawn_blocking(move || -> Result<Option<Vec<u8>>, LinuxBioVaultError> {
-                let blob = std::fs::read(&path)
+                let blob = crate::path::read_bytes_secure(&path)
                     .map_err(|e| LinuxBioVaultError::Io(format!("read: {e}")))?;
                 match tpm::unseal(&tpm::TpmConfig::default(), &blob, &auth_hash) {
                     Ok(plain) => Ok(Some(plain)),

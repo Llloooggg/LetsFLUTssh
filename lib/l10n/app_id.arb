@@ -641,9 +641,6 @@
   "invalidImportLink": "Tautan tidak berisi payload LetsFLUTssh yang valid",
   "importAction": "Impor",
   "emptyFolder": "Folder kosong",
-  "exportWithoutPassword": "Ekspor tanpa kata sandi?",
-  "exportWithoutPasswordWarning": "Arsip tidak akan dienkripsi. Siapa pun yang memiliki akses ke berkas dapat membaca data Anda, termasuk kata sandi dan kunci pribadi.",
-  "continueWithoutPassword": "Lanjutkan tanpa kata sandi",
   "tierHardwareUnavailable": "Hardware vault tidak tersedia pada instalasi ini.",
   "pinLabel": "Kata sandi",
   "l2UnlockTitle": "Kata sandi diperlukan",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

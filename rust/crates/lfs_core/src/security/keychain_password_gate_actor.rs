@@ -50,7 +50,16 @@ pub async fn verify_password(support_dir: &Path, password: &[u8]) -> Result<bool
     // for the rate limiter). `tokio::fs::read` so the FRB worker
     // is not blocked on the syscall.
     let hash_path = support_dir.join(HASH_FILE_NAME);
-    let raw = match tokio::fs::read(&hash_path).await {
+    // Park sync `read_bytes_secure` (O_NOFOLLOW open) on
+    // spawn_blocking so the FRB worker is not stalled on the
+    // syscall. The Tokio fs APIs do not expose `OpenOptions::custom_flags`
+    // for symlink-safe opens directly; routing through the sync
+    // helper inside spawn_blocking keeps the symlink defence.
+    let hash_path_for_read = hash_path.clone();
+    let raw = match tokio::task::spawn_blocking(move || crate::path::read_bytes_secure(&hash_path_for_read))
+        .await
+        .map_err(|e| format!("T1+pw verify: blocking task: {e}"))?
+    {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(e) => return Err(format!("T1+pw verify: read hash file: {e}")),
@@ -132,8 +141,10 @@ pub async fn set_password(support_dir: &Path, password: &[u8]) -> Result<(), Str
 
     let hash_path = support_dir.join(HASH_FILE_NAME);
     if let Some(parent) = hash_path.parent() {
-        tokio::fs::create_dir_all(parent)
+        let parent_owned = parent.to_path_buf();
+        tokio::task::spawn_blocking(move || crate::path::create_dir_all_secure(&parent_owned))
             .await
+            .map_err(|e| format!("T1+pw set_password: blocking task: {e}"))?
             .map_err(|e| format!("T1+pw set_password: create support dir: {e}"))?;
     }
     // `write_bytes_atomic` is sync (random-suffix tmp + sync_data +

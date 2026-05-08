@@ -641,9 +641,6 @@
   "invalidImportLink": "Liên kết không chứa payload LetsFLUTssh hợp lệ",
   "importAction": "Nhập",
   "emptyFolder": "Thư mục trống",
-  "exportWithoutPassword": "Xuất không có mật khẩu?",
-  "exportWithoutPasswordWarning": "Kho lưu trữ sẽ không được mã hóa. Bất kỳ ai có quyền truy cập vào tệp đều có thể đọc dữ liệu của bạn, bao gồm cả mật khẩu và khóa riêng.",
-  "continueWithoutPassword": "Tiếp tục không dùng mật khẩu",
   "tierHardwareUnavailable": "Hardware vault không khả dụng trên bản cài này.",
   "pinLabel": "Mật khẩu",
   "l2UnlockTitle": "Cần mật khẩu",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

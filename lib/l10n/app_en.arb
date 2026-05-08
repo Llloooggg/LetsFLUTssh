@@ -1280,9 +1280,6 @@
   "maxHistorySubtitle": "Maximum saved commands in history",
   "calculateFolderSizesSubtitle": "Show total size next to folders in the sidebar",
   "checkForUpdatesOnStartupSubtitle": "Query GitHub for a new release when the app launches",
-  "exportWithoutPassword": "Export Without Password?",
-  "exportWithoutPasswordWarning": "The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.",
-  "continueWithoutPassword": "Continue Without Password",
   "threatColdDiskTheft": "Cold-disk theft",
   "threatColdDiskTheftDescription": "Powered-off machine with the drive removed and read on another computer, or a copy of the database file taken by someone with access to your home directory.",
   "threatKeyringFileTheft": "Keyring / keychain file exfiltration",
@@ -1347,7 +1344,9 @@
   "globalErrorTechnicalLine": "Error: {detail}",
   "@globalErrorTechnicalLine": {
     "placeholders": {
-      "detail": { "type": "String" }
+      "detail": {
+        "type": "String"
+      }
     }
   },
   "globalErrorEnableLoggingButton": "Enable Logging",
@@ -1358,5 +1357,9 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "@unencryptedArchiveWarning": {
+    "description": "Warning shown on the import dialog when the user picked a plain-ZIP .lfs archive (no password protection)."
+  }
 }

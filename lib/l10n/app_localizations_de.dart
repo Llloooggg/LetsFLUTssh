@@ -2271,16 +2271,6 @@ class SDe extends S {
       'Beim Start nach einer neuen Version auf GitHub suchen';
 
   @override
-  String get exportWithoutPassword => 'Ohne Passwort exportieren?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'Das Archiv wird nicht verschlüsselt. Jeder, der auf die Datei zugreifen kann, kann Ihre Daten lesen, einschließlich Passwörter und privater Schlüssel.';
-
-  @override
-  String get continueWithoutPassword => 'Ohne Passwort fortfahren';
-
-  @override
   String get threatColdDiskTheft => 'Diebstahl bei ausgeschaltetem Gerät';
 
   @override
@@ -2528,4 +2518,8 @@ class SDe extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

@@ -2279,16 +2279,6 @@ class SFr extends S {
       'Interroger GitHub pour une nouvelle version au lancement de l\'application';
 
   @override
-  String get exportWithoutPassword => 'Exporter sans mot de passe ?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'L\'archive ne sera pas chiffrée. Toute personne ayant accès au fichier pourra lire vos données, y compris les mots de passe et les clés privées.';
-
-  @override
-  String get continueWithoutPassword => 'Continuer sans mot de passe';
-
-  @override
   String get threatColdDiskTheft => 'Vol de disque éteint';
 
   @override
@@ -2536,4 +2526,8 @@ class SFr extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

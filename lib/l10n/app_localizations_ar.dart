@@ -2254,16 +2254,6 @@ class SAr extends S {
       'الاستعلام عن إصدار جديد على GitHub عند تشغيل التطبيق';
 
   @override
-  String get exportWithoutPassword => 'تصدير بدون كلمة مرور؟';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'لن يتم تشفير الأرشيف. يمكن لأي شخص لديه حق الوصول إلى الملف قراءة بياناتك، بما في ذلك كلمات المرور والمفاتيح الخاصة.';
-
-  @override
-  String get continueWithoutPassword => 'المتابعة بدون كلمة مرور';
-
-  @override
   String get threatColdDiskTheft => 'سرقة القرص أثناء إيقاف التشغيل';
 
   @override
@@ -2506,4 +2496,8 @@ class SAr extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

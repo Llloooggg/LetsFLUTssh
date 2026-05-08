@@ -334,8 +334,8 @@ pub fn verify_and_derive(
     if !verifier_path.exists() {
         return Err("Master password is not enabled".into());
     }
-    let verifier =
-        fs::read(&verifier_path).map_err(|e| format!("read {VERIFIER_FILE_NAME}: {e}"))?;
+    let verifier = crate::path::read_bytes_secure(&verifier_path)
+        .map_err(|e| format!("read {VERIFIER_FILE_NAME}: {e}"))?;
     let key = derive_key(password, &record.salt, &record.params)?;
     // Bind the kdf header (magic + version + algo id + params +
     // salt) into the AES-GCM AAD so a tampered credentials.kdf
@@ -356,7 +356,8 @@ fn read_kdf_record(support_dir: &Path) -> Result<KdfRecord, String> {
     if !path.exists() {
         return Err("Master password is not enabled".into());
     }
-    let bytes = fs::read(&path).map_err(|e| format!("read {KDF_FILE_NAME}: {e}"))?;
+    let bytes = crate::path::read_bytes_secure(&path)
+        .map_err(|e| format!("read {KDF_FILE_NAME}: {e}"))?;
     decode_kdf_record(&bytes)
 }
 

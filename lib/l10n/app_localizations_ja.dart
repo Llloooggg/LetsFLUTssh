@@ -2198,16 +2198,6 @@ class SJa extends S {
   String get checkForUpdatesOnStartupSubtitle => 'アプリ起動時に GitHub で新バージョンを確認';
 
   @override
-  String get exportWithoutPassword => 'パスワードなしでエクスポートしますか？';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。';
-
-  @override
-  String get continueWithoutPassword => 'パスワードなしで続行';
-
-  @override
   String get threatColdDiskTheft => '電源オフ時のディスク窃取';
 
   @override
@@ -2443,4 +2433,8 @@ class SJa extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

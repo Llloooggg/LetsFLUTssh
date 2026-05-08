@@ -237,6 +237,82 @@ pub fn harden_file_perms(_path: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Lock down [`path`]'s directory permissions to owner-only
+/// (`chmod 0700` on Unix). Mirror of [`harden_file_perms`] for
+/// directories — used by the app-support parent-dir creation flow
+/// so a freshly-created `~/.local/share/letsflutssh` does not land
+/// under the inherited umask (commonly 0755 → group/other read).
+///
+/// Best-effort: any failure surfaces as `Err` for the caller to
+/// log; callers never abort the surrounding write because of a
+/// perm-tighten miss.
+///
+/// Windows is a no-op — `%APPDATA%\<app>` inherits the user's
+/// profile ACL which is already restricted to the running user.
+/// Tightening further via `icacls` on a directory affects file
+/// inheritance and risks breaking subsequent in-place writes; the
+/// inherited ACL is the established Windows convention.
+#[cfg(unix)]
+pub fn harden_dir_perms(path: &std::path::Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let perms = std::fs::Permissions::from_mode(0o700);
+    std::fs::set_permissions(path, perms)
+        .map_err(|e| format!("chmod 700 {}: {e}", path.display()))
+}
+
+#[cfg(not(unix))]
+pub fn harden_dir_perms(_path: &std::path::Path) -> Result<(), String> {
+    Ok(())
+}
+
+/// Symlink-safe sync read for persisted-format files. Opens with
+/// `O_NOFOLLOW` on Unix so a (hostile) pre-existing symlink at
+/// the path resolves to `ELOOP` rather than routing the read
+/// through to whatever the symlink targets (`/etc/shadow`, the
+/// user's mailbox, …). Windows passes through to `fs::read` —
+/// NTFS reparse points need elevated rights to create at user-
+/// support paths in the first place.
+///
+/// Use this for every read of a credential / KDF / verifier /
+/// marker artefact under `support_dir`. User-chosen paths
+/// (download destinations, archive imports the user picked) keep
+/// the standard `fs::read` so a user's own symlink in their
+/// Downloads folder still works.
+pub fn read_bytes_secure(path: &std::path::Path) -> std::io::Result<Vec<u8>> {
+    use std::io::Read as _;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.custom_flags(libc::O_NOFOLLOW);
+    }
+    let mut f = opts.open(path)?;
+    let mut buf = Vec::new();
+    f.read_to_end(&mut buf)?;
+    Ok(buf)
+}
+
+/// `create_dir_all` + [`harden_dir_perms`] for directories the app
+/// owns under the platform's app-support tree. A fresh-install
+/// run that creates `~/.local/share/letsflutssh` would otherwise
+/// land at the user's umask (typically 0755 — group + other read);
+/// secret-bearing artefacts inside expect 0600 file perms but the
+/// containing directory listing leaks the artefact filenames.
+/// This helper closes that gap: directories carrying credentials
+/// land at 0700 from creation onward.
+///
+/// Caller restriction — pass only paths under app-support (or
+/// equivalent). User-chosen download / export folders must keep
+/// their inherited perms; this helper would lock the user out of
+/// their own Documents / Downloads.
+pub fn create_dir_all_secure(path: &std::path::Path) -> Result<(), String> {
+    std::fs::create_dir_all(path)
+        .map_err(|e| format!("create dir {}: {e}", path.display()))?;
+    let _ = harden_dir_perms(path);
+    Ok(())
+}
+
 /// Atomic byte write: writes [`bytes`] to `<path>.tmp`, hardens the
 /// tmp file to owner-only perms via [`harden_file_perms`], then
 /// renames to [`path`]. A crash mid-flush leaves either the
@@ -283,8 +359,27 @@ pub fn write_bytes_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), St
     // strictly cheaper than `sync_all` while still closing the
     // payload-corruption window.
     {
-        let mut f =
-            std::fs::File::create(&tmp).map_err(|e| format!("create {}: {e}", tmp.display()))?;
+        let mut opts = std::fs::OpenOptions::new();
+        opts.create(true).write(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            // O_NOFOLLOW on the tmp open: a (very unlikely)
+            // pre-existing symlink at the random-suffix path would
+            // otherwise route the write through it. Random-suffix
+            // brute-force inside a 0700 parent is the only attack
+            // surface; this closes it for free.
+            // O_EXCL with O_CREAT: fail if the tmp file already
+            // exists rather than truncating an attacker-planted one.
+            // The 32-bit OsRng salt means a real collision is a
+            // bug-not-an-attack; surfacing the error is the right
+            // posture.
+            opts.mode(0o600);
+            opts.custom_flags(libc::O_NOFOLLOW | libc::O_EXCL);
+        }
+        let mut f = opts
+            .open(&tmp)
+            .map_err(|e| format!("create {}: {e}", tmp.display()))?;
         if let Err(e) = f.write_all(bytes) {
             // Drop the partial tmp so the next write does not
             // re-collide on the same suffix.

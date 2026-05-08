@@ -641,9 +641,6 @@
   "invalidImportLink": "リンクに有効な LetsFLUTssh ペイロードが含まれていません",
   "importAction": "インポート",
   "emptyFolder": "空のフォルダ",
-  "exportWithoutPassword": "パスワードなしでエクスポートしますか？",
-  "exportWithoutPasswordWarning": "アーカイブは暗号化されません。ファイルにアクセスできる人は誰でも、パスワードや秘密鍵を含むすべてのデータを読み取ることができます。",
-  "continueWithoutPassword": "パスワードなしで続行",
   "tierHardwareUnavailable": "このインストールではハードウェアボールトを利用できません。",
   "pinLabel": "パスワード",
   "l2UnlockTitle": "パスワードが必要です",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

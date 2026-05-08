@@ -641,9 +641,6 @@
   "invalidImportLink": "Ссылка не содержит корректные данные LetsFLUTssh",
   "importAction": "Импортировать",
   "emptyFolder": "Папка пуста",
-  "exportWithoutPassword": "Экспортировать без пароля?",
-  "exportWithoutPasswordWarning": "Архив не будет зашифрован. Любой, кто получит доступ к файлу, сможет прочитать ваши данные, включая пароли и приватные ключи.",
-  "continueWithoutPassword": "Продолжить без пароля",
   "tierHardwareUnavailable": "Аппаратное хранилище недоступно на этой установке.",
   "pinLabel": "Пароль",
   "l2UnlockTitle": "Требуется пароль",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Удаление сотрёт все файлы приложения (конфигурацию, базу, vault-блобы, логи) — следующий запуск начнётся с чистой установки. Это необратимо.",
   "fatalErrorWipeConfirmTitle": "Удалить все данные?",
   "fatalErrorWipeConfirmBody": "Это безвозвратно удалит все файлы конфигурации, базы данных и хранилищ. Приложение перезапустится с пустой установкой. Продолжить?",
-  "fatalErrorWipeConfirmAction": "Удалить всё"
+  "fatalErrorWipeConfirmAction": "Удалить всё",
+  "unencryptedArchiveWarning": "Архив не защищён паролем. Любой, у кого есть файл, может прочитать содержимое."
 }

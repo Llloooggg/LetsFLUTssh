@@ -641,9 +641,6 @@
   "invalidImportLink": "Der Link enthält keine gültige LetsFLUTssh-Payload",
   "importAction": "Importieren",
   "emptyFolder": "Leerer Ordner",
-  "exportWithoutPassword": "Ohne Passwort exportieren?",
-  "exportWithoutPasswordWarning": "Das Archiv wird nicht verschlüsselt. Jeder, der auf die Datei zugreifen kann, kann Ihre Daten lesen, einschließlich Passwörter und privater Schlüssel.",
-  "continueWithoutPassword": "Ohne Passwort fortfahren",
   "tierHardwareUnavailable": "Hardware-Tresor in dieser Installation nicht verfügbar.",
   "pinLabel": "Passwort",
   "l2UnlockTitle": "Passwort erforderlich",
@@ -783,5 +780,6 @@
   "fatalErrorWipeExplanation": "Wipe deletes every app-support file (config, database, vault blobs, logs) so the next launch starts from a clean install. Cannot be undone.",
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
-  "fatalErrorWipeConfirmAction": "Wipe everything"
+  "fatalErrorWipeConfirmAction": "Wipe everything",
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
 }

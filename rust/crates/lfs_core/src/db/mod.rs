@@ -146,6 +146,13 @@ impl Db {
             .map_err(|e| Error::Db(format!("PRAGMA journal_mode = WAL: {e}")))?;
         conn.execute_batch("PRAGMA synchronous = NORMAL")
             .map_err(|e| Error::Db(format!("PRAGMA synchronous = NORMAL: {e}")))?;
+        // WAL emit creates `-wal` + `-shm` sidecars; harden each to
+        // 0600 so a sidecar doesn't drift to inherited 0644 just
+        // because SQLite's first write happened under whichever
+        // umask the process inherited. Best-effort — sidecars may
+        // not exist yet at this point (created lazily on first
+        // write); the harden call swallows ENOENT.
+        Self::harden_db_files_best_effort(path);
         bootstrap_schema(&conn)?;
         crate::app_log_info!(
             "DbOpen",
@@ -155,6 +162,29 @@ impl Db {
         Ok(Self {
             conn: Mutex::new(conn),
         })
+    }
+
+    /// Harden the SQLCipher DB file + WAL / SHM sidecars to
+    /// owner-only on Unix (0600). Mirrors the perm contract every
+    /// other secret-bearing artefact under app-support enforces.
+    /// Sidecars may not exist at the time this runs (SQLite
+    /// creates them lazily on first write); the harden call
+    /// silently no-ops on the missing files.
+    fn harden_db_files_best_effort(db_path: &Path) {
+        let _ = crate::path::harden_file_perms(db_path);
+        for suffix in ["-wal", "-shm", "-journal"] {
+            if let Some(parent) = db_path.parent() {
+                if let Some(name) = db_path.file_name() {
+                    let mut sidecar = parent.to_path_buf();
+                    let mut sidecar_name = name.to_os_string();
+                    sidecar_name.push(suffix);
+                    sidecar.push(sidecar_name);
+                    if sidecar.exists() {
+                        let _ = crate::path::harden_file_perms(&sidecar);
+                    }
+                }
+            }
+        }
     }
 
     /// Smoke-test query the FRB adapter calls during init to verify

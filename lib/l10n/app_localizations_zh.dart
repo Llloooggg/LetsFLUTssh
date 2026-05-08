@@ -2180,16 +2180,6 @@ class SZh extends S {
   String get checkForUpdatesOnStartupSubtitle => '应用启动时从 GitHub 检查新版本';
 
   @override
-  String get exportWithoutPassword => '不设密码导出？';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      '归档将不会被加密。任何能访问该文件的人都可以读取您的数据，包括密码和私钥。';
-
-  @override
-  String get continueWithoutPassword => '不设密码继续';
-
-  @override
   String get threatColdDiskTheft => '冷盘窃取';
 
   @override
@@ -2421,4 +2411,8 @@ class SZh extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }

@@ -2240,16 +2240,6 @@ class SEn extends S {
       'Query GitHub for a new release when the app launches';
 
   @override
-  String get exportWithoutPassword => 'Export Without Password?';
-
-  @override
-  String get exportWithoutPasswordWarning =>
-      'The archive will not be encrypted. Anyone with access to the file can read your data, including passwords and private keys.';
-
-  @override
-  String get continueWithoutPassword => 'Continue Without Password';
-
-  @override
   String get threatColdDiskTheft => 'Cold-disk theft';
 
   @override
@@ -2496,4 +2486,8 @@ class SEn extends S {
 
   @override
   String get fatalErrorWipeConfirmAction => 'Wipe everything';
+
+  @override
+  String get unencryptedArchiveWarning =>
+      'This archive is not password-protected. Anyone with the file can read its contents.';
 }
