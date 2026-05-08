@@ -63,6 +63,7 @@ import '../../widgets/confirm_dialog.dart';
 import '../../widgets/form_submit_chain.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/secure_password_field.dart';
+import '../../widgets/secure_screen_scope.dart';
 import '../../widgets/expandable_tier_card.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/update_progress_indicator.dart';

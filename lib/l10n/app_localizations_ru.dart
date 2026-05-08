@@ -2518,4 +2518,7 @@ class SRu extends S {
   @override
   String get unencryptedArchiveWarning =>
       'Архив не защищён паролем. Любой, у кого есть файл, может прочитать содержимое.';
+
+  @override
+  String get clipboardCopyFailed => 'Не удалось скопировать в буфер.';
 }

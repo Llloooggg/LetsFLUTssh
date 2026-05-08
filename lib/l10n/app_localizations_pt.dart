@@ -2513,4 +2513,7 @@ class SPt extends S {
   @override
   String get unencryptedArchiveWarning =>
       'This archive is not password-protected. Anyone with the file can read its contents.';
+
+  @override
+  String get clipboardCopyFailed => 'Copy to clipboard failed.';
 }

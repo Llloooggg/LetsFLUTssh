@@ -4418,6 +4418,12 @@ abstract class S {
   /// In en, this message translates to:
   /// **'This archive is not password-protected. Anyone with the file can read its contents.'**
   String get unencryptedArchiveWarning;
+
+  /// Toast shown when SecureClipboard.setText refused the write (cloud-sync gate unavailable).
+  ///
+  /// In en, this message translates to:
+  /// **'Copy to clipboard failed.'**
+  String get clipboardCopyFailed;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

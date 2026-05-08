@@ -1361,5 +1361,9 @@
   "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
   "@unencryptedArchiveWarning": {
     "description": "Warning shown on the import dialog when the user picked a plain-ZIP .lfs archive (no password protection)."
+  },
+  "clipboardCopyFailed": "Copy to clipboard failed.",
+  "@clipboardCopyFailed": {
+    "description": "Toast shown when SecureClipboard.setText refused the write (cloud-sync gate unavailable)."
   }
 }

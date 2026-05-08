@@ -781,5 +781,6 @@
   "fatalErrorWipeConfirmTitle": "Wipe all data?",
   "fatalErrorWipeConfirmBody": "This permanently deletes every config, database, and vault file. The app will restart from a blank install. Continue?",
   "fatalErrorWipeConfirmAction": "Wipe everything",
-  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents."
+  "unencryptedArchiveWarning": "This archive is not password-protected. Anyone with the file can read its contents.",
+  "clipboardCopyFailed": "Copy to clipboard failed."
 }

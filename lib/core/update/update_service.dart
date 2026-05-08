@@ -654,8 +654,15 @@ class UpdateService {
     return _selfUpdatablePlatforms.contains(os) ? os : 'unknown';
   }
 
-  /// Characters that must not appear in file paths passed to `cmd /c start`.
-  static final _unsafePathChars = RegExp(r'[&|<>^%]');
+  /// Characters that must not appear in file paths passed to
+  /// `cmd /c start`. The list covers every metacharacter cmd.exe
+  /// interprets (`& | < > ^ %`) plus the quote / paren / backtick /
+  /// semicolon characters the audit flagged: a hostile installer
+  /// path like `update";calc.exe;` would otherwise inject a
+  /// command substitution past the `start ""` argument boundary.
+  /// Paths that hit the gate fall back to opening the GitHub
+  /// release page in a browser instead.
+  static final _unsafePathChars = RegExp(r'''[&|<>^%"'`();]''');
 
   /// Platforms where the app can launch a platform-native installer for
   /// a downloaded artefact (AppImage / .exe / .dmg via `xdg-open` / `cmd

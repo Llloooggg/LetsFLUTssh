@@ -113,52 +113,54 @@ class _ExportPasswordDialogState extends State<_ExportPasswordDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    return AppDialog(
-      title: l10n.exportData,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.setMasterPasswordHint,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          ),
-          const SizedBox(height: 16),
-          _passwordTextField(
-            widget.passwordCtrl,
-            l10n.masterPassword,
-            error: _mismatch,
-            focusNode: _chain.nodeAt(0),
-            textInputAction: _chain.actionAt(0),
-            onSubmitted: _chain.handlerAt(0),
-          ),
-          const SizedBox(height: 8),
-          _passwordTextField(
-            widget.confirmCtrl,
-            l10n.confirmPassword,
-            error: _mismatch,
-            focusNode: _chain.nodeAt(1),
-            textInputAction: _chain.actionAt(1),
-            onSubmitted: _chain.handlerAt(1),
-          ),
-          if (_mismatch) ...[
+    return SecureScreenScope(
+      child: AppDialog(
+        title: l10n.exportData,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.setMasterPasswordHint,
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            ),
+            const SizedBox(height: 16),
+            _passwordTextField(
+              widget.passwordCtrl,
+              l10n.masterPassword,
+              error: _mismatch,
+              focusNode: _chain.nodeAt(0),
+              textInputAction: _chain.actionAt(0),
+              onSubmitted: _chain.handlerAt(0),
+            ),
             const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                l10n.passwordsDoNotMatch,
-                style: TextStyle(
-                  fontSize: AppFonts.sm,
-                  color: Theme.of(context).colorScheme.error,
+            _passwordTextField(
+              widget.confirmCtrl,
+              l10n.confirmPassword,
+              error: _mismatch,
+              focusNode: _chain.nodeAt(1),
+              textInputAction: _chain.actionAt(1),
+              onSubmitted: _chain.handlerAt(1),
+            ),
+            if (_mismatch) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.passwordsDoNotMatch,
+                  style: TextStyle(
+                    fontSize: AppFonts.sm,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
+        ),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(context)),
+          AppButton.primary(label: l10n.export_, onTap: _submit),
         ],
       ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(context)),
-        AppButton.primary(label: l10n.export_, onTap: _submit),
-      ],
     );
   }
 }
@@ -203,34 +205,36 @@ class _ImportPasswordDialogState extends State<_ImportPasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AppDialog(
-      title: S.of(context).importData,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            S.of(context).enterMasterPasswordPrompt,
-            style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
-          ),
-          const SizedBox(height: 16),
-          _passwordTextField(
-            widget.passwordCtrl,
-            S.of(context).masterPassword,
-            autofocus: true,
-            focusNode: _chain.nodeAt(0),
-            textInputAction: _chain.actionAt(0),
-            onSubmitted: _chain.handlerAt(0),
+    return SecureScreenScope(
+      child: AppDialog(
+        title: S.of(context).importData,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              S.of(context).enterMasterPasswordPrompt,
+              style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
+            ),
+            const SizedBox(height: 16),
+            _passwordTextField(
+              widget.passwordCtrl,
+              S.of(context).masterPassword,
+              autofocus: true,
+              focusNode: _chain.nodeAt(0),
+              textInputAction: _chain.actionAt(0),
+              onSubmitted: _chain.handlerAt(0),
+            ),
+          ],
+        ),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(context)),
+          AppButton.primary(
+            label: S.of(context).nextStep,
+            enabled: widget.passwordCtrl.text.isNotEmpty,
+            onTap: _submit,
           ),
         ],
       ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(context)),
-        AppButton.primary(
-          label: S.of(context).nextStep,
-          enabled: widget.passwordCtrl.text.isNotEmpty,
-          onTap: _submit,
-        ),
-      ],
     );
   }
 }
@@ -261,30 +265,32 @@ class _EnableBiometricDialogState extends State<_EnableBiometricDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = S.of(context);
-    return AppDialog(
-      title: l10n.biometricUnlockTitle,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.biometricUnlockSubtitle,
-            style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
-          ),
-          const SizedBox(height: 12),
-          _passwordTextField(
-            widget.currentCtrl,
-            l10n.currentPassword,
-            autofocus: true,
-            focusNode: _chain.nodeAt(0),
-            textInputAction: _chain.actionAt(0),
-            onSubmitted: _chain.handlerAt(0),
-          ),
+    return SecureScreenScope(
+      child: AppDialog(
+        title: l10n.biometricUnlockTitle,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.biometricUnlockSubtitle,
+              style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
+            ),
+            const SizedBox(height: 12),
+            _passwordTextField(
+              widget.currentCtrl,
+              l10n.currentPassword,
+              autofocus: true,
+              focusNode: _chain.nodeAt(0),
+              textInputAction: _chain.actionAt(0),
+              onSubmitted: _chain.handlerAt(0),
+            ),
+          ],
+        ),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(context)),
+          AppButton.primary(label: l10n.ok, onTap: _submit),
         ],
       ),
-      actions: [
-        AppButton.cancel(onTap: () => Navigator.pop(context)),
-        AppButton.primary(label: l10n.ok, onTap: _submit),
-      ],
     );
   }
 }

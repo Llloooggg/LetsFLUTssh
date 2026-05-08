@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/security/secure_clipboard.dart';
 import '../../core/snippets/snippet.dart';
 import 'snippets_logic.dart';
 import '../../l10n/app_localizations.dart';
@@ -132,12 +132,24 @@ class _SnippetManagerPanelState extends ConsumerState<SnippetManagerPanel> {
     );
   }
 
-  void _copyCommand(Snippet snippet) {
-    Clipboard.setData(ClipboardData(text: snippet.command));
+  Future<void> _copyCommand(Snippet snippet) async {
+    // Snippets routinely contain inline credentials (e.g.
+    // `sshpass -p 'secret' ssh user@host`); the previous plain
+    // `Clipboard.setData` call would leak the bytes into the
+    // OS-level cloud-sync ring (Windows 10+ history, macOS
+    // Universal Clipboard, iOS Handoff, Android 13+ history).
+    // SecureClipboard pins per-platform "no-cloud" flags and
+    // refuses to write rather than silently fall back when the
+    // gate is unavailable. Linux degrades to a plain copy because
+    // X11 / Wayland have no cloud default.
+    final ok = await SecureClipboard().setText(snippet.command);
+    if (!mounted) return;
     Toast.show(
       context,
-      message: S.of(context).commandCopied,
-      level: ToastLevel.info,
+      message: ok
+          ? S.of(context).commandCopied
+          : S.of(context).clipboardCopyFailed,
+      level: ok ? ToastLevel.info : ToastLevel.error,
     );
   }
 

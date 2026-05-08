@@ -38,6 +38,20 @@ pub mod apply;
 pub mod compose;
 pub mod envelope;
 pub(crate) mod iso8601;
+
+/// Hard upper bound on the on-disk `.lfs` size accepted by
+/// [`read_archive_to_pending`]. 256 MiB covers a session library
+/// of thousands of entries with key PEM bodies; anything larger
+/// is either user error (wrong file picked) or a DoS attempt
+/// against the import pipeline. Surfaces as [`Error::Archive`]
+/// so the import dialog renders the typed envelope.
+pub const MAX_ARCHIVE_BYTES: u64 = 256 * 1024 * 1024;
+
+/// Hard upper bound on the inflated ZIP payload (sum of all
+/// uncompressed entry sizes). Defends the import path against a
+/// zip-bomb that deflates to many gigabytes; 1 GiB caps the
+/// in-RAM materialisation that follows the read.
+pub const MAX_DECOMPRESSED_BYTES: u64 = 1024 * 1024 * 1024;
 pub mod probe;
 pub mod qr_compose;
 
@@ -254,6 +268,21 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
     let cursor = Cursor::new(zip_bytes);
     let mut zip =
         ZipArchive::new(cursor).map_err(|e| Error::Archive(format!("import zip open: {e}")))?;
+    // Sum the uncompressed sizes of every entry before reading any —
+    // a zip-bomb that deflates to many gigabytes lands on the cap
+    // here instead of OOMing the parse loop.
+    let mut total_uncompressed: u64 = 0;
+    for i in 0..zip.len() {
+        let entry = zip
+            .by_index(i)
+            .map_err(|e| Error::Archive(format!("import zip entry {i}: {e}")))?;
+        total_uncompressed = total_uncompressed.saturating_add(entry.size());
+        if total_uncompressed > MAX_DECOMPRESSED_BYTES {
+            return Err(Error::Archive(format!(
+                "import zip uncompressed {total_uncompressed} bytes exceeds {MAX_DECOMPRESSED_BYTES}-byte cap"
+            )));
+        }
+    }
 
     let mut pending = PendingImport {
         manifest_json: None,
@@ -328,6 +357,18 @@ pub fn read_archive_to_pending(
     path: &str,
     password: &str,
 ) -> Result<(PendingImport, ImportPreview), Error> {
+    // Pre-check the on-disk size before reading into RAM so a
+    // user picking a 50 GiB file by accident (or hostile drop)
+    // surfaces as a typed Archive error instead of consuming
+    // memory until the import pipeline OOMs.
+    let meta = std::fs::metadata(path)
+        .map_err(|e| Error::Archive(format!("import stat {path}: {e}")))?;
+    if meta.len() > MAX_ARCHIVE_BYTES {
+        return Err(Error::Archive(format!(
+            "{path}: archive {} bytes exceeds {MAX_ARCHIVE_BYTES}-byte cap",
+            meta.len()
+        )));
+    }
     let bytes =
         std::fs::read(path).map_err(|e| Error::Archive(format!("import read {path}: {e}")))?;
     let zip_bytes: zeroize::Zeroizing<Vec<u8>> =
