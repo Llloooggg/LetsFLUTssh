@@ -4,7 +4,6 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show VoidCallback, visibleForTesting;
 
 import '../../src/rust/api/os_security.dart' as rust_os;
-import '../../src/rust/frb_generated.dart' show RustLib;
 import '../../utils/logger.dart';
 
 /// Bridge between OS-level "workstation locked" / "session locked"
@@ -93,13 +92,21 @@ class SessionLockListener {
       return;
     }
     if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-      // FRB-gated. Pre-`_initRustCoreOrFatal` calls leave `_installed`
-      // false so [retryAllPending] re-attempts after the bootstrap
-      // chain promotes everything else through
-      // `_wireFrbDependentBootstrapListeners`.
-      if (!RustLib.instance.initialized) return;
-      _installed = true;
-      _ensureRustStream();
+      // FRB-gated. Pre-`_initRustCoreOrFatal` calls leave
+      // `_installed` false on `StateError` so [retryAllPending]
+      // re-attempts after the bootstrap chain promotes everything
+      // else through `_wireFrbDependentBootstrapListeners`. The
+      // defensive `RustLib.instance.initialized` guard the audit's
+      // A11 sweep removed: the typed-catch shape is structurally
+      // equivalent and aligns with the strict cold-start invariant
+      // (no `RustLib.instance` reads on the cold-start path).
+      try {
+        _ensureRustStream();
+        _installed = true;
+      } on StateError {
+        // Pre-FRB-init — retry on the next `retryAllPending` /
+        // bootstrap promote.
+      }
       return;
     }
     // iOS / Android: lifecycle-paused covers it. No subscription

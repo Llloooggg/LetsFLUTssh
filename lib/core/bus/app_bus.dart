@@ -34,7 +34,6 @@ library;
 import 'dart:async';
 
 import '../../src/rust/api/bus.dart' as rust_bus;
-import '../../src/rust/frb_generated.dart' show RustLib;
 
 export '../../src/rust/api/bus.dart' show BusCommand, BusEvent, BusTopic;
 
@@ -150,23 +149,27 @@ class _SharedTopic {
   StreamSubscription<rust_bus.BusEvent>? _frbSub;
 
   /// Idempotent — if a previous attempt already attached the FRB
-  /// stream, returns immediately. Checks
-  /// `RustLib.instance.initialized` first to avoid throwing a
-  /// `StateError` (which is technically caught below but creates
-  /// noise in the unhandled-error stream traces) and only calls
-  /// into FRB once the core is loaded.
+  /// stream, returns immediately. The cold-start invariant
+  /// (CLAUDE.md / ARCHITECTURE.md § Cold-start ordering) means
+  /// every direct `subscribe` caller wires AFTER
+  /// `_initRustCoreOrFatal` returns; lazy Riverpod-driven
+  /// callsites that mount during the first runApp frame land on
+  /// the `StateError` catch below, leave `_frbSub` null, and
+  /// promote on the next `subscribe` call after init via
+  /// `retryFrbSubscriptions`. The previous defensive
+  /// `if (!RustLib.instance.initialized) return` short-circuit
+  /// was redundant against the invariant + the typed catch and
+  /// has been removed as part of the audit's A11 sweep.
   void ensureFrbSub() {
     if (_frbSub != null) return;
-    if (!RustLib.instance.initialized) return;
     try {
       _frbSub = rust_bus
           .busSubscribe(topic: topic)
           .listen(controller.add, onError: controller.addError);
-    } catch (_) {
-      // Native lib genuinely unreachable (flutter_test without
-      // FRB bootstrap) — leave `_frbSub` null. Subsequent
-      // subscribes will retry, but in the test context they
-      // continue to fail by design.
+    } on StateError {
+      // Pre-FRB-init callsite (Riverpod provider mounted during
+      // the first runApp pass) — leave `_frbSub` null; the next
+      // post-init `subscribe` / `retryFrbSubscriptions` promotes.
     }
   }
 }

@@ -26,9 +26,10 @@ final foregroundServiceProvider = Provider<ForegroundServiceManager>((ref) {
 /// first runApp pass (a top-bar badge watches the count). The
 /// pre-FRB invariant from ARCHITECTURE.md § Cold-start ordering
 /// holds because `AppBus.subscribe` is structurally pre-FRB safe —
-/// it short-circuits the FRB call when `RustLib.instance.initialized`
-/// is false and hands back the Dart-side broadcast stream; the
-/// matching Rust subscription is promoted later via
+/// the FRB call lives in `_SharedTopic.ensureFrbSub` and a
+/// pre-init invocation lands on the `StateError` catch, leaving
+/// the Dart-side broadcast stream live and queued for promotion.
+/// The Rust subscription is promoted later via
 /// `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` →
 /// `AppBus.retryFrbSubscriptions` once `_initRustCoreOrFatal`
 /// returns. `yield 0` paints the badge with a safe default until

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 import 'hover_region.dart';
@@ -83,6 +84,28 @@ class AppIconButton extends StatelessWidget {
         );
       },
     );
+
+    // Keyboard reachability: wrap the pointer-only HoverRegion in
+    // a Focus that maps Enter / Space to onTap. Closes the audit's
+    // A21 gap (workspace tab close button keyboard-unreachable);
+    // applies project-wide because every icon-button in the app
+    // routes through this widget.
+    if (onTap != null) {
+      button = Focus(
+        canRequestFocus: true,
+        onKeyEvent: (node, event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          if (event.logicalKey == LogicalKeyboardKey.enter ||
+              event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+              event.logicalKey == LogicalKeyboardKey.space) {
+            onTap!();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: button,
+      );
+    }
 
     if (tooltip != null) {
       button = Tooltip(message: tooltip!, child: button);

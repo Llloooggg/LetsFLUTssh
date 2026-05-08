@@ -155,6 +155,58 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final reg = AppShortcutRegistry.instance;
 
+    // Arrow-key navigation across rows + Enter to open. Closes
+    // the audit's A20 "file pane row list keyboard-unreachable"
+    // gap: focus on the pane previously gave shortcut hits but
+    // had no way to move the cursor without a mouse / touch.
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown ||
+        event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      final entries = ctrl.entries;
+      if (entries.isEmpty) return KeyEventResult.ignored;
+      final delta = event.logicalKey == LogicalKeyboardKey.arrowDown ? 1 : -1;
+      var idx = entries.indexWhere((e) => ctrl.selected.contains(e.path));
+      if (idx < 0) {
+        idx = delta > 0 ? 0 : entries.length - 1;
+      } else {
+        idx = (idx + delta).clamp(0, entries.length - 1);
+      }
+      ctrl.selectSingle(entries[idx].path);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      if (ctrl.selected.length == 1) {
+        final entry = ctrl.selectedEntries.first;
+        if (entry.isDir) {
+          ctrl.navigateTo(entry.path);
+          return KeyEventResult.handled;
+        }
+        // Plain file — same shape the double-tap path uses: hand
+        // back to the transfer callback the parent wired in. The
+        // pane itself has no in-place "open" surface today; the
+        // double-tap path delegates to onTransfer.
+        if (widget.onTransfer != null) {
+          widget.onTransfer!(entry);
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.home) {
+      if (ctrl.entries.isNotEmpty) {
+        ctrl.selectSingle(ctrl.entries.first.path);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.end) {
+      if (ctrl.entries.isNotEmpty) {
+        ctrl.selectSingle(ctrl.entries.last.path);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
     if (reg.matches(AppShortcut.fileSelectAll, event)) {
       ctrl.selectAll();
       return KeyEventResult.handled;
