@@ -20,7 +20,7 @@ extension _AuthTab on _SessionEditDialogState {
               child: Text(
                 _authError!,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                   color: AppTheme.red,
                 ),
@@ -45,7 +45,7 @@ extension _AuthTab on _SessionEditDialogState {
           child: Text(
             S.of(context).authOrDivider,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.xs,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,

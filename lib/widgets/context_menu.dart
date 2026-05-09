@@ -431,7 +431,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                     child: Text(
                       item.shortcut!,
                       style: TextStyle(
-                        fontFamily: 'JetBrains Mono',
+                        fontFamily: AppFonts.monoFamily,
                         fontSize: AppFonts.xxs,
                         color: shortcutFg,
                       ),

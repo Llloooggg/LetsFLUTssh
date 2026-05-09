@@ -34,7 +34,7 @@ class FilePaneDialogs {
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,

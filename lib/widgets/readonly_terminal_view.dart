@@ -104,7 +104,7 @@ class _ReadOnlyTerminalViewState extends State<ReadOnlyTerminalView> {
           theme: AppTheme.terminalTheme,
           textStyle: TerminalStyle(
             fontSize: widget.fontSize,
-            fontFamily: 'JetBrains Mono',
+            fontFamily: AppFonts.monoFamily,
           ),
         ),
       ),

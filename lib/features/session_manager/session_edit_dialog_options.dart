@@ -34,7 +34,7 @@ extension _OptionsTab on _SessionEditDialogState {
       detail: Text(
         l10n.recordSessionHelp,
         style: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: AppFonts.interFamily,
           fontSize: AppFonts.xs,
           color: AppTheme.fgFaint,
         ),
@@ -59,7 +59,7 @@ extension _OptionsTab on _SessionEditDialogState {
           : Text(
               s.saveSessionToAssignTags,
               style: TextStyle(
-                fontFamily: 'Inter',
+                fontFamily: AppFonts.interFamily,
                 fontSize: AppFonts.xs,
                 color: AppTheme.fgFaint,
               ),
@@ -94,7 +94,7 @@ class _OptionRow extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.interFamily,
                     fontSize: AppFonts.sm,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.fg,
@@ -161,7 +161,7 @@ class _EditingSessionTagsChips extends ConsumerWidget {
           return Text(
             s.noTagsAssigned,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.xs,
               color: AppTheme.fgFaint,
             ),

@@ -253,7 +253,7 @@ class _PanelTabItemState extends State<_PanelTabItem> {
                   child: Text(
                     widget.tab.label,
                     style: TextStyle(
-                      fontFamily: 'Inter',
+                      fontFamily: AppFonts.interFamily,
                       fontSize: AppFonts.sm,
                       color: widget.isActive ? AppTheme.fg : AppTheme.fgDim,
                     ),
@@ -350,7 +350,7 @@ class _TabDragChip extends StatelessWidget {
           Text(
             tab.label,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.sm,
               color: AppTheme.fg,
             ),

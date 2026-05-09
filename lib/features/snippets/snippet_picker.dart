@@ -153,7 +153,7 @@ class _SnippetPickerState extends ConsumerState<SnippetPicker> {
       child: Text(
         label.toUpperCase(),
         style: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: AppFonts.interFamily,
           fontSize: AppFonts.xs,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.0,

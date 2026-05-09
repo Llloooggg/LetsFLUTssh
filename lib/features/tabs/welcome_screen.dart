@@ -28,7 +28,7 @@ class WelcomeScreen extends StatelessWidget {
           Text(
             S.of(context).noActiveSession,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.lg,
               color: dimColor,
             ),
@@ -37,7 +37,7 @@ class WelcomeScreen extends StatelessWidget {
           Text(
             S.of(context).createConnectionHint,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.sm,
               color: faintColor,
             ),

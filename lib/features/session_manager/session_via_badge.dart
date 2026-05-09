@@ -71,7 +71,7 @@ class SessionViaBadge extends ConsumerWidget {
           child: Text(
             l10n.viaSessionLabel(label),
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.xs,
               color: AppTheme.fgFaint,
             ),

@@ -649,7 +649,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
           style: TextStyle(
             color: AppTheme.fg,
             fontSize: AppFonts.sm,
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.interFamily,
           ),
         ),
         actions: [

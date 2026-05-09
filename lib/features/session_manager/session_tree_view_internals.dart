@@ -362,7 +362,7 @@ extension _Internals on _SessionTreeViewState {
         child: Text(
           node.name,
           style: TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.interFamily,
             fontSize: _fontSize,
             fontWeight: FontWeight.w500,
             color: AppTheme.fgDim,
@@ -542,7 +542,7 @@ extension _Internals on _SessionTreeViewState {
               child: Text(
                 node.name,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: _fontSize,
                   color: isActive ? AppTheme.fg : AppTheme.fgDim,
                 ),

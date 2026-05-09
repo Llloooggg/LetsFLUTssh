@@ -82,7 +82,7 @@ class AppPickerChip extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: active ? AppTheme.fg : AppTheme.fgFaint,
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.interFamily,
                     fontSize: AppFonts.xs,
                     fontWeight: FontWeight.w500,
                   ),

@@ -401,7 +401,7 @@ class _SnippetTokenHints extends StatelessWidget {
           style: TextStyle(
             color: AppTheme.fgFaint,
             fontSize: AppFonts.xs,
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.interFamily,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -446,7 +446,7 @@ class _SnippetTokenHints extends StatelessWidget {
           style: TextStyle(
             color: AppTheme.fgFaint,
             fontSize: AppFonts.xs,
-            fontFamily: 'Inter',
+            fontFamily: AppFonts.interFamily,
           ),
         ),
       ],

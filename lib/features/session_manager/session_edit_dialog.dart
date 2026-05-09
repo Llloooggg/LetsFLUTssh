@@ -569,7 +569,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.sm,
                   fontWeight: FontWeight.w500,
                   color: active ? AppTheme.fg : AppTheme.fgFaint,

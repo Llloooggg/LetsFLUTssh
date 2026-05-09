@@ -111,7 +111,7 @@ extension _ConnectionTab on _SessionEditDialogState {
                     s.label.isNotEmpty ? s.label : s.displayName,
                     style: TextStyle(
                       color: AppTheme.fg,
-                      fontFamily: 'Inter',
+                      fontFamily: AppFonts.interFamily,
                       fontSize: AppFonts.sm,
                     ),
                   ),
@@ -154,7 +154,7 @@ extension _ConnectionTab on _SessionEditDialogState {
             l10n.proxyJumpCustomNote,
             style: TextStyle(
               color: AppTheme.fgFaint,
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.xs,
             ),
           ),

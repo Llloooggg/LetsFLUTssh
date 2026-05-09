@@ -444,7 +444,7 @@ class _PanelConnectionBar extends ConsumerWidget {
                         ? S.of(context).connected
                         : S.of(context).disconnected,
                     style: TextStyle(
-                      fontFamily: 'Inter',
+                      fontFamily: AppFonts.interFamily,
                       fontSize: AppFonts.xs,
                       color: dimColor,
                     ),
@@ -456,7 +456,7 @@ class _PanelConnectionBar extends ConsumerWidget {
                   TextSpan(
                     text: '${cfg.user}@${cfg.host}:${cfg.effectivePort}',
                     style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: AppFonts.monoFamily,
                       fontSize: AppFonts.xs,
                       color: dimColor,
                     ),
@@ -570,7 +570,7 @@ class _PanelConnectionBar extends ConsumerWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                   fontWeight: FontWeight.w500,
                   color: btnColor,
@@ -613,7 +613,7 @@ class _PanelConnectionBar extends ConsumerWidget {
               Text(
                 S.of(context).reconnect,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                   fontWeight: FontWeight.w500,
                   color: btnColor,

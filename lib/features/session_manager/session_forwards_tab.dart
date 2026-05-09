@@ -281,7 +281,7 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
               },
               style: TextStyle(
                 color: AppTheme.fgFaint,
-                fontFamily: 'Inter',
+                fontFamily: AppFonts.interFamily,
                 fontSize: AppFonts.xs,
               ),
             ),
@@ -298,7 +298,7 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
                 style: TextStyle(
                   color: AppTheme.yellow,
                   fontSize: AppFonts.xs,
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                 ),
               ),
             ],
@@ -346,7 +346,7 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
                   style: TextStyle(
                     color: AppTheme.fg,
                     fontSize: AppFonts.sm,
-                    fontFamily: 'Inter',
+                    fontFamily: AppFonts.interFamily,
                   ),
                 ),
               ],

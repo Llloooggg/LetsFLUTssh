@@ -329,7 +329,7 @@ extension _FolderActions on SessionPanelState {
           Text(
             S.of(context).folderNameLabel,
             style: TextStyle(
-              fontFamily: 'Inter',
+              fontFamily: AppFonts.interFamily,
               fontSize: AppFonts.xs,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.8,

@@ -57,7 +57,7 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
                 style: TextStyle(
                   fontSize: AppFonts.xxs,
                   color: AppTheme.fgFaint,
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: AppFonts.monoFamily,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

@@ -35,7 +35,7 @@ class _PanelHeader extends StatelessWidget {
                 S.of(context).sessionsHeader,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.sm,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,

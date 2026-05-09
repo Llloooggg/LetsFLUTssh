@@ -176,7 +176,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
                 l10n.recordingSpeed,
                 style: TextStyle(
                   color: AppTheme.fgFaint,
-                  fontFamily: 'Inter',
+                  fontFamily: AppFonts.interFamily,
                   fontSize: AppFonts.xs,
                 ),
               ),
