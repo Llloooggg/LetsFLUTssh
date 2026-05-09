@@ -12,32 +12,7 @@ This file is the single source of truth for agent rules.
 
 ---
 
-## Action → Read This (mandatory before acting)
-
-| I'm about to... | MUST read first |
-|---|---|
-| Plan or edit code in any module | § Docs First — pick the mapped § from ARCHITECTURE Quick Navigation, fetch only it (Read with offset+limit or `/doc` skill); fix code-doc drift in the same commit |
-| Write/edit any Dart code | § Code Quality — SonarCloud + § Conventions + § Logging |
-| Add a log line / notice missing logs | § Logging — always `AppLogger.instance.log`, never `print`/`dart:developer`; sanitizer auto-redacts PEM/IP/user@host/host:port/home paths; for free-form labels (session names, key labels, tag titles) log marker `<label>` not value |
-| Call API of an external package | § External Libraries & APIs — never guess: grep repo → Context7 → web docs → pub-cache source |
-| Add a new dependency or feature needing OS capability | § Self-Contained Binary — bundle > fallback > optional-with-docs |
-| Choose pure-Dart vs native plugin for an authorized feature | § Native Over Dart When Better — prefer native when measurably better AND zero-install holds |
-| Propose unsolicited per-platform native rewrite of a working feature | § Don't Escalate Working Baselines — first check if user already authorized; rule blocks UNSOLICITED only |
-| Write/update a test | § Testing Methodology + [ARCHITECTURE §14](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
-| Add/change a user-facing string | § Localization + § Localization Tone — all 15 `app_*.arb` files |
-| Add a new widget / helper / mixin / style constant / store | § Reuse First |
-| Add/change a UI control | § Reuse First + § UI Components |
-| Touch theme / fonts / radii / heights | § Theme & UI Constants |
-| Add a new file/class/widget/provider in `lib/` | § Documentation Maintenance Checklist |
-| Ship user-visible feature / change a flow / add a toggle | § Doc Maintenance → "User-visible change" + "New end-user feature" rows; update `USER_GUIDE.md` |
-| Change wire format of a persisted file (`config.json`, `credentials.kdf`, hardware-vault blobs, `.lfs` archive) **or** add new envelope artefact | [ARCHITECTURE §3.6 → Migration framework → Developer guide](docs/ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — bump `SchemaVersions`, ship a `Migration`, register in `lfs_core::migration::registry::build_app_registry`, test the chain. Archive (`.lfs`) future-version handling is not a registry — `read_archive_to_pending` rejects newer-version archives. Drift intra-DB schema changes follow [§11 Persistence](docs/ARCHITECTURE.md#11-persistence--storage) |
-| Add/edit a diagram in any markdown | § Diagrams in Docs — Mermaid only |
-| Write a commit message | § Commits & Versioning + § Plan-Item IDs Stay Internal |
-| Open a PR / merge to main | § Branching & Release Flow |
-| Edit anything under `rust/` | [ARCHITECTURE §3.14](docs/ARCHITECTURE.md#314-rust-securitytransport-core-rust) — workspace layout (`lfs_core` + `lfs_os_security` + `lfs_frb`). **`lfs_core` MUST NOT depend on `flutter_rust_bridge` / `tauri` / any frontend crate**; **`lfs_os_security` is the single audit perimeter for OS-API FFI**. Run `make rust-fmt rust-lint rust-test`; if you edited `rust/crates/lfs_frb/src/api/*.rs`, also `make rust-codegen` and stage the regenerated `lib/src/rust/` |
-| Add or modify code on the cold-start path (`main.dart` `_mainBody`, `_LetsFLUTsshAppState.initState`, `_MainScreenState.initState`, `loadAppConfigFromDisk`, `AppConfig.fromJson` / `SecurityCapabilities.fromJson`) | [ARCHITECTURE § Cold-start ordering](docs/ARCHITECTURE.md#cold-start-ordering--pre-init--post-init-invariant). **STRICT INVARIANT: nothing on the cold-start path may import `lib/src/rust/...` or call FRB.** Pre-FRB FRB calls throw `StateError("flutter_rust_bridge has not been initialized")`. FRB-touching listeners + setup wire from `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` AFTER `_initRustCoreOrFatal` returns |
-
-### ARCHITECTURE Quick Navigation
+## ARCHITECTURE Quick Navigation
 
 | I need to... | Read this section |
 |---|---|
@@ -86,18 +61,22 @@ These apply to every response without re-reading:
 - **Skip `make analyze` / `make test` for doc-only commits** — if the staged diff has no `.dart` / `pubspec.yaml`, skip; pre-commit hook runs `make check` automatically.
 - **Cross-platform verification** — Android change → also iOS; Windows → also Linux + macOS.
 - **Best practices by default** — push back on hacky solutions. Cost is not a selection criterion: complementary defences = union (defence-in-depth), not pick-cheapest. Don't rank by "cheap/medium/heavy". See § Three Pillars.
-- **Three pillars: ideal code, security, optimality.** Migration / refactor goes end-to-end. The user QAs every release on real hardware — "I can't test this on my machine" is NOT a skip reason. Only legitimate skip: "the replacement primitive does not exist".
+- **Three pillars: ideal code, security, optimality.** Migration / refactor goes end-to-end. The user QAs every release on real hardware — "I can't test this on my machine" is NOT a skip reason. Only legitimate skip: "the replacement primitive does not exist". See § Three Pillars.
 - **Think systemically** — full scope and side effects, not just literal instruction.
-- **Don't cargo-cult "scope discipline" into session-level stopping. Don't leave the arc half-done. Don't defer work.** When user signals batch mode ("do all", "finish it", "go end-to-end", any equivalent in any language) or hands a multi-item plan — execute the queue. Three pillars bind: cost / "tests need rewrite" are not skip reasons. **Anti-patterns:** (a) exit ramps between every step; (b) declaring sweep "subjective" without trying; (c) conflating "WSL can't test platform X" with "no point writing code"; (d) `TODO` / `FIXME` / `XXX` markers as deferrals; (e) ranking alternatives by cost. Don't write yourself a `.claude/plans/` punch list as a substitute for doing the work — those are for arcs the user has explicitly authorised. Keep going until queue empty, real blocker hits, or user stops you.
+- **Don't cargo-cult "scope discipline" into session-level stopping. Don't leave the arc half-done. Don't defer work.** When user signals batch mode ("do all", "finish it", "go end-to-end", any equivalent in any language) or hands a multi-item plan — execute the queue. Three pillars bind: cost / "tests need rewrite" are not skip reasons. Don't write yourself a `.claude/plans/` punch list as a substitute for doing the work — those are for arcs the user has explicitly authorised. Keep going until queue empty, real blocker hits, or user stops you. Anti-patterns enumerated in § Three Pillars.
 - **"Full" / "line-by-line" / "every item" reviews mean exactly that — never silently truncate on token budget.** Finish the queue or explicitly ask to chunk. Stopping mid-stream with partial findings is failure. **Status reports must match reality** — never call work "done" while items quietly deferred; name what's left.
 - **One logical commit per arc, not a split, unless user asks otherwise.** Don't slice "code" + "test" + "doc" into three messages. Commit prose stays clean: no plan-IDs, no AI-tell phrasing ("I implemented…", "Let me know if you'd like…"), no auto-CHANGELOG entries the user didn't request.
 - **Terse output by default.** No preambles ("I'll help you…", "Let me start by…"), no recap-of-what-I-just-did paragraphs after every tool call, no QA / validation matrices, no excessive bold / headers / nested numbered lists. Match shape to the question.
 - **Ask before guessing UI placement** — if ambiguous, ask once upfront.
 - **Every change ships with docs + tests + translations** — incomplete commit otherwise.
-- **Docs first — highest-priority discipline, binds planning and editing both.** Every § covers *how* + *why*. TOC → specific § via offset+limit or `/doc` skill — never read ARCHITECTURE.md cover-to-cover. Drift fixed in same commit. Cross-link related §s. Human-audience docs (ARCHITECTURE/README/SECURITY/CONTRIBUTING/CHANGELOG/USER_GUIDE/FEATURE_BACKLOG/ADDING_A_FEATURE) never carry LLM asides; agent guidance stays in this file. **References are one-directional: this file may link to human docs (factual / architectural reference), but human docs and source-code comments must NOT link back to this file or any other agent-instruction file** — `.claude/skills/*/SKILL.md` are agent files and may reference this one freely. When a passage in a human doc wants to cite a rule, inline the substance instead — humans reading project docs should never be sent to read agent rules.
+- **Docs first — highest-priority discipline.** TOC → specific § via offset+limit or `/doc` skill — never read ARCHITECTURE.md cover-to-cover. Drift fixed in same commit. Full rule: § Docs First.
+- **References are one-directional** — this file may link to human docs (factual / architectural reference), but human docs and source-code comments must NOT link back to this file or any other agent-instruction file. `.claude/skills/*/SKILL.md` are agent files and may reference this one freely. When a passage in a human doc wants to cite a rule, inline the substance — humans reading project docs should never be sent to read agent rules.
+- **Editing under `rust/`** — `lfs_core` MUST NOT depend on `flutter_rust_bridge` / `tauri` / any frontend crate; `lfs_os_security` is the single audit perimeter for OS-API FFI. After edits: `make rust-fmt rust-lint rust-test`; if FRB API surface (`rust/crates/lfs_frb/src/api/*.rs`) changed, also `make rust-codegen` and stage regenerated `lib/src/rust/`. Layout: [ARCHITECTURE §3.14](docs/ARCHITECTURE.md#314-rust-securitytransport-core-rust).
+- **Cold-start path** — STRICT INVARIANT: nothing on the cold-start path imports `lib/src/rust/...` or calls FRB. Pre-FRB FRB calls throw `StateError("flutter_rust_bridge has not been initialized")`. Wire FRB-touching listeners from `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` AFTER `_initRustCoreOrFatal` returns. [ARCHITECTURE § Cold-start ordering](docs/ARCHITECTURE.md#cold-start-ordering--pre-init--post-init-invariant).
+- **Persisted-file wire format change** — bump `SchemaVersions`, ship a `Migration`, register in `lfs_core::migration::registry::build_app_registry`, test the chain. `.lfs` future-version handling is rejection-only (`read_archive_to_pending` rejects newer-version archives — not a registry). Intra-DB schema changes follow drift bootstrap in [§11 Persistence](docs/ARCHITECTURE.md#11-persistence--storage). Developer guide: [ARCHITECTURE §3.6](docs/ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change).
 - **Parallel agents** — only `git add` files YOU changed. Do NOT run tests — testing is the main process's job.
 - **Save plans / audits / multi-axis findings to `.claude/plans/`** — every structured artefact (audit reports, migration backlogs, agent findings) goes into `.claude/plans/<topic>-<YYYY-MM-DD>.md` (gitignored), paired with a TaskList. Never hold large analyses only in chat. `docs/` is human-audience and forbids LLM asides; memory is for cross-session preferences, not project-state snapshots.
-- **Plans are engineering punch-lists — no QA inside them.** `.claude/plans/*.md` describes implementation steps. Do NOT write "manual test plan" / "validation matrix" / per-platform QA bullets. User owns QA scope.
+- **Plans are engineering punch-lists — no QA inside them.** No "manual test plan" / "validation matrix" / per-platform QA bullets. User owns QA scope.
 
 ---
 
@@ -147,7 +126,7 @@ This rule binds every code edit AND every plan. "Forgot to check docs", "the doc
 | New DI hook for testing | Update [§14 Testing Patterns](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
 | New/changed user-facing string | Add key to `lib/l10n/app_en.arb` **and translate into every other `app_*.arb` file** (15 total: ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh). Run `flutter gen-l10n`. Use `S.of(context).key`. Missing keys silently fall back to English |
 | New/changed shared component | Search `lib/widgets/` and `lib/core/**` for existing equivalent first; extend (add a param) instead of duplicating. Update [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference) |
-| Touched any `rust/**/*.rs` | Update relevant ARCHITECTURE § (§3.1 SSH, §3.6 Security, §3.14 Rust core, etc.) in same commit. Run `make rust-fmt`, `make rust-lint`, `make rust-test`; if FRB API changed, also `make rust-codegen` and stage regenerated `lib/src/rust/` |
+| Touched any `rust/**/*.rs` | Update relevant ARCHITECTURE § (§3.1 SSH, §3.6 Security, §3.14 Rust core, etc.) in same commit. Run `make rust-fmt rust-lint rust-test`; if FRB API changed, also `make rust-codegen` and stage regenerated `lib/src/rust/` |
 | Edited FRB API surface (`rust/crates/lfs_frb/src/api/*.rs`) | Run `make rust-codegen` and stage regenerated Dart bindings in same commit. `pubspec.yaml` (`flutter_rust_bridge:` runtime) and `rust/crates/lfs_frb/Cargo.toml` (`flutter_rust_bridge =` build dep) MUST match codegen CLI version exactly. `lfs_core` MUST NOT depend on `flutter_rust_bridge` directly |
 | User-visible change | Update README.md **and** [`USER_GUIDE.md`](docs/USER_GUIDE.md). New flow / toggle / changed UX → update the relevant § with usage steps, examples, platform caveats |
 | New end-user feature | Add a top-level § in [`USER_GUIDE.md`](docs/USER_GUIDE.md) linked from its TOC. Walk-through style: numbered steps, ≥1 worked example, platform differences in §17 mobile-differences table |
@@ -175,7 +154,7 @@ Inconvenience is not a skip reason. Rewrite from scratch when the ideal demands 
 - (a) offering exit ramps ("session closed?", "wrap up?", "continue or stop?") between every step
 - (b) pre-emptively declaring a sweep "subjective" / "needs your anchor" without trying
 - (c) conflating "this WSL box can't test platform X" with "no point writing the code"
-- (d) `TODO` / `FIXME` / `XXX` markers in code as deferrals
+- (d) `TODO` / `FIXME` / `XXX` markers as deferrals
 - (e) ranking alternatives by implementation cost
 
 **When this rule binds:** any batch-mode signal — `до идеала`, `три кита`, `идеал кода`, `even from scratch`, `добиваем`, `Делаем`, or equivalent in any language. Once the signal lands, default to "go end-to-end, don't ask, emit one combined summary at the arc end."
@@ -280,7 +259,7 @@ What this rule covers (not just UI):
 4. Same `if/else` block or async pipeline in ≥2 callers → extract helper / mixin.
 5. New `*_dialog.dart` / `*_button.dart` / `*_row.dart` that doesn't extend an existing `App*` primitive → check first whether a parameter on the existing primitive solves it.
 
-**Premature-abstraction guard:** triggers mean *consider extraction*, not *extract no matter what*. If the third caller would force a parameter that warps the first two (a flag toggling whole different layout, or coupling unrelated concerns), leave the duplication and add a `// TODO(reuse): N callers — revisit when shape stabilises` comment. Reuse exists to reduce surface area, not grow it.
+**Premature-abstraction guard:** triggers mean *consider extraction*, not *extract no matter what*. If the third caller would force a parameter that warps the first two (a flag toggling whole different layout), leave the duplication and add a `// TODO(reuse): N callers — revisit when shape stabilises` comment. Reuse exists to reduce surface area, not grow it.
 
 ### Comments — Short and Current
 
@@ -294,18 +273,11 @@ Code comments are **load-bearing** when they exist. They describe a *present* in
 
 A long comment is almost always one of: a retrospective (delete the historical part), documentation that should be in ARCHITECTURE.md (move it, link), or a signal the code is too tangled (per Docs First step 8 — propose simplification).
 
-**2. Current state only — no retrospective.** A comment describes the code *as it is now*. Forbidden phrases:
-
-- `originally...` / `previously...` / `the previous Dart-side...` / `earlier revisions...`
-- `after the migration...` / `replaces the historical...` / `replaces the legacy...`
-- `now retired` / `now Rust-side` / `moved out of...` / `moved to...`
-- `the legacy path...` / `before we...` / `we used to...`
-- `Mirrors the prior...` / `Matches the prior...` / `the prior Dart implementation`
-- `pre-fix...` / `Pre-fix shape...`
+**2. Current state only — no retrospective.** A comment describes the code *as it is now*. Forbidden phrases: `originally...` / `previously...` / `after the migration...` / `replaces the legacy...` / `now retired` / `now Rust-side` / `the legacy path...` / `before we...` / `we used to...` / `Mirrors the prior...` / `pre-fix...` and any equivalent retrospective shape.
 
 The "what was the bug, what is the new shape" prose belongs in the **commit message**, not in the source. Once committed, only the comment gets read — "we used to do X, now we do Y" is wrong-by-construction the moment a reader scans it: X is gone, only Y exists.
 
-The exception is when **the prior shape can come back as a regression** and naming it teaches a future maintainer the trap. Write the *invariant* + a one-line *why*:
+The exception is when **the prior shape can come back as a regression** and naming it teaches a future maintainer the trap. State the *invariant* + a one-line *why*:
 
 ```dart
 // `\x1B[H` resets the cursor; `\x1B[2J` alone leaves it at the
@@ -319,15 +291,13 @@ State the rule, name the trap, move on.
 - `// Idempotent: caller may invoke twice without surprise.` ✓
 - `// Cold-start invariant: pure Dart only — see ARCHITECTURE § Cold-start ordering.` ✓
 
-**Editing existing long comments:** same rule. Shorten, drop retrospective, link to ARCHITECTURE.md for rationale.
-
 **Review check.** Before every commit grep the staged diff for `previously`, `pre-fix`, `the prior`, `the earlier`, `Mirrors the prior`, `used to`, `originally`, `legacy` (in narrative voice — `legacy fallback path` describing a runtime alternative is fine; `replaces the legacy` is not).
 
 **3. No fabricated rationale.** Only cite platforms, measurements, failure mechanisms, behavioural claims that are real and verifiable from code, git log, or captured user report. Forbidden:
 
-- **Concrete timings without source:** `~3 s on Win IoT`, `~5 s of dbInit on Windows IoT`, `~500 ms on healthy hosts`. No generic-sounding alternatives either (`non-trivial latency`, `takes time to load`) — those imply you measured something. Document the structural reason instead (the bug class prevented, the contract enforced).
-- **Specific platforms named as canonical case** when the project's CI / supported-platforms list does not enumerate the platform.
-- **Specific OS subsystems pinned as cause without concrete link** (`Defender real-time scan`, `Gatekeeper signature check`, `SELinux relabel`). Generic `the OS may inspect new binaries` is fine; pinning the subsystem fabricates a falsifiable claim.
+- **Concrete timings without source:** `~3 s on Win IoT`, `~500 ms on healthy hosts`. No generic-sounding alternatives either (`non-trivial latency`, `takes time to load`) — those imply you measured something. Document the structural reason instead (the bug class prevented, the contract enforced).
+- **Specific platforms named as canonical case** when CI / supported-platforms list does not enumerate the platform.
+- **Specific OS subsystems pinned as cause** without concrete link (`Defender real-time scan`, `Gatekeeper signature check`, `SELinux relabel`). Generic `the OS may inspect new binaries` is fine; pinning the subsystem fabricates a falsifiable claim.
 - **Causal chains explaining *why* when you have only the *what*.** If the deferral exists in code but the "why" is not in commit message, docs, or user-confirmed bug, document the structural fact and the invariant it enforces.
 
 Same rule applies to Rust `//`/`///`/`//!` and Dart `///` doc comments. Multi-paragraph module-level `//!` get the ARCHITECTURE-link treatment.
@@ -427,9 +397,9 @@ Per-locale guide:
 - Coin a native word for "keychain" when native devs don't use one (RU ключница, VI chuỗi khóa, FA کلیدستان, KO 열쇠고리, ZH 钥匙链).
 - Translate Unix "pipe" as literal water pipe (RU труба, PT Pipa, TR Boru, AR أنبوب — canonical POSIX `Broken pipe` is recognized verbatim).
 - Translate "worker" as human laborer (PT Trabalhadores, AR العمال, TR İşçi — evokes factory, not concurrency).
-- Translate "Paranoid" (tier codename) as psychiatric diagnosis (AR جنون الارتياب, VI Hoang tưởng — tier names stay English/parenthesized).
+- Translate "Paranoid" (tier codename) as psychiatric diagnosis — tier names stay English/parenthesized.
 - Translate "forensics" as legal/courtroom (RU криминалистика, PT Perícia — use "memory dump / RAM dump / RAM forensics").
-- Translate "wrapped key" / "sealed blob" with literal wrapping idioms (AR المفتاح الملفوف = cabbage roll, ZH 被包装的 = gift-wrapped — keep Latin or use crypto-register verb).
+- Translate "wrapped key" / "sealed blob" with literal wrapping idioms — keep Latin or use crypto-register verb.
 - Translate SSH "fingerprint" with biometric word when the app also has biometric auth (ES Huella digital, PT Impressão digital — collides with biometric-unlock UI).
 
 **2. Prose reads as living language, not word-for-word English grammar.**
@@ -464,13 +434,7 @@ Single-box info cards ("here are the fields of this object") → plain markdown 
 
 ### Plan-Item IDs Stay Internal
 
-Plans, session notes, backlogs live **outside git** (`~/.claude/plans/*`, `SECURITY_BACKLOG.md`, `~/.claude/projects/*/memory/*`). Never reference their identifiers — `P1.2-*`, `A1`, `D1`, `Phase E1`, `Phase G1`, `Phase F2`, `Task 3.2`, `Phase 4.2 stage 6.1`, `stage 6.6`, anything of that shape — in any file that lands in git:
-
-- Commit titles and bodies (most common leak — guard hardest)
-- Code comments and docstrings — including `// stage 6 transitional`, "TODO retire after stage X". If reason-for-being is "the migration plan asked for it", phrase it as the *behavioural* reason.
-- Filenames and section headers
-- README.md, ARCHITECTURE.md, SECURITY.md, this file, CONTRIBUTING.md, CHANGELOG.md, any tool-specific agent-instruction file
-- Any other tracked artefact
+Plans, session notes, backlogs live **outside git** (`~/.claude/plans/*`, `SECURITY_BACKLOG.md`, `~/.claude/projects/*/memory/*`). Never reference their identifiers — `P1.2-*`, `A1`, `D1`, `Phase E1`, `Phase G1`, `Phase F2`, `Task 3.2`, `Phase 4.2 stage 6.1`, `stage 6.6`, anything of that shape — in any file that lands in git: commit titles and bodies, code comments and docstrings, filenames, section headers, README.md, ARCHITECTURE.md, SECURITY.md, this file, CONTRIBUTING.md, CHANGELOG.md.
 
 This applies **even when the plan document lives in git** — such documents are temporary scaffolding.
 
@@ -486,22 +450,18 @@ If a commit needs to explain "why this came with that", describe prose-wise: `"s
 
 All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make analyze` must pass before every commit touching Dart code. **Never suppress** — `// ignore:`, `// NOSONAR`, `@SuppressWarnings` are forbidden.
 
-**Skip manual `make analyze` / `make test` when the staged diff is doc-only** (Markdown, `.arb` strings, images, READMEs, rule files under `docs/`). Pre-commit hook still runs `make check` automatically. Quick test: if `git diff --name-only --cached | grep -E '\.dart$|pubspec\.yaml'` returns nothing, skip.
-
 ### Rules that bite most often
 
-Write code that already obeys these on first draft — don't write, wait for the scanner, then refactor.
+Write code that already obeys these on first draft.
 
-- **S3776 — cognitive complexity ≤ 15.** Each `if` / `for` / `while` / `switch case` / `&&` / `||` adds; nesting multiplies. A widget `build()` with tall `children: [ if … else ... if … for (…) widget(a ? b : c) ]` blows the budget fast. When in doubt:
-  - Extract each conditional child into a `Widget _buildFoo(…)` helper.
+- **S3776 — cognitive complexity ≤ 15.** Each `if` / `for` / `while` / `switch case` / `&&` / `||` adds; nesting multiplies. Common fixes:
+  - Extract conditional children into `Widget _buildFoo(…)` helpers.
   - Pull repeated inline computations into a local `final already = …;` before the `return`.
-  - Any `for (var i = 0; i < list.length; i++) ComplexWidget(...)` → extract `_buildRow(i)`.
-  - **Non-widget patterns:**
-    - **Top-level `if (enable) { … } else { … }` with non-trivial branches** → split on the boolean: `_toggleFoo(enable)` delegates to `_enableFoo()` / `_disableFoo()`.
-    - **Long `if (error is X) return …;` chains** → group by category, extract `_tryLocalizeFooError` helpers returning `String?`.
-    - **Async methods chaining 3+ phases with nested mounted/null guards** → extract each phase into `Future<T?> _phaseFoo(…)` returning `null` on cancel/failure. Caller becomes a straight-line pipeline.
-    - **Optional archive/JSON entries with nested `if (requested) { if (present) { if (valid) { … } } }`** → extract `_entryReader` returning `T?`. Caller becomes `final x = requested ? _readFoo(archive) : null;`.
-- **S3358 — no nested ternaries.** Patterns like `busy ? null : (forKeys ? _a : _b)` must be rewritten as `if`/`else if`/`else` assigning to a local, or a `switch` expression. Watch the subtle case where outer ternary's branch is a widget constructor whose argument is itself a ternary — `active ? Icon(asc ? up : down) : null` is already S3358. Extract the trailing widget into a `_directionIcon(col)` helper.
+  - Split a top-level `if (enable) { … } else { … }` on the boolean: `_toggleFoo(enable)` delegates to `_enableFoo()` / `_disableFoo()`.
+  - Long `if (error is X) return …;` chains → group by category, extract `_tryLocalizeFooError` helpers returning `String?`.
+  - Async methods chaining 3+ phases with nested mounted/null guards → extract each phase into `Future<T?> _phaseFoo(…)` returning `null` on cancel/failure.
+  - Optional archive/JSON entries with nested `if (requested) { if (present) { if (valid) { … } } }` → extract `_entryReader` returning `T?`.
+- **S3358 — no nested ternaries.** Rewrite `busy ? null : (forKeys ? _a : _b)` as `if`/`else if`/`else` assigning to a local, or a `switch` expression. Subtle case: outer ternary's branch is a widget constructor whose argument is itself a ternary — `active ? Icon(asc ? up : down) : null` is already S3358; extract to `_directionIcon(col)`.
 - **S1854 — dead/unused values.** Don't `final x = ...;` then overwrite `x` unconditionally. Use `late final x; if (…) x = …; else x = …;` or `if`/`else`-assigned local.
 - **S1192 — string literals duplicated ≥3 times.** Pull into `static const _kFoo = '…'` or l10n key.
 - **S1481 — unused local vars / S1172 — unused parameters.** Delete or prefix with `_`.
@@ -522,13 +482,7 @@ Target: 100% coverage (excluding OS-specific edges + integration tests). One tes
 - **When test and code disagree, surface it — don't silently "fix" either side.** You have one of three: (1) real bug in code, (2) wrong spec on your side, (3) ambiguous requirement. You cannot tell from inside the test file. Stop, report with: input, spec + where derived, current output. Let the user decide.
 - **Failing tests after a code change: diagnose before editing the test.** Default reaction: read the test and ask "is this catching a regression my change introduced?" — not "how do I update the assertions?" Triage: (1) re-derive the test's intended contract; (2) compare to what your change promised; (3) if the test still checks a contract your change did NOT intend to break, the code is wrong; (4) only when the test pins an internal detail you deliberately reshaped do you rewrite — and the new assertion expresses the **new** contract intent-first, not pasted from current output.
 - **Uncovered lines are a marker, not a target.** Don't write tests whose only goal is to execute the line (`expect(result, isNotNull)` / `isA<T>()` / "doesn't throw"). Ask: what branch / decision / contract does this line encode? Write a test that fails if that contract breaks.
-- **Fuzz tests for every untrusted-input consumer** — not only parsers. Any function decoding/validating bytes/strings/maps from outside the app needs a fuzz target. "Outside" tiers:
-  - **User-supplied files** — import flows (`.lfs` archive, OpenSSH config, known_hosts, PEM key bundles), wizard text, clipboard paste.
-  - **Network / peer-supplied** — SSH server banner, SFTP path strings, terminal ANSI escape parser (post-processing).
-  - **Inter-process** — deep-link URIs, QR payload, OS clipboard, IPC.
-  - **On-disk state** — config JSON, session JSON, KDF params, LFS archive header, biometric vault blob, keychain blobs.
-  
-  Each target gets a Dart property-based test in `test/fuzz/` (Flutter/pub deps) or standalone harness in `fuzz/` + seed corpus + CFL wiring in `.clusterfuzzlite/build.sh` (libFuzzer). New untrusted-input code = new fuzz target in the same commit. See [§14 Fuzz testing](docs/ARCHITECTURE.md#fuzz-testing).
+- **Fuzz tests for every untrusted-input consumer** — not only parsers. Any function decoding/validating bytes/strings/maps from outside the app needs a fuzz target. "Outside" tiers: user-supplied files (import flows, wizard text, clipboard paste); network / peer-supplied (SSH banner, SFTP path strings, terminal ANSI post-processing); inter-process (deep-link URIs, QR payload, OS clipboard, IPC); on-disk state (config JSON, session JSON, KDF params, LFS archive header, biometric vault blob, keychain blobs). Each target gets a Dart property-based test in `test/fuzz/` (Flutter/pub deps) or standalone harness in `fuzz/` + seed corpus + CFL wiring in `.clusterfuzzlite/build.sh` (libFuzzer). New untrusted-input code = new fuzz target in the same commit. See [§14 Fuzz testing](docs/ARCHITECTURE.md#fuzz-testing).
 - **UI changes = test updates** — proactively update all tests referencing changed widget names, labels, or finders.
 
 ---
@@ -536,18 +490,11 @@ Target: 100% coverage (excluding OS-specific edges + integration tests). One tes
 ## Commits & Versioning
 
 - **Agent does not commit or push unless the user explicitly asks.** "commit" = commit only, "commit and push" = commit + push.
-- **HARD STOP between fixes** — implement fix → write tests → update docs → **emit a post-fix summary** → **stop and ask user to commit**. Do NOT start the next fix until current is committed. **Exceptions:**
-  - User signals batch mode — "fix all and push", "don't ask", "go through the plan", "stop asking", or same intent in any language. Execute end-to-end without pausing.
-  - Series of related doc/rule/convention edits in a single session — batch into **one** commit at the natural arc end.
-- **Post-fix summary is mandatory.** Before the "commit?" prompt OR at the natural end of a batched arc, state for each bug:
-  1. **Symptom** — user-visible behaviour that was wrong (their literal complaint).
-  2. **Root cause** — why it happened (stale state, missing branch, wrong invariant, race), named with file/function/field.
-  3. **Fix** — what you changed to address the root cause, not just "I edited file X".
-  
-  Don't skip because the diff "speaks for itself" — user reads the summary to decide whether you understood the bug. If you cannot write the root cause clearly, you have not understood it. One bug per paragraph, ≤5 lines. **Batch mode** — single combined report at arc end, not per sub-commit.
+- **HARD STOP between fixes** — implement fix → write tests → update docs → **emit a post-fix summary** → **stop and ask user to commit**. Do NOT start the next fix until current is committed. Exceptions: user signals batch mode ("fix all and push", "don't ask", "go through the plan", or same intent in any language); series of related doc/rule/convention edits in a single session — batch into one commit at the natural arc end.
+- **Post-fix summary is mandatory.** Before the "commit?" prompt OR at the natural end of a batched arc, state for each bug: (1) **Symptom** — user-visible behaviour that was wrong; (2) **Root cause** — why it happened, named with file/function/field; (3) **Fix** — what you changed to address the root cause. Don't skip because the diff "speaks for itself" — the user reads the summary to decide whether you understood the bug. One bug per paragraph, ≤5 lines. Batch mode → single combined report at arc end, not per sub-commit.
 - Format per [CONTRIBUTING.md](docs/CONTRIBUTING.md#commit-messages). Messages drive auto-changelog — keep user-readable.
 - **Use `type(scope):` with parenthesized scope** for module-specific commits (`refactor(import): ...`, `test(known-hosts): ...`, `feat(installer): ...`). Drop scope only when genuinely cross-cutting. Scope: lowercase, alphanumeric + dashes.
-- **Version bumps are automatic.** `/pr` skill runs `scripts/bump-version.sh` — parses conventional commits since last tag, bumps `pubspec.yaml` (patch for fix/refactor/perf/build/deps, minor for feat, major for BREAKING CHANGE; chore/docs/test/ci/Revert = no bump). Don't bump manually. Dependabot PRs are bumped by CI (`dependabot-auto.yml`).
+- **Version bumps are automatic.** `/pr` skill runs `scripts/bump-version.sh` — parses conventional commits since last tag, bumps `pubspec.yaml` (patch for fix/refactor/perf/build/deps, minor for feat, major for BREAKING CHANGE; chore/docs/test/ci/Revert = no bump). Don't bump manually.
 - **Never amend after push** — only new commits. Amend OK only before first push.
 - **Green CI before merging to main** — pre-commit hook runs `make check` automatically.
 
