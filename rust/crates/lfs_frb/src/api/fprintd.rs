@@ -54,3 +54,50 @@ pub async fn fprintd_verify(timeout_ms: u32) -> bool {
 pub async fn fprintd_verify(_timeout_ms: u32) -> bool {
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The non-Linux fallback shims return the
+    // "biometric-unavailable" defaults; verify the contract on the
+    // current build target. On Linux the production path runs the
+    // real fprintd dbus probe — same shape the Dart wrapper relies
+    // on. The four shims are reached unconditionally here to ensure
+    // the cross-platform stub signatures stay callable.
+
+    #[tokio::test]
+    async fn is_service_reachable_returns_a_bool_without_panic() {
+        let _ = fprintd_is_service_reachable().await;
+    }
+
+    #[tokio::test]
+    async fn get_enrolment_hash_returns_option_without_panic() {
+        let _ = fprintd_get_enrolment_hash().await;
+    }
+
+    #[tokio::test]
+    async fn has_enrolled_fingers_returns_bool_without_panic() {
+        let _ = fprintd_has_enrolled_fingers().await;
+    }
+
+    #[tokio::test]
+    async fn verify_with_short_timeout_returns_without_panic() {
+        // 1 ms — the fprintd verify cycle takes much longer; the
+        // important contract is "returns rather than panics", not
+        // the bool value.
+        let _ = fprintd_verify(1).await;
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[tokio::test]
+    async fn non_linux_fallbacks_return_unavailable_defaults() {
+        // Pin the cross-platform stub contract — these are the
+        // values the Dart wrapper's `Platform.isLinux` short-circuit
+        // collapses to.
+        assert!(!fprintd_is_service_reachable().await);
+        assert!(fprintd_get_enrolment_hash().await.is_none());
+        assert!(!fprintd_has_enrolled_fingers().await);
+        assert!(!fprintd_verify(0).await);
+    }
+}

@@ -62,3 +62,42 @@ pub async fn wipe_sweep_files(support_dir: String) -> DbFileSweepReport {
             failed_files: Vec::new(),
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn has_pending_returns_false_for_clean_dir() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 path").to_string();
+        assert!(!wipe_has_pending(dir));
+    }
+
+    #[test]
+    fn has_any_state_returns_false_for_clean_dir() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 path").to_string();
+        assert!(!wipe_has_any_state(dir));
+    }
+
+    #[tokio::test]
+    async fn sweep_files_on_empty_dir_returns_empty_report() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 path").to_string();
+        let report = wipe_sweep_files(dir).await;
+        assert!(report.deleted_files.is_empty());
+        assert!(report.failed_files.is_empty());
+    }
+
+    #[test]
+    fn file_sweep_report_clone_round_trip() {
+        let r = DbFileSweepReport {
+            deleted_files: vec!["credentials.kdf".into()],
+            failed_files: vec!["letsflutssh.db-wal".into()],
+        };
+        let c = r.clone();
+        assert_eq!(c.deleted_files, vec!["credentials.kdf".to_string()]);
+        assert_eq!(c.failed_files, vec!["letsflutssh.db-wal".to_string()]);
+    }
+}
