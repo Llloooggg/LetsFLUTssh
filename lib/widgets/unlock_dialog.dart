@@ -17,6 +17,7 @@ import '../theme/app_theme.dart';
 import '../utils/logger.dart';
 import '../utils/secret_controller.dart';
 import 'app_dialog.dart';
+import 'typed_name_confirm_dialog.dart';
 import 'app_icon_button.dart';
 import 'secure_password_field.dart';
 import 'secure_screen_scope.dart';
@@ -224,30 +225,25 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
     Navigator.of(context).pop(null);
   }
 
-  Future<bool?> _showResetConfirmation() {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final l10n = S.of(ctx);
-        return AppDialog(
-          title: l10n.resetAllDataConfirmTitle,
-          content: Text(
-            l10n.resetAllDataConfirmBody,
-            style: TextStyle(color: AppTheme.fg),
-          ),
-          actions: [
-            AppButton.secondary(
-              label: l10n.cancel,
-              onTap: () => Navigator.pop(ctx, false),
-            ),
-            AppButton.destructive(
-              label: l10n.resetAllDataConfirmAction,
-              onTap: () => Navigator.pop(ctx, true),
-            ),
-          ],
-        );
-      },
+  Future<bool?> _showResetConfirmation() async {
+    final l10n = S.of(context);
+    // Same magic-phrase guard as the Settings → Data → Reset
+    // path. Forgot-password flow is the second entry point into
+    // the wipe; without the guard a panic-tap on the lock screen
+    // could trigger an irreversible wipe.
+    const magicPhrase = 'LetsFLUTssh';
+    final confirmed = await TypedNameConfirmDialog.show(
+      context,
+      title: l10n.resetAllDataConfirmTitle,
+      body: Text(
+        l10n.resetAllDataConfirmBody,
+        style: TextStyle(color: AppTheme.fg),
+      ),
+      magicPhrase: magicPhrase,
+      confirmLabel: l10n.resetAllDataConfirmAction,
+      typePromptHint: l10n.resetAllDataConfirmTypePrompt(magicPhrase),
     );
+    return confirmed;
   }
 
   @override
