@@ -30,22 +30,71 @@ pub use lfs_core::error::Error as CoreError;
 /// error kind needs explicit routing in Dart; bumping any of
 /// these is a wire break.
 pub mod kind {
+    /// Catch-all bucket. Unmapped panics, fallback for `e.to_string()`
+    /// callsites, Dart parser default when wire JSON is malformed.
+    /// UI shows the raw `detail` text under a generic "operation
+    /// failed" heading.
     pub const GENERIC: &str = "generic";
+    /// TCP connect / proxy chain failed before the SSH handshake
+    /// started. UI surfaces "could not reach host" with retry.
     pub const CONNECT: &str = "connect";
+    /// SSH transport handshake failed (KEX, host-key exchange,
+    /// crypto negotiation). Distinct from `CONNECT` so the UI
+    /// can offer a host-key inspection branch.
     pub const HANDSHAKE: &str = "handshake";
+    /// Authentication exhausted every supplied credential. UI
+    /// re-prompts on the matching tier (password / key / agent).
     pub const AUTH_FAILED: &str = "auth_failed";
+    /// Auth succeeded protocol-wise but the server rejected the
+    /// session (account disabled, expired, MFA required without
+    /// keyboard-interactive). Caller routes through the manual
+    /// retry path with the raw detail.
     pub const AUTH_OTHER: &str = "auth_other";
+    /// Private key file failed to parse (corrupt PEM, unsupported
+    /// algorithm, malformed OpenSSH wrapper). UI offers re-import.
     pub const KEY_PARSE: &str = "key_parse";
+    /// Encrypted private key needs a passphrase the caller has
+    /// not supplied yet. UI prompts for passphrase + retries.
     pub const PASSPHRASE_REQUIRED: &str = "passphrase_required";
+    /// Caller supplied a passphrase but it failed to unwrap the
+    /// key. UI re-prompts with the rate-limit hint.
     pub const PASSPHRASE_INCORRECT: &str = "passphrase_incorrect";
+    /// Host-key TOFU verification rejected the server. UI routes
+    /// to the known-hosts inspection dialog.
     pub const HOST_KEY_REJECTED: &str = "host_key_rejected";
+    /// Generic IO failure (filesystem, network read/write that
+    /// doesn't fit a more specific kind). Detail carries the OS
+    /// errno text.
     pub const IO: &str = "io";
+    /// SQLCipher / drift backend error. UI surfaces a "data store
+    /// problem" toast — never the raw SQL detail.
     pub const DB: &str = "db";
+    /// SFTP-protocol level error (file ops, transfer state).
+    /// Distinct from `IO` so the file pane can route specific
+    /// recovery paths (e.g. resume on lost-connection).
     pub const SFTP: &str = "sftp";
+    /// Caller referenced a session id that no longer exists in
+    /// the registry (closed before the request landed). UI
+    /// updates the session list and surfaces a stale-handle
+    /// notice.
     pub const SESSION_UNAVAILABLE: &str = "session_unavailable";
+    /// Asciinema recorder pipeline error (encode / flush / poison
+    /// recovery). UI offers to retry the recording.
     pub const RECORDER: &str = "recorder";
+    /// `.lfs` archive read / write failure (manifest parse,
+    /// integrity check, zip-bomb cap hit). Distinct from
+    /// `ARCHIVE_FUTURE_VERSION` so the latter routes to a
+    /// "newer build needed" branch.
     pub const ARCHIVE: &str = "archive";
+    /// Port-forward or transport-level error after the SSH
+    /// session is up. UI marks the affected forward as failed
+    /// without tearing down the parent session.
     pub const TRANSPORT: &str = "transport";
+    /// Recoverable hardware-vault backend error (wrong PIN,
+    /// missing file, TPM revoked). Caller may retry. Dart UI
+    /// MUST NOT trigger the destructive reset cascade on this
+    /// kind — see [`VAULT_CORRUPT`] for the corrupt-envelope
+    /// variant that does.
     pub const VAULT: &str = "vault";
     /// On-disk vault envelope failed length-prefix sanity (truncated
     /// header, length out of range). The Dart UI's
@@ -59,11 +108,29 @@ pub mod kind {
     /// the master-password path; UI shows the "hardware tier
     /// unavailable" copy rather than a security warning.
     pub const VAULT_PLATFORM_UNSUPPORTED: &str = "vault_platform_unsupported";
+    /// Auto-update download / verify / install failure. Detail
+    /// carries the failing stage so the UI can offer the right
+    /// retry (re-download vs re-verify vs manual install).
     pub const UPDATE: &str = "update";
+    /// Platform-OS interaction error (Keychain / Keystore /
+    /// libsecret / NCrypt / fprintd). Distinct from `VAULT` so
+    /// the UI can mark the platform feature as unavailable
+    /// rather than retry inline.
     pub const PLATFORM: &str = "platform";
+    /// Crypto primitive failure (AES-GCM auth tag mismatch,
+    /// HKDF length mismatch, Argon2id panic). UI treats as
+    /// non-recoverable + routes to the data-corruption dialog.
     pub const CRYPTO: &str = "crypto";
+    /// Operation exceeded its deadline. UI shows a timeout
+    /// notice + offers retry; transports do NOT auto-retry.
     pub const TIMEOUT: &str = "timeout";
+    /// Operation was cancelled by the caller (user pressed
+    /// cancel, parent scope dropped). UI suppresses the toast —
+    /// cancellation is not an error from the user's perspective.
     pub const CANCELLED: &str = "cancelled";
+    /// `.lfs` archive's `manifest.schema_version` exceeds the build's
+    /// `lfs_core::migration::SchemaVersions::ARCHIVE`. Dart UI shows
+    /// "newer build needed" copy; archive is NOT applied.
     pub const ARCHIVE_FUTURE_VERSION: &str = "archive_future_version";
 }
 
