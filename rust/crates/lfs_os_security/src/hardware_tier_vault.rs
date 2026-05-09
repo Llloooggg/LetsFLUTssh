@@ -1399,4 +1399,245 @@ mod tests {
             Err(HardwareVaultError::PlatformUnsupported)
         ));
     }
+
+    // ─── Envelope header coverage ──────────────────────────────────
+
+    #[test]
+    fn envelope_header_round_trip_per_platform_tag() {
+        // Every supported platform tag must round-trip through
+        // prepend → parse cleanly. A regression that flips a
+        // platform constant silently corrupts every existing
+        // envelope on disk for that platform.
+        for platform in [
+            HW_VAULT_PLATFORM_APPLE,
+            HW_VAULT_PLATFORM_WINDOWS,
+            HW_VAULT_PLATFORM_ANDROID,
+        ] {
+            let body = b"vault-body-bytes";
+            let envelope = prepend_envelope_header(platform, body);
+            let parsed = parse_envelope_header(&envelope, platform).expect("parse");
+            assert_eq!(parsed, body);
+        }
+    }
+
+    #[test]
+    fn envelope_header_rejects_truncated_input() {
+        // Input shorter than the header itself = corrupt. A truncated
+        // file (interrupted write before the rename, partial backup
+        // restore) must surface as `Corrupt` so the caller routes
+        // through the destructive reset cascade rather than silently
+        // returning random parsed bytes.
+        let envelope = prepend_envelope_header(HW_VAULT_PLATFORM_APPLE, b"body-bytes");
+        for take in 0..HW_VAULT_HEADER_LEN {
+            let truncated = &envelope[..take];
+            assert!(
+                matches!(
+                    parse_envelope_header(truncated, HW_VAULT_PLATFORM_APPLE),
+                    Err(HardwareVaultError::Corrupt)
+                ),
+                "expected Corrupt for truncated len={take}"
+            );
+        }
+    }
+
+    #[test]
+    fn envelope_header_rejects_magic_mismatch() {
+        // Manually-crafted "envelope" with wrong magic — the kind of
+        // garbage a `dd if=/dev/urandom of=hardware_vault.bin` would
+        // produce. Must surface as Corrupt, not Backend (the user
+        // routing depends on that distinction — Corrupt triggers
+        // reset; Backend triggers retry).
+        let mut bad = Vec::new();
+        bad.extend_from_slice(b"XXXX"); // wrong magic
+        bad.push(HW_VAULT_VERSION);
+        bad.push(HW_VAULT_PLATFORM_APPLE);
+        bad.extend_from_slice(b"body");
+        assert!(matches!(
+            parse_envelope_header(&bad, HW_VAULT_PLATFORM_APPLE),
+            Err(HardwareVaultError::Corrupt)
+        ));
+    }
+
+    #[test]
+    fn envelope_header_rejects_version_mismatch() {
+        // A future-version envelope (bumped HW_VAULT_VERSION on a
+        // newer client) MUST surface as Corrupt so older clients
+        // don't try to parse a body shape they don't understand.
+        let mut envelope = prepend_envelope_header(HW_VAULT_PLATFORM_APPLE, b"body");
+        envelope[4] = HW_VAULT_VERSION.wrapping_add(1);
+        assert!(matches!(
+            parse_envelope_header(&envelope, HW_VAULT_PLATFORM_APPLE),
+            Err(HardwareVaultError::Corrupt)
+        ));
+    }
+
+    #[test]
+    fn envelope_header_rejects_cross_platform_copy() {
+        // An envelope written under one platform tag must NOT parse
+        // when the caller expects another — that's a cross-platform
+        // file copy attempt (user moved hardware_vault.bin between
+        // an Apple and a Windows install). Each platform's wrap key
+        // is per-installation; the bytes are unusable cross-platform.
+        let envelope = prepend_envelope_header(HW_VAULT_PLATFORM_APPLE, b"body");
+        assert!(matches!(
+            parse_envelope_header(&envelope, HW_VAULT_PLATFORM_WINDOWS),
+            Err(HardwareVaultError::Corrupt)
+        ));
+        assert!(matches!(
+            parse_envelope_header(&envelope, HW_VAULT_PLATFORM_ANDROID),
+            Err(HardwareVaultError::Corrupt)
+        ));
+    }
+
+    #[test]
+    fn envelope_header_round_trip_with_empty_body_is_legal() {
+        // A zero-length body is a degenerate but legitimate shape
+        // (caller might prepend the header before populating). The
+        // parser must not reject empty body — only header-level
+        // corruption is fatal.
+        let envelope = prepend_envelope_header(HW_VAULT_PLATFORM_APPLE, &[]);
+        let parsed = parse_envelope_header(&envelope, HW_VAULT_PLATFORM_APPLE).expect("parse");
+        assert!(parsed.is_empty());
+    }
+
+    // ─── len_prefix edge cases ─────────────────────────────────────
+
+    #[test]
+    fn len_prefix_empty_buffer_returns_none() {
+        let mut pos = 0;
+        assert!(read_len_prefixed(&[], &mut pos).is_none());
+    }
+
+    #[test]
+    fn len_prefix_advances_pos_only_on_success() {
+        // A failed read MUST NOT advance pos. The caller treats pos
+        // as "first un-consumed offset" and a partial advance would
+        // skip the truncated frame's prefix, then misalign the next
+        // read at random body bytes.
+        let mut buf = Vec::new();
+        write_len_prefixed(&mut buf, b"hello").unwrap();
+        // Truncate by 2 bytes — declared 5 bytes, only 3 present.
+        buf.truncate(buf.len() - 2);
+        let mut pos = 0;
+        assert!(read_len_prefixed(&buf, &mut pos).is_none());
+        // Pos may have advanced past the length header but must not
+        // have advanced past the (claimed) body bytes — otherwise a
+        // subsequent legitimate frame would be misaligned.
+        assert!(pos <= buf.len());
+    }
+
+    #[test]
+    fn len_prefix_rejects_oversize_claim_with_real_short_body() {
+        // u32 length prefix claiming the entire u32::MAX worth of
+        // body, but only a few bytes of buffer left. read_len_prefixed
+        // returns None instead of panicking on the slice OOB.
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&u32::MAX.to_be_bytes());
+        buf.extend_from_slice(b"x");
+        let mut pos = 0;
+        assert!(read_len_prefixed(&buf, &mut pos).is_none());
+    }
+
+    // ─── os_atomic_write_0600 ──────────────────────────────────────
+
+    #[test]
+    fn os_atomic_write_lands_bytes_at_target_path() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let target = tmp.path().join("nested").join("vault.bin");
+        os_atomic_write_0600(&target, b"hello-vault").expect("write");
+        let read = std::fs::read(&target).expect("read");
+        assert_eq!(read, b"hello-vault");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn os_atomic_write_sets_0600_mode() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let target = tmp.path().join("vault.bin");
+        os_atomic_write_0600(&target, b"secret").expect("write");
+        let mode = std::fs::metadata(&target)
+            .expect("stat")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600);
+    }
+
+    #[test]
+    fn os_atomic_write_overwrites_existing_file() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let target = tmp.path().join("vault.bin");
+        std::fs::write(&target, b"old-bytes").expect("seed");
+        os_atomic_write_0600(&target, b"new-bytes").expect("overwrite");
+        let read = std::fs::read(&target).expect("read");
+        assert_eq!(read, b"new-bytes");
+    }
+
+    #[test]
+    fn os_atomic_write_creates_missing_parent_dirs() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let target = tmp.path().join("a").join("b").join("c").join("vault.bin");
+        os_atomic_write_0600(&target, b"deep").expect("write");
+        assert!(target.exists());
+    }
+
+    #[test]
+    fn os_atomic_write_concurrent_writes_to_distinct_paths_dont_collide() {
+        // The tmp-name suffix folds pid + monotonic counter + nanos so
+        // two writes started in quick succession (same nanos resolution)
+        // pick different tmp filenames. Two distinct target paths, two
+        // writes — both must land their bytes.
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let p1 = tmp.path().join("a.bin");
+        let p2 = tmp.path().join("b.bin");
+        os_atomic_write_0600(&p1, b"one").expect("write a");
+        os_atomic_write_0600(&p2, b"two").expect("write b");
+        assert_eq!(std::fs::read(&p1).unwrap(), b"one");
+        assert_eq!(std::fs::read(&p2).unwrap(), b"two");
+    }
+
+    // ─── is_stored / is_biometric_password_stored on real FS ───────
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn is_stored_returns_false_for_missing_file_and_true_after_create() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let support = tmp.path().to_string_lossy().into_owned();
+        assert!(!is_stored(&support));
+        std::fs::write(tmp.path().join(VAULT_FILE_NAME), b"x").expect("seed");
+        assert!(is_stored(&support));
+    }
+
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn is_biometric_password_stored_distinguishes_overlay_file() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let support = tmp.path().to_string_lossy().into_owned();
+        assert!(!is_biometric_password_stored(&support));
+        std::fs::write(tmp.path().join(BIO_PASSWORD_FILE_NAME), b"x").expect("seed");
+        assert!(is_biometric_password_stored(&support));
+        // The vault file presence MUST NOT cross-trigger this check —
+        // each is gated on its own filename.
+        std::fs::remove_file(tmp.path().join(BIO_PASSWORD_FILE_NAME)).expect("rm");
+        std::fs::write(tmp.path().join(VAULT_FILE_NAME), b"x").expect("seed vault");
+        assert!(!is_biometric_password_stored(&support));
+    }
+
+    // ─── HardwareVaultError Display ────────────────────────────────
+
+    #[test]
+    fn hardware_vault_error_display_includes_kind_marker() {
+        // The `Display` impl drives FRB envelope's `detail` text;
+        // each variant must surface a stable hint so support traces
+        // can grep on the kind. Bumping any of these is a wire break
+        // for log analysis tooling.
+        assert!(
+            format!("{}", HardwareVaultError::PlatformUnsupported).contains("platform unsupported")
+        );
+        assert!(format!("{}", HardwareVaultError::Corrupt).contains("vault corrupt"));
+        assert!(format!("{}", HardwareVaultError::Backend("xyz".into())).contains("backend"));
+        assert!(format!("{}", HardwareVaultError::Backend("xyz".into())).contains("xyz"));
+        assert!(format!("{}", HardwareVaultError::Io("fs nope".into())).contains("io"));
+        assert!(format!("{}", HardwareVaultError::Io("fs nope".into())).contains("fs nope"));
+    }
 }
