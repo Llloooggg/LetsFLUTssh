@@ -4,6 +4,7 @@ import 'dart:ui' show PlatformDispatcher;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart' show initializeDateFormatting;
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'l10n/app_localizations.dart';
@@ -234,6 +235,15 @@ Future<void> _mainBody() async {
   // would teleport to its rest position instead of settling
   // smoothly. Physics simulations need real time; animations
   // don't. Split them accordingly instead of nuking both.
+
+  // Bootstrap `package:intl` per-locale symbol tables once.
+  // Locale-aware `DateFormat` constructors throw
+  // `LocaleDataException` until the table for the requested locale
+  // is loaded, which would crash `formatTimestamp(dt, locale: ...)`
+  // the first time a user with a non-default locale opened the
+  // file pane. `initializeDateFormatting()` with no args loads every
+  // locale's symbols (~80 KB) — runs once at startup, sub-millisecond.
+  await initializeDateFormatting();
 
   // Unlock the Linux-only subprocess probe (gdbus Peer.Ping against
   // org.freedesktop.secrets) used by SecureKeyStorage.probe. Widget

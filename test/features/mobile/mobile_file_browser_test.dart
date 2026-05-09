@@ -836,8 +836,10 @@ void main() {
       await tester.pumpWidget(buildFileList());
       await tester.pump();
 
-      // readme.txt subtitle: "1.0 KB · 2024-01-02 00:00 · -rw-r--r--"
-      expect(find.textContaining('2024-01-02'), findsWidgets);
+      // readme.txt subtitle: "1.0 KB · <locale-formatted date> · -rw-r--r--"
+      // Date format depends on the test locale (US English in
+      // flutter_test); pin the year + permission cell.
+      expect(find.textContaining('2024'), findsWidgets);
       expect(find.textContaining('-rw-r--r--'), findsWidgets);
     });
 

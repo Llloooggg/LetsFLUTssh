@@ -629,10 +629,11 @@ class _MobileFileListState extends State<MobileFileList> {
       color: subtitleColor,
     );
 
+    final locale = Localizations.localeOf(context);
     // Subtitle: "size · date · rwx..." for files, "date · rwx..." for dirs
     final parts = <String>[
-      if (!entry.isDir) formatSize(entry.size),
-      formatTimestamp(entry.modTime),
+      if (!entry.isDir) formatSize(entry.size, locale: locale),
+      formatTimestamp(entry.modTime, locale: locale),
       entry.modeString,
     ];
 

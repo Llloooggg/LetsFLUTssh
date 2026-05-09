@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui' show Locale;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart' show initializeDateFormatting;
 
 import 'package:letsflutssh/core/import/import_service.dart';
 import 'package:letsflutssh/core/sftp/errors.dart';
@@ -20,7 +21,13 @@ void main() {
   // `lfs_core::format` — bootstrap FRB so the canonical Rust
   // formatters are exercised by these tests.
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(requireFrbLoaded);
+  setUpAll(() async {
+    await requireFrbLoaded();
+    // Locale-aware DateFormat needs the per-locale symbol tables;
+    // production bootstraps them once in main.dart, tests have to
+    // do the same before any locale-bearing format call fires.
+    await initializeDateFormatting();
+  });
 
   group('formatSize', () {
     test('bytes', () {
@@ -89,6 +96,30 @@ void main() {
     test('pads single digits', () {
       final dt = DateTime(2025, 1, 2, 3, 4);
       expect(formatTimestamp(dt), '2025-01-02 03:04');
+    });
+
+    test('locale-aware date format: German DMY uses dot separator', () {
+      final dt = DateTime(2025, 3, 15, 9, 5);
+      expect(
+        formatTimestamp(dt, locale: const Locale('de')),
+        '15.3.2025 09:05',
+      );
+    });
+
+    test('locale-aware date format: French DMY uses slash separator', () {
+      final dt = DateTime(2025, 3, 15, 9, 5);
+      expect(
+        formatTimestamp(dt, locale: const Locale('fr')),
+        '15/03/2025 09:05',
+      );
+    });
+
+    test('locale-aware date format: US English MDY', () {
+      final dt = DateTime(2025, 3, 15, 9, 5);
+      expect(
+        formatTimestamp(dt, locale: const Locale('en')),
+        '3/15/2025 09:05',
+      );
     });
   });
 

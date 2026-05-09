@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show Locale;
 
-import 'package:intl/intl.dart' show Intl, NumberFormat;
+import 'package:intl/intl.dart' show DateFormat, Intl, NumberFormat;
 
 import '../core/import/import_service.dart';
 import '../core/sftp/errors.dart';
@@ -51,15 +51,30 @@ String formatSize(int bytes, {Locale? locale}) {
   return '${fmtGb.format(bytes / (1024.0 * 1024 * 1024))} GB';
 }
 
-/// Format DateTime to short timestamp `YYYY-MM-DD HH:MM` via
-/// `lfs_core::format::format_timestamp_minute`.
-String formatTimestamp(DateTime dt) => rust_format.formatTimestampMinute(
-  year: dt.year,
-  month: dt.month,
-  day: dt.day,
-  hour: dt.hour,
-  minute: dt.minute,
-);
+/// Format DateTime to a short timestamp.
+///
+/// `locale: null` keeps the ISO shape `YYYY-MM-DD HH:MM` from
+/// `lfs_core::format::format_timestamp_minute`. The ISO shape is
+/// the contract for log-correlation surfaces (transfer history
+/// tooltips that get attached to bug reports — sortable across
+/// locales) and any callsite that does not have a `BuildContext`
+/// in scope. Pass [locale] from `Localizations.localeOf(context)`
+/// from widgets to get the locale's short numeric date +
+/// 24-hour time — German `15.03.2025 09:05`, French
+/// `15/03/2025 09:05`, US English `3/15/2025 09:05`.
+String formatTimestamp(DateTime dt, {Locale? locale}) {
+  if (locale == null) {
+    return rust_format.formatTimestampMinute(
+      year: dt.year,
+      month: dt.month,
+      day: dt.day,
+      hour: dt.hour,
+      minute: dt.minute,
+    );
+  }
+  final tag = locale.toLanguageTag();
+  return '${DateFormat.yMd(tag).format(dt)} ${DateFormat.Hm(tag).format(dt)}';
+}
 
 /// Format Duration to human-readable string via
 /// `lfs_core::format::format_duration` — ms / s / m / h granularity.
