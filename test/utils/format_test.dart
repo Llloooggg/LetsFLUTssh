@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show Locale;
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -42,6 +43,40 @@ void main() {
     test('gigabytes', () {
       expect(formatSize(1024 * 1024 * 1024), '1.00 GB');
       expect(formatSize(1024 * 1024 * 1024 * 3), '3.00 GB');
+    });
+
+    test('locale-aware decimal separator: German uses comma not dot', () {
+      // 1.5 KB on the en/system path; 1,5 KB for de-DE.
+      expect(formatSize(1536, locale: const Locale('de')), '1,5 KB');
+      expect(formatSize(1536, locale: const Locale('en')), '1.5 KB');
+    });
+
+    test('locale-aware decimal separator: Russian uses comma not dot', () {
+      expect(
+        formatSize(1024 * 1024 + 524288, locale: const Locale('ru')),
+        '1,5 MB',
+      );
+    });
+
+    test('GB precision honours per-locale decimal separator', () {
+      expect(
+        formatSize(1024 * 1024 * 1024 * 3, locale: const Locale('fr')),
+        '3,00 GB',
+      );
+      expect(
+        formatSize(1024 * 1024 * 1024 * 3, locale: const Locale('en')),
+        '3.00 GB',
+      );
+    });
+
+    test('bytes branch is unit-suffix only — no locale-aware separator '
+        'because a value below 1024 fits in a single integer', () {
+      // The "bare bytes" branch never crosses a thousand separator
+      // boundary so there's no locale shape to honour. Pin the
+      // contract so a future refactor doesn't accidentally route
+      // bytes through the NumberFormat path.
+      expect(formatSize(512, locale: const Locale('de')), '512 B');
+      expect(formatSize(999, locale: const Locale('ru')), '999 B');
     });
   });
 

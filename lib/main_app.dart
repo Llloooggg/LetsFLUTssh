@@ -246,6 +246,13 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // act of reading it once installs the listener for the process
     // lifetime.
     ref.read(foregroundActiveCountListenerProvider);
+    // Mirror the active locale into `Intl.defaultLocale` so
+    // `formatSize` / future `package:intl` consumers honour the
+    // user's chosen locale without each callsite plumbing a Locale
+    // arg. Same once-and-watch shape as the foreground listener
+    // above — the provider's body re-fires on every locale flip
+    // and keeps the static in lockstep.
+    ref.watch(intlDefaultLocaleSyncProvider);
     // Same pattern: install the `securityCapabilitiesProvider` →
     // `config.security_probe_cache` listener for the process
     // lifetime. The capabilities provider itself is now pure (no

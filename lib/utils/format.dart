@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:ui' show Locale;
+
+import 'package:intl/intl.dart' show Intl, NumberFormat;
 
 import '../core/import/import_service.dart';
 import '../core/sftp/errors.dart';
@@ -17,10 +20,36 @@ import '../src/rust/api/format.dart' as rust_format;
 import 'frb_error.dart';
 import 'sanitize.dart';
 
-/// Format byte size to human-readable string via
-/// `lfs_core::format::format_size` — the B / KB / MB / GB ladder
-/// (1 decimal place for KB/MB, 2 for GB) lives in Rust.
-String formatSize(int bytes) => rust_format.formatSize(bytes: bytes);
+/// Format byte size to a human-readable string with locale-aware
+/// decimal separator. Pass [locale] from `Localizations.localeOf(context)`
+/// when called from a widget; defaults to [Intl.defaultLocale] (set by
+/// `main.dart` after the user's persisted choice resolves) for callers
+/// without a context (background workers, log lines).
+///
+/// The B / KB / MB / GB ladder + decimal-place policy (1 for KB/MB,
+/// 2 for GB) mirrors the Rust `lfs_core::format::format_size` so the
+/// thresholds stay consistent across surfaces; only the
+/// number-formatting half moves Dart-side so German / French / Russian
+/// users see `1,5 MB` instead of the locale-blind `1.5 MB` the
+/// previous Rust-only path emitted.
+String formatSize(int bytes, {Locale? locale}) {
+  final abs = bytes.abs();
+  if (abs < 1024) return '$bytes B';
+  final tag = locale?.toLanguageTag() ?? Intl.defaultLocale;
+  // `NumberFormat(pattern, locale)` preserves the trailing zero
+  // count exactly (`1.0`, `3.00`); `NumberFormat.decimalPattern`
+  // strips them (`1.0` → `1`) which would regress the existing
+  // wire shape.
+  final fmtKbMb = NumberFormat('0.0', tag);
+  final fmtGb = NumberFormat('0.00', tag);
+  if (abs < 1024 * 1024) {
+    return '${fmtKbMb.format(bytes / 1024)} KB';
+  }
+  if (abs < 1024 * 1024 * 1024) {
+    return '${fmtKbMb.format(bytes / (1024 * 1024))} MB';
+  }
+  return '${fmtGb.format(bytes / (1024.0 * 1024 * 1024))} GB';
+}
 
 /// Format DateTime to short timestamp `YYYY-MM-DD HH:MM` via
 /// `lfs_core::format::format_timestamp_minute`.
@@ -375,7 +404,10 @@ class _ErrnoEntry {
 final Map<int, _ErrnoEntry> _errnoTable = <int, _ErrnoEntry>{
   // POSIX / Linux
   1: _ErrnoEntry((s) => s.errOperationNotPermitted, 'Operation not permitted'),
-  2: _ErrnoEntry((s) => s.errNoSuchFileOrDirectory, 'No such file or directory'),
+  2: _ErrnoEntry(
+    (s) => s.errNoSuchFileOrDirectory,
+    'No such file or directory',
+  ),
   3: _ErrnoEntry((s) => s.errNoSuchProcess, 'No such process'),
   5: _ErrnoEntry((s) => s.errIoError, 'I/O error'),
   9: _ErrnoEntry((s) => s.errBadFileDescriptor, 'Bad file descriptor'),
@@ -402,7 +434,10 @@ final Map<int, _ErrnoEntry> _errnoTable = <int, _ErrnoEntry>{
   ),
   100: _ErrnoEntry((s) => s.errNetworkIsDown, 'Network is down'),
   101: _ErrnoEntry((s) => s.errNetworkIsUnreachable, 'Network is unreachable'),
-  104: _ErrnoEntry((s) => s.errConnectionResetByPeer, 'Connection reset by peer'),
+  104: _ErrnoEntry(
+    (s) => s.errConnectionResetByPeer,
+    'Connection reset by peer',
+  ),
   110: _ErrnoEntry((s) => s.errConnectionTimedOut, 'Connection timed out'),
   111: _ErrnoEntry((s) => s.errConnectionRefused, 'Connection refused'),
   112: _ErrnoEntry((s) => s.errHostIsDown, 'Host is down'),
@@ -415,7 +450,10 @@ final Map<int, _ErrnoEntry> _errnoTable = <int, _ErrnoEntry>{
     'Cannot assign requested address',
   ),
   10050: _ErrnoEntry((s) => s.errNetworkIsDown, 'Network is down'),
-  10051: _ErrnoEntry((s) => s.errNetworkIsUnreachable, 'Network is unreachable'),
+  10051: _ErrnoEntry(
+    (s) => s.errNetworkIsUnreachable,
+    'Network is unreachable',
+  ),
   10053: _ErrnoEntry((s) => s.errConnectionAborted, 'Connection aborted'),
   10054: _ErrnoEntry(
     (s) => s.errConnectionResetByPeer,
