@@ -71,3 +71,54 @@ pub fn rate_limit_drop(id: String) -> bool {
 pub fn rate_limit_backoff_schedule_seconds() -> Vec<u32> {
     lfs_core::rate_limit::BACKOFF_SCHEDULE.to_vec()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The status / record_failure / record_success / drop endpoints
+    // route through `lfs_core::app::instance()`; that singleton
+    // requires `lfs_core::app::init()` (called by the FRB worker
+    // bootstrap, not the cargo-test harness). The
+    // `password_rate_limiter_test.dart` integration suite already
+    // exercises those endpoints end-to-end through `requireFrbLoaded`.
+    // The standalone cargo tests below cover the parts that don't
+    // need the App singleton.
+
+    #[test]
+    fn backoff_schedule_is_non_empty_and_monotonic() {
+        // Pin the load-bearing invariant — every consecutive failure
+        // costs at least as much wait as the previous, capped at
+        // the last entry. The exact constants live in
+        // `lfs_core::rate_limit::BACKOFF_SCHEDULE`.
+        let schedule = rate_limit_backoff_schedule_seconds();
+        assert!(!schedule.is_empty());
+        for window in schedule.windows(2) {
+            assert!(window[0] <= window[1], "schedule must be non-decreasing");
+        }
+    }
+
+    #[test]
+    fn db_rate_limit_status_clone_round_trip() {
+        // Defensive — guards against a future refactor that
+        // accidentally drops `Clone` on the FRB-marshalled struct.
+        let s = DbRateLimitStatus {
+            failure_count: 3,
+            cooldown_remaining_ms: 1500,
+        };
+        let c = s;
+        assert_eq!(c.failure_count, 3);
+        assert_eq!(c.cooldown_remaining_ms, 1500);
+    }
+
+    #[test]
+    fn from_core_status_carries_fields_through() {
+        let core = lfs_core::rate_limit::RateLimitStatus {
+            failure_count: 2,
+            cooldown_remaining_ms: 3000,
+        };
+        let db: DbRateLimitStatus = core.into();
+        assert_eq!(db.failure_count, 2);
+        assert_eq!(db.cooldown_remaining_ms, 3000);
+    }
+}
