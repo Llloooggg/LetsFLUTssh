@@ -293,6 +293,92 @@ impl Sftp {
         };
         download_dir_inner(&ctx, remote_dir, local_dir, &mut counter, 0).await
     }
+
+    /// Streamed single-file upload — opens both files, copies the
+    /// local body into the remote in 64 KiB chunks, fires `progress`
+    /// after every chunk with `(done_bytes, total_bytes)`. The
+    /// closure returning `false` requests cancellation; the loop
+    /// breaks at the next yield with [`Error::Cancelled`].
+    ///
+    /// Single FRB hop replaces the per-chunk Dart `writeAll`
+    /// loop on the SFTP transfer hot path — see
+    /// ARCHITECTURE.md §3.14.
+    pub async fn upload_file_streaming(
+        &self,
+        local_path: &str,
+        remote_path: &str,
+        progress: &(dyn Fn(u64, u64) -> bool + Send + Sync),
+    ) -> Result<(), Error> {
+        let total_bytes = tokio::fs::metadata(local_path)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0);
+        let mut local = tokio::fs::File::open(local_path)
+            .await
+            .map_err(|e| Error::Sftp(format!("open {local_path}: {e}")))?;
+        let remote = self.create(remote_path).await?;
+        let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+        let mut done: u64 = 0;
+        loop {
+            let n = local
+                .read(&mut buf)
+                .await
+                .map_err(|e| Error::Sftp(format!("local read {local_path}: {e}")))?;
+            if n == 0 {
+                break;
+            }
+            remote.write_all(&buf[..n]).await?;
+            done = done.saturating_add(n as u64);
+            if !progress(done, total_bytes) {
+                return Err(Error::Cancelled);
+            }
+        }
+        remote.sync_all().await?;
+        Ok(())
+    }
+
+    /// Streamed single-file download — mirror of
+    /// [`upload_file_streaming`]. Reads the remote `stat`-reported
+    /// size up front so progress carries a real total instead of a
+    /// rolling estimate.
+    pub async fn download_file_streaming(
+        &self,
+        remote_path: &str,
+        local_path: &str,
+        progress: &(dyn Fn(u64, u64) -> bool + Send + Sync),
+    ) -> Result<(), Error> {
+        let total_bytes = self.stat(remote_path).await.map(|m| m.size).unwrap_or(0);
+        let remote = self.open(remote_path).await?;
+        if let Some(parent) = std::path::Path::new(local_path).parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| Error::Sftp(format!("mkdir {parent:?}: {e}")))?;
+        }
+        let mut local = tokio::fs::File::create(local_path)
+            .await
+            .map_err(|e| Error::Sftp(format!("create {local_path}: {e}")))?;
+        let mut buf = vec![0u8; TRANSFER_CHUNK_SIZE];
+        let mut done: u64 = 0;
+        loop {
+            let n = remote.read_into(&mut buf).await?;
+            if n == 0 {
+                break;
+            }
+            local
+                .write_all(&buf[..n])
+                .await
+                .map_err(|e| Error::Sftp(format!("local write {local_path}: {e}")))?;
+            done = done.saturating_add(n as u64);
+            if !progress(done, total_bytes) {
+                return Err(Error::Cancelled);
+            }
+        }
+        local
+            .flush()
+            .await
+            .map_err(|e| Error::Sftp(format!("local flush {local_path}: {e}")))?;
+        Ok(())
+    }
 }
 
 /// Per-file completion event emitted by [`Sftp::upload_dir`] /

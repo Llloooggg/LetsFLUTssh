@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'ssh.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 /// Open an SFTP subsystem on a fresh channel of the given session.
 /// Multiple SFTP clients can coexist on one SSH session — each call
@@ -75,6 +75,26 @@ abstract class SshSftp implements RustOpaqueInterface {
   /// Stat a path without resolving symlinks.
   Future<SftpFileMetadata> statSymlink({required String path});
 
+  /// Streamed single-file download — mirror of
+  /// [`stream_upload_file`].
+  Stream<DbTransferProgressBytes> streamDownloadFile({
+    required String remotePath,
+    required String localPath,
+  });
+
+  /// Streamed single-file upload. Replaces the per-chunk Dart
+  /// `writeAll` loop on the SFTP transfer hot path — the entire
+  /// 64 KiB-chunked copy now lives Rust-side; the Dart side
+  /// receives a single FRB call's worth of stream events instead
+  /// of N round-trips per file. `sink` receives one
+  /// [`DbTransferProgressBytes`] per chunk written; subscription
+  /// cancellation closes the sink → next `add` fails →
+  /// `lfs_core` translates to `Error::Cancelled`.
+  Stream<DbTransferProgressBytes> streamUploadFile({
+    required String localPath,
+    required String remotePath,
+  });
+
   /// Recursively upload a local directory tree into a remote
   /// path. The walker (in `lfs_core::sftp`) handles mkdir +
   /// per-file streaming + depth cap; this shim forwards the
@@ -141,6 +161,36 @@ class DbTransferProgress {
           fileName == other.fileName &&
           totalFiles == other.totalFiles &&
           doneFiles == other.doneFiles &&
+          isUpload == other.isUpload;
+}
+
+/// Per-byte transfer progress event emitted by
+/// [`SshSftp::stream_upload_file`] / [`SshSftp::stream_download_file`].
+/// `total_bytes` is the file size known up front (local stat for
+/// upload, remote stat for download); `done_bytes` is the running
+/// sum across chunks.
+class DbTransferProgressBytes {
+  final BigInt doneBytes;
+  final BigInt totalBytes;
+  final bool isUpload;
+
+  const DbTransferProgressBytes({
+    required this.doneBytes,
+    required this.totalBytes,
+    required this.isUpload,
+  });
+
+  @override
+  int get hashCode =>
+      doneBytes.hashCode ^ totalBytes.hashCode ^ isUpload.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbTransferProgressBytes &&
+          runtimeType == other.runtimeType &&
+          doneBytes == other.doneBytes &&
+          totalBytes == other.totalBytes &&
           isUpload == other.isUpload;
 }
 

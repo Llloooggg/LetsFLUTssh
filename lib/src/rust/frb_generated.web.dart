@@ -245,6 +245,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_StreamSink_db_transfer_progress_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<DbTransferProgressBytes>
+  dco_decode_StreamSink_db_transfer_progress_bytes_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<SshShellEvent> dco_decode_StreamSink_ssh_shell_event_Sse(
     dynamic raw,
   );
@@ -716,6 +720,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTransferProgress dco_decode_db_transfer_progress(dynamic raw);
 
   @protected
+  DbTransferProgressBytes dco_decode_db_transfer_progress_bytes(dynamic raw);
+
+  @protected
   DbTransferSnapshot dco_decode_db_transfer_snapshot(dynamic raw);
 
   @protected
@@ -1171,6 +1178,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   RustStreamSink<DbTransferProgress>
   sse_decode_StreamSink_db_transfer_progress_Sse(SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<DbTransferProgressBytes>
+  sse_decode_StreamSink_db_transfer_progress_bytes_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RustStreamSink<SshShellEvent> sse_decode_StreamSink_ssh_shell_event_Sse(
@@ -1800,6 +1813,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbTransferProgressBytes sse_decode_db_transfer_progress_bytes(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbTransferSnapshot sse_decode_db_transfer_snapshot(
     SseDeserializer deserializer,
   );
@@ -2364,6 +2382,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_StreamSink_db_transfer_progress_Sse(
     RustStreamSink<DbTransferProgress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_db_transfer_progress_bytes_Sse(
+    RustStreamSink<DbTransferProgressBytes> self,
     SseSerializer serializer,
   );
 
@@ -3170,6 +3194,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_transfer_progress(
     DbTransferProgress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_transfer_progress_bytes(
+    DbTransferProgressBytes self,
     SseSerializer serializer,
   );
 

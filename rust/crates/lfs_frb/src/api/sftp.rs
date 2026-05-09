@@ -249,6 +249,88 @@ impl SshSftp {
             .await
             .map_err(|e| crate::api::frb_err::from_core(&e))
     }
+
+    /// Streamed single-file upload. Replaces the per-chunk Dart
+    /// `writeAll` loop on the SFTP transfer hot path — the entire
+    /// 64 KiB-chunked copy now lives Rust-side; the Dart side
+    /// receives a single FRB call's worth of stream events instead
+    /// of N round-trips per file. `sink` receives one
+    /// [`DbTransferProgressBytes`] per chunk written; subscription
+    /// cancellation closes the sink → next `add` fails →
+    /// `lfs_core` translates to `Error::Cancelled`.
+    pub async fn stream_upload_file(
+        &self,
+        local_path: String,
+        remote_path: String,
+        sink: crate::frb_generated::StreamSink<DbTransferProgressBytes>,
+    ) -> Result<(), String> {
+        let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let cancelled_cb = cancelled.clone();
+        let result = self
+            .inner
+            .upload_file_streaming(&local_path, &remote_path, &move |done, total| {
+                if cancelled_cb.load(std::sync::atomic::Ordering::SeqCst) {
+                    return false;
+                }
+                let ok = sink
+                    .add(DbTransferProgressBytes {
+                        done_bytes: done,
+                        total_bytes: total,
+                        is_upload: true,
+                    })
+                    .is_ok();
+                if !ok {
+                    cancelled_cb.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+                ok
+            })
+            .await;
+        result.map_err(|e| crate::api::frb_err::from_core(&e))
+    }
+
+    /// Streamed single-file download — mirror of
+    /// [`stream_upload_file`].
+    pub async fn stream_download_file(
+        &self,
+        remote_path: String,
+        local_path: String,
+        sink: crate::frb_generated::StreamSink<DbTransferProgressBytes>,
+    ) -> Result<(), String> {
+        let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let cancelled_cb = cancelled.clone();
+        let result = self
+            .inner
+            .download_file_streaming(&remote_path, &local_path, &move |done, total| {
+                if cancelled_cb.load(std::sync::atomic::Ordering::SeqCst) {
+                    return false;
+                }
+                let ok = sink
+                    .add(DbTransferProgressBytes {
+                        done_bytes: done,
+                        total_bytes: total,
+                        is_upload: false,
+                    })
+                    .is_ok();
+                if !ok {
+                    cancelled_cb.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+                ok
+            })
+            .await;
+        result.map_err(|e| crate::api::frb_err::from_core(&e))
+    }
+}
+
+/// Per-byte transfer progress event emitted by
+/// [`SshSftp::stream_upload_file`] / [`SshSftp::stream_download_file`].
+/// `total_bytes` is the file size known up front (local stat for
+/// upload, remote stat for download); `done_bytes` is the running
+/// sum across chunks.
+#[derive(Debug, Clone)]
+pub struct DbTransferProgressBytes {
+    pub done_bytes: u64,
+    pub total_bytes: u64,
+    pub is_upload: bool,
 }
 
 /// Open an SFTP subsystem on a fresh channel of the given session.

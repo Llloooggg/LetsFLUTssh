@@ -3,9 +3,6 @@
 // needs. Backed by `RustSftpFs` (russh-sftp via the FRB bindings),
 // which delegates leaves and recursive walks to `lfs_core::sftp`.
 
-import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:path/path.dart' as p;
 
 import '../../src/rust/api/sftp.dart' as rust_sftp;
@@ -267,45 +264,34 @@ class RustSftpFs extends RemoteSftpFs {
     }
   }
 
-  /// Chunk size for streaming file transfers (64 KiB) — same as
-  /// russh-sftp's default packet size.
-  static const _chunkSize = 65536;
-
   @override
   Future<void> upload(
     String localPath,
     String remotePath,
     void Function(TransferProgress)? onProgress,
   ) async {
+    // Single FRB call: the open / read-loop / write-loop / fsync
+    // chain lives Rust-side now; the Dart side only listens to a
+    // per-byte progress stream. Replaces the per-chunk
+    // `raf.read → writeAll` round-trip the SFTP-transfer hot path
+    // used to take (~1600 FRB hops on a 100 MiB file → 1).
     try {
-      final localFile = File(localPath);
-      final fileSize = await localFile.length();
-      final remote = await rust_sftp.sshSftpCreate(
-        sftp: _sftp,
-        path: remotePath,
-      );
-      final raf = await localFile.open(mode: FileMode.read);
-      try {
-        var done = 0;
-        while (true) {
-          final chunk = await raf.read(_chunkSize);
-          if (chunk.isEmpty) break;
-          await remote.writeAll(data: Uint8List.fromList(chunk));
-          done += chunk.length;
-          onProgress?.call(
-            TransferProgress(
-              fileName: p.basename(localPath),
-              totalBytes: fileSize,
-              doneBytes: done,
-              isUpload: true,
-              isCompleted: done >= fileSize,
-            ),
-          );
-        }
-      } finally {
-        await raf.close();
-        // Rust SFTP file drops on the FRB side when the wrapper goes
-        // out of scope.
+      final fileName = p.basename(localPath);
+      await for (final evt in _sftp.streamUploadFile(
+        localPath: localPath,
+        remotePath: remotePath,
+      )) {
+        final done = evt.doneBytes.toInt();
+        final total = evt.totalBytes.toInt();
+        onProgress?.call(
+          TransferProgress(
+            fileName: fileName,
+            totalBytes: total,
+            doneBytes: done,
+            isUpload: true,
+            isCompleted: total > 0 && done >= total,
+          ),
+        );
       }
     } on SFTPError {
       rethrow;
@@ -321,37 +307,22 @@ class RustSftpFs extends RemoteSftpFs {
     void Function(TransferProgress)? onProgress,
   ) async {
     try {
-      final remote = await rust_sftp.sshSftpOpen(sftp: _sftp, path: remotePath);
-      final meta = await remote.metadata();
-      // `SftpFileMetadata.size` is FRB-typed as `BigInt` (the SSH wire
-      // format carries u64 byte counts); a previous `meta.size is int /
-      // as num` cast tripped at runtime because `_BigIntImpl` is
-      // neither `int` nor `num`. `BigInt.toInt()` truncates above
-      // 2^63 — irrelevant for filesystem sizes (8 EiB ceiling).
-      final fileSize = meta.size.toInt();
-      final localFile = File(localPath);
-      await localFile.parent.create(recursive: true);
-      final sink = localFile.openWrite();
-      try {
-        var done = 0;
-        while (true) {
-          final chunk = await remote.readChunk(maxBytes: _chunkSize);
-          if (chunk.isEmpty) break;
-          sink.add(chunk);
-          done += chunk.length;
-          onProgress?.call(
-            TransferProgress(
-              fileName: p.basename(remotePath),
-              totalBytes: fileSize,
-              doneBytes: done,
-              isUpload: false,
-              isCompleted: done >= fileSize,
-            ),
-          );
-        }
-        await sink.flush();
-      } finally {
-        await sink.close();
+      final fileName = p.basename(remotePath);
+      await for (final evt in _sftp.streamDownloadFile(
+        remotePath: remotePath,
+        localPath: localPath,
+      )) {
+        final done = evt.doneBytes.toInt();
+        final total = evt.totalBytes.toInt();
+        onProgress?.call(
+          TransferProgress(
+            fileName: fileName,
+            totalBytes: total,
+            doneBytes: done,
+            isUpload: false,
+            isCompleted: total > 0 && done >= total,
+          ),
+        );
       }
     } on SFTPError {
       rethrow;
