@@ -323,3 +323,114 @@ pub fn tier_unlock_paranoid_cancel() {
     use lfs_core::security::SecurityTier;
     tier_unlock_orchestrator::cancel_unlock(SecurityTier::Paranoid);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The tier-unlock orchestrators (`unlock_keychain` /
+    // `unlock_keychain_with_password` / `unlock_paranoid` /
+    // `unlock_hardware` / `first_launch_*`) drive multi-step
+    // cascades against the OS keychain / Argon2id / hardware
+    // vault prompt registries; covered end-to-end by the Dart
+    // `security_init_controller_test.dart` integration suite. The
+    // standalone tests below pin the wire-shape `From` mapping +
+    // the missing-id / unknown-tier contracts on the synchronous
+    // shims.
+
+    #[test]
+    fn db_unlock_outcome_maps_each_variant() {
+        for core in [
+            UnlockOutcome::Staged,
+            UnlockOutcome::WrongSecret,
+            UnlockOutcome::Cancelled,
+            UnlockOutcome::PluginError("plugin-x".into()),
+            UnlockOutcome::Corruption("kdf header bad".into()),
+        ] {
+            let db: DbUnlockOutcome = core.into();
+            // Pin via exhaustive match — a future variant addition
+            // forces a compile error here.
+            match db {
+                DbUnlockOutcome::Staged
+                | DbUnlockOutcome::WrongSecret
+                | DbUnlockOutcome::Cancelled
+                | DbUnlockOutcome::PluginError(_)
+                | DbUnlockOutcome::Corruption(_) => (),
+            }
+        }
+    }
+
+    #[test]
+    fn db_unlock_outcome_carries_plugin_error_payload() {
+        let db: DbUnlockOutcome = UnlockOutcome::PluginError("err-42".into()).into();
+        match db {
+            DbUnlockOutcome::PluginError(msg) => assert_eq!(msg, "err-42"),
+            _ => panic!("expected PluginError variant"),
+        }
+    }
+
+    #[test]
+    fn db_unlock_outcome_carries_corruption_payload() {
+        let db: DbUnlockOutcome = UnlockOutcome::Corruption("kdf bad".into()).into();
+        match db {
+            DbUnlockOutcome::Corruption(detail) => assert_eq!(detail, "kdf bad"),
+            _ => panic!("expected Corruption variant"),
+        }
+    }
+
+    #[test]
+    fn biometric_commit_returns_false_for_unknown_tier_wire_name() {
+        // Pin the documented contract — Dart caller falls back to
+        // inline injection when the wire name doesn't match the
+        // canonical set.
+        let _ = lfs_core::app::init();
+        assert!(!tier_unlock_biometric_commit(
+            "nonsense-tier".into(),
+            vec![0xAB; 32]
+        ));
+    }
+
+    #[test]
+    fn biometric_commit_from_secret_returns_false_for_unknown_tier_wire_name() {
+        let _ = lfs_core::app::init();
+        assert!(!tier_unlock_biometric_commit_from_secret(
+            "nonsense-tier".into(),
+            "any-id".into()
+        ));
+    }
+
+    #[test]
+    fn hardware_vault_unlock_resolve_unknown_id_returns_false() {
+        // Pin the documented contract — `false` means "no receiver
+        // woken" so a stale dispatch from a dismissed dialog
+        // doesn't crash. The shim must never panic.
+        assert!(!hardware_vault_unlock_prompt_resolve(
+            "ghost".into(),
+            vec![0xAB; 32]
+        ));
+        assert!(!hardware_vault_unlock_prompt_resolve_wrong("ghost".into()));
+        assert!(!hardware_vault_unlock_prompt_resolve_error(
+            "ghost".into(),
+            "msg".into()
+        ));
+    }
+
+    #[test]
+    fn hardware_vault_unlock_cancel_unknown_id_is_idempotent() {
+        hardware_vault_unlock_prompt_cancel("ghost".into());
+    }
+
+    #[test]
+    fn hardware_vault_seal_resolve_unknown_id_returns_false() {
+        assert!(!hardware_vault_seal_prompt_resolve("ghost".into()));
+        assert!(!hardware_vault_seal_prompt_resolve_error(
+            "ghost".into(),
+            "err".into()
+        ));
+    }
+
+    #[test]
+    fn hardware_vault_seal_cancel_unknown_id_is_idempotent() {
+        hardware_vault_seal_prompt_cancel("ghost".into());
+    }
+}

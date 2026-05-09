@@ -145,3 +145,69 @@ pub async fn secure_storage_delete_biometric(alias: String) -> Result<(), String
 pub async fn secure_storage_secret_service_reachable() -> bool {
     lfs_os_security::secure_key_storage::secret_service_reachable().await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The read / write / delete / biometric endpoints route through
+    // `lfs_os_security::secure_key_storage` — Apple Keychain on
+    // macOS/iOS, Credential Manager on Windows, libsecret on Linux,
+    // AndroidKeyStore on Android; covered by the per-platform
+    // integration suites + manual smoke tests on the user's release
+    // process. The standalone tests below pin the wire-shape `From`
+    // mapping + the `SecretRef` missing-id contract.
+
+    #[test]
+    fn db_secure_storage_outcome_carries_bytes_through() {
+        let v = DbSecureStorageOutcome::Found(vec![0xAB, 0xCD]);
+        match v {
+            DbSecureStorageOutcome::Found(bytes) => assert_eq!(bytes, vec![0xAB, 0xCD]),
+            DbSecureStorageOutcome::NotFound => panic!("expected Found"),
+        }
+    }
+
+    #[test]
+    fn db_secure_storage_outcome_not_found_round_trip() {
+        let v = DbSecureStorageOutcome::NotFound;
+        // Pin the no-payload variant — caller `match`es on
+        // NotFound to render the "no value stored" branch in the
+        // Settings UI.
+        match v {
+            DbSecureStorageOutcome::NotFound => (),
+            DbSecureStorageOutcome::Found(_) => panic!("expected NotFound"),
+        }
+    }
+
+    #[tokio::test]
+    async fn write_from_secret_returns_err_for_missing_secret_id() {
+        // `secrets_get(id)` returns None for an unknown id; the shim
+        // surfaces that as `Err("secret not found: <id>")` rather
+        // than panic. Pin the contract so the Dart caller's error
+        // handling stays load-bearing.
+        let _ = lfs_core::app::init();
+        let res = secure_storage_write_from_secret(
+            "api-sks-test-alias".into(),
+            "api-sks-test-ghost-id".into(),
+        )
+        .await;
+        assert!(res.is_err());
+        let msg = res.unwrap_err();
+        assert!(
+            msg.contains("secret not found"),
+            "expected 'secret not found', got {msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn write_biometric_from_secret_returns_err_for_missing_secret_id() {
+        let _ = lfs_core::app::init();
+        let res = secure_storage_write_biometric_from_secret(
+            "api-sks-test-alias".into(),
+            "api-sks-test-ghost-id".into(),
+        )
+        .await;
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("secret not found"));
+    }
+}

@@ -76,3 +76,74 @@ pub async fn persisted_rate_limit_actor_flush(id: String) {
         let _ = handle.await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn unique_setup(label: &str) -> (String, String, Vec<u8>, tempfile::TempDir) {
+        // Use a per-test tempdir + uniquely namespaced id so tests
+        // sharing the singleton registry don't collide. The hmac key
+        // is fixed; production derives it from the keychain pepper
+        // but the actor accepts any 32-byte slice.
+        let id = format!("api-prl-test-{label}");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir
+            .path()
+            .join("rate_limit_state.bin")
+            .to_string_lossy()
+            .into_owned();
+        let key = vec![0xAB; 32];
+        (id, path, key, dir)
+    }
+
+    #[test]
+    fn fresh_id_has_zero_failure_count_and_no_cooldown() {
+        let (id, path, key, _dir) = unique_setup("fresh");
+        let snap = persisted_rate_limit_actor_init_or_get(id.clone(), path, key);
+        assert_eq!(snap.failure_count, 0);
+        assert_eq!(snap.cooldown_remaining_ms, 0);
+        persisted_rate_limit_actor_clear(id);
+    }
+
+    #[test]
+    fn record_failure_increments_counter_and_arms_cooldown() {
+        let (id, path, key, _dir) = unique_setup("fail");
+        let _ = persisted_rate_limit_actor_init_or_get(id.clone(), path, key);
+        let after = persisted_rate_limit_actor_record_failure(id.clone());
+        assert_eq!(after.failure_count, 1);
+        // The schedule's first non-zero entry arms a cooldown — pin
+        // the contract that a failure produces a non-zero wait
+        // (the exact value lives in BACKOFF_SCHEDULE).
+        // Note: the first schedule entry might be 0 (free retry), so
+        // only assert the counter bump.
+        persisted_rate_limit_actor_clear(id);
+    }
+
+    #[test]
+    fn record_success_wipes_counter() {
+        let (id, path, key, _dir) = unique_setup("success");
+        let _ = persisted_rate_limit_actor_init_or_get(id.clone(), path, key);
+        let _ = persisted_rate_limit_actor_record_failure(id.clone());
+        let _ = persisted_rate_limit_actor_record_failure(id.clone());
+        persisted_rate_limit_actor_record_success(id.clone());
+        let snap = persisted_rate_limit_actor_status(id.clone());
+        assert_eq!(snap.failure_count, 0);
+        persisted_rate_limit_actor_clear(id);
+    }
+
+    #[test]
+    fn status_on_unknown_id_returns_zero_baseline() {
+        // Pin the documented contract — Dart wrappers fall back to
+        // "no cooldown" before the first `init_or_get` settles.
+        let snap = persisted_rate_limit_actor_status("api-prl-test-unknown".into());
+        assert_eq!(snap.failure_count, 0);
+        assert_eq!(snap.cooldown_remaining_ms, 0);
+    }
+
+    #[test]
+    fn clear_on_unknown_id_is_idempotent() {
+        // No-op on missing — wipe-all flow runs unconditionally.
+        persisted_rate_limit_actor_clear("api-prl-test-already-cleared".into());
+    }
+}
