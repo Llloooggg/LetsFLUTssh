@@ -353,7 +353,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSessionJsonInput dco_decode_box_autoadd_db_session_json_input(dynamic raw);
+
+  @protected
   DbSessionMetadata dco_decode_box_autoadd_db_session_metadata(dynamic raw);
+
+  @protected
+  DbSessionViaOverride dco_decode_box_autoadd_db_session_via_override(
+    dynamic raw,
+  );
 
   @protected
   DbSftpBookmark dco_decode_box_autoadd_db_sftp_bookmark(dynamic raw);
@@ -637,6 +645,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSessionHistorySnapshot dco_decode_db_session_history_snapshot(dynamic raw);
 
   @protected
+  DbSessionJsonInput dco_decode_db_session_json_input(dynamic raw);
+
+  @protected
   DbSessionMetadata dco_decode_db_session_metadata(dynamic raw);
 
   @protected
@@ -647,6 +658,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSessionTreeNode dco_decode_db_session_tree_node(dynamic raw);
+
+  @protected
+  DbSessionViaOverride dco_decode_db_session_via_override(dynamic raw);
 
   @protected
   DbSftpBookmark dco_decode_db_sftp_bookmark(dynamic raw);
@@ -972,6 +986,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DbSessionHistorySnapshot?
   dco_decode_opt_box_autoadd_db_session_history_snapshot(dynamic raw);
+
+  @protected
+  DbSessionViaOverride? dco_decode_opt_box_autoadd_db_session_via_override(
+    dynamic raw,
+  );
 
   @protected
   DbSshKey? dco_decode_opt_box_autoadd_db_ssh_key(dynamic raw);
@@ -1324,7 +1343,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSessionJsonInput sse_decode_box_autoadd_db_session_json_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSessionMetadata sse_decode_box_autoadd_db_session_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSessionViaOverride sse_decode_box_autoadd_db_session_via_override(
     SseDeserializer deserializer,
   );
 
@@ -1706,6 +1735,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSessionJsonInput sse_decode_db_session_json_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSessionMetadata sse_decode_db_session_metadata(
     SseDeserializer deserializer,
   );
@@ -1722,6 +1756,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSessionTreeNode sse_decode_db_session_tree_node(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSessionViaOverride sse_decode_db_session_via_override(
     SseDeserializer deserializer,
   );
 
@@ -2137,6 +2176,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DbSessionHistorySnapshot?
   sse_decode_opt_box_autoadd_db_session_history_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbSessionViaOverride? sse_decode_opt_box_autoadd_db_session_via_override(
     SseDeserializer deserializer,
   );
 
@@ -2562,8 +2606,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_session_json_input(
+    DbSessionJsonInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_session_metadata(
     DbSessionMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_session_via_override(
+    DbSessionViaOverride self,
     SseSerializer serializer,
   );
 
@@ -3057,6 +3113,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_session_json_input(
+    DbSessionJsonInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_session_metadata(
     DbSessionMetadata self,
     SseSerializer serializer,
@@ -3077,6 +3139,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_db_session_tree_node(
     DbSessionTreeNode self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_db_session_via_override(
+    DbSessionViaOverride self,
     SseSerializer serializer,
   );
 
@@ -3604,6 +3672,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_session_history_snapshot(
     DbSessionHistorySnapshot? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_session_via_override(
+    DbSessionViaOverride? self,
     SseSerializer serializer,
   );
 

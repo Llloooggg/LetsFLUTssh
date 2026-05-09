@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`
 
 /// Case-insensitive substring search across [`label`, `folder`,
 /// `host`, `user`]. Returns matched ids in input order.
@@ -62,6 +62,18 @@ List<String> sessionsDistinctFolders({required List<String> sessionFolders}) =>
       sessionFolders: sessionFolders,
     );
 
+/// Canonical JSON encoder for a Session. Emits the exact field
+/// set + conditional-omit rules Dart `Session.toJson` /
+/// `toJsonWithCredentials` produce. Single source of truth for
+/// the wire shape; the Dart `session_json_drift_test` round-trips
+/// a fixture through both encoders and asserts logical equality
+/// to catch a future field-add on one side but not the other.
+///
+/// Sync because the work is one `serde_json::Map` build + one
+/// `to_string` — sub-microsecond per call.
+String sessionCanonicalJson({required DbSessionJsonInput input}) =>
+    RustLib.instance.api.crateApiSessionsSessionCanonicalJson(input: input);
+
 /// Searchable Session projection — id + the four fields the UI
 /// search bar matches against. The Dart caller projects its
 /// domain `Session` list once and feeds it here, avoiding a
@@ -98,5 +110,140 @@ class DbSearchableSession {
           label == other.label &&
           folder == other.folder &&
           host == other.host &&
+          user == other.user;
+}
+
+/// Session-shaped input for the canonical JSON encoder. Mirrors
+/// the field set Dart `Session.toJson` (and
+/// `toJsonWithCredentials`) emits, including the conditional-omit
+/// invariants (`key_id` empty → omit, `extras_json` empty → omit,
+/// `notes` empty → omit, `sort_order == 0` → omit, optional fields
+/// → omit when None).
+///
+/// `extras_json` carries the JSON-encoded `extras` map verbatim;
+/// the encoder re-parses it once so the output `extras` value is
+/// the raw object, matching Dart's `'extras': extras` insertion.
+class DbSessionJsonInput {
+  final String id;
+  final String label;
+  final String folder;
+  final String host;
+  final int port;
+  final String user;
+  final String authType;
+  final String keyId;
+  final String keyPath;
+  final String createdAtIso;
+  final String updatedAtIso;
+  final String extrasJson;
+  final String? viaSessionId;
+  final DbSessionViaOverride? viaOverride;
+  final String notes;
+  final int sortOrder;
+  final PlatformInt64? lastConnectedAtMs;
+  final bool includeCredentials;
+  final String password;
+  final String keyData;
+  final String passphrase;
+
+  const DbSessionJsonInput({
+    required this.id,
+    required this.label,
+    required this.folder,
+    required this.host,
+    required this.port,
+    required this.user,
+    required this.authType,
+    required this.keyId,
+    required this.keyPath,
+    required this.createdAtIso,
+    required this.updatedAtIso,
+    required this.extrasJson,
+    this.viaSessionId,
+    this.viaOverride,
+    required this.notes,
+    required this.sortOrder,
+    this.lastConnectedAtMs,
+    required this.includeCredentials,
+    required this.password,
+    required this.keyData,
+    required this.passphrase,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      label.hashCode ^
+      folder.hashCode ^
+      host.hashCode ^
+      port.hashCode ^
+      user.hashCode ^
+      authType.hashCode ^
+      keyId.hashCode ^
+      keyPath.hashCode ^
+      createdAtIso.hashCode ^
+      updatedAtIso.hashCode ^
+      extrasJson.hashCode ^
+      viaSessionId.hashCode ^
+      viaOverride.hashCode ^
+      notes.hashCode ^
+      sortOrder.hashCode ^
+      lastConnectedAtMs.hashCode ^
+      includeCredentials.hashCode ^
+      password.hashCode ^
+      keyData.hashCode ^
+      passphrase.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSessionJsonInput &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          label == other.label &&
+          folder == other.folder &&
+          host == other.host &&
+          port == other.port &&
+          user == other.user &&
+          authType == other.authType &&
+          keyId == other.keyId &&
+          keyPath == other.keyPath &&
+          createdAtIso == other.createdAtIso &&
+          updatedAtIso == other.updatedAtIso &&
+          extrasJson == other.extrasJson &&
+          viaSessionId == other.viaSessionId &&
+          viaOverride == other.viaOverride &&
+          notes == other.notes &&
+          sortOrder == other.sortOrder &&
+          lastConnectedAtMs == other.lastConnectedAtMs &&
+          includeCredentials == other.includeCredentials &&
+          password == other.password &&
+          keyData == other.keyData &&
+          passphrase == other.passphrase;
+}
+
+/// FRB mirror of Dart `ProxyJumpOverride` — used inside
+/// [`DbSessionJsonInput`] to carry an optional via-override.
+class DbSessionViaOverride {
+  final String host;
+  final int port;
+  final String user;
+
+  const DbSessionViaOverride({
+    required this.host,
+    required this.port,
+    required this.user,
+  });
+
+  @override
+  int get hashCode => host.hashCode ^ port.hashCode ^ user.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSessionViaOverride &&
+          runtimeType == other.runtimeType &&
+          host == other.host &&
+          port == other.port &&
           user == other.user;
 }
