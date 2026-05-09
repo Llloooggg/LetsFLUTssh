@@ -574,9 +574,16 @@ impl RecorderRegistry {
 
 /// JSON-escape a string for embedding inside a `"…"` JSON
 /// literal. Handles the spec-mandated escapes (control chars,
-/// quote, backslash); UTF-8 passes through verbatim. Used by
-/// the asciinema header + event-line composers above so callers
-/// don't need to pull serde_json on a single-line shape.
+/// quote, backslash). Bidi-override + isolate chars
+/// (U+202A..U+202E, U+2066..U+2069) cross over as `\uXXXX`
+/// escapes so a Trojan-Source attack — a recording whose
+/// playback renders differently from the bytes on disk —
+/// surfaces as visible escape sequences in any text-grep audit
+/// of the `.cast` file. Asciinema players parse the JSON
+/// unicode-escape and render the original glyph at playback
+/// time, so legitimate RTL terminal recordings (Arabic /
+/// Hebrew) still display correctly. Other UTF-8 passes through
+/// verbatim.
 fn json_escape(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for ch in s.chars() {
@@ -588,9 +595,19 @@ fn json_escape(s: &str) -> String {
             '\t' => out.push_str("\\t"),
             '\x08' => out.push_str("\\b"),
             '\x0c' => out.push_str("\\f"),
-            c if (c as u32) < 0x20 => {
+            c if (c as u32) < 0x20 || matches!(c as u32, 0x202A..=0x202E | 0x2066..=0x2069) => {
                 use std::fmt::Write as _;
-                let _ = write!(out, "\\u{:04x}", c as u32);
+                let cp = c as u32;
+                if cp <= 0xFFFF {
+                    let _ = write!(out, "\\u{cp:04x}");
+                } else {
+                    // Outside BMP — emit a surrogate pair so the
+                    // escape stays inside the spec's `\uXXXX` shape.
+                    let v = cp - 0x10000;
+                    let hi = 0xD800 + (v >> 10);
+                    let lo = 0xDC00 + (v & 0x3FF);
+                    let _ = write!(out, "\\u{hi:04x}\\u{lo:04x}");
+                }
             }
             c => out.push(c),
         }
@@ -1044,5 +1061,44 @@ mod tests {
         assert_eq!(json_escape("tab\there"), "tab\\there");
         assert_eq!(json_escape("\x01ctrl"), "\\u0001ctrl");
         assert_eq!(json_escape("emoji 🦀 ok"), "emoji 🦀 ok");
+    }
+
+    #[test]
+    fn json_escape_strips_bidi_overrides_into_unicode_escapes() {
+        // U+202E RIGHT-TO-LEFT OVERRIDE — Trojan-Source class
+        // attack. A recording carrying a raw `\u{202E}` would
+        // display the line backwards in any RTL-aware player /
+        // text-grep tool, hiding what the user actually typed.
+        // Pin: every bidi override + isolate emits as a visible
+        // `\uXXXX` escape so a downstream auditor sees the marker.
+        for (label, ch) in [
+            ("LRE U+202A", '\u{202A}'),
+            ("RLE U+202B", '\u{202B}'),
+            ("PDF U+202C", '\u{202C}'),
+            ("LRO U+202D", '\u{202D}'),
+            ("RLO U+202E", '\u{202E}'),
+            ("LRI U+2066", '\u{2066}'),
+            ("RLI U+2067", '\u{2067}'),
+            ("FSI U+2068", '\u{2068}'),
+            ("PDI U+2069", '\u{2069}'),
+        ] {
+            let escaped = json_escape(&ch.to_string());
+            assert!(
+                escaped.starts_with("\\u"),
+                "{label} must escape to \\uXXXX, got {escaped:?}"
+            );
+            assert!(!escaped.contains(ch), "{label} must not pass through raw");
+        }
+    }
+
+    #[test]
+    fn json_escape_passes_arabic_and_hebrew_letters_through_verbatim() {
+        // Legitimate RTL terminal recordings (Arabic / Hebrew /
+        // Persian) must not get over-escaped. Only the bidi-
+        // override + isolate codepoints are stripped — the actual
+        // alphabet glyphs flow through untouched so the player
+        // renders them naturally.
+        assert_eq!(json_escape("سلام"), "سلام");
+        assert_eq!(json_escape("שלום"), "שלום");
     }
 }
