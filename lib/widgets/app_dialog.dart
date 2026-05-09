@@ -103,6 +103,15 @@ class AppDialog extends StatelessWidget {
         }),
         child: Focus(autofocus: true, child: child),
       );
+    } else {
+      // Non-dismissible dialogs still need an autofocus anchor so
+      // the OS focus ring lands inside the dialog (instead of
+      // staying on whatever widget had focus before the dialog
+      // opened — which lets the user tab into background widgets
+      // they're meant to be modally blocked from). No
+      // CallbackShortcuts wrapper because Esc must NOT dismiss a
+      // non-dismissible dialog by design.
+      child = Focus(autofocus: true, child: child);
     }
 
     return Dialog(
