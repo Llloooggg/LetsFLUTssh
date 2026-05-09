@@ -927,7 +927,7 @@ ignores them on hand-edited configs that still mention them.
 
 Stores (`SessionNotifier`, `SshKeysNotifier`, `KnownHostsNotifier`, `SnippetsNotifier`, `TagsNotifier`, `AutoLockMinutesNotifier`) read and write through the FRB DAO layer in `lfs_core::db`; the encrypted handle lives in Rust under `AppState`. The Dart side never holds the SQLCipher key — `SecurityStateNotifier` hands the 32-byte key to `dbInit(key)` over FRB, and `dbClose()` zeroes it from inside Rust on every tier switch / auto-lock. Stores do not handle encryption; the active tier is opaque to them.
 
-#### Tier resolution at startup (`main._initSecurity`)
+#### Tier resolution at startup (`SecurityInitController.bootstrap`)
 
 1. If the `SecurityTierSwitcher` pending marker exists on disk → log
    and clear it. The previous run died mid-switch; the standard
@@ -963,7 +963,7 @@ mid-switch crashes.
 
 **Probe parallelism at bootstrap.** `main._bootstrap` fires
 `_warmProbeCaches()` at the *start* of the startup graph, before the
-migration runner and `_initSecurity`. `securityCapabilitiesProvider`,
+migration runner and `SecurityInitController.bootstrap`. `securityCapabilitiesProvider`,
 `hardwareProbeDetailProvider`, and `keyringProbeDetailProvider` kick
 off in parallel with the DB unlock / session load path. Previously
 `_firstLaunchSetup` called `probeCapabilities()` directly, which
@@ -1074,7 +1074,7 @@ Every tier switch — T0↔T1↔T1+pw↔T2↔Paranoid, **including `password`-mo
 6. `clearPrevious()` — tier-specific cleanup: delete the previous keychain entry, clear the hardware vault, clear the password gate, disable the master-password manager, clear the biometric vault.
 7. Delete the marker as the last step; its absence is the "all good" signal the next startup relies on.
 
-A crash between steps 3 and 7 leaves the marker on disk. `main._initSecurity` logs and clears the marker on the next launch; the standard unlock path then succeeds under whichever credential the user can supply (source or target), or falls through to reset. This tolerates the 25-pair tier-transition matrix without needing per-pair recovery logic.
+A crash between steps 3 and 7 leaves the marker on disk. `SecurityInitController.bootstrap` logs and clears the marker on the next launch; the standard unlock path then succeeds under whichever credential the user can supply (source or target), or falls through to reset. This tolerates the 25-pair tier-transition matrix without needing per-pair recovery logic.
 
 Settings exposes the switcher through a single "Change Security Tier" action that reopens the wizard pre-marked with the current tier and routes the result through `_applyTierChange` (`settings_sections_security.dart`) — every on-disk tier switch goes through the same orchestration path.
 
@@ -1402,7 +1402,7 @@ enum SshKeyType { ed25519, rsa2048, rsa4096 }
 #### Migration framework
 
 Versioned-artefact migration framework running on startup before
-`_initSecurity`. Every on-disk artefact the app persists registers
+`SecurityInitController.bootstrap`. Every on-disk artefact the app persists registers
 an [`Artefact`](../rust/crates/lfs_core/src/migration/mod.rs) trait
 impl with a target version, and every breaking format change ships
 a [`Migration`](../rust/crates/lfs_core/src/migration/mod.rs) trait
@@ -1504,7 +1504,7 @@ stale literals.
 
 `SecurityInitController._runMigrations` calls `runStartupMigrations()`
 (Dart shim → FRB → `lfs_core::migration::run_on_startup`)
-**before** `_initSecurity`, so the unlock path always reads the
+**before** `SecurityInitController.bootstrap`, so the unlock path always reads the
 post-migration shape. The runner is idempotent — calling twice in a
 row is a no-op on the second call once every artefact has been
 brought to its target.
@@ -1561,7 +1561,7 @@ controller short-circuits the rest of startup whenever
 already taken over. The registry is empty today (no migrations,
 just two presence wrappers), so on a current-version install the
 report is always `noOp == true` and the app proceeds into
-`_initSecurity` normally; the failure surface is wired up ahead of
+`SecurityInitController.bootstrap` normally; the failure surface is wired up ahead of
 time so the first real migration inherits a complete path.
 
 ##### Atomicity
@@ -4614,7 +4614,7 @@ DAO functions without flipping signatures. Hot paths
 (`sessions::list_all`, `folders::list_all`, the per-id `get`
 forms) benefit most; one-shot startup queries are unchanged.
 
-The `bootstrap_schema` SCHEMA_VERSION + `PRAGMA user_version` machinery covers **only** intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework) (`core/migration/`), which runs on startup before `_initSecurity` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: `lfs_core::db::bootstrap_schema` owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so the DB still surfaces in the runner's dependency graph; a schema mismatch surfaces as a SQLCipher decrypt failure on `dbInit` and is routed via `DbCorruptDialog`.
+The `bootstrap_schema` SCHEMA_VERSION + `PRAGMA user_version` machinery covers **only** intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework) (`core/migration/`), which runs on startup before `SecurityInitController.bootstrap` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: `lfs_core::db::bootstrap_schema` owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so the DB still surfaces in the runner's dependency graph; a schema mismatch surfaces as a SQLCipher decrypt failure on `dbInit` and is routed via `DbCorruptDialog`.
 
 ### Uninstall behavior
 
@@ -4890,7 +4890,7 @@ Both providers are session-scoped (keyring failure modes on Linux don't change m
 
 ### Startup security flow
 
-`_initSecurity()` in `main.dart` — database file is the sole source of truth for detecting existing installs:
+`SecurityInitController.bootstrap()` in `main.dart` — database file is the sole source of truth for detecting existing installs:
 1. DB file exists + master-password enabled → biometric first, else `UnlockDialog` → derive key
 2. DB file exists + keychain has key → read from keychain
 3. DB file exists but no encryption → plaintext mode

@@ -179,11 +179,20 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     ),
                     if (_wrong) ...[
                       const SizedBox(height: AppSpacing.xxs),
-                      Text(
-                        l10n.wrongPassword,
-                        style: TextStyle(
-                          color: AppTheme.red,
-                          fontSize: AppFonts.xs,
+                      // `liveRegion: true` so screen readers (TalkBack /
+                      // VoiceOver / NVDA) re-announce the wrong-password
+                      // text on every retry. Without it the message
+                      // appears visually but stays silent for assistive
+                      // tech — the user submits, hears nothing, and
+                      // assumes the unlock spun without a reason.
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          l10n.wrongPassword,
+                          style: TextStyle(
+                            color: AppTheme.red,
+                            fontSize: AppFonts.xs,
+                          ),
                         ),
                       ),
                     ],
