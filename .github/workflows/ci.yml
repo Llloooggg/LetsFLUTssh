@@ -261,6 +261,14 @@ jobs:
         working-directory: rust
         run: cargo test --workspace --locked
 
+      - name: cargo test --workspace --doc
+        # Run doc-tests separately so a regression in a `///`
+        # rustdoc example surfaces as a CI failure rather than
+        # silently rotting on disk. The unit-test pass above does
+        # not run doc-tests by default.
+        working-directory: rust
+        run: cargo test --workspace --doc --locked
+
       - name: Install cargo-deny
         # `--locked` so the install resolves against cargo-deny's own
         # Cargo.lock — reproducible across CI runs. Pin the version

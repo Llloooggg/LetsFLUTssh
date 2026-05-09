@@ -299,8 +299,12 @@ class AppLogger {
     } catch (e) {
       // FRB native lib not loaded — skip the pipe; Rust log lines
       // will not surface in the Dart-side file, but the rest of
-      // logging keeps working.
-      stderr.writeln('AppLogger: CoreLog pipe skipped: $e');
+      // logging keeps working. Sanitise the error before stderr
+      // write — `e` may carry an FRB envelope or path fragments
+      // that the same redaction chain `log()` runs would catch.
+      stderr.writeln(
+        'AppLogger: CoreLog pipe skipped: ${sanitize(e.toString())}',
+      );
     }
   }
 
