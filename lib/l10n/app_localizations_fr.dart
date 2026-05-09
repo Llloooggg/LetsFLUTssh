@@ -1028,6 +1028,26 @@ class SFr extends S {
   String get disconnected => 'Déconnecté';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Connexion à $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Connecté à $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Déconnecté de $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Échec de la connexion à $host';
+  }
+
+  @override
   String get exit => 'Quitter';
 
   @override

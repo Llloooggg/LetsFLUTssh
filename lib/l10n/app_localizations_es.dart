@@ -1024,6 +1024,26 @@ class SEs extends S {
   String get disconnected => 'Desconectado';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Conectando a $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Conectado a $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Desconectado de $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'No se pudo conectar a $host';
+  }
+
+  @override
   String get exit => 'Salir';
 
   @override

@@ -970,6 +970,26 @@ class SVi extends S {
   String get disconnected => 'Đã ngắt kết nối';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Đang kết nối đến $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Đã kết nối đến $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Đã ngắt kết nối khỏi $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Kết nối đến $host thất bại';
+  }
+
+  @override
   String get exit => 'Thoát';
 
   @override

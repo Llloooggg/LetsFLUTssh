@@ -975,6 +975,26 @@ class STr extends S {
   String get disconnected => 'Bağlantı kesildi';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '$host bağlanılıyor';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '$host bağlanıldı';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '$host bağlantısı kesildi';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '$host bağlantısı başarısız oldu';
+  }
+
+  @override
   String get exit => 'Çıkış';
 
   @override

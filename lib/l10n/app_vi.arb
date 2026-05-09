@@ -306,6 +306,38 @@
   "completed": "Hoàn thành",
   "connected": "Đã kết nối",
   "disconnected": "Đã ngắt kết nối",
+  "a11yConnectingTo": "Đang kết nối đến {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Đã kết nối đến {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Đã ngắt kết nối khỏi {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Kết nối đến {host} thất bại",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Thoát",
   "exitConfirmation": "Các phiên đang hoạt động sẽ bị ngắt kết nối. Thoát?",
   "hintFolderExample": "ví dụ: Production",

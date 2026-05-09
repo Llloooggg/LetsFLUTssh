@@ -1851,6 +1851,30 @@ abstract class S {
   /// **'Disconnected'**
   String get disconnected;
 
+  /// No description provided for @a11yConnectingTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to {host}'**
+  String a11yConnectingTo(String host);
+
+  /// No description provided for @a11yConnectedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected to {host}'**
+  String a11yConnectedTo(String host);
+
+  /// No description provided for @a11yDisconnectedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected from {host}'**
+  String a11yDisconnectedFrom(String host);
+
+  /// No description provided for @a11yConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection to {host} failed'**
+  String a11yConnectionFailed(String host);
+
   /// No description provided for @exit.
   ///
   /// In en, this message translates to:

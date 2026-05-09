@@ -978,6 +978,26 @@ class SAr extends S {
   String get disconnected => 'غير متصل';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'جارٍ الاتصال بـ $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'تم الاتصال بـ $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'تم قطع الاتصال بـ $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'فشل الاتصال بـ $host';
+  }
+
+  @override
   String get exit => 'خروج';
 
   @override

@@ -976,6 +976,26 @@ class SId extends S {
   String get disconnected => 'Terputus';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Menghubungkan ke $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Terhubung ke $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Terputus dari $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Gagal terhubung ke $host';
+  }
+
+  @override
   String get exit => 'Keluar';
 
   @override

@@ -1011,6 +1011,26 @@ class SEn extends S {
   String get disconnected => 'Disconnected';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Connecting to $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Connected to $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Disconnected from $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Connection to $host failed';
+  }
+
+  @override
   String get exit => 'Exit';
 
   @override

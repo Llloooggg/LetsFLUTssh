@@ -956,6 +956,26 @@ class SKo extends S {
   String get disconnected => '연결 해제됨';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '$host 연결 중';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '$host 연결됨';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '$host 연결 끊김';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '$host 연결 실패';
+  }
+
+  @override
   String get exit => '종료';
 
   @override

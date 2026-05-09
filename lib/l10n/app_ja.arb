@@ -306,6 +306,38 @@
   "completed": "完了",
   "connected": "接続済み",
   "disconnected": "切断済み",
+  "a11yConnectingTo": "{host} に接続中",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "{host} に接続しました",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "{host} から切断しました",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "{host} への接続に失敗しました",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "終了",
   "exitConfirmation": "アクティブなセッションが切断されます。終了しますか？",
   "hintFolderExample": "例: Production",

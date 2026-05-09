@@ -954,6 +954,26 @@ class SZh extends S {
   String get disconnected => '已断开';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '正在连接 $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '已连接到 $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '已从 $host 断开';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '连接 $host 失败';
+  }
+
+  @override
   String get exit => '退出';
 
   @override

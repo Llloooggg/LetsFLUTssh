@@ -971,6 +971,26 @@ class SFa extends S {
   String get disconnected => 'قطع شد';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'در حال اتصال به $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'متصل به $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'اتصال به $host قطع شد';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'اتصال به $host ناموفق بود';
+  }
+
+  @override
   String get exit => 'خروج';
 
   @override

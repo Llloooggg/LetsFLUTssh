@@ -306,6 +306,38 @@
   "completed": "تکمیل شد",
   "connected": "متصل شد",
   "disconnected": "قطع شد",
+  "a11yConnectingTo": "در حال اتصال به {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "متصل به {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "اتصال به {host} قطع شد",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "اتصال به {host} ناموفق بود",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "خروج",
   "exitConfirmation": "جلسات فعال قطع خواهند شد. خروج؟",
   "hintFolderExample": "مثلاً Production",

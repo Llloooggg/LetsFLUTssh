@@ -306,6 +306,38 @@
   "completed": "Завершено",
   "connected": "Подключено",
   "disconnected": "Отключено",
+  "a11yConnectingTo": "Подключение к {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Подключено к {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Отключено от {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Не удалось подключиться к {host}",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Выход",
   "exitConfirmation": "Активные сессии будут отключены. Выйти?",
   "hintFolderExample": "напр. Production",

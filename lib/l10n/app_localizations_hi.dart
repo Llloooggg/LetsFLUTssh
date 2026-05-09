@@ -973,6 +973,26 @@ class SHi extends S {
   String get disconnected => 'डिस्कनेक्टेड';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '$host से कनेक्ट हो रहा है';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '$host से कनेक्ट हो गया';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '$host से डिस्कनेक्ट हो गया';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '$host से कनेक्ट नहीं हो सका';
+  }
+
+  @override
   String get exit => 'बाहर निकलें';
 
   @override

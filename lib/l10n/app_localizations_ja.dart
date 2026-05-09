@@ -957,6 +957,26 @@ class SJa extends S {
   String get disconnected => '切断済み';
 
   @override
+  String a11yConnectingTo(String host) {
+    return '$host に接続中';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return '$host に接続しました';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return '$host から切断しました';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return '$host への接続に失敗しました';
+  }
+
+  @override
   String get exit => '終了';
 
   @override

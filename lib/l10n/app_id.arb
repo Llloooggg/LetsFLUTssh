@@ -306,6 +306,38 @@
   "completed": "Selesai",
   "connected": "Terhubung",
   "disconnected": "Terputus",
+  "a11yConnectingTo": "Menghubungkan ke {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Terhubung ke {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Terputus dari {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Gagal terhubung ke {host}",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Keluar",
   "exitConfirmation": "Sesi aktif akan terputus. Keluar?",
   "hintFolderExample": "contoh: Production",

@@ -424,6 +424,12 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         child: Stack(
           children: [
             ?child,
+            // Pure side-effect widget: watches `connectionsProvider`
+            // and fires `SemanticsService.sendAnnouncement` on each
+            // per-id state transition. Lives inside the Stack so it
+            // sits under MaterialApp's localizations subtree (S.of /
+            // Directionality / View.of resolve there).
+            const ConnectionStateAnnouncer(),
             if (locked) const Positioned.fill(child: LockScreen()),
             // Startup splash — covers the empty-workspace skeleton
             // while bootstrap (FRB load + migrations + tier unlock +

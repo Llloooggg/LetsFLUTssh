@@ -306,6 +306,38 @@
   "completed": "Tamamlandı",
   "connected": "Bağlandı",
   "disconnected": "Bağlantı kesildi",
+  "a11yConnectingTo": "{host} bağlanılıyor",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "{host} bağlanıldı",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "{host} bağlantısı kesildi",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "{host} bağlantısı başarısız oldu",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Çıkış",
   "exitConfirmation": "Aktif oturumların bağlantısı kesilecek. Çıkılsın mı?",
   "hintFolderExample": "örn. Production",

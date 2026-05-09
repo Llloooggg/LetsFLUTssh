@@ -541,6 +541,38 @@
   "completed": "Completed",
   "connected": "Connected",
   "disconnected": "Disconnected",
+  "a11yConnectingTo": "Connecting to {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Connected to {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Disconnected from {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Connection to {host} failed",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Exit",
   "exitConfirmation": "Active sessions will be disconnected. Exit?",
   "hintFolderExample": "e.g. Production",
@@ -1312,7 +1344,11 @@
   "resetAllDataConfirmAction": "Reset everything",
   "resetAllDataConfirmTypePrompt": "Type {phrase} below to confirm:",
   "@resetAllDataConfirmTypePrompt": {
-    "placeholders": { "phrase": { "type": "String" } }
+    "placeholders": {
+      "phrase": {
+        "type": "String"
+      }
+    }
   },
   "resetAllDataInProgress": "Resetting…",
   "resetAllDataDone": "All data reset",

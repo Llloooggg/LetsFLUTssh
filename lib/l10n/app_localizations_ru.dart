@@ -979,6 +979,26 @@ class SRu extends S {
   String get disconnected => 'Отключено';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Подключение к $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Подключено к $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Отключено от $host';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Не удалось подключиться к $host';
+  }
+
+  @override
   String get exit => 'Выход';
 
   @override

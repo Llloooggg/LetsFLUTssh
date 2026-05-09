@@ -306,6 +306,38 @@
   "completed": "Terminé",
   "connected": "Connecté",
   "disconnected": "Déconnecté",
+  "a11yConnectingTo": "Connexion à {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Connecté à {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Déconnecté de {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Échec de la connexion à {host}",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Quitter",
   "exitConfirmation": "Les sessions actives seront déconnectées. Quitter ?",
   "hintFolderExample": "ex. Production",

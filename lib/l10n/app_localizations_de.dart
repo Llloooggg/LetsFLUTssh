@@ -1021,6 +1021,26 @@ class SDe extends S {
   String get disconnected => 'Getrennt';
 
   @override
+  String a11yConnectingTo(String host) {
+    return 'Verbinde mit $host';
+  }
+
+  @override
+  String a11yConnectedTo(String host) {
+    return 'Verbunden mit $host';
+  }
+
+  @override
+  String a11yDisconnectedFrom(String host) {
+    return 'Verbindung zu $host getrennt';
+  }
+
+  @override
+  String a11yConnectionFailed(String host) {
+    return 'Verbindung zu $host fehlgeschlagen';
+  }
+
+  @override
   String get exit => 'Beenden';
 
   @override

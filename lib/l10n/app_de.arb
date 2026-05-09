@@ -306,6 +306,38 @@
   "completed": "Abgeschlossen",
   "connected": "Verbunden",
   "disconnected": "Getrennt",
+  "a11yConnectingTo": "Verbinde mit {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "Verbunden mit {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "Verbindung zu {host} getrennt",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "Verbindung zu {host} fehlgeschlagen",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "Beenden",
   "exitConfirmation": "Aktive Sitzungen werden getrennt. Beenden?",
   "hintFolderExample": "z. B. Production",

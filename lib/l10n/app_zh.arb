@@ -306,6 +306,38 @@
   "completed": "已完成",
   "connected": "已连接",
   "disconnected": "已断开",
+  "a11yConnectingTo": "正在连接 {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "已连接到 {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "已从 {host} 断开",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "连接 {host} 失败",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "退出",
   "exitConfirmation": "活动会话将被断开。确定退出吗？",
   "hintFolderExample": "例如 Production",

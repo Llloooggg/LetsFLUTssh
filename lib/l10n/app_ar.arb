@@ -306,6 +306,38 @@
   "completed": "مكتمل",
   "connected": "متصل",
   "disconnected": "غير متصل",
+  "a11yConnectingTo": "جارٍ الاتصال بـ {host}",
+  "@a11yConnectingTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectedTo": "تم الاتصال بـ {host}",
+  "@a11yConnectedTo": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yDisconnectedFrom": "تم قطع الاتصال بـ {host}",
+  "@a11yDisconnectedFrom": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yConnectionFailed": "فشل الاتصال بـ {host}",
+  "@a11yConnectionFailed": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
   "exit": "خروج",
   "exitConfirmation": "سيتم قطع الجلسات النشطة. هل تريد الخروج؟",
   "hintFolderExample": "مثال: Production",
