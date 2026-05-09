@@ -234,7 +234,34 @@ class _FilePaneState extends State<FilePane> with MarqueeMixin {
       ctrl.refresh();
       return KeyEventResult.handled;
     }
+    if (reg.matches(AppShortcut.openContextMenu, event) ||
+        event.logicalKey == LogicalKeyboardKey.contextMenu) {
+      _openContextMenuFromKeyboard();
+      return KeyEventResult.handled;
+    }
     return KeyEventResult.ignored;
+  }
+
+  /// Anchor the context menu under a keyboard-driven open. Single
+  /// selection → entry menu at the file-list's top-left + a small
+  /// inset (rendering at the focused row's exact rect would need
+  /// per-row keys; the inset is close enough for users to see the
+  /// menu and navigate it). No selection → background menu at the
+  /// same anchor.
+  void _openContextMenuFromKeyboard() {
+    final box = _fileListKey.currentContext?.findRenderObject() as RenderBox?;
+    final origin = box?.localToGlobal(const Offset(8, 8)) ?? Offset.zero;
+    final selected = ctrl.selectedEntries;
+    if (selected.length == 1) {
+      _showContextMenu(context, origin, selected.first);
+    } else if (selected.isEmpty) {
+      _showBackgroundContextMenu(context, origin);
+    } else {
+      // Multi-selection: fire the entry menu against the first
+      // selected item; the menu's `hasMultiple` branch already
+      // collapses the labels to the bulk form.
+      _showContextMenu(context, origin, selected.first);
+    }
   }
 
   void _onChanged() {

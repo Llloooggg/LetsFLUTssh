@@ -378,7 +378,36 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
           renameFocusedFolder();
         }
       },
+      AppShortcut.openContextMenu: () => _openContextMenuFromKeyboard(context),
+      AppShortcut.openContextMenuApps: () =>
+          _openContextMenuFromKeyboard(context),
     });
+  }
+
+  /// Anchor the right-click menu under a Shift+F10 / Apps Menu key
+  /// open. The exact focused-row rect would require per-row keys;
+  /// the panel-relative top-left + small inset is close enough for
+  /// users to see and navigate the menu.
+  void _openContextMenuFromKeyboard(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box?.localToGlobal(const Offset(8, 8)) ?? Offset.zero;
+    final sid = _ctrl.focusedSessionId;
+    if (sid != null) {
+      final session = ref
+          .read(sessionProvider)
+          .where((s) => s.id == sid)
+          .firstOrNull;
+      if (session != null) {
+        _showContextMenu(context, ref, session, origin);
+        return;
+      }
+    }
+    final folder = _ctrl.focusedFolderPath;
+    if (folder != null) {
+      _showFolderContextMenu(context, ref, folder, origin);
+      return;
+    }
+    _showFolderContextMenu(context, ref, '', origin);
   }
 
   @override

@@ -56,6 +56,22 @@ enum AppShortcut {
   sessionDelete(SingleActivator(LogicalKeyboardKey.delete)),
   sessionEdit(SingleActivator(LogicalKeyboardKey.f2)),
 
+  /// Open the context menu for the focused row in any panel that
+  /// supports right-click. Shift+F10 is the platform-neutral chord.
+  ///
+  /// File pane and session panel mount their own `Focus` scopes, so
+  /// each routes the same activator to its own handler — the
+  /// duplicate-activator guard in [AppShortcutRegistry.buildCallbackMap]
+  /// only fires when both bindings collide inside one map.
+  openContextMenu(SingleActivator(LogicalKeyboardKey.f10, shift: true)),
+
+  /// Apps / Menu key (Windows + GTK) — alias for [openContextMenu].
+  /// Routed through a second binding rather than special-cased in
+  /// matchers because `CallbackShortcuts` only sees `SingleActivator`s
+  /// from the registry; this keeps the panel-level shortcut wiring
+  /// uniform across both keys.
+  openContextMenuApps(SingleActivator(LogicalKeyboardKey.contextMenu)),
+
   // ── Dialog ─────────────────────────────────────────────────────────────
   dismissDialog(SingleActivator(LogicalKeyboardKey.escape));
 
