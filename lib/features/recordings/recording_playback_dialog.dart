@@ -180,7 +180,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
                   fontSize: AppFonts.xs,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               DropdownButton<double?>(
                 value: _speed,
                 items: [
@@ -203,7 +203,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Container(
             decoration: BoxDecoration(
               border: Border.all(color: AppTheme.borderLight),
@@ -222,7 +222,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
                 autofocus: false,
                 hardwareKeyboardOnly: false,
                 backgroundOpacity: 1.0,
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(AppSpacing.xs),
                 textStyle: TerminalStyle(
                   fontSize: fontSize,
                   fontFamily: AppFonts.monoFamily,
@@ -232,7 +232,7 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
             ),
           ),
           if (_error != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               _error!,
               style: TextStyle(color: AppTheme.red, fontSize: AppFonts.xs),

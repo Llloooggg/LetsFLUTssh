@@ -136,7 +136,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             ),
             child: Icon(Icons.terminal, size: 14, color: AppTheme.onAccent),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             'LetsFLUTssh',
             style: AppFonts.inter(
@@ -191,7 +191,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
               );
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           AppIconButton(
             icon: Icons.build_outlined,
             size: 15,
@@ -201,7 +201,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
             onTap: () => ToolsScreen.show(context),
             tooltip: S.of(context).tools,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           AppIconButton(
             icon: Icons.settings,
             size: 15,
@@ -562,13 +562,13 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                       color: isConnected ? AppTheme.green : AppTheme.fgFaint,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Icon(
                     isTerminal ? Icons.terminal : Icons.folder,
                     size: 12,
                     color: iconColor,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     tab.label,
                     style: AppFonts.inter(
@@ -577,7 +577,7 @@ class _MobileTabChipBarState extends ConsumerState<_MobileTabChipBar> {
                     ),
                   ),
                   if (isActive) ...[
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpacing.xs),
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
@@ -661,7 +661,7 @@ class _MobileTerminalPage extends ConsumerWidget {
               ),
               child: Icon(Icons.terminal, size: 22, color: AppTheme.fgFaint),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text(
               S.of(context).noActiveTerminals,
               style: AppFonts.inter(
@@ -669,7 +669,7 @@ class _MobileTerminalPage extends ConsumerWidget {
                 color: AppTheme.fgDim,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               S.of(context).connectFromSessionsTab,
               style: AppFonts.inter(
@@ -754,7 +754,7 @@ class _MobileSftpPage extends ConsumerWidget {
               ),
               child: Icon(Icons.folder, size: 22, color: AppTheme.fgFaint),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text(
               S.of(context).noActiveFileBrowsers,
               style: AppFonts.inter(
@@ -762,7 +762,7 @@ class _MobileSftpPage extends ConsumerWidget {
                 color: AppTheme.fgDim,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               S.of(context).useSftpFromSessions,
               style: AppFonts.inter(
@@ -866,7 +866,7 @@ class _MobileCompanionButtonState extends State<_MobileCompanionButton> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(widget.icon, size: 13, color: widget.color),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Flexible(
               child: Text(
                 widget.label,

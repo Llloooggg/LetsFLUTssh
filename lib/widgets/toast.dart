@@ -173,7 +173,7 @@ class _ToastWidget extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(icon, size: 18, color: color),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Flexible(
                       // `SelectableText` so the user can copy the
                       // message — useful for error toasts carrying
@@ -186,7 +186,7 @@ class _ToastWidget extends StatelessWidget {
                         style: TextStyle(fontSize: AppFonts.lg),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     AppIconButton(
                       icon: Icons.close,
                       onTap: onDismiss,

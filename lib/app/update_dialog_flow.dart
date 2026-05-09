@@ -64,10 +64,10 @@ void showUpdateDialog({
                 style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
               ),
               if (inFlight) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 UpdateProgressIndicator(state: state),
               ] else if (hasError) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   state.error != null
                       ? localizeError(S.of(ctx), state.error!)
@@ -76,7 +76,7 @@ void showUpdateDialog({
                 ),
               ] else if (info.changelog != null &&
                   info.changelog!.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   S.of(ctx).releaseNotes,
                   style: TextStyle(
@@ -85,7 +85,7 @@ void showUpdateDialog({
                     color: AppTheme.fg,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 200),
                   child: SingleChildScrollView(

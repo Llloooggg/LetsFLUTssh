@@ -412,7 +412,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
               children: [
                 if (item.icon != null) ...[
                   Icon(item.icon, size: 13, color: iconColor),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                 ],
                 Expanded(
                   child: Text(
@@ -424,7 +424,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay> {
                   ),
                 ),
                 if (item.shortcut != null) ...[
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     color: shortcutBg,

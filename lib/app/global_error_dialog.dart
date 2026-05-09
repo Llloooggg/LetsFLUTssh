@@ -41,7 +41,7 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
                 l10n.globalErrorBody,
                 style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fg),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 loggingEnabled
                     ? l10n.globalErrorLogSavedNote
@@ -51,7 +51,7 @@ void showGlobalErrorDialog(BuildContext context, Object error) {
                   color: AppTheme.fgFaint,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 l10n.globalErrorTechnicalLine(errorDetail),
                 style: TextStyle(

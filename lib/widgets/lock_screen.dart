@@ -148,7 +148,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Icon(Icons.lock_outline, size: 56, color: AppTheme.accent),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
                     Text(
                       l10n.lockScreenTitle,
                       textAlign: TextAlign.center,
@@ -158,7 +158,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       l10n.lockScreenSubtitle,
                       textAlign: TextAlign.center,
@@ -167,7 +167,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         fontSize: AppFonts.sm,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: AppSpacing.xl),
                     SecurePasswordField(
                       controller: _pwCtrl,
                       focusNode: _focusNode,
@@ -178,7 +178,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       ),
                     ),
                     if (_wrong) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: AppSpacing.xxs),
                       Text(
                         l10n.wrongPassword,
                         style: TextStyle(
@@ -187,7 +187,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
                     // The button renders a busy ellipsis label
                     // instead of the standard `CircularProgressIndicator`
                     // shape: the spinner animates indefinitely under

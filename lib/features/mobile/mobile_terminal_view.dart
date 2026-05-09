@@ -500,8 +500,8 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
       builder: (context, constraints) {
         // Cell height mirrors xterm's painter: fontSize × the shared
         // `kTerminalLineHeight` multiplier. Padding is the same
-        // `EdgeInsets.all(4)` we pass to TerminalView below.
-        const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
+        // `EdgeInsets.all(AppSpacing.xs)` we pass to TerminalView below.
+        const verticalPadding = 8.0; // EdgeInsets.all(AppSpacing.xs).vertical
         final cellHeight = _fontSize * kTerminalLineHeight;
         final usable = constraints.maxHeight - verticalPadding;
         final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
@@ -561,7 +561,7 @@ class _MobileTerminalViewState extends ConsumerState<MobileTerminalView> {
               // into a separate `TerminalPane`, untouched.
               autofocus: false,
               backgroundOpacity: 1.0,
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppSpacing.xs),
               theme: AppTheme.terminalTheme,
               textStyle: TerminalStyle(
                 fontSize: _fontSize,

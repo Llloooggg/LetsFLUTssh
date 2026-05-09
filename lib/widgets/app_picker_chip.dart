@@ -73,7 +73,7 @@ class AppPickerChip extends StatelessWidget {
                   size: 12,
                   color: active ? AppTheme.fg : AppTheme.fgFaint,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xxs),
               ],
               Flexible(
                 child: Text(

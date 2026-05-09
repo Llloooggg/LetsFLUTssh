@@ -54,7 +54,7 @@ class TierResetDialog extends StatelessWidget {
               l10n.tierResetBody,
               style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.md),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Text(
               l10n.tierResetWarning,
               style: TextStyle(

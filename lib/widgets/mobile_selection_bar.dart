@@ -48,7 +48,7 @@ class MobileSelectionBar extends StatelessWidget {
             onTap: onCancel,
             tooltip: loc.cancelSelection,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
               loc.nSelectedCount(selectedCount),

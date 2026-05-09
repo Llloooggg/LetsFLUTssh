@@ -240,7 +240,7 @@ class _PanelTabItemState extends State<_PanelTabItem> {
                     color: _dotColor(),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 Icon(
                   widget.tab.kind == TabKind.terminal
                       ? Icons.terminal
@@ -248,7 +248,7 @@ class _PanelTabItemState extends State<_PanelTabItem> {
                   size: 12,
                   color: _iconColor(),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
                     widget.tab.label,
@@ -346,7 +346,7 @@ class _TabDragChip extends StatelessWidget {
             size: 12,
             color: AppTheme.fgDim,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           Text(
             tab.label,
             style: TextStyle(

@@ -131,13 +131,13 @@ class _FatalErrorAppState extends State<FatalErrorApp> {
                         size: 48,
                         color: AppTheme.fgDim,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpacing.lg),
                       Text(
                         widget.summary,
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: AppFonts.lg),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       Text(
                         widget.detail,
                         textAlign: TextAlign.center,
@@ -169,7 +169,7 @@ class _FatalErrorAppState extends State<FatalErrorApp> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.md),
                       Text(
                         l10n.fatalErrorWipeExplanation,
                         textAlign: TextAlign.center,

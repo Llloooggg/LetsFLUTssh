@@ -73,7 +73,7 @@ class _LinkHeader extends StatelessWidget {
     return Row(
       children: [
         Icon(Icons.link, size: 16, color: AppTheme.fgDim),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             S.of(context).pasteImportLinkTitle,

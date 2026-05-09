@@ -41,7 +41,7 @@ class ModeButton extends StatelessWidget {
                 size: 16,
                 color: selected ? AppTheme.onAccent : AppTheme.fgDim,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xxs),
               Text(
                 label,
                 style: AppFonts.inter(

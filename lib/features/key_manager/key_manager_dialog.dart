@@ -414,9 +414,9 @@ class _GenerateKeyDialogState extends State<_GenerateKeyDialog> {
             ),
             autofocus: true,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Text(s.selectKeyType, style: TextStyle(fontSize: AppFonts.sm)),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: 8,
             children: SshKeyType.values.map((t) {
@@ -542,7 +542,7 @@ class _AddKeyDialogState extends State<_AddKeyDialog> {
             ),
             autofocus: true,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _pemCtrl,
             maxLines: 5,

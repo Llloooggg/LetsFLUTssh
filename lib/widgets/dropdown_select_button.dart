@@ -56,7 +56,7 @@ class DropdownSelectButton extends StatelessWidget {
           children: [
             if (icon != null) ...[
               Icon(icon, size: 18, color: iconColor),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
             ],
             Expanded(
               child: Text(
@@ -66,7 +66,7 @@ class DropdownSelectButton extends StatelessWidget {
               ),
             ),
             if (showChevron) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Icon(Icons.keyboard_arrow_down, size: 18, color: iconColor),
             ],
           ],

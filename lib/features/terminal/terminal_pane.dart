@@ -426,7 +426,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                const verticalPadding = 8.0; // EdgeInsets.all(4).vertical
+                const verticalPadding = 8.0; // EdgeInsets.all(AppSpacing.xs).vertical
                 final cellHeight = fontSize * kTerminalLineHeight;
                 final usable = constraints.maxHeight - verticalPadding;
                 final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
@@ -499,7 +499,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
             hardwareKeyboardOnly: plat.isDesktopPlatform,
             onKeyEvent: _handleTerminalKey,
             backgroundOpacity: 1.0,
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(AppSpacing.xs),
             theme: _terminalTheme,
             textStyle: TerminalStyle(
               fontSize: fontSize,
@@ -900,7 +900,7 @@ class TerminalSearchBarState extends State<TerminalSearchBar> {
               onSubmitted: (_) => _nextMatch(),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           AppIconButton(
             icon: Icons.keyboard_arrow_up,
             onTap: _totalMatches > 0 ? _prevMatch : null,

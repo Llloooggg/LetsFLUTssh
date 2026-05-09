@@ -299,7 +299,7 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
               hintText: s.snippetTitleHint,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _commandCtrl,
             maxLines: 3,
@@ -310,7 +310,7 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
               alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           // Inline hint listing the built-in placeholder tokens —
           // without it users have no way to discover that
           // {{host}} / {{user}} / {{port}} / {{label}} / {{now}}
@@ -318,7 +318,7 @@ class _SnippetEditDialogState extends State<_SnippetEditDialog> {
           // execution time. Tap a chip to insert the token at the
           // current caret position.
           _SnippetTokenHints(controller: _commandCtrl),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           TextField(
             controller: _descCtrl,
             decoration: InputDecoration(
@@ -404,7 +404,7 @@ class _SnippetTokenHints extends StatelessWidget {
             fontFamily: 'Inter',
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -440,7 +440,7 @@ class _SnippetTokenHints extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           s.snippetCustomTokensHint,
           style: TextStyle(

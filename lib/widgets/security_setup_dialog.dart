@@ -366,9 +366,9 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       return const Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(height: 16),
+          SizedBox(height: AppSpacing.lg),
           CircularProgressIndicator(),
-          SizedBox(height: 16),
+          SizedBox(height: AppSpacing.lg),
         ],
       );
     }
@@ -387,13 +387,13 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Icon(Icons.shield, size: 40, color: AppTheme.accent),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Text(
           l10n.securitySetupTitle,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: AppFonts.xl, fontWeight: FontWeight.w600),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Center(
           child: AppButton(
             label: l10n.compareAllTiers,
@@ -600,7 +600,7 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
           onChanged: (v) => setState(() => _biometric = v),
         ),
         if (linuxNote) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _HonestyNote(text: l10n.linuxTpmWithoutPasswordNote),
         ],
         if (_needsSecretInput()) _buildSecretForm(l10n),
@@ -642,10 +642,10 @@ class _SecuritySetupDialogState extends State<SecuritySetupDialog> {
             ),
           ),
           if (strengthMeter) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xxs),
             PasswordStrengthMeter(controller: _secretCtrl),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           SecurePasswordField(
             controller: _confirmCtrl,
             onChanged: (_) => setState(() {}),

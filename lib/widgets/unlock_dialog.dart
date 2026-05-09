@@ -267,7 +267,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     l10n.masterPassword,
                     style: TextStyle(
@@ -275,7 +275,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     l10n.enterMasterPassword,
                     textAlign: TextAlign.center,
@@ -284,7 +284,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       color: AppTheme.fgDim,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.xl),
                   if (_wrongPassword) ...[
                     Text(
                       l10n.wrongMasterPassword,
@@ -293,7 +293,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                         fontSize: AppFonts.sm,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                   ],
                   if (_cooldown.isLocked) ...[
                     Text(
@@ -305,7 +305,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                         fontSize: AppFonts.sm,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                   ],
                   SecurePasswordField(
                     controller: _passwordCtrl,
@@ -325,14 +325,14 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.xl),
                   if (_busy) ...[
                     const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
                       l10n.derivingKey,
                       style: TextStyle(
@@ -346,7 +346,7 @@ class _UnlockDialogState extends ConsumerState<UnlockDialog> {
                       fullWidth: true,
                       onTap: _cooldown.isLocked ? null : _unlock,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpacing.md),
                     AppButton(
                       label: l10n.forgotPassword,
                       onTap: _forgotPassword,

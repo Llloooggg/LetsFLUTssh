@@ -80,7 +80,7 @@ class AppInfoDialog extends StatelessWidget {
               icon: Icons.check_circle_outline,
               color: AppTheme.green,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xxs),
             ...protectsAgainst.map(
               (b) => _bullet(b, Icons.check, AppTheme.green),
             ),
@@ -93,7 +93,7 @@ class AppInfoDialog extends StatelessWidget {
               icon: Icons.block,
               color: AppTheme.red,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xxs),
             ...doesNotProtectAgainst.map(
               (b) => _bullet(b, Icons.close, AppTheme.red),
             ),
@@ -129,7 +129,7 @@ class AppInfoDialog extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
+        const SizedBox(width: AppSpacing.xxs),
         Text(
           label,
           style: TextStyle(
@@ -152,7 +152,7 @@ class AppInfoDialog extends StatelessWidget {
             padding: const EdgeInsets.only(top: 3),
             child: Icon(icon, size: 14, color: color),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               text,

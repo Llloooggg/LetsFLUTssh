@@ -80,7 +80,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
               File(widget.filePath).uri.pathSegments.last,
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fgDim),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             if (widget.isEncrypted)
               SecurePasswordField(
                 controller: _passwordCtrl,
@@ -121,9 +121,9 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
                   style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
                 ),
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             _buildModeSelector(),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               _mode == ImportMode.merge
                   ? l10n.importModeMergeDescription
@@ -149,7 +149,7 @@ class _LfsImportDialogState extends State<LfsImportDialog> {
           selected: _mode == ImportMode.merge,
           onTap: () => setState(() => _mode = ImportMode.merge),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         ModeButton(
           label: S.of(context).replace,
           icon: Icons.swap_horiz,

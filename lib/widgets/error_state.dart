@@ -32,7 +32,7 @@ class ErrorState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.error_outline, size: 48, color: AppTheme.disconnected),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             message,
             style: TextStyle(color: AppTheme.disconnected),
@@ -50,7 +50,7 @@ class ErrorState extends StatelessWidget {
                     onTap: onRetry,
                   ),
                 if (onRetry != null && onSecondary != null)
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                 if (onSecondary != null)
                   AppButton.secondary(
                     label: secondaryLabel ?? S.of(context).close,

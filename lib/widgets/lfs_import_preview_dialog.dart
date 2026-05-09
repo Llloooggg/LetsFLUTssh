@@ -87,7 +87,7 @@ class _ArchiveHeader extends StatelessWidget {
     return Row(
       children: [
         Icon(Icons.archive_outlined, size: 16, color: AppTheme.fgDim),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             p.basename(filePath),

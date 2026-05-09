@@ -290,7 +290,7 @@ Future<void> _mainBody() async {
   ErrorWidget.builder = (details) {
     return Container(
       alignment: Alignment.center,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: const Text(
         'Something went wrong.\n'
         'Try restarting the app.',

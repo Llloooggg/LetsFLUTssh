@@ -150,7 +150,7 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
             tooltip: S.of(context).back,
             size: 18,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               _current,
@@ -170,7 +170,7 @@ class _LocalDirectoryPickerState extends State<LocalDirectoryPicker> {
     if (_error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Text(
             _error!,
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),

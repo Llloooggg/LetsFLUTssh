@@ -56,7 +56,7 @@ class DbCorruptDialog extends StatelessWidget {
             l10n.dbCorruptBody,
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             l10n.dbCorruptWarning,
             style: TextStyle(fontSize: AppFonts.md, color: AppTheme.red),

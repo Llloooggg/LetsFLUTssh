@@ -43,7 +43,7 @@ class CollapsibleCheckboxesSection extends StatelessWidget {
                   size: 18,
                   color: AppTheme.fgDim,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 Text(
                   title,
                   style: AppFonts.inter(
@@ -53,7 +53,7 @@ class CollapsibleCheckboxesSection extends StatelessWidget {
                   ),
                 ),
                 if (trailingLabel != null) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       trailingLabel!,
@@ -151,7 +151,7 @@ class DataCheckboxRow extends StatelessWidget {
               onChanged: (_) => onTap(),
             ),
             Icon(icon, size: 16, color: iconTint),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

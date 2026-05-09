@@ -150,7 +150,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildToggleRow(context),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               _buildNavigationRow(context),
             ],
           ),
@@ -181,7 +181,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
             style: _segmentedButtonStyle(),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         ..._platformButtons(context),
         AppIconButton(
           icon: Icons.refresh,
@@ -245,7 +245,7 @@ class _MobileFileBrowserState extends ConsumerState<MobileFileBrowser>
           Expanded(
             child: _editingPath ? _buildPathEditor() : _buildBreadcrumb(),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           AppIconButton(
             icon: Icons.arrow_back,
             size: 22,
@@ -526,7 +526,7 @@ class _MobileFileListState extends State<MobileFileList> {
       child: Row(
         children: [
           Icon(Icons.sort, size: 16, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           GestureDetector(
             onTap: () => _showSortMenu(context),
             child: Text(
@@ -568,7 +568,7 @@ class _MobileFileListState extends State<MobileFileList> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Text(
                 l10n.sort,
                 style: TextStyle(
@@ -607,9 +607,9 @@ class _MobileFileListState extends State<MobileFileList> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(localizeError(S.of(context), ctrl.error!)),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           AppButton.secondary(
             label: S.of(context).retry,
             icon: Icons.refresh,
@@ -660,7 +660,7 @@ class _MobileFileListState extends State<MobileFileList> {
                   ? AppTheme.folderIcon
                   : theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

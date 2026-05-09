@@ -60,14 +60,14 @@ class AppEmptyState extends StatelessWidget {
           children: [
             if (icon != null) ...[
               Icon(icon, size: 32, color: AppTheme.fgDim),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
             ],
             Text(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.fgDim, fontSize: AppFonts.sm),
             ),
-            if (action != null) ...[const SizedBox(height: 12), action!],
+            if (action != null) ...[const SizedBox(height: AppSpacing.md), action!],
           ],
         ),
       ),

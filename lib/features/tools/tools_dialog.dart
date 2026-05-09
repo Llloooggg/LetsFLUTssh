@@ -185,7 +185,7 @@ class _NavItem extends StatelessWidget {
                 size: 13,
                 color: selected ? AppTheme.fg : AppTheme.fgDim,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Flexible(
                 child: Text(
                   label,

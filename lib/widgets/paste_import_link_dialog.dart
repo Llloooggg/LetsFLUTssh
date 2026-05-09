@@ -108,7 +108,7 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
             s.pasteImportLinkDescription,
             style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.fgDim),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _controller,
             minLines: 3,
@@ -147,7 +147,7 @@ class _PasteImportLinkDialogState extends State<PasteImportLinkDialog> {
             },
             onSubmitted: (_) => unawaited(_submit()),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: 4,
             children: [

@@ -277,7 +277,7 @@ class _MobileSettingsScreen extends ConsumerWidget {
                   icon: section.icon,
                   child: section.builder(),
                 ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Center(
                 child: AppButton.secondary(
                   label: S.of(context).resetToDefaults,
@@ -287,7 +287,7 @@ class _MobileSettingsScreen extends ConsumerWidget {
                       .update((_) => AppConfig.defaults),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
             ],
           ),
         ),
@@ -554,7 +554,7 @@ class _NavItemState extends State<_NavItem> {
                 size: 13,
                 color: widget.selected ? AppTheme.fg : AppTheme.fgDim,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Flexible(
                 child: Text(
                   widget.label,
@@ -596,7 +596,7 @@ class _ResetButtonState extends State<_ResetButton> {
           child: Row(
             children: [
               Icon(Icons.restore, size: 12, color: AppTheme.red),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xxs),
               Flexible(
                 child: Text(
                   S.of(context).resetToDefaults,

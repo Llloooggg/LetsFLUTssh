@@ -471,7 +471,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
                   _buildTabBar(),
                   Flexible(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                       child: Stack(
                         children: [
                           Offstage(
@@ -560,7 +560,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
               size: 12,
               color: active ? AppTheme.fg : AppTheme.fgFaint,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xxs),
             // Flexible + ellipsis so long translations truncate
             // inside the tab rather than breaking the Row.
             Flexible(

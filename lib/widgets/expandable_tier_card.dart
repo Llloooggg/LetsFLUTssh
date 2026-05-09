@@ -486,19 +486,19 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
         children: [
           _ThreatListFixed(model: _previewModel, l10n: l10n),
           if (!widget.tierAvailable && widget.unavailableReason != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _UnavailableReason(text: widget.unavailableReason!),
           ],
           if (_hasModifierSection) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             const Divider(height: 1),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
           ],
           if (_passwordToggleAvailable) _buildPasswordToggleRow(l10n),
           if (widget.biometricSpec != null) _buildBiometricRow(l10n),
           if (widget.autoLockRow != null) widget.autoLockRow!,
           if (_requiresPasswordInput) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _PasswordPair(
               primary: _passwordCtrl,
               confirm: _passwordConfirmCtrl,
@@ -508,7 +508,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
             ),
           ],
           if (_requiresMasterPasswordInput) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _PasswordPair(
               primary: _masterPasswordCtrl,
               confirm: _masterPasswordConfirmCtrl,
@@ -517,7 +517,7 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
               onChanged: () => setState(() {}),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Align(
             alignment: Alignment.centerRight,
             child: AppButton.primary(
@@ -532,9 +532,9 @@ class _ExpandableTierCardState extends State<ExpandableTierCard> {
           // not as pending changes gated by Apply. Only the
           // current tier card passes a non-null widget here.
           if (widget.activeTierExtras != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Divider(height: 1, color: AppTheme.border),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             widget.activeTierExtras!,
           ],
         ],

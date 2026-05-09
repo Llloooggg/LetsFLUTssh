@@ -111,14 +111,14 @@ class AppCollectionToolbar extends StatelessWidget {
       children: [
         if (hasItems && search != null) ...[
           Expanded(child: search!),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           if (countLabel != null) ...[
             _CountLabel(countLabel!),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
           ],
         ] else if (hasItems && countLabel != null) ...[
           _CountLabel(countLabel!),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
         ],
         Expanded(
           child: Align(
@@ -169,7 +169,7 @@ class AppCollectionToolbar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (int i = 0; i < rows.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
+          if (i > 0) const SizedBox(height: AppSpacing.sm),
           rows[i],
         ],
       ],

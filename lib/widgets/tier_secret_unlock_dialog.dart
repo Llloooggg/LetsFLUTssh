@@ -364,7 +364,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.lock, size: 48, color: theme.colorScheme.primary),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     widget.labels.title,
                     style: TextStyle(
@@ -372,7 +372,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     widget.labels.hint,
                     textAlign: TextAlign.center,
@@ -381,10 +381,10 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
                       color: AppTheme.fgDim,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.xl),
                   ..._buildStatusMessages(theme, l10n),
                   _buildInputField(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.xl),
                   ..._buildActions(l10n),
                 ],
               ),
@@ -407,18 +407,18 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
     return [
       if (_wrong) ...[
         Text(widget.labels.wrongSecretLabel, style: errorStyle),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
       ],
       if (_cooldown.isLocked) ...[
         Text(
           l10n.tierCooldownHint(_cooldown.cooldownRemaining!.inSeconds + 1),
           style: errorStyle,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
       ],
       if (_bioError != null) ...[
         Text(_bioError!, textAlign: TextAlign.center, style: errorStyle),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
       ],
     ];
   }
@@ -473,7 +473,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
         onTap: _cooldown.isLocked ? null : _submit,
       ),
       if (_biometricOffered == true) ...[
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         AppButton(
           label: l10n.biometricUnlockTitle,
           icon: Icons.fingerprint,
@@ -481,7 +481,7 @@ class _TierSecretUnlockDialogState extends State<TierSecretUnlockDialog> {
         ),
       ],
       if (widget.onReset != null) ...[
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         AppButton(label: l10n.forgotPassword, onTap: _reset),
       ],
     ];

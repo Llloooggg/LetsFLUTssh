@@ -35,7 +35,7 @@ class TerminalCopyOverlay extends StatefulWidget {
     required this.fontSize,
     required this.fontFamily,
     required this.fontFamilyFallback,
-    this.padding = const EdgeInsets.all(4),
+    this.padding = const EdgeInsets.all(AppSpacing.xs),
   });
 
   final Terminal terminal;

@@ -175,7 +175,7 @@ class FileRow extends StatelessWidget {
     );
     return [
       Icon(fileIcon(entry), size: 14, color: fileIconColor(entry)),
-      const SizedBox(width: 6),
+      const SizedBox(width: AppSpacing.xxs),
       Expanded(
         child: Tooltip(
           message: entry.name,
@@ -259,7 +259,7 @@ class MenuRow extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 18),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Flexible(child: Text(text, overflow: TextOverflow.ellipsis)),
       ],
     );

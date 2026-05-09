@@ -143,10 +143,10 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showSearch) ...[_buildSearchField(s), const SizedBox(height: 6)],
+        if (showSearch) ...[_buildSearchField(s), const SizedBox(height: AppSpacing.xxs)],
         _buildSelectAllRow(s),
         const AppDivider(),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Expanded(child: _buildTagList(s, visible)),
       ],
     );
@@ -163,7 +163,7 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(Icons.local_offer_outlined, size: 32, color: AppTheme.fgFaint),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Text(
             s.noTags,
             textAlign: TextAlign.center,

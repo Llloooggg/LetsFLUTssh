@@ -41,7 +41,7 @@ class FilePaneDialogs {
                   color: AppTheme.fgFaint,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               TextField(
                 controller: nameCtrl,
                 autofocus: true,

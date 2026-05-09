@@ -141,7 +141,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         size: 11,
         color: AppTheme.fgDim,
       ),
-      const SizedBox(width: 4),
+      const SizedBox(width: AppSpacing.xs),
       Text(
         S.of(context).transfersLabel,
         style: AppFonts.inter(
@@ -150,7 +150,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           color: AppTheme.fgDim,
         ),
       ),
-      const SizedBox(width: 6),
+      const SizedBox(width: AppSpacing.xxs),
       Text(
         S.of(context).transferCountActive(status.running),
         style: AppFonts.inter(fontSize: AppFonts.xs, color: AppTheme.accent),
@@ -161,7 +161,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         S.of(context).transferCountInHistory(history.length),
         style: AppFonts.inter(fontSize: AppFonts.xxs, color: AppTheme.fgFaint),
       ),
-      const SizedBox(width: 4),
+      const SizedBox(width: AppSpacing.xs),
       if (_ctrl.expanded && _mobile)
         _headerButton(
           icon: Icons.sort,
@@ -187,7 +187,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onVerticalDragUpdate: (d) => _ctrl.resizePanelHeightBy(d.delta.dy),
-          child: const SizedBox(height: 6),
+          child: const SizedBox(height: AppSpacing.xxs),
         ),
       ),
     );
@@ -286,7 +286,7 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Text(
                 l10n.sort,
                 style: TextStyle(
@@ -369,9 +369,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
             child: Row(
               children: [
                 SizedBox(width: 16, child: Text('#', style: style)),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 SizedBox(width: 20, child: Text('', style: style)),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 _sortableCell(
                   S.of(context).name,
                   TransferSortColumn.name,
@@ -469,9 +469,9 @@ class _TransferPanelState extends ConsumerState<TransferPanel> {
       child: Row(
         children: [
           SizedBox(width: 16, child: Text('#', style: style)),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           SizedBox(width: 20, child: Text('', style: style)),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: _sortableCell(
               S.of(context).name,
@@ -566,7 +566,7 @@ class _HistoryRow extends StatelessWidget {
               color: isUpload ? AppTheme.green : AppTheme.blue,
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           SizedBox(
             width: 20,
             child: Tooltip(
@@ -578,7 +578,7 @@ class _HistoryRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           // Name (+ inline error for failed transfers)
           _nameCell(
             Row(
@@ -594,7 +594,7 @@ class _HistoryRow extends StatelessWidget {
                   ),
                 ),
                 if (isFailed && entry.error != null) ...[
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Flexible(
                     flex: 0,
                     child: Text(
@@ -754,7 +754,7 @@ class _ActiveRow extends StatelessWidget {
                   color: isUpload ? AppTheme.green : AppTheme.blue,
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               // Status icon
               SizedBox(
                 width: 20,
@@ -764,7 +764,7 @@ class _ActiveRow extends StatelessWidget {
                   color: isQueued ? AppTheme.fgFaint : AppTheme.accent,
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               // Name + speed
               _nameCell(
                 Row(
@@ -780,7 +780,7 @@ class _ActiveRow extends StatelessWidget {
                       ),
                     ),
                     if (!isQueued && entry.message.isNotEmpty) ...[
-                      const SizedBox(width: 4),
+                      const SizedBox(width: AppSpacing.xs),
                       Flexible(
                         flex: 0,
                         child: Text(

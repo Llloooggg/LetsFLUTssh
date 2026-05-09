@@ -225,9 +225,9 @@ class _AddTagDialogState extends State<_AddTagDialog> {
               hintText: s.tagNameHint,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Text(s.tagColor, style: TextStyle(fontSize: AppFonts.sm)),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: 8,
             runSpacing: 8,

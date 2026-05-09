@@ -115,7 +115,7 @@ class AppPopupSelect<T> extends StatelessWidget {
           children: [
             if (leadingIcon != null) ...[
               Icon(leadingIcon, size: 16, color: AppTheme.fgDim),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xxs),
             ],
             // Flexible + ellipsis so a long locale / level name shrinks
             // instead of overflowing the parent row by fractional
@@ -132,7 +132,7 @@ class AppPopupSelect<T> extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.fgDim),
           ],
         ),

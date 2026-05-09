@@ -83,7 +83,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
         children: [
           if (isChanged) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 color: AppTheme.connecting.withValues(alpha: 0.1),
                 borderRadius: AppTheme.radiusLg,
@@ -98,7 +98,7 @@ class _HostKeyDialogWidget extends StatelessWidget {
                     color: AppTheme.connecting,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       S.of(context).hostKeyChangedWarning,
@@ -111,27 +111,27 @@ class _HostKeyDialogWidget extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
           ] else
             Text(
               S.of(context).unknownHostMessage,
               style: TextStyle(fontSize: AppFonts.md, color: AppTheme.fg),
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           _InfoRow(
             label: S.of(context).host,
             value: '${redactBidi(host)}:$port',
           ),
           if (hostnameHasNonAscii(host)) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               S.of(context).nonAsciiHostnameWarning,
               style: TextStyle(fontSize: AppFonts.sm, color: AppTheme.red),
             ),
           ],
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           _InfoRow(label: S.of(context).keyType, value: keyType),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

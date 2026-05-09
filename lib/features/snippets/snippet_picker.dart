@@ -281,13 +281,13 @@ class _SnippetFillDialogState extends State<_SnippetFillDialog> {
         children: [
           for (final token in widget.tokens) ...[
             FieldLabel('{{$token}}'),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             StyledInput(
               controller: _controllers[token]!,
               autofocus: token == widget.tokens.first,
               onSubmitted: (_) => _submit(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
           ],
         ],
       ),

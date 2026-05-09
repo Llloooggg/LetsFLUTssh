@@ -228,7 +228,7 @@ class _Legend extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           Expanded(
             child: Text(
               text,

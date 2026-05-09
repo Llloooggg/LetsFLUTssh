@@ -846,6 +846,33 @@ class _ThemeExtras {
   });
 }
 
+/// 4-pt grid of spacing tokens. Use instead of bare `SizedBox(height: N)` /
+/// `SizedBox(width: N)` / `EdgeInsets.all(N)` literals so a future spacing
+/// rebalance lands one place. Values reflect the codebase's actual
+/// distribution — `xs`/`sm`/`md` cover the bulk of inline gaps, `lg`/`xl`
+/// cover dialog padding, `xxl` covers section-level breaks. Anything outside
+/// this set stays a literal — it's almost certainly an alignment quirk
+/// (avatar sizing, icon offset) that doesn't belong in a shared scale.
+abstract final class AppSpacing {
+  /// 4 — tight inline gap (icon-to-text in a row).
+  static const double xs = 4;
+
+  /// 6 — between dense controls (per-row trailing buttons).
+  static const double xxs = 6;
+
+  /// 8 — default inline gap (most `SizedBox(height:8)` / `width:8` use this).
+  static const double sm = 8;
+
+  /// 12 — paragraph-level gap (between form rows, list items).
+  static const double md = 12;
+
+  /// 16 — section gap (between dialog blocks, settings panels).
+  static const double lg = 16;
+
+  /// 20 — large dialog padding.
+  static const double xl = 20;
+}
+
 /// Font helpers — Inter for UI, JetBrains Mono for technical data.
 ///
 /// Returns plain [TextStyle] objects with [fontFamily] set.

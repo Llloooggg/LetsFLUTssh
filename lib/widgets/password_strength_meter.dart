@@ -77,7 +77,7 @@ class _PasswordStrengthMeterState extends State<PasswordStrengthMeter> {
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             label,
             style: TextStyle(fontSize: AppFonts.sm, color: color),

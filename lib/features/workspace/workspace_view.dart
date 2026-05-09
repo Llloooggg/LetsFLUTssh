@@ -434,7 +434,7 @@ class _PanelConnectionBar extends ConsumerWidget {
               color: conn.isConnected ? AppTheme.green : faintColor,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xxs),
           Expanded(
             child: Text.rich(
               TextSpan(
@@ -470,7 +470,7 @@ class _PanelConnectionBar extends ConsumerWidget {
               conn.connectionError != null &&
               onRetry != null) ...[
             _retryButton(context, scheme),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
           ],
           _companionButton(context, isTerminal, ref, scheme),
           _maximizeButton(context, ref, scheme),
@@ -566,7 +566,7 @@ class _PanelConnectionBar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(icon, size: 11, color: btnColor),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 label,
                 style: TextStyle(
@@ -609,7 +609,7 @@ class _PanelConnectionBar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(Icons.refresh, size: 11, color: btnColor),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 S.of(context).reconnect,
                 style: TextStyle(

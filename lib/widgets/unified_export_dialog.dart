@@ -137,7 +137,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                               _buildCheckboxesSection(),
                               if (widget.isQrMode) _buildQrSecurityWarning(),
                               const AppDivider(),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: AppSpacing.xs),
                               _buildSelectAll(),
                               const AppDivider(),
                               ListView(
@@ -213,7 +213,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
       ],
     );
   }
@@ -307,7 +307,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
 
   Widget _buildQrSecurityWarning() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
         color: AppTheme.orange.withValues(alpha: 0.1),
@@ -318,7 +318,7 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.warning_amber, size: 20, color: AppTheme.orange),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               S.of(context).qrPasswordWarning,

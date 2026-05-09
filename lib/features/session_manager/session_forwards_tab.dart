@@ -85,7 +85,7 @@ class SessionForwardsTab extends StatelessWidget {
               onToggle: () => _replace(rule.copyWith(enabled: !rule.enabled)),
               onDelete: () => _delete(rule),
             ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.md),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: AppButton.secondary(
@@ -259,17 +259,17 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
           mainAxisSize: MainAxisSize.min,
           children: [
             FieldLabel(l10n.forwardKind),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
                 _kindChip(PortForwardKind.local, l10n.localForward),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xxs),
                 _kindChip(PortForwardKind.remote, l10n.remoteForward),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xxs),
                 _kindChip(PortForwardKind.dynamic_, l10n.dynamicForward),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xxs),
             // Per-kind explanation: each forward semantics is distinct
             // enough that a one-liner under the chips beats a help
             // button hidden somewhere.
@@ -285,14 +285,14 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
                 fontSize: AppFonts.xs,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             StyledFormField(
               label: l10n.bindAddress,
               controller: _bindHost,
               hint: '127.0.0.1',
             ),
             if (showWildcardWarning) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.xxs),
               Text(
                 l10n.forwardBindWildcardWarning,
                 style: TextStyle(
@@ -302,7 +302,7 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
                 ),
               ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             StyledFormField(
               label: l10n.bindPort,
               controller: _bindPort,
@@ -311,14 +311,14 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
               validator: _portValidator,
             ),
             if (!isDynamic) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               StyledFormField(
                 label: l10n.targetHost,
                 controller: _remoteHost,
                 hint: 'svc.internal',
                 validator: _hostValidator,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               StyledFormField(
                 label: l10n.targetPort,
                 controller: _remotePort,
@@ -327,20 +327,20 @@ class _ForwardRuleEditorState extends State<_ForwardRuleEditor> {
                 validator: _portValidator,
               ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             StyledFormField(
               label: l10n.forwardDescription,
               controller: _description,
               hint: '',
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Switch(
                   value: _enabled,
                   onChanged: (v) => setState(() => _enabled = v),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   l10n.forwardEnabled,
                   style: TextStyle(

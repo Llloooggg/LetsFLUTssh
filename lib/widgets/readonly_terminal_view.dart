@@ -100,7 +100,7 @@ class _ReadOnlyTerminalViewState extends State<ReadOnlyTerminalView> {
           autofocus: false,
           hardwareKeyboardOnly: true,
           backgroundOpacity: 1.0,
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(AppSpacing.xs),
           theme: AppTheme.terminalTheme,
           textStyle: TerminalStyle(
             fontSize: widget.fontSize,

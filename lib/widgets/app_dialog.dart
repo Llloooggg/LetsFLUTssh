@@ -44,7 +44,7 @@ class AppDialog extends StatelessWidget {
     this.maxWidth = 460,
     required this.content,
     this.actions = const [],
-    this.contentPadding = const EdgeInsets.all(16),
+    this.contentPadding = const EdgeInsets.all(AppSpacing.lg),
     this.scrollable = true,
     this.dismissible = true,
   });
@@ -206,7 +206,7 @@ class AppDialogFooter extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: _intersperse(
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         actions.reversed
             .map((a) => SizedBox(width: double.infinity, child: a))
             .toList(),
@@ -285,7 +285,7 @@ class AppProgressBarDialog extends StatelessWidget {
                   builder: (_, s, _) => _ProgressPanel(state: s),
                 ),
                 if (onCancel != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.md),
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
                     child: AppButton.cancel(onTap: onCancel),
@@ -321,7 +321,7 @@ class _ProgressPanel extends StatelessWidget {
             state.label,
             style: TextStyle(color: AppTheme.fg, fontSize: AppFonts.md),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           ClipRRect(
             borderRadius: AppTheme.radiusSm,
             child: LinearProgressIndicator(
@@ -331,7 +331,7 @@ class _ProgressPanel extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accent),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
