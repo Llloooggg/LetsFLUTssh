@@ -55,3 +55,50 @@ pub fn qr_estimate_export_size(input: DbQrExportInput) -> Result<u32, String> {
     db.with_conn(|c| qr_export_payload_size(c, &core_input))
         .map_err(|e| crate::api::frb_err::from_core(&e))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::archive::DbQrExportOptions;
+
+    // The estimator routes through SQLCipher to read sessions /
+    // keys / tags / snippets by id; covered by the Dart
+    // `unified_export_controller_test.dart` integration suite that
+    // bootstraps an in-memory DB. The standalone tests below pin
+    // the missing-DB error contract — wizard's live "fits in QR"
+    // gauge calls this on every checkbox toggle, so the cold-start
+    // path before db_init landed must surface a clean error.
+
+    fn empty_input() -> DbQrExportInput {
+        DbQrExportInput {
+            options: DbQrExportOptions {
+                include_sessions: false,
+                include_config: false,
+                include_known_hosts: false,
+                include_passwords: false,
+                include_embedded_keys: false,
+                include_manager_keys: false,
+                include_all_manager_keys: false,
+                include_tags: false,
+                include_snippets: false,
+            },
+            selected_session_ids: Vec::new(),
+            selected_empty_folders: Vec::new(),
+            config_json: Some(String::new()),
+        }
+    }
+
+    #[test]
+    fn estimate_export_size_returns_err_when_db_not_initialized() {
+        let _ = lfs_core::app::init();
+        // Ensure no DB is registered for this test.
+        lfs_core::app::instance().db_close();
+        let res = qr_estimate_export_size(empty_input());
+        assert!(res.is_err());
+        let msg = res.unwrap_err();
+        assert!(
+            msg.contains("db not initialized"),
+            "expected 'db not initialized', got {msg}"
+        );
+    }
+}

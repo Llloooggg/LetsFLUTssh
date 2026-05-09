@@ -624,3 +624,106 @@ impl SshShellEvent {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The connect / shell / forward / sftp surfaces (`ssh_connect_*`,
+    // `SshSession`, `SshShell`, `ssh_open_direct_tcpip`) need a live
+    // russh peer; the `tests/connection_lifecycle.rs` integration
+    // binary spins up `lfs_core::connection::test_server` and drives
+    // them end-to-end. The standalone tests below pin the pure
+    // helpers + the SshShellEvent variant mapping that crosses the
+    // FRB boundary on every shell event.
+
+    #[test]
+    fn format_host_key_fingerprint_emits_openssh_sha256_shape() {
+        // Pin the wire shape — the known_hosts settings UI renders
+        // the returned string verbatim. `SHA256:<base64-no-pad>`
+        // is the OpenSSH canonical form.
+        let key = vec![0xAA; 32];
+        let fp = ssh_format_host_key_fingerprint(key);
+        assert!(
+            fp.starts_with("SHA256:"),
+            "expected SHA256: prefix, got {fp}"
+        );
+        assert!(
+            !fp.ends_with('='),
+            "OpenSSH fingerprint is base64-no-pad — trailing '=' is a regression"
+        );
+    }
+
+    #[test]
+    fn format_host_key_fingerprint_is_deterministic() {
+        let key = vec![0xBB; 16];
+        let a = ssh_format_host_key_fingerprint(key.clone());
+        let b = ssh_format_host_key_fingerprint(key);
+        assert_eq!(a, b, "same input must produce same fingerprint");
+    }
+
+    #[test]
+    fn format_host_key_fingerprint_changes_with_key_bytes() {
+        let a = ssh_format_host_key_fingerprint(vec![0xAA; 32]);
+        let b = ssh_format_host_key_fingerprint(vec![0xBB; 32]);
+        assert_ne!(a, b, "different keys must produce different fingerprints");
+    }
+
+    #[test]
+    fn ssh_shell_event_maps_each_variant() {
+        let cases = [
+            lfs_core::ssh::ShellEvent::Output(b"hello".to_vec()),
+            lfs_core::ssh::ShellEvent::ExtendedOutput(b"err".to_vec()),
+            lfs_core::ssh::ShellEvent::Eof,
+            lfs_core::ssh::ShellEvent::ExitStatus(0),
+            lfs_core::ssh::ShellEvent::ExitSignal("TERM".into()),
+        ];
+        for core in cases {
+            let db = SshShellEvent::from_core(core);
+            // Pin via exhaustive match so a future variant addition
+            // forces a compile error here.
+            match db {
+                SshShellEvent::Output(_)
+                | SshShellEvent::ExtendedOutput(_)
+                | SshShellEvent::Eof
+                | SshShellEvent::ExitStatus(_)
+                | SshShellEvent::ExitSignal(_) => (),
+            }
+        }
+    }
+
+    #[test]
+    fn ssh_shell_event_carries_payload_through() {
+        let out = SshShellEvent::from_core(lfs_core::ssh::ShellEvent::Output(b"hi".to_vec()));
+        match out {
+            SshShellEvent::Output(bytes) => assert_eq!(bytes, b"hi"),
+            _ => panic!("expected Output"),
+        }
+        let err = SshShellEvent::from_core(lfs_core::ssh::ShellEvent::ExitStatus(42));
+        match err {
+            SshShellEvent::ExitStatus(code) => assert_eq!(code, 42),
+            _ => panic!("expected ExitStatus"),
+        }
+        let sig = SshShellEvent::from_core(lfs_core::ssh::ShellEvent::ExitSignal("HUP".into()));
+        match sig {
+            SshShellEvent::ExitSignal(name) => assert_eq!(name, "HUP"),
+            _ => panic!("expected ExitSignal"),
+        }
+    }
+
+    #[tokio::test]
+    async fn try_connect_password_rejects_non_utf8_password() {
+        // Pin the post-audit contract — RFC 4252 §8 specifies UTF-8
+        // for the password field; the shim must surface a clean
+        // typed error rather than panic / generic-string degrade.
+        let invalid_utf8 = vec![0xFF, 0xFE, 0xFD];
+        let res =
+            ssh_try_connect_password("127.0.0.1".into(), 65535, "u".into(), invalid_utf8).await;
+        assert!(res.is_err());
+        let envelope = res.unwrap_err();
+        assert!(
+            envelope.contains("auth_failed"),
+            "expected typed kind=auth_failed envelope, got {envelope}"
+        );
+    }
+}
