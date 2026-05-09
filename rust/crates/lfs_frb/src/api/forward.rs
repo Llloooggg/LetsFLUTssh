@@ -273,3 +273,67 @@ pub async fn ssh_cancel_remote_forward(
 pub async fn ssh_next_forwarded_connection(session: &SshSession) -> Option<SshForwardedConnection> {
     session.next_forwarded_connection_inner().await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The port-forward driver endpoints (`port_forward_start_local`
+    // / `_stop_local` / `_dynamic` / `_remote` /
+    // `ssh_open_direct_tcpip` / `ssh_request_remote_forward` /
+    // `ssh_next_forwarded_connection`) drive listener accept loops +
+    // russh tcpip channels against a live SSH session; covered by
+    // the `tests/connection_lifecycle.rs` integration binary that
+    // exercises the direct-tcpip channel path against the
+    // `lfs_core::connection::test_server` fixture. The standalone
+    // tests below pin the `u16_port` validator that every driver
+    // entry point routes through before touching the registry — a
+    // truncation regression here would silently dial the wrong port.
+
+    #[test]
+    fn u16_port_accepts_valid_port_range() {
+        assert_eq!(u16_port(0, "p").expect("0 is valid"), 0);
+        assert_eq!(u16_port(1, "p").expect("1 is valid"), 1);
+        assert_eq!(u16_port(22, "p").expect("ssh default"), 22);
+        assert_eq!(u16_port(65535, "p").expect("u16::MAX"), 65535);
+    }
+
+    #[test]
+    fn u16_port_rejects_value_above_u16_max() {
+        let res = u16_port(65536, "bind_port");
+        assert!(res.is_err(), "65536 must surface as Err");
+        let envelope = res.unwrap_err();
+        // Pin the wire shape — the Dart caller's typed-error router
+        // reads `kind` (not detail substring) so the routable cases
+        // stay routable across reword.
+        assert!(envelope.contains("generic"));
+        assert!(
+            envelope.contains("65536"),
+            "envelope must carry the offending value, got {envelope}"
+        );
+        assert!(
+            envelope.contains("bind_port"),
+            "envelope must carry the field label, got {envelope}"
+        );
+    }
+
+    #[test]
+    fn u16_port_rejects_value_at_u32_max() {
+        // The pre-audit shape silently truncated `0xFFFFFFFF as u16`
+        // to `0xFFFF` and dialled the wrong port; pin the contract
+        // that overflow surfaces as Err rather than truncating.
+        let res = u16_port(u32::MAX, "target_port");
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn u16_port_rejects_arbitrary_overflow() {
+        // A typical wire-shape overflow case: a Dart `int` overflowing
+        // to a value past u16::MAX. The shim must reject rather than
+        // truncate.
+        let res = u16_port(100_000, "p");
+        assert!(res.is_err());
+        let envelope = res.unwrap_err();
+        assert!(envelope.contains("100000"));
+    }
+}
