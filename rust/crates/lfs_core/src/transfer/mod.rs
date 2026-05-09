@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn set_progress_throttles_high_frequency_byte_deltas() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(crate::bus::EventTopic::Transfer);
         let q = TransferQueue::new();
         q.enqueue(
             EnqueueRequest {
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn set_progress_publishes_final_value_unconditionally() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(crate::bus::EventTopic::Transfer);
         let q = TransferQueue::new();
         q.enqueue(
             EnqueueRequest {

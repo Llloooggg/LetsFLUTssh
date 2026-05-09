@@ -663,7 +663,7 @@ const PARENT_READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 ///   with the typed error so the UI gets one clean
 ///   "ProxyJump parent failed" line.
 ///
-/// **Race window** — `app.bus.subscribe()` returns a
+/// **Race window** — `app.bus.subscribe(crate::bus::EventTopic::Connection)` returns a
 /// `tokio::sync::broadcast::Receiver` BEFORE we snapshot
 /// `actor.state`, so an event published between the snapshot
 /// and the await is delivered through the receiver and the
@@ -672,7 +672,7 @@ const PARENT_READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 /// for broadcast streams.
 async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
     let app = crate::app::instance();
-    let mut rx = app.bus.subscribe();
+    let mut rx = app.bus.subscribe(crate::bus::EventTopic::Connection);
 
     // Snapshot the current state. If parent is already in a
     // terminal state we don't need to await anything.
@@ -726,7 +726,7 @@ async fn wait_for_parent_ready(parent_id: &str) -> Result<(), Error> {
                             }
                             ConnectionState::Connecting => {
                                 // Re-subscribe and keep waiting.
-                                rx = app.bus.subscribe();
+                                rx = app.bus.subscribe(crate::bus::EventTopic::Connection);
                                 continue;
                             }
                         }

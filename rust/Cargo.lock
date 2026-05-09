@@ -1878,6 +1878,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "subtle",
+ "tempfile",
  "tokio",
  "tss-esapi",
  "windows",

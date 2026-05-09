@@ -54,8 +54,14 @@ Future<bool> ensureFrbLoaded() async {
     // process singleton that downstream FRB calls (secrets / db /
     // connection registry / transfer queue / etc.) panic against
     // when missing. Production code calls this from `main.dart`
-    // immediately after `RustLib.init`.
-    rust_app.appInit();
+    // immediately after `RustLib.init`. The `await` is load-bearing:
+    // FRB makes `appInit()` return a `Future<void>` even though the
+    // Rust body is synchronous, so a fire-and-forget call hands
+    // control back to the test before `app::init()` has actually
+    // run on the worker thread. A subsequent `await dbInit(...)`
+    // then races the un-awaited init and panics with
+    // "AppState not initialized".
+    await rust_app.appInit();
     _loaded = true;
     return true;
   } catch (e) {

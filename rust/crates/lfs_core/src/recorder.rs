@@ -685,7 +685,7 @@ mod tests {
     #[test]
     fn register_and_close() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(crate::bus::EventTopic::Recorder);
         let reg = RecorderRegistry::new();
         let snap = reg.register("r1".into(), "s1".into(), "/tmp/r.cast".into(), false, &bus);
         assert_eq!(snap.id, "r1");

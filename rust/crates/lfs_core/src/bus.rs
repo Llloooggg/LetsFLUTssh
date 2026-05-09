@@ -29,6 +29,8 @@
 //!   actors; if a subscriber lags badly enough to lose events it
 //!   re-syncs through a snapshot command rather than replaying.
 
+use std::collections::HashMap;
+
 use tokio::sync::broadcast;
 
 use crate::error::Error;
@@ -96,6 +98,31 @@ pub enum EventTopic {
     /// failures inside catch-arms / panics caught by FRB would
     /// disappear silently.
     CoreLog,
+}
+
+impl EventTopic {
+    /// Every variant in declaration order. Used by [`EventBus::new`]
+    /// to pre-allocate one broadcast channel per topic. A new
+    /// variant added above this list MUST be appended here or
+    /// `publish` would panic at runtime trying to send to a
+    /// missing channel.
+    pub const ALL: &'static [EventTopic] = &[
+        EventTopic::Diagnostics,
+        EventTopic::Connection,
+        EventTopic::PortForward,
+        EventTopic::Transfer,
+        EventTopic::Recorder,
+        EventTopic::AutoLock,
+        EventTopic::Import,
+        EventTopic::Update,
+        EventTopic::KnownHosts,
+        EventTopic::Sessions,
+        EventTopic::Config,
+        EventTopic::Tier,
+        EventTopic::SecurityPrompt,
+        EventTopic::SecurityCapabilities,
+        EventTopic::CoreLog,
+    ];
 }
 
 /// State change envelope published onto the bus. Variants accrete
@@ -511,39 +538,84 @@ pub enum Command {
     KnownHostPromptResponse { prompt_id: String, accepted: bool },
 }
 
-/// Broadcast-backed event broker. Owned by `AppState` (process
+/// Per-topic broadcast event broker. Owned by `AppState` (process
 /// singleton); domain actors hold references and call `publish`,
-/// FRB subscribers call `subscribe` to get a fresh `Receiver`.
+/// FRB subscribers call `subscribe(topic)` to get a `Receiver`
+/// scoped to one topic.
+///
+/// One [`broadcast::Sender`] per [`EventTopic`] — events publish
+/// only to the channel matching `event.topic()`, so a subscriber
+/// to (say) [`EventTopic::Recorder`] never sees a clone of an
+/// unrelated [`EventTopic::Connection`] event. Eliminates the
+/// "broadcast → 13 receivers each filter out 12/13" waste the
+/// earlier single-channel shape paid on every event.
 pub struct EventBus {
-    sender: broadcast::Sender<Event>,
+    senders: HashMap<EventTopic, broadcast::Sender<Event>>,
 }
 
 impl EventBus {
+    /// Construct a bus with one channel per [`EventTopic::ALL`].
+    /// Channels are pre-allocated so `publish` never has to grow
+    /// the map under contention; lookup is a single HashMap hit
+    /// keyed by the event's topic.
     pub fn new() -> Self {
-        let (sender, _) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
-        Self { sender }
+        let mut senders = HashMap::with_capacity(EventTopic::ALL.len());
+        for topic in EventTopic::ALL {
+            let (sender, _) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
+            senders.insert(*topic, sender);
+        }
+        Self { senders }
     }
 
-    /// Publish an event. Returns `Ok(receiver_count)` so callers
-    /// that care can log "no subscribers" cases; the most common
-    /// shape is fire-and-forget.
+    /// Publish an event to the matching topic's channel only.
+    /// Returns the number of live receivers on that topic
+    /// (`0` when the event evaporates with no listener — not an
+    /// error condition for a notification bus).
+    ///
+    /// Panics in debug if a topic somehow has no backing channel
+    /// (would mean [`EventTopic::ALL`] missed a variant); in
+    /// release the missing-key branch silently drops the event.
     pub fn publish(&self, event: Event) -> usize {
-        // `broadcast::send` returns Err only when there are no
-        // subscribers — that's not an error condition for a
-        // notification bus, the event simply has no listener and
-        // evaporates.
-        self.sender.send(event).unwrap_or(0)
+        let topic = event.topic();
+        let Some(sender) = self.senders.get(&topic) else {
+            debug_assert!(false, "EventBus: missing channel for topic {topic:?}");
+            return 0;
+        };
+        sender.send(event).unwrap_or(0)
     }
 
-    pub fn subscribe(&self) -> broadcast::Receiver<Event> {
-        self.sender.subscribe()
+    /// Subscribe to events on a single topic. Yields the topic's
+    /// dedicated `Receiver`; consumers see only events whose
+    /// `topic()` equals the requested one — no per-event filter
+    /// loop in the subscriber needed.
+    pub fn subscribe(&self, topic: EventTopic) -> broadcast::Receiver<Event> {
+        // The map is initialised with every `EventTopic::ALL` entry,
+        // so the lookup is infallible by construction. A panic here
+        // would mean the enum-vs-ALL drift the constructor's
+        // assertion above guards against has slipped.
+        self.senders
+            .get(&topic)
+            .expect("EventBus: missing channel for topic — see EventTopic::ALL")
+            .subscribe()
     }
 
-    /// Live receiver count. Diagnostic only — callers MUST NOT gate
-    /// publish on subscriber presence (a late subscriber would
-    /// then miss the bootstrap event).
+    /// Live receiver count summed across every topic. Diagnostic
+    /// only — callers MUST NOT gate `publish` on subscriber
+    /// presence (a late subscriber would then miss the bootstrap
+    /// event).
     pub fn subscriber_count(&self) -> usize {
-        self.sender.receiver_count()
+        self.senders.values().map(|s| s.receiver_count()).sum()
+    }
+
+    /// Live receiver count for a single topic. Used by tests + the
+    /// future "no subscribers, dropping" log line a noisy actor
+    /// might want to emit before a publish.
+    #[allow(dead_code)] // documented surface, not yet called outside tests
+    pub fn subscriber_count_for(&self, topic: EventTopic) -> usize {
+        self.senders
+            .get(&topic)
+            .map(|s| s.receiver_count())
+            .unwrap_or(0)
     }
 }
 
@@ -623,7 +695,7 @@ mod tests {
     #[tokio::test]
     async fn echo_round_trip() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(EventTopic::Diagnostics);
         bus.publish(Event::Echoed {
             payload: "hello".into(),
         });
@@ -637,7 +709,7 @@ mod tests {
     #[tokio::test]
     async fn topic_filter() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(EventTopic::Diagnostics);
         bus.publish(Event::Echoed {
             payload: "x".into(),
         });
@@ -1058,8 +1130,8 @@ mod tests {
     #[tokio::test]
     async fn multi_subscriber_each_receives_clone() {
         let bus = EventBus::new();
-        let mut a = bus.subscribe();
-        let mut b = bus.subscribe();
+        let mut a = bus.subscribe(EventTopic::Diagnostics);
+        let mut b = bus.subscribe(EventTopic::Diagnostics);
         bus.publish(Event::Echoed {
             payload: "hi".into(),
         });
@@ -1078,9 +1150,9 @@ mod tests {
     fn subscriber_count_reflects_live_receivers() {
         let bus = EventBus::new();
         assert_eq!(bus.subscriber_count(), 0);
-        let _a = bus.subscribe();
+        let _a = bus.subscribe(EventTopic::Diagnostics);
         assert_eq!(bus.subscriber_count(), 1);
-        let b = bus.subscribe();
+        let b = bus.subscribe(EventTopic::Diagnostics);
         assert_eq!(bus.subscriber_count(), 2);
         drop(b);
         assert_eq!(bus.subscriber_count(), 1);
@@ -1089,8 +1161,8 @@ mod tests {
     #[test]
     fn publish_returns_subscriber_count_at_send_time() {
         let bus = EventBus::new();
-        let _a = bus.subscribe();
-        let _b = bus.subscribe();
+        let _a = bus.subscribe(EventTopic::Diagnostics);
+        let _b = bus.subscribe(EventTopic::Diagnostics);
         let n = bus.publish(Event::Echoed {
             payload: "x".into(),
         });
@@ -1100,7 +1172,7 @@ mod tests {
     #[tokio::test]
     async fn slow_subscriber_lags_without_blocking_publisher() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(EventTopic::Diagnostics);
         // Overflow the channel — broadcast::channel(EVENT_CHANNEL_CAPACITY)
         // drops the slowest receiver's oldest events. The publisher
         // never blocks; the slow receiver gets a Lagged error on the
@@ -1150,7 +1222,7 @@ mod tests {
     #[tokio::test]
     async fn dispatch_noop_echo_publishes_echoed_event() {
         let app = crate::app::init();
-        let mut rx = app.bus.subscribe();
+        let mut rx = app.bus.subscribe(EventTopic::Diagnostics);
         dispatch(Command::NoopEcho {
             payload: "ping".into(),
         })
@@ -1170,7 +1242,7 @@ mod tests {
     #[tokio::test]
     async fn dispatch_autolock_set_timeout_publishes_timeout_changed() {
         let app = crate::app::init();
-        let mut rx = app.bus.subscribe();
+        let mut rx = app.bus.subscribe(EventTopic::AutoLock);
         dispatch(Command::AutoLockSetTimeout { minutes: 7 })
             .await
             .expect("dispatch");
@@ -1187,7 +1259,7 @@ mod tests {
         let app = crate::app::init();
         // Prime a non-zero timeout so the lock is meaningful (zero
         // timeout machine path is a no-op on lock request).
-        let mut rx = app.bus.subscribe();
+        let mut rx = app.bus.subscribe(EventTopic::AutoLock);
         dispatch(Command::AutoLockSetTimeout { minutes: 5 })
             .await
             .expect("set timeout");
@@ -1206,7 +1278,7 @@ mod tests {
     #[tokio::test]
     async fn dispatch_autolock_unlock_publishes_unlocked() {
         let app = crate::app::init();
-        let mut rx = app.bus.subscribe();
+        let mut rx = app.bus.subscribe(EventTopic::AutoLock);
         dispatch(Command::AutoLockUnlock).await.expect("dispatch");
         let ev = next_matching(&mut rx, |e| matches!(e, Event::AutoLockUnlocked)).await;
         assert_eq!(ev.topic(), EventTopic::AutoLock);
@@ -1248,7 +1320,7 @@ mod tests {
         .expect("dispatch");
         // Probe the bus briefly; expect no `KnownHostPromptResolved`
         // for our ghost id within a tight deadline.
-        let mut rx = app.bus.subscribe();
+        let mut rx = app.bus.subscribe(EventTopic::KnownHosts);
         let r = tokio::time::timeout(std::time::Duration::from_millis(50), async {
             loop {
                 match rx.recv().await {

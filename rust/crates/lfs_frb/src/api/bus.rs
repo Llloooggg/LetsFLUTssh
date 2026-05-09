@@ -730,14 +730,14 @@ pub async fn bus_dispatch(command: BusCommand) -> Result<(), String> {
 /// auto-detaches. No explicit unsubscribe is needed.
 pub async fn bus_subscribe(topic: BusTopic, sink: StreamSink<BusEvent>) -> Result<(), String> {
     let app = lfs_core::app::instance();
-    let mut rx = app.bus.subscribe();
     let want_topic: lfs_core::bus::EventTopic = topic.into();
+    // Subscribe to the topic-scoped channel directly — the per-topic
+    // EventBus shape means we never see events for other topics, so
+    // the prior `event.topic() != want_topic` filter loop is gone.
+    let mut rx = app.bus.subscribe(want_topic);
     loop {
         match rx.recv().await {
             Ok(event) => {
-                if event.topic() != want_topic {
-                    continue;
-                }
                 if sink.add(BusEvent::from_core(event)).is_err() {
                     break;
                 }

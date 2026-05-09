@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn set_timeout_publishes_event() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(crate::bus::EventTopic::AutoLock);
         let m = AutoLockMachine::new();
         m.set_timeout_minutes(5, &bus);
         assert_eq!(m.timeout_minutes(), 5);
@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn unlock_when_already_unlocked_is_idempotent() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(crate::bus::EventTopic::AutoLock);
         let m = AutoLockMachine::new();
         m.unlock(&bus);
         assert!(rx.try_recv().is_err(), "no event when not locked");
@@ -324,7 +324,7 @@ mod tests {
         use std::sync::atomic::{AtomicU32, Ordering};
         let counter = Arc::new(AtomicU32::new(0));
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(crate::bus::EventTopic::AutoLock);
         let m = AutoLockMachine::new();
         let c2 = counter.clone();
         m.set_lock_action(Arc::new(move || {
@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn unlock_after_lock_publishes_unlocked() {
         let bus = EventBus::new();
-        let mut rx = bus.subscribe();
+        let mut rx = bus.subscribe(crate::bus::EventTopic::AutoLock);
         let m = AutoLockMachine::new();
         m.set_lock_action(Arc::new(|| {}));
         m.request_lock(&bus);
