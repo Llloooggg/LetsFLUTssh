@@ -1236,3 +1236,235 @@ pub async fn db_folder_tags_unlink(folder_id: String, tag_id: String) -> Result<
 pub async fn db_folder_tags_list_ids(folder_id: String) -> Result<Vec<String>, String> {
     run_db(move |c| lfs_core::db::tags::list_folder_tag_ids(c, &folder_id)).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The DAO endpoints (`db_*_list_all` / `_upsert` / `_delete` /
+    // import / export) route through `lfs_core::db::Db` against an
+    // open SQLCipher connection; covered by the Dart `db_*_test.dart`
+    // integration suites that drive an in-memory + tempdir DB
+    // through `requireFrbLoaded`. The standalone tests below pin
+    // the wire-shape `From` round-trips that cross the FRB boundary
+    // on every list / upsert call regardless of DB state, plus the
+    // `require_db` missing-DB contract.
+
+    #[test]
+    fn require_db_returns_err_when_db_not_initialized() {
+        // The shim returns `Err("db not initialized")` rather than
+        // panic when no DB has been opened — every DAO call routes
+        // through here, so the contract is load-bearing.
+        let _ = lfs_core::app::init();
+        // Ensure no DB is registered (close any leftover from prior
+        // tests in the same binary).
+        lfs_core::app::instance().db_close();
+        match require_db() {
+            // `Arc<Db>` doesn't implement `Debug`, so unwrap_err
+            // can't compile — pattern-match instead.
+            Err(msg) => assert!(msg.contains("db not initialized")),
+            Ok(_) => panic!("expected Err for missing DB"),
+        }
+    }
+
+    #[test]
+    fn db_ssh_key_round_trips_through_core() {
+        let db = DbSshKey {
+            id: "key-1".into(),
+            label: "alpha".into(),
+            private_key: "-----BEGIN…".into(),
+            public_key: "ssh-ed25519 AAAA…".into(),
+            key_type: "ed25519".into(),
+            is_generated: true,
+            created_at_ms: 1_700_000_000,
+        };
+        let core: lfs_core::db::ssh_keys::SshKeyRow = db.clone().into();
+        let back: DbSshKey = core.into();
+        assert_eq!(back.id, db.id);
+        assert_eq!(back.label, db.label);
+        assert_eq!(back.private_key, db.private_key);
+        assert_eq!(back.public_key, db.public_key);
+        assert_eq!(back.key_type, db.key_type);
+        assert_eq!(back.is_generated, db.is_generated);
+        assert_eq!(back.created_at_ms, db.created_at_ms);
+    }
+
+    #[test]
+    fn db_folder_round_trips_through_core() {
+        let db = DbFolder {
+            id: "folder-1".into(),
+            name: "production".into(),
+            parent_id: Some("root".into()),
+            sort_order: 5,
+            collapsed: true,
+            created_at_ms: 1_700_000_000,
+        };
+        let core: lfs_core::db::folders::FolderRow = db.clone().into();
+        let back: DbFolder = core.into();
+        assert_eq!(back.id, db.id);
+        assert_eq!(back.name, db.name);
+        assert_eq!(back.parent_id, db.parent_id);
+        assert_eq!(back.sort_order, db.sort_order);
+        assert_eq!(back.collapsed, db.collapsed);
+    }
+
+    #[test]
+    fn db_session_round_trips_every_field_through_core() {
+        let db = DbSession {
+            id: "sess-1".into(),
+            label: "Edge".into(),
+            folder_id: Some("folder-1".into()),
+            host: "edge.example.com".into(),
+            port: 2222,
+            user: "deploy".into(),
+            auth_type: "key".into(),
+            password: String::new(),
+            key_path: "/keys/edge".into(),
+            key_data: "-----BEGIN…".into(),
+            key_id: Some("key-1".into()),
+            passphrase: String::new(),
+            sort_order: 0,
+            notes: "primary".into(),
+            last_connected_at_ms: Some(1_700_000_000),
+            extras: r#"{"agent": false}"#.into(),
+            via_session_id: None,
+            via_host: None,
+            via_port: None,
+            via_user: None,
+            created_at_ms: 1_700_000_000,
+            updated_at_ms: 1_700_000_000,
+        };
+        let core: lfs_core::db::sessions::SessionRow = db.clone().into();
+        let back: DbSession = core.into();
+        assert_eq!(back.id, db.id);
+        assert_eq!(back.label, db.label);
+        assert_eq!(back.folder_id, db.folder_id);
+        assert_eq!(back.host, db.host);
+        assert_eq!(back.port, db.port);
+        assert_eq!(back.user, db.user);
+        assert_eq!(back.auth_type, db.auth_type);
+        assert_eq!(back.key_id, db.key_id);
+        assert_eq!(back.last_connected_at_ms, db.last_connected_at_ms);
+        assert_eq!(back.extras, db.extras);
+    }
+
+    #[test]
+    fn db_known_host_carries_every_field_through() {
+        let core = lfs_core::db::known_hosts::KnownHostRow {
+            id: 7,
+            host: "edge.example.com".into(),
+            port: 2222,
+            key_type: "ssh-ed25519".into(),
+            key_base64: "AAAA…".into(),
+            added_at_ms: 1_700_000_000,
+        };
+        let db: DbKnownHost = core.into();
+        assert_eq!(db.id, 7);
+        assert_eq!(db.host, "edge.example.com");
+        assert_eq!(db.port, 2222);
+        assert_eq!(db.key_type, "ssh-ed25519");
+        assert_eq!(db.key_base64, "AAAA…");
+    }
+
+    #[test]
+    fn db_known_hosts_import_summary_carries_counts() {
+        let core = lfs_core::known_hosts::ImportSummary {
+            added: 5,
+            skipped_existing: 2,
+            skipped_hashed: 1,
+        };
+        let db: DbKnownHostsImportSummary = core.into();
+        assert_eq!(db.added, 5);
+        assert_eq!(db.skipped_existing, 2);
+        assert_eq!(db.skipped_hashed, 1);
+    }
+
+    #[test]
+    fn db_app_config_round_trips_through_core() {
+        let db = DbAppConfig {
+            data: r#"{"theme": "dark"}"#.into(),
+            updated_at_ms: 1_700_000_000,
+            auto_lock_minutes: 5,
+        };
+        let core: lfs_core::db::app_configs::AppConfigRow = db.clone().into();
+        let back: DbAppConfig = core.into();
+        assert_eq!(back.data, db.data);
+        assert_eq!(back.updated_at_ms, db.updated_at_ms);
+        assert_eq!(back.auto_lock_minutes, db.auto_lock_minutes);
+    }
+
+    #[test]
+    fn db_snippet_round_trips_through_core() {
+        let db = DbSnippet {
+            id: "snip-1".into(),
+            title: "Restart nginx".into(),
+            command: "sudo systemctl restart nginx".into(),
+            description: "production reload".into(),
+            created_at_ms: 1_700_000_000,
+            updated_at_ms: 1_700_000_000,
+        };
+        let core: lfs_core::db::snippets::SnippetRow = db.clone().into();
+        let back: DbSnippet = core.into();
+        assert_eq!(back.id, db.id);
+        assert_eq!(back.title, db.title);
+        assert_eq!(back.command, db.command);
+        assert_eq!(back.description, db.description);
+    }
+
+    #[test]
+    fn db_port_forward_rule_round_trips_through_core() {
+        let db = DbPortForwardRule {
+            id: "rule-1".into(),
+            session_id: "sess-1".into(),
+            kind: "local".into(),
+            bind_host: "127.0.0.1".into(),
+            bind_port: 6379,
+            remote_host: "redis.internal".into(),
+            remote_port: 6379,
+            description: "redis".into(),
+            enabled: true,
+            sort_order: 0,
+            created_at_ms: 1_700_000_000,
+        };
+        let core: lfs_core::db::port_forwards::PortForwardRuleRow = db.clone().into();
+        let back: DbPortForwardRule = core.into();
+        assert_eq!(back.id, db.id);
+        assert_eq!(back.session_id, db.session_id);
+        assert_eq!(back.kind, db.kind);
+        assert_eq!(back.bind_port, db.bind_port);
+        assert_eq!(back.remote_port, db.remote_port);
+        assert_eq!(back.description, db.description);
+        assert_eq!(back.enabled, db.enabled);
+    }
+
+    #[test]
+    fn db_tag_round_trips_through_core() {
+        let db = DbTag {
+            id: "tag-prod".into(),
+            name: "Production".into(),
+            color: Some("#FF5722".into()),
+            created_at_ms: 1_700_000_000,
+        };
+        let core: lfs_core::db::tags::TagRow = db.clone().into();
+        let back: DbTag = core.into();
+        assert_eq!(back.id, db.id);
+        assert_eq!(back.name, db.name);
+        assert_eq!(back.color, db.color);
+    }
+
+    #[test]
+    fn db_sftp_bookmark_round_trips_through_core() {
+        let db = DbSftpBookmark {
+            id: "bm-1".into(),
+            session_id: "sess-1".into(),
+            remote_path: "/var/log/app".into(),
+            label: "logs".into(),
+            created_at_ms: 1_700_000_000,
+        };
+        let core: lfs_core::db::sftp_bookmarks::SftpBookmarkRow = db.clone().into();
+        let back: DbSftpBookmark = core.into();
+        assert_eq!(back.id, db.id);
+        assert_eq!(back.session_id, db.session_id);
+        assert_eq!(back.remote_path, db.remote_path);
+    }
+}

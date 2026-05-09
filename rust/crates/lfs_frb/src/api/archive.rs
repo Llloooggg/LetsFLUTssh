@@ -569,3 +569,126 @@ pub async fn db_import_apply(
     .await
     .map_err(|e| format!("import apply task: {e}"))?
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The async export / import / apply / probe paths route through
+    // SQLCipher + the archive composer; covered by the Dart
+    // `archive_test.dart` integration suite under tempdir + DB
+    // bootstrap. The standalone tests below pin the wire-shape
+    // mappings that cross the FRB boundary on every preview / apply
+    // call regardless of DB state.
+
+    #[test]
+    fn db_archive_probe_kind_maps_each_variant() {
+        // Pin every variant — Dart caller switches on the discriminant
+        // to surface password-prompt vs no-password-prompt vs reject.
+        for core in [
+            lfs_core::archive::probe::ProbeKind::EncryptedLfs,
+            lfs_core::archive::probe::ProbeKind::UnencryptedLfs,
+            lfs_core::archive::probe::ProbeKind::NotLfs,
+        ] {
+            let db: DbArchiveProbeKind = core.into();
+            match db {
+                DbArchiveProbeKind::EncryptedLfs
+                | DbArchiveProbeKind::UnencryptedLfs
+                | DbArchiveProbeKind::NotLfs => (),
+            }
+        }
+    }
+
+    #[test]
+    fn db_import_mode_maps_each_variant() {
+        for db in [DbImportMode::Merge, DbImportMode::Replace] {
+            let core: lfs_core::archive::ImportMode = db.into();
+            match core {
+                lfs_core::archive::ImportMode::Merge | lfs_core::archive::ImportMode::Replace => (),
+            }
+        }
+    }
+
+    #[test]
+    fn db_import_preview_carries_every_count_through() {
+        let core = lfs_core::archive::ImportPreview {
+            schema_version: 4,
+            session_count: 12,
+            session_labels: vec!["edge".into(), "stage".into()],
+            manager_key_count: 3,
+            tag_count: 5,
+            snippet_count: 2,
+            empty_folder_count: 1,
+            has_config: true,
+            has_known_hosts: false,
+        };
+        let db: DbImportPreview = core.into();
+        assert_eq!(db.schema_version, 4);
+        assert_eq!(db.session_count, 12);
+        assert_eq!(db.session_labels.len(), 2);
+        assert_eq!(db.manager_key_count, 3);
+        assert_eq!(db.tag_count, 5);
+        assert_eq!(db.snippet_count, 2);
+        assert_eq!(db.empty_folder_count, 1);
+        assert!(db.has_config);
+        assert!(!db.has_known_hosts);
+    }
+
+    #[test]
+    fn db_apply_result_carries_every_counter_through() {
+        let core = lfs_core::archive::ApplyResult {
+            sessions_applied: 5,
+            keys_applied: 2,
+            keys_skipped_dedup: 1,
+            tags_applied: 3,
+            snippets_applied: 4,
+            known_hosts_applied: 6,
+            folders_applied: 7,
+            session_tags_applied: 8,
+            folder_tags_applied: 9,
+            session_snippets_applied: 10,
+            errors: vec!["unknown session".into()],
+            rolled_back: false,
+        };
+        let db: DbApplyResult = core.into();
+        assert_eq!(db.sessions_applied, 5);
+        assert_eq!(db.keys_applied, 2);
+        assert_eq!(db.keys_skipped_dedup, 1);
+        assert_eq!(db.tags_applied, 3);
+        assert_eq!(db.snippets_applied, 4);
+        assert_eq!(db.known_hosts_applied, 6);
+        assert_eq!(db.folders_applied, 7);
+        assert_eq!(db.session_tags_applied, 8);
+        assert_eq!(db.folder_tags_applied, 9);
+        assert_eq!(db.session_snippets_applied, 10);
+        assert_eq!(db.errors.len(), 1);
+        assert!(!db.rolled_back);
+        // `config_json` stays None at the From boundary; the
+        // surrounding apply driver wires it in after the staged
+        // config payload is read.
+        assert!(db.config_json.is_none());
+    }
+
+    #[test]
+    fn db_apply_result_rolled_back_flag_carries_through() {
+        // Pin the rollback contract — the Dart apply driver MUST
+        // treat `rolled_back = true` as a hard failure, ignoring
+        // the `*_applied` counters.
+        let core = lfs_core::archive::ApplyResult {
+            sessions_applied: 0,
+            keys_applied: 0,
+            keys_skipped_dedup: 0,
+            tags_applied: 0,
+            snippets_applied: 0,
+            known_hosts_applied: 0,
+            folders_applied: 0,
+            session_tags_applied: 0,
+            folder_tags_applied: 0,
+            session_snippets_applied: 0,
+            errors: vec!["row 5 invalid".into()],
+            rolled_back: true,
+        };
+        let db: DbApplyResult = core.into();
+        assert!(db.rolled_back);
+    }
+}

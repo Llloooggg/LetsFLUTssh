@@ -97,3 +97,105 @@ pub async fn connection_prepare_auth(input: DbPrepareAuthInput) -> Result<DbPrep
         .await
         .map(DbPreparedAuth::from)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The async `connection_prepare_auth` endpoint stages secrets
+    // through the SQLCipher session store; covered by the Dart
+    // `auth_compose_test.dart` integration suite. The standalone
+    // tests below pin the wire-shape `From` mappings + the
+    // tagged-enum `DbPreparedAuthRef` round-trips that cross the
+    // FRB boundary on every connect attempt.
+
+    #[test]
+    fn db_prepare_auth_input_carries_every_field_through() {
+        let db = DbPrepareAuthInput {
+            session_id: Some("sess-1".into()),
+            key_id: "key-x".into(),
+            key_data: "-----BEGIN…".into(),
+            password: "hunter2".into(),
+            passphrase: "pass-x".into(),
+        };
+        let core: auth_compose::PrepareAuthInput = db.into();
+        assert_eq!(core.session_id.as_deref(), Some("sess-1"));
+        assert_eq!(core.key_id, "key-x");
+        assert_eq!(core.key_data, "-----BEGIN…");
+        assert_eq!(core.password, "hunter2");
+        assert_eq!(core.passphrase, "pass-x");
+    }
+
+    #[test]
+    fn db_prepared_auth_password_variant_carries_secret_id() {
+        let core = auth_compose::PreparedAuth {
+            auth: auth_compose::PreparedAuthRef::Password {
+                secret_id: "sid-pw".into(),
+            },
+            transient_secret_ids: vec!["sid-pw".into()],
+        };
+        let db: DbPreparedAuth = core.into();
+        match db.auth {
+            DbPreparedAuthRef::Password { secret_id } => assert_eq!(secret_id, "sid-pw"),
+            _ => panic!("expected Password variant"),
+        }
+        assert_eq!(db.transient_secret_ids, vec!["sid-pw".to_string()]);
+    }
+
+    #[test]
+    fn db_prepared_auth_pubkey_variant_with_passphrase_carries_both_ids() {
+        let core = auth_compose::PreparedAuth {
+            auth: auth_compose::PreparedAuthRef::Pubkey {
+                key_secret_id: "sid-key".into(),
+                passphrase_secret_id: Some("sid-phr".into()),
+            },
+            transient_secret_ids: vec!["sid-phr".into()],
+        };
+        let db: DbPreparedAuth = core.into();
+        match db.auth {
+            DbPreparedAuthRef::Pubkey {
+                key_secret_id,
+                passphrase_secret_id,
+            } => {
+                assert_eq!(key_secret_id, "sid-key");
+                assert_eq!(passphrase_secret_id.as_deref(), Some("sid-phr"));
+            }
+            _ => panic!("expected Pubkey variant"),
+        }
+    }
+
+    #[test]
+    fn db_prepared_auth_pubkey_variant_without_passphrase_carries_none() {
+        let core = auth_compose::PreparedAuth {
+            auth: auth_compose::PreparedAuthRef::Pubkey {
+                key_secret_id: "sid-key-bare".into(),
+                passphrase_secret_id: None,
+            },
+            transient_secret_ids: Vec::new(),
+        };
+        let db: DbPreparedAuth = core.into();
+        match db.auth {
+            DbPreparedAuthRef::Pubkey {
+                passphrase_secret_id,
+                ..
+            } => assert!(passphrase_secret_id.is_none()),
+            _ => panic!("expected Pubkey variant"),
+        }
+        assert!(db.transient_secret_ids.is_empty());
+    }
+
+    #[test]
+    fn db_prepare_auth_input_round_trips_session_id_none() {
+        // Quick-connect path — no session_id pinned. Pin the
+        // contract that None propagates verbatim.
+        let db = DbPrepareAuthInput {
+            session_id: None,
+            key_id: "key".into(),
+            key_data: String::new(),
+            password: "pw".into(),
+            passphrase: String::new(),
+        };
+        let core: auth_compose::PrepareAuthInput = db.into();
+        assert!(core.session_id.is_none());
+    }
+}
