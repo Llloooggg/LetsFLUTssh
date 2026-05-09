@@ -14,6 +14,47 @@
 //! sees both `lfs_core` and `lfs_os_security`).
 
 use lfs_core::security::hardware_tier_vault as vault;
+use lfs_os_security::hardware_tier_vault::HardwareVaultError;
+
+/// Map a typed [`HardwareVaultError`] to the matching FRB envelope
+/// kind (Apple / Android / Windows path). Pre-fix shape collapsed
+/// every variant to `kind=vault`, which left the Dart UI unable to
+/// distinguish "envelope corrupt — run reset cascade" (a destructive
+/// recovery path that wipes the user's stored DB key) from a
+/// recoverable backend error (wrong PIN, missing file, TPM revoked).
+/// Now `Corrupt` routes to `kind=vault_corrupt` and the Dart side
+/// gates the reset cascade on that discriminator only.
+fn map_hw_vault_error(err: HardwareVaultError) -> String {
+    use crate::api::frb_err::{kind, wire};
+    let detail = err.to_string();
+    let kind_str = match err {
+        HardwareVaultError::Corrupt => kind::VAULT_CORRUPT,
+        HardwareVaultError::PlatformUnsupported => kind::VAULT_PLATFORM_UNSUPPORTED,
+        HardwareVaultError::Backend(_) | HardwareVaultError::Io(_) => kind::VAULT,
+    };
+    wire(kind_str, &detail)
+}
+
+/// Sibling mapper for the Linux `LinuxVaultError` variant set —
+/// Linux is its own orchestrator under `lfs_core` rather than
+/// `lfs_os_security`, so the variants are different (e.g.
+/// `TpmUnavailable(String)` instead of `PlatformUnsupported`).
+/// Same routing intent: `Corrupt` → `vault_corrupt` so the Dart
+/// reset cascade fires only on disk-shape failure, never on a
+/// recoverable backend / IO error.
+#[cfg(target_os = "linux")]
+fn map_linux_vault_error(err: vault::linux::LinuxVaultError) -> String {
+    use crate::api::frb_err::{kind, wire};
+    let detail = err.to_string();
+    let kind_str = match err {
+        vault::linux::LinuxVaultError::Corrupt(_) => kind::VAULT_CORRUPT,
+        vault::linux::LinuxVaultError::TpmUnavailable(_) => kind::VAULT_PLATFORM_UNSUPPORTED,
+        vault::linux::LinuxVaultError::Backend(_) | vault::linux::LinuxVaultError::Io(_) => {
+            kind::VAULT
+        }
+    };
+    wire(kind_str, &detail)
+}
 
 /// Encode the salt + sealed-blob pair as the JSON envelope written
 /// to `hardware_vault.bin` on Linux. Caller writes the returned
@@ -246,7 +287,7 @@ fn dispatch_store(
     #[cfg(target_os = "linux")]
     {
         lfs_core::security::hardware_tier_vault::linux::store(support_dir, db_key, salt, pin_hmac)
-            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+            .map_err(map_linux_vault_error)
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -256,7 +297,7 @@ fn dispatch_store(
         // targets — caller's `_writeSaltFile` handles the half.
         let _ = salt;
         lfs_os_security::hardware_tier_vault::store(support_dir, db_key, pin_hmac)
-            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+            .map_err(map_hw_vault_error)
     }
 }
 
@@ -264,12 +305,12 @@ fn dispatch_read(support_dir: &str, pin_hmac: &[u8]) -> Result<Option<Vec<u8>>, 
     #[cfg(target_os = "linux")]
     {
         lfs_core::security::hardware_tier_vault::linux::read(support_dir, pin_hmac)
-            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+            .map_err(map_linux_vault_error)
     }
     #[cfg(not(target_os = "linux"))]
     {
         lfs_os_security::hardware_tier_vault::read(support_dir, pin_hmac)
-            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+            .map_err(map_hw_vault_error)
     }
 }
 
@@ -277,12 +318,11 @@ fn dispatch_clear(support_dir: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         lfs_core::security::hardware_tier_vault::linux::clear(support_dir)
-            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+            .map_err(map_linux_vault_error)
     }
     #[cfg(not(target_os = "linux"))]
     {
-        lfs_os_security::hardware_tier_vault::clear(support_dir)
-            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+        lfs_os_security::hardware_tier_vault::clear(support_dir).map_err(map_hw_vault_error)
     }
 }
 
@@ -295,7 +335,7 @@ pub async fn hardware_tier_vault_store_biometric_password(
             &support_dir,
             &password_bytes,
         )
-        .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+        .map_err(map_hw_vault_error)
     })
     .await
     .map_err(|e| format!("hw_vault store_bio_pw join: {e}"))?
@@ -306,7 +346,7 @@ pub async fn hardware_tier_vault_read_biometric_password(
 ) -> Result<Option<Vec<u8>>, String> {
     tokio::task::spawn_blocking(move || {
         lfs_os_security::hardware_tier_vault::read_biometric_password(&support_dir)
-            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+            .map_err(map_hw_vault_error)
     })
     .await
     .map_err(|e| format!("hw_vault read_bio_pw join: {e}"))?
@@ -317,7 +357,7 @@ pub async fn hardware_tier_vault_clear_biometric_password(
 ) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         lfs_os_security::hardware_tier_vault::clear_biometric_password(&support_dir)
-            .map_err(|e| crate::api::frb_err::wire_str(crate::api::frb_err::kind::VAULT, &e))
+            .map_err(map_hw_vault_error)
     })
     .await
     .map_err(|e| format!("hw_vault clear_bio_pw join: {e}"))?

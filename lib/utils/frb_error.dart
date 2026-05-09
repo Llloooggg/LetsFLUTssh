@@ -69,6 +69,19 @@ class FrbError {
   bool get isHostKeyRejected => kind == 'host_key_rejected';
   bool get isTimeout => kind == 'timeout';
 
+  /// Hardware-vault on-disk envelope failed length-prefix sanity
+  /// (truncated header, length out of range, JSON malformed). The
+  /// caller MUST trigger the documented vault-reset cascade —
+  /// recoverable backend errors (wrong PIN, missing file, TPM
+  /// revoked) surface as the generic `kind == 'vault'` instead.
+  bool get isVaultCorrupt => kind == 'vault_corrupt';
+
+  /// Hardware vault unavailable on this host (Linux without TPM2,
+  /// probe-rejected backend). Caller falls back to the
+  /// master-password unlock; UI shows "hardware tier unavailable"
+  /// rather than a security warning.
+  bool get isVaultPlatformUnsupported => kind == 'vault_platform_unsupported';
+
   @override
   String toString() => detail.isEmpty ? '[$kind]' : '[$kind] $detail';
 }

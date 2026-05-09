@@ -89,6 +89,8 @@ void main() {
         'passphrase_incorrect': _isPassphraseIncorrect,
         'host_key_rejected': _isHostKeyRejected,
         'timeout': _isTimeout,
+        'vault_corrupt': _isVaultCorrupt,
+        'vault_platform_unsupported': _isVaultPlatformUnsupported,
       };
       for (final entry in cases.entries) {
         final matched = FrbError(kind: entry.key, detail: '');
@@ -117,6 +119,18 @@ void main() {
       expect(generic.isPassphraseIncorrect, isFalse);
       expect(generic.isHostKeyRejected, isFalse);
       expect(generic.isTimeout, isFalse);
+      expect(generic.isVaultCorrupt, isFalse);
+      expect(generic.isVaultPlatformUnsupported, isFalse);
+    });
+
+    test('vault_corrupt predicate gates the destructive reset cascade — '
+        'verify the discriminator stays distinct from the recoverable '
+        'kind=vault bucket', () {
+      const corrupt = FrbError(kind: 'vault_corrupt', detail: 'truncated header');
+      const recoverable = FrbError(kind: 'vault', detail: 'wrong PIN');
+      expect(corrupt.isVaultCorrupt, isTrue);
+      expect(recoverable.isVaultCorrupt, isFalse,
+          reason: 'kind=vault must NOT trigger reset — only vault_corrupt');
     });
   });
 
@@ -139,3 +153,5 @@ bool _isPassphraseRequired(FrbError e) => e.isPassphraseRequired;
 bool _isPassphraseIncorrect(FrbError e) => e.isPassphraseIncorrect;
 bool _isHostKeyRejected(FrbError e) => e.isHostKeyRejected;
 bool _isTimeout(FrbError e) => e.isTimeout;
+bool _isVaultCorrupt(FrbError e) => e.isVaultCorrupt;
+bool _isVaultPlatformUnsupported(FrbError e) => e.isVaultPlatformUnsupported;

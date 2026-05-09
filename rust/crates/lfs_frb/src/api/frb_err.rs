@@ -47,6 +47,18 @@ pub mod kind {
     pub const ARCHIVE: &str = "archive";
     pub const TRANSPORT: &str = "transport";
     pub const VAULT: &str = "vault";
+    /// On-disk vault envelope failed length-prefix sanity (truncated
+    /// header, length out of range). The Dart UI's
+    /// "vault corrupt — running reset cascade" branch routes off
+    /// this discriminator. Distinct from `VAULT` so a recoverable
+    /// backend error (wrong PIN, missing file) doesn't trigger the
+    /// destructive reset path.
+    pub const VAULT_CORRUPT: &str = "vault_corrupt";
+    /// Hardware vault not available on this platform (Linux without
+    /// TPM2, or a probe-rejected backend). Caller falls back to
+    /// the master-password path; UI shows the "hardware tier
+    /// unavailable" copy rather than a security warning.
+    pub const VAULT_PLATFORM_UNSUPPORTED: &str = "vault_platform_unsupported";
     pub const UPDATE: &str = "update";
     pub const PLATFORM: &str = "platform";
     pub const CRYPTO: &str = "crypto";
