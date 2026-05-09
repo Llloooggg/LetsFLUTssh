@@ -10,6 +10,7 @@ import 'app_dialog.dart';
 import 'app_divider.dart';
 import 'data_checkboxes.dart';
 import 'hover_region.dart';
+import 'toast.dart';
 import 'unified_export_controller.dart';
 import 'unified_export_models.dart';
 export 'unified_export_models.dart'
@@ -80,11 +81,10 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
 
   void _export() {
     if (!_ctrl.fitsInQr) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(S.of(context).qrTooManyForSingleCode),
-          duration: const Duration(seconds: 3),
-        ),
+      Toast.show(
+        context,
+        message: S.of(context).qrTooManyForSingleCode,
+        level: ToastLevel.warning,
       );
       return;
     }
@@ -127,7 +127,12 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     ),
                     Flexible(
                       child: Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 0),
+                        padding: const EdgeInsetsDirectional.fromSTEB(
+                          16,
+                          16,
+                          16,
+                          0,
+                        ),
                         child: SingleChildScrollView(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -155,7 +160,12 @@ class _UnifiedExportDialogState extends State<UnifiedExportDialog> {
                     // above — content scrolls under it instead of
                     // pushing it out of view.
                     Container(
-                      padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 12),
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        16,
+                        12,
+                        16,
+                        12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.bg1,
                         border: Border(

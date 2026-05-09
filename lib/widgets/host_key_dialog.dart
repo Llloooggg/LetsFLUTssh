@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../utils/sanitize.dart';
 import 'app_dialog.dart';
 import 'app_icon_button.dart';
+import 'toast.dart';
 
 /// Dialog shown when connecting to an unknown SSH host (TOFU).
 /// Displays the host fingerprint and asks the user to accept or reject.
@@ -159,11 +160,11 @@ class _HostKeyDialogWidget extends StatelessWidget {
                 icon: Icons.copy,
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: fingerprint));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(S.of(context).fingerprintCopied),
-                      duration: const Duration(seconds: 1),
-                    ),
+                  Toast.show(
+                    context,
+                    message: S.of(context).fingerprintCopied,
+                    level: ToastLevel.success,
+                    duration: const Duration(seconds: 1),
                   );
                 },
                 tooltip: S.of(context).copyFingerprint,
