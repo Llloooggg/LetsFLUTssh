@@ -183,15 +183,28 @@ fn default_client_config() -> Arc<client::Config> {
         mac::HMAC_SHA256,
     ]);
 
+    // Honour the user's `Settings → Preferences → Keep-alive
+    // interval` value (`AppConfig.keepalive_sec`). Non-zero ⇒
+    // russh sends `SSH_MSG_GLOBAL_REQUEST keepalive@openssh.com`
+    // every N seconds, mirroring OpenSSH `ServerAliveInterval`.
+    // Zero ⇒ no app-level keepalive; rely on the OS TCP layer
+    // (the documented carve-out for users who want OS-only
+    // dead-link detection). `keepalive_max` stays at russh's
+    // default 3, matching OpenSSH `ServerAliveCountMax`.
+    let keepalive_sec = read_keepalive_sec_from_config_store();
+    let keepalive_interval = if keepalive_sec > 0 {
+        Some(std::time::Duration::from_secs(keepalive_sec))
+    } else {
+        None
+    };
+
     Arc::new(Config {
         // No inactivity timeout — interactive SSH sessions sit idle
         // for arbitrary stretches between user keystrokes / shell
         // opens, and any cap tears the freshly-authenticated session
-        // down before the user reaches for the terminal pane. Lets
-        // the underlying TCP layer + the OS keepalive policy be the
-        // dead-link detector, mirroring an OpenSSH client without
-        // ServerAliveInterval set.
+        // down before the user reaches for the terminal pane.
         inactivity_timeout: None,
+        keepalive_interval,
         preferred: Preferred {
             key: host_keys,
             mac: macs,
@@ -199,6 +212,22 @@ fn default_client_config() -> Arc<client::Config> {
         },
         ..Config::default()
     })
+}
+
+/// Read `keepalive_sec` off the running config store. Returns
+/// the documented default (`30`) when the store has not been
+/// initialised yet (cold-start / test) or the value parses as
+/// negative (validator default kicks in).
+fn read_keepalive_sec_from_config_store() -> u64 {
+    use crate::config::AppConfig;
+    let Some(json) = crate::config_store::instance().get_json() else {
+        return AppConfig::default().ssh.keepalive_sec.max(0) as u64;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
+        return AppConfig::default().ssh.keepalive_sec.max(0) as u64;
+    };
+    let cfg = AppConfig::from_json_value(&value);
+    cfg.ssh.keepalive_sec.max(0) as u64
 }
 
 async fn open_handle_for_probe(host: &str, port: u16) -> Result<Handle<LfsHandler>, Error> {
