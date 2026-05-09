@@ -3,7 +3,7 @@
 //! AUTOINCREMENT so callers don't supply it on insert; lookups
 //! (and the unique-key conflict resolution) go by `(host, port)`.
 
-use rusqlite::{params, Connection};
+use rusqlite::params;
 
 use crate::error::Error;
 
@@ -28,8 +28,9 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<KnownHostRow> {
     })
 }
 
-pub fn list_all(conn: &Connection) -> Result<Vec<KnownHostRow>, Error> {
+pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<KnownHostRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT id, host, port, key_type, key_base64, added_at \
              FROM known_hosts ORDER BY host ASC, port ASC",
@@ -46,11 +47,12 @@ pub fn list_all(conn: &Connection) -> Result<Vec<KnownHostRow>, Error> {
 }
 
 pub fn get_by_host_port(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     host: &str,
     port: i64,
 ) -> Result<Option<KnownHostRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT id, host, port, key_type, key_base64, added_at \
              FROM known_hosts WHERE host = ?1 AND port = ?2",
@@ -70,24 +72,26 @@ pub fn get_by_host_port(
 /// `id` is irrelevant on conflict — we just refresh key material and
 /// timestamp. Returns the row's id (existing or newly-allocated).
 pub fn upsert_by_host_port(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     host: &str,
     port: i64,
     key_type: &str,
     key_base64: &str,
     added_at_ms: i64,
 ) -> Result<i64, Error> {
-    conn.execute(
-        "INSERT INTO known_hosts (host, port, key_type, key_base64, added_at) \
+    conn.raw()
+        .execute(
+            "INSERT INTO known_hosts (host, port, key_type, key_base64, added_at) \
          VALUES (?1, ?2, ?3, ?4, ?5) \
          ON CONFLICT(host, port) DO UPDATE SET \
            key_type = excluded.key_type, \
            key_base64 = excluded.key_base64, \
            added_at = excluded.added_at",
-        params![host, port, key_type, key_base64, added_at_ms],
-    )
-    .map_err(|e| Error::Db(format!("known_hosts upsert: {e}")))?;
+            params![host, port, key_type, key_base64, added_at_ms],
+        )
+        .map_err(|e| Error::Db(format!("known_hosts upsert: {e}")))?;
     let id = conn
+        .raw()
         .query_row(
             "SELECT id FROM known_hosts WHERE host = ?1 AND port = ?2",
             params![host, port],
@@ -97,15 +101,21 @@ pub fn upsert_by_host_port(
     Ok(id)
 }
 
-pub fn delete_by_host_port(conn: &Connection, host: &str, port: i64) -> Result<usize, Error> {
-    conn.execute(
-        "DELETE FROM known_hosts WHERE host = ?1 AND port = ?2",
-        params![host, port],
-    )
-    .map_err(|e| Error::Db(format!("known_hosts delete: {e}")))
+pub fn delete_by_host_port(
+    conn: &impl crate::db::DbAccess,
+    host: &str,
+    port: i64,
+) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "DELETE FROM known_hosts WHERE host = ?1 AND port = ?2",
+            params![host, port],
+        )
+        .map_err(|e| Error::Db(format!("known_hosts delete: {e}")))
 }
 
-pub fn clear_all(conn: &Connection) -> Result<usize, Error> {
-    conn.execute("DELETE FROM known_hosts", [])
+pub fn clear_all(conn: &impl crate::db::DbAccess) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM known_hosts", [])
         .map_err(|e| Error::Db(format!("known_hosts clear_all: {e}")))
 }

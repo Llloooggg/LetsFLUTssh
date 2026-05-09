@@ -1,6 +1,6 @@
 //! SftpBookmarks DAO. Mirrors `lib/core/db/dao/sftp_bookmark_dao.dart`.
 
-use rusqlite::{params, Connection};
+use rusqlite::params;
 
 use crate::error::Error;
 
@@ -24,10 +24,11 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SftpBookmarkRow> {
 }
 
 pub fn list_for_session(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     session_id: &str,
 ) -> Result<Vec<SftpBookmarkRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT id, session_id, remote_path, label, created_at \
              FROM sftp_bookmarks WHERE session_id = ?1 \
@@ -44,27 +45,29 @@ pub fn list_for_session(
     Ok(out)
 }
 
-pub fn upsert(conn: &Connection, row: &SftpBookmarkRow) -> Result<(), Error> {
-    conn.execute(
-        "INSERT INTO sftp_bookmarks (id, session_id, remote_path, label, created_at) \
+pub fn upsert(conn: &impl crate::db::DbAccess, row: &SftpBookmarkRow) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT INTO sftp_bookmarks (id, session_id, remote_path, label, created_at) \
          VALUES (?1, ?2, ?3, ?4, ?5) \
          ON CONFLICT(id) DO UPDATE SET \
            session_id = excluded.session_id, \
            remote_path = excluded.remote_path, \
            label = excluded.label",
-        params![
-            row.id,
-            row.session_id,
-            row.remote_path,
-            row.label,
-            row.created_at_ms,
-        ],
-    )
-    .map_err(|e| Error::Db(format!("sftp_bookmarks upsert: {e}")))?;
+            params![
+                row.id,
+                row.session_id,
+                row.remote_path,
+                row.label,
+                row.created_at_ms,
+            ],
+        )
+        .map_err(|e| Error::Db(format!("sftp_bookmarks upsert: {e}")))?;
     Ok(())
 }
 
-pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
-    conn.execute("DELETE FROM sftp_bookmarks WHERE id = ?1", params![id])
+pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM sftp_bookmarks WHERE id = ?1", params![id])
         .map_err(|e| Error::Db(format!("sftp_bookmarks delete: {e}")))
 }

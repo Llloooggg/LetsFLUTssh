@@ -35,23 +35,112 @@
 use std::path::Path;
 use std::sync::Mutex;
 
-// Re-exported as the public DAO closure parameter type. The
-// rusqlite ABI is intentionally part of the `lfs_core::db`
-// public surface: every DAO under `db/*.rs` calls `prepare`,
-// `query_row`, `transaction`, etc. directly, and the `run_db_*`
-// helpers in `lfs_frb::api::db` thread the type through their
-// `FnOnce(&Connection) -> Result<_, Error>` bound. A newtype
-// wrap would require either re-exposing every rusqlite method
-// as a pass-through (~40+ methods across `Connection` +
-// `Transaction`) or routing every DAO query through a typed
-// builder, neither of which carry daily benefit. The
-// alternative — `pub(crate) use` — would force `lfs_frb`'s
-// generic helpers to either inline into `lfs_core` or clone the
-// dispatch boilerplate per DAO; both regress the layer split.
-pub use rusqlite::Connection;
 use zeroize::Zeroizing;
 
 use crate::error::Error;
+
+/// Newtype wrap around `rusqlite::Connection` so the rusqlite ABI
+/// stays an implementation detail of the `lfs_core::db` module
+/// and never crosses the crate boundary. `lfs_frb`'s `run_db_*`
+/// helpers thread `&Connection` through their `FnOnce` bounds
+/// without seeing rusqlite types — a future swap of the storage
+/// backend (rusqlite-2, libsql, sqlx) needs to change only the
+/// inner field type and the DAO call sites inside `lfs_core::db`,
+/// not every consumer signature in `lfs_frb`.
+///
+/// DAO modules under `lfs_core::db::*` reach the underlying
+/// handle through [`Connection::inner`] / [`Connection::inner_mut`].
+/// Those accessors are `pub(crate)` — reachable from sibling DAO
+/// files but not from `lfs_frb` — so the only path that sees
+/// rusqlite directly is the layer that's tightly coupled to it
+/// by intent.
+pub struct Connection {
+    inner: rusqlite::Connection,
+}
+
+impl Connection {
+    /// Open a fresh handle to `path`. Internal — `Db::open` is the
+    /// production entry point + handles the SQLCipher PRAGMAs.
+    pub(crate) fn open(path: &Path) -> Result<Self, rusqlite::Error> {
+        Ok(Self {
+            inner: rusqlite::Connection::open(path)?,
+        })
+    }
+
+    /// In-memory handle. Used by `Db::from_raw_for_tests` and a
+    /// handful of unit-test fixtures that need a throw-away
+    /// connection without touching disk or SQLCipher.
+    #[cfg(test)]
+    pub fn open_in_memory() -> Result<Self, rusqlite::Error> {
+        Ok(Self {
+            inner: rusqlite::Connection::open_in_memory()?,
+        })
+    }
+
+    /// In-crate accessor for DAO modules. Returns the underlying
+    /// rusqlite handle so DAOs can call `prepare` / `execute` /
+    /// `query_row` / etc. directly — the methods we'd otherwise
+    /// have to forward one-by-one. Visibility is `pub(crate)` so
+    /// the rusqlite surface stays inside `lfs_core::db`.
+    pub(crate) fn inner(&self) -> &rusqlite::Connection {
+        &self.inner
+    }
+
+    /// Mutable variant of [`inner`] — needed by DAOs that scope a
+    /// `transaction()` (rusqlite returns a `Transaction` that
+    /// borrows the connection mutably).
+    pub(crate) fn inner_mut(&mut self) -> &mut rusqlite::Connection {
+        &mut self.inner
+    }
+
+    /// Inherent alias for [`DbAccess::raw`]. In-crate test fixtures
+    /// hold a concrete `&Connection` and call `conn.raw()` without
+    /// importing the trait; the inherent method shadows the trait
+    /// (Rust prefers inherent over trait) and resolves the same
+    /// way. DAO bodies that take `&impl DbAccess` keep going
+    /// through the trait method — this is a duplication for
+    /// ergonomic reasons, not a behaviour difference.
+    #[allow(dead_code)] // false positive: tests resolve through this inherent.
+    pub(crate) fn raw(&self) -> &rusqlite::Connection {
+        &self.inner
+    }
+}
+
+/// Sealed trait abstracting "anything DAO can run a query against"
+/// — production code passes a `&Connection` (newtype) from
+/// [`Db::with_conn`]; internal in-crate code that scopes a
+/// `rusqlite::Transaction` passes the transaction directly. Both
+/// surface a `&rusqlite::Connection` the DAO can call methods on
+/// through the `pub(crate)` `raw()` accessor.
+///
+/// The trait is `pub` so DAO function signatures can name it
+/// (`fn list_all(c: &impl DbAccess)`); the `raw()` accessor is
+/// `pub(crate)` so the rusqlite type stays inside `lfs_core`.
+/// Downstream crates (`lfs_frb`) consume the trait by name only —
+/// they never call `raw()` themselves.
+pub trait DbAccess {
+    /// In-crate accessor to the underlying rusqlite handle.
+    /// `pub(crate)`-gated so the rusqlite ABI stays inside
+    /// `lfs_core::db`; FRB callers reach DAOs through `with_conn`
+    /// closures and never name this method.
+    #[doc(hidden)]
+    fn raw(&self) -> &rusqlite::Connection;
+}
+
+impl DbAccess for Connection {
+    fn raw(&self) -> &rusqlite::Connection {
+        &self.inner
+    }
+}
+
+impl<'conn> DbAccess for rusqlite::Transaction<'conn> {
+    fn raw(&self) -> &rusqlite::Connection {
+        // `Transaction` derefs to `&Connection`; the explicit
+        // deref pin keeps the resolution unambiguous if the trait
+        // gains another method that shadows a Transaction inherent.
+        std::ops::Deref::deref(self)
+    }
+}
 
 pub mod app_configs;
 pub mod folders;
@@ -124,9 +213,11 @@ impl Db {
                 },
             ));
             let pragma = format!("PRAGMA key = \"x'{}'\"", &*hex_key);
-            conn.execute_batch(&pragma)
+            conn.inner()
+                .execute_batch(&pragma)
                 .map_err(|e| Error::Db(format!("PRAGMA key: {e}")))?;
-            conn.execute_batch("PRAGMA cipher_compatibility = 4")
+            conn.inner()
+                .execute_batch("PRAGMA cipher_compatibility = 4")
                 .map_err(|e| Error::Db(format!("PRAGMA cipher_compatibility: {e}")))?;
             crate::app_log_info!(
                 "DbOpen",
@@ -135,10 +226,11 @@ impl Db {
             );
         }
         // Smoke test the key by touching the schema table.
-        conn.query_row("SELECT count(*) FROM sqlite_master", [], |row| {
-            row.get::<_, i64>(0)
-        })
-        .map_err(|e| Error::Db(format!("schema probe: {e}")))?;
+        conn.inner()
+            .query_row("SELECT count(*) FROM sqlite_master", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map_err(|e| Error::Db(format!("schema probe: {e}")))?;
         crate::app_log_info!(
             "DbOpen",
             "db open phase=schema_probe elapsed={}ms",
@@ -147,7 +239,8 @@ impl Db {
         // Enable foreign-key enforcement (drift sets this too) so
         // ON DELETE CASCADE / SET NULL behave consistently across
         // both engines while the migration is mid-flight.
-        conn.execute_batch("PRAGMA foreign_keys = ON")
+        conn.inner()
+            .execute_batch("PRAGMA foreign_keys = ON")
             .map_err(|e| Error::Db(format!("PRAGMA foreign_keys: {e}")))?;
         // WAL journal — concurrent readers don't block the writer,
         // crash recovery is faster, and the wipe registry already
@@ -155,9 +248,11 @@ impl Db {
         // exists for it. NORMAL fsync is the WAL-paired default
         // (DELETE-mode FULL is the historic default, the standard
         // SQLite recommendation pairs WAL with NORMAL).
-        conn.execute_batch("PRAGMA journal_mode = WAL")
+        conn.inner()
+            .execute_batch("PRAGMA journal_mode = WAL")
             .map_err(|e| Error::Db(format!("PRAGMA journal_mode = WAL: {e}")))?;
-        conn.execute_batch("PRAGMA synchronous = NORMAL")
+        conn.inner()
+            .execute_batch("PRAGMA synchronous = NORMAL")
             .map_err(|e| Error::Db(format!("PRAGMA synchronous = NORMAL: {e}")))?;
         // WAL emit creates `-wal` + `-shm` sidecars; harden each to
         // 0600 so a sidecar doesn't drift to inherited 0644 just
@@ -205,7 +300,8 @@ impl Db {
     /// `sqlite_master` (i.e. table count + index count).
     pub fn schema_object_count(&self) -> Result<i64, Error> {
         let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        g.query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))
+        g.inner()
+            .query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get(0))
             .map_err(|e| Error::Db(format!("schema count: {e}")))
     }
 
@@ -234,7 +330,8 @@ impl Db {
         ));
         let pragma = format!("PRAGMA rekey = \"x'{}'\"", &*hex_key);
         let g = self.conn.lock().unwrap_or_else(|e| e.into_inner());
-        g.execute_batch(&pragma)
+        g.inner()
+            .execute_batch(&pragma)
             .map_err(|_| Error::Io("db rekey: PRAGMA rekey failed".into()))?;
         Ok(())
     }
@@ -287,16 +384,19 @@ pub const SCHEMA_VERSION: i32 = 1;
 /// already ran. Tables are `CREATE IF NOT EXISTS` so the call is
 /// safe to re-run on every open.
 pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
-    conn.execute_batch(SCHEMA_SQL)
+    conn.inner()
+        .execute_batch(SCHEMA_SQL)
         .map_err(|e| Error::Db(format!("bootstrap schema: {e}")))?;
     let mut current: i32 = 0;
-    conn.pragma_query(None, "user_version", |row| {
-        current = row.get::<_, i32>(0)?;
-        Ok(())
-    })
-    .map_err(|e| Error::Db(format!("bootstrap schema: read user_version: {e}")))?;
+    conn.inner()
+        .pragma_query(None, "user_version", |row| {
+            current = row.get::<_, i32>(0)?;
+            Ok(())
+        })
+        .map_err(|e| Error::Db(format!("bootstrap schema: read user_version: {e}")))?;
     if current == 0 {
-        conn.pragma_update(None, "user_version", SCHEMA_VERSION)
+        conn.inner()
+            .pragma_update(None, "user_version", SCHEMA_VERSION)
             .map_err(|e| Error::Db(format!("bootstrap schema: stamp user_version: {e}")))?;
     }
     Ok(())
@@ -312,11 +412,12 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
 #[cfg(test)]
 fn read_schema_version(conn: &Connection) -> Result<i32, Error> {
     let mut value: i32 = 0;
-    conn.pragma_query(None, "user_version", |row| {
-        value = row.get::<_, i32>(0)?;
-        Ok(())
-    })
-    .map_err(|e| Error::Db(format!("read user_version: {e}")))?;
+    conn.inner()
+        .pragma_query(None, "user_version", |row| {
+            value = row.get::<_, i32>(0)?;
+            Ok(())
+        })
+        .map_err(|e| Error::Db(format!("read user_version: {e}")))?;
     Ok(value)
 }
 
@@ -492,7 +593,9 @@ mod tests {
     #[test]
     fn open_in_memory_with_no_key() {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("CREATE TABLE t (x INT)").unwrap();
+        conn.inner()
+            .execute_batch("CREATE TABLE t (x INT)")
+            .unwrap();
         let db = Db {
             conn: Mutex::new(conn),
         };
@@ -544,7 +647,9 @@ mod tests {
     #[test]
     fn ssh_keys_round_trip_in_memory() {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        conn.inner()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         bootstrap_schema(&conn).unwrap();
         let row = ssh_keys::SshKeyRow {
             id: "k1".into(),
@@ -571,7 +676,9 @@ mod tests {
     #[test]
     fn sessions_folder_fk_set_null_on_delete() {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        conn.inner()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         bootstrap_schema(&conn).unwrap();
         folders::upsert(
             &conn,

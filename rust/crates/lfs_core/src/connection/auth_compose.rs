@@ -31,8 +31,6 @@
 //! sqlite into the SecretStore and never round-trip back through
 //! Dart.
 
-use rusqlite::Connection;
-
 use crate::db::{sessions, ssh_keys};
 use crate::error::Error;
 
@@ -91,7 +89,10 @@ pub struct PreparedAuth {
 /// quick-connect fallback always succeeds (an empty-auth dial
 /// stages an empty password under a transient id so russh
 /// receives a Ref-shaped variant).
-pub fn prepare_auth(conn: &Connection, input: &PrepareAuthInput) -> Result<PreparedAuth, Error> {
+pub fn prepare_auth(
+    conn: &impl crate::db::DbAccess,
+    input: &PrepareAuthInput,
+) -> Result<PreparedAuth, Error> {
     let mut transients: Vec<String> = Vec::new();
     let mut session_passphrase_id: Option<String> = None;
 
@@ -194,59 +195,62 @@ pub fn prepare_auth(conn: &Connection, input: &PrepareAuthInput) -> Result<Prepa
 mod tests {
     use super::*;
     use crate::db::{bootstrap_schema, Db};
-    use rusqlite::Connection as RusqliteConn;
 
     fn fresh_db() -> Db {
-        let conn = RusqliteConn::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        let conn = crate::db::Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         bootstrap_schema(&conn).unwrap();
         Db::from_raw_for_tests(conn)
     }
 
     fn insert_session(
-        conn: &Connection,
+        conn: &impl crate::db::DbAccess,
         id: &str,
         password: &str,
         key_data: &str,
         passphrase: &str,
     ) {
-        conn.execute(
-            "INSERT INTO sessions (\
+        conn.raw()
+            .execute(
+                "INSERT INTO sessions (\
                 id, label, host, port, user, auth_type, password, key_data, \
                 passphrase, key_path, key_id, sort_order, created_at, updated_at, \
                 notes, extras\
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, \
                        ?14, ?15, ?16)",
-            rusqlite::params![
-                id,
-                "label",
-                "host",
-                22_i64,
-                "user",
-                "password",
-                password,
-                key_data,
-                passphrase,
-                "",
-                Option::<String>::None,
-                0_i64,
-                0_i64,
-                0_i64,
-                "",
-                "",
-            ],
-        )
-        .unwrap();
+                rusqlite::params![
+                    id,
+                    "label",
+                    "host",
+                    22_i64,
+                    "user",
+                    "password",
+                    password,
+                    key_data,
+                    passphrase,
+                    "",
+                    Option::<String>::None,
+                    0_i64,
+                    0_i64,
+                    0_i64,
+                    "",
+                    "",
+                ],
+            )
+            .unwrap();
     }
 
-    fn insert_key(conn: &Connection, id: &str, pem: &str) {
-        conn.execute(
-            "INSERT INTO ssh_keys (\
+    fn insert_key(conn: &impl crate::db::DbAccess, id: &str, pem: &str) {
+        conn.raw()
+            .execute(
+                "INSERT INTO ssh_keys (\
                 id, label, private_key, public_key, key_type, created_at\
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            rusqlite::params![id, "label", pem, "", "ed25519", 0_i64],
-        )
-        .unwrap();
+                rusqlite::params![id, "label", pem, "", "ed25519", 0_i64],
+            )
+            .unwrap();
     }
 
     #[test]

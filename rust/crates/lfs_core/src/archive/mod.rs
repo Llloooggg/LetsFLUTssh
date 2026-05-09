@@ -27,7 +27,6 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read};
 
-use rusqlite::Connection;
 use serde_json::Value;
 use zip::ZipArchive;
 
@@ -212,7 +211,7 @@ impl Default for ImportRegistry {
 /// `host:port keytype base64key\n` text format the apply driver
 /// re-reads. `pub(super)` because both [`compose`] and [`qr_compose`]
 /// embed the same payload.
-pub(super) fn build_known_hosts(conn: &Connection) -> Result<String, Error> {
+pub(super) fn build_known_hosts(conn: &impl crate::db::DbAccess) -> Result<String, Error> {
     let rows = known_hosts::list_all(conn)?;
     if rows.is_empty() {
         return Ok(String::new());
@@ -235,7 +234,9 @@ pub(super) fn build_known_hosts(conn: &Connection) -> Result<String, Error> {
 /// at the last reachable node, matching the loader's tolerance.
 /// `pub(super)` so both [`compose`] and [`qr_compose`] resolve
 /// session folder strings against the same map.
-pub(super) fn build_folder_paths(conn: &Connection) -> Result<HashMap<String, String>, Error> {
+pub(super) fn build_folder_paths(
+    conn: &impl crate::db::DbAccess,
+) -> Result<HashMap<String, String>, Error> {
     let rows = folders::list_all(conn)?;
     let by_id: HashMap<String, &folders::FolderRow> =
         rows.iter().map(|r| (r.id.clone(), r)).collect();

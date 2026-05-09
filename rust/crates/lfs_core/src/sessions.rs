@@ -582,10 +582,11 @@ mod tests {
     }
 
     fn build_in_memory_db() -> Db {
-        use crate::db::bootstrap_schema;
-        use rusqlite::Connection as RusqliteConn;
-        let conn = RusqliteConn::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        use crate::db::{bootstrap_schema, Connection};
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         bootstrap_schema(&conn).unwrap();
         Db::from_raw_for_tests(conn)
     }

@@ -1,7 +1,7 @@
 //! PortForwardRules DAO. Mirrors
 //! `lib/core/db/dao/port_forward_rule_dao.dart`.
 
-use rusqlite::{params, Connection};
+use rusqlite::params;
 
 use crate::error::Error;
 
@@ -41,10 +41,11 @@ const SELECT_COLS: &str =
      enabled, sort_order, created_at";
 
 pub fn list_for_session(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     session_id: &str,
 ) -> Result<Vec<PortForwardRuleRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(&format!(
             "SELECT {SELECT_COLS} FROM port_forward_rules \
              WHERE session_id = ?1 ORDER BY sort_order ASC, created_at ASC"
@@ -60,9 +61,10 @@ pub fn list_for_session(
     Ok(out)
 }
 
-pub fn upsert(conn: &Connection, row: &PortForwardRuleRow) -> Result<(), Error> {
-    conn.execute(
-        "INSERT INTO port_forward_rules (id, session_id, kind, bind_host, bind_port, \
+pub fn upsert(conn: &impl crate::db::DbAccess, row: &PortForwardRuleRow) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT INTO port_forward_rules (id, session_id, kind, bind_host, bind_port, \
            remote_host, remote_port, description, enabled, sort_order, created_at) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
          ON CONFLICT(id) DO UPDATE SET \
@@ -75,25 +77,26 @@ pub fn upsert(conn: &Connection, row: &PortForwardRuleRow) -> Result<(), Error> 
            description = excluded.description, \
            enabled = excluded.enabled, \
            sort_order = excluded.sort_order",
-        params![
-            row.id,
-            row.session_id,
-            row.kind,
-            row.bind_host,
-            row.bind_port,
-            row.remote_host,
-            row.remote_port,
-            row.description,
-            if row.enabled { 1 } else { 0 },
-            row.sort_order,
-            row.created_at_ms,
-        ],
-    )
-    .map_err(|e| Error::Db(format!("port_forwards upsert: {e}")))?;
+            params![
+                row.id,
+                row.session_id,
+                row.kind,
+                row.bind_host,
+                row.bind_port,
+                row.remote_host,
+                row.remote_port,
+                row.description,
+                if row.enabled { 1 } else { 0 },
+                row.sort_order,
+                row.created_at_ms,
+            ],
+        )
+        .map_err(|e| Error::Db(format!("port_forwards upsert: {e}")))?;
     Ok(())
 }
 
-pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
-    conn.execute("DELETE FROM port_forward_rules WHERE id = ?1", params![id])
+pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM port_forward_rules WHERE id = ?1", params![id])
         .map_err(|e| Error::Db(format!("port_forwards delete: {e}")))
 }

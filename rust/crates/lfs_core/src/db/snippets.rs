@@ -1,6 +1,6 @@
 //! Snippets DAO. Mirrors `lib/core/db/dao/snippet_dao.dart`.
 
-use rusqlite::{params, Connection};
+use rusqlite::params;
 
 use crate::error::Error;
 
@@ -25,8 +25,9 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SnippetRow> {
     })
 }
 
-pub fn list_all(conn: &Connection) -> Result<Vec<SnippetRow>, Error> {
+pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SnippetRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT id, title, command, description, created_at, updated_at \
              FROM snippets ORDER BY title ASC",
@@ -42,70 +43,79 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SnippetRow>, Error> {
     Ok(out)
 }
 
-pub fn upsert(conn: &Connection, row: &SnippetRow) -> Result<(), Error> {
-    conn.execute(
-        "INSERT INTO snippets (id, title, command, description, created_at, updated_at) \
+pub fn upsert(conn: &impl crate::db::DbAccess, row: &SnippetRow) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT INTO snippets (id, title, command, description, created_at, updated_at) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
          ON CONFLICT(id) DO UPDATE SET \
            title = excluded.title, \
            command = excluded.command, \
            description = excluded.description, \
            updated_at = excluded.updated_at",
-        params![
-            row.id,
-            row.title,
-            row.command,
-            row.description,
-            row.created_at_ms,
-            row.updated_at_ms,
-        ],
-    )
-    .map_err(|e| Error::Db(format!("snippets upsert: {e}")))?;
+            params![
+                row.id,
+                row.title,
+                row.command,
+                row.description,
+                row.created_at_ms,
+                row.updated_at_ms,
+            ],
+        )
+        .map_err(|e| Error::Db(format!("snippets upsert: {e}")))?;
     Ok(())
 }
 
-pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
-    conn.execute("DELETE FROM snippets WHERE id = ?1", params![id])
+pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM snippets WHERE id = ?1", params![id])
         .map_err(|e| Error::Db(format!("snippets delete: {e}")))
 }
 
-pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
-    conn.execute("DELETE FROM snippets", [])
+pub fn delete_all(conn: &impl crate::db::DbAccess) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM snippets", [])
         .map_err(|e| Error::Db(format!("snippets delete_all: {e}")))
 }
 
 // ---- session_snippets M2M ----------------------------------------------
 
 pub fn link_session_snippet(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     session_id: &str,
     snippet_id: &str,
 ) -> Result<(), Error> {
-    conn.execute(
-        "INSERT OR IGNORE INTO session_snippets (session_id, snippet_id) VALUES (?1, ?2)",
-        params![session_id, snippet_id],
-    )
-    .map_err(|e| Error::Db(format!("session_snippets insert: {e}")))?;
+    conn.raw()
+        .execute(
+            "INSERT OR IGNORE INTO session_snippets (session_id, snippet_id) VALUES (?1, ?2)",
+            params![session_id, snippet_id],
+        )
+        .map_err(|e| Error::Db(format!("session_snippets insert: {e}")))?;
     Ok(())
 }
 
 pub fn unlink_session_snippet(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     session_id: &str,
     snippet_id: &str,
 ) -> Result<usize, Error> {
-    conn.execute(
-        "DELETE FROM session_snippets WHERE session_id = ?1 AND snippet_id = ?2",
-        params![session_id, snippet_id],
-    )
-    .map_err(|e| Error::Db(format!("session_snippets delete: {e}")))
+    conn.raw()
+        .execute(
+            "DELETE FROM session_snippets WHERE session_id = ?1 AND snippet_id = ?2",
+            params![session_id, snippet_id],
+        )
+        .map_err(|e| Error::Db(format!("session_snippets delete: {e}")))
 }
 
 /// All snippets pinned to a session, joined back to the snippets
 /// table so callers don't have to do an N+1 lookup. Mirrors drift's
 /// `SnippetDao::getForSession`.
-pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<SnippetRow>, Error> {
+pub fn list_for_session(
+    conn: &impl crate::db::DbAccess,
+    session_id: &str,
+) -> Result<Vec<SnippetRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT s.id, s.title, s.command, s.description, s.created_at, s.updated_at \
              FROM snippets s \
@@ -124,8 +134,12 @@ pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<Snipp
     Ok(out)
 }
 
-pub fn list_session_snippet_ids(conn: &Connection, session_id: &str) -> Result<Vec<String>, Error> {
+pub fn list_session_snippet_ids(
+    conn: &impl crate::db::DbAccess,
+    session_id: &str,
+) -> Result<Vec<String>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached("SELECT snippet_id FROM session_snippets WHERE session_id = ?1")
         .map_err(|e| Error::Db(format!("session_snippets prepare: {e}")))?;
     let rows = stmt

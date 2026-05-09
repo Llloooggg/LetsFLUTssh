@@ -10,7 +10,8 @@
 //! follow-up adds an `auth_secret_id` column and drops the
 //! plaintext ones.
 
-use rusqlite::{params, Connection};
+use crate::db::Connection;
+use rusqlite::params;
 
 use crate::error::Error;
 
@@ -73,8 +74,9 @@ const SELECT_COLS: &str =
      passphrase, sort_order, notes, last_connected_at, extras, via_session_id, via_host, \
      via_port, via_user, created_at, updated_at";
 
-pub fn list_all(conn: &Connection) -> Result<Vec<SessionRow>, Error> {
+pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SessionRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(&format!(
             "SELECT {SELECT_COLS} FROM sessions ORDER BY sort_order ASC, label ASC"
         ))
@@ -89,8 +91,9 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SessionRow>, Error> {
     Ok(out)
 }
 
-pub fn get(conn: &Connection, id: &str) -> Result<Option<SessionRow>, Error> {
+pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SessionRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(&format!("SELECT {SELECT_COLS} FROM sessions WHERE id = ?1"))
         .map_err(|e| Error::Db(format!("sessions get prepare: {e}")))?;
     let mut rows = stmt
@@ -103,9 +106,10 @@ pub fn get(conn: &Connection, id: &str) -> Result<Option<SessionRow>, Error> {
     }
 }
 
-pub fn upsert(conn: &Connection, row: &SessionRow) -> Result<(), Error> {
-    conn.execute(
-        "INSERT INTO sessions (id, label, folder_id, host, port, user, auth_type, password, \
+pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT INTO sessions (id, label, folder_id, host, port, user, auth_type, password, \
            key_path, key_data, key_id, passphrase, sort_order, notes, last_connected_at, \
            extras, via_session_id, via_host, via_port, via_user, created_at, updated_at) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, \
@@ -131,42 +135,43 @@ pub fn upsert(conn: &Connection, row: &SessionRow) -> Result<(), Error> {
            via_port = excluded.via_port, \
            via_user = excluded.via_user, \
            updated_at = excluded.updated_at",
-        params![
-            row.id,
-            row.label,
-            row.folder_id,
-            row.host,
-            row.port,
-            row.user,
-            row.auth_type,
-            row.password,
-            row.key_path,
-            row.key_data,
-            row.key_id,
-            row.passphrase,
-            row.sort_order,
-            row.notes,
-            row.last_connected_at_ms,
-            row.extras,
-            row.via_session_id,
-            row.via_host,
-            row.via_port,
-            row.via_user,
-            row.created_at_ms,
-            row.updated_at_ms,
-        ],
-    )
-    .map_err(|e| Error::Db(format!("sessions upsert: {e}")))?;
+            params![
+                row.id,
+                row.label,
+                row.folder_id,
+                row.host,
+                row.port,
+                row.user,
+                row.auth_type,
+                row.password,
+                row.key_path,
+                row.key_data,
+                row.key_id,
+                row.passphrase,
+                row.sort_order,
+                row.notes,
+                row.last_connected_at_ms,
+                row.extras,
+                row.via_session_id,
+                row.via_host,
+                row.via_port,
+                row.via_user,
+                row.created_at_ms,
+                row.updated_at_ms,
+            ],
+        )
+        .map_err(|e| Error::Db(format!("sessions upsert: {e}")))?;
     Ok(())
 }
 
-pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
-    conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])
+pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM sessions WHERE id = ?1", params![id])
         .map_err(|e| Error::Db(format!("sessions delete: {e}")))
 }
 
 /// Bulk delete by id list. Empty input is a cheap no-op (no SQL).
-pub fn delete_multiple(conn: &Connection, ids: &[String]) -> Result<usize, Error> {
+pub fn delete_multiple(conn: &impl crate::db::DbAccess, ids: &[String]) -> Result<usize, Error> {
     if ids.is_empty() {
         return Ok(0);
     }
@@ -174,27 +179,30 @@ pub fn delete_multiple(conn: &Connection, ids: &[String]) -> Result<usize, Error
     let sql = format!("DELETE FROM sessions WHERE id IN ({placeholders})");
     let params_vec: Vec<&dyn rusqlite::ToSql> =
         ids.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
-    conn.execute(&sql, params_vec.as_slice())
+    conn.raw()
+        .execute(&sql, params_vec.as_slice())
         .map_err(|e| Error::Db(format!("sessions delete_multiple: {e}")))
 }
 
-pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
-    conn.execute("DELETE FROM sessions", [])
+pub fn delete_all(conn: &impl crate::db::DbAccess) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM sessions", [])
         .map_err(|e| Error::Db(format!("sessions delete_all: {e}")))
 }
 
 /// Set `folder_id` for a single session, refreshing `updated_at`.
 pub fn move_to_folder(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     session_id: &str,
     folder_id: Option<&str>,
     updated_at_ms: i64,
 ) -> Result<usize, Error> {
-    conn.execute(
-        "UPDATE sessions SET folder_id = ?1, updated_at = ?2 WHERE id = ?3",
-        params![folder_id, updated_at_ms, session_id],
-    )
-    .map_err(|e| Error::Db(format!("sessions move_to_folder: {e}")))
+    conn.raw()
+        .execute(
+            "UPDATE sessions SET folder_id = ?1, updated_at = ?2 WHERE id = ?3",
+            params![folder_id, updated_at_ms, session_id],
+        )
+        .map_err(|e| Error::Db(format!("sessions move_to_folder: {e}")))
 }
 
 /// What got staged into the [`crate::secrets::SecretStore`] by
@@ -218,10 +226,11 @@ pub struct StagedSecrets {
 ///
 /// Returns `Ok(None)` when the session row is missing.
 pub fn stage_secrets_into_store(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     session_id: &str,
 ) -> Result<Option<StagedSecrets>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT auth_type, password, key_data, passphrase \
              FROM sessions WHERE id = ?1",
@@ -293,35 +302,39 @@ pub struct SessionMetadata {
 /// instead, so the edit dialog can save metadata changes without
 /// having to first read the existing secret bytes onto the Dart
 /// heap and write them back.
-pub fn update_metadata(conn: &Connection, m: &SessionMetadata) -> Result<usize, Error> {
-    conn.execute(
-        "UPDATE sessions SET \
+pub fn update_metadata(
+    conn: &impl crate::db::DbAccess,
+    m: &SessionMetadata,
+) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "UPDATE sessions SET \
            label = ?1, folder_id = ?2, host = ?3, port = ?4, user = ?5, \
            auth_type = ?6, key_path = ?7, key_id = ?8, sort_order = ?9, \
            notes = ?10, extras = ?11, via_session_id = ?12, via_host = ?13, \
            via_port = ?14, via_user = ?15, updated_at = ?16 \
          WHERE id = ?17",
-        params![
-            m.label,
-            m.folder_id,
-            m.host,
-            m.port,
-            m.user,
-            m.auth_type,
-            m.key_path,
-            m.key_id,
-            m.sort_order,
-            m.notes,
-            m.extras,
-            m.via_session_id,
-            m.via_host,
-            m.via_port,
-            m.via_user,
-            m.updated_at_ms,
-            m.id,
-        ],
-    )
-    .map_err(|e| Error::Db(format!("sessions update_metadata: {e}")))
+            params![
+                m.label,
+                m.folder_id,
+                m.host,
+                m.port,
+                m.user,
+                m.auth_type,
+                m.key_path,
+                m.key_id,
+                m.sort_order,
+                m.notes,
+                m.extras,
+                m.via_session_id,
+                m.via_host,
+                m.via_port,
+                m.via_user,
+                m.updated_at_ms,
+                m.id,
+            ],
+        )
+        .map_err(|e| Error::Db(format!("sessions update_metadata: {e}")))
 }
 
 /// Replace a single credential column on a session row. `slot` is one
@@ -333,7 +346,7 @@ pub fn update_metadata(conn: &Connection, m: &SessionMetadata) -> Result<usize, 
 /// Returns rows affected (1 on success, 0 on missing row, error on
 /// unrecognised slot).
 pub fn set_secret_column(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     id: &str,
     slot: &str,
     value: &str,
@@ -346,7 +359,8 @@ pub fn set_secret_column(
         other => return Err(Error::Db(format!("unknown secret slot: {other}"))),
     };
     let sql = format!("UPDATE sessions SET {column} = ?1, updated_at = ?2 WHERE id = ?3");
-    conn.execute(&sql, params![value, updated_at_ms, id])
+    conn.raw()
+        .execute(&sql, params![value, updated_at_ms, id])
         .map_err(|e| Error::Db(format!("sessions set_secret_column: {e}")))
 }
 
@@ -358,7 +372,7 @@ pub fn set_secret_column(
 /// `duplicate()` → `add()` path used to open. Returns "session
 /// missing" when the source row has been deleted.
 pub fn duplicate_session(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     src_id: &str,
     new_id: &str,
     new_label: &str,
@@ -366,6 +380,7 @@ pub fn duplicate_session(
     now_ms: i64,
 ) -> Result<(), Error> {
     let n = conn
+        .raw()
         .execute(
             "INSERT INTO sessions ( \
                id, label, folder_id, host, port, user, auth_type, password, \
@@ -407,6 +422,7 @@ pub fn duplicate_with_path(
 ) -> Result<String, Error> {
     use rand::RngCore;
     let tx = conn
+        .inner_mut()
         .transaction()
         .map_err(|e| Error::Db(format!("sessions duplicate_with_path tx: {e}")))?;
 
@@ -462,7 +478,7 @@ pub fn duplicate_with_path(
 
 /// Bulk variant of [`move_to_folder`].
 pub fn move_multiple(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     ids: &[String],
     folder_id: Option<&str>,
     updated_at_ms: i64,
@@ -479,7 +495,8 @@ pub fn move_multiple(
     for id in ids {
         params_vec.push(id as &dyn rusqlite::ToSql);
     }
-    conn.execute(&sql, params_vec.as_slice())
+    conn.raw()
+        .execute(&sql, params_vec.as_slice())
         .map_err(|e| Error::Db(format!("sessions move_multiple: {e}")))
 }
 
@@ -537,6 +554,7 @@ pub fn restore_snapshot(
     now_ms: i64,
 ) -> Result<(), Error> {
     let tx = conn
+        .inner_mut()
         .transaction()
         .map_err(|e| Error::Db(format!("sessions restore_snapshot tx: {e}")))?;
 
@@ -585,11 +603,12 @@ pub fn restore_snapshot(
 mod duplicate_tests {
     use super::*;
     use crate::db::{bootstrap_schema, folders, Db};
-    use rusqlite::Connection as RusqliteConn;
 
     fn db() -> Db {
-        let conn = RusqliteConn::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         bootstrap_schema(&conn).unwrap();
         Db::from_raw_for_tests(conn)
     }
@@ -717,11 +736,12 @@ mod duplicate_tests {
 mod restore_tests {
     use super::*;
     use crate::db::{bootstrap_schema, folders, Db};
-    use rusqlite::Connection as RusqliteConn;
 
     fn db() -> Db {
-        let conn = RusqliteConn::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         bootstrap_schema(&conn).unwrap();
         Db::from_raw_for_tests(conn)
     }

@@ -1,7 +1,7 @@
 //! Tags + the two M2M link tables (session_tags, folder_tags).
 //! Mirrors `lib/core/db/dao/tag_dao.dart`.
 
-use rusqlite::{params, Connection};
+use rusqlite::params;
 
 use crate::error::Error;
 
@@ -22,8 +22,9 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<TagRow> {
     })
 }
 
-pub fn list_all(conn: &Connection) -> Result<Vec<TagRow>, Error> {
+pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<TagRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached("SELECT id, name, color, created_at FROM tags ORDER BY name ASC")
         .map_err(|e| Error::Db(format!("tags prepare: {e}")))?;
     let rows = stmt
@@ -36,33 +37,40 @@ pub fn list_all(conn: &Connection) -> Result<Vec<TagRow>, Error> {
     Ok(out)
 }
 
-pub fn upsert(conn: &Connection, row: &TagRow) -> Result<(), Error> {
-    conn.execute(
-        "INSERT INTO tags (id, name, color, created_at) \
+pub fn upsert(conn: &impl crate::db::DbAccess, row: &TagRow) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT INTO tags (id, name, color, created_at) \
          VALUES (?1, ?2, ?3, ?4) \
          ON CONFLICT(id) DO UPDATE SET \
            name = excluded.name, \
            color = excluded.color",
-        params![row.id, row.name, row.color, row.created_at_ms],
-    )
-    .map_err(|e| Error::Db(format!("tags upsert: {e}")))?;
+            params![row.id, row.name, row.color, row.created_at_ms],
+        )
+        .map_err(|e| Error::Db(format!("tags upsert: {e}")))?;
     Ok(())
 }
 
-pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
-    conn.execute("DELETE FROM tags WHERE id = ?1", params![id])
+pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM tags WHERE id = ?1", params![id])
         .map_err(|e| Error::Db(format!("tags delete: {e}")))
 }
 
-pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
-    conn.execute("DELETE FROM tags", [])
+pub fn delete_all(conn: &impl crate::db::DbAccess) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM tags", [])
         .map_err(|e| Error::Db(format!("tags delete_all: {e}")))
 }
 
 /// Tags attached to a session, joined back to the `tags` table.
 /// Mirrors drift's `TagDao::getForSession`.
-pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<TagRow>, Error> {
+pub fn list_for_session(
+    conn: &impl crate::db::DbAccess,
+    session_id: &str,
+) -> Result<Vec<TagRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT t.id, t.name, t.color, t.created_at \
              FROM tags t \
@@ -82,8 +90,12 @@ pub fn list_for_session(conn: &Connection, session_id: &str) -> Result<Vec<TagRo
 }
 
 /// Tags attached to a folder, joined back to the `tags` table.
-pub fn list_for_folder(conn: &Connection, folder_id: &str) -> Result<Vec<TagRow>, Error> {
+pub fn list_for_folder(
+    conn: &impl crate::db::DbAccess,
+    folder_id: &str,
+) -> Result<Vec<TagRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT t.id, t.name, t.color, t.created_at \
              FROM tags t \
@@ -104,29 +116,39 @@ pub fn list_for_folder(conn: &Connection, folder_id: &str) -> Result<Vec<TagRow>
 
 // ---- M2M link tables ---------------------------------------------------
 
-pub fn link_session_tag(conn: &Connection, session_id: &str, tag_id: &str) -> Result<(), Error> {
-    conn.execute(
-        "INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?1, ?2)",
-        params![session_id, tag_id],
-    )
-    .map_err(|e| Error::Db(format!("session_tags insert: {e}")))?;
+pub fn link_session_tag(
+    conn: &impl crate::db::DbAccess,
+    session_id: &str,
+    tag_id: &str,
+) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?1, ?2)",
+            params![session_id, tag_id],
+        )
+        .map_err(|e| Error::Db(format!("session_tags insert: {e}")))?;
     Ok(())
 }
 
 pub fn unlink_session_tag(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     session_id: &str,
     tag_id: &str,
 ) -> Result<usize, Error> {
-    conn.execute(
-        "DELETE FROM session_tags WHERE session_id = ?1 AND tag_id = ?2",
-        params![session_id, tag_id],
-    )
-    .map_err(|e| Error::Db(format!("session_tags delete: {e}")))
+    conn.raw()
+        .execute(
+            "DELETE FROM session_tags WHERE session_id = ?1 AND tag_id = ?2",
+            params![session_id, tag_id],
+        )
+        .map_err(|e| Error::Db(format!("session_tags delete: {e}")))
 }
 
-pub fn list_session_tag_ids(conn: &Connection, session_id: &str) -> Result<Vec<String>, Error> {
+pub fn list_session_tag_ids(
+    conn: &impl crate::db::DbAccess,
+    session_id: &str,
+) -> Result<Vec<String>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached("SELECT tag_id FROM session_tags WHERE session_id = ?1")
         .map_err(|e| Error::Db(format!("session_tags prepare: {e}")))?;
     let rows = stmt
@@ -139,25 +161,39 @@ pub fn list_session_tag_ids(conn: &Connection, session_id: &str) -> Result<Vec<S
     Ok(out)
 }
 
-pub fn link_folder_tag(conn: &Connection, folder_id: &str, tag_id: &str) -> Result<(), Error> {
-    conn.execute(
-        "INSERT OR IGNORE INTO folder_tags (folder_id, tag_id) VALUES (?1, ?2)",
-        params![folder_id, tag_id],
-    )
-    .map_err(|e| Error::Db(format!("folder_tags insert: {e}")))?;
+pub fn link_folder_tag(
+    conn: &impl crate::db::DbAccess,
+    folder_id: &str,
+    tag_id: &str,
+) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT OR IGNORE INTO folder_tags (folder_id, tag_id) VALUES (?1, ?2)",
+            params![folder_id, tag_id],
+        )
+        .map_err(|e| Error::Db(format!("folder_tags insert: {e}")))?;
     Ok(())
 }
 
-pub fn unlink_folder_tag(conn: &Connection, folder_id: &str, tag_id: &str) -> Result<usize, Error> {
-    conn.execute(
-        "DELETE FROM folder_tags WHERE folder_id = ?1 AND tag_id = ?2",
-        params![folder_id, tag_id],
-    )
-    .map_err(|e| Error::Db(format!("folder_tags delete: {e}")))
+pub fn unlink_folder_tag(
+    conn: &impl crate::db::DbAccess,
+    folder_id: &str,
+    tag_id: &str,
+) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "DELETE FROM folder_tags WHERE folder_id = ?1 AND tag_id = ?2",
+            params![folder_id, tag_id],
+        )
+        .map_err(|e| Error::Db(format!("folder_tags delete: {e}")))
 }
 
-pub fn list_folder_tag_ids(conn: &Connection, folder_id: &str) -> Result<Vec<String>, Error> {
+pub fn list_folder_tag_ids(
+    conn: &impl crate::db::DbAccess,
+    folder_id: &str,
+) -> Result<Vec<String>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached("SELECT tag_id FROM folder_tags WHERE folder_id = ?1")
         .map_err(|e| Error::Db(format!("folder_tags prepare: {e}")))?;
     let rows = stmt

@@ -35,10 +35,9 @@
 
 use std::collections::{HashMap, HashSet};
 
-use rusqlite::Connection;
 use serde_json::Value;
 
-use crate::db::{folders, known_hosts, sessions, snippets, ssh_keys, tags};
+use crate::db::{folders, known_hosts, sessions, snippets, ssh_keys, tags, Connection};
 use crate::error::Error;
 
 use super::iso8601::parse_iso8601_or_now;
@@ -113,6 +112,7 @@ pub fn apply_pending_import(
         }
         ImportMode::Replace => {
             let tx = conn
+                .inner_mut()
                 .transaction()
                 .map_err(|e| Error::Archive(format!("apply tx begin: {e}")))?;
             let mut result = ApplyResult::default();
@@ -142,7 +142,7 @@ pub fn apply_pending_import(
 /// here; the new mode-aware entry point is
 /// [`apply_pending_import`].
 pub fn apply_pending_import_merge(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     pending: &PendingImport,
     options: &ApplyOptions,
     now_ms: i64,
@@ -153,7 +153,7 @@ pub fn apply_pending_import_merge(
 }
 
 fn run_apply(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     pending: &PendingImport,
     options: &ApplyOptions,
     now_ms: i64,
@@ -206,7 +206,11 @@ fn run_apply(
     }
 }
 
-fn run_replace_clear(conn: &Connection, options: &ApplyOptions, result: &mut ApplyResult) {
+fn run_replace_clear(
+    conn: &impl crate::db::DbAccess,
+    options: &ApplyOptions,
+    result: &mut ApplyResult,
+) {
     // Order matters — junctions clear before their owning rows
     // so the FKs stay sane. Each `delete_all` is idempotent on
     // an already-empty table.
@@ -238,7 +242,7 @@ fn run_replace_clear(conn: &Connection, options: &ApplyOptions, result: &mut App
 }
 
 fn apply_folder_tree(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     sessions_json: &str,
     now_ms: i64,
     result: &mut ApplyResult,
@@ -305,7 +309,7 @@ fn apply_folder_tree(
 }
 
 fn apply_empty_folders(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     json: &str,
     path_to_id: &mut HashMap<String, String>,
     now_ms: i64,
@@ -365,7 +369,7 @@ fn apply_empty_folders(
     }
 }
 
-fn apply_session_tags(conn: &Connection, json: &str, result: &mut ApplyResult) {
+fn apply_session_tags(conn: &impl crate::db::DbAccess, json: &str, result: &mut ApplyResult) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
         Ok(a) => a,
         Err(e) => {
@@ -400,7 +404,7 @@ fn apply_session_tags(conn: &Connection, json: &str, result: &mut ApplyResult) {
 /// to a stale id; the link is dropped instead, which the user can
 /// rebuild from the Tag Manager.
 fn apply_folder_tags(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     json: &str,
     path_to_id: &HashMap<String, String>,
     result: &mut ApplyResult,
@@ -434,7 +438,7 @@ fn apply_folder_tags(
     }
 }
 
-fn apply_session_snippets(conn: &Connection, json: &str, result: &mut ApplyResult) {
+fn apply_session_snippets(conn: &impl crate::db::DbAccess, json: &str, result: &mut ApplyResult) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
         Ok(a) => a,
         Err(e) => {
@@ -469,7 +473,7 @@ fn json_i64(v: &Value, key: &str) -> i64 {
 }
 
 fn apply_sessions(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     json: &str,
     folder_path_to_id: &HashMap<String, String>,
     now_ms: i64,
@@ -553,7 +557,7 @@ fn apply_sessions(
     }
 }
 
-fn apply_keys(conn: &Connection, json: &str, now_ms: i64, result: &mut ApplyResult) {
+fn apply_keys(conn: &impl crate::db::DbAccess, json: &str, now_ms: i64, result: &mut ApplyResult) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
         Ok(a) => a,
         Err(e) => {
@@ -610,7 +614,7 @@ fn apply_keys(conn: &Connection, json: &str, now_ms: i64, result: &mut ApplyResu
     }
 }
 
-fn apply_tags(conn: &Connection, json: &str, now_ms: i64, result: &mut ApplyResult) {
+fn apply_tags(conn: &impl crate::db::DbAccess, json: &str, now_ms: i64, result: &mut ApplyResult) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
         Ok(a) => a,
         Err(e) => {
@@ -642,7 +646,12 @@ fn apply_tags(conn: &Connection, json: &str, now_ms: i64, result: &mut ApplyResu
     }
 }
 
-fn apply_snippets(conn: &Connection, json: &str, now_ms: i64, result: &mut ApplyResult) {
+fn apply_snippets(
+    conn: &impl crate::db::DbAccess,
+    json: &str,
+    now_ms: i64,
+    result: &mut ApplyResult,
+) {
     let arr = match serde_json::from_str::<Vec<Value>>(json) {
         Ok(a) => a,
         Err(e) => {
@@ -674,7 +683,12 @@ fn apply_snippets(conn: &Connection, json: &str, now_ms: i64, result: &mut Apply
     }
 }
 
-fn apply_known_hosts(conn: &Connection, text: &str, now_ms: i64, result: &mut ApplyResult) {
+fn apply_known_hosts(
+    conn: &impl crate::db::DbAccess,
+    text: &str,
+    now_ms: i64,
+    result: &mut ApplyResult,
+) {
     // Format: "host[:port] keytype key_base64" per line. Comments
     // (`#` lines) and blanks skipped. Default port 22 when the
     // host omits the colon — same fallback the Dart importer uses.
@@ -732,7 +746,9 @@ mod tests {
 
     fn fresh_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         crate::db::bootstrap_schema(&conn).unwrap();
         conn
     }

@@ -1,6 +1,6 @@
 //! AppConfigs DAO. Single-row blob table — id is forced to 1.
 
-use rusqlite::{params, Connection};
+use rusqlite::params;
 
 use crate::error::Error;
 
@@ -11,8 +11,9 @@ pub struct AppConfigRow {
     pub auto_lock_minutes: i64,
 }
 
-pub fn get(conn: &Connection) -> Result<Option<AppConfigRow>, Error> {
+pub fn get(conn: &impl crate::db::DbAccess) -> Result<Option<AppConfigRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached("SELECT data, updated_at, auto_lock_minutes FROM app_configs WHERE id = 1")
         .map_err(|e| Error::Db(format!("app_configs prepare: {e}")))?;
     let mut rows = stmt
@@ -31,16 +32,17 @@ pub fn get(conn: &Connection) -> Result<Option<AppConfigRow>, Error> {
     }
 }
 
-pub fn upsert(conn: &Connection, row: &AppConfigRow) -> Result<(), Error> {
-    conn.execute(
-        "INSERT INTO app_configs (id, data, updated_at, auto_lock_minutes) \
+pub fn upsert(conn: &impl crate::db::DbAccess, row: &AppConfigRow) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT INTO app_configs (id, data, updated_at, auto_lock_minutes) \
          VALUES (1, ?1, ?2, ?3) \
          ON CONFLICT(id) DO UPDATE SET \
            data = excluded.data, \
            updated_at = excluded.updated_at, \
            auto_lock_minutes = excluded.auto_lock_minutes",
-        params![row.data, row.updated_at_ms, row.auto_lock_minutes],
-    )
-    .map_err(|e| Error::Db(format!("app_configs upsert: {e}")))?;
+            params![row.data, row.updated_at_ms, row.auto_lock_minutes],
+        )
+        .map_err(|e| Error::Db(format!("app_configs upsert: {e}")))?;
     Ok(())
 }

@@ -1,6 +1,7 @@
 //! Folders DAO. Mirrors `lib/core/db/dao/folder_dao.dart`.
 
-use rusqlite::{params, Connection};
+use crate::db::Connection;
+use rusqlite::params;
 
 use crate::error::Error;
 
@@ -25,8 +26,9 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<FolderRow> {
     })
 }
 
-pub fn list_all(conn: &Connection) -> Result<Vec<FolderRow>, Error> {
+pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<FolderRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT id, name, parent_id, sort_order, collapsed, created_at \
              FROM folders ORDER BY sort_order ASC, name ASC",
@@ -42,9 +44,10 @@ pub fn list_all(conn: &Connection) -> Result<Vec<FolderRow>, Error> {
     Ok(out)
 }
 
-pub fn upsert(conn: &Connection, row: &FolderRow) -> Result<(), Error> {
-    conn.execute(
-        "INSERT INTO folders (id, name, parent_id, sort_order, collapsed, created_at) \
+pub fn upsert(conn: &impl crate::db::DbAccess, row: &FolderRow) -> Result<(), Error> {
+    conn.raw()
+        .execute(
+            "INSERT INTO folders (id, name, parent_id, sort_order, collapsed, created_at) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
          ON CONFLICT(id) DO UPDATE SET \
            name = excluded.name, \
@@ -52,26 +55,28 @@ pub fn upsert(conn: &Connection, row: &FolderRow) -> Result<(), Error> {
            sort_order = excluded.sort_order, \
            collapsed = excluded.collapsed, \
            created_at = excluded.created_at",
-        params![
-            row.id,
-            row.name,
-            row.parent_id,
-            row.sort_order,
-            if row.collapsed { 1 } else { 0 },
-            row.created_at_ms,
-        ],
-    )
-    .map_err(|e| Error::Db(format!("folders upsert: {e}")))?;
+            params![
+                row.id,
+                row.name,
+                row.parent_id,
+                row.sort_order,
+                if row.collapsed { 1 } else { 0 },
+                row.created_at_ms,
+            ],
+        )
+        .map_err(|e| Error::Db(format!("folders upsert: {e}")))?;
     Ok(())
 }
 
-pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
-    conn.execute("DELETE FROM folders WHERE id = ?1", params![id])
+pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM folders WHERE id = ?1", params![id])
         .map_err(|e| Error::Db(format!("folders delete: {e}")))
 }
 
-pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
-    conn.execute("DELETE FROM folders", [])
+pub fn delete_all(conn: &impl crate::db::DbAccess) -> Result<usize, Error> {
+    conn.raw()
+        .execute("DELETE FROM folders", [])
         .map_err(|e| Error::Db(format!("folders delete_all: {e}")))
 }
 
@@ -91,7 +96,7 @@ pub fn delete_all(conn: &Connection) -> Result<usize, Error> {
 /// folder path Rust-side without round-tripping through the FRB DAO
 /// surface.
 pub fn ensure_folder_path(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     path: &str,
     now_ms: i64,
 ) -> Result<Option<String>, Error> {
@@ -133,13 +138,14 @@ pub fn ensure_folder_path(
 /// Flip the `collapsed` flag on a single folder. Returns the new
 /// value (true = now collapsed) so the caller can update its cache
 /// without a follow-up read. Empty `Ok(0)` if the row is missing.
-pub fn toggle_collapsed(conn: &Connection, id: &str) -> Result<usize, Error> {
-    conn.execute(
-        "UPDATE folders SET collapsed = CASE collapsed WHEN 0 THEN 1 ELSE 0 END \
+pub fn toggle_collapsed(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "UPDATE folders SET collapsed = CASE collapsed WHEN 0 THEN 1 ELSE 0 END \
          WHERE id = ?1",
-        params![id],
-    )
-    .map_err(|e| Error::Db(format!("folders toggle_collapsed: {e}")))
+            params![id],
+        )
+        .map_err(|e| Error::Db(format!("folders toggle_collapsed: {e}")))
 }
 
 /// Update name and/or parent_id. Either field may stay the same; the
@@ -148,7 +154,7 @@ pub fn toggle_collapsed(conn: &Connection, id: &str) -> Result<usize, Error> {
 /// the rest of the subtree and (combined with [`delete_recursive`]'s
 /// `UNION ALL` traversal) could otherwise spin a wipe forever.
 pub fn update_name_parent(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     id: &str,
     name: &str,
     parent_id: Option<&str>,
@@ -165,18 +171,23 @@ pub fn update_name_parent(
             )));
         }
     }
-    conn.execute(
-        "UPDATE folders SET name = ?1, parent_id = ?2 WHERE id = ?3",
-        params![name, parent_id, id],
-    )
-    .map_err(|e| Error::Db(format!("folders update_name_parent: {e}")))
+    conn.raw()
+        .execute(
+            "UPDATE folders SET name = ?1, parent_id = ?2 WHERE id = ?3",
+            params![name, parent_id, id],
+        )
+        .map_err(|e| Error::Db(format!("folders update_name_parent: {e}")))
 }
 
 /// Walk up `candidate.parent_id` chain looking for `ancestor`. Used
 /// by [`update_name_parent`] to reject reparent operations that
 /// would create a cycle. Bounded by the number of folder rows so
 /// pre-existing on-disk cycles can't make this loop forever.
-fn is_descendant_of(conn: &Connection, candidate: &str, ancestor: &str) -> Result<bool, Error> {
+fn is_descendant_of(
+    conn: &impl crate::db::DbAccess,
+    candidate: &str,
+    ancestor: &str,
+) -> Result<bool, Error> {
     let mut current: Option<String> = Some(candidate.to_string());
     let mut hops: u32 = 0;
     let max_hops: u32 = 65_536;
@@ -193,6 +204,7 @@ fn is_descendant_of(conn: &Connection, candidate: &str, ancestor: &str) -> Resul
             return Ok(true);
         }
         let parent: Option<String> = conn
+            .raw()
             .query_row(
                 "SELECT parent_id FROM folders WHERE id = ?1",
                 params![id],
@@ -239,6 +251,7 @@ pub fn rename_path_cascade(
         )));
     }
     let tx = conn
+        .inner_mut()
         .transaction()
         .map_err(|e| Error::Db(format!("folders rename_path_cascade tx: {e}")))?;
 
@@ -283,29 +296,31 @@ pub fn rename_path_cascade(
 /// hand-edited DBs and pre-fix data could carry one — `UNION ALL`
 /// would happily expand them until SQLite's internal recursion
 /// ceiling, blocking the writer mutex on every wipe.
-pub fn delete_recursive(conn: &Connection, id: &str) -> Result<usize, Error> {
-    conn.execute(
-        "WITH RECURSIVE descendants(id) AS ( \
+pub fn delete_recursive(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    conn.raw()
+        .execute(
+            "WITH RECURSIVE descendants(id) AS ( \
            SELECT id FROM folders WHERE id = ?1 \
            UNION \
            SELECT f.id FROM folders f \
              INNER JOIN descendants d ON f.parent_id = d.id \
          ) \
          DELETE FROM folders WHERE id IN (SELECT id FROM descendants)",
-        params![id],
-    )
-    .map_err(|e| Error::Db(format!("folders delete_recursive: {e}")))
+            params![id],
+        )
+        .map_err(|e| Error::Db(format!("folders delete_recursive: {e}")))
 }
 
 #[cfg(test)]
 mod rename_tests {
     use super::*;
     use crate::db::{bootstrap_schema, Db};
-    use rusqlite::Connection as RusqliteConn;
 
     fn db() -> Db {
-        let conn = RusqliteConn::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         bootstrap_schema(&conn).unwrap();
         Db::from_raw_for_tests(conn)
     }
@@ -444,19 +459,21 @@ mod rename_tests {
         let b_id = folders.iter().find(|f| f.name == "b").unwrap().id.clone();
         // Force the cycle directly via SQL: a.parent_id = b, b.parent_id = a.
         db.with_conn(|c| {
-            c.execute(
-                "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
-                params![&b_id, &a_id],
-            )
-            .map_err(|e| crate::error::Error::Db(format!("plant cycle a: {e}")))
+            c.raw()
+                .execute(
+                    "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
+                    params![&b_id, &a_id],
+                )
+                .map_err(|e| crate::error::Error::Db(format!("plant cycle a: {e}")))
         })
         .unwrap();
         db.with_conn(|c| {
-            c.execute(
-                "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
-                params![&a_id, &b_id],
-            )
-            .map_err(|e| crate::error::Error::Db(format!("plant cycle b: {e}")))
+            c.raw()
+                .execute(
+                    "UPDATE folders SET parent_id = ?1 WHERE id = ?2",
+                    params![&a_id, &b_id],
+                )
+                .map_err(|e| crate::error::Error::Db(format!("plant cycle b: {e}")))
         })
         .unwrap();
 

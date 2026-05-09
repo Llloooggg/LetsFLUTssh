@@ -26,7 +26,6 @@
 use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Write};
 
-use rusqlite::Connection;
 use serde_json::{json, Value};
 use zip::write::SimpleFileOptions;
 
@@ -91,7 +90,10 @@ pub struct ExportInput {
 /// Returns the bytes the caller writes atomically to the chosen
 /// path. Errors at any stage abort the archive — partial output is
 /// never returned, mirroring Dart's `tmp + rename` discipline.
-pub fn export_archive(conn: &Connection, input: &ExportInput) -> Result<Vec<u8>, Error> {
+pub fn export_archive(
+    conn: &impl crate::db::DbAccess,
+    input: &ExportInput,
+) -> Result<Vec<u8>, Error> {
     let zip_bytes = build_zip(conn, input)?;
 
     let pw = input.master_password.as_deref().unwrap_or("");
@@ -127,7 +129,10 @@ const LFSE_ENVELOPE_OVERHEAD: u32 = 4 + 1 + 10 + 32 + 12 + 16;
 /// inspected, so the caller can hand an empty `Vec<u8>` if it
 /// hasn't asked the user for the password yet but wants the
 /// encrypted-shape size.
-pub fn export_archive_size(conn: &Connection, input: &ExportInput) -> Result<u32, Error> {
+pub fn export_archive_size(
+    conn: &impl crate::db::DbAccess,
+    input: &ExportInput,
+) -> Result<u32, Error> {
     let zip_bytes = build_zip(conn, input)?;
     let inner = u32::try_from(zip_bytes.len()).unwrap_or(u32::MAX);
     let encrypted = !input.master_password.as_deref().unwrap_or("").is_empty();
@@ -138,7 +143,7 @@ pub fn export_archive_size(conn: &Connection, input: &ExportInput) -> Result<u32
     })
 }
 
-fn build_zip(conn: &Connection, input: &ExportInput) -> Result<Vec<u8>, Error> {
+fn build_zip(conn: &impl crate::db::DbAccess, input: &ExportInput) -> Result<Vec<u8>, Error> {
     let mut buf = Cursor::new(Vec::new());
     let mut zw = zip::ZipWriter::new(&mut buf);
     let opts = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
@@ -235,7 +240,7 @@ fn write_manifest(
 }
 
 fn build_sessions_value(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     selected_ids: &[String],
     folder_paths: &HashMap<String, String>,
 ) -> Result<Value, Error> {
@@ -319,7 +324,7 @@ fn session_row_to_json(
 }
 
 fn build_manager_keys_value(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     selected_session_ids: &[String],
     include_all: bool,
 ) -> Result<Option<Value>, Error> {
@@ -362,7 +367,7 @@ fn build_manager_keys_value(
     }
 }
 
-fn build_tags_value(conn: &Connection) -> Result<Option<Value>, Error> {
+fn build_tags_value(conn: &impl crate::db::DbAccess) -> Result<Option<Value>, Error> {
     let rows = tags::list_all(conn)?;
     if rows.is_empty() {
         return Ok(None);
@@ -382,7 +387,7 @@ fn build_tags_value(conn: &Connection) -> Result<Option<Value>, Error> {
 }
 
 fn build_session_tags_value(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     selected_session_ids: &[String],
 ) -> Result<Option<Value>, Error> {
     let mut arr = Vec::new();
@@ -399,7 +404,7 @@ fn build_session_tags_value(
     }
 }
 
-fn build_folder_tags_value(conn: &Connection) -> Result<Option<Value>, Error> {
+fn build_folder_tags_value(conn: &impl crate::db::DbAccess) -> Result<Option<Value>, Error> {
     let folders = folders::list_all(conn)?;
     if folders.is_empty() {
         return Ok(None);
@@ -423,7 +428,7 @@ fn build_folder_tags_value(conn: &Connection) -> Result<Option<Value>, Error> {
     }
 }
 
-fn build_snippets_value(conn: &Connection) -> Result<Option<Value>, Error> {
+fn build_snippets_value(conn: &impl crate::db::DbAccess) -> Result<Option<Value>, Error> {
     let rows = snippets::list_all(conn)?;
     if rows.is_empty() {
         return Ok(None);
@@ -445,7 +450,7 @@ fn build_snippets_value(conn: &Connection) -> Result<Option<Value>, Error> {
 }
 
 fn build_session_snippets_value(
-    conn: &Connection,
+    conn: &impl crate::db::DbAccess,
     selected_session_ids: &[String],
 ) -> Result<Option<Value>, Error> {
     let mut arr = Vec::new();
@@ -493,12 +498,14 @@ fn write_text_entry(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{self, folders, known_hosts, sessions, snippets, ssh_keys, tags};
+    use crate::db::{self, folders, known_hosts, sessions, snippets, ssh_keys, tags, Connection};
     use std::io::Read;
 
     fn fresh_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         db::bootstrap_schema(&conn).unwrap();
         conn
     }
@@ -544,7 +551,7 @@ mod tests {
             .map(|(_, b)| b.as_slice())
     }
 
-    fn insert_session(conn: &Connection, row: SessionRow) {
+    fn insert_session(conn: &impl crate::db::DbAccess, row: SessionRow) {
         sessions::upsert(conn, &row).unwrap();
     }
 
@@ -839,7 +846,7 @@ mod tests {
 
     // ── keys.json ─────────────────────────────────────────────
 
-    fn insert_key(conn: &Connection, id: &str, label: &str) {
+    fn insert_key(conn: &impl crate::db::DbAccess, id: &str, label: &str) {
         ssh_keys::upsert(
             conn,
             &ssh_keys::SshKeyRow {
@@ -933,7 +940,7 @@ mod tests {
 
     // ── tags.json + session_tags.json + folder_tags.json ──────
 
-    fn insert_tag(conn: &Connection, id: &str, name: &str) {
+    fn insert_tag(conn: &impl crate::db::DbAccess, id: &str, name: &str) {
         tags::upsert(
             conn,
             &tags::TagRow {
@@ -1018,7 +1025,7 @@ mod tests {
 
     // ── snippets.json + session_snippets.json ─────────────────
 
-    fn insert_snippet(conn: &Connection, id: &str, title: &str) {
+    fn insert_snippet(conn: &impl crate::db::DbAccess, id: &str, title: &str) {
         snippets::upsert(
             conn,
             &snippets::SnippetRow {

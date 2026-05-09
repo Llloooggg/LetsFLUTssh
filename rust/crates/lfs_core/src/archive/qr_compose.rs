@@ -15,7 +15,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use rusqlite::Connection;
 use serde_json::{json, Value};
 
 use crate::db::{folders, sessions, snippets, ssh_keys, tags};
@@ -63,7 +62,10 @@ pub struct QrExportInput {
 /// (manager-key PEM, session passwords) flow DB → JSON → deflate
 /// → base64 inside Rust and only the encoded ASCII string crosses
 /// the FRB boundary back to Dart for the QR canvas.
-pub fn qr_export_payload(conn: &Connection, input: &QrExportInput) -> Result<String, Error> {
+pub fn qr_export_payload(
+    conn: &impl crate::db::DbAccess,
+    input: &QrExportInput,
+) -> Result<String, Error> {
     let json = build_qr_export_json(conn, input)?;
     Ok(crate::qr_codec_encode::compress_to_payload(&json))
 }
@@ -79,7 +81,10 @@ pub fn qr_export_payload(conn: &Connection, input: &QrExportInput) -> Result<Str
 /// the `qr_codec_encode::compress_to_payload_size` helper:
 /// both producers run the same `Deflate(default).encode + base64url`
 /// pass, only the result type differs (size only vs full string).
-pub fn qr_export_payload_size(conn: &Connection, input: &QrExportInput) -> Result<u32, Error> {
+pub fn qr_export_payload_size(
+    conn: &impl crate::db::DbAccess,
+    input: &QrExportInput,
+) -> Result<u32, Error> {
     let json = build_qr_export_json(conn, input)?;
     Ok(crate::qr_codec_encode::compress_to_payload_size(&json))
 }
@@ -88,7 +93,10 @@ pub fn qr_export_payload_size(conn: &Connection, input: &QrExportInput) -> Resul
 /// `qr_export_payload` (encode-and-emit) and the
 /// `qr_export_payload_size` (encode-and-count) wrappers route
 /// through this so the wire shape stays one place.
-fn build_qr_export_json(conn: &Connection, input: &QrExportInput) -> Result<String, Error> {
+fn build_qr_export_json(
+    conn: &impl crate::db::DbAccess,
+    input: &QrExportInput,
+) -> Result<String, Error> {
     let mut payload = serde_json::Map::new();
     payload.insert("v".into(), json!(QR_FORMAT_VERSION));
 
@@ -370,11 +378,13 @@ fn build_qr_export_json(conn: &Connection, input: &QrExportInput) -> Result<Stri
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{self, sessions::SessionRow};
+    use crate::db::{self, sessions::SessionRow, Connection};
 
     fn fresh_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         db::bootstrap_schema(&conn).unwrap();
         conn
     }
@@ -404,12 +414,12 @@ mod tests {
         }
     }
 
-    fn payload_value(conn: &Connection, input: &QrExportInput) -> Value {
+    fn payload_value(conn: &impl crate::db::DbAccess, input: &QrExportInput) -> Value {
         let s = build_qr_export_json(conn, input).unwrap();
         serde_json::from_str(&s).unwrap()
     }
 
-    fn insert_key(conn: &Connection, id: &str, label: &str, pem: &str) {
+    fn insert_key(conn: &impl crate::db::DbAccess, id: &str, label: &str, pem: &str) {
         crate::db::ssh_keys::upsert(
             conn,
             &crate::db::ssh_keys::SshKeyRow {

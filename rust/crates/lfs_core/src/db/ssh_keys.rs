@@ -6,7 +6,8 @@
 //! connect path can resolve a saved key by id without ever
 //! materialising the bytes on the Dart heap.
 
-use rusqlite::{params, Connection};
+use crate::db::Connection;
+use rusqlite::params;
 use sha2::{Digest, Sha256};
 
 use crate::error::Error;
@@ -38,8 +39,9 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SshKeyRow> {
     })
 }
 
-pub fn list_all(conn: &Connection) -> Result<Vec<SshKeyRow>, Error> {
+pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys ORDER BY created_at DESC",
@@ -55,8 +57,9 @@ pub fn list_all(conn: &Connection) -> Result<Vec<SshKeyRow>, Error> {
     Ok(out)
 }
 
-pub fn get(conn: &Connection, id: &str) -> Result<Option<SshKeyRow>, Error> {
+pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SshKeyRow>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys WHERE id = ?1",
@@ -72,8 +75,8 @@ pub fn get(conn: &Connection, id: &str) -> Result<Option<SshKeyRow>, Error> {
     }
 }
 
-pub fn upsert(conn: &Connection, row: &SshKeyRow) -> Result<(), Error> {
-    conn.execute(
+pub fn upsert(conn: &impl crate::db::DbAccess, row: &SshKeyRow) -> Result<(), Error> {
+    conn.raw().execute(
         "INSERT INTO ssh_keys (id, label, private_key, public_key, key_type, is_generated, created_at) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
          ON CONFLICT(id) DO UPDATE SET \
@@ -123,8 +126,9 @@ pub struct SshKeyMetadata {
     pub public_fingerprint: String,
 }
 
-pub fn list_metadata(conn: &Connection) -> Result<Vec<SshKeyMetadata>, Error> {
+pub fn list_metadata(conn: &impl crate::db::DbAccess) -> Result<Vec<SshKeyMetadata>, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached(
             "SELECT id, label, private_key, public_key, key_type, is_generated, created_at \
              FROM ssh_keys ORDER BY created_at DESC",
@@ -181,10 +185,11 @@ fn normalized_sha256_hex(s: &str) -> String {
 /// cache.
 ///
 /// Atomicity: the delete + upserts run inside a single
-/// `conn.transaction()`; a failure mid-loop rolls back so the
+/// `conn.inner_mut().transaction()`; a failure mid-loop rolls back so the
 /// table never lands half-cleared.
 pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Error> {
     let tx = conn
+        .inner_mut()
         .transaction()
         .map_err(|e| Error::Db(format!("ssh_keys replace_all: begin tx: {e}")))?;
     tx.execute("DELETE FROM ssh_keys", [])
@@ -214,8 +219,9 @@ pub fn replace_all(conn: &mut Connection, rows: &[SshKeyRow]) -> Result<(), Erro
     Ok(())
 }
 
-pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
+pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
     let n = conn
+        .raw()
         .execute("DELETE FROM ssh_keys WHERE id = ?1", params![id])
         .map_err(|e| Error::Db(format!("ssh_keys delete: {e}")))?;
     Ok(n)
@@ -237,6 +243,7 @@ pub fn delete(conn: &Connection, id: &str) -> Result<usize, Error> {
 pub fn import_key_for_merge(conn: &mut Connection, proposed: &SshKeyRow) -> Result<String, Error> {
     use rand::RngCore;
     let tx = conn
+        .inner_mut()
         .transaction()
         .map_err(|e| Error::Db(format!("ssh_keys import_for_merge tx: {e}")))?;
 
@@ -308,8 +315,12 @@ pub fn private_key_secret_id(key_id: &str) -> String {
 /// crosses the FRB boundary back to Dart — the Dart connect path
 /// only sees the secret id and constructs the matching
 /// `SshAuthPubkeyRef` variant.
-pub fn stage_secret_into_store(conn: &Connection, key_id: &str) -> Result<bool, Error> {
+pub fn stage_secret_into_store(
+    conn: &impl crate::db::DbAccess,
+    key_id: &str,
+) -> Result<bool, Error> {
     let mut stmt = conn
+        .raw()
         .prepare_cached("SELECT private_key FROM ssh_keys WHERE id = ?1")
         .map_err(|e| Error::Db(format!("ssh_keys stage prepare: {e}")))?;
     let private_key: Option<String> = stmt.query_row(params![key_id], |row| row.get(0)).ok();
@@ -328,11 +339,12 @@ pub fn stage_secret_into_store(conn: &Connection, key_id: &str) -> Result<bool, 
 mod import_for_merge_tests {
     use super::*;
     use crate::db::{bootstrap_schema, Db};
-    use rusqlite::Connection as RusqliteConn;
 
     fn db() -> Db {
-        let conn = RusqliteConn::open_in_memory().unwrap();
-        conn.execute_batch("PRAGMA foreign_keys = ON").unwrap();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
         bootstrap_schema(&conn).unwrap();
         Db::from_raw_for_tests(conn)
     }
