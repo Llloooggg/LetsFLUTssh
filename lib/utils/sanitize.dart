@@ -110,57 +110,95 @@ bool looksSensitive(String text) {
   return _longB64Re.hasMatch(text);
 }
 
-// IPv6 literals — full + every compression shape, including
-// link-local / loopback / unspecified. Optionally bracketed so
-// the trailing host:port rule can redact the port cleanly.
-// Branches ordered most-specific-first because Dart's `RegExp`
-// (like Rust's `regex`) picks the first match, not the longest.
-final RegExp _ipv6Re = RegExp(
-  r'\[?(?:'
-  // Full 8-group: 1:2:3:4:5:6:7:8
-  r'(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}'
-  // 1 leading group, 1..6 trailing groups after ::
-  r'|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}'
-  r'|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}'
-  r'|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}'
-  r'|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}'
-  r'|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}'
-  // 1..6 leading + exactly 1 trailing — `2001:db8::1`
-  r'|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}'
-  // Pure leading-then-:: (`1::`, `1:2::`)
-  r'|(?:[0-9A-Fa-f]{1,4}:){1,7}:'
-  // Pure trailing-after-:: (`::8`, `::1:2`)
-  r'|:(?::[0-9A-Fa-f]{1,4}){1,7}'
-  r'|::'
-  r')\]?',
+// 2-pass sanitize shape — earlier shape ran 8 sequential
+// `replaceAll` passes, each scanning the full input. The 2-pass
+// shape collapses them to a bare-IP pass + a "everything else"
+// combined pass. ~4× reduction. A single-pass combined regex was
+// tried and rejected because Rust's `regex` (NFA, no backtracking)
+// and Dart's `RegExp` (PCRE-style backtracking) diverge on inputs
+// like `fe80::abcd:1234:5678` where the host:port branch wants a
+// shorter IPv6 prefix to leave `:5678` for the port slot — Dart
+// backtracks and finds it; Rust does not, falling through to the
+// bare-IP catch-all and consuming the full IPv6. Two passes
+// preserve the per-pass identity between engines so the cross-
+// impl drift gate (`test/utils/sanitize_drift_test.dart`) stays
+// green.
+
+const String _ipv6Branch =
+    r'\[?(?:'
+    r'(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}'
+    r'|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}'
+    r'|(?:[0-9A-Fa-f]{1,4}:){1,7}:'
+    r'|:(?::[0-9A-Fa-f]{1,4}){1,7}'
+    r'|::'
+    r')\]?';
+
+const String _ipv4Branch = r'(?:\d{1,3}\.){3}\d{1,3}';
+
+/// Pass 1: bare IPv6 + IPv4 → `<ip>`.
+final RegExp _ipRe = RegExp(
+  '$_ipv6Branch'
+  r'|\b'
+  '$_ipv4Branch'
+  r'\b',
 );
 
-final RegExp _ipv4Re = RegExp(r'\b(?:\d{1,3}\.){3}\d{1,3}\b');
-
-final RegExp _userAtHostRe = RegExp(
-  r'([a-zA-Z0-9_.\-]+)@([a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)',
+/// Pass 2: combined "everything else" — user@host, as_user, user=,
+/// host:port, Windows path, Unix path. Host slot after pass 1 is
+/// either a literal `<ip>` placeholder or a domain name.
+///
+/// `userhost` carries an optional `:port` suffix so the closure
+/// can render `<user>@host:<port>` in one shot — alternation can't
+/// compose user@host's match with a separate host:port match
+/// because each `replaceAllMapped` callback span is consumed and
+/// the engine continues from after the match.
+final RegExp _restRe = RegExp(
+  r'(?<userhost>[a-zA-Z0-9_.\-]+@(?<userhost_host>[a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)(?::(?<userhost_port>\d{2,5}))?)'
+  r'|(?<asuser>\bas\s+[a-zA-Z0-9_.\-]+)'
+  r'|(?<usereq>\b(?<usereq_key>user|login)=[a-zA-Z0-9_.\-]+)'
+  r'|(?<hostport>(?<hostport_host><ip>|[a-zA-Z0-9_.\-]+):(?:\d{2,5}))\b'
+  r'|(?<winpath>[A-Z]:\\Users\\[^\\\r\n]+)'
+  r'|(?<unixpath>/(?:Users|home)/[^/\s]+)',
 );
-
-final RegExp _asUserRe = RegExp(r'\bas\s+([a-zA-Z0-9_.\-]+)');
-
-final RegExp _userEqRe = RegExp(r'\b(user|login)=([a-zA-Z0-9_.\-]+)');
-
-final RegExp _hostPortRe = RegExp(r'(<ip>|[a-zA-Z0-9_.\-]+):(\d{2,5})\b');
-
-final RegExp _windowsPathRe = RegExp(r'[A-Z]:\\Users\\[^\\\r\n]+');
-
-final RegExp _unixPathRe = RegExp(r'/(?:Users|home)/[^/\s]+');
 
 /// Remove sensitive data from error messages before logging or
-/// surfacing in toasts. See file-level comment for the pipeline.
+/// surfacing in toasts. Two-pass shape — IPs first (turn into
+/// `<ip>` placeholder), then everything else in one combined
+/// regex that dispatches in the replace closure based on which
+/// named capture matched.
 String sanitizeErrorMessage(String message) {
-  return message
-      .replaceAll(_ipv6Re, '<ip>')
-      .replaceAll(_ipv4Re, '<ip>')
-      .replaceAllMapped(_userAtHostRe, (m) => '<user>@${m.group(2)}')
-      .replaceAll(_asUserRe, 'as <user>')
-      .replaceAllMapped(_userEqRe, (m) => '${m.group(1)}=<user>')
-      .replaceAllMapped(_hostPortRe, (m) => '${m.group(1)}:<port>')
-      .replaceAll(_windowsPathRe, '<path>')
-      .replaceAll(_unixPathRe, '/<user>');
+  final afterIp = message.replaceAll(_ipRe, '<ip>');
+  return afterIp.replaceAllMapped(_restRe, (rawMatch) {
+    final m = rawMatch as RegExpMatch;
+    if (m.namedGroup('userhost') != null) {
+      final host = m.namedGroup('userhost_host') ?? '<host>';
+      if (m.namedGroup('userhost_port') != null) {
+        return '<user>@$host:<port>';
+      }
+      return '<user>@$host';
+    }
+    if (m.namedGroup('asuser') != null) {
+      return 'as <user>';
+    }
+    if (m.namedGroup('usereq') != null) {
+      final key = m.namedGroup('usereq_key') ?? 'user';
+      return '$key=<user>';
+    }
+    if (m.namedGroup('hostport') != null) {
+      final host = m.namedGroup('hostport_host') ?? '<host>';
+      return '$host:<port>';
+    }
+    if (m.namedGroup('winpath') != null) {
+      return '<path>';
+    }
+    if (m.namedGroup('unixpath') != null) {
+      return '/<user>';
+    }
+    return m.group(0) ?? '';
+  });
 }

@@ -64,105 +64,116 @@ pub fn looks_sensitive(text: &str) -> bool {
     long_b64_re().is_match(text)
 }
 
-// ---- sanitize_error_message regex pool ------------------------------
+// ---- sanitize_error_message — 2-pass combined regex ------------------
+//
+// Earlier shape ran 8 sequential `replace_all` passes — each
+// scanned the full input. The 2-pass shape below collapses them
+// to a bare-IP pass + a "everything else" combined pass. ~4×
+// reduction. A single-pass combined regex was tried and rejected
+// because Rust's `regex` (NFA, no backtracking) and Dart's
+// `RegExp` (PCRE-style backtracking) diverge on inputs like
+// `fe80::abcd:1234:5678` where the host:port branch wants a
+// shorter IPv6 prefix to leave `:5678` for the port slot — Dart
+// backtracks and finds it; Rust does not, falling through to the
+// bare-IP catch-all and consuming the full IPv6. Two passes
+// preserve the per-pass identity between engines.
 
-/// IPv6 literals (full + every compression shape, including
-/// link-local / loopback / unspecified). Optionally bracketed
-/// — Dart's pattern eats `[…]` so the trailing host:port rule
-/// can redact the port cleanly. Branches ordered most-specific
-/// first because Rust's `regex` (like Dart's `RegExp`) picks
-/// the first match, not the longest.
-fn ipv6_re() -> &'static Regex {
+const IPV6_BRANCH: &str = concat!(
+    r"\[?(?:",
+    // Full 8-group: 1:2:3:4:5:6:7:8
+    r"(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}",
+    // 1 leading group, 1..6 trailing groups after ::
+    r"|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}",
+    r"|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}",
+    r"|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}",
+    r"|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}",
+    r"|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}",
+    // 1..6 leading + exactly 1 trailing — `2001:db8::1`
+    r"|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}",
+    // Pure leading-then-:: (`1::`, `1:2::`)
+    r"|(?:[0-9A-Fa-f]{1,4}:){1,7}:",
+    // Pure trailing-after-:: (`::8`, `::1:2`)
+    r"|:(?::[0-9A-Fa-f]{1,4}){1,7}",
+    r"|::",
+    r")\]?",
+);
+
+const IPV4_BRANCH: &str = r"(?:\d{1,3}\.){3}\d{1,3}";
+
+/// Pass 1: bare IPv6 + IPv4 → `<ip>`. One regex, two alternatives.
+fn ip_re() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        let combined = format!(r"{IPV6_BRANCH}|\b{IPV4_BRANCH}\b");
+        Regex::new(&combined).expect("valid ip regex")
+    })
+}
+
+/// Pass 2: everything else (user@host, as_user, user=, host:port,
+/// Windows path, Unix path) — combined into one regex with named
+/// captures, dispatched in the replace closure. The host slot
+/// after pass 1 is either a literal `<ip>` placeholder or a
+/// domain name; the regex matches both.
+///
+/// `userhost` carries an optional `:port` suffix so the replace
+/// closure can render `<user>@host:<port>` in one shot — the
+/// alternation can't compose user@host's match with a separate
+/// host:port match because each `replace_all` callback span is
+/// consumed and the engine continues from after the match.
+fn rest_re() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| {
         Regex::new(concat!(
-            r"\[?(?:",
-            // Full 8-group: 1:2:3:4:5:6:7:8
-            r"(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}",
-            // 1 leading group, 1..6 trailing groups after ::
-            r"|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}",
-            r"|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}",
-            r"|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}",
-            r"|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}",
-            r"|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}",
-            // 1..6 leading + exactly 1 trailing — `2001:db8::1`
-            r"|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}",
-            // Pure leading-then-:: (`1::`, `1:2::`)
-            r"|(?:[0-9A-Fa-f]{1,4}:){1,7}:",
-            // Pure trailing-after-:: (`::8`, `::1:2`)
-            r"|:(?::[0-9A-Fa-f]{1,4}){1,7}",
-            r"|::",
-            r")\]?",
+            r"(?P<userhost>([a-zA-Z0-9_.\-]+)@(?P<userhost_host>[a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)(?::(?P<userhost_port>\d{2,5}))?)",
+            r"|(?P<asuser>\bas\s+[a-zA-Z0-9_.\-]+)",
+            r"|(?P<usereq>\b(?P<usereq_key>user|login)=[a-zA-Z0-9_.\-]+)",
+            r"|(?P<hostport>(?P<hostport_host><ip>|[a-zA-Z0-9_.\-]+):(?:\d{2,5}))\b",
+            r"|(?P<winpath>[A-Z]:\\Users\\[^\\\r\n]+)",
+            r"|(?P<unixpath>/(?:Users|home)/[^/\s]+)",
         ))
-        .expect("valid IPv6 regex")
+        .expect("valid combined sanitize regex")
     })
-}
-
-fn ipv4_re() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| Regex::new(r"\b(\d{1,3}\.){3}\d{1,3}\b").expect("valid IPv4 regex"))
-}
-
-fn user_at_host_re() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r"([a-zA-Z0-9_.\-]+)@([a-zA-Z0-9_.]+\.[a-zA-Z]{2,}|<ip>)")
-            .expect("valid user@host regex")
-    })
-}
-
-fn as_user_re() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| Regex::new(r"\bas\s+([a-zA-Z0-9_.\-]+)").expect("valid as-user regex"))
-}
-
-fn user_eq_re() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| Regex::new(r"\b(user|login)=([a-zA-Z0-9_.\-]+)").expect("valid user= regex"))
-}
-
-fn host_port_re() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| {
-        Regex::new(r"(<ip>|[a-zA-Z0-9_.\-]+):(\d{2,5})\b").expect("valid host:port regex")
-    })
-}
-
-fn windows_path_re() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| Regex::new(r"[A-Z]:\\Users\\[^\\\r\n]+").expect("valid windows path regex"))
-}
-
-fn unix_path_re() -> &'static Regex {
-    static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| Regex::new(r"/(?:Users|home)/[^/\s]+").expect("valid unix path regex"))
 }
 
 /// Remove sensitive data from error messages before logging or
-/// surfacing in toasts. Order mirrors the Dart pipeline:
-/// IPv6 → IPv4 → user@host → as/user/login=value → host:port →
-/// Windows path → Unix path. Each step rewrites the buffer the
-/// next step scans, so e.g. host:port redaction operates after
-/// the IP rewrites have already turned bare IPs into `<ip>`.
+/// surfacing in toasts. Two-pass shape — IPs first (turn into
+/// `<ip>` placeholder), then everything else in one combined
+/// regex that dispatches in the replace closure based on which
+/// named capture matched.
 pub fn sanitize_error_message(input: &str) -> String {
-    let after_v6 = ipv6_re().replace_all(input, "<ip>");
-    let after_v4 = ipv4_re().replace_all(&after_v6, "<ip>");
-    let after_userhost = user_at_host_re().replace_all(&after_v4, |c: &regex::Captures<'_>| {
-        let host = c.get(2).map_or("<host>", |m| m.as_str());
-        format!("<user>@{host}")
-    });
-    let after_as = as_user_re().replace_all(&after_userhost, "as <user>");
-    let after_userq = user_eq_re().replace_all(&after_as, |c: &regex::Captures<'_>| {
-        let key = c.get(1).map_or("user", |m| m.as_str());
-        format!("{key}=<user>")
-    });
-    let after_hp = host_port_re().replace_all(&after_userq, |c: &regex::Captures<'_>| {
-        let host = c.get(1).map_or("<host>", |m| m.as_str());
-        format!("{host}:<port>")
-    });
-    let after_win = windows_path_re().replace_all(&after_hp, "<path>");
-    let after_unix = unix_path_re().replace_all(&after_win, "/<user>");
-    after_unix.into_owned()
+    let after_ip = ip_re().replace_all(input, "<ip>");
+    rest_re()
+        .replace_all(&after_ip, |c: &regex::Captures<'_>| {
+            if c.name("userhost").is_some() {
+                let host = c.name("userhost_host").map_or("<host>", |m| m.as_str());
+                if c.name("userhost_port").is_some() {
+                    return format!("<user>@{host}:<port>");
+                }
+                return format!("<user>@{host}");
+            }
+            if c.name("asuser").is_some() {
+                return "as <user>".to_string();
+            }
+            if c.name("usereq").is_some() {
+                let key = c.name("usereq_key").map_or("user", |m| m.as_str());
+                return format!("{key}=<user>");
+            }
+            if c.name("hostport").is_some() {
+                let host = c.name("hostport_host").map_or("<host>", |m| m.as_str());
+                return format!("{host}:<port>");
+            }
+            if c.name("winpath").is_some() {
+                return "<path>".to_string();
+            }
+            if c.name("unixpath").is_some() {
+                return "/<user>".to_string();
+            }
+            // Unreachable — every branch above is named and one of
+            // them must have matched. Preserve the original span if
+            // a future regex-vs-dispatch drift slips through.
+            c.get(0).map_or(String::new(), |m| m.as_str().to_string())
+        })
+        .into_owned()
 }
 
 #[cfg(test)]
