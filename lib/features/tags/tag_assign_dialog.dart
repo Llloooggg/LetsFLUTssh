@@ -143,7 +143,10 @@ class _TagAssignDialogState extends ConsumerState<TagAssignDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (showSearch) ...[_buildSearchField(s), const SizedBox(height: AppSpacing.xxs)],
+        if (showSearch) ...[
+          _buildSearchField(s),
+          const SizedBox(height: AppSpacing.xxs),
+        ],
         _buildSelectAllRow(s),
         const AppDivider(),
         const SizedBox(height: AppSpacing.xs),

@@ -126,11 +126,17 @@ void main() {
     test('vault_corrupt predicate gates the destructive reset cascade — '
         'verify the discriminator stays distinct from the recoverable '
         'kind=vault bucket', () {
-      const corrupt = FrbError(kind: 'vault_corrupt', detail: 'truncated header');
+      const corrupt = FrbError(
+        kind: 'vault_corrupt',
+        detail: 'truncated header',
+      );
       const recoverable = FrbError(kind: 'vault', detail: 'wrong PIN');
       expect(corrupt.isVaultCorrupt, isTrue);
-      expect(recoverable.isVaultCorrupt, isFalse,
-          reason: 'kind=vault must NOT trigger reset — only vault_corrupt');
+      expect(
+        recoverable.isVaultCorrupt,
+        isFalse,
+        reason: 'kind=vault must NOT trigger reset — only vault_corrupt',
+      );
     });
   });
 

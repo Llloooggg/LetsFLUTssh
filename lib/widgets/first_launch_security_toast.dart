@@ -173,7 +173,10 @@ class _ToastCard extends StatelessWidget {
                 if (upgradeLine != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Padding(
-                    padding: const EdgeInsetsDirectional.only(start: 26, end: 4),
+                    padding: const EdgeInsetsDirectional.only(
+                      start: 26,
+                      end: 4,
+                    ),
                     child: Text(
                       upgradeLine,
                       style: TextStyle(

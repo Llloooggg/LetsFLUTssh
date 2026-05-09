@@ -175,4 +175,3 @@ class _TransferSection extends ConsumerWidget {
     );
   }
 }
-

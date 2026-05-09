@@ -517,9 +517,7 @@ class _LogRow extends StatelessWidget {
       border = isBanner
           ? Border(left: BorderSide(color: AppTheme.green, width: 2))
           : null;
-      spans = [
-        TextSpan(text: '  ${entry.message}', style: _dim(baseStyle)),
-      ];
+      spans = [TextSpan(text: '  ${entry.message}', style: _dim(baseStyle))];
     } else {
       final color = _levelColor(entry.level);
       border = Border(left: BorderSide(color: color, width: 2));

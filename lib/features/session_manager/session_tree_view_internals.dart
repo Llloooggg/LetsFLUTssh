@@ -73,7 +73,6 @@ extension _Internals on _SessionTreeViewState {
 
   void _onPointerUp(PointerUpEvent e) => handleMarqueePointerUp(e);
 
-
   Widget _buildDragTarget(List<(SessionTreeNode, int)> flatNodes) {
     return DragTarget<SessionDragData>(
       onWillAcceptWithDetails: (details) => _canAcceptDrop(details.data, ''),

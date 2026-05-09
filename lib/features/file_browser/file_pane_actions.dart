@@ -7,7 +7,6 @@ part of 'file_pane.dart';
 /// the file into the same library so library-private names stay
 /// reachable.
 extension _Actions on _FilePaneState {
-
   void _showBackgroundContextMenu(BuildContext context, Offset position) {
     ctrl.clearSelection();
     showAppContextMenu(

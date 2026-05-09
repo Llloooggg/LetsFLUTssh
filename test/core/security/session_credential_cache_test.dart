@@ -35,7 +35,10 @@ void main() {
       // Bytes round-trip via UTF-8.
       expect(utf8.decode(rust_app.secretsTake(id: 'sess.password.s1')!), 'pw');
       expect(utf8.decode(rust_app.secretsTake(id: 'sess.key.s1')!), 'PEM');
-      expect(utf8.decode(rust_app.secretsTake(id: 'sess.passphrase.s1')!), 'pp');
+      expect(
+        utf8.decode(rust_app.secretsTake(id: 'sess.passphrase.s1')!),
+        'pp',
+      );
     });
 
     test('store with null slots drops instead of staging', () async {
@@ -112,10 +115,7 @@ void main() {
     test('evict on a session that has nothing staged is a no-op', () async {
       await cache.evict('never-existed');
       // No throw; SecretStore stays empty (no other slots seeded).
-      expect(
-        rust_app.secretsHas(id: 'sess.password.never-existed'),
-        isFalse,
-      );
+      expect(rust_app.secretsHas(id: 'sess.password.never-existed'), isFalse);
     });
 
     test('evictAll wipes every staged secret', () async {

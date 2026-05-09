@@ -51,7 +51,10 @@ void main() {
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,
-          child: AppBorderedBox(borderRadius: AppTheme.radiusLg, child: SizedBox()),
+          child: AppBorderedBox(
+            borderRadius: AppTheme.radiusLg,
+            child: SizedBox(),
+          ),
         ),
       );
 
@@ -74,7 +77,9 @@ void main() {
       expect(border.top.width, 2);
     });
 
-    testWidgets('passes height, width, padding, alignment, constraints', (tester) async {
+    testWidgets('passes height, width, padding, alignment, constraints', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,

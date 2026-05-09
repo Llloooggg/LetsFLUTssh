@@ -426,7 +426,8 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                const verticalPadding = 8.0; // EdgeInsets.all(AppSpacing.xs).vertical
+                const verticalPadding =
+                    8.0; // EdgeInsets.all(AppSpacing.xs).vertical
                 final cellHeight = fontSize * kTerminalLineHeight;
                 final usable = constraints.maxHeight - verticalPadding;
                 final rows = usable > 0 ? (usable / cellHeight).floor() : 0;
