@@ -303,10 +303,22 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
             .by_index(i)
             .map_err(|e| Error::Archive(format!("import zip entry {i}: {e}")))?;
         let name = entry.name().to_string();
+        // Bound the read on the actual decompressed bytes — the
+        // pre-loop above sums declared `entry.size()` against
+        // MAX_DECOMPRESSED_BYTES, but a hostile archive can lie
+        // about its size header and explode at extract time.
+        // `take(cap+1)` lets us catch the over-cap case as a
+        // post-read length check without pre-allocating cap bytes.
+        let cap = MAX_DECOMPRESSED_BYTES;
         let mut buf = String::new();
-        entry
+        std::io::Read::take(&mut entry, cap.saturating_add(1))
             .read_to_string(&mut buf)
             .map_err(|e| Error::Archive(format!("import read {name}: {e}")))?;
+        if buf.len() as u64 > cap {
+            return Err(Error::Archive(format!(
+                "import zip entry {name}: decompressed size exceeds {cap}-byte cap (zip bomb?)"
+            )));
+        }
         match name.as_str() {
             "manifest.json" => pending.manifest_json = Some(buf),
             "sessions.json" => pending.sessions_json = Some(buf),

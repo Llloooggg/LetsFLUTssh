@@ -37,13 +37,23 @@ use crate::log_sanitize::{redact_secrets, sanitize_error_message};
 /// Publish a single log line on the bus. Prefer the [`info!`] /
 /// [`warn!`] / [`error!`] macros — they call this with the right
 /// sanitisation chain and bus handle.
+///
+/// Drops the line silently when `app::init()` has not run yet —
+/// some lfs_core paths reach the log macros from contexts where
+/// the singleton isn't guaranteed (cold-start race, standalone
+/// unit tests for parsers / validators that don't share the test
+/// binary's init priming). The bus drops pre-subscriber lines
+/// anyway (no replay), so a pre-init drop is consistent with the
+/// documented diagnostic-not-load-bearing contract.
 pub fn publish(level: CoreLogLevel, name: impl Into<String>, message: impl Into<String>) {
     let raw = message.into();
     // Two-pass sanitise mirrors the Dart `AppLogger.sanitize`
     // contract: secrets first (PEM / long base64), then PII
     // (IPv4 / user@host / home paths).
     let safe = sanitize_error_message(&redact_secrets(&raw));
-    let app = crate::app::instance();
+    let Some(app) = crate::app::try_instance() else {
+        return;
+    };
     app.bus.publish(Event::CoreLog {
         level,
         name: name.into(),

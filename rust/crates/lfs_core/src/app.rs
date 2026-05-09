@@ -198,6 +198,16 @@ pub fn instance() -> Arc<AppState> {
         .clone()
 }
 
+/// Non-panicking variant of [`instance`]. Returns `None` when the
+/// singleton has not been initialised yet (cold-start window before
+/// the FRB worker calls `app_init`, standalone unit tests that
+/// don't share the test binary's init priming). Use from the
+/// "fire-and-forget" log fan-out path so a pre-init log call drops
+/// the line silently rather than panicking the caller.
+pub fn try_instance() -> Option<Arc<AppState>> {
+    APP_STATE.get().cloned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
