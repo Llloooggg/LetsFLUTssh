@@ -48,7 +48,12 @@ use crate::archive::PendingImport;
 use crate::error::Error;
 
 const MAX_INFLATED_PAYLOAD_BYTES: usize = 4 * 1024 * 1024;
-const CURRENT_FORMAT_VERSION: i64 = 4;
+/// Wire version the decoder accepts. Derived from
+/// [`crate::migration::SchemaVersions::QR_PAYLOAD`] so the framework's
+/// canonical version registry is the single source of truth — a
+/// payload-shape bump flows through here without a parallel constant
+/// edit.
+const CURRENT_FORMAT_VERSION: i64 = crate::migration::SchemaVersions::QR_PAYLOAD as i64;
 
 /// Result of a successful decode plus any out-of-band signals
 /// the caller surfaces to the user.

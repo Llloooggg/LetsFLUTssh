@@ -47,7 +47,12 @@ pub const VERIFIER_FILE_NAME: &str = "credentials.verify";
 pub const KEY_FILE_NAME: &str = "credentials.key";
 
 const FILE_MAGIC: [u8; 4] = [0x4C, 0x46, 0x4B, 0x44]; // 'LFKD'
-const FILE_VERSION: u8 = 0x01;
+/// On-disk envelope version. Derived from
+/// [`crate::migration::SchemaVersions::KDF`] so the framework's
+/// canonical version registry is the single source of truth — a
+/// migration that bumps `SchemaVersions::KDF` flows here without
+/// a parallel constant edit.
+const FILE_VERSION: u8 = crate::migration::SchemaVersions::KDF as u8;
 const HEADER_BASE_LEN: usize = 6; // magic(4) + version(1) + algoId(1)
 const SALT_LENGTH: usize = 32;
 const KEY_LENGTH: usize = 32;

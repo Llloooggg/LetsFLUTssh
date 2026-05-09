@@ -76,10 +76,12 @@ pub async fn db_export_archive(input: DbExportInput, output_path: String) -> Res
         master_password: if input.master_password.is_empty() {
             None
         } else {
-            Some(
-                String::from_utf8(input.master_password)
-                    .map_err(|_| "master_password is not valid UTF-8".to_string())?,
-            )
+            Some(String::from_utf8(input.master_password).map_err(|_| {
+                crate::api::frb_err::wire(
+                    crate::api::frb_err::kind::AUTH_OTHER,
+                    "master_password is not valid UTF-8",
+                )
+            })?)
         },
         kdf_memory_kib: input.kdf_memory_kib,
         kdf_iterations: input.kdf_iterations,
@@ -141,10 +143,12 @@ pub fn db_lfs_export_size(input: DbExportInput) -> Result<u32, String> {
         master_password: if input.master_password.is_empty() {
             None
         } else {
-            Some(
-                String::from_utf8(input.master_password)
-                    .map_err(|_| "master_password is not valid UTF-8".to_string())?,
-            )
+            Some(String::from_utf8(input.master_password).map_err(|_| {
+                crate::api::frb_err::wire(
+                    crate::api::frb_err::kind::AUTH_OTHER,
+                    "master_password is not valid UTF-8",
+                )
+            })?)
         },
         kdf_memory_kib: input.kdf_memory_kib,
         kdf_iterations: input.kdf_iterations,

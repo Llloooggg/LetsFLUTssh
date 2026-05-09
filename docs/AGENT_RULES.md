@@ -49,8 +49,8 @@ Reference material for any AI coding agent operating on this repo. Read the spec
 | Work with database / DAOs | [§2 Module Map](ARCHITECTURE.md#2-module-map) (`core/db/`) + [§11 Persistence](ARCHITECTURE.md#11-persistence--storage) |
 | Work with snippets | `core/snippets/` + `features/snippets/` + `providers/snippet_provider.dart` |
 | Work with tags | `core/tags/` + `features/tags/` + `providers/tag_provider.dart` |
-| Bump a persisted-file format / add a new envelope artefact | [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework) + [§3.6 → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — `SchemaVersions` + `Migration` + register in `buildAppMigrationRegistry()` |
-| Bump the `.lfs` archive `schema_version` | [§3.9 Import → .lfs format](ARCHITECTURE.md#39-import-coreimport) + [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework) — register the `Migration` in `archiveMigrationRegistry` |
+| Bump a persisted-file format / add a new envelope artefact | [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework) + [§3.6 → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — `SchemaVersions` + `Migration` + register in `lfs_core::migration::registry::build_app_registry` |
+| Bump the `.lfs` archive `schema_version` | [§3.9 Import → .lfs format](ARCHITECTURE.md#39-import-coreimport) + [§3.6 → Migration framework](ARCHITECTURE.md#migration-framework) — archive future-version handling is **not** a registry: `read_archive_to_pending` rejects archives newer than `SchemaVersions::ARCHIVE`, so older builds can't apply newer formats |
 | Check data models | [§10 Data Models](ARCHITECTURE.md#10-data-models) |
 | Understand CI/CD / workflows | [§15 CI/CD Pipeline](ARCHITECTURE.md#15-cicd-pipeline) |
 | Check design decisions / gotchas | [§16 Design Decisions](ARCHITECTURE.md#16-design-decisions--rationale) |
@@ -145,7 +145,7 @@ This rule binds every code edit **and every plan**, not just "big" ones. "Forgot
 | Changed data flow | Update relevant [§9 Data Flow](ARCHITECTURE.md#9-data-flow-diagrams) diagram |
 | New dependency added | Update [§17 Dependencies](ARCHITECTURE.md#17-dependencies) |
 | Changed persistence schema (rusqlite SQL: add/rename column, new table, new index) | Update [§11 Persistence](ARCHITECTURE.md#11-persistence--storage). Schema lives in `lfs_core::db::*` and is bootstrapped idempotently on open; structural changes need an additive `ALTER TABLE` / `CREATE TABLE IF NOT EXISTS` step in the bootstrap path so existing user DBs upgrade without a wipe |
-| Changed wire format of a persisted file (`config.json`, `credentials.kdf`, hardware-vault blob, `.lfs` archive) **or** added a new envelope artefact | Update [§3.6 → Migration framework → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — bump `SchemaVersions.<x>`, ship a `Migration`, register it in `buildAppMigrationRegistry()` (or `archiveMigrationRegistry`), and add the chain test |
+| Changed wire format of a persisted file (`config.json`, `credentials.kdf`, hardware-vault blob, `.lfs` archive) **or** added a new envelope artefact | Update [§3.6 → Migration framework → Developer guide](ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change) — bump `SchemaVersions::<X>`, ship a `Migration`, register it in `lfs_core::migration::registry::build_app_registry`, and add the chain test. Archive future-version handling is the no-registry path — `read_archive_to_pending` rejects future-version archives outright |
 | Changed security model | Update [§13 Security Model](ARCHITECTURE.md#13-security-model) + SECURITY.md |
 | New design decision | Add to [§16 Design Decisions](ARCHITECTURE.md#16-design-decisions--rationale) with rationale |
 | New CI workflow / changed pipeline | Update [§15 CI/CD](ARCHITECTURE.md#15-cicd-pipeline) |

@@ -91,7 +91,7 @@ Order is tuned to ship the largest pain-points first, keep crypto/security-sensi
 
 **What exists.**
 - `.lfs` archive format + encryption already covers the transport payload (`lib/features/settings/export_import.dart:24-210`). We don't re-invent crypto; we re-use this one archive as the sync unit.
-- `archiveMigrationRegistry` (`lib/core/migration/archive_registry.dart`) handles cross-version decoding.
+- Archive future-version handling lives in `lfs_core::archive::read_archive_to_pending`, which rejects archives whose `manifest.schema_version` is newer than `SchemaVersions::ARCHIVE` so older builds can't apply newer formats. Within-version decoding routes through the same composer as export.
 - **No WebDAV client in the codebase.** Needs a new dependency (`webdav_client_plus` or hand-rolled — verify pub.dev current state).
 
 **Files to change.**

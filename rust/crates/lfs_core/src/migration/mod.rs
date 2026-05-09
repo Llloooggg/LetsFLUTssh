@@ -99,6 +99,13 @@ impl SchemaVersions {
 
     /// `.lfs` archive schema carried in `manifest.json`.
     pub const ARCHIVE: i32 = 1;
+
+    /// QR / paste-link payload schema (the `v` field inside the
+    /// deflated JSON envelope). Same future-version-rejection shape
+    /// as [`Self::ARCHIVE`] — older builds reject newer payloads
+    /// rather than upgrading them, so the registry is the public
+    /// source of truth for the version surface.
+    pub const QR_PAYLOAD: i32 = 4;
 }
 
 /// A single migrate-able piece of on-disk state.

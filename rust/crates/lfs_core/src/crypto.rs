@@ -406,6 +406,58 @@ mod tests {
     }
 
     #[test]
+    fn aes_gcm_known_answer_test_nist_sp_800_38d_vector_12() {
+        // NIST SP 800-38D appendix B test vector 12 (AES-256 GCM):
+        // 32-byte key, 12-byte IV, 60-byte plaintext, 20-byte AAD.
+        // Pin the byte-for-byte output to catch any regression in the
+        // underlying `aes-gcm` crate (algorithm switch, dependency
+        // bump, padding bug). Without a KAT only round-trip is
+        // pinned, which would silently accept any consistent (even
+        // wrong) cipher.
+        let key = hex_decode("feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308");
+        let nonce = hex_decode("cafebabefacedbaddecaf888");
+        let plaintext = hex_decode(
+            "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+        );
+        let aad = hex_decode("feedfacedeadbeeffeedfacedeadbeefabaddad2");
+        let expected_ct_with_tag = hex_decode(
+            "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f66276fc6ece0f4e1768cddf8853bb2d551b",
+        );
+        let actual = aes_gcm_encrypt_raw(&key, &nonce, &plaintext, &aad).expect("encrypt");
+        assert_eq!(
+            actual, expected_ct_with_tag,
+            "AES-256-GCM KAT mismatch — algorithm regression?"
+        );
+        // Verify decrypt round-trips against the same vector so a
+        // future split between encrypt + decrypt impls can't drift
+        // unnoticed.
+        let decrypted =
+            aes_gcm_decrypt_raw(&key, &nonce, &expected_ct_with_tag, &aad).expect("decrypt");
+        assert_eq!(decrypted.as_slice(), plaintext.as_slice());
+    }
+
+    #[test]
+    fn aes_gcm_known_answer_test_empty_payload_with_aad() {
+        // Companion KAT with empty plaintext + non-empty AAD —
+        // exercises the AAD-only authentication path the recorder's
+        // empty-frame handling depends on. Tag is computed off AAD
+        // alone so a regression that drops AAD from the tag would
+        // surface here.
+        let key = hex_decode("0000000000000000000000000000000000000000000000000000000000000000");
+        let nonce = hex_decode("000000000000000000000000");
+        let plaintext: Vec<u8> = Vec::new();
+        let aad = b"binding-aad";
+        let actual = aes_gcm_encrypt_raw(&key, &nonce, &plaintext, aad).expect("encrypt");
+        // 16-byte tag only (no ciphertext for empty plaintext).
+        assert_eq!(actual.len(), AES_GCM_TAG_LEN);
+        // Decrypt must reproduce empty plaintext when AAD matches,
+        // and reject when it doesn't.
+        let decrypted = aes_gcm_decrypt_raw(&key, &nonce, &actual, aad).expect("decrypt");
+        assert!(decrypted.is_empty());
+        assert!(aes_gcm_decrypt_raw(&key, &nonce, &actual, b"different-aad").is_err());
+    }
+
+    #[test]
     fn aes_gcm_raw_round_trip_with_aad() {
         let key = vec![3u8; 32];
         let nonce = vec![4u8; 12];
