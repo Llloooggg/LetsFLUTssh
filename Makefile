@@ -5,9 +5,13 @@ FLUTTER := flutter
 UNAME := $(shell uname)
 ARCH := $(shell uname -m)
 
-# Platform detection
+# Platform detection. `uname` on Cygwin / MSYS / Git-Bash on Windows
+# reports `CYGWIN_*`, `MINGW64_*`, `MSYS_*` etc., never `Windows`;
+# match the prefixes so `package-exe`'s host guard fires correctly
+# regardless of which Windows shell the user invokes `make` from.
 IS_LINUX := $(filter Linux,$(UNAME))
 IS_MACOS := $(filter Darwin,$(UNAME))
+IS_WINDOWS := $(or $(filter Windows_NT,$(OS)),$(findstring CYGWIN,$(UNAME)),$(findstring MINGW,$(UNAME)),$(findstring MSYS,$(UNAME)))
 
 # Map uname arch to Debian arch
 DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),arm64,$(ARCH)))
@@ -236,6 +240,9 @@ package-windows: build-windows ## Build + zip for Windows
 	@echo "Package: $(BUILD_DIR)/package/$(APP_NAME)-$(VERSION)-windows-amd64.zip"
 
 package-exe: build-windows ## Build + EXE installer for Windows (requires Inno Setup)
+ifndef IS_WINDOWS
+	@echo "Error: package-exe is Windows-only (uses Inno Setup Compiler). Run on a Windows host with Inno Setup 6 installed." && exit 1
+endif
 	@if not exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (echo "Error: Inno Setup 6 not found. Install from https://jrsoftware.org/isdl.php" && exit 1)
 	set APP_VERSION=$(VERSION) && set BUILD_DIR=$(CURDIR)\build\windows\x64\runner\Release && "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\setup.iss
 	@echo "Installer: Output/$(APP_NAME)-$(VERSION)-windows-x64-setup.exe"

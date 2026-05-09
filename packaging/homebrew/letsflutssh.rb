@@ -45,9 +45,14 @@ cask "letsflutssh" do
 
   app "letsflutssh.app"
 
+  # Bundle ID mirrors `macos/Runner/Configs/AppInfo.xcconfig:11`
+  # (`PRODUCT_BUNDLE_IDENTIFIER`). macOS writes `Preferences` /
+  # `Caches` directories under that exact reverse-DNS string, so the
+  # zap path must match or `brew uninstall --zap` silently leaves
+  # stale state on disk.
   zap trash: [
     "~/Library/Application Support/letsflutssh",
-    "~/Library/Preferences/dev.letsflutssh.letsflutssh.plist",
-    "~/Library/Caches/dev.letsflutssh.letsflutssh",
+    "~/Library/Preferences/com.llloooggg.letsflutssh.plist",
+    "~/Library/Caches/com.llloooggg.letsflutssh",
   ]
 end
