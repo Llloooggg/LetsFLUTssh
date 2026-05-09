@@ -51,7 +51,7 @@ These apply to every response without re-reading:
 - **All files in English only** — code, comments, commits, docs.
 - **No plan-item IDs in public artifacts** — see § Plan-Item IDs Stay Internal. ARCHITECTURE.md `§N.M` cross-refs are stable doc anchors, not plan IDs — fine to use.
 - **Never suppress issues** — no `// ignore:`, `// NOSONAR`, `@SuppressWarnings`. Fix root cause.
-- **Comments stay short, current, no fabricated rationale** — one line max, no retrospective. See § Comments.
+- **Comments stay short, current, no fabricated rationale** — a few lines if needed, never paragraphs; no retrospective. See § Comments.
 - **No fabrication anywhere — verify with `git log` / grep / measurement, or don't write the value.** Binds code, docs, tests, migrations, seed data, version strings, default config, performance numbers, "historical" labels, error messages. **When asked to remove fabricated content, remove it cleanly — never replace with new speculation.**
 - **Authorization boundaries — never destroy or overwrite tracked state without explicit permission.** Covers: deleting files in `.claude/plans/` / `CHANGELOG.md` / source / docs / tests; dropping DB schemas or tables; force-overwriting uncommitted work; reverting / resetting commits; mass-renaming or reformatting outside the asked diff. **When asked to remove X, remove exactly X** — no slipped-in additions (CHANGELOG entries, "improved" wording, adjacent refactors, extra commits). Surface destructive steps once and wait.
 - **Never amend after push** — new commits only. Amend OK only before first push.
@@ -265,13 +265,13 @@ What this rule covers (not just UI):
 
 Code comments are **load-bearing** when they exist. They describe a *present* invariant the next reader cannot infer from well-named identifiers. Every line lives forever and gets read every time someone scrolls past.
 
-**1. Short.** One line max. No multi-paragraph blocks. If rationale needs a paragraph, write it into `ARCHITECTURE.md` and point:
+**1. Short.** Hard ceiling ≤5 lines, and the thought must finish inside that budget — no trailing-off, no "see commit". One coherent point: name a trap, state an invariant + its why, call out a non-obvious ordering. Never multi-paragraph blocks. If the thought genuinely needs more room, write it into `ARCHITECTURE.md` and point:
 
 ```dart
 // See ARCHITECTURE.md §3.6 → SecretStore for the plaintext-discipline rule.
 ```
 
-A long comment is almost always one of: a retrospective (delete the historical part), documentation that should be in ARCHITECTURE.md (move it, link), or a signal the code is too tangled (per Docs First step 8 — propose simplification).
+A multi-paragraph comment is almost always one of: a retrospective (delete the historical part), documentation that should be in ARCHITECTURE.md (move it, link), or a signal the code is too tangled (per Docs First step 8 — propose simplification).
 
 **2. Current state only — no retrospective.** A comment describes the code *as it is now*. Forbidden phrases: `originally...` / `previously...` / `after the migration...` / `replaces the legacy...` / `now retired` / `now Rust-side` / `the legacy path...` / `before we...` / `we used to...` / `Mirrors the prior...` / `pre-fix...` and any equivalent retrospective shape.
 
