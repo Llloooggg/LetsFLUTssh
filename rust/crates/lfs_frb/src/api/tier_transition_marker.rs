@@ -30,3 +30,46 @@ pub fn tier_transition_marker_write(support_dir: String, payload: String) -> Res
 pub fn tier_transition_marker_clear(support_dir: String) -> Result<(), String> {
     marker::clear(Path::new(&support_dir))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_returns_none_for_missing_marker() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 path").to_string();
+        assert!(tier_transition_marker_read(dir).is_none());
+    }
+
+    #[test]
+    fn write_then_read_round_trips_payload() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 path").to_string();
+        tier_transition_marker_write(dir.clone(), "switch-from=plaintext".into()).expect("write");
+        assert_eq!(
+            tier_transition_marker_read(dir),
+            Some("switch-from=plaintext".to_string())
+        );
+    }
+
+    #[test]
+    fn write_overwrites_previous_payload() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 path").to_string();
+        tier_transition_marker_write(dir.clone(), "first".into()).expect("write 1");
+        tier_transition_marker_write(dir.clone(), "second".into()).expect("write 2");
+        assert_eq!(tier_transition_marker_read(dir), Some("second".to_string()));
+    }
+
+    #[test]
+    fn clear_removes_existing_marker_and_is_idempotent_when_absent() {
+        let tmp = tempfile::tempdir().expect("tmp dir");
+        let dir = tmp.path().to_str().expect("utf-8 path").to_string();
+        tier_transition_marker_write(dir.clone(), "x".into()).expect("write");
+        tier_transition_marker_clear(dir.clone()).expect("clear once");
+        assert!(tier_transition_marker_read(dir.clone()).is_none());
+        // Idempotent — clear on a missing marker is OK.
+        tier_transition_marker_clear(dir).expect("clear twice");
+    }
+}
