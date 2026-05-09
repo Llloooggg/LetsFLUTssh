@@ -136,12 +136,40 @@ impl PortForwardRegistry {
     /// Drop the stored `-R` handle so the inbound bridge task aborts
     /// and the server-side listener is withdrawn. Idempotent on a
     /// missing id. Returns `true` when a handle was actually stopped.
+    ///
+    /// The `Drop`-only path falls back to a detached
+    /// `tokio::spawn` for the network-side withdraw, which loses the
+    /// runtime-shutdown race in the worst case. Async callers
+    /// (the FRB shim chain) prefer [`Self::stop_remote_forward_async`]
+    /// so the cleanup actually completes before the FRB future
+    /// resolves.
     pub fn stop_remote_forward(&self, id: &str) -> bool {
         self.remote_forwards
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .remove(id)
             .is_some()
+    }
+
+    /// Awaitable variant of [`Self::stop_remote_forward`]. Pulls
+    /// the handle out of the registry, runs
+    /// [`driver::RemoteForwardHandle::teardown`] inline, then
+    /// drops the (already torn-down) handle. The `Drop` impl
+    /// becomes a no-op for the network-side work — no detached
+    /// task left racing the runtime shutdown.
+    pub async fn stop_remote_forward_async(&self, id: &str) -> bool {
+        let removed = self
+            .remote_forwards
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(id);
+        match removed {
+            Some(mut handle) => {
+                handle.teardown().await;
+                true
+            }
+            None => false,
+        }
     }
 
     /// Park the listener handle alongside the rule row so a

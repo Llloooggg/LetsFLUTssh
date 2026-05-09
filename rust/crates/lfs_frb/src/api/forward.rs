@@ -157,9 +157,12 @@ pub async fn port_forward_start_remote(
 /// Stop a `-R` handle spawned by [`port_forward_start_remote`].
 /// Drops the handle (which aborts the bridge task, withdraws the
 /// session-level route, and asks the server to stop listening).
-/// Idempotent on a missing rule id.
+/// Idempotent on a missing rule id. The driver awaits the inline
+/// `teardown` so the route withdraw + server-side cancel-tcpip
+/// complete before this future resolves — no detached cleanup
+/// task left racing the runtime shutdown.
 pub async fn port_forward_stop_remote(rule_id: String) -> Result<bool, String> {
-    Ok(lfs_core::portforward::driver::stop_remote(&rule_id))
+    Ok(lfs_core::portforward::driver::stop_remote(&rule_id).await)
 }
 
 /// Open a direct-tcpip channel. `host_to_connect` / `port_to_connect`

@@ -746,10 +746,16 @@ pub fn stop_listener(rule_id: &str) -> bool {
 /// Stop a `-R` handle spawned by [`start_remote`]. Aborts the
 /// bridge task, withdraws the session-level route, and asks the
 /// server to stop listening. Idempotent on a missing rule id.
-pub fn stop_remote(rule_id: &str) -> bool {
+///
+/// Async + awaits the handle's `teardown` inline so the
+/// network-side withdraw completes before the FRB future
+/// resolves — no detached `tokio::spawn` from `Drop` racing the
+/// runtime shutdown the way the bare-drop fallback path does.
+pub async fn stop_remote(rule_id: &str) -> bool {
     crate::app::instance()
         .port_forwards
-        .stop_remote_forward(rule_id)
+        .stop_remote_forward_async(rule_id)
+        .await
 }
 
 /// Bidirectional copy between an accepted [`TcpStream`] and an
