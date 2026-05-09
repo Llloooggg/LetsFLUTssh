@@ -275,11 +275,28 @@ class _Toggle extends StatelessWidget {
         ),
       ),
     );
+    // Expand the tap target to the Material/WCAG 2.5.5 minimum
+    // (48×48 dp). The visual knob stays the design's 32×18 pill
+    // centered inside the larger hit area, so users with motor /
+    // touch precision issues hit the toggle reliably without the
+    // visual changing. Semantics(toggled:) communicates on/off
+    // state so TalkBack / VoiceOver / NVDA announce the toggle's
+    // current value rather than just "button".
     Widget row = _SettingsRow(
       label: label,
       subtitle: subtitle,
       icon: icon,
-      child: GestureDetector(onTap: tap, child: knob),
+      child: Semantics(
+        toggled: value,
+        enabled: enabled,
+        label: label,
+        button: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: tap,
+          child: SizedBox(width: 48, height: 48, child: Center(child: knob)),
+        ),
+      ),
     );
     // Fade the entire row (icon + label + subtitle + knob) when the
     // toggle is disabled. Fading only the knob left the text at full

@@ -184,12 +184,29 @@ class _StatusCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (status) {
-      case ThreatStatus.protects:
-        return Icon(Icons.check, size: 16, color: AppTheme.green);
-      case ThreatStatus.doesNotProtect:
-        return Icon(Icons.close, size: 16, color: AppTheme.red);
-    }
+    // Cells render as bare icons for sighted users — screen readers
+    // saw an unlabelled image and announced nothing meaningful when
+    // navigating the table. Wrap each cell in a Semantics node that
+    // declares the cell's truth value via the same legend strings
+    // the table footer uses, so a SR walk through the comparison
+    // grid hears "protects" / "does not protect" per cell.
+    final l10n = S.of(context);
+    final (icon, color, label) = switch (status) {
+      ThreatStatus.protects => (
+        Icons.check,
+        AppTheme.green,
+        l10n.legendProtects,
+      ),
+      ThreatStatus.doesNotProtect => (
+        Icons.close,
+        AppTheme.red,
+        l10n.legendDoesNotProtect,
+      ),
+    };
+    return Semantics(
+      label: label,
+      child: ExcludeSemantics(child: Icon(icon, size: 16, color: color)),
+    );
   }
 }
 
