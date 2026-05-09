@@ -19,7 +19,7 @@ Tracks features that have already shipped end-to-end (data + tests + docs). The 
 | **DONE (recorder + playback)** | §6.1 Session recording | `feat(session): add per-shell encrypted recording` + `feat(recordings): add playback browser + xterm replay dialog` | `SessionRecorder` hooks at the shell-helper level, asciinema v2 frames inside per-event AES-256-GCM (HKDF-derived key with `info="letsflutssh-recording-v1"` for cryptographic separation from DB key). Plaintext-tier sessions get raw `.cast` JSON-Lines with `chmod 600`. Per-recording rotation at 100 MB. Opt-in via session edit dialog Options tab. **Tools → Recordings** lists every file under `<appSupport>/recordings/`, resolves session label against the live session list (orphan rows show `<deleted>` + truncated id), tap to play in an embedded xterm at user-chosen speed (1× / 2× / 4× / instant); per-event GCM frames decoded sequentially. **Still open:** global storage cap + LRU eviction, settings storage-used row, scrub bar (would need a per-frame index file for random access). |
 | **DONE** | UX polish round | `fix: ProxyJump race + forwarding UX polish`, `feat(snippets): inline token hints in manager dialog`, `fix: chip labels, control sizes, recordings location, fprintd spam` | Race fix on bastion socketProvider (await `waitUntilReady` before reading `client`); via-X badge constrained to 140 px + Flexible(loose); shared `AppPickerChip` widget extracted (used by ProxyJump + Forwarding) with `SelectionContainer.disabled` so chip labels don't behave like body text; chip labels dropped `(-L)` / `(-R)` / `(-D)` / `(user@host:port)` parenthetical hints to fit cramped translations; per-kind explanation text under the kind picker; rule-row toggle + delete unified to AppIconButton; rule-editor "Save" → "OK"; recordings entry moved from Settings → Data into Tools (desktop sidebar + mobile list); BiometricAuth.availability + backingLevel cache one probe per process to stop the fprintd ServiceUnknown spam. |
 | **DONE** | Known hosts: OpenSSH `~/.ssh/known_hosts` import | `feat(known-hosts): accept OpenSSH ~/.ssh/known_hosts on import` | Importer accepts both the LetsFLUTssh internal wire format and OpenSSH on the same parser pass — bare hostnames default to port 22, `[host]:port` brackets (incl. IPv6) resolve cleanly, comma-separated multi-host fans out into one entry per host, `@cert-authority` / `@revoked` markers strip cleanly, hashed `\|1\|salt\|hash` rows skip with a counter that surfaces in the log (HMAC-SHA1 hostname hashes are one-way, nothing to TOFU-match against). |
-| **DONE** | User-facing documentation | `docs(user-guide): add USER_GUIDE.md + bind agents to keep it current` | `docs/USER_GUIDE.md` (~700 lines, 18 sections) — end-user reference for every shipped feature with worked examples + platform notes. AGENT_RULES doc-maintenance checklist binds future user-visible changes to the guide; CLAUDE.md Action → Read mapping points new-feature commits at the new entries. |
+| **DONE** | User-facing documentation | `docs(user-guide): add USER_GUIDE.md + bind agents to keep it current` | `docs/USER_GUIDE.md` (~700 lines, 18 sections) — end-user reference for every shipped feature with worked examples + platform notes. |
 
 ### Open features
 
@@ -41,7 +41,7 @@ Style contract — the doc stays useful only if it matches the codebase:
 - File paths are live, line numbers are a hint (refresh before acting).
 - DB/archive schema bumps name a `SchemaVersions` constant; those bumps are **mandatory together with a registered migration** — see `docs/ARCHITECTURE.md` §3.6 → "Migration framework" + `lib/core/migration/registry.dart` / `archive_registry.dart`.
 - Every user-facing string lands in **all 15 ARBs** (`lib/l10n/app_*.arb`). Keys listed per feature are the English source; the implementer translates.
-- Every non-UI change ships with unit tests; UI changes ship with widget tests. See `docs/AGENT_RULES.md § Testing Methodology`.
+- Every non-UI change ships with unit tests; UI changes ship with widget tests.
 - Cross-platform: Android change → also iOS; Windows → also Linux + macOS.
 
 ---
@@ -338,21 +338,19 @@ Use this as a PR template — anything missing is a rejected PR:
 
 - [ ] New table / column → drift migration registered + `schemaVersion` bumped + covered by a `test/core/db/migration/*_test.dart`.
 - [ ] Archive artefact format changes → new migration in `lib/core/migration/artefacts/`, registered in `archive_registry.dart`, `SchemaVersions.archive` bumped, cross-version roundtrip test.
-- [ ] User-facing strings in **all 15** ARBs (native IT register, see `docs/AGENT_RULES.md § Localization Tone`).
+- [ ] User-facing strings in **all 15** ARBs.
 - [ ] ARCHITECTURE.md section updated **in the same commit** (how + why both).
-- [ ] Unit tests + widget tests per `docs/AGENT_RULES.md § Testing Methodology`.
+- [ ] Unit tests + widget tests.
 - [ ] No hardcoded `fontSize`/`Colors`/`BorderRadius.circular(N)` — use `AppFonts`/`AppTheme`.
 - [ ] Cross-platform check: Android ↔ iOS, Windows ↔ Linux ↔ macOS.
 - [ ] `make analyze` clean, `make test` green.
 - [ ] SonarCloud check on the PR — no new open issues.
-- [ ] CLAUDE.md / AGENT_RULES.md updated only if the rule changes; otherwise leave them.
 
 ---
 
 ## 9. Pointers for the implementer
 
-- **Do not read `ARCHITECTURE.md` cover-to-cover.** Use the TOC; each feature section above links the `§N` that matters. The `/doc` skill (`.claude/skills/doc/SKILL.md`) fetches a §N directly.
-- Before any file edit, run the pre-fix discipline from `CLAUDE.md § Always-On Rules → Docs first`.
-- Every feature lands on `dev`, never `main` directly. PR workflow in `.claude/skills/pr/SKILL.md`.
+- **Do not read `ARCHITECTURE.md` cover-to-cover.** Use the TOC; each feature section above links the `§N` that matters.
+- Every feature lands on `dev`, never `main` directly.
 - Version bumps are calculated by `scripts/bump-version.sh` from Conventional Commits — don't hand-edit `pubspec.yaml`.
 - **Batch feature PRs by wave**, not per file. A wave merges as one PR with a dozen+ commits so the release note reads coherently.

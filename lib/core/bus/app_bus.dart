@@ -150,7 +150,7 @@ class _SharedTopic {
 
   /// Idempotent — if a previous attempt already attached the FRB
   /// stream, returns immediately. The cold-start invariant
-  /// (CLAUDE.md / ARCHITECTURE.md § Cold-start ordering) means
+  /// (ARCHITECTURE.md § Cold-start ordering) means
   /// every direct `subscribe` caller wires AFTER
   /// `_initRustCoreOrFatal` returns; lazy Riverpod-driven
   /// callsites that mount during the first runApp frame land on

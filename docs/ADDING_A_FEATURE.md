@@ -105,7 +105,7 @@ Conventions (the analyzer catches most, but not all):
 - **Colors:** semantic constants from `AppTheme`, never raw `Colors.red`.
 - **Font sizes:** `AppFonts.sm` / `md` / `lg`, never hardcoded `fontSize: 14`.
 - **Border radius:** `AppTheme.radiusSm` / `radiusMd`, never `BorderRadius.circular(8)`.
-- **Logging:** `AppLogger.instance.log(msg, name: 'Notes')`, never `print` / `debugPrint`. Auto-sanitised; see [§ Logging](AGENT_RULES.md#logging--applogger-auto-sanitized-err-on-more-not-less).
+- **Logging:** `AppLogger.instance.log(msg, name: 'Notes')`, never `print` / `debugPrint`. Auto-sanitised; see [§ AppLogger](ARCHITECTURE.md#applogger).
 
 Full list in [CONTRIBUTING.md → Coding Conventions](CONTRIBUTING.md#coding-conventions).
 
@@ -118,7 +118,7 @@ Every user-visible string goes into **all 15** `app_*.arb` files (ar, de, en, es
 "@notesPanelTitle": { "description": "Title of the per-session notes panel" }
 ```
 
-After editing `.arb`, run `make gen` to regenerate `lib/l10n/app_localizations*.dart`. Tone guide: [AGENT_RULES § Localization Tone](AGENT_RULES.md#localization-tone--native-it-register-not-dictionary-calques) — write what a native-speaking senior dev would type to a colleague, not dictionary calques.
+After editing `.arb`, run `make gen` to regenerate `lib/l10n/app_localizations*.dart`.
 
 ### 8. Tests — `test/core/notes/`, `test/features/notes/`, `test/providers/`
 
@@ -144,7 +144,7 @@ Run `make check` (analyzer + tests) and `make rust-check` (fmt + clippy + Rust t
 
 ### 9. Documentation
 
-If your feature adds a new `core/` module or changes a public contract, add a subsection to [`ARCHITECTURE.md`](ARCHITECTURE.md) under §3 (core) or §5 (features). Tiny additions extend the closest existing §. See the [doc maintenance checklist](AGENT_RULES.md#documentation-maintenance-checklist).
+If your feature adds a new `core/` module or changes a public contract, add a subsection to [`ARCHITECTURE.md`](ARCHITECTURE.md) under §3 (core) or §5 (features). Tiny additions extend the closest existing §.
 
 User-visible feature → also walk through [`USER_GUIDE.md`](USER_GUIDE.md) and add an example.
 
@@ -187,7 +187,7 @@ LetsFLUTssh ships on Linux, Windows, macOS, Android, iOS. Before marking a featu
 
 ## Where to Ask
 
-- Architecture question — check the [navigation table](AGENT_RULES.md#quick-navigation-by-task) first.
+- Architecture question — check the [ARCHITECTURE.md table of contents](ARCHITECTURE.md#table-of-contents) first.
 - Found a bug — open an issue with the `bug` label.
 - Want to discuss a larger change before coding — open an issue with `discussion` first.
 

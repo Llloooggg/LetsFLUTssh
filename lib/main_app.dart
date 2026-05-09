@@ -103,8 +103,8 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     // Rust core load runs here, in the post-frame `_bootstrap`,
     // not pre-`runApp`. The cold-start ordering rule keeps the
     // structural invariant (no FRB on any path reachable during
-    // the first `runApp` pass — see CLAUDE.md's strict cold-start
-    // invariant + `ARCHITECTURE.md § Cold-start ordering`).
+    // the first `runApp` pass — see `ARCHITECTURE.md § Cold-start
+    // ordering`).
     // FRB-touching listeners + setup wire from
     // `_wireFrbDependentBootstrapListeners` AFTER this guard
     // returns; nothing on the cold-start path imports
