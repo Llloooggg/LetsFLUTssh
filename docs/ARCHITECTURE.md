@@ -2332,16 +2332,20 @@ The first lines of defence beyond Rust's safe-by-default ownership / borrow rule
 
 Two complementary Rust jobs run on every PR and push, alongside the existing Dart `ci` job:
 
-**`rust-ci` (ubuntu-latest)** — heavyweight gates on the canonical host:
+**Canonical host gates** — Rust quality gates run inside the unified `ci` job via `make check`:
 
-| Step | Gate |
+| Step (in `make check`) | Gate |
 |---|---|
-| `cargo fmt --all -- --check` | Style drift |
-| `cargo clippy --workspace --all-targets --locked -- -D warnings` | Lint, deny warnings |
-| `cargo test --workspace --locked` | Unit + integration tests (currently 5 in `lfs_core::ssh::tests`) |
-| `cargo deny --all-features check` | Three sub-gates from [`rust/deny.toml`](../rust/deny.toml): RustSec advisory database (CVE), license allow-list (no copyleft surprises), bans (wildcard requirements denied, multiple-versions warned) |
+| `make rust-format-check` (`cargo fmt --all -- --check`) | Style drift |
+| `make rust-lint` (`cargo clippy --workspace --all-targets --locked -- -D warnings`) | Lint, deny warnings |
+| `make rust-test` (`cargo test --workspace --locked` + `--doc --locked`) | Unit, integration, doc tests; `--locked` enforces Cargo.lock parity |
+| `make rust-machete` (`cargo machete --with-metadata`) | Unused dependency detector |
 
-**`rust-cross-check` (matrix)** — cfg-gated compile validation across every target the workspace ships to. Without this, code under `cfg(any(target_os = "macos", target_os = "ios"))` (Apple Secure Enclave, LAContext, NSPasteboard) or `cfg(target_os = "windows")` (CredWriteW, UserConsentVerifier) only compiles at release-tag time through `build-release.yml` — meaning a dependency bump that breaks one of those paths would auto-merge into `main` and surface only when cutting a release. The matrix runs `cargo check --workspace --all-targets --locked` (clippy + test stay in `rust-ci` to keep latency low; this job's job is the compile-validation breadth, not depth):
+Supply-chain advisories are not gated by the canonical host job — Dependabot tracks `rust/Cargo.lock` against the GitHub Advisory Database on PR, and `osv.yml` cross-checks against the broader OSV DB on push + weekly cron, so a dedicated `cargo-deny` step is no longer wired in.
+
+`make rust-coverage` (`cargo llvm-cov --workspace --all-features --locked --lcov`) runs in the same `ci` job after `make check` to feed Rust coverage to SonarCloud; it is heavier (instrumented rebuild) and not part of the gate.
+
+**`rust-cross-check` (matrix)** — cfg-gated compile validation across every target the workspace ships to. Without this, code under `cfg(any(target_os = "macos", target_os = "ios"))` (Apple Secure Enclave, LAContext, NSPasteboard) or `cfg(target_os = "windows")` (CredWriteW, UserConsentVerifier) only compiles at release-tag time through `build-release.yml` — meaning a dependency bump that breaks one of those paths would auto-merge into `main` and surface only when cutting a release. The matrix runs `cargo check --workspace --all-targets --locked` (clippy + test stay in the canonical `ci` job to keep latency low; this job's job is the compile-validation breadth, not depth):
 
 | Target | Runner | Why |
 |---|---|---|
@@ -2353,7 +2357,7 @@ Two complementary Rust jobs run on every PR and push, alongside the existing Dar
 
 Dependabot tracks `rust/Cargo.lock` (`.github/dependabot.yml` `cargo` ecosystem entry) and opens monthly bump PRs alongside the existing pub / github-actions / gitsubmodule schedules.
 
-A `make rust-check` target bundles fmt-check + clippy + test for local pre-merge runs; the pre-commit hook keeps it manual (it reuses the `make check` Dart-only path so doc-only commits stay fast). Run `make rust-deny` locally before opening a PR if you bumped a Cargo.toml entry — catches license-allow-list breakage before CI does.
+Rust quality gates are part of the unified `make check` (not a separate `rust-check`), so the same single command runs locally before commit and inside CI. `make check` calls `format-check`, `lint`, `lint-workflows`, `lint-release-hardening`, `rust-machete`, then the umbrella `make test` (which includes `rust-test`). Per-language entry points (`make dart-*` / `make rust-*`) exist for fast iteration when only one side is in scope.
 
 #### Build & distribution
 
@@ -5336,7 +5340,7 @@ flowchart TD
 
 | Workflow | Trigger | Branches | Purpose | Blocks release? |
 |----------|---------|----------|---------|-----------------|
-| `ci.yml` | push main / PR (main, dev) | main, dev | Dart analyze + test + coverage; Rust `rust-ci` (fmt + clippy + test + cargo-deny) and `rust-cross-check` matrix (Apple, Windows, Android cfg compile) | Yes (required) |
+| `ci.yml` | push main / PR (main, dev) | main, dev | Single `ci` job runs `make check` (format-check + lint + workflow lint + release hardening + unused-deps + tests for Dart + Rust) and `make rust-coverage` (lcov for SonarCloud); plus `rust-cross-check` matrix (Apple, Windows, Android cfg compile) | Yes (required) |
 | `ci-auto-tag.yml` | workflow_run[CI] success | main only | Reads version, creates tag if new | — |
 | `build-release.yml` | push tag v* / manual | — | Build all platforms + release + SBOM + cosign keyless signature | — |
 | `ci-sonarcloud.yml` | workflow_run[CI] / manual | main, dev | Quality + coverage scan | No (warn-only) |
@@ -5346,7 +5350,6 @@ flowchart TD
 | `semgrep.yml` | push main / PR (all) / weekly | main | SAST scan (Dart code) | Yes on PR |
 | `cfl-fuzz.yml` | push main / PR to main | main | ClusterFuzzLite | No |
 | `scorecard.yml` | push main / weekly | main | OpenSSF supply chain assessment | No |
-| `rust-audit.yml` | weekly cron | main | `cargo deny check advisories` — narrows the unnoticed-CVE window between dep-bump PRs to one week worst-case | No |
 | `reproducibility-check.yml` | nightly cron | main | Builds Linux artefacts twice on the same SHA + diffs sha256 to verify the `SOURCE_DATE_EPOCH`-pinned reproducibility claim | No |
 | `pages.yml` | push main / manual | main | Publishes the project landing site to GitHub Pages | No |
 
@@ -5377,32 +5380,42 @@ The iOS unsigned-build job runs a **pre-flight `cargo build --target aarch64-app
 
 ### 15.4 Makefile Targets
 
+Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both languages in sequence. Per-language entry points (`dart-*`, `rust-*`) exist for fast iteration when only one side is in scope.
+
+#### Umbrella + per-language
+
+| Action | Umbrella | Dart-only | Rust-only |
+|---|---|---|---|
+| Run tests | `make test` | `make dart-test` | `make rust-test` |
+| Static analysis | `make lint` | `make dart-lint` | `make rust-lint` |
+| Auto-format | `make format` | `make dart-format` | `make rust-format` |
+| Format verification | `make format-check` | `make dart-format-check` | `make rust-format-check` |
+
 #### Development
 
 | Target | Command | Purpose |
 |--------|---------|---------|
 | `make run` | `flutter run` | Run (debug) |
 | `make run-release` | `flutter run --release` | Run (release) |
-| `make test` | `flutter test --coverage --timeout 30s` | Tests with coverage |
-| `make analyze` | `flutter analyze --fatal-infos` | Lint + analyze |
-| `make check` | analyze + test | Full Dart check |
-| `make format` | `dart format .` | Format code |
+| `make check` | `format-check + lint + lint-workflows + lint-release-hardening + rust-machete; @make test` | Full pre-commit gate (Dart + Rust). Same command CI runs |
 | `make gen` | `build_runner build` | Code generation (FRB freezed siblings + l10n) |
-| `make deps` | `flutter pub get` | Install dependencies |
+| `make deps` | `flutter pub get` | Install Flutter / Dart dependencies |
+| `make setup` | `deps + hooks + setup-rust-tools` | One-shot post-clone bootstrap |
+| `make setup-rust-tools` | Install `cargo-machete`, `cargo-llvm-cov` (pinned versions) | Cargo plugins used by `make check` and `make rust-coverage` |
 | `make fuzz-build` | `dart compile exe fuzz/*.dart` | Compile native fuzz targets |
 
 #### Rust core (`rust/`)
 
 | Target | Command | Purpose |
 |--------|---------|---------|
-| `make rust-build` | `cargo build --release --workspace` | Build the FRB native blob + workspace |
-| `make rust-test` | `cargo test --workspace` | Workspace unit + integration tests |
-| `make rust-fmt` | `cargo fmt --all` | Format Rust sources |
-| `make rust-fmt-check` | `cargo fmt --all -- --check` | CI fmt gate |
-| `make rust-lint` | `cargo clippy --workspace --all-targets -- -D warnings` | Clippy, deny warnings |
+| `make rust-build` | `cargo build --release --workspace --locked` | Build the FRB native blob + workspace |
+| `make rust-test` | `cargo test --workspace --locked` + `--doc --locked` | Unit + integration + doc tests; `--locked` enforces Cargo.lock parity |
+| `make rust-format` | `cargo fmt --all` | Format Rust sources |
+| `make rust-format-check` | `cargo fmt --all -- --check` | Format verification (used by `make check`) |
+| `make rust-lint` | `cargo clippy --workspace --all-targets --locked -- -D warnings` | Clippy, deny warnings |
+| `make rust-machete` | `cargo machete --with-metadata` | Detect unused dependencies (used by `make check`) |
+| `make rust-coverage` | `cargo llvm-cov --workspace --all-features --locked --lcov` | Generate `rust-lcov.info` for SonarCloud |
 | `make rust-codegen` | `flutter_rust_bridge_codegen generate` | Regenerate Dart bindings under `lib/src/rust/` (run after editing `rust/crates/lfs_frb/src/api/*.rs`) |
-| `make rust-check` | fmt-check + clippy + test | Full Rust pre-merge check |
-| `make rust-deny` | `cargo deny --all-features check` | Advisory + license + bans gates |
 | `make rust-clean` | `cargo clean` | Remove `rust/target/` |
 
 #### Build

@@ -57,8 +57,8 @@ These apply to every response without re-reading:
 - **Never amend after push** — new commits only. Amend OK only before first push.
 - **Don't install packages without asking.** Latest stable only — no beta/dev/pre-release.
 - **End-user install is opt-in, never forced** — see § Self-Contained Binary.
-- **Always build via Makefile** — `make run/build-linux/test/analyze`. Never call `flutter` directly.
-- **Skip `make analyze` / `make test` for doc-only commits** — if the staged diff has no `.dart` / `pubspec.yaml`, skip; pre-commit hook runs `make check` automatically.
+- **Always build via Makefile** — `make run/build-linux/test/lint`. Top-level umbrellas (`test`, `lint`, `format`, `format-check`) run both Dart and Rust; `dart-*` / `rust-*` variants exist when only one side is in scope. Never call `flutter` / `cargo` directly.
+- **Skip `make lint` / `make test` for doc-only commits** — if the staged diff has no `.dart` / `.rs` / `pubspec.yaml` / `Cargo.toml`, skip; pre-commit hook runs `make check` automatically.
 - **Cross-platform verification** — Android change → also iOS; Windows → also Linux + macOS.
 - **Best practices by default** — push back on hacky solutions. Cost is not a selection criterion: complementary defences = union (defence-in-depth), not pick-cheapest. Don't rank by "cheap/medium/heavy". See § Three Pillars.
 - **Three pillars: ideal code, security, optimality.** Migration / refactor goes end-to-end. The user QAs every release on real hardware — "I can't test this on my machine" is NOT a skip reason. Only legitimate skip: "the replacement primitive does not exist". See § Three Pillars.
@@ -71,7 +71,7 @@ These apply to every response without re-reading:
 - **Every change ships with docs + tests + translations** — incomplete commit otherwise.
 - **Docs first — highest-priority discipline.** TOC → specific § via offset+limit or `/doc` skill — never read ARCHITECTURE.md cover-to-cover. Drift fixed in same commit. Full rule: § Docs First.
 - **References are one-directional** — this file may link to human docs (factual / architectural reference), but human docs and source-code comments must NOT link back to this file or any other agent-instruction file. `.claude/skills/*/SKILL.md` are agent files and may reference this one freely. When a passage in a human doc wants to cite a rule, inline the substance — humans reading project docs should never be sent to read agent rules.
-- **Editing under `rust/`** — `lfs_core` MUST NOT depend on `flutter_rust_bridge` / `tauri` / any frontend crate; `lfs_os_security` is the single audit perimeter for OS-API FFI. After edits: `make rust-fmt rust-lint rust-test`; if FRB API surface (`rust/crates/lfs_frb/src/api/*.rs`) changed, also `make rust-codegen` and stage regenerated `lib/src/rust/`. Layout: [ARCHITECTURE §3.14](docs/ARCHITECTURE.md#314-rust-securitytransport-core-rust).
+- **Editing under `rust/`** — `lfs_core` MUST NOT depend on `flutter_rust_bridge` / `tauri` / any frontend crate; `lfs_os_security` is the single audit perimeter for OS-API FFI. After edits: `make rust-format rust-lint rust-test`; if FRB API surface (`rust/crates/lfs_frb/src/api/*.rs`) changed, also `make rust-codegen` and stage regenerated `lib/src/rust/`. Layout: [ARCHITECTURE §3.14](docs/ARCHITECTURE.md#314-rust-securitytransport-core-rust).
 - **Cold-start path** — STRICT INVARIANT: nothing on the cold-start path imports `lib/src/rust/...` or calls FRB. Pre-FRB FRB calls throw `StateError("flutter_rust_bridge has not been initialized")`. Wire FRB-touching listeners from `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` AFTER `_initRustCoreOrFatal` returns. [ARCHITECTURE § Cold-start ordering](docs/ARCHITECTURE.md#cold-start-ordering--pre-init--post-init-invariant).
 - **Persisted-file wire format change** — bump `SchemaVersions`, ship a `Migration`, register in `lfs_core::migration::registry::build_app_registry`, test the chain. `.lfs` future-version handling is rejection-only (`read_archive_to_pending` rejects newer-version archives — not a registry). Intra-DB schema changes follow drift bootstrap in [§11 Persistence](docs/ARCHITECTURE.md#11-persistence--storage). Developer guide: [ARCHITECTURE §3.6](docs/ARCHITECTURE.md#developer-guide--how-to-ship-a-format-change).
 - **Parallel agents** — only `git add` files YOU changed. Do NOT run tests — testing is the main process's job.
@@ -126,7 +126,7 @@ This rule binds every code edit AND every plan. "Forgot to check docs", "the doc
 | New DI hook for testing | Update [§14 Testing Patterns](docs/ARCHITECTURE.md#14-testing-patterns--di-hooks) |
 | New/changed user-facing string | Add key to `lib/l10n/app_en.arb` **and translate into every other `app_*.arb` file** (15 total: ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, vi, zh). Run `flutter gen-l10n`. Use `S.of(context).key`. Missing keys silently fall back to English |
 | New/changed shared component | Search `lib/widgets/` and `lib/core/**` for existing equivalent first; extend (add a param) instead of duplicating. Update [§6 Widgets API](docs/ARCHITECTURE.md#6-widgets--public-api-reference) |
-| Touched any `rust/**/*.rs` | Update relevant ARCHITECTURE § (§3.1 SSH, §3.6 Security, §3.14 Rust core, etc.) in same commit. Run `make rust-fmt rust-lint rust-test`; if FRB API changed, also `make rust-codegen` and stage regenerated `lib/src/rust/` |
+| Touched any `rust/**/*.rs` | Update relevant ARCHITECTURE § (§3.1 SSH, §3.6 Security, §3.14 Rust core, etc.) in same commit. Run `make rust-format rust-lint rust-test`; if FRB API changed, also `make rust-codegen` and stage regenerated `lib/src/rust/` |
 | Edited FRB API surface (`rust/crates/lfs_frb/src/api/*.rs`) | Run `make rust-codegen` and stage regenerated Dart bindings in same commit. `pubspec.yaml` (`flutter_rust_bridge:` runtime) and `rust/crates/lfs_frb/Cargo.toml` (`flutter_rust_bridge =` build dep) MUST match codegen CLI version exactly. `lfs_core` MUST NOT depend on `flutter_rust_bridge` directly |
 | User-visible change | Update README.md **and** [`USER_GUIDE.md`](docs/USER_GUIDE.md). New flow / toggle / changed UX → update the relevant § with usage steps, examples, platform caveats |
 | New end-user feature | Add a top-level § in [`USER_GUIDE.md`](docs/USER_GUIDE.md) linked from its TOC. Walk-through style: numbered steps, ≥1 worked example, platform differences in §17 mobile-differences table |
@@ -448,7 +448,7 @@ If a commit needs to explain "why this came with that", describe prose-wise: `"s
 
 ## Code Quality — SonarCloud
 
-All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make analyze` must pass before every commit touching Dart code. **Never suppress** — `// ignore:`, `// NOSONAR`, `@SuppressWarnings` are forbidden.
+All code must follow **Effective Dart** and pass `dart analyze` with zero issues. `make lint` must pass before every commit touching Dart or Rust code (covers Dart analyzer + Rust clippy). **Never suppress** — `// ignore:`, `// NOSONAR`, `@SuppressWarnings`, `#[allow(clippy::…)]` for the same kind of bypass are forbidden.
 
 ### Rules that bite most often
 

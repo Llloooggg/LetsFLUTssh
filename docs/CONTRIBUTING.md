@@ -151,14 +151,16 @@ source "$HOME/.cargo/env"
 cargo install flutter_rust_bridge_codegen --version 2.12.0
 ```
 
-**Common targets:**
+**Rust-only targets:**
 
 ```bash
-make rust-build          # cargo build --release --workspace
-make rust-test           # cargo test --workspace
-make rust-fmt            # cargo fmt --all
+make rust-build          # cargo build --release --workspace --locked
+make rust-test           # cargo test --workspace (unit + integration + doc), --locked
+make rust-format         # cargo fmt --all
 make rust-lint           # cargo clippy -D warnings
 make rust-codegen        # regenerate Dart bindings after editing rust/crates/lfs_frb/src/api/*.rs
+make rust-machete        # detect unused dependencies (requires `make setup-rust-tools`)
+make rust-coverage       # cargo llvm-cov → rust-lcov.info (SonarCloud feed)
 make rust-clean          # cargo clean
 ```
 
@@ -166,20 +168,38 @@ After editing any FFI-facing function under `rust/crates/lfs_frb/src/api/`, run 
 
 ## Development
 
+Top-level umbrella targets run both Dart and Rust. Per-language
+specifics use the `dart-*` / `rust-*` prefix when only one side is
+in scope.
+
 ```bash
-make hooks          # One-time: install git pre-commit (runs make check)
+make setup          # One-time post-clone bootstrap: pub deps + git hooks + cargo plugins
+make hooks          # Install git pre-commit (runs make check)
 make run            # Run in debug mode
-make test           # Run all tests (with coverage)
-make analyze        # Run Dart analyzer (--fatal-infos)
-make check          # Analyzer + tests
+make test           # Run all tests (Dart + Rust)
+make lint           # Static analysis (Dart analyzer + Rust clippy)
+make format         # Auto-format Dart + Rust sources
+make format-check   # Verify formatting without rewriting files
+make check          # Full pre-commit gate (format-check + lint + workflow lint + release hardening + unused-deps + tests)
 make gen            # Code generation (l10n, FRB bridge)
 make clean          # Remove build artifacts
 make help           # Show all available targets
 ```
 
-> **First clone:** run `make hooks` once. After that, every `git commit`
-> invokes `make check` (analyzer + full test suite) before the commit
-> is recorded. To bypass for an emergency commit, prefix with
+Need only one side?
+
+```bash
+make dart-test           # Dart tests only (requires rust-build for FRB-loaded tests)
+make dart-lint           # Dart analyzer only
+make dart-format         # Format Dart only
+make dart-format-check   # Verify Dart formatting
+```
+
+> **First clone:** run `make setup` once. It installs pub deps, git
+> hooks, and pinned cargo plugins (`cargo-machete`, `cargo-llvm-cov`)
+> used by `make check` / `make rust-coverage`. After that, every
+> `git commit` invokes `make check` (the same gate CI runs) before the
+> commit is recorded. To bypass for an emergency commit, prefix with
 > `SKIP_PRECOMMIT=1`.
 
 **New contributors:** start with [ADDING_A_FEATURE.md](ADDING_A_FEATURE.md) — a hands-on walkthrough of the project's layers, conventions, and tooling using a small example feature.
@@ -266,12 +286,12 @@ Version bumps are **fully automated**. The bump script (`scripts/bump-version.sh
 2. Target the **`dev`** branch — never `main` directly
 3. Follow commit message format (`type: description`) — CI enforces this on PRs
 4. Use correct conventional commit prefixes — version bumps are automated before PR merge
-5. `make analyze` and `make test` must pass
+5. `make check` must pass (covers `make lint` + `make test` for both Dart and Rust, plus workflow lint + release hardening + unused-deps)
 6. All new code must have tests (80% coverage minimum, 100% target)
 7. One logical change per PR
 8. Open a Pull Request — fill in the template
 
-All checks must pass before merge: CI (analyze + test), OSV-Scanner, Semgrep, and CodeQL.
+All checks must pass before merge: CI (`make check` + Rust cross-target compile), OSV-Scanner, Semgrep, and CodeQL.
 
 ## CI/CD Pipeline
 

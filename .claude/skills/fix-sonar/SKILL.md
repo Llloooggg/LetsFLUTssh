@@ -43,10 +43,10 @@ For each issue:
 
 ### Step 4: Verify
 
-Run `make analyze` to confirm no new issues were introduced.
+Run `make lint` to confirm no new issues were introduced.
 
 ### Rules
 - Fix issues from highest severity to lowest: BLOCKER > CRITICAL > MAJOR > MINOR > INFO
 - One logical fix per commit — don't bundle unrelated fixes
-- Follow the HARD STOP rule: implement fix → tests → docs → `make analyze` → commit. Do NOT start the next fix until the current one is committed. Version bumps are automated by `scripts/bump-version.sh` during `/pr`
+- Follow the HARD STOP rule: implement fix → tests → docs → `make lint` → commit. Do NOT start the next fix until the current one is committed. Version bumps are automated by `scripts/bump-version.sh` during `/pr`
 - Never suppress — always fix the root cause (CLAUDE.md restates the ban verbatim)

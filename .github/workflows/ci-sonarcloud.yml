@@ -61,12 +61,12 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download Rust coverage artifact
-        # `rust-lcov.info` is produced by `cargo llvm-cov` in the
-        # rust-ci job. Pulled here so `sonar-project.properties`
-        # can hand it to the scanner via the community-Rust
-        # `sonar.community.rust.lcov.reportPaths` key — Rust
-        # coverage shows up alongside Dart in the same project.
-        # Continue-on-error: a CI run that pre-dates the
+        # `rust-lcov.info` is produced by `make rust-coverage` (cargo
+        # llvm-cov) inside the canonical `ci` job. Pulled here so
+        # `sonar-project.properties` can hand it to the scanner via
+        # the community-Rust `sonar.community.rust.lcov.reportPaths`
+        # key — Rust coverage shows up alongside Dart in the same
+        # project. Continue-on-error: a CI run that pre-dates the
         # rust-coverage artifact (older commits, hotfix branches)
         # should still produce a Sonar scan with Dart-only data
         # rather than failing outright.

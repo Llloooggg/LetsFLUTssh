@@ -140,7 +140,7 @@ Patterns, helpers, and DI hooks: [ARCHITECTURE §14 Testing Patterns](ARCHITECTU
 
 Test mocks are **hand-rolled** (`test/helpers/fake_*.dart`) — no `mockito` / `mocktail` (see [§14 Mocking discipline](ARCHITECTURE.md#mocking-discipline)).
 
-Run `make check` (analyzer + tests) and `make rust-check` (fmt + clippy + Rust tests). Both must be green before commit — the pre-commit hook enforces this.
+Run `make check` — single gate covering format-check, lint (Dart analyzer + Rust clippy), workflow lint, release hardening, unused-deps, and tests for both languages. Must be green before commit; the pre-commit hook enforces this.
 
 ### 9. Documentation
 
@@ -176,7 +176,7 @@ LetsFLUTssh ships on Linux, Windows, macOS, Android, iOS. Before marking a featu
 
 | Symptom | Likely cause |
 |---|---|
-| `make analyze` complains about cognitive complexity | Method > 15 — extract a helper. Don't `// ignore:` |
+| `make lint` complains about cognitive complexity | Method > 15 — extract a helper. Don't `// ignore:` |
 | Test passes locally, fails in CI | Forgot `make gen` or `make rust-codegen` after editing ARB / FRB API. |
 | String shows `notesPanelTitle` literally in UI | Missing key in some `app_*.arb`, or missed `make gen`. |
 | Hover/focus looks off | Using `IconButton` / `InkWell` instead of `AppIconButton` / `HoverRegion`. |

@@ -33,10 +33,10 @@ jobs:
         with:
           # Both lockfiles scanned: Dart deps (pubspec.lock) and the
           # Rust security/transport core (rust/Cargo.lock — see
-          # ARCHITECTURE.md §3.14). cargo-deny in `ci.yml::rust-ci`
-          # also runs the RustSec advisory DB; OSV here cross-checks
-          # against the broader OSV DB which aggregates GitHub
-          # Advisories + RustSec + others.
+          # ARCHITECTURE.md §3.14). Dependabot covers the GitHub
+          # Advisory Database on PRs; OSV here adds the broader OSV
+          # DB (aggregates GHSA + RustSec + Go vuln DB + PyPI
+          # advisories + ...) on push and weekly cron.
           scan-args: |-
             --lockfile=pubspec.lock
             --lockfile=rust/Cargo.lock

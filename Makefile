@@ -16,13 +16,14 @@ IS_WINDOWS := $(or $(filter Windows_NT,$(OS)),$(findstring CYGWIN,$(UNAME)),$(fi
 # Map uname arch to Debian arch
 DEB_ARCH := $(if $(filter x86_64,$(ARCH)),amd64,$(if $(filter aarch64,$(ARCH)),arm64,$(ARCH)))
 
-.PHONY: all build run run-release clean test analyze check format gen watch deps upgrade doctor \
+.PHONY: all build run run-release clean test lint check format format-check gen watch deps upgrade doctor \
         build-linux build-windows build-macos build-apk build-aab build-ios \
         linux windows macos apk ios \
         package-linux package-appimage package-deb package-windows package-exe release-linux \
-        deps-linux deps-macos deps-windows fuzz-build hooks help \
-        lint-workflows lint-release-hardening rust-mutants setup \
-        rust-fmt rust-fmt-check rust-lint rust-test rust-build rust-codegen rust-clean rust-check rust-deny
+        deps-linux deps-macos deps-windows fuzz-build hooks help setup setup-rust-tools \
+        lint-workflows lint-release-hardening rust-mutants \
+        dart-test dart-lint dart-format dart-format-check \
+        rust-format rust-format-check rust-lint rust-test rust-build rust-codegen rust-clean rust-machete rust-coverage
 
 all: build
 
@@ -44,7 +45,19 @@ else
 	@exit 1
 endif
 
-test: rust-build ## Run all tests with coverage
+## ─── Quality gates (umbrella + per-language) ──────────────────
+## Top-level umbrellas run both languages; `dart-*` / `rust-*`
+## variants exist for fast iteration when only one side changed.
+
+test: dart-test rust-test ## Run all tests (Dart + Rust)
+
+lint: dart-lint rust-lint ## Run static analysis (Dart analyzer + Rust clippy)
+
+format: dart-format rust-format ## Auto-format Dart + Rust sources
+
+format-check: dart-format-check rust-format-check ## Verify formatting without touching files
+
+dart-test: rust-build ## Run Dart tests with coverage
 	@# Tests that load the FRB native blob — `terminal_clipboard_test.dart`
 	@# (sensitivity-routing → `lfs_core::log_sanitize`),
 	@# `connection_lifecycle_test.dart` (in-process russh fixture) — call
@@ -64,8 +77,14 @@ test: rust-build ## Run all tests with coverage
 	@# already need.
 	@dart run scripts/filter_lcov.dart coverage/lcov.info
 
-analyze: ## Run Dart analyzer (fatal on infos, same as CI)
+dart-lint: ## Run Dart analyzer (fatal on infos)
 	$(FLUTTER) analyze --fatal-infos
+
+dart-format: ## Format Dart sources in place
+	dart format .
+
+dart-format-check: ## Verify Dart formatting (exit non-zero if changes needed)
+	dart format --output=none --set-exit-if-changed .
 
 # Pinned actionlint version + checksum. Update both together when bumping.
 ACTIONLINT_VERSION := 1.7.5
@@ -131,14 +150,11 @@ lint-release-hardening: ## Guard against debuggable release builds + dSYM-embedd
 	fi
 	@echo "Release hardening OK"
 
-check: analyze lint-workflows lint-release-hardening rust-fmt-check rust-lint rust-test ## Run Dart analyzer + workflow lint + release hardening + Rust gates + tests (sequential — each must pass first)
+check: format-check lint lint-workflows lint-release-hardening rust-machete ## Full pre-commit gate (Dart + Rust): format, lint, workflow lint, release hardening, unused-deps, then tests
 	@$(MAKE) test
 
 hooks: ## Install local git hooks (pre-commit runs make check)
 	@bash scripts/install-hooks.sh
-
-format: ## Format Dart code
-	dart format .
 
 gen: ## Code generation (freezed, json_serializable)
 	dart run build_runner build --delete-conflicting-outputs
@@ -261,8 +277,28 @@ release-linux: package-linux ## Build Linux release packages
 
 ## ─── Dependencies ─────────────────────────────────────────────
 
-setup: deps hooks ## One-shot post-clone bootstrap: pub deps + git hooks
+setup: deps hooks setup-rust-tools ## One-shot post-clone bootstrap: pub deps + git hooks + Rust dev tools
 	@echo "Setup complete. Run 'make run' or 'make build' to continue."
+
+# Pinned cargo plugin versions used in `make check` / `make
+# rust-coverage` / CI. Bump the version constant together with
+# any comment that names it elsewhere.
+CARGO_MACHETE_VERSION := 0.7.0
+CARGO_LLVM_COV_VERSION := 0.6.20
+
+setup-rust-tools: ## Install pinned cargo plugins (cargo-machete, cargo-llvm-cov) used by `make check` / `make rust-coverage`
+	@if ! command -v cargo-machete >/dev/null 2>&1; then \
+		echo "Installing cargo-machete $(CARGO_MACHETE_VERSION)..."; \
+		cargo install --locked --version $(CARGO_MACHETE_VERSION) cargo-machete; \
+	else \
+		echo "cargo-machete already installed."; \
+	fi
+	@if ! command -v cargo-llvm-cov >/dev/null 2>&1; then \
+		echo "Installing cargo-llvm-cov $(CARGO_LLVM_COV_VERSION)..."; \
+		cargo install --locked --version $(CARGO_LLVM_COV_VERSION) cargo-llvm-cov; \
+	else \
+		echo "cargo-llvm-cov already installed."; \
+	fi
 
 deps: ## Install Flutter dependencies
 	$(FLUTTER) pub get
@@ -292,20 +328,21 @@ deps-windows: ## Install system build deps (Windows)
 # Security/transport core lives in rust/. See ARCHITECTURE.md §3.14.
 RUST_DIR := rust
 
-rust-fmt: ## Format Rust code (cargo fmt)
+rust-format: ## Format Rust code (cargo fmt)
 	cd $(RUST_DIR) && cargo fmt --all
 
-rust-fmt-check: ## Verify Rust formatting (used by pre-commit / CI)
+rust-format-check: ## Verify Rust formatting (exit non-zero if changes needed)
 	cd $(RUST_DIR) && cargo fmt --all -- --check
 
 rust-lint: ## Run clippy (deny warnings)
-	cd $(RUST_DIR) && cargo clippy --workspace --all-targets -- -D warnings
+	cd $(RUST_DIR) && cargo clippy --workspace --all-targets --locked -- -D warnings
 
-rust-test: ## Run Rust unit + integration tests
-	cd $(RUST_DIR) && cargo test --workspace
+rust-test: ## Run Rust tests (unit + integration + doc), --locked enforces Cargo.lock parity
+	cd $(RUST_DIR) && cargo test --workspace --locked
+	cd $(RUST_DIR) && cargo test --workspace --doc --locked
 
-rust-build: ## Build Rust workspace (release, host)
-	cd $(RUST_DIR) && cargo build --release --workspace
+rust-build: ## Build Rust workspace (release, host), --locked enforces Cargo.lock parity
+	cd $(RUST_DIR) && cargo build --release --workspace --locked
 
 rust-codegen: ## Regenerate Dart bindings from Rust API surface
 	flutter_rust_bridge_codegen generate
@@ -313,11 +350,11 @@ rust-codegen: ## Regenerate Dart bindings from Rust API surface
 rust-clean: ## cargo clean
 	cd $(RUST_DIR) && cargo clean
 
-rust-check: rust-fmt-check rust-lint rust-test ## fmt-check + clippy + test (CI bundle)
-	@echo "rust-check: green"
+rust-machete: ## Detect unused dependencies (`cargo install cargo-machete` via `make setup-rust-tools`)
+	cd $(RUST_DIR) && cargo machete --with-metadata
 
-rust-deny: ## cargo deny check (advisories + licenses + bans). Requires `cargo install cargo-deny`.
-	cd $(RUST_DIR) && cargo deny --all-features check
+rust-coverage: ## Generate Rust workspace coverage as lcov (rust-lcov.info). Used by SonarCloud alongside Dart lcov. Requires `make setup-rust-tools`.
+	cd $(RUST_DIR) && cargo llvm-cov --workspace --all-features --locked --lcov --output-path ../rust-lcov.info
 
 rust-mutants: ## Mutation-test a scope of lfs_core (e.g. `make rust-mutants SCOPE=archive`). Requires `cargo install cargo-mutants`. Honours MUTANTS_JOBS / MUTANTS_TIMEOUT_MUL.
 	@if [ -z "$(SCOPE)" ]; then \

@@ -343,7 +343,7 @@ Use this as a PR template — anything missing is a rejected PR:
 - [ ] Unit tests + widget tests.
 - [ ] No hardcoded `fontSize`/`Colors`/`BorderRadius.circular(N)` — use `AppFonts`/`AppTheme`.
 - [ ] Cross-platform check: Android ↔ iOS, Windows ↔ Linux ↔ macOS.
-- [ ] `make analyze` clean, `make test` green.
+- [ ] `make check` green (covers `make lint` + `make test` for Dart + Rust, plus workflow lint, release hardening, unused-deps).
 - [ ] SonarCloud check on the PR — no new open issues.
 
 ---

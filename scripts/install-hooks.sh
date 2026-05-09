@@ -2,9 +2,11 @@
 # Install the project's git hooks into .git/hooks. Idempotent.
 #
 # CLAUDE.md / docs/CONTRIBUTING.md tell contributors that committing on
-# this repo runs `make check` (analyzer + tests) automatically. That
-# requires a pre-commit hook to be present in the local clone — git
-# hooks are intentionally not tracked. Run this once after clone.
+# this repo runs `make check` (format-check + lint + workflow lint +
+# release hardening + unused-deps + tests, for both Dart and Rust)
+# automatically. That requires a pre-commit hook to be present in the
+# local clone — git hooks are intentionally not tracked. Run this once
+# after clone.
 #
 # Usage:
 #   bash scripts/install-hooks.sh
@@ -31,7 +33,8 @@ if [[ "${SKIP_PRECOMMIT:-0}" == "1" ]]; then
   exit 0
 fi
 
-# Run analyze + tests. Same gate that CI runs on push.
+# Same gate CI runs on push: format-check + lint + workflow lint +
+# release hardening + unused-deps + tests, for both Dart and Rust.
 exec make check
 HOOK
 chmod +x "$hook_dir/pre-commit"

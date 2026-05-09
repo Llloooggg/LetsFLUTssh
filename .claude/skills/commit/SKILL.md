@@ -20,7 +20,7 @@ Determine:
 Note: Version bumps are automated by `scripts/bump-version.sh` (runs during `/pr`). Do NOT bump version manually.
 
 ### Step 3: Pre-commit checks
-- Do NOT run `make analyze` or `make test` manually — the pre-commit hook runs `make check` automatically and blocks the commit if anything fails
+- Do NOT run `make lint` or `make test` manually — the pre-commit hook runs `make check` automatically and blocks the commit if anything fails
 
 ### Step 4: Draft commit message
 - Format: `type: short description`

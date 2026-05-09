@@ -8,8 +8,8 @@
 // denominator and masks real gaps.
 //
 // Exclude patterns below must match `sonar-project.properties` →
-// `sonar.coverage.exclusions` so the local `make test` coverage
-// number and the SonarCloud dashboard agree.
+// `sonar.coverage.exclusions` so the local `make dart-test`
+// coverage number and the SonarCloud dashboard agree.
 //
 // Dart-native so the only host dependency is the Flutter toolchain
 // that is already required to build the app — no `lcov` binary,

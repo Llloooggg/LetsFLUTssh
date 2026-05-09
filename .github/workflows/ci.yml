@@ -46,25 +46,22 @@ jobs:
           sudo apt-get install -y libsecret-1-dev libtss2-dev
 
       - name: Install Rust toolchain
-        # `make test` now depends on `make rust-build` so the FRB
-        # native blob (`rust/target/release/liblfs_frb.so`) is in place
-        # before flutter_test loads it via `requireFrbLoaded`. Without
-        # this dependency, every test that calls into Rust failed
-        # silently against a missing .so. Toolchain version is pinned
-        # in `rust/rust-toolchain.toml`; rustup auto-installs on the
-        # first cargo invocation when `working-directory: rust`.
+        # FRB native blob (`rust/target/release/liblfs_frb.so`) must
+        # be in place before flutter_test loads it via
+        # `requireFrbLoaded`; `make check` covers the build via the
+        # `dart-test` -> `rust-build` prereq chain. Toolchain version
+        # is pinned in `rust/rust-toolchain.toml`; rustup auto-installs
+        # on the first cargo invocation when `working-directory: rust`.
         working-directory: rust
         run: |
           rustup show active-toolchain
           rustup component add rustfmt clippy
 
       - name: Cache cargo registry + workspace target
-        # Same cache key as the `rust-ci` job below so the two jobs
-        # populate / hit the same cache. Release-profile target dirs
-        # (rust/target/release/, what `make rust-build` produces) and
-        # debug target dirs (rust/target/debug/, what cargo test
-        # produces in `rust-ci`) coexist in `rust/target/` so a single
-        # cache covers both.
+        # Single cargo cache for the whole CI job — release-profile
+        # (`make rust-build`), debug-profile (`make rust-test`), and
+        # llvm-cov instrumented profile (`make rust-coverage`) all
+        # land under `rust/target/`.
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
           path: |
@@ -76,21 +73,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Install dependencies
+      - name: Install pub dependencies
         run: make deps
+
+      - name: Install pinned cargo plugins (machete + llvm-cov)
+        # `make check` calls `cargo machete`; `make rust-coverage`
+        # calls `cargo llvm-cov`. Both pinned by `setup-rust-tools`.
+        run: make setup-rust-tools
 
       - name: Generate code
         run: make gen
-
-      - name: Analyze
-        run: make analyze
-
-      - name: Lint workflows
-        # actionlint catches YAML / shell / GHA expression bugs that
-        # would otherwise only fail at workflow-dispatch time. The
-        # local `make lint-workflows` target uses the same pinned
-        # actionlint version + the same ignore config.
-        run: make lint-workflows
 
       - name: Verify ARB parity (every locale has the same keys as app_en.arb)
         run: bash scripts/check-arb-parity.sh
@@ -110,14 +102,33 @@ jobs:
             exit 1
           fi
 
-      - name: Run tests with coverage
-        run: make test
+      - name: Run check (Dart + Rust quality gates + tests)
+        # Single source of truth: identical command runs locally
+        # (pre-commit hook) and in CI. Covers format-check, lint,
+        # workflow lint, release hardening, unused-deps, then tests
+        # for both Dart and Rust. Cargo.lock parity falls out of the
+        # `--locked` flag baked into `rust-test` / `rust-build`.
+        run: make check
 
-      - name: Upload coverage artifact
+      - name: Generate Rust coverage (lcov)
+        # Separate from `make check` because cargo-llvm-cov rebuilds
+        # the workspace under `-C instrument-coverage` — heavier than
+        # plain `cargo test`, and only the SonarCloud upload below
+        # needs it. Local devs can run `make rust-coverage` ad-hoc.
+        run: make rust-coverage
+
+      - name: Upload Dart coverage artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage
           path: coverage/lcov.info
+          retention-days: 1
+
+      - name: Upload Rust coverage artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rust-coverage
+          path: rust-lcov.info
           retention-days: 1
 
       - name: Upload SonarCloud source artifact
@@ -208,145 +219,14 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
 
-  rust-ci:
-    # Rust security/transport core (rust/) — see ARCHITECTURE.md §3.14.
-    # Runs alongside the Dart `ci` job; the cache + light test surface
-    # at sub-phase 1.x makes this cheap. Cross-target compile coverage
-    # (Apple / Windows / Android / iOS) lives in `rust-cross-check`
-    # below; this job stays ubuntu-latest for the full clippy + test +
-    # deny pipeline so the heavyweight gates run once on the canonical
-    # host.
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          fetch-depth: 1
-
-      - name: Install Rust toolchain
-        # Toolchain version is pinned in `rust/rust-toolchain.toml`
-        # (channel = "1.95.0"); rustup auto-installs that version
-        # on the first cargo invocation in `working-directory: rust`,
-        # so we do not need to specify a version here. Keeping the
-        # explicit `rustup toolchain install` pre-step lets us also
-        # add the rustfmt + clippy components for the active
-        # toolchain in one shot.
-        working-directory: rust
-        run: |
-          rustup show active-toolchain
-          rustup component add rustfmt clippy
-
-      - name: Cache cargo registry + workspace target
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            rust/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: cargo fmt --check
-        working-directory: rust
-        run: cargo fmt --all -- --check
-
-      - name: cargo clippy --workspace -- -D warnings
-        working-directory: rust
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
-
-      - name: cargo test --workspace
-        working-directory: rust
-        run: cargo test --workspace --locked
-
-      - name: cargo test --workspace --doc
-        # Run doc-tests separately so a regression in a `///`
-        # rustdoc example surfaces as a CI failure rather than
-        # silently rotting on disk. The unit-test pass above does
-        # not run doc-tests by default.
-        working-directory: rust
-        run: cargo test --workspace --doc --locked
-
-      - name: Install cargo-deny
-        # `--locked` so the install resolves against cargo-deny's own
-        # Cargo.lock — reproducible across CI runs. Pin the version
-        # so a CVE in a future cargo-deny release does not silently
-        # rotate into our security-gating binary.
-        run: cargo install --locked --version 0.19.4 cargo-deny
-
-      - name: cargo deny check
-        # Three gates from `rust/deny.toml`:
-        #   advisories — RustSec database CVE check
-        #   licenses   — every transitive license is on the allow-list
-        #   bans       — duplicate-version warnings, wildcard requirements denied
-        working-directory: rust
-        run: cargo deny --all-features check
-
-      - name: Cargo.lock parity
-        # Mirrors the existing `flutter gen-l10n` parity check above:
-        # if a contributor bumps a Cargo.toml entry without committing
-        # the regenerated Cargo.lock, this fails. `--workspace` so the
-        # check covers every member crate; `--locked` so cargo refuses
-        # to mutate the lock if a fresh resolve would diverge — the
-        # combination of those two plus `git diff --exit-code` is the
-        # idiomatic Rust-side equivalent of `npm ci`'s lock check.
-        working-directory: rust
-        run: |
-          cargo update --workspace --locked
-          if ! git diff --quiet -- Cargo.lock; then
-            echo "::error::rust/Cargo.lock is out of sync with rust/Cargo.toml. Run \`cargo update --workspace\` and commit the result." >&2
-            git diff -- Cargo.lock | head -100 >&2 || true
-            exit 1
-          fi
-
-      - name: Install cargo-machete
-        # Pinned for reproducibility — same rationale as cargo-deny:
-        # a future machete release rotating into our quality gate
-        # without a deliberate bump is a silent risk.
-        run: cargo install --locked --version 0.7.0 cargo-machete
-
-      - name: cargo machete (unused dependencies)
-        # Catches dependencies declared in any workspace member's
-        # Cargo.toml that are never `use`d in source. Each entry in
-        # Cargo.toml is build-time + audit cost; unused ones add
-        # both for nothing. `--with-metadata` reads `cargo metadata`
-        # for transitive resolution, more accurate than the lexical
-        # default.
-        working-directory: rust
-        run: cargo machete --with-metadata
-
-      - name: Install cargo-llvm-cov
-        # Coverage tool of choice for Rust workspaces — uses the
-        # source-based `-C instrument-coverage` LLVM facility, which
-        # is more accurate than line-based fallbacks (tarpaulin) and
-        # supports cfg-gated code paths properly.
-        run: cargo install --locked --version 0.6.20 cargo-llvm-cov
-
-      - name: cargo llvm-cov (workspace coverage → lcov)
-        # Outputs `rust-lcov.info` in lcov.info format identical to
-        # the Dart side, so `ci-sonarcloud.yml` can pass both files
-        # to the Sonar scanner via the same `sonar.coverageReportPaths`
-        # mechanism. `--all-features` ensures cfg-gated branches show
-        # up in coverage rather than being silently elided.
-        working-directory: rust
-        run: cargo llvm-cov --workspace --all-features --locked --lcov --output-path ../rust-lcov.info
-
-      - name: Upload Rust coverage artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: rust-coverage
-          path: rust-lcov.info
-          retention-days: 1
-
   rust-cross-check:
     # Cross-target compile validation for cfg-gated Rust code paths
-    # the canonical `rust-ci` (ubuntu-latest) never sees. Runs `cargo
-    # check --workspace --all-targets` per target on its native
-    # runner — clippy + test stay in `rust-ci` because they catch
-    # 95 % of bugs at lower latency on a single host. This job's job
-    # is to ensure that, e.g., a dependency bump that breaks
+    # the canonical `ci` job (ubuntu-latest, runs `make check`)
+    # never sees. Runs `cargo check --workspace --all-targets` per
+    # target on its native runner — clippy + test stay in `make
+    # check` because they catch 95 % of bugs at lower latency on a
+    # single host. This job's job is to ensure that, e.g., a
+    # dependency bump that breaks
     # `cfg(any(target_os = "macos", target_os = "ios"))` code in
     # `lfs_os_security::hardware_tier_vault::apple` (~700 LOC of
     # Apple-cfg Rust) surfaces on the PR check, not on the next
@@ -357,7 +237,7 @@ jobs:
     #   - Windows MSVC         (windows-latest)
     #   - Android NDK ABIs     (ubuntu-latest via cargo-ndk)
     #
-    # Linux x86_64 host is already covered by `rust-ci` above.
+    # Linux x86_64 host is already covered by the `ci` job above.
     strategy:
       fail-fast: false
       matrix:
