@@ -167,3 +167,62 @@ pub fn tier_machine_try_advance() -> Option<DbTierState> {
         .try_advance()
         .map(DbTierState::from)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The tier-machine singleton is process-static + tests share it.
+    // Each test sets the active tier explicitly before reading state,
+    // so cross-test ordering doesn't leak. `dispatch` publishes a bus
+    // event through `app::instance()` so tests that exercise it
+    // bootstrap the singleton via `lfs_core::app::init()` (idempotent).
+
+    #[test]
+    fn set_tier_then_read_active_returns_the_pinned_wire_name() {
+        // Pin the tier round-trip — the Dart wizard pins the tier
+        // before kicking off the unlock dispatch and reads it back
+        // immediately.
+        for wire in ["plaintext", "keychain", "hardware", "paranoid"] {
+            let echoed = tier_machine_set_tier(wire.into()).expect("set");
+            assert_eq!(echoed, wire);
+            assert_eq!(tier_machine_active_tier_wire_name(), wire);
+        }
+    }
+
+    #[test]
+    fn set_tier_with_unknown_wire_name_surfaces_err() {
+        let res = tier_machine_set_tier("not-a-tier".into());
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn dispatch_unlock_succeeded_advances_to_unlocked() {
+        // Bootstrap the app singleton — `dispatch` publishes through
+        // `app::instance().bus`; without init the publish would
+        // panic.
+        let _ = lfs_core::app::init();
+        let _ = tier_machine_set_tier("plaintext".into()).expect("set");
+        // Drive the documented Locked → Unlocking → Unlocked path.
+        let _ = tier_machine_dispatch(DbTierEvent::UnlockRequested);
+        let next = tier_machine_dispatch(DbTierEvent::UnlockSucceeded);
+        assert!(matches!(next, Some(DbTierState::Unlocked)));
+        // Reset for sibling tests by dispatching LockRequested.
+        let _ = tier_machine_dispatch(DbTierEvent::LockRequested);
+    }
+
+    #[test]
+    fn dispatch_invalid_event_for_state_returns_none() {
+        let _ = lfs_core::app::init();
+        let _ = tier_machine_set_tier("plaintext".into());
+        // Drive to Unlocked then dispatch UnlockSucceeded again —
+        // the documented transition table rejects it (nothing to
+        // succeed; already unlocked).
+        let _ = tier_machine_dispatch(DbTierEvent::UnlockRequested);
+        let _ = tier_machine_dispatch(DbTierEvent::UnlockSucceeded);
+        let invalid = tier_machine_dispatch(DbTierEvent::UnlockSucceeded);
+        assert!(invalid.is_none());
+        // Reset.
+        let _ = tier_machine_dispatch(DbTierEvent::LockRequested);
+    }
+}

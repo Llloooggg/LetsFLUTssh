@@ -94,3 +94,56 @@ pub fn security_tier_modifiers_from_json(json: String) -> Option<DbSecurityTierM
         biometric: m.biometric,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_to_json_then_from_json_round_trips_every_field() {
+        let json = security_config_to_json("keychain".into(), true, false).expect("encode");
+        let parsed = security_config_from_json(json).expect("decode");
+        assert_eq!(parsed.tier_wire_name, "keychain");
+        assert!(parsed.password);
+        assert!(!parsed.biometric);
+    }
+
+    #[test]
+    fn config_to_json_rejects_unknown_tier_wire_name() {
+        let res = security_config_to_json("ghost-tier".into(), false, false);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn config_from_json_falls_back_to_plaintext_for_unknown_tier() {
+        // Documented contract — unknown / missing tier falls
+        // through to plaintext so the caller routes into the
+        // wizard rather than silently picking an unintended tier.
+        let parsed = security_config_from_json(r#"{"tier": "nonsense"}"#.into())
+            .expect("missing tier defaults rather than None");
+        assert_eq!(parsed.tier_wire_name, "plaintext");
+    }
+
+    #[test]
+    fn config_from_json_returns_none_for_garbage() {
+        // Pure parse failures (non-JSON input) collapse to None;
+        // the Dart load path treats that as "no config in this
+        // file, fall through to defaults".
+        assert!(security_config_from_json("not json".into()).is_none());
+    }
+
+    #[test]
+    fn modifiers_to_json_then_from_json_round_trips_both_flags() {
+        let json = security_tier_modifiers_to_json(true, true);
+        let parsed = security_tier_modifiers_from_json(json).expect("decode");
+        assert!(parsed.password);
+        assert!(parsed.biometric);
+    }
+
+    #[test]
+    fn modifiers_to_json_emits_object_shape() {
+        let json = security_tier_modifiers_to_json(false, true);
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        assert!(parsed.is_object());
+    }
+}

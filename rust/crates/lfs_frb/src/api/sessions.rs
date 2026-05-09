@@ -58,6 +58,90 @@ pub fn sessions_count_in_folder(session_folders: Vec<String>, folder_path: Strin
     sessions::count_in_folder(&session_folders, &folder_path) as u32
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn s(id: &str, label: &str, folder: &str, host: &str, user: &str) -> DbSearchableSession {
+        DbSearchableSession {
+            id: id.into(),
+            label: label.into(),
+            folder: folder.into(),
+            host: host.into(),
+            user: user.into(),
+        }
+    }
+
+    #[test]
+    fn sessions_filter_returns_every_id_for_empty_query() {
+        let ids = sessions_filter(
+            vec![
+                s("a", "Alpha", "prod", "alpha.example.com", "deploy"),
+                s("b", "Bravo", "stage", "bravo.example.com", "deploy"),
+            ],
+            String::new(),
+        );
+        assert_eq!(ids, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn sessions_filter_matches_label_case_insensitively() {
+        let ids = sessions_filter(
+            vec![
+                s("a", "Production Edge", "prod", "h1", "u1"),
+                s("b", "Staging Edge", "stage", "h2", "u2"),
+            ],
+            "PRODUCTION".into(),
+        );
+        assert_eq!(ids, vec!["a"]);
+    }
+
+    #[test]
+    fn sessions_filter_matches_host_field() {
+        let ids = sessions_filter(
+            vec![s("only", "x", "f", "edge.example.com", "u")],
+            "example".into(),
+        );
+        assert_eq!(ids, vec!["only"]);
+    }
+
+    #[test]
+    fn validate_fields_returns_none_for_well_formed() {
+        assert!(sessions_validate_fields("h.example.com".into(), 22, "deploy".into()).is_none());
+    }
+
+    #[test]
+    fn validate_fields_rejects_blank_host() {
+        assert!(sessions_validate_fields(String::new(), 22, "deploy".into()).is_some());
+    }
+
+    #[test]
+    fn validate_fields_rejects_zero_port() {
+        assert!(sessions_validate_fields("h".into(), 0, "u".into()).is_some());
+    }
+
+    #[test]
+    fn validate_fields_rejects_blank_user() {
+        assert!(sessions_validate_fields("h".into(), 22, String::new()).is_some());
+    }
+
+    #[test]
+    fn count_in_folder_matches_exact_and_descendants() {
+        let folders = vec![
+            "production".to_string(),
+            "production/edge".to_string(),
+            "staging".to_string(),
+        ];
+        assert_eq!(sessions_count_in_folder(folders, "production".into()), 2);
+    }
+
+    #[test]
+    fn count_in_folder_with_empty_path_counts_root_level() {
+        let folders = vec![String::new(), String::new(), "production".to_string()];
+        assert_eq!(sessions_count_in_folder(folders, String::new()), 2);
+    }
+}
+
 /// Return a label that does not collide with any entry in
 /// [`taken`]. Identity for free `base`; otherwise appends
 /// `(copy)`, `(copy 2)`, `(copy 3)`, … until a free slot is found.

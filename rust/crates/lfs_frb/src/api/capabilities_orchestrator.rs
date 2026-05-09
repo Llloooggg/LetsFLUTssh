@@ -84,3 +84,52 @@ pub async fn capabilities_probe_run(is_linux_host: bool) -> DbSecurityCapabiliti
 pub fn capabilities_probe_clear() {
     cache::instance().clear();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The orchestrator's `run` async path fans probes across four
+    // platform plugins via the prompt registries; covered by the
+    // Dart `capabilities_probe_test.dart` integration suite that
+    // wires Dart subscribers to dispatch back through the matching
+    // resolve calls. The standalone tests below pin the
+    // missing-prompt-id contract on the resolve / cancel surface
+    // (used by the cleanup paths when a wizard dismiss races a
+    // probe).
+
+    #[test]
+    fn keychain_probe_resolve_unknown_id_returns_false() {
+        // Pin the documented contract — `false` means "no receiver
+        // woken" so a stale dispatch from a dismissed wizard
+        // doesn't crash. The shim must never panic here.
+        let woke = keychain_probe_prompt_resolve("ghost".into(), "available".into());
+        assert!(!woke);
+    }
+
+    #[test]
+    fn keychain_probe_cancel_unknown_id_is_idempotent() {
+        // No-op on missing — the dispatcher cleanup runs
+        // unconditionally on subscriber detach.
+        keychain_probe_prompt_cancel("ghost".into());
+    }
+
+    #[test]
+    fn hardware_vault_probe_resolve_unknown_id_returns_false() {
+        let woke = hardware_vault_probe_prompt_resolve("ghost".into(), "available".into());
+        assert!(!woke);
+    }
+
+    #[test]
+    fn hardware_vault_probe_cancel_unknown_id_is_idempotent() {
+        hardware_vault_probe_prompt_cancel("ghost".into());
+    }
+
+    #[test]
+    fn capabilities_probe_clear_does_not_panic_on_empty_cache() {
+        // Pin the no-panic contract — wizard's Recheck button
+        // routes through here on every press, including the first
+        // press before any snapshot has landed.
+        capabilities_probe_clear();
+    }
+}

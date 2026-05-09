@@ -448,3 +448,52 @@ pub async fn recorder_queue_enqueue_close(id: String) -> Result<(), String> {
         .await
         .map_err(|e| crate::api::frb_err::from_core(&e))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The register / queue / playback endpoints route through
+    // `app::instance().recorders` + tokio + filesystem; covered by
+    // the `recording_reader_test.dart` integration suite + the
+    // `lfs_frb/tests/poison_recovery.rs` cargo integration binary.
+    // The standalone tests below pin the wire-shape mappings + the
+    // exposed-const contract that crosses the FRB boundary.
+
+    #[test]
+    fn recorder_snapshot_carries_every_field() {
+        let core = lfs_core::recorder::RecorderSnapshot {
+            id: "rec-x".into(),
+            session_id: "sess-y".into(),
+            path: "/tmp/x.lfsr".into(),
+            bytes_written: 4096,
+            encrypted: true,
+        };
+        let db: DbRecorderSnapshot = core.into();
+        assert_eq!(db.id, "rec-x");
+        assert_eq!(db.session_id, "sess-y");
+        assert_eq!(db.path, "/tmp/x.lfsr");
+        assert_eq!(db.bytes_written, 4096);
+        assert!(db.encrypted);
+    }
+
+    #[test]
+    fn record_direction_round_trips_both_variants() {
+        let o: lfs_core::recorder::RecordDirection = DbRecordDirection::Output.into();
+        let i: lfs_core::recorder::RecordDirection = DbRecordDirection::Input.into();
+        assert_eq!(o, lfs_core::recorder::RecordDirection::Output);
+        assert_eq!(i, lfs_core::recorder::RecordDirection::Input);
+    }
+
+    #[test]
+    fn max_file_bytes_matches_lfs_core_const() {
+        // Pin the constant so a Rust-side bump can't silently
+        // diverge from the documented 100 MiB cap the Dart shim
+        // depends on for the rotate trigger.
+        assert_eq!(
+            recorder_max_file_bytes(),
+            lfs_core::recorder::MAX_FILE_BYTES
+        );
+        assert_eq!(recorder_max_file_bytes(), 100 * 1024 * 1024);
+    }
+}

@@ -191,3 +191,88 @@ pub async fn update_download_with_verification(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The async network endpoints (`update_fetch_text` /
+    // `update_download_to_file` / `update_check` /
+    // `update_download_with_verification`) issue real HTTP requests
+    // against GitHub Releases; covered by the Dart `update_service_test.dart`
+    // integration suite under fixture-driven `HttpFetcher` injection
+    // + the manual signed-release smoke tests on the user's release
+    // process. The standalone tests below pin the pure parser shim
+    // `update_check_from_body` + the DTO mappings.
+
+    #[test]
+    fn update_check_from_body_returns_err_for_garbage_input() {
+        let res = update_check_from_body("not-json".into(), "1.0.0".into(), String::new());
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn update_check_from_body_returns_err_for_empty_body() {
+        let res = update_check_from_body(String::new(), "1.0.0".into(), String::new());
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn db_download_error_kind_clone_round_trip() {
+        // Pin the four-variant taxonomy — the Dart UI surfaces a
+        // different toast per kind (security warning vs retry vs
+        // network error).
+        for v in [
+            DbDownloadErrorKind::Untrusted,
+            DbDownloadErrorKind::Network,
+            DbDownloadErrorKind::ManifestUnavailable,
+            DbDownloadErrorKind::InvalidSignature,
+        ] {
+            let c = v.clone();
+            // Pattern-match must hit a concrete arm — exhaustive
+            // match here would force a compile error if a variant
+            // is added.
+            match c {
+                DbDownloadErrorKind::Untrusted
+                | DbDownloadErrorKind::Network
+                | DbDownloadErrorKind::ManifestUnavailable
+                | DbDownloadErrorKind::InvalidSignature => (),
+            }
+        }
+    }
+
+    #[test]
+    fn db_update_info_carries_every_field_through() {
+        let core = lfs_core::update_orchestrator::UpdateInfo {
+            latest_version: "2.0.0".into(),
+            current_version: "1.0.0".into(),
+            release_url: "https://example.org/release/2.0".into(),
+            asset_url: Some("https://example.org/asset.dmg".into()),
+            asset_digest: Some("abcdef".into()),
+            changelog: Some("# 2.0\n- new".into()),
+        };
+        let db: DbUpdateInfo = core.into();
+        assert_eq!(db.latest_version, "2.0.0");
+        assert_eq!(db.current_version, "1.0.0");
+        assert_eq!(db.release_url, "https://example.org/release/2.0");
+        assert_eq!(
+            db.asset_url.as_deref(),
+            Some("https://example.org/asset.dmg")
+        );
+        assert_eq!(db.asset_digest.as_deref(), Some("abcdef"));
+        assert!(db.changelog.is_some());
+    }
+
+    #[test]
+    fn db_downloaded_asset_clone_round_trip() {
+        let v = DbDownloadedAsset {
+            asset_path: "/tmp/asset".into(),
+            manifest_path: "/tmp/manifest".into(),
+            manifest_sig_path: "/tmp/manifest.sig".into(),
+        };
+        let c = v.clone();
+        assert_eq!(c.asset_path, "/tmp/asset");
+        assert_eq!(c.manifest_path, "/tmp/manifest");
+        assert_eq!(c.manifest_sig_path, "/tmp/manifest.sig");
+    }
+}

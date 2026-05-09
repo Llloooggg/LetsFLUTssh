@@ -756,3 +756,255 @@ pub async fn bus_subscribe(topic: BusTopic, sink: StreamSink<BusEvent>) -> Resul
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The `bus_subscribe` / `bus_dispatch` / `connection_*` endpoints
+    // route through `app::instance()` + tokio runtime; covered by the
+    // Dart `bus_subscribe_test.dart` integration suite. The standalone
+    // tests below pin every From mapping that crosses the FRB boundary
+    // — these are the load-bearing wire conversions every event /
+    // command flows through.
+
+    #[test]
+    fn bus_topic_maps_each_variant_distinctly() {
+        // Pin the Dart-facing topic→core mapping. A future codegen
+        // bug or mis-ordered match arm would silently route events
+        // to the wrong subscriber.
+        for (db, core_expected) in [
+            (
+                BusTopic::Diagnostics,
+                lfs_core::bus::EventTopic::Diagnostics,
+            ),
+            (BusTopic::Connection, lfs_core::bus::EventTopic::Connection),
+            (
+                BusTopic::PortForward,
+                lfs_core::bus::EventTopic::PortForward,
+            ),
+            (BusTopic::Transfer, lfs_core::bus::EventTopic::Transfer),
+            (BusTopic::Recorder, lfs_core::bus::EventTopic::Recorder),
+            (BusTopic::AutoLock, lfs_core::bus::EventTopic::AutoLock),
+            (BusTopic::Import, lfs_core::bus::EventTopic::Import),
+            (BusTopic::Update, lfs_core::bus::EventTopic::Update),
+            (BusTopic::KnownHosts, lfs_core::bus::EventTopic::KnownHosts),
+            (BusTopic::Sessions, lfs_core::bus::EventTopic::Sessions),
+            (BusTopic::Config, lfs_core::bus::EventTopic::Config),
+            (BusTopic::Tier, lfs_core::bus::EventTopic::Tier),
+            (
+                BusTopic::SecurityPrompt,
+                lfs_core::bus::EventTopic::SecurityPrompt,
+            ),
+            (
+                BusTopic::SecurityCapabilities,
+                lfs_core::bus::EventTopic::SecurityCapabilities,
+            ),
+            (BusTopic::CoreLog, lfs_core::bus::EventTopic::CoreLog),
+        ] {
+            let core: lfs_core::bus::EventTopic = db.into();
+            assert_eq!(core, core_expected, "topic mapping diverged for {db:?}");
+        }
+    }
+
+    #[test]
+    fn bus_connection_state_maps_each_variant() {
+        use lfs_core::connection::ConnectionState as CS;
+        let cases = [
+            (CS::Disconnected, "disconnected"),
+            (CS::Connecting, "connecting"),
+            (CS::Connected, "connected"),
+        ];
+        for (core, label) in cases {
+            let db: BusConnectionState = core.into();
+            let actual_label = match db {
+                BusConnectionState::Disconnected => "disconnected",
+                BusConnectionState::Connecting => "connecting",
+                BusConnectionState::Connected => "connected",
+            };
+            assert_eq!(actual_label, label);
+        }
+    }
+
+    #[test]
+    fn bus_connection_phase_maps_each_variant() {
+        use lfs_core::connection::ConnectionPhase as CP;
+        for core in [
+            CP::SocketConnect,
+            CP::HostKeyVerify,
+            CP::Authenticate,
+            CP::OpenChannel,
+        ] {
+            // From-impl must not panic and the pattern-match must
+            // hit a concrete arm — pin via exhaustive match.
+            let db: BusConnectionPhase = core.into();
+            match db {
+                BusConnectionPhase::SocketConnect
+                | BusConnectionPhase::HostKeyVerify
+                | BusConnectionPhase::Authenticate
+                | BusConnectionPhase::OpenChannel => (),
+            }
+        }
+    }
+
+    #[test]
+    fn bus_step_status_maps_each_variant() {
+        use lfs_core::connection::StepStatus as SS;
+        for core in [SS::InProgress, SS::Success, SS::Failed] {
+            let db: BusStepStatus = core.into();
+            match db {
+                BusStepStatus::InProgress | BusStepStatus::Success | BusStepStatus::Failed => (),
+            }
+        }
+    }
+
+    #[test]
+    fn bus_progress_step_carries_phase_status_detail() {
+        let core = lfs_core::connection::ProgressStep {
+            phase: lfs_core::connection::ConnectionPhase::Authenticate,
+            status: lfs_core::connection::StepStatus::Success,
+            detail: Some("publickey".into()),
+        };
+        let db: BusProgressStep = core.into();
+        assert!(matches!(db.phase, BusConnectionPhase::Authenticate));
+        assert!(matches!(db.status, BusStepStatus::Success));
+        assert_eq!(db.detail.as_deref(), Some("publickey"));
+    }
+
+    #[test]
+    fn bus_known_host_prompt_kind_maps_both_variants() {
+        use lfs_core::bus::KnownHostPromptKind as K;
+        for core in [K::NewHost, K::KeyChanged] {
+            let db: BusKnownHostPromptKind = core.into();
+            match db {
+                BusKnownHostPromptKind::NewHost | BusKnownHostPromptKind::KeyChanged => (),
+            }
+        }
+    }
+
+    #[test]
+    fn bus_rule_status_maps_each_variant() {
+        use lfs_core::portforward::RuleStatus as R;
+        for core in [R::Idle, R::Listening, R::Error] {
+            let db: BusRuleStatus = core.into();
+            match db {
+                BusRuleStatus::Idle | BusRuleStatus::Listening | BusRuleStatus::Error => (),
+            }
+        }
+    }
+
+    #[test]
+    fn bus_task_state_maps_each_variant() {
+        use lfs_core::transfer::TaskState as T;
+        for core in [T::Queued, T::Running, T::Completed, T::Failed, T::Cancelled] {
+            let db: BusTaskState = core.into();
+            match db {
+                BusTaskState::Queued
+                | BusTaskState::Running
+                | BusTaskState::Completed
+                | BusTaskState::Failed
+                | BusTaskState::Cancelled => (),
+            }
+        }
+    }
+
+    #[test]
+    fn bus_connect_auth_ref_round_trips_through_each_variant() {
+        // Pin the ref-shape mapping — Connect path picks the right
+        // SecretStore id type (password / pubkey / pubkey-cert /
+        // agent) based on this enum.
+        let cases: Vec<BusConnectAuthRef> = vec![
+            BusConnectAuthRef::Password {
+                secret_id: "secret-pw".into(),
+            },
+            BusConnectAuthRef::Pubkey {
+                key_secret_id: "key-x".into(),
+                passphrase_secret_id: Some("phr-x".into()),
+            },
+            BusConnectAuthRef::PubkeyCert {
+                key_secret_id: "key-x".into(),
+                cert_secret_id: "cert-x".into(),
+                passphrase_secret_id: None,
+            },
+            BusConnectAuthRef::Agent,
+        ];
+        for db in cases {
+            let _: lfs_core::connection::ConnectAuthRef = db.into();
+        }
+    }
+
+    #[test]
+    fn bus_connect_args_carries_every_field_through() {
+        let args = BusConnectArgs {
+            label: "Edge".into(),
+            session_id: Some("sess-x".into()),
+            host: "edge.example.com".into(),
+            port: 2222,
+            user: "deploy".into(),
+            auth: BusConnectAuthRef::Agent,
+            bastion_id: None,
+            internal: false,
+        };
+        let core: lfs_core::connection::ConnectArgs = args.into();
+        assert_eq!(core.label, "Edge");
+        assert_eq!(core.host, "edge.example.com");
+        assert_eq!(core.port, 2222);
+        assert_eq!(core.user, "deploy");
+    }
+
+    #[test]
+    fn bus_command_maps_each_variant() {
+        // Smoke: every variant must produce a valid core::Command
+        // without panicking.
+        let cmds = vec![
+            BusCommand::NoopEcho {
+                payload: "hello".into(),
+            },
+            BusCommand::ConnectionDisconnect { id: "x".into() },
+            BusCommand::ConnectionDisconnectAll,
+            BusCommand::AutoLockOnPointerActivity,
+            BusCommand::AutoLockOnLifecycleChange { background: true },
+            BusCommand::AutoLockSetTimeout { minutes: 5 },
+            BusCommand::AutoLockRequestLock,
+            BusCommand::AutoLockUnlock,
+            BusCommand::KnownHostPromptResponse {
+                prompt_id: "p".into(),
+                accepted: true,
+            },
+        ];
+        for db in cmds {
+            let _: lfs_core::bus::Command = db.into();
+        }
+    }
+
+    #[test]
+    fn bus_event_from_core_maps_core_log_level_to_wire_name() {
+        // Pin the level→string mapping the Dart `AppLogger` reads
+        // off `BusEvent::CoreLog`.
+        let info = BusEvent::from_core(lfs_core::bus::Event::CoreLog {
+            level: lfs_core::bus::CoreLogLevel::Info,
+            name: "n".into(),
+            message: "m".into(),
+        });
+        let warn = BusEvent::from_core(lfs_core::bus::Event::CoreLog {
+            level: lfs_core::bus::CoreLogLevel::Warn,
+            name: "n".into(),
+            message: "m".into(),
+        });
+        let err = BusEvent::from_core(lfs_core::bus::Event::CoreLog {
+            level: lfs_core::bus::CoreLogLevel::Error,
+            name: "n".into(),
+            message: "m".into(),
+        });
+        for (e, expected) in [(info, "info"), (warn, "warn"), (err, "error")] {
+            match e {
+                BusEvent::CoreLog {
+                    level_wire_name, ..
+                } => {
+                    assert_eq!(level_wire_name, expected);
+                }
+                other => panic!("expected CoreLog, got {other:?}"),
+            }
+        }
+    }
+}

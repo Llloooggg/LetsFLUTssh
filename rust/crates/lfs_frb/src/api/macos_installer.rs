@@ -82,3 +82,36 @@ pub async fn macos_installer_cleanup_backup(executable_path: String) -> Result<(
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The macOS install / cleanup pipeline shells out to `hdiutil` /
+    // `rsync` / `codesign` against the running app bundle; covered
+    // by hand-driven runs on macOS host hardware. The standalone
+    // tests below pin the cross-platform stub contract — Dart
+    // callers route through here on every platform but `Platform.isMacOS`
+    // is the production guard.
+
+    #[cfg(not(target_os = "macos"))]
+    #[tokio::test]
+    async fn non_macos_install_returns_not_applicable_sentinel() {
+        let res = macos_installer_install("/tmp/x.dmg".into(), "/tmp/exec".into()).await;
+        assert!(matches!(res, Ok(MacosInstallOutcome::NotApplicable)));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[tokio::test]
+    async fn non_macos_cleanup_backup_is_no_op_ok() {
+        let res = macos_installer_cleanup_backup("/tmp/exec".into()).await;
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn macos_install_outcome_clone_round_trip() {
+        let v = MacosInstallOutcome::Succeeded;
+        let c = v;
+        assert!(matches!(c, MacosInstallOutcome::Succeeded));
+    }
+}

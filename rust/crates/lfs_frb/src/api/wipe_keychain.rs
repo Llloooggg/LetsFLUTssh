@@ -84,3 +84,68 @@ pub fn wipe_keychain_managed_keys() -> Vec<String> {
         .map(|s| (*s).to_string())
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The `wipe_keychain_run` async path drives a per-key delete
+    // prompt through the platform plugin via the bus; covered by
+    // the Dart `wipe_keychain_test.dart` integration suite. The
+    // standalone tests below pin the canonical key list contract +
+    // the report-shape mirror.
+
+    #[test]
+    fn managed_keys_includes_every_known_key_and_is_unique() {
+        let keys = wipe_keychain_managed_keys();
+        assert!(!keys.is_empty(), "managed key list must not be empty");
+        // Pin uniqueness — a duplicate would fan out two deletes
+        // for the same slot, doubling the `failed_count` arithmetic.
+        let mut deduped = keys.clone();
+        deduped.sort();
+        deduped.dedup();
+        assert_eq!(deduped.len(), keys.len(), "managed keys must be unique");
+    }
+
+    #[test]
+    fn managed_keys_mirrors_lfs_core_const() {
+        // The Dart fallback (flutter_test contexts that don't load
+        // the FRB native lib) iterates the lfs_core list verbatim;
+        // pin the byte-for-byte mirror so a Rust-side bump can't
+        // silently diverge.
+        let frb_keys = wipe_keychain_managed_keys();
+        let core_keys: Vec<String> = wipe_keychain::MANAGED_KEYS
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        assert_eq!(frb_keys, core_keys);
+    }
+
+    #[test]
+    fn db_keychain_key_wipe_clone_round_trip() {
+        let v = DbKeychainKeyWipe {
+            key: "alpha".into(),
+            status: "deleted".into(),
+        };
+        let c = v.clone();
+        assert_eq!(c.key, "alpha");
+        assert_eq!(c.status, "deleted");
+    }
+
+    #[test]
+    fn db_keychain_wipe_report_clone_round_trip() {
+        let v = DbKeychainWipeReport {
+            entries: vec![DbKeychainKeyWipe {
+                key: "x".into(),
+                status: "deleted".into(),
+            }],
+            succeeded_count: 1,
+            failed_count: 0,
+            all_succeeded: true,
+        };
+        let c = v.clone();
+        assert_eq!(c.entries.len(), 1);
+        assert_eq!(c.succeeded_count, 1);
+        assert!(c.all_succeeded);
+    }
+}

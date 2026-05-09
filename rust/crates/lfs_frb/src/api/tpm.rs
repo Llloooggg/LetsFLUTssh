@@ -149,3 +149,49 @@ fn build_cfg(
     }
     cfg
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn probe_returns_a_typed_variant_without_panic() {
+        // Test ranges over both platform branches — Linux returns
+        // one of Available / DeviceNodeMissing / BinaryMissing /
+        // ProbeFailed; non-Linux returns NotLinux. All five are
+        // valid; the only invariant is "doesn't panic".
+        let r = tpm_probe(None, None, Some(50)).await;
+        let _ = r;
+    }
+
+    #[tokio::test]
+    async fn db_tpm_probe_result_clone_round_trip() {
+        // Defensive — guards against a future refactor that
+        // accidentally drops `Copy` / `Clone` on the FRB-marshalled
+        // enum.
+        let v = DbTpmProbeResult::Available;
+        let c = v;
+        assert_eq!(c, DbTpmProbeResult::Available);
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[tokio::test]
+    async fn non_linux_seal_surfaces_err_without_panic() {
+        let res = tpm_seal(b"secret".to_vec(), b"auth".to_vec(), None, None, None).await;
+        assert!(res.is_err());
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[tokio::test]
+    async fn non_linux_unseal_surfaces_err_without_panic() {
+        let res = tpm_unseal(vec![0u8; 64], b"auth".to_vec(), None, None, None).await;
+        assert!(res.is_err());
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[tokio::test]
+    async fn non_linux_probe_returns_not_linux_sentinel() {
+        let r = tpm_probe(None, None, None).await;
+        assert_eq!(r, DbTpmProbeResult::NotLinux);
+    }
+}

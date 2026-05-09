@@ -143,3 +143,89 @@ pub fn config_store_flush() -> Result<Option<String>, String> {
 pub fn config_store_tick_if_due() -> Result<bool, String> {
     lfs_core::config_store::instance().tick_if_due()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The store-actor endpoints (`config_store_init` /
+    // `config_store_get_json` / `_set_json` / `_flush` / `_tick_if_due`)
+    // route through `lfs_core::config_store::instance()` — covered by
+    // the Dart `config_store_test.dart` integration suite under a
+    // tempdir + manual ticker. The standalone tests below pin the
+    // pure JSON ser/de helpers that round-trip through `AppConfig`.
+
+    #[test]
+    fn defaults_json_decodes_back_into_appconfig() {
+        let json = config_app_config_defaults_json();
+        // Round-trip — the canonical JSON the cold-start writer
+        // emits must be parseable by the validator.
+        assert!(config_app_config_validate_json(json.clone()).is_none());
+        // Re-encode through to_json must yield byte-identical bytes
+        // (idempotent canonicalisation).
+        let re = config_app_config_to_json(json.clone()).expect("re-encode");
+        assert_eq!(re, json);
+    }
+
+    #[test]
+    fn validate_json_returns_none_for_default_config() {
+        let defaults = config_app_config_defaults_json();
+        assert!(config_app_config_validate_json(defaults).is_none());
+    }
+
+    #[test]
+    fn validate_json_returns_none_for_garbage_input() {
+        // Pure parse-failure paths return None (the validator only
+        // surfaces field-validation errors). The Dart caller
+        // distinguishes via the load-time pre-parse step.
+        assert!(config_app_config_validate_json("not json".into()).is_none());
+    }
+
+    #[test]
+    fn sanitize_json_clamps_invalid_input_back_to_valid() {
+        // Hand a config with an out-of-range terminal scrollback
+        // (a hand-edited file or a pre-Phase-F drift); the
+        // sanitiser must yield a JSON the validator accepts.
+        let pathological = r#"{"terminal_scrollback": -999, "ssh_timeout_sec": -1}"#;
+        let sanitized = config_app_config_sanitize_json(pathological.into()).expect("sanitize");
+        assert!(
+            config_app_config_validate_json(sanitized).is_none(),
+            "sanitised output must validate clean"
+        );
+    }
+
+    #[test]
+    fn strip_for_export_drops_tier_field() {
+        // The `.lfs` archive exporter routes through
+        // `strip_for_export` so the importing host re-runs the
+        // wizard rather than adopting the exporter's tier. Pin
+        // that the per-host security fields are removed from the
+        // JSON output.
+        let with_tier = r#"{"security_tier": "keychain", "terminal_scrollback": 5000}"#;
+        let stripped = config_app_config_strip_for_export(with_tier.into()).expect("strip");
+        assert!(
+            !stripped.contains("security_tier"),
+            "stripped output must not carry security_tier"
+        );
+    }
+
+    #[test]
+    fn supported_locales_includes_every_arb_bundle_locale() {
+        // Pin the locale set against the documented arb bundle
+        // family. Dropping a locale here would break the Settings
+        // dropdown without the validator catching it.
+        let locales = config_supported_locales();
+        for code in ["en", "de", "es", "fr", "pt"] {
+            assert!(
+                locales.iter().any(|c| c == code),
+                "locale {code} must be in supported set"
+            );
+        }
+    }
+
+    #[test]
+    fn to_json_returns_err_for_garbage_input() {
+        let res = config_app_config_to_json("not json".into());
+        assert!(res.is_err());
+    }
+}

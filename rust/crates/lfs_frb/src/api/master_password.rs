@@ -258,3 +258,67 @@ pub async fn master_password_verify_and_derive_to_secret(
     .await
     .map_err(|e| format!("master_password_verify_and_derive_to_secret task: {e}"))?
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The enable / disable / verify / change endpoints route through
+    // `support_dir()` (pinned process-singleton) + `Argon2id` (slow);
+    // the Dart `master_password_test.dart` integration suite exercises
+    // them under a tempdir + cheap KdfParams. The standalone tests
+    // below pin the wire-shape primitives that cross the FRB boundary
+    // on every call regardless of the pinned support_dir state.
+
+    #[test]
+    fn kdf_params_encode_decode_round_trips_production_defaults() {
+        // 64 MiB / 3 iter / 1 lane is the documented production
+        // baseline (`KdfParams::productionDefaults`). Pin the
+        // round-trip so a future codec rewrite can't silently
+        // corrupt installed `credentials.kdf` files.
+        let bytes = kdf_params_encode(64 * 1024, 3, 1);
+        let back = kdf_params_decode(bytes).expect("round trip");
+        assert_eq!(back.memory_kib, 64 * 1024);
+        assert_eq!(back.iterations, 3);
+        assert_eq!(back.parallelism, 1);
+    }
+
+    #[test]
+    fn kdf_params_decode_rejects_truncated_buffer() {
+        // The encoded shape is 10 bytes (algo-id + three u32 BE
+        // values). A short slice must surface an Err rather than
+        // panic — the on-disk file might have been corrupted /
+        // truncated mid-write.
+        let res = kdf_params_decode(vec![0x01, 0x00, 0x00]);
+        assert!(res.is_err(), "truncated buffer must surface as Err");
+    }
+
+    #[test]
+    fn kdf_params_decode_rejects_empty_input() {
+        assert!(kdf_params_decode(Vec::new()).is_err());
+    }
+
+    #[test]
+    fn kdf_params_encode_produces_stable_byte_count() {
+        // Pin the on-disk envelope size — if a future algo bump
+        // grows the block, callers staging the file format need to
+        // know.
+        let bytes = kdf_params_encode(32 * 1024, 2, 1);
+        assert_eq!(bytes.len(), 10, "10-byte envelope: 1 algo + 3 u32 BE");
+    }
+
+    #[test]
+    fn db_kdf_params_clamps_parallelism_to_u8_max() {
+        // `parallelism` crosses FRB as u32 but `KdfParams::parallelism`
+        // is u8. The From impl clamps to 255 then KdfParams::decode
+        // rejects anything outside 1..=8 — verify the clamp doesn't
+        // panic on overflow.
+        let p: KdfParams = DbKdfParams {
+            memory_kib: 32 * 1024,
+            iterations: 2,
+            parallelism: 999, // way past u8::MAX
+        }
+        .into();
+        assert_eq!(p.parallelism, u8::MAX, "clamp must saturate at u8::MAX");
+    }
+}

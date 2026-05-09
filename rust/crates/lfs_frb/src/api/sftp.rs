@@ -79,6 +79,90 @@ impl From<lfs_core::sftp::FileMetadata> for SftpFileMetadata {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The opaque `SshSftp` channel methods (list / read / write /
+    // mkdir / rename / unlink / streaming up/down) need a live
+    // `lfs_core::ssh::Session` against the russh test fixture; the
+    // Dart `connection_lifecycle_test.dart` integration suite drives
+    // them end-to-end. The standalone tests below pin the wire-shape
+    // `From` mappings that cross the FRB boundary on every list /
+    // stat call regardless of transport state.
+
+    #[test]
+    fn dir_entry_carries_every_field_through() {
+        let core = lfs_core::sftp::DirEntry {
+            name: "config.json".into(),
+            size: 4096,
+            is_dir: false,
+            is_symlink: false,
+            modified_unix: Some(1_700_000_000),
+            permissions: 0o644,
+        };
+        let db: SftpDirEntry = core.into();
+        assert_eq!(db.name, "config.json");
+        assert_eq!(db.size, 4096);
+        assert!(!db.is_dir);
+        assert!(!db.is_symlink);
+        assert_eq!(db.modified_unix, Some(1_700_000_000));
+        assert_eq!(db.permissions, 0o644);
+    }
+
+    #[test]
+    fn dir_entry_handles_dir_and_symlink_combinations() {
+        for (is_dir, is_symlink) in [(false, false), (true, false), (false, true), (true, true)] {
+            let core = lfs_core::sftp::DirEntry {
+                name: "x".into(),
+                size: 0,
+                is_dir,
+                is_symlink,
+                modified_unix: None,
+                permissions: 0,
+            };
+            let db: SftpDirEntry = core.into();
+            assert_eq!(db.is_dir, is_dir);
+            assert_eq!(db.is_symlink, is_symlink);
+        }
+    }
+
+    #[test]
+    fn file_metadata_round_trips_unset_mtime_as_none() {
+        // Servers that omit mtime in stat replies surface as `None`;
+        // pin the contract so a future refactor doesn't accidentally
+        // collapse to `Some(0)` (which means "1970-01-01 boot").
+        let core = lfs_core::sftp::FileMetadata {
+            size: 0,
+            is_dir: true,
+            is_symlink: false,
+            modified_unix: None,
+            permissions: 0o755,
+        };
+        let db: SftpFileMetadata = core.into();
+        assert!(db.modified_unix.is_none());
+        assert!(db.is_dir);
+        assert_eq!(db.permissions, 0o755);
+    }
+
+    #[test]
+    fn file_metadata_carries_every_field_through() {
+        let core = lfs_core::sftp::FileMetadata {
+            size: 1024 * 1024 * 100, // 100 MiB
+            is_dir: false,
+            is_symlink: true,
+            modified_unix: Some(1_700_000_000),
+            permissions: 0o600,
+        };
+        let db: SftpFileMetadata = core.into();
+        assert_eq!(db.size, 100 * 1024 * 1024);
+        assert!(!db.is_dir);
+        assert!(db.is_symlink);
+        assert_eq!(db.modified_unix, Some(1_700_000_000));
+        assert_eq!(db.permissions, 0o600);
+    }
+}
+
 impl SshSftp {
     /// List a directory.
     pub async fn list(&self, path: String) -> Result<Vec<SftpDirEntry>, String> {

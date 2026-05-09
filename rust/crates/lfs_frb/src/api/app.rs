@@ -218,3 +218,84 @@ pub async fn db_schema_object_count() -> Result<i64, String> {
     .await
     .map_err(|e| format!("db_schema_object_count task: {e}"))?
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Tests share the singleton across the binary — use uniquely
+    // namespaced ids ("api-app-test-…") so cross-test ordering
+    // doesn't leak. `app::init()` is idempotent + cargo-test safe
+    // (already exercised by `lfs_core::app::tests::init_is_idempotent`).
+
+    #[test]
+    fn app_init_is_idempotent_through_frb_shim() {
+        // Two consecutive calls must not panic — pin the contract
+        // the Dart `main.dart` bootstrap relies on.
+        app_init();
+        app_init();
+    }
+
+    #[test]
+    fn secrets_put_then_get_round_trips_bytes() {
+        app_init();
+        let id = "api-app-test-put-get".to_string();
+        secrets_put(id.clone(), b"hunter2".to_vec());
+        let got = secrets_get(id.clone()).expect("get");
+        assert_eq!(got, b"hunter2");
+        secrets_drop(id);
+    }
+
+    #[test]
+    fn secrets_has_returns_true_after_put_and_false_after_drop() {
+        app_init();
+        let id = "api-app-test-has".to_string();
+        secrets_put(id.clone(), b"x".to_vec());
+        assert!(secrets_has(id.clone()));
+        secrets_drop(id.clone());
+        assert!(!secrets_has(id));
+    }
+
+    #[test]
+    fn secrets_take_removes_entry_and_returns_bytes() {
+        app_init();
+        let id = "api-app-test-take".to_string();
+        secrets_put(id.clone(), b"once".to_vec());
+        let taken = secrets_take(id.clone()).expect("take");
+        assert_eq!(taken, b"once");
+        // After take the entry is gone — second take returns None.
+        assert!(secrets_take(id).is_none());
+    }
+
+    #[test]
+    fn secrets_take_returns_none_for_missing_id() {
+        app_init();
+        // Pin the post-audit contract — None for missing, not an
+        // empty Vec.
+        assert!(secrets_take("api-app-test-ghost-id".into()).is_none());
+    }
+
+    #[test]
+    fn secrets_drop_many_clears_each_id_in_one_hop() {
+        app_init();
+        for n in 0..3 {
+            secrets_put(format!("api-app-test-many-{n}"), b"x".to_vec());
+        }
+        secrets_drop_many(vec![
+            "api-app-test-many-0".into(),
+            "api-app-test-many-1".into(),
+            "api-app-test-many-2".into(),
+        ]);
+        for n in 0..3 {
+            assert!(!secrets_has(format!("api-app-test-many-{n}")));
+        }
+    }
+
+    #[test]
+    fn secrets_drop_idempotent_on_unknown_id() {
+        app_init();
+        // No-op on missing — connect path's transient cleanup runs
+        // unconditionally.
+        secrets_drop("api-app-test-already-dropped".into());
+    }
+}

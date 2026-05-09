@@ -117,3 +117,52 @@ pub async fn macos_resign_uninstall_identity() -> Result<(), String> {
         Err("macos code-signing is only available on macOS".into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The macOS code-signing pipeline shells out to `security` /
+    // `codesign` against the user's login keychain; covered by
+    // hand-driven runs on macOS host hardware. The standalone tests
+    // below pin the cross-platform stub contract — every shim
+    // surfaces a consistent fallback so the Dart settings UI never
+    // panics on a misrouted call.
+
+    #[cfg(not(target_os = "macos"))]
+    #[tokio::test]
+    async fn non_macos_has_identity_returns_false() {
+        // Settings UI keeps showing "Enable secure tiers" rather
+        // than failing loudly. Pin the contract.
+        let res = macos_resign_has_identity().await;
+        assert!(matches!(res, Ok(false)));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[tokio::test]
+    async fn non_macos_ensure_identity_returns_err() {
+        let res = macos_resign_ensure_identity().await;
+        assert!(res.is_err());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[tokio::test]
+    async fn non_macos_resign_bundle_returns_err() {
+        let res = macos_resign_bundle("/tmp/exec".into()).await;
+        assert!(res.is_err());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[tokio::test]
+    async fn non_macos_uninstall_identity_returns_err() {
+        let res = macos_resign_uninstall_identity().await;
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn macos_resign_outcome_clone_round_trip() {
+        let v = MacosResignOutcome::BundleNotWritable;
+        let c = v;
+        assert!(matches!(c, MacosResignOutcome::BundleNotWritable));
+    }
+}

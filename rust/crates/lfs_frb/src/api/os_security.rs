@@ -147,3 +147,67 @@ pub async fn os_security_session_lock_subscribe(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // `apply_startup_hardening` / `lock_memory` / clipboard /
+    // backup-exclusion / biometric / session-lock route through
+    // OS-level FFI; covered by the Dart integration suite under
+    // `os_security_test.dart` on the platform-aware paths. The
+    // standalone tests below pin the wire-shape contract that
+    // crosses the FRB boundary on every call regardless of platform
+    // backend.
+
+    #[test]
+    fn db_hardening_step_clone_round_trip() {
+        let v = DbHardeningStep {
+            label: "mlockall".into(),
+            code: 0,
+            error: None,
+        };
+        let c = v.clone();
+        assert_eq!(c.label, "mlockall");
+        assert_eq!(c.code, 0);
+        assert!(c.error.is_none());
+    }
+
+    #[test]
+    fn db_biometric_availability_carries_probe_payload() {
+        // Pin the wire shape — the `Probe(String)` variant is the
+        // catch-all for platform-specific reasons that don't fit
+        // the other classifiers; the Dart Settings UI surfaces the
+        // string verbatim.
+        let v = DbBiometricAvailability::Probe("touch-id needs re-enrol".into());
+        match v {
+            DbBiometricAvailability::Probe(msg) => {
+                assert_eq!(msg, "touch-id needs re-enrol");
+            }
+            _ => panic!("Probe variant must round-trip its payload"),
+        }
+    }
+
+    #[test]
+    fn apply_startup_hardening_returns_a_step_list_without_panic() {
+        // Pin the no-panic contract — every platform branch must
+        // surface a list (possibly empty on platforms with no
+        // applicable hardening) rather than crashing the FRB
+        // worker on bootstrap.
+        let steps = os_security_apply_startup_hardening();
+        // Iterating must not panic even with an empty list.
+        for s in &steps {
+            // Every step must have a non-empty label so the Dart
+            // log line has something to render.
+            assert!(!s.label.is_empty(), "step label must not be empty");
+        }
+    }
+
+    #[test]
+    fn unlock_memory_on_zero_address_does_not_panic() {
+        // Pin the no-panic contract — the cleanup path runs
+        // unconditionally, including on an Arc that was never
+        // locked. Errors are swallowed by design.
+        os_security_unlock_memory(0, 0);
+    }
+}

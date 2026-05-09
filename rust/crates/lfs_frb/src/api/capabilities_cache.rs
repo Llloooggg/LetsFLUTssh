@@ -102,3 +102,88 @@ pub fn security_capabilities_set(snapshot: DbSecurityCapabilitiesSnapshot) -> Re
 pub fn security_capabilities_clear() {
     instance().clear();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The view / set / clear endpoints route through the
+    // process-singleton cache + bus; covered by the Dart
+    // `security_capabilities_test.dart` integration suite. The
+    // standalone tests below pin the wire-shape `From` mapping +
+    // `into_core` parser that crosses the FRB boundary on every
+    // snapshot.
+
+    #[test]
+    fn from_core_carries_every_field() {
+        let core = caps::SecurityCapabilities {
+            keychain_available: true,
+            hardware_vault_available: false,
+            biometric_available: true,
+            fprintd_available: true,
+            is_linux_host: true,
+            keychain_probe: caps::KeyringProbeResult::Available,
+            hardware_probe_code: "ok".into(),
+        };
+        let snap: DbSecurityCapabilitiesSnapshot = core.into();
+        assert!(snap.keychain_available);
+        assert!(!snap.hardware_vault_available);
+        assert!(snap.biometric_available);
+        assert!(snap.fprintd_available);
+        assert!(snap.is_linux_host);
+        assert_eq!(snap.keychain_probe_wire_name, "available");
+        assert_eq!(snap.hardware_probe_code, "ok");
+    }
+
+    #[test]
+    fn into_core_returns_some_for_valid_wire_name() {
+        let snap = DbSecurityCapabilitiesSnapshot {
+            keychain_available: false,
+            hardware_vault_available: false,
+            biometric_available: false,
+            fprintd_available: false,
+            is_linux_host: false,
+            keychain_probe_wire_name: "probeFailed".into(),
+            hardware_probe_code: "neutral".into(),
+        };
+        assert!(snap.into_core().is_some());
+    }
+
+    #[test]
+    fn into_core_returns_none_for_unknown_wire_name() {
+        // The Dart caller emits `KeyringProbeResult.name` so this is
+        // strictly defensive against codegen drift; pin the contract.
+        let snap = DbSecurityCapabilitiesSnapshot {
+            keychain_available: false,
+            hardware_vault_available: false,
+            biometric_available: false,
+            fprintd_available: false,
+            is_linux_host: false,
+            keychain_probe_wire_name: "ghost-wire-name".into(),
+            hardware_probe_code: String::new(),
+        };
+        assert!(snap.into_core().is_none());
+    }
+
+    #[test]
+    fn from_core_into_core_round_trips_for_each_probe_variant() {
+        for variant in [
+            caps::KeyringProbeResult::Available,
+            caps::KeyringProbeResult::LinuxNoSecretService,
+            caps::KeyringProbeResult::ProbeFailed,
+        ] {
+            let core = caps::SecurityCapabilities {
+                keychain_available: true,
+                hardware_vault_available: false,
+                biometric_available: false,
+                fprintd_available: false,
+                is_linux_host: false,
+                keychain_probe: variant,
+                hardware_probe_code: "x".into(),
+            };
+            let snap: DbSecurityCapabilitiesSnapshot = core.into();
+            let back = snap.into_core().expect("round trip preserves wire name");
+            assert_eq!(back.keychain_probe, variant);
+        }
+    }
+}

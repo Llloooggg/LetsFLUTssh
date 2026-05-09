@@ -66,3 +66,68 @@ pub fn keychain_gate_decode_blob(blob: String) -> Result<DbKeychainGateBlob, Str
         hmac: b.hmac,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn random_seed_returns_non_empty_distinct_buffers() {
+        let seed = keychain_gate_random_seed();
+        // The seed pair must not be empty (otherwise HMAC space
+        // collapses to one of `2^256` keys vs the documented
+        // `2^256 * 2^salt_bits` security parameter), and the
+        // pepper must not equal the salt (a coincidence at this
+        // size implies a broken RNG seed source).
+        assert!(!seed.salt.is_empty());
+        assert!(!seed.pepper.is_empty());
+        assert_ne!(seed.salt, seed.pepper);
+    }
+
+    #[test]
+    fn random_seed_two_calls_emit_distinct_pepper() {
+        // Pin the per-install entropy contract — two consecutive
+        // calls must not return the same bytes (would imply a
+        // missing OsRng draw).
+        let a = keychain_gate_random_seed();
+        let b = keychain_gate_random_seed();
+        assert_ne!(a.pepper, b.pepper);
+        assert_ne!(a.salt, b.salt);
+    }
+
+    #[test]
+    fn compute_hmac_is_deterministic_for_fixed_inputs() {
+        let pepper = vec![0xAA; 32];
+        let salt = vec![0x55; 16];
+        let password = b"hunter2".to_vec();
+        let h1 = keychain_gate_compute_hmac(pepper.clone(), salt.clone(), password.clone());
+        let h2 = keychain_gate_compute_hmac(pepper, salt, password);
+        assert_eq!(h1, h2, "HMAC must be deterministic");
+        assert_eq!(h1.len(), 32, "SHA-256 outputs 32 bytes");
+    }
+
+    #[test]
+    fn compute_hmac_changes_with_password() {
+        let pepper = vec![0xAA; 32];
+        let salt = vec![0x55; 16];
+        let h1 = keychain_gate_compute_hmac(pepper.clone(), salt.clone(), b"alpha".to_vec());
+        let h2 = keychain_gate_compute_hmac(pepper, salt, b"bravo".to_vec());
+        assert_ne!(h1, h2, "different password must change the HMAC");
+    }
+
+    #[test]
+    fn encode_then_decode_blob_round_trips_salt_and_hmac() {
+        let salt = vec![0x11, 0x22, 0x33, 0x44];
+        let hmac = vec![0xAA; 32];
+        let blob = keychain_gate_encode_blob(salt.clone(), hmac.clone());
+        let parsed = keychain_gate_decode_blob(blob).expect("round trip");
+        assert_eq!(parsed.salt, salt);
+        assert_eq!(parsed.hmac, hmac);
+    }
+
+    #[test]
+    fn decode_blob_returns_err_for_garbage_input() {
+        assert!(keychain_gate_decode_blob("not a json".into()).is_err());
+        assert!(keychain_gate_decode_blob("{}".into()).is_err());
+    }
+}

@@ -322,3 +322,81 @@ pub async fn hardware_tier_vault_clear_biometric_password(
     .await
     .map_err(|e| format!("hw_vault clear_bio_pw join: {e}"))?
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The store / read / clear / probe endpoints route through
+    // `lfs_os_security::hardware_tier_vault` (Apple SE / Android
+    // Keystore / Windows NCrypt) or
+    // `lfs_core::security::hardware_tier_vault::linux` (TPM2
+    // subprocess); covered by the per-platform integration suites.
+    // The standalone tests below pin the pure JSON envelope codec +
+    // the AuthIntent resolver — both cross the FRB boundary on every
+    // call regardless of platform backend.
+
+    #[test]
+    fn encode_then_decode_linux_blob_round_trips() {
+        let salt = vec![0x11, 0x22, 0x33, 0x44];
+        let sealed = vec![0xAA; 32];
+        let envelope = hardware_tier_vault_encode_linux_blob(salt.clone(), sealed.clone());
+        let parsed = hardware_tier_vault_decode_linux_blob(envelope).expect("round trip");
+        assert_eq!(parsed.salt, salt);
+        assert_eq!(parsed.sealed, sealed);
+    }
+
+    #[test]
+    fn decode_linux_blob_rejects_garbage() {
+        assert!(hardware_tier_vault_decode_linux_blob("not json".into()).is_err());
+        assert!(hardware_tier_vault_decode_linux_blob("{}".into()).is_err());
+    }
+
+    #[test]
+    fn resolve_auth_value_passwordless_returns_some_empty_for_passwordless_intent() {
+        let salt = vec![0xAB; 16];
+        // password=false + biometric=false → Passwordless intent.
+        // The documented contract is "Some payload", not None.
+        let res = hardware_tier_vault_resolve_auth_value(false, false, salt, None, None);
+        assert!(res.is_some());
+    }
+
+    #[test]
+    fn resolve_auth_value_password_returns_some_for_typed_password() {
+        let salt = vec![0xCD; 16];
+        let res =
+            hardware_tier_vault_resolve_auth_value(true, false, salt, Some("hunter2".into()), None);
+        assert!(res.is_some());
+    }
+
+    #[test]
+    fn resolve_auth_value_password_returns_none_for_missing_typed_password() {
+        let salt = vec![0xEF; 16];
+        let res = hardware_tier_vault_resolve_auth_value(true, false, salt, None, None);
+        assert!(res.is_none(), "missing typed_password must surface as None");
+    }
+
+    #[test]
+    fn resolve_auth_value_biometric_takes_priority_over_password() {
+        // The shim documents `biometric=true` wins over
+        // `password=true` because the BiometricIntent uses the
+        // fprintd hash, not the typed password. Pin the precedence.
+        let salt = vec![0xFF; 16];
+        let hash = vec![0xAA; 32];
+        let res = hardware_tier_vault_resolve_auth_value(
+            true,
+            true,
+            salt,
+            Some("ignored".into()),
+            Some(hash),
+        );
+        assert!(res.is_some());
+    }
+
+    #[test]
+    fn resolve_auth_value_biometric_returns_none_for_missing_fprintd_hash() {
+        let salt = vec![0x55; 16];
+        let res = hardware_tier_vault_resolve_auth_value(false, true, salt, None, None);
+        assert!(res.is_none());
+    }
+}

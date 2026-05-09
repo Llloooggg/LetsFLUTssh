@@ -240,3 +240,72 @@ pub fn archive_stage_session_snippets_to_json(
 pub fn archive_stage_empty_folders_to_json(paths: Vec<String>) -> Option<String> {
     archive_stage::stage_empty_folders_to_json(&paths)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_input_collapses_to_none_for_every_helper() {
+        // The Dart caller relies on `None` for empty staging slices
+        // so the apply driver can short-circuit per slice without a
+        // separate "is this an empty array?" check.
+        assert!(archive_stage_sessions_to_json(Vec::new()).is_none());
+        assert!(archive_stage_keys_to_json(Vec::new()).is_none());
+        assert!(archive_stage_tags_to_json(Vec::new()).is_none());
+        assert!(archive_stage_snippets_to_json(Vec::new()).is_none());
+        assert!(archive_stage_session_tags_to_json(Vec::new()).is_none());
+        assert!(archive_stage_folder_tags_to_json(Vec::new()).is_none());
+        assert!(archive_stage_session_snippets_to_json(Vec::new()).is_none());
+        assert!(archive_stage_empty_folders_to_json(Vec::new()).is_none());
+    }
+
+    #[test]
+    fn session_tag_link_emits_well_formed_json_array() {
+        let json = archive_stage_session_tags_to_json(vec![DbStagedSessionTagLink {
+            session_id: "sess-1".into(),
+            tag_id: "tag-prod".into(),
+        }])
+        .expect("non-empty input must yield Some");
+        // Wire format is a JSON array — apply-driver `serde_json`
+        // parser asserts the shape downstream.
+        assert!(json.starts_with('['));
+        assert!(json.ends_with(']'));
+        assert!(json.contains("sess-1"));
+        assert!(json.contains("tag-prod"));
+    }
+
+    #[test]
+    fn folder_tag_link_round_trips_through_serde_json() {
+        let json = archive_stage_folder_tags_to_json(vec![DbStagedFolderTagLink {
+            folder_path: "production/edge".into(),
+            tag_id: "tag-fast".into(),
+        }])
+        .expect("non-empty input must yield Some");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        assert!(parsed.is_array());
+        assert_eq!(parsed[0]["folder_path"], "production/edge");
+        assert_eq!(parsed[0]["tag_id"], "tag-fast");
+    }
+
+    #[test]
+    fn empty_folders_emit_array_of_strings() {
+        let json =
+            archive_stage_empty_folders_to_json(vec!["one".into(), "two".into()]).expect("Some");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        assert!(parsed.is_array());
+        assert_eq!(parsed[0], "one");
+        assert_eq!(parsed[1], "two");
+    }
+
+    #[test]
+    fn session_snippet_link_carries_both_ids_through() {
+        let json = archive_stage_session_snippets_to_json(vec![DbStagedSessionSnippetLink {
+            session_id: "sess-a".into(),
+            snippet_id: "snip-x".into(),
+        }])
+        .expect("Some");
+        assert!(json.contains("sess-a"));
+        assert!(json.contains("snip-x"));
+    }
+}

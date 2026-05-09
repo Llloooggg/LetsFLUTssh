@@ -150,4 +150,65 @@ mod tests {
             ConflictAction::Cancel
         );
     }
+
+    fn fresh_handle(label: &str) -> String {
+        // Tests share the registry singleton — use a unique prefix
+        // per test so cross-test ordering doesn't leak. `create` is
+        // idempotent so a re-run of the same test is also clean.
+        let h = format!("transfer-conflict-test-{label}");
+        let _ = lfs_core::app::init();
+        transfer_conflict_create(h.clone());
+        h
+    }
+
+    #[test]
+    fn fresh_state_has_no_cache_and_is_not_cancelled() {
+        let h = fresh_handle("fresh");
+        assert!(transfer_conflict_cached(h.clone()).is_none());
+        assert!(!transfer_conflict_is_cancelled(h.clone()));
+        transfer_conflict_drop(h);
+    }
+
+    #[test]
+    fn record_decision_without_apply_to_all_does_not_cache() {
+        let h = fresh_handle("no-apply");
+        let action = transfer_conflict_record_decision(h.clone(), DbConflictAction::Skip, false);
+        assert_eq!(action, DbConflictAction::Skip);
+        assert!(transfer_conflict_cached(h.clone()).is_none());
+        transfer_conflict_drop(h);
+    }
+
+    #[test]
+    fn record_decision_with_apply_to_all_caches_action() {
+        let h = fresh_handle("apply-all");
+        let action = transfer_conflict_record_decision(h.clone(), DbConflictAction::Replace, true);
+        assert_eq!(action, DbConflictAction::Replace);
+        assert_eq!(
+            transfer_conflict_cached(h.clone()),
+            Some(DbConflictAction::Replace),
+            "apply_to_all=true must cache the action"
+        );
+        transfer_conflict_drop(h);
+    }
+
+    #[test]
+    fn cancel_decision_flips_cancellation_flag() {
+        let h = fresh_handle("cancel-flag");
+        let _ = transfer_conflict_record_decision(h.clone(), DbConflictAction::Cancel, false);
+        assert!(transfer_conflict_is_cancelled(h.clone()));
+        transfer_conflict_drop(h);
+    }
+
+    #[test]
+    fn drop_on_unknown_handle_is_idempotent() {
+        let _ = lfs_core::app::init();
+        // Must not panic — Dart `dispose` runs unconditionally.
+        transfer_conflict_drop("does-not-exist".into());
+    }
+
+    #[test]
+    fn cached_on_unknown_handle_returns_none() {
+        let _ = lfs_core::app::init();
+        assert!(transfer_conflict_cached("ghost".into()).is_none());
+    }
 }
