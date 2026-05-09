@@ -52,13 +52,16 @@ fn spawn_platform_listener(tx: broadcast::Sender<()>) {
     // permanently disable auto-lock — retry with capped exponential
     // backoff so the listener picks back up when the bus returns.
     tokio::spawn(async move {
-        // 1s -> 2s -> 4s -> ... -> capped at 60s. The first failure
-        // is silent (likely "no D-Bus on this host"); subsequent
-        // successful reconnects after a real outage emit a single
-        // resume log line so support traces show the recovery.
+        // 1s -> 2s -> 4s -> ... -> capped at 60s. Retries are
+        // silent: this crate cannot depend on `lfs_core` (one-way
+        // edge), so the only stderr it could reach is the terminal
+        // of a developer-launched build — useless in production
+        // and noisy under `flutter test`. The auto-lock state
+        // machine downstream is the user-visible signal when the
+        // bus is genuinely flapping; subscribers see no events
+        // until the stream re-attaches.
         let mut backoff = std::time::Duration::from_secs(1);
         let cap = std::time::Duration::from_secs(60);
-        let mut had_success = false;
         loop {
             match run_logind_listener(tx.clone()).await {
                 Ok(()) => {
@@ -68,26 +71,12 @@ fn spawn_platform_listener(tx: broadcast::Sender<()>) {
                     backoff = std::time::Duration::from_secs(1);
                 }
                 Err(_) => {
-                    // Suppress noise on the first connect failure
-                    // (headless / no-logind hosts hit this every
-                    // launch) but tolerate transient blips by
-                    // retrying.
+                    // Tolerate transient blips by retrying;
+                    // headless / no-logind hosts hit the Err branch
+                    // every loop and the listener stays inert.
                 }
             }
-            if had_success {
-                // After at least one successful loop we're inside a
-                // real session — log when the listener is about to
-                // sleep so a flapping bus is greppable in support
-                // traces.
-                eprintln!(
-                    "session_lock_listener: zbus signal stream ended, retrying in {:?}",
-                    backoff
-                );
-            }
             tokio::time::sleep(backoff).await;
-            // Cap the backoff but track that we've attempted at
-            // least one retry — used to switch the log gate above.
-            had_success = true;
             backoff = std::cmp::min(cap, backoff.saturating_mul(2));
         }
     });
