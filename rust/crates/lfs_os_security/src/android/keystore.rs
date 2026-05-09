@@ -333,13 +333,21 @@ fn delete_blocking(alias: &str, _biometric: bool) -> Result<(), SecureStorageErr
         let alias_jstr = h::jstring(env, &keystore_alias)?;
         // deleteEntry throws KeyStoreException only on the key
         // store itself being uninitialised; we always load(null)
-        // first so this is effectively unreachable.
+        // first so this is effectively unreachable. Even so, swallow
+        // the JNI Result + clear any pending Java exception
+        // explicitly — leaving the exception flag armed on the
+        // thread would cause every subsequent JNI call on the same
+        // thread to fail with a misleading error (Java sees a
+        // pending exception and refuses further calls).
         let _ = env.call_method(
             &ks,
             "deleteEntry",
             "(Ljava/lang/String;)V",
             &[(&alias_jstr).into()],
         );
+        if matches!(env.exception_check(), Ok(true)) {
+            let _ = env.exception_clear();
+        }
 
         // 2. Remove the wrapped-value file (best-effort).
         let files_dir = h::app_files_dir(env)?;

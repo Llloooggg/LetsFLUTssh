@@ -372,11 +372,25 @@ async fn is_writable(dir: &Path) -> bool {
     // tree; root-owned `/Applications/letsflutssh.app` trips
     // the error and we route the user to the admin-prompt
     // fallback.
+    //
+    // RAII guard around the probe path so a panic (or unexpected
+    // tokio runtime tear-down between the write and the remove)
+    // doesn't strand `.lfs-write-probe` inside the bundle. The
+    // sync `std::fs::remove_file` on Drop is best-effort and
+    // mirrors the explicit `fs::remove_file` below; the synchronous
+    // call is fine here because Drop runs in the calling thread,
+    // not the tokio worker.
     let probe = dir.join(".lfs-write-probe");
     if fs::write(&probe, b"x").await.is_err() {
         return false;
     }
-    let _ = fs::remove_file(&probe).await;
+    struct ProbeGuard(std::path::PathBuf);
+    impl Drop for ProbeGuard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+    let _guard = ProbeGuard(probe);
     true
 }
 

@@ -820,12 +820,26 @@ mod apple {
             // 64-bit). The errSecMissingEntitlement constant
             // is the i32 the OS surfaces; cast both sides
             // through i64 for a portable compare.
-            let code: i64 = match owned_err {
-                Some(e) => e.code() as i64,
-                None => 0,
+            let (code, has_err) = match owned_err {
+                Some(e) => (e.code() as i64, true),
+                None => (0, false),
             };
             if code == ERR_SEC_MISSING_ENTITLEMENT as i64 {
                 return HardwareProbeReason::AppleSigningIdentityMissing;
+            }
+            // Apple's API contract — when `SecKeyCreateRandomKey`
+            // returns null, the `err` out-param SHOULD be set. The
+            // null/null case is "impossible" per the docs but we've
+            // observed it in the wild (entitlement edge-cases on
+            // Apple Silicon Developer Beta builds). Surface it in
+            // diagnostics so a support trace shows the anomaly
+            // explicitly rather than collapsing into the generic
+            // bucket alongside legitimate OS-level failures.
+            if !has_err {
+                eprintln!(
+                    "[lfs_os_security] SecKeyCreateRandomKey returned null key with null err — \
+                     classifying as AppleGeneric (Apple API contract violation)"
+                );
             }
             return HardwareProbeReason::AppleGeneric;
         }

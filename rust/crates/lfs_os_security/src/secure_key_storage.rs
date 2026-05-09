@@ -176,7 +176,16 @@ mod platform_impl {
             .search_items(attrs(alias))
             .await
             .map_err(|e| SecureStorageError::Backend(format!("search: {e}")))?;
-        let Some(item) = items.unlocked.first().or(items.locked.first()) else {
+        // Prefer unlocked items only — falling back to a locked
+        // entry would trigger an implicit `org.freedesktop.secret.
+        // Item.GetSecret` unlock prompt under the user's nose,
+        // outside any LetsFLUTssh dialog. The default collection
+        // unlock above already covers the legitimate case; if the
+        // search still surfaces locked items they belong to a
+        // separate (typically session) collection that the user
+        // hasn't opted in to. Treat those as "no entry" so the
+        // caller routes through the password prompt instead.
+        let Some(item) = items.unlocked.first() else {
             return Ok(None);
         };
         let bytes = item
@@ -586,6 +595,19 @@ mod platform_impl {
             // enrolment changed) maps to "no entry" so the Dart
             // caller routes through the master-password prompt;
             // `owned` drops here and releases the CF ref if set.
+            //
+            // Log the OSStatus to stderr so a support trace
+            // distinguishes "user cancelled" / "wrong biometric"
+            // from "hardware fault" — without this every non-
+            // success collapsed into the same blank "missing
+            // entry" bucket and there was no way to tell why a
+            // user kept dropping back to the password prompt.
+            // Stderr only (no app::instance — `lfs_os_security`
+            // sits below `lfs_core` and cannot reach the bus).
+            eprintln!(
+                "[lfs_os_security] SecItemCopyMatching biometric read failed: \
+                 OSStatus {status} (mapped to None — caller routes to password)"
+            );
             return Ok(None);
         }
         match owned {
