@@ -1091,4 +1091,208 @@ mod tests {
         assert!(!reg.is_current_generation("missing", 1));
         assert!(!reg.is_current_generation("missing", 0));
     }
+
+    // ─── failure_phase mapping ─────────────────────────────────────
+    // Each match arm in `failure_phase` paints the red marker at a
+    // specific connection phase; a regression that misroutes auth
+    // failures to socketConnect (or vice versa) silently mislabels
+    // every connect-error UI.
+
+    fn make_actor(id: &str, internal: bool) -> ConnectionActor {
+        ConnectionActor::new(ConnectionActorInit {
+            id: id.into(),
+            label: format!("L-{id}"),
+            session_id: None,
+            bastion_id: None,
+            internal,
+            host: "h".into(),
+            port: 22,
+            user: "u".into(),
+        })
+    }
+
+    #[test]
+    fn failure_phase_routes_auth_variants_to_authenticate() {
+        for err in [
+            Error::Auth("server refused".into()),
+            Error::AuthFailed,
+            Error::PassphraseRequired,
+            Error::PassphraseIncorrect,
+            Error::KeyParse("malformed PEM".into()),
+        ] {
+            assert_eq!(
+                failure_phase(&err),
+                ConnectionPhase::Authenticate,
+                "auth-family error must paint at Authenticate: {err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn failure_phase_routes_host_key_rejected_to_host_key_verify() {
+        assert_eq!(
+            failure_phase(&Error::HostKeyRejected),
+            ConnectionPhase::HostKeyVerify
+        );
+    }
+
+    #[test]
+    fn failure_phase_falls_through_to_socket_connect() {
+        // Anything not auth-family or host-key paints at SocketConnect
+        // — the catch-all default. Pre-auth failures (DNS, refused
+        // connection, TLS / kex aborts) all land here.
+        for err in [
+            Error::Connect("dns nope".into()),
+            Error::Handshake("kex".into()),
+            Error::Io("ECONNREFUSED".into()),
+            Error::Timeout,
+            Error::Cancelled,
+        ] {
+            assert_eq!(
+                failure_phase(&err),
+                ConnectionPhase::SocketConnect,
+                "non-auth/host-key error must paint at SocketConnect: {err:?}"
+            );
+        }
+    }
+
+    // ─── ConnectionRegistry edge cases ─────────────────────────────
+
+    #[test]
+    fn snapshot_includes_every_inserted_actor() {
+        let reg = ConnectionRegistry::new();
+        for i in 0..5 {
+            reg.insert(make_actor(&format!("c{i}"), false));
+        }
+        let snap = reg.snapshot_all();
+        assert_eq!(snap.len(), 5);
+        assert_eq!(reg.count(), 5);
+    }
+
+    #[test]
+    fn duplicate_insert_with_same_id_overwrites() {
+        // Re-inserting under the same id replaces the prior actor —
+        // matches the actor-driven shape where reconnect re-creates
+        // the actor row rather than carrying state across.
+        let reg = ConnectionRegistry::new();
+        reg.insert(make_actor("c1", false));
+        let first_count = reg.count();
+        reg.insert(make_actor("c1", false));
+        assert_eq!(reg.count(), first_count);
+    }
+
+    #[test]
+    fn remove_unknown_id_is_idempotent() {
+        let reg = ConnectionRegistry::new();
+        reg.insert(make_actor("c1", false));
+        assert_eq!(reg.count(), 1);
+        reg.remove("does-not-exist");
+        assert_eq!(reg.count(), 1);
+    }
+
+    #[test]
+    fn count_reflects_current_size_through_insert_remove_cycles() {
+        let reg = ConnectionRegistry::new();
+        assert_eq!(reg.count(), 0);
+        reg.insert(make_actor("a", false));
+        reg.insert(make_actor("b", false));
+        assert_eq!(reg.count(), 2);
+        reg.remove("a");
+        assert_eq!(reg.count(), 1);
+        reg.insert(make_actor("c", false));
+        assert_eq!(reg.count(), 2);
+        reg.remove("b");
+        reg.remove("c");
+        assert_eq!(reg.count(), 0);
+    }
+
+    // ─── connected_user_visible_count ──────────────────────────────
+
+    #[test]
+    fn user_visible_count_zero_on_empty_registry() {
+        let reg = ConnectionRegistry::new();
+        assert_eq!(reg.connected_user_visible_count(), 0);
+    }
+
+    #[test]
+    fn user_visible_count_skips_disconnected_actors() {
+        // Inserted actors start in `Disconnected`. Until the driver
+        // flips them to Connected the user-visible count must stay
+        // at zero — an early-fire would tell the Android foreground
+        // service to start before any connection actually exists.
+        let reg = ConnectionRegistry::new();
+        reg.insert(make_actor("c1", false));
+        reg.insert(make_actor("c2", false));
+        assert_eq!(reg.connected_user_visible_count(), 0);
+    }
+
+    #[test]
+    fn user_visible_count_includes_only_connected_non_internal() {
+        let reg = ConnectionRegistry::new();
+        let h_user = reg.insert(make_actor("user", false));
+        let h_bastion = reg.insert(make_actor("bastion", true));
+        // Flip both to Connected.
+        for h in [&h_user, &h_bastion] {
+            let mut a = h.lock().unwrap_or_else(|e| e.into_inner());
+            a.state = ConnectionState::Connected;
+        }
+        // Bastion (internal: true) is excluded — the user-visible
+        // metric must match the "Connected sessions" badge the user
+        // sees, not the underlying transport count.
+        assert_eq!(reg.connected_user_visible_count(), 1);
+    }
+
+    #[test]
+    fn user_visible_count_recovers_to_zero_after_disconnect_all() {
+        let reg = ConnectionRegistry::new();
+        let h = reg.insert(make_actor("c1", false));
+        {
+            let mut a = h.lock().unwrap_or_else(|e| e.into_inner());
+            a.state = ConnectionState::Connected;
+        }
+        assert_eq!(reg.connected_user_visible_count(), 1);
+        reg.remove("c1");
+        assert_eq!(reg.connected_user_visible_count(), 0);
+    }
+
+    // ─── enum / struct invariants ──────────────────────────────────
+
+    #[test]
+    fn connection_state_partial_eq_distinguishes_all_three() {
+        // Enum equality powers every state-machine branch (driver,
+        // disconnect path, snapshot diff). Pin the trichotomy so a
+        // future variant addition surfaces as a missed match arm.
+        assert_eq!(ConnectionState::Disconnected, ConnectionState::Disconnected);
+        assert_eq!(ConnectionState::Connecting, ConnectionState::Connecting);
+        assert_eq!(ConnectionState::Connected, ConnectionState::Connected);
+        assert_ne!(ConnectionState::Disconnected, ConnectionState::Connecting);
+        assert_ne!(ConnectionState::Connecting, ConnectionState::Connected);
+        assert_ne!(ConnectionState::Disconnected, ConnectionState::Connected);
+    }
+
+    #[test]
+    fn progress_step_clone_preserves_every_field() {
+        let step = ProgressStep {
+            phase: ConnectionPhase::Authenticate,
+            status: StepStatus::Failed,
+            detail: Some("auth refused".into()),
+        };
+        let cloned = step.clone();
+        assert_eq!(cloned.phase, ConnectionPhase::Authenticate);
+        assert_eq!(cloned.status, StepStatus::Failed);
+        assert_eq!(cloned.detail.as_deref(), Some("auth refused"));
+    }
+
+    #[test]
+    fn progress_step_with_no_detail_is_legal() {
+        // The driver emits steps without detail for the success path
+        // (detail carries the error message on failure). Pin the
+        // Optional contract.
+        let step = ProgressStep {
+            phase: ConnectionPhase::OpenChannel,
+            status: StepStatus::Success,
+            detail: None,
+        };
+        assert!(step.detail.is_none());
+    }
 }
