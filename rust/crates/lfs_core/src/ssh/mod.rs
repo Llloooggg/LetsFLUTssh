@@ -34,7 +34,7 @@ use crate::error::Error;
 /// alongside the real session lifecycle. Do not promote the
 /// accept-all `check_server_key` to default.
 pub struct LfsHandler {
-    forward_tx: Option<tokio::sync::mpsc::UnboundedSender<ForwardedConnection>>,
+    forward_tx: Option<tokio::sync::mpsc::Sender<ForwardedConnection>>,
     /// Endpoint we're connecting to — used by `check_server_key` to
     /// look up the matching `known_hosts` entry. Empty `host` /
     /// zero `port` means "skip TOFU enforcement" (probe handlers
@@ -44,15 +44,25 @@ pub struct LfsHandler {
     port: u16,
 }
 
+/// Per-session backlog cap on inbound `-R` forwarded
+/// connections waiting for the consumer to drain via
+/// [`Session::next_forwarded_connection`]. Pre-fix shape used an
+/// unbounded channel — a hostile / unattended remote that opens
+/// inbound connections faster than the consumer drains would
+/// have grown the queue without bound and OOM'd the process.
+/// 256 sits comfortably above the default Linux `SOMAXCONN`
+/// (128) so legitimate burst-acceptance patterns still fit;
+/// excess connections drop at the russh handler with a stderr
+/// log so the consumer sees that they fell off the back of the
+/// queue rather than silently disappearing.
+const FORWARD_BACKLOG_CAP: usize = 256;
+
 impl LfsHandler {
     fn with_forwards(
         host: &str,
         port: u16,
-    ) -> (
-        Self,
-        tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection>,
-    ) {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    ) -> (Self, tokio::sync::mpsc::Receiver<ForwardedConnection>) {
+        let (tx, rx) = tokio::sync::mpsc::channel(FORWARD_BACKLOG_CAP);
         (
             LfsHandler {
                 forward_tx: Some(tx),
@@ -123,10 +133,25 @@ impl Handler for LfsHandler {
                 read_half: Mutex::new(read_half),
             },
         };
-        // If the receiver is gone, swallow — Session was dropped while
-        // the server was still pushing forwards. russh would have torn
-        // the underlying connection down anyway.
-        let _ = tx.send(conn);
+        // `try_send` rather than `send().await` so a slow consumer
+        // never stalls the russh handler (which would back-pressure
+        // every channel multiplexed onto the same TCP transport).
+        // Channel-full + receiver-gone both drop the connection
+        // here; the consumer sees the same "missed it" outcome as a
+        // peer-side connect refusal, which is the right shape for a
+        // best-effort `-R` accept loop.
+        match tx.try_send(conn) {
+            Ok(()) => {}
+            Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
+                eprintln!(
+                    "[lfs_core] -R forward backlog full ({FORWARD_BACKLOG_CAP}); dropping inbound connection"
+                );
+            }
+            Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
+                // Receiver dropped — Session is going away. russh
+                // tears the transport down on the next round-trip.
+            }
+        }
         Ok(())
     }
 }
@@ -396,7 +421,7 @@ async fn open_handle_for_session(
 ) -> Result<
     (
         Handle<LfsHandler>,
-        tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection>,
+        tokio::sync::mpsc::Receiver<ForwardedConnection>,
     ),
     Error,
 > {
@@ -424,7 +449,7 @@ async fn open_handle_via_proxy(
 ) -> Result<
     (
         Handle<LfsHandler>,
-        tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection>,
+        tokio::sync::mpsc::Receiver<ForwardedConnection>,
     ),
     Error,
 > {
@@ -544,14 +569,13 @@ pub struct Session {
     /// Drained either by the legacy `next_forwarded_connection` path
     /// or — once `register_remote_forward_route` lazy-spawns it — by
     /// the per-session route dispatcher.
-    forward_rx: Mutex<tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection>>,
+    forward_rx: Mutex<tokio::sync::mpsc::Receiver<ForwardedConnection>>,
     /// Per-`(connected_address, connected_port)` route table
     /// populated by `register_remote_forward_route`. The dispatcher
     /// task pulls from `forward_rx` and routes inbound forwards to
     /// the matching sender; mismatched (or unregistered) forwards
     /// are dropped on the floor.
-    forward_routes:
-        Mutex<HashMap<(String, u32), tokio::sync::mpsc::UnboundedSender<ForwardedConnection>>>,
+    forward_routes: Mutex<HashMap<(String, u32), tokio::sync::mpsc::Sender<ForwardedConnection>>>,
     /// Lazy-spawn flag for the dispatcher task. Set on the first
     /// call to `register_remote_forward_route`; mutual exclusion
     /// against concurrent first-call races is via
@@ -568,7 +592,7 @@ impl Session {
     /// same shape — adding a field bumps just this helper.
     fn from_handle(
         handle: Handle<LfsHandler>,
-        forward_rx: tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection>,
+        forward_rx: tokio::sync::mpsc::Receiver<ForwardedConnection>,
     ) -> Self {
         Session {
             handle,
@@ -599,8 +623,11 @@ impl Session {
         self: &Arc<Self>,
         host: String,
         port: u32,
-    ) -> tokio::sync::mpsc::UnboundedReceiver<ForwardedConnection> {
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    ) -> tokio::sync::mpsc::Receiver<ForwardedConnection> {
+        // Per-route bounded backlog. Same cap as the session-wide
+        // backlog upstream; matches the "drop on full" policy a
+        // hostile or unattended remote can't subvert.
+        let (tx, rx) = tokio::sync::mpsc::channel(FORWARD_BACKLOG_CAP);
         {
             let mut routes = self.forward_routes.lock().await;
             routes.insert((host, port), tx);
@@ -615,7 +642,15 @@ impl Session {
                     let key = (conn.connected_address.clone(), conn.connected_port);
                     let routes = session.forward_routes.lock().await;
                     if let Some(sender) = routes.get(&key) {
-                        let _ = sender.send(conn);
+                        // `try_send` so a slow per-route consumer
+                        // can't back-pressure the dispatcher loop
+                        // (which would stall every other route on
+                        // the same session). Channel-full drops the
+                        // forward — same shape as the session-wide
+                        // backlog above; the route consumer sees
+                        // "missed it" rather than the dispatcher
+                        // stalling indefinitely.
+                        let _ = sender.try_send(conn);
                     }
                     // No matching route — drop on the floor. Unmatched
                     // forwards usually mean a route was withdrawn
