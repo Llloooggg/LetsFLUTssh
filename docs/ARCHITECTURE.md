@@ -2207,7 +2207,7 @@ Each recording's `RecorderQueue` worker writes one asciinema event per mailbox e
 
 `Header` / `Rotate` / `Close` go through `enqueue_blocking`, which drains pending chunk bytes before sending its own entry: rotation never splits a frame across two files, and close never seals the file before trailing 10-ms-window bytes reach disk on a fast disconnect.
 
-The Dart `SessionRecorder.recordOutput` / `recordInput` is a one-line FRB call per chunk — no Dart-side `BytesBuilder` / `Timer`, no Dart heap retention beyond the FRB call site. Bytes leave Dart heap as soon as they arrive.
+The Dart `SessionRecorder.recordOutput` / `recordInput` is a one-line FRB call per chunk — no Dart-side `BytesBuilder` / `Timer`, no Dart heap retention beyond the FRB call site. Bytes leave Dart heap as soon as they arrive. Dispatches chain off `SessionRecorder._dispatchTail` so each FRB call only fires after the previous one's `enqueue_event_chunk` has returned: the per-id buffer extends in caller order, and `tokio::sync::Mutex` fairness inside the runtime never gets to decide which of two concurrent calls landed first. `close()` awaits the tail before sending `Close`.
 
 #### Why asciinema v2 inside an encryption envelope
 

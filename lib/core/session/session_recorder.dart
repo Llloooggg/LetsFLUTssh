@@ -223,16 +223,14 @@ class SessionRecorder {
   Future<String?> close() async {
     if (_closed) return _currentPath;
     _closed = true;
-    // Drain every in-flight `_dispatchEnqueue` future before sending
-    // the close marker. Without this, a back-to-back
-    // `recordOutput → close` race can schedule Close ahead of the
-    // unawaited event FRB calls — the Rust worker then processes
-    // Close before the trailing chunk lands and the user sees a
-    // truncated recording. Each future already swallows its own
-    // exception, so this barrier never throws.
-    if (_pendingEnqueues.isNotEmpty) {
-      await Future.wait(_pendingEnqueues.toList());
-    }
+    // Drain the serialised dispatch chain before sending the close
+    // marker. Without this, a back-to-back `recordOutput → close`
+    // race can schedule Close ahead of the unawaited event FRB
+    // calls — the Rust worker then processes Close before the
+    // trailing chunk lands and the user sees a truncated recording.
+    // `_dispatchEnqueue` swallows its own exception, so this
+    // barrier never throws.
+    await _dispatchTail;
     // Rust-side `enqueue_blocking` drains any in-flight chunk
     // buffer before the close marker, so the trailing bytes that
     // arrived in the last 10 ms make it onto disk before the file
@@ -272,31 +270,37 @@ class SessionRecorder {
     return dir;
   }
 
-  /// In-flight `_dispatchEnqueue` futures. [close] awaits these before
-  /// sending the close marker so the Rust-side worker drains every
-  /// chunk into the mailbox in arrival order. Without the gate, a
-  /// fast close after two back-to-back `recordOutput` calls can
-  /// schedule the close FRB call ahead of the unawaited event FRB
-  /// calls — the worker then processes Close before the events
-  /// arrive and the trailing chunk is lost.
-  final Set<Future<void>> _pendingEnqueues = <Future<void>>{};
+  /// Tail of the serialised dispatch chain. Each `_enqueueEvent`
+  /// chains its FRB call off the previous tail so the bytes reach
+  /// the Rust-side per-id buffer in caller order. Two unawaited
+  /// `recorderQueueEnqueueEvent` calls would otherwise race on
+  /// `enqueue_event_chunk`'s buffer mutex inside the tokio runtime
+  /// — `recordOutput("one") + recordOutput("two")` could land as
+  /// `twoone` on disk. Chaining keeps each FRB call in flight one
+  /// at a time, so the Rust-side `extend_from_slice` runs in the
+  /// order the caller produced the chunks.
+  ///
+  /// `_dispatchEnqueue` swallows its own exceptions, so the chain
+  /// itself never enters an error state.
+  Future<void> _dispatchTail = Future<void>.value();
 
   /// Hand one PTY chunk to the Rust-side recorder queue. The Rust
   /// `enqueue_event_chunk` accumulator coalesces 100/sec russh
   /// `Data` packets into one mailbox entry per ~10 ms / 8 KiB so
-  /// the writer worker isn't woken on every chunk; FRB ordering
-  /// preserves arrival order across calls. Fire-and-forget for the
-  /// caller — the terminal pump never blocks on disk — but [close]
-  /// barriers on every in-flight future before the close marker.
+  /// the writer worker isn't woken on every chunk. Fire-and-forget
+  /// for the caller — the terminal pump never blocks on disk —
+  /// but the dispatches are serialised via [_dispatchTail] so the
+  /// per-id buffer extends in caller order, and [close] awaits the
+  /// tail before sending the close marker.
   void _enqueueEvent(List<int> bytes, RecordDirection dir) {
     if (_closed || bytes.isEmpty) return;
     final direction = switch (dir) {
       RecordDirection.output => rust_recorder.DbRecordDirection.output,
       RecordDirection.input => rust_recorder.DbRecordDirection.input,
     };
-    final future = _dispatchEnqueue(bytes, direction);
-    _pendingEnqueues.add(future);
-    future.whenComplete(() => _pendingEnqueues.remove(future));
+    _dispatchTail = _dispatchTail.then(
+      (_) => _dispatchEnqueue(bytes, direction),
+    );
   }
 
   Future<void> _dispatchEnqueue(

@@ -124,4 +124,32 @@ void main() {
   // primitives the recorder pulls in. Re-running them through the
   // Dart layer adds no coverage that the Rust suite doesn't already
   // pin down.
+
+  // Back-to-back `recordOutput` calls without an `await` between
+  // them must land on disk in caller order. The previous fire-and-
+  // forget dispatch raced concurrent FRB tasks for the per-id
+  // buffer mutex inside the tokio runtime, so a `one + two`
+  // sequence could arrive at the buffer as `two + one` and replay
+  // `twoone`. The dispatch chain pins caller order at the Dart
+  // boundary.
+  test('back-to-back recordOutput chunks land in caller order', () async {
+    final rec = await SessionRecorder.open(
+      sessionId: 's6',
+      shellLabel: 'bash',
+      width: 80,
+      height: 24,
+    );
+    expect(rec, isNotNull);
+    const chunks = ['one', 'two', 'three', 'four', 'five', 'six'];
+    for (final chunk in chunks) {
+      rec!.recordOutput(utf8.encode(chunk));
+    }
+    final path = await rec!.close();
+    final lines = File(path!).readAsLinesSync();
+    final payloads = lines
+        .skip(1)
+        .map((l) => (jsonDecode(l) as List)[2] as String)
+        .join();
+    expect(payloads, chunks.join());
+  });
 }
