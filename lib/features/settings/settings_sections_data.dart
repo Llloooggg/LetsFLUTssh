@@ -58,11 +58,19 @@ class _ResetAllDataTileState extends ConsumerState<_ResetAllDataTile> {
 
   Future<void> _run() async {
     final l10n = S.of(context);
-    final confirmed = await ConfirmDialog.show(
+    // Magic phrase is the literal app name (locale-invariant). Pattern
+    // mirrors GitHub's "type the repo name to delete" guard — the
+    // user has to physically type the name into a freshly-empty field
+    // before the destructive button enables. A single accidental tap
+    // of a normal Confirm button can't trigger the wipe.
+    const magicPhrase = 'LetsFLUTssh';
+    final confirmed = await TypedNameConfirmDialog.show(
       context,
       title: l10n.resetAllDataConfirmTitle,
-      content: Text(l10n.resetAllDataConfirmBody),
+      body: Text(l10n.resetAllDataConfirmBody),
+      magicPhrase: magicPhrase,
       confirmLabel: l10n.resetAllDataConfirmAction,
+      typePromptHint: l10n.resetAllDataConfirmTypePrompt(magicPhrase),
     );
     if (!confirmed) return;
     if (!mounted) return;

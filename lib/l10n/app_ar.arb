@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "إعادة تعيين جميع البيانات؟",
   "resetAllDataConfirmBody": "سيتم حذف جميع الجلسات ومفاتيح SSH وقائمة known_hosts والمقتطفات والوسوم والتفضيلات وجميع مكونات الأمان (مدخلات سلسلة المفاتيح، بيانات hardware vault، الطبقة البيومترية) بشكل دائم. لا يمكن التراجع عن هذا الإجراء.",
   "resetAllDataConfirmAction": "إعادة تعيين كل شيء",
+  "resetAllDataConfirmTypePrompt": "اكتب {phrase} أدناه للتأكيد:",
   "resetAllDataInProgress": "جارٍ إعادة التعيين…",
   "resetAllDataDone": "تمت إعادة تعيين جميع البيانات",
   "resetAllDataFailed": "فشلت إعادة التعيين",

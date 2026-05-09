@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "Сбросить все данные?",
   "resetAllDataConfirmBody": "Все сессии, SSH ключи, known hosts, сниппеты, теги, настройки и все артефакты безопасности (записи связки ключей, данные аппаратного хранилища, биометрическая оболочка) будут безвозвратно удалены. Это действие нельзя отменить.",
   "resetAllDataConfirmAction": "Сбросить всё",
+  "resetAllDataConfirmTypePrompt": "Введите {phrase} ниже для подтверждения:",
   "resetAllDataInProgress": "Сброс…",
   "resetAllDataDone": "Все данные сброшены",
   "resetAllDataFailed": "Не удалось выполнить сброс",

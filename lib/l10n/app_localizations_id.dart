@@ -2352,6 +2352,11 @@ class SId extends S {
   String get resetAllDataConfirmAction => 'Reset semuanya';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Ketik $phrase di bawah untuk mengonfirmasi:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Mereset…';
 
   @override

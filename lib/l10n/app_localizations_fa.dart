@@ -2338,6 +2338,11 @@ class SFa extends S {
   String get resetAllDataConfirmAction => 'بازنشانی همه';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'برای تأیید، $phrase را در زیر تایپ کنید:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'در حال بازنشانی…';
 
   @override

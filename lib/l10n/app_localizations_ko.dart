@@ -2293,6 +2293,11 @@ class SKo extends S {
   String get resetAllDataConfirmAction => '모두 재설정';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return '확인하려면 아래에 $phrase을(를) 입력하세요:';
+  }
+
+  @override
   String get resetAllDataInProgress => '재설정 중…';
 
   @override

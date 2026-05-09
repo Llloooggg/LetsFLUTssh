@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "Alle Daten zurücksetzen?",
   "resetAllDataConfirmBody": "Alle Sitzungen, SSH-Schlüssel, Known-Hosts, Snippets, Tags, Einstellungen und alle Sicherheitsartefakte (Schlüsselbund-Einträge, Hardware-Vault-Daten, biometrisches Overlay) werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
   "resetAllDataConfirmAction": "Alles zurücksetzen",
+  "resetAllDataConfirmTypePrompt": "Geben Sie {phrase} unten ein, um zu bestätigen:",
   "resetAllDataInProgress": "Wird zurückgesetzt…",
   "resetAllDataDone": "Alle Daten zurückgesetzt",
   "resetAllDataFailed": "Zurücksetzen fehlgeschlagen",

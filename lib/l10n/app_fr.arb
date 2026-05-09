@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "Réinitialiser toutes les données ?",
   "resetAllDataConfirmBody": "Toutes les sessions, clés SSH, known hosts, extraits, étiquettes, préférences et tous les artefacts de sécurité (entrées du trousseau, données du coffre matériel, surcouche biométrique) seront définitivement supprimés. Cette action est irréversible.",
   "resetAllDataConfirmAction": "Tout réinitialiser",
+  "resetAllDataConfirmTypePrompt": "Tapez {phrase} ci-dessous pour confirmer :",
   "resetAllDataInProgress": "Réinitialisation…",
   "resetAllDataDone": "Toutes les données réinitialisées",
   "resetAllDataFailed": "Échec de la réinitialisation",

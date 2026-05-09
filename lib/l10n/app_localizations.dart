@@ -4167,6 +4167,12 @@ abstract class S {
   /// **'Reset everything'**
   String get resetAllDataConfirmAction;
 
+  /// No description provided for @resetAllDataConfirmTypePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Type {phrase} below to confirm:'**
+  String resetAllDataConfirmTypePrompt(String phrase);
+
   /// No description provided for @resetAllDataInProgress.
   ///
   /// In en, this message translates to:

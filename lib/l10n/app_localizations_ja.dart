@@ -2296,6 +2296,11 @@ class SJa extends S {
   String get resetAllDataConfirmAction => 'すべてリセット';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return '確認のため、下に $phrase と入力してください:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'リセット中…';
 
   @override

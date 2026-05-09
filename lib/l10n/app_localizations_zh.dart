@@ -2277,6 +2277,11 @@ class SZh extends S {
   String get resetAllDataConfirmAction => '全部重置';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return '请在下方输入 $phrase 以确认:';
+  }
+
+  @override
   String get resetAllDataInProgress => '正在重置…';
 
   @override

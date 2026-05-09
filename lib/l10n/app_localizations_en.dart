@@ -2388,6 +2388,11 @@ class SEn extends S {
   String get resetAllDataConfirmAction => 'Reset everything';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Type $phrase below to confirm:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Resetting…';
 
   @override

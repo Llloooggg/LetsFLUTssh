@@ -2337,6 +2337,11 @@ class SVi extends S {
   String get resetAllDataConfirmAction => 'Đặt lại tất cả';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Nhập $phrase bên dưới để xác nhận:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Đang đặt lại…';
 
   @override

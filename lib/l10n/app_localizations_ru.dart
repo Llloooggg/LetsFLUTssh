@@ -2370,6 +2370,11 @@ class SRu extends S {
   String get resetAllDataConfirmAction => 'Сбросить всё';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Введите $phrase ниже для подтверждения:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Сброс…';
 
   @override

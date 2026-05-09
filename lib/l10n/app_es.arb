@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "¿Restablecer todos los datos?",
   "resetAllDataConfirmBody": "Todas las sesiones, claves SSH, known hosts, fragmentos, etiquetas, preferencias y todos los artefactos de seguridad (entradas del llavero, datos del almacén de hardware, superposición biométrica) se eliminarán de forma permanente. Esto no se puede deshacer.",
   "resetAllDataConfirmAction": "Restablecer todo",
+  "resetAllDataConfirmTypePrompt": "Escribe {phrase} abajo para confirmar:",
   "resetAllDataInProgress": "Restableciendo…",
   "resetAllDataDone": "Todos los datos restablecidos",
   "resetAllDataFailed": "Error al restablecer",

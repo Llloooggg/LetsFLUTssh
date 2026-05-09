@@ -2434,6 +2434,11 @@ class SFr extends S {
   String get resetAllDataConfirmAction => 'Tout réinitialiser';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Tapez $phrase ci-dessous pour confirmer :';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Réinitialisation…';
 
   @override

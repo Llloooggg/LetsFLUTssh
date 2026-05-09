@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "모든 데이터를 재설정할까요?",
   "resetAllDataConfirmBody": "모든 세션, SSH 키, known hosts, 스니펫, 태그, 환경설정 및 모든 보안 아티팩트(키체인 항목, 하드웨어 볼트 데이터, 생체 인증 오버레이)가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
   "resetAllDataConfirmAction": "모두 재설정",
+  "resetAllDataConfirmTypePrompt": "확인하려면 아래에 {phrase}을(를) 입력하세요:",
   "resetAllDataInProgress": "재설정 중…",
   "resetAllDataDone": "모든 데이터가 재설정되었습니다",
   "resetAllDataFailed": "재설정 실패",

@@ -2420,6 +2420,11 @@ class SDe extends S {
   String get resetAllDataConfirmAction => 'Alles zurücksetzen';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Geben Sie $phrase unten ein, um zu bestätigen:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Wird zurückgesetzt…';
 
   @override

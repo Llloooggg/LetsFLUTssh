@@ -2356,6 +2356,11 @@ class STr extends S {
   String get resetAllDataConfirmAction => 'Her şeyi sıfırla';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Onaylamak için aşağıya $phrase yazın:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Sıfırlanıyor…';
 
   @override

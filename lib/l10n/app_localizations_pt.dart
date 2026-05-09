@@ -2417,6 +2417,11 @@ class SPt extends S {
   String get resetAllDataConfirmAction => 'Redefinir tudo';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Digite $phrase abaixo para confirmar:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Redefinindo…';
 
   @override

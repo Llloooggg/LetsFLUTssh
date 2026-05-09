@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "Reset semua data?",
   "resetAllDataConfirmBody": "Semua sesi, kunci SSH, known hosts, snippet, tag, preferensi, dan semua artefak keamanan (entri keychain, data brankas perangkat keras, lapisan biometrik) akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.",
   "resetAllDataConfirmAction": "Reset semuanya",
+  "resetAllDataConfirmTypePrompt": "Ketik {phrase} di bawah untuk mengonfirmasi:",
   "resetAllDataInProgress": "Mereset…",
   "resetAllDataDone": "Semua data telah direset",
   "resetAllDataFailed": "Reset gagal",

@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "همهٔ داده‌ها بازنشانی شود؟",
   "resetAllDataConfirmBody": "همهٔ نشست‌ها، کلیدهای SSH، فهرست known hosts، قطعه‌کدها، برچسب‌ها، تنظیمات و همهٔ مؤلفه‌های امنیتی (ورودی‌های کی‌چین، دادهٔ خزانهٔ سخت‌افزاری، لایهٔ زیست‌سنجی) برای همیشه حذف خواهند شد. این عمل قابل بازگشت نیست.",
   "resetAllDataConfirmAction": "بازنشانی همه",
+  "resetAllDataConfirmTypePrompt": "برای تأیید، {phrase} را در زیر تایپ کنید:",
   "resetAllDataInProgress": "در حال بازنشانی…",
   "resetAllDataDone": "همهٔ داده‌ها بازنشانی شدند",
   "resetAllDataFailed": "بازنشانی ناموفق بود",

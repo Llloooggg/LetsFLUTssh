@@ -1310,6 +1310,10 @@
   "resetAllDataConfirmTitle": "Reset all data?",
   "resetAllDataConfirmBody": "All sessions, SSH keys, known hosts, snippets, tags, preferences, and every security artefact (keychain entries, hardware-vault blobs, biometric overlay) will be permanently deleted. This cannot be undone.",
   "resetAllDataConfirmAction": "Reset everything",
+  "resetAllDataConfirmTypePrompt": "Type {phrase} below to confirm:",
+  "@resetAllDataConfirmTypePrompt": {
+    "placeholders": { "phrase": { "type": "String" } }
+  },
   "resetAllDataInProgress": "Resetting…",
   "resetAllDataDone": "All data reset",
   "resetAllDataFailed": "Reset failed",

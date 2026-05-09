@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "Tüm veriler sıfırlansın mı?",
   "resetAllDataConfirmBody": "Tüm oturumlar, SSH anahtarları, known hosts, parçacıklar, etiketler, tercihler ve tüm güvenlik bileşenleri (anahtar zinciri kayıtları, donanım kasası verileri, biyometrik katman) kalıcı olarak silinecektir. Bu işlem geri alınamaz.",
   "resetAllDataConfirmAction": "Her şeyi sıfırla",
+  "resetAllDataConfirmTypePrompt": "Onaylamak için aşağıya {phrase} yazın:",
   "resetAllDataInProgress": "Sıfırlanıyor…",
   "resetAllDataDone": "Tüm veriler sıfırlandı",
   "resetAllDataFailed": "Sıfırlama başarısız",

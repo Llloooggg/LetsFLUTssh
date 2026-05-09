@@ -2423,6 +2423,11 @@ class SEs extends S {
   String get resetAllDataConfirmAction => 'Restablecer todo';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'Escribe $phrase abajo para confirmar:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'Restableciendo…';
 
   @override

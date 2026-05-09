@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "Đặt lại toàn bộ dữ liệu?",
   "resetAllDataConfirmBody": "Tất cả phiên, khóa SSH, known hosts, đoạn mã, thẻ, tùy chọn và mọi tạo tác bảo mật (mục keychain, dữ liệu kho phần cứng, lớp phủ sinh trắc học) sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.",
   "resetAllDataConfirmAction": "Đặt lại tất cả",
+  "resetAllDataConfirmTypePrompt": "Nhập {phrase} bên dưới để xác nhận:",
   "resetAllDataInProgress": "Đang đặt lại…",
   "resetAllDataDone": "Đã đặt lại toàn bộ dữ liệu",
   "resetAllDataFailed": "Đặt lại thất bại",

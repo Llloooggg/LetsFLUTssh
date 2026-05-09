@@ -2354,6 +2354,11 @@ class SAr extends S {
   String get resetAllDataConfirmAction => 'إعادة تعيين كل شيء';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'اكتب $phrase أدناه للتأكيد:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'جارٍ إعادة التعيين…';
 
   @override

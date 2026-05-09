@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "सभी डेटा रीसेट करें?",
   "resetAllDataConfirmBody": "सभी सत्र, SSH कुंजियाँ, known hosts, स्निपेट, टैग, वरीयताएँ और सभी सुरक्षा आर्टिफ़ैक्ट (कीचेन प्रविष्टियाँ, हार्डवेयर-वॉल्ट डेटा, बायोमेट्रिक ओवरले) स्थायी रूप से हटा दिए जाएँगे। इसे पूर्ववत नहीं किया जा सकता।",
   "resetAllDataConfirmAction": "सब कुछ रीसेट करें",
+  "resetAllDataConfirmTypePrompt": "पुष्टि के लिए नीचे {phrase} टाइप करें:",
   "resetAllDataInProgress": "रीसेट हो रहा है…",
   "resetAllDataDone": "सभी डेटा रीसेट हो गया",
   "resetAllDataFailed": "रीसेट विफल",

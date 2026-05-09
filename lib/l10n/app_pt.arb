@@ -740,6 +740,7 @@
   "resetAllDataConfirmTitle": "Redefinir todos os dados?",
   "resetAllDataConfirmBody": "Todas as sessões, chaves SSH, known hosts, snippets, tags, preferências e todos os artefatos de segurança (entradas do keychain, dados do cofre de hardware, sobreposição biométrica) serão excluídos permanentemente. Esta ação não pode ser desfeita.",
   "resetAllDataConfirmAction": "Redefinir tudo",
+  "resetAllDataConfirmTypePrompt": "Digite {phrase} abaixo para confirmar:",
   "resetAllDataInProgress": "Redefinindo…",
   "resetAllDataDone": "Todos os dados redefinidos",
   "resetAllDataFailed": "Falha ao redefinir",

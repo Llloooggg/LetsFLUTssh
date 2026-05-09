@@ -2349,6 +2349,11 @@ class SHi extends S {
   String get resetAllDataConfirmAction => 'सब कुछ रीसेट करें';
 
   @override
+  String resetAllDataConfirmTypePrompt(String phrase) {
+    return 'पुष्टि के लिए नीचे $phrase टाइप करें:';
+  }
+
+  @override
   String get resetAllDataInProgress => 'रीसेट हो रहा है…';
 
   @override

@@ -59,7 +59,7 @@ import '../../widgets/app_popup_select.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_selection_area.dart';
 import '../../widgets/app_icon_button.dart';
-import '../../widgets/confirm_dialog.dart';
+import '../../widgets/typed_name_confirm_dialog.dart';
 import '../../widgets/form_submit_chain.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/secure_password_field.dart';
