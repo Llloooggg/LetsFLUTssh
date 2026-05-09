@@ -34,14 +34,25 @@ class StyledFormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Visible label is a sibling Text above the input — fine for
+    // sighted users but assistive tech tabbing into the field
+    // hears no label association. Adding an outer `Semantics(label:)`
+    // around the input merges the label string into the field's
+    // SemanticsNode (TextField's own semantics carry the value /
+    // editable flags; the wrapper only adds `label`). The visible
+    // FieldLabel above is then `ExcludeSemantics`-wrapped so screen
+    // readers don't announce the label twice.
+    final labelled = Semantics(
+      label: label,
+      child: fixedHeight
+          ? SizedBox(height: AppTheme.controlHeightMd, child: _buildInput())
+          : _buildInput(),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FieldLabel(label),
-        if (fixedHeight)
-          SizedBox(height: AppTheme.controlHeightMd, child: _buildInput())
-        else
-          _buildInput(),
+        ExcludeSemantics(child: FieldLabel(label)),
+        labelled,
       ],
     );
   }
