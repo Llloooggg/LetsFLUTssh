@@ -167,3 +167,120 @@ pub fn ssh_config_split_host_patterns(value: String) -> Vec<String> {
 pub fn ssh_config_unquote(value: String) -> String {
     lfs_core::ssh_config::unquote(&value).to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn parse_openssh_config_extracts_host_block_fields() {
+        let cfg = "\
+Host edge\n\
+    HostName edge.example.com\n\
+    User deploy\n\
+    Port 2222\n\
+    IdentityFile ~/.ssh/edge_ed25519\n";
+        let entries = parse_openssh_config(cfg.into());
+        assert_eq!(entries.len(), 1);
+        let e = &entries[0];
+        assert_eq!(e.host, "edge");
+        assert_eq!(e.host_name.as_deref(), Some("edge.example.com"));
+        assert_eq!(e.user.as_deref(), Some("deploy"));
+        assert_eq!(e.port, Some(2222));
+        assert_eq!(e.identity_files.len(), 1);
+    }
+
+    #[test]
+    fn parse_openssh_config_returns_empty_for_blank_input() {
+        assert!(parse_openssh_config(String::new()).is_empty());
+    }
+
+    #[test]
+    fn parse_openssh_config_with_includes_no_includes_directives_passes_through() {
+        // The path-keying contract for the include map (relative vs
+        // absolute, base_dir-anchored, OpenSSH `~/` expansion) lives
+        // in `lfs_core::ssh_config` and is covered by the integration
+        // suite there. Pin only the contract that an empty map +
+        // include-free content round-trips — this catches a future
+        // refactor that accidentally wires the no-include path
+        // through the `with_includes` shape.
+        let cfg = "\
+Host plain\n\
+    HostName plain.example.com\n";
+        let entries =
+            parse_openssh_config_with_includes(cfg.into(), String::new(), HashMap::new(), 8);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].host, "plain");
+    }
+
+    #[test]
+    fn glob_matches_handles_star_question_and_literal() {
+        assert!(ssh_config_glob_matches(
+            "*.example.com".into(),
+            "edge.example.com".into()
+        ));
+        assert!(ssh_config_glob_matches("h?st".into(), "host".into()));
+        assert!(!ssh_config_glob_matches("h?st".into(), "haaast".into()));
+        assert!(!ssh_config_glob_matches(
+            "*.example.com".into(),
+            "example.org".into()
+        ));
+        assert!(ssh_config_glob_matches("literal".into(), "literal".into()));
+    }
+
+    #[test]
+    fn strip_comment_removes_unquoted_hash_run() {
+        assert_eq!(
+            ssh_config_strip_comment("Host edge # trailing".into()),
+            "Host edge "
+        );
+        assert_eq!(ssh_config_strip_comment("# pure comment".into()), "");
+    }
+
+    #[test]
+    fn strip_comment_preserves_hash_inside_quotes() {
+        // Pin the contract — `#` inside `"…"` is literal, not a
+        // comment marker. The Dart Include-expander relies on it.
+        assert_eq!(
+            ssh_config_strip_comment("Host \"name #1\"".into()),
+            "Host \"name #1\""
+        );
+    }
+
+    #[test]
+    fn split_keyword_value_handles_space_and_equals() {
+        assert_eq!(
+            ssh_config_split_keyword_value("Host edge".into()),
+            Some(("Host".to_string(), "edge".to_string()))
+        );
+        assert_eq!(
+            ssh_config_split_keyword_value("Port=2222".into()),
+            Some(("Port".to_string(), "2222".to_string()))
+        );
+        assert!(ssh_config_split_keyword_value(String::new()).is_none());
+    }
+
+    #[test]
+    fn split_host_patterns_keeps_quoted_runs_intact() {
+        let parts = ssh_config_split_host_patterns("edge \"my workstation\" prod-*".into());
+        assert_eq!(parts.len(), 3);
+        assert!(parts.iter().any(|p| p == "my workstation"));
+    }
+
+    #[test]
+    fn unquote_strips_only_matched_outer_quotes() {
+        assert_eq!(ssh_config_unquote("\"quoted\"".into()), "quoted");
+        assert_eq!(ssh_config_unquote("plain".into()), "plain");
+        // Unmatched leading quote — left as-is.
+        assert_eq!(ssh_config_unquote("\"unbalanced".into()), "\"unbalanced");
+    }
+
+    #[test]
+    fn db_openssh_auth_type_maps_each_variant_distinctly() {
+        let p: DbOpenSshAuthType = lfs_core::ssh_config::AuthType::Password.into();
+        let k: DbOpenSshAuthType = lfs_core::ssh_config::AuthType::Key.into();
+        assert!(matches!(p, DbOpenSshAuthType::Password));
+        assert!(matches!(k, DbOpenSshAuthType::Key));
+    }
+}

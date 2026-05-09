@@ -100,3 +100,54 @@ pub fn transfer_conflict_record_decision(
         )
         .into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The create / drop / cached / record / is_cancelled endpoints
+    // route through `lfs_core::app::instance()` and need
+    // `lfs_core::app::init()` (FRB worker bootstrap, not the
+    // cargo-test harness). The Dart `transfer_conflict_test.dart`
+    // covers those paths end-to-end. The standalone tests below pin
+    // the `From` mapping that crosses the FRB boundary in either
+    // direction.
+
+    #[test]
+    fn db_conflict_action_round_trips_through_core() {
+        for db in [
+            DbConflictAction::Skip,
+            DbConflictAction::KeepBoth,
+            DbConflictAction::Replace,
+            DbConflictAction::Cancel,
+        ] {
+            let core: ConflictAction = db.into();
+            let back: DbConflictAction = core.into();
+            assert_eq!(db, back, "round-trip must be lossless for {db:?}");
+        }
+    }
+
+    #[test]
+    fn db_conflict_action_maps_each_variant_distinctly() {
+        // Pin the variant→variant mapping so a future refactor that
+        // accidentally collapses two arms (e.g. `Skip` → `KeepBoth`)
+        // breaks loudly here, not in the wild as a Dart-side
+        // cancel-instead-of-skip.
+        assert_eq!(
+            ConflictAction::from(DbConflictAction::Skip),
+            ConflictAction::Skip
+        );
+        assert_eq!(
+            ConflictAction::from(DbConflictAction::KeepBoth),
+            ConflictAction::KeepBoth
+        );
+        assert_eq!(
+            ConflictAction::from(DbConflictAction::Replace),
+            ConflictAction::Replace
+        );
+        assert_eq!(
+            ConflictAction::from(DbConflictAction::Cancel),
+            ConflictAction::Cancel
+        );
+    }
+}

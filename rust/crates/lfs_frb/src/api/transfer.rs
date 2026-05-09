@@ -204,3 +204,78 @@ pub async fn transfer_clear_history() -> u32 {
     }
     dropped
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The enqueue / dispatch / cancel / snapshot endpoints route
+    // through `lfs_core::app::instance()` + the worker pool and need
+    // the FRB worker bootstrap; covered by the Dart
+    // `transfer_manager_test.dart` integration suite. The standalone
+    // tests below pin the FRB↔core variant mapping that crosses the
+    // boundary on every snapshot.
+
+    #[test]
+    fn db_transfer_kind_round_trips_through_core() {
+        for db in [DbTransferKind::Download, DbTransferKind::Upload] {
+            let core: TaskKind = db.into();
+            let back: DbTransferKind = core.into();
+            assert!(
+                matches!(
+                    (db, back),
+                    (DbTransferKind::Download, DbTransferKind::Download)
+                        | (DbTransferKind::Upload, DbTransferKind::Upload)
+                ),
+                "kind round-trip must be lossless"
+            );
+        }
+    }
+
+    #[test]
+    fn db_transfer_state_maps_each_variant_distinctly() {
+        // Pin the variant→variant mapping so a future refactor that
+        // collapses two states (e.g. Failed → Cancelled) breaks
+        // loudly here, not silently in the UI.
+        for (core, expected_label) in [
+            (TaskState::Queued, "queued"),
+            (TaskState::Running, "running"),
+            (TaskState::Completed, "completed"),
+            (TaskState::Failed, "failed"),
+            (TaskState::Cancelled, "cancelled"),
+        ] {
+            let db: DbTransferState = core.into();
+            let label = match db {
+                DbTransferState::Queued => "queued",
+                DbTransferState::Running => "running",
+                DbTransferState::Completed => "completed",
+                DbTransferState::Failed => "failed",
+                DbTransferState::Cancelled => "cancelled",
+            };
+            assert_eq!(label, expected_label);
+        }
+    }
+
+    #[test]
+    fn db_transfer_snapshot_carries_every_field_through() {
+        let core = TaskSnapshot {
+            id: "task-1".into(),
+            kind: TaskKind::Download,
+            session_id: "sess-a".into(),
+            remote_path: "/var/log/app.log".into(),
+            local_path: "/tmp/app.log".into(),
+            state: TaskState::Running,
+            bytes_done: 512,
+            bytes_total: 4096,
+            error: None,
+        };
+        let db: DbTransferSnapshot = core.into();
+        assert_eq!(db.id, "task-1");
+        assert!(matches!(db.kind, DbTransferKind::Download));
+        assert!(matches!(db.state, DbTransferState::Running));
+        assert_eq!(db.bytes_done, 512);
+        assert_eq!(db.bytes_total, 4096);
+        assert_eq!(db.session_id, "sess-a");
+        assert!(db.error.is_none());
+    }
+}

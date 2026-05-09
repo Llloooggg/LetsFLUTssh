@@ -65,3 +65,78 @@ pub fn security_map_wizard_choice(
         pin: mapped.pin,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unknown_wizard_tier_wire_name_surfaces_err() {
+        let res = security_map_wizard_choice("nonsense".into(), false, false, None);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn plaintext_choice_carries_no_typed_secret() {
+        let mapped =
+            security_map_wizard_choice("plaintext".into(), false, false, None).expect("plaintext");
+        assert_eq!(mapped.tier_wire_name, "plaintext");
+        assert!(mapped.master_password.is_none());
+        assert!(mapped.short_password.is_none());
+        assert!(mapped.pin.is_none());
+    }
+
+    #[test]
+    fn keychain_with_password_lands_typed_secret_in_short_password_slot() {
+        // Bank-style: T1 + password puts the typed string in the
+        // `short_password` slot (the typed secret is the unlock
+        // string, not a long master password). Pin the slot so a
+        // future tier-shape refactor can't silently re-route it.
+        let mapped = security_map_wizard_choice(
+            "keychain".into(),
+            true,
+            false,
+            Some("hunter2-extended".into()),
+        )
+        .expect("keychain");
+        assert!(mapped.password);
+        assert!(mapped.master_password.is_none());
+        assert_eq!(mapped.short_password.as_deref(), Some("hunter2-extended"));
+        assert!(mapped.pin.is_none());
+    }
+
+    #[test]
+    fn paranoid_lands_typed_secret_in_master_password_slot() {
+        let mapped = security_map_wizard_choice(
+            "paranoid".into(),
+            true,
+            false,
+            Some("a-real-master-password".into()),
+        )
+        .expect("paranoid");
+        assert_eq!(
+            mapped.master_password.as_deref(),
+            Some("a-real-master-password")
+        );
+        assert!(mapped.short_password.is_none());
+        assert!(mapped.pin.is_none());
+    }
+
+    #[test]
+    fn hardware_lands_typed_secret_in_pin_slot() {
+        let mapped =
+            security_map_wizard_choice("hardware".into(), true, false, Some("4321".into()))
+                .expect("hardware");
+        assert!(mapped.master_password.is_none());
+        assert!(mapped.short_password.is_none());
+        assert_eq!(mapped.pin.as_deref(), Some("4321"));
+    }
+
+    #[test]
+    fn parse_wizard_tier_accepts_every_known_wire_name() {
+        for n in ["plaintext", "keychain", "hardware", "paranoid"] {
+            assert!(parse_wizard_tier(n).is_ok(), "{n} must parse");
+        }
+        assert!(parse_wizard_tier("ghost").is_err());
+    }
+}

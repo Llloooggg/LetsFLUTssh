@@ -102,3 +102,71 @@ pub fn security_capabilities_from_json(json: String) -> Option<DbSecurityCapabil
         hardware_probe_code: c.hardware_probe_code,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_json_then_from_json_round_trips_every_field() {
+        let json = security_capabilities_to_json(
+            true,               // keychain_available
+            false,              // hardware_vault_available
+            true,               // biometric_available
+            false,              // fprintd_available
+            false,              // is_linux_host
+            "available".into(), // keychain_probe wire name
+            "ok".into(),        // hardware_probe_code
+        )
+        .expect("encode");
+
+        let parsed = security_capabilities_from_json(json).expect("decode");
+        assert!(parsed.keychain_available);
+        assert!(!parsed.hardware_vault_available);
+        assert!(parsed.biometric_available);
+        assert!(!parsed.fprintd_available);
+        assert!(!parsed.is_linux_host);
+        assert_eq!(parsed.keychain_probe_wire_name, "available");
+        assert_eq!(parsed.hardware_probe_code, "ok");
+    }
+
+    #[test]
+    fn to_json_rejects_unknown_keychain_probe_wire_name() {
+        let res = security_capabilities_to_json(
+            false,
+            false,
+            false,
+            false,
+            true,
+            "ghost".into(),
+            String::new(),
+        );
+        assert!(res.is_err(), "ghost wire name must surface as Err");
+    }
+
+    #[test]
+    fn from_json_returns_none_for_garbage_input() {
+        assert!(security_capabilities_from_json("not json at all".into()).is_none());
+    }
+
+    #[test]
+    fn can_offer_biometric_modifier_follows_platform_rule() {
+        // Linux: either platform biometric API or fprintd is enough.
+        assert!(security_capabilities_can_offer_biometric_modifier(
+            true, false, true
+        ));
+        assert!(security_capabilities_can_offer_biometric_modifier(
+            false, true, true
+        ));
+        assert!(!security_capabilities_can_offer_biometric_modifier(
+            false, false, true
+        ));
+        // Non-Linux: only the platform biometric API counts.
+        assert!(security_capabilities_can_offer_biometric_modifier(
+            true, false, false
+        ));
+        assert!(!security_capabilities_can_offer_biometric_modifier(
+            false, true, false
+        ));
+    }
+}

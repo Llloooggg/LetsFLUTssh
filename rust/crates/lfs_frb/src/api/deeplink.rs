@@ -129,3 +129,35 @@ pub async fn deeplink_dispatch(uri: String) -> DbDeeplinkOutcome {
     let app = lfs_core::app::instance();
     from_core(app.deeplinks.dispatch(&uri))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // `deeplink_dispatch` and `hydrate_preview` route through
+    // `lfs_core::app::instance()` and need the FRB worker bootstrap;
+    // covered by the Dart `deeplink_handler_test.dart` integration
+    // suite. The standalone tests below pin the stateless
+    // `parse_connect_uri` helper that the Dart fuzz suite reads off
+    // directly.
+
+    #[test]
+    fn parse_connect_uri_returns_some_for_valid_link() {
+        let parsed =
+            parse_connect_uri("letsflutssh://connect?host=example.org&user=alice&port=2222".into())
+                .expect("valid connect URI");
+        assert_eq!(parsed.host, "example.org");
+        assert_eq!(parsed.user, "alice");
+        assert_eq!(parsed.port, 2222);
+    }
+
+    #[test]
+    fn parse_connect_uri_returns_none_for_unrelated_scheme() {
+        assert!(parse_connect_uri("https://example.org/".into()).is_none());
+    }
+
+    #[test]
+    fn parse_connect_uri_returns_none_for_garbage_input() {
+        assert!(parse_connect_uri("not a uri at all".into()).is_none());
+    }
+}
