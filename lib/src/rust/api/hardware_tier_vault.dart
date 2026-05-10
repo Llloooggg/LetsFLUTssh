@@ -112,6 +112,39 @@ Future<void> hardwareTierVaultStoreFromSecret({
       pinHmac: pinHmac,
     );
 
+/// Generate a fresh 32-byte salt via `OsRng` and write it
+/// atomically to `hardware_vault_salt.bin` (Apple / Windows /
+/// Android sibling-file path). Returns the bytes so the caller
+/// can derive the matching auth value before kicking off the
+/// platform vault store. The salt-then-vault ordering is the
+/// caller's responsibility — a crash between this write and the
+/// vault store leaves the next launch with a sibling salt and no
+/// wrapped key, which `is_stored` surfaces as "not configured".
+Future<Uint8List> hardwareTierVaultProvisionSalt({
+  required String supportDir,
+}) => RustLib.instance.api
+    .crateApiHardwareTierVaultHardwareTierVaultProvisionSalt(
+      supportDir: supportDir,
+    );
+
+/// Read the on-disk `hardware_vault_salt.bin` sibling file.
+/// `None` for missing or wrong-length files (clean install /
+/// truncated / tampered) — caller treats every miss as
+/// "no usable salt" and routes the unlock-cancelled path.
+Future<Uint8List?> hardwareTierVaultReadSalt({required String supportDir}) =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultReadSalt(
+      supportDir: supportDir,
+    );
+
+/// Idempotent delete of `hardware_vault_salt.bin`. Used by the
+/// tier-reset / tier-switch cascade alongside the platform
+/// vault clear so the sibling artefact does not survive into
+/// the next configure cycle.
+Future<void> hardwareTierVaultDeleteSalt({required String supportDir}) =>
+    RustLib.instance.api.crateApiHardwareTierVaultHardwareTierVaultDeleteSalt(
+      supportDir: supportDir,
+    );
+
 /// Read the on-disk salt for the Linux hardware-vault envelope.
 /// Returns `None` for missing / malformed files. No-op `Ok(None)`
 /// on non-Linux targets (Apple / Android keep the salt in a

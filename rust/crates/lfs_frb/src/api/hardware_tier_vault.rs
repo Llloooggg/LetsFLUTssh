@@ -211,6 +211,49 @@ pub async fn hardware_tier_vault_store_from_secret(
     .map_err(|e| format!("hw_vault store_from_secret join: {e}"))?
 }
 
+/// Generate a fresh 32-byte salt via `OsRng` and write it
+/// atomically to `hardware_vault_salt.bin` (Apple / Windows /
+/// Android sibling-file path). Returns the bytes so the caller
+/// can derive the matching auth value before kicking off the
+/// platform vault store. The salt-then-vault ordering is the
+/// caller's responsibility — a crash between this write and the
+/// vault store leaves the next launch with a sibling salt and no
+/// wrapped key, which `is_stored` surfaces as "not configured".
+pub async fn hardware_tier_vault_provision_salt(support_dir: String) -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_core::security::hardware_tier_vault::salt::provision(std::path::Path::new(&support_dir))
+            .map_err(|e| format!("hw_vault salt provision: {e}"))
+    })
+    .await
+    .map_err(|e| format!("hw_vault salt provision join: {e}"))?
+}
+
+/// Read the on-disk `hardware_vault_salt.bin` sibling file.
+/// `None` for missing or wrong-length files (clean install /
+/// truncated / tampered) — caller treats every miss as
+/// "no usable salt" and routes the unlock-cancelled path.
+pub async fn hardware_tier_vault_read_salt(support_dir: String) -> Result<Option<Vec<u8>>, String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_core::security::hardware_tier_vault::salt::read(std::path::Path::new(&support_dir))
+            .map_err(|e| format!("hw_vault salt read: {e}"))
+    })
+    .await
+    .map_err(|e| format!("hw_vault salt read join: {e}"))?
+}
+
+/// Idempotent delete of `hardware_vault_salt.bin`. Used by the
+/// tier-reset / tier-switch cascade alongside the platform
+/// vault clear so the sibling artefact does not survive into
+/// the next configure cycle.
+pub async fn hardware_tier_vault_delete_salt(support_dir: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        lfs_core::security::hardware_tier_vault::salt::delete(std::path::Path::new(&support_dir))
+            .map_err(|e| format!("hw_vault salt delete: {e}"))
+    })
+    .await
+    .map_err(|e| format!("hw_vault salt delete join: {e}"))?
+}
+
 /// Read the on-disk salt for the Linux hardware-vault envelope.
 /// Returns `None` for missing / malformed files. No-op `Ok(None)`
 /// on non-Linux targets (Apple / Android keep the salt in a

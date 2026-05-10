@@ -1,14 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/hardware_tier_vault.dart' as rust_vault;
-import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
 /// Hardware-bound DB-key vault for T2 (Hardware + PIN) tier.
@@ -52,20 +49,7 @@ import '../../utils/logger.dart';
 /// key; on Linux it's co-located inside `hardware_vault.bin` since
 /// the entire envelope is one file.
 class HardwareTierVault {
-  HardwareTierVault({Future<File> Function()? saltFileFactory, Random? random})
-    : _saltFile = saltFileFactory ?? _defaultSaltFile,
-      _random = random ?? Random.secure();
-
-  static const _saltFileName = 'hardware_vault_salt.bin';
-  static const _saltLength = 32;
-
-  final Future<File> Function() _saltFile;
-  final Random _random;
-
-  static Future<File> _defaultSaltFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File(p.join(dir.path, _saltFileName));
-  }
+  HardwareTierVault();
 
   /// Every supported platform routes through Rust FRB —
   /// Apple SE + Android Keystore + Windows CNG via `lfs_os_security`,
@@ -128,9 +112,11 @@ class HardwareTierVault {
         // platform vault; the salt rides next to it on disk under
         // `hardware_vault_salt.bin`. Both halves required —
         // half-wiped state is a reset, not an unlock.
-        final saltFile = await _saltFile();
-        if (!await saltFile.exists()) return false;
         final dir = await getApplicationSupportDirectory();
+        final salt = await rust_vault.hardwareTierVaultReadSalt(
+          supportDir: dir.path,
+        );
+        if (salt == null) return false;
         return rust_vault.hardwareTierVaultIsStored(supportDir: dir.path);
       }
       return false;
@@ -155,22 +141,22 @@ class HardwareTierVault {
   Future<bool> store({required Uint8List dbKey, String? pin}) async {
     try {
       if (!await isAvailable()) return false;
-      final salt = _randomBytes(_saltLength);
-      final authValue = _deriveAuth(pin, salt);
       if (_usesRust) {
         try {
           final dir = await getApplicationSupportDirectory();
-          // Write the salt file BEFORE calling into the platform
-          // vault — see `storeFromSecret` for the full rationale.
-          // Salt-then-vault keeps the live state consistent against
-          // a crash between the two writes; vault-then-salt would
-          // leave the native side wrapping bytes against a salt
-          // that no longer exists on disk → permanent lockout.
-          // Linux co-locates the salt inside `hardware_vault.bin`
-          // itself so no separate write is needed there.
-          if (!Platform.isLinux) {
-            await _writeSaltFile(salt);
-          }
+          // Provision-then-vault: a fresh salt lands on disk
+          // (sibling file on Apple / Windows / Android, no-op on
+          // Linux where the salt embeds inside the envelope) BEFORE
+          // the platform vault is touched. A crash between the two
+          // would otherwise leave the native side wrapping bytes
+          // against a salt that no longer exists on disk →
+          // permanent lockout because the next read re-derives
+          // `_deriveAuth(pin, fresh_salt)` and the chip refuses to
+          // unwrap.
+          final salt = await rust_vault.hardwareTierVaultProvisionSalt(
+            supportDir: dir.path,
+          );
+          final authValue = _deriveAuth(pin, salt);
           await rust_vault.hardwareTierVaultStore(
             supportDir: dir.path,
             dbKey: dbKey,
@@ -204,27 +190,21 @@ class HardwareTierVault {
   Future<bool> storeFromSecret({required String secretId, String? pin}) async {
     try {
       if (!await isAvailable()) return false;
-      final salt = _randomBytes(_saltLength);
-      final authValue = _deriveAuth(pin, salt);
       if (_usesRust) {
         try {
           final dir = await getApplicationSupportDirectory();
-          // Write the salt file BEFORE calling into the platform
-          // vault. A crash between the vault commit and the salt
-          // write would otherwise leave the native side wrapping
-          // bytes against a salt that no longer exists on disk —
-          // permanent lockout because the next read re-derives
-          // `_deriveAuth(pin, fresh_salt)` and the chip refuses to
-          // unwrap. Failing the salt write before touching the
-          // vault means the live state stays whatever it was
-          // before this call started; the user's prior entry (if
-          // any) is intact and the next attempt re-derives a
-          // fresh salt cleanly. Linux co-locates the salt inside
-          // `hardware_vault.bin` itself so no separate write is
-          // needed there.
-          if (!Platform.isLinux) {
-            await _writeSaltFile(salt);
-          }
+          // Salt-then-vault ordering: same rationale as `store`.
+          // Failing the salt provision before touching the vault
+          // means the live state stays whatever it was before this
+          // call started; the user's prior entry (if any) is intact
+          // and the next attempt re-derives a fresh salt cleanly.
+          // On Linux the salt rides inside `hardware_vault.bin`,
+          // so the provision call returns the bytes without writing
+          // a sibling file.
+          final salt = await rust_vault.hardwareTierVaultProvisionSalt(
+            supportDir: dir.path,
+          );
+          final authValue = _deriveAuth(pin, salt);
           await rust_vault.hardwareTierVaultStoreFromSecret(
             supportDir: dir.path,
             secretId: secretId,
@@ -266,10 +246,13 @@ class HardwareTierVault {
           // Linux co-locates salt inside `hardware_vault.bin` and
           // exposes it via `hardwareTierVaultReadBlobSalt`. Apple /
           // Android / Windows keep it on disk in the sibling
-          // `hardware_vault_salt.bin`.
+          // `hardware_vault_salt.bin` read via
+          // `hardwareTierVaultReadSalt`.
           final salt = Platform.isLinux
               ? rust_vault.hardwareTierVaultReadBlobSalt(supportDir: dir.path)
-              : await _readSaltFile();
+              : await rust_vault.hardwareTierVaultReadSalt(
+                  supportDir: dir.path,
+                );
           if (salt == null) return null;
           final authValue = _deriveAuth(pin, salt);
           return await rust_vault.hardwareTierVaultRead(
@@ -316,12 +299,12 @@ class HardwareTierVault {
             name: 'HardwareTierVault',
           );
         }
-        // Apple / Android / Windows keep the salt in a sibling file
-        // Dart-side; drop it now. Linux co-locates and is already
-        // cleared above.
+        // Apple / Android / Windows keep the salt in a sibling
+        // file; drop it Rust-side now. Linux co-locates the salt
+        // inside the envelope and is already cleared above.
         if (!Platform.isLinux) {
-          final saltFile = await _saltFile();
-          if (await saltFile.exists()) await saltFile.delete();
+          final dir = await getApplicationSupportDirectory();
+          await rust_vault.hardwareTierVaultDeleteSalt(supportDir: dir.path);
         }
         return;
       }
@@ -330,33 +313,6 @@ class HardwareTierVault {
         'HardwareTierVault.clear failed: $e',
         name: 'HardwareTierVault',
       );
-    }
-  }
-
-  Future<void> _writeSaltFile(Uint8List salt) async {
-    final file = await _saltFile();
-    await file.parent.create(recursive: true);
-    // Salt is half of the unseal contract on every non-Linux platform
-    // (the other half lives inside the Rust vault file); a torn salt
-    // file from a mid-write crash would fail HMAC derivation and
-    // permanently lock the user out. Atomic write rules out that
-    // tear — the previous salt survives on failure.
-    await writeBytesAtomic(file.path, salt);
-  }
-
-  Future<Uint8List?> _readSaltFile() async {
-    try {
-      final file = await _saltFile();
-      if (!await file.exists()) return null;
-      final bytes = await file.readAsBytes();
-      if (bytes.length != _saltLength) return null;
-      return bytes;
-    } catch (e) {
-      AppLogger.instance.log(
-        'HardwareTierVault._readSaltFile failed: $e',
-        name: 'HardwareTierVault',
-      );
-      return null;
     }
   }
 
@@ -420,13 +376,5 @@ class HardwareTierVault {
       fprintdHash: fprintdHash,
     );
     return v == null ? null : Uint8List.fromList(v);
-  }
-
-  Uint8List _randomBytes(int n) {
-    final out = Uint8List(n);
-    for (var i = 0; i < n; i++) {
-      out[i] = _random.nextInt(256);
-    }
-    return out;
   }
 }

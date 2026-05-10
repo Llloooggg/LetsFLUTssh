@@ -112,6 +112,95 @@ pub fn resolve_auth_value(
     }
 }
 
+/// Sibling-file salt I/O for the Apple / Windows / Android paths.
+///
+/// `hardware_vault_salt.bin` carries the per-install 32-byte salt
+/// the auth value derives against. Linux co-locates the salt
+/// inside the vault envelope so the helpers here are no-ops on
+/// that target — callers gate by `cfg(target_os = "linux")`.
+///
+/// The three operations live one place so a future format bump
+/// (path move, header prefix, secondary check-byte) does not have
+/// to chase Dart + each platform's vault impl in parallel.
+pub mod salt {
+    use std::path::Path;
+
+    use rand::RngCore;
+
+    #[cfg(not(target_os = "linux"))]
+    use crate::path::write_bytes_atomic;
+
+    /// File name the Apple / Windows / Android vault impls read +
+    /// write next to the wrapped key. Mirrors the wipe-registry
+    /// entry under `lfs_core::security::wipe::MANAGED_FILES`.
+    pub const FILE_NAME: &str = "hardware_vault_salt.bin";
+
+    /// Canonical salt length stamped by every writer + checked by
+    /// every reader; a wrong-length file on disk routes the caller
+    /// through the corrupt-state cascade rather than HMACing
+    /// against a truncated value.
+    pub const LEN: usize = 32;
+
+    fn salt_path(support_dir: &Path) -> std::path::PathBuf {
+        support_dir.join(FILE_NAME)
+    }
+
+    /// Generate a fresh 32-byte salt via `OsRng` and (on Apple /
+    /// Windows / Android) persist it atomically to
+    /// `hardware_vault_salt.bin` (tmp + fsync + rename, 0600). On
+    /// Linux the salt rides inside the vault envelope itself, so
+    /// the persist step is a no-op there — caller hands the
+    /// returned bytes to the Linux orchestrator which embeds
+    /// them in the JSON envelope.
+    ///
+    /// Caller is responsible for the salt-then-vault ordering on
+    /// non-Linux targets — a crash between this write and the
+    /// platform store leaves the next launch with a sibling salt
+    /// but no wrapped key, which the vault `is_stored` probe
+    /// surfaces as "not configured" and the next attempt
+    /// re-provisions cleanly.
+    pub fn provision(support_dir: &Path) -> std::io::Result<Vec<u8>> {
+        let mut salt = vec![0u8; LEN];
+        rand::rngs::OsRng.fill_bytes(&mut salt);
+        #[cfg(not(target_os = "linux"))]
+        {
+            write_bytes_atomic(&salt_path(support_dir), &salt)
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let _ = support_dir;
+        }
+        Ok(salt)
+    }
+
+    /// Read the on-disk salt. Returns `Ok(None)` when the file
+    /// does not exist (clean install) or has the wrong length
+    /// (truncated / tampered) — both routes call sites map to
+    /// "no usable salt" and surface the unlock-cancelled path.
+    /// `Err` only for I/O failures distinct from `NotFound`.
+    pub fn read(support_dir: &Path) -> std::io::Result<Option<Vec<u8>>> {
+        let path = salt_path(support_dir);
+        match std::fs::read(&path) {
+            Ok(bytes) if bytes.len() == LEN => Ok(Some(bytes)),
+            Ok(_) => Ok(None),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Delete the salt file. Idempotent on a missing target so
+    /// the tier-reset cascade can call this without branching on
+    /// pre-existence.
+    pub fn delete(support_dir: &Path) -> std::io::Result<()> {
+        match std::fs::remove_file(salt_path(support_dir)) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+}
+
 /// Linux TPM2 store / read / clear orchestrator. Mirrors the Apple
 /// / Android shape in `lfs_os_security::hardware_tier_vault` so
 /// every platform's hardware-tier vault has a Rust-internal
