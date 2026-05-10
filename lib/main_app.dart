@@ -112,14 +112,14 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     if (!await _initRustCoreOrFatal()) return;
     mark('rust_core');
 
-    // Drain log-file chmod requests queued during the pre-FRB
-    // window. `AppLogger._openSink` (and the `logCritical` write
-    // path) call `pathHardenFilePerms` on every fresh log file;
-    // before `_initRustCoreOrFatal` ran, those calls queued via
-    // `_deferredHardenPaths` instead of throwing `StateError`. Now
-    // that Rust is up, replay them so the file's perms tighten to
-    // 0600 instead of staying at the umask-wide default.
-    unawaited(AppLogger.instance.hardenPendingLogPerms());
+    // Logger-side post-FRB handoff: flip the FRB-ready gate,
+    // register the log path Rust-side, open the sink if the user
+    // (or `--dart-define=LETSFLUTSSH_LOG_LEVEL`) seeded a threshold
+    // pre-FRB, and drain the in-memory critical-write buffer the
+    // zone error handler accumulated during the cold-start window
+    // through `logger_append_critical`. Ownership model: see
+    // `ARCHITECTURE.md`.
+    unawaited(AppLogger.instance.onFrbReady());
     mark('log_perms_drained');
 
     // Activate the deep-link handler now that Rust is loaded —

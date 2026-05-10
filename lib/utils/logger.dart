@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../src/rust/api/bus.dart' as rust_bus;
-import '../src/rust/api/path.dart' as rust_path;
+import '../src/rust/api/logger.dart' as rust_logger;
 import 'sanitize.dart';
 
 /// Severity marker for a log line. Written as a single char after the
@@ -123,6 +124,69 @@ LogLevel? get buildTimeLogLevelOverride {
   return logLevelFromJson(raw);
 }
 
+/// One pre-FRB `logCritical` entry held in the in-memory ring
+/// buffer. Both fields are already sanitised by the time they
+/// land here — the buffer carries the exact bytes that will be
+/// passed to `logger_append_critical` on drain.
+class _PendingCritical {
+  final String line;
+  final List<String> continuations;
+  const _PendingCritical(this.line, this.continuations);
+}
+
+/// Thin wrapper over the FRB-generated `logger_*` entry points
+/// in `lib/src/rust/api/logger.dart`. Exists as a DI seam so unit
+/// tests can swap the backing implementation without bootstrapping
+/// the FRB native library on every case. Production code keeps the
+/// single static [AppLogger.instance] singleton; tests inject a
+/// fake by calling [AppLogger.debugSetBackend].
+abstract class LoggerBackend {
+  Future<String> openSink(String appSupportDir);
+  void appendLine(String line);
+  void appendCritical(String line, List<String> continuations);
+  void flushSink();
+  Future<String> readAll();
+  Future<void> rotateIfNeeded(int maxBytes, int maxRotated);
+  Future<void> clearAll(int maxRotated);
+  void closeSink();
+}
+
+/// Real backend that routes straight to Rust through FRB.
+class _RustLoggerBackend implements LoggerBackend {
+  const _RustLoggerBackend();
+
+  @override
+  Future<String> openSink(String appSupportDir) =>
+      rust_logger.loggerOpenSink(appSupportDir: appSupportDir);
+
+  @override
+  void appendLine(String line) => rust_logger.loggerAppendLine(line: line);
+
+  @override
+  void appendCritical(String line, List<String> continuations) => rust_logger
+      .loggerAppendCritical(line: line, continuations: continuations);
+
+  @override
+  void flushSink() => rust_logger.loggerFlush();
+
+  @override
+  Future<String> readAll() => rust_logger.loggerReadAll();
+
+  @override
+  Future<void> rotateIfNeeded(int maxBytes, int maxRotated) =>
+      rust_logger.loggerRotateIfNeeded(
+        maxBytes: BigInt.from(maxBytes),
+        maxRotated: maxRotated,
+      );
+
+  @override
+  Future<void> clearAll(int maxRotated) =>
+      rust_logger.loggerClearAll(maxRotated: maxRotated);
+
+  @override
+  void closeSink() => rust_logger.loggerCloseSink();
+}
+
 /// File-based logger.
 ///
 /// Writes logs to `<appSupportDir>/logs/letsflutssh.log` alongside the
@@ -141,28 +205,45 @@ LogLevel? get buildTimeLogLevelOverride {
 /// boundaries, migration fatals and DB-integrity-probe failures
 /// always leave a forensic breadcrumb — the window where a trace
 /// matters most is exactly the one where the user has not yet flipped
-/// the toggle. The write uses [FileMode.append] on [logPath] directly,
-/// never touches [_sink], so it does not leak routine entries past
-/// the opt-out gate.
+/// the toggle. The write goes through `logger_append_critical` which
+/// opens a fresh append handle Rust-side, so it works even when the
+/// routine sink is closed.
 ///
-/// **No OS logging mirror.** Routine [log] calls do NOT forward to
-/// `dart:developer` — Android Logcat / macOS Console.app / desktop
-/// stderr never see our lines. The only logging surface the user
-/// (or anyone with `adb logcat` / Console access) sees is the
-/// opt-in file under app-support. **Don't add a stderr / OS-log
-/// mirror "for development convenience"** — it leaks every line a
-/// user with logging enabled produces into a system surface the
-/// app cannot retract.
+/// **No OS logging mirror for routine entries.** Routine [log] calls
+/// do NOT forward to `dart:developer` — Android Logcat / macOS
+/// Console.app / desktop stderr never see our lines. The only logging
+/// surface the user (or anyone with `adb logcat` / Console access)
+/// sees is the opt-in file under app-support. **Don't add a stderr /
+/// OS-log mirror "for development convenience"** — it leaks every
+/// line a user with logging enabled produces into a system surface
+/// the app cannot retract. Critical-path stderr mirror (desktop only)
+/// stays — it is the only forensic surface during the pre-FRB window.
+///
+/// **File ownership lives Rust-side.** Every `dart:io File` /
+/// `Directory` operation against the log path moved to
+/// `lfs_core::logger::file_sink`; this class only formats +
+/// sanitises lines, holds the in-memory pre-FRB critical-write ring
+/// buffer, and broadcasts entries to the live viewer.
 ///
 /// All messages pass through [sanitize] (PEM blobs, IPv4 / user@host,
 /// home-directory paths are redacted) and the file is chmod-0600 on
-/// POSIX — same hardening as `credentials.*` and `config.json`.
+/// POSIX — same hardening as `credentials.*` and `config.json`. The
+/// chmod runs inside `logger_open_sink` Rust-side; no Dart code
+/// touches permissions on the log path.
 class AppLogger {
   static AppLogger? _instance;
   static const maxLogSizeBytes = 5 * 1024 * 1024; // 5 MB
   static const _maxRotatedFiles = 3;
 
-  IOSink? _sink;
+  /// Cap on pre-FRB critical entries held in [_preFrbCriticalBuffer].
+  /// A crash storm before `_initRustCoreOrFatal` returns is bounded;
+  /// past the cap the oldest entries drop (FIFO) so the buffer never
+  /// grows without limit. 64 covers every realistic pre-FRB burst —
+  /// the cold-start window is sub-second on every desktop tier.
+  static const _preFrbCriticalCap = 64;
+
+  LoggerBackend _backend = const _RustLoggerBackend();
+  bool _sinkOpen = false;
   String? _logPath;
   // App version stamped into the session-start banner the sink writes
   // on first open. `_mainBody` resolves this from `PackageInfo.fromPlatform`
@@ -212,10 +293,73 @@ class AppLogger {
   /// singleton; subscribers should `cancel()` on dispose.
   Stream<LogEntry> get liveEntries => _entriesController.stream;
 
+  /// Tracks whether [onFrbReady] has flipped the
+  /// FRB-ready gate. Pre-init `logCritical` calls land in
+  /// [_preFrbCriticalBuffer] until this flips; the post-init drain
+  /// flushes the buffer and starts forwarding new critical writes
+  /// straight to Rust.
+  bool _frbReady = false;
+
+  /// In-memory ring buffer for `logCritical` calls that fire
+  /// before `_initRustCoreOrFatal` returns. Drained from
+  /// [onFrbReady]. Bounded at [_preFrbCriticalCap]
+  /// with FIFO eviction; the cold-start window is sub-second so
+  /// the bound is far above any realistic crash burst.
+  final List<_PendingCritical> _preFrbCriticalBuffer = <_PendingCritical>[];
+
   AppLogger._();
 
   /// Get the singleton instance.
   static AppLogger get instance => _instance ??= AppLogger._();
+
+  /// Swap the [LoggerBackend] for tests. Resets `_sinkOpen` and
+  /// `_bannerWritten` so the next [_openSink] writes a banner
+  /// against the fresh backend.
+  @visibleForTesting
+  void debugSetBackend(LoggerBackend backend) {
+    _backend = backend;
+    _sinkOpen = false;
+    _bannerWritten = false;
+  }
+
+  /// Restore the production FRB-backed backend. Pair with
+  /// `debugSetBackend` in test tear-down.
+  @visibleForTesting
+  void debugResetBackend() {
+    _backend = const _RustLoggerBackend();
+    _sinkOpen = false;
+    _bannerWritten = false;
+  }
+
+  /// Reset every piece of in-memory state — used by tests that need
+  /// a clean slate between cases without a fresh process. Does NOT
+  /// touch the Rust-side held sink (the caller flips that through
+  /// `loggerCloseSink` separately) because the held state is
+  /// process-wide and resetting it from Dart would require an FRB
+  /// hop on every test, which the suite already serialises.
+  @visibleForTesting
+  void debugResetState() {
+    _threshold = null;
+    _sinkOpen = false;
+    _bannerWritten = false;
+    _frbReady = false;
+    _logPath = null;
+    _appVersion = null;
+    _preFrbCriticalBuffer.clear();
+  }
+
+  /// Flip the FRB-ready gate without running the post-FRB drain.
+  /// Production code never calls this — `onFrbReady` is
+  /// the canonical entry point because it also drains the
+  /// pre-FRB critical buffer and (when a threshold is set) runs
+  /// the deferred sink open. Tests that want to simulate the post-
+  /// bootstrap state without the drain side-effect call this
+  /// instead. The pre-FRB critical-buffer test still asserts the
+  /// drain pathway explicitly.
+  @visibleForTesting
+  void debugMarkFrbReady() {
+    _frbReady = true;
+  }
 
   /// Path to the current log file, or null if not initialized.
   String? get logPath => _logPath;
@@ -251,26 +395,30 @@ class AppLogger {
     }
   }
 
-  /// Initialize the logger — resolves the log path but does NOT open
-  /// the routine sink. Called from `main.dart` before `runApp` so that
-  /// [logCritical] has a resolved path ready for any pre-
-  /// `runZonedGuarded` crash. The main write sink opens only when
-  /// [setThreshold] is called with a non-null value.
+  /// Initialize the logger — resolves the log path without touching
+  /// the filesystem. The Rust-side `logger_open_sink` creates the
+  /// `logs/` parent directory + opens the file when [setThreshold]
+  /// flips logging on; `init()` only resolves the platform's
+  /// app-support directory through `path_provider` so [logPath]
+  /// reports a useful value before any user has flipped the toggle.
   ///
-  /// Failures here (path resolution, directory create) never throw —
-  /// [logCritical] becomes a best-effort no-op when [_logPath] stays
-  /// null.
+  /// Cold-start safe: `path_provider` is a Flutter plugin (not FRB),
+  /// so it works from `main.dart` before `RustLib.init()`. No
+  /// `dart:io File` / `Directory` operations run here — the path is
+  /// a string composed from the resolver's return value.
+  ///
+  /// Failures here (path resolution) never throw — [logCritical]
+  /// keeps buffering pre-FRB and the drain on FRB-ready becomes a
+  /// silent no-op when [_logPath] stays null.
   Future<void> init() async {
     try {
       final dir = await getApplicationSupportDirectory();
-      final logDir = Directory('${dir.path}/logs');
-      if (!await logDir.exists()) {
-        await logDir.create(recursive: true);
-      }
-      _logPath = '${logDir.path}/letsflutssh.log';
+      _logPath = '${dir.path}/logs/letsflutssh.log';
     } catch (_) {
-      // Best-effort init — no OS-logging fallback anymore; a failed
-      // init just means neither routine nor critical writes will land.
+      // Best-effort init — a failed `path_provider` resolve means
+      // neither routine nor critical writes will land; the stderr
+      // mirror inside `logCritical` is the only forensic surface
+      // for that (rare) machine state.
     }
   }
 
@@ -312,22 +460,66 @@ class AppLogger {
   }
 
   /// Open the log file for writing.
+  ///
+  /// Routes through `logger_open_sink` → `logger_rotate_if_needed`
+  /// → banner write. The Rust side owns parent-directory creation,
+  /// the file handle, and the chmod-0600 step; this method composes
+  /// the path argument and writes the banner line through the same
+  /// `logger_append_line` channel routine writes use.
+  ///
+  /// Cold-start aware: when [_frbReady] is false (Rust core not yet
+  /// loaded), the open is deferred — `_sinkOpen` stays false and
+  /// routine [log] calls no-op. [onFrbReady] reopens
+  /// from `_bootstrap` once FRB is ready, picking up the threshold
+  /// the user (or `--dart-define`) seeded pre-FRB.
   Future<void> _openSink() async {
     if (_logPath == null) return;
+    if (!_frbReady) {
+      // Pre-FRB: the sink lives Rust-side and cannot be opened yet.
+      // `onFrbReady` reopens once `_bootstrap` flips
+      // `_frbReady`; the threshold the caller just set stays
+      // recorded in `_threshold` so the deferred open picks it up.
+      return;
+    }
+    final dir = _appSupportDirFromLogPath(_logPath!);
+    if (dir == null) return;
     try {
-      await _rotateIfNeeded();
-      final file = File(_logPath!);
-      _sink = file.openWrite(mode: FileMode.append);
-      await _restrictPermissions(_logPath!);
+      await _backend.openSink(dir);
+      _sinkOpen = true;
+      await _backend.rotateIfNeeded(maxLogSizeBytes, _maxRotatedFiles);
       if (!_bannerWritten) {
-        _sink!.writeln(_buildSessionBanner());
-        _sink!.writeln('');
+        _backend.appendLine(_buildSessionBanner());
+        _backend.appendLine('');
         _bannerWritten = true;
       }
     } catch (_) {
-      // Sink open failed — leave _sink null so writes no-op; no OS-
-      // logging fallback by design.
+      // Sink open failed Rust-side — leave _sinkOpen false so
+      // writes no-op; no OS-logging fallback by design.
+      _sinkOpen = false;
     }
+  }
+
+  /// Derive the platform's app-support directory from a registered
+  /// log path. The log path always has the shape
+  /// `<app_support>/logs/letsflutssh.log`, so stripping the
+  /// trailing `/logs/letsflutssh.log` recovers the directory the
+  /// Rust open-sink helper expects. Returns null when the path does
+  /// not match the expected shape — defensive against a future
+  /// caller stamping `_logPath` from somewhere other than [init].
+  String? _appSupportDirFromLogPath(String logPath) {
+    const suffix = '/logs/letsflutssh.log';
+    if (logPath.endsWith(suffix)) {
+      return logPath.substring(0, logPath.length - suffix.length);
+    }
+    // Windows separators — `path_provider` returns forward slashes
+    // on every supported platform today, but keep the back-slash
+    // branch wired so a path that arrives via a different resolver
+    // does not silently fail to open the sink.
+    const winSuffix = r'\logs\letsflutssh.log';
+    if (logPath.endsWith(winSuffix)) {
+      return logPath.substring(0, logPath.length - winSuffix.length);
+    }
+    return null;
   }
 
   /// Single-line session-start banner the viewer renders as
@@ -354,71 +546,63 @@ class AppLogger {
     return '--- ${parts.join(' | ')} ---';
   }
 
-  /// Narrow the log file's POSIX permissions to owner-only (`0600`)
-  /// right after creation. `File.openWrite` calls `open(2)` with the
-  /// current umask, which on most desktops is `0022` — i.e. the file
-  /// lands world-readable at `0644`. Anything sensitive that slips
-  /// past [sanitize] (third-party exception text, hex dumps) is then
-  /// readable by every other local user on a shared machine. `chmod
-  /// 600` is the same hardening the rest of the app applies to
-  /// `credentials.*` and `config.json` after atomic writes.
-  ///
-  /// No-op on Windows — the file inherits the app-support directory's
-  /// ACL, which is user-only by default on per-user application data
-  /// paths. Failures are swallowed: a file that existed with wider
-  /// perms before this hook is best-effort tightened; we do not want
-  /// a chmod failure to block logging.
-  ///
-  /// Routes through `lfs_core::path::harden_file_perms` —
-  /// the chmod / icacls grammar lives in Rust. Best-effort: a
-  /// chmod failure must never break logging.
-  ///
-  /// Cold-start aware: the logger opens its sink in `main.dart` —
-  /// BEFORE `_initRustCoreOrFatal` runs and the FRB native lib is
-  /// loaded. Calling Rust before init would throw `StateError` and
-  /// the chmod silently never lands; the file would stay at the
-  /// umask-wide default for the rest of the session. We queue
-  /// pre-init paths in [_deferredHardenPaths] and drain them via
-  /// [hardenPendingLogPerms] from `_bootstrap` once Rust is ready.
-  Future<void> _restrictPermissions(String path) async {
-    if (Platform.isWindows) return;
-    if (!_frbReady) {
-      _deferredHardenPaths.add(path);
-      return;
-    }
-    try {
-      await rust_path.pathHardenFilePerms(path: path);
-    } catch (_) {
-      // Best-effort. Logger hardening must never break logging.
-    }
-  }
-
-  /// Tracks whether [hardenPendingLogPerms] has already flipped the
-  /// FRB-ready gate. Pre-init `_restrictPermissions` calls queue
-  /// here; the post-init drain flushes the set and starts forwarding
-  /// straight to Rust.
-  bool _frbReady = false;
-  final Set<String> _deferredHardenPaths = <String>{};
-
   /// Called from `_LetsFLUTsshAppState._bootstrap` after
-  /// `_initRustCoreOrFatal` succeeds. Drains any pre-FRB log-file
-  /// chmod requests against the now-available Rust core, and flips
-  /// the gate so subsequent [_restrictPermissions] calls forward
-  /// straight to Rust. Idempotent.
-  Future<void> hardenPendingLogPerms() async {
+  /// `_initRustCoreOrFatal` succeeds. Three responsibilities:
+  ///
+  /// 1. Flip the FRB-ready gate so subsequent [logCritical] calls
+  ///    route straight to Rust instead of buffering, and so a
+  ///    later [setThreshold] flip can open the sink.
+  /// 2. If the user (or `--dart-define=LETSFLUTSSH_LOG_LEVEL`) has
+  ///    already picked a non-null threshold pre-FRB, run the
+  ///    deferred [_openSink] now so the routine writer is live by
+  ///    the time the first post-FRB call site reaches [log].
+  /// 3. Drain [_preFrbCriticalBuffer] through
+  ///    `logger_append_critical` so any crash that landed during
+  ///    the pre-FRB cold-start window reaches the on-disk log.
+  ///
+  /// Idempotent — repeated calls re-drain an already-empty buffer
+  /// and re-enter [_openSink] which itself short-circuits on an
+  /// already-open sink. Best-effort: a single drain failure does
+  /// not stop subsequent entries.
+  Future<void> onFrbReady() async {
     _frbReady = true;
-    if (Platform.isWindows) {
-      _deferredHardenPaths.clear();
+    if (_logPath == null) {
+      _preFrbCriticalBuffer.clear();
       return;
     }
-    final paths = _deferredHardenPaths.toList();
-    _deferredHardenPaths.clear();
-    for (final p in paths) {
+    final dir = _appSupportDirFromLogPath(_logPath!);
+    if (dir == null) {
+      _preFrbCriticalBuffer.clear();
+      return;
+    }
+    if (_threshold != null && !_sinkOpen) {
+      // User (or build-time override) flipped logging on pre-FRB;
+      // run the deferred open now. This also writes the session
+      // banner that `_openSink` would normally emit at the time
+      // the threshold flipped.
+      await _openSink();
+    } else if (!_sinkOpen) {
+      // Logging is off — register the log path Rust-side so
+      // `logger_append_critical` has a resolved destination. The
+      // routine sink stays held but no `appendLine` call will
+      // reach it (the `_sinkOpen` guard inside [log] requires a
+      // non-null threshold too).
       try {
-        await rust_path.pathHardenFilePerms(path: p);
+        await _backend.openSink(dir);
+        _sinkOpen = true;
       } catch (_) {
-        // Best-effort. A failed late-harden is no worse than the
-        // pre-fix shape (which silently never hardened at all).
+        _preFrbCriticalBuffer.clear();
+        return;
+      }
+    }
+    final pending = List<_PendingCritical>.from(_preFrbCriticalBuffer);
+    _preFrbCriticalBuffer.clear();
+    for (final entry in pending) {
+      try {
+        _backend.appendCritical(entry.line, entry.continuations);
+      } catch (_) {
+        // Best-effort drain. A single failed entry must not block
+        // the rest; subsequent crashes still need a writable file.
       }
     }
   }
@@ -458,7 +642,7 @@ class AppLogger {
     LogLevel? level,
   }) {
     final threshold = _threshold;
-    if (threshold == null || _sink == null) return;
+    if (threshold == null || !_sinkOpen) return;
     final resolvedLevel =
         level ?? (error != null ? LogLevel.error : LogLevel.info);
     if (resolvedLevel.index < threshold.index) return;
@@ -478,9 +662,9 @@ class AppLogger {
       }
     }
     try {
-      _sink!.writeln('$ts ${_levelChar(resolvedLevel)} [$tag] $safeMsg');
+      _backend.appendLine('$ts ${_levelChar(resolvedLevel)} [$tag] $safeMsg');
       for (final c in continuations) {
-        _sink!.writeln(c);
+        _backend.appendLine(c);
       }
     } catch (_) {
       // Don't crash the app for logging failures.
@@ -509,16 +693,22 @@ class AppLogger {
   /// Crash-path logger. Writes straight to the on-disk log file even
   /// when the user has routine logging turned off, so global error
   /// boundaries, migration fatals and DB-integrity-probe failures
-  /// always leave a forensic breadcrumb. Never opens or closes the
-  /// main sink [_sink] — a direct append keeps the write independent
-  /// of user-threshold state and avoids leaking subsequent routine
-  /// entries.
+  /// always leave a forensic breadcrumb. The Rust-side
+  /// `logger_append_critical` opens a fresh append handle that does
+  /// not depend on whether the routine sink is open, so the write
+  /// lands without re-enabling user-facing logging.
   ///
-  /// Privacy: the file is still chmod-0600 (same hardening as routine
-  /// logs), the message still passes through [sanitize], and rotation
-  /// handled by [_openSink] still applies the next time the user
-  /// raises the threshold. Bypassing the threshold on crash paths
-  /// only is the narrowest exception needed to meet the "fresh
+  /// Pre-FRB calls (zone error handler fires before
+  /// `_initRustCoreOrFatal` returns) buffer in
+  /// [_preFrbCriticalBuffer] + write to stderr (desktop only) +
+  /// emit on the live stream. [onFrbReady] drains the
+  /// buffer once Rust is up.
+  ///
+  /// Privacy: the file is chmod-0600 Rust-side (same hardening as
+  /// routine logs), the message still passes through [sanitize], and
+  /// rotation handled by [_openSink] still applies the next time
+  /// the user raises the threshold. Bypassing the threshold on crash
+  /// paths only is the narrowest exception needed to meet the "fresh
   /// install crashes should be debuggable without a pre-flip"
   /// requirement.
   ///
@@ -544,71 +734,96 @@ class AppLogger {
         continuations.add('  $frame');
       }
     }
-    // Stderr mirror — desktop only, critical path only. Routine
-    // `log()` calls never touch stderr (file-only by design,
-    // privacy-first). Critical writes mirror because the file
-    // sink can fail (disk full, permissions, missing path) and
-    // the whole point of `logCritical` is forensic visibility on
-    // a crashing app. On a desktop launched from a terminal the
-    // stderr line is the difference between "process died
-    // silently" and "I have a stack trace to grep".
-    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
-      try {
-        stderr.writeln('$ts E [$tag] $safeMsg');
-        for (final c in continuations) {
-          stderr.writeln(c);
-        }
-      } catch (_) {
-        // Best-effort. Stderr write must never amplify into
-        // a second crash inside the crash handler.
-      }
-    }
-    if (_logPath == null) {
-      // No file sink — stderr above is the only forensic
-      // surface. Skip the file write + entry emit.
-      return;
-    }
+    final header = '$ts ${_levelChar(LogLevel.error)} [$tag] $safeMsg';
+    final continuationList = List<String>.unmodifiable(continuations);
+
+    _mirrorCriticalToStderr(header, continuations);
     _emitEntry(
       LogEntry(
         level: LogLevel.error,
         timestamp: ts,
         tag: tag,
         message: safeMsg,
-        continuations: List.unmodifiable(continuations),
+        continuations: continuationList,
       ),
     );
+
+    if (_logPath == null) {
+      // No file sink — stderr above is the only forensic surface.
+      return;
+    }
+    if (!_frbReady) {
+      _bufferPreFrbCritical(header, continuationList);
+      return;
+    }
     try {
-      // logCritical is always error-level by contract.
-      final buf = StringBuffer()
-        ..writeln('$ts ${_levelChar(LogLevel.error)} [$tag] $safeMsg');
-      for (final c in continuations) {
-        buf.writeln(c);
-      }
-      final file = File(_logPath!);
-      // Ensure the parent directory exists — [init] already creates
-      // it, but a user-side `clearLogs` can remove the whole `logs/`
-      // folder between init and the first crit write.
-      await file.parent.create(recursive: true);
-      await file.writeAsString(
-        buf.toString(),
-        mode: FileMode.append,
-        flush: true,
-      );
-      await _restrictPermissions(_logPath!);
+      _backend.appendCritical(header, continuationList);
     } catch (_) {
       // Swallow — never crash inside the crash handler.
     }
   }
 
+  /// Stderr mirror for [logCritical]. Desktop only — the file sink
+  /// can fail (disk full, permissions, missing path) and the whole
+  /// point of `logCritical` is forensic visibility on a crashing
+  /// app. On a desktop launched from a terminal the stderr line is
+  /// the difference between "process died silently" and "I have a
+  /// stack trace to grep".
+  ///
+  /// Mobile platforms skip the mirror — Android / iOS process
+  /// shells do not surface stderr to a user-reachable channel, and
+  /// `flutter run` already pipes through `dart:developer`.
+  void _mirrorCriticalToStderr(String header, List<String> continuations) {
+    if (!(Platform.isLinux || Platform.isMacOS || Platform.isWindows)) {
+      return;
+    }
+    try {
+      stderr.writeln(header);
+      for (final c in continuations) {
+        stderr.writeln(c);
+      }
+    } catch (_) {
+      // Best-effort. Stderr write must never amplify into a second
+      // crash inside the crash handler.
+    }
+  }
+
+  /// Push a critical entry into the pre-FRB buffer with FIFO
+  /// eviction past [_preFrbCriticalCap]. Holding the buffer in
+  /// memory keeps `logCritical` callable from the zone error
+  /// handler that fires before `_initRustCoreOrFatal` returns —
+  /// the cold-start window is the exact one where a fresh-install
+  /// crash matters most, and routing the buffer through FRB would
+  /// throw `StateError` instead of preserving the entry.
+  void _bufferPreFrbCritical(String header, List<String> continuations) {
+    if (_preFrbCriticalBuffer.length >= _preFrbCriticalCap) {
+      _preFrbCriticalBuffer.removeAt(0);
+    }
+    _preFrbCriticalBuffer.add(_PendingCritical(header, continuations));
+  }
+
   /// Read the current log file content. Flushes before reading.
   /// Returns empty string if no log file exists.
+  ///
+  /// Re-registers the log path Rust-side before the read so the
+  /// Rust-side `file_sink::STATE.log_path` matches the Dart-side
+  /// `_logPath`. The cross-platform unit-test suite runs many cases
+  /// in one process with successive temp directories; without the
+  /// sync the Rust state would still hold the prior case's path
+  /// and the read would resolve against the wrong file. In
+  /// production the path never changes after `init` (one
+  /// app-support tree per launch), so the sync is a no-op.
   Future<String> readLog() async {
     if (_logPath == null) return '';
+    if (!_frbReady) return '';
+    final dir = _appSupportDirFromLogPath(_logPath!);
+    if (dir == null) return '';
     try {
-      await _sink?.flush();
-      final file = File(_logPath!);
-      if (!await file.exists()) return '';
-      return await file.readAsString();
+      // Idempotent on the same dir; switches state when the Dart
+      // path is the new test's tempDir vs the Rust-held prior path.
+      await _backend.openSink(dir);
+      _sinkOpen = true;
+      return await _backend.readAll();
     } catch (_) {
       return '';
     }
@@ -629,50 +844,50 @@ class AppLogger {
     }
   }
 
-  /// Rotate log file if it exceeds [maxLogSizeBytes].
-  Future<void> _rotateIfNeeded() async {
-    final file = File(_logPath!);
-    if (!await file.exists()) return;
-
-    final size = await file.length();
-    if (size < maxLogSizeBytes) return;
-
-    for (var i = _maxRotatedFiles - 1; i >= 1; i--) {
-      final src = File('$_logPath.$i');
-      if (await src.exists()) {
-        await src.rename('$_logPath.${i + 1}');
-      }
-    }
-    await file.rename('$_logPath.1');
-  }
-
   /// Delete all log files.
   Future<void> clearLogs() async {
     final previousThreshold = _threshold;
     await _closeSink();
     if (_logPath == null) return;
-
-    for (var i = 0; i <= _maxRotatedFiles; i++) {
-      final path = i == 0 ? _logPath! : '$_logPath.$i';
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
-      }
+    if (!_frbReady) {
+      // Pre-FRB: no Rust state to clear, nothing on disk that the
+      // user has had the chance to enable yet (routine writes
+      // defer pre-FRB). Skip the FRB hop and leave the threshold
+      // restoration for the post-bootstrap drain.
+      return;
+    }
+    final dir = _appSupportDirFromLogPath(_logPath!);
+    if (dir == null) return;
+    try {
+      // Sync Rust state to the active log path before deleting —
+      // unit tests run many cases in one process with distinct
+      // temp dirs, and the Rust held-path would otherwise point at
+      // a prior case's tempDir. `loggerOpenSink` is idempotent on
+      // the active dir + reseats the path when it changed.
+      await _backend.openSink(dir);
+      await _backend.clearAll(_maxRotatedFiles);
+    } catch (_) {
+      // Best-effort delete. A failed unlink leaves stale files
+      // behind; the next rotation will eventually reclaim the
+      // slots.
     }
     // Clear is a deliberate "new session" boundary — let the next
     // [_openSink] write a fresh banner above the post-clear entries
     // instead of leaving a banner-less file.
     _bannerWritten = false;
 
-    if (previousThreshold != null) await _openSink();
+    if (previousThreshold != null) {
+      _threshold = previousThreshold;
+      await _openSink();
+    }
   }
 
   /// Close the log file sink without disabling the threshold.
   Future<void> _closeSink() async {
     try {
-      await _sink?.flush();
-      await _sink?.close();
+      _backend.flushSink();
+      _backend.closeSink();
     } catch (_) {}
-    _sink = null;
+    _sinkOpen = false;
   }
 }

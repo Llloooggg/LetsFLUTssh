@@ -282,9 +282,9 @@ void main() {
 
       // Verify we can tap it without error
       await tester.tap(deleteIcon);
-      for (int i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      // The success toast holds a 3-second auto-dismiss timer; pump
+      // past it so no pending timer survives the widget teardown.
+      await tester.pump(const Duration(seconds: 4));
     });
   });
 

@@ -272,7 +272,12 @@ Future<void> _mainBody() async {
   SecureKeyStorage.enableRuntimeSubprocessProbes();
 
   // Start logger init early — runs in parallel with config/lock I/O below.
-  // Log path resolves in background; log() calls buffer to dev.log until ready.
+  // `init()` only resolves `<app_support>/logs/letsflutssh.log` via
+  // `path_provider`; the Rust-side sink (open / append / chmod) wakes
+  // up lazily on the first `setThreshold` flip after FRB loads.
+  // Pre-FRB `logCritical` writes buffer in memory + mirror to stderr;
+  // `AppLogger.onFrbReady` (called from `_bootstrap` after
+  // `_initRustCoreOrFatal`) drains the buffer through Rust.
   final loggerInit = AppLogger.instance.init();
 
   // Global error boundary — catch unhandled Flutter framework errors

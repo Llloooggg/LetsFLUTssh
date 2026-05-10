@@ -34,6 +34,7 @@ import 'api/keys.dart';
 import 'api/known_hosts_parser.dart';
 import 'api/local_fs.dart';
 import 'api/log_sanitize.dart';
+import 'api/logger.dart';
 import 'api/macos_installer.dart';
 import 'api/macos_resign.dart';
 import 'api/master_password.dart';

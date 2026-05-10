@@ -36,6 +36,7 @@ pub mod keys;
 pub mod known_hosts_parser;
 pub mod local_fs;
 pub mod log_sanitize;
+pub mod logger;
 pub mod macos_installer;
 pub mod macos_resign;
 pub mod master_password;
