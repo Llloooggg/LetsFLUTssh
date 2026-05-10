@@ -32,31 +32,36 @@ import '../../utils/logger.dart';
 /// * **iOS** — `UIPasteboard.setItems(..., options: [.localOnly: true])`
 ///   disables Handoff sync for that write. Also sets a short
 ///   expiration so a stale copy does not survive a reboot.
-/// * **Android 13+** — `ClipDescription.EXTRA_IS_SENSITIVE` (or the
-///   raw `"android.content.extra.IS_SENSITIVE"` key on older SDKs
-///   that honour it) hides the preview in the clipboard toast and
-///   tells launchers not to cache the content.
+/// * **Android 13+** — `ClipDescription.EXTRA_IS_SENSITIVE` hides the
+///   preview in the clipboard toast and tells launchers not to cache
+///   the content. The flag is set on the `ClipData` extras via JNI
+///   into `android.content.ClipboardManager`.
 /// * **Linux** — nothing to opt out of; X11 and Wayland have no cloud
 ///   clipboard default. Falls through to arboard via Rust.
 ///
-/// Routing:
-/// * **Android** — keeps the `com.letsflutssh/clipboard_secure`
-///   MethodChannel (the `EXTRA_IS_SENSITIVE` flag needs the platform
-///   `ClipboardManager` API). The Dart wrapper short-circuits here.
-/// * **All other targets** — single FRB call into
-///   `lfs_os_security::secure_clipboard::set_secure_text`. The Rust
-///   side does the per-platform sensitive-flag dance in the same
-///   write session as the text, so a watcher can't see the string
-///   without the marker.
+/// Routing: every platform calls
+/// `lfs_os_security::secure_clipboard::set_secure_text` over FRB.
+/// The Rust side does the per-platform sensitive-flag dance in the
+/// same write session as the text, so a watcher can't see the string
+/// without the marker.
 class SecureClipboard {
-  SecureClipboard({MethodChannel? channel, bool? isAndroidPlatform})
-    : _channel = channel ?? const MethodChannel(_androidChannelName),
-      _isAndroidPlatform = isAndroidPlatform ?? Platform.isAndroid;
+  /// Construct the writer.
+  ///
+  /// `rustWriter` and `platformOs` are seams for tests — production
+  /// constructs `SecureClipboard()` and the writer routes through
+  /// the real FRB call against the host OS. Tests pass a fake
+  /// writer + a forced platform string to exercise each branch
+  /// without an FRB runtime.
+  SecureClipboard({void Function(String text)? rustWriter, String? platformOs})
+    : _rustWriter = rustWriter ?? _defaultRustWriter,
+      _platformOs = platformOs ?? Platform.operatingSystem;
 
-  static const _androidChannelName = 'com.letsflutssh/clipboard_secure';
+  static void _defaultRustWriter(String text) {
+    rust_os.osSecuritySetSecureClipboard(text: text);
+  }
 
-  final MethodChannel _channel;
-  final bool _isAndroidPlatform;
+  final void Function(String text) _rustWriter;
+  final String _platformOs;
 
   /// Write [text] to the system clipboard with the per-platform
   /// cloud / history opt-out flags applied. On platforms where the
@@ -76,21 +81,19 @@ class SecureClipboard {
   /// again" toast on `false` instead of silently dropping
   /// material onto a syncing pasteboard.
   Future<bool> setText(String text) async {
-    if (_isAndroidPlatform) {
-      return _tryAndroidNative(text);
-    }
     if (_tryRustNative(text)) return true;
-    if (Platform.isLinux) {
+    if (_platformOs == 'linux') {
       // No cloud-clipboard default on X11 / Wayland — the plain
       // path is the same posture as the Rust path on Linux.
       await Clipboard.setData(ClipboardData(text: text));
       return true;
     }
-    // Win 10+ / macOS / iOS — refusing is the only safe
+    // Win 10+ / macOS / iOS / Android — refusing is the only safe
     // posture; the fallback would deposit the secret into a
-    // cloud-sync ring without the opt-out flags.
+    // cloud-sync ring or the Android 13+ history preview without
+    // the opt-out flags.
     AppLogger.instance.log(
-      'SecureClipboard refusing fallback on ${Platform.operatingSystem} — '
+      'SecureClipboard refusing fallback on $_platformOs — '
       'cloud-clipboard sync would land payload without opt-out flags',
       name: 'SecureClipboard',
       level: LogLevel.warn,
@@ -100,27 +103,11 @@ class SecureClipboard {
 
   bool _tryRustNative(String text) {
     try {
-      rust_os.osSecuritySetSecureClipboard(text: text);
+      _rustWriter(text);
       return true;
     } catch (e) {
       AppLogger.instance.log(
         'SecureClipboard Rust write failed, falling back: $e',
-        name: 'SecureClipboard',
-        level: LogLevel.warn,
-      );
-      return false;
-    }
-  }
-
-  Future<bool> _tryAndroidNative(String text) async {
-    try {
-      await _channel.invokeMethod<bool>('setSecureText', {'text': text});
-      return true;
-    } on MissingPluginException {
-      return false;
-    } catch (e) {
-      AppLogger.instance.log(
-        'SecureClipboard Android channel write failed, falling back: $e',
         name: 'SecureClipboard',
         level: LogLevel.warn,
       );

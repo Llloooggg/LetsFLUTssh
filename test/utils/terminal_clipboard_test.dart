@@ -350,8 +350,8 @@ void main() {
 }
 
 /// Captures every `setText` call so the sensitivity-routing test can
-/// assert routing without needing the real `com.letsflutssh/clipboard_secure`
-/// method channel.
+/// assert routing without needing the real FRB-backed
+/// `lfs_os_security::secure_clipboard::set_secure_text` runtime.
 class _RecordingSecureClipboard implements SecureClipboard {
   final writes = <String>[];
 

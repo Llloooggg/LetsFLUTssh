@@ -29,24 +29,16 @@ class NativeCall {
 /// sensible no-op default; pass a custom `FakeNativePluginsConfig` to
 /// flip one dimension per test without rewriting handlers.
 class FakeNativePluginsConfig {
-  FakeNativePluginsConfig({
-    this.qrScanResult,
-    this.secureClipboardSucceeds = true,
-  });
+  FakeNativePluginsConfig({this.qrScanResult});
 
   /// `scan` response from the QR scanner channel. `null` simulates a
   /// user cancellation / denied permission.
   final String? qrScanResult;
-
-  /// `setSecureText` response from the clipboard_secure channel.
-  /// false triggers the Dart-side fallback to `Clipboard.setData`.
-  final bool secureClipboardSucceeds;
 }
 
 /// Install mock handlers for every MethodChannel the app uses.
 ///
 /// Covers:
-/// - `com.letsflutssh/clipboard_secure`
 /// - `com.letsflutssh/session_lock`
 /// - `com.letsflutssh/backup_exclusion`
 /// - `com.letsflutssh/permissions`
@@ -58,9 +50,9 @@ class FakeNativePluginsConfig {
 /// code under test invoked. Call [uninstallFakeNativePlugins] in a
 /// `tearDown` to scrub every handler back to null.
 ///
-/// The hardware-vault channel is intentionally absent: every supported
-/// platform now routes through FRB into `lfs_os_security`, so there is
-/// no Dart-side MethodChannel to mock.
+/// The hardware-vault and clipboard-secure channels are intentionally
+/// absent: every supported platform routes those through FRB into
+/// `lfs_os_security`, so there is no Dart-side MethodChannel to mock.
 ///
 /// `local_auth` and `path_provider` / `flutter_secure_storage` are NOT
 /// covered here — those have dedicated helpers (`FakeBiometricAuth`,
@@ -78,13 +70,6 @@ NativeCallLog installFakeNativePlugins({FakeNativePluginsConfig? config}) {
       return handler(call);
     });
   }
-
-  // com.letsflutssh/clipboard_secure — returns the configured success
-  // flag; tests that care assert on `log.forChannel(...)`.
-  mock('com.letsflutssh/clipboard_secure', (call) async {
-    if (call.method == 'setSecureText') return cfg.secureClipboardSucceeds;
-    return null;
-  });
 
   // com.letsflutssh/session_lock — production code only calls `start`
   // and registers a native->dart handler for `sessionLocked`. Dart-
@@ -139,7 +124,6 @@ void uninstallFakeNativePlugins() {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   const channels = [
-    'com.letsflutssh/clipboard_secure',
     'com.letsflutssh/session_lock',
     'com.letsflutssh/backup_exclusion',
     'com.letsflutssh/permissions',

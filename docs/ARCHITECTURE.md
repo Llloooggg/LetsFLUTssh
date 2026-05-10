@@ -122,7 +122,7 @@ flowchart TD
     end
 
     subgraph Native["<b>Native plumbing</b> (Kotlin / Swift)<br/>NO business logic — entry-point glue only"]
-        kotlin2["Android Kotlin:<br/>LfsJniBootstrap (JavaVM handoff)<br/>LfsBiometricCallback (callback adapter)<br/>MainActivity (Flutter host)<br/>QrScannerActivity (CameraX UI)<br/>ClipboardSecurePlugin (EXTRA_IS_SENSITIVE)"]
+        kotlin2["Android Kotlin:<br/>LfsJniBootstrap (JavaVM handoff)<br/>LfsBiometricCallback (callback adapter)<br/>MainActivity (Flutter host)<br/>QrScannerActivity (CameraX UI)"]
         swift2["iOS / macOS Swift:<br/>QR scanner (AVCaptureSession UI)<br/>App / Window host shells"]
     end
 
@@ -1327,15 +1327,15 @@ The native side runs Rust-side under `lfs_os_security::backup_exclusion::exclude
 
 Two layers cover every "Copy password" / "Copy token" / "Copy SSH key passphrase" button in the app.
 
-Layer 1 is the write path — [`SecureClipboard.setText`](../lib/core/security/secure_clipboard.dart) — which routes the copy through the `com.letsflutssh/clipboard_secure` method channel so the per-platform cloud / history opt-outs land in the *same* system call as the text itself. Writing the text first and then adding opt-out flags in a second `OpenClipboard` session leaves a one-frame window where a clipboard-history watcher can scoop the payload before the flag arrives, so the plugin owns the whole write.
+Layer 1 is the write path — [`SecureClipboard.setText`](../lib/core/security/secure_clipboard.dart) — which routes the copy through a single FRB call into `lfs_os_security::secure_clipboard::set_secure_text`. The Rust dispatcher selects the per-platform branch and lands the cloud / history opt-outs in the *same* system call as the text itself. Writing the text first and then adding opt-out flags in a second `OpenClipboard` / `setPrimaryClip` session leaves a one-frame window where a clipboard-history watcher can scoop the payload before the flag arrives, so the Rust write owns the whole session.
 
 | Platform | Opt-out applied |
 |---|---|
 | **Windows 10/11** | `CanIncludeInClipboardHistory` + `CanUploadToCloudClipboard` registered-clipboard-format DWORDs set to 0 alongside `CF_UNICODETEXT`. Win+V history skips the entry; cloud sync does not upload it. |
 | **macOS** | `NSPasteboard.general` declares `org.nspasteboard.TransientType` and `org.nspasteboard.ConcealedType` in the same `declareTypes` call as `.string`. Every third-party clipboard manager that follows the nspasteboard.org convention (1Password, Maccy, Paste, Alfred) honours these and skips the entry. Universal Clipboard / Handoff remains a residual gap — Apple exposes no first-party opt-out for the iCloud-mirrored copy path, documented here so it stays visible. |
 | **iOS** | `UIPasteboard.setItems(..., options: [.localOnly: true, .expirationDate: now+60s])` — Handoff sync is disabled for that write and the entry clears automatically if the app crashes before the Dart-side wipe fires. |
-| **Android 13+** | `ClipDescription.EXTRA_IS_SENSITIVE = true` — the system hides the clipboard-preview toast and launchers skip the "share what you copied" affordance. Pre-13 SDKs ignore the flag; the copy still works, the OS just has no hook to hide it. |
-| **Linux** | No cloud clipboard default on X11 or Wayland. Falls through to Flutter's stock `Clipboard.setData`. |
+| **Android 13+** | JNI into `android.content.ClipboardManager` via `lfs_os_security::android::clipboard`. `ClipDescription.EXTRA_IS_SENSITIVE = true` set on the `ClipData`'s `PersistableBundle` extras — the system hides the clipboard-preview toast and launchers skip the "share what you copied" affordance. Pre-13 SDKs use the raw `"android.content.extra.IS_SENSITIVE"` key, which OEM clipboard surfaces that backported the hint also honour. |
+| **Linux** | `arboard::Clipboard::set_text`. No cloud clipboard default on X11 or Wayland; on a Rust-side failure the Dart wrapper falls through to Flutter's stock `Clipboard.setData`. |
 
 Layer 2 is the auto-wipe — [`ClipboardSecret.copySecret`](../lib/core/security/clipboard_secret.dart) — which schedules a 30-second timer on top of the write. When the timer fires it re-reads the clipboard and only clears it if the live value still matches what we wrote; if the user copied something else in the meantime, the new value is left alone. This catches terminal emulators, browser extensions, and systemd-journal clipboard watchers that read the pasteboard lazily — the iOS 60-second `.expirationDate` is a belt-and-braces fallback for the case where the Dart timer never runs (app killed, reboot, forced OOM).
 
@@ -5270,7 +5270,7 @@ debugDesktopPlatformOverride = true;   // force desktop layout in tests
 | `fake_dialog_prompter.dart` | `FakeSecurityDialogPrompter` — scripted answers for `showFirstLaunchWizard`, `showDbCorrupt`, `showTierReset`, `showMasterPasswordUnlock`, `showTierSecretUnlock`; `tierSecretSimulatedInput` delegates to the real `verify` closure so the DB-inject side effect fires; `fireOnReset` + `fireBiometricUnlock` trigger the dialog's reset / biometric callbacks for coverage |
 | `fake_path_provider.dart` | `installFakePathProvider()` + `uninstallFakePathProvider(tmp)` — redirects the `path_provider` channel to a per-test tmp dir; returns the `Directory` so tests can pre-seed / inspect state files |
 | `fake_security.dart` | `FakeSecureKeyStorage` / `FakeBiometricAuth` / `FakeHardwareTierVault` / `FakeMasterPasswordManager` — subclasses overriding the async surface with deterministic, filesystem-free defaults so unit tests can inject any tier-state shape without bootstrapping FRB or the OS keychain |
-| `fake_native_plugins.dart` | `installFakeNativePlugins({config})` / `uninstallFakeNativePlugins()` — one-call mock for every app MethodChannel (clipboard_secure, session_lock, backup_exclusion, permissions, secure_screen, qrscanner) + file_picker; returns a `NativeCallLog` so tests assert on the exact invocation shape. The hardware-vault channel is intentionally absent: every supported OS routes through FRB into `lfs_os_security` now, so there is no Dart-side MethodChannel left to mock |
+| `fake_native_plugins.dart` | `installFakeNativePlugins({config})` / `uninstallFakeNativePlugins()` — one-call mock for every app MethodChannel (session_lock, backup_exclusion, permissions, secure_screen, qrscanner) + file_picker; returns a `NativeCallLog` so tests assert on the exact invocation shape. The hardware-vault and clipboard-secure channels are intentionally absent: every supported OS routes those through FRB into `lfs_os_security`, so there is no Dart-side MethodChannel left to mock |
 | `test_providers.dart` | `makeTestProviderContainer({...})` and `securityProviderOverrides({...})` — shared baseline of Riverpod overrides (session / master-password / keychain / hardware-vault / keychain-gate / biometric-auth / biometric-vault / auto-lock stores). Widget tests that need their own `ProviderScope` spread the override list; unit tests call the factory |
 
 ### Test file mapping

@@ -2,14 +2,9 @@
 //! cloud sync and OS clipboard history before it hits the system
 //! pasteboard.
 //!
-//! Replaces the per-platform Swift / Cpp `ClipboardSecurePlugin`s
-//! (macOS / iOS / Windows) with one Rust entry point. Linux uses
-//! `arboard` for the basic write — there's no cloud-clipboard
-//! default on X11 / Wayland to opt out of. Android keeps its
-//! existing `ClipboardSecurePlugin.kt` MethodChannel because
-//! `ClipDescription.EXTRA_IS_SENSITIVE` requires the
-//! `ClipboardManager` Android API; the Dart wrapper short-
-//! circuits to the channel before invoking this Rust function.
+//! Single Rust entry point routed through FRB by every platform;
+//! the per-platform flag dance lives in the `cfg`-gated branches
+//! below.
 //!
 //! Per-platform flag set the function applies in the same write
 //! session:
@@ -29,11 +24,19 @@
 //!   options: [.localOnly: true])` plus a short
 //!   `expirationDate` so a stale copy doesn't survive a reboot.
 //!   `localOnly` disables Handoff sync for the write.
+//! - **Android** → JNI into `android.content.ClipboardManager`
+//!   with `ClipDescription.EXTRA_IS_SENSITIVE` set on the
+//!   `PersistableBundle` extras of the `ClipData`. Android 13+
+//!   reads the flag and hides the toast preview + launcher
+//!   "share what you copied" affordances.
 //! - **Linux** → `arboard::Clipboard::set_text` only. No cloud
 //!   default on X11 / Wayland.
 //!
 //! Failures map to `Err(String)` so the Dart caller can log +
-//! fall back to Flutter's stock `Clipboard.setData` if needed.
+//! decide per-platform whether to fall back to Flutter's stock
+//! `Clipboard.setData` (Linux only — every other platform refuses
+//! the write to avoid landing a secret on a cloud-syncing
+//! pasteboard without the opt-out flags).
 
 #[cfg(any(target_os = "ios", target_os = "macos"))]
 use objc2::msg_send;
@@ -60,11 +63,16 @@ pub fn set_secure_text(text: &str) -> Result<(), String> {
     {
         windows_set_secure_text(text)
     }
+    #[cfg(target_os = "android")]
+    {
+        crate::android::clipboard::set_secure_text(text)
+    }
     #[cfg(not(any(
         target_os = "linux",
         target_os = "macos",
         target_os = "ios",
-        target_os = "windows"
+        target_os = "windows",
+        target_os = "android"
     )))]
     {
         let _ = text;
@@ -172,10 +180,13 @@ fn ios_set_secure_text(text: &str) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn windows_set_secure_text(text: &str) -> Result<(), String> {
-    // Reproduces `windows/runner/clipboard_secure_plugin.cpp`:
     // OpenClipboard → EmptyClipboard → SetClipboardData(CF_UNICODETEXT)
-    // → register + write CanIncludeInClipboardHistory + CanUploadToCloudClipboard
-    // (each carrying a single DWORD == 0) → CloseClipboard.
+    // → register + write CanIncludeInClipboardHistory +
+    // CanUploadToCloudClipboard (each carrying a single DWORD == 0) →
+    // CloseClipboard. The two custom formats must land in the same
+    // OpenClipboard session as the text; a second session leaves a
+    // window where a clipboard-history watcher can read the text
+    // before the opt-out flags arrive.
     use std::ffi::c_void;
 
     // ── Win32 FFI surface ────────────────────────────────────

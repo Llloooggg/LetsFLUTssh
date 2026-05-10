@@ -14,7 +14,6 @@ class MainActivity : FlutterFragmentActivity() {
     private val qrScannerChannel = "com.letsflutssh/qrscanner"
     private val secureScreenChannel = "com.letsflutssh/secure_screen"
     private var pendingScanResult: MethodChannel.Result? = null
-    private var clipboardSecure: ClipboardSecurePlugin? = null
 
     // Refcount for FLAG_SECURE — a nested SecureScreenScope (e.g. an
     // unlock dialog inside the wizard) should not clear the flag when
@@ -57,12 +56,11 @@ class MainActivity : FlutterFragmentActivity() {
         // directly via JNI. The Dart `HardwareTierVault` wrapper
         // routes Android through FRB, no MethodChannel involved.
 
-        val clipboardChannel = MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            ClipboardSecurePlugin.CHANNEL
-        )
-        clipboardSecure = ClipboardSecurePlugin(applicationContext)
-            .also { it.register(clipboardChannel) }
+        // Sensitive-clipboard writes (EXTRA_IS_SENSITIVE) are
+        // owned Rust-side too —
+        // `lfs_os_security::android::clipboard` JNIs directly into
+        // `android.content.ClipboardManager`. The Dart
+        // `SecureClipboard` wrapper routes Android through FRB.
 
         // Selective FLAG_SECURE — per-screen opt-in, refcounted so
         // nested SecureScreenScope widgets do not clear the flag

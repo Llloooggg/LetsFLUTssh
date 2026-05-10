@@ -5,76 +5,13 @@ import 'package:letsflutssh/core/security/secure_clipboard.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const channel = MethodChannel('com.letsflutssh/clipboard_secure');
-
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
-  // Android path keeps the native MethodChannel because
-  // `EXTRA_IS_SENSITIVE` needs the platform `ClipboardManager` API.
-  // Tests below exercise both arms of the platform branch.
-
-  test('Android path routes through the native channel', () async {
-    MethodCall? seen;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-          seen = call;
-          return true;
-        });
-
-    await SecureClipboard(
-      channel: channel,
-      isAndroidPlatform: true,
-    ).setText('hunter2');
-
-    expect(seen, isNotNull);
-    expect(seen!.method, 'setSecureText');
-    expect((seen!.arguments as Map)['text'], 'hunter2');
-  });
-
-  test(
-    'Android path REFUSES the write when the plugin is missing — never falls back',
-    () async {
-      // Plugin missing on Android means the native EXTRA_IS_SENSITIVE
-      // flag never lands; falling back to stock `Clipboard.setData`
-      // would deposit the secret into the Android 13+ clipboard
-      // history preview without the opt-out marker. The hardened
-      // posture is to refuse, surface the failure to the caller, and
-      // let the UI render a "copy failed" toast — same as the
-      // Win/macOS/iOS arms below.
-      String? stockText;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-            throw MissingPluginException('no plugin');
-          });
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-            if (call.method == 'Clipboard.setData') {
-              stockText = (call.arguments as Map?)?['text'] as String?;
-            }
-            return null;
-          });
-
-      final landed = await SecureClipboard(
-        channel: channel,
-        isAndroidPlatform: true,
-      ).setText('hunter2');
-
-      expect(landed, isFalse, reason: 'must refuse on plugin missing');
-      expect(stockText, isNull, reason: 'must NOT touch stock clipboard');
-    },
-  );
-
-  test('Android path REFUSES the write on native error', () async {
+  test('successful Rust write returns true and never touches stock', () async {
     String? stockText;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-          throw PlatformException(code: 'CLIPBOARD_FAILED');
-        });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
           if (call.method == 'Clipboard.setData') {
@@ -83,22 +20,51 @@ void main() {
           return null;
         });
 
-    final landed = await SecureClipboard(
-      channel: channel,
-      isAndroidPlatform: true,
-    ).setText('hunter2');
+    String? written;
+    final clip = SecureClipboard(
+      rustWriter: (text) {
+        written = text;
+      },
+      platformOs: 'android',
+    );
 
-    expect(landed, isFalse);
-    expect(stockText, isNull);
+    final landed = await clip.setText('hunter2');
+
+    expect(landed, isTrue);
+    expect(written, 'hunter2');
+    expect(stockText, isNull, reason: 'stock path must not run on success');
   });
 
-  test(
-    'non-Android path falls back to stock when Rust call fails (FRB unloaded in tests)',
-    () async {
-      // Without `requireFrbLoaded`, the FRB call throws StateError
-      // and the writer routes to the stock Clipboard.setData. The
-      // production path on a real desktop / iOS device hits Rust
-      // first instead.
+  test('Linux falls back to stock clipboard on Rust failure', () async {
+    String? stockText;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            stockText = (call.arguments as Map?)?['text'] as String?;
+          }
+          return null;
+        });
+
+    final clip = SecureClipboard(
+      rustWriter: (_) => throw StateError('Rust unavailable'),
+      platformOs: 'linux',
+    );
+
+    final landed = await clip.setText('hunter2');
+
+    expect(landed, isTrue, reason: 'Linux fallback must land the copy');
+    expect(stockText, 'hunter2');
+  });
+
+  for (final os in const ['windows', 'macos', 'ios', 'android']) {
+    test('$os refuses the write on Rust failure (cloud-sync gate)', () async {
+      // The opt-out flags are part of the same write session as the
+      // text. A stock `Clipboard.setData` fallback would deposit the
+      // secret on the cloud-syncing pasteboard (Win+V history,
+      // Universal Clipboard, Handoff, Android 13+ history preview)
+      // without the per-platform "do not sync, do not history"
+      // markers — strictly worse than refusing the copy and
+      // surfacing a "copy failed" toast to the user.
       String? stockText;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, (call) async {
@@ -108,12 +74,19 @@ void main() {
             return null;
           });
 
-      await SecureClipboard(
-        channel: channel,
-        isAndroidPlatform: false,
-      ).setText('hunter2');
+      final clip = SecureClipboard(
+        rustWriter: (_) => throw StateError('Rust unavailable'),
+        platformOs: os,
+      );
 
-      expect(stockText, 'hunter2');
-    },
-  );
+      final landed = await clip.setText('hunter2');
+
+      expect(landed, isFalse, reason: '$os must refuse on Rust failure');
+      expect(
+        stockText,
+        isNull,
+        reason: '$os must NOT touch the stock clipboard',
+      );
+    });
+  }
 }
