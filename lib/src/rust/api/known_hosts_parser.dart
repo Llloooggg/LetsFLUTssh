@@ -14,12 +14,6 @@ List<DbParsedHostEntry> knownHostsParseLine({required String line}) => RustLib
     .api
     .crateApiKnownHostsParserKnownHostsParseLine(line: line);
 
-/// True when `line` is an OpenSSH `HashKnownHosts yes` row
-/// (`|1|salt|hash <keytype> <b64>`). Used by the importer's
-/// "skipped N hashed entries" warning.
-bool knownHostsIsHashedLine({required String line}) => RustLib.instance.api
-    .crateApiKnownHostsParserKnownHostsIsHashedLine(line: line);
-
 class DbParsedHostEntry {
   final String hostPort;
   final String keyType;

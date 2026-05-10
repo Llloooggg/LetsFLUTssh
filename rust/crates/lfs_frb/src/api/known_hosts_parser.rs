@@ -30,14 +30,6 @@ pub fn known_hosts_parse_line(line: String) -> Vec<DbParsedHostEntry> {
         .collect()
 }
 
-/// True when `line` is an OpenSSH `HashKnownHosts yes` row
-/// (`|1|salt|hash <keytype> <b64>`). Used by the importer's
-/// "skipped N hashed entries" warning.
-#[flutter_rust_bridge::frb(sync)]
-pub fn known_hosts_is_hashed_line(line: String) -> bool {
-    lfs_core::known_hosts_parser::is_hashed_hosts_line(&line)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -61,20 +53,5 @@ mod tests {
         assert!(known_hosts_parse_line("".into()).is_empty());
         assert!(known_hosts_parse_line("   ".into()).is_empty());
         assert!(known_hosts_parse_line("# some comment".into()).is_empty());
-    }
-
-    #[test]
-    fn is_hashed_line_recognises_hashed_prefix() {
-        // OpenSSH HashKnownHosts shape: `|1|<base64-salt>|<base64-hash>`.
-        assert!(known_hosts_is_hashed_line(
-            "|1|salt|hash ssh-ed25519 AAAA".into()
-        ));
-    }
-
-    #[test]
-    fn is_hashed_line_passes_plain_host_lines() {
-        assert!(!known_hosts_is_hashed_line(
-            "edge.example.com ssh-ed25519 AAAA".into()
-        ));
     }
 }

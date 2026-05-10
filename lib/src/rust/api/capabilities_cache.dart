@@ -6,38 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `into_core`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
-
-/// Read the cached `SecurityCapabilities` snapshot. Returns
-/// `None` when the cache has not been seeded yet (cold start
-/// before `probeCapabilities` runs the first time, or after an
-/// explicit `clear`). Dart wrappers treat `None` as "render the
-/// neutral 'probing…' state until the next set".
-DbSecurityCapabilitiesSnapshot? securityCapabilitiesView() =>
-    RustLib.instance.api.crateApiCapabilitiesCacheSecurityCapabilitiesView();
-
-/// Push a freshly-probed snapshot into the cache. Publishes
-/// `SecurityCapabilitiesChanged` (carrying the JSON) only when
-/// the new snapshot differs from the cached one, so back-to-back
-/// rechecks on a static host don't thrash subscribers.
-///
-/// Returns `Err` when the snapshot's `keychain_probe_wire_name`
-/// is not one of the three known wire names — the Dart caller
-/// always passes a `KeyringProbeResult.name` value, so this is
-/// strictly defensive against codegen drift.
-void securityCapabilitiesSet({
-  required DbSecurityCapabilitiesSnapshot snapshot,
-}) => RustLib.instance.api.crateApiCapabilitiesCacheSecurityCapabilitiesSet(
-  snapshot: snapshot,
-);
-
-/// Drop the cached snapshot. Publishes a
-/// `SecurityCapabilitiesChanged` with empty `json` so subscribers
-/// flip back to the neutral "probing…" state. No-op (no event
-/// fires) when the cache is already empty.
-void securityCapabilitiesClear() =>
-    RustLib.instance.api.crateApiCapabilitiesCacheSecurityCapabilitiesClear();
 
 /// FRB mirror of `lfs_core::security::capabilities::SecurityCapabilities`.
 /// Field shape matches the Dart `SecurityCapabilities` class

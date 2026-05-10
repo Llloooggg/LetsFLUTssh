@@ -97,19 +97,6 @@ impl From<lfs_core::connection::ConnectionSnapshot> for DbConnectionSnapshot {
     }
 }
 
-/// Snapshot every connection actor in the registry. Used by the
-/// Rust-driven mirror provider that future workspace UI consumers
-/// subscribe to in lieu of the Dart `ConnectionManager` map.
-#[flutter_rust_bridge::frb(sync)]
-pub fn connection_snapshot_all() -> Vec<DbConnectionSnapshot> {
-    lfs_core::app::instance()
-        .connections
-        .snapshot_all()
-        .into_iter()
-        .map(Into::into)
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

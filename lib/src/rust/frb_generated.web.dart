@@ -341,10 +341,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  DbSecurityCapabilitiesSnapshot
-  dco_decode_box_autoadd_db_security_capabilities_snapshot(dynamic raw);
-
-  @protected
   DbSecurityConfig dco_decode_box_autoadd_db_security_config(dynamic raw);
 
   @protected
@@ -479,9 +475,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbConnectLink dco_decode_db_connect_link(dynamic raw);
-
-  @protected
-  DbConnectionSnapshot dco_decode_db_connection_snapshot(dynamic raw);
 
   @protected
   DbDeeplinkOutcome dco_decode_db_deeplink_outcome(dynamic raw);
@@ -789,11 +782,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbChangelogRelease> dco_decode_list_db_changelog_release(dynamic raw);
 
   @protected
-  List<DbConnectionSnapshot> dco_decode_list_db_connection_snapshot(
-    dynamic raw,
-  );
-
-  @protected
   List<DbFileSortKey> dco_decode_list_db_file_sort_key(dynamic raw);
 
   @protected
@@ -992,10 +980,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSecurityCapabilities? dco_decode_opt_box_autoadd_db_security_capabilities(
     dynamic raw,
   );
-
-  @protected
-  DbSecurityCapabilitiesSnapshot?
-  dco_decode_opt_box_autoadd_db_security_capabilities_snapshot(dynamic raw);
 
   @protected
   DbSecurityConfig? dco_decode_opt_box_autoadd_db_security_config(dynamic raw);
@@ -1353,12 +1337,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  DbSecurityCapabilitiesSnapshot
-  sse_decode_box_autoadd_db_security_capabilities_snapshot(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   DbSecurityConfig sse_decode_box_autoadd_db_security_config(
     SseDeserializer deserializer,
   );
@@ -1527,11 +1505,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbConnectLink sse_decode_db_connect_link(SseDeserializer deserializer);
-
-  @protected
-  DbConnectionSnapshot sse_decode_db_connection_snapshot(
-    SseDeserializer deserializer,
-  );
 
   @protected
   DbDeeplinkOutcome sse_decode_db_deeplink_outcome(
@@ -1941,11 +1914,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<DbConnectionSnapshot> sse_decode_list_db_connection_snapshot(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   List<DbFileSortKey> sse_decode_list_db_file_sort_key(
     SseDeserializer deserializer,
   );
@@ -2200,12 +2168,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityCapabilities? sse_decode_opt_box_autoadd_db_security_capabilities(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  DbSecurityCapabilitiesSnapshot?
-  sse_decode_opt_box_autoadd_db_security_capabilities_snapshot(
     SseDeserializer deserializer,
   );
 
@@ -2640,12 +2602,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_db_security_capabilities_snapshot(
-    DbSecurityCapabilitiesSnapshot self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_db_security_config(
     DbSecurityConfig self,
     SseSerializer serializer,
@@ -2860,12 +2816,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_db_connect_link(DbConnectLink self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_db_connection_snapshot(
-    DbConnectionSnapshot self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_db_deeplink_outcome(
@@ -3402,12 +3352,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_db_connection_snapshot(
-    List<DbConnectionSnapshot> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_list_db_file_sort_key(
     List<DbFileSortKey> self,
     SseSerializer serializer,
@@ -3730,12 +3674,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_security_capabilities(
     DbSecurityCapabilities? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_box_autoadd_db_security_capabilities_snapshot(
-    DbSecurityCapabilitiesSnapshot? self,
     SseSerializer serializer,
   );
 
