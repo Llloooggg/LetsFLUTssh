@@ -1205,18 +1205,36 @@ mod tests {
     // emitted event isn't lost; the subscribe happens via
     // `app::instance().bus.subscribe()` to match the production path.
 
+    /// Serializes every test that mutates the autolock state machine.
+    /// `app::init()` is a `OnceLock` singleton, so the autolock guard
+    /// is shared across `#[tokio::test]` runs. Without this lock,
+    /// `request_lock` / `unlock` / `on_lifecycle_change` race each
+    /// other into their idempotent no-op branches and the corresponding
+    /// `Event::AutoLock*` never fires for the test that is waiting on
+    /// it. Acquire at the top of every autolock-touching test.
+    static AUTOLOCK_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+    /// Bounded wait so a missing-event regression fails the test fast
+    /// instead of hanging the whole `cargo test` run. Two seconds is
+    /// long enough for the busiest CI scheduling, short enough that a
+    /// real bug surfaces immediately.
     async fn next_matching<F>(rx: &mut tokio::sync::broadcast::Receiver<Event>, pred: F) -> Event
     where
         F: Fn(&Event) -> bool,
     {
-        loop {
-            match rx.recv().await {
-                Ok(ev) if pred(&ev) => return ev,
-                Ok(_) => continue,
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-                Err(e) => panic!("recv error: {e:?}"),
+        let deadline = std::time::Duration::from_secs(2);
+        tokio::time::timeout(deadline, async {
+            loop {
+                match rx.recv().await {
+                    Ok(ev) if pred(&ev) => return ev,
+                    Ok(_) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(e) => panic!("recv error: {e:?}"),
+                }
             }
-        }
+        })
+        .await
+        .expect("next_matching: timed out after 2s waiting for matching event")
     }
 
     #[tokio::test]
@@ -1241,6 +1259,7 @@ mod tests {
 
     #[tokio::test]
     async fn dispatch_autolock_set_timeout_publishes_timeout_changed() {
+        let _g = AUTOLOCK_TEST_LOCK.lock().await;
         let app = crate::app::init();
         let mut rx = app.bus.subscribe(EventTopic::AutoLock);
         dispatch(Command::AutoLockSetTimeout { minutes: 7 })
@@ -1256,18 +1275,15 @@ mod tests {
 
     #[tokio::test]
     async fn dispatch_autolock_request_lock_publishes_locked() {
+        let _g = AUTOLOCK_TEST_LOCK.lock().await;
         let app = crate::app::init();
-        // Prime a non-zero timeout so the lock is meaningful (zero
-        // timeout machine path is a no-op on lock request).
+        // Force the machine into Unlocked so `RequestLock` actually
+        // transitions and fires `Locked` — `request_lock` is
+        // idempotent and silent when already locked. Direct call
+        // bypasses the bus to avoid muddling our subscription with a
+        // precondition event.
+        app.autolock.unlock(&app.bus);
         let mut rx = app.bus.subscribe(EventTopic::AutoLock);
-        dispatch(Command::AutoLockSetTimeout { minutes: 5 })
-            .await
-            .expect("set timeout");
-        // Drain the timeout-changed event before waiting on Locked.
-        let _ = next_matching(&mut rx, |e| {
-            matches!(e, Event::AutoLockTimeoutChanged { .. })
-        })
-        .await;
         dispatch(Command::AutoLockRequestLock)
             .await
             .expect("request lock");
@@ -1277,7 +1293,12 @@ mod tests {
 
     #[tokio::test]
     async fn dispatch_autolock_unlock_publishes_unlocked() {
+        let _g = AUTOLOCK_TEST_LOCK.lock().await;
         let app = crate::app::init();
+        // Force Locked so `Unlock` actually transitions — direct
+        // call bypasses the bus so the subscription below only sees
+        // events from our test's dispatch.
+        app.autolock.request_lock(&app.bus);
         let mut rx = app.bus.subscribe(EventTopic::AutoLock);
         dispatch(Command::AutoLockUnlock).await.expect("dispatch");
         let ev = next_matching(&mut rx, |e| matches!(e, Event::AutoLockUnlocked)).await;
@@ -1286,6 +1307,7 @@ mod tests {
 
     #[tokio::test]
     async fn dispatch_autolock_pointer_activity_does_not_fail() {
+        let _g = AUTOLOCK_TEST_LOCK.lock().await;
         let _ = crate::app::init();
         // No event published — this path just resets the idle timer.
         // Verify it returns Ok and doesn't panic.
@@ -1296,6 +1318,7 @@ mod tests {
 
     #[tokio::test]
     async fn dispatch_autolock_lifecycle_change_does_not_fail() {
+        let _g = AUTOLOCK_TEST_LOCK.lock().await;
         let _ = crate::app::init();
         dispatch(Command::AutoLockOnLifecycleChange { background: true })
             .await
