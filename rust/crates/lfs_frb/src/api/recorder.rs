@@ -84,69 +84,88 @@ pub struct DbPlaybackEvent {
     pub error: Option<String>,
 }
 
-/// Open an encrypted `.lfsr` recording and stream every decoded
-/// JSON-Lines record to `sink` as a [`DbPlaybackEvent`]. The
-/// recording key is derived Rust-side from
-/// `secrets::ACTIVE_DBKEY_SECRET_ID` via the pinned
-/// `letsflutssh-recording-v1` HKDF chain; bytes never cross the
-/// FRB boundary back to Dart on this path.
+/// Open a recording for playback and stream every decoded
+/// JSON-Lines record to `sink` as a [`DbPlaybackEvent`]. Routes
+/// by extension Rust-side: `.lfsr` (case-insensitive) opens
+/// through the encrypted iterator with the recording key derived
+/// from `secrets::ACTIVE_DBKEY_SECRET_ID` via the pinned
+/// `letsflutssh-recording-v1` HKDF chain; any other extension
+/// (or none) opens through the plaintext `.cast` iterator.
+///
+/// The Dart caller hands the path in once and never branches on
+/// extension itself. The DB key + the derived recording key
+/// never cross the FRB boundary back to Dart.
 ///
 /// Errors during the magic / version sniff + per-frame decrypt
-/// surface as a final `DbPlaybackEvent { error: Some(detail) }`
-/// before the stream closes. Stream cancellation (Dart
-/// subscription cancelled) closes the sink → next `add` fails →
-/// the spawn_blocking task drops out of the iteration loop.
+/// (encrypted path) and per-line read (plaintext path) surface
+/// as a final `DbPlaybackEvent { error: Some(detail) }` before
+/// the stream closes. Stream cancellation (Dart subscription
+/// cancelled) closes the sink → next `add` fails → the
+/// spawn_blocking task drops out of the iteration loop.
 pub async fn recorder_open_for_playback(
     path: String,
     sink: crate::frb_generated::StreamSink<DbPlaybackEvent>,
 ) {
     let _ = tokio::task::spawn_blocking(move || {
-        let app = lfs_core::app::instance();
-        let key_arr: [u8; 32] = match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
-            None => {
-                let _ = sink.add(DbPlaybackEvent {
-                    line: None,
-                    error: Some(
-                        "no active DB key — encrypted recording cannot be opened".to_string(),
-                    ),
-                });
-                return;
-            }
-            Some(db_key) if db_key.is_empty() => {
-                let _ = sink.add(DbPlaybackEvent {
-                    line: None,
-                    error: Some(
-                        "no active DB key — encrypted recording cannot be opened".to_string(),
-                    ),
-                });
-                return;
-            }
-            Some(db_key) => {
-                match lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32) {
-                    Ok(rk) => match rk[..].try_into() {
-                        Ok(arr) => arr,
-                        Err(_) => {
+        let path_buf = std::path::PathBuf::from(&path);
+        let is_lfsr = path_buf
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.eq_ignore_ascii_case("lfsr"))
+            .unwrap_or(false);
+        // Encrypted recordings need the active DB key derivation;
+        // plaintext .cast files skip the secret-store probe entirely
+        // so playback works even on a tier with no in-memory key
+        // (e.g. plaintext-tier recordings).
+        let key_arr: [u8; 32] = if is_lfsr {
+            let app = lfs_core::app::instance();
+            match app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) {
+                None => {
+                    let _ = sink.add(DbPlaybackEvent {
+                        line: None,
+                        error: Some(
+                            "no active DB key — encrypted recording cannot be opened".to_string(),
+                        ),
+                    });
+                    return;
+                }
+                Some(db_key) if db_key.is_empty() => {
+                    let _ = sink.add(DbPlaybackEvent {
+                        line: None,
+                        error: Some(
+                            "no active DB key — encrypted recording cannot be opened".to_string(),
+                        ),
+                    });
+                    return;
+                }
+                Some(db_key) => {
+                    match lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32) {
+                        Ok(rk) => match rk[..].try_into() {
+                            Ok(arr) => arr,
+                            Err(_) => {
+                                let _ = sink.add(DbPlaybackEvent {
+                                    line: None,
+                                    error: Some("recording key wrong size".to_string()),
+                                });
+                                return;
+                            }
+                        },
+                        Err(e) => {
                             let _ = sink.add(DbPlaybackEvent {
                                 line: None,
-                                error: Some("recording key wrong size".to_string()),
+                                error: Some(format!("recorder hkdf: {e}")),
                             });
                             return;
                         }
-                    },
-                    Err(e) => {
-                        let _ = sink.add(DbPlaybackEvent {
-                            line: None,
-                            error: Some(format!("recorder hkdf: {e}")),
-                        });
-                        return;
                     }
                 }
             }
+        } else {
+            // Plaintext path ignores the key — passing zeros keeps
+            // the open_for_playback signature uniform.
+            [0u8; 32]
         };
-        let iter = match lfs_core::recorder::reader::open_lfsr_iter(
-            std::path::Path::new(&path),
-            key_arr,
-        ) {
+        let mut iter = match lfs_core::recorder::reader::open_for_playback(&path_buf, key_arr) {
             Ok(it) => it,
             Err(e) => {
                 let _ = sink.add(DbPlaybackEvent {
@@ -156,7 +175,7 @@ pub async fn recorder_open_for_playback(
                 return;
             }
         };
-        for frame in iter {
+        while let Some(frame) = iter.next_record() {
             match frame {
                 Ok(line) => {
                     if sink
@@ -449,6 +468,100 @@ pub async fn recorder_queue_enqueue_close(id: String) -> Result<(), String> {
         .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
+// =====================================================================
+// Recordings browser surface
+// =====================================================================
+//
+// The Dart `RecordingsPanel` used to walk `<appSupport>/recordings/`
+// via `Directory.list()` + `File.stat()` + `File.delete()`. The walk
+// + stat + delete now live Rust-side under `lfs_core::recorder::browser`
+// so the `Rust owns data` invariant holds for the whole recordings
+// lifecycle (write → list → playback → delete).
+
+/// Per-recording metadata yielded by [`recorder_list_recordings`].
+/// Mirrors `lfs_core::recorder::browser::RecordingEntry` — kept in
+/// the FRB crate so the codegen owns the marshalled shape.
+#[derive(Debug, Clone)]
+pub struct DbRecordingEntry {
+    pub session_id: String,
+    pub file_name: String,
+    pub extension: String,
+    pub size_bytes: u64,
+    /// Modification time as Unix epoch seconds. The Dart side
+    /// converts to `DateTime` once at the surface.
+    pub mtime_unix_secs: i64,
+    pub encrypted: bool,
+}
+
+impl From<lfs_core::recorder::browser::RecordingEntry> for DbRecordingEntry {
+    fn from(e: lfs_core::recorder::browser::RecordingEntry) -> Self {
+        Self {
+            session_id: e.session_id,
+            file_name: e.file_name,
+            extension: e.extension,
+            size_bytes: e.size_bytes,
+            mtime_unix_secs: e.mtime_unix_secs,
+            encrypted: e.encrypted,
+        }
+    }
+}
+
+/// List every recording under `<recordings_root>/<sessionId>/`.
+/// `recordings_root` is the platform-specific
+/// `getApplicationSupportDirectory() + "/recordings"` resolved
+/// Dart-side — `path_provider` is the only piece of the chain
+/// that has to live in Dart.
+///
+/// Filters to `.cast` + `.lfsr` regular files; skips directories,
+/// symlinks, and unrelated extensions. A missing root returns an
+/// empty list (fresh-install case where the recorder never ran).
+pub async fn recorder_list_recordings(
+    recordings_root: String,
+) -> Result<Vec<DbRecordingEntry>, String> {
+    tokio::task::spawn_blocking(move || {
+        let root = std::path::PathBuf::from(recordings_root);
+        lfs_core::recorder::browser::list_recordings(&root)
+            .map(|v| v.into_iter().map(DbRecordingEntry::from).collect())
+            .map_err(|e| crate::api::frb_err::wire(crate::api::frb_err::kind::IO, &e.to_string()))
+    })
+    .await
+    .map_err(|e| format!("recorder list task: {e}"))?
+}
+
+/// Delete `<recordings_root>/<session_id>/<file_name>`. Both
+/// `session_id` and `file_name` MUST be the bare components the
+/// `recorder_list_recordings` walk returned — neither may contain
+/// `..` or a path separator. The helper rejects tainted input
+/// before issuing any filesystem call.
+///
+/// Idempotent on a missing target — a stale Dart-side cache that
+/// requests an already-deleted row returns `Ok(())` so the UI
+/// can refresh without surfacing a spurious error.
+pub async fn recorder_delete_recording(
+    recordings_root: String,
+    session_id: String,
+    file_name: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let root = std::path::PathBuf::from(recordings_root);
+        lfs_core::recorder::browser::delete_recording(&root, &session_id, &file_name).map_err(|e| {
+            match e {
+                lfs_core::recorder::browser::BrowserError::Io(io) => {
+                    crate::api::frb_err::wire(crate::api::frb_err::kind::IO, &io.to_string())
+                }
+                lfs_core::recorder::browser::BrowserError::InvalidComponent => {
+                    crate::api::frb_err::wire(
+                        crate::api::frb_err::kind::GENERIC,
+                        "invalid recording path component",
+                    )
+                }
+            }
+        })
+    })
+    .await
+    .map_err(|e| format!("recorder delete task: {e}"))?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -495,5 +608,24 @@ mod tests {
             lfs_core::recorder::MAX_FILE_BYTES
         );
         assert_eq!(recorder_max_file_bytes(), 100 * 1024 * 1024);
+    }
+
+    #[test]
+    fn recording_entry_carries_every_field() {
+        let core = lfs_core::recorder::browser::RecordingEntry {
+            session_id: "sess".into(),
+            file_name: "rec.cast".into(),
+            extension: "cast".into(),
+            size_bytes: 1024,
+            mtime_unix_secs: 1_700_000_000,
+            encrypted: false,
+        };
+        let db: DbRecordingEntry = core.into();
+        assert_eq!(db.session_id, "sess");
+        assert_eq!(db.file_name, "rec.cast");
+        assert_eq!(db.extension, "cast");
+        assert_eq!(db.size_bytes, 1024);
+        assert_eq!(db.mtime_unix_secs, 1_700_000_000);
+        assert!(!db.encrypted);
     }
 }

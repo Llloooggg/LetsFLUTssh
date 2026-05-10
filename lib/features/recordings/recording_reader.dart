@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
+import '../../core/security/active_dbkey.dart';
+import '../../src/rust/api/app.dart' as rust_secrets;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
 
 /// One asciinema-v2 event read out of a recording file. The fields
@@ -60,39 +61,23 @@ class RecordingHeader {
 ///   the reader recomputes it from frame position so a swap of two
 ///   frames invalidates the GCM tag at both swapped positions.
 ///
-/// The reader takes ownership of the file's read lifecycle:
-/// [openCast] / [openEncrypted] both expose a `Stream<RecordingFrame>`
-/// that yields header-then-events lazily, so a multi-MB recording
-/// can be played back without staging the whole timeline in memory.
+/// Both branches route through the same Rust-side
+/// [`recorderOpenForPlayback`] FRB stream — Rust dispatches on the
+/// file extension internally, so the Dart consumer hands the path
+/// in once without branching. Reads stay sequential (no random
+/// access into the timeline); a multi-MB recording plays back
+/// without staging the whole timeline on the Dart heap.
 class RecordingReader {
   RecordingReader._();
 
-  /// Walk a `.cast` plaintext recording. The first event is the
-  /// asciinema header (a JSON object); subsequent events are
-  /// `[t, dir, data]` arrays.
-  static Stream<RecordingDecodedLine> openCast(File file) async* {
-    await for (final line
-        in file
-            .openRead()
-            .transform(utf8.decoder)
-            .transform(const LineSplitter())) {
-      if (line.isEmpty) continue;
-      yield RecordingDecodedLine(line);
-    }
-  }
-
-  /// Walk an encrypted `.lfsr` recording. The whole decode path
-  /// (magic / version sniff, per-frame AES-256-GCM with the
-  /// HKDF-derived recording key, per-frame AAD recomputation,
-  /// length-cap rejection) lives Rust-side in
-  /// `lfs_core::recorder::reader::open_lfsr_iter` — Dart subscribes
-  /// to the `recorderOpenForPlayback` Stream FRB endpoint and
-  /// receives the already-decoded JSON-Lines records. The DB key
-  /// + the derived recording key never cross the FRB boundary.
-  /// Errors during the magic sniff / decrypt land as Dart
-  /// `RecordingFormatException`s (FRB envelope error → mapped
-  /// here so the playback UI keeps its existing branch shape).
-  static Stream<RecordingDecodedLine> openEncrypted(File file) async* {
+  /// Walk a recording file (either `.cast` plaintext or `.lfsr`
+  /// encrypted) and yield every JSON-Lines record. The first event
+  /// is the asciinema header (a JSON object); subsequent events are
+  /// `[t, dir, data]` arrays. Errors during open / decrypt / decode
+  /// surface as in-stream `DbPlaybackEvent.error` values which the
+  /// loop maps to a [`RecordingFormatException`] so the playback UI
+  /// keeps its existing branch shape.
+  static Stream<RecordingDecodedLine> open(String filePath) async* {
     // The Rust playback adapter emits a tagged `DbPlaybackEvent`
     // per frame: `line` carries the decoded record, `error` (when
     // set) carries the abort reason. The shape works around FRB's
@@ -101,7 +86,7 @@ class RecordingReader {
     // reaching `await for`. Emitting errors as in-stream events
     // keeps them on the consumer's catch surface.
     await for (final event in rust_recorder.recorderOpenForPlayback(
-      path: file.path,
+      path: filePath,
     )) {
       final err = event.error;
       if (err != null) {
@@ -118,16 +103,25 @@ class RecordingReader {
   /// the browser list (duration / dimensions / wall-clock) without
   /// streaming the whole file. Returns null when the recording is
   /// empty or unparseable.
+  ///
+  /// `encrypted` short-circuits the FRB round-trip when the
+  /// running tier has no active DB key — an encrypted recording
+  /// cannot be decrypted, so the meta read would surface as a
+  /// stream error and we'd still return null. Avoiding the
+  /// spawn_blocking task per row keeps the browser scan cheap when
+  /// the user opens it on a plaintext / auto-locked tier.
   static Future<RecordingMeta?> readMeta(
-    File file, {
+    String filePath, {
     required bool encrypted,
   }) async {
+    if (encrypted && !rust_secrets.secretsHas(id: kActiveDbKeySecretId)) {
+      return null;
+    }
     try {
-      final stream = encrypted ? openEncrypted(file) : openCast(file);
       RecordingHeader? header;
       var lastTimestamp = 0.0;
       var eventCount = 0;
-      await for (final line in stream) {
+      await for (final line in open(filePath)) {
         final json = jsonDecode(line.value);
         if (header == null && json is Map<String, Object?>) {
           header = RecordingHeader.fromJson(json);

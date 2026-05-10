@@ -31,6 +31,7 @@
 //! either driver are interoperable. The leading file marker is
 //! `LFR1` + version byte `0x01`.
 
+pub mod browser;
 pub mod queue;
 pub mod reader;
 

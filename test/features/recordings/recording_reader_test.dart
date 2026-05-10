@@ -56,7 +56,7 @@ void main() {
     expect(path, isNotNull);
 
     final lines = <String>[];
-    await for (final dec in RecordingReader.openCast(File(path!))) {
+    await for (final dec in RecordingReader.open(path!)) {
       lines.add(dec.value);
     }
     expect(lines, hasLength(3));
@@ -96,7 +96,7 @@ void main() {
     // the line count is an implementation artefact of the
     // batching window.
     final lines = <String>[];
-    await for (final dec in RecordingReader.openEncrypted(File(path!))) {
+    await for (final dec in RecordingReader.open(path!)) {
       lines.add(dec.value);
     }
     // At minimum: header + ≥ 1 output event.
@@ -117,7 +117,7 @@ void main() {
     );
     rec!.recordOutput(utf8.encode('hi'));
     final path = await rec.close();
-    final meta = await RecordingReader.readMeta(File(path!), encrypted: false);
+    final meta = await RecordingReader.readMeta(path!, encrypted: false);
     expect(meta, isNotNull);
     expect(meta!.header.width, 132);
     expect(meta.header.height, 40);
@@ -133,7 +133,7 @@ void main() {
     addTearDown(() => rust_secrets.secretsDrop(id: kActiveDbKeySecretId));
     final f = File(p.join(tempDir.path, 'corrupt.lfsr'));
     await f.writeAsBytes([0xFF, 0xFE, 0xFD, 0xFC, 0x01]);
-    final meta = await RecordingReader.readMeta(f, encrypted: true);
+    final meta = await RecordingReader.readMeta(f.path, encrypted: true);
     expect(meta, isNull);
   });
 
@@ -160,7 +160,7 @@ void main() {
       0xFF, 0xFF, 0xFF, 0xFF,
     ];
     await f.writeAsBytes(bytes);
-    final meta = await RecordingReader.readMeta(f, encrypted: true);
+    final meta = await RecordingReader.readMeta(f.path, encrypted: true);
     // readMeta wraps every error as Ok(None) so the panel can list
     // the file with a delete button. The bound-check is what we're
     // really asserting — without the cap the await above would

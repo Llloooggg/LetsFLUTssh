@@ -1,9 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/security/active_dbkey.dart';
 import '../../core/session/session.dart';
@@ -11,7 +9,9 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/session_provider.dart';
 import '../../src/rust/api/app.dart' as rust_secrets;
 import '../../src/rust/api/format.dart' as rust_format;
+import '../../src/rust/api/recorder.dart' as rust_recorder;
 import '../../theme/app_theme.dart';
+import '../../utils/logger.dart';
 import '../../widgets/app_data_row.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_empty_state.dart';
@@ -21,18 +21,22 @@ import 'recording_playback_dialog.dart';
 import 'recording_reader.dart';
 import 'recordings_logic.dart';
 
-/// Per-recording metadata aggregated for the list view.
+/// Per-recording metadata aggregated for the list view. The
+/// `sessionId` + `fileName` pair is the stable identity the Rust
+/// browser surface accepts on delete + open — Dart never holds a
+/// `dart:io` `File` for recordings any more (the disk walk lives
+/// in `lfs_core::recorder::browser`).
 class _RecordingEntry {
-  final File file;
   final String sessionId;
+  final String fileName;
   final DateTime fileTimestamp;
   final int sizeBytes;
   final bool encrypted;
   final RecordingMeta? meta;
 
   _RecordingEntry({
-    required this.file,
     required this.sessionId,
+    required this.fileName,
     required this.fileTimestamp,
     required this.sizeBytes,
     required this.encrypted,
@@ -69,39 +73,55 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
     _scan();
   }
 
-  Future<void> _scan() async {
+  /// Resolve `<appSupport>/recordings` once per scan. The Rust
+  /// browser walks from this root; a missing directory returns an
+  /// empty list, so the fresh-install case lands here without a
+  /// sentinel branch.
+  Future<String> _recordingsRoot() async {
     final base = await getApplicationSupportDirectory();
-    final root = Directory(p.join(base.path, 'recordings'));
+    return p.join(base.path, 'recordings');
+  }
+
+  Future<void> _scan() async {
+    final root = await _recordingsRoot();
     final list = <_RecordingEntry>[];
-    if (await root.exists()) {
-      await for (final sessionDir in root.list()) {
-        if (sessionDir is! Directory) continue;
-        final sessionId = p.basename(sessionDir.path);
-        await for (final f in sessionDir.list()) {
-          if (f is! File) continue;
-          final ext = p.extension(f.path).toLowerCase();
-          if (ext != '.cast' && ext != '.lfsr') continue;
-          final encrypted = ext == '.lfsr';
-          final stat = await f.stat();
-          // Header read is best-effort — corrupt or wrong-key files
-          // still appear in the list with size + timestamp so the
-          // user can delete them. Encrypted recordings derive the
-          // playback key Rust-side from the active DB-key slot via
-          // `recorderDeriveKeyFromActive`; the DB key never lands
-          // on the Dart heap on this path.
-          final meta = await RecordingReader.readMeta(f, encrypted: encrypted);
-          list.add(
-            _RecordingEntry(
-              file: f,
-              sessionId: sessionId,
-              fileTimestamp: stat.modified,
-              sizeBytes: stat.size,
-              encrypted: encrypted,
-              meta: meta,
+    try {
+      final entries = await rust_recorder.recorderListRecordings(
+        recordingsRoot: root,
+      );
+      for (final e in entries) {
+        // Header read is best-effort — corrupt or wrong-key files
+        // still appear in the list with size + timestamp so the
+        // user can delete them. Encrypted recordings derive the
+        // playback key Rust-side from the active DB-key slot via
+        // the playback stream; the DB key never lands on the Dart
+        // heap on this path.
+        final filePath = p.join(root, e.sessionId, e.fileName);
+        final meta = await RecordingReader.readMeta(
+          filePath,
+          encrypted: e.encrypted,
+        );
+        list.add(
+          _RecordingEntry(
+            sessionId: e.sessionId,
+            fileName: e.fileName,
+            fileTimestamp: DateTime.fromMillisecondsSinceEpoch(
+              e.mtimeUnixSecs * 1000,
             ),
-          );
-        }
+            sizeBytes: e.sizeBytes.toInt(),
+            encrypted: e.encrypted,
+            meta: meta,
+          ),
+        );
       }
+    } catch (e, st) {
+      AppLogger.instance.log(
+        'Recordings list failed',
+        name: 'Recording',
+        error: e,
+        stackTrace: st,
+        level: LogLevel.warn,
+      );
     }
     list.sort((a, b) => b.fileTimestamp.compareTo(a.fileTimestamp));
     if (!mounted) return;
@@ -124,11 +144,22 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
       content: Text('$label\n$timestamp'),
     );
     if (!confirmed) return;
+    final root = await _recordingsRoot();
     try {
-      await entry.file.delete();
-    } catch (_) {
+      await rust_recorder.recorderDeleteRecording(
+        recordingsRoot: root,
+        sessionId: entry.sessionId,
+        fileName: entry.fileName,
+      );
+    } catch (e) {
       // Best-effort — already gone or permissions changed; refresh
       // anyway so a stale row clears.
+      AppLogger.instance.log(
+        'Recording delete failed',
+        name: 'Recording',
+        error: e,
+        level: LogLevel.warn,
+      );
     }
     await _scan();
   }
@@ -140,9 +171,12 @@ class _RecordingsPanelState extends ConsumerState<RecordingsPanel> {
       // The user would need to unlock first.
       return;
     }
+    final root = await _recordingsRoot();
+    final filePath = p.join(root, entry.sessionId, entry.fileName);
+    if (!mounted) return;
     await RecordingPlaybackDialog.show(
       context,
-      file: entry.file,
+      filePath: filePath,
       encrypted: entry.encrypted,
       meta: entry.meta,
     );

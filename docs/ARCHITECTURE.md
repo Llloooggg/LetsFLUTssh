@@ -2289,6 +2289,8 @@ When the security tier is `plaintext`, the recorder writes raw asciinema JSON-Li
 
 Recordings live as discrete files at `<appSupport>/recordings/<sessionId>/<isoTimestamp>.<lfsr|cast>`. Each file caps at `maxFileBytes = 100 MB`; on overflow the recorder rotates to a fresh file under the same session (with a fresh asciinema header). 100 MB is large enough for a multi-hour vim-heavy day, small enough that exporting a single file stays trivially shareable. Global cap + LRU eviction is deferred to a follow-up alongside the playback browser — the user manages disk manually for v1.
 
+The recordings tree is owned by `lfs_core::recorder::browser`. Listing (`list_recordings`), per-row delete (`delete_recording`), and playback (`open_for_playback` — dispatches by extension into `open_cast_iter` / `open_lfsr_iter`) all run inside `tokio::task::spawn_blocking` workers behind the FRB shims `recorder_list_recordings`, `recorder_delete_recording`, `recorder_open_for_playback`. Dart resolves `<appSupport>/recordings` once per scan via `path_provider` and hands the root in; `path_provider` is the only piece of the chain that has to live in Dart. The walk uses `symlink_metadata` so a symlink planted under the tree never resolves to a target outside it; `delete_recording` rejects any `session_id` / `file_name` containing `..` or a path separator before issuing any filesystem call.
+
 #### Privacy posture
 
 - **Opt-in per-session, default off.** Privacy-first positioning. Toggle lives on the session edit dialog Options tab.
@@ -3022,12 +3024,12 @@ User-facing browser + replay surface for the per-session recordings the [`Sessio
 
 | File | Class | Purpose |
 |------|-------|---------|
-| `recordings_browser.dart` | `RecordingsBrowserPanel`, `RecordingsBrowserDialog` | Embeddable list panel + dialog wrapper. Lists every file under `<appSupport>/recordings/<sessionId>/`, joins to the live session list to resolve labels, exposes per-row delete + Play action. Reachable via Tools → Recordings on desktop and the mobile Tools tile. |
-| `recording_playback_dialog.dart` | `RecordingPlaybackDialog` | Embedded xterm playback with speed control (`1×` / `2×` / `4×` / Instant). Decodes per-event AES-256-GCM frames sequentially; truncated tails surface as a clean stop instead of a decode error. |
-| `recording_reader.dart` | `RecordingReader` | Pure decoder over the `[LFR1][version][len][nonce][cipher+tag]` envelope or the plain asciinema `.cast` JSON-Lines fallback. Used by both playback and the unit suite. |
-| `recordings_logic.dart` | Listing + lifecycle helpers | Disk walk + label join + delete pipeline shared by panel / dialog. Pure logic, testable without `BuildContext`. |
+| `recordings_browser.dart` | `RecordingsPanel`, `RecordingsBrowserDialog` | Embeddable list panel + dialog wrapper. Calls `recorder_list_recordings` (walk + stat) and `recorder_delete_recording` Rust-side; joins the resulting entries to the live session list to resolve labels and exposes per-row delete + Play action. Reachable via Tools → Recordings on desktop and the mobile Tools tile. |
+| `recording_playback_dialog.dart` | `RecordingPlaybackDialog` | Embedded xterm playback with speed control (`1×` / `2×` / `4×` / Instant). Subscribes to `recorder_open_for_playback`; the Rust side dispatches on extension (`.cast` plaintext / `.lfsr` encrypted) so the Dart consumer hands the path in once and never branches. Truncated tails surface as a clean stop instead of a decode error. |
+| `recording_reader.dart` | `RecordingReader` | Thin Dart wrapper over the FRB playback stream. Holds the `RecordingHeader` / `RecordingMeta` / `RecordingFrame` shapes the UI consumes; the actual decoder (per-frame AES-GCM, `.cast` line-iter, length-cap rejection) lives in `lfs_core::recorder::reader`. |
+| `recordings_logic.dart` | Listing + lifecycle helpers | Pure session-id → display-label fallback shared by panel / dialog. Disk walk + delete moved Rust-side; this file only carries `BuildContext`-free label resolution. |
 
-Recordings storage path + per-event GCM frame layout are owned by [§3.13](#313-session-recording-coresessionsession_recorderdart); this section is the UI surface. Cross-link: [USER_GUIDE § Session recording + playback](USER_GUIDE.md#9-session-recording--playback) for the user-facing flow.
+Recordings storage path, per-event GCM frame layout, the `.cast` / `.lfsr` decoder iterators, and the disk walk + delete are owned by [§3.13](#313-session-recording-coresessionsession_recorderdart) (`lfs_core::recorder::browser` for list/delete, `lfs_core::recorder::reader` for playback iteration); this section is the UI surface. Cross-link: [USER_GUIDE § Session recording + playback](USER_GUIDE.md#9-session-recording--playback) for the user-facing flow.
 
 ---
 

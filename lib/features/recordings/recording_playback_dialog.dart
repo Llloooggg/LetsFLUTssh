@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
@@ -30,27 +29,30 @@ import 'recording_reader.dart';
 /// Re-implementing the loop ourselves over xterm keeps the same
 /// rendering stack the rest of the app uses.
 class RecordingPlaybackDialog extends StatefulWidget {
-  final File file;
+  final String filePath;
   final bool encrypted;
   final RecordingMeta? meta;
 
   const RecordingPlaybackDialog({
     super.key,
-    required this.file,
+    required this.filePath,
     required this.encrypted,
     required this.meta,
   });
 
   static Future<void> show(
     BuildContext context, {
-    required File file,
+    required String filePath,
     required bool encrypted,
     required RecordingMeta? meta,
   }) {
     return AppDialog.show<void>(
       context,
-      builder: (_) =>
-          RecordingPlaybackDialog(file: file, encrypted: encrypted, meta: meta),
+      builder: (_) => RecordingPlaybackDialog(
+        filePath: filePath,
+        encrypted: encrypted,
+        meta: meta,
+      ),
     );
   }
 
@@ -96,9 +98,12 @@ class _RecordingPlaybackDialogState extends State<RecordingPlaybackDialog> {
       _error = null;
     });
     try {
-      final stream = widget.encrypted
-          ? RecordingReader.openEncrypted(widget.file)
-          : RecordingReader.openCast(widget.file);
+      // The Rust playback adapter dispatches on file extension —
+      // `.lfsr` opens through the encrypted iterator (recording
+      // key derived from the active DB-key slot Rust-side); any
+      // other extension opens through the plaintext `.cast`
+      // iterator. Dart hands the path in once and never branches.
+      final stream = RecordingReader.open(widget.filePath);
       var prevTimestamp = 0.0;
       var sawHeader = false;
       await for (final line in stream) {

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256
 /// key (encrypted mode) or empty bytes (plaintext mode — writes
@@ -23,18 +23,24 @@ Future<DbRecorderSnapshot> recorderRegister({
   key: key,
 );
 
-/// Open an encrypted `.lfsr` recording and stream every decoded
-/// JSON-Lines record to `sink` as a [`DbPlaybackEvent`]. The
-/// recording key is derived Rust-side from
-/// `secrets::ACTIVE_DBKEY_SECRET_ID` via the pinned
-/// `letsflutssh-recording-v1` HKDF chain; bytes never cross the
-/// FRB boundary back to Dart on this path.
+/// Open a recording for playback and stream every decoded
+/// JSON-Lines record to `sink` as a [`DbPlaybackEvent`]. Routes
+/// by extension Rust-side: `.lfsr` (case-insensitive) opens
+/// through the encrypted iterator with the recording key derived
+/// from `secrets::ACTIVE_DBKEY_SECRET_ID` via the pinned
+/// `letsflutssh-recording-v1` HKDF chain; any other extension
+/// (or none) opens through the plaintext `.cast` iterator.
+///
+/// The Dart caller hands the path in once and never branches on
+/// extension itself. The DB key + the derived recording key
+/// never cross the FRB boundary back to Dart.
 ///
 /// Errors during the magic / version sniff + per-frame decrypt
-/// surface as a final `DbPlaybackEvent { error: Some(detail) }`
-/// before the stream closes. Stream cancellation (Dart
-/// subscription cancelled) closes the sink → next `add` fails →
-/// the spawn_blocking task drops out of the iteration loop.
+/// (encrypted path) and per-line read (plaintext path) surface
+/// as a final `DbPlaybackEvent { error: Some(detail) }` before
+/// the stream closes. Stream cancellation (Dart subscription
+/// cancelled) closes the sink → next `add` fails → the
+/// spawn_blocking task drops out of the iteration loop.
 Stream<DbPlaybackEvent> recorderOpenForPlayback({required String path}) =>
     RustLib.instance.api.crateApiRecorderRecorderOpenForPlayback(path: path);
 
@@ -194,6 +200,40 @@ Future<void> recorderQueueEnqueueRotate({
 Future<void> recorderQueueEnqueueClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderQueueEnqueueClose(id: id);
 
+/// List every recording under `<recordings_root>/<sessionId>/`.
+/// `recordings_root` is the platform-specific
+/// `getApplicationSupportDirectory() + "/recordings"` resolved
+/// Dart-side — `path_provider` is the only piece of the chain
+/// that has to live in Dart.
+///
+/// Filters to `.cast` + `.lfsr` regular files; skips directories,
+/// symlinks, and unrelated extensions. A missing root returns an
+/// empty list (fresh-install case where the recorder never ran).
+Future<List<DbRecordingEntry>> recorderListRecordings({
+  required String recordingsRoot,
+}) => RustLib.instance.api.crateApiRecorderRecorderListRecordings(
+  recordingsRoot: recordingsRoot,
+);
+
+/// Delete `<recordings_root>/<session_id>/<file_name>`. Both
+/// `session_id` and `file_name` MUST be the bare components the
+/// `recorder_list_recordings` walk returned — neither may contain
+/// `..` or a path separator. The helper rejects tainted input
+/// before issuing any filesystem call.
+///
+/// Idempotent on a missing target — a stale Dart-side cache that
+/// requests an already-deleted row returns `Ok(())` so the UI
+/// can refresh without surfacing a spurious error.
+Future<void> recorderDeleteRecording({
+  required String recordingsRoot,
+  required String sessionId,
+  required String fileName,
+}) => RustLib.instance.api.crateApiRecorderRecorderDeleteRecording(
+  recordingsRoot: recordingsRoot,
+  sessionId: sessionId,
+  fileName: fileName,
+);
+
 /// One playback event. `line` carries a decoded JSON-Lines record;
 /// `error` (when set) carries a typed reason the playback aborted.
 /// Exactly one field is non-null per event. The tagged shape lets
@@ -257,5 +297,50 @@ class DbRecorderSnapshot {
           sessionId == other.sessionId &&
           path == other.path &&
           bytesWritten == other.bytesWritten &&
+          encrypted == other.encrypted;
+}
+
+/// Per-recording metadata yielded by [`recorder_list_recordings`].
+/// Mirrors `lfs_core::recorder::browser::RecordingEntry` — kept in
+/// the FRB crate so the codegen owns the marshalled shape.
+class DbRecordingEntry {
+  final String sessionId;
+  final String fileName;
+  final String extension_;
+  final BigInt sizeBytes;
+
+  /// Modification time as Unix epoch seconds. The Dart side
+  /// converts to `DateTime` once at the surface.
+  final PlatformInt64 mtimeUnixSecs;
+  final bool encrypted;
+
+  const DbRecordingEntry({
+    required this.sessionId,
+    required this.fileName,
+    required this.extension_,
+    required this.sizeBytes,
+    required this.mtimeUnixSecs,
+    required this.encrypted,
+  });
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^
+      fileName.hashCode ^
+      extension_.hashCode ^
+      sizeBytes.hashCode ^
+      mtimeUnixSecs.hashCode ^
+      encrypted.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbRecordingEntry &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          fileName == other.fileName &&
+          extension_ == other.extension_ &&
+          sizeBytes == other.sizeBytes &&
+          mtimeUnixSecs == other.mtimeUnixSecs &&
           encrypted == other.encrypted;
 }

@@ -22,11 +22,19 @@
 //! `letsflutssh-recording-v1` info string) so the bytes never
 //! cross the FRB boundary back to Dart.
 
-use std::io::{ErrorKind, Read};
+use std::io::{BufRead, ErrorKind, Read};
 use std::path::Path;
 
 use super::{LFR_MAGIC, MAX_FRAME_PLAINTEXT_BYTES, NONCE_LEN};
 use crate::crypto;
+
+/// Per-line cap for plaintext `.cast` recordings. The asciinema
+/// JSON-Lines format has no length prefix, so a malformed file
+/// with a missing newline could otherwise pull the entire file
+/// into memory looking for one. 16 MiB matches
+/// [`MAX_FRAME_PLAINTEXT_BYTES`] — same posture as the encrypted
+/// path's per-frame cap.
+pub(crate) const MAX_CAST_LINE_BYTES: usize = MAX_FRAME_PLAINTEXT_BYTES as usize;
 
 /// Errors the reader can surface. Each variant maps to a
 /// user-visible "this recording cannot be played back" reason —
@@ -189,6 +197,134 @@ impl Iterator for LfsrFrameIter {
     }
 }
 
+/// Open a plaintext `.cast` recording and return an iterator
+/// yielding one JSON-Lines record per call. The asciinema v2
+/// format is line-delimited; the iterator trims the trailing
+/// newline and skips empty lines so the surface matches
+/// [`open_lfsr_iter`].
+///
+/// Each line is bounded by [`MAX_CAST_LINE_BYTES`] — a malformed
+/// file with a runaway line (no newline before EOF) errors with
+/// [`ReaderError::FrameTooLarge`] instead of pulling the whole
+/// file into memory.
+pub fn open_cast_iter(path: &Path) -> Result<CastFrameIter, ReaderError> {
+    let file = std::fs::File::open(path)?;
+    let reader = std::io::BufReader::new(file);
+    Ok(CastFrameIter {
+        reader,
+        finished: false,
+    })
+}
+
+/// Iterator over the JSON-Lines records of a plaintext `.cast`
+/// playback file. Returned by [`open_cast_iter`].
+pub struct CastFrameIter {
+    reader: std::io::BufReader<std::fs::File>,
+    finished: bool,
+}
+
+impl std::fmt::Debug for CastFrameIter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CastFrameIter")
+            .field("finished", &self.finished)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Iterator for CastFrameIter {
+    type Item = Result<String, ReaderError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.finished {
+                return None;
+            }
+            let mut buf = Vec::with_capacity(256);
+            // `read_until('\n')` returns 0 on EOF without an error.
+            // Cap each line at MAX_CAST_LINE_BYTES — a runaway line
+            // (missing newline) would otherwise stream the whole file
+            // into `buf`. Take a bounded slice off the BufReader and
+            // hard-stop when it overshoots.
+            let mut take = (&mut self.reader).take((MAX_CAST_LINE_BYTES + 1) as u64);
+            match take.read_until(b'\n', &mut buf) {
+                Ok(0) => {
+                    self.finished = true;
+                    return None;
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    self.finished = true;
+                    return Some(Err(ReaderError::Io(e)));
+                }
+            }
+            if buf.len() > MAX_CAST_LINE_BYTES {
+                self.finished = true;
+                return Some(Err(ReaderError::FrameTooLarge(
+                    MAX_FRAME_PLAINTEXT_BYTES.saturating_add(1),
+                )));
+            }
+            // Strip the trailing newline (and CR on Windows-line-
+            // ending exports). Empty lines are skipped — the
+            // asciinema spec does not allow them as records but
+            // user-edited files in the wild sometimes carry them.
+            while matches!(buf.last(), Some(b'\n') | Some(b'\r')) {
+                buf.pop();
+            }
+            if buf.is_empty() {
+                continue;
+            }
+            return Some(String::from_utf8(buf).map_err(|_| ReaderError::NonUtf8Frame));
+        }
+    }
+}
+
+/// Output of [`open_for_playback`]. Either a `.cast` plaintext
+/// iterator or a `.lfsr` encrypted iterator — callers loop the
+/// returned shape with `match` because the two iterator types
+/// have the same `Item = Result<String, ReaderError>` surface
+/// but distinct concrete types.
+pub enum PlaybackIter {
+    Cast(CastFrameIter),
+    Lfsr(LfsrFrameIter),
+}
+
+impl PlaybackIter {
+    /// Convenience: drive the variant under one `next()` call so
+    /// the FRB adapter doesn't need to fan out the match itself.
+    pub fn next_record(&mut self) -> Option<Result<String, ReaderError>> {
+        match self {
+            PlaybackIter::Cast(it) => it.next(),
+            PlaybackIter::Lfsr(it) => it.next(),
+        }
+    }
+}
+
+/// Dispatch on the file's extension to pick the right decoder.
+/// `.lfsr` (case-insensitive) opens through [`open_lfsr_iter`]
+/// with the supplied recording key; anything else opens through
+/// [`open_cast_iter`] as plaintext asciinema. The split lives
+/// Rust-side so the Dart caller hands the path in once and never
+/// branches on extension itself.
+///
+/// The recording key is required only for the encrypted path —
+/// callers that know the file is plaintext can pass `[0u8; 32]`
+/// (the key is only consumed by the `.lfsr` branch). The FRB
+/// adapter reads the active DB key once per call and forwards
+/// the derived key here so the bytes never cross the FRB
+/// boundary back to Dart.
+pub fn open_for_playback(path: &Path, lfsr_key: [u8; 32]) -> Result<PlaybackIter, ReaderError> {
+    let is_lfsr = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.eq_ignore_ascii_case("lfsr"))
+        .unwrap_or(false);
+    if is_lfsr {
+        open_lfsr_iter(path, lfsr_key).map(PlaybackIter::Lfsr)
+    } else {
+        open_cast_iter(path).map(PlaybackIter::Cast)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -326,5 +462,121 @@ mod tests {
         let key_read = [0x99u8; 32];
         let mut iter = open_lfsr_iter(tmp.path(), key_read).expect("magic ok");
         assert!(matches!(iter.next(), Some(Err(ReaderError::Crypto(_)))));
+    }
+
+    #[test]
+    fn cast_iter_yields_each_line_trimmed() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let body = "{\"version\":2,\"width\":80,\"height\":24}\n[0.5,\"o\",\"hi\"]\n";
+        std::fs::write(tmp.path(), body).unwrap();
+        let mut it = open_cast_iter(tmp.path()).unwrap();
+        assert_eq!(
+            it.next().unwrap().unwrap(),
+            "{\"version\":2,\"width\":80,\"height\":24}"
+        );
+        assert_eq!(it.next().unwrap().unwrap(), "[0.5,\"o\",\"hi\"]");
+        assert!(it.next().is_none());
+    }
+
+    #[test]
+    fn cast_iter_skips_empty_lines() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        // Empty line between records — user-edited file in the
+        // wild. The iterator skips them so the playback loop stays
+        // straight.
+        std::fs::write(tmp.path(), "a\n\nb\n").unwrap();
+        let mut it = open_cast_iter(tmp.path()).unwrap();
+        assert_eq!(it.next().unwrap().unwrap(), "a");
+        assert_eq!(it.next().unwrap().unwrap(), "b");
+        assert!(it.next().is_none());
+    }
+
+    #[test]
+    fn cast_iter_strips_crlf_line_endings() {
+        // Windows-line-ending exports sometimes carry `\r\n`. The
+        // trailing `\r` would otherwise leak into the JSON parser
+        // on the Dart side and reject every record.
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "{\"version\":2}\r\n[0,\"o\",\"x\"]\r\n").unwrap();
+        let mut it = open_cast_iter(tmp.path()).unwrap();
+        assert_eq!(it.next().unwrap().unwrap(), "{\"version\":2}");
+        assert_eq!(it.next().unwrap().unwrap(), "[0,\"o\",\"x\"]");
+    }
+
+    #[test]
+    fn cast_iter_handles_no_trailing_newline() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "[0,\"o\",\"x\"]").unwrap();
+        let mut it = open_cast_iter(tmp.path()).unwrap();
+        assert_eq!(it.next().unwrap().unwrap(), "[0,\"o\",\"x\"]");
+        assert!(it.next().is_none());
+    }
+
+    #[test]
+    fn cast_iter_rejects_oversized_line() {
+        // A single line beyond MAX_CAST_LINE_BYTES surfaces as
+        // FrameTooLarge. The cap matches the encrypted path's
+        // per-frame cap so a malformed plaintext file cannot pull
+        // a multi-GiB allocation just by omitting newlines.
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        let mut bytes = vec![b'x'; MAX_CAST_LINE_BYTES + 8];
+        bytes.push(b'\n');
+        std::fs::write(tmp.path(), &bytes).unwrap();
+        let mut it = open_cast_iter(tmp.path()).unwrap();
+        assert!(matches!(
+            it.next(),
+            Some(Err(ReaderError::FrameTooLarge(_)))
+        ));
+        assert!(it.next().is_none());
+    }
+
+    #[test]
+    fn cast_iter_rejects_missing_file() {
+        let err = open_cast_iter(Path::new("/nonexistent/path-cast-7c8f.cast")).unwrap_err();
+        assert!(matches!(err, ReaderError::Io(_)));
+    }
+
+    #[test]
+    fn open_for_playback_dispatches_on_extension() {
+        // .cast → CastFrameIter regardless of the supplied lfsr key.
+        let cast = tempfile::Builder::new().suffix(".cast").tempfile().unwrap();
+        std::fs::write(cast.path(), "first\nsecond\n").unwrap();
+        let dummy_key = [0u8; 32];
+        let mut it = open_for_playback(cast.path(), dummy_key).unwrap();
+        assert!(matches!(it, PlaybackIter::Cast(_)));
+        assert_eq!(it.next_record().unwrap().unwrap(), "first");
+        assert_eq!(it.next_record().unwrap().unwrap(), "second");
+        assert!(it.next_record().is_none());
+
+        // .lfsr → LfsrFrameIter through the magic-sniff path.
+        let lfsr = tempfile::Builder::new().suffix(".lfsr").tempfile().unwrap();
+        let key = [0x42u8; 32];
+        write_v2_recording(lfsr.path(), &key, &[r#"[0,"o","x"]"#]);
+        let it = open_for_playback(lfsr.path(), key).unwrap();
+        assert!(matches!(it, PlaybackIter::Lfsr(_)));
+    }
+
+    #[test]
+    fn open_for_playback_treats_missing_extension_as_cast() {
+        // A user-renamed file without an extension falls through to
+        // the plaintext branch — no LFR1 magic match to attempt.
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(tmp.path(), "raw\n").unwrap();
+        let mut it = open_for_playback(tmp.path(), [0u8; 32]).unwrap();
+        assert!(matches!(it, PlaybackIter::Cast(_)));
+        assert_eq!(it.next_record().unwrap().unwrap(), "raw");
+    }
+
+    #[test]
+    fn open_for_playback_extension_check_is_case_insensitive() {
+        // `.LFSR` (uppercase) routes to the encrypted path. The
+        // browser walk also lowercases extensions, so this case
+        // only fires when a caller hands in a path the walk did
+        // not produce — but the contract is symmetric.
+        let lfsr = tempfile::Builder::new().suffix(".LFSR").tempfile().unwrap();
+        let key = [0x42u8; 32];
+        write_v2_recording(lfsr.path(), &key, &[r#"[0,"o","x"]"#]);
+        let it = open_for_playback(lfsr.path(), key).unwrap();
+        assert!(matches!(it, PlaybackIter::Lfsr(_)));
     }
 }
