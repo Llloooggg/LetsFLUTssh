@@ -23,6 +23,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/app_icon_button.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
+import 'anchor_pinning_terminal_controller.dart';
 import 'cursor_overlay.dart';
 import '../../utils/terminal_clipboard.dart';
 import '../../widgets/context_menu.dart';
@@ -90,7 +91,7 @@ class TerminalPane extends ConsumerStatefulWidget {
 
 class TerminalPaneState extends ConsumerState<TerminalPane> {
   late final Terminal _terminal;
-  late final TerminalController _terminalController;
+  late final AnchorPinningTerminalController _terminalController;
   late final void Function() _scrubFn;
   ShellConnection? _shellConn;
   StreamSubscription<ConnectionStep>? _progressSub;
@@ -151,7 +152,7 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
   void initState() {
     super.initState();
     _terminal = Terminal(maxLines: ref.read(configProvider).scrollback);
-    _terminalController = TerminalController();
+    _terminalController = AnchorPinningTerminalController();
     // Register a scrub callback with the scrubber so auto-lock /
     // wipe paths reset this terminal's scrollback alongside the
     // DB key. Holding a closure (not the Terminal) keeps the
@@ -488,8 +489,25 @@ class TerminalPaneState extends ConsumerState<TerminalPane> {
       onPointerDown: (event) {
         if (event.buttons == kSecondaryButton) {
           _showContextMenu(context, event.position);
+          return;
+        }
+        // xterm's drag handler recomputes both selection endpoints
+        // every update from raw widget pixels, so a wheel scroll
+        // mid-drag re-anchors `base` to whatever cell the start
+        // pixel maps to under the new scroll. Pin the first base
+        // for the duration of this drag — but only for primary
+        // mouse buttons: touch goes through long-press word-extend
+        // (xterm passes the merged range's leftmost word as `base`
+        // when extending leftward, which the pin would freeze), and
+        // alt-buffer has no scrollback so the bug cannot occur.
+        if (event.kind == PointerDeviceKind.mouse &&
+            event.buttons == kPrimaryButton &&
+            !_terminal.isUsingAltBuffer) {
+          _terminalController.beginDrag();
         }
       },
+      onPointerUp: (_) => _terminalController.endDrag(),
+      onPointerCancel: (_) => _terminalController.endDrag(),
       onPointerSignal: _onPointerSignal,
       child: Stack(
         children: [
