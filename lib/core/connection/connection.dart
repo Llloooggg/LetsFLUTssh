@@ -37,24 +37,6 @@ class Connection {
 
   SSHConnectionState state;
 
-  /// Passphrase entered interactively — cached for reconnect within same session.
-  ///
-  /// Cleared eagerly on [ConnectionsNotifier.disconnect] via
-  /// [clearCachedCredentials]. Set by [ConnectionsNotifier] when user
-  /// checks "remember".
-  ///
-  /// ## Memory hygiene caveat
-  ///
-  /// Dart `String` is immutable — we cannot overwrite its backing
-  /// bytes with zeros the way [SecretBuffer] does for the DB key.
-  /// The best we can do is drop every reference we own so the
-  /// garbage collector can reclaim it, which is what
-  /// [clearCachedCredentials] does. The passphrase copies that the
-  /// Rust transport holds during auth (russh / russh-keys) live
-  /// inside `Zeroizing` buffers there. Treat this field as "narrow
-  /// the exposure window" rather than "erase the secret".
-  String? cachedPassphrase;
-
   /// Per-attempt transient secret IDs the connect path staged into
   /// the Rust `SecretStore`. Populated by
   /// `ConnectionsNotifier._authFromConfig` whenever the auth bytes
@@ -456,19 +438,6 @@ class Connection {
     // SecretStore entries (already dropped on its terminal state);
     // start the new attempt with an empty set.
     transientSecretIds.clear();
-  }
-
-  /// Drop every reference this Connection owns to plaintext credentials
-  /// so the GC can reclaim them as soon as possible.
-  ///
-  /// Meant to be called by [ConnectionsNotifier] right before removing the
-  /// Connection from its map on disconnect — by that point there is no
-  /// legitimate reason to keep the passphrase, and holding onto an
-  /// immutable `String` any longer just widens the window a coredump
-  /// could scoop it up. See the caveat on [cachedPassphrase] for why
-  /// "drop reference" is as strong as Dart allows.
-  void clearCachedCredentials() {
-    cachedPassphrase = null;
   }
 
   /// Tear down the Connection's persistent resources — bus

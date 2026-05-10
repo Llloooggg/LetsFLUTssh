@@ -211,10 +211,10 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
   ({Set<String> connected, Set<String> connecting}) _connectionSessionIds(
     WidgetRef ref,
   ) {
-    // Watch the derived summary, not the raw stream — a cachedPassphrase
-    // write or a progress-step append on an unrelated connection does
-    // not change which session ids belong to which bucket, so value
-    // equality on ConnectionSummary suppresses the rebuild.
+    // Watch the derived summary, not the raw stream — a progress-step
+    // append on an unrelated connection does not change which session
+    // ids belong to which bucket, so value equality on
+    // ConnectionSummary suppresses the rebuild.
     final summary = ref.watch(connectionSummaryProvider);
     return (
       connected: summary.connectedSessionIds,

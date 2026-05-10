@@ -317,10 +317,6 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
             );
           }),
     );
-    // Drop the cached passphrase BEFORE losing the Connection
-    // reference so the GC can reclaim the String once our map
-    // stops pinning it.
-    conn.clearCachedCredentials();
     // Explicit disconnect = the user is done with the session.
     // Wipe the session-wide credential cache entry so the
     // plaintext does not linger in mlock'd memory across a
@@ -369,7 +365,6 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
         unawaited(transport.disconnect().catchError((Object _) {}));
       }
       conn.completeReady();
-      conn.clearCachedCredentials();
       final sessionId = conn.sessionId;
       if (sessionId != null) {
         unawaited(
@@ -415,12 +410,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     SSHConfig config,
     int generation,
   ) async {
-    final effectiveConfig = _withCredentialOverlay(conn, config);
-    final auth = await _authFromConfig(
-      effectiveConfig.auth,
-      conn.sessionId,
-      conn,
-    );
+    final auth = await _authFromConfig(config.auth, conn.sessionId, conn);
 
     // Bastion-readiness wait lives Rust-side now:
     // `lfs_core::connection::wait_for_parent_ready` subscribes to
@@ -445,7 +435,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
 
     final rust_bus.BusConnectArgs args;
     try {
-      args = busConnectArgs(conn, effectiveConfig, auth);
+      args = busConnectArgs(conn, config, auth);
     } catch (e, st) {
       AppLogger.instance.log(
         'Bus connect args build failed: $e',
@@ -505,7 +495,7 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       if (!_isStaleGeneration(conn.id, generation)) {
         conn.completeReady();
         if (conn.state == SSHConnectionState.connected) {
-          _cachePostAuthCredentials(conn, effectiveConfig);
+          _cachePostAuthCredentials(conn, config);
         }
       }
       _notify();
@@ -552,17 +542,6 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
       ) =>
         SshAuthPubkeyRef(keySecretId, passphraseSecretId: passphraseSecretId),
     };
-  }
-
-  /// Overlay [Connection.cachedPassphrase] onto [config] when set —
-  /// populated on interactive passphrase prompts with the
-  /// "remember" box ticked. Applied only when the config does not
-  /// already carry a passphrase, so an explicitly-passed value
-  /// wins.
-  SSHConfig _withCredentialOverlay(Connection conn, SSHConfig config) {
-    final cached = conn.cachedPassphrase;
-    if (cached == null || config.auth.passphrase.isNotEmpty) return config;
-    return config.copyWith(auth: config.auth.copyWith(passphrase: cached));
   }
 
   /// Store the post-auth credential envelope so a later reconnect
