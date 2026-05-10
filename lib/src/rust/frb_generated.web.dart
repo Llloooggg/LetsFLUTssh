@@ -319,6 +319,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost dco_decode_box_autoadd_db_known_host(dynamic raw);
 
   @protected
+  DbOpenSshImportPreview dco_decode_box_autoadd_db_open_ssh_import_preview(
+    dynamic raw,
+  );
+
+  @protected
   DbPortForwardRule dco_decode_box_autoadd_db_port_forward_rule(dynamic raw);
 
   @protected
@@ -965,6 +970,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbKnownHost? dco_decode_opt_box_autoadd_db_known_host(dynamic raw);
 
   @protected
+  DbOpenSshImportPreview? dco_decode_opt_box_autoadd_db_open_ssh_import_preview(
+    dynamic raw,
+  );
+
+  @protected
   DbSecurityCapabilities? dco_decode_opt_box_autoadd_db_security_capabilities(
     dynamic raw,
   );
@@ -1295,6 +1305,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbKnownHost sse_decode_box_autoadd_db_known_host(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbOpenSshImportPreview sse_decode_box_autoadd_db_open_ssh_import_preview(
     SseDeserializer deserializer,
   );
 
@@ -2147,6 +2162,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbOpenSshImportPreview? sse_decode_opt_box_autoadd_db_open_ssh_import_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSecurityCapabilities? sse_decode_opt_box_autoadd_db_security_capabilities(
     SseDeserializer deserializer,
   );
@@ -2548,6 +2568,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_known_host(
     DbKnownHost self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_open_ssh_import_preview(
+    DbOpenSshImportPreview self,
     SseSerializer serializer,
   );
 
@@ -3636,6 +3662,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_known_host(
     DbKnownHost? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_open_ssh_import_preview(
+    DbOpenSshImportPreview? self,
     SseSerializer serializer,
   );
 

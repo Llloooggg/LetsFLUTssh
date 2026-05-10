@@ -97,10 +97,40 @@ class OpenSshConfigImporter {
       baseDir: baseDir,
       maxIncludeDepth: 8,
     );
+    return _wrapPreview(raw, folderLabel: folderLabel, mode: mode);
+  }
 
+  /// Build an import preview by reading the OpenSSH config straight
+  /// from disk. The file read happens Rust-side (no `dart:io` File
+  /// in the caller), and `Include` directives resolve relative to
+  /// the picked file's parent directory unless `baseDirOverride` is
+  /// set. Returns `null` for missing files / I/O errors / non-UTF-8
+  /// content — every "nothing to show" outcome the caller would
+  /// surface as the silent fallthrough.
+  Future<OpenSshConfigImportPreview?> buildPreviewFromPath({
+    required String path,
+    required String folderLabel,
+    String keyLabelSuffix = '',
+    ImportMode mode = ImportMode.merge,
+  }) async {
+    final raw = await rust_import.opensshConfigBuildPreviewFromPath(
+      path: path,
+      folderLabel: folderLabel,
+      keyLabelSuffix: keyLabelSuffix,
+      baseDir: baseDirOverride ?? '',
+      maxIncludeDepth: 8,
+    );
+    if (raw == null) return null;
+    return _wrapPreview(raw, folderLabel: folderLabel, mode: mode);
+  }
+
+  OpenSshConfigImportPreview _wrapPreview(
+    rust_import.DbOpenSshImportPreview raw, {
+    required String folderLabel,
+    required ImportMode mode,
+  }) {
     final sessions = raw.sessions.map(_toSession).toList(growable: false);
     final keys = raw.keys.map(_toSshKeyEntry).toList(growable: false);
-
     return OpenSshConfigImportPreview(
       result: ImportResult(
         sessions: sessions,

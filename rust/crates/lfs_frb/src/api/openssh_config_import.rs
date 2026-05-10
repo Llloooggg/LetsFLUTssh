@@ -103,6 +103,66 @@ pub fn openssh_config_expand_home(path: String) -> String {
     lfs_core::import::openssh_config::expand_home(&path)
 }
 
+/// Read the OpenSSH config at `path` from disk and produce the
+/// import preview. `base_dir` defaults to the file's parent
+/// directory when empty, so `Include` directives resolve relative
+/// to the picked config. Returns `None` for missing files / I/O
+/// errors / non-UTF-8 content — every "nothing to show" outcome
+/// the Dart caller would surface as the silent fallthrough.
+pub async fn openssh_config_build_preview_from_path(
+    path: String,
+    folder_label: String,
+    key_label_suffix: String,
+    base_dir: String,
+    max_include_depth: u32,
+) -> Option<DbOpenSshImportPreview> {
+    tokio::task::spawn_blocking(move || {
+        let p = std::path::PathBuf::from(path);
+        lfs_core::import::openssh_config::build_preview_from_path(
+            &p,
+            &folder_label,
+            &key_label_suffix,
+            &base_dir,
+            max_include_depth as usize,
+        )
+        .map(|preview| DbOpenSshImportPreview {
+            sessions: preview
+                .sessions
+                .into_iter()
+                .map(|s| DbOpenSshImportSession {
+                    id: s.id,
+                    label: s.label,
+                    folder: s.folder,
+                    host: s.host,
+                    port: s.port as u32,
+                    user: s.user,
+                    auth_type: s.auth_type.into(),
+                    key_id: s.key_id,
+                })
+                .collect(),
+            keys: preview
+                .keys
+                .into_iter()
+                .map(|k| DbOpenSshImportKey {
+                    id: k.id,
+                    label: k.label,
+                    private_pem: k.private_pem,
+                    public_openssh: k.public_openssh,
+                    key_type: k.key_type,
+                    fingerprint: k.fingerprint,
+                    created_at_unix_ms: k.created_at_unix_ms,
+                })
+                .collect(),
+            parsed_hosts: preview.parsed_hosts,
+            hosts_with_missing_keys: preview.hosts_with_missing_keys,
+            hosts_with_encrypted_keys: preview.hosts_with_encrypted_keys,
+        })
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

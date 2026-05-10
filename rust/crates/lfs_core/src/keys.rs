@@ -218,6 +218,67 @@ pub fn normalized_text_fingerprint(text: &str) -> String {
     out
 }
 
+/// Read `path` and return the OpenSSH-armored PEM if the file
+/// looks like a private key.
+///
+/// Mirrors the Dart-era `KeyFileHelper.tryReadPemKey`:
+/// - Returns `None` for missing files, files larger than 32 KiB
+///   (the documented PEM ceiling — anything bigger is something
+///   else), I/O errors, and PPK / PEM blobs that fail to decode.
+/// - For PPK input, decodes through [`import_ppk`] without a
+///   passphrase. Encrypted / unsupported PPKs collapse to `None`
+///   so the silent file-picker path returns "not a key" and the
+///   caller can fall back to the passphrase-aware key-manager UI.
+/// - For PEM input, returns the original bytes when the
+///   ASCII-armor `PRIVATE KEY` marker is present; otherwise `None`.
+///
+/// Keeping this in Rust means a picked file's bytes never
+/// materialise on the Dart heap — the FRB caller hands the path
+/// in and gets back either the canonical PEM or `None`.
+pub fn try_read_pem_from_path(path: &std::path::Path) -> Option<String> {
+    const MAX_KEY_FILE_SIZE: u64 = 32 * 1024;
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    if meta.len() > MAX_KEY_FILE_SIZE {
+        return None;
+    }
+    let content = std::fs::read_to_string(path).ok()?;
+    if looks_like_ppk(&content) {
+        return import_ppk(&content, None, "").ok().map(|km| km.private_pem);
+    }
+    if content.contains("PRIVATE KEY") {
+        return Some(content);
+    }
+    None
+}
+
+/// Read `path` as UTF-8 text, capped at 32 KiB. Used by the
+/// key-manager dialog as the manual-edit fallback when
+/// [`try_read_pem_from_path`] could not auto-detect a PEM / PPK
+/// shape — the user picked a file we don't recognise but still
+/// wants to paste-and-edit the bytes in the dialog.
+///
+/// Returns `Err` for missing files, files larger than the
+/// ceiling, I/O errors, and non-UTF-8 content. Caller surfaces
+/// any error as the dialog's "couldn't read file" toast.
+pub fn read_text_for_manual_import(path: &std::path::Path) -> Result<String, Error> {
+    const MAX_KEY_FILE_SIZE: u64 = 32 * 1024;
+    let meta = std::fs::metadata(path).map_err(|e| Error::KeyParse(format!("stat: {e}")))?;
+    if !meta.is_file() {
+        return Err(Error::KeyParse(String::from("not a regular file")));
+    }
+    if meta.len() > MAX_KEY_FILE_SIZE {
+        return Err(Error::KeyParse(format!(
+            "file too large ({} bytes, max {})",
+            meta.len(),
+            MAX_KEY_FILE_SIZE
+        )));
+    }
+    std::fs::read_to_string(path).map_err(|e| Error::KeyParse(format!("read: {e}")))
+}
+
 /// True when [`pem`] is a password-protected private key.
 ///
 /// Covers the three encoding families the importer cares about:
@@ -471,5 +532,55 @@ mod tests {
                    bm90LXJlYWxseS1iYXNlNjQK\n\
                    -----END OPENSSH PRIVATE KEY-----\n";
         assert!(!is_encrypted_pem(pem));
+    }
+
+    // ── try_read_pem_from_path ───────────────────────────────────
+
+    #[test]
+    fn try_read_pem_from_path_returns_pem_for_valid_armor() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("id_ed25519");
+        let content = "-----BEGIN OPENSSH PRIVATE KEY-----\nbm90LXJlYWw=\n-----END OPENSSH PRIVATE KEY-----\n";
+        std::fs::write(&path, content).unwrap();
+        assert_eq!(try_read_pem_from_path(&path).as_deref(), Some(content));
+    }
+
+    #[test]
+    fn try_read_pem_from_path_returns_none_for_missing_file() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("nope");
+        assert!(try_read_pem_from_path(&path).is_none());
+    }
+
+    #[test]
+    fn try_read_pem_from_path_rejects_oversized_file() {
+        // 33 KiB → over the documented 32 KiB ceiling. The file's
+        // body is irrelevant; the size check trips before any
+        // PEM / PPK detection.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("oversized");
+        std::fs::write(&path, vec![b'x'; 33 * 1024]).unwrap();
+        assert!(try_read_pem_from_path(&path).is_none());
+    }
+
+    #[test]
+    fn try_read_pem_from_path_rejects_non_pem_content() {
+        // A small file with no `PRIVATE KEY` armor — picker
+        // legitimately picked something else (config, log, random
+        // text). Helper says "not a key" and the silent path moves
+        // on without surfacing a parse error.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("random.txt");
+        std::fs::write(&path, b"hello world").unwrap();
+        assert!(try_read_pem_from_path(&path).is_none());
+    }
+
+    #[test]
+    fn try_read_pem_from_path_rejects_directory() {
+        // A directory at the picked path → must collapse to None
+        // rather than blowing up — the file picker on iOS / Android
+        // can hand us a directory under a sandbox alias.
+        let dir = tempfile::TempDir::new().unwrap();
+        assert!(try_read_pem_from_path(dir.path()).is_none());
     }
 }

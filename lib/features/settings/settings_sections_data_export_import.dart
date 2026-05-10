@@ -69,18 +69,14 @@ class _ExportImportTile extends ConsumerWidget {
       // just the standalone keys.
       final scannedKeys = await SshDirKeyScanner().scan(sshDir);
 
-      // Parse config if present. Missing file = no hosts, dialog still shows
+      // Parse config if present. Missing file = no hosts (the Rust
+      // side returns `null` from a missing read), dialog still shows
       // the keys section.
-      OpenSshConfigImportPreview? preview;
-      final configFile = File(configPath);
-      if (await configFile.exists()) {
-        final content = await configFile.readAsString();
-        preview = await OpenSshConfigImporter().buildPreview(
-          configContent: content,
-          folderLabel: folderLabel,
-          keyLabelSuffix: date,
-        );
-      }
+      final preview = await OpenSshConfigImporter().buildPreviewFromPath(
+        path: configPath,
+        folderLabel: folderLabel,
+        keyLabelSuffix: date,
+      );
       if (!context.mounted) return;
 
       // Nothing to show at all — surface a warning and bail. Mobile
@@ -161,12 +157,12 @@ class _ExportImportTile extends ConsumerWidget {
     final path = result?.files.single.path;
     if (path == null) return null;
     try {
-      final content = await File(path).readAsString();
-      final preview = await OpenSshConfigImporter().buildPreview(
-        configContent: content,
+      final preview = await OpenSshConfigImporter().buildPreviewFromPath(
+        path: path,
         folderLabel: folderLabel,
         keyLabelSuffix: keyLabelSuffix,
       );
+      if (preview == null) return null;
       return PickedConfigResult(
         sessions: preview.result.sessions,
         managerKeys: preview.result.managerKeys,

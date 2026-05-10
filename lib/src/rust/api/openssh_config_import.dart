@@ -33,6 +33,27 @@ DbOpenSshImportPreview opensshConfigBuildPreview({
 String opensshConfigExpandHome({required String path}) => RustLib.instance.api
     .crateApiOpensshConfigImportOpensshConfigExpandHome(path: path);
 
+/// Read the OpenSSH config at `path` from disk and produce the
+/// import preview. `base_dir` defaults to the file's parent
+/// directory when empty, so `Include` directives resolve relative
+/// to the picked config. Returns `None` for missing files / I/O
+/// errors / non-UTF-8 content — every "nothing to show" outcome
+/// the Dart caller would surface as the silent fallthrough.
+Future<DbOpenSshImportPreview?> opensshConfigBuildPreviewFromPath({
+  required String path,
+  required String folderLabel,
+  required String keyLabelSuffix,
+  required String baseDir,
+  required int maxIncludeDepth,
+}) => RustLib.instance.api
+    .crateApiOpensshConfigImportOpensshConfigBuildPreviewFromPath(
+      path: path,
+      folderLabel: folderLabel,
+      keyLabelSuffix: keyLabelSuffix,
+      baseDir: baseDir,
+      maxIncludeDepth: maxIncludeDepth,
+    );
+
 class DbOpenSshImportKey {
   final String id;
   final String label;

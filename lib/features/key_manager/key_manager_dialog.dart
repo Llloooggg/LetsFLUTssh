@@ -13,6 +13,7 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../src/rust/api/format.dart' as rust_format;
+import '../../src/rust/api/keys.dart' as rust_keys;
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/logger.dart';
@@ -290,7 +291,8 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     String pem;
     try {
       final extracted = await KeyFileHelper.tryReadPemKey(path);
-      pem = extracted ?? await File(path).readAsString();
+      pem =
+          extracted ?? await rust_keys.keysReadTextForManualImport(path: path);
     } catch (e) {
       AppLogger.instance.log('Key file read failed: $e', name: 'KeyManager');
       if (mounted) {

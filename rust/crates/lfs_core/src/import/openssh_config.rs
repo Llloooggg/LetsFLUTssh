@@ -72,6 +72,42 @@ pub struct ImportPreview {
 }
 
 /// Parse `config_content` (with `Include` expansion against the
+/// Read `path` from disk and dispatch to [`build_preview`]. The
+/// `Option<ImportPreview>` collapses every "no preview to show"
+/// outcome into the same nullable shape: missing file, parent
+/// directory unreachable, I/O error, or non-UTF-8 content. The
+/// Dart caller treats all of those identically (silent picker
+/// fallthrough), so a single sentinel keeps the FRB surface
+/// narrow.
+///
+/// `base_dir` defaults to the file's parent directory when empty,
+/// so `Include` directives resolve relative to the picked config
+/// the way the user would expect when pointing at an arbitrary
+/// `~/.ssh/config` sibling.
+pub fn build_preview_from_path(
+    path: &std::path::Path,
+    folder_label: &str,
+    key_label_suffix: &str,
+    base_dir: &str,
+    max_include_depth: usize,
+) -> Option<ImportPreview> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let resolved_base = if base_dir.is_empty() {
+        path.parent()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    } else {
+        base_dir.to_string()
+    };
+    Some(build_preview(
+        &content,
+        folder_label,
+        key_label_suffix,
+        &resolved_base,
+        max_include_depth,
+    ))
+}
+
 /// real filesystem under `base_dir`) and build the import
 /// preview. `key_label_suffix` is appended to each key's
 /// suggested label so re-imports stay disambiguated.

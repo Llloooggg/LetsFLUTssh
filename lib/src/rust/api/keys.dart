@@ -89,6 +89,32 @@ bool keysIsObviousNonKeyFilename({required String filename}) => RustLib
 bool keysLooksLikePpk({required String text}) =>
     RustLib.instance.api.crateApiKeysKeysLooksLikePpk(text: text);
 
+/// Read `path` and return the OpenSSH-armored PEM if the file
+/// looks like a private key. Wraps
+/// [`lfs_core::keys::try_read_pem_from_path`] so a Dart caller
+/// hands the path in and gets back either the canonical PEM or
+/// `None` — no `dart:io` File read, no PPK / PEM bytes on the
+/// Dart heap on the silent file-picker path.
+///
+/// The 32 KiB size ceiling, missing-file fallback, and
+/// PPK-without-passphrase route to "not a key" all live Rust-side.
+/// FRB encodes `Option<String>` as a nullable string in Dart, so a
+/// `null` return cleanly maps to the prior Dart helper's `null`
+/// contract.
+Future<String?> keysTryReadPemFromPath({required String path}) =>
+    RustLib.instance.api.crateApiKeysKeysTryReadPemFromPath(path: path);
+
+/// Read `path` as UTF-8 text, capped at 32 KiB. Manual-edit
+/// fallback used by the key-manager dialog when
+/// [`keys_try_read_pem_from_path`] could not auto-detect a PEM /
+/// PPK shape — the user picked a non-standard file but still
+/// wants to paste-and-edit the bytes in the dialog. Returns the
+/// file content on success; an error string on missing file,
+/// oversize, or non-UTF-8 input that the caller surfaces as the
+/// "couldn't read file" toast.
+Future<String> keysReadTextForManualImport({required String path}) =>
+    RustLib.instance.api.crateApiKeysKeysReadTextForManualImport(path: path);
+
 class KeyMaterial {
   final String privatePem;
   final String publicOpenssh;
