@@ -49,7 +49,7 @@ endif
 ## Top-level umbrellas run both languages; `dart-*` / `rust-*`
 ## variants exist for fast iteration when only one side changed.
 
-test: dart-test rust-test ## Run all tests (Dart + Rust)
+test: rust-test dart-test ## Run all tests (Rust core first, then Dart)
 
 lint: dart-lint rust-lint ## Run static analysis (Dart analyzer + Rust clippy)
 
