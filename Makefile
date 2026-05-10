@@ -81,10 +81,10 @@ dart-lint: ## Run Dart analyzer (fatal on infos)
 	$(FLUTTER) analyze --fatal-infos
 
 dart-format: ## Format Dart sources in place
-	dart format .
+	dart format lib test integration_test fuzz scripts
 
 dart-format-check: ## Verify Dart formatting (exit non-zero if changes needed)
-	dart format --output=none --set-exit-if-changed .
+	dart format --output=none --set-exit-if-changed lib test integration_test fuzz scripts
 
 # Pinned actionlint version + checksum. Update both together when bumping.
 ACTIONLINT_VERSION := 1.7.5
