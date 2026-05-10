@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
 import '../core/security/secure_clipboard.dart';
+import '../src/rust/api/crypto.dart' as rust_crypto;
 import 'sanitize.dart' show looksSensitive;
 
 /// Shared clipboard operations for terminal views (desktop + mobile).
@@ -35,10 +37,13 @@ class TerminalClipboard {
   /// don't trigger an early wipe of the latest content.
   static Timer? _wipeTimer;
 
-  /// The exact text we last wrote to the clipboard, so the wipe only
-  /// clears it when the user has not since copied something else
-  /// (e.g. a regular terminal selection from another app).
-  static String? _lastSecretWritten;
+  /// SHA-256 hex of the text we last wrote to the clipboard. The
+  /// wipe only clears the slot when the current clipboard content
+  /// hashes back to this value AND nothing has been copied since.
+  /// Hashing instead of caching the raw text means a stale 30-second
+  /// reference to a freshly-copied PEM does not sit in this
+  /// process-wide `static` slot.
+  static String? _lastSecretHash;
 
   /// Copy the current selection text to clipboard and clear selection.
   /// Sensitive-looking content (PEM blocks, long base64 runs) is
@@ -105,19 +110,29 @@ class TerminalClipboard {
   static void _maybeArmWipe(String text) {
     if (!_looksSensitive(text)) return;
     _wipeTimer?.cancel();
-    _lastSecretWritten = text;
-    _wipeTimer = Timer(secretClipboardLifetime, () => _wipeIfStillOurs(text));
+    final hash = _hash(text);
+    _lastSecretHash = hash;
+    _wipeTimer = Timer(secretClipboardLifetime, () => _wipeIfStillOurs(hash));
   }
 
-  static Future<void> _wipeIfStillOurs(String expected) async {
+  static Future<void> _wipeIfStillOurs(String expectedHash) async {
     final current = await Clipboard.getData('text/plain');
+    final currentText = current?.text;
+    if (currentText == null || currentText.isEmpty) {
+      _wipeTimer = null;
+      _lastSecretHash = null;
+      return;
+    }
     // Only wipe if the clipboard still holds *our* secret. If the user
     // (or another app) has copied something else in the meantime, leave
     // it alone.
-    if (current?.text == expected && _lastSecretWritten == expected) {
+    if (_hash(currentText) == expectedHash && _lastSecretHash == expectedHash) {
       await Clipboard.setData(const ClipboardData(text: ''));
     }
     _wipeTimer = null;
-    _lastSecretWritten = null;
+    _lastSecretHash = null;
   }
+
+  static String _hash(String text) =>
+      rust_crypto.cryptoSha256Hex(bytes: utf8.encode(text));
 }
