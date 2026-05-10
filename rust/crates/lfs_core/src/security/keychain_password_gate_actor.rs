@@ -21,7 +21,7 @@
 use std::path::Path;
 
 use crate::security::keychain_password_gate::{
-    compute_gate_hmac, decode_disk_blob, encode_disk_blob, random_salt_and_pepper,
+    compute_gate_hmac, decode_disk_blob, encode_disk_blob, random_salt_and_pepper, DiskBlob,
 };
 
 /// Storage key for the keychain pepper. Mirrors the Dart-era
@@ -112,6 +112,37 @@ pub async fn is_configured(support_dir: &Path) -> Result<bool, String> {
         Ok(None) => Ok(false),
         Err(_) => Ok(false),
     }
+}
+
+/// Read the on-disk `{salt, hmac}` envelope and return the
+/// decoded values. Used by the rate-limiter setup path that
+/// needs the stored HMAC as the per-install rate-limit key
+/// without reaching for Dart-side `File.readAsBytes`.
+///
+/// Outcomes collapse into the `Option`:
+/// - `Ok(None)` — file absent, blob malformed, or non-UTF-8.
+///   The rate limiter treats every "no recoverable HMAC" as
+///   "no rate limiter active for this install"; surfacing typed
+///   errors here would force the caller to map them all back to
+///   the same null branch.
+/// - `Ok(Some(_))` — the parsed envelope.
+/// - `Err(_)` — only for I/O failures distinct from `NotFound`,
+///   so the caller can log the underlying syscall problem.
+pub async fn read_decoded_blob(support_dir: &Path) -> Result<Option<DiskBlob>, String> {
+    let hash_path = support_dir.join(HASH_FILE_NAME);
+    let raw = match tokio::task::spawn_blocking(move || crate::path::read_bytes_secure(&hash_path))
+        .await
+        .map_err(|e| format!("read decoded blob: blocking task: {e}"))?
+    {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("read decoded blob: read hash file: {e}")),
+    };
+    let blob_str = match std::str::from_utf8(&raw) {
+        Ok(s) => s,
+        Err(_) => return Ok(None),
+    };
+    Ok(decode_disk_blob(blob_str).ok())
 }
 
 /// Configure the gate with `password`. Generates a fresh salt +

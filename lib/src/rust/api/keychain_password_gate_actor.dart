@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'keychain_password_gate.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// True when the T1+pw gate is configured on this install — disk
@@ -55,4 +56,18 @@ Future<bool> keychainPasswordGateVerify({
     .crateApiKeychainPasswordGateActorKeychainPasswordGateVerify(
       supportDir: supportDir,
       password: password,
+    );
+
+/// Read the on-disk `{salt, hmac}` envelope from
+/// `support_dir/security_pass_hash.bin` and return the decoded
+/// pair. `None` collapses every "no usable HMAC" outcome
+/// (missing file, malformed blob, non-UTF-8 content) into one
+/// branch the Dart rate-limiter setup path consumes as "no
+/// rate limiter for this install"; `Err` only for I/O failures
+/// distinct from `NotFound`.
+Future<DbKeychainGateBlob?> keychainPasswordGateReadDecoded({
+  required String supportDir,
+}) => RustLib.instance.api
+    .crateApiKeychainPasswordGateActorKeychainPasswordGateReadDecoded(
+      supportDir: supportDir,
     );

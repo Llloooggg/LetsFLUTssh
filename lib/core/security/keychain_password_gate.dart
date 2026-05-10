@@ -1,13 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
-    show AnyhowException;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../src/rust/api/keychain_password_gate.dart' as rust_gate;
 import '../../src/rust/api/keychain_password_gate_actor.dart' as rust_actor;
 import '../../utils/logger.dart';
 import 'password_rate_limiter.dart';
@@ -110,18 +106,15 @@ class KeychainPasswordGate {
   Future<PasswordRateLimiter?> rateLimiter() async {
     try {
       final file = await _hashFile();
-      if (!await file.exists()) return null;
-      final raw = await file.readAsBytes();
-      final decoded = rust_gate.keychainGateDecodeBlob(blob: utf8.decode(raw));
+      final decoded = await rust_actor.keychainPasswordGateReadDecoded(
+        supportDir: file.parent.path,
+      );
+      if (decoded == null) return null;
       final stateFile = File(p.join(file.parent.path, 'rate_limit_state.bin'));
       return PersistedRateLimiter(
         hmacKey: decoded.hmac,
         stateFileFactory: () async => stateFile,
       );
-    } on AnyhowException catch (_) {
-      // Disk blob unparseable — caller treats null as "no rate
-      // limiter available, fall through to wrong-password path".
-      return null;
     } catch (e) {
       AppLogger.instance.log(
         'KeychainPasswordGate.rateLimiter failed: $e',

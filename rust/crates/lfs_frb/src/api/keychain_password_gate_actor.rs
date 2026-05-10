@@ -53,6 +53,25 @@ pub async fn keychain_password_gate_verify(
     actor::verify_password(Path::new(&support_dir), &password).await
 }
 
+/// Read the on-disk `{salt, hmac}` envelope from
+/// `support_dir/security_pass_hash.bin` and return the decoded
+/// pair. `None` collapses every "no usable HMAC" outcome
+/// (missing file, malformed blob, non-UTF-8 content) into one
+/// branch the Dart rate-limiter setup path consumes as "no
+/// rate limiter for this install"; `Err` only for I/O failures
+/// distinct from `NotFound`.
+pub async fn keychain_password_gate_read_decoded(
+    support_dir: String,
+) -> Result<Option<crate::api::keychain_password_gate::DbKeychainGateBlob>, String> {
+    let decoded = actor::read_decoded_blob(Path::new(&support_dir)).await?;
+    Ok(
+        decoded.map(|b| crate::api::keychain_password_gate::DbKeychainGateBlob {
+            salt: b.salt,
+            hmac: b.hmac,
+        }),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
