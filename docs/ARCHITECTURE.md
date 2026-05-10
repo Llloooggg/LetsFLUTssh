@@ -1607,11 +1607,15 @@ on the same dialog — a broken artefact reader is indistinguishable
 from a broken artefact from the user's point of view. The init
 controller short-circuits the rest of startup whenever
 `_runMigrations` returns `false`, because the failure handler has
-already taken over. The registry is empty today (no migrations,
-just two presence wrappers), so on a current-version install the
-report is always `noOp == true` and the app proceeds into
-`SecurityInitController.bootstrap` normally; the failure surface is wired up ahead of
-time so the first real migration inherits a complete path.
+already taken over. The registered artefacts are `config.json`,
+`credentials.kdf`, `security_pass_hash.bin`, and
+`hardware_vault_salt.bin`. The `config.json` chain spans v1→v4
+(three migrations, latest drops the legacy `biometric_shortcut` /
+`pin_length` fields); the other three sit at v1 with no
+migrations yet (presence + version probe). On a current-version
+install the runner walks every registered artefact and the report
+is always `noOp == true`, so the app proceeds into
+`SecurityInitController.bootstrap` normally.
 
 ##### Atomicity
 
@@ -1629,9 +1633,9 @@ true rollback must hold their own `.bak` sibling inside `apply`.
 
 ##### Topology — Registry::dependencies
 
-Some artefacts must be migrated only after others (the canonical
-example: every per-platform `hardware_vault_*.bin` depends on
-`config.json` because the vault layout reads its tier and modifier
+Some artefacts will need to be migrated only after others (the
+canonical example: every per-platform `hardware_vault_*.bin` depends
+on `config.json` because the vault layout reads its tier and modifier
 shape from the post-migration config). `Registry::dependencies` is a
 `HashMap<String, Vec<String>>` — every entry in the value list must
 run BEFORE the key artefact runs its own migrations. The runner
@@ -1640,14 +1644,15 @@ sorts via Kahn's algorithm and returns
 Order between independent artefacts is not specified — do not rely
 on it; declare the dependency if order matters.
 
-Dangling edges are tolerated on purpose. `build_app_registry`
-declares vault dependencies ahead of the vault artefacts themselves
-(the vault wrappers land in a later change), so the runner skips
-any edge whose endpoint is not in the registered set. Without this
-guard a fresh install would deadlock on the indegree map. The
-tolerance keeps forward-declared deps cheap: register the vault
-artefact later and the pre-declared edge starts taking effect
-automatically.
+`build_app_registry` carries no dependency edges today — the four
+registered artefacts (`config.json`, `credentials.kdf`,
+`security_pass_hash.bin`, `hardware_vault_salt.bin`) all live in
+the same support directory and migrate independently of one
+another. The runner still tolerates dangling edges (an edge whose
+endpoint is not in the registered set is skipped, never deadlocks
+the indegree map), so a future commit that introduces a
+cross-artefact ordering constraint can wire it into the map without
+extra care for fresh installs.
 
 ##### Reset migrations are out of scope
 

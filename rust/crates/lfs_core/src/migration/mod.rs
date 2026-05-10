@@ -6,16 +6,19 @@
 //! security-init / unlock path opens an artefact, so every later
 //! reader sees the post-migration shape.
 //!
-//! The framework is canonical Rust now — the earlier Dart-side
-//! `MigrationRunner` is gone; Dart calls
-//! [`run_on_startup`](crate::migration::run_on_startup) over FRB and
-//! consumes the [`Report`].
+//! Dart calls [`run_on_startup`](crate::migration::run_on_startup)
+//! over FRB and consumes the [`Report`].
 //!
-//! Today every registered artefact is at v1 with zero migrations
-//! registered, so the runner is effectively a presence-check that
-//! returns a no-op `Report` on every install. Future format bumps
-//! ship a [`Migration`] impl and bump the matching [`SchemaVersions`]
-//! constant.
+//! Registered artefacts: `config.json`, `credentials.kdf`,
+//! `security_pass_hash.bin`, `hardware_vault_salt.bin`. The
+//! `config.json` chain currently spans v1→v4; the other three sit
+//! at v1 with no migrations registered yet (presence + version
+//! probe only). Future format bumps ship a [`Migration`] impl and
+//! bump the matching [`SchemaVersions`] constant.
+//!
+//! The `HW_VAULT_*`, `ARCHIVE`, `QR_PAYLOAD` slots stay outside
+//! the registry by design — see
+//! [`registry::build_app_registry`] for the rationale.
 
 use std::collections::HashMap;
 use std::path::Path;

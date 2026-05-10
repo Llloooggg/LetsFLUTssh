@@ -10,7 +10,10 @@
 
 use std::collections::HashMap;
 
-use super::artefacts::{ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, KdfArtefact};
+use super::artefacts::{
+    ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, HwSaltArtefact, KdfArtefact,
+    PassGateArtefact,
+};
 use super::{Artefact, Migration};
 
 /// Mutable registry of every artefact + migration the runner knows
@@ -25,15 +28,34 @@ pub struct Registry {
     pub dependencies: HashMap<String, Vec<String>>,
 }
 
-/// Build the registry the live app uses at startup. Today only
-/// presence-only artefact wrappers are registered, no migrations
-/// — the runner is therefore a no-op on every install where on-disk
-/// state already matches [`super::SchemaVersions`]. Future format
-/// bumps add concrete [`Migration`] impls here.
+/// Build the registry the live app uses at startup. Lists every
+/// artefact whose on-disk slot lives under the app-support
+/// directory and whose version is queryable without invoking a
+/// platform OS-API. The framework runner walks the registered
+/// artefacts to pull each up to its [`super::SchemaVersions`]
+/// target version; absent artefacts (clean install) are skipped.
+///
+/// Three [`super::SchemaVersions`] slots stay deliberately
+/// unregistered:
+/// - `HW_VAULT_*` — the per-platform vault file is bound to the OS
+///   hardware backend (Secure Enclave / NCrypt / StrongBox / TPM)
+///   and a magic-mismatch / version-mismatch envelope is rejected
+///   at unwrap time via [`HardwareVaultError::Corrupt`]. The
+///   tier-reset cascade owns recovery; a registry-side migration
+///   is the wrong shape (the wrapped key cannot survive a v1→v2
+///   rewrite because the inner crypto changed).
+/// - `ARCHIVE` — `.lfs` files are user-supplied import payloads
+///   that never persist under app-support. Future-version archives
+///   are rejected by [`crate::archive::read_archive_to_pending`].
+/// - `QR_PAYLOAD` — the QR / paste-link envelope is a transient
+///   wire format, not on-disk state. Future-version payloads are
+///   rejected at decode time.
 pub fn build_app_registry() -> Registry {
     let mut reg = Registry::default();
     reg.artefacts.push(Box::new(ConfigArtefact));
     reg.artefacts.push(Box::new(KdfArtefact));
+    reg.artefacts.push(Box::new(PassGateArtefact));
+    reg.artefacts.push(Box::new(HwSaltArtefact));
     // v1 → v2: `security_probe_cache` always emitted as an explicit
     // value (object or `null`) on the wire; v1 writers omitted on
     // `None`, collapsing the round-trip distinction.
@@ -50,15 +72,6 @@ pub fn build_app_registry() -> Registry {
     // no runtime caller in either Rust or Dart by the time the
     // bank-style password modifier landed; v4 retires them.
     reg.migrations.push(Box::new(ConfigV3ToV4));
-
-    // The hw-vault + password-gate artefacts have their own
-    // version envelopes (`HW_VAULT_*` / DISK_BLOB_VERSION) and
-    // run their own corruption-detection cascade outside the
-    // generic `migration` framework, so a dependency declaration
-    // here is dead weight — no `Artefact` is registered to match,
-    // and `topo_sort` would silently skip them. Removing the
-    // forward declarations keeps the registry's invariant honest:
-    // every dependency endpoint is a registered artefact.
     reg
 }
 
@@ -67,11 +80,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn app_registry_has_config_and_kdf() {
+    fn app_registry_has_every_on_disk_artefact() {
         let reg = build_app_registry();
         let ids: Vec<&'static str> = reg.artefacts.iter().map(|a| a.id()).collect();
         assert!(ids.contains(&"config.json"));
         assert!(ids.contains(&"credentials.kdf"));
+        assert!(ids.contains(&"security_pass_hash.bin"));
+        assert!(ids.contains(&"hardware_vault_salt.bin"));
     }
 
     #[test]
