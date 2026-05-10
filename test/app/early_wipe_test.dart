@@ -6,14 +6,15 @@ import 'package:letsflutssh/app/early_wipe.dart';
 import 'package:path/path.dart' as p;
 
 /// `earlyWipeAppSupportFiles` is the FRB-free fallback used by
-/// `FatalErrorApp` when the bundled native blob itself is the broken
-/// artefact and `WipeAllService.wipeAll()` (Rust-backed) cannot be
-/// reached. This suite mocks `path_provider` to point at a temp dir
-/// and pins that the catalogue covers every artefact the production
-/// `lfs_core::security::wipe::MANAGED_FILES` declares — without that
-/// invariant a future write under app-support would silently escape
-/// the early-stage wipe and resurface as orphan state on the next
-/// launch.
+/// `FatalErrorApp` when the bundled native blob itself is broken and
+/// `WipeAllService.wipeAll()` (Rust-backed) cannot reach the disk.
+/// The function deletes every immediate child of the app-support
+/// directory — files and subdirectories — keeping the parent
+/// directory intact so `path_provider` caches and any post-restart
+/// logic see a familiar empty home. The catalogue lives Rust-side
+/// (`lfs_core::security::wipe::MANAGED_FILES`); the Dart fallback
+/// stays drift-proof by sweeping by enumeration rather than against a
+/// hardcoded list.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -50,11 +51,14 @@ void main() {
     await f.writeAsString('seed');
   }
 
-  test('removes every managed file under app-support', () async {
-    // Each entry mirrors `lfs_core::security::wipe::MANAGED_FILES`
-    // (plus `.wipe-pending`, the crash marker `WIPE_PENDING_MARKER`).
-    // Add a new file here whenever the Rust catalogue grows.
-    const managed = [
+  test('removes every file under app-support', () async {
+    // The sweep is by enumeration, not by name — any file the app
+    // writes under app-support is covered. The seed list below mirrors
+    // a representative subset of `lfs_core::security::wipe::MANAGED_FILES`
+    // plus the `.wipe-pending` crash marker (`WIPE_PENDING_MARKER`)
+    // and a never-seen `future_artefact.bin` to pin the drift-proof
+    // property: a future Rust artefact lands without any Dart edit.
+    const seeded = [
       '.tier-transition-pending',
       '.wipe-pending',
       'keychain_enabled',
@@ -85,8 +89,11 @@ void main() {
       'lfs_core.db-wal',
       'lfs_core.db-shm',
       'lfs_core.db-journal',
+      // Drift-proof guard: an artefact the Rust catalogue does not yet
+      // know about must still be wiped on this path.
+      'future_artefact.bin',
     ];
-    for (final name in managed) {
+    for (final name in seeded) {
       await seed(name);
     }
     // Logs subdir.
@@ -96,7 +103,7 @@ void main() {
 
     await earlyWipeAppSupportFiles();
 
-    for (final name in managed) {
+    for (final name in seeded) {
       expect(
         File(p.join(tempDir.path, name)).existsSync(),
         isFalse,
@@ -104,6 +111,13 @@ void main() {
       );
     }
     expect(logsDir.existsSync(), isFalse);
+    expect(
+      tempDir.existsSync(),
+      isTrue,
+      reason:
+          'the parent directory must survive so path_provider caches '
+          'and post-wipe restart code keep their handles',
+    );
   });
 
   test('is a no-op on an empty support directory (no throw)', () async {
@@ -113,8 +127,8 @@ void main() {
 
   test('partial wipe — survives a missing subset gracefully', () async {
     await seed('config.json');
-    // Only one file present; the rest do not exist. The sweep must
-    // not throw on the missing ones.
+    // Only one file present; iteration handles the lone child and
+    // does not throw on the (non-existent) others.
     await earlyWipeAppSupportFiles();
     expect(File(p.join(tempDir.path, 'config.json')).existsSync(), isFalse);
   });

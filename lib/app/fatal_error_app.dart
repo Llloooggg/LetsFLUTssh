@@ -28,10 +28,11 @@ import 'early_wipe.dart';
 /// not on the dialog open) so a clean wipe covers files + keychain +
 /// hardware-vault entries. Only when `RustLib.init` itself fails
 /// (broken bundle, missing native blob — the `_initRustCoreOrFatal`
-/// case) does the handler fall through to the Dart-only file sweep
-/// in [earlyWipeAppSupportFiles]; any keychain / hardware-vault
-/// orphans then resurface on the next launch and route through the
-/// normal tier-reset dialog.
+/// case) does the handler fall through to the Dart-only sweep in
+/// [earlyWipeAppSupportFiles], which enumerates the immediate
+/// children of `<app_support>` and deletes each. Keychain /
+/// hardware-vault orphans left behind resurface on the next launch
+/// and route through the normal tier-reset dialog.
 ///
 /// Runs *before* `LetsFLUTsshApp` resolves its theme + widget
 /// registry, so shared primitives like `AppButton` / `AppDialog` are
