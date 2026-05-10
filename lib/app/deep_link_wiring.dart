@@ -55,7 +55,7 @@ void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
   };
   handler.onLfsFileOpened = (filePath) {
     AppLogger.instance.log(
-      'Deep link: LFS file opened — $filePath',
+      'Deep link: LFS file opened — <path>',
       name: 'DeepLink',
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -67,7 +67,7 @@ void wireDeepLinks(DeepLinkHandler handler, WidgetRef ref) {
   };
   handler.onKeyFileOpened = (filePath) {
     AppLogger.instance.log(
-      'Deep link: SSH key file received — $filePath',
+      'Deep link: SSH key file received — <path>',
       name: 'DeepLink',
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {

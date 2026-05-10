@@ -34,7 +34,7 @@ class LocalFS implements FileSystem {
     // Users can pick external folders via the folder picker button.
     if (Platform.isIOS) {
       final docs = await getApplicationDocumentsDirectory();
-      AppLogger.instance.log('iOS initial dir: ${docs.path}', name: 'LocalFS');
+      AppLogger.instance.log('iOS initial dir: <path>', name: 'LocalFS');
       return docs.path;
     }
     if (Platform.isAndroid) {
@@ -42,7 +42,7 @@ class LocalFS implements FileSystem {
     }
     final home = homeDirectory;
     final path = home.isNotEmpty ? home : Directory.current.path;
-    AppLogger.instance.log('Initial dir: $path', name: 'LocalFS');
+    AppLogger.instance.log('Initial dir: <path>', name: 'LocalFS');
     return path;
   }
 
@@ -74,10 +74,7 @@ class LocalFS implements FileSystem {
     }
     final appDir = await getExternalStorageDirectory();
     final fallbackPath = appDir?.path ?? Directory.current.path;
-    AppLogger.instance.log(
-      'Android fallback dir: $fallbackPath',
-      name: 'LocalFS',
-    );
+    AppLogger.instance.log('Android fallback dir: <path>', name: 'LocalFS');
     return fallbackPath;
   }
 
@@ -130,20 +127,20 @@ class LocalFS implements FileSystem {
 
   @override
   Future<void> mkdir(String path) async {
-    AppLogger.instance.log('Creating directory: $path', name: 'LocalFS');
+    AppLogger.instance.log('Creating directory: <path>', name: 'LocalFS');
     await rust_local_fs.localFsMkdir(path: path);
   }
 
   @override
   Future<void> remove(String path) async {
-    AppLogger.instance.log('Removing: $path', name: 'LocalFS');
+    AppLogger.instance.log('Removing: <path>', name: 'LocalFS');
     await rust_local_fs.localFsRemove(path: path);
   }
 
   @override
   Future<void> removeDir(String path) async {
     AppLogger.instance.log(
-      'Removing directory recursively: $path',
+      'Removing directory recursively: <path>',
       name: 'LocalFS',
     );
     await rust_local_fs.localFsRemoveDir(path: path);
@@ -157,7 +154,7 @@ class LocalFS implements FileSystem {
 
   @override
   Future<void> rename(String oldPath, String newPath) async {
-    AppLogger.instance.log('Renaming: $oldPath → $newPath', name: 'LocalFS');
+    AppLogger.instance.log('Renaming: <path> → <path>', name: 'LocalFS');
     await rust_local_fs.localFsRename(oldPath: oldPath, newPath: newPath);
   }
 

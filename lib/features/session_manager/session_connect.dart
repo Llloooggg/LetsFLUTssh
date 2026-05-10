@@ -220,7 +220,7 @@ class SessionConnect {
     WidgetRef ref,
     SSHConfig config,
   ) {
-    AppLogger.instance.log('Quick connect to ${config.host}', name: 'Session');
+    AppLogger.instance.log('Quick connect to <host>', name: 'Session');
     final manager = ref.read(connectionsProvider.notifier);
     final conn = manager.connectAsync(config);
     ref.read(workspaceProvider.notifier).addTerminalTab(conn);

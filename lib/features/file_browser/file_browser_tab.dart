@@ -302,7 +302,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
         if (type == FileSystemEntityType.notFound) continue;
         if (type == FileSystemEntityType.link) {
           AppLogger.instance.log(
-            'Refusing OS drop of symlink source: $srcPath',
+            'Refusing OS drop of symlink source: <path>',
             name: 'FileBrowser',
             level: LogLevel.warn,
           );
@@ -342,7 +342,7 @@ class _FileBrowserTabState extends ConsumerState<FileBrowserTab>
     if (type == FileSystemEntityType.notFound) return targetPath;
     if (type == FileSystemEntityType.link) {
       AppLogger.instance.log(
-        'Refusing local drop onto pre-existing symlink: $targetPath',
+        'Refusing local drop onto pre-existing symlink: <path>',
         name: 'FileBrowser',
         level: LogLevel.warn,
       );

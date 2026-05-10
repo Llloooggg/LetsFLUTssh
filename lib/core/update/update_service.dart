@@ -424,7 +424,7 @@ class UpdateService {
       rethrow;
     }
 
-    AppLogger.instance.log('Downloaded to $savePath', name: 'UpdateService');
+    AppLogger.instance.log('Downloaded to <path>', name: 'UpdateService');
     return savePath;
   }
 
@@ -434,7 +434,7 @@ class UpdateService {
       if (await f.exists()) await f.delete();
     } catch (e) {
       AppLogger.instance.log(
-        'Failed to delete $path: $e',
+        'Failed to delete <path>: $e',
         name: 'UpdateService',
       );
     }

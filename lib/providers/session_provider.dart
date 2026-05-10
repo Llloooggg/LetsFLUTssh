@@ -492,7 +492,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     _emptyFolders.add(folderPath);
     state = List.of(state);
     AppLogger.instance.log(
-      'Added empty folder: $folderPath',
+      'Added empty folder: <folder>',
       name: 'SessionNotifier',
     );
     try {
@@ -517,7 +517,7 @@ class SessionNotifier extends Notifier<List<Session>> {
     }
     state = List.of(state);
     AppLogger.instance.log(
-      'Folder ${wasCollapsed ? 'expanded' : 'collapsed'}: $folderPath',
+      'Folder ${wasCollapsed ? 'expanded' : 'collapsed'}: <folder>',
       name: 'SessionNotifier',
     );
     try {
