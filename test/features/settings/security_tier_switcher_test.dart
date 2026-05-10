@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/features/settings/security_tier_switcher.dart';
@@ -21,12 +20,11 @@ void main() {
     tempDir = Directory.systemTemp.createTempSync('tier_switcher_test_');
     switcher = SecurityTierSwitcher(
       supportDirFactory: () async => tempDir.path,
-      keyFactory: () => Uint8List.fromList(List<int>.filled(32, 7)),
       // Stub the rekey — the FRB-backed default would call into the
       // native bridge, which the unit-test runner does not load. The
       // switcher's contract (write marker → rekey → apply wrapper …)
       // is the unit under test.
-      rekey: (_) async {},
+      rekeyFromSecret: (_) async {},
     );
   });
 
@@ -34,15 +32,16 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  group('SecurityTierSwitcher.switchTier', () {
+  group('SecurityTierSwitcher.switchTierFromSecret', () {
     test(
       'walks every step in order and clears the marker at the end',
       () async {
         final order = <String>[];
-        await switcher.switchTier(
+        await switcher.switchTierFromSecret(
+          secretId: 'tier-switch.dbkey.test',
           targetMarkerPayload: '{"tier":"keychain"}',
-          applyWrapper: (_) async => order.add('applyWrapper'),
-          persistConfig: (_) async => order.add('persistConfig'),
+          applyWrapperFromSecret: (_) async => order.add('applyWrapper'),
+          persistConfigFromSecret: (_) async => order.add('persistConfig'),
           clearPrevious: () async => order.add('clearPrevious'),
         );
         expect(order, ['applyWrapper', 'persistConfig', 'clearPrevious']);
@@ -52,15 +51,16 @@ void main() {
 
     test('marker is written before rekey and cleared after success', () async {
       String? observedMarker;
-      await switcher.switchTier(
+      await switcher.switchTierFromSecret(
+        secretId: 'tier-switch.dbkey.test',
         targetMarkerPayload: '{"tier":"paranoid"}',
-        applyWrapper: (_) async {
+        applyWrapperFromSecret: (_) async {
           // By the time the wrapper runs, the marker has been
           // written and rekey has succeeded. Read it from disk to
           // confirm.
           observedMarker = await switcher.readPendingMarker();
         },
-        persistConfig: (_) async {},
+        persistConfigFromSecret: (_) async {},
         clearPrevious: () async {},
       );
       expect(observedMarker, '{"tier":"paranoid"}');
@@ -71,10 +71,12 @@ void main() {
       'applyWrapper failure leaves marker in place for crash recovery',
       () async {
         await expectLater(
-          switcher.switchTier(
+          switcher.switchTierFromSecret(
+            secretId: 'tier-switch.dbkey.test',
             targetMarkerPayload: '{"tier":"hardware"}',
-            applyWrapper: (_) async => throw StateError('vault write failed'),
-            persistConfig: (_) async {},
+            applyWrapperFromSecret: (_) async =>
+                throw StateError('vault write failed'),
+            persistConfigFromSecret: (_) async {},
             clearPrevious: () async {},
           ),
           throwsA(isA<StateError>()),
@@ -93,13 +95,13 @@ void main() {
       var rekeyCalls = 0;
       final invariantSwitcher = SecurityTierSwitcher(
         supportDirFactory: () async => tempDir.path,
-        keyFactory: () => Uint8List.fromList(List<int>.filled(32, 9)),
-        rekey: (_) async => rekeyCalls++,
+        rekeyFromSecret: (_) async => rekeyCalls++,
       );
-      await invariantSwitcher.switchTier(
+      await invariantSwitcher.switchTierFromSecret(
+        secretId: 'tier-switch.dbkey.test',
         targetMarkerPayload: '{"tier":"keychain"}',
-        applyWrapper: (_) async {},
-        persistConfig: (_) async {},
+        applyWrapperFromSecret: (_) async {},
+        persistConfigFromSecret: (_) async {},
         clearPrevious: () async {},
       );
       expect(rekeyCalls, 1);
@@ -112,15 +114,15 @@ void main() {
       // see the pending transition and recover.
       final failSwitcher = SecurityTierSwitcher(
         supportDirFactory: () async => '${tempDir.path}/rekey-fail',
-        keyFactory: () => Uint8List.fromList(List<int>.filled(32, 1)),
-        rekey: (_) async => throw StateError('PRAGMA rekey failed'),
+        rekeyFromSecret: (_) async => throw StateError('PRAGMA rekey failed'),
       );
       var wrapCalls = 0;
       await expectLater(
-        failSwitcher.switchTier(
+        failSwitcher.switchTierFromSecret(
+          secretId: 'tier-switch.dbkey.test',
           targetMarkerPayload: '{"tier":"rekey-victim"}',
-          applyWrapper: (_) async => wrapCalls++,
-          persistConfig: (_) async {},
+          applyWrapperFromSecret: (_) async => wrapCalls++,
+          persistConfigFromSecret: (_) async {},
           clearPrevious: () async {},
         ),
         throwsA(isA<StateError>()),
@@ -143,8 +145,7 @@ void main() {
         // throw".
         final raisingSwitcher = SecurityTierSwitcher(
           supportDirFactory: () async => throw StateError('disk mount gone'),
-          keyFactory: () => Uint8List.fromList(List<int>.filled(32, 0)),
-          rekey: (_) async {},
+          rekeyFromSecret: (_) async {},
         );
         expect(await raisingSwitcher.readPendingMarker(), isNull);
       },
@@ -155,8 +156,7 @@ void main() {
       () async {
         final raisingSwitcher = SecurityTierSwitcher(
           supportDirFactory: () async => throw StateError('disk mount gone'),
-          keyFactory: () => Uint8List.fromList(List<int>.filled(32, 0)),
-          rekey: (_) async {},
+          rekeyFromSecret: (_) async {},
         );
         // Must not throw — the dangling-marker log write is
         // best-effort; the boot path has to keep moving.
@@ -165,7 +165,7 @@ void main() {
     );
 
     test(
-      '25 (src,dst) pairs each orchestrate marker + rekey + callbacks',
+      'each (src, dst) tier pair runs marker + rekey + callbacks once',
       () async {
         // Enumerate the tier-label cross product (L0/L1/L2/L3/Paranoid
         // squared) and exercise the switcher for every pair. `src` is
@@ -187,13 +187,13 @@ void main() {
             var clear = 0;
             final pairSwitcher = SecurityTierSwitcher(
               supportDirFactory: () async => '${tempDir.path}/pair-$src-$dst',
-              keyFactory: () => Uint8List.fromList(List<int>.filled(32, 1)),
-              rekey: (_) async => rekey++,
+              rekeyFromSecret: (_) async => rekey++,
             );
-            await pairSwitcher.switchTier(
+            await pairSwitcher.switchTierFromSecret(
+              secretId: 'tier-switch.dbkey.$src-$dst',
               targetMarkerPayload: '{"src":"$src","dst":"$dst"}',
-              applyWrapper: (_) async => wrap++,
-              persistConfig: (_) async => persist++,
+              applyWrapperFromSecret: (_) async => wrap++,
+              persistConfigFromSecret: (_) async => persist++,
               clearPrevious: () async => clear++,
             );
             expect(rekey, 1, reason: '$src → $dst rekey count');
@@ -209,5 +209,29 @@ void main() {
         }
       },
     );
+
+    test('rekeyFromSecret receives the caller-supplied secretId', () async {
+      // Pin the contract: the switcher does not mutate or replace
+      // the secret id between accept and forward — every consumer
+      // gets exactly the bytes the caller staged.
+      String? observedRekeyId;
+      final pinSwitcher = SecurityTierSwitcher(
+        supportDirFactory: () async => tempDir.path,
+        rekeyFromSecret: (id) async => observedRekeyId = id,
+      );
+      String? observedWrapId;
+      String? observedPersistId;
+      const id = 'tier-switch.dbkey.deadbeef';
+      await pinSwitcher.switchTierFromSecret(
+        secretId: id,
+        targetMarkerPayload: '{"tier":"keychain"}',
+        applyWrapperFromSecret: (handed) async => observedWrapId = handed,
+        persistConfigFromSecret: (handed) async => observedPersistId = handed,
+        clearPrevious: () async {},
+      );
+      expect(observedRekeyId, id);
+      expect(observedWrapId, id);
+      expect(observedPersistId, id);
+    });
   });
 }

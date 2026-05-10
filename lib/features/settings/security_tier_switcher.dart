@@ -1,6 +1,3 @@
-import 'dart:math';
-import 'dart:typed_data';
-
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -30,38 +27,38 @@ import '../../utils/logger.dart';
 /// keeps the orchestration order + the per-tier callbacks + the DB
 /// rekey hook; the marker I/O delegates straight to the
 /// `tier_transition_marker_*` FRB shims.
+///
+/// SecretRef shape: the DB key is staged in the Rust-side
+/// `SecretStore` upstream (typically `cryptoAesGcmRandomKeyToSecret`)
+/// and the caller hands the id in. The bytes never land on the Dart
+/// heap; `dbRekeyFromSecret` uses `secrets_get` so the SecretStore
+/// entry survives the rekey for downstream consumers (the wrapper /
+/// persistConfig callbacks receive the same id and run their own
+/// SecretRef-aware writes — `keychain_write_from_secret` /
+/// `hardware_tier_vault_store_from_secret` / `setFromSecret`).
+/// Caller drops the entry once every consumer has had its turn
+/// (typical shape: `_injectDatabase(secretId: ...)` →
+/// `dbInitFromSecret` → `secrets_take`).
 class SecurityTierSwitcher {
   final Future<String> Function() _supportDir;
-  final Uint8List Function() _keyFactory;
-  final Future<void> Function(Uint8List) _rekey;
+  final Future<void> Function(String secretId) _rekeyFromSecret;
 
   SecurityTierSwitcher({
     Future<String> Function()? supportDirFactory,
-    Uint8List Function()? keyFactory,
-    Future<void> Function(Uint8List)? rekey,
+    Future<void> Function(String secretId)? rekeyFromSecret,
   }) : _supportDir = supportDirFactory ?? _defaultSupportDir,
-       _keyFactory = keyFactory ?? _defaultRandomKey,
-       _rekey = rekey ?? _defaultRekey;
+       _rekeyFromSecret = rekeyFromSecret ?? _defaultRekeyFromSecret;
 
-  /// Default rekey hook — re-encrypts `letsflutssh.db` under `newKey`
-  /// via the FRB `db_rekey` adapter.
-  static Future<void> _defaultRekey(Uint8List newKey) =>
-      rust_app.dbRekey(newKey: List<int>.from(newKey));
+  /// Default rekey hook — re-encrypts `letsflutssh.db` under the
+  /// SecretStore-staged DB key via the FRB `db_rekey_from_secret`
+  /// adapter. Constructor-injectable so unit tests can drive the
+  /// orchestration shape without booting the FRB native bridge.
+  static Future<void> _defaultRekeyFromSecret(String secretId) =>
+      rust_app.dbRekeyFromSecret(secretId: secretId);
 
   static Future<String> _defaultSupportDir() async {
     final dir = await getApplicationSupportDirectory();
     return dir.path;
-  }
-
-  /// CSPRNG-backed 32-byte key. Uses `Random.secure()` — backed by
-  /// `/dev/urandom` on POSIX and `BCryptGenRandom` on Windows.
-  static Uint8List _defaultRandomKey() {
-    final rng = Random.secure();
-    final out = Uint8List(32);
-    for (var i = 0; i < 32; i++) {
-      out[i] = rng.nextInt(256);
-    }
-    return out;
   }
 
   /// Return the pending-marker payload if the last startup left one
@@ -96,77 +93,22 @@ class SecurityTierSwitcher {
   /// Run a full tier switch.
   ///
   /// Sequence:
-  ///   1. Generate fresh random `newKey`.
+  ///   1. Caller stages a fresh DB key into the Rust SecretStore
+  ///      (typically `cryptoAesGcmRandomKeyToSecret`) and hands the
+  ///      `secretId` in.
   ///   2. Write the pending-transition marker with
   ///      [targetMarkerPayload].
-  ///   3. [rekey] the DB to `newKey` (atomic PRAGMA rekey).
-  ///   4. [applyWrapper] — target tier stores `newKey` in its vault
-  ///      / derives `credentials.kdf` / whatever.
-  ///   5. [persistConfig] — writes `security_tier` to config.json and
-  ///      updates the security provider.
+  ///   3. Rekey the DB via the SecretRef (atomic PRAGMA rekey).
+  ///   4. [applyWrapperFromSecret] — target tier stores the key in
+  ///      its vault / derives `credentials.kdf` / whatever.
+  ///   5. [persistConfigFromSecret] — writes `security_tier` to
+  ///      config.json and updates the security provider.
   ///   6. [clearPrevious] — target deletes the *old* tier's state
   ///      (previous keychain entry, previous credentials.kdf, etc.).
   ///   7. Delete the marker.
   ///
   /// If any step before 7 throws, the marker stays on disk. The next
   /// startup can either complete or roll back the pending transition.
-  Future<void> switchTier({
-    required String targetMarkerPayload,
-    required Future<void> Function(Uint8List newKey) applyWrapper,
-    required Future<void> Function(Uint8List newKey) persistConfig,
-    required Future<void> Function() clearPrevious,
-  }) async {
-    final newKey = _keyFactory();
-
-    // 1 + 2. Write marker.
-    final dir = await _supportDir();
-    rust_ttm.tierTransitionMarkerWrite(
-      supportDir: dir,
-      payload: targetMarkerPayload,
-    );
-
-    // 3. Atomic rekey. On failure the DB is still under the old key
-    //    and the marker points at the unfinished target — startup
-    //    will notice and roll back.
-    try {
-      await _rekey(newKey);
-    } catch (e) {
-      AppLogger.instance.log(
-        'Tier switch rekey failed: $e',
-        name: 'SecurityTierSwitcher',
-      );
-      rethrow;
-    }
-
-    // 4. Wrap the new key in the target tier's vault.
-    await applyWrapper(newKey);
-
-    // 5. Persist the new config.
-    await persistConfig(newKey);
-
-    // 6. Drop the old tier's state.
-    await clearPrevious();
-
-    // 7. Marker cleared last — its absence is the "all good"
-    //    signal the next startup relies on.
-    await clearMarker();
-  }
-
-  /// SecretRef variant of [switchTier]. Identical orchestration but
-  /// the new DB key is provided indirectly through a SecretStore id:
-  /// the new bytes never land on the Dart heap. Caller stages the
-  /// secret upstream (typically `cryptoAesGcmRandomKeyToSecret`),
-  /// hands the id here, the switcher routes it through
-  /// `dbRekeyFromSecret` for the SQLCipher rekey, and the wrapper /
-  /// persistConfig callbacks receive the same id so they can run
-  /// their own SecretRef-aware writes (`keychain_write_from_secret`
-  /// / `hardware_tier_vault_store_from_secret` / `setFromSecret`).
-  ///
-  /// SecretStore entry survives the rekey + wrappers — `db_rekey_from_secret`
-  /// uses `secrets_get`, not `take`. Caller is responsible for
-  /// dropping the entry once every downstream consumer has had its
-  /// turn (typical shape: `_injectDatabase(secretId: ...)` →
-  /// `dbInitFromSecret` → `secrets_take`).
   Future<void> switchTierFromSecret({
     required String secretId,
     required String targetMarkerPayload,
@@ -184,7 +126,7 @@ class SecurityTierSwitcher {
     // 3. Atomic rekey via SecretRef. SecretStore entry survives —
     //    `db_rekey_from_secret` uses `secrets_get`, not `take`.
     try {
-      await rust_app.dbRekeyFromSecret(secretId: secretId);
+      await _rekeyFromSecret(secretId);
     } catch (e) {
       AppLogger.instance.log(
         'Tier switch rekey (SecretRef) failed: $e',

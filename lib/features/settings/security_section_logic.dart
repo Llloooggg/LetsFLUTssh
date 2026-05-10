@@ -331,8 +331,8 @@ BiometricKeySource biometricKeySourceFor({
 }
 
 /// What every tier-apply method writes into the marker file before
-/// kicking off `SecurityTierSwitcher.switchTier`. Bundles the snake-
-/// case tier name + modifier JSON so a crash-recovery path can
+/// kicking off `SecurityTierSwitcher.switchTierFromSecret`. Bundles
+/// the snake-case tier name + modifier JSON so a crash-recovery path can
 /// reconstruct the target config and drive the right unlock prompt
 /// (password? biometric? no gate?) at next launch.
 ///
