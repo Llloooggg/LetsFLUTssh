@@ -322,12 +322,12 @@ pub(crate) fn write_len_prefixed(
     out: &mut Vec<u8>,
     bytes: &[u8],
 ) -> Result<(), HardwareVaultError> {
-    // The previous shape silently capped any oversize buffer at
-    // `u32::MAX` and emitted a corrupt envelope (the buffer copy
-    // ran the full length but the length prefix lied). `try_from`
-    // surfaces overflow so a misuse (post-port enlargement of the
-    // wrap key, an unexpected platform field) lands as a typed
-    // error before we write a header that no reader can parse.
+    // **Don't `as u32` a `usize` here** — silently capping at
+    // `u32::MAX` emits a corrupt envelope (buffer copy runs the
+    // full length but the length prefix lies). `try_from`
+    // surfaces overflow as a typed error so a misuse (a wrap key
+    // resized past 4 GiB, an unexpected oversize platform field)
+    // fails loud before any unreadable header lands on disk.
     let len = u32::try_from(bytes.len()).map_err(|_| {
         HardwareVaultError::Backend(format!(
             "write_len_prefixed: bytes length exceeds u32 ({} > {})",

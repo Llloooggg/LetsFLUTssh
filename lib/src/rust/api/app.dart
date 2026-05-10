@@ -34,18 +34,17 @@ void secretsDrop({required String id}) =>
 ///
 /// The Dart bus-driven unlock listener reads the staged tier
 /// key here once on `TierStateChanged.unlocked`, hands the
-/// bytes to drift, and the SecretStore entry is gone after a
-/// single FRB byte crossing — same plaintext window as the
-/// pre-listener path where the tier orchestrator returned the
-/// bytes through its FRB return value.
+/// bytes to `dbInit` (which lands them in rusqlite/SQLCipher's
+/// page-cipher key on the Rust side), and the SecretStore entry
+/// is gone after a single FRB byte crossing.
 ///
 /// Returns `None` when the id is missing, `Some(bytes)` when the
-/// secret is staged. The previous shape collapsed missing-id and
-/// empty-bytes into a single `Vec::new()` return — the audit
-/// flagged this because an empty `Vec` is a legal staged secret
-/// (zero-byte keys / passwords from a sentinel tier-reset path),
-/// and a caller can't distinguish "no secret here" from "this
-/// secret is intentionally empty" off `Vec::isEmpty` alone.
+/// secret is staged. **Don't collapse missing-id and empty-bytes
+/// into a single `Vec::new()` return** — an empty `Vec` is a
+/// legal staged secret (zero-byte keys / passwords from a
+/// sentinel tier-reset path), so a caller can't distinguish
+/// "no secret here" from "this secret is intentionally empty"
+/// off `Vec::isEmpty` alone.
 Uint8List? secretsTake({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsTake(id: id);
 
@@ -53,8 +52,9 @@ Uint8List? secretsTake({required String id}) =>
 /// Used by hardware-vault store flows that still need the raw bytes
 /// for a TPM CLI shell-out / Windows MethodChannel call but want
 /// the SecretStore entry to survive so the follow-up
-/// `secrets_take` for drift's sqlcipher rekey still has something
-/// to consume. Returns `None` when the id is missing.
+/// `secrets_take` for the rusqlite/SQLCipher rekey
+/// (`db_rekey_from_secret`) still has something to consume.
+/// Returns `None` when the id is missing.
 Uint8List? secretsGet({required String id}) =>
     RustLib.instance.api.crateApiAppSecretsGet(id: id);
 

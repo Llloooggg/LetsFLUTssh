@@ -89,11 +89,10 @@ pub struct ProgressStep {
 /// `host` / `port` / `user` are the destination tuple — included
 /// in the snapshot so consumers (workspace UI, mirror provider)
 /// don't have to round-trip back through the registry to enrich
-/// the row. The earlier shape forced the FRB adapter's
-/// `From<ConnectionSnapshot> for DbConnectionSnapshot` to walk
-/// the registry inside an `impl From` — wrong-direction layering
-/// (a core-shape gap papered over in the bridge), now fixed at
-/// the source.
+/// the row. **Don't strip these fields and force the FRB adapter
+/// to walk the registry inside an `impl From`** — that wrong-
+/// direction layering (the bridge papering over a core-shape
+/// gap) is exactly what this snapshot exists to avoid.
 #[derive(Debug, Clone)]
 pub struct ConnectionSnapshot {
     pub id: ConnId,

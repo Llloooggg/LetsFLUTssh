@@ -10,9 +10,9 @@
 //!
 //! What stays Dart-side: the actual file I/O (writes go through the
 //! shared `writeBytesAtomic` helper that hardens to 0600), the
-//! `flutter_secure_storage` keychain read/write, and the
-//! rate-limit-state clear that runs after a successful
-//! `setPassword`.
+//! pepper round-trip into the OS keychain via
+//! `lfs_os_security::secure_key_storage`, and the rate-limit-state
+//! clear that runs after a successful `setPassword`.
 //!
 //! Wire format (JSON object, UTF-8 bytes on disk):
 //! ```json

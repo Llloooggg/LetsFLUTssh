@@ -7,16 +7,18 @@ import '../src/rust/api/capabilities_orchestrator.dart' as rust_orch;
 import '../utils/logger.dart';
 
 /// Subscribes to the `SecurityPrompt` bus topic and resolves
-/// `KeychainProbePromptRequest` events by calling the existing
-/// Dart `SecureKeyStorage.probe()` helper (Linux gdbus ping;
-/// non-Linux flutter_secure_storage round-trip) and dispatching
+/// `KeychainProbePromptRequest` events by running the
+/// `SecureKeyStorage.probe()` write-read-delete round-trip
+/// through `lfs_os_security::secure_key_storage` and dispatching
 /// the typed `KeyringProbeResult` wire name back via FRB.
 ///
 /// The Rust capabilities orchestrator publishes the request
-/// through the bus; this subscriber owns the keychain plugin
-/// call because the Flutter plugin already audits that entry
-/// point and there is no native Rust crate covering every
-/// target platform's keychain backend.
+/// through the bus; this Dart-side subscriber drives the probe
+/// because the round-trip happens UI-side anyway (the user
+/// is waiting on the wizard / Settings card render at the same
+/// time) and routing the result back through one bus event keeps
+/// the Rust orchestrator's `tokio::join!` snapshot composable
+/// with the other parallel probes.
 ///
 /// Process-singleton subscription. Cold-start init from
 /// `MainScreenState` alongside the other prompt listeners.

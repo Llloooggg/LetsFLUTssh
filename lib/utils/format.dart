@@ -28,10 +28,10 @@ import 'sanitize.dart';
 ///
 /// The B / KB / MB / GB ladder + decimal-place policy (1 for KB/MB,
 /// 2 for GB) mirrors the Rust `lfs_core::format::format_size` so the
-/// thresholds stay consistent across surfaces; only the
-/// number-formatting half moves Dart-side so German / French / Russian
-/// users see `1,5 MB` instead of the locale-blind `1.5 MB` the
-/// previous Rust-only path emitted.
+/// thresholds stay consistent across surfaces. The number-formatting
+/// half lives Dart-side because `intl.NumberFormat` honours the
+/// active locale — German / French / Russian users see `1,5 MB`,
+/// not the locale-blind `1.5 MB` a Rust-side `format!("{:.1}")` emits.
 String formatSize(int bytes, {Locale? locale}) {
   final abs = bytes.abs();
   if (abs < 1024) return '$bytes B';
@@ -180,10 +180,10 @@ String localizeError(S l10n, Object error) {
   }
 
   // FRB typed-envelope routing — preferred over substring matching
-  // on rendered text. New FRB callsites emit JSON `{kind, detail}`;
+  // on rendered text. FRB callsites emit JSON `{kind, detail}`;
   // [_localizeFrbKind] switches on `kind` and falls through `null`
-  // for legacy plain-string errors so the existing branches below
-  // still handle them.
+  // for plain-string errors so the typed Dart-exception / OS-error
+  // branches below still handle them.
   final frb = _localizeFrbKind(l10n, error);
   if (frb != null) return frb;
 
@@ -200,9 +200,9 @@ String localizeError(S l10n, Object error) {
 }
 
 /// Try to parse [error] as a typed FRB envelope and route by `kind`.
-/// Returns null when the error is not a JSON envelope (legacy plain
-/// strings, typed Dart exceptions, OS errors, etc.) so the caller
-/// keeps walking the fallback chain.
+/// Returns null when the error is not a JSON envelope (plain strings,
+/// typed Dart exceptions, OS errors, etc.) so the caller keeps
+/// walking the fallback chain.
 String? _localizeFrbKind(S l10n, Object error) {
   if (error is! String) return null;
   if (!error.startsWith('{')) return null;
@@ -407,9 +407,10 @@ String _localizeOsError(S l10n, Object error) {
 
 /// errno → (localized accessor, English fallback) — single source
 /// of truth for the two errno-keyed lookups (sanitizer logging
-/// path + UI localizer). Previously these were two separate
-/// maps that drifted independently; consolidating means a new
-/// errno entry adds one row, not two.
+/// path + UI localizer). **Don't fork into two maps** — a new
+/// errno would have to land in both, and a missed addition shows
+/// up as the localized UI string drifting from the English log
+/// line for that errno only.
 class _ErrnoEntry {
   const _ErrnoEntry(this.localized, this.english);
   final String Function(S) localized;

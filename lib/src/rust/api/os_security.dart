@@ -75,6 +75,32 @@ Future<bool> osSecurityBiometricAuthenticate({required String reason}) =>
       reason: reason,
     );
 
+/// Probe the *current* tracer state. Reads `/proc/self/status` →
+/// `TracerPid` on Linux/Android, `sysctl KERN_PROC_PID` →
+/// `P_TRACED` on macOS, `IsDebuggerPresent` on Windows; returns
+/// `false` on iOS (sandbox blocks `ptrace`-style probes from
+/// store-signed apps). Fail-safe: any I/O error in the probe
+/// returns `false` rather than asserting "definitely clean" —
+/// an unreadable `/proc` is not the same as "no debugger".
+///
+/// Pairs with [`os_security_apply_startup_hardening`]: the
+/// startup pass BLOCKS new attaches via `PR_SET_DUMPABLE` /
+/// `PT_DENY_ATTACH` / `SetErrorMode`; this probe READS the
+/// post-hardening attach state so callers can react to a
+/// debugger that landed despite the block (e.g. development
+/// build with `setpcap` cap_sys_ptrace), or a debug-signed
+/// macOS bundle where `PT_DENY_ATTACH` is no-op.
+///
+/// Caller policy is intentionally not auto-terminate — the
+/// security stack reads the bool and decides response.
+/// Canonical wiring: [`SecurityInitController`] short-circuits
+/// the biometric shortcut on a positive probe so the user
+/// re-authenticates with the typed secret rather than
+/// releasing the OS-stored password into a debugger-attached
+/// process.
+bool osSecurityIsBeingDebugged() =>
+    RustLib.instance.api.crateApiOsSecurityOsSecurityIsBeingDebugged();
+
 /// Subscribe to OS session-lock events. Yields one `()` per OS
 /// lock transition. Currently fires on Linux only (logind via
 /// zbus); macOS + Windows keep their existing native plugins

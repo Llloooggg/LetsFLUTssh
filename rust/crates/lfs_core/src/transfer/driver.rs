@@ -68,13 +68,13 @@ impl CancellationToken {
 /// killing the worker.
 ///
 /// Backed by `async-channel` so every worker pulls directly off
-/// the same multi-consumer receiver — no `Arc<Mutex<Receiver>>`
-/// gate that would serialise workers across `recv().await`.
-/// `tokio::sync::mpsc` is single-consumer by design; cloning the
-/// receiver is what the prior shape attempted, holding the lock
-/// across the await collapsed `worker_count > 1` to effective
-/// `1` because every worker except the lock-holder was blocked
-/// outside the critical section.
+/// the same multi-consumer receiver. **Don't switch to
+/// `tokio::sync::mpsc`** — it is single-consumer by design, and
+/// the only way to fan out is `Arc<Mutex<Receiver>>` + holding
+/// the lock across `recv().await`. Holding a lock across an
+/// await collapses `worker_count > 1` to effective `1` because
+/// every worker except the lock-holder is blocked outside the
+/// critical section.
 pub struct WorkerPool {
     sender: Sender<String>,
     cancel_tokens: Arc<Mutex<HashMap<String, CancellationToken>>>,

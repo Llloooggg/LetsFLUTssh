@@ -24,18 +24,17 @@ import '../utils/logger.dart';
 ///     user re-authenticates (master password or biometrics).
 ///   * The in-memory DB key is **always** zeroed via
 ///     `securityStateProvider.clearEncryption()` — regardless of whether
-///     active SSH sessions are present. Previously the wipe was gated
-///     on `activeSessions.isEmpty` to keep SFTP reachable, which meant
-///     RAM forensics of a locked app could still recover the DB key as
-///     long as one session was connected — flattening T1+password and
-///     T2+password in the threat matrix. The gate is removed; live
-///     session reconnect is satisfied instead by
-///     `SessionCredentialCache` (per-session page-locked auth envelope
-///     that survives the lock), so the encrypted store can close
-///     without losing the "reconnect after unlock" UX.
-///   * The drift / MC handle is closed so the C-layer page
-///     cipher cache is also zeroed. `main._injectDatabase` opens a
-///     fresh handle after unlock under the re-derived key.
+///     active SSH sessions are present. **Don't gate the wipe on
+///     `activeSessions.isEmpty`** — leaving the DB key warm whenever
+///     any session is connected lets RAM forensics of a locked app
+///     recover it, flattening T1+password and T2+password in the
+///     threat matrix. Live-session reconnect is satisfied by
+///     `SessionCredentialCache` (per-session page-locked auth
+///     envelope that survives the lock), so the encrypted store can
+///     close without losing the "reconnect after unlock" UX.
+///   * The rusqlite/SQLCipher handle is closed so the C-layer page
+///     cipher cache is also zeroed. `_injectDatabase` opens a fresh
+///     handle after unlock under the re-derived key.
 ///
 /// Triggers:
 ///   * Idle timer (user inactivity past the configured timeout).

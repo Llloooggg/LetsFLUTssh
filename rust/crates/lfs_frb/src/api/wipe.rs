@@ -6,11 +6,12 @@
 //! `sweep_files` is async because the worst-case run deletes a
 //! couple dozen files plus the `logs/` tree on a busy disk.
 //!
-//! The Dart shim still owns the keychain (`flutter_secure_storage`)
-//! purge, the `com.letsflutssh/hardware_vault` `MethodChannel`
-//! invocations, and the per-session credential cache evict. Those
-//! ride on platform plugins that have no equivalent in `lfs_core`;
-//! this module is the file half only.
+//! The Dart shim still owns the per-session credential cache evict
+//! and the orchestration of the keychain purge (`wipe_keychain_run`,
+//! which itself routes through
+//! `lfs_os_security::secure_key_storage` per platform). Hardware-
+//! vault clear is owned by `lfs_os_security::hardware_tier_vault`
+//! via FRB. This module is the file half only.
 
 use std::path::Path;
 

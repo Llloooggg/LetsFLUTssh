@@ -294,9 +294,9 @@ pub async fn recorder_record_header(
 
 /// Compose an asciinema v2 event line `[delta_secs, "o"|"i",
 /// utf8_str]` and append it as a frame. The delta is computed
-/// against the recording's `started_at` anchor — same semantics
-/// the legacy Dart `_enqueueEvent` produced. Empty `bytes` is a
-/// no-op.
+/// against the recording's `started_at` anchor — playback tools
+/// that consume the v2 spec (asciinema CLI, our in-app player)
+/// expect this anchoring. Empty `bytes` is a no-op.
 pub async fn recorder_record_event(
     id: String,
     direction: DbRecordDirection,

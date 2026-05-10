@@ -177,6 +177,10 @@ Sessions, credentials, known hosts, snippets, tags, and app config live in the O
 > [!WARNING]
 > Wiping the data directory deletes **all** saved sessions and any unexported credentials. Export your data first via **Settings → Export** if you want to keep it.
 
+### Other distribution channels
+
+Manifests for Snap Store, Flathub, Homebrew Cask and WinGet live under [`packaging/`](packaging/) and are **draft templates pending validation** — not yet submitted to upstream channels. Until those PRs land, [GitHub Releases](https://github.com/Llloooggg/LetsFLUTssh/releases) is the only sanctioned download path. The in-app updater talks directly to GitHub Releases regardless of how the user originally installed.
+
 ## Security
 
 See [SECURITY.md](docs/SECURITY.md) for vulnerability reporting and security scope.

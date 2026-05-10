@@ -32,21 +32,11 @@ void pathWriteBytesAtomic({required String path, required List<int> bytes}) =>
 /// Android (sandboxed app storage). Best-effort: returns the OS
 /// error as `Err(String)` for the caller to log, never panics.
 ///
-/// Async-with-spawn_blocking because the Windows `icacls`
-/// invocation is a subprocess and AV inspection on the receive
-/// side stretches the wait further. A sync FRB call would hold
-/// the Dart UI thread for the entire subprocess duration —
-/// splash spinner freezes, no frames
-/// paint, the user perceives the app as hung. Offload the
-/// blocking subprocess wait to tokio's blocking pool so the
-/// Dart event loop keeps pumping while we wait. Unix `chmod` is
-/// genuinely microseconds and would not need this, but the
-/// uniform async signature is cheaper than splitting per-OS API
-/// surfaces. Call sites (drift WAL/SHM sidecars, explicit
-/// post-write hardening for files where the writer cannot use
-/// `path_write_bytes_atomic`, `rust_db_init`'s `harden_perms`
-/// step) all already `await` through Dart-side `Future<void>`
-/// wrappers, so this is a transparent change at the binding.
+/// Async + `spawn_blocking` because the Windows path spawns a
+/// subprocess (`icacls`) and a sync FRB shim would block the
+/// Dart event loop until the child returns. Unix `chmod` is a
+/// single syscall and could be sync, but a uniform async
+/// signature is simpler than splitting per-OS API surfaces.
 Future<void> pathHardenFilePerms({required String path}) =>
     RustLib.instance.api.crateApiPathPathHardenFilePerms(path: path);
 

@@ -50,9 +50,10 @@ class WipeReport {
 /// [hasPendingWipe] and re-runs the sweep idempotently.
 ///
 /// Dart side keeps the platform-bound concerns: the keychain
-/// (`flutter_secure_storage`) purge, the per-platform hw-vault
-/// clear via FRB into `lfs_os_security`, and the optional
-/// per-session credential cache evict.
+/// purge (`lfs_os_security::secure_key_storage::delete` over the
+/// canonical alias list — see `wipe_keychain.dart`), the
+/// per-platform hw-vault clear via FRB into `lfs_os_security`,
+/// and the optional per-session credential cache evict.
 ///
 /// Intentionally *not* tied to the migration framework's `Artefact`
 /// interface: wipe is a cross-cutting concern that touches files even

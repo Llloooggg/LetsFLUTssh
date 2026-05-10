@@ -245,31 +245,31 @@ Order is tuned to ship the largest pain-points first, keep crypto/security-sensi
 
 ### 6.2 SSH certificates (OpenSSH signed keys)
 
-**Status: protocol layer DONE.** Rust core authenticates with OpenSSH certs via `lfs_core::ssh::connect_pubkey_cert`. UI / cert-renewal layers below still pending.
+**Status: protocol layer DONE.** Rust core authenticates with OpenSSH certs via `lfs_core::ssh::Session::connect_pubkey_cert`. UI surface (cert import + display + auto-renewal) still pending.
 
 **Goal.** Support user certs issued by internal CAs — step-ca, HashiCorp Vault SSH, Teleport-style short-lived certs. Auto-renew via external command hook.
 
 **What exists.**
-- **Rust transport** — `lfs_core::ssh::Session::connect_pubkey_cert(host, port, user, key, passphrase, cert)` parses the cert via `russh-keys::Certificate::from_openssh` and authenticates via `Handle::authenticate_openssh_cert`. FRB binding: `ssh_connect_pubkey_cert(host, port, user, private_key: Vec<u8>, passphrase: Option<String>, cert: Vec<u8>)`. Earlier "blocked / fork russh" assessment was wrong — russh 0.59 has cert algorithm tables natively.
-- **Dart-side UI** still does not have a cert import flow; rides on the unified SshTransport swap.
-- `SSHKeyPair` in dartssh2 + our `KeyStore` handle plain key pairs only — dartssh2 has no cert support and never will (the gap that motivated the Rust core in the first place).
+- **Rust transport** — `lfs_core::ssh::Session::connect_pubkey_cert(host, port, user, key, passphrase, cert)` parses the cert via russh's forked `ssh-key` (the `internal-russh-forked-ssh-key` workspace dep with the `ppk` feature flipped on; see `rust/Cargo.toml`) and authenticates via russh's `Handle::authenticate_openssh_cert`. FRB binding: `ssh_connect_pubkey_cert(host, port, user, private_key: Vec<u8>, passphrase: Option<String>, cert: Vec<u8>)` already exposed under `lib/src/rust/api/ssh.dart`. russh 0.59 has the cert algorithm tables natively — no fork.
+- **Dart-side UI** still does not have a cert import flow. The Auth tab in the session edit dialog only wires the password / key-file / key-from-manager / inline-PEM modes.
 
 **Files to change.**
 
 | # | Path | Action |
 |---|---|---|
-| 1 | `lib/core/security/ssh_certificate.dart` (new) | Parser for OpenSSH cert format (`ssh-rsa-cert-v01@openssh.com`, `ssh-ed25519-cert-v01@openssh.com`). Expose principals, validity, critical options. |
-| 2 | `lib/core/security/key_store.dart` | `SshKeyEntry` gains `certificate: Uint8List?`. On auth, dartssh2 wants the cert alongside the private key; check dartssh2's API — it may already accept cert-format public keys via its `publicKeyType` field. |
-| 3 | `lib/core/ssh/ssh_client.dart` | When building identities (`_buildIdentities` ~line 338), attach cert when present. |
-| 4 | `lib/features/key_manager/key_manager_dialog.dart` | Import cert → pair it with an existing key by fingerprint. Show validity + principals. |
-| 5 | `lib/core/security/cert_renewal.dart` (new) | Optional: run an external command (configured per key) when the cert is within N minutes of expiry. E.g. `step ssh renew --force` — **user configures the shell command, we exec it**. Security-aware: confirm before first run. |
-| 6 | `lib/core/db/tables.dart` | Add `certificate TEXT` column to `SshKeys`. DB schema bump. |
-| 7 | `lib/core/migration/schema_versions.dart` | Archive bump + db bump. |
-| 8 | `docs/SECURITY.md` | Cert model: we don't sign, we only carry. External renewal command runs under the user's privileges. |
+| 1 | `rust/crates/lfs_core/src/keys.rs` | Add a cert-parser entry point (`parse_openssh_cert(bytes) -> CertSummary`) returning the typed shape Dart needs (principals, valid_after_unix, valid_before_unix, critical options, key fingerprint). The russh fork already does the hard parsing — wrap it. |
+| 2 | `rust/crates/lfs_frb/src/api/keys.rs` | Expose the parser through FRB so the manager UI can render the validity / principals without holding cert bytes Dart-side. |
+| 3 | `rust/crates/lfs_core/src/db/ssh_keys.rs` + `lfs_core::db::SCHEMA_SQL` | Add `certificate BLOB NULL` column to `SshKeys`; bump `SCHEMA_VERSION`. SCHEMA_SQL bootstrap stamps the `ALTER TABLE` step. |
+| 4 | `rust/crates/lfs_frb/src/api/db.rs` (`DbSshKey` row + `db_ssh_keys_*`) | Plumb the `certificate` blob through the existing DAO surface. Keep cert bytes on the Rust side via SecretStore staging when fed into a connect — never round-trip through the Dart heap on the auth path. |
+| 5 | `lib/core/security/ssh_key.dart` | `SshKeyEntry` + `SshKeyMetadata` gain `certificate: Uint8List?` (null when not paired). Mapper updates in `lib/src/rust/api/db.dart`. |
+| 6 | `lib/features/key_manager/key_manager_dialog.dart` | Import cert → pair with the existing key entry by public-key fingerprint match. Show validity (with expired badge) + principals + critical options in the row's tertiary line. |
+| 7 | `lib/core/connection/connections_notifier.dart` | When `SshKey.certificate != null`, route through `SshAuthPubkeyCertRef` (already declared in `transport/ssh_transport.dart`) instead of `SshAuthPubkeyRef`. The transport layer already maps that variant onto `connect_pubkey_cert`. |
+| 8 | `rust/crates/lfs_core/src/cert_renewal.rs` (new) | Optional: run an external command (configured per key) when the cert is within N minutes of expiry. E.g. `step ssh renew --force` — **user configures the shell command, we exec it via `tokio::process::Command`**. Security-aware: confirm before first run, log every attempt through `lfs_core::log_sanitize`. |
+| 9 | `docs/SECURITY.md` | Cert model: we don't sign, we only carry. External renewal command runs under the user's privileges; document the new "Allow renewal commands" toggle. |
 
-**L10n keys.** `sshCertificate`, `certValidFrom`, `certValidTo`, `certPrincipals`, `certRenewCommand`, `certExpiringBanner`, `errCertParse`, `errCertRenewFailed`.
+**L10n keys.** `sshCertificate`, `certValidFrom`, `certValidTo`, `certPrincipals`, `certCriticalOptions`, `certRenewCommand`, `certExpiringBanner`, `certExpired`, `errCertParse`, `errCertRenewFailed`.
 
-**Scope.** 1 week if dartssh2 accepts certs natively; 2 weeks if we need to handcraft the SSH_MSG_USERAUTH_REQUEST cert payload.
+**Scope.** ~1 week — the russh transport is already done; UI + DAO column + mapper plumbing + the cert-pairing flow in the manager is the outstanding work. Auto-renewal sits on top as a follow-up.
 
 **Gotchas.**
 - Cert expiry often < 1 hour with modern step-ca setups. Auto-renew needs to be reliable; log every renewal attempt through the same `AppLogger`.
@@ -285,7 +285,7 @@ Order is tuned to ship the largest pain-points first, keep crypto/security-sensi
 
 **What works today (after rust-core merge).**
 - User runs `ssh-add -K /path/to/sk_ed25519` once on their machine to register the FIDO2 key with the system ssh-agent.
-- App calls `ssh_connect_agent(host, port, user)` (FRB binding from sub-phase 1.11b). Agent enumerates identities including sk-* keys, advertises them to the server during userauth, drives the FIDO2 user-presence prompt itself, returns the signature; russh just relays bytes.
+- App calls `lfs_core::ssh::Session::connect_agent(host, port, user)` via the existing FRB binding (`ssh_connect_agent` under `lib/src/rust/api/ssh.dart`). russh's agent client (`russh::client::Handle::authenticate_future` driven by an `AgentClient`) enumerates identities including sk-* keys, advertises them to the server during userauth, drives the FIDO2 user-presence prompt itself, returns the signature; russh just relays bytes.
 - Covers macOS, mainstream Linux, Windows (OpenSSH-Agent service or Pageant). No CTAP2 stack on our side — the agent owns it.
 
 **What direct CTAP2 (no agent) would add.**
@@ -295,21 +295,22 @@ Order is tuned to ship the largest pain-points first, keep crypto/security-sensi
 
 **Caveat.** Direct CTAP2 is the **highest-risk** part of this backlog. Requires CTAP2 bridge per platform (PC/SC or hidraw on desktop, native plugins on mobile, no Web target). Budget it as v1 = desktop only, v2 = mobile later. Defer until a real user need surfaces — the agent path covers the common case.
 
-**Files to change.**
+**Files to change** (when direct CTAP2 lands — agent path is already shipped).
 
 | # | Path | Action |
 |---|---|---|
-| 1 | `pubspec.yaml` | Add `fido2` (if pure Dart and maintained) or hand-roll the CTAP2 client. Likely need a platform channel per OS. |
-| 2 | `lib/core/security/fido2/ctap2_client.dart` (new) | CTAP2 HID transport on Linux/Windows/macOS via `hidapi` FFI — already a common pattern in cross-platform Dart. |
-| 3 | `lib/core/security/fido2/sk_signer.dart` (new) | Glue: given challenge bytes, calls `ctap2_client.getAssertion(...)` using the credential blob stored in the key file. Returns signature in the format dartssh2 expects. |
-| 4 | `lib/core/ssh/ssh_client.dart` | Identity list accepts `SkKeyIdentity` alongside `SSHKeyPair`; dartssh2 userauth flow delegates the signing step to our signer. |
-| 5 | `lib/features/key_manager/key_manager_dialog.dart` | Import `*.pub` sk-* key → store the credential handle, no private scalar. Show "requires hardware key" label. |
-| 6 | `lib/features/key_manager/hardware_key_prompt.dart` (new) | "Tap your hardware key" modal with timeout + cancel. |
-| 7 | `docs/ARCHITECTURE.md` §3.6 Security | Document FIDO2-SSH threat model. |
+| 1 | `rust/crates/lfs_core/Cargo.toml` | Add the [`ctap-hid-fido2`](https://crates.io/crates/ctap-hid-fido2) crate (pure-Rust CTAP2 over HID — no `libpcsclite` install required, integrates cleanly with `tokio`). Optional cargo feature so non-FIDO builds skip the dep. |
+| 2 | `rust/crates/lfs_core/src/fido2.rs` (new) | CTAP2 wrapper: `get_assertion(rp_id, client_data_hash, credential_id, options)` returning the signature bytes. `tokio::task::spawn_blocking` for the HID I/O so the FRB worker stays free. |
+| 3 | `rust/crates/lfs_frb/src/api/fido2.rs` (new) | Expose `fido2_get_assertion(...)` async; the Rust signer reaches russh's signer trait through an `AgentClient`-shaped adapter so the existing `connect_pubkey` paths can swap out the assertion source. |
+| 4 | `rust/crates/lfs_core/src/db/ssh_keys.rs` (+ schema bump) | Persist the sk-* key as `(public_blob, credential_id, application_string, has_user_verification)` rather than a private scalar; the credential_id replaces the PEM bytes for these entries. |
+| 5 | `lib/core/security/ssh_key.dart` | `SshKeyEntry` gains `credentialId: Uint8List?` + `applicationString: String?` (sk-* sessions). Type variant in `SshKeyType` enum: `skEd25519`, `skEcdsaP256`. |
+| 6 | `lib/features/key_manager/key_manager_dialog.dart` | Import `*.pub` sk-* key → parse the credential handle from the OpenSSH binary frame, store it. Render "Hardware-bound (FIDO2)" badge in the row. |
+| 7 | `lib/widgets/hardware_key_prompt_dialog.dart` (new) | "Tap your hardware key" modal with timeout + cancel + (when sk-* key requires it) PIN field. |
+| 8 | `docs/ARCHITECTURE.md` §3.6 Security + new §3.6.x sub-section | Document the FIDO2-SSH threat model on top of the existing biometric / hardware-vault sections. |
 
 **L10n keys.** `hardwareKey`, `hardwareKeyTapPrompt`, `hardwareKeyTimeout`, `hardwareKeyNotFound`, `hardwareKeyUnsupported`, `skKeyRequiresDevice`, `errSkWrongPin`.
 
-**Scope.** 2–3 weeks desktop. Mobile adds 2–3 weeks more and platform-specific plugins.
+**Scope.** 2–3 weeks desktop. Mobile adds 2–3 weeks more and platform-specific plugins (Android `UsbManager` permission flow + iOS NFC / Lightning entitlement requests).
 
 **Gotchas.**
 - Touch prompts must be cancelable — otherwise a forgotten prompt hangs auth.
@@ -324,7 +325,7 @@ Order is tuned to ship the largest pain-points first, keep crypto/security-sensi
 | Feature | Why deferred |
 |---|---|
 | **X11 forwarding** | Requires a local X server (XQuartz / VcXsrv / native) that violates the zero-install principle. A bundled VcXsrv on Windows is GPL — license conflict unless the whole app goes GPL. Recommend **building a VNC client** instead, covers the same "remote GUI" use case without the X server problem. |
-| **ssh-agent client-side forwarding** | dartssh2 has no agent-channel client. Needs a from-scratch agent-protocol implementation + platform-specific bridging (Unix socket on POSIX, Pageant named pipe on Windows, OpenSSH-for-Windows named pipe) + FFI. ~3–4 weeks for meagre end-user ROI (users with a corporate agent setup are rare). Revisit if >3 users ask. |
+| **ssh-agent forwarding (`-A`)** | Distinct from "agent as auth provider on the local box" (which is **shipped** via russh's `AgentClient` + `ssh_connect_agent`, see §6.3 above). `-A` opens an agent channel on the *remote* host so commands there can talk back to your local agent — useful for `git pull` on a bastion that needs to authenticate forward-hops. russh exposes the channel-open hook but the local-agent server side (Unix socket loop on POSIX, Pageant named pipe on Windows, OpenSSH-for-Windows named pipe) is from-scratch work; ~2 weeks for meagre end-user ROI (users with a corporate agent-forwarding requirement are rare and the security trade-off — remote process can sign anything your agent holds — is famously dangerous). Revisit if >3 users ask. |
 | **Mosh** | Separate UDP protocol, no Dart client, requires `mosh-server` on remote. Would be a second stack to maintain alongside SSH. Skip. |
 | **SCP** | Deprecated by OpenSSH itself; SFTP covers every use case. Skip. |
 | **Team session sharing** | Not our product positioning. Skip. |
@@ -336,7 +337,7 @@ Order is tuned to ship the largest pain-points first, keep crypto/security-sensi
 
 Use this as a PR template — anything missing is a rejected PR:
 
-- [ ] New table / column → drift migration registered + `schemaVersion` bumped + covered by a `test/core/db/migration/*_test.dart`.
+- [ ] New table / column → `lfs_core::db::SCHEMA_SQL` updated with idempotent `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`, `SCHEMA_VERSION` bumped, covered by a Rust unit test under `rust/crates/lfs_core/src/db/`. Format-envelope changes (config.json, credentials.kdf, hardware vault blobs) go through the `lfs_core::migration` framework — see ARCHITECTURE §3.6 → Migration framework.
 - [ ] Archive artefact format changes → new migration in `lib/core/migration/artefacts/`, registered in `archive_registry.dart`, `SchemaVersions.archive` bumped, cross-version roundtrip test.
 - [ ] User-facing strings in **all 15** ARBs.
 - [ ] ARCHITECTURE.md section updated **in the same commit** (how + why both).

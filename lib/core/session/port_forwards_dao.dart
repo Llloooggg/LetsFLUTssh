@@ -3,14 +3,13 @@ import '../../utils/logger.dart';
 import '../ssh/port_forward_rule.dart';
 
 /// Standalone DAO helpers for the per-session port-forward rule
-/// table. Pulled out of `SessionStore` because none of the three
+/// table. Sit outside `SessionNotifier` because none of the three
 /// methods touch the in-memory session cache — they're 1-line
 /// FRB wrappers that the editing UI calls directly.
 ///
-/// Failure semantics match the legacy `SessionStore` shape:
-/// FRB-unreachable contexts (flutter_test without `RustLib`) log
-/// + return empty / no-op so the UI doesn't surface an error
-/// dialog for a missing native lib.
+/// Failure semantics: FRB-unreachable contexts (flutter_test
+/// without `RustLib`) log + return empty / no-op so the UI does
+/// not surface an error dialog for a missing native lib.
 
 /// Read every saved port-forward rule for [sessionId], sorted by
 /// the user-defined order. Empty when the session has no rules

@@ -1,10 +1,9 @@
 //! FRB adapter for `lfs_core::crypto`.
 //!
-//! HKDF-SHA-256 + Ed25519 verify exposed to Dart so the app can drop
-//! pointycastle's `HKDFKeyDerivator` and pinenacl's `VerifyKey`.
-//! Both calls are short and CPU-bound; we still spawn_blocking them
-//! so the FRB worker thread doesn't get stuck on a big update-feed
-//! payload.
+//! HKDF-SHA-256 + Ed25519 verify + AES-GCM + Argon2id exposed to
+//! Dart. Calls are CPU-bound; `spawn_blocking` keeps the FRB
+//! worker thread free under a big update-feed signature check or
+//! a 46-MiB Argon2id derive.
 
 /// HKDF-SHA-256: derive `length` bytes from `ikm` with the given
 /// `salt` + `info` context tag. `length` must be in 1..=8160.
@@ -105,11 +104,10 @@ pub async fn crypto_ed25519_verify(
 /// [`crypto_aes_gcm_random_key_to_secret`] for new call sites — it
 /// stages the key in [`lfs_core::secrets::SecretStore`] under a
 /// caller-chosen id and returns `()`, so the bytes never touch the
-/// Dart heap on the way out. Bytes still have to materialise
-/// Dart-side eventually (drift's sqlcipher pragma takes a hex
-/// string), but staging them in a SecretStore narrows the leak
-/// window from "key generation through every consumer" to "just
-/// before drift open".
+/// Dart heap on the way out. Pair it with
+/// [`super::app::db_init_from_secret`] so the SQLCipher key flows
+/// SecretStore → page-cipher entirely on the Rust side without
+/// ever crossing back into Dart.
 #[flutter_rust_bridge::frb(sync)]
 pub fn crypto_aes_gcm_random_key() -> Vec<u8> {
     lfs_core::crypto::aes_gcm_random_key().to_vec()
@@ -120,11 +118,13 @@ pub fn crypto_aes_gcm_random_key() -> Vec<u8> {
 /// Returns `()` — the bytes never cross the FRB boundary.
 ///
 /// Call sites pull the bytes back through `secrets_take(id)` only
-/// when they genuinely need them (drift's sqlcipher pragma rekey,
-/// for example). The keychain write side has its own
+/// when they genuinely need them — though the canonical
+/// SQLCipher-rekey path (`db_rekey_from_secret`) bypasses even
+/// that round-trip and reads the staged bytes Rust-internally.
+/// The keychain write side has its own
 /// [`super::secure_key_storage::secure_storage_write_from_secret`]
 /// shortcut that pulls bytes from the store internally so the
-/// keychain-plugin path likewise never sees them on the Dart heap.
+/// keychain-write path likewise never sees them on the Dart heap.
 ///
 /// Idempotent on `id` collision: replaces any prior value at the
 /// same id (the previous `Zeroizing` buffer scrubs on drop).
@@ -135,9 +135,10 @@ pub fn crypto_aes_gcm_random_key_to_secret(id: String) {
 }
 
 /// AES-256-GCM encrypt with a fresh random nonce. Returns the wire
-/// shape `nonce || ciphertext || tag` — the same layout the legacy
-/// pointycastle-backed `AesGcm.encrypt` produced, so existing on-disk
-/// envelopes round-trip without a format bump.
+/// shape `nonce || ciphertext || tag`. Layout is fixed across every
+/// AEAD envelope on disk (`.lfs` archive payload, recorder frames,
+/// `credentials.verify`); changing the byte order would orphan
+/// every stored envelope.
 pub async fn crypto_aes_gcm_encrypt(key: Vec<u8>, plaintext: Vec<u8>) -> Result<Vec<u8>, String> {
     tokio::task::spawn_blocking(move || {
         lfs_core::crypto::aes_gcm_encrypt(&key, &plaintext)

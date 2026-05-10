@@ -317,10 +317,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   void _reloadSessions() {
     // Lifecycle `onResume` fires before the controller's bootstrap
     // finishes on cold-start + early re-foreground flows. Gating on
-    // the controller's explicit ready flag avoids issuing drift
-    // queries against a DB whose cipher key is either not yet set
-    // or turned out to be wrong — the DB-corruption dialog is the
-    // single entry point that authorises unlocked reads.
+    // the controller's explicit ready flag avoids issuing FRB DAO
+    // reads against a SQLCipher handle whose key is either not yet
+    // set or turned out to be wrong — the DB-corruption dialog is
+    // the single entry point that authorises unlocked reads.
     if (!_securityController.isReady) return;
     AppLogger.instance.log('App resumed — reloading sessions', name: 'App');
     ref.read(sessionProvider.notifier).load();
@@ -396,10 +396,10 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
       // by the inherited scaler instead of replacing it. Cap at
       // 3.0 so a user at the system's 200% accessibility setting
       // plus our 1.5x in-app slider still gets readable text
-      // without runaway layout overflow. The previous shape
-      // pinned `TextScaler.linear(uiScale)` and discarded the OS
-      // scaler entirely, blocking the standard
-      // platform a11y path.
+      // without runaway layout overflow. **Don't** pass
+      // `TextScaler.linear(uiScale)` here — that discards the OS
+      // scaler entirely and blocks the standard platform a11y
+      // path.
       data: mediaQuery.copyWith(
         textScaler: TextScaler.linear(
           (mediaQuery.textScaler.scale(uiScale)).clamp(0.5, 3.0),

@@ -1,8 +1,9 @@
-//! FRB adapter for `lfs_os_security::secure_key_storage`. The
-//! Dart wrapper routes desktop platforms (Linux / macOS / iOS /
-//! Windows) through here; Android stays on the existing
-//! `flutter_secure_storage` MethodChannel until the JNI bridge
-//! to AndroidKeystore lands.
+//! FRB adapter for `lfs_os_security::secure_key_storage`. Every
+//! supported platform (Linux / macOS / iOS / Windows / Android)
+//! routes through here — the Android JNI bridge to
+//! AndroidKeyStore lives in `lfs_os_security::android::keystore`,
+//! the cfg-gated dispatch table in `secure_key_storage.rs` picks
+//! the right backend per `target_os`.
 
 #[derive(Debug, Clone)]
 pub enum DbSecureStorageOutcome {
@@ -44,9 +45,10 @@ pub async fn secure_storage_write(alias: String, value: Vec<u8>) -> Result<(), S
 /// equivalent) so the bytes never touch the Dart heap on the way to
 /// the OS keychain. The SecretStore entry remains after the write —
 /// the caller drops it explicitly via `secrets_drop` once every
-/// downstream consumer (e.g. drift's sqlcipher pragma) has had its
-/// turn through `secrets_take`. Returns `Err("secret not found: …")`
-/// when the id is absent from the store.
+/// downstream consumer (e.g. `db_init_from_secret` for SQLCipher
+/// open or `db_rekey_from_secret` for rekey) has had its turn.
+/// Returns `Err("secret not found: …")` when the id is absent from
+/// the store.
 pub async fn secure_storage_write_from_secret(
     alias: String,
     secret_id: String,

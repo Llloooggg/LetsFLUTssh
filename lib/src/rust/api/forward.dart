@@ -86,7 +86,10 @@ Future<int> portForwardStartRemote({
 /// Stop a `-R` handle spawned by [`port_forward_start_remote`].
 /// Drops the handle (which aborts the bridge task, withdraws the
 /// session-level route, and asks the server to stop listening).
-/// Idempotent on a missing rule id.
+/// Idempotent on a missing rule id. The driver awaits the inline
+/// `teardown` so the route withdraw + server-side cancel-tcpip
+/// complete before this future resolves — no detached cleanup
+/// task left racing the runtime shutdown.
 Future<bool> portForwardStopRemote({required String ruleId}) =>
     RustLib.instance.api.crateApiForwardPortForwardStopRemote(ruleId: ruleId);
 

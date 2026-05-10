@@ -51,12 +51,14 @@ pub const MANAGED_FILES: &[&str] = &[
     "keychain_enabled",
     "rate_limit_state.bin",
     // Biometric / hw overlay blobs. Filename grammar:
-    //   - Android (post-Rust port): hardware_vault_android_bio.bin
-    //     (matches lfs_os_security::android::hardware_vault::VAULT_FILE_BIO).
-    //   - Pre-port Android filename kept here so a wipe cleans up
-    //     installs that upgraded across the rename.
-    //   - Apple / Windows: pre-port filename, retained until the
-    //     respective ports rename their on-disk artefact.
+    //   - Android: hardware_vault_android_bio.bin (matches
+    //     lfs_os_security::android::hardware_vault::VAULT_FILE_BIO).
+    //   - Apple / Windows: hardware_vault_password_overlay_<plat>.bin.
+    // Both legacy Android filenames remain in this list — a sweep
+    // must clean every name an installed user could carry on disk,
+    // not only the current one. Adding a new name here is the
+    // wipe-coverage tripwire (see the `every_known_artefact_is_in_managed_files`
+    // test below).
     "hardware_vault_android_bio.bin",
     "hardware_vault_password_overlay_android.bin",
     "hardware_vault_password_overlay_apple.bin",

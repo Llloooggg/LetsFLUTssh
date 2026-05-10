@@ -57,4 +57,44 @@ class ProcessHardening {
       );
     }
   }
+
+  /// Read the *current* tracer state. `true` when a debugger is
+  /// attached to this process right now. Pure runtime probe —
+  /// distinct from [applyOnStartup], which BLOCKS new attaches.
+  ///
+  /// Routes through `lfs_os_security::is_being_debugged` (FRB sync).
+  /// Linux / Android read `/proc/self/status` → `TracerPid`, macOS
+  /// reads `sysctl KERN_PROC_PID` → `P_TRACED`, Windows calls
+  /// `IsDebuggerPresent`. iOS short-circuits to `false` — sandbox
+  /// blocks `ptrace`-style probes from store-signed apps.
+  ///
+  /// Fail-safe: any I/O / FRB error returns `false`. An unreadable
+  /// `/proc` is not the same as "definitely no debugger", but
+  /// asserting `true` on a probe error would brick legitimate
+  /// startup on hosts with hardened `/proc` ACLs.
+  ///
+  /// Canonical wiring: the security stack consults this on every
+  /// biometric unlock attempt and skips the OS-stored-password
+  /// shortcut on a positive probe — see
+  /// [`SecurityInitController._unlockKeychainWithPassword`] and
+  /// [`SecurityInitController._unlockHardware`]. The user falls
+  /// through to the typed-secret form, so a debugger watching the
+  /// process cannot scoop the master password / PIN out of an
+  /// auto-released keychain slot.
+  static bool isBeingDebugged() {
+    try {
+      return rust_os.osSecurityIsBeingDebugged();
+    } catch (e) {
+      // FRB unreachable (flutter_test pre-init) → fail-safe false.
+      // The probe is best-effort; missing it costs UX (one extra
+      // password entry) only in attack conditions, never blocks
+      // a legitimate user.
+      AppLogger.instance.log(
+        'is_being_debugged probe FRB unreachable: $e',
+        name: 'ProcessHardening',
+        level: LogLevel.warn,
+      );
+      return false;
+    }
+  }
 }

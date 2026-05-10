@@ -22,11 +22,16 @@
 
 use serde_json::{json, Value};
 
-/// Every flutter_secure_storage slot the app writes. New keys MUST
-/// be added here so the wipe stays total. The list is versioned
-/// alongside the vault — bumping a slot's name is a wipe-format
-/// change and gets the same migration discipline as a disk
-/// artefact rename.
+/// Every OS-keychain alias the app writes (Linux libsecret /
+/// Apple Keychain / Windows Credential Manager / Android
+/// AndroidKeyStore via JNI — all routed through
+/// `lfs_os_security::secure_key_storage`). The
+/// `FlutterSecureStorageKeyAlias_…` prefix is preserved so
+/// installs that wrote secrets through the previous Dart plugin
+/// still match. New keys MUST be added here so the wipe stays
+/// total. The list is versioned alongside the vault — bumping
+/// a slot's name is a wipe-format change and gets the same
+/// migration discipline as a disk artefact rename.
 pub const MANAGED_KEYS: &[&str] = &[
     // T1 / T1+pw DB encryption key (legacy slot — pre-tier-machine
     // installs keep using this one until the tier flip rotates it).

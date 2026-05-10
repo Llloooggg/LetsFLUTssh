@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Target version this build supports for `config.json`. Used by
-/// the legacy-state probe in `SecurityInitController` to detect
-/// configs below the current schema floor without duplicating the
-/// `SchemaVersions::CONFIG` literal Dart-side.
+/// the post-migration version probe in `SecurityInitController`
+/// to detect configs below the current schema floor without
+/// duplicating the `SchemaVersions::CONFIG` literal Dart-side.
 int migrationConfigTargetVersion() =>
     RustLib.instance.api.crateApiMigrationMigrationConfigTargetVersion();
 
@@ -24,7 +24,7 @@ int migrationArchiveTargetVersion() =>
 /// when the file is absent. Returns `Err` when the file is present
 /// but corrupt (missing `config_schema_version`, malformed JSON,
 /// etc.) — Dart caller surfaces the failure as a fatal startup
-/// error. Used by the legacy-state probe in
+/// error. Used by the post-migration version probe in
 /// `SecurityInitController` to detect a config below the current
 /// schema floor *after* the migration runner has already walked
 /// every chain it knows about.

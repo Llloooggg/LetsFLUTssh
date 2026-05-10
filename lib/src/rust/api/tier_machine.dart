@@ -32,9 +32,9 @@ String tierMachineSetTier({required String tierWireName}) => RustLib
 
 /// Apply a transition. Returns the new state on success, `None`
 /// when the event is invalid for the current state (caller logs
-/// + drops). The tagged enum eliminates the previous
-/// "unknown discriminant" failure mode — every variant maps to a
-/// concrete `TierEvent` at the FRB type-system level.
+/// + drops). Tagged-enum shape — every variant maps to a concrete
+/// `TierEvent` at the FRB type-system level, so an unknown
+/// discriminant is a compile-time error, not a runtime drop.
 DbTierState? tierMachineDispatch({required DbTierEvent event}) =>
     RustLib.instance.api.crateApiTierMachineTierMachineDispatch(event: event);
 

@@ -18,6 +18,7 @@ import '../core/migration/migration_runner.dart';
 import '../core/security/keychain_password_gate.dart';
 import '../core/security/master_password.dart';
 import '../core/security/password_rate_limiter.dart';
+import '../core/security/process_hardening.dart';
 import '../core/security/secure_key_storage.dart';
 import '../core/security/security_bootstrap.dart';
 import '../core/security/security_tier.dart';
@@ -207,10 +208,10 @@ class SecurityInitController {
     // Integrity probe + first session load both read the unlocked DB,
     // so fire them in parallel — the corruption probe runs its own
     // SELECT and errors out before the session query would see stale
-    // data. Previously sequential `_handleDatabaseCorruption` → `load`
-    // added ~200 ms to cold start on every run (both hit drift's
-    // first-query warm-up cost once each). Kicking them off together
-    // overlaps that warm-up and saves roughly that window on plaintext
+    // data. **Don't sequentialise corruption probe → load**: each
+    // hits SQLCipher's first-query warm-up cost once, and stacking
+    // them adds ~200 ms to cold start on every run. Parallel kicks
+    // overlap the warm-up and save roughly that window on plaintext
     // tiers where DB unlock itself is trivial. If corruption fires,
     // the reset dialog takes over regardless of load outcome.
     final corruptFuture = handleCorruption();
@@ -632,6 +633,23 @@ class SecurityInitController {
   /// Returns true on success, false on plugin-unavailable / wrong-
   /// auth / vault-empty.
   Future<bool> _tryBiometricCommit(SecurityTier tier) async {
+    // Live anti-debug gate: a debugger attached to this process can
+    // read the just-released DB key out of RAM the moment biometric
+    // succeeds. Refuse the shortcut and let the user fall through
+    // to the typed-secret form (the typed bytes still cross the
+    // FRB boundary once, but the attacker has to social-engineer
+    // the user instead of harvesting an OS-stored password).
+    // Probe is fail-safe-false on FRB error so a hardened-/proc
+    // host can't brick legit unlock.
+    if (ProcessHardening.isBeingDebugged()) {
+      unawaited(
+        AppLogger.instance.logCritical(
+          'Biometric unlock refused: debugger attached (tier=${tier.wireName})',
+          name: 'ProcessHardening',
+        ),
+      );
+      return false;
+    }
     final ctx = navigatorKey.currentContext;
     final reason = ctx != null
         ? S.of(ctx).biometricUnlockPrompt

@@ -1,5 +1,8 @@
-//! Phase-2 crypto primitives — pure Rust replacements for
-//! pointycastle's HKDF and pinenacl's Ed25519 verify.
+//! Crypto primitives — pure-Rust HKDF, Ed25519 verify, AES-256-GCM
+//! encrypt/decrypt, Argon2id derivation. Built on the RustCrypto
+//! stack (`hkdf` + `ed25519-dalek` + `aes-gcm` + `argon2`). Sole
+//! crypto surface for the app — no Dart-side crypto library lives
+//! in `pubspec.yaml`, so any new primitive lands here, not in Dart.
 //!
 //! Boundary:
 //!   - `hkdf_sha256` derives keys for the recorder envelope and for
@@ -32,8 +35,11 @@ use crate::error::Error;
 pub const AES_GCM_IV_LEN: usize = 12;
 /// AES-256 key is fixed at 32 bytes.
 pub const AES_GCM_KEY_LEN: usize = 32;
-/// AES-GCM tag is fixed at 16 bytes (128 bits) — matches the
-/// pointycastle default the Dart side ships with.
+/// AES-GCM tag is fixed at 16 bytes (128 bits) — IETF AEAD profile.
+/// **Never bump.** Every on-disk AEAD envelope (`.lfs` archives,
+/// `credentials.verify`, recorder frames, secret-store wrappers)
+/// is parsed against this constant; a change orphans every
+/// pre-bump file with no migration path.
 pub const AES_GCM_TAG_LEN: usize = 16;
 
 /// HKDF-SHA-256 with the standard `extract → expand` flow.
@@ -276,11 +282,14 @@ pub fn aes_gcm_decrypt_raw(
         .map_err(|e| Error::Crypto(format!("aes-gcm decrypt-raw: {e}")))
 }
 
-/// Argon2id key derivation. `memory_kib` / `iterations` / `parallelism`
-/// match the pointycastle parameters the Dart side ships today, so
-/// existing on-disk salts derive identical bytes when verified
-/// through this path. Output is `length` bytes (typically 32 for the
-/// AES-256-GCM master key derivation).
+/// Argon2id key derivation. The four inputs `memory_kib`,
+/// `iterations`, `parallelism`, `salt` jointly determine the
+/// derived bytes — changing any of them against a stored
+/// `credentials.kdf` salt produces a different key and locks the
+/// user out. Production defaults live in
+/// `lfs_core::security::KdfParams::production_defaults` (Argon2id
+/// m=46 MiB t=2 p=1, OWASP 2024 floor). Output is `length` bytes
+/// (typically 32 for the AES-256-GCM master key derivation).
 pub fn argon2id_derive(
     password: &[u8],
     salt: &[u8],

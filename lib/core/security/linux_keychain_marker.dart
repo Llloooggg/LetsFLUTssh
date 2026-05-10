@@ -10,19 +10,21 @@ import '../../utils/logger.dart';
 /// Cross-class gate that stops libsecret probes from firing on Linux
 /// installs where the keyring daemon is not reachable.
 ///
-/// Background: `flutter_secure_storage` on Linux uses libsecret, which
-/// emits a non-recoverable `g_warning` to stderr the moment it cannot
-/// talk to a running / unlocked keyring daemon. That makes a cold
-/// `containsKey` / `read` on a system where the keyring was never
-/// touched (WSL, containers, minimal desktops without
-/// `gnome-keyring-daemon` / `kwalletd`) spam stderr on every launch.
+/// Background: `lfs_os_security::secure_key_storage::linux` reaches
+/// libsecret through the `secret-service` zbus binding, and libsecret
+/// itself emits a non-recoverable `g_warning` to stderr the moment it
+/// cannot talk to a running / unlocked keyring daemon. That makes a
+/// cold probe on a system where the keyring was never touched (WSL,
+/// containers, minimal desktops without `gnome-keyring-daemon` /
+/// `kwalletd`) spam stderr on every launch.
 ///
-/// Every class that reads the OS keychain behind
-/// `flutter_secure_storage` (`SecureKeyStorage` for T1 DB key,
-/// `BiometricKeyVault` for the biometric-gated fallback) refuses to
-/// talk to libsecret until this marker file says the user has already
-/// completed a successful keychain write — i.e. the keyring was
-/// reachable at least once, so subsequent calls are safe to attempt.
+/// Every class that reads the OS keychain through
+/// `lfs_os_security::secure_key_storage` (`SecureKeyStorage` for T1
+/// DB key, `BiometricKeyVault` for the biometric-gated fallback)
+/// refuses to talk to libsecret until this marker file says the user
+/// has already completed a successful keychain write — i.e. the
+/// keyring was reachable at least once, so subsequent calls are safe
+/// to attempt.
 ///
 /// The marker itself holds nothing sensitive (`'1'`), but sits next
 /// to `credentials.*` in the app-support dir at 0600 so the whole

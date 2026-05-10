@@ -1,8 +1,10 @@
 //! FRB adapter for `lfs_core::deeplink`.
 //!
-//! - [`parse_connect_uri`] is the legacy stateless parser exposed for
-//!   the Dart-side `DeepLinkHandler.parseConnectUri` static helper
-//!   (still used by the deeplink fuzz suite).
+//! - [`parse_connect_uri`] is a stateless parser exposed for the
+//!   Dart-side `DeepLinkHandler.parseConnectUri` static helper
+//!   (used by the deeplink fuzz suite, which needs a no-state
+//!   entry point so a fuzzer can drive parse-only inputs without
+//!   warming up the dispatcher's dedup window).
 //! - [`deeplink_dispatch`] is the dispatcher entry point: the Dart
 //!   `app_links` listener pumps every URI through this call and
 //!   switches on the typed [`DbDeeplinkOutcome`] to route to the right

@@ -1,12 +1,10 @@
 //! Native OS keychain wrapper — covers all five platforms with
 //! direct calls into the platform-canonical secure-storage API.
+//! Sole secure-storage entry point in the workspace (no
+//! MethodChannel, no Dart-side plugin in the call chain).
 //!
-//! Replaces the `flutter_secure_storage` Dart plugin's backend
-//! end-to-end (no MethodChannel hop, no plugin maintainer in the
-//! call chain).
-//!
-//! Public surface mirrors the Dart `SecureKeyStorage` shape
-//! verb-for-verb: `read` / `write` / `delete` for the plain
+//! Public surface — verb-for-verb the same shape Dart consumes:
+//! `read` / `write` / `delete` for the plain
 //! (typed-master-password-protected) entry, `read_biometric` /
 //! `write_biometric` / `delete_biometric` for the biometric-
 //! ACL-gated variant. The biometric ACL only has teeth on
@@ -22,36 +20,32 @@
 //! Platforms covered here:
 //!
 //! - **Linux** — `secret-service` crate (D-Bus to libsecret /
-//!   gnome-keyring / KWallet). Same Schema attributes the
-//!   Dart plugin used (`com.it_nomads.fluttersecurestorage`)
-//!   so existing entries survive the migration.
+//!   gnome-keyring / KWallet). Schema `service` attribute is
+//!   pinned to [`SERVICE_NAME`] (external-compat constant — see
+//!   its docstring).
 //! - **macOS / iOS** — `security-framework` crate
 //!   (`SecItemAdd` / `SecItemCopyMatching` / `SecItemDelete`
-//!   on `kSecClassGenericPassword`). Service name matches the
-//!   Dart plugin's bundle so existing entries survive.
+//!   on `kSecClassGenericPassword`). Service name = [`SERVICE_NAME`].
 //! - **Windows** — direct `CredReadW` / `CredWriteW` /
-//!   `CredDeleteW` via `extern "system"`. Target name format
-//!   matches the Dart plugin so existing entries survive.
+//!   `CredDeleteW` via `extern "system"`. Target name prefix =
+//!   [`SERVICE_NAME`].
 //! - **Android** — direct JNI to `java.security.KeyStore`
 //!   provider `"AndroidKeyStore"` via [`crate::android::keystore`].
 //!   Wrapping AES-256-GCM key in AndroidKeyStore + wrapped
-//!   value bytes in a 0600 file under `getFilesDir()`. The
-//!   AndroidKeyStore alias prefix matches `flutter_secure_storage`
-//!   so existing wrap-key entries survive (the wrapped value
-//!   file regenerates on the first JNI write — different
-//!   storage layout than the plugin's SharedPreferences).
+//!   value bytes in a 0600 file under `getFilesDir()`. Alias
+//!   prefix is the external-compat constant in
+//!   [`crate::android::keystore::KEY_ALIAS_PREFIX`].
 //!   **Verification status**: code compiles via the rust-cross-check
-//!   matrix (`aarch64-linux-android`); runtime correctness is
-//!   the NI-2 hardware-verification gate.
+//!   matrix (`aarch64-linux-android`); runtime correctness needs
+//!   a real-device hardware-verification pass.
 
 use std::fmt;
 
-/// Service / collection name. Matches the
-/// `flutter_secure_storage` Linux schema's `service` attribute
-/// so already-stored secrets survive the migration without an
-/// explicit re-import. Apple keychain `kSecAttrService` and
-/// Windows Credential Manager target prefix use the same
-/// constant.
+/// External-compat constant — **never rename**. Used as the
+/// libsecret schema `service` attribute, Apple keychain
+/// `kSecAttrService`, and the Windows Credential Manager target
+/// prefix. Renaming orphans every secret already on the user's
+/// device with no automated re-import path.
 pub const SERVICE_NAME: &str = "com.it_nomads.fluttersecurestorage";
 
 #[derive(Debug)]
@@ -145,9 +139,10 @@ mod platform_impl {
     use std::collections::HashMap;
 
     fn attrs(alias: &str) -> HashMap<&'static str, &str> {
-        // Match the schema the Dart `flutter_secure_storage`
-        // Linux backend uses so an upgrade from the plugin
-        // path to the Rust path lands on the same entries.
+        // `service` + `account` schema is the external-compat
+        // shape pinned by `SERVICE_NAME` — see its docstring.
+        // Bumping either key orphans every entry the user
+        // already has on disk.
         let mut map = HashMap::new();
         map.insert("service", SERVICE_NAME);
         map.insert("account", alias);

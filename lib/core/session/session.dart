@@ -381,11 +381,12 @@ class Session {
   // from "leave unchanged".
   static const Object _unsetVia = Object();
 
-  // Session.duplicate() was retired with the Rust port — production
-  // duplication routes through `dbSessionsDuplicateWithPath` which
-  // composes label-dedup + folder-resolve + new-id mint + insert in
-  // one transaction Rust-side. The Dart helper is no longer needed
-  // and was lossy w.r.t. extras / viaSessionId / viaOverride.
+  // Session duplication routes through `dbSessionsDuplicateWithPath`
+  // which composes label-dedup + folder-resolve + new-id mint +
+  // insert in one transaction Rust-side. **Don't reintroduce a
+  // Dart-side `Session.duplicate()` helper** — the in-memory copy
+  // would silently drop `extras` / `viaSessionId` / `viaOverride`
+  // on any caller that constructed it before those fields landed.
 
   /// Serialize without secrets — safe for plaintext JSON storage.
   Map<String, dynamic> toJson() => {

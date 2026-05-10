@@ -97,13 +97,13 @@ mod platform_impl {
         //
         // LAContext lifetime: the OS reply block keeps a reference
         // to the LAContext that fired `evaluatePolicy_…_reply`.
-        // The earlier shape constructed `ctx` as a stack-local in
-        // the spawn_blocking closure, so it dropped the moment
-        // the closure returned — long before LocalAuthentication
-        // invoked the reply. Apple-documented EXC_BAD_ACCESS /
-        // observable callback failure. Fix: capture a clone of
-        // the `Retained<LAContext>` Arc-equivalent into the
-        // `RcBlock` itself, so the context outlives the closure
+        // **Don't construct `ctx` as a stack-local in the
+        // spawn_blocking closure** — it drops the moment the
+        // closure returns, long before LocalAuthentication invokes
+        // the reply, producing the Apple-documented EXC_BAD_ACCESS
+        // / silent callback failure. Capture a clone of the
+        // `Retained<LAContext>` Arc-equivalent into the `RcBlock`
+        // itself, so the context outlives the closure
         // and is released only after the reply runs.
         tokio::task::spawn_blocking(move || unsafe {
             let ctx: Retained<LAContext> = LAContext::new();

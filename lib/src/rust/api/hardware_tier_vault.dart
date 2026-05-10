@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `dispatch_clear`, `dispatch_read`, `dispatch_store`
+// These functions are ignored because they are not marked as `pub`: `dispatch_clear`, `dispatch_read`, `dispatch_store`, `map_hw_vault_error`, `map_linux_vault_error`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Encode the salt + sealed-blob pair as the JSON envelope written
@@ -97,8 +97,8 @@ Future<void> hardwareTierVaultStore({
 /// [`super::secure_key_storage::secure_storage_write_from_secret`]
 /// — bytes never touch the Dart heap on the way to the hardware
 /// vault. The SecretStore entry survives the call so the caller can
-/// also feed `secrets_take(id)` into drift's sqlcipher rekey before
-/// dropping the ref.
+/// also feed the same id into `db_rekey_from_secret` (rusqlite/
+/// SQLCipher rekey) before dropping the ref.
 Future<void> hardwareTierVaultStoreFromSecret({
   required String supportDir,
   required String secretId,

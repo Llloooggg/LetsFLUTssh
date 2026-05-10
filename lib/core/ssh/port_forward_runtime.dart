@@ -144,8 +144,9 @@ class PortForwardRuntime implements ConnectionExtension {
     }
   }
 
-  /// Symmetric with the legacy runtime so callers (provider
-  /// onDispose, tests) keep the same teardown shape. Drops any
-  /// in-flight armed rules without waiting on the stop calls.
+  /// Idempotent best-effort teardown — drops every armed rule
+  /// without waiting on the per-rule stop calls. Called from
+  /// the provider `onDispose` and from tests; safe to call after
+  /// `onDisconnecting` already fired.
   void dispose() => _teardown();
 }

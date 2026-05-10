@@ -27,9 +27,10 @@ class FrbError {
   const FrbError({required this.kind, required this.detail});
 
   /// Parse an FRB error string. JSON-shaped envelopes land as
-  /// `FrbError(kind, detail)`; plain strings (the legacy shape)
-  /// fall through to `kind = "generic"` with the original text
-  /// as detail. Invalid JSON also lands in the generic bucket.
+  /// `FrbError(kind, detail)`; non-JSON strings fall through to
+  /// `kind = "generic"` with the original text as detail. Invalid
+  /// JSON also lands in the generic bucket — never throws on
+  /// untrusted input.
   factory FrbError.fromWire(String wire) {
     if (wire.isEmpty) {
       return const FrbError(kind: 'generic', detail: '');

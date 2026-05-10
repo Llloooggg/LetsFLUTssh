@@ -33,8 +33,9 @@ Future<void> writeBytesAtomic(String path, List<int> bytes) async {
 /// support directory that could hold encryption keys, authentication
 /// material, rate-limit state, or any other integrity-sensitive blob.
 /// The atomic-write helpers above already call it on the `.tmp` file
-/// before rename via the Rust core; other paths (drift's SQLite
-/// WAL/SHM sidecars) must call this explicitly.
+/// before rename via the Rust core; other paths (rusqlite/SQLCipher
+/// `letsflutssh.db-wal` / `.db-shm` sidecars) must call this
+/// explicitly.
 ///
 /// Unix: `chmod 600` (owner read/write only) — matches the OpenSSH
 /// expectation for every file under `~/.ssh/`.

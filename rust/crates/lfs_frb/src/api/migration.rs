@@ -33,9 +33,9 @@ pub struct DbMigrationReport {
 }
 
 /// Target version this build supports for `config.json`. Used by
-/// the legacy-state probe in `SecurityInitController` to detect
-/// configs below the current schema floor without duplicating the
-/// `SchemaVersions::CONFIG` literal Dart-side.
+/// the post-migration version probe in `SecurityInitController`
+/// to detect configs below the current schema floor without
+/// duplicating the `SchemaVersions::CONFIG` literal Dart-side.
 #[flutter_rust_bridge::frb(sync)]
 pub fn migration_config_target_version() -> i32 {
     lfs_core::migration::SchemaVersions::CONFIG
@@ -54,7 +54,7 @@ pub fn migration_archive_target_version() -> i32 {
 /// when the file is absent. Returns `Err` when the file is present
 /// but corrupt (missing `config_schema_version`, malformed JSON,
 /// etc.) — Dart caller surfaces the failure as a fatal startup
-/// error. Used by the legacy-state probe in
+/// error. Used by the post-migration version probe in
 /// `SecurityInitController` to detect a config below the current
 /// schema floor *after* the migration runner has already walked
 /// every chain it knows about.
@@ -138,8 +138,9 @@ mod tests {
     #[test]
     fn config_target_version_matches_lfs_core_constant() {
         // The FRB shim must round-trip the workspace constant
-        // exactly — a drift here would let the legacy-state probe
-        // fall out of sync with the registry's actual chain.
+        // exactly — a divergence here would let the post-migration
+        // version probe fall out of sync with the registry's
+        // actual chain.
         assert_eq!(
             migration_config_target_version(),
             lfs_core::migration::SchemaVersions::CONFIG
@@ -156,9 +157,9 @@ mod tests {
 
     #[test]
     fn config_target_version_is_at_or_above_v1() {
-        // Floors are always positive; the legacy-state probe in
-        // `SecurityInitController` reads `>= 1` to decide whether
-        // the build supports any version of the artefact.
+        // Floors are always positive; the post-migration version
+        // probe in `SecurityInitController` reads `>= 1` to decide
+        // whether the build supports any version of the artefact.
         assert!(migration_config_target_version() >= 1);
         assert!(migration_archive_target_version() >= 1);
     }

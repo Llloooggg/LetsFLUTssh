@@ -32,9 +32,10 @@ Future<void> secureStorageWrite({
 /// equivalent) so the bytes never touch the Dart heap on the way to
 /// the OS keychain. The SecretStore entry remains after the write —
 /// the caller drops it explicitly via `secrets_drop` once every
-/// downstream consumer (e.g. drift's sqlcipher pragma) has had its
-/// turn through `secrets_take`. Returns `Err("secret not found: …")`
-/// when the id is absent from the store.
+/// downstream consumer (e.g. `db_init_from_secret` for SQLCipher
+/// open or `db_rekey_from_secret` for rekey) has had its turn.
+/// Returns `Err("secret not found: …")` when the id is absent from
+/// the store.
 Future<void> secureStorageWriteFromSecret({
   required String alias,
   required String secretId,

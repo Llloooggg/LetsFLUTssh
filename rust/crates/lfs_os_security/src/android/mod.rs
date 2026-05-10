@@ -5,9 +5,12 @@
 //! crate keeps the "Rust owns OS-API" invariant on every platform
 //! without a hand-maintained Kotlin shim.
 //!
-//! Runtime verification on a real Android device is pending; Dart
-//! `flutter_secure_storage` / `local_auth` paths remain wired in
-//! parallel until then.
+//! Runtime verification on a real Android device is pending; CI's
+//! `aarch64-linux-android` cross-compile gates the build but not
+//! behaviour. These JNI paths are the sole secure-storage +
+//! biometric runtime on Android. AndroidKeyStore alias prefix +
+//! libsecret schema attributes are pinned by external compat
+//! constraint — see `keystore.rs::KEY_ALIAS_PREFIX`.
 
 pub mod biometric;
 pub mod hardware_vault;

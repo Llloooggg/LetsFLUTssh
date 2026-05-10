@@ -32,8 +32,9 @@
 //! source compiles against `aarch64-linux-android` via the
 //! rust-cross-check matrix, but signature mismatches surface
 //! only when the call executes on a real device or emulator.
-//! The Dart `flutter_secure_storage` MethodChannel path remains
-//! wired in parallel until the runtime-verification gate flips.
+//! Sole secure-storage path on Android. The alias prefix in
+//! `KEY_ALIAS_PREFIX` is fixed by external compat constraint —
+//! see its docstring.
 
 use std::path::PathBuf;
 
@@ -42,19 +43,21 @@ use jni::objects::{JObject, JValue};
 use super::jni_helpers as h;
 use crate::secure_key_storage::SecureStorageError;
 
-/// Alias prefix used by `flutter_secure_storage`'s Android
-/// implementation. Matched here so existing on-device entries
-/// survive when the JNI path eventually retires the plugin.
+/// External-compat constant — **never rename**. On-device
+/// AndroidKeyStore aliases under this prefix are produced by an
+/// upstream library (the `flutter_secure_storage` Dart plugin)
+/// that some installs of this app and unrelated apps share with;
+/// matching the prefix lets a fresh JNI write read back an alias
+/// the user already stored without the user re-entering anything.
 pub const KEY_ALIAS_PREFIX: &str = "FlutterSecureStorageKeyAlias_";
 
 /// Subdirectory under `getFilesDir()` that holds wrapped value
-/// blobs. `flutter_secure_storage` writes to a different
-/// location (SharedPreferences XML inside `shared_prefs/`); we
-/// own this path entirely so existing entries do NOT survive
-/// the migration — the wrapping-key alias is reused so the
-/// JCAJC-backed key persists, but the wrapped value file gets
-/// regenerated on the first JNI write. Document this in the
-/// migration ledger when the Dart path retires.
+/// blobs. **Owned solely by this module** — no other process
+/// (including the upstream `flutter_secure_storage` plugin, which
+/// uses `shared_prefs/` XML) writes here. Wrapping key persists
+/// in AndroidKeyStore under [`KEY_ALIAS_PREFIX`]; the wrapped
+/// value file under this subdir is per-install and rewritten on
+/// every store call.
 const STORAGE_SUBDIR: &str = "lfs_secure_storage";
 
 /// GCM tag length matches the JCA default. 128-bit auth tag

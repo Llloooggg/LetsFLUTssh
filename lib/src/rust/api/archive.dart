@@ -15,10 +15,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// archive byte count so the caller can log or surface progress
 /// without re-stat'ing the file. Atomic via
 /// [`lfs_core::path::write_bytes_atomic`] (tmp + fsync + rename +
-/// parent-dir fsync), so a crash mid-write leaves the previous
-/// file at `output_path` (or no file when none existed). The Dart
-/// caller no longer maintains its own tmp + writeAsBytes + rename
-/// discipline.
+/// parent-dir fsync), so a crash mid-write leaves the existing
+/// file at `output_path` intact (or no file when none existed).
+/// Atomicity lives Rust-side end-to-end; Dart callers do **not**
+/// re-implement tmp + write + rename on top.
 Future<PlatformInt64> dbExportArchive({
   required DbExportInput input,
   required String outputPath,
@@ -247,13 +247,14 @@ class DbApplyResult {
           rolledBack == other.rolledBack;
 }
 
-/// Decode a QR / paste-link payload (deflated + base64url JSON,
-/// or v1 legacy raw base64url JSON), stage the resulting
-/// `PendingImport` under a freshly-generated handle id, and
-/// return the sanitised preview. Mirrors `db_import_open` for
-/// the QR / deeplink paths so the apply driver sees the same
-/// shape regardless of whether the bytes came from a `.lfs`
-/// archive or a QR scan.
+/// Decode a QR / paste-link payload (deflated + base64url JSON;
+/// also accepts v1 raw base64url JSON without the deflate wrapper
+/// for round-trip compat with payloads emitted before the
+/// compression step landed), stage the resulting `PendingImport`
+/// under a freshly-generated handle id, and return the sanitised
+/// preview. Mirrors `db_import_open` for the QR / deeplink paths
+/// so the apply driver sees the same shape regardless of whether
+/// the bytes came from a `.lfs` archive or a QR scan.
 ///
 /// `payload` is the value of the `d=` query parameter from a
 /// `letsflutssh://import?d=...` deeplink. The Dart caller may
@@ -557,10 +558,10 @@ class DbQrExportOptions {
 /// Pre-parsed JSON entries staged directly in the import
 /// registry, bypassing the LFSE decrypt + zip parse path.
 /// Used by Dart consumers that already hold the JSON payloads
-/// in memory (QR import, OpenSSH import, the legacy Dart-side
-/// archive decrypt flow) so they can route the apply step
-/// through the Rust driver without round-tripping the bytes
-/// back through a temp file.
+/// in memory (QR import, OpenSSH config import, the
+/// `applyResultViaRust` envelope path) so they can route the
+/// apply step through the Rust driver without round-tripping
+/// the bytes back through a temp file.
 ///
 /// Every field is optional — missing entries no-op on the
 /// apply side, same as the LFSE path.

@@ -21,9 +21,11 @@ import '../bus/app_bus.dart';
 /// FRB call `rust_macos_installer.macosInstallerInstall` into
 /// this callback.
 ///
-/// Returns `true` when the installer has fully swapped the bundle and
-/// relaunched; `false` to request a fallback to the legacy
-/// `open <dmg>` Finder reveal (e.g. bundle parent isn't writable).
+/// Returns `true` when the installer has fully swapped the bundle
+/// and relaunched; `false` to request a fallback to the
+/// `open <dmg>` Finder reveal so the user can still drag the
+/// `.app` over manually (e.g. when the bundle parent isn't
+/// writable, or `rsync` isn't on PATH).
 typedef MacosDmgInstaller = Future<bool> Function(String dmgPath);
 
 /// Thrown when a downloaded release artefact fails Ed25519 signature
@@ -126,12 +128,12 @@ typedef FileDownloader =
     );
 
 /// Phases a [UpdateService.downloadAsset] call walks through after
-/// the HTTP download completes. Separating [verifying] from the HTTP
-/// phase lets the UI swap "Downloading 100%" for an indeterminate
-/// "Verifying…" caption while SHA256 hashing and the manifest +
-/// signature fetch + Ed25519 check run — those steps can take tens
-/// of seconds on a 50 MB installer and the old state reported
-/// "Downloading 100%" the whole time, reading as a freeze to users.
+/// the HTTP download completes. Separating [verifying] from the
+/// HTTP phase lets the UI swap "Downloading 100%" for an
+/// indeterminate "Verifying…" caption while SHA256 hashing + the
+/// manifest fetch + Ed25519 check run — on a 50 MB installer
+/// those steps take tens of seconds and a frozen "Downloading
+/// 100%" caption reads as a hung process to the user.
 enum UpdateDownloadPhase {
   /// HTTP bytes still streaming; [UpdateService] emits `onProgress`
   /// ticks. The UI shows a determinate progress bar.
@@ -695,12 +697,12 @@ class UpdateService {
       // `.dmg`, try the native atomic-swap install first (hdiutil →
       // rsync → re-sign → verify → atomic rename). On a `true` return
       // the installer has already relaunched the new bundle; on
-      // `false` we fall back to the legacy `open <dmg>` Finder reveal
-      // so the user can still drag the .app manually if the silent
-      // path is unavailable (no write permission on the install
-      // parent, missing `rsync` binary, etc.). Layer-clean: the
-      // callback lives at the UI wiring point; core/update doesn't
-      // import from `lib/platform/`.
+      // `false` fall back to the `open <dmg>` Finder reveal so the
+      // user can still drag the .app manually when the silent path
+      // is unavailable (no write permission on the install parent,
+      // missing `rsync` binary, etc.). Layer-clean: the callback
+      // lives at the UI wiring point; core/update doesn't import
+      // from `lib/platform/`.
       final installer = _macosDmgInstaller;
       if (installer != null && path.toLowerCase().endsWith('.dmg')) {
         AppLogger.instance.log(

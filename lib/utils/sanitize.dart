@@ -28,7 +28,7 @@ final RegExp _pemRe = RegExp(
   dotAll: true,
 );
 
-// 200+ char base64-alphabet runs catch the common drift / sqlite
+// 200+ char base64-alphabet runs catch the common rusqlite / sqlite
 // leak where a failed INSERT dumps its bound parameters (a base64
 // blob) into the exception message.
 final RegExp _longB64Re = RegExp(r'[A-Za-z0-9+/=]{200,}');
@@ -110,16 +110,16 @@ bool looksSensitive(String text) {
   return _longB64Re.hasMatch(text);
 }
 
-// 2-pass sanitize shape — earlier shape ran 8 sequential
-// `replaceAll` passes, each scanning the full input. The 2-pass
-// shape collapses them to a bare-IP pass + a "everything else"
-// combined pass. ~4× reduction. A single-pass combined regex was
-// tried and rejected because Rust's `regex` (NFA, no backtracking)
-// and Dart's `RegExp` (PCRE-style backtracking) diverge on inputs
-// like `fe80::abcd:1234:5678` where the host:port branch wants a
-// shorter IPv6 prefix to leave `:5678` for the port slot — Dart
+// 2-pass sanitize shape: bare-IP pass first, then a combined
+// "everything else" pass. **Don't collapse to a single regex** —
+// Rust's `regex` (NFA, no backtracking) and Dart's `RegExp`
+// (PCRE-style backtracking) diverge on inputs like
+// `fe80::abcd:1234:5678` where the host:port branch wants a
+// shorter IPv6 prefix to leave `:5678` for the port slot. Dart
 // backtracks and finds it; Rust does not, falling through to the
-// bare-IP catch-all and consuming the full IPv6. Two passes
+// bare-IP catch-all and consuming the full IPv6. **Don't fan out
+// to 8 sequential `replaceAll` passes** either — each scans the
+// full input, so ~4× the work for the same redactions. Two passes
 // preserve the per-pass identity between engines so the cross-
 // impl drift gate (`test/utils/sanitize_drift_test.dart`) stays
 // green.

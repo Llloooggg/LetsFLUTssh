@@ -72,9 +72,10 @@ final updateServiceProvider = Provider<UpdateService>((ref) {
   // downloaded `.dmg` is mounted, rsynced over the live bundle,
   // re-signed under the user's personal cert (if any), verified,
   // and atomically swapped. The callback returns `true` on success;
-  // on `false` the service falls back to the legacy `open <dmg>`
-  // Finder reveal. All other platforms receive the null default and
-  // keep the legacy opener path.
+  // on `false` the service falls back to the `open <dmg>` Finder
+  // reveal so the user can drag the .app over manually. All other
+  // platforms receive the null default and use the same Finder /
+  // shell-open fallback unconditionally.
   MacosDmgInstaller? installer;
   if (Platform.isMacOS) {
     installer = (dmgPath) async {

@@ -145,11 +145,14 @@ LogLevel? get buildTimeLogLevelOverride {
 /// never touches [_sink], so it does not leak routine entries past
 /// the opt-out gate.
 ///
-/// **No OS logging mirror.** Unlike the previous revision, routine
-/// [log] calls do NOT forward to `dart:developer` — Android Logcat /
-/// macOS Console.app / desktop stderr never see our lines. The only
-/// logging surface the user (or anyone with `adb logcat` / Console
-/// access) sees is the opt-in file under app-support.
+/// **No OS logging mirror.** Routine [log] calls do NOT forward to
+/// `dart:developer` — Android Logcat / macOS Console.app / desktop
+/// stderr never see our lines. The only logging surface the user
+/// (or anyone with `adb logcat` / Console access) sees is the
+/// opt-in file under app-support. **Don't add a stderr / OS-log
+/// mirror "for development convenience"** — it leaks every line a
+/// user with logging enabled produces into a system surface the
+/// app cannot retract.
 ///
 /// All messages pass through [sanitize] (PEM blobs, IPv4 / user@host,
 /// home-directory paths are redacted) and the file is chmod-0600 on
@@ -423,8 +426,8 @@ class AppLogger {
   /// Strips sensitive data from a string before logging.
   ///
   /// Applied to every log message, error, and stack trace — including
-  /// those originating from third-party libraries (russh, drift,
-  /// archive, etc.) and from the Rust core via FRB, so host/user/IP
+  /// those originating from third-party libraries (russh, rusqlite,
+  /// `archive`, etc.) and from the Rust core via FRB, so host/user/IP
   /// data leaked through library exception messages never reaches
   /// the log file.
   ///

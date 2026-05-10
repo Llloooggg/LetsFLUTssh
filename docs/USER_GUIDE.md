@@ -113,7 +113,8 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 
 ### Encrypted PEM detection
 
-- Settings → Security → … (informational). The auth chain handles `Proc-Type: 4,ENCRYPTED`, PKCS#8 encrypted, and OpenSSH KDF-encrypted keys uniformly.
+- Detection is automatic at import time. The auth chain handles legacy PKCS#1 (`Proc-Type: 4,ENCRYPTED` + `DEK-Info` headers), PKCS#8 encrypted (`-----BEGIN ENCRYPTED PRIVATE KEY-----`), and modern OpenSSH KDF-encrypted (`-----BEGIN OPENSSH PRIVATE KEY-----` with a non-`none` KDF in the binary frame) uniformly.
+- If the key is encrypted and you didn't supply a passphrase up front, Tools → SSH Keys / Session edit → Auth tab prompts for one before saving. On connect the same prompt fires for any key whose passphrase is not stored.
 
 ---
 
@@ -423,8 +424,8 @@ Centralised key store so a single key can be referenced from many sessions.
 
 ### `.ppk` quirks
 
-- v3 files use Argon2id KDF — derivation is CPU-bound (deliberately). The first import of a v3 file may take a second or two while pointycastle runs Argon2.
-- Memory-cost cap: 1 GiB. Files asking for more (crafted DoS payloads) are rejected with a targeted error.
+- v3 files use Argon2id KDF — derivation is CPU-bound (deliberately). The first import of a v3 file is usually under a second; the worker runs natively in the Rust core (`russh-keys::PrivateKey::from_ppk` over RustCrypto Argon2id), not via a Dart-side KDF library.
+- Memory-cost cap: 1 GiB. Files asking for more (crafted DoS payloads) are rejected with a targeted error before any derivation runs.
 
 ---
 
@@ -506,8 +507,11 @@ How the app protects credentials at rest. First launch auto-selects **T1 — Key
 
 ### Modifiers (orthogonal, T1/T2 only)
 
-- **Master password gate** — adds a pre-vault password check (HMAC of input vs stored verifier). The keychain/hardware key is only released after the gate passes. Defends against "attacker has filesystem access but not your password".
-- **Biometric shortcut** — FaceID / TouchID / Windows Hello / fingerprint reader / fprintd. Releases the *stored* master password automatically. **Never a replacement for the password — only an OS-mediated way to enter it.** If biometrics fail, you fall back to typing.
+- **Master password gate** — adds a pre-vault password check (HMAC-SHA256 of input against the stored verifier, with the pepper in the OS keychain so disk access alone can't forge a hit). The keychain/hardware key is only released after the gate passes. Defends against "attacker has filesystem access but not your password".
+- **Biometric shortcut** — FaceID / TouchID / Windows Hello / fingerprint reader / fprintd. Releases the *stored* password automatically.
+  - **Invariant: biometric requires password.** The shortcut is one specific UX path for entering the password, never a replacement. The password is still the auth value the keychain / hardware vault expects; the biometric prompt only releases the password from a biometric-gated OS slot. Re-enrolling your biometrics (adding a new fingerprint / re-running Face ID setup) invalidates the slot and forces a password re-entry — the OS-level invariant we ride on, not something we choose.
+  - **Anti-debug gate.** When a debugger is attached to the running app the biometric path is silently refused on every unlock attempt — the app falls through to the typed-secret form (master password / PIN) so an OS-stored password can never be released into a process whose RAM the debugger can read. Logged via the Settings → Logging viewer (`ProcessHardening` tag) at critical severity. Affects developer builds running under Xcode / `gdb -p` / `lldb -p`; legitimate end-user installs never see this path.
+  - **Failure fallback.** If the biometric prompt fails or is cancelled, you type the password as usual. No data loss; the keychain entry remains intact.
 
 ### Switching tiers
 
@@ -577,8 +581,27 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 - Settings → Updates → **Check for updates**.
 - Optional **Check on startup** toggle (default on).
 - Found a new version → modal with release notes + Skip / Open in Browser / Download & Install.
-- Download → SHA-256 verify → Ed25519-signature verify → installer launch (Windows Inno Setup `.exe` / Linux `.deb`) or "Open release page" fallback.
-- Install signature key is bundled with the app; an attacker would need to either (a) compromise the GitHub Releases CDN AND have access to the signing key, or (b) ship a malicious update that's CSP-pinned by the build itself.
+
+### What "Download & Install" does
+
+1. Fetches the release's `letsflutssh-<version>.sha256sums` manifest **and** the matching `.sha256sums.sig` (one Ed25519 signature over the whole manifest).
+2. Verifies the manifest signature against the public key compiled into the app. **Verify failure** = both files deleted, security-styled error tile shown with an "Open Releases page" action; auto-install never runs on an unverified manifest.
+3. Downloads the binary, computes its sha256, looks the artefact name up in the verified manifest, compares.
+4. Hands off to the platform installer:
+
+   | Platform | Auto-install path | Notes |
+   |---|---|---|
+   | **Windows (Inno Setup `.exe`)** | Launches the installer; user clicks through the wizard. | Portable `.zip` falls through to step "open in file manager" — no auto-install. |
+   | **Linux (`.deb`)** | Launches `xdg-open` on the `.deb` so the system package manager (Discover / GNOME Software / `apt`) takes over. | `.AppImage` and `.tar.gz` open the file manager — re-launching the new bundle is a manual one-time step. |
+   | **macOS (`.tar.gz` / `.dmg`)** | Silent install via `macosInstallerInstall` — mounts the `.dmg`, rsyncs the new bundle alongside the running one, re-signs under the user's existing self-sign cert (when present), atomic-swaps the old bundle. No user prompt. | Falls back to "Open release page" when the silent path fails (no cert configured / verification mismatch). |
+   | **Android (`.apk`)** | Launches the system package installer for confirmation. | Per-ABI APK already matched by the manifest entry. |
+   | **iOS** | Sideloading flow — app opens the GitHub release page; user re-signs through their chosen sideloader. | No in-app auto-install — Apple sandbox forbids it. |
+
+5. **Verify failure on the binary** = same outcome as step 2, with the binary deleted before the install path runs.
+
+### Trust anchor
+
+Install signature key is **baked into the app at build time** — `lfs_core::update_signing::PRIMARY_PUBLIC_KEY`, single-pin layout. An attacker would need to either (a) compromise BOTH the GitHub Releases CDN AND the offline signing key, or (b) ship you a hostile build whose embedded pubkey already matches their own private key (i.e. a fresh-install supply-chain attack — outside the auto-update threat model). Rotation is a manual-reinstall ceremony described in [SECURITY.md → Release signing](SECURITY.md#release-signing); existing installs whose embedded pubkey doesn't match the new signature refuse to auto-update by design.
 
 ---
 
@@ -678,6 +701,26 @@ The SSH server's `sshd_config` has `GatewayPorts no` (default) and you tried to 
 ### Auto-lock keeps tripping
 
 Settings → Security → Auto-lock minutes. Set to 0 to disable.
+
+### "An instance of LetsFLUTssh is already running."
+
+Desktop only — the OS-native single-instance gate fired (Linux GtkApplication D-Bus uniqueness, Windows `Local\LetsFLUTssh-SingleInstance` named mutex, macOS `LSMultipleInstancesProhibited`). Switching to the existing window is the intended UX; closing it lets the next launch start fresh. macOS Dock click brings the existing instance forward without a dialog. The mutex / D-Bus name auto-releases when the process exits, including via crash, so you can never deadlock yourself out by force-killing.
+
+### App refuses to launch — "Failed to load configuration"
+
+`config.json` was either truncated by a power loss, modified by hand into invalid JSON, or written by a future build whose schema this build doesn't understand. The fatal-error screen offers two buttons: **Quit** (preserves the file for manual recovery — open it in a text editor and fix the malformed JSON) and **Wipe all data** (deletes every managed file under app-support, including the encrypted DB and security artefacts). Wipe is destructive and gated behind the screen explicitly so the choice is conscious.
+
+### App refuses to launch — DB-corruption dialog
+
+The database is on disk but won't decrypt under the resolved tier. Three options offered:
+
+- **Reset & Setup Fresh** — wipes every managed file (DB + security artefacts + logs), runs the first-launch wizard. Destructive; export your data first via Settings → Export if anything is recoverable.
+- **Try other tier** — re-runs the security tier picker. Useful when you remember choosing T2 originally but the hardware blob got corrupted and you want to fall back to Paranoid.
+- **Quit** — leaves the disk untouched. Try a newer / older build; the on-disk shape may match a different release.
+
+### Restoring data after Reset All Data
+
+You don't — Reset is destructive on purpose. The recovery path is **before** you reset: export an `.lfs` archive while the app still works (Settings → Data → Export → Encrypted archive), then re-import on the new install (Settings → Data → Import → Encrypted archive). The archive carries sessions, keys, snippets, tags, known hosts, and your config — it does **not** carry the security tier itself, so the new install runs the first-launch wizard and you re-pick T1 / T2 / Paranoid on top of fresh hardware.
 
 ### Logs
 

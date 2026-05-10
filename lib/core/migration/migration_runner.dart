@@ -6,9 +6,10 @@ export '../../src/rust/api/migration.dart'
     show DbMigrationReport, DbMigrationStep, DbUnsupportedFutureVersion;
 
 /// Convenience helpers on top of the FRB-generated
-/// [rust_migration.DbMigrationReport] so callers read the shape they
-/// used to read on the old Dart-side `MigrationReport`. Mirrors the
-/// Rust-side `Report::no_op` / `has_failures` / `migrated_count`.
+/// [rust_migration.DbMigrationReport]. Mirrors the Rust-side
+/// `Report::no_op` / `has_failures` / `migrated_count` predicates
+/// so the post-run UI flow does not re-walk the report fields by
+/// hand on every call site.
 extension DbMigrationReportHelpers on rust_migration.DbMigrationReport {
   /// True when the runner is entirely satisfied — every artefact is
   /// already at its target version, nothing was migrated, no errors.

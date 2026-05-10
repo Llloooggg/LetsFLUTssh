@@ -146,16 +146,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget build(BuildContext context) {
     // Mobile: completely different navigation (bottom nav bar).
     //
-    // An earlier iteration wrapped the entire MobileShell in
-    // `AppSelectionArea` so every plain Text across the mobile tree
-    // supported drag-select + long-press copy. That collided with the
-    // xterm widget on the Terminal page: Android's long-press on the
-    // SelectionArea surfaced the system Paste / Select-All toolbar
-    // over the terminal even though the xterm subtree has no
-    // selectable text — `SelectionContainer.disabled` inside
-    // MobileTerminalView was not enough because the SelectionArea's
-    // own gesture recognizers (TapAndDragGestureRecognizer,
-    // LongPressGestureRecognizer) still win the arena across the
+    // **Don't wrap the entire MobileShell in `AppSelectionArea`** —
+    // the SelectionArea's own gesture recognizers
+    // (TapAndDragGestureRecognizer, LongPressGestureRecognizer)
+    // win the arena across the xterm subtree on the Terminal
+    // page, surfacing Android's system Paste / Select-All toolbar
+    // over the terminal even though xterm has no selectable text
+    // there. `SelectionContainer.disabled` inside MobileTerminalView
+    // does not save it — the recognizers fire above the disabled
     // whole subtree. Terminal taps must not trigger a system
     // selection toolbar — the dedicated Copy button is the
     // sanctioned copy surface on mobile. Text selection on the
@@ -170,16 +168,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // No top-level `SelectionArea` on desktop. Text selection is
     // opt-in: specific informational surfaces (threat list rows in
     // security tier cards, release-notes bodies, help prose) wrap
-    // their own `AppSelectionArea` locally. The previous iteration
-    // shipped one giant `SelectionArea` over the whole shell with
-    // `HoverRegion` auto-wrapping clickables in
-    // `SelectionContainer.disabled` to suppress the I-beam cursor
-    // and Ctrl+C hijack on buttons — but that collapsed the moment
-    // a `ThresholdDraggable` sat inside a `HoverRegion`, because the
-    // SelectionArea's `TapAndDragGestureRecognizer` claims pan
-    // ahead of Draggable in the arena and the opt-out wrap sits
-    // above the drag subtree instead of protecting it. Scoping
-    // selection to just the prose that needs it sidesteps every
+    // their own `AppSelectionArea` locally. **Don't** wrap the
+    // whole shell in one `SelectionArea` — its
+    // `TapAndDragGestureRecognizer` claims pan ahead of
+    // `MultiDragGestureRecognizer` in the arena, so any
+    // `ThresholdDraggable` inside a `HoverRegion` (session
+    // sidebar, tab bar, file pane) becomes intermittent.
+    // `HoverRegion`'s `SelectionContainer.disabled` wrap doesn't
+    // save the drag — it sits above the drag subtree, not under
+    // it. Scoping selection to just the prose that needs it
     // gesture-arena race, keeps drag native, and removes the I-beam
     // from clickables for free (nothing claims selection there).
     return CallbackShortcuts(
@@ -210,8 +207,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // the overlay only blocks pointer hit-testing — focus traversal
     // still lets Ctrl+N / Ctrl+, bubble past the LockScreen Focus
     // scope into MainScreen's CallbackShortcuts. Auto-lock closes
-    // the encrypted store, so reaching Settings or "new session"
-    // while locked would explode inside drift on the first DB read.
+    // the rusqlite handle, so reaching Settings or "new session"
+    // while locked would throw "db not initialized" on the first
+    // FRB DAO read.
     // Short-circuit every shortcut via a common gate — each binding
     // wraps its body so the `if (locked) return` lives once, not
     // once per entry.

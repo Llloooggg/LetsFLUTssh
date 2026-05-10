@@ -66,8 +66,8 @@ pub mod kind {
     /// doesn't fit a more specific kind). Detail carries the OS
     /// errno text.
     pub const IO: &str = "io";
-    /// SQLCipher / drift backend error. UI surfaces a "data store
-    /// problem" toast — never the raw SQL detail.
+    /// rusqlite / SQLCipher backend error. UI surfaces a
+    /// "data store problem" toast — never the raw SQL detail.
     pub const DB: &str = "db";
     /// SFTP-protocol level error (file ops, transfer state).
     /// Distinct from `IO` so the file pane can route specific

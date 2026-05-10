@@ -238,9 +238,9 @@ class TierUnlockedListener {
 
 /// Outcome of the post-unlock cascade.
 enum TierUnlockOutcome {
-  /// `Unlocked` event fired + drift open + securityStateProvider
-  /// set + caches invalidated. Caller proceeds with sessions /
-  /// workspace bootstrap.
+  /// `Unlocked` event fired + rusqlite/SQLCipher open via
+  /// `dbInit` + securityStateProvider set + caches invalidated.
+  /// Caller proceeds with sessions / workspace bootstrap.
   unlocked,
 
   /// `Locked` event fired (orchestrator emitted UnlockFailed).

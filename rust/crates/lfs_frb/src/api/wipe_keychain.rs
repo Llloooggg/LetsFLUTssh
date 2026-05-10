@@ -1,6 +1,10 @@
 //! FRB adapter for `lfs_core::security::wipe_keychain`. Owns the
-//! canonical flutter_secure_storage key list + actor command that
-//! fans out a `KeychainOpKind::Delete` prompt per key.
+//! canonical OS-keychain alias list + actor command that fans out a
+//! `KeychainOpKind::Delete` per key. Alias names share the external-
+//! compat `FlutterSecureStorageKeyAlias_…` prefix pinned by
+//! `lfs_os_security::android::keystore::KEY_ALIAS_PREFIX` (see its
+//! docstring). Runtime path:
+//! `lfs_os_security::secure_key_storage::delete` per platform.
 //!
 //! Async — the underlying actor walks the key list sequentially
 //! and awaits each prompt round-trip; total time is O(N keys ×
@@ -16,11 +20,10 @@ use lfs_core::security::wipe_keychain;
 #[derive(Debug, Clone)]
 pub struct DbKeychainKeyWipe {
     pub key: String,
-    /// `"deleted"` on success, `"failed: <msg>"` on plugin error.
-    /// The wipe driver fans out one delete per key without a user-
-    /// facing prompt that could be cancelled, so the cancellation
-    /// outcome the previous doc claimed cannot reach this status
-    /// field.
+    /// `"deleted"` on success, `"failed: <msg>"` on backend error.
+    /// The wipe driver fans out one delete per key without any
+    /// user-facing prompt, so cancellation never appears here —
+    /// only success / failure shapes ship.
     pub status: String,
 }
 
@@ -37,10 +40,12 @@ pub struct DbKeychainWipeReport {
     pub all_succeeded: bool,
 }
 
-/// Walk the canonical `flutter_secure_storage` key list and
-/// dispatch a delete prompt per key. Returns a per-key outcome
-/// report; the Dart subscriber for `KeychainOpPromptRequest`
-/// executes each delete via the keychain plugin.
+/// Walk the canonical OS-keychain alias list and dispatch a delete
+/// per key via `lfs_os_security::secure_key_storage::delete`
+/// (libsecret on Linux, Keychain Services on Apple, Credential
+/// Manager on Windows, AndroidKeyStore JNI on Android). Alias
+/// prefix is fixed by `KEY_ALIAS_PREFIX` (external-compat
+/// constant — see its docstring).
 ///
 /// Best-effort: a failed delete on one key does not abort the
 /// rest. The Dart wrapper surfaces partial failure in the UI.

@@ -15,8 +15,9 @@ part 'tier_unlock_orchestrator.freezed.dart';
 /// the singleton tier machine; subscribers see two
 /// `BusEvent::TierStateChanged` events (`unlocking` →
 /// `unlocked`) on the `tier` topic. The Dart caller still owns
-/// the drift-open step (drift is a Dart ORM); the orchestrator
-/// just fast-paths the cascade visibility.
+/// the `dbInit` step (opens rusqlite/SQLCipher with no key on
+/// the plaintext path); the orchestrator just fast-paths the
+/// cascade visibility.
 void tierUnlockPlaintext() =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockPlaintext();
 
@@ -26,10 +27,11 @@ void tierUnlockPlaintext() =>
 /// outcome discriminant — bytes never cross FRB.
 ///
 /// Async — round-trips through the bus to the Dart subscriber
-/// for the `flutter_secure_storage.read` call. The receiver
-/// completes as soon as the subscriber resolves the prompt;
-/// the FRB worker frees during the wait so the unlock dialog
-/// stays responsive.
+/// (`KeychainProbePromptListener`) which calls into
+/// `lfs_os_security::secure_key_storage::read` on the active
+/// platform. The receiver completes as soon as the subscriber
+/// resolves the prompt; the FRB worker frees during the wait so
+/// the unlock dialog stays responsive.
 Future<DbUnlockOutcome> tierUnlockKeychain() =>
     RustLib.instance.api.crateApiTierUnlockOrchestratorTierUnlockKeychain();
 
@@ -137,8 +139,9 @@ Future<DbUnlockOutcome> tierFirstLaunchParanoid({
 
 /// First-launch T1 (Keychain). Generates a fresh AES-GCM key,
 /// publishes a `KeychainOpPromptRequest { Write }` so the Dart
-/// subscriber writes it via `flutter_secure_storage`, stages
-/// the bytes + emits the cascade.
+/// subscriber writes it via
+/// `lfs_os_security::secure_key_storage::write` on the active
+/// platform, then stages the bytes + emits the cascade.
 Future<DbUnlockOutcome> tierFirstLaunchKeychain() => RustLib.instance.api
     .crateApiTierUnlockOrchestratorTierFirstLaunchKeychain();
 
@@ -201,10 +204,12 @@ void hardwareVaultSealPromptCancel({required String promptId}) => RustLib
 /// Stage [`bytes`] in the SecretStore + emit the unlock cascade
 /// for [`tier_wire_name`] without running the per-tier verify
 /// step. Used by the biometric fast-path: the bytes come from
-/// the OS-managed `BiometricKeyVault` (Dart-side flutter
-/// plugin), so the orchestrator's verify is bypassed but the
-/// `TierUnlockedListener` still runs the post-unlock cascade
-/// (caches, drift open, config persist) off the staged key.
+/// `BiometricKeyVault` (which itself routes through
+/// `lfs_os_security::secure_key_storage` on Apple/Windows and
+/// through the TPM2 seal on Linux), so the orchestrator's
+/// verify is bypassed but the `TierUnlockedListener` still
+/// runs the post-unlock cascade (caches, `dbInit`, config
+/// persist) off the staged key.
 ///
 /// `tier_wire_name` is the same kebab-case wire name the
 /// `tier_machine` exposes (`keychain_with_password`,

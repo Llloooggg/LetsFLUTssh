@@ -6,6 +6,7 @@
 
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) **≥ 3.41.0** (ships Dart ≥ 3.11.3)
 - [Rust toolchain](https://rustup.rs/) — required for the `lfs_core` / `lfs_frb` workspace under `rust/` (security + transport core)
+- **GNU `make`** — every documented build / test / lint command in this repo runs through `make`. Pre-installed on Linux + macOS; Windows hosts get it through MSYS2 (`pacman -S make`), Git Bash (already bundled with `make.exe`), or `choco install make` / `winget install GnuWin32.Make`. Direct `flutter` / `cargo` invocations work but skip the cross-language gates `make` orchestrates.
 - Platform-specific toolchain (see below)
 
 The encrypted-DB engine (SQLCipher 4.x) is bundled inside the
@@ -208,8 +209,8 @@ For detailed technical documentation see [ARCHITECTURE.md](ARCHITECTURE.md) — 
 
 ## Coding Conventions
 
-- **Reuse first** — before adding a new widget, helper, mixin, style constant, or store, search `lib/widgets/`, `lib/theme/`, and `lib/core/**` for an existing equivalent and extend it (add a parameter) instead of forking. Full rule and canonical primitives: [§1 Reuse principle](ARCHITECTURE.md#1-high-level-overview)
-- **End-user runs zero manual setup** — never introduce a feature that hard-requires the user to install something themselves. If a feature needs an OS capability, prefer (1) bundling it with the app (e.g. `sqlite3` via build hooks, native QR scanner), then (2) a built-in fallback (e.g. master password if no keychain), and only as a last resort (3) an *optional* OS dep with graceful degradation in-UI + a README install snippet per platform. Full rule: [§1 Self-contained-binary principle](ARCHITECTURE.md#1-high-level-overview)
+- **Reuse first** — before adding a new widget, helper, mixin, style constant, or store, search `lib/widgets/`, `lib/theme/`, and `lib/core/**` for an existing equivalent and extend it (add a parameter) instead of forking. Full rule and canonical primitives: [§1 Reuse principle](ARCHITECTURE.md#reuse-principle)
+- **End-user runs zero manual setup** — never introduce a feature that hard-requires the user to install something themselves. If a feature needs an OS capability, prefer (1) bundling it with the app (e.g. `sqlite3` via build hooks, native QR scanner), then (2) a built-in fallback (e.g. master password if no keychain), and only as a last resort (3) an *optional* OS dep with graceful degradation in-UI + a README install snippet per platform. Full rule: [§1 Self-contained-binary principle](ARCHITECTURE.md#self-contained-binary-principle)
 - **Logging** — `AppLogger.instance.log(message, name: 'Tag')`, never `print()`/`debugPrint()`/`dart:developer` directly. Every message is auto-sanitized (PEM keys, IPv4/IPv6, `user@host`, `host:port`, Unix/Windows home paths are redacted); free-form user labels (session names, key labels, tag titles) the regex cannot catch — log the marker `<label>` not the value. Err on more logs not fewer — the file sink is opt-in off by default, so generous logging at every disk/DB/network/subprocess/native-plugin boundary and every caught-and-continued `try/catch` branch costs nothing for users who never opt in, and pays off for the ones who do. Crash paths use `AppLogger.instance.logCritical(...)` which bypasses the opt-out gate — [§17 Error Handling → Logging conventions](ARCHITECTURE.md#logging-conventions-when-to-log-what-to-write)
 - **State** — shared / app-wide state via Riverpod providers (no global mutable state). Widget-local state (dialog / pane / panel) via `ChangeNotifier` + `AnimatedBuilder` — see `FilePaneController`, `UnifiedExportController`, `SessionPanelController`, `TransferPanelController`. Use `.select()` on broad Riverpod providers to avoid unnecessary rebuilds — [§4 State Management](ARCHITECTURE.md#4-state-management--riverpod)
 - **Models** — immutable with `copyWith`, `==`, `hashCode`, `toJson`/`fromJson` — [§10 Data Models](ARCHITECTURE.md#10-data-models)
@@ -299,13 +300,18 @@ Every push and PR is checked by multiple pipelines. For the full workflow graph 
 
 | Workflow | Purpose | Required on PR? |
 |----------|---------|-----------------|
-| `ci.yml` | Analyze, test, coverage, commit-lint, dependency review | Yes |
-| `ci-sonarcloud.yml` | Code quality + coverage (after CI succeeds) | No (fork PRs have no token) |
-| `osv.yml` | Dependency CVE scanning (`pubspec.lock`) | Yes |
+| `ci.yml` | Analyze, test, coverage, commit-lint, dependency review (Dart + Rust under one `make check`) | Yes |
+| `ci-sonarcloud.yml` | Code quality + coverage feed (after `ci.yml` succeeds) | No (fork PRs have no token) |
+| `osv.yml` | Dependency CVE scanning (`pubspec.lock` + `Cargo.lock`) | Yes |
 | `semgrep.yml` | SAST scan — static security analysis of Dart code | Yes |
 | `codeql.yml` | GitHub Actions security analysis | Yes |
-| `scorecard.yml` | OpenSSF supply chain assessment | No (main only) |
-| `build-release.yml` | Build all platforms + GitHub Release (on tag) | — |
+| `scorecard.yml` | OpenSSF supply chain assessment | No (main + weekly only) |
+| `cfl-fuzz.yml` | ClusterFuzzLite — coverage-guided fuzzing for Dart standalone harnesses (300 s per target) | No (push main + PRs to main only) |
+| `ci-auto-tag.yml` | Reads `pubspec.yaml`, creates a fresh `vX.Y.Z` tag when CI passes on `main` | — (post-merge automation) |
+| `dependabot-auto.yml` | Bumps version on a Dependabot PR's branch then auto-merges patch / minor updates | — (PR automation) |
+| `build-release.yml` | Build all platforms + sign manifest + GitHub Release (on tag) | — |
+| `reproducibility-check.yml` | Nightly cron: builds the Linux artefacts twice on the same SHA + diffs sha256 to verify the `SOURCE_DATE_EPOCH`-pinned reproducibility claim | No |
+| `pages.yml` | Publishes the project landing site to GitHub Pages | No (main only) |
 
 **Dependabot auto-releases:** when Dependabot opens a Dart dependency update PR (`pub` ecosystem), `dependabot-auto.yml` runs `scripts/bump-version.sh` in the PR branch to bump the patch version, then auto-merges. CI runs on `main` after merge; if it passes, `ci-auto-tag.yml` creates a tag and triggers the full build + release pipeline. If CI fails — no tag, no release. GitHub Actions updates are auto-merged but do not trigger a version bump (they don't affect the shipped app).
 

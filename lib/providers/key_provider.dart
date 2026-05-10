@@ -145,11 +145,11 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
   }
 
   /// Save all keys (replaces entire store). Routes through the
-  /// new `db_ssh_keys_replace_all` FRB endpoint so the operation
-  /// lands as a single FRB hop + one rusqlite transaction. The
-  /// previous shape paid 2N FRB hops (N delete + N upsert) and
-  /// allowed a half-cleared table mid-loop on a transient FRB
-  /// failure.
+  /// `db_ssh_keys_replace_all` FRB endpoint so the operation
+  /// lands as a single FRB hop + one rusqlite transaction.
+  /// **Don't fan out to N delete + N upsert calls** — that pays
+  /// 2N round-trips for the same outcome and opens a
+  /// half-cleared-table race on a transient FRB failure mid-loop.
   Future<void> saveAll(Map<String, SshKeyEntry> keys) async {
     try {
       final rows = keys.values.map(_toRow).toList(growable: false);

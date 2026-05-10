@@ -121,8 +121,7 @@ class SecurityCapabilities {
   /// emits and Dart writes back through `SecurityCapabilities.toJson`,
   /// so a manual decode produces the same result as the Rust round-trip.
   /// Returns `null` for malformed input (unknown enum value, missing
-  /// required keys) — same contract as the previous Rust-routed
-  /// version.
+  /// required keys).
   static SecurityCapabilities? fromJson(Map<String, dynamic>? json) {
     if (json == null) return null;
     try {
@@ -202,9 +201,9 @@ class SecurityCapabilities {
 /// `HardwareVaultProbePromptListener`) until those probes also
 /// land Rust-side.
 ///
-/// Errors propagate directly — the previous Dart-mirror pipeline was
-/// retired so a Rust-side failure is no longer silently masked by a
-/// shadow probe with different semantics.
+/// Errors propagate directly. **Don't add a Dart-mirror fallback
+/// pipeline** — it would silently mask a Rust-side failure with a
+/// shadow probe whose semantics drift from the orchestrator's.
 Future<SecurityCapabilities> probeCapabilities({
   bool? isLinuxHostOverride,
 }) async {
@@ -257,8 +256,8 @@ class MappedSetupChoice {
   final SecurityTierModifiers modifiers;
 
   /// The user-typed secret the downstream caller needs, routed into
-  /// whichever of `masterPassword` / `shortPassword` / `pin` the
-  /// legacy switch-case expects for the chosen tier.
+  /// whichever of `masterPassword` / `shortPassword` / `pin` matches
+  /// the chosen tier's auth shape.
   final String? masterPassword;
   final String? shortPassword;
   final String? pin;

@@ -138,6 +138,21 @@ Future<bool> _initRustCoreOrFatal() async {
     // before any secrets touch RAM. Best-effort, swallowed on
     // failure.
     ProcessHardening.applyOnStartup();
+    // Forensic breadcrumb: a debugger attached *despite* the
+    // hardening pass landed (debug-signed macOS bundle / Linux
+    // host with `cap_sys_ptrace` / Xcode-attached dev build).
+    // Logged via `logCritical` so the trail survives the opt-in
+    // file-sink gate; the live gate that actually refuses
+    // biometric unlock lives in `_tryBiometricCommit`.
+    if (ProcessHardening.isBeingDebugged()) {
+      unawaited(
+        AppLogger.instance.logCritical(
+          'Debugger attached at startup — biometric unlock will refuse '
+          'until detach (tier secrets force typed-secret entry)',
+          name: 'ProcessHardening',
+        ),
+      );
+    }
     return true;
   } catch (e, st) {
     await AppLogger.instance.logCritical(
@@ -151,8 +166,9 @@ Future<bool> _initRustCoreOrFatal() async {
     // and don't expose an explicit teardown — the native blob's
     // `RustLib.dispose()` is what actually frees the singleton +
     // releases the dynamic library. Best-effort: a failing dispose
-    // here is no worse than the prior shape (which left everything
-    // mapped) and the FatalErrorApp screen still paints.
+    // is swallowed and the FatalErrorApp screen still paints, so
+    // the user has a recovery surface even if the library is stuck
+    // mapped.
     if (appInited) {
       // Nothing exposes a Rust-side `app_state.shutdown()` yet —
       // the AppState singleton is reclaimed when RustLib.dispose
@@ -345,9 +361,9 @@ Future<void> _mainBody() async {
   // (NSApplication enforces it natively). All three reject the
   // duplicate launch before paying the cost of engine init + Dart
   // bootstrap, and the standard "focus existing window" UX is what
-  // the OS file managers expect. The previous Dart-side
-  // `SingleInstance.acquire` gate did the same intent one process-
-  // lifetime layer too late.
+  // OS file managers expect. **Don't move the gate Dart-side** —
+  // a Dart-level check fires after the engine has already paid its
+  // boot cost.
   // Mobile (iOS / Android) doesn't need any of this — both OSes
   // manage single instance natively as part of the activity / scene
   // lifecycle.
@@ -358,11 +374,11 @@ Future<void> _mainBody() async {
   // structural invariant that follows: nothing reachable from
   // `_mainBody` synchronously, from any `Notifier.build` triggered
   // during the first runApp pass, or from any `initState` of the
-  // first-frame widget tree may call FRB. The two cold-start
-  // callers that historically needed FRB pre-`runApp` (`AppConfig
-  // .fromJson` → Rust sanitize, `SecurityCapabilities.fromJson`)
-  // both fall back to a pure-Dart path; post-frame canonicalisation
-  // re-applies the same pipeline once the core is up. See
+  // first-frame widget tree may call FRB. Cold-start callers that
+  // need a parse / sanitize / canonicalise step pre-`runApp`
+  // (`AppConfig.fromJson`, `SecurityCapabilities.fromJson`) MUST
+  // fall back to a pure-Dart path; post-frame canonicalisation
+  // re-applies the Rust pipeline once the core is up. See
   // `_LetsFLUTsshAppState._bootstrap` and the docstrings on those
   // two factories.
 
@@ -378,7 +394,7 @@ Future<void> _mainBody() async {
   // to defaults: the next `update` would overwrite the existing
   // file with those defaults and lose the user's `security_tier` /
   // `security_modifiers` (which sends the next launch into the
-  // legacy-state recovery path). User keeps their on-disk DB, just
+  // tier-reset recovery path). User keeps their on-disk DB, just
   // needs to delete `config.json` (or restore a backup) and relaunch.
   final LoadedAppConfig loaded;
   try {

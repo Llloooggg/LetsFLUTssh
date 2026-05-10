@@ -192,8 +192,8 @@ pub async fn hardware_tier_vault_store(
 /// [`super::secure_key_storage::secure_storage_write_from_secret`]
 /// — bytes never touch the Dart heap on the way to the hardware
 /// vault. The SecretStore entry survives the call so the caller can
-/// also feed `secrets_take(id)` into drift's sqlcipher rekey before
-/// dropping the ref.
+/// also feed the same id into `db_rekey_from_secret` (rusqlite/
+/// SQLCipher rekey) before dropping the ref.
 pub async fn hardware_tier_vault_store_from_secret(
     support_dir: String,
     secret_id: String,

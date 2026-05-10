@@ -2,11 +2,12 @@
 //! capabilities orchestrator runs.
 //!
 //! The probe asks Dart "is the OS secure storage reachable?":
-//! Linux subscribers run a `gdbus call …
-//! org.freedesktop.secrets` ping; non-Linux subscribers do a
-//! live `flutter_secure_storage.write/read/delete` round-trip
-//! against a transient probe key. Both shapes collapse to the
-//! same response — the wire name of the
+//! Linux subscribers run an in-process zbus
+//! `SecretService::connect` against `org.freedesktop.secrets`;
+//! non-Linux subscribers do a live
+//! `lfs_os_security::secure_key_storage` write/read/delete
+//! round-trip against a transient probe key. Both shapes
+//! collapse to the same response — the wire name of the
 //! `lfs_core::security::capabilities::KeyringProbeResult` enum.
 //!
 //! Backed by the generic

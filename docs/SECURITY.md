@@ -67,10 +67,11 @@ or above its own privilege level:
   app-level code sees it. Use the system keyboard for password
   fields; this is a user-side discipline the app does not try to
   enforce with a non-actionable warning.
-- **Upstream dependency vulnerabilities** — `russh` and the broader
-  RustCrypto stack vendored at `rust/`, `pointycastle`, `xterm`,
-  Flutter itself. Report those to the respective maintainers. Scope
-  for this repository is strictly the code we wrote.
+- **Upstream dependency vulnerabilities** — `russh` + `russh-sftp` +
+  the broader RustCrypto stack vendored at `rust/`, the bundled
+  SQLCipher 4.x + OpenSSL `rusqlite` vendors, `xterm`, Flutter
+  itself. Report those to the respective maintainers. Scope for
+  this repository is strictly the code we wrote.
 
 ## Threat boundary
 
@@ -105,11 +106,17 @@ UX decision on top of that choice.
 
 The default. The database key is held in the OS keychain
 (`Keychain` on Apple, `Credential Manager` on Windows, `libsecret` on
-Linux, `EncryptedSharedPreferences` on Android). On Apple, Android,
-and Windows the OS keychain is itself hardware-backed (Secure Enclave,
-StrongBox / TEE, DPAPI with TPM binding) — the effective guarantee is
-hardware-bound-via-OS. On Linux `libsecret` has no TPM integration;
-this is flagged honestly in the per-platform backing matrix below.
+Linux). Android keeps its T1 secret in an AES-256-GCM frame whose
+wrap key lives in **AndroidKeyStore** (TEE / StrongBox-backed when the
+device exposes one), with the wrapped ciphertext bytes persisted as a
+0600 file under `<appFilesDir>/lfs_secure_storage/<alias>.bin` —
+deliberately not `EncryptedSharedPreferences` (avoids dragging in
+`androidx-security-crypto` which duplicates the GCM frame work
+`lfs_core` already does). On Apple, Android, and Windows the wrap
+key is hardware-backed (Secure Enclave, StrongBox / TEE, DPAPI with
+TPM binding) — the effective guarantee is hardware-bound-via-OS. On
+Linux `libsecret` has no TPM integration; this is flagged honestly
+in the per-platform backing matrix below.
 
 - Recoverable: replacing the device is transparent as long as the
   user can transfer the keychain, and `.lfs` archives carry
@@ -260,15 +267,16 @@ architecture.
   DB key and closes the rusqlite / SQLCipher handle**,
   zeroing both the Dart-side `SecretBuffer` and the C-layer
   page-cipher cache (the live cipher is AES-256-CBC + HMAC-SHA512).
-  Previously the wipe was gated on "no active SSH sessions" so the
-  user's reconnect UX survived; that gate left the DB key warm
-  whenever any session was connected, which flattened T1+password
-  and T2+password in the threat matrix. The gate is gone now. Live
-  sessions stay reconnectable through a per-session credential
+  Live sessions stay reconnectable through a per-session credential
   cache (`SessionCredentialCache`) — each session's password / key
   bytes / passphrase are kept in `mlock`-pinned native memory
   outside the encrypted store, so closing the store on lock does
-  not cost the user their connections. The cache is evicted on
+  not cost the user their connections. The cache is the only
+  reason the wipe can be unconditional: a "skip wipe while a
+  session is connected" exception would leave the DB key warm
+  whenever any session was alive, flattening T1+password and
+  T2+password against RAM-forensics-on-locked-machine in the
+  matrix below — defence the cache lets the policy keep. The cache is evicted on
   explicit disconnect, on any wipe / reset path, and on app
   shutdown.
 - **Page-locked in-memory secrets** — DB key, Argon2id-derived keys,
@@ -310,13 +318,29 @@ architecture.
   `SetErrorMode` / mitigation policies on Windows (suppresses WER
   crash dumps that would otherwise contain the cipher key).
   Complementary runtime probe `lfs_os_security::is_being_debugged()`
-  reads the *current* tracer state (Linux `/proc/self/status` →
-  TracerPid, macOS `sysctl` → `P_TRACED`, Windows
-  `IsDebuggerPresent`) — startup hardening BLOCKS new attaches,
-  the runtime probe READS the current attach state for callers to
-  feed into security policy (e.g. lock sensitive tiers immediately,
-  require fresh unlock). Caller policy is intentionally not
-  auto-terminate: the probe returns bool, UI decides response.
+  (FRB-exposed as `osSecurityIsBeingDebugged`) reads the *current*
+  tracer state (Linux `/proc/self/status` → TracerPid, macOS
+  `sysctl` → `P_TRACED`, Windows `IsDebuggerPresent`; iOS
+  short-circuits to `false`). Startup hardening BLOCKS new attaches;
+  the runtime probe READS the current attach state.
+- **Anti-debug biometric gate** — every biometric unlock attempt
+  (startup `T1+pw` / `T2+pw` ladder, mid-session `LockScreen` retry,
+  inline retry inside the typed-secret unlock dialog) routes through
+  one funnel: `_tryBiometricCommit` in
+  [`SecurityInitController`](../lib/app/security_init_controller.dart).
+  The funnel calls `ProcessHardening.isBeingDebugged()` first; on a
+  positive probe it logs through `logCritical` and returns false
+  without touching the OS-stored password. The dialog falls through
+  to the typed-secret form (master password / PIN), so a debugger
+  watching the process cannot scoop the auto-released secret out of
+  RAM after a biometric prompt completes — the user has to type the
+  secret, narrowing the attack window to keystrokes the user is
+  actively producing. Probe is fail-safe-false on FRB error
+  (unreadable `/proc`, sandboxed iOS) so a hardened host cannot
+  brick legitimate unlock. Developer caveat: a Flutter dev build
+  attached via Xcode / `gdb -p` will see biometric refused on
+  every unlock — the user types the password in that session, no
+  security regression for the legit path.
 - **Clipboard hygiene** — password / token / passphrase copies
   route through `SecureClipboard.setText`, which declares the
   per-OS "don't sync, don't history" markers in the same system
@@ -622,9 +646,10 @@ for the current version.
 
 ## Out of scope
 
-- Vulnerabilities in upstream dependencies (`russh` + the
-  RustCrypto stack vendored under `rust/`, `pointycastle`, `xterm`) —
-  please report those to their maintainers directly.
+- Vulnerabilities in upstream dependencies (`russh` + `russh-sftp` +
+  the RustCrypto stack vendored under `rust/`, bundled SQLCipher /
+  OpenSSL via `rusqlite`, `xterm`) — please report those to their
+  maintainers directly.
 - Denial of service via local access.
 - Issues requiring physical device access (cold-RAM attacks, chip
   probes, boot-media swaps).

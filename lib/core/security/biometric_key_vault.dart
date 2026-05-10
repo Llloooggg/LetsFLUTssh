@@ -15,9 +15,9 @@ import 'linux_keychain_marker.dart';
 /// they opt in to "unlock with biometrics", we save the
 /// already-derived 32-byte DB key here under a platform-specific
 /// protection layer. On app start we query this vault first; if the
-/// platform returns the key we hand it straight to drift and skip
-/// the KDF prompt, otherwise we fall back to the master-password
-/// dialog.
+/// platform returns the key we feed it into rusqlite/SQLCipher via
+/// `dbInit` and skip the KDF prompt, otherwise we fall back to the
+/// master-password dialog.
 ///
 /// **Bytes never touch the Dart heap.** Every store / read path is a
 /// SecretRef shim — Dart hands a `secretId` to Rust, the orchestrator
@@ -137,7 +137,8 @@ class BiometricKeyVault {
   /// the Rust orchestrator reads the SecretStore entry, derives the
   /// fprintd hash, seals via `tpm2-tools` subprocess, and writes
   /// the file. The SecretStore entry survives so downstream
-  /// consumers (e.g. drift sqlcipher pragma) can still read it.
+  /// consumers (e.g. `db_init_from_secret` for rusqlite/SQLCipher
+  /// open) can still read it.
   Future<bool> storeFromSecret(String secretId) async {
     if (Platform.isLinux) {
       try {

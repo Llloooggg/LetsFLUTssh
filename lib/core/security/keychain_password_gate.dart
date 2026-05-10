@@ -52,8 +52,9 @@ class KeychainPasswordGate {
 
   /// True when a gate is configured on this install via
   /// `lfs_core::security::keychain_password_gate_actor::is_configured`
-  /// (FRB async) — disk presence check + the
-  /// `flutter_secure_storage.containsKey` round-trip live in Rust.
+  /// (FRB async) — disk presence check + the keychain
+  /// `lfs_os_security::secure_key_storage::contains` probe live in
+  /// Rust.
   Future<bool> isConfigured() async {
     final file = await _hashFile();
     return rust_actor.keychainPasswordGateIsConfigured(
@@ -132,9 +133,10 @@ class KeychainPasswordGate {
 
   /// Drop every artifact the gate writes via
   /// `lfs_core::security::keychain_password_gate_actor::clear` —
-  /// the disk delete + the `flutter_secure_storage.delete`
-  /// round-trip live in Rust. Called on tier switch away from T1+pw
-  /// and on breaking-change reset.
+  /// the disk delete + the keychain
+  /// `lfs_os_security::secure_key_storage::delete` round-trip live in
+  /// Rust. Called on tier switch away from T1+pw and on
+  /// breaking-change reset.
   Future<void> clear() async {
     final file = await _hashFile();
     await rust_actor.keychainPasswordGateClear(supportDir: file.parent.path);

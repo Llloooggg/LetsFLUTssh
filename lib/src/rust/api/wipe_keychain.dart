@@ -8,10 +8,12 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
 
-/// Walk the canonical `flutter_secure_storage` key list and
-/// dispatch a delete prompt per key. Returns a per-key outcome
-/// report; the Dart subscriber for `KeychainOpPromptRequest`
-/// executes each delete via the keychain plugin.
+/// Walk the canonical OS-keychain alias list and dispatch a delete
+/// per key via `lfs_os_security::secure_key_storage::delete`
+/// (libsecret on Linux, Keychain Services on Apple, Credential
+/// Manager on Windows, AndroidKeyStore JNI on Android). Alias
+/// prefix is fixed by `KEY_ALIAS_PREFIX` (external-compat
+/// constant — see its docstring).
 ///
 /// Best-effort: a failed delete on one key does not abort the
 /// rest. The Dart wrapper surfaces partial failure in the UI.
@@ -30,11 +32,10 @@ List<String> wipeKeychainManagedKeys() =>
 class DbKeychainKeyWipe {
   final String key;
 
-  /// `"deleted"` on success, `"failed: <msg>"` on plugin error.
-  /// The wipe driver fans out one delete per key without a user-
-  /// facing prompt that could be cancelled, so the cancellation
-  /// outcome the previous doc claimed cannot reach this status
-  /// field.
+  /// `"deleted"` on success, `"failed: <msg>"` on backend error.
+  /// The wipe driver fans out one delete per key without any
+  /// user-facing prompt, so cancellation never appears here —
+  /// only success / failure shapes ship.
   final String status;
 
   const DbKeychainKeyWipe({required this.key, required this.status});

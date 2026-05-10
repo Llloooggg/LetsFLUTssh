@@ -9,10 +9,11 @@ import '../session/session.dart';
 import '../ssh/ssh_config.dart';
 import 'key_file_helper.dart';
 
-/// Reader that returns PEM contents for a path, or null if unreadable /
-/// not a private key. Retained as a typedef for the legacy
-/// `ssh_dir_key_scanner` test seam — production no longer hands a
-/// reader to the importer because the orchestrator lives Rust-side.
+/// Reader that returns PEM contents for a path, or null if
+/// unreadable / not a private key. Used as a test seam by the
+/// `ssh_dir_key_scanner` suite to inject canned files; production
+/// callsites pass `_defaultPemKeyReader` which routes through
+/// `lfs_core::keys` over FRB.
 typedef PemKeyReader = Future<String?> Function(String path);
 
 /// Result of preparing a config-file import — ready to pass to

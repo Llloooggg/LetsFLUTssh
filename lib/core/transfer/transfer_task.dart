@@ -4,10 +4,10 @@ enum TransferDirection { upload, download }
 /// Status of a transfer.
 enum TransferStatus { queued, running, completed, failed, cancelled }
 
-// `TransferTask` was retired with the Rust transfer queue port — the
-// only Dart caller was its own test. The HistoryEntry / ActiveEntry
-// read models below stay because TransfersNotifier still produces
-// them for the UI from the Rust-side TaskSnapshot stream.
+// HistoryEntry + ActiveEntry are the Dart-side read models the UI
+// renders from the Rust `TaskSnapshot` bus stream. The live task
+// object lives in `lfs_core::transfer::WorkerPool`; Dart never
+// owns the in-flight state directly.
 
 /// Completed/failed transfer history entry.
 class HistoryEntry {

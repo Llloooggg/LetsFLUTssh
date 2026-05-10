@@ -219,11 +219,11 @@ pub enum Event {
 
     /// Keychain-reachability probe — fired by the capabilities
     /// orchestrator. Dart subscriber pings the OS
-    /// secure-storage backend (Linux: `gdbus call …
-    /// org.freedesktop.secrets`; non-Linux: live
-    /// `flutter_secure_storage` write/read/delete round-trip)
-    /// and dispatches the `KeyringProbeResult` wire name back
-    /// via `keychain_probe_prompt::instance().resolve`.
+    /// secure-storage backend (Linux: zbus `SecretService::connect`
+    /// against `org.freedesktop.secrets`; non-Linux: live
+    /// `lfs_os_security::secure_key_storage` write/read/delete
+    /// round-trip) and dispatches the `KeyringProbeResult` wire
+    /// name back via `keychain_probe_prompt::instance().resolve`.
     KeychainProbePromptRequest { prompt_id: String },
     /// Hardware-vault probe — fired by the capabilities
     /// orchestrator on Apple / Android / Windows. Dart
@@ -262,17 +262,17 @@ pub enum Event {
     /// `hardware_vault_seal_prompt::instance().resolve`.
     /// `pin_secret_id` is `None` for the passwordless variant.
     ///
-    /// **Why the indirection.** The earlier shape carried
-    /// `db_key: Vec<u8>` + `pin: Option<String>` directly through
-    /// `tokio::sync::broadcast`. Every subscriber on the
-    /// SecurityPrompt topic received a clone, the bytes lingered
-    /// in the channel buffer until consumed, and the FRB stream
-    /// delivered them to Dart as a plain `Vec<u8>` whose lifetime
-    /// no zeroize discipline reaches. Routing through SecretStore
-    /// means the bytes never enter the broadcast or cross the FRB
-    /// boundary inline — only the opaque ids do; the legitimate
-    /// subscriber takes the bytes from the pinned Rust-side
-    /// allocator on demand.
+    /// **Why secret-id indirection.** **Don't carry plaintext
+    /// (`db_key: Vec<u8>` / `pin: Option<String>`) inline on the
+    /// broadcast.** `tokio::sync::broadcast` clones every event
+    /// to every subscriber on the SecurityPrompt topic and buffers
+    /// the bytes until each one consumes them; the FRB stream
+    /// then delivers them to Dart as a plain `Vec<u8>` whose
+    /// lifetime no zeroize discipline reaches. The opaque
+    /// SecretStore id keeps the bytes Rust-side in pinned
+    /// allocator memory; the legitimate subscriber takes them on
+    /// demand and they never enter the broadcast or cross FRB
+    /// inline.
     HardwareVaultSealPromptRequest {
         prompt_id: String,
         db_key_secret_id: String,

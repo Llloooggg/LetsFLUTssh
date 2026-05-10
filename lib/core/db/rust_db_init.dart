@@ -8,30 +8,30 @@ import '../../src/rust/api/app.dart' as rust_app;
 import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 
-/// Path of the Rust-owned sqlite file. Reuses the same filename
-/// drift wrote to before the rusqlite port (`letsflutssh.db`) so
-/// a fresh install lands at a familiar path. Upgrades from a
-/// pre-rust-port build hit a cipher-family mismatch (drift's MC
-/// ChaCha20 vs rusqlite's SQLCipher AES-256-CBC) when SQLCipher
-/// tries to open the existing file — "file is not a database"
-/// surfaces through `verifyRustDbReadable` → `DbCorruptDialog`,
-/// the user picks Reset, the file is wiped, fresh setup proceeds.
-/// Conscious tradeoff: no on-the-fly migration code, drift/MC and
-/// rusqlite/SQLCipher share the file slot, the corrupt-DB dialog
-/// is the upgrade UX. Users who want to preserve pre-port data
-/// roll back to v7.3.2, export to `.lfs`, upgrade, import.
+/// On-disk filename of the SQLCipher-encrypted sqlite database.
+/// **Never bump or rename.** A fresh-install user expects this
+/// path, and an existing user upgrading from any other build that
+/// also wrote `letsflutssh.db` (under any cipher family) opens it
+/// here — a header-decrypt mismatch surfaces through
+/// `verifyRustDbReadable` → `DbCorruptDialog` so the user can
+/// reset and re-import from `.lfs` rather than silently losing
+/// the file. The upgrade path is intentionally the corrupt-DB
+/// dialog, not on-the-fly cipher conversion: a fork of cipher
+/// translation logic would be a permanent maintenance liability
+/// for one-time migration plumbing.
 const _rustDbFileName = 'letsflutssh.db';
 
 /// Open the Rust-owned sqlite handle behind the FRB boundary using
-/// the same master key Dart just unlocked drift with. Idempotent on
-/// the same (path, key) pair — safe to call on every unlock.
+/// the master key the unlock orchestrator just produced. Idempotent
+/// on the same (path, key) pair — safe to call on every unlock.
 ///
 /// `key` may be null in plaintext mode; the Rust side accepts an
 /// empty byte slice and skips the SQLCipher PRAGMA.
 ///
 /// Failures are logged and swallowed: a missing Rust DB only means
-/// the FRB-backed DAOs are unusable for this run, not that the app
-/// can't boot. Drift-backed legacy paths still operate.
+/// the FRB-backed DAOs are unusable for this run. Recovery routes
+/// through the post-init `verifyRustDbReadable` probe + the
+/// DB-corruption dialog rather than throwing here.
 /// Whether `letsflutssh.db` already exists on disk. Used by the
 /// first-launch path to distinguish "fresh install, no data" from
 /// "existing install — unlock the previous key".
@@ -52,8 +52,9 @@ Future<bool> lfsCoreDbExists() async {
 /// Cheap integrity probe — runs a `SELECT count(*) FROM sqlite_master`
 /// against the running Rust DB. Returns false when SQLCipher rejects
 /// the master key (header decrypt fails) or when the FRB call itself
-/// errors out (no native lib in unit tests). Mirrors the contract of
-/// the legacy `verifyDatabaseReadable`.
+/// errors out (no native lib in unit tests). Used as the "DB really
+/// readable?" gate after every unlock + re-open before sessions /
+/// workspace bootstrap.
 Future<bool> verifyRustDbReadable() async {
   try {
     await rust_app.dbSchemaObjectCount();
@@ -70,12 +71,16 @@ Future<bool> verifyRustDbReadable() async {
 /// Open the Rust-owned sqlite handle.
 ///
 /// At most one of [key] or [secretId] may be provided:
-/// * [key] — legacy bytes-on-Dart-heap path. Bytes cross FRB once.
+/// * [key] — bytes-on-Dart-heap path. Bytes cross FRB once.
+///   Use only on the freshly-typed-secret path (unlock dialog
+///   submit) where the bytes are already in Dart memory.
 /// * [secretId] — SecretRef path. Pulls bytes from the Rust-side
-///   `SecretStore` entry that was previously staged via
-///   `cryptoAesGcmRandomKeyToSecret`; the bytes never touch the
-///   Dart heap. The `secrets_take` is atomic — after this call the
-///   SecretStore entry is empty.
+///   `SecretStore` entry staged by `cryptoAesGcmRandomKeyToSecret`
+///   / the master-password derive shim / the keychain read shim;
+///   the bytes never touch the Dart heap. Atomic: after this call
+///   the SecretStore entry is empty (or, on success, renamed to
+///   `kActiveDbKeySecretId` so downstream consumers read from the
+///   canonical slot).
 ///
 /// Both null = plaintext (unencrypted) path.
 Future<void> ensureRustDbOpen({Uint8List? key, String? secretId}) async {
