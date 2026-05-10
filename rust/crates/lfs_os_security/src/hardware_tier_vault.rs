@@ -453,7 +453,6 @@ mod apple {
     use security_framework_sys::keychain_item::{SecItemCopyMatching, SecItemDelete};
     use std::ffi::c_void;
     use std::fs;
-    use std::os::unix::fs::PermissionsExt;
     use std::ptr;
 
     /// Application-tag bytes the primary T2 SE key is registered

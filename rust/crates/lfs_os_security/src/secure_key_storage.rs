@@ -276,24 +276,23 @@ mod platform_impl {
     use core_foundation_sys::base::CFOptionFlags;
     use core_foundation_sys::string::CFStringRef;
     use security_framework::access_control::{ProtectionMode, SecAccessControl};
-    use security_framework::passwords::{
-        delete_generic_password, get_generic_password, set_generic_password,
-    };
+    use security_framework::passwords::{delete_generic_password, get_generic_password};
     use security_framework_sys::access_control::kSecAccessControlBiometryCurrentSet;
     use security_framework_sys::base::errSecItemNotFound;
     use security_framework_sys::item::{
-        kSecAttrAccessControl, kSecAttrAccessible, kSecAttrAccount, kSecAttrService, kSecClass,
+        kSecAttrAccessControl, kSecAttrAccount, kSecAttrService, kSecClass,
         kSecClassGenericPassword, kSecMatchLimit, kSecReturnData, kSecValueData,
     };
     use security_framework_sys::keychain_item::{SecItemAdd, SecItemCopyMatching, SecItemDelete};
 
-    // `kSecMatchLimitOne` isn't bound by security-framework-sys
-    // 2.17 (only `kSecMatchLimit` + `kSecMatchLimitAll` ship).
-    // Same for `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
-    // — Security.framework exports the symbols, security-framework-sys
-    // already links the framework, so linkage resolves at run time.
+    // `kSecMatchLimitOne`, `kSecAttrAccessible`, and
+    // `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` aren't
+    // bound by security-framework-sys 2.17 — Security.framework
+    // exports the symbols, security-framework-sys already links
+    // the framework, so linkage resolves at run time.
     extern "C" {
         static kSecMatchLimitOne: CFStringRef;
+        static kSecAttrAccessible: CFStringRef;
         static kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly: CFStringRef;
     }
 
