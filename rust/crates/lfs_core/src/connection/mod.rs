@@ -469,6 +469,58 @@ pub async fn connect_async(id: ConnId, args: ConnectArgs) -> Result<ConnId, Erro
     Ok(id)
 }
 
+/// Run `fut` under a wall-clock budget that *suspends* while
+/// `is_paused()` returns true. Returns `Some(output)` when the
+/// future completes; `None` when the un-paused elapsed time
+/// reaches `cap` and no pause is active.
+///
+/// Why: the SSH handshake can park on a user-facing prompt — TOFU
+/// host-key verification today, MFA / hardware-vault unlock later —
+/// and the configured `ssh_timeout_sec` should bound the *network*
+/// portion only. Counting the user's read-and-click time against
+/// the cap surfaced as spurious "connect timed out" errors when
+/// the network was healthy and the dialog just sat unanswered.
+///
+/// Implementation: poll on a 250 ms tick. Whenever `is_paused()`
+/// returns true on a tick boundary, the slice since the previous
+/// tick is added to a paused-time accumulator and excluded from
+/// elapsed. The granularity is well below the 10–60 s typical
+/// `ssh_timeout_sec` range, so the effective cap is accurate to
+/// within a quarter-second of the configured value.
+async fn run_with_pause_aware_timeout<F, Fut, T>(
+    cap: std::time::Duration,
+    is_paused: F,
+    fut: Fut,
+) -> Option<T>
+where
+    F: Fn() -> bool,
+    Fut: std::future::Future<Output = T>,
+{
+    use tokio::time::{sleep, Instant};
+    let started = Instant::now();
+    let mut paused = std::time::Duration::ZERO;
+    let mut last_tick = started;
+    let tick = std::time::Duration::from_millis(250);
+    tokio::pin!(fut);
+    loop {
+        let now = Instant::now();
+        let paused_now = is_paused();
+        if paused_now {
+            paused += now.duration_since(last_tick);
+        }
+        last_tick = now;
+        let elapsed_net = now.duration_since(started).saturating_sub(paused);
+        if elapsed_net >= cap && !paused_now {
+            return None;
+        }
+        tokio::select! {
+            biased;
+            r = &mut fut => return Some(r),
+            _ = sleep(tick) => continue,
+        }
+    }
+}
+
 /// Internal driver loop. Owns the state-machine transitions for one
 /// connect attempt; runs in a background tokio task so [`connect_async`]
 /// returns immediately. Stale-generation results are discarded so a
@@ -532,15 +584,23 @@ async fn run_connect_driver(id: ConnId, args: ConnectArgs, handle: Arc<Mutex<Con
         .and_then(|v| v.get("ssh_timeout_sec").and_then(|x| x.as_i64()))
         .filter(|s| *s > 0)
         .unwrap_or(30) as u64;
-    let result =
-        match tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), run_auth(args))
-            .await
-        {
-            Ok(r) => r,
-            Err(_) => Err(Error::Connect(format!(
-                "connect timed out ({timeout_secs} s)"
-            ))),
-        };
+    // The cap suspends while a TOFU prompt is awaiting the user
+    // — the dialog opens during host-key verification and any
+    // wall-clock spent waiting on the user's accept/reject is
+    // not network time. See `run_with_pause_aware_timeout`.
+    let app_for_pause = app.clone();
+    let result = match run_with_pause_aware_timeout(
+        std::time::Duration::from_secs(timeout_secs),
+        move || app_for_pause.known_hosts_prompts.pending_count() > 0,
+        run_auth(args),
+    )
+    .await
+    {
+        Some(r) => r,
+        None => Err(Error::Connect(format!(
+            "connect timed out ({timeout_secs} s)"
+        ))),
+    };
     trace_connect!(
         "run_connect_driver run_auth returned id={id} ok={} err={:?}",
         result.is_ok(),
@@ -1294,5 +1354,82 @@ mod tests {
             detail: None,
         };
         assert!(step.detail.is_none());
+    }
+
+    // ─── run_with_pause_aware_timeout ──────────────────────────────
+    // Wraps the SSH handshake with a wall-clock cap that suspends
+    // while a TOFU prompt is awaiting the user. The bug shape these
+    // pin: a `connect timed out` error fires while the
+    // host-key-changed dialog is still on screen. Tests use real
+    // time with sub-second caps so they stay deterministic without
+    // pulling tokio's `test-util` feature.
+
+    #[tokio::test]
+    async fn pause_aware_timeout_returns_some_when_future_completes() {
+        let result =
+            run_with_pause_aware_timeout(std::time::Duration::from_secs(10), || false, async {
+                42_i32
+            })
+            .await;
+        assert_eq!(result, Some(42));
+    }
+
+    #[tokio::test]
+    async fn pause_aware_timeout_fires_at_cap_when_no_pause() {
+        let cap = std::time::Duration::from_millis(500);
+        let started = std::time::Instant::now();
+        let result =
+            run_with_pause_aware_timeout(cap, || false, std::future::pending::<()>()).await;
+        let elapsed = started.elapsed();
+        assert!(result.is_none(), "expected timeout to fire");
+        assert!(elapsed >= cap, "timeout fired too early: {elapsed:?}");
+        assert!(
+            elapsed < cap + std::time::Duration::from_millis(750),
+            "timeout fired too late: {elapsed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn pause_aware_timeout_excludes_paused_window_from_elapsed() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let paused = std::sync::Arc::new(AtomicBool::new(false));
+        let pf = paused.clone();
+
+        let cap = std::time::Duration::from_millis(500);
+        let helper = tokio::spawn(async move {
+            run_with_pause_aware_timeout(
+                cap,
+                move || pf.load(Ordering::Relaxed),
+                std::future::pending::<()>(),
+            )
+            .await
+        });
+
+        // 200 ms with no pause active — net elapsed ≈ 200 ms.
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        assert!(!helper.is_finished());
+
+        // Open the prompt and sleep well past the remaining 300 ms
+        // budget — the helper must keep waiting because the pause
+        // window is excluded.
+        paused.store(true, Ordering::Relaxed);
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        assert!(
+            !helper.is_finished(),
+            "helper fired during pause — paused window not excluded from elapsed"
+        );
+
+        // Close the prompt; net elapsed ≈ 200 ms, cap = 500 ms, so
+        // the helper should fire roughly 300 ms later. Bound the
+        // wait so a regression doesn't hang the suite.
+        paused.store(false, Ordering::Relaxed);
+        let outcome = tokio::time::timeout(std::time::Duration::from_millis(1500), helper)
+            .await
+            .expect("helper did not finish post-pause")
+            .expect("helper task panicked");
+        assert!(
+            outcome.is_none(),
+            "expected timeout to fire after pause closed and net elapsed reached cap"
+        );
     }
 }

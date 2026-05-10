@@ -376,6 +376,8 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
 
 The TOFU verification flow is **not** a Dart concern. The russh host-key callback in `lfs_core::ssh::Session` consults `lfs_core::known_hosts` directly; on a mismatch / unknown host it raises `BusEvent::KnownHostPromptRequest { connection_id, host, port, fingerprint, kind }` and awaits the prompt resolution through `lfs_core::security::known_host_prompt`. The Dart-side [`HostKeyPromptListener`](../lib/app/host_key_prompt_listener.dart) subscribes to that bus event, renders [`HostKeyDialog`](#hostkeydialog), and resolves the prompt via the matching bus command. `KnownHostsNotifier` is **only** the UI-side cache mirror; it does not gate auth, does not hold a `verify` method, and never blocks the connect path on user input.
 
+While the host-key prompt is on screen the connect driver's `ssh_timeout_sec` cap is suspended — the wall-clock spent waiting on the user does not count against the network budget. See [§3.5 Connect timeout](#connect-timeout--ssh_timeout_sec-with-prompt-pause) for the pause-aware-timeout machinery.
+
 **Pre-unlock degradation.** Every entry point catches the synchronous `RustLib.instance` throw the FRB layer raises before the native lib is loaded (unit-test runner, first-launch wizard pre-unlock) and returns the in-memory cache only. The connect path doesn't run pre-unlock anyway; the bus subscription installed in `build()` simply fails-soft until the FRB lib is up.
 
 #### Port forwarding
@@ -855,6 +857,16 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
 ```
 
 **onDisconnect identity guard.** The per-transport `onDisconnect` callback fires when the underlying `SshTransport` observes a socket close — including the "stale cleanup" path where a superseded generation calls `disconnect()` on its own transport. Because all generations of a single reconnect cycle share one `Connection` object, a naive callback that unconditionally writes `conn.transport = null` + `conn.state = disconnected` can clobber a *newer* generation's already-live transport once the late OS close of the stale one fires. The callback therefore starts with an identity guard (`if (conn.transport != observedTransport) return;`) so only the currently-active transport can flip the shared Connection into disconnected state. The guard is load-bearing together with the generation counter: the counter stops stale *success* paths from writing `conn.transport`, the guard stops stale *disconnect* paths from wiping it. Removing either opens the same UI symptom ("connection flashes disconnected after reconnect while actually live").
+
+#### Connect timeout — `ssh_timeout_sec` with prompt pause
+
+The connect driver in `lfs_core::connection::run_connect_driver` wraps the entire `run_auth` future — TCP dial + russh KEX + host-key verification + userauth — in a wall-clock cap so an unreachable host does not pin the actor for the OS-level TCP timeout (60–130 s on Linux). The cap is sourced from `AppConfig.ssh_timeout_sec` (Settings → Connection → "Connection timeout (s)"), defaults to 30 s, and is clamped to ≥1 s so a hostile / corrupt config entry cannot disable the bound entirely.
+
+**Prompt pause invariant.** The cap covers **network and handshake time only** — wall-clock spent waiting on a user-facing prompt is *not* counted against it. Today the only such prompt is the TOFU host-key dialog (`BusEvent::KnownHostPromptRequest`, see [§3.1 host-key TOFU flow](#31-ssh-coressh)); future interactive prompts during connect (keyboard-interactive MFA, hardware-vault unlock) plug into the same gate by registering with their own prompt registry on `AppState`.
+
+**Implementation.** `run_with_pause_aware_timeout` polls on a 250 ms tick. Whenever its `is_paused` predicate returns true on a tick boundary — currently `app.known_hosts_prompts.pending_count() > 0` — the slice since the previous tick is added to a paused-time accumulator and excluded from elapsed. Granularity is well below the typical 10–60 s `ssh_timeout_sec` range, so the effective cap is accurate to within a quarter-second of the configured value.
+
+**Why this exists.** The original shape used a flat `tokio::time::timeout(...)` around `run_auth`, so when the TOFU dialog opened during host-key verification the timer kept ticking against the user's read-and-click time. A user who paused to read a fingerprint-change warning past the cap would see the connection fail with `connect timed out (N s)` even though the network was healthy and the dialog was still waiting on their input.
 
 #### ForegroundServiceManager (Android only)
 
