@@ -40,12 +40,6 @@ dependencies:
   uuid: ^4.5.1
   path: ^1.9.1
 
-  # SHA-256 digest helper. Used for KeyStore fingerprints, known_hosts
-  # SHA256:fingerprint, update-feed checksum, and SPKI pinning. The
-  # AES-GCM / HKDF / Ed25519 / Argon2id / PPK surface that used to
-  # live in pointycastle moved to `lfs_core::crypto` + `lfs_core::keys`.
-  crypto: ^3.0.5
-
   # OS drag&drop into app (desktop)
   desktop_drop: ^0.7.1
 
@@ -89,6 +83,12 @@ dev_dependencies:
   # enum bindings as Freezed sealed classes, which need the codegen
   # run after every FRB regen (`make rust-codegen` then `make gen`).
   freezed: ^3.2.0
+
+  # SHA-256 / HMAC digest helper. Used by tests as a host-side oracle
+  # to cross-check the canonical Rust digests in
+  # `lfs_core::crypto`. Production paths route through the FRB
+  # `cryptoSha256` / `cryptoHmacSha256` shims and never import this.
+  crypto: ^3.0.5
 
 flutter_launcher_icons:
   android: true
