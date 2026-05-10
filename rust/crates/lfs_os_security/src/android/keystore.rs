@@ -20,7 +20,7 @@
 //!    we already do in `lfs_core` crypto modules.
 //!
 //! Biometric variant adds `setUserAuthenticationRequired(true)`
-//! + `setUserAuthenticationParameters(0,
+//! and `setUserAuthenticationParameters(0,
 //! KeyProperties.AUTH_BIOMETRIC_STRONG)` (API 30+) to the
 //! KeyGenParameterSpec, plus the unlock cipher must be wrapped
 //! in a `BiometricPrompt.CryptoObject` and authorised through
@@ -36,7 +36,7 @@
 //! `KEY_ALIAS_PREFIX` is fixed by external compat constraint —
 //! see its docstring.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use jni::objects::{JObject, JValue};
 
@@ -75,7 +75,7 @@ fn map_err<S: AsRef<str>>(msg: S) -> SecureStorageError {
     SecureStorageError::Backend(msg.as_ref().to_string())
 }
 
-fn value_path(files_dir: &PathBuf, alias: &str) -> PathBuf {
+fn value_path(files_dir: &Path, alias: &str) -> PathBuf {
     files_dir.join(STORAGE_SUBDIR).join(format!("{alias}.bin"))
 }
 

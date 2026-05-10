@@ -252,13 +252,12 @@ fn show_prompt_blocking(req_id: u64, title: &str, subtitle: &str) -> Result<(), 
 
         Ok(())
     })
-    .map_err(|e| {
+    .inspect_err(|_e| {
         // Drop the pending entry — caller's oneshot will hang
         // forever otherwise.
         if let Ok(mut map) = pending().lock() {
             map.remove(&req_id);
         }
-        e
     })
 }
 
@@ -272,6 +271,12 @@ fn deliver(req_id: u64, result: BiometricResult) {
     }
 }
 
+/// # Safety
+///
+/// Invoked by the JVM through JNI when `LfsBiometricCallback`
+/// fires `onAuthenticationSucceeded`. The JVM guarantees the
+/// argument types match the registered native signature; no
+/// additional invariants the caller must uphold.
 #[no_mangle]
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallback_nativeOnSucceeded<
     'local,
@@ -283,6 +288,11 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallbac
     deliver(req_id as u64, BiometricResult::Succeeded);
 }
 
+/// # Safety
+///
+/// Invoked by the JVM through JNI when `LfsBiometricCallback`
+/// fires `onAuthenticationFailed`. Same invariants as
+/// [`Java_com_llloooggg_letsflutssh_LfsBiometricCallback_nativeOnSucceeded`].
 #[no_mangle]
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallback_nativeOnFailed<
     'local,
@@ -294,6 +304,11 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallbac
     deliver(req_id as u64, BiometricResult::Failed);
 }
 
+/// # Safety
+///
+/// Invoked by the JVM through JNI when `LfsBiometricCallback`
+/// fires `onAuthenticationError`. Same invariants as
+/// [`Java_com_llloooggg_letsflutssh_LfsBiometricCallback_nativeOnSucceeded`].
 #[no_mangle]
 pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallback_nativeOnError<
     'local,
@@ -303,5 +318,5 @@ pub unsafe extern "system" fn Java_com_llloooggg_letsflutssh_LfsBiometricCallbac
     req_id: jlong,
     code: jint,
 ) {
-    deliver(req_id as u64, BiometricResult::Error(code as i32));
+    deliver(req_id as u64, BiometricResult::Error(code));
 }

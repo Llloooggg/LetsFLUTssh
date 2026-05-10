@@ -388,7 +388,7 @@ fn bio_password_file_path(support_dir: &str) -> std::path::PathBuf {
 pub fn is_stored(support_dir: &str) -> bool {
     #[cfg(target_os = "android")]
     {
-        return crate::android::hardware_vault::is_stored(support_dir);
+        crate::android::hardware_vault::is_stored(support_dir)
     }
     #[cfg(not(target_os = "android"))]
     {
@@ -401,7 +401,7 @@ pub fn is_stored(support_dir: &str) -> bool {
 pub fn is_biometric_password_stored(support_dir: &str) -> bool {
     #[cfg(target_os = "android")]
     {
-        return crate::android::hardware_vault::is_biometric_password_stored(support_dir);
+        crate::android::hardware_vault::is_biometric_password_stored(support_dir)
     }
     #[cfg(not(target_os = "android"))]
     {

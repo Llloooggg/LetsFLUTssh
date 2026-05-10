@@ -531,7 +531,11 @@ fn encode_pin_envelope(pin_hmac: &[u8], iv: &[u8], ct: &[u8]) -> Vec<u8> {
     out
 }
 
-fn decode_pin_envelope(buf: &[u8]) -> Result<(&[u8], Vec<u8>, &[u8]), String> {
+/// `(pin_hmac_slice, iv_owned, ciphertext_slice)`. `iv` is copied
+/// out so the caller can keep it past `buf`'s borrow.
+type PinEnvelopeParts<'a> = (&'a [u8], Vec<u8>, &'a [u8]);
+
+fn decode_pin_envelope(buf: &[u8]) -> Result<PinEnvelopeParts<'_>, String> {
     let (pin_hmac, rest) = read_frame(buf, "pin_hmac")?;
     let (iv, rest) = read_frame(rest, "iv")?;
     let (ct, _) = read_frame(rest, "ct")?;
