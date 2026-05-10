@@ -490,6 +490,91 @@ async fn sha256_file(path: &str) -> Result<String, Error> {
     Ok(hex)
 }
 
+/// Walk `dir` and remove every regular file whose name shares a
+/// release-asset suffix with the artefact at `asset_url`. The
+/// suffix is everything from the second dash of the asset
+/// filename onwards (`letsflutssh-1.9.0-windows-x64-setup.exe` →
+/// `-windows-x64-setup.exe`), so the call drops every previous
+/// installer for the same platform variant while leaving the
+/// other persisted files in app-support untouched.
+///
+/// Returns the count of files actually removed; per-file delete
+/// failures are logged but not surfaced as `Err` (the next
+/// startup re-runs the sweep). Caller invokes this immediately
+/// before downloading a fresh installer so the freshly-arrived
+/// artefact is the only one with the suffix on disk.
+///
+/// Returns 0 on missing directory, missing/garbled asset URL,
+/// or a filename with fewer than two dashes — none of which are
+/// fatal: a clean install simply has nothing to clean.
+pub async fn cleanup_stale_downloads(dir: &Path, asset_url: &str) -> Result<u32, std::io::Error> {
+    let Some(suffix) = stale_download_suffix(asset_url) else {
+        return Ok(0);
+    };
+    if !tokio::fs::try_exists(dir).await.unwrap_or(false) {
+        return Ok(0);
+    }
+    let mut entries = match tokio::fs::read_dir(dir).await {
+        Ok(e) => e,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(e) => return Err(e),
+    };
+    let mut removed = 0u32;
+    while let Some(entry) = entries.next_entry().await? {
+        let path = entry.path();
+        let file_type = match entry.file_type().await {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if !file_type.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !name.ends_with(&suffix) {
+            continue;
+        }
+        if let Err(e) = tokio::fs::remove_file(&path).await {
+            crate::app_log_warn!("UpdateCleanup", "remove stale download failed: {e}");
+            continue;
+        }
+        removed = removed.saturating_add(1);
+    }
+    Ok(removed)
+}
+
+/// Best-effort delete of `path`. Used after the installer
+/// hand-off: the installer's already running, so the file can go.
+/// Missing target is a no-op (idempotent); other I/O errors
+/// surface so the caller can surface a "couldn't tidy up" toast
+/// without blocking the install flow.
+pub async fn cleanup_file(path: &Path) -> Result<(), std::io::Error> {
+    match tokio::fs::remove_file(path).await {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+/// Extract the per-platform release-asset suffix from a download
+/// URL. Mirrors the Dart helper: take the path's last segment, find
+/// the first two dashes, and return everything from the second dash
+/// onward (inclusive). Returns `None` for URLs whose filename has
+/// fewer than two dashes — the caller treats that as "nothing safe
+/// to match".
+fn stale_download_suffix(asset_url: &str) -> Option<String> {
+    let url_no_query = asset_url
+        .split_once(['?', '#'])
+        .map_or(asset_url, |(prefix, _)| prefix);
+    let file_name = url_no_query.rsplit('/').find(|s| !s.is_empty())?;
+    let first_dash = file_name.find('-')?;
+    let after_first = &file_name[first_dash + 1..];
+    let second_dash_offset = after_first.find('-')?;
+    let second_dash_abs = first_dash + 1 + second_dash_offset;
+    Some(file_name[second_dash_abs..].to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -659,5 +744,134 @@ mod tests {
         let info = check_for_update_from_body("\"hi\"", "1.0.0", "owner/repo").expect("parse");
         assert_eq!(info.latest_version, "1.0.0");
         assert!(!info.has_update());
+    }
+
+    // ── stale_download_suffix ────────────────────────────────────
+
+    #[test]
+    fn stale_download_suffix_extracts_platform_tail() {
+        assert_eq!(
+            stale_download_suffix("https://example/v1.9.0/letsflutssh-1.9.0-windows-x64-setup.exe")
+                .as_deref(),
+            Some("-windows-x64-setup.exe")
+        );
+        assert_eq!(
+            stale_download_suffix("https://example/letsflutssh-1.9.0-linux-x64.AppImage")
+                .as_deref(),
+            Some("-linux-x64.AppImage")
+        );
+    }
+
+    #[test]
+    fn stale_download_suffix_handles_query_and_fragment() {
+        // Real GitHub Releases URLs sometimes append `?download` or
+        // tracking fragments. The basename split has to ignore both.
+        assert_eq!(
+            stale_download_suffix("https://example/letsflutssh-1.9.0-macos-arm64.dmg?download=1")
+                .as_deref(),
+            Some("-macos-arm64.dmg")
+        );
+    }
+
+    #[test]
+    fn stale_download_suffix_returns_none_without_two_dashes() {
+        // No dash at all.
+        assert!(stale_download_suffix("https://example/installer.exe").is_none());
+        // Single dash — caller treats this as "nothing safe to match"
+        // so the cleanup walk skips the directory entirely.
+        assert!(stale_download_suffix("https://example/letsflutssh-installer.exe").is_none());
+    }
+
+    #[test]
+    fn stale_download_suffix_returns_none_for_empty_basename() {
+        assert!(stale_download_suffix("").is_none());
+        assert!(stale_download_suffix("https://example/").is_none());
+    }
+
+    // ── cleanup_stale_downloads ──────────────────────────────────
+
+    #[tokio::test]
+    async fn cleanup_stale_downloads_drops_only_matching_suffix() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path();
+        // Two files share the platform suffix → both go.
+        tokio::fs::write(path.join("letsflutssh-1.8.0-windows-x64-setup.exe"), b"old")
+            .await
+            .unwrap();
+        tokio::fs::write(
+            path.join("letsflutssh-1.7.0-windows-x64-setup.exe"),
+            b"older",
+        )
+        .await
+        .unwrap();
+        // Different platform → must stay.
+        tokio::fs::write(path.join("letsflutssh-1.8.0-linux-x64.AppImage"), b"keep")
+            .await
+            .unwrap();
+        // Unrelated user file → must stay.
+        tokio::fs::write(path.join("config.json"), b"keep")
+            .await
+            .unwrap();
+
+        let removed = cleanup_stale_downloads(
+            path,
+            "https://example/v1.9.0/letsflutssh-1.9.0-windows-x64-setup.exe",
+        )
+        .await
+        .expect("cleanup");
+        assert_eq!(removed, 2);
+        assert!(!path
+            .join("letsflutssh-1.8.0-windows-x64-setup.exe")
+            .exists());
+        assert!(!path
+            .join("letsflutssh-1.7.0-windows-x64-setup.exe")
+            .exists());
+        assert!(path.join("letsflutssh-1.8.0-linux-x64.AppImage").exists());
+        assert!(path.join("config.json").exists());
+    }
+
+    #[tokio::test]
+    async fn cleanup_stale_downloads_no_op_on_missing_dir() {
+        let removed = cleanup_stale_downloads(
+            std::path::Path::new("/nonexistent/lfs_cleanup_probe"),
+            "https://example/letsflutssh-1.9.0-windows-x64-setup.exe",
+        )
+        .await
+        .expect("cleanup");
+        assert_eq!(removed, 0);
+    }
+
+    #[tokio::test]
+    async fn cleanup_stale_downloads_no_op_on_unparseable_url() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        // Pre-existing file: must NOT get touched because the
+        // suffix is undetectable, so we have nothing safe to match.
+        tokio::fs::write(dir.path().join("anything.bin"), b"keep")
+            .await
+            .unwrap();
+        let removed = cleanup_stale_downloads(dir.path(), "https://example/bogus")
+            .await
+            .expect("cleanup");
+        assert_eq!(removed, 0);
+        assert!(dir.path().join("anything.bin").exists());
+    }
+
+    // ── cleanup_file ─────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn cleanup_file_removes_existing_file() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path().join("installer.exe");
+        tokio::fs::write(&path, b"bytes").await.unwrap();
+        cleanup_file(&path).await.expect("cleanup");
+        assert!(!path.exists());
+    }
+
+    #[tokio::test]
+    async fn cleanup_file_is_idempotent_on_missing_file() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path().join("nope.exe");
+        // Already absent — must not error.
+        cleanup_file(&path).await.expect("cleanup");
     }
 }

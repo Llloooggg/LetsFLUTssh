@@ -192,6 +192,34 @@ pub async fn update_download_with_verification(
     }
 }
 
+/// Walk `dir` and remove every previous-version installer whose
+/// filename shares a platform-suffix with the asset at
+/// `asset_url`. Wraps
+/// [`lfs_core::update_orchestrator::cleanup_stale_downloads`] —
+/// caller invokes it just before kicking off a fresh download so
+/// the new installer is the only file with that suffix on disk.
+/// Returns the count of files actually removed; both a missing
+/// directory and an asset URL with too few dashes to extract a
+/// suffix surface as `Ok(0)`.
+pub async fn update_cleanup_stale_downloads(dir: String, asset_url: String) -> Result<u32, String> {
+    let path = std::path::PathBuf::from(dir);
+    lfs_core::update_orchestrator::cleanup_stale_downloads(&path, &asset_url)
+        .await
+        .map_err(|e| format!("cleanup stale downloads: {e}"))
+}
+
+/// Best-effort delete of `path`. Idempotent on a missing target
+/// (the OS already finished the work for us). Wraps
+/// [`lfs_core::update_orchestrator::cleanup_file`] — used by the
+/// installer hand-off path to delete the downloaded artefact a
+/// few seconds after spawning the installer.
+pub async fn update_cleanup_file(path: String) -> Result<(), String> {
+    let target = std::path::PathBuf::from(path);
+    lfs_core::update_orchestrator::cleanup_file(&target)
+        .await
+        .map_err(|e| format!("cleanup file: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

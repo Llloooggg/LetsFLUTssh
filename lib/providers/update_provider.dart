@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:io' show Platform;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/update/update_service.dart';
 import '../src/rust/api/macos_installer.dart' as rust_macos_installer;
+import '../src/rust/api/update_http.dart' as rust_update;
 import 'version_provider.dart';
 import '../utils/logger.dart';
 
@@ -229,52 +230,34 @@ class UpdateNotifier extends Notifier<UpdateState> {
   /// as the incoming [assetUrl] (e.g. `-windows-x64-setup.exe`).
   Future<void> _cleanupStaleDownloads(String dir, String assetUrl) async {
     try {
-      final fileName = Uri.parse(assetUrl).pathSegments.last;
-      // Extract the platform suffix: everything after the version segment.
-      // e.g. "letsflutssh-1.9.0-windows-x64-setup.exe" → "-windows-x64-setup.exe"
-      // The first dash separates name from version; the second separates
-      // version from platform — we want from the second dash onward.
-      final firstDash = fileName.indexOf('-');
-      if (firstDash < 0) return;
-      final secondDash = fileName.indexOf('-', firstDash + 1);
-      if (secondDash < 0) return;
-      final suffix = fileName.substring(secondDash);
-
-      final directory = Directory(dir);
-      if (!await directory.exists()) return;
-      await for (final entity in directory.list()) {
-        if (entity is File && entity.path.endsWith(suffix)) {
-          try {
-            await entity.delete();
-            AppLogger.instance.log(
-              'Removed stale download: ${entity.path}',
-              name: 'UpdateProvider',
-            );
-          } catch (e) {
-            AppLogger.instance.log(
-              'Failed to remove stale download: $e',
-              name: 'UpdateProvider',
-            );
-          }
-        }
+      final removed = await rust_update.updateCleanupStaleDownloads(
+        dir: dir,
+        assetUrl: assetUrl,
+      );
+      if (removed > 0) {
+        AppLogger.instance.log(
+          'Removed $removed stale download(s)',
+          name: 'UpdateProvider',
+        );
       }
     } catch (e) {
       AppLogger.instance.log(
         'Stale download cleanup error: $e',
         name: 'UpdateProvider',
+        level: LogLevel.warn,
       );
     }
   }
 
   Future<void> _cleanupFile(String path) async {
     try {
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
-        AppLogger.instance.log('Cleaned up: $path', name: 'UpdateProvider');
-      }
+      await rust_update.updateCleanupFile(path: path);
     } catch (e) {
-      AppLogger.instance.log('Cleanup failed: $e', name: 'UpdateProvider');
+      AppLogger.instance.log(
+        'Cleanup failed: $e',
+        name: 'UpdateProvider',
+        level: LogLevel.warn,
+      );
     }
   }
 }

@@ -84,6 +84,31 @@ Future<DbDownloadResult> updateDownloadWithVerification({
   expectedDigest: expectedDigest,
 );
 
+/// Walk `dir` and remove every previous-version installer whose
+/// filename shares a platform-suffix with the asset at
+/// `asset_url`. Wraps
+/// [`lfs_core::update_orchestrator::cleanup_stale_downloads`] —
+/// caller invokes it just before kicking off a fresh download so
+/// the new installer is the only file with that suffix on disk.
+/// Returns the count of files actually removed; both a missing
+/// directory and an asset URL with too few dashes to extract a
+/// suffix surface as `Ok(0)`.
+Future<int> updateCleanupStaleDownloads({
+  required String dir,
+  required String assetUrl,
+}) => RustLib.instance.api.crateApiUpdateHttpUpdateCleanupStaleDownloads(
+  dir: dir,
+  assetUrl: assetUrl,
+);
+
+/// Best-effort delete of `path`. Idempotent on a missing target
+/// (the OS already finished the work for us). Wraps
+/// [`lfs_core::update_orchestrator::cleanup_file`] — used by the
+/// installer hand-off path to delete the downloaded artefact a
+/// few seconds after spawning the installer.
+Future<void> updateCleanupFile({required String path}) =>
+    RustLib.instance.api.crateApiUpdateHttpUpdateCleanupFile(path: path);
+
 /// Categorical failure shape — surfaces the same split the
 /// Dart-era `InvalidReleaseSignatureException` /
 /// `ReleaseManifestUnavailableException` exposed so the UI can
