@@ -352,14 +352,6 @@ pub async fn recorder_rotate_to(
     .map_err(|e| format!("recorder rotate task: {e}"))?
 }
 
-/// The hard upper bound, in bytes, on a single recording file
-/// before the driver rolls to a new file. Mirrored from
-/// `lfs_core::recorder::MAX_FILE_BYTES` so the Dart caller never
-/// keeps a stale duplicate.
-pub fn recorder_max_file_bytes() -> u64 {
-    lfs_core::recorder::MAX_FILE_BYTES
-}
-
 /// Flush + close an open recording. Idempotent on a missing id.
 pub async fn recorder_close(id: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
@@ -596,18 +588,6 @@ mod tests {
         let i: lfs_core::recorder::RecordDirection = DbRecordDirection::Input.into();
         assert_eq!(o, lfs_core::recorder::RecordDirection::Output);
         assert_eq!(i, lfs_core::recorder::RecordDirection::Input);
-    }
-
-    #[test]
-    fn max_file_bytes_matches_lfs_core_const() {
-        // Pin the constant so a Rust-side bump can't silently
-        // diverge from the documented 100 MiB cap the Dart shim
-        // depends on for the rotate trigger.
-        assert_eq!(
-            recorder_max_file_bytes(),
-            lfs_core::recorder::MAX_FILE_BYTES
-        );
-        assert_eq!(recorder_max_file_bytes(), 100 * 1024 * 1024);
     }
 
     #[test]

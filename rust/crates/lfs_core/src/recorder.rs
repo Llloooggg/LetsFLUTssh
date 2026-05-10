@@ -79,8 +79,9 @@ pub(crate) const MAX_FRAME_PLAINTEXT_BYTES: u32 = 16 * 1024 * 1024;
 /// driver rolls to a new file under the same session. 100 MB is
 /// large enough for a multi-hour vim-heavy editing session, small
 /// enough that the asciinema export of a single recording stays
-/// trivially shareable. Reads from the FRB binding (`recorder_max_file_bytes`)
-/// so the Dart caller never holds a stale duplicate of the constant.
+/// trivially shareable. The recorder queue ([`queue`]) reads this
+/// directly to gate the rotate decision; the constant never crosses
+/// the FRB boundary.
 pub const MAX_FILE_BYTES: u64 = 100 * 1024 * 1024;
 
 /// Stable identifier for an active recording. The Dart side

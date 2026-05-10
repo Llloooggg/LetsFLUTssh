@@ -125,13 +125,6 @@ Future<DbRecorderSnapshot> recorderRotateTo({
   newPath: newPath,
 );
 
-/// The hard upper bound, in bytes, on a single recording file
-/// before the driver rolls to a new file. Mirrored from
-/// `lfs_core::recorder::MAX_FILE_BYTES` so the Dart caller never
-/// keeps a stale duplicate.
-Future<BigInt> recorderMaxFileBytes() =>
-    RustLib.instance.api.crateApiRecorderRecorderMaxFileBytes();
-
 /// Flush + close an open recording. Idempotent on a missing id.
 Future<void> recorderClose({required String id}) =>
     RustLib.instance.api.crateApiRecorderRecorderClose(id: id);
