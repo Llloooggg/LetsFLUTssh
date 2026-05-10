@@ -17,21 +17,17 @@ final sshKeysProvider =
     );
 
 class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
-  Map<String, SshKeyEntry>? _cache;
-
   @override
   Future<List<SshKeyEntry>> build() async {
     // Metadata-only view: every Riverpod watcher of
-    // [sshKeysProvider] gets a credential-stripped list (no PEM
-    // private bytes pulled into the Dart heap on every list
-    // refresh, no stale GC-roots once the cache is invalidated).
+    // [sshKeysProvider] gets a credential-stripped list — no PEM
+    // private bytes pulled into the Dart heap on a list refresh.
     // The UI consumers (key picker, key manager list, settings
     // export tile) only need label / type / fingerprints / dates;
-    // the rare paths that genuinely need the PEM bytes (e.g.
-    // archive export staging) call [loadAll] explicitly. The
-    // `try / on KeyStoreException` below collapses an FRB failure
-    // to an empty map so the UI list never throws on a transient
-    // backend miss.
+    // the rare archive-export staging path stays Rust-side.
+    // The `try / on KeyStoreException` below collapses an FRB
+    // failure to an empty map so the UI list never throws on a
+    // transient backend miss.
     Map<String, SshKeyMetadata> map;
     try {
       map = await loadAllMetadata();
@@ -60,43 +56,14 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     isGenerated: m.isGenerated,
   );
 
-  /// Drop the in-memory cache. Called from the unlock handshake so
-  /// the next read pulls fresh rows after the DB switches behind us.
-  ///
-  /// `ref.invalidateSelf()` is unconditional — the previous
-  /// `_attached` guard skipped the rebuild whenever the provider
-  /// had only ever served the metadata path (`build()` calls
-  /// `loadAllMetadata`, which never sets `_attached`). The skip
-  /// was the symptom behind "Failed to load key metadata: db not
-  /// initialized" surviving the post-DB-open invalidate: the
-  /// rebuild that would have re-loaded against the now-open DB
-  /// never fired.
+  /// Drop the in-memory state and re-run `build()`. Called from
+  /// the unlock handshake so the next read pulls fresh rows after
+  /// the DB switches behind us — the rebuild fires unconditionally
+  /// to defend the prior "Failed to load key metadata: db not
+  /// initialized" cold-start race where a stale cache survived the
+  /// post-DB-open invalidate.
   void invalidateCache() {
-    _cache = null;
     ref.invalidateSelf();
-  }
-
-  /// Load all stored keys with PEM bytes attached. Throws on FRB
-  /// failure. Reserved for the export-tile path that genuinely needs
-  /// the private material (size estimator + the actual archive /
-  /// QR encoder). Every other consumer must go through
-  /// [loadAllMetadata] so the Dart heap doesn't pin PEM bytes for
-  /// keys nobody is actively using.
-  Future<Map<String, SshKeyEntry>> loadAll() async {
-    if (_cache != null) return Map.of(_cache!);
-    try {
-      final rows = await rust_db.dbSshKeysListAll();
-      final result = {for (final r in rows) r.id: _fromRow(r)};
-      _cache = result;
-      return Map.of(result);
-    } catch (e) {
-      AppLogger.instance.log(
-        'Failed to load keys',
-        name: 'SshKeysNotifier',
-        error: e,
-      );
-      throw KeyStoreException('Failed to load keys.', cause: e);
-    }
   }
 
   /// List every stored key without pulling its PEM bytes. Returns
@@ -106,10 +73,10 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
   ///
   /// Call this from any path that needs *which keys exist* but not
   /// *what's in them* (key manager listing, import dedup,
-  /// existing-id checks). The PEM-bearing [loadAll] stays in place
-  /// for the rare paths that genuinely need the bytes (e.g. `.lfs`
-  /// archive export, before the export orchestrator moves Rust-
-  /// side).
+  /// existing-id checks). Paths that genuinely need PEM bytes call
+  /// `dbSshKeysListAll` directly via FRB — the bytes never get
+  /// pinned on a Dart-side cache so a stale Notifier copy can't
+  /// drift from the canonical Rust DB row.
   Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
     try {
       final rows = await rust_db.dbSshKeysListMetadata();
@@ -154,7 +121,6 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     try {
       final rows = keys.values.map(_toRow).toList(growable: false);
       await rust_db.dbSshKeysReplaceAll(rows: rows);
-      _cache = Map.of(keys);
     } catch (e) {
       AppLogger.instance.log(
         'SshKeysNotifier.saveAll failed: $e',
@@ -169,7 +135,6 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
   Future<void> save(SshKeyEntry entry) async {
     try {
       await rust_db.dbSshKeysUpsert(row: _toRow(entry));
-      _cache?[entry.id] = entry;
     } catch (e) {
       AppLogger.instance.log(
         'SshKeysNotifier.save failed: $e',
@@ -191,7 +156,6 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
         level: LogLevel.warn,
       );
     }
-    _cache?.remove(id);
     ref.invalidateSelf();
   }
 
@@ -219,16 +183,6 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
   /// ref (config importer, ssh-dir wizard) can hit the same parser.
   Future<SshKeyEntry> importKey(String pem, String label) =>
       importSshKey(pem, label);
-
-  static SshKeyEntry _fromRow(rust_db.DbSshKey r) => SshKeyEntry(
-    id: r.id,
-    label: r.label,
-    privateKey: r.privateKey,
-    publicKey: r.publicKey,
-    keyType: r.keyType,
-    createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
-    isGenerated: r.isGenerated,
-  );
 
   static rust_db.DbSshKey _toRow(SshKeyEntry e) => rust_db.DbSshKey(
     id: e.id,
