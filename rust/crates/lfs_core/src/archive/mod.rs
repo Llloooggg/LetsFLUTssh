@@ -10,9 +10,12 @@
 //! - Stored-mode ZIP carrying named entries (manifest.json,
 //!   sessions.json, keys.json, …).
 //! - Optional outer encryption: `LFSE` magic (4) + version byte
-//!   (`0x02` = Argon2id) + KdfParams (algorithm id + memory KiB +
-//!   iters + parallelism, 10 bytes for Argon2id) + 32-byte salt +
-//!   12-byte IV + AES-256-GCM ciphertext.
+//!   (`0x03` = Argon2id with header-bound AAD; new exports emit
+//!   this) + KdfParams (algorithm id + memory KiB + iters +
+//!   parallelism, 10 bytes for Argon2id) + 32-byte salt + 12-byte
+//!   IV + AES-256-GCM ciphertext. Legacy `0x02` envelopes (empty
+//!   AAD) are still accepted on read for backwards compatibility;
+//!   see [`envelope`] for the version-dispatch contract.
 //!
 //! # Boundary contract
 //!

@@ -39,7 +39,7 @@ The remaining backlog (high to low priority, with concrete next-step pointers):
 Style contract — the doc stays useful only if it matches the codebase:
 
 - File paths are live, line numbers are a hint (refresh before acting).
-- DB/archive schema bumps name a `SchemaVersions` constant; those bumps are **mandatory together with a registered migration** — see `docs/ARCHITECTURE.md` §3.6 → "Migration framework" + `lib/core/migration/registry.dart` / `archive_registry.dart`.
+- DB/archive schema bumps name a `SchemaVersions` constant; those bumps are **mandatory together with a registered migration** — see `docs/ARCHITECTURE.md` §3.6 → "Migration framework" + `rust/crates/lfs_core/src/migration/registry.rs`. `.lfs` archives carry their own `schema_version` field and route through future-version rejection in `lfs_core::archive::read_archive_to_pending` — no separate Dart-side archive registry exists.
 - Every user-facing string lands in **all 15 ARBs** (`lib/l10n/app_*.arb`). Keys listed per feature are the English source; the implementer translates.
 - Every non-UI change ships with unit tests; UI changes ship with widget tests.
 - Cross-platform: Android change → also iOS; Windows → also Linux + macOS.
@@ -338,7 +338,7 @@ Order is tuned to ship the largest pain-points first, keep crypto/security-sensi
 Use this as a PR template — anything missing is a rejected PR:
 
 - [ ] New table / column → `lfs_core::db::SCHEMA_SQL` updated with idempotent `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`, `SCHEMA_VERSION` bumped, covered by a Rust unit test under `rust/crates/lfs_core/src/db/`. Format-envelope changes (config.json, credentials.kdf, hardware vault blobs) go through the `lfs_core::migration` framework — see ARCHITECTURE §3.6 → Migration framework.
-- [ ] Archive artefact format changes → new migration in `lib/core/migration/artefacts/`, registered in `archive_registry.dart`, `SchemaVersions.archive` bumped, cross-version roundtrip test.
+- [ ] On-disk artefact format changes (config.json, credentials.kdf, security_pass_hash.bin, hardware_vault_salt.bin) → new `Migration` impl in `rust/crates/lfs_core/src/migration/artefacts.rs`, registered in `lfs_core::migration::registry::build_app_registry`, matching `SchemaVersions::*` constant bumped, chain test in `migration/registry.rs`. `.lfs` archives carry their own `schema_version` and reject newer-version inputs in `lfs_core::archive::read_archive_to_pending` — no archive-registry slot.
 - [ ] User-facing strings in **all 15** ARBs.
 - [ ] ARCHITECTURE.md section updated **in the same commit** (how + why both).
 - [ ] Unit tests + widget tests.

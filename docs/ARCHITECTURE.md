@@ -181,7 +181,7 @@ lib/
 ├── core/                             # Business logic (no Flutter imports)
 │   ├── bus/                          # `AppBus` — Dart-side wrapper over the FRB bus subscription. Single global event hub the prompt listeners and notifiers subscribe to.
 │   ├── db/                           # Thin Dart shim — schema + DAOs live Rust-side under `lfs_core::db` (rusqlite + bundled SQLCipher 4.x)
-│   │   ├── rust_db_init.dart         # `dbInit(key)` / `dbClose()` FRB wrappers
+│   │   ├── rust_db_init.dart         # `lfsCoreDbExists` (existence probe) / `verifyRustDbReadable` (post-unlock SELECT probe) / `ensureRustDbOpen({key, secretId})` (Rust handle bring-up). `dbClose` is invoked directly through the FRB-bridged `lib/src/rust/api/app.dart` shim from auto-lock + the controller.
 │   │   ├── mappers.dart              # Domain ↔ FRB DTO conversion (folder path↔tree, session row↔model)
 │   │   └── _folder_path_compat.dart  # Folder-path resolver used by the import path
 │   ├── ssh/                          # SSH client, config, TOFU, errors
@@ -666,7 +666,7 @@ Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column (added in
 
 #### SessionNotifier — FRB-backed persistence
 
-All session data (including credentials) is stored in a single SQLite database opened Rust-side via `rusqlite` + bundled SQLCipher 4.x (AES-256-CBC + HMAC-SHA512). Encryption happens at the DB level — stores never manage encryption themselves; the Dart notifier reads / writes through the FRB DAO surface in `lib/src/rust/api/db/`.
+All session data (including credentials) is stored in a single SQLite database opened Rust-side via `rusqlite` + bundled SQLCipher 4.x (AES-256-CBC + HMAC-SHA512). Encryption happens at the DB level — stores never manage encryption themselves; the Dart notifier reads / writes through the FRB DAO surface in `lib/src/rust/api/db.dart`.
 
 ```dart
 class SessionNotifier {
@@ -1299,11 +1299,11 @@ All calls are wrapped in try/catch; a failed hardening call never blocks startup
 
 * *Core dumps* — covered on every POSIX target (prctl + setrlimit on Linux/Android, ptrace PT_DENY_ATTACH + setrlimit on macOS). Windows WER is disabled for the process via SetErrorMode. No gap.
 * *Ptrace attach* — Linux requires `CAP_SYS_PTRACE` after `PR_SET_DUMPABLE, 0`; macOS blocked via `PT_DENY_ATTACH`; Windows equivalent is covered by the WER disable + the debugger-detection Windows already surfaces. No gap.
-* *mlock coverage* — every long-lived DB/crypto secret (`SecurityStateNotifier`'s current DB key, `MasterPasswordManager.verifyAndDerive` intermediate, `ExportImport._encryptWithPassword` / `_decryptWithPassword` Argon2id-derived keys) lives in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) that `mlock`s / `VirtualLock`s the page. Short-lived values routed through the Dart heap (password entry `TextEditingController`, `Uint8List` arguments to factories) are unavoidable without a wholesale isolate rewrite; the `SecretBuffer.fromBytes` call at every entry point zeros the source after copy.
+* *mlock coverage* — every long-lived DB/crypto secret either stays Rust-side in the page-locked `SecretStore` (the orchestrator-staged DB key handed across FRB by id, the `verifyAndDeriveToSecret` SecretRef variant of master-password derive, every export/import Argon2id-derived key the Rust archive path materialises) or, when the bytes must cross into Dart for legacy callers, lands in a [`SecretBuffer`](../lib/core/security/secret_buffer.dart) that `mlock`s / `VirtualLock`s the page. The unlock dialogs route exclusively through the SecretRef path — `verifyAndDeriveToSecret` stages the derived key inside `SecretStore` and the listener consumes it via `secrets_take`, so the AES bytes never appear on the Dart heap. Short-lived values routed through the Dart heap (password entry `TextEditingController`, `Uint8List` arguments to FRB factories) are unavoidable without a wholesale isolate rewrite; the `SecretBuffer.fromBytes` call at every legacy entry point zeros the source after copy.
 
 * *Password marshalling — `Uint8List` end-to-end.* Every FRB hop that takes a user-typed password (master-password `enable` / `verify_and_derive` / `change`, keychain-gate `set_password` / `verify`, tier orchestrator `unlock_keychain_with_password` / `unlock_paranoid` / `first_launch_*_password`) signs as `Vec<u8>` Rust-side and `Uint8List` Dart-side. The dialog's `TextEditingController.text` lands as a `String` once, gets converted via `Uint8List.fromList(utf8.encode(text))` inside the verify / submit closure, and the `String` becomes GC-eligible the moment that closure returns. Best practical bound given Dart's heap-immutable `String` semantics — the typed value can still appear in a heap dump during the dialog's lifetime, but the post-dialog GC reclaims it cleanly without the previous "password lives on the heap until the next major GC pass" tail.
 * *Stack canaries* — the Dart VM + `flutter` engine are compiled with `-fstack-protector-strong` by upstream; the project does not link any native code of its own that would opt out. No action.
-* *Isolate cross-talk* — Dart isolates have isolated heaps by design; the project uses one secondary isolate (`MasterPasswordManager.verifyAndDerive` spawns a short-lived isolate for Argon2id) and explicitly disposes its secret buffers before the isolate terminates. No cross-talk surface.
+* *Isolate cross-talk* — Dart isolates have isolated heaps by design; the project itself spawns no secondary Dart isolate for crypto. Argon2id (master-password verify/derive, export/import key derivation, change-password rotation) runs Rust-side under `tokio::task::spawn_blocking` inside the FRB worker pool, so the wall-clock cost stays off the Dart UI isolate without exposing a second Dart heap to manage. No cross-talk surface.
 * *Android manifest debuggable flag* — Flutter release builds set `debuggable=false` by default via Gradle; the project never overrides it. No action.
 
 Any finding that would have been expensive (signing / anti-tamper, runtime integrity checks, syscall filtering) is deliberately out of scope — the threat model is a lost device / hostile same-UID process, not a kernel-level attacker.
@@ -1870,8 +1870,10 @@ class ConfigNotifier {
 
 | Version | Wire-shape change | Migration |
 |---|---|---|
-| **v1** | Implicit floor — pre-cutover installs have no `config_schema_version` field; `ConfigArtefact::read_version` reports them as v1 so the upgrade path doesn't trigger a reset. `security_probe_cache` is omitted on `None`, present (object) on `Some`. | — |
-| **v2** (current) | `security_probe_cache` is always emitted as an explicit value — either an object or `null`. Distinguishes "never probed" from "probed-but-empty" on round-trip; the v1 writer collapsed both shapes by omitting the field. | `ConfigV1ToV2` (`lfs_core::migration::artefacts`): inserts `security_probe_cache: null` when missing, stamps `config_schema_version: 2`, writes via `path::write_bytes_atomic`. |
+| **v1** | Implicit floor — installs without the `config_schema_version` field are reported as v1 by `ConfigArtefact::read_version` so the upgrade path doesn't trigger a reset. `security_probe_cache` is omitted on `None`, present (object) on `Some`. | — |
+| **v2** | `security_probe_cache` is always emitted as an explicit value — either an object or `null`. Distinguishes "never probed" from "probed-but-empty" on round-trip; the v1 writer collapsed both shapes by omitting the field. | `ConfigV1ToV2` (`lfs_core::migration::artefacts`): inserts `security_probe_cache: null` when missing, stamps `config_schema_version: 2`, writes via `path::write_bytes_atomic`. |
+| **v3** | The security-tier model is fully bank-style: `security_tier` carries one of `{plaintext, keychain, hardware, paranoid}` and the `password` / `biometric` switches live in `security_modifiers`. v2 still carried `keychain_with_password` as its own tier value alongside the modifiers — half-finished migration from the per-combination enum shape. v3 finishes the collapse. | `ConfigV2ToV3` (`lfs_core::migration::artefacts`): rewrites `security_tier == "keychain_with_password"` to `tier == "keychain"` + `modifiers.password = true`, stamps `config_schema_version: 3`, writes via `path::write_bytes_atomic`. |
+| **v4** (current) | Drops the legacy `biometric_shortcut` / `pin_length` fields from `security_modifiers`. Both were retained as backward-compat aliases after the bank-style password modifier landed; v4 retires them entirely (no runtime caller, deprecated 1:1 alias). | `ConfigV3ToV4` (`lfs_core::migration::artefacts`): removes the two fields from `security_modifiers` if present, stamps `config_schema_version: 4`, writes via `path::write_bytes_atomic`. Idempotent on already-stripped configs. |
 
 Bumping further follows the framework's [§3.6 → Bumping an existing artefact's format](#bumping-an-existing-artefacts-format) checklist — every step lives in one place so the next bump doesn't have to re-derive the contract.
 
@@ -2369,7 +2371,7 @@ When in doubt: the adapter contains *delegation* + Dart-shape adapters; orchestr
 
 `lfs_core` owns: SSH transport (`russh`), SFTP (`russh-sftp`), shell + direct-tcpip channels, port forward driver (`-L` / `-R` / `-D` + SOCKS5), ProxyJump primitive (`open_direct_tcpip`), ssh-agent client, SSH certificates, OpenSSH PEM + PuTTY PPK (v2 + v3 / Argon2id) import, AES-GCM / HKDF / Argon2id / Ed25519 / SHA-256 envelopes, `.lfs` archive encrypt/decrypt/apply, QR codec, rusqlite + SQLCipher 4.x DB, sessions registry, known-hosts + TOFU, log sanitiser, OpenSSH config grammar, update orchestrator, master-password verify, tier state machine, persisted rate-limit, config store actor, recorder ring buffer, auto-lock state machine, file-system local + remote, transfer queue, migration framework.
 
-`lfs_os_security` owns: keychain (Apple `security-framework`, Linux `secret-service`, Windows `CredReadW`/`CredWriteW`, Android `java.security.KeyStore` via JNI), biometric (`LAContext`, `UserConsentVerifier`, Linux `fprintd` D-Bus, Android `BiometricPrompt`), hardware vault (Apple Secure Enclave, Android StrongBox JNI, Windows still on a CNG MethodChannel pending Rust port), session lock listener (Linux logind, macOS `NSDistributedNotificationCenter`, Windows `WTSRegisterSessionNotification`), secure clipboard (per-OS sensitive-flag markers), backup exclusion (Apple `NSURLIsExcludedFromBackupKey`), process hardening (`prctl` / `ptrace` / `SetErrorMode`), debug-state probe.
+`lfs_os_security` owns: keychain (Apple `security-framework`, Linux `secret-service`, Windows `CredReadW`/`CredWriteW`, Android `java.security.KeyStore` via JNI), biometric (`LAContext`, `UserConsentVerifier`, Linux `fprintd` D-Bus, Android `BiometricPrompt`), hardware vault (Apple Secure Enclave, Android StrongBox JNI, Windows TPM 2.0 via NCrypt on the Microsoft Platform Crypto Provider), session lock listener (Linux logind, macOS `NSDistributedNotificationCenter`, Windows `WTSRegisterSessionNotification`), secure clipboard (per-OS sensitive-flag markers), backup exclusion (Apple `NSURLIsExcludedFromBackupKey`), process hardening (`prctl` / `ptrace` / `SetErrorMode`), debug-state probe.
 
 `lfs_frb` is the FRB adapter: typed Dart bindings under `lib/src/rust/`, opaque handle registry for long-lived Rust objects, FRB Streams over `tokio::sync::mpsc`. Adapter rule: marshal Dart-friendly types in, delegate to `lfs_core`, marshal results back. No `unsafe`, no business logic.
 
@@ -2949,7 +2951,14 @@ PanelLeaf → TabEntry → TerminalTab → SplitNode (internal pane tiling — u
 | `settings_dialogs.dart` | — | Dialog helpers (part of `settings_screen.dart`) |
 | `settings_logging.dart` | — | Logging section widgets (part of `settings_screen.dart`) |
 | `settings_widgets.dart` | — | Shared settings tiles/controls (part of `settings_screen.dart`) |
-| `settings_sections.dart` | — | Section-specific build methods (part of `settings_screen.dart`) |
+| `settings_sections_preferences.dart` | `_AppearanceSection`, terminal / connection / transfers tiles | Appearance + terminal + connection + transfers section widgets (part of `settings_screen.dart`) |
+| `settings_sections_security.dart` | `_SecuritySection` | Security-tier card, biometric toggle, known-hosts entry point (part of `settings_screen.dart`) |
+| `settings_sections_security_apply.dart` | — | Tier-apply pipeline: validates the wizard result, drives `_applyTierChange`, owns the rekey path (part of `settings_screen.dart`) |
+| `settings_sections_security_biometric.dart` | — | Biometric capture step before Apply: routes through `verifyAndDeriveToSecret` so the AES bytes never touch the Dart heap (part of `settings_screen.dart`) |
+| `settings_sections_security_macos.dart` | — | macOS-only Keychain enable / remove flow + the resign-required tail row (part of `settings_screen.dart`) |
+| `settings_sections_data.dart` | data-section tiles | Data section root — export/import row, QR row, support-dir row (part of `settings_screen.dart`) |
+| `settings_sections_data_export_import.dart` | `_ExportImportTile` | Export / import .lfs archives tile (part of `settings_screen.dart`) |
+| `settings_sections_updates.dart` | `_UpdateSection` | Auto-update preferences + manual check (part of `settings_screen.dart`) |
 | `known_hosts_manager.dart` | `KnownHostsManagerPanel`, `KnownHostsManagerDialog` | Known hosts management surface (search, delete, import, export, clear). Embeddable panel + thin dialog wrapper, same shape as the SSH-keys / snippets / tags managers. |
 | `export_import.dart` | — | Export/import .lfs archives (UI + logic) |
 | `tools/tools_dialog.dart` | `ToolsDialog` | Desktop full-screen modal — SSH Keys, Snippets, Tags, Known Hosts |
@@ -4526,7 +4535,7 @@ AppConfig {
 
 ### SQLite database — Rust-owned schema
 
-All application data is stored in a single SQLite database, opened Rust-side via `rusqlite` + bundled SQLCipher 4.x. Schema lives in `lfs_core::db::SCHEMA_SQL`; Dart reads / writes through the FRB DAO surface in `lib/src/rust/api/db/`:
+All application data is stored in a single SQLite database, opened Rust-side via `rusqlite` + bundled SQLCipher 4.x. Schema lives in `lfs_core::db::SCHEMA_SQL`; Dart reads / writes through the FRB DAO surface in `lib/src/rust/api/db.dart`:
 
 | Table | Purpose | Key relationships |
 |-------|---------|-------------------|
@@ -4677,7 +4686,7 @@ DAO functions without flipping signatures. Hot paths
 (`sessions::list_all`, `folders::list_all`, the per-id `get`
 forms) benefit most; one-shot startup queries are unchanged.
 
-The `bootstrap_schema` SCHEMA_VERSION + `PRAGMA user_version` machinery covers **only** intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework) (`core/migration/`), which runs on startup before `SecurityInitController.bootstrap` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: `lfs_core::db::bootstrap_schema` owns the schema inside the DB, the migration framework owns the file-format envelope around it. The framework registers a presence-only `db_artefact` (it does not parse the DB) so the DB still surfaces in the runner's dependency graph; a schema mismatch surfaces as a SQLCipher decrypt failure on `dbInit` and is routed via `DbCorruptDialog`.
+The `bootstrap_schema` SCHEMA_VERSION + `PRAGMA user_version` machinery covers **only** intra-DB column / table changes; it does **not** cover the on-disk envelope around the DB file or any other persisted artefact (`config.json`, `credentials.kdf`, `.lfs` archives). Those go through the typed [Migration framework](#migration-framework) (`lfs_core::migration`), which runs on startup before `SecurityInitController.bootstrap` for filesystem artefacts and at import time for `.lfs` archives. The two are intentionally separate: `lfs_core::db::bootstrap_schema` owns the schema inside the DB, the migration framework owns the file-format envelope around it. `letsflutssh.db` itself is **not** registered with the framework — the framework only walks artefacts whose version is queryable without invoking a platform OS-API, and the DB cipher key arrives via the unlocked tier far later in startup. A schema mismatch instead surfaces as a SQLCipher decrypt failure on `ensureRustDbOpen` (the first read after unlock) and is routed via `DbCorruptDialog`.
 
 ### Uninstall behavior
 
@@ -4695,7 +4704,7 @@ User data lives **outside** the install directory in `getApplicationSupportDirec
 ### Store → FRB DAO pattern
 
 Each Dart store wraps an FRB-generated DAO under
-`lib/src/rust/api/db/`. The Riverpod notifier reads / writes
+`lib/src/rust/api/db.dart`. The Riverpod notifier reads / writes
 through `dbInit(...)` once on unlock; subsequent reads /
 writes hop into Rust via `tokio::task::spawn_blocking` so the
 FRB worker thread is never blocked on disk I/O. Mappers
@@ -4848,6 +4857,14 @@ _mainBody (synchronous, pre-runApp — PURE DART):
 **Invariant — STRICT.** No code reachable from `_mainBody` synchronously, from any Dart `Notifier.build()` triggered during the first runApp pass, or from any `initState` of the widgets that mount during the first frame may call into FRB. The check is mechanical: nothing on those paths imports `package:letsflutssh/src/rust/...` (with the narrow exception of save-side code that runs only post-bootstrap, e.g. `AppConfig.toJson` → `rust_config.configAppConfigToJson`). The pure-Dart pipeline produces canonical results for healthy `config.json` content because every sub-config's `fromJson` factory calls its own `.sanitized()` clamp pipeline (clamp out-of-range numbers, fall through unknown enum names to defaults).
 
 **Why the invariant exists.** Pre-FRB FRB calls throw `StateError("flutter_rust_bridge has not been initialized")`, and when those throws hit the cold-start path the failure modes were ugly: the zone error handler in `main.dart` itself called FRB-backed helpers (e.g. `formatClockHms` for log timestamps), so an FRB-not-init in the path under test would re-trip in the handler and swallow the original error; `MainScreen.initState` wiring `*PromptListener.start()` → `AppBus.subscribe` left dead `_SharedTopic` entries that never recovered to live FRB subscriptions; `AppConfig.fromJson` → `rust_config.configAppConfigSanitizeJson` raced the native lib load and on the losing race silently overwrote the on-disk config with defaults; the unlock cascade hung for minutes when one of its FRB-backed steps fired pre-init and the retry loop kept re-entering the same throw. Every one of these shipped at some point as a real bug. The fix is structural — keep every cold-start surface pure Dart so the deferral is safe by construction, not by scattered `RustLib.instance.initialized` guards that get forgotten.
+
+**Dart-side I/O carve-out — narrow, named, justified.** Rust owns persistent state and platform I/O everywhere except this fixed list, where the cold-start invariant or a Flutter-only primitive forces a Dart-side touch. New Dart-side filesystem / OS-API call sites outside this list are regressions. Every entry runs without holding secret material:
+
+* **Pre-FRB config read** — [`loadAppConfigFromDisk`](../lib/providers/config_provider.dart) reads `config.json` via `dart:io` + `jsonDecode` before `RustLib.init()`, because the splash threshold + locale + theme depend on its content. Sub-configs run their own `.sanitized()` clamp pipeline; FRB-backed `configAppConfigSanitizeJson` re-runs post-init for parity. Corrupt JSON throws `AppConfigParseException` → fatal-error screen, never silent-rewrites.
+* **Pre-FRB fatal wipe** — [`earlyWipeAppSupportFiles`](../lib/app/early_wipe.dart) is the bottom of the recovery ladder when `RustLib.init()` itself fails (the native blob is the broken artefact). Pure-Dart sweep of the same catalogue `lfs_core::security::wipe::MANAGED_FILES` declares; the canonical `WipeAllService.wipeAll()` runs Rust-side once FRB is healthy, so this path is reached only when the Rust-side path is unreachable. Keychain / hardware-vault orphans left behind resurface on the next launch and route through `_handleLegacyStateIfPresent` → `TierResetDialog` for proper cleanup.
+* **Cold-start logger sink** — [`AppLogger`](../lib/utils/logger.dart) opens its append-only file at `<appSupport>/logs/letsflutssh.log` via `dart:io` so the splash + pre-FRB error handlers have a destination before native code loads. The file-permission tighten is FRB (`lfs_core::path::harden_file_perms`); pre-FRB calls queue the path in `_deferredHardenPaths` and `_LetsFLUTsshAppState._bootstrap` drains the set via `AppLogger.hardenPendingLogPerms()` immediately after `_initRustCoreOrFatal`.
+* **Single-instance lock** — `flock` (Linux/macOS) / `CreateMutexW` (Windows) live in the native shell, **not** Dart. The Dart side does not race for the lock at all; this entry is included so the mental map of "what touches OS state on cold-start" stays complete.
+* **`path_provider` resolution** — `getApplicationSupportDirectory()` is the only platform-channel call the Dart side keeps, because `lfs_core` is OS-FFI-free by design. Resolved paths cross FRB to Rust shims (`recorder_list_recordings`, `update_orchestrator::cleanup_stale_downloads`, archive read paths) so disk walks themselves stay Rust-side.
 
 **How to add a new pre-runApp step.** Use only `dart:io`, `dart:convert`, `path_provider`, `package:flutter/foundation`. Importing anything under `lib/src/rust/` from a file reachable on the cold-start path is a regression — fail loud at review.
 
@@ -5045,7 +5062,7 @@ Export decrypts known_hosts via `KnownHostsNotifier.exportToString()`. Import re
 
 Sessions are serialized with credentials via `toJsonWithCredentials()`. Empty folders are stored as a JSON array of folder paths. Manager keys, tags (with session/folder assignments), and snippets (with session links) are each stored in separate JSON files inside the ZIP archive (see [§3.9](#39-import-coreimport) for full file list).
 
-The archive also carries a `manifest.json` with `schema_version` (current: `ExportImport.currentSchemaVersion`, sourced from `SchemaVersions.archive`), optional `app_version`, and `created_at`. Archives whose `schema_version` is missing, malformed, or does not match the current build are rejected with `UnsupportedLfsVersionException` — the user re-exports from the current app version. Future format bumps ship a `Migration` registered in `lib/core/migration/archive_registry.dart` (see §3.7) instead of a permanent read-only fallback.
+The archive also carries a `manifest.json` with `schema_version` (current: `ExportImport.currentSchemaVersion`, a sync FRB getter that reads `lfs_core::migration::SchemaVersions::ARCHIVE`), optional `app_version`, and `created_at`. Archives whose `schema_version` is missing, malformed, or higher than the current build are rejected with `UnsupportedLfsVersionException` by `lfs_core::archive::read_archive_to_pending` — the user re-exports from the current app version. Archive format bumps ship a transform inside the Rust archive read path rather than a registered migration: archives are user-supplied import payloads, not on-disk persisted state, so the framework registry deliberately leaves the `ARCHIVE` slot unregistered (see [§3.6 → Migration framework](#migration-framework) → `build_app_registry` non-registration rationale).
 
 ### TOFU (Trust On First Use)
 
@@ -5227,11 +5244,11 @@ This provides:
 | `FileBrowserTab` | `sftpInitFactory` | Mock SFTP initialization |
 | `MobileFileBrowser` | `sftpInitFactory` | Mock SFTP initialization (mobile) |
 | `ForegroundServiceManager` | `create()` factory | Platform-specific impl |
-| `SecurityInitController` | `dbOpener`, `dbFileExists`, `verifyReadable`, `dialogPrompter`, `migrationRunner` | Bootstrap / unlock / first-launch / corruption / migration paths driven end-to-end in tests without touching real SQLite cipher or blocking on user-driven dialogs — see [Testing the controller](#testing-the-controller) below |
+| `SecurityInitController` | `dbFileExists`, `verifyReadable`, `dialogPrompter`, `migrationRunner` | Bootstrap / unlock / first-launch / corruption / migration paths driven end-to-end in tests without touching real SQLite cipher or blocking on user-driven dialogs — see [Testing the controller](#testing-the-controller) below |
 | `app/import_flow.dart` (top-level fns) | `ImportFlowSeams` ‒ `probeArchive` / `openArchive` / `dropHandle` / `applyHandle` / `showLfsDialog` / `showLinkPreviewDialog` | Drives `showLfsImportDialog` / `handleQrImport` / `handleQrImportSource` end-to-end without booting FRB or rendering a real password / preview dialog. Tests swap the bag via `debugSetImportFlowSeams(...)` (clear with `null` in `tearDown`) so they can assert on probe→open→apply→drop ordering and the handle-drop-on-failure invariant |
 | `BiometricAuth` (Linux) | `fprintdReachable`, `fprintdHasEnrolled`, `fprintdVerify`, `tpmAvailable` | Function-pointer seams override the four FRB calls into `lfs_core::platform::linux::{fprintd, tpm}` so unit tests drive the availability ladder + verify path + backing-level branch with deterministic answers, no real fprintd daemon and no `/dev/tpmrm0` |
 
-All seams are optional ctor params defaulting to the production function (`openDatabase`, `databaseFileExists`, `verifyDatabaseReadable`, `ProductionSecurityDialogPrompter()`, the FRB-bridged Rust migration runner via `lib/core/migration/migration_runner.dart` over `lfs_core::migration::registry::build_app_registry`). Prod call sites construct `SecurityInitController` without passing any of them — no behavioural drift from pre-seam code. The top-level dispatchers in `app/import_flow.dart` follow the same pattern with a process-wide `_seams = ImportFlowSeams.production()` that tests rebind via `debugSetImportFlowSeams`.
+All seams are optional ctor params defaulting to the production function (`lfsCoreDbExists`, `verifyRustDbReadable`, `ProductionSecurityDialogPrompter()`, and `runStartupMigrations` — the FRB-bridged Rust migration runner in `lib/core/migration/migration_runner.dart` driving `lfs_core::migration::registry::build_app_registry`). Prod call sites construct `SecurityInitController` without passing any of them — no behavioural drift from production. The top-level dispatchers in `app/import_flow.dart` follow the same pattern with a process-wide `_seams = ImportFlowSeams.production()` that tests rebind via `debugSetImportFlowSeams`.
 
 ### Platform overrides
 
@@ -5264,13 +5281,14 @@ No `mockito` / `mocktail` in the suite. Test doubles are hand-rolled subclasses 
 
 ### Testing the controller
 
-`SecurityInitController` orchestrates migrations → security init → DB open → readability probe across every tier (plaintext / keychain / keychain+password / hardware / paranoid). Unit tests drive the full chain under `tester.runAsync` through the five DI seams above:
+`SecurityInitController` orchestrates migrations → security init → DB open → readability probe across every tier (plaintext / keychain / keychain+password / hardware / paranoid). Unit tests drive the full chain under `tester.runAsync` through the four DI seams above:
 
-- `dbOpener` — swap `openDatabase` for `openTestDatabase`, so no MC-linked SQLite is required in `flutter test` (host sqlite has no cipher extension).
-- `dbFileExists` — script "existing install" vs "first launch" without touching the fake tmp dir.
-- `verifyReadable` — flip integrity-probe results per call, letting tests drive corruption → retry → wipe paths deterministically.
-- `dialogPrompter` — return canned `SecuritySetupResult` / `DbCorruptChoice` / `TierResetChoice` / tier-secret keys without rendering real dialogs, which would block on user interaction.
-- `migrationRunner` — throw, return a `MigrationReport` with fatal errors, or return one with `migratedCount > 0` — covers every branch of `_runMigrations` + `_handleMigrationFailure`.
+- `dbFileExists` — script "existing install" vs "first launch" without touching the fake tmp dir; defaults to `lfsCoreDbExists`.
+- `verifyReadable` — flip integrity-probe results per call, letting tests drive corruption → retry → wipe paths deterministically; defaults to `verifyRustDbReadable`.
+- `dialogPrompter` — return canned `SecuritySetupResult` / `DbCorruptChoice` / `TierResetChoice` / tier-secret keys without rendering real dialogs, which would block on user interaction; defaults to `ProductionSecurityDialogPrompter()`.
+- `migrationRunner` — throw, return a `MigrationReport` with fatal errors, or return one with `migratedCount > 0` — covers every branch of `_runMigrations` + `_handleMigrationFailure`; defaults to `runStartupMigrations` over the Rust registry.
+
+DB open + close go through `ensureRustDbOpen` / `dbClose` directly — these calls run inside the security flow rather than as injectable seams. Tests reach the unlock branches by pre-seeding `letsflutssh.db` in the fake tmp dir and asserting on the controller's flag transitions, not by swapping the open routine.
 
 Two paths remain out of reach at this layer and are deferred to higher-level harnesses:
 
@@ -5333,9 +5351,6 @@ Two layers of fuzz testing — **property-based** (random inputs on every PR, no
 | `fuzz_deeplink_test.dart` | `DeepLinkHandler.parseConnectUri()` | Random URIs |
 | `fuzz_format_test.dart` | `sanitizeError()`, `formatSize()`, `formatDuration()` | Random strings, errno patterns, objects |
 | `fuzz_openssh_config_parser_test.dart` | `parseOpenSshConfig()` | Random `~/.ssh/config` snippets (wildcards, `Include`, malformed directives) |
-| `fuzz_export_import_parsers_test.dart` | `.lfs` archive parser + key-bundle extraction | Random binary payloads |
-| `aes_gcm_fuzz_test.dart` | `AesGcm.encrypt/decrypt` round-trip | Random keys + plaintexts + tampered ciphertexts |
-| `master_password_fuzz_test.dart` | Master-password derivation path | Random passphrases + KDF params |
 | `parsers_fuzz_test.dart` | Shared `basic` / integer / bool parsers | Random strings + typed overflows |
 | `sanitize_fuzz_test.dart` | `sanitizeErrorMessage()` | Random strings (path redaction, IP redaction) |
 

@@ -14,7 +14,7 @@ The codebase splits across three layers:
 - **`lib/core/<domain>/`** — pure Dart logic + thin FRB shims for the Rust core. Models, mappers, DAO wrappers. No widgets.
 - **`lib/features/<feature>/`** — UI: screens, dialogs, widgets. Consume `core/` through Riverpod providers in `lib/providers/`.
 
-Persistence runs through the FRB DAO surface in `lib/src/rust/api/db/`; the Rust schema lives in `lfs_core::db::SCHEMA_SQL` and is bootstrapped on every DB open. Dart never holds a SQLite handle directly. See [ARCHITECTURE §11 Persistence](ARCHITECTURE.md#11-persistence--storage).
+Persistence runs through the FRB DAO surface in `lib/src/rust/api/db.dart`; the Rust schema lives in `lfs_core::db::SCHEMA_SQL` and is bootstrapped on every DB open. Dart never holds a SQLite handle directly. See [ARCHITECTURE §11 Persistence](ARCHITECTURE.md#11-persistence--storage).
 
 Strings live in `lib/l10n/app_*.arb` (one file per locale, 15 total). The `S.of(context)` getter is generated from `app_en.arb`.
 
