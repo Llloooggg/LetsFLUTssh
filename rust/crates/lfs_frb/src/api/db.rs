@@ -876,6 +876,40 @@ pub async fn db_known_hosts_import_from_string(
     .map_err(|e| format!("known-hosts import task: {e}"))?
 }
 
+/// Read `path` from disk (UTF-8) and dispatch to
+/// [`db_known_hosts_import_from_string`]. The Rust I/O keeps the
+/// raw bytes out of the Dart heap on the way to the parser, so a
+/// curl-piped `~/.ssh/known_hosts` import never materialises in
+/// the FRB layer twice. Returns the same summary the string-shape
+/// import does. Missing file = `Ok(empty summary)` — matches the
+/// Dart-era `importFromFile` contract.
+pub async fn db_known_hosts_import_from_path(
+    path: String,
+    now_ms: i64,
+) -> Result<DbKnownHostsImportSummary, String> {
+    tokio::task::spawn_blocking(move || {
+        let p = std::path::Path::new(&path);
+        let content = match std::fs::read_to_string(p) {
+            Ok(s) => s,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(DbKnownHostsImportSummary {
+                    added: 0,
+                    skipped_existing: 0,
+                    skipped_hashed: 0,
+                });
+            }
+            Err(e) => return Err(format!("read {path}: {e}")),
+        };
+        let app = lfs_core::app::instance();
+        let db = app.db().ok_or_else(|| "db not initialized".to_string())?;
+        lfs_core::known_hosts::import_from_string(&db, &app.bus, &content, now_ms)
+            .map(DbKnownHostsImportSummary::from)
+            .map_err(|e| crate::api::frb_err::from_core(&e))
+    })
+    .await
+    .map_err(|e| format!("known-hosts import task: {e}"))?
+}
+
 /// Render every known-hosts row to the LetsFLUTssh wire format
 /// (`host:port keytype base64key` per line). Used by `.lfs`
 /// archive export.

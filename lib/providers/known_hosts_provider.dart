@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -210,12 +209,36 @@ class KnownHostsNotifier extends Notifier<Map<String, String>> {
   /// Import entries from a LetsFLUTssh-format known_hosts file.
   ///
   /// Returns the number of new entries added (existing hosts are
-  /// skipped).
+  /// skipped). The file read happens Rust-side so the raw bytes
+  /// never cross the FRB boundary into the Dart heap.
   Future<int> importFromFile(String path) async {
-    final file = File(path);
-    if (!await file.exists()) return 0;
-    final content = await file.readAsString();
-    return importFromString(content);
+    try {
+      final summary = await rust_db.dbKnownHostsImportFromPath(
+        path: path,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      );
+      if (summary.added > 0) {
+        AppLogger.instance.log(
+          'Imported ${summary.added} known hosts',
+          name: 'KnownHosts',
+        );
+      }
+      if (summary.skippedHashed > 0) {
+        AppLogger.instance.log(
+          'Skipped ${summary.skippedHashed} hashed known_hosts entries',
+          name: 'KnownHosts',
+          level: LogLevel.warn,
+        );
+      }
+      return summary.added;
+    } catch (e) {
+      AppLogger.instance.log(
+        'importFromFile failed: $e',
+        name: 'KnownHosts',
+        level: LogLevel.warn,
+      );
+      return 0;
+    }
   }
 
   /// Import entries from a multi-line known_hosts blob. Routes

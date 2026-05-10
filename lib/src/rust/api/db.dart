@@ -266,6 +266,21 @@ Future<DbKnownHostsImportSummary> dbKnownHostsImportFromString({
   nowMs: nowMs,
 );
 
+/// Read `path` from disk (UTF-8) and dispatch to
+/// [`db_known_hosts_import_from_string`]. The Rust I/O keeps the
+/// raw bytes out of the Dart heap on the way to the parser, so a
+/// curl-piped `~/.ssh/known_hosts` import never materialises in
+/// the FRB layer twice. Returns the same summary the string-shape
+/// import does. Missing file = `Ok(empty summary)` — matches the
+/// Dart-era `importFromFile` contract.
+Future<DbKnownHostsImportSummary> dbKnownHostsImportFromPath({
+  required String path,
+  required PlatformInt64 nowMs,
+}) => RustLib.instance.api.crateApiDbDbKnownHostsImportFromPath(
+  path: path,
+  nowMs: nowMs,
+);
+
 /// Render every known-hosts row to the LetsFLUTssh wire format
 /// (`host:port keytype base64key` per line). Used by `.lfs`
 /// archive export.
