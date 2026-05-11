@@ -391,7 +391,7 @@ impl Db {
 /// `snippets`, `sftp_bookmarks`) — see
 /// [`bootstrap_schema`] for the per-table ALTER step, and
 /// `ARCHITECTURE.md §11` for the soft-delete contract.
-pub const SCHEMA_VERSION: i32 = 3;
+pub const SCHEMA_VERSION: i32 = 4;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -448,6 +448,16 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
                 add_deleted_at_column(conn, table)?;
             }
         }
+        // v1/v2/v3 → v4: rebuild `tags` to drop the inline
+        // `UNIQUE` on `name`. A tombstoned tag holds the name
+        // until purge, which blocked recreating a same-named tag
+        // and would have broken the sync-merge replay path.
+        // SQLite cannot DROP a column-level UNIQUE without a
+        // table rebuild. Fresh installs (`current == 0`) get the
+        // new shape from `SCHEMA_SQL` directly and skip this arm.
+        if (1..4).contains(&current) {
+            rebuild_tags_without_inline_unique(conn)?;
+        }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
             .map_err(|e| Error::Db(format!("bootstrap schema: stamp user_version: {e}")))?;
@@ -460,6 +470,60 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
     // schema/index ordering invariant straightforward: column
     // always lands first.
     create_tombstone_indexes(conn)?;
+    // Partial unique on `tags(name) WHERE deleted_at IS NULL` so
+    // a tombstoned tag does not block a same-named recreate. Also
+    // idempotent; runs unconditionally on every bootstrap so a
+    // fresh install picks it up alongside the rebuilt-on-upgrade
+    // case.
+    create_partial_unique_indexes(conn)?;
+    Ok(())
+}
+
+/// Rebuild the `tags` table to drop the inline `UNIQUE(name)`
+/// constraint. The CREATE TABLE statement at module scope already
+/// emits the new shape; this helper applies the same change to
+/// an existing v1/v2/v3 database. Follows the SQLite-documented
+/// "12-step table-rebuild" recipe: disable foreign keys, BEGIN,
+/// CREATE new, copy, DROP old, RENAME, foreign-key check, COMMIT,
+/// re-enable foreign keys. Run inside `bootstrap_schema` under
+/// the version gate, so this is a one-time hop per install.
+fn rebuild_tags_without_inline_unique(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            r#"
+            PRAGMA foreign_keys = OFF;
+            BEGIN TRANSACTION;
+            CREATE TABLE tags_new (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                color TEXT,
+                created_at INTEGER NOT NULL,
+                deleted_at INTEGER NULL
+            );
+            INSERT INTO tags_new (id, name, color, created_at, deleted_at)
+                SELECT id, name, color, created_at, deleted_at FROM tags;
+            DROP TABLE tags;
+            ALTER TABLE tags_new RENAME TO tags;
+            COMMIT;
+            PRAGMA foreign_keys = ON;
+            "#,
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: rebuild tags: {e}")))?;
+    Ok(())
+}
+
+/// Partial-unique indexes that need to land after `bootstrap_schema`
+/// stabilises the column shape. Currently one entry: `tags.name`
+/// constrained to live (non-tombstoned) rows so deleting and
+/// recreating a same-named tag works without touching the purge
+/// queue.
+fn create_partial_unique_indexes(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_live \
+             ON tags(name) WHERE deleted_at IS NULL",
+        )
+        .map_err(|e| Error::Db(format!("bootstrap schema: index tags.name (live): {e}")))?;
     Ok(())
 }
 
@@ -596,7 +660,7 @@ CREATE TABLE IF NOT EXISTS app_configs (
 
 CREATE TABLE IF NOT EXISTS tags (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     color TEXT,
     created_at INTEGER NOT NULL,
     deleted_at INTEGER NULL
@@ -773,6 +837,13 @@ mod tests {
         // (sqlite3 >= 3.35.0). The rewind stamp drops the
         // version back to v2 so the upgrade arm runs again.
         bootstrap_schema(&conn).unwrap();
+        // The partial-unique index on `tags(name)` references
+        // `deleted_at`; SQLite refuses the column drop while the
+        // index references it. Drop it first; the post-bootstrap
+        // run recreates it via `create_partial_unique_indexes`.
+        conn.inner()
+            .execute_batch("DROP INDEX IF EXISTS idx_tags_name_live")
+            .unwrap();
         for table in TOMBSTONE_TABLES {
             conn.inner()
                 .execute_batch(&format!("DROP INDEX IF EXISTS idx_{table}_deleted_at"))

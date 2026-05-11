@@ -58,13 +58,12 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &TagRow) -> Result<(), Error
 /// Soft-delete a single tag by id. Flips `deleted_at` to
 /// `now_unix_ms()` so a sync-merge can replay the removal.
 ///
-/// **Known limit.** The schema's `UNIQUE(name)` constraint is
-/// not partial — a tombstoned tag keeps its name reserved, so a
-/// fresh tag created with the same name surfaces a UNIQUE
-/// violation. The sync teardown
-/// ([`purge_tombstones`]) clears the slot; the operator-facing
-/// "delete then recreate same-name tag" loop is the case to
-/// watch when the sync layer (`§8b`) lands.
+/// The partial unique index `idx_tags_name_live` constrains
+/// `name` only on live (`deleted_at IS NULL`) rows, so a tombstoned
+/// tag does not block recreating a fresh tag with the same name.
+/// The slot stays reserved against duplicate live entries; the
+/// tombstone clears physically through [`purge_tombstones`] on the
+/// sync teardown path.
 pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
     let now_ms = now_unix_ms();
     conn.raw()
@@ -407,5 +406,43 @@ mod tombstone_tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].id, "t1");
         assert!(raw_deleted_at(&db, "t1").is_none());
+    }
+
+    /// Pin the partial-unique contract: a tombstoned tag does not
+    /// reserve its name against a fresh insert with a different id.
+    /// Live duplicates still surface the unique violation.
+    #[test]
+    fn partial_unique_name_allows_recreate_after_tombstone() {
+        let db = db();
+        seed(&db, "first", "prod");
+        db.with_conn(|c| delete(c, "first")).unwrap();
+        // Different id, same name — must succeed because the
+        // tombstone does not hold the live-slot reservation.
+        seed(&db, "second", "prod");
+        let rows = db.with_conn(list_all).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, "second");
+        assert_eq!(rows[0].name, "prod");
+    }
+
+    #[test]
+    fn partial_unique_name_rejects_two_live_duplicates() {
+        let db = db();
+        seed(&db, "first", "prod");
+        // Second live row with the same name violates the partial
+        // unique index — the seed helper unwraps, so flip the
+        // call to capture the Err shape.
+        let res = db.with_conn(|c| {
+            upsert(
+                c,
+                &TagRow {
+                    id: "second".into(),
+                    name: "prod".into(),
+                    color: None,
+                    created_at_ms: 0,
+                },
+            )
+        });
+        assert!(res.is_err(), "expected partial-unique violation");
     }
 }

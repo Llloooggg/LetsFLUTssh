@@ -4776,12 +4776,12 @@ are excluded today: folders cascade-clean via session FKs and
 port forwards are owned 1-to-1 by their session row. `known_hosts`
 stays per-device.
 
-**Known limit.** `tags.name` is `UNIQUE`. A tombstoned tag keeps
-its name reserved, so the user-facing "delete `prod` tag, then
-recreate `prod`" loop surfaces a `UNIQUE constraint failed: tags.name`
-error until `purge_tombstones` removes the slot. The WebDAV-sync
-merge step is the natural place to resolve this — until then the
-loop is a known sharp edge.
+**`tags.name` uniqueness is partial.** A `CREATE UNIQUE INDEX
+idx_tags_name_live ON tags(name) WHERE deleted_at IS NULL` keeps
+the live-row constraint without reserving the name across
+tombstones, so the "delete `prod`, recreate `prod`" loop works
+immediately. The pre-v4 inline `UNIQUE(name)` column constraint
+was dropped via a one-time table rebuild on bootstrap.
 
 **Performance indexes are baked into the schema.**
 `bootstrap_schema` issues `CREATE INDEX IF NOT EXISTS` for every
