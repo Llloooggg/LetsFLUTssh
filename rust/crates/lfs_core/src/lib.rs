@@ -68,6 +68,12 @@ pub mod snippet_template;
 pub mod ssh;
 pub mod ssh_config;
 pub mod ssh_dir_scan;
+// `storage` is the backend-agnostic byte-store abstraction
+// (`Provider` trait + `SftpProvider`). No FRB consumer yet — the
+// dispatcher lands with the second backend (S3, WebDAV). Stays
+// `pub` because the items are public API of the crate and the
+// next commit wires them into `lfs_frb::api::storage`.
+pub mod storage;
 pub mod threat_eval;
 pub mod transfer;
 pub mod transfer_conflict;

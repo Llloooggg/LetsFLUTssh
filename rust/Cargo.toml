@@ -180,9 +180,18 @@ zbus = { version = "5", default-features = false, features = ["tokio"] }
 # mint Session / SshKeyEntry ids. v4 is the only feature we use.
 uuid = { version = "1", default-features = false, features = ["v4"] }
 # `StreamExt` on the zbus signal stream + serde derive paths the
-# fprintd shim's verify cycle uses.
-futures-util = { version = "0.3", default-features = false }
+# fprintd shim's verify cycle uses. The `alloc` feature unlocks
+# `BoxStream` / `LocalBoxStream`, which the `storage::Provider` trait
+# returns from its streaming GET / PUT methods so the dispatcher can
+# hold `Arc<dyn Provider>` without naming each backend's concrete
+# stream type.
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
 serde = { version = "1", default-features = false }
+# Zero-copy byte buffer used by the `storage::Provider` streaming
+# methods. Already in the dep tree via hyper / h2 / reqwest — we
+# re-declare so `lfs_core` can name `bytes::Bytes` directly without
+# depending on a transitive crate's resolution.
+bytes = "1"
 # Cross-platform dynamic library loader. Used by
 # `lfs_os_security::winbio` (Windows-only) to dynamic-load
 # `winbio.dll` so the crate still builds on Windows hosts

@@ -59,6 +59,13 @@ regex = { workspace = true }
 reqwest = { workspace = true }
 futures-util = { workspace = true }
 uuid = { workspace = true }
+# Zero-copy byte buffer for the storage provider abstraction's
+# streaming surface (`Provider::get_stream` / `put_stream` in
+# `lfs_core::storage`). `bytes::Bytes` is the de-facto exchange type
+# for byte streams in the async Rust ecosystem (hyper / tokio /
+# reqwest), so backends that wrap an HTTP client (S3, WebDAV) can
+# forward chunks without an extra copy.
+bytes = { workspace = true }
 
 # Linux-only D-Bus client for the fprintd shim under
 # `platform::linux::fprintd`. The TSS2 ESAPI binding (`tss-esapi`)

@@ -501,6 +501,23 @@ class RemoteFS implements FileSystem { ... }   // wraps RustSftpFs; dirSize capp
 
 **Why an interface.** `FilePaneController` works identically with local and remote panes; tests substitute fakes by injecting a different `FileSystem`. New backends (e.g. WebDAV) plug into the same surface without touching the file-browser UI.
 
+#### Storage provider abstraction (Rust-side, `lfs_core::storage`)
+
+The Dart-side `FileSystem` keeps the local-vs-remote split inside the file browser; the Rust-side `storage::Provider` trait does the same job one layer down, behind the FRB boundary, for non-SFTP backends that need a Rust-native client (S3 over `aws-sigv4` + `reqwest`, WebDAV over PROPFIND / MKCOL / MOVE). The trait factors out the surface every byte-store offers — list, stat, mkdir, remove, rename, streamed GET, streamed PUT, recursive directory size — so the dispatcher that fans an FRB call out to the right backend can hold an `Arc<dyn Provider>` keyed by `(connection_id, kind)` instead of branching on enum tags at every call site.
+
+| Type | Purpose |
+|------|---------|
+| `lfs_core::storage::Provider` (trait) | The eight async methods above, each returning `Pin<Box<dyn Future<...> + Send + 'a>>` so the trait stays dyn-compatible (native async-fn-in-traits would not be object-safe under the dispatcher's `Arc<dyn Provider>` shape). |
+| `lfs_core::storage::Entry` | One directory entry — `name`, absolute `path`, `kind: EntryKind`, `size_bytes`, `modified_unix_ms`. |
+| `lfs_core::storage::EntryKind` | `File` / `Dir` / `Symlink`. Symlink wins over dir in the mapping so the remove walker treats a symlink-to-dir as a link and unlinks it instead of recursing the target. |
+| `lfs_core::storage::Metadata` | Same shape as `Entry` minus name + path — returned by `stat`. |
+| `lfs_core::storage::ByteStream` | Type alias for `BoxStream<'static, Result<Bytes, Error>>` — `get_stream` returns one, `put_stream` consumes one. Per-chunk `Result` so mid-stream transport drops surface inline. |
+| `lfs_core::storage::sftp::SftpProvider` | `Provider` impl that delegates every method to the existing `lfs_core::sftp::Sftp` engine. Holds the engine through `Arc` so streams returned by `get_stream` keep it alive while the caller pumps chunks. |
+
+`SftpProvider` is a thin wrapper: type mapping at the boundary (russh-sftp's `DirEntry` / `FileMetadata` ↔ `Entry` / `Metadata`, including the seconds-to-milliseconds conversion on mtimes), and stat-first dispatch inside `remove` so the uniform trait surface stays uniform without splitting into `remove_file` / `remove_dir`. The streaming GET seeks once when a byte range is supplied (inclusive on both ends, matching HTTP `Range: bytes=start-end`) and yields 64 KiB chunks via `SftpFile::read_into`; the streaming PUT pumps chunks into the open handle and fsyncs at the end. `dir_size` walks the tree depth-first with the same 100-level depth cap as `Sftp::remove_dir_recursive` so a cyclic symlink tree fails fast.
+
+The FRB surface for SFTP stays unchanged with this layer in place — provider polymorphism becomes visible at the FRB / Dart layer when the second backend (S3, WebDAV) lands and the dispatcher routes by id.
+
 ---
 
 ### 3.3 Transfer Queue (`core/transfer/`)

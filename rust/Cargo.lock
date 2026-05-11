@@ -1808,6 +1808,7 @@ dependencies = [
  "argon2",
  "async-channel",
  "base64",
+ "bytes",
  "ed25519-dalek",
  "flate2",
  "futures-util",
