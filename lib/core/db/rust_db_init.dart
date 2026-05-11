@@ -100,11 +100,10 @@ Future<void> ensureRustDbOpen({Uint8List? key, String? secretId}) async {
     final dir = await getApplicationSupportDirectory();
     mark('support_dir');
     final path = p.join(dir.path, _rustDbFileName);
-    final file = File(path);
-    if (!await file.exists()) {
-      await file.create(recursive: true);
-    }
-    mark('file_create');
+    // `dbInit` / `dbInitFromSecret` route through
+    // `lfs_core::db::Connection::open` which mkdir's the parent
+    // directory and lets SQLite create the file itself; the Rust
+    // path is the single owner of the on-disk handle.
     await hardenFilePerms(path);
     mark('harden_perms');
     if (secretId != null) {

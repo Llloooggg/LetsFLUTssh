@@ -61,7 +61,20 @@ pub struct Connection {
 impl Connection {
     /// Open a fresh handle to `path`. Internal — `Db::open` is the
     /// production entry point + handles the SQLCipher PRAGMAs.
+    ///
+    /// Creates the parent directory if missing. `rusqlite::Connection::open`
+    /// surfaces a parent-missing failure as a generic `unable to open
+    /// database file` error; the mkdir step keeps the contract single-call
+    /// for every caller (production `db_init` / `db_init_from_secret` and
+    /// test fixtures alike).
     pub(crate) fn open(path: &Path) -> Result<Self, rusqlite::Error> {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    rusqlite::Error::InvalidPath(parent.join(format!("create_dir_all: {e}")))
+                })?;
+            }
+        }
         Ok(Self {
             inner: rusqlite::Connection::open(path)?,
         })
