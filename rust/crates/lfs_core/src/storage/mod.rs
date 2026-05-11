@@ -47,6 +47,7 @@ use futures_util::stream::BoxStream;
 use crate::error::Error;
 
 pub mod sftp;
+pub mod webdav;
 // pub mod s3; — placeholder; the S3 backend lands in a separate commit.
 
 /// One directory entry returned by [`Provider::list`].
