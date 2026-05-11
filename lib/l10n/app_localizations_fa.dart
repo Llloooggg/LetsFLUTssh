@@ -2372,6 +2372,61 @@ class SFa extends S {
   String get resetAllDataFailed => 'بازنشانی ناموفق بود';
 
   @override
+  String get recordingsTitle => 'ضبط‌ها';
+
+  @override
+  String get recordingsStorageUsedLabel => 'استفاده‌شده';
+
+  @override
+  String get recordingsCapLabel => 'سقف';
+
+  @override
+  String get recordingsCapHint =>
+      'سقف سخت برای پوشهٔ recordings/. هنگام عبور، قدیمی‌ترین ضبط ابتدا حذف می‌شود؛ ضبط جاری هرگز دست‌کاری نمی‌شود.';
+
+  @override
+  String get recordingsClearAllAction => 'پاک کردن همهٔ ضبط‌ها';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'همهٔ ضبط‌ها پاک شود؟';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'هر سشن ضبط‌شده در <app>/recordings/ حذف خواهد شد. ضبط در حال انجام (در صورت وجود) باقی می‌ماند. این عمل قابل بازگشت نیست.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count ضبط حذف شد';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'سقف به‌روزرسانی شد. $bytes آزاد شد.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'سقف به‌روزرسانی شد. چیزی برای حذف نیست.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'قفل خودکار نیازمند رمز عبور در سطح فعلی است.';
 

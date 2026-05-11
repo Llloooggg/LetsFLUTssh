@@ -2422,6 +2422,60 @@ class SEn extends S {
   String get resetAllDataFailed => 'Reset failed';
 
   @override
+  String get recordingsTitle => 'Recordings';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Storage used';
+
+  @override
+  String get recordingsCapLabel => 'Cap';
+
+  @override
+  String get recordingsCapHint =>
+      'Hard cap on the recordings/ folder. Oldest recording deleted first when exceeded; the live recording is never touched.';
+
+  @override
+  String get recordingsClearAllAction => 'Clear all recordings';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Clear all recordings?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Every recorded session under <app>/recordings/ will be deleted. The recording currently in progress (if any) stays. This action cannot be undone.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return 'Removed $count recordings';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Cap updated. Reclaimed $bytes.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => 'Cap updated. Nothing to evict.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'Auto-lock requires a password on the active tier.';
 

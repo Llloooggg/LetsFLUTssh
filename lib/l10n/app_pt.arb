@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "Redefinindo…",
   "resetAllDataDone": "Todos os dados redefinidos",
   "resetAllDataFailed": "Falha ao redefinir",
+  "recordingsTitle": "Gravações",
+  "recordingsStorageUsedLabel": "Em uso",
+  "recordingsCapLabel": "Limite",
+  "recordingsCapHint": "Limite rígido para a pasta recordings/. Ao exceder, a gravação mais antiga é apagada primeiro; a gravação em andamento nunca é tocada.",
+  "recordingsClearAllAction": "Apagar todas as gravações",
+  "recordingsClearAllConfirmTitle": "Apagar todas as gravações?",
+  "recordingsClearAllConfirmBody": "Toda sessão gravada em <app>/recordings/ será apagada. A gravação em andamento (se houver) permanece. Esta ação não pode ser desfeita.",
+  "recordingsClearAllResult": "{count} gravações removidas",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Limite atualizado. {bytes} liberados.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Limite atualizado. Nada para remover.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "ATUAL",
   "paranoidAlternativeHeader": "ALTERNATIVA",
   "modifierPasswordLabel": "Senha",

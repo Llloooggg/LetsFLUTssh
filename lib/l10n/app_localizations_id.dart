@@ -2386,6 +2386,61 @@ class SId extends S {
   String get resetAllDataFailed => 'Reset gagal';
 
   @override
+  String get recordingsTitle => 'Recordings';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Terpakai';
+
+  @override
+  String get recordingsCapLabel => 'Cap';
+
+  @override
+  String get recordingsCapHint =>
+      'Hard cap untuk folder recordings/. Saat terlampaui, recording terlama dihapus dulu; recording yang sedang berjalan tidak pernah disentuh.';
+
+  @override
+  String get recordingsClearAllAction => 'Hapus semua recordings';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Hapus semua recordings?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Setiap session yang direkam di bawah <app>/recordings/ akan dihapus. Recording yang sedang berjalan (jika ada) tetap. Aksi ini tidak bisa dibatalkan.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count recordings dihapus';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Cap diperbarui. $bytes dibebaskan.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Cap diperbarui. Tidak ada yang dihapus.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'Kunci otomatis memerlukan kata sandi pada tier aktif.';
 

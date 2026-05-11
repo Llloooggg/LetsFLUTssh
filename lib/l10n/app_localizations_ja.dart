@@ -2330,6 +2330,60 @@ class SJa extends S {
   String get resetAllDataFailed => 'リセットに失敗しました';
 
   @override
+  String get recordingsTitle => '録画';
+
+  @override
+  String get recordingsStorageUsedLabel => '使用中';
+
+  @override
+  String get recordingsCapLabel => '上限';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ フォルダのハードリミット。超過時は最も古い録画から削除されます。録画中のファイルは削除されません。';
+
+  @override
+  String get recordingsClearAllAction => 'すべての録画を削除';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'すべての録画を削除しますか？';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ 配下の録画セッションがすべて削除されます。録画中のファイル（ある場合）は残ります。この操作は取り消せません。';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count 件の録画を削除しました';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return '上限を更新しました。$bytes を解放しました。';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => '上限を更新しました。削除対象はありません。';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword => '自動ロックにはアクティブな階層にパスワードが必要です。';
 
   @override

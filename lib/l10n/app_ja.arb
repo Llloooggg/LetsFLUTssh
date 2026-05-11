@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "リセット中…",
   "resetAllDataDone": "すべてのデータをリセットしました",
   "resetAllDataFailed": "リセットに失敗しました",
+  "recordingsTitle": "録画",
+  "recordingsStorageUsedLabel": "使用中",
+  "recordingsCapLabel": "上限",
+  "recordingsCapHint": "recordings/ フォルダのハードリミット。超過時は最も古い録画から削除されます。録画中のファイルは削除されません。",
+  "recordingsClearAllAction": "すべての録画を削除",
+  "recordingsClearAllConfirmTitle": "すべての録画を削除しますか？",
+  "recordingsClearAllConfirmBody": "<app>/recordings/ 配下の録画セッションがすべて削除されます。録画中のファイル（ある場合）は残ります。この操作は取り消せません。",
+  "recordingsClearAllResult": "{count} 件の録画を削除しました",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "上限を更新しました。{bytes} を解放しました。",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "上限を更新しました。削除対象はありません。",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "現在",
   "paranoidAlternativeHeader": "代替",
   "modifierPasswordLabel": "パスワード",

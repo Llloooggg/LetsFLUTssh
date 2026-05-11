@@ -2311,6 +2311,60 @@ class SZh extends S {
   String get resetAllDataFailed => '重置失败';
 
   @override
+  String get recordingsTitle => '录制';
+
+  @override
+  String get recordingsStorageUsedLabel => '已用';
+
+  @override
+  String get recordingsCapLabel => '上限';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ 目录的硬上限。超出时优先删除最旧的录制；当前正在写入的录制不会被删除。';
+
+  @override
+  String get recordingsClearAllAction => '清除所有录制';
+
+  @override
+  String get recordingsClearAllConfirmTitle => '清除所有录制？';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ 下的每个录制会话都将被删除。当前正在录制（如果有）会保留。此操作无法撤销。';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '已删除 $count 个录制';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return '上限已更新。已释放 $bytes。';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => '上限已更新。无需清理。';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword => '自动锁定需要在当前等级上设置密码。';
 
   @override

@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "Đang đặt lại…",
   "resetAllDataDone": "Đã đặt lại toàn bộ dữ liệu",
   "resetAllDataFailed": "Đặt lại thất bại",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "Đã dùng",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "Hard cap cho thư mục recordings/. Khi vượt, recording cũ nhất bị xoá trước; recording đang chạy không bao giờ bị động đến.",
+  "recordingsClearAllAction": "Xoá toàn bộ recordings",
+  "recordingsClearAllConfirmTitle": "Xoá toàn bộ recordings?",
+  "recordingsClearAllConfirmBody": "Mọi session đã ghi dưới <app>/recordings/ sẽ bị xoá. Recording đang chạy (nếu có) vẫn còn. Hành động này không thể hoàn tác.",
+  "recordingsClearAllResult": "Đã xoá {count} recordings",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap đã cập nhật. Giải phóng {bytes}.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap đã cập nhật. Không có gì để xoá.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "HIỆN TẠI",
   "paranoidAlternativeHeader": "THAY THẾ",
   "modifierPasswordLabel": "Mật khẩu",

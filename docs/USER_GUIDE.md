@@ -380,6 +380,15 @@ Per-session terminal output + input capture, encrypted at rest, playable in-app 
 4. **Speed dropdown:** `1×` / `2×` / `4×` / **Instant** (jump to final frame).
 5. **Trash** on a row → delete the file.
 
+### Storage management
+
+Settings → Data → **Recordings** shows the current `<appSupport>/recordings/` usage and lets you change the hard cap or wipe everything.
+
+- **Cap presets:** 100 MiB / 250 MiB / 500 MiB / 1 GiB / 2 GiB / 5 GiB. Default 500 MiB.
+- **LRU eviction** runs automatically whenever a recording starts or finishes — once the tree exceeds the cap, oldest files (by mtime) are deleted until the total drops back under the cap. The recording currently in progress is never deleted.
+- **Clear all recordings** wipes every file under the recordings root in one go. The recording currently in progress (if any) is preserved.
+- Changing the cap to a smaller value triggers an immediate eviction sweep; the toast shows how much was reclaimed.
+
 ### Notes
 
 - **Quick-connect sessions don't record** — they have no stable session id, so the recorder skips.

@@ -2327,6 +2327,60 @@ class SKo extends S {
   String get resetAllDataFailed => '재설정 실패';
 
   @override
+  String get recordingsTitle => '녹화';
+
+  @override
+  String get recordingsStorageUsedLabel => '사용 중';
+
+  @override
+  String get recordingsCapLabel => '한도';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ 폴더에 대한 하드 한도. 초과 시 가장 오래된 녹화부터 삭제됩니다. 진행 중인 녹화는 절대 건드리지 않습니다.';
+
+  @override
+  String get recordingsClearAllAction => '모든 녹화 삭제';
+
+  @override
+  String get recordingsClearAllConfirmTitle => '모든 녹화를 삭제하시겠습니까?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ 아래의 모든 녹화 세션이 삭제됩니다. 현재 진행 중인 녹화(있는 경우)는 유지됩니다. 이 작업은 취소할 수 없습니다.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count개의 녹화를 삭제했습니다';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return '한도가 업데이트되었습니다. $bytes 확보됨.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => '한도가 업데이트되었습니다. 삭제할 대상이 없습니다.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword => '자동 잠금을 사용하려면 현재 티어에 비밀번호가 필요합니다.';
 
   @override

@@ -2404,6 +2404,60 @@ class SRu extends S {
   String get resetAllDataFailed => 'Не удалось выполнить сброс';
 
   @override
+  String get recordingsTitle => 'Записи';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Занято';
+
+  @override
+  String get recordingsCapLabel => 'Лимит';
+
+  @override
+  String get recordingsCapHint =>
+      'Жёсткий лимит на папку recordings/. При превышении первой удаляется самая старая запись; текущая запись не трогается.';
+
+  @override
+  String get recordingsClearAllAction => 'Удалить все записи';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Удалить все записи?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Каждая запись сессии в <app>/recordings/ будет удалена. Текущая запись (если есть) останется. Действие необратимо.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return 'Удалено записей: $count';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Лимит обновлён. Освобождено: $bytes.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange => 'Лимит обновлён. Удалять нечего.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'Для авто-блокировки нужен пароль на активном уровне.';
 

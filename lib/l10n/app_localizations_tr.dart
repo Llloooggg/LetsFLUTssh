@@ -2390,6 +2390,61 @@ class STr extends S {
   String get resetAllDataFailed => 'Sıfırlama başarısız';
 
   @override
+  String get recordingsTitle => 'Recordings';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Kullanılan';
+
+  @override
+  String get recordingsCapLabel => 'Cap';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ klasörüne uygulanan sert cap. Aşıldığında en eski recording önce silinir; sürmekte olan recording asla dokunulmaz.';
+
+  @override
+  String get recordingsClearAllAction => 'Tüm recordings\'i sil';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Tüm recordings silinsin mi?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ altındaki her kayıtlı oturum silinecek. Sürmekte olan recording (varsa) kalır. Bu işlem geri alınamaz.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count recording silindi';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Cap güncellendi. $bytes geri kazanıldı.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Cap güncellendi. Silinecek bir şey yok.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'Otomatik kilit, aktif katmanda bir parola gerektirir.';
 

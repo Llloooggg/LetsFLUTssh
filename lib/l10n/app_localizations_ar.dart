@@ -2388,6 +2388,61 @@ class SAr extends S {
   String get resetAllDataFailed => 'فشلت إعادة التعيين';
 
   @override
+  String get recordingsTitle => 'التسجيلات';
+
+  @override
+  String get recordingsStorageUsedLabel => 'المستخدم';
+
+  @override
+  String get recordingsCapLabel => 'الحد الأقصى';
+
+  @override
+  String get recordingsCapHint =>
+      'حد صارم على مجلد recordings/. عند التجاوز يُحذف أقدم تسجيل أولاً؛ التسجيل الجاري لا يُمَس أبداً.';
+
+  @override
+  String get recordingsClearAllAction => 'حذف كل التسجيلات';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'حذف كل التسجيلات؟';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'سيتم حذف كل جلسة مسجلة تحت <app>/recordings/. التسجيل الجاري حالياً (إن وُجد) يبقى. لا يمكن التراجع عن هذا الإجراء.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return 'تم حذف $count تسجيلاً';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'تم تحديث الحد الأقصى. تم تحرير $bytes.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'تم تحديث الحد الأقصى. لا شيء لحذفه.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'يتطلب القفل التلقائي كلمة مرور على المستوى الحالي.';
 

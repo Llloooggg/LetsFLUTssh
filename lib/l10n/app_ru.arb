@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "Сброс…",
   "resetAllDataDone": "Все данные сброшены",
   "resetAllDataFailed": "Не удалось выполнить сброс",
+  "recordingsTitle": "Записи",
+  "recordingsStorageUsedLabel": "Занято",
+  "recordingsCapLabel": "Лимит",
+  "recordingsCapHint": "Жёсткий лимит на папку recordings/. При превышении первой удаляется самая старая запись; текущая запись не трогается.",
+  "recordingsClearAllAction": "Удалить все записи",
+  "recordingsClearAllConfirmTitle": "Удалить все записи?",
+  "recordingsClearAllConfirmBody": "Каждая запись сессии в <app>/recordings/ будет удалена. Текущая запись (если есть) останется. Действие необратимо.",
+  "recordingsClearAllResult": "Удалено записей: {count}",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Лимит обновлён. Освобождено: {bytes}.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Лимит обновлён. Удалять нечего.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "ТЕКУЩИЙ",
   "paranoidAlternativeHeader": "АЛЬТЕРНАТИВА",
   "modifierPasswordLabel": "Пароль",

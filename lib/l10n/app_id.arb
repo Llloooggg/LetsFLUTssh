@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "Mereset…",
   "resetAllDataDone": "Semua data telah direset",
   "resetAllDataFailed": "Reset gagal",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "Terpakai",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "Hard cap untuk folder recordings/. Saat terlampaui, recording terlama dihapus dulu; recording yang sedang berjalan tidak pernah disentuh.",
+  "recordingsClearAllAction": "Hapus semua recordings",
+  "recordingsClearAllConfirmTitle": "Hapus semua recordings?",
+  "recordingsClearAllConfirmBody": "Setiap session yang direkam di bawah <app>/recordings/ akan dihapus. Recording yang sedang berjalan (jika ada) tetap. Aksi ini tidak bisa dibatalkan.",
+  "recordingsClearAllResult": "{count} recordings dihapus",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap diperbarui. {bytes} dibebaskan.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap diperbarui. Tidak ada yang dihapus.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "SAAT INI",
   "paranoidAlternativeHeader": "ALTERNATIF",
   "modifierPasswordLabel": "Kata sandi",

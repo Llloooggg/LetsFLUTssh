@@ -2383,6 +2383,61 @@ class SHi extends S {
   String get resetAllDataFailed => 'रीसेट विफल';
 
   @override
+  String get recordingsTitle => 'Recordings';
+
+  @override
+  String get recordingsStorageUsedLabel => 'उपयोग में';
+
+  @override
+  String get recordingsCapLabel => 'Cap';
+
+  @override
+  String get recordingsCapHint =>
+      'recordings/ फ़ोल्डर पर hard cap। पार होने पर सबसे पुरानी recording पहले हटाई जाती है; चालू recording को कभी नहीं छुआ जाता।';
+
+  @override
+  String get recordingsClearAllAction => 'सभी recordings हटाएँ';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'सभी recordings हटाएँ?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      '<app>/recordings/ के अंदर हर रिकॉर्ड की गई session हटा दी जाएगी। चालू recording (यदि कोई हो) बनी रहेगी। यह क्रिया वापस नहीं ली जा सकती।';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count recordings हटाई गईं';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Cap अपडेट हो गया। $bytes खाली हुआ।';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Cap अपडेट हो गया। हटाने के लिए कुछ नहीं।';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'ऑटो-लॉक के लिए सक्रिय टीयर पर पासवर्ड आवश्यक है।';
 

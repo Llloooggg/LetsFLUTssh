@@ -2371,6 +2371,61 @@ class SVi extends S {
   String get resetAllDataFailed => 'Đặt lại thất bại';
 
   @override
+  String get recordingsTitle => 'Recordings';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Đã dùng';
+
+  @override
+  String get recordingsCapLabel => 'Cap';
+
+  @override
+  String get recordingsCapHint =>
+      'Hard cap cho thư mục recordings/. Khi vượt, recording cũ nhất bị xoá trước; recording đang chạy không bao giờ bị động đến.';
+
+  @override
+  String get recordingsClearAllAction => 'Xoá toàn bộ recordings';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Xoá toàn bộ recordings?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Mọi session đã ghi dưới <app>/recordings/ sẽ bị xoá. Recording đang chạy (nếu có) vẫn còn. Hành động này không thể hoàn tác.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return 'Đã xoá $count recordings';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Cap đã cập nhật. Giải phóng $bytes.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Cap đã cập nhật. Không có gì để xoá.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'Tự động khóa yêu cầu mật khẩu trên bậc đang hoạt động.';
 

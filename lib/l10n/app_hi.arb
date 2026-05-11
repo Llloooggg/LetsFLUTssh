@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "रीसेट हो रहा है…",
   "resetAllDataDone": "सभी डेटा रीसेट हो गया",
   "resetAllDataFailed": "रीसेट विफल",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "उपयोग में",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "recordings/ फ़ोल्डर पर hard cap। पार होने पर सबसे पुरानी recording पहले हटाई जाती है; चालू recording को कभी नहीं छुआ जाता।",
+  "recordingsClearAllAction": "सभी recordings हटाएँ",
+  "recordingsClearAllConfirmTitle": "सभी recordings हटाएँ?",
+  "recordingsClearAllConfirmBody": "<app>/recordings/ के अंदर हर रिकॉर्ड की गई session हटा दी जाएगी। चालू recording (यदि कोई हो) बनी रहेगी। यह क्रिया वापस नहीं ली जा सकती।",
+  "recordingsClearAllResult": "{count} recordings हटाई गईं",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap अपडेट हो गया। {bytes} खाली हुआ।",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap अपडेट हो गया। हटाने के लिए कुछ नहीं।",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "वर्तमान",
   "paranoidAlternativeHeader": "विकल्प",
   "modifierPasswordLabel": "पासवर्ड",

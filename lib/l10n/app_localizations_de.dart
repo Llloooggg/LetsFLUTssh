@@ -2454,6 +2454,61 @@ class SDe extends S {
   String get resetAllDataFailed => 'Zurücksetzen fehlgeschlagen';
 
   @override
+  String get recordingsTitle => 'Aufnahmen';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Belegt';
+
+  @override
+  String get recordingsCapLabel => 'Limit';
+
+  @override
+  String get recordingsCapHint =>
+      'Hartes Limit für den Ordner recordings/. Beim Überschreiten wird die älteste Aufnahme zuerst gelöscht; die laufende Aufnahme bleibt unangetastet.';
+
+  @override
+  String get recordingsClearAllAction => 'Alle Aufnahmen löschen';
+
+  @override
+  String get recordingsClearAllConfirmTitle => 'Alle Aufnahmen löschen?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Jede aufgenommene Session unter <app>/recordings/ wird gelöscht. Die gerade laufende Aufnahme (falls vorhanden) bleibt erhalten. Diese Aktion kann nicht rückgängig gemacht werden.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count Aufnahmen entfernt';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Limit aktualisiert. $bytes freigegeben.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Limit aktualisiert. Nichts zu entfernen.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'Auto-Sperre erfordert ein Passwort auf der aktiven Stufe.';
 

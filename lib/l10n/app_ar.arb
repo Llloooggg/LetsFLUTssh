@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "جارٍ إعادة التعيين…",
   "resetAllDataDone": "تمت إعادة تعيين جميع البيانات",
   "resetAllDataFailed": "فشلت إعادة التعيين",
+  "recordingsTitle": "التسجيلات",
+  "recordingsStorageUsedLabel": "المستخدم",
+  "recordingsCapLabel": "الحد الأقصى",
+  "recordingsCapHint": "حد صارم على مجلد recordings/. عند التجاوز يُحذف أقدم تسجيل أولاً؛ التسجيل الجاري لا يُمَس أبداً.",
+  "recordingsClearAllAction": "حذف كل التسجيلات",
+  "recordingsClearAllConfirmTitle": "حذف كل التسجيلات؟",
+  "recordingsClearAllConfirmBody": "سيتم حذف كل جلسة مسجلة تحت <app>/recordings/. التسجيل الجاري حالياً (إن وُجد) يبقى. لا يمكن التراجع عن هذا الإجراء.",
+  "recordingsClearAllResult": "تم حذف {count} تسجيلاً",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "تم تحديث الحد الأقصى. تم تحرير {bytes}.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "تم تحديث الحد الأقصى. لا شيء لحذفه.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "الحالي",
   "paranoidAlternativeHeader": "بديل",
   "modifierPasswordLabel": "كلمة المرور",

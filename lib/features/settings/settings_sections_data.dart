@@ -17,7 +17,238 @@ class _DataSection extends ConsumerWidget {
         // read as part of the Export / Import flow directly above.
         _SectionHeader(title: S.of(context).dataStorageSection),
         const _DataPathTile(),
+        const _RecordingsStorageTile(),
         const _ResetAllDataTile(),
+      ],
+    );
+  }
+}
+
+/// Recordings storage usage + cap + clear-all entry inside the Data
+/// section. Reads usage on demand from `recorder_storage_used`,
+/// persists the cap through `recorder_set_storage_cap` (which also
+/// triggers an immediate eviction sweep Rust-side), and the
+/// destructive Clear-all action goes through `recorder_clear_all_recordings`.
+///
+/// Stateful so the post-confirm async flow can guard `mounted` and
+/// fan out the Rust call without leaking `BuildContext` across an
+/// `await`. Cap presets cover the realistic Recordings-folder span
+/// (100 MiB → 5 GiB) — finer-grained values gain nothing for a
+/// background-eviction setting, and a free-form numeric field would
+/// let users disable the sweep via a careless zero.
+class _RecordingsStorageTile extends ConsumerStatefulWidget {
+  const _RecordingsStorageTile();
+
+  @override
+  ConsumerState<_RecordingsStorageTile> createState() =>
+      _RecordingsStorageTileState();
+}
+
+class _RecordingsStorageTileState
+    extends ConsumerState<_RecordingsStorageTile> {
+  /// Cached `<appSupport>/recordings` so a follow-up clear-all / cap
+  /// change does not pay for a fresh `path_provider` round-trip. The
+  /// value is stable for the app lifetime.
+  String? _recordingsRoot;
+
+  /// Latest `recorder_storage_used()` reading; null while the first
+  /// snapshot is in flight. Refreshes after cap changes + clear-all
+  /// so the row reflects the actual on-disk total, not a stale
+  /// pre-eviction figure.
+  int? _usedBytes;
+
+  /// Set when the last `recorder_storage_used()` call threw. The
+  /// row still renders (with the cap dropdown intact) so a transient
+  /// disk hiccup does not strand the user with an unusable tile.
+  bool _usageReadFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshUsage());
+  }
+
+  Future<String> _resolveRoot() async {
+    final cached = _recordingsRoot;
+    if (cached != null) return cached;
+    final base = await getApplicationSupportDirectory();
+    final root = p.join(base.path, 'recordings');
+    _recordingsRoot = root;
+    return root;
+  }
+
+  Future<void> _refreshUsage() async {
+    try {
+      final root = await _resolveRoot();
+      final used = await rust_recorder.recorderStorageUsed(
+        recordingsRoot: root,
+      );
+      if (!mounted) return;
+      setState(() {
+        _usedBytes = used.toInt();
+        _usageReadFailed = false;
+      });
+    } catch (e) {
+      AppLogger.instance.log(
+        'Recordings storage usage read failed',
+        name: 'Recording',
+        error: e,
+        level: LogLevel.warn,
+      );
+      if (!mounted) return;
+      setState(() {
+        _usedBytes = null;
+        _usageReadFailed = true;
+      });
+    }
+  }
+
+  Future<void> _onCapChanged(int newCapBytes) async {
+    final l10n = S.of(context);
+    try {
+      final root = await _resolveRoot();
+      // Persist the new cap through the Rust config_store actor so
+      // the next launch already sees the new value. `update` on
+      // the Notifier debounces the disk write; `recorder_set_storage_cap`
+      // re-reads the canonical JSON and runs the eviction sweep.
+      await ref
+          .read(configProvider.notifier)
+          .update((c) => c.copyWith(recordingsStorageCapBytes: newCapBytes));
+      final outcome = await rust_recorder.recorderSetStorageCap(
+        recordingsRoot: root,
+        bytes: BigInt.from(newCapBytes),
+      );
+      await _refreshUsage();
+      if (!mounted) return;
+      final reclaimed = outcome.bytesReclaimed.toInt();
+      Toast.show(
+        context,
+        message: reclaimed > 0
+            ? l10n.recordingsCapChangedReclaimed(
+                rust_format.formatSizeIec(bytes: reclaimed),
+              )
+            : l10n.recordingsCapChangedNoChange,
+        level: ToastLevel.success,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Recordings cap change failed',
+        name: 'Recording',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: localizeError(l10n, e),
+        level: ToastLevel.error,
+      );
+    }
+  }
+
+  Future<void> _onClearAll() async {
+    final l10n = S.of(context);
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l10n.recordingsClearAllConfirmTitle,
+      content: Text(l10n.recordingsClearAllConfirmBody),
+      confirmLabel: l10n.recordingsClearAllAction,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      final root = await _resolveRoot();
+      final removed = await rust_recorder.recorderClearAllRecordings(
+        recordingsRoot: root,
+      );
+      await _refreshUsage();
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: l10n.recordingsClearAllResult(removed),
+        level: ToastLevel.success,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Recordings clear-all failed',
+        name: 'Recording',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: localizeError(l10n, e),
+        level: ToastLevel.error,
+      );
+    }
+  }
+
+  /// Cap presets cover the realistic span for a per-user recordings
+  /// folder. A free-form numeric field would let a careless 0 slip
+  /// through Rust's `AppConfig::sanitized` clamp back to the default
+  /// silently — the dropdown is a closed set and avoids that footgun.
+  List<AppPopupSelectOption<int>> _capOptions(S l10n) {
+    const mib = 1024 * 1024;
+    const gib = 1024 * 1024 * 1024;
+    return [
+      AppPopupSelectOption(
+        value: 100 * mib,
+        label: l10n.recordingsCapPreset100Mb,
+      ),
+      AppPopupSelectOption(
+        value: 250 * mib,
+        label: l10n.recordingsCapPreset250Mb,
+      ),
+      AppPopupSelectOption(
+        value: 500 * mib,
+        label: l10n.recordingsCapPreset500Mb,
+      ),
+      AppPopupSelectOption(value: gib, label: l10n.recordingsCapPreset1Gb),
+      AppPopupSelectOption(value: 2 * gib, label: l10n.recordingsCapPreset2Gb),
+      AppPopupSelectOption(value: 5 * gib, label: l10n.recordingsCapPreset5Gb),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = S.of(context);
+    final cap = ref.watch(recordingsStorageCapBytesProvider);
+    final used = _usedBytes;
+    final usedLabel = used == null
+        ? (_usageReadFailed ? '—' : '…')
+        : rust_format.formatSizeIec(bytes: used);
+    final capLabel = rust_format.formatSizeIec(bytes: cap);
+
+    // Resolve the dropdown value to the nearest preset so a
+    // hand-edited config.json that stamped an off-preset cap still
+    // displays a coherent selection without dropping the user's
+    // value.
+    final options = _capOptions(l10n);
+    final selectedCap = options
+        .map((o) => o.value)
+        .reduce((a, b) => (a - cap).abs() < (b - cap).abs() ? a : b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SettingsRow(
+          label: l10n.recordingsTitle,
+          subtitle: '$usedLabel / $capLabel',
+          icon: Icons.fiber_manual_record_outlined,
+          child: AppPopupSelect<int>(
+            value: selectedCap,
+            options: options,
+            onChanged: _onCapChanged,
+            leadingIcon: Icons.sd_storage_outlined,
+          ),
+        ),
+        _SettingsRow(
+          label: l10n.recordingsCapLabel,
+          subtitle: l10n.recordingsCapHint,
+          icon: Icons.delete_sweep_outlined,
+          child: AppButton.destructive(
+            label: l10n.recordingsClearAllAction,
+            onTap: _onClearAll,
+          ),
+        ),
       ],
     );
   }

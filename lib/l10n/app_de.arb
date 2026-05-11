@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "Wird zurückgesetzt…",
   "resetAllDataDone": "Alle Daten zurückgesetzt",
   "resetAllDataFailed": "Zurücksetzen fehlgeschlagen",
+  "recordingsTitle": "Aufnahmen",
+  "recordingsStorageUsedLabel": "Belegt",
+  "recordingsCapLabel": "Limit",
+  "recordingsCapHint": "Hartes Limit für den Ordner recordings/. Beim Überschreiten wird die älteste Aufnahme zuerst gelöscht; die laufende Aufnahme bleibt unangetastet.",
+  "recordingsClearAllAction": "Alle Aufnahmen löschen",
+  "recordingsClearAllConfirmTitle": "Alle Aufnahmen löschen?",
+  "recordingsClearAllConfirmBody": "Jede aufgenommene Session unter <app>/recordings/ wird gelöscht. Die gerade laufende Aufnahme (falls vorhanden) bleibt erhalten. Diese Aktion kann nicht rückgängig gemacht werden.",
+  "recordingsClearAllResult": "{count} Aufnahmen entfernt",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Limit aktualisiert. {bytes} freigegeben.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Limit aktualisiert. Nichts zu entfernen.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "AKTUELL",
   "paranoidAlternativeHeader": "ALTERNATIVE",
   "modifierPasswordLabel": "Passwort",

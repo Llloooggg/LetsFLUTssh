@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "در حال بازنشانی…",
   "resetAllDataDone": "همهٔ داده‌ها بازنشانی شدند",
   "resetAllDataFailed": "بازنشانی ناموفق بود",
+  "recordingsTitle": "ضبط‌ها",
+  "recordingsStorageUsedLabel": "استفاده‌شده",
+  "recordingsCapLabel": "سقف",
+  "recordingsCapHint": "سقف سخت برای پوشهٔ recordings/. هنگام عبور، قدیمی‌ترین ضبط ابتدا حذف می‌شود؛ ضبط جاری هرگز دست‌کاری نمی‌شود.",
+  "recordingsClearAllAction": "پاک کردن همهٔ ضبط‌ها",
+  "recordingsClearAllConfirmTitle": "همهٔ ضبط‌ها پاک شود؟",
+  "recordingsClearAllConfirmBody": "هر سشن ضبط‌شده در <app>/recordings/ حذف خواهد شد. ضبط در حال انجام (در صورت وجود) باقی می‌ماند. این عمل قابل بازگشت نیست.",
+  "recordingsClearAllResult": "{count} ضبط حذف شد",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "سقف به‌روزرسانی شد. {bytes} آزاد شد.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "سقف به‌روزرسانی شد. چیزی برای حذف نیست.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "فعلی",
   "paranoidAlternativeHeader": "جایگزین",
   "modifierPasswordLabel": "رمز عبور",

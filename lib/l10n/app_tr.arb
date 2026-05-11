@@ -776,6 +776,36 @@
   "resetAllDataInProgress": "Sıfırlanıyor…",
   "resetAllDataDone": "Tüm veriler sıfırlandı",
   "resetAllDataFailed": "Sıfırlama başarısız",
+  "recordingsTitle": "Recordings",
+  "recordingsStorageUsedLabel": "Kullanılan",
+  "recordingsCapLabel": "Cap",
+  "recordingsCapHint": "recordings/ klasörüne uygulanan sert cap. Aşıldığında en eski recording önce silinir; sürmekte olan recording asla dokunulmaz.",
+  "recordingsClearAllAction": "Tüm recordings'i sil",
+  "recordingsClearAllConfirmTitle": "Tüm recordings silinsin mi?",
+  "recordingsClearAllConfirmBody": "<app>/recordings/ altındaki her kayıtlı oturum silinecek. Sürmekte olan recording (varsa) kalır. Bu işlem geri alınamaz.",
+  "recordingsClearAllResult": "{count} recording silindi",
+  "@recordingsClearAllResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recordingsCapChangedReclaimed": "Cap güncellendi. {bytes} geri kazanıldı.",
+  "@recordingsCapChangedReclaimed": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "recordingsCapChangedNoChange": "Cap güncellendi. Silinecek bir şey yok.",
+  "recordingsCapPreset100Mb": "100 MiB",
+  "recordingsCapPreset250Mb": "250 MiB",
+  "recordingsCapPreset500Mb": "500 MiB",
+  "recordingsCapPreset1Gb": "1 GiB",
+  "recordingsCapPreset2Gb": "2 GiB",
+  "recordingsCapPreset5Gb": "5 GiB",
   "currentTierBadge": "GEÇERLİ",
   "paranoidAlternativeHeader": "ALTERNATİF",
   "modifierPasswordLabel": "Parola",

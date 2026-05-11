@@ -4215,6 +4215,102 @@ abstract class S {
   /// **'Reset failed'**
   String get resetAllDataFailed;
 
+  /// No description provided for @recordingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recordings'**
+  String get recordingsTitle;
+
+  /// No description provided for @recordingsStorageUsedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage used'**
+  String get recordingsStorageUsedLabel;
+
+  /// No description provided for @recordingsCapLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap'**
+  String get recordingsCapLabel;
+
+  /// No description provided for @recordingsCapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard cap on the recordings/ folder. Oldest recording deleted first when exceeded; the live recording is never touched.'**
+  String get recordingsCapHint;
+
+  /// No description provided for @recordingsClearAllAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all recordings'**
+  String get recordingsClearAllAction;
+
+  /// No description provided for @recordingsClearAllConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all recordings?'**
+  String get recordingsClearAllConfirmTitle;
+
+  /// No description provided for @recordingsClearAllConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every recorded session under <app>/recordings/ will be deleted. The recording currently in progress (if any) stays. This action cannot be undone.'**
+  String get recordingsClearAllConfirmBody;
+
+  /// No description provided for @recordingsClearAllResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {count} recordings'**
+  String recordingsClearAllResult(int count);
+
+  /// No description provided for @recordingsCapChangedReclaimed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap updated. Reclaimed {bytes}.'**
+  String recordingsCapChangedReclaimed(String bytes);
+
+  /// No description provided for @recordingsCapChangedNoChange.
+  ///
+  /// In en, this message translates to:
+  /// **'Cap updated. Nothing to evict.'**
+  String get recordingsCapChangedNoChange;
+
+  /// No description provided for @recordingsCapPreset100Mb.
+  ///
+  /// In en, this message translates to:
+  /// **'100 MiB'**
+  String get recordingsCapPreset100Mb;
+
+  /// No description provided for @recordingsCapPreset250Mb.
+  ///
+  /// In en, this message translates to:
+  /// **'250 MiB'**
+  String get recordingsCapPreset250Mb;
+
+  /// No description provided for @recordingsCapPreset500Mb.
+  ///
+  /// In en, this message translates to:
+  /// **'500 MiB'**
+  String get recordingsCapPreset500Mb;
+
+  /// No description provided for @recordingsCapPreset1Gb.
+  ///
+  /// In en, this message translates to:
+  /// **'1 GiB'**
+  String get recordingsCapPreset1Gb;
+
+  /// No description provided for @recordingsCapPreset2Gb.
+  ///
+  /// In en, this message translates to:
+  /// **'2 GiB'**
+  String get recordingsCapPreset2Gb;
+
+  /// No description provided for @recordingsCapPreset5Gb.
+  ///
+  /// In en, this message translates to:
+  /// **'5 GiB'**
+  String get recordingsCapPreset5Gb;
+
   /// No description provided for @autoLockRequiresPassword.
   ///
   /// In en, this message translates to:

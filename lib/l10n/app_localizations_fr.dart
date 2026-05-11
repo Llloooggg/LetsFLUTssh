@@ -2468,6 +2468,62 @@ class SFr extends S {
   String get resetAllDataFailed => 'Échec de la réinitialisation';
 
   @override
+  String get recordingsTitle => 'Enregistrements';
+
+  @override
+  String get recordingsStorageUsedLabel => 'Utilisé';
+
+  @override
+  String get recordingsCapLabel => 'Limite';
+
+  @override
+  String get recordingsCapHint =>
+      'Limite stricte sur le dossier recordings/. En cas de dépassement, le plus ancien enregistrement est supprimé en premier ; l\'enregistrement en cours n\'est jamais touché.';
+
+  @override
+  String get recordingsClearAllAction => 'Effacer tous les enregistrements';
+
+  @override
+  String get recordingsClearAllConfirmTitle =>
+      'Effacer tous les enregistrements ?';
+
+  @override
+  String get recordingsClearAllConfirmBody =>
+      'Chaque session enregistrée sous <app>/recordings/ sera supprimée. L\'enregistrement en cours (le cas échéant) reste. Cette action est irréversible.';
+
+  @override
+  String recordingsClearAllResult(int count) {
+    return '$count enregistrements supprimés';
+  }
+
+  @override
+  String recordingsCapChangedReclaimed(String bytes) {
+    return 'Limite mise à jour. $bytes libérés.';
+  }
+
+  @override
+  String get recordingsCapChangedNoChange =>
+      'Limite mise à jour. Rien à supprimer.';
+
+  @override
+  String get recordingsCapPreset100Mb => '100 MiB';
+
+  @override
+  String get recordingsCapPreset250Mb => '250 MiB';
+
+  @override
+  String get recordingsCapPreset500Mb => '500 MiB';
+
+  @override
+  String get recordingsCapPreset1Gb => '1 GiB';
+
+  @override
+  String get recordingsCapPreset2Gb => '2 GiB';
+
+  @override
+  String get recordingsCapPreset5Gb => '5 GiB';
+
+  @override
   String get autoLockRequiresPassword =>
       'Le verrouillage automatique nécessite un mot de passe sur le niveau actif.';
 
