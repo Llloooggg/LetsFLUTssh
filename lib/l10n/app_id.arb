@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Tipe session",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Username",
+  "webDavAuthMethod": "Metode auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Fingerprint sertifikat self-signed (opsional)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, kosongkan untuk pakai trust sistem",
+  "webDavCopyUrl": "Salin URL WebDAV",
+  "webDavOpenInBrowser": "Buka di browser",
+  "errWebDavAuthFailed": "Auth WebDAV gagal",
+  "errWebDavNotFound": "Path tidak ditemukan",
+  "errWebDavConflict": "Operasi bentrok dengan state saat ini",
+  "errWebDavGeneric": "Server WebDAV menolak request: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

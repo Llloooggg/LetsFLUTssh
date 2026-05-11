@@ -165,6 +165,7 @@ pub mod snippets;
 pub mod ssh_key_certificates;
 pub mod ssh_keys;
 pub mod tags;
+pub mod webdav_sessions;
 
 /// Owned handle to the app sqlite database. Wraps a single
 /// rusqlite Connection inside a Mutex so concurrent callers
@@ -390,8 +391,13 @@ impl Db {
 /// the five user-data tables (`sessions`, `ssh_keys`, `tags`,
 /// `snippets`, `sftp_bookmarks`) — see
 /// [`bootstrap_schema`] for the per-table ALTER step, and
-/// `ARCHITECTURE.md §11` for the soft-delete contract.
-pub const SCHEMA_VERSION: i32 = 4;
+/// `ARCHITECTURE.md §11` for the soft-delete contract. v4 drops
+/// the inline `UNIQUE(name)` on `tags` and replaces it with a
+/// partial-unique index gated on `deleted_at IS NULL`. v5 adds
+/// the `kind` column on `sessions` plus the `webdav_session_details`
+/// join table so WebDAV sessions can sit alongside SSH ones with
+/// per-kind configuration owned by a side table.
+pub const SCHEMA_VERSION: i32 = 5;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -457,6 +463,17 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         // new shape from `SCHEMA_SQL` directly and skip this arm.
         if (1..4).contains(&current) {
             rebuild_tags_without_inline_unique(conn)?;
+        }
+        // v1..v4 → v5: stamp `kind` on every existing session row.
+        // `ALTER TABLE` is additive — column lands with the
+        // schema default `'ssh'` for every backfilled row, which
+        // matches the wire value for the only kind that existed
+        // before this hop. `webdav_session_details` lands via
+        // `CREATE TABLE IF NOT EXISTS` in `SCHEMA_SQL` and needs
+        // no per-step ALTER. Fresh installs (`current == 0`) get
+        // the column directly from `SCHEMA_SQL` and skip this arm.
+        if (1..5).contains(&current) {
+            add_sessions_kind_column(conn)?;
         }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
@@ -553,6 +570,17 @@ fn add_deleted_at_column(conn: &Connection, table: &str) -> Result<(), Error> {
         .map_err(|e| Error::Db(format!("bootstrap schema: add {table}.deleted_at: {e}")))
 }
 
+/// Issue `ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'ssh'`.
+/// Called only on the v1..v4 → v5 upgrade hop. Same shape contract
+/// as [`add_deleted_at_column`] — duplicate column is an error in
+/// SQLite, so the gate plus one-shot keeps the bootstrap idempotent
+/// across re-runs.
+fn add_sessions_kind_column(conn: &Connection) -> Result<(), Error> {
+    conn.inner()
+        .execute_batch("ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'ssh'")
+        .map_err(|e| Error::Db(format!("bootstrap schema: add sessions.kind: {e}")))
+}
+
 /// Read the on-disk schema revision. Returns `0` for a freshly
 /// initialised DB that hasn't been bootstrapped yet (SQLite
 /// default for `user_version`); after [`bootstrap_schema`] it
@@ -616,6 +644,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     label TEXT NOT NULL DEFAULT '',
     folder_id TEXT,
+    kind TEXT NOT NULL DEFAULT 'ssh',
     host TEXT NOT NULL,
     port INTEGER NOT NULL DEFAULT 22,
     user TEXT NOT NULL,
@@ -640,6 +669,22 @@ CREATE TABLE IF NOT EXISTS sessions (
     FOREIGN KEY (key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL,
     FOREIGN KEY (via_session_id) REFERENCES sessions(id) ON DELETE SET NULL
 );
+
+-- WebDAV-specific configuration. Keyed by session id with ON DELETE
+-- CASCADE so removing a session physically purges its WebDAV row;
+-- soft-deletes on `sessions` leave this row in place until the
+-- sync-merge purge removes the parent. Password / bearer token is
+-- staged into the SecretStore under `session.webdav.<id>` rather
+-- than persisted alongside the URL.
+CREATE TABLE IF NOT EXISTS webdav_session_details (
+    session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    base_url TEXT NOT NULL,
+    username TEXT NOT NULL DEFAULT '',
+    auth_method TEXT NOT NULL,
+    self_signed_fingerprint TEXT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webdav_session_details_session_id
+    ON webdav_session_details(session_id);
 
 CREATE TABLE IF NOT EXISTS known_hosts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -852,6 +897,14 @@ mod tests {
                 .execute_batch(&format!("ALTER TABLE {table} DROP COLUMN deleted_at"))
                 .unwrap();
         }
+        // Drop the v5 `sessions.kind` column too — the rewind below
+        // stamps user_version=2 and re-bootstrap will replay both
+        // the v3 (deleted_at) and v5 (kind) ALTER arms; without
+        // dropping `kind` here the v5 ALTER hits a duplicate-column
+        // error.
+        conn.inner()
+            .execute_batch("ALTER TABLE sessions DROP COLUMN kind")
+            .unwrap();
         conn.inner().pragma_update(None, "user_version", 2).unwrap();
 
         bootstrap_schema(&conn).unwrap();
@@ -882,6 +935,47 @@ mod tests {
         // column name ...")` from the second ALTER hop. The
         // `current < SCHEMA_VERSION` gate is what keeps this
         // safe, and the test pins that contract.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v4 → v5 upgrade hop. A database stamped at v4 with the
+    /// pre-v5 sessions shape (no `kind` column) must pick up the
+    /// column on bootstrap. Webdav_session_details lands via
+    /// `CREATE TABLE IF NOT EXISTS` in `SCHEMA_SQL` and needs no
+    /// per-step ALTER, so the test only inspects `sessions.kind`.
+    #[test]
+    fn bootstrap_v4_to_v5_adds_kind_column_to_sessions() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Strip the kind column to mimic a v4 install. `ALTER TABLE …
+        // DROP COLUMN` is available on the SQLCipher 4.x build
+        // (sqlite3 >= 3.35.0). Rewind user_version to v4 so the
+        // upgrade arm re-runs.
+        conn.inner()
+            .execute_batch("ALTER TABLE sessions DROP COLUMN kind")
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 4).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let mut has_kind = false;
+        conn.inner()
+            .pragma(None, "table_info", "sessions", |row| {
+                let name: String = row.get("name")?;
+                if name == "kind" {
+                    has_kind = true;
+                }
+                Ok(())
+            })
+            .unwrap();
+        assert!(has_kind, "sessions must carry kind after v4 → v5 upgrade");
+
+        // Re-running bootstrap is a no-op — the duplicate-column
+        // failure would surface as `Error::Db("... duplicate column
+        // name ...")` from the second ALTER hop. The
+        // `current < SCHEMA_VERSION` gate is what keeps this safe.
         bootstrap_schema(&conn).unwrap();
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }
@@ -942,6 +1036,7 @@ mod tests {
                 id: "s1".into(),
                 label: "edge".into(),
                 folder_id: Some("f1".into()),
+                kind: sessions::SESSION_KIND_SSH.into(),
                 host: "edge.example".into(),
                 port: 22,
                 user: "deploy".into(),

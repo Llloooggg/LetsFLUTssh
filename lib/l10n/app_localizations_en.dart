@@ -2696,4 +2696,63 @@ class SEn extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Session kind';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Username';
+
+  @override
+  String get webDavAuthMethod => 'Auth method';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Self-signed cert fingerprint (optional)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256, leave empty to use system trust';
+
+  @override
+  String get webDavCopyUrl => 'Copy WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'Open in browser';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV authentication failed';
+
+  @override
+  String get errWebDavNotFound => 'Path not found';
+
+  @override
+  String get errWebDavConflict => 'Operation conflicts with current state';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV server rejected the request: $detail';
+  }
 }

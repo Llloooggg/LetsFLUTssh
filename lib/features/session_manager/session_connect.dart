@@ -84,8 +84,18 @@ class SessionConnect {
       'Opening $logLabel for <session-label>',
       name: 'Session',
     );
-    final config = fresh.toSSHConfig();
     final manager = ref.read(connectionsProvider.notifier);
+
+    // WebDAV sessions skip the SSH connect orchestrator entirely —
+    // there is no ProxyJump chain, no SSH auth compose, no russh
+    // handshake. The WebDAV connect path reads the join-table
+    // detail row and the SecretStore-staged password directly
+    // inside Rust.
+    if (fresh.kind == SessionKind.webdav) {
+      return manager.connectWebDavAsync(fresh);
+    }
+
+    final config = fresh.toSSHConfig();
 
     // ProxyJump chain — connect every bastion bottom-up before the
     // final session. ConnectionsNotifier._doConnect reads the bastion's

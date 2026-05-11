@@ -2592,4 +2592,61 @@ class SKo extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => '세션 종류';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => '사용자명';
+
+  @override
+  String get webDavAuthMethod => 'Auth 방식';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer 토큰';
+
+  @override
+  String get webDavSelfSignedFingerprint => 'Self-signed 인증서 Fingerprint (선택)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint => 'SHA-256, 비워두면 시스템 trust 사용';
+
+  @override
+  String get webDavCopyUrl => 'WebDAV URL 복사';
+
+  @override
+  String get webDavOpenInBrowser => '브라우저에서 열기';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV 인증 실패';
+
+  @override
+  String get errWebDavNotFound => '경로를 찾을 수 없음';
+
+  @override
+  String get errWebDavConflict => '현재 상태와 충돌';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV 서버가 요청을 거부함: $detail';
+  }
 }

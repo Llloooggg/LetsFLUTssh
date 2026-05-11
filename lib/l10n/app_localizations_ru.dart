@@ -2679,4 +2679,63 @@ class SRu extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Тип сессии';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Имя пользователя';
+
+  @override
+  String get webDavAuthMethod => 'Метод аутентификации';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer токен';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Fingerprint self-signed сертификата (опционально)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256, оставьте пустым для системного trust';
+
+  @override
+  String get webDavCopyUrl => 'Скопировать WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'Открыть в браузере';
+
+  @override
+  String get errWebDavAuthFailed => 'Сбой аутентификации WebDAV';
+
+  @override
+  String get errWebDavNotFound => 'Путь не найден';
+
+  @override
+  String get errWebDavConflict => 'Операция конфликтует с текущим состоянием';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV сервер отклонил запрос: $detail';
+  }
 }

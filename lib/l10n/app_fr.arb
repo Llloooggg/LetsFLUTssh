@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Type de session",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Nom d’utilisateur",
+  "webDavAuthMethod": "Méthode d’auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Fingerprint du certificat self-signed (optionnel)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, laisser vide pour utiliser le trust système",
+  "webDavCopyUrl": "Copier l’URL WebDAV",
+  "webDavOpenInBrowser": "Ouvrir dans le navigateur",
+  "errWebDavAuthFailed": "Échec d’authentification WebDAV",
+  "errWebDavNotFound": "Chemin introuvable",
+  "errWebDavConflict": "L’opération entre en conflit avec l’état actuel",
+  "errWebDavGeneric": "Le serveur WebDAV a rejeté la requête : {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

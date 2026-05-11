@@ -2661,4 +2661,63 @@ class SAr extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'نوع الجلسة';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'اسم المستخدم';
+
+  @override
+  String get webDavAuthMethod => 'طريقة Auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Fingerprint لشهادة self-signed (اختياري)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256، اتركه فارغًا لاستخدام trust النظام';
+
+  @override
+  String get webDavCopyUrl => 'نسخ WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'فتح في المتصفح';
+
+  @override
+  String get errWebDavAuthFailed => 'فشل auth WebDAV';
+
+  @override
+  String get errWebDavNotFound => 'Path غير موجود';
+
+  @override
+  String get errWebDavConflict => 'العملية تتعارض مع الحالة الحالية';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'خادم WebDAV رفض الطلب: $detail';
+  }
 }

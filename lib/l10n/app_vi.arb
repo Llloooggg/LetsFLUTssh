@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Loại session",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Username",
+  "webDavAuthMethod": "Phương thức auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Fingerprint chứng chỉ self-signed (tuỳ chọn)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, để trống dùng trust hệ thống",
+  "webDavCopyUrl": "Sao chép WebDAV URL",
+  "webDavOpenInBrowser": "Mở trong trình duyệt",
+  "errWebDavAuthFailed": "Auth WebDAV thất bại",
+  "errWebDavNotFound": "Không tìm thấy path",
+  "errWebDavConflict": "Thao tác xung đột với state hiện tại",
+  "errWebDavGeneric": "Server WebDAV từ chối request: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

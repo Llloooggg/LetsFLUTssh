@@ -9,17 +9,37 @@
 //! verbatim so the data backfill can do a straight copy; the
 //! follow-up adds an `auth_secret_id` column and drops the
 //! plaintext ones.
+//!
+//! **Session kind**: `kind` is the transport tag. `SESSION_KIND_SSH`
+//! and `SESSION_KIND_WEBDAV` are the two values in play; the column
+//! is `NOT NULL DEFAULT 'ssh'` so existing rows backfill cleanly on
+//! the v4 → v5 hop. WebDAV-specific config (base URL, auth method,
+//! self-signed fingerprint) lives on the `webdav_session_details`
+//! join table keyed by session id; reads dispatch to the right join
+//! by inspecting `kind` first.
 
 use crate::db::Connection;
 use rusqlite::params;
 
 use crate::error::Error;
 
+/// Wire value for an SSH/SFTP session. Persisted in `sessions.kind`.
+pub const SESSION_KIND_SSH: &str = "ssh";
+
+/// Wire value for a WebDAV session. Persisted in `sessions.kind`.
+pub const SESSION_KIND_WEBDAV: &str = "webdav";
+
 #[derive(Debug, Clone, Default)]
 pub struct SessionRow {
     pub id: String,
     pub label: String,
     pub folder_id: Option<String>,
+    /// Transport tag — one of [`SESSION_KIND_SSH`] /
+    /// [`SESSION_KIND_WEBDAV`]. Empty string round-trips through the
+    /// `Default` impl as the SSH default; the schema column is
+    /// `NOT NULL DEFAULT 'ssh'` so an empty string sent to `upsert`
+    /// surfaces as the SSH wire value on read.
+    pub kind: String,
     pub host: String,
     pub port: i64,
     pub user: String,
@@ -47,6 +67,7 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SessionRow> {
         id: row.get("id")?,
         label: row.get("label")?,
         folder_id: row.get("folder_id")?,
+        kind: row.get("kind")?,
         host: row.get("host")?,
         port: row.get("port")?,
         user: row.get("user")?,
@@ -70,9 +91,21 @@ fn row_from(row: &rusqlite::Row<'_>) -> rusqlite::Result<SessionRow> {
 }
 
 const SELECT_COLS: &str =
-    "id, label, folder_id, host, port, user, auth_type, password, key_path, key_data, key_id, \
-     passphrase, sort_order, notes, last_connected_at, extras, via_session_id, via_host, \
+    "id, label, folder_id, kind, host, port, user, auth_type, password, key_path, key_data, \
+     key_id, passphrase, sort_order, notes, last_connected_at, extras, via_session_id, via_host, \
      via_port, via_user, created_at, updated_at";
+
+/// Normalise an empty-string `kind` to the SSH wire value so a
+/// caller that constructed `SessionRow` via the `Default` impl
+/// without setting `kind` still upserts a valid non-null column
+/// value matching the schema default.
+fn normalise_kind(kind: &str) -> &str {
+    if kind.is_empty() {
+        SESSION_KIND_SSH
+    } else {
+        kind
+    }
+}
 
 pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SessionRow>, Error> {
     let mut stmt = conn
@@ -111,16 +144,19 @@ pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SessionRo
 }
 
 pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), Error> {
+    let kind = normalise_kind(&row.kind);
     conn.raw()
         .execute(
-            "INSERT INTO sessions (id, label, folder_id, host, port, user, auth_type, password, \
-           key_path, key_data, key_id, passphrase, sort_order, notes, last_connected_at, \
-           extras, via_session_id, via_host, via_port, via_user, created_at, updated_at) \
+            "INSERT INTO sessions (id, label, folder_id, kind, host, port, user, auth_type, \
+           password, key_path, key_data, key_id, passphrase, sort_order, notes, \
+           last_connected_at, extras, via_session_id, via_host, via_port, via_user, created_at, \
+           updated_at) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, \
-           ?18, ?19, ?20, ?21, ?22) \
+           ?18, ?19, ?20, ?21, ?22, ?23) \
          ON CONFLICT(id) DO UPDATE SET \
            label = excluded.label, \
            folder_id = excluded.folder_id, \
+           kind = excluded.kind, \
            host = excluded.host, \
            port = excluded.port, \
            user = excluded.user, \
@@ -144,6 +180,7 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), E
                 row.id,
                 row.label,
                 row.folder_id,
+                kind,
                 row.host,
                 row.port,
                 row.user,
@@ -444,13 +481,13 @@ pub fn duplicate_session(
         .raw()
         .execute(
             "INSERT INTO sessions ( \
-               id, label, folder_id, host, port, user, auth_type, password, \
+               id, label, folder_id, kind, host, port, user, auth_type, password, \
                key_path, key_data, key_id, passphrase, sort_order, notes, \
                last_connected_at, extras, via_session_id, via_host, via_port, \
                via_user, created_at, updated_at \
              ) \
              SELECT \
-               ?1 AS id, ?2 AS label, ?3 AS folder_id, host, port, user, auth_type, \
+               ?1 AS id, ?2 AS label, ?3 AS folder_id, kind, host, port, user, auth_type, \
                password, key_path, key_data, key_id, passphrase, sort_order, notes, \
                NULL AS last_connected_at, extras, via_session_id, via_host, \
                via_port, via_user, ?4 AS created_at, ?4 AS updated_at \
@@ -574,6 +611,7 @@ pub struct RestoreSessionInput {
     pub id: String,
     pub label: String,
     pub folder_path: String,
+    pub kind: String,
     pub host: String,
     pub port: i64,
     pub user: String,
@@ -630,6 +668,7 @@ pub fn restore_snapshot(
             id: s.id,
             label: s.label,
             folder_id,
+            kind: s.kind,
             host: s.host,
             port: s.port,
             user: s.user,
@@ -682,6 +721,7 @@ mod duplicate_tests {
                 id: id.into(),
                 label: label.into(),
                 folder_id: folder_id.map(String::from),
+                kind: SESSION_KIND_SSH.into(),
                 host: "h".into(),
                 port: 22,
                 user: "u".into(),

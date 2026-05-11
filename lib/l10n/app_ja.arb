@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "セッション種別",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "ユーザー名",
+  "webDavAuthMethod": "Auth 方式",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer トークン",
+  "webDavSelfSignedFingerprint": "Self-signed 証明書の Fingerprint(任意)",
+  "webDavSelfSignedFingerprintHint": "SHA-256、空ならシステム trust を使用",
+  "webDavCopyUrl": "WebDAV URL をコピー",
+  "webDavOpenInBrowser": "ブラウザで開く",
+  "errWebDavAuthFailed": "WebDAV 認証に失敗",
+  "errWebDavNotFound": "パスが見つかりません",
+  "errWebDavConflict": "現在の状態と競合しています",
+  "errWebDavGeneric": "WebDAV サーバーがリクエストを拒否しました: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

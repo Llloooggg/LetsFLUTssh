@@ -2661,4 +2661,63 @@ class SId extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Tipe session';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Username';
+
+  @override
+  String get webDavAuthMethod => 'Metode auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Fingerprint sertifikat self-signed (opsional)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256, kosongkan untuk pakai trust sistem';
+
+  @override
+  String get webDavCopyUrl => 'Salin URL WebDAV';
+
+  @override
+  String get webDavOpenInBrowser => 'Buka di browser';
+
+  @override
+  String get errWebDavAuthFailed => 'Auth WebDAV gagal';
+
+  @override
+  String get errWebDavNotFound => 'Path tidak ditemukan';
+
+  @override
+  String get errWebDavConflict => 'Operasi bentrok dengan state saat ini';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'Server WebDAV menolak request: $detail';
+  }
 }

@@ -462,6 +462,11 @@ pub struct DbSession {
     pub id: String,
     pub label: String,
     pub folder_id: Option<String>,
+    /// Transport tag — one of `"ssh"` / `"webdav"`. Empty string
+    /// upserts the SSH wire value (the DAO normalises before the
+    /// SQL hop). Read side never returns empty because the column
+    /// is `NOT NULL DEFAULT 'ssh'`.
+    pub kind: String,
     pub host: String,
     pub port: i64,
     pub user: String,
@@ -489,6 +494,7 @@ impl From<lfs_core::db::sessions::SessionRow> for DbSession {
             id: r.id,
             label: r.label,
             folder_id: r.folder_id,
+            kind: r.kind,
             host: r.host,
             port: r.port,
             user: r.user,
@@ -518,6 +524,7 @@ impl From<DbSession> for lfs_core::db::sessions::SessionRow {
             id: r.id,
             label: r.label,
             folder_id: r.folder_id,
+            kind: r.kind,
             host: r.host,
             port: r.port,
             user: r.user,
@@ -714,6 +721,9 @@ pub struct DbRestoreSessionInput {
     pub id: String,
     pub label: String,
     pub folder_path: String,
+    /// Transport tag — empty string round-trips as the SSH default
+    /// on the DAO side. See [`DbSession::kind`].
+    pub kind: String,
     pub host: String,
     pub port: i64,
     pub user: String,
@@ -741,6 +751,7 @@ impl From<DbRestoreSessionInput> for lfs_core::db::sessions::RestoreSessionInput
             id: d.id,
             label: d.label,
             folder_path: d.folder_path,
+            kind: d.kind,
             host: d.host,
             port: d.port,
             user: d.user,
@@ -1270,6 +1281,97 @@ pub async fn db_sftp_bookmarks_delete(id: String) -> Result<u32, String> {
         .map(|n| n as u32)
 }
 
+// ---- webdav_session_details -------------------------------------------
+
+/// FRB mirror of
+/// [`lfs_core::db::webdav_sessions::WebDavSessionRow`]. Carries the
+/// WebDAV transport-config tuple keyed by session id.
+#[derive(Debug, Clone)]
+pub struct DbWebDavSessionDetails {
+    pub session_id: String,
+    pub base_url: String,
+    pub username: String,
+    /// `"basic"` / `"digest"` / `"bearer"`. The connect path parses
+    /// this into the typed `lfs_core::webdav::AuthMethod`.
+    pub auth_method: String,
+    pub self_signed_fingerprint: Option<String>,
+}
+
+impl From<lfs_core::db::webdav_sessions::WebDavSessionRow> for DbWebDavSessionDetails {
+    fn from(r: lfs_core::db::webdav_sessions::WebDavSessionRow) -> Self {
+        Self {
+            session_id: r.session_id,
+            base_url: r.base_url,
+            username: r.username,
+            auth_method: r.auth_method,
+            self_signed_fingerprint: r.self_signed_fingerprint,
+        }
+    }
+}
+
+impl From<DbWebDavSessionDetails> for lfs_core::db::webdav_sessions::WebDavSessionRow {
+    fn from(r: DbWebDavSessionDetails) -> Self {
+        Self {
+            session_id: r.session_id,
+            base_url: r.base_url,
+            username: r.username,
+            auth_method: r.auth_method,
+            self_signed_fingerprint: r.self_signed_fingerprint,
+        }
+    }
+}
+
+/// Fetch the WebDAV detail row paired with `session_id`. `None`
+/// when the session is not a WebDAV kind or has not been configured
+/// yet — not an error.
+pub async fn db_webdav_session_details_get(
+    session_id: String,
+) -> Result<Option<DbWebDavSessionDetails>, String> {
+    run_db(move |c| lfs_core::db::webdav_sessions::get(c, &session_id))
+        .await
+        .map(|opt| opt.map(DbWebDavSessionDetails::from))
+}
+
+/// Insert or replace the WebDAV detail row for `rec.session_id`.
+/// Caller stamps the matching `sessions` row with `kind = 'webdav'`
+/// — the DAO does not enforce the pairing because the sync apply
+/// path may need to insert detail rows ahead of the parent inside
+/// one transaction.
+pub async fn db_webdav_session_details_upsert(rec: DbWebDavSessionDetails) -> Result<(), String> {
+    let rec: lfs_core::db::webdav_sessions::WebDavSessionRow = rec.into();
+    run_db_writing_sessions(move |c| lfs_core::db::webdav_sessions::upsert(c, &rec)).await
+}
+
+/// Remove the WebDAV detail row for `session_id`. Returns the
+/// number of rows affected; `0` is the idempotent no-op for a
+/// session that was never a WebDAV kind. The parent session row
+/// is untouched.
+pub async fn db_webdav_session_details_delete(session_id: String) -> Result<u32, String> {
+    run_db_writing_sessions_when(
+        move |c| lfs_core::db::webdav_sessions::delete(c, &session_id),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
+}
+
+/// Every WebDAV detail row, ordered by `session_id`. Used by
+/// archive export and a future "all WebDAV sessions" diagnostic.
+pub async fn db_webdav_session_details_list_all() -> Result<Vec<DbWebDavSessionDetails>, String> {
+    run_db(lfs_core::db::webdav_sessions::list_all)
+        .await
+        .map(|rows| rows.into_iter().map(DbWebDavSessionDetails::from).collect())
+}
+
+/// Canonical SecretStore id for a WebDAV session's password /
+/// bearer token. Mirrors `lfs_core::db::webdav_sessions::webdav_secret_id`
+/// for the Dart caller — the connect path needs the same shape to
+/// resolve the secret on lookup.
+#[flutter_rust_bridge::frb(sync)]
+pub fn db_webdav_session_details_secret_id(session_id: String) -> String {
+    lfs_core::db::webdav_sessions::webdav_secret_id(&session_id)
+}
+
 // ---- tags + M2M --------------------------------------------------------
 
 #[derive(Debug, Clone)]
@@ -1464,6 +1566,7 @@ mod tests {
             id: "sess-1".into(),
             label: "Edge".into(),
             folder_id: Some("folder-1".into()),
+            kind: "ssh".into(),
             host: "edge.example.com".into(),
             port: 2222,
             user: "deploy".into(),
@@ -1489,6 +1592,7 @@ mod tests {
         assert_eq!(back.id, db.id);
         assert_eq!(back.label, db.label);
         assert_eq!(back.folder_id, db.folder_id);
+        assert_eq!(back.kind, "ssh");
         assert_eq!(back.host, db.host);
         assert_eq!(back.port, db.port);
         assert_eq!(back.user, db.user);
@@ -1496,6 +1600,24 @@ mod tests {
         assert_eq!(back.key_id, db.key_id);
         assert_eq!(back.last_connected_at_ms, db.last_connected_at_ms);
         assert_eq!(back.extras, db.extras);
+    }
+
+    #[test]
+    fn db_webdav_session_details_round_trips_through_core() {
+        let db = DbWebDavSessionDetails {
+            session_id: "sess-1".into(),
+            base_url: "https://example.com/remote.php/dav/files/alice/".into(),
+            username: "alice".into(),
+            auth_method: "basic".into(),
+            self_signed_fingerprint: Some("SHA256:abc".into()),
+        };
+        let core: lfs_core::db::webdav_sessions::WebDavSessionRow = db.clone().into();
+        let back: DbWebDavSessionDetails = core.into();
+        assert_eq!(back.session_id, db.session_id);
+        assert_eq!(back.base_url, db.base_url);
+        assert_eq!(back.username, db.username);
+        assert_eq!(back.auth_method, db.auth_method);
+        assert_eq!(back.self_signed_fingerprint, db.self_signed_fingerprint);
     }
 
     #[test]

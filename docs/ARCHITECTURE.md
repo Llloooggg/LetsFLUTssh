@@ -648,6 +648,7 @@ class Session {
   final String id;            // UUID
   final String label;         // display name
   final String folder;        // folder path: "Production/Web" (separator /)
+  final SessionKind kind;     // ssh (default) or webdav — picks the transport
   final ServerAddress server; // host, port, user
   final SessionAuth auth;     // authType, password, keyPath, keyData, passphrase
   final DateTime createdAt;
@@ -655,6 +656,8 @@ class Session {
   final Map<String, Object?> extras; // free-form JSON bag, see "Session.extras" below
   bool get hasCredentials;    // true if password, keyData, keyId, or keyPath is set
   bool get isValid;           // true if host, port, user, and hasCredentials (highlighted orange when false)
+  bool get isSsh;             // kind == SessionKind.ssh
+  bool get isWebDav;          // kind == SessionKind.webdav
 
   bool? extrasBool(String key); // typed reads — null when missing or wrong-typed
   String? extrasStr(String key);
@@ -667,7 +670,31 @@ class Session {
   Map<String, dynamic> toJson();
   factory Session.fromJson(Map<String, dynamic> json);
 }
+
+enum SessionKind { ssh, webdav }
 ```
+
+##### Session kind — SSH vs WebDAV
+
+`SessionKind` picks which transport the runtime opens. SSH sessions
+keep the existing `(host, port, user, auth)` tuple and route through
+the russh + `lfs_core::sftp` stack for shell and file transfer.
+WebDAV sessions ignore the SSH-shaped fields at connect time and
+instead read the configured transport tuple from `WebDavSessionDetails`
+(base URL, username, auth method, optional self-signed fingerprint)
+plus the password / bearer token from the `SecretStore` under the
+`session.webdav.<id>` id. The `kind` column is `NOT NULL DEFAULT 'ssh'`
+so legacy rows backfill on the v4 → v5 hop; existing call sites that
+never set `kind` continue to see the SSH transport.
+
+The file browser dispatches on `Connection.kind` (mirrored off
+`Session.kind` on connect): the SSH path wraps the live SFTP channel
+in `RemoteFS(RustSftpFs)`; the WebDAV path wraps the
+`WebDavConnection` opaque FRB handle in `WebDavFileSystem`. Both
+implement the same `FileSystem` interface, so the pane controllers
+and file-browser widgets stay transport-agnostic. See `core/webdav/`
+for the WebDAV facade and `lfs_frb::api::webdav` for the Rust-side
+connect probe.
 
 ##### Session.extras — JSON escape hatch
 
@@ -4632,7 +4659,8 @@ All application data is stored in a single SQLite database, opened Rust-side via
 
 | Table | Purpose | Key relationships | Soft-delete |
 |-------|---------|-------------------|-------------|
-| `Sessions` | SSH sessions (metadata + credentials + `extras` JSON bag) | FK → Folders, FK → SshKeys | yes |
+| `Sessions` | Saved sessions (SSH or WebDAV — see `kind` column; metadata + credentials + `extras` JSON bag) | FK → Folders, FK → SshKeys | yes |
+| `WebDavSessionDetails` | Per-session WebDAV transport config (base URL, username, auth method, optional self-signed fingerprint) | FK → Sessions, cascade on delete; PK = `session_id` | no (1-to-1 with `Sessions` kind=webdav) |
 | `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK | no |
 | `SshKeys` | SSH key pairs | — | yes |
 | `SshKeyCertificates` | OpenSSH user certificates paired to stored keys | FK → SshKeys, cascade on delete; PK = `key_id` | no (1-to-1 with `SshKeys`) |
@@ -4768,6 +4796,23 @@ same column shape. Future bumps:
   `known_hosts` is **deliberately excluded** — TOFU host trust is
   per-device and the sync layer must not leak host fingerprints
   across devices.
+- **v4** — drops the inline `UNIQUE(name)` constraint on `tags` and
+  replaces it with `CREATE UNIQUE INDEX idx_tags_name_live ON tags(name)
+  WHERE deleted_at IS NULL`. SQLite cannot DROP a column-level
+  `UNIQUE` without a table rebuild; the bump runs the documented
+  twelve-step rebuild (disable FKs → BEGIN → CREATE new shape →
+  copy → DROP old → RENAME → re-enable FKs) inside the upgrade
+  arm. Fresh installs hit the new shape directly from
+  `SCHEMA_SQL`.
+- **v5** — adds `kind TEXT NOT NULL DEFAULT 'ssh'` to `sessions` and
+  ships the new `webdav_session_details` join table (PK = `session_id`,
+  FK → `sessions.id` ON DELETE CASCADE) plus
+  `idx_webdav_session_details_session_id`. Existing rows backfill via
+  `ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'ssh'`
+  inside the `(1..5).contains(&current)` arm; fresh installs pick
+  the column up from `SCHEMA_SQL`. The bump is required so the file
+  browser can dispatch by transport (SSH/SFTP vs WebDAV) without
+  reading a side table on every row.
 
 ### Soft-delete contract (v3+)
 

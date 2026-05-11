@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "세션 종류",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "사용자명",
+  "webDavAuthMethod": "Auth 방식",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer 토큰",
+  "webDavSelfSignedFingerprint": "Self-signed 인증서 Fingerprint (선택)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, 비워두면 시스템 trust 사용",
+  "webDavCopyUrl": "WebDAV URL 복사",
+  "webDavOpenInBrowser": "브라우저에서 열기",
+  "errWebDavAuthFailed": "WebDAV 인증 실패",
+  "errWebDavNotFound": "경로를 찾을 수 없음",
+  "errWebDavConflict": "현재 상태와 충돌",
+  "errWebDavGeneric": "WebDAV 서버가 요청을 거부함: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

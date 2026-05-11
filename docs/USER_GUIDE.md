@@ -13,6 +13,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - [3. Authentication](#3-authentication)
 - [4. Terminal](#4-terminal)
 - [5. SFTP file browser](#5-sftp-file-browser)
+- [5b. WebDAV file browser](#5b-webdav-file-browser)
 - [6. Port forwarding](#6-port-forwarding)
 - [7. ProxyJump bastion chains](#7-proxyjump-bastion-chains)
 - [8. Snippets with `{{tokens}}`](#8-snippets-with-tokens)
@@ -169,6 +170,36 @@ The Auth tab in the session edit dialog supports four modes; you fill in the par
 - Multi-select with `Ctrl`/`Shift`+click for bulk transfers.
 - Right-click → Cut / Copy / Paste between panes (cross-pane = transfer).
 - Transfer panel (bottom) shows queue, parallel workers, progress per file, retry on failure.
+
+---
+
+## 5b. WebDAV file browser
+
+LetsFLUTssh can also browse a WebDAV server (Nextcloud, ownCloud, Apache mod_dav, Synology DSM, IIS) with the same two-pane file browser.
+
+### Creating a WebDAV session
+
+- Session manager → New session → set **Session kind** to `WebDAV` at the top of the dialog.
+- Fill **Base URL** with the WebDAV root collection, including the trailing slash. Examples:
+  - Nextcloud: `https://cloud.example.com/remote.php/dav/files/alice/`
+  - ownCloud: `https://files.example.com/remote.php/webdav/`
+  - Apache mod_dav: `https://example.com/webdav/`
+- Pick **Auth method**:
+  - `Basic` — username + password, always sent (only safe over TLS).
+  - `Digest` — challenge / response, MD5. Use when the server insists; password never crosses the wire in clear.
+  - `Bearer token` — OAuth-style. Paste the access token into the password field; the username is ignored.
+- Optional: paste a **Self-signed cert fingerprint** (SHA-256, `aa:bb:cc:…` or `SHA256:…`) when the server uses a self-signed certificate that the system trust store rejects. Leave empty for the default system trust.
+
+### Connecting and browsing
+
+- Save the session and click Connect (or double-click the row). The connect probe does a PROPFIND against the base URL; an invalid URL or wrong credential fails fast with the localized error toast.
+- The remote pane opens at the base URL. Navigation, drag-and-drop, multi-select, mkdir, rename, and delete work the same way as the SFTP browser.
+- File-row context menu adds two WebDAV-only actions: **Copy WebDAV URL** copies the full URL of the entry; **Open in browser** launches it in the system web browser (the password is stripped from the URL before launch).
+
+### Limitations
+
+- Streaming uploads / downloads for very large files are buffered in memory for the WebDAV transport; SFTP keeps the chunked streaming path. Plan around this when moving multi-GB objects over WebDAV.
+- Server-side recursive delete is the server's behaviour, not the client's. Nextcloud, ownCloud, Apache mod_dav, and IIS cascade by default; if your server rejects DELETE on a non-empty collection, drain the folder manually first.
 
 ---
 

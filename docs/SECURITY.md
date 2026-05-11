@@ -374,6 +374,17 @@ architecture.
   SecretStore staging path as the private PEM so the connect
   cascade audit lists a single uniform namespace
   (`key.priv.<id>` + `key.cert.<id>`).
+- **WebDAV credentials** — WebDAV passwords and bearer tokens live
+  in the same SecretStore that holds SSH credentials, under the
+  `session.webdav.<session_id>` id. The persisted
+  `webdav_session_details` row carries only the base URL, username,
+  auth method tag (`basic` / `digest` / `bearer`), and an optional
+  self-signed cert fingerprint — never the secret itself. The
+  auth-method tag is per-session, so an enterprise install can mix
+  Basic-over-TLS and Bearer-token sessions without a global
+  preference. Self-signed fingerprint pinning is opt-in; an empty
+  fingerprint uses the system trust store (bundled `webpki-roots`)
+  exactly like the auto-update channel.
 - **Deep-link URI parsing** — `letsflutssh://` scheme with host / port
   validation and path-traversal rejection.
 - **File permission handling** — `chmod 600` on credentials,

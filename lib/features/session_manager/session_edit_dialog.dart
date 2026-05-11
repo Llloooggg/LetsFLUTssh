@@ -146,6 +146,14 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   /// so a fresh session is opt-out by default — privacy-first).
   bool _recordEnabled = false;
 
+  /// Selected transport. Set from `widget.session.kind` on edit;
+  /// new sessions default to SSH. The dropdown lives in the
+  /// Connection tab; toggling to WebDAV swaps the host/port/auth
+  /// fields visibility (the WebDAV-specific fields then live in a
+  /// dedicated `WebDavDetailsDialog` follow-up surface so the
+  /// already-large session edit dialog stays readable).
+  SessionKind _kind = SessionKind.ssh;
+
   /// Per-slot dirty bits. Flipped to `true` the first time the user
   /// types into / changes the corresponding secret field. The dialog
   /// hands these to the caller via `SaveResult` so the save path can
@@ -265,6 +273,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       _proxyMode = _ProxyMode.custom;
     }
     _recordEnabled = s?.extrasBool('record') ?? false;
+    _kind = s?.kind ?? SessionKind.ssh;
     if (s != null) {
       _loadForwards(s.id);
     }
@@ -355,6 +364,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       built = widget.session!.copyWith(
         label: _labelCtrl.text.trim(),
         folder: _folderCtrl.text.trim(),
+        kind: _kind,
         server: widget.session!.server.copyWith(
           host: _hostCtrl.text.trim(),
           port: int.tryParse(_portCtrl.text.trim()) ?? 22,
@@ -375,6 +385,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       built = Session(
         label: _labelCtrl.text.trim(),
         folder: _folderCtrl.text.trim(),
+        kind: _kind,
         server: ServerAddress(
           host: _hostCtrl.text.trim(),
           port: int.tryParse(_portCtrl.text.trim()) ?? 22,

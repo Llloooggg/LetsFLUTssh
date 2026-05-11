@@ -4670,6 +4670,114 @@ abstract class S {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 active connection} other{{count} active connections}}'**
   String foregroundServiceConnections(int count);
+
+  /// No description provided for @sessionKindSsh.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH / SFTP'**
+  String get sessionKindSsh;
+
+  /// No description provided for @sessionKindWebDav.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV'**
+  String get sessionKindWebDav;
+
+  /// No description provided for @sessionKindLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Session kind'**
+  String get sessionKindLabel;
+
+  /// No description provided for @webDavBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get webDavBaseUrl;
+
+  /// No description provided for @webDavBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://example.com/remote.php/dav/files/alice/'**
+  String get webDavBaseUrlHint;
+
+  /// No description provided for @webDavUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get webDavUsername;
+
+  /// No description provided for @webDavAuthMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Auth method'**
+  String get webDavAuthMethod;
+
+  /// No description provided for @webDavAuthBasic.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic'**
+  String get webDavAuthBasic;
+
+  /// No description provided for @webDavAuthDigest.
+  ///
+  /// In en, this message translates to:
+  /// **'Digest'**
+  String get webDavAuthDigest;
+
+  /// No description provided for @webDavAuthBearer.
+  ///
+  /// In en, this message translates to:
+  /// **'Bearer token'**
+  String get webDavAuthBearer;
+
+  /// No description provided for @webDavSelfSignedFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-signed cert fingerprint (optional)'**
+  String get webDavSelfSignedFingerprint;
+
+  /// No description provided for @webDavSelfSignedFingerprintHint.
+  ///
+  /// In en, this message translates to:
+  /// **'SHA-256, leave empty to use system trust'**
+  String get webDavSelfSignedFingerprintHint;
+
+  /// No description provided for @webDavCopyUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy WebDAV URL'**
+  String get webDavCopyUrl;
+
+  /// No description provided for @webDavOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get webDavOpenInBrowser;
+
+  /// No description provided for @errWebDavAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV authentication failed'**
+  String get errWebDavAuthFailed;
+
+  /// No description provided for @errWebDavNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Path not found'**
+  String get errWebDavNotFound;
+
+  /// No description provided for @errWebDavConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation conflicts with current state'**
+  String get errWebDavConflict;
+
+  /// No description provided for @errWebDavGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV server rejected the request: {detail}'**
+  String errWebDavGeneric(String detail);
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

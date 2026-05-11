@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Session türü",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Kullanıcı adı",
+  "webDavAuthMethod": "Auth yöntemi",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Self-signed sertifika fingerprint (opsiyonel)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, sistem trust kullanmak için boş bırak",
+  "webDavCopyUrl": "WebDAV URL kopyala",
+  "webDavOpenInBrowser": "Tarayıcıda aç",
+  "errWebDavAuthFailed": "WebDAV auth başarısız",
+  "errWebDavNotFound": "Path bulunamadı",
+  "errWebDavConflict": "Operasyon mevcut state ile çakışıyor",
+  "errWebDavGeneric": "WebDAV server isteği reddetti: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

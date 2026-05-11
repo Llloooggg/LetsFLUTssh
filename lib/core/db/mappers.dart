@@ -34,6 +34,7 @@ Session dbSessionToSession(
     id: db.id,
     label: db.label,
     folder: _buildFolderPath(db.folderId, folderMap),
+    kind: SessionKind.fromWire(db.kind),
     server: ServerAddress(host: db.host, port: db.port, user: db.user),
     auth: SessionAuth(
       authType: AuthType.values.firstWhere(
@@ -100,6 +101,7 @@ rust_db.DbSession sessionToRustRow(Session s, {required String? folderId}) {
     id: s.id,
     label: s.label,
     folderId: folderId,
+    kind: s.kind.wire,
     host: s.host,
     port: s.port,
     user: s.user,

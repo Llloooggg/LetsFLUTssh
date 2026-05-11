@@ -1880,7 +1880,9 @@ dependencies = [
 name = "lfs_frb"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "flutter_rust_bridge",
+ "futures-util",
  "lfs_core",
  "lfs_os_security",
  "serde_json",

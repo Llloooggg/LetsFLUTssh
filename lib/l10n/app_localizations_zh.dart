@@ -2572,4 +2572,61 @@ class SZh extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => '会话类型';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => '用户名';
+
+  @override
+  String get webDavAuthMethod => 'Auth 方式';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint => 'Self-signed 证书 fingerprint(可选)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint => 'SHA-256,留空则使用系统 trust';
+
+  @override
+  String get webDavCopyUrl => '复制 WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => '在浏览器中打开';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV 认证失败';
+
+  @override
+  String get errWebDavNotFound => '路径未找到';
+
+  @override
+  String get errWebDavConflict => '操作与当前状态冲突';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV 服务器拒绝请求:$detail';
+  }
 }

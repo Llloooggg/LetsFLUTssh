@@ -268,6 +268,13 @@ fn session_row_to_json(
     obj.insert("id".into(), json!(r.id));
     obj.insert("label".into(), json!(r.label));
     obj.insert("folder".into(), json!(folder_path));
+    // `kind` omitted from the payload for SSH-kind rows so an older
+    // import (pre-v5 archives) round-trips unchanged. Only WebDAV
+    // and any future non-SSH kinds emit the field; the importer
+    // defaults missing values to SSH on read.
+    if r.kind != sessions::SESSION_KIND_SSH && !r.kind.is_empty() {
+        obj.insert("kind".into(), json!(r.kind));
+    }
     obj.insert("host".into(), json!(r.host));
     obj.insert("port".into(), json!(r.port));
     obj.insert("user".into(), json!(r.user));

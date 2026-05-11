@@ -2745,4 +2745,64 @@ class SFr extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Type de session';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Nom d’utilisateur';
+
+  @override
+  String get webDavAuthMethod => 'Méthode d’auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Fingerprint du certificat self-signed (optionnel)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256, laisser vide pour utiliser le trust système';
+
+  @override
+  String get webDavCopyUrl => 'Copier l’URL WebDAV';
+
+  @override
+  String get webDavOpenInBrowser => 'Ouvrir dans le navigateur';
+
+  @override
+  String get errWebDavAuthFailed => 'Échec d’authentification WebDAV';
+
+  @override
+  String get errWebDavNotFound => 'Chemin introuvable';
+
+  @override
+  String get errWebDavConflict =>
+      'L’opération entre en conflit avec l’état actuel';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'Le serveur WebDAV a rejeté la requête : $detail';
+  }
 }

@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Session प्रकार",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Username",
+  "webDavAuthMethod": "Auth विधि",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Self-signed प्रमाणपत्र का fingerprint (वैकल्पिक)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, सिस्टम trust के लिए खाली छोड़ें",
+  "webDavCopyUrl": "WebDAV URL कॉपी करें",
+  "webDavOpenInBrowser": "Browser में खोलें",
+  "errWebDavAuthFailed": "WebDAV auth असफल",
+  "errWebDavNotFound": "Path नहीं मिला",
+  "errWebDavConflict": "Operation मौजूदा state से टकराता है",
+  "errWebDavGeneric": "WebDAV server ने request अस्वीकार किया: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "Тип сессии",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "Имя пользователя",
+  "webDavAuthMethod": "Метод аутентификации",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer токен",
+  "webDavSelfSignedFingerprint": "Fingerprint self-signed сертификата (опционально)",
+  "webDavSelfSignedFingerprintHint": "SHA-256, оставьте пустым для системного trust",
+  "webDavCopyUrl": "Скопировать WebDAV URL",
+  "webDavOpenInBrowser": "Открыть в браузере",
+  "errWebDavAuthFailed": "Сбой аутентификации WebDAV",
+  "errWebDavNotFound": "Путь не найден",
+  "errWebDavConflict": "Операция конфликтует с текущим состоянием",
+  "errWebDavGeneric": "WebDAV сервер отклонил запрос: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

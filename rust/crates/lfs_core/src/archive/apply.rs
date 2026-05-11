@@ -509,10 +509,17 @@ fn apply_sessions(
             .and_then(|x| x.as_str())
             .filter(|s| !s.is_empty())
             .and_then(|p| folder_path_to_id.get(p).cloned());
+        let kind = v
+            .get("kind")
+            .and_then(|x| x.as_str())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .unwrap_or_else(|| sessions::SESSION_KIND_SSH.to_string());
         let row = sessions::SessionRow {
             id: json_string(&v, "id"),
             label: json_string(&v, "label"),
             folder_id,
+            kind,
             host: json_string(&v, "host"),
             port: json_i64(&v, "port"),
             user: json_string(&v, "user"),

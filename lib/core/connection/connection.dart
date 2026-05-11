@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/api/webdav.dart' as rust_webdav;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
+import '../session/session.dart';
 import '../ssh/ssh_config.dart';
 import '../ssh/transport/rust_transport.dart';
 import '../ssh/transport/ssh_transport.dart';
@@ -34,6 +36,24 @@ class Connection {
   /// sftp_initializer, port_forward_runtime) read it for shell /
   /// SFTP / port-forward channels.
   SshTransport? transport;
+
+  /// Live WebDAV transport handle for WebDAV-kind sessions. Set on
+  /// successful WebDAV connect; null for SSH sessions or before
+  /// the WebDAV connect probe completes. The file browser reads it
+  /// alongside [`transport`] when dispatching by [`kind`].
+  rust_webdav.WebDavConnection? webdavConnection;
+
+  /// Transport tag for this connection. SSH connections leave it
+  /// at the default; WebDAV connections set it at construction
+  /// time so the workspace UI and the file browser can branch on
+  /// the value without re-reading the source [`Session`].
+  SessionKind kind = SessionKind.ssh;
+
+  /// Base URL for a WebDAV connection — the implicit "current
+  /// working directory" the WebDAV file browser opens at. Empty
+  /// for SSH connections. Set at the same point [`webdavConnection`]
+  /// lands so the two move together.
+  String webdavBaseUrl = '';
 
   SSHConnectionState state;
 

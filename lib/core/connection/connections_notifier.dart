@@ -1,15 +1,20 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../providers/session_credential_cache_provider.dart';
+import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/auth_compose.dart' as rust_auth;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/connection.dart' as rust_connection;
+import '../../src/rust/api/db.dart' as rust_db;
+import '../../src/rust/api/webdav.dart' as rust_webdav;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 import '../security/session_credential_cache.dart';
+import '../session/session.dart';
 import '../ssh/ssh_config.dart';
 import '../ssh/transport/ssh_transport.dart';
 import 'connection.dart';
@@ -230,6 +235,110 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     _initGeneration(id);
     unawaited(_doConnect(conn, config, 1));
     return conn;
+  }
+
+  /// Create a WebDAV connection. Mirrors [connectAsync] for SSH
+  /// sessions: returns the [`Connection`] in `connecting` state,
+  /// resolves the WebDAV detail row + staged password from the DB,
+  /// builds the `WebDavConnection` opaque handle, and stores it on
+  /// the [`Connection`] so the file browser can dispatch by [`kind`].
+  ///
+  /// Failures land in [`Connection.connectionError`] and flip the
+  /// state to `disconnected` — same shape as the SSH path so the
+  /// UI's "connect failed" toast surfaces identically across
+  /// transports.
+  Connection connectWebDavAsync(Session session) {
+    final id = _uuid.v4();
+    // WebDAV connections do not run through the russh-backed
+    // `ConnectionRegistry`; the bus subscription in `Connection`
+    // happily filters bus events for an id that never appears on
+    // the registry (the subscription's `id` filter never matches
+    // anything), so the listener is harmless overhead until a
+    // future WebDAV bus topic lands.
+    final conn = Connection(
+      id: id,
+      label: session.label.isEmpty ? session.host : session.label,
+      sshConfig: session.toSSHConfig(),
+      sessionId: session.id,
+      state: SSHConnectionState.connecting,
+    )..kind = SessionKind.webdav;
+    _connections[id] = conn;
+    _notify();
+    AppLogger.instance.log(
+      'Connecting to WebDAV ${session.host} as ${session.user}',
+      name: 'Connection',
+    );
+    unawaited(_doWebDavConnect(conn, session));
+    return conn;
+  }
+
+  Future<void> _doWebDavConnect(Connection conn, Session session) async {
+    try {
+      final detail = await rust_db.dbWebdavSessionDetailsGet(
+        sessionId: session.id,
+      );
+      if (detail == null) {
+        throw StateError(
+          'WebDAV session details row missing for ${session.id}',
+        );
+      }
+      final secretId = rust_db.dbWebdavSessionDetailsSecretId(
+        sessionId: session.id,
+      );
+      // Stage the password into SecretStore for the connect call.
+      // The Dart-side cache holds the password while editing; the
+      // SecretStore is the only handoff for the Rust connect.
+      if (session.password.isNotEmpty) {
+        // `secretsPut` lives behind the FRB app surface; the Dart
+        // session edit dialog already routes WebDAV passwords
+        // through it when saving, so a fresh connect attempt
+        // typically finds the secret already staged.
+        await rust_app.secretsPut(
+          id: secretId,
+          bytes: utf8.encode(session.password),
+        );
+        conn.transientSecretIds.add(secretId);
+      }
+      final handle = await rust_webdav.webdavConnect(
+        baseUrl: detail.baseUrl,
+        username: detail.username,
+        passwordSecretId: secretId,
+        authMethod: detail.authMethod,
+        selfSignedFingerprint: detail.selfSignedFingerprint,
+      );
+      conn.webdavConnection = handle;
+      conn.webdavBaseUrl = detail.baseUrl;
+      conn.state = SSHConnectionState.connected;
+      // Surface the WebDAV connect through the same progress
+      // channel the SSH path uses so the UI's progress drawer
+      // stays uniform across transports.
+      conn.addProgressStep(
+        const ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.success,
+        ),
+      );
+    } catch (e, st) {
+      AppLogger.instance.log(
+        'WebDAV connect failed: $e',
+        name: 'Connection',
+        error: e,
+        stackTrace: st,
+        level: LogLevel.warn,
+      );
+      conn.connectionError = e;
+      conn.state = SSHConnectionState.disconnected;
+      conn.addProgressStep(
+        ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.failed,
+          detail: e.toString(),
+        ),
+      );
+    } finally {
+      conn.completeReady();
+      _notify();
+    }
   }
 
   /// Reconnect an existing connection.

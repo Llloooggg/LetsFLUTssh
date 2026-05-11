@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`, `run_db_mut_writing_sessions_when`, `run_db_mut_writing_sessions`, `run_db_mut`, `run_db_writing_sessions_when`, `run_db_writing_sessions`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -390,6 +390,47 @@ Future<void> dbSftpBookmarksUpsert({required DbSftpBookmark row}) =>
 Future<int> dbSftpBookmarksDelete({required String id}) =>
     RustLib.instance.api.crateApiDbDbSftpBookmarksDelete(id: id);
 
+/// Fetch the WebDAV detail row paired with `session_id`. `None`
+/// when the session is not a WebDAV kind or has not been configured
+/// yet — not an error.
+Future<DbWebDavSessionDetails?> dbWebdavSessionDetailsGet({
+  required String sessionId,
+}) => RustLib.instance.api.crateApiDbDbWebdavSessionDetailsGet(
+  sessionId: sessionId,
+);
+
+/// Insert or replace the WebDAV detail row for `rec.session_id`.
+/// Caller stamps the matching `sessions` row with `kind = 'webdav'`
+/// — the DAO does not enforce the pairing because the sync apply
+/// path may need to insert detail rows ahead of the parent inside
+/// one transaction.
+Future<void> dbWebdavSessionDetailsUpsert({
+  required DbWebDavSessionDetails rec,
+}) => RustLib.instance.api.crateApiDbDbWebdavSessionDetailsUpsert(rec: rec);
+
+/// Remove the WebDAV detail row for `session_id`. Returns the
+/// number of rows affected; `0` is the idempotent no-op for a
+/// session that was never a WebDAV kind. The parent session row
+/// is untouched.
+Future<int> dbWebdavSessionDetailsDelete({required String sessionId}) => RustLib
+    .instance
+    .api
+    .crateApiDbDbWebdavSessionDetailsDelete(sessionId: sessionId);
+
+/// Every WebDAV detail row, ordered by `session_id`. Used by
+/// archive export and a future "all WebDAV sessions" diagnostic.
+Future<List<DbWebDavSessionDetails>> dbWebdavSessionDetailsListAll() =>
+    RustLib.instance.api.crateApiDbDbWebdavSessionDetailsListAll();
+
+/// Canonical SecretStore id for a WebDAV session's password /
+/// bearer token. Mirrors `lfs_core::db::webdav_sessions::webdav_secret_id`
+/// for the Dart caller — the connect path needs the same shape to
+/// resolve the secret on lookup.
+String dbWebdavSessionDetailsSecretId({required String sessionId}) => RustLib
+    .instance
+    .api
+    .crateApiDbDbWebdavSessionDetailsSecretId(sessionId: sessionId);
+
 Future<List<DbTag>> dbTagsListAll() =>
     RustLib.instance.api.crateApiDbDbTagsListAll();
 
@@ -644,6 +685,10 @@ class DbRestoreSessionInput {
   final String id;
   final String label;
   final String folderPath;
+
+  /// Transport tag — empty string round-trips as the SSH default
+  /// on the DAO side. See [`DbSession::kind`].
+  final String kind;
   final String host;
   final PlatformInt64 port;
   final String user;
@@ -668,6 +713,7 @@ class DbRestoreSessionInput {
     required this.id,
     required this.label,
     required this.folderPath,
+    required this.kind,
     required this.host,
     required this.port,
     required this.user,
@@ -694,6 +740,7 @@ class DbRestoreSessionInput {
       id.hashCode ^
       label.hashCode ^
       folderPath.hashCode ^
+      kind.hashCode ^
       host.hashCode ^
       port.hashCode ^
       user.hashCode ^
@@ -722,6 +769,7 @@ class DbRestoreSessionInput {
           id == other.id &&
           label == other.label &&
           folderPath == other.folderPath &&
+          kind == other.kind &&
           host == other.host &&
           port == other.port &&
           user == other.user &&
@@ -747,6 +795,12 @@ class DbSession {
   final String id;
   final String label;
   final String? folderId;
+
+  /// Transport tag — one of `"ssh"` / `"webdav"`. Empty string
+  /// upserts the SSH wire value (the DAO normalises before the
+  /// SQL hop). Read side never returns empty because the column
+  /// is `NOT NULL DEFAULT 'ssh'`.
+  final String kind;
   final String host;
   final PlatformInt64 port;
   final String user;
@@ -771,6 +825,7 @@ class DbSession {
     required this.id,
     required this.label,
     this.folderId,
+    required this.kind,
     required this.host,
     required this.port,
     required this.user,
@@ -797,6 +852,7 @@ class DbSession {
       id.hashCode ^
       label.hashCode ^
       folderId.hashCode ^
+      kind.hashCode ^
       host.hashCode ^
       port.hashCode ^
       user.hashCode ^
@@ -825,6 +881,7 @@ class DbSession {
           id == other.id &&
           label == other.label &&
           folderId == other.folderId &&
+          kind == other.kind &&
           host == other.host &&
           port == other.port &&
           user == other.user &&
@@ -1207,4 +1264,45 @@ class DbTag {
           name == other.name &&
           color == other.color &&
           createdAtMs == other.createdAtMs;
+}
+
+/// FRB mirror of
+/// [`lfs_core::db::webdav_sessions::WebDavSessionRow`]. Carries the
+/// WebDAV transport-config tuple keyed by session id.
+class DbWebDavSessionDetails {
+  final String sessionId;
+  final String baseUrl;
+  final String username;
+
+  /// `"basic"` / `"digest"` / `"bearer"`. The connect path parses
+  /// this into the typed `lfs_core::webdav::AuthMethod`.
+  final String authMethod;
+  final String? selfSignedFingerprint;
+
+  const DbWebDavSessionDetails({
+    required this.sessionId,
+    required this.baseUrl,
+    required this.username,
+    required this.authMethod,
+    this.selfSignedFingerprint,
+  });
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^
+      baseUrl.hashCode ^
+      username.hashCode ^
+      authMethod.hashCode ^
+      selfSignedFingerprint.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbWebDavSessionDetails &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          baseUrl == other.baseUrl &&
+          username == other.username &&
+          authMethod == other.authMethod &&
+          selfSignedFingerprint == other.selfSignedFingerprint;
 }

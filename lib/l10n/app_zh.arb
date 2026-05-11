@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "会话类型",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "用户名",
+  "webDavAuthMethod": "Auth 方式",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Self-signed 证书 fingerprint(可选)",
+  "webDavSelfSignedFingerprintHint": "SHA-256,留空则使用系统 trust",
+  "webDavCopyUrl": "复制 WebDAV URL",
+  "webDavOpenInBrowser": "在浏览器中打开",
+  "errWebDavAuthFailed": "WebDAV 认证失败",
+  "errWebDavNotFound": "路径未找到",
+  "errWebDavConflict": "操作与当前状态冲突",
+  "errWebDavGeneric": "WebDAV 服务器拒绝请求:{detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

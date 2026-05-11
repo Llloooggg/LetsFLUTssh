@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "نوع الجلسة",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "اسم المستخدم",
+  "webDavAuthMethod": "طريقة Auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Fingerprint لشهادة self-signed (اختياري)",
+  "webDavSelfSignedFingerprintHint": "SHA-256، اتركه فارغًا لاستخدام trust النظام",
+  "webDavCopyUrl": "نسخ WebDAV URL",
+  "webDavOpenInBrowser": "فتح في المتصفح",
+  "errWebDavAuthFailed": "فشل auth WebDAV",
+  "errWebDavNotFound": "Path غير موجود",
+  "errWebDavConflict": "العملية تتعارض مع الحالة الحالية",
+  "errWebDavGeneric": "خادم WebDAV رفض الطلب: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

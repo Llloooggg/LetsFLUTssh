@@ -885,5 +885,30 @@
         "type": "int"
       }
     }
+  },
+  "sessionKindSsh": "SSH / SFTP",
+  "sessionKindWebDav": "WebDAV",
+  "sessionKindLabel": "نوع session",
+  "webDavBaseUrl": "Base URL",
+  "webDavBaseUrlHint": "https://example.com/remote.php/dav/files/alice/",
+  "webDavUsername": "نام کاربری",
+  "webDavAuthMethod": "روش auth",
+  "webDavAuthBasic": "Basic",
+  "webDavAuthDigest": "Digest",
+  "webDavAuthBearer": "Bearer token",
+  "webDavSelfSignedFingerprint": "Fingerprint گواهی self-signed (اختیاری)",
+  "webDavSelfSignedFingerprintHint": "SHA-256، خالی برای استفاده از trust سیستم",
+  "webDavCopyUrl": "کپی WebDAV URL",
+  "webDavOpenInBrowser": "باز کردن در مرورگر",
+  "errWebDavAuthFailed": "auth WebDAV ناموفق",
+  "errWebDavNotFound": "Path یافت نشد",
+  "errWebDavConflict": "عملیات با وضعیت فعلی در تعارض است",
+  "errWebDavGeneric": "سرور WebDAV درخواست را رد کرد: {detail}",
+  "@errWebDavGeneric": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
   }
 }

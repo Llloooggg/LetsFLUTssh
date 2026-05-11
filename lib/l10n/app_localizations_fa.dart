@@ -2648,4 +2648,63 @@ class SFa extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'نوع session';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'نام کاربری';
+
+  @override
+  String get webDavAuthMethod => 'روش auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Fingerprint گواهی self-signed (اختیاری)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256، خالی برای استفاده از trust سیستم';
+
+  @override
+  String get webDavCopyUrl => 'کپی WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'باز کردن در مرورگر';
+
+  @override
+  String get errWebDavAuthFailed => 'auth WebDAV ناموفق';
+
+  @override
+  String get errWebDavNotFound => 'Path یافت نشد';
+
+  @override
+  String get errWebDavConflict => 'عملیات با وضعیت فعلی در تعارض است';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'سرور WebDAV درخواست را رد کرد: $detail';
+  }
 }

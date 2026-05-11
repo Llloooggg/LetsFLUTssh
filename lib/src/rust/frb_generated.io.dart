@@ -69,6 +69,7 @@ import 'api/transfer_conflict.dart';
 import 'api/update_http.dart';
 import 'api/update_metadata.dart';
 import 'api/update_signing.dart';
+import 'api/webdav.dart';
 import 'api/winbio.dart';
 import 'api/wipe.dart';
 import 'api/wipe_keychain.dart';
@@ -111,6 +112,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   get rust_arc_decrement_strong_count_SshShellPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShellPtr;
 
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_WebDavConnectionPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnectionPtr;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
@@ -147,6 +152,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   SshShell
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
+    dynamic raw,
+  );
+
+  @protected
+  WebDavConnection
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     dynamic raw,
   );
 
@@ -193,6 +204,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  WebDavConnection
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+    dynamic raw,
+  );
+
+  @protected
   Map<String, String> dco_decode_Map_String_String_None(dynamic raw);
 
   @protected
@@ -228,6 +245,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   SshShell
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
+    dynamic raw,
+  );
+
+  @protected
+  WebDavConnection
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     dynamic raw,
   );
 
@@ -400,6 +423,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbUnlockFailureReason dco_decode_box_autoadd_db_unlock_failure_reason(
+    dynamic raw,
+  );
+
+  @protected
+  DbWebDavSessionDetails dco_decode_box_autoadd_db_web_dav_session_details(
     dynamic raw,
   );
 
@@ -783,6 +811,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbVersionOrder dco_decode_db_version_order(dynamic raw);
 
   @protected
+  DbWebDavSessionDetails dco_decode_db_web_dav_session_details(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
 
   @protected
@@ -931,6 +962,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_list_db_unsupported_future_version(dynamic raw);
 
   @protected
+  List<DbWebDavSessionDetails> dco_decode_list_db_web_dav_session_details(
+    dynamic raw,
+  );
+
+  @protected
   Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
 
   @protected
@@ -944,6 +980,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SftpDirEntry> dco_decode_list_sftp_dir_entry(dynamic raw);
+
+  @protected
+  List<WebDavDirEntry> dco_decode_list_web_dav_dir_entry(dynamic raw);
 
   @protected
   MacosInstallOutcome dco_decode_macos_install_outcome(dynamic raw);
@@ -1040,6 +1079,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbTierState? dco_decode_opt_box_autoadd_db_tier_state(dynamic raw);
 
   @protected
+  DbWebDavSessionDetails? dco_decode_opt_box_autoadd_db_web_dav_session_details(
+    dynamic raw,
+  );
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -1101,6 +1145,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  WebDavDirEntry dco_decode_web_dav_dir_entry(dynamic raw);
+
+  @protected
+  WebDavFileMetadata dco_decode_web_dav_file_metadata(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
@@ -1136,6 +1186,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   SshShell
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WebDavConnection
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     SseDeserializer deserializer,
   );
 
@@ -1182,6 +1238,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  WebDavConnection
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Map<String, String> sse_decode_Map_String_String_None(
     SseDeserializer deserializer,
   );
@@ -1219,6 +1281,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   SshShell
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  WebDavConnection
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
     SseDeserializer deserializer,
   );
 
@@ -1443,6 +1511,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbUnlockFailureReason sse_decode_box_autoadd_db_unlock_failure_reason(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbWebDavSessionDetails sse_decode_box_autoadd_db_web_dav_session_details(
     SseDeserializer deserializer,
   );
 
@@ -1948,6 +2021,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbVersionOrder sse_decode_db_version_order(SseDeserializer deserializer);
 
   @protected
+  DbWebDavSessionDetails sse_decode_db_web_dav_session_details(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
@@ -2142,6 +2220,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   sse_decode_list_db_unsupported_future_version(SseDeserializer deserializer);
 
   @protected
+  List<DbWebDavSessionDetails> sse_decode_list_db_web_dav_session_details(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
 
   @protected
@@ -2157,6 +2240,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SftpDirEntry> sse_decode_list_sftp_dir_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<WebDavDirEntry> sse_decode_list_web_dav_dir_entry(
     SseDeserializer deserializer,
   );
 
@@ -2281,6 +2369,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbWebDavSessionDetails? sse_decode_opt_box_autoadd_db_web_dav_session_details(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -2350,6 +2443,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
+  WebDavDirEntry sse_decode_web_dav_dir_entry(SseDeserializer deserializer);
+
+  @protected
+  WebDavFileMetadata sse_decode_web_dav_file_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -2394,6 +2495,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
     SshShell self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+    WebDavConnection self,
     SseSerializer serializer,
   );
 
@@ -2447,6 +2555,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+    WebDavConnection self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_Map_String_String_None(
     Map<String, String> self,
     SseSerializer serializer,
@@ -2491,6 +2606,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell(
     SshShell self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+    WebDavConnection self,
     SseSerializer serializer,
   );
 
@@ -2772,6 +2894,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_unlock_failure_reason(
     DbUnlockFailureReason self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_web_dav_session_details(
+    DbWebDavSessionDetails self,
     SseSerializer serializer,
   );
 
@@ -3430,6 +3558,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_web_dav_session_details(
+    DbWebDavSessionDetails self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
@@ -3673,6 +3807,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_db_web_dav_session_details(
+    List<DbWebDavSessionDetails> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_prim_u_32_strict(
     Uint32List self,
     SseSerializer serializer,
@@ -3696,6 +3836,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_sftp_dir_entry(
     List<SftpDirEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_web_dav_dir_entry(
+    List<WebDavDirEntry> self,
     SseSerializer serializer,
   );
 
@@ -3843,6 +3989,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_db_web_dav_session_details(
+    DbWebDavSessionDetails? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -3925,6 +4077,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_web_dav_dir_entry(
+    WebDavDirEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_web_dav_file_metadata(
+    WebDavFileMetadata self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class
@@ -4143,5 +4307,39 @@ class RustLibWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShell =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshShellPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnectionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_letsflutssh_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnectionPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnectionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_letsflutssh_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnection =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerWebDavConnectionPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 }

@@ -2658,4 +2658,63 @@ class SHi extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Session प्रकार';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Username';
+
+  @override
+  String get webDavAuthMethod => 'Auth विधि';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Self-signed प्रमाणपत्र का fingerprint (वैकल्पिक)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256, सिस्टम trust के लिए खाली छोड़ें';
+
+  @override
+  String get webDavCopyUrl => 'WebDAV URL कॉपी करें';
+
+  @override
+  String get webDavOpenInBrowser => 'Browser में खोलें';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV auth असफल';
+
+  @override
+  String get errWebDavNotFound => 'Path नहीं मिला';
+
+  @override
+  String get errWebDavConflict => 'Operation मौजूदा state से टकराता है';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV server ने request अस्वीकार किया: $detail';
+  }
 }

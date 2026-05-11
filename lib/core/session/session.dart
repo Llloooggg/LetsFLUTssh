@@ -9,6 +9,33 @@ import '../ssh/ssh_config.dart';
 /// Authentication type for a session.
 enum AuthType { password, key, keyWithPassword }
 
+/// Transport kind. SSH covers the classic shell + SFTP file
+/// browser; WebDAV runs the file browser against an HTTP-backed
+/// remote (Nextcloud, ownCloud, Apache mod_dav, IIS, Synology DSM
+/// etc.). The wire value persisted in the DB matches
+/// `lfs_core::db::sessions::SESSION_KIND_*` constants — keep the
+/// strings in sync with `name`.
+enum SessionKind {
+  ssh,
+  webdav;
+
+  /// Wire value persisted in `sessions.kind`. The DAO normalises
+  /// the empty string to `'ssh'` so the column never holds NULL.
+  String get wire => name;
+
+  /// Parse the wire value. Unknown strings fall back to SSH so a
+  /// future schema bump that adds a kind the current build does
+  /// not understand never bricks the session list — the row
+  /// simply renders as SSH until the build catches up.
+  static SessionKind fromWire(String? value) {
+    if (value == null || value.isEmpty) return SessionKind.ssh;
+    for (final k in SessionKind.values) {
+      if (k.wire == value) return k;
+    }
+    return SessionKind.ssh;
+  }
+}
+
 /// One-off ProxyJump override — used when the user wants to bounce
 /// through a host that is **not** a saved session. All three fields
 /// are required as a unit; the loader treats a partial override as
@@ -148,11 +175,14 @@ class SessionAuth extends SshAuth {
   );
 }
 
-/// SSH session model — stored as JSON, credentials in encrypted storage.
+/// Session model — stored as JSON, credentials in encrypted storage.
+/// `kind` decides the transport (SSH/SFTP vs WebDAV); legacy callers
+/// that omit it default to [SessionKind.ssh].
 class Session {
   final String id;
   final String label;
   final String folder; // path like "Production/Web"
+  final SessionKind kind;
   final ServerAddress server;
   final SessionAuth auth;
   final DateTime createdAt;
@@ -202,6 +232,7 @@ class Session {
     String? id,
     required this.label,
     this.folder = '',
+    this.kind = SessionKind.ssh,
     required this.server,
     this.auth = const SessionAuth(),
     DateTime? createdAt,
@@ -216,6 +247,14 @@ class Session {
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now(),
        extras = Map.unmodifiable(extras ?? const <String, Object?>{});
+
+  /// True when this session uses the SSH/SFTP transport. Cheap
+  /// readable shorthand — call sites that branch by kind read
+  /// better with these getters than with `kind == SessionKind.ssh`.
+  bool get isSsh => kind == SessionKind.ssh;
+
+  /// True when this session uses the WebDAV transport.
+  bool get isWebDav => kind == SessionKind.webdav;
 
   /// True when this session bounces through a bastion before reaching
   /// [host]:[port]. UI uses this to surface a "via X" subtitle.
@@ -343,6 +382,7 @@ class Session {
   Session copyWith({
     String? label,
     String? folder,
+    SessionKind? kind,
     ServerAddress? server,
     SessionAuth? auth,
     Map<String, Object?>? extras,
@@ -356,6 +396,7 @@ class Session {
       id: id,
       label: label ?? this.label,
       folder: folder ?? this.folder,
+      kind: kind ?? this.kind,
       server: server ?? this.server,
       auth: auth ?? this.auth,
       createdAt: createdAt,
@@ -393,6 +434,10 @@ class Session {
     'id': id,
     'label': label,
     'folder': folder,
+    // `kind` omitted for the SSH default so a pre-WebDAV importer
+    // round-trips the payload unchanged. The importer defaults
+    // missing values to SSH on read.
+    if (kind != SessionKind.ssh) 'kind': kind.wire,
     'host': host,
     'port': port,
     'user': user,
@@ -424,6 +469,7 @@ class Session {
           id == other.id &&
           label == other.label &&
           folder == other.folder &&
+          kind == other.kind &&
           server == other.server &&
           auth == other.auth &&
           viaSessionId == other.viaSessionId &&
@@ -438,6 +484,7 @@ class Session {
     id,
     label,
     folder,
+    kind,
     server,
     auth,
     viaSessionId,
@@ -467,6 +514,7 @@ class Session {
       id: json['id'] as String,
       label: json['label'] as String? ?? '',
       folder: json['folder'] as String? ?? json['group'] as String? ?? '',
+      kind: SessionKind.fromWire(json['kind'] as String?),
       server: ServerAddress(
         host: json['host'] as String,
         port: json['port'] as int? ?? 22,

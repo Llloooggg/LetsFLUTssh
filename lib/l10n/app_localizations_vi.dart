@@ -2646,4 +2646,63 @@ class SVi extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'Loại session';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'Username';
+
+  @override
+  String get webDavAuthMethod => 'Phương thức auth';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer token';
+
+  @override
+  String get webDavSelfSignedFingerprint =>
+      'Fingerprint chứng chỉ self-signed (tuỳ chọn)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint =>
+      'SHA-256, để trống dùng trust hệ thống';
+
+  @override
+  String get webDavCopyUrl => 'Sao chép WebDAV URL';
+
+  @override
+  String get webDavOpenInBrowser => 'Mở trong trình duyệt';
+
+  @override
+  String get errWebDavAuthFailed => 'Auth WebDAV thất bại';
+
+  @override
+  String get errWebDavNotFound => 'Không tìm thấy path';
+
+  @override
+  String get errWebDavConflict => 'Thao tác xung đột với state hiện tại';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'Server WebDAV từ chối request: $detail';
+  }
 }

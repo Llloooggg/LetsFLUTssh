@@ -2594,4 +2594,61 @@ class SJa extends S {
     );
     return '$_temp0';
   }
+
+  @override
+  String get sessionKindSsh => 'SSH / SFTP';
+
+  @override
+  String get sessionKindWebDav => 'WebDAV';
+
+  @override
+  String get sessionKindLabel => 'セッション種別';
+
+  @override
+  String get webDavBaseUrl => 'Base URL';
+
+  @override
+  String get webDavBaseUrlHint =>
+      'https://example.com/remote.php/dav/files/alice/';
+
+  @override
+  String get webDavUsername => 'ユーザー名';
+
+  @override
+  String get webDavAuthMethod => 'Auth 方式';
+
+  @override
+  String get webDavAuthBasic => 'Basic';
+
+  @override
+  String get webDavAuthDigest => 'Digest';
+
+  @override
+  String get webDavAuthBearer => 'Bearer トークン';
+
+  @override
+  String get webDavSelfSignedFingerprint => 'Self-signed 証明書の Fingerprint(任意)';
+
+  @override
+  String get webDavSelfSignedFingerprintHint => 'SHA-256、空ならシステム trust を使用';
+
+  @override
+  String get webDavCopyUrl => 'WebDAV URL をコピー';
+
+  @override
+  String get webDavOpenInBrowser => 'ブラウザで開く';
+
+  @override
+  String get errWebDavAuthFailed => 'WebDAV 認証に失敗';
+
+  @override
+  String get errWebDavNotFound => 'パスが見つかりません';
+
+  @override
+  String get errWebDavConflict => '現在の状態と競合しています';
+
+  @override
+  String errWebDavGeneric(String detail) {
+    return 'WebDAV サーバーがリクエストを拒否しました: $detail';
+  }
 }

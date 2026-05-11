@@ -27,6 +27,13 @@ serde_json = { workspace = true }
 # entry path so the derived bytes wipe on drop instead of
 # lingering in `Vec<u8>` allocations across the boundary.
 zeroize = { workspace = true }
+# WebDAV FRB adapter funnels Provider's streamed GET/PUT through a
+# `Vec<u8>` buffer for the v1 surface. `bytes::Bytes` is the
+# de-facto async-Rust chunk type (hyper / reqwest / lfs_core all
+# pin it); `futures-util` carries `StreamExt::next` for the drain
+# loop plus `stream::once` for the put-side single-chunk source.
+bytes = { workspace = true }
+futures-util = { workspace = true }
 
 [dev-dependencies]
 # Per-test scratch directories for the keychain-marker lifecycle

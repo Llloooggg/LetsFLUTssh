@@ -27,6 +27,7 @@ rust_db.DbSession _session({required String? folderId, String extras = '{}'}) =>
       id: 's1',
       label: 'web-prod',
       folderId: folderId,
+      kind: 'ssh',
       host: 'example.com',
       port: 22,
       user: 'root',
