@@ -113,15 +113,14 @@ class SecurityCapabilities {
     return jsonDecode(str) as Map<String, dynamic>;
   }
 
-  /// Pure Dart on purpose — `_mainBody` calls
-  /// `loadAppConfigFromDisk` before `RustLib.init`, so any FRB
-  /// route here would crash the cold-start path. The wire-format
-  /// shape (snake_case keys, enum values matching `KeyringProbeResult.name`)
-  /// is the canonical encoding `lfs_core::security::capabilities`
-  /// emits and Dart writes back through `SecurityCapabilities.toJson`,
-  /// so a manual decode produces the same result as the Rust round-trip.
-  /// Returns `null` for malformed input (unknown enum value, missing
-  /// required keys).
+  /// Pure-Dart decode. The wire-format shape (snake_case keys,
+  /// enum values matching `KeyringProbeResult.name`) is the
+  /// canonical encoding `lfs_core::security::capabilities` emits
+  /// and Dart writes back through `SecurityCapabilities.toJson`,
+  /// so a manual decode produces the same result as the Rust
+  /// round-trip without paying the FRB hop on every config
+  /// snapshot. Returns `null` for malformed input (unknown enum
+  /// value, missing required keys).
   static SecurityCapabilities? fromJson(Map<String, dynamic>? json) {
     if (json == null) return null;
     try {

@@ -76,7 +76,15 @@ part 'main_screen.dart';
 /// singleton, wire the config-store actor, attach the Rust→Dart log
 /// pipe, and apply process hardening. Returns `true` when the core
 /// is ready and `_mainBody` should continue, `false` when load
-/// failed and the widget tree was replaced with [FatalErrorApp].
+/// failed and the caller replaced the widget tree with [FatalErrorApp].
+///
+/// Runs **before** `loadAppConfigFromDisk` + `runApp` from inside
+/// `_mainBody` so the config load route can snapshot the Rust
+/// `config_store` actor instead of touching `dart:io File` itself.
+/// The narrow pre-FRB window collapses to the few ms spent inside
+/// `RustLib.init()`; `logCritical` writes during that window still
+/// buffer through `_preFrbCriticalBuffer` and drain via
+/// [AppLogger.onFrbReady] right after this function returns.
 ///
 /// Failure-mode escape valve: every SSH / SFTP / keypair / crypto
 /// call routes through here, and a missing core makes downstream
@@ -85,6 +93,13 @@ part 'main_screen.dart';
 /// fresh" button calls `WipeAllService.wipeAll()` — destroying their
 /// data over what is usually a transient packaging issue. Bail to a
 /// dedicated fatal screen instead so the wipe path is unreachable.
+///
+/// **Don't move this call later than `_mainBody`.** Splitting the
+/// Rust core load off the pre-`runApp` slice would mean the first
+/// frame paints before the user's saved theme is read (silent
+/// theme-flash regression) and would re-introduce the Dart-side
+/// `dart:io File.readAsString` on `config.json` the load route
+/// dropped.
 Future<bool> _initRustCoreOrFatal() async {
   // Track which sub-steps landed so the catch arm can roll the
   // pieces back in reverse order. A partial init that leaks the
@@ -154,6 +169,14 @@ Future<bool> _initRustCoreOrFatal() async {
       );
     }
     return true;
+  } on AppConfigParseException {
+    // Surfaced by `bootstrapRustConfigStore` when the on-disk
+    // `config.json` exists but does not parse. Route to the
+    // config-corrupt fatal screen the caller in `_mainBody`
+    // owns, not the native-blob fatal screen below — the user's
+    // recovery is "delete or restore the settings file", not
+    // "reinstall the app".
+    rethrow;
   } catch (e, st) {
     await AppLogger.instance.logCritical(
       'Rust core failed to load — bailing to fatal screen: $e',
@@ -276,8 +299,8 @@ Future<void> _mainBody() async {
   // `path_provider`; the Rust-side sink (open / append / chmod) wakes
   // up lazily on the first `setThreshold` flip after FRB loads.
   // Pre-FRB `logCritical` writes buffer in memory + mirror to stderr;
-  // `AppLogger.onFrbReady` (called from `_bootstrap` after
-  // `_initRustCoreOrFatal`) drains the buffer through Rust.
+  // `AppLogger.onFrbReady` (called below right after
+  // `_initRustCoreOrFatal` lands) drains the buffer through Rust.
   final loggerInit = AppLogger.instance.init();
 
   // Global error boundary — catch unhandled Flutter framework errors
@@ -373,41 +396,80 @@ Future<void> _mainBody() async {
   // manage single instance natively as part of the activity / scene
   // lifecycle.
 
-  // Rust core (RustLib.init + appInit + ProcessHardening + log
-  // pipe + config-store actor) runs from `_LetsFLUTsshAppState
-  // ._bootstrap` after the first frame, NOT pre-`runApp`. The
-  // structural invariant that follows: nothing reachable from
-  // `_mainBody` synchronously, from any `Notifier.build` triggered
-  // during the first runApp pass, or from any `initState` of the
-  // first-frame widget tree may call FRB. Cold-start callers that
-  // need a parse / sanitize / canonicalise step pre-`runApp`
-  // (`AppConfig.fromJson`, `SecurityCapabilities.fromJson`) MUST
-  // fall back to a pure-Dart path; post-frame canonicalisation
-  // re-applies the Rust pipeline once the core is up. See
-  // `_LetsFLUTsshAppState._bootstrap` and the docstrings on those
-  // two factories.
-
-  // Load config before first frame to prevent light-theme flash.
-  // The pre-loaded value is injected via [preloadedAppConfigProvider]
-  // so ConfigNotifier.build() seeds state with it instead of falling
-  // back to AppConfig.defaults. Cheap (single JSON file read), kept
-  // pre-runApp so the first frame already paints the user's saved
-  // theme / locale / `ui_scale`.
+  // Rust core init runs pre-`runApp` so the subsequent config load
+  // + FRB-backed logging fire against a ready runtime. The
+  // pre-FRB window narrows to the few ms during `RustLib.init()`
+  // itself; `logCritical` writes during that window buffer through
+  // `_preFrbCriticalBuffer` and drain via [AppLogger.onFrbReady]
+  // below.
   //
-  // [AppConfigParseException] = on-disk file exists but cannot be
-  // parsed. Bail to a fatal screen rather than silently fall back
-  // to defaults: the next `update` would overwrite the existing
-  // file with those defaults and lose the user's `security_tier` /
-  // `security_modifiers` (which sends the next launch into the
-  // tier-reset recovery path). User keeps their on-disk DB, just
-  // needs to delete `config.json` (or restore a backup) and relaunch.
+  // `_initRustCoreOrFatal` already swaps the widget tree to the
+  // native-blob FatalErrorApp on its own failure (returns `false`).
+  // [AppConfigParseException] from `bootstrapRustConfigStore` is
+  // rethrown out of the function so the config-corrupt FatalErrorApp
+  // path below can carry the specific recovery message ("delete or
+  // restore `config.json`") rather than the generic "reinstall the
+  // app" copy.
+  final bool rustCoreReady;
+  try {
+    rustCoreReady = await _initRustCoreOrFatal();
+  } on AppConfigParseException catch (e, st) {
+    // RustLib + appInit landed before `bootstrapRustConfigStore`
+    // threw, so flip the logger gate now — `logCritical` writes
+    // below (and inside FatalErrorApp's wipe handler) reach the
+    // on-disk log instead of buffering past process exit.
+    await AppLogger.instance.onFrbReady();
+    await AppLogger.instance.logCritical(
+      'config.json is unreadable — bailing to fatal screen so the '
+      'corrupt file is not overwritten on the next save: $e',
+      name: 'ConfigStore',
+      error: e,
+      stackTrace: st,
+    );
+    runApp(
+      FatalErrorApp(
+        summary: 'LetsFLUTssh cannot start.',
+        detail:
+            'The settings file at ${e.path} could not be parsed. '
+            'Your sessions and saved data are not affected — only '
+            'app preferences live in this file. To recover, quit '
+            'the app and either delete that file (preferences reset '
+            'to defaults) or restore it from a backup, then relaunch.',
+      ),
+    );
+    return;
+  }
+  if (!rustCoreReady) return;
+
+  // Flip the FRB-ready gate, register the log path Rust-side, open
+  // the sink if a non-null threshold is already recorded, and drain
+  // the pre-FRB `logCritical` ring buffer through
+  // `logger_append_critical`. Runs here — after `_initRustCoreOrFatal`
+  // succeeded, before `loadAppConfigFromDisk` snapshots the config
+  // store — so the rest of `_mainBody` (and the post-frame
+  // `_bootstrap` chain) sees a live logger from the next line.
+  unawaited(AppLogger.instance.onFrbReady());
+
+  // Snapshot the Rust `config_store` actor (already initialised
+  // inside `_initRustCoreOrFatal` via `bootstrapRustConfigStore`).
+  // The first frame paints the user's saved theme / locale /
+  // `ui_scale` because the snapshot is injected via
+  // `preloadedAppConfigProvider` before `runApp` below.
+  //
+  // [AppConfigParseException] from this call would mean the actor
+  // returned `None` (init never ran — precondition violation, code
+  // bug) or the canonical JSON did not decode (Rust + Dart encoders
+  // drifted — schema bug). The corrupt-on-disk file path is already
+  // caught by the `on AppConfigParseException` arm above, where the
+  // throw originates inside `bootstrapRustConfigStore`. Treat any
+  // reach-here exception as the same fatal-screen route so the
+  // unread file is not overwritten.
   final LoadedAppConfig loaded;
   try {
     loaded = await loadAppConfigFromDisk();
   } on AppConfigParseException catch (e, st) {
     await AppLogger.instance.logCritical(
-      'config.json is unreadable — bailing to fatal screen so the '
-      'corrupt file is not overwritten on the next save: $e',
+      'config_store snapshot unreadable — bailing to fatal screen: $e',
       name: 'ConfigStore',
       error: e,
       stackTrace: st,
@@ -429,10 +491,9 @@ Future<void> _mainBody() async {
   await loggerInit; // ensure log path resolved before enabling file logging
   // Stamp the app version into the logger before the sink opens —
   // `setThreshold` below opens the sink which writes the session
-  // banner including the version. `PackageInfo.fromPlatform` rides on
-  // a Flutter platform channel, not the Rust core, so it works fine
-  // pre-FRB. Best-effort — a failed lookup leaves the banner with a
-  // version-less form.
+  // banner including the version. `PackageInfo.fromPlatform` rides
+  // on a Flutter platform channel; best-effort, a failed lookup
+  // leaves the banner with a version-less form.
   try {
     final pkg = await PackageInfo.fromPlatform();
     AppLogger.instance.setAppVersion(pkg.version);

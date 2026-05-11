@@ -1,22 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/config/app_config.dart';
 import '../src/rust/api/config.dart' as rust_config;
 import '../utils/logger.dart';
 
-const _configFileName = 'config.json';
-
-/// Pre-load seam: `main()` reads the config from disk before `runApp`
-/// (so the very first frame avoids the light-theme flash) and stuffs
-/// the result here as an override. The notifier's `build()` reads this
-/// instead of returning [AppConfig.defaults] when present.
+/// Pre-load seam: `main()` snapshots the Rust-side `config_store`
+/// actor into this provider as an override before the first frame
+/// (so the first paint already carries the user's saved theme /
+/// locale / `ui_scale` without a light-theme flash). The notifier's
+/// `build()` reads this instead of returning [AppConfig.defaults]
+/// when present.
 ///
 /// Tests leave it null so each fresh container starts at defaults.
 final preloadedAppConfigProvider = Provider<AppConfig?>((_) => null);
@@ -31,21 +29,22 @@ class LoadedAppConfig {
   final bool loadedFromFile;
 }
 
-/// Thrown by [loadAppConfigFromDisk] when `config.json` exists but
-/// cannot be parsed (truncated JSON, FRB sanitiser threw, schema
-/// drift the runner couldn't repair, …). Distinct from the
-/// missing-file branch — a missing file means "fresh install, use
-/// defaults"; a parse error means "the user has on-disk data we
-/// cannot interpret, do NOT silently fall back to defaults and
-/// then save those defaults over the unparseable file".
+/// Thrown by [loadAppConfigFromDisk] when the Rust `config_store`
+/// actor could not adopt an on-disk `config.json` (parse failure
+/// surfaced by `config_store_init` as an `Err`, or an in-memory
+/// snapshot the Dart factory cannot turn into a valid [AppConfig]
+/// — Rust + Dart canonical encoders disagreeing is itself a bug).
+/// Distinct from the missing-file branch — a missing file means
+/// "fresh install, use defaults"; a parse error means "the user
+/// has on-disk data we cannot interpret, do NOT silently fall back
+/// to defaults and then save those defaults over the unparseable
+/// file".
 ///
-/// The previous behaviour caught every parse failure, returned
-/// `AppConfig.defaults`, then let `ConfigNotifier` save those
-/// defaults on the first probe-cache write — which OVERWROTE the
-/// user's real `config.json` (specifically `security_tier` would
-/// drop, sending the next launch into the legacy-state path with
-/// a "Reset all" dialog the user couldn't see because it sat
-/// under the splash). [main] now catches this and routes to
+/// Silent fallback would overwrite the user's real `config.json`
+/// on the next probe-cache write — specifically `security_tier`
+/// would drop, sending the next launch into the legacy-state path
+/// with a "Reset all" dialog the user couldn't see because it sat
+/// under the splash. [main] catches this and routes to
 /// [FatalErrorApp] so the user can decide whether to delete the
 /// file (lose preferences, keep data) or quit and recover the
 /// file out-of-band.
@@ -59,51 +58,101 @@ class AppConfigParseException implements Exception {
   String toString() => 'AppConfigParseException($path): $cause';
 }
 
-/// Load `config.json` from the app support directory. Returns
-/// defaults when the file is absent (fresh install). Throws
-/// [AppConfigParseException] when the file exists but cannot be
-/// parsed — see the exception's docstring for the rationale.
+/// Snapshot the Rust `config_store` actor into a [LoadedAppConfig].
+///
+/// Preconditions: [bootstrapRustConfigStore] (which calls
+/// `config_store_init`) must have run earlier in `_mainBody` so the
+/// actor already adopted the on-disk file (or seeded defaults). This
+/// function only reads the in-memory canonical JSON via
+/// `config_store_get_json` plus the `was_loaded_from_disk` flag —
+/// no Dart-side `dart:io` File / Directory operations touch the
+/// config path at all. `lfs_core::config_store::Store` owns parse +
+/// symlink-safe read + atomic write.
+///
+/// Returns defaults with `loadedFromFile: false` when init seeded
+/// defaults (absent or unreadable file — fresh-install or
+/// hostile-environment path). Throws [AppConfigParseException]
+/// when:
+/// * the actor returned `None` from `config_store_get_json` (init
+///   never ran — precondition violation, caller bug), or
+/// * the returned JSON does not decode into a `Map<String, dynamic>`
+///   shape the Dart [AppConfig.fromJson] factory accepts (Rust +
+///   Dart canonical encoders drifted — schema bug).
+///
+/// `config_store_init` itself surfaces an on-disk parse failure as
+/// `Err`; that path turns into the same fatal-screen route via the
+/// throw inside [bootstrapRustConfigStore].
 Future<LoadedAppConfig> loadAppConfigFromDisk() async {
-  final dir = await getApplicationSupportDirectory();
-  final filePath = p.join(dir.path, _configFileName);
-  final file = File(filePath);
-  if (!await file.exists()) {
-    return const LoadedAppConfig(
-      config: AppConfig.defaults,
-      loadedFromFile: false,
+  final loadedFromFile = rust_config.configStoreWasLoadedFromDisk();
+  final canonicalJson = rust_config.configStoreGetJson();
+  if (canonicalJson == null) {
+    // Structural precondition violation: `_mainBody` runs
+    // `_initRustCoreOrFatal` (which calls `bootstrapRustConfigStore`)
+    // before any caller can reach `loadAppConfigFromDisk`. A null
+    // return here means a test (or a future refactor) skipped the
+    // bootstrap step — refuse to invent defaults that the next
+    // `update` would persist over the unread file.
+    AppLogger.instance.log(
+      'config_store snapshot was null — bootstrapRustConfigStore '
+      'must run before loadAppConfigFromDisk',
+      name: 'ConfigStore',
+    );
+    throw AppConfigParseException(
+      _configPathHint(),
+      StateError('config_store not initialised'),
     );
   }
   try {
-    final content = await file.readAsString();
-    final json = jsonDecode(content) as Map<String, dynamic>;
+    final json = jsonDecode(canonicalJson) as Map<String, dynamic>;
     return LoadedAppConfig(
       config: AppConfig.fromJson(json),
-      loadedFromFile: true,
+      loadedFromFile: loadedFromFile,
     );
   } catch (e) {
     AppLogger.instance.log(
-      'Failed to parse config.json — refusing silent fallback to '
-      'defaults so the existing file is not overwritten on next save: $e',
+      'config_store snapshot did not decode into AppConfig — '
+      'refusing silent fallback to defaults so the existing file '
+      'is not overwritten on next save: $e',
       name: 'ConfigStore',
     );
-    throw AppConfigParseException(filePath, e);
+    throw AppConfigParseException(_configPathHint(), e);
   }
 }
 
-/// Wire the Rust `lfs_core::config_store::Store` actor against
-/// the app-support directory so subsequent save() calls land on
-/// disk through the Rust atomic-write + bus-event path.
+/// Best-effort path hint for [AppConfigParseException]. The Rust
+/// actor owns the canonical path; this Dart-side composition is for
+/// the fatal-screen message only, where the localised template
+/// substitutes the path into "The settings file at … could not be
+/// parsed…". Failures here yield the bare filename so the screen
+/// still renders.
+String _configPathHint() => 'config.json';
+
+/// Wire the Rust `lfs_core::config_store::Store` actor against the
+/// app-support directory. The actor loads `<support_dir>/config.json`
+/// if present (or seeds defaults), spawns the singleton background
+/// debounce ticker, and exposes the canonical JSON through the
+/// `config_store_get_json` snapshot.
 ///
-/// Called once from `_initRustCoreOrFatal()` in `main.dart` right
-/// after `RustLib.init()` + `appInit()` succeed and before
-/// `loadAppConfigFromDisk` parses the on-disk file (which routes
-/// through `rust_config.configAppConfigSanitizeJson`).
-/// `_saveAppConfigToDisk` re-invokes `configStoreInit` defensively
-/// — the Rust-side actor is idempotent under repeated init with
-/// the same directory.
+/// Called once from `_initRustCoreOrFatal()` in `main.dart`
+/// immediately after `RustLib.init()` + `appInit()` succeed and
+/// before [loadAppConfigFromDisk] reads the snapshot. Idempotent
+/// per the Rust-side docstring — re-running under the same
+/// `support_dir` reloads from disk without writing.
+///
+/// Surfaces an on-disk parse failure as [AppConfigParseException]
+/// so the caller (`_mainBody`) routes the user to the fatal-error
+/// screen instead of silently falling back to defaults.
 Future<void> bootstrapRustConfigStore() async {
   final dir = await getApplicationSupportDirectory();
-  rust_config.configStoreInit(supportDir: dir.path);
+  try {
+    rust_config.configStoreInit(supportDir: dir.path);
+  } catch (e) {
+    AppLogger.instance.log(
+      'config_store_init refused on-disk file: $e',
+      name: 'ConfigStore',
+    );
+    throw AppConfigParseException('${dir.path}/config.json', e);
+  }
 }
 
 Future<void> _saveAppConfigToDisk(AppConfig config) async {
@@ -126,10 +175,6 @@ Future<void> _saveAppConfigToDisk(AppConfig config) async {
 /// [preloadedAppConfigProvider] when set (production cold-start path)
 /// or [AppConfig.defaults] (tests). Mutations debounce a trailing disk
 /// write through the Notifier's `update` API.
-///
-/// Replaces the prior two-tier `Provider<ConfigStore>` +
-/// `NotifierProvider<ConfigNotifier>` split; persistence lives one
-/// place.
 final configProvider = NotifierProvider<ConfigNotifier, AppConfig>(
   ConfigNotifier.new,
 );
@@ -167,22 +212,29 @@ class ConfigNotifier extends Notifier<AppConfig> {
     return seed ?? AppConfig.defaults;
   }
 
-  /// Force a re-read from disk + push into state. Used after `main()`
-  /// already pre-loaded (no-op except for late-binding tests) and by
-  /// the SecurityInitController reset cascade after wipe (where the
-  /// config file is gone and `loadAppConfigFromDisk` returns the
-  /// missing-file branch with `AppConfig.defaults`).
+  /// Force a re-read from the Rust config-store actor + push into
+  /// state. Used after `main()` already pre-loaded (no-op except
+  /// for late-binding tests) and by the SecurityInitController
+  /// reset cascade after wipe (where the config file is gone and
+  /// `loadAppConfigFromDisk` returns the missing-file branch with
+  /// `AppConfig.defaults`).
   ///
-  /// On [AppConfigParseException] (existing-but-corrupt file) the
-  /// catch keeps the prior state — the throw is structurally only
-  /// reachable here on a mid-session corruption (the cold-start
-  /// path catches the same exception in `main` and routes to the
-  /// fatal screen). Logging + leaving state untouched is the
-  /// safest fallback for the runtime case: a follow-up `update`
-  /// will save the prior in-memory state, not silently overwrite
-  /// the on-disk file with defaults.
+  /// On [AppConfigParseException] (corrupt-file path turned into a
+  /// throw by `config_store_init`) the catch keeps the prior state
+  /// — the throw is structurally only reachable here on a
+  /// mid-session corruption (the cold-start path catches the same
+  /// exception in `main` and routes to the fatal screen). Logging
+  /// + leaving state untouched is the safest fallback for the
+  /// runtime case: a follow-up `update` will save the prior
+  /// in-memory state, not silently overwrite the on-disk file with
+  /// defaults.
   Future<void> load() async {
     try {
+      // Re-run the bootstrap so a wipe + re-init cycle picks up
+      // the now-absent file (`was_loaded_from_disk` flips back to
+      // false). `config_store_init` is idempotent under the same
+      // dir per its docstring.
+      await bootstrapRustConfigStore();
       final loaded = await loadAppConfigFromDisk();
       state = loaded.config;
       await AppLogger.instance.setThreshold(state.logLevel);

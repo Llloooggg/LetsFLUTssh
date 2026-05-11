@@ -10,9 +10,11 @@ import '../helpers/frb_bootstrap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // ConfigNotifier persistence routes through `loadAppConfigFromDisk`
-  // / `_saveAppConfigToDisk`, which encode via `AppConfig.toJson` →
-  // Rust canonical encoder. Bootstrap FRB so the round-trip survives.
+  // ConfigNotifier persistence + `loadAppConfigFromDisk` both route
+  // through the Rust `config_store` actor (`config_store_init` +
+  // `config_store_get_json` + `config_store_was_loaded_from_disk` +
+  // `config_store_set_json` + `config_store_flush`). Bootstrap FRB
+  // so every round-trip exercises the canonical Rust pipeline.
   setUpAll(requireFrbLoaded);
   late Directory tempDir;
 
@@ -64,7 +66,9 @@ void main() {
         (c) => c.copyWith(terminal: c.terminal.copyWith(fontSize: 20.0)),
       );
 
-      // Fresh container — load from the file we just wrote.
+      // Fresh container — load from the file we just wrote. `load()`
+      // re-runs `bootstrapRustConfigStore` so the actor reloads from
+      // disk under the same tempdir.
       final c2 = ProviderContainer();
       addTearDown(c2.dispose);
       final n2 = c2.read(configProvider.notifier);
@@ -138,31 +142,53 @@ void main() {
       );
     });
 
-    test('loadAppConfigFromDisk throws on corrupt file', () async {
-      // Pre-write garbage into the temp config so the parse throws.
-      // The bug this guards: the previous behaviour silently fell
-      // back to AppConfig.defaults, which would then get written
-      // back by the next `update`-triggered save and overwrite the
-      // unparseable file (losing any field the in-memory defaults
-      // don't carry, e.g. `security_tier`). Throwing forces `main`
-      // to bail to FatalErrorApp instead so the on-disk file stays
-      // intact for the user to recover manually.
+    test('bootstrapRustConfigStore throws on corrupt file', () async {
+      // Pre-write garbage so `config_store_init` reports the parse
+      // failure as an `Err`. The bug this guards: a silent fallback
+      // to `AppConfig.defaults` would let the next `update` flush
+      // those defaults over the on-disk content, losing the user's
+      // `security_tier` and routing the next launch into the
+      // tier-reset recovery dialog (which sat under the splash and
+      // the user couldn't reach). Throwing forces `main` to bail to
+      // FatalErrorApp instead so the on-disk file stays intact for
+      // the user to recover manually.
       final f = File('${tempDir.path}/config.json');
       await f.writeAsString('{not valid json');
 
       expect(
-        () => loadAppConfigFromDisk(),
+        () => bootstrapRustConfigStore(),
         throwsA(isA<AppConfigParseException>()),
       );
     });
 
     test('loadAppConfigFromDisk returns defaults on missing file', () async {
-      // Fresh-install path: file absent → defaults, no throw. Same
-      // tempDir from setUp is empty, so no config.json exists.
+      // Fresh-install path: file absent → defaults, no throw.
+      // `loadAppConfigFromDisk` snapshots the actor; the
+      // `was_loaded_from_disk` flag must be false so the
+      // SecurityInitController routes the user through the first-
+      // launch wizard.
+      await bootstrapRustConfigStore();
       final loaded = await loadAppConfigFromDisk();
       expect(loaded.loadedFromFile, isFalse);
       expect(loaded.config, equals(AppConfig.defaults));
     });
+
+    test(
+      'loadAppConfigFromDisk reports loadedFromFile when file exists',
+      () async {
+        // Pre-write a valid config file so `config_store_init`
+        // adopts it and `was_loaded_from_disk` flips true. The
+        // SecurityInitController uses this signal to choose between
+        // first-launch wizard and resume-saved-tier branches.
+        final f = File('${tempDir.path}/config.json');
+        await f.writeAsString(r'{"font_size":18.0}');
+
+        await bootstrapRustConfigStore();
+        final loaded = await loadAppConfigFromDisk();
+        expect(loaded.loadedFromFile, isTrue);
+        expect(loaded.config.fontSize, 18.0);
+      },
+    );
 
     test('concurrent updates do not corrupt saved config', () async {
       final container = ProviderContainer();

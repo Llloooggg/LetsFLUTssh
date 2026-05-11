@@ -53,6 +53,16 @@ struct Inner {
     /// loop checks every `DEBOUNCE` tick and writes if `now >=
     /// pending_at` and `pending.is_some()`.
     pending_at: Option<Instant>,
+    /// True when the most recent [`Store::init`] found an
+    /// existing `config.json` on disk and adopted its parsed
+    /// contents; false when init seeded `AppConfig::default()`
+    /// because the file was absent (fresh install) or unreadable
+    /// for non-parse reasons (perm denied / ELOOP from a hostile
+    /// symlink). Read by the Dart cold-start path to set
+    /// `LoadedAppConfig.loadedFromFile` without a separate file
+    /// existence probe — the load route is single-source-of-truth
+    /// for "was there usable on-disk state".
+    loaded_from_disk: bool,
 }
 
 impl Inner {
@@ -62,6 +72,7 @@ impl Inner {
             current: None,
             pending: None,
             pending_at: None,
+            loaded_from_disk: false,
         }
     }
 }
@@ -99,10 +110,21 @@ impl Store {
     /// is dropped without a flush.
     pub fn init(&self, support_dir: PathBuf) -> Result<String, String> {
         let path = support_dir.join(FILE_NAME);
+        // Track whether the on-disk file produced the adopted state.
+        // Only the successful-read + parse branch flips this true;
+        // every I/O failure path (absent file, perm denied, ELOOP)
+        // seeds defaults and leaves the flag false, so the Dart-side
+        // first-launch wizard logic does not run for a user whose
+        // file is merely unreadable (the next `update` rewrites the
+        // path atomically and the flag flips on the subsequent boot).
+        let mut loaded_from_disk = false;
         let cfg = match crate::path::read_bytes_secure(&path) {
             Ok(bytes) => match std::str::from_utf8(&bytes) {
                 Ok(text) => match serde_json::from_str::<serde_json::Value>(text) {
-                    Ok(v) => AppConfig::from_json_value(&v),
+                    Ok(v) => {
+                        loaded_from_disk = true;
+                        AppConfig::from_json_value(&v)
+                    }
                     Err(e) => {
                         return Err(format!("config_store::init: parse {}: {e}", path.display()));
                     }
@@ -125,7 +147,25 @@ impl Store {
         g.current = Some(cfg);
         g.pending = None;
         g.pending_at = None;
+        g.loaded_from_disk = loaded_from_disk;
         Ok(json)
+    }
+
+    /// True when the most recent [`init`] call adopted an existing
+    /// `config.json` from disk; false when the file was absent or
+    /// unreadable and the actor seeded defaults instead. Read by
+    /// the Dart cold-start path so `LoadedAppConfig.loadedFromFile`
+    /// reflects the single source of truth on whether the user
+    /// already has persisted preferences — the SecurityInitController
+    /// uses the flag to decide between "first-launch wizard" and
+    /// "resume saved tier" branches.
+    ///
+    /// Returns false when no `init` has run yet; the Dart caller
+    /// only reads this after `config_store_init` returns, so the
+    /// pre-init value is unreachable in practice.
+    pub fn was_loaded_from_disk(&self) -> bool {
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        g.loaded_from_disk
     }
 
     /// Snapshot the current config as a JSON string. Returns
@@ -485,6 +525,55 @@ mod tests {
             value.get("font_size").and_then(serde_json::Value::as_f64),
             Some(24.0),
         );
+    }
+
+    #[test]
+    fn was_loaded_from_disk_is_false_before_init() {
+        // Fresh actor — no init has run yet. The flag stays false so
+        // a Dart caller that reads the value before `config_store_init`
+        // returns gets a deterministic "no file adopted" signal.
+        let store = Store::for_tests();
+        assert!(!store.was_loaded_from_disk());
+    }
+
+    #[test]
+    fn was_loaded_from_disk_is_false_when_file_absent() {
+        // Fresh-install path: empty support dir → defaults seeded.
+        // The flag must stay false so the SecurityInitController routes
+        // the user through the first-launch wizard.
+        let dir = fresh_dir();
+        let store = Store::for_tests();
+        store.init(dir.path().to_path_buf()).unwrap();
+        assert!(!store.was_loaded_from_disk());
+    }
+
+    #[test]
+    fn was_loaded_from_disk_is_true_when_file_present_and_valid() {
+        // Existing valid file → parsed + adopted. The flag flips true
+        // so the SecurityInitController takes the resume-saved-tier
+        // branch instead of re-running the first-launch wizard.
+        let dir = fresh_dir();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, r#"{"font_size":18.0}"#).unwrap();
+        let store = Store::for_tests();
+        store.init(dir.path().to_path_buf()).unwrap();
+        assert!(store.was_loaded_from_disk());
+    }
+
+    #[test]
+    fn was_loaded_from_disk_resets_when_re_init_finds_no_file() {
+        // Test reset path: a successful disk load followed by an init
+        // against a fresh tempdir (no file) must roll the flag back
+        // to false, otherwise the Dart wipe path would skip wizard
+        // setup after a reset-and-relaunch.
+        let dir1 = fresh_dir();
+        std::fs::write(dir1.path().join("config.json"), r#"{"font_size":18.0}"#).unwrap();
+        let store = Store::for_tests();
+        store.init(dir1.path().to_path_buf()).unwrap();
+        assert!(store.was_loaded_from_disk());
+        let dir2 = fresh_dir();
+        store.init(dir2.path().to_path_buf()).unwrap();
+        assert!(!store.was_loaded_from_disk());
     }
 
     #[test]

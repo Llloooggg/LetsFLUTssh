@@ -88,6 +88,20 @@ String configStoreInit({required String supportDir}) =>
 String? configStoreGetJson() =>
     RustLib.instance.api.crateApiConfigConfigStoreGetJson();
 
+/// True when the most recent `config_store_init` adopted an
+/// existing `<support_dir>/config.json` from disk; false when
+/// the file was absent or unreadable and the actor seeded
+/// defaults instead. The Dart cold-start path reads this to set
+/// `LoadedAppConfig.loadedFromFile` without a separate Dart-side
+/// `File.exists` probe — keeps the load route single-source-of-
+/// truth (Rust owns persistent state, Dart consumes).
+///
+/// Returns false before any `config_store_init` call lands;
+/// callers only read this immediately after init, so the pre-init
+/// value is structurally unreachable.
+bool configStoreWasLoadedFromDisk() =>
+    RustLib.instance.api.crateApiConfigConfigStoreWasLoadedFromDisk();
+
 /// Replace the in-memory state and arm the debounce timer. The
 /// disk write is fire-and-forget (300 ms after the last
 /// `set_json` call); callers that want save-settled guarantees

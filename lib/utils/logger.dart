@@ -468,15 +468,16 @@ class AppLogger {
   /// `logger_append_line` channel routine writes use.
   ///
   /// Cold-start aware: when [_frbReady] is false (Rust core not yet
-  /// loaded), the open is deferred — `_sinkOpen` stays false and
-  /// routine [log] calls no-op. [onFrbReady] reopens
-  /// from `_bootstrap` once FRB is ready, picking up the threshold
-  /// the user (or `--dart-define`) seeded pre-FRB.
+  /// loaded — the few-ms window during `RustLib.init()` inside
+  /// `_mainBody`), the open is deferred — `_sinkOpen` stays false and
+  /// routine [log] calls no-op. [onFrbReady] reopens from
+  /// `_mainBody` once FRB is ready, picking up the threshold the
+  /// user (or `--dart-define`) seeded pre-FRB.
   Future<void> _openSink() async {
     if (_logPath == null) return;
     if (!_frbReady) {
       // Pre-FRB: the sink lives Rust-side and cannot be opened yet.
-      // `onFrbReady` reopens once `_bootstrap` flips
+      // `onFrbReady` reopens after `_initRustCoreOrFatal` flips
       // `_frbReady`; the threshold the caller just set stays
       // recorded in `_threshold` so the deferred open picks it up.
       return;
@@ -546,8 +547,10 @@ class AppLogger {
     return '--- ${parts.join(' | ')} ---';
   }
 
-  /// Called from `_LetsFLUTsshAppState._bootstrap` after
-  /// `_initRustCoreOrFatal` succeeds. Three responsibilities:
+  /// Called from `_mainBody` right after `_initRustCoreOrFatal`
+  /// succeeds, before `loadAppConfigFromDisk` snapshots the config
+  /// store and before `runApp` fires the first frame. Three
+  /// responsibilities:
   ///
   /// 1. Flip the FRB-ready gate so subsequent [logCritical] calls
   ///    route straight to Rust instead of buffering, and so a

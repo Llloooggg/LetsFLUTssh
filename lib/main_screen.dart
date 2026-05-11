@@ -22,19 +22,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // Pure-Dart wiring only. Every FRB-touching listener (HostKey,
     // Keychain probe, HardwareVault probe / unlock / seal, tier
     // state observer, foreground-service bridge) wires up from
-    // `_LetsFLUTsshAppState._bootstrap` AFTER `_initRustCoreOrFatal`
-    // — see the comment block on `wireFrbDependentBootstrapListeners`.
-    // This `initState` runs during the first `runApp` frame, *before*
-    // the deferred Rust core load lands; subscribing to AppBus here
-    // would attach a `_SharedTopic` whose underlying FRB stream
-    // throws and stays null for the process lifetime, breaking the
-    // unlock cascade and the prompt protocol.
+    // `_LetsFLUTsshAppState._bootstrap` — see the comment block on
+    // `wireFrbDependentBootstrapListeners`. Centralising the
+    // wiring keeps every `AppBus.subscribe` attachment in one
+    // auditable place rather than scattering them across widget
+    // `initState`s where each new tile silently adds another
+    // subscription, and it lets the bootstrap stopwatch mark a
+    // single `bus_subscribers_attached` phase that captures the
+    // whole set.
     //
     // Deep-link callbacks register here (pure Dart); the handler's
     // `init()` — which dispatches the cold-start initial link
-    // through Rust — fires from `_bootstrap` post-FRB via
+    // through Rust — fires from `_bootstrap` via
     // `activateDeepLinks`, so a `letsflutssh://` cold launch or a
-    // double-clicked `.lfs` file never races the native lib load.
+    // double-clicked `.lfs` file lands inside the bootstrap chain
+    // alongside the security init + DB unlock instead of running
+    // ahead of them.
     wireDeepLinks(ref.read(deepLinkHandlerProvider), ref);
     _listenForStartupUpdate();
     _listenForFirstLaunchBanner();

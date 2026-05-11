@@ -2485,7 +2485,7 @@ Generated from `lib/providers/` — each row points at the file that defines the
 | `sessionSearchProvider` | `NotifierProvider<SessionSearchNotifier, String>` | `session_provider.dart` |
 | `filteredSessionsProvider` | `Provider<List<Session>>` | `sessionProvider` + `sessionSearchProvider` |
 | `filteredSessionTreeProvider` | `Provider<List<SessionTreeNode>>` | `sessionProvider` + `sessionSearchProvider` |
-| `preloadedAppConfigProvider` | `Provider<AppConfig?>` | `config_provider.dart` — overridden in `main.dart` with the on-disk config so `ConfigNotifier.build()` seeds without a file read |
+| `preloadedAppConfigProvider` | `Provider<AppConfig?>` | `config_provider.dart` — overridden in `main.dart` with the snapshot from the Rust `config_store` actor so `ConfigNotifier.build()` seeds without re-reading the actor |
 | `configProvider` | `NotifierProvider<ConfigNotifier, AppConfig>` | `config_provider.dart` — sync via `lfs_core::config_store` (debounce + atomic write + bus event) |
 | `themeModeProvider` | `Provider<ThemeMode>` | derived from `configProvider` |
 | `localeProvider` | `Provider<Locale?>` | derived from `configProvider` (null = OS auto-detect) |
@@ -3848,7 +3848,7 @@ class FatalErrorApp extends StatefulWidget {
   ...
 }
 ```
-Bare `MaterialApp` shown when the bootstrap chain stops before the regular dialog stack can run — `loadAppConfigFromDisk` cannot parse `config.json`, or `_initRustCoreOrFatal` fails to load the bundled native blob. Carries two recovery affordances:
+Bare `MaterialApp` shown when the bootstrap chain stops before the regular dialog stack can run — the Rust `config_store` actor reports a parse failure for `config.json` (surfaced by `bootstrapRustConfigStore` as `AppConfigParseException`, rethrown out of `_initRustCoreOrFatal` so the caller can route to the corrupt-config screen rather than the native-blob screen), or `_initRustCoreOrFatal` fails to load the bundled native blob itself. Carries two recovery affordances:
 
 * **Quit** (`OutlinedButton`) — exits without touching anything on disk.
 * **Wipe all data** (`FilledButton`, red) — last-resort self-recovery for a corrupt-on-disk artefact the user wants to drop. The handler tries the canonical path first: lazily loads `RustLib.init()` + `appInit()` and routes through `WipeAllService.wipeAll()` (files + keychain + hardware vault + crash-safety marker). Only when `RustLib.init` itself fails — the native blob is the broken artefact — does the handler fall through to [`earlyWipeAppSupportFiles`](../lib/app/early_wipe.dart), which enumerates the immediate children of `<app_support>` and deletes each. The sweep is by enumeration, not against a hardcoded catalogue, so new artefacts the Rust side later writes are covered without a Dart-side edit. Keychain / hardware-vault orphans left by the Dart-only fallback resurface on the next launch and route through `_handleLegacyStateIfPresent` → `TierResetDialog` for the proper Rust-backed cleanup.
@@ -3926,7 +3926,7 @@ Line format: `HH:MM:SS X [Tag] message` where X is `I` / `W` / `E`. Continuation
 
 **Critical paths bypass the threshold.** [`AppLogger.logCritical`](../lib/utils/logger.dart) routes through `logger_append_critical` which opens a fresh `OpenOptions::append` handle Rust-side rather than going through the held routine sink, so the write lands even when the user has logging off. The three global crash boundaries in `main.dart` (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded` handler), the `MigrationRunner` fatal path (uncaught throws + `report.hasFailures`) and the post-init `verifyDatabaseReadable` failure all leave a forensic breadcrumb without waiting for the user to pick a level. Rationale: the window where a crash trace matters most is exactly the first-launch window, before any user has opened Settings at all.
 
-**Pre-FRB critical buffer.** The zone error handler can fire while `RustLib.init` is still pending. Calling FRB pre-init would throw `StateError("flutter_rust_bridge has not been initialized")` and swallow the original error — the exact failure mode the [cold-start ordering](#cold-start-ordering--pre-init--post-init-invariant) invariant exists to prevent. So `AppLogger.logCritical` checks `_frbReady` and, when false, pushes the rendered entry into an in-memory `_preFrbCriticalBuffer` (cap 64, FIFO eviction) and mirrors to stderr on desktop. `_LetsFLUTsshAppState._bootstrap` flips the gate via `AppLogger.onFrbReady()` immediately after `_initRustCoreOrFatal` returns — the method registers the log path Rust-side and replays every buffered entry through `logger_append_critical` so the breadcrumb still lands on disk after boot. Subsequent crashes route straight to Rust without buffering.
+**Pre-FRB critical buffer.** The zone error handler can fire during the few-ms `RustLib.init()` window inside `_mainBody`. Calling FRB before init completes would throw `StateError("flutter_rust_bridge has not been initialized")` and swallow the original error — the exact failure mode the [cold-start ordering](#cold-start-ordering--pre-init--post-init-invariant) invariant exists to prevent. So `AppLogger.logCritical` checks `_frbReady` and, when false, pushes the rendered entry into an in-memory `_preFrbCriticalBuffer` (cap 64, FIFO eviction) and mirrors to stderr on desktop. `_mainBody` flips the gate via `AppLogger.onFrbReady()` immediately after `_initRustCoreOrFatal` returns — the method registers the log path Rust-side and replays every buffered entry through `logger_append_critical` so the breadcrumb still lands on disk after boot. Subsequent crashes route straight to Rust without buffering.
 
 **Rule:** `AppLogger.instance.log(message, name: 'Tag')` for routine events; `AppLogger.instance.logCritical(...)` only for crash / fatal / integrity-probe-failure paths. Never `print()` / `debugPrint()` / `dart:developer.log()`. Never log sensitive data. Use `stackTrace` parameter for full stack traces.
 
@@ -4814,11 +4814,18 @@ Additionally, internal resizable elements (sidebar, file browser columns, split 
 
 ### Cold-start ordering — pre-init / post-init invariant
 
-The boot path splits into two strict halves with FRB readiness as
-the boundary:
+The boot path splits into two halves with the `runApp` call as the
+boundary. FRB readiness is established **inside** the pre-`runApp`
+slice — every step after `_initRustCoreOrFatal` (including
+`loadAppConfigFromDisk` and `runApp` itself) executes with a live
+Rust core. The narrow pre-FRB window collapses to the few ms spent
+inside `RustLib.init()`; `logCritical` writes during that window
+still buffer through the ring at `AppLogger._preFrbCriticalBuffer`
+and drain via `AppLogger.onFrbReady()` immediately after init
+returns.
 
 ```
-_mainBody (synchronous, pre-runApp — PURE DART):
+_mainBody (synchronous, pre-runApp):
   WidgetsFlutterBinding.ensureInitialized
   SecureKeyStorage.enableRuntimeSubprocessProbes()      // bool flag
   AppLogger.init()                                      // path resolution
@@ -4828,34 +4835,38 @@ _mainBody (synchronous, pre-runApp — PURE DART):
                                                          // logCritical buffers
                                                          // pre-FRB; stderr
                                                          // mirrors on desktop
-  single-instance lock                                  // dart:io flock
-  loadAppConfigFromDisk                                 // dart:io + jsonDecode;
-                                                         // throws
-                                                         // AppConfigParseException
-                                                         // on a corrupt file
-                                                         // → fatal-error screen
-                                                         // (never silently
-                                                         // overwrites with
-                                                         // defaults)
-  setThreshold(config.logLevel)                         // records threshold;
-                                                         // sink open defers
-                                                         // until FRB loads —
-                                                         // onFrbReady
-                                                         // runs the open in
-                                                         // post-frame _bootstrap
-  runApp(LetsFLUTsshApp)                                // first frame ← splash visible
-──── post-frame _bootstrap (FRB OK from this point):
   _initRustCoreOrFatal:
       RustLib.init()                                    // load .so/.dll
       rust_app.appInit()                                // AppState singleton
       bootstrapRustConfigStore()                        // config_store actor
+                                                         // loads config.json
+                                                         // through symlink-safe
+                                                         // Rust read; throws
+                                                         // AppConfigParseException
+                                                         // on a corrupt file →
+                                                         // config-corrupt
+                                                         // FatalErrorApp
       AppLogger.attachCoreLogPipe()                     // bus → file sink
       ProcessHardening.applyOnStartup()
-  AppLogger.onFrbReady()                     // drains the pre-FRB
+  AppLogger.onFrbReady()                                // drains the pre-FRB
                                                          // critical-write
                                                          // buffer; registers
                                                          // the log path
-                                                         // Rust-side
+                                                         // Rust-side; opens
+                                                         // sink if threshold
+                                                         // already non-null
+  loadAppConfigFromDisk                                 // snapshots the Rust
+                                                         // config_store actor
+                                                         // (config_store_get_json
+                                                         // + was_loaded_from_disk);
+                                                         // no dart:io File on
+                                                         // config path
+  setThreshold(config.logLevel)                         // sink open lands here
+                                                         // since FRB is up
+  runApp(LetsFLUTsshApp)                                // first frame paints
+                                                         // user's theme +
+                                                         // locale; splash visible
+──── post-frame _bootstrap:
   activateDeepLinks(ref.read(deepLinkHandlerProvider))  // FRB-driven
                                                          // initial-URI
                                                          // pump
@@ -4872,28 +4883,38 @@ _mainBody (synchronous, pre-runApp — PURE DART):
   → readyNotifier.value = true                          // splash hides
 ```
 
-**Invariant — STRICT.** No code reachable from `_mainBody` synchronously, from any Dart `Notifier.build()` triggered during the first runApp pass, or from any `initState` of the widgets that mount during the first frame may call into FRB. The check is mechanical: nothing on those paths imports `package:letsflutssh/src/rust/...` (with the narrow exception of save-side code that runs only post-bootstrap, e.g. `AppConfig.toJson` → `rust_config.configAppConfigToJson`). The pure-Dart pipeline produces canonical results for healthy `config.json` content because every sub-config's `fromJson` factory calls its own `.sanitized()` clamp pipeline (clamp out-of-range numbers, fall through unknown enum names to defaults).
+**Invariant — STRICT.** The pre-FRB window narrows to the few ms during `RustLib.init()` itself. Nothing reachable from the synchronous slice of `_mainBody` *before* the `await _initRustCoreOrFatal()` call may import `package:letsflutssh/src/rust/...` or otherwise reach FRB; everything after that call runs against a live Rust core. The zone / framework / platform error handlers installed in that slice fire from arbitrary later points in the process lifetime, so their handler bodies still defer FRB-touching work — `logCritical` is the canonical example: it buffers into `_preFrbCriticalBuffer` until `_frbReady` flips and drains.
 
-**Why the invariant exists.** Pre-FRB FRB calls throw `StateError("flutter_rust_bridge has not been initialized")`, and when those throws hit the cold-start path the failure modes were ugly: the zone error handler in `main.dart` itself called FRB-backed helpers (e.g. `formatClockHms` for log timestamps), so an FRB-not-init in the path under test would re-trip in the handler and swallow the original error; `MainScreen.initState` wiring `*PromptListener.start()` → `AppBus.subscribe` left dead `_SharedTopic` entries that never recovered to live FRB subscriptions; `AppConfig.fromJson` → `rust_config.configAppConfigSanitizeJson` raced the native lib load and on the losing race silently overwrote the on-disk config with defaults; the unlock cascade hung for minutes when one of its FRB-backed steps fired pre-init and the retry loop kept re-entering the same throw. Every one of these shipped at some point as a real bug. The fix is structural — keep every cold-start surface pure Dart so the deferral is safe by construction, not by scattered `RustLib.instance.initialized` guards that get forgotten.
+**Why the pre-FRB slice is narrow, not zero.** Three reasons keep the slice non-empty rather than collapsing it further:
 
-**Dart-side I/O carve-out — narrow, named, justified.** Rust owns persistent state and platform I/O everywhere except this fixed list, where the cold-start invariant or a Flutter-only primitive forces a Dart-side touch. New Dart-side filesystem / OS-API call sites outside this list are regressions. Every entry runs without holding secret material:
+* **`WidgetsFlutterBinding.ensureInitialized` must run inside the zone that owns the eventual `runApp` call** — Flutter warns + tests crash on a zone mismatch when they diverge. The binding init itself does not touch FRB.
+* **Error handlers must be installed before any code that might crash** — including `RustLib.init()`. If the native blob crashes loading, the zone handler is the only forensic surface; if its body called FRB it would crash-loop the handler. The handlers therefore install pre-init and gate on `_frbReady`.
+* **`AppLogger.init()` resolves `<appSupport>/logs/letsflutssh.log` as a string via the Flutter `path_provider` plugin** — needed before `setThreshold` can record where the eventual sink open will land. Pure path composition; no file ops.
 
-* **Pre-FRB config read** — [`loadAppConfigFromDisk`](../lib/providers/config_provider.dart) reads `config.json` via `dart:io` + `jsonDecode` before `RustLib.init()`, because the splash threshold + locale + theme depend on its content. Sub-configs run their own `.sanitized()` clamp pipeline; FRB-backed `configAppConfigSanitizeJson` re-runs post-init for parity. Corrupt JSON throws `AppConfigParseException` → fatal-error screen, never silent-rewrites.
+**Why the invariant exists.** Pre-FRB FRB calls throw `StateError("flutter_rust_bridge has not been initialized")`. Past failure modes that motivated the boundary: the zone error handler calling FRB-backed log-timestamp helpers crash-looped on FRB-not-init; `MainScreen.initState` wiring `*PromptListener.start()` → `AppBus.subscribe` left dead `_SharedTopic` entries that never recovered to live FRB subscriptions; `AppConfig.fromJson` → `rust_config.configAppConfigSanitizeJson` raced the native lib load and on the losing race silently overwrote the on-disk config with defaults; the unlock cascade hung for minutes when one of its FRB-backed steps fired pre-init and the retry loop kept re-entering the same throw. Every one of these shipped at some point as a real bug. The fix is structural — move `RustLib.init()` to the top of `_mainBody` so the rest of the pre-`runApp` slice (config snapshot, threshold, logger sink) sees a live core, and keep the handlers that can still fire pre-FRB (zone + FlutterError + PlatformDispatcher + the in-`RustLib.init` window itself) on a deferred path that drains after `onFrbReady`.
+
+**Dart-side I/O carve-out — narrow, named, justified.** Rust owns persistent state and platform I/O everywhere except this fixed list, where a Flutter-only primitive forces a Dart-side touch. New Dart-side filesystem / OS-API call sites outside this list are regressions. Every entry runs without holding secret material:
+
+* **`config.json` load — Rust-routed.** [`loadAppConfigFromDisk`](../lib/providers/config_provider.dart) snapshots the Rust `config_store` actor (`config_store_get_json` + `config_store_was_loaded_from_disk`); `bootstrapRustConfigStore` (called from `_initRustCoreOrFatal`) is the single reader of the on-disk `config.json` via the Rust-side symlink-safe `read_bytes_secure`. No `dart:io File` / `Directory` operation touches the config path Dart-side. Corrupt JSON throws `AppConfigParseException` (rethrown from inside `_initRustCoreOrFatal`) → fatal-error screen, never silent-rewrites.
 * **Pre-FRB fatal wipe** — [`earlyWipeAppSupportFiles`](../lib/app/early_wipe.dart) is the bottom of the recovery ladder when `RustLib.init()` itself fails (the native blob is the broken artefact). Enumerates the immediate children of `<app_support>` (a per-bundle subdir resolved by `path_provider`) and deletes each. No hardcoded filename list — the sweep is drift-proof because any future artefact the Rust side writes under `<app_support>` is covered automatically. The canonical `WipeAllService.wipeAll()` runs Rust-side once FRB is healthy and also clears keychain / hardware-vault entries; this path is reached only when the Rust-side path is unreachable. OS-secure-storage orphans left behind resurface on the next launch and route through `_handleLegacyStateIfPresent` → `TierResetDialog` for proper cleanup.
-* **Cold-start logger path resolution** — [`AppLogger.init()`](../lib/utils/logger.dart) calls `getApplicationSupportDirectory()` (a Flutter plugin, not FRB) to compose `<appSupport>/logs/letsflutssh.log` as a string; no `dart:io` File / Directory ops touch the path. The file create / append / chmod / rotate / read / clear surface lives Rust-side under `lfs_core::logger::file_sink` and routes through eight FRB entry points (`logger_open_sink`, …, `logger_close_sink`). `_mainBody` calls `setThreshold(effectiveLevel)` pre-`runApp`, which records the threshold but defers the actual sink open because FRB has not loaded yet; `AppLogger.onFrbReady()` (called from `_bootstrap` after `_initRustCoreOrFatal`) runs the deferred open, writes the session banner, and drains the pre-FRB `logCritical` ring buffer (`_preFrbCriticalBuffer`, cap 64) through `logger_append_critical`. During the pre-FRB window routine `log()` calls are no-ops (the sink has not opened yet); critical writes hit the buffer + stderr mirror on desktop so a crash inside cold-start still leaves a breadcrumb after boot.
+* **Cold-start logger path resolution** — [`AppLogger.init()`](../lib/utils/logger.dart) calls `getApplicationSupportDirectory()` (a Flutter plugin, not FRB) to compose `<appSupport>/logs/letsflutssh.log` as a string; no `dart:io` File / Directory ops touch the path. The file create / append / chmod / rotate / read / clear surface lives Rust-side under `lfs_core::logger::file_sink` and routes through eight FRB entry points (`logger_open_sink`, …, `logger_close_sink`). `_mainBody` runs `_initRustCoreOrFatal` first, then calls `AppLogger.onFrbReady()` (registers the log path Rust-side, opens the sink if a threshold is already non-null, drains the pre-FRB `_preFrbCriticalBuffer` cap-64 ring through `logger_append_critical`), then `setThreshold(effectiveLevel)` against the live runtime. During the few-ms `RustLib.init()` window routine `log()` calls are no-ops (the sink has not opened yet); critical writes hit the buffer + stderr mirror on desktop so a crash inside that window still leaves a breadcrumb after boot.
 * **Single-instance lock** — `flock` (Linux/macOS) / `CreateMutexW` (Windows) live in the native shell, **not** Dart. The Dart side does not race for the lock at all; this entry is included so the mental map of "what touches OS state on cold-start" stays complete.
 * **`path_provider` resolution** — `getApplicationSupportDirectory()` is the only platform-channel call the Dart side keeps, because `lfs_core` is OS-FFI-free by design. Resolved paths cross FRB to Rust shims (`recorder_list_recordings`, `update_orchestrator::cleanup_stale_downloads`, archive read paths) so disk walks themselves stay Rust-side.
 
-**How to add a new pre-runApp step.** Use only `dart:io`, `dart:convert`, `path_provider`, `package:flutter/foundation`. Importing anything under `lib/src/rust/` from a file reachable on the cold-start path is a regression — fail loud at review.
+**How to add a new pre-`_initRustCoreOrFatal` step.** That slice is the few statements between `WidgetsFlutterBinding.ensureInitialized` and the `await _initRustCoreOrFatal()` call. Use only `dart:io`, `dart:convert`, `path_provider`, `package:flutter/foundation`. Importing anything under `lib/src/rust/` from code reachable here is a regression — fail loud at review.
 
-**How to add a new post-init listener / FRB-touching boot step.** Wire it inside `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` (for AppBus subscribers) or directly in `_bootstrap` after `_initRustCoreOrFatal` (for one-shot setup). Don't add it to `_MainScreenState.initState` — that fires during the first runApp frame, pre-FRB-init.
+**How to add a new post-init listener / FRB-touching boot step.** Two valid hosts:
+* One-shot setup that must finish before `runApp` (and the post-frame `_bootstrap` chain) — extend `_mainBody` between `_initRustCoreOrFatal` and `runApp`.
+* Listeners + bus subscribers that should run after the first frame — wire inside `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` (for AppBus subscribers) or directly in `_bootstrap` (for one-shot setup that does not need to block the first paint).
 
-**Pre-FRB FRB-touching surfaces that *must* defer.** Two surfaces look like they need a Dart-only path on the cold-start pre-runApp half but each actually queues work for the post-init drain:
+Don't add it to `_MainScreenState.initState` — that fires during the first runApp frame, which now sits *after* FRB init but predates the post-frame `_bootstrap` chain that wires every prompt subscriber.
 
-* **`AppLogger.logCritical` writing pre-FRB.** The zone error handler in `main.dart` calls `logCritical` from inside `runZonedGuarded` and the `FlutterError.onError` / `PlatformDispatcher.onError` shims; these can fire while `RustLib.init` is still pending. The file write target is `logger_append_critical` (FRB), so a pre-FRB call would throw `StateError` and crash-loop the handler. The Dart side gates on `_frbReady`: pre-FRB the rendered entry lands in `AppLogger._preFrbCriticalBuffer` (cap 64, FIFO eviction) plus a stderr mirror on desktop; `_LetsFLUTsshAppState._bootstrap` drains the buffer via `AppLogger.onFrbReady()` immediately after `_initRustCoreOrFatal`. Without the buffer + drain a fresh-install crash inside cold-start would land nowhere — neither on disk nor in a recoverable surface.
-* **Deep-link wireup.** `DeepLinkHandler.init()` runs `getInitialLink()` then `handleUri` → `rust_deeplink.deeplinkDispatch` (FRB). The handler now lives in `deepLinkHandlerProvider` (process-wide). `_MainScreenState.initState` registers callbacks via `wireDeepLinks(...)` (pure-Dart wiring); `_bootstrap` calls `activateDeepLinks(...)` post-FRB to fire `init()`. A cold-launch via `letsflutssh://` URL or a double-clicked `.lfs` file therefore never races the native-lib load.
+**Pre-FRB handler bodies that defer FRB work.** The error handlers installed before `_initRustCoreOrFatal` can fire while `RustLib.init` is still pending — their bodies stay FRB-safe by buffering or short-circuiting until `_frbReady` flips:
 
-**`AppBus.subscribe` is the only structural escape hatch.** A single Riverpod provider — `connectionActiveCountProvider` (`lib/providers/connection_provider.dart`) — has a `build` that may run during the first runApp pass (a top-bar badge watches the count) and calls `AppBus.subscribe` from inside that build. The invariant survives because `AppBus.subscribe` is pre-FRB safe by construction: `_SharedTopic.ensureFrbSub` checks `RustLib.instance.initialized` first and returns early when the core has not loaded, handing back the Dart-side `StreamController.broadcast` stream regardless. `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` then calls `AppBus.retryFrbSubscriptions()` immediately after `_initRustCoreOrFatal` returns; the dead `_SharedTopic` entry is promoted to a live FRB subscription, and listeners that already attached to the broadcast stream start receiving events without re-listening. Any *new* pre-FRB subscriber lands here for free — no additional wiring needed — but every other surface still defers per the rules above.
+* **`AppLogger.logCritical` writing pre-FRB.** The zone error handler in `main.dart` calls `logCritical` from inside `runZonedGuarded`, plus the `FlutterError.onError` / `PlatformDispatcher.onError` shims; these can fire while `RustLib.init` is still in flight. The file write target is `logger_append_critical` (FRB), so a pre-FRB call would throw `StateError` and crash-loop the handler. The Dart side gates on `_frbReady`: pre-FRB the rendered entry lands in `AppLogger._preFrbCriticalBuffer` (cap 64, FIFO eviction) plus a stderr mirror on desktop; `_mainBody` drains the buffer via `AppLogger.onFrbReady()` immediately after `_initRustCoreOrFatal` returns. Without the buffer + drain a fresh-install crash inside the native-lib load would land nowhere — neither on disk nor in a recoverable surface.
+* **Deep-link wireup.** `DeepLinkHandler.init()` runs `getInitialLink()` then `handleUri` → `rust_deeplink.deeplinkDispatch` (FRB). The handler lives in `deepLinkHandlerProvider` (process-wide). `_MainScreenState.initState` registers callbacks via `wireDeepLinks(...)` (pure-Dart wiring); `_bootstrap` calls `activateDeepLinks(...)` post-frame to fire `init()`. A cold-launch via `letsflutssh://` URL or a double-clicked `.lfs` file therefore lands after FRB init.
+
+**`AppBus.subscribe` keeps its retry path.** A single Riverpod provider — `connectionActiveCountProvider` (`lib/providers/connection_provider.dart`) — has a `build` that may run during the first runApp pass (a top-bar badge watches the count) and calls `AppBus.subscribe` from inside that build. FRB is up by the time `runApp` fires, so the subscribe lands on a live runtime in normal cold-start. The retry path stays wired for two structural reasons: the test harness mounts widget trees without going through `_mainBody` (so FRB may not be initialised in unit tests), and `AppBus.subscribe` from inside a `Notifier.build` is structurally fragile against future refactors that move call sites earlier in the chain. `_SharedTopic.ensureFrbSub` checks `RustLib.instance.initialized` and returns early when the core has not loaded, handing back the Dart-side `StreamController.broadcast` stream regardless; `_LetsFLUTsshAppState._wireFrbDependentBootstrapListeners` calls `AppBus.retryFrbSubscriptions()` so any deferred topic promotes to a live FRB subscription, and listeners that already attached to the broadcast stream start receiving events without re-listening.
 
 ### Single-instance protection (desktop only)
 

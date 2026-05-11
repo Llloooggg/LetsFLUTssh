@@ -91,6 +91,15 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
   /// step (migrations, security init, corruption probe, session
   /// load, foreground service, probe warm-up, update check) can
   /// be read top-to-bottom as the startup contract.
+  ///
+  /// Rust core load + logger FRB-ready drain already ran inside
+  /// `_mainBody` before `runApp` — every step below assumes
+  /// `RustLib.init()`, `appInit()`, `bootstrapRustConfigStore`,
+  /// `attachCoreLogPipe`, and `ProcessHardening.applyOnStartup` have
+  /// landed. Reaching the post-frame `_bootstrap` at all means
+  /// `_initRustCoreOrFatal` returned `true` (its `false` path swapped
+  /// the widget tree to FatalErrorApp + `return`-ed from `_mainBody`
+  /// before `runApp` fired).
   Future<void> _bootstrap() async {
     final sw = Stopwatch()..start();
     void mark(String phase) {
@@ -99,28 +108,6 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
         name: 'Boot',
       );
     }
-
-    // Rust core load runs here, in the post-frame `_bootstrap`,
-    // not pre-`runApp`. The cold-start ordering rule keeps the
-    // structural invariant (no FRB on any path reachable during
-    // the first `runApp` pass — see `ARCHITECTURE.md § Cold-start
-    // ordering`).
-    // FRB-touching listeners + setup wire from
-    // `_wireFrbDependentBootstrapListeners` AFTER this guard
-    // returns; nothing on the cold-start path imports
-    // `lib/src/rust/...` or calls FRB.
-    if (!await _initRustCoreOrFatal()) return;
-    mark('rust_core');
-
-    // Logger-side post-FRB handoff: flip the FRB-ready gate,
-    // register the log path Rust-side, open the sink if the user
-    // (or `--dart-define=LETSFLUTSSH_LOG_LEVEL`) seeded a threshold
-    // pre-FRB, and drain the in-memory critical-write buffer the
-    // zone error handler accumulated during the cold-start window
-    // through `logger_append_critical`. Ownership model: see
-    // `ARCHITECTURE.md`.
-    unawaited(AppLogger.instance.onFrbReady());
-    mark('log_perms_drained');
 
     // Activate the deep-link handler now that Rust is loaded —
     // `_MainScreenState.initState` registered the callbacks
@@ -146,21 +133,20 @@ class _LetsFLUTsshAppState extends ConsumerState<LetsFLUTsshApp> {
     AppBus.instance.retryFrbSubscriptions();
     mark('bus_subscriptions_promoted');
 
-    // Drain any auto-lock lifecycle dispatches that the
-    // `AutoLockDetector` queued during the first runApp pass —
-    // pre-FRB lifecycle transitions used to silently disappear
-    // into a try/catch swallow, so the Rust state machine never
-    // saw the early `app paused` / `inactive` events. The detector
-    // now queues into a module-static buffer; this drains it
-    // through the live bus.
+    // Drain any auto-lock lifecycle dispatches the
+    // `AutoLockDetector` queued before its `_frbReady` gate
+    // flipped. With Rust core init happening pre-`runApp` the
+    // queue is empty on normal cold-start; the replay stays wired
+    // as a defence-in-depth surface so a future ordering change
+    // (or a hot-reload that re-mounts the detector before the
+    // bootstrap chain re-runs) still drains rather than silently
+    // dropping lifecycle events.
     unawaited(AutoLockDetector.replayPendingDispatches());
     mark('autolock_dispatches_drained');
-    // Replay any deferred OS-session-lock subscriptions. The
-    // Linux path routes through `lfs_os_security::session_lock_listener`
-    // (FRB); AutoLockDetector mounts pre-FRB so its initial
-    // `SessionLockListener.addListener` left `_installed = false`
-    // instead of throwing the now-silenced "Rust subscribe failed"
-    // line into the log. Promote them now that the core is up.
+    // Replay any deferred OS-session-lock subscriptions. Same
+    // defensive shape as above: with FRB up before `runApp` the
+    // queue should be empty, but the wiring guarantees promotion
+    // for any subscription that landed too early.
     SessionLockListener.retryAllPending();
     mark('session_lock_listeners_attached');
 

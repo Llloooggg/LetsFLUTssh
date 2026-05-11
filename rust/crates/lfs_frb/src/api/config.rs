@@ -116,6 +116,22 @@ pub fn config_store_get_json() -> Option<String> {
     lfs_core::config_store::instance().get_json()
 }
 
+/// True when the most recent `config_store_init` adopted an
+/// existing `<support_dir>/config.json` from disk; false when
+/// the file was absent or unreadable and the actor seeded
+/// defaults instead. The Dart cold-start path reads this to set
+/// `LoadedAppConfig.loadedFromFile` without a separate Dart-side
+/// `File.exists` probe — keeps the load route single-source-of-
+/// truth (Rust owns persistent state, Dart consumes).
+///
+/// Returns false before any `config_store_init` call lands;
+/// callers only read this immediately after init, so the pre-init
+/// value is structurally unreachable.
+#[flutter_rust_bridge::frb(sync)]
+pub fn config_store_was_loaded_from_disk() -> bool {
+    lfs_core::config_store::instance().was_loaded_from_disk()
+}
+
 /// Replace the in-memory state and arm the debounce timer. The
 /// disk write is fire-and-forget (300 ms after the last
 /// `set_json` call); callers that want save-settled guarantees

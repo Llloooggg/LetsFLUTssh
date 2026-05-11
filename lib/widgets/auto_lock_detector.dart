@@ -227,14 +227,19 @@ class _AutoLockDetectorState extends ConsumerState<AutoLockDetector>
   }
 
   /// Best-effort dispatch into the Rust auto-lock state machine.
-  /// Pre-FRB lifecycle events — `AutoLockDetector` mounts during
-  /// the first runApp pass, before `_initRustCoreOrFatal` runs —
-  /// **queue** into [AutoLockDetector._pendingPreFrbDispatches]
-  /// instead of disappearing into a silent catch.
+  /// Production cold-start runs `_initRustCoreOrFatal` before
+  /// `runApp`, so `AutoLockDetector._frbReady` is already true by
+  /// the time the detector mounts and dispatches forward straight
+  /// to the bus. Lifecycle events that arrive while
+  /// `AutoLockDetector._frbReady` is still false — widget tests
+  /// that skip `_mainBody`, a hot-reload that re-mounts the
+  /// detector before `_bootstrap` re-runs the replay, a future
+  /// ordering change — **queue** into
+  /// [AutoLockDetector._pendingPreFrbDispatches] instead of
+  /// disappearing into a silent catch.
   /// [AutoLockDetector.replayPendingDispatches] — invoked from
-  /// `_LetsFLUTsshAppState._bootstrap` once the Rust core is up —
-  /// drains the queue so the state machine sees the early lifecycle
-  /// transitions in order.
+  /// `_LetsFLUTsshAppState._bootstrap` — drains the queue so the
+  /// state machine sees lifecycle transitions in order.
   ///
   /// Widget tests without the native lib loaded still work: every
   /// queued dispatch is wrapped in try/catch on replay too, so a
