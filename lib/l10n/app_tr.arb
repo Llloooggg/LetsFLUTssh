@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "WebDAV base URL gerekli",
-  "errWebDavBaseUrlInvalid": "Base URL http:// veya https:// olmalı"
+  "errWebDavBaseUrlInvalid": "Base URL http:// veya https:// olmalı",
+  "syncSection": "Sync",
+  "syncEnable": "WebDAV sync etkinleştir",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Sync arşivini şifreler. Master password'dan farklı olmalı.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase, master password ile aynı olamaz.",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "WebDAV base URL altındaki path — varsayılan letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Son push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Son pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Hiç",
+  "syncUpToDate": "Sync güncel",
+  "syncPushedBytes": "{bytes} push edildi",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Remote'dan {count} değişiklik uygulandı",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync devre dışı",
+  "errSyncEtagMismatch": "Remote değişti — önce pull, sonra push",
+  "errSyncUnauthorized": "WebDAV kimlik doğrulama başarısız",
+  "errSyncNetwork": "Ağ hatası: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote sync arşivi daha yeni bir build gerektiriyor"
 }

@@ -498,6 +498,31 @@ build does not understand are rejected with
 `UnsupportedLfsVersionException` rather than silently dropping
 unknown fields.
 
+### WebDAV sync — passphrase posture
+
+Settings → Sync ships the same encrypted `.lfs` archive to a
+user-configured WebDAV endpoint. The crypto envelope is the
+same as the manual export path (Argon2id + AES-256-GCM under
+the LFSE header), but the at-rest key is a dedicated **sync
+passphrase** — never the master password. The UI enforces this
+on save: the typed passphrase is hashed through
+`MasterPasswordManager.verifyAndDerive`, and if it matches the
+on-disk master-password verifier, the save is rejected with the
+**Sync passphrase cannot match the master password** banner.
+
+The rationale is reuse-of-key blast radius: an attacker who
+exfiltrates the WebDAV remote and breaks the sync passphrase
+should not also win the local DB cipher key. Using two distinct
+secrets means a passphrase leak compromises only the synced
+archive, never the on-disk SQLCipher pages.
+
+Both the WebDAV credentials and the sync passphrase live in
+`lfs_core::secrets::SecretStore` under the canonical ids
+`sync.webdav.password` and `sync.passphrase`. `config.json`
+carries only the SecretStore id pointers; plaintext never lands
+on disk in the preferences file. Wipe-all clears both slots
+alongside every other SecretStore entry.
+
 ## Known limits
 
 - The running unlocked app must hold the decrypted DB key in process

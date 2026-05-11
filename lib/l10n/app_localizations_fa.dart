@@ -2714,4 +2714,78 @@ class SFa extends S {
   @override
   String get errWebDavBaseUrlInvalid =>
       'Base URL باید با http:// یا https:// شروع شود';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'فعال‌سازی WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'بایگانی sync را رمزگذاری می‌کند. باید با master password متفاوت باشد.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase نباید با master password یکسان باشد.';
+
+  @override
+  String get syncRemotePath => 'مسیر remote';
+
+  @override
+  String get syncRemotePathHint =>
+      'مسیر زیر WebDAV base URL — پیش‌فرض letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'آخرین push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'آخرین pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'هرگز';
+
+  @override
+  String get syncUpToDate => 'Sync به‌روز است';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'اعمال $count تغییر از remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync غیرفعال است';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote تغییر کرده — اول pull سپس push';
+
+  @override
+  String get errSyncUnauthorized => 'احراز هویت WebDAV ناموفق بود';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'خطای شبکه: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'بایگانی sync از remote نیاز به build جدیدتر دارد';
 }

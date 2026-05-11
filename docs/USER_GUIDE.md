@@ -23,6 +23,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - [12. Known hosts (TOFU)](#12-known-hosts-tofu)
 - [13. Security tiers](#13-security-tiers)
 - [14. Import / export](#14-import--export)
+- [14b. Sync via WebDAV](#14b-sync-via-webdav)
 - [15. Updates](#15-updates)
 - [16. Mobile differences](#16-mobile-differences)
 - [17. Troubleshooting](#17-troubleshooting)
@@ -622,6 +623,52 @@ In [`SECURITY.md`](SECURITY.md). Read it before deploying in environments where 
 
 - Settings → Data → **Reset All Data** → confirm.
 - Wipes the DB, credential store, keychain entries, hardware-vault sealed blobs, biometric overlay, logs. Returns the app to first-launch state.
+
+---
+
+## 14b. Sync via WebDAV
+
+Settings → **Sync** lets you push the encrypted session library
+to a WebDAV server (Nextcloud, ownCloud, Apache `mod_dav`, IIS,
+Synology DSM, Yandex.Disk) and pull it on another device. The
+archive shipped over the wire is the same encrypted `.lfs` format
+the Data → Export flow produces — same `LFSE` envelope, same
+Argon2id + AES-256-GCM crypto, same wire-version contract.
+
+### Setting it up
+
+1. Open Settings → **Sync**.
+2. Toggle **Enable WebDAV sync** on.
+3. Fill in:
+   - **WebDAV URL** — the collection root, ending in `/`. Example: `https://cloud.example.com/remote.php/dav/files/alice/`.
+   - **Username** — usually the same one you log into the web UI with.
+   - **Auth** — pick **basic** for username + password, **digest** for HTTP digest auth, **bearer** for an OAuth-style token.
+   - **Password** — types into the field, then leaves the form on submit. Stored in the OS keychain through the same SecretStore the rest of the app uses; never written to `config.json`.
+   - **Sync passphrase** — the secret that encrypts the archive itself. **Must differ from your master password** — if you type the master password by mistake, the form refuses to save. Pick a fresh phrase you can remember; losing it makes existing remote archives unrecoverable.
+   - **Remote path** — the file name under the WebDAV root. Default `letsflutssh.lfs`; change only if you have multiple identities sharing one bucket.
+
+### Push and Pull
+
+- **Push now** — packs your current session library into an encrypted `.lfs` and uploads it. The button is disabled while a sync is in flight; tapping it twice does not enqueue two uploads.
+- **Pull now** — fetches the remote archive, decrypts it with the sync passphrase, and merges the peer's rows into your local library. Per-row last-write-wins: a session whose `updated_at` on the remote is newer than yours overwrites yours; older rows leave yours untouched.
+- **Last push** / **Last pull** rows show when each verb last succeeded, or **Never** if the action has not run.
+
+### ETag conflict — pull first, then push
+
+If another device pushed between your last pull and your push, the server rejects your upload with a 412 ETag mismatch. The app shows **"Remote changed — pull first, then push"**. Click **Pull now** — your library merges the peer's changes — then click **Push now** again and the new ETag round-trips fine.
+
+### Limitations (v1)
+
+- Manual only — no background sync timer. Click Push / Pull when you want to sync.
+- **Tombstones do not propagate across devices**. If you delete a session on device A and pull on device B, the deletion is not replayed. The next push from device B re-introduces the deleted row. Workaround: delete the session on every device until the sync wire format grows tombstone fields.
+- M2M edges (session → tag, session → snippet, folder → tag) are union-merged; unlinking on one device does not unlink on the other.
+- v1 ships the full archive on every push, not deltas. Push time scales with library size; a typical 100-session library lands in under 100 KiB.
+
+### Where the secrets live
+
+- **WebDAV password** — OS keychain via the SecretStore. Cleared when you wipe app data; not in `config.json`.
+- **Sync passphrase** — same. The Settings UI verifies it differs from the master password before saving by running the typed passphrase through `MasterPasswordManager.verifyAndDerive`; the master password's plaintext never lands in Dart memory during the check.
+- **Local mirror of sync state** — `config.json` holds the URL, the username, the SecretStore id pointers, and the `last_pushed_*` / `last_pulled_at_ms` timestamps. An `.lfs` exported through Data → Export drops every `sync_*` field on its way out, so a peer importing the archive on a third machine does not adopt your endpoint.
 
 ---
 

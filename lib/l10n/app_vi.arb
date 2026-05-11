@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "Cần base URL của WebDAV",
-  "errWebDavBaseUrlInvalid": "Base URL phải là http:// hoặc https://"
+  "errWebDavBaseUrlInvalid": "Base URL phải là http:// hoặc https://",
+  "syncSection": "Sync",
+  "syncEnable": "Bật WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Mã hóa archive sync. Phải khác master password.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase không được trùng master password.",
+  "syncRemotePath": "Đường dẫn remote",
+  "syncRemotePathHint": "Path dưới WebDAV base URL — mặc định letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Push gần nhất: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Pull gần nhất: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Chưa từng",
+  "syncUpToDate": "Sync đã cập nhật",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Áp dụng {count} thay đổi từ remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync đã tắt",
+  "errSyncEtagMismatch": "Remote đã đổi — pull trước rồi push",
+  "errSyncUnauthorized": "Xác thực WebDAV thất bại",
+  "errSyncNetwork": "Lỗi mạng: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Archive sync từ remote cần build mới hơn"
 }

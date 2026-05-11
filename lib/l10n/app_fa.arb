@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "Base URL برای WebDAV لازم است",
-  "errWebDavBaseUrlInvalid": "Base URL باید با http:// یا https:// شروع شود"
+  "errWebDavBaseUrlInvalid": "Base URL باید با http:// یا https:// شروع شود",
+  "syncSection": "Sync",
+  "syncEnable": "فعال‌سازی WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "بایگانی sync را رمزگذاری می‌کند. باید با master password متفاوت باشد.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase نباید با master password یکسان باشد.",
+  "syncRemotePath": "مسیر remote",
+  "syncRemotePathHint": "مسیر زیر WebDAV base URL — پیش‌فرض letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "آخرین push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "آخرین pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "هرگز",
+  "syncUpToDate": "Sync به‌روز است",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "اعمال {count} تغییر از remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync غیرفعال است",
+  "errSyncEtagMismatch": "Remote تغییر کرده — اول pull سپس push",
+  "errSyncUnauthorized": "احراز هویت WebDAV ناموفق بود",
+  "errSyncNetwork": "خطای شبکه: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "بایگانی sync از remote نیاز به build جدیدتر دارد"
 }

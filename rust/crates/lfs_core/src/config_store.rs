@@ -196,6 +196,41 @@ impl Store {
         Ok(())
     }
 
+    /// Typed snapshot of the current [`AppConfig`]. Returns
+    /// `None` when the actor has not been [`init`]-ed yet —
+    /// mirrors [`get_json`] but skips the JSON round-trip when
+    /// the caller already wants the typed shape (the sync
+    /// orchestrator's read path is the canonical caller).
+    pub fn get_app_config(&self) -> Option<AppConfig> {
+        let g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        g.current.clone()
+    }
+
+    /// Replace just the `sync` slice of the current [`AppConfig`]
+    /// and arm the debounce timer. Returns `Err` when the actor
+    /// has not been [`init`]-ed yet. Used by
+    /// [`crate::sync::service`] after every push / pull to
+    /// persist `last_pushed_at_ms` / `last_pulled_at_ms` /
+    /// `last_pushed_sha256` / `last_pushed_etag` without
+    /// re-walking the full config from JSON. Atomic on disk via
+    /// the same debounce + `write_bytes_atomic` chain
+    /// [`set_json`] uses.
+    pub fn update_sync(&self, sync: crate::config::SyncConfig) -> Result<(), String> {
+        let mut g = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        if g.file_path.is_none() {
+            return Err("config_store: not initialised".into());
+        }
+        let Some(current) = g.current.as_ref() else {
+            return Err("config_store: no current state".into());
+        };
+        let mut updated = current.clone();
+        updated.sync = sync.sanitized();
+        g.current = Some(updated.clone());
+        g.pending = Some(updated);
+        g.pending_at = Some(Instant::now() + DEBOUNCE);
+        Ok(())
+    }
+
     /// Force any pending state to disk synchronously, return the
     /// JSON written (or the current state when nothing was
     /// pending). Used at app shutdown / test teardown so the last

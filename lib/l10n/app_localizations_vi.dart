@@ -2712,4 +2712,78 @@ class SVi extends S {
   @override
   String get errWebDavBaseUrlInvalid =>
       'Base URL phải là http:// hoặc https://';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Bật WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Mã hóa archive sync. Phải khác master password.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase không được trùng master password.';
+
+  @override
+  String get syncRemotePath => 'Đường dẫn remote';
+
+  @override
+  String get syncRemotePathHint =>
+      'Path dưới WebDAV base URL — mặc định letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Push gần nhất: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Pull gần nhất: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Chưa từng';
+
+  @override
+  String get syncUpToDate => 'Sync đã cập nhật';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Áp dụng $count thay đổi từ remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync đã tắt';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote đã đổi — pull trước rồi push';
+
+  @override
+  String get errSyncUnauthorized => 'Xác thực WebDAV thất bại';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Lỗi mạng: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Archive sync từ remote cần build mới hơn';
 }

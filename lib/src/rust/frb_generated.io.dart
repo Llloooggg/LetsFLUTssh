@@ -58,6 +58,7 @@ import 'api/snippet_template.dart';
 import 'api/ssh.dart';
 import 'api/ssh_config.dart';
 import 'api/ssh_dir_scan.dart';
+import 'api/sync.dart';
 import 'api/test_hooks.dart';
 import 'api/threat_eval.dart';
 import 'api/tier_machine.dart';
@@ -413,6 +414,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbStagedSecrets dco_decode_box_autoadd_db_staged_secrets(dynamic raw);
 
   @protected
+  DbSyncConfig dco_decode_box_autoadd_db_sync_config(dynamic raw);
+
+  @protected
   DbTag dco_decode_box_autoadd_db_tag(dynamic raw);
 
   @protected
@@ -756,6 +760,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbStagedTagImport dco_decode_db_staged_tag_import(dynamic raw);
+
+  @protected
+  DbSyncConfig dco_decode_db_sync_config(dynamic raw);
+
+  @protected
+  DbSyncResult dco_decode_db_sync_result(dynamic raw);
+
+  @protected
+  DbSyncStatus dco_decode_db_sync_status(dynamic raw);
 
   @protected
   DbTag dco_decode_db_tag(dynamic raw);
@@ -1497,6 +1510,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSyncConfig sse_decode_box_autoadd_db_sync_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbTag sse_decode_box_autoadd_db_tag(SseDeserializer deserializer);
 
   @protected
@@ -1958,6 +1976,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbStagedTagImport sse_decode_db_staged_tag_import(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbSyncConfig sse_decode_db_sync_config(SseDeserializer deserializer);
+
+  @protected
+  DbSyncResult sse_decode_db_sync_result(SseDeserializer deserializer);
+
+  @protected
+  DbSyncStatus sse_decode_db_sync_status(SseDeserializer deserializer);
 
   @protected
   DbTag sse_decode_db_tag(SseDeserializer deserializer);
@@ -2877,6 +2904,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_sync_config(
+    DbSyncConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_tag(DbTag self, SseSerializer serializer);
 
   @protected
@@ -3472,6 +3505,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DbStagedTagImport self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_db_sync_config(DbSyncConfig self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_sync_result(DbSyncResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_db_sync_status(DbSyncStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_tag(DbTag self, SseSerializer serializer);

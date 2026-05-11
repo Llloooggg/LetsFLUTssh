@@ -11,8 +11,8 @@
 use std::collections::HashMap;
 
 use super::artefacts::{
-    ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, ConfigV4ToV5, HwSaltArtefact,
-    KdfArtefact, PassGateArtefact,
+    ConfigArtefact, ConfigV1ToV2, ConfigV2ToV3, ConfigV3ToV4, ConfigV4ToV5, ConfigV5ToV6,
+    HwSaltArtefact, KdfArtefact, PassGateArtefact,
 };
 use super::{Artefact, Migration};
 
@@ -77,6 +77,10 @@ pub fn build_app_registry() -> Registry {
     // eviction sweep has a configurable byte ceiling persisted
     // alongside the rest of the user preferences.
     reg.migrations.push(Box::new(ConfigV4ToV5));
+    // v5 → v6: stamp the `sync_*` family of fields with the
+    // canonical `SyncConfig::default` so the WebDAV sync
+    // orchestrator sees the same shape every read produces.
+    reg.migrations.push(Box::new(ConfigV5ToV6));
     reg
 }
 
@@ -175,6 +179,20 @@ mod tests {
             "ConfigV4ToV5 must be registered so v4 installs migrate \
              to v5 on the next launch (stamp default recordings \
              storage cap)",
+        );
+    }
+
+    #[test]
+    fn config_v5_to_v6_migration_registered() {
+        let reg = build_app_registry();
+        assert!(
+            reg.migrations
+                .iter()
+                .any(|m| m.artefact_id() == "config.json"
+                    && m.source_version() == 5
+                    && m.target_version() == 6),
+            "ConfigV5ToV6 must be registered so v5 installs migrate \
+             to v6 on the next launch (stamp default sync settings)",
         );
     }
 }

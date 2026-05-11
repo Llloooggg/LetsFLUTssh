@@ -401,6 +401,232 @@ pub const SUPPORTED_LOCALES: &[&str] = &[
     "en", "ru", "zh", "de", "ja", "pt", "es", "fr", "ko", "ar", "fa", "tr", "vi", "id", "hi",
 ];
 
+/// Canonical SecretStore id for the WebDAV password / bearer token
+/// used by the sync orchestrator. Mirrors the per-session
+/// `session.webdav.<id>` convention but uses a singleton slot
+/// because the sync surface holds exactly one remote endpoint at a
+/// time. Plaintext never lands in `config.json`.
+pub const SYNC_PASSWORD_SECRET_ID: &str = "sync.webdav.password";
+
+/// Canonical SecretStore id for the sync passphrase — the secret
+/// that encrypts the `.lfs` archive shipped between devices. The
+/// UI enforces "must differ from the master password" so a leaked
+/// sync passphrase does not unlock the on-disk DB.
+pub const SYNC_PASSPHRASE_SECRET_ID: &str = "sync.passphrase";
+
+/// Default remote path the sync orchestrator writes the encrypted
+/// archive to under the configured WebDAV base URL.
+pub const SYNC_DEFAULT_REMOTE_PATH: &str = "letsflutssh.lfs";
+
+/// WebDAV-backed sync settings. Mirror of Dart `SyncConfig` (the
+/// Dart side reads / writes the fields via the FRB `sync_config_*`
+/// surface — there is no Dart struct because every consumer that
+/// needs the values is Rust-side).
+///
+/// Plaintext discipline: passwords / passphrases never land here.
+/// `webdav_password_ref` and `passphrase_ref` are SecretStore ids
+/// pointing into the process-singleton `SecretStore`; the Settings
+/// UI stages the plaintext under those ids and `config.json`
+/// carries only the ids themselves.
+///
+/// JSON wire shape (flat at the top level alongside the rest of
+/// `AppConfig`, prefixed with `sync_` to avoid collisions):
+/// `sync_enabled`, `sync_webdav_url`, `sync_webdav_username`,
+/// `sync_webdav_password_ref`, `sync_webdav_auth_method`,
+/// `sync_passphrase_ref`, `sync_remote_path`,
+/// `sync_last_pushed_at_ms`, `sync_last_pulled_at_ms`,
+/// `sync_last_pushed_sha256`, `sync_last_pushed_etag`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncConfig {
+    pub enabled: bool,
+    pub webdav_url: String,
+    pub webdav_username: String,
+    /// SecretStore id holding the WebDAV password / bearer token.
+    /// Default [`SYNC_PASSWORD_SECRET_ID`]; never plaintext in JSON.
+    pub webdav_password_ref: String,
+    /// One of `basic` / `digest` / `bearer`. Unknown values fall
+    /// through to `basic` on sanitise.
+    pub webdav_auth_method: String,
+    /// SecretStore id holding the sync passphrase. Default
+    /// [`SYNC_PASSPHRASE_SECRET_ID`]. MUST differ semantically from
+    /// the master password — the Settings UI enforces this and the
+    /// orchestrator surfaces a typed error when the staged
+    /// passphrase matches the master password's wrapping value.
+    pub passphrase_ref: String,
+    /// Remote path under the WebDAV base URL where the archive
+    /// lands. Default [`SYNC_DEFAULT_REMOTE_PATH`].
+    pub remote_path: String,
+    /// Last successful push timestamp (unix ms). `0` = never pushed.
+    pub last_pushed_at_ms: i64,
+    /// Last successful pull timestamp (unix ms). `0` = never pulled.
+    pub last_pulled_at_ms: i64,
+    /// SHA-256 (lowercase hex) of the archive plaintext bytes the
+    /// last successful push produced. Used to skip a push when the
+    /// local state hasn't changed since the previous one.
+    pub last_pushed_sha256: String,
+    /// Server-supplied ETag from the last successful push. Used to
+    /// stamp `If-Match` on the next push so a peer device cannot
+    /// overwrite a more recent remote without observing the change
+    /// first.
+    pub last_pushed_etag: String,
+}
+
+const SYNC_VALID_AUTH_METHODS: &[&str] = &["basic", "digest", "bearer"];
+
+impl Default for SyncConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            webdav_url: String::new(),
+            webdav_username: String::new(),
+            webdav_password_ref: SYNC_PASSWORD_SECRET_ID.to_string(),
+            webdav_auth_method: "basic".to_string(),
+            passphrase_ref: SYNC_PASSPHRASE_SECRET_ID.to_string(),
+            remote_path: SYNC_DEFAULT_REMOTE_PATH.to_string(),
+            last_pushed_at_ms: 0,
+            last_pulled_at_ms: 0,
+            last_pushed_sha256: String::new(),
+            last_pushed_etag: String::new(),
+        }
+    }
+}
+
+impl SyncConfig {
+    /// Replace malformed wire values with safe defaults. Empty
+    /// `webdav_url` is fine — the orchestrator surfaces "url not
+    /// configured" via [`crate::error::Error::WebDav`] at push /
+    /// pull time so the Settings UI can render the message; a
+    /// URL-parse failure on a non-empty value is also left for the
+    /// orchestrator to surface (the user types in the field, the
+    /// only signal we have at parse time is that the field is
+    /// non-empty).
+    #[must_use]
+    pub fn sanitized(self) -> Self {
+        let d = Self::default();
+        Self {
+            enabled: self.enabled,
+            webdav_url: self.webdav_url,
+            webdav_username: self.webdav_username,
+            webdav_password_ref: if self.webdav_password_ref.is_empty() {
+                d.webdav_password_ref
+            } else {
+                self.webdav_password_ref
+            },
+            webdav_auth_method: if SYNC_VALID_AUTH_METHODS
+                .contains(&self.webdav_auth_method.as_str())
+            {
+                self.webdav_auth_method
+            } else {
+                d.webdav_auth_method
+            },
+            passphrase_ref: if self.passphrase_ref.is_empty() {
+                d.passphrase_ref
+            } else {
+                self.passphrase_ref
+            },
+            remote_path: if self.remote_path.is_empty() {
+                d.remote_path
+            } else {
+                self.remote_path
+            },
+            last_pushed_at_ms: self.last_pushed_at_ms.max(0),
+            last_pulled_at_ms: self.last_pulled_at_ms.max(0),
+            last_pushed_sha256: self.last_pushed_sha256,
+            last_pushed_etag: self.last_pushed_etag,
+        }
+    }
+
+    pub fn to_json_object(&self) -> serde_json::Map<String, Value> {
+        let mut m = serde_json::Map::new();
+        m.insert("sync_enabled".into(), json!(self.enabled));
+        m.insert("sync_webdav_url".into(), json!(self.webdav_url));
+        m.insert("sync_webdav_username".into(), json!(self.webdav_username));
+        m.insert(
+            "sync_webdav_password_ref".into(),
+            json!(self.webdav_password_ref),
+        );
+        m.insert(
+            "sync_webdav_auth_method".into(),
+            json!(self.webdav_auth_method),
+        );
+        m.insert("sync_passphrase_ref".into(), json!(self.passphrase_ref));
+        m.insert("sync_remote_path".into(), json!(self.remote_path));
+        m.insert(
+            "sync_last_pushed_at_ms".into(),
+            json!(self.last_pushed_at_ms),
+        );
+        m.insert(
+            "sync_last_pulled_at_ms".into(),
+            json!(self.last_pulled_at_ms),
+        );
+        m.insert(
+            "sync_last_pushed_sha256".into(),
+            json!(self.last_pushed_sha256),
+        );
+        m.insert("sync_last_pushed_etag".into(), json!(self.last_pushed_etag));
+        m
+    }
+
+    pub fn from_json_object(json: &serde_json::Map<String, Value>) -> Self {
+        let d = Self::default();
+        Self {
+            enabled: json
+                .get("sync_enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(d.enabled),
+            webdav_url: json
+                .get("sync_webdav_url")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.webdav_url),
+            webdav_username: json
+                .get("sync_webdav_username")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.webdav_username),
+            webdav_password_ref: json
+                .get("sync_webdav_password_ref")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.webdav_password_ref),
+            webdav_auth_method: json
+                .get("sync_webdav_auth_method")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.webdav_auth_method),
+            passphrase_ref: json
+                .get("sync_passphrase_ref")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.passphrase_ref),
+            remote_path: json
+                .get("sync_remote_path")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.remote_path),
+            last_pushed_at_ms: json
+                .get("sync_last_pushed_at_ms")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(d.last_pushed_at_ms),
+            last_pulled_at_ms: json
+                .get("sync_last_pulled_at_ms")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(d.last_pulled_at_ms),
+            last_pushed_sha256: json
+                .get("sync_last_pushed_sha256")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.last_pushed_sha256),
+            last_pushed_etag: json
+                .get("sync_last_pushed_etag")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or(d.last_pushed_etag),
+        }
+        .sanitized()
+    }
+}
+
 /// Default byte ceiling for the recordings tree. 500 MiB is large
 /// enough to hold months of typical interactive sessions plus a
 /// handful of long-running terminal multiplexer dumps, small
@@ -440,6 +666,12 @@ pub struct AppConfig {
     /// [`DEFAULT_RECORDINGS_STORAGE_CAP_BYTES`] (500 MiB); zero or
     /// values above 1 TiB collapse to the default on sanitise.
     pub recordings_storage_cap_bytes: u64,
+    /// WebDAV-backed sync settings. The orchestrator
+    /// (`crate::sync`) reads these to drive push / pull; the
+    /// Settings UI mutates them through the `sync_config_*` FRB
+    /// surface. Plaintext credentials never live here — the two
+    /// `*_ref` fields are SecretStore ids.
+    pub sync: SyncConfig,
 }
 
 impl Default for AppConfig {
@@ -455,6 +687,7 @@ impl Default for AppConfig {
             security: None,
             security_probe_cache: None,
             recordings_storage_cap_bytes: DEFAULT_RECORDINGS_STORAGE_CAP_BYTES,
+            sync: SyncConfig::default(),
         }
     }
 }
@@ -519,6 +752,7 @@ impl AppConfig {
             } else {
                 self.recordings_storage_cap_bytes
             },
+            sync: self.sync.sanitized(),
         }
     }
 
@@ -560,6 +794,7 @@ impl AppConfig {
             "recordings_storage_cap_bytes".into(),
             json!(self.recordings_storage_cap_bytes),
         );
+        m.extend(self.sync.to_json_object());
         if let Some(ref l) = self.locale {
             m.insert("locale".into(), json!(l));
         }
@@ -617,6 +852,7 @@ impl AppConfig {
                 .get("recordings_storage_cap_bytes")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(d.recordings_storage_cap_bytes),
+            sync: SyncConfig::from_json_object(obj),
         }
         .sanitized()
     }
@@ -634,6 +870,23 @@ pub fn strip_for_export(value: &mut Value) {
     obj.remove("security_modifiers");
     obj.remove("security_probe_cache");
     obj.remove("config_schema_version");
+    // Sync settings are per-install — the WebDAV URL / username,
+    // the SecretStore-id pointers, and the per-device push /
+    // pull state all describe the current machine's relationship
+    // with the remote. An archive imported on a different device
+    // re-runs the sync setup wizard rather than adopting the
+    // exporter's WebDAV endpoint.
+    obj.remove("sync_enabled");
+    obj.remove("sync_webdav_url");
+    obj.remove("sync_webdav_username");
+    obj.remove("sync_webdav_password_ref");
+    obj.remove("sync_webdav_auth_method");
+    obj.remove("sync_passphrase_ref");
+    obj.remove("sync_remote_path");
+    obj.remove("sync_last_pushed_at_ms");
+    obj.remove("sync_last_pulled_at_ms");
+    obj.remove("sync_last_pushed_sha256");
+    obj.remove("sync_last_pushed_etag");
 }
 
 fn read_security_config(json: &serde_json::Map<String, Value>) -> Option<SecurityConfig> {
@@ -1006,6 +1259,128 @@ mod tests {
             cfg.recordings_storage_cap_bytes,
             DEFAULT_RECORDINGS_STORAGE_CAP_BYTES,
         );
+    }
+
+    #[test]
+    fn sync_config_defaults_are_disabled_with_canonical_secret_ids() {
+        let s = SyncConfig::default();
+        assert!(!s.enabled);
+        assert!(s.webdav_url.is_empty());
+        assert_eq!(s.webdav_password_ref, SYNC_PASSWORD_SECRET_ID);
+        assert_eq!(s.passphrase_ref, SYNC_PASSPHRASE_SECRET_ID);
+        assert_eq!(s.remote_path, SYNC_DEFAULT_REMOTE_PATH);
+        assert_eq!(s.webdav_auth_method, "basic");
+        assert_eq!(s.last_pushed_at_ms, 0);
+        assert_eq!(s.last_pulled_at_ms, 0);
+        assert!(s.last_pushed_sha256.is_empty());
+        assert!(s.last_pushed_etag.is_empty());
+    }
+
+    #[test]
+    fn sync_config_round_trips_through_json_object() {
+        let s = SyncConfig {
+            enabled: true,
+            webdav_url: "https://dav.example.com/remote.php/dav/files/user/".into(),
+            webdav_username: "alice".into(),
+            webdav_password_ref: SYNC_PASSWORD_SECRET_ID.into(),
+            webdav_auth_method: "digest".into(),
+            passphrase_ref: SYNC_PASSPHRASE_SECRET_ID.into(),
+            remote_path: "lfssh/sync.lfs".into(),
+            last_pushed_at_ms: 1_700_000_000_000,
+            last_pulled_at_ms: 1_700_000_001_000,
+            last_pushed_sha256: "abc123".into(),
+            last_pushed_etag: "etag-1".into(),
+        };
+        let obj = s.to_json_object();
+        let parsed = SyncConfig::from_json_object(&obj);
+        assert_eq!(parsed, s);
+    }
+
+    #[test]
+    fn sync_config_unknown_auth_method_collapses_to_basic() {
+        let s = SyncConfig {
+            webdav_auth_method: "oauth2".into(),
+            ..SyncConfig::default()
+        }
+        .sanitized();
+        assert_eq!(s.webdav_auth_method, "basic");
+    }
+
+    #[test]
+    fn sync_config_empty_remote_path_falls_back_to_default() {
+        let s = SyncConfig {
+            remote_path: String::new(),
+            ..SyncConfig::default()
+        }
+        .sanitized();
+        assert_eq!(s.remote_path, SYNC_DEFAULT_REMOTE_PATH);
+    }
+
+    #[test]
+    fn sync_config_negative_timestamps_clamp_to_zero() {
+        let s = SyncConfig {
+            last_pushed_at_ms: -42,
+            last_pulled_at_ms: -1,
+            ..SyncConfig::default()
+        }
+        .sanitized();
+        assert_eq!(s.last_pushed_at_ms, 0);
+        assert_eq!(s.last_pulled_at_ms, 0);
+    }
+
+    #[test]
+    fn app_config_sync_round_trips_through_full_envelope() {
+        let cfg = AppConfig {
+            sync: SyncConfig {
+                enabled: true,
+                webdav_url: "https://dav.example.com/dav/".into(),
+                webdav_username: "alice".into(),
+                webdav_password_ref: SYNC_PASSWORD_SECRET_ID.into(),
+                webdav_auth_method: "basic".into(),
+                passphrase_ref: SYNC_PASSPHRASE_SECRET_ID.into(),
+                remote_path: "letsflutssh.lfs".into(),
+                last_pushed_at_ms: 1_700_000_000_000,
+                last_pulled_at_ms: 0,
+                last_pushed_sha256: "deadbeef".into(),
+                last_pushed_etag: "etag-7".into(),
+            },
+            ..AppConfig::default()
+        };
+        let v = cfg.to_json_value();
+        let parsed = AppConfig::from_json_value(&v);
+        assert_eq!(parsed.sync, cfg.sync);
+    }
+
+    #[test]
+    fn strip_for_export_drops_sync_state() {
+        // Sync settings describe the current install's relationship
+        // with a remote — never portable. The export pipeline must
+        // remove them before the JSON lands inside an `.lfs` archive,
+        // otherwise an importer on a different machine would adopt
+        // the exporter's WebDAV endpoint.
+        let cfg = AppConfig {
+            sync: SyncConfig {
+                enabled: true,
+                webdav_url: "https://dav.example.com/dav/".into(),
+                last_pushed_sha256: "deadbeef".into(),
+                ..SyncConfig::default()
+            },
+            ..AppConfig::default()
+        };
+        let mut v = cfg.to_json_value();
+        strip_for_export(&mut v);
+        let obj = v.as_object().unwrap();
+        assert!(!obj.contains_key("sync_enabled"));
+        assert!(!obj.contains_key("sync_webdav_url"));
+        assert!(!obj.contains_key("sync_webdav_username"));
+        assert!(!obj.contains_key("sync_webdav_password_ref"));
+        assert!(!obj.contains_key("sync_webdav_auth_method"));
+        assert!(!obj.contains_key("sync_passphrase_ref"));
+        assert!(!obj.contains_key("sync_remote_path"));
+        assert!(!obj.contains_key("sync_last_pushed_at_ms"));
+        assert!(!obj.contains_key("sync_last_pulled_at_ms"));
+        assert!(!obj.contains_key("sync_last_pushed_sha256"));
+        assert!(!obj.contains_key("sync_last_pushed_etag"));
     }
 
     #[test]

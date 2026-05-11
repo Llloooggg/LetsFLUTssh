@@ -4790,6 +4790,126 @@ abstract class S {
   /// In en, this message translates to:
   /// **'Base URL must be http:// or https://'**
   String get errWebDavBaseUrlInvalid;
+
+  /// No description provided for @syncSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get syncSection;
+
+  /// No description provided for @syncEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable WebDAV sync'**
+  String get syncEnable;
+
+  /// No description provided for @syncPassphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync passphrase'**
+  String get syncPassphrase;
+
+  /// No description provided for @syncPassphraseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypts the sync archive. Must differ from the master password.'**
+  String get syncPassphraseHint;
+
+  /// No description provided for @syncPassphraseSameAsMasterError.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync passphrase cannot match the master password.'**
+  String get syncPassphraseSameAsMasterError;
+
+  /// No description provided for @syncRemotePath.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote path'**
+  String get syncRemotePath;
+
+  /// No description provided for @syncRemotePathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Path under the WebDAV base URL — default letsflutssh.lfs'**
+  String get syncRemotePathHint;
+
+  /// No description provided for @syncPushNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Push now'**
+  String get syncPushNow;
+
+  /// No description provided for @syncPullNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull now'**
+  String get syncPullNow;
+
+  /// No description provided for @syncLastPushed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last push: {when}'**
+  String syncLastPushed(String when);
+
+  /// No description provided for @syncLastPulled.
+  ///
+  /// In en, this message translates to:
+  /// **'Last pull: {when}'**
+  String syncLastPulled(String when);
+
+  /// No description provided for @syncNeverRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get syncNeverRun;
+
+  /// No description provided for @syncUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync is up to date'**
+  String get syncUpToDate;
+
+  /// No description provided for @syncPushedBytes.
+  ///
+  /// In en, this message translates to:
+  /// **'Pushed {bytes}'**
+  String syncPushedBytes(String bytes);
+
+  /// No description provided for @syncPullApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied {count} updates from remote'**
+  String syncPullApplied(int count);
+
+  /// No description provided for @errSyncDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync is disabled'**
+  String get errSyncDisabled;
+
+  /// No description provided for @errSyncEtagMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote changed — pull first, then push'**
+  String get errSyncEtagMismatch;
+
+  /// No description provided for @errSyncUnauthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV authentication failed'**
+  String get errSyncUnauthorized;
+
+  /// No description provided for @errSyncNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error: {detail}'**
+  String errSyncNetwork(String detail);
+
+  /// No description provided for @errSyncArchiveFutureVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote sync archive needs a newer build to read'**
+  String get errSyncArchiveFutureVersion;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "WebDAV base URL ज़रूरी है",
-  "errWebDavBaseUrlInvalid": "Base URL http:// या https:// होना चाहिए"
+  "errWebDavBaseUrlInvalid": "Base URL http:// या https:// होना चाहिए",
+  "syncSection": "Sync",
+  "syncEnable": "WebDAV sync चालू करें",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Sync archive एन्क्रिप्ट करता है। Master password से अलग होना चाहिए।",
+  "syncPassphraseSameAsMasterError": "Sync passphrase master password जैसा नहीं हो सकता।",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "WebDAV base URL के नीचे path — default letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "पिछला push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "पिछला pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "कभी नहीं",
+  "syncUpToDate": "Sync up to date है",
+  "syncPushedBytes": "{bytes} push किया",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Remote से {count} updates apply हुए",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync disabled है",
+  "errSyncEtagMismatch": "Remote बदल गया — पहले pull, फिर push",
+  "errSyncUnauthorized": "WebDAV authentication fail हुआ",
+  "errSyncNetwork": "Network error: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote sync archive के लिए नया build चाहिए"
 }

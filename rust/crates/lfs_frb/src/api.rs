@@ -63,6 +63,7 @@ pub mod snippet_template;
 pub mod ssh;
 pub mod ssh_config;
 pub mod ssh_dir_scan;
+pub mod sync;
 pub mod threat_eval;
 pub mod tier_machine;
 pub mod tier_transition_marker;

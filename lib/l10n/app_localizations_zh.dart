@@ -2635,4 +2635,74 @@ class SZh extends S {
 
   @override
   String get errWebDavBaseUrlInvalid => 'Base URL 必须为 http:// 或 https://';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => '启用 WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint => '加密 sync 归档。必须与主密码不同。';
+
+  @override
+  String get syncPassphraseSameAsMasterError => 'Sync passphrase 不能与主密码相同。';
+
+  @override
+  String get syncRemotePath => '远程路径';
+
+  @override
+  String get syncRemotePathHint => 'WebDAV base URL 下的路径 — 默认 letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return '上次 push:$when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return '上次 pull:$when';
+  }
+
+  @override
+  String get syncNeverRun => '从未';
+
+  @override
+  String get syncUpToDate => 'Sync 已是最新';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push 完成 $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return '从 remote 应用 $count 项变更';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync 已关闭';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote 已变 — 请先 pull 再 push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV 认证失败';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return '网络错误:$detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion => 'Remote 的 sync 归档需要更新版本';
 }

@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "La base URL de WebDAV es obligatoria",
-  "errWebDavBaseUrlInvalid": "La base URL debe ser http:// o https://"
+  "errWebDavBaseUrlInvalid": "La base URL debe ser http:// o https://",
+  "syncSection": "Sync",
+  "syncEnable": "Activar sync por WebDAV",
+  "syncPassphrase": "Passphrase de sync",
+  "syncPassphraseHint": "Cifra el archivo de sync. Debe diferir de la contraseña maestra.",
+  "syncPassphraseSameAsMasterError": "La passphrase de sync no puede coincidir con la contraseña maestra.",
+  "syncRemotePath": "Ruta remota",
+  "syncRemotePathHint": "Ruta bajo la base URL de WebDAV — por defecto letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Último push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Último pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Nunca",
+  "syncUpToDate": "Sync al día",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Aplicados {count} cambios del remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync desactivado",
+  "errSyncEtagMismatch": "El remote cambió — primero pull, luego push",
+  "errSyncUnauthorized": "Autenticación WebDAV fallida",
+  "errSyncNetwork": "Error de red: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "El archivo de sync remoto necesita un build más reciente"
 }

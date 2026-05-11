@@ -2729,4 +2729,78 @@ class STr extends S {
 
   @override
   String get errWebDavBaseUrlInvalid => 'Base URL http:// veya https:// olmalı';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'WebDAV sync etkinleştir';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Sync arşivini şifreler. Master password\'dan farklı olmalı.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase, master password ile aynı olamaz.';
+
+  @override
+  String get syncRemotePath => 'Remote path';
+
+  @override
+  String get syncRemotePathHint =>
+      'WebDAV base URL altındaki path — varsayılan letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Son push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Son pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Hiç';
+
+  @override
+  String get syncUpToDate => 'Sync güncel';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return '$bytes push edildi';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Remote\'dan $count değişiklik uygulandı';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync devre dışı';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote değişti — önce pull, sonra push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV kimlik doğrulama başarısız';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Ağ hatası: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Remote sync arşivi daha yeni bir build gerektiriyor';
 }

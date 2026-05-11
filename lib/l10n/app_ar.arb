@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "Base URL لـ WebDAV مطلوب",
-  "errWebDavBaseUrlInvalid": "Base URL يجب أن يبدأ بـ http:// أو https://"
+  "errWebDavBaseUrlInvalid": "Base URL يجب أن يبدأ بـ http:// أو https://",
+  "syncSection": "Sync",
+  "syncEnable": "تفعيل WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "يشفّر أرشيف sync. يجب أن يختلف عن كلمة المرور الرئيسية.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase لا يمكن أن يطابق كلمة المرور الرئيسية.",
+  "syncRemotePath": "المسار البعيد",
+  "syncRemotePathHint": "المسار تحت WebDAV base URL — الافتراضي letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "آخر push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "آخر pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "لم يتم",
+  "syncUpToDate": "Sync محدّث",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "تم تطبيق {count} تغييرات من remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync معطّل",
+  "errSyncEtagMismatch": "تغيّر remote — pull أولاً، ثم push",
+  "errSyncUnauthorized": "فشل مصادقة WebDAV",
+  "errSyncNetwork": "خطأ شبكة: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "أرشيف sync البعيد يحتاج إصدارًا أحدث"
 }

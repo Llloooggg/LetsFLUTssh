@@ -2658,4 +2658,76 @@ class SJa extends S {
   @override
   String get errWebDavBaseUrlInvalid =>
       'Base URL は http:// または https:// で始める必要があります';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'WebDAV sync を有効化';
+
+  @override
+  String get syncPassphrase => 'Sync パスフレーズ';
+
+  @override
+  String get syncPassphraseHint => 'Sync アーカイブを暗号化します。マスターパスワードと異なる必要があります。';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync パスフレーズはマスターパスワードと同じにできません。';
+
+  @override
+  String get syncRemotePath => 'Remote パス';
+
+  @override
+  String get syncRemotePathHint =>
+      'WebDAV Base URL 配下のパス — 既定は letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return '前回の push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return '前回の pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => '未実行';
+
+  @override
+  String get syncUpToDate => 'Sync は最新です';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return '$bytes を push しました';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Remote から $count 件の変更を適用';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync は無効です';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote が変わりました — まず pull、それから push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV 認証に失敗しました';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'ネットワークエラー: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion => 'Remote の sync アーカイブには新しいビルドが必要です';
 }

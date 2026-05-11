@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "Нужен base URL WebDAV",
-  "errWebDavBaseUrlInvalid": "Base URL должен быть http:// или https://"
+  "errWebDavBaseUrlInvalid": "Base URL должен быть http:// или https://",
+  "syncSection": "Sync",
+  "syncEnable": "Включить WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Шифрует sync-архив. Должен отличаться от мастер-пароля.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase не должен совпадать с мастер-паролем.",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "Путь под base URL WebDAV — по умолчанию letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Последний push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Последний pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Никогда",
+  "syncUpToDate": "Sync актуален",
+  "syncPushedBytes": "Отправлено {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Применено {count} изменений с remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync выключён",
+  "errSyncEtagMismatch": "Remote изменился — сначала pull, потом push",
+  "errSyncUnauthorized": "WebDAV-аутентификация не прошла",
+  "errSyncNetwork": "Сетевая ошибка: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Sync-архив с remote требует более новой сборки"
 }

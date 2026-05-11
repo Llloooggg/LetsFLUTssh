@@ -2745,4 +2745,79 @@ class SRu extends S {
   @override
   String get errWebDavBaseUrlInvalid =>
       'Base URL должен быть http:// или https://';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Включить WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Шифрует sync-архив. Должен отличаться от мастер-пароля.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase не должен совпадать с мастер-паролем.';
+
+  @override
+  String get syncRemotePath => 'Remote path';
+
+  @override
+  String get syncRemotePathHint =>
+      'Путь под base URL WebDAV — по умолчанию letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Последний push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Последний pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Никогда';
+
+  @override
+  String get syncUpToDate => 'Sync актуален';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Отправлено $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Применено $count изменений с remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync выключён';
+
+  @override
+  String get errSyncEtagMismatch =>
+      'Remote изменился — сначала pull, потом push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV-аутентификация не прошла';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Сетевая ошибка: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Sync-архив с remote требует более новой сборки';
 }

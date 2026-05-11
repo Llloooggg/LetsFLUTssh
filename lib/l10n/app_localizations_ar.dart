@@ -2727,4 +2727,78 @@ class SAr extends S {
   @override
   String get errWebDavBaseUrlInvalid =>
       'Base URL يجب أن يبدأ بـ http:// أو https://';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'تفعيل WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'يشفّر أرشيف sync. يجب أن يختلف عن كلمة المرور الرئيسية.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase لا يمكن أن يطابق كلمة المرور الرئيسية.';
+
+  @override
+  String get syncRemotePath => 'المسار البعيد';
+
+  @override
+  String get syncRemotePathHint =>
+      'المسار تحت WebDAV base URL — الافتراضي letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'آخر push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'آخر pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'لم يتم';
+
+  @override
+  String get syncUpToDate => 'Sync محدّث';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'تم تطبيق $count تغييرات من remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync معطّل';
+
+  @override
+  String get errSyncEtagMismatch => 'تغيّر remote — pull أولاً، ثم push';
+
+  @override
+  String get errSyncUnauthorized => 'فشل مصادقة WebDAV';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'خطأ شبكة: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'أرشيف sync البعيد يحتاج إصدارًا أحدث';
 }

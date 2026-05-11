@@ -52,7 +52,16 @@ impl SchemaVersions {
     /// stamped by the config writer on every write; a missing or
     /// mismatched field on read = corrupt.
     ///
-    /// v5 (current): stamps a `recordings_storage_cap_bytes` field
+    /// v6 (current): stamps the `sync_*` family of fields at the
+    /// top level so the WebDAV sync orchestrator
+    /// (`crate::sync`) has a place to persist endpoint config +
+    /// last-push state alongside the rest of `AppConfig`. v5
+    /// readers had no such fields — the v5→v6 migration writes
+    /// the default [`crate::config::SyncConfig`] so existing
+    /// installs adopt the canonical shape on first launch under
+    /// v6.
+    ///
+    /// v5: stamps a `recordings_storage_cap_bytes` field
     /// at the top level so the recorder's LRU eviction sweep has a
     /// user-configurable byte ceiling. v4 readers had no such field
     /// — the v4→v5 migration writes the default
@@ -80,7 +89,7 @@ impl SchemaVersions {
     /// value — either an object or `null`. v1→v2 ensures the field
     /// exists (as `null` if absent) so post-migration reads can
     /// distinguish "never probed" from "probed-but-empty".
-    pub const CONFIG: i32 = 5;
+    pub const CONFIG: i32 = 6;
 
     /// `credentials.kdf` (Argon2id params + salt). Self-versioned
     /// inside the file via `'LFKD'` magic + version byte; tracked
@@ -109,7 +118,19 @@ impl SchemaVersions {
     pub const HW_SALT: i32 = 1;
 
     /// `.lfs` archive schema carried in `manifest.json`.
-    pub const ARCHIVE: i32 = 1;
+    ///
+    /// v2 (current): manifest carries an optional `sync_origin`
+    /// field stamping a unique `<install-id>:<unix_ms>` token on
+    /// every push from the sync orchestrator
+    /// (`crate::sync`). A peer device's pull keys the "this is my
+    /// own push echoing back" check off this field so a fresh
+    /// PROPFIND that returns our last archive does not re-apply
+    /// it. v1 manifests have no field; the v1→v2 migration is a
+    /// no-op for archive contents (manifests are not on-disk
+    /// registry artefacts — `read_archive_to_pending` rejects
+    /// out-of-range values and the field defaults to `None` on
+    /// any v1 manifest at read time).
+    pub const ARCHIVE: i32 = 2;
 
     /// QR / paste-link payload schema (the `v` field inside the
     /// deflated JSON envelope). Same future-version-rejection shape

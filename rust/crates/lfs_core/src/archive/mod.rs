@@ -363,6 +363,23 @@ pub fn parse_pending_import(zip_bytes: &[u8]) -> Result<(PendingImport, i64), Er
     Ok((pending, schema_version))
 }
 
+/// Extract the optional `sync_origin` field from a parsed
+/// [`PendingImport`]. Returns `None` when the manifest is absent,
+/// the field is missing (legacy v1 archives), or the value is not
+/// a string. The sync orchestrator
+/// ([`crate::sync::pull`]) uses this to detect "this is my own
+/// push echoing back" without re-parsing the manifest in two
+/// places.
+pub fn parse_sync_origin(pending: &PendingImport) -> Option<String> {
+    let manifest = pending.manifest_json.as_deref()?;
+    let value: Value = serde_json::from_str(manifest).ok()?;
+    value
+        .get("sync_origin")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+}
+
 /// Read the file at `path`, detect whether it's an LFSE envelope
 /// (4-byte magic) or a raw ZIP (`PK\x03\x04`), decrypt+parse, and
 /// return the preview the apply driver consumes. The decoded
@@ -580,7 +597,13 @@ mod tests {
     #[test]
     fn read_archive_to_pending_accepts_current_version() {
         let zip = build_test_zip(&[
-            ("manifest.json", r#"{"schema_version":1}"#),
+            (
+                "manifest.json",
+                &format!(
+                    "{{\"schema_version\":{}}}",
+                    crate::migration::SchemaVersions::ARCHIVE
+                ),
+            ),
             ("sessions.json", "[]"),
         ]);
         let dir = tempfile::TempDir::new().unwrap();
@@ -592,6 +615,63 @@ mod tests {
             preview.schema_version,
             i64::from(crate::migration::SchemaVersions::ARCHIVE),
         );
+    }
+
+    #[test]
+    fn read_archive_to_pending_accepts_legacy_v1_manifest() {
+        // v1 archives written before the sync_origin field existed
+        // must still import — `1..=ARCHIVE` is the supported range
+        // and the v2 manifest is a superset of the v1 wire shape.
+        let zip = build_test_zip(&[
+            ("manifest.json", r#"{"schema_version":1}"#),
+            ("sessions.json", "[]"),
+        ]);
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("v1.lfs");
+        std::fs::write(&path, &zip).unwrap();
+        let (_pending, preview) =
+            read_archive_to_pending(path.to_str().unwrap(), "").expect("legacy v1");
+        assert_eq!(preview.schema_version, 1);
+    }
+
+    #[test]
+    fn parse_sync_origin_extracts_field_from_manifest() {
+        let pending = PendingImport {
+            manifest_json: Some(r#"{"schema_version":2,"sync_origin":"inst-1:42"}"#.into()),
+            sessions_json: None,
+            keys_json: None,
+            tags_json: None,
+            session_tags_json: None,
+            folder_tags_json: None,
+            snippets_json: None,
+            session_snippets_json: None,
+            empty_folders_json: None,
+            config_json: None,
+            known_hosts_text: None,
+        };
+        assert_eq!(parse_sync_origin(&pending).as_deref(), Some("inst-1:42"));
+    }
+
+    #[test]
+    fn parse_sync_origin_returns_none_when_field_absent_or_empty() {
+        let mut pending = PendingImport {
+            manifest_json: Some(r#"{"schema_version":2}"#.into()),
+            sessions_json: None,
+            keys_json: None,
+            tags_json: None,
+            session_tags_json: None,
+            folder_tags_json: None,
+            snippets_json: None,
+            session_snippets_json: None,
+            empty_folders_json: None,
+            config_json: None,
+            known_hosts_text: None,
+        };
+        assert!(parse_sync_origin(&pending).is_none());
+        pending.manifest_json = Some(r#"{"schema_version":2,"sync_origin":""}"#.into());
+        assert!(parse_sync_origin(&pending).is_none());
+        pending.manifest_json = None;
+        assert!(parse_sync_origin(&pending).is_none());
     }
 
     #[test]

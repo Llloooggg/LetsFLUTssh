@@ -24,6 +24,7 @@ import '../../src/rust/api/crypto.dart' as rust_crypto;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/macos_resign.dart' as rust_macos_resign;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
+import '../../src/rust/api/sync.dart' as rust_sync;
 import '../../core/security/active_dbkey.dart';
 import '../../core/security/biometric_auth.dart';
 import '../../core/security/security_tier.dart';
@@ -43,6 +44,7 @@ import '../../providers/security_provider.dart';
 import '../../providers/security_reinit_provider.dart';
 import '../../providers/session_credential_cache_provider.dart';
 import '../../providers/snippet_provider.dart';
+import '../../providers/sync_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../core/update/update_service.dart';
 import '../../providers/update_provider.dart';
@@ -67,6 +69,7 @@ import '../../widgets/form_submit_chain.dart';
 import '../../widgets/hover_region.dart';
 import '../../widgets/secure_password_field.dart';
 import '../../widgets/secure_screen_scope.dart';
+import '../../widgets/styled_form_field.dart';
 import '../../widgets/expandable_tier_card.dart';
 import '../../widgets/toast.dart';
 import '../../widgets/update_progress_indicator.dart';
@@ -89,6 +92,7 @@ part 'settings_sections_security.dart';
 part 'settings_sections_security_apply.dart';
 part 'settings_sections_security_biometric.dart';
 part 'settings_sections_security_macos.dart';
+part 'settings_sections_sync.dart';
 part 'settings_sections_updates.dart';
 part 'settings_widgets.dart';
 
@@ -155,6 +159,11 @@ List<_Section> _buildSections(BuildContext context) => [
     builder: _DataSection.new,
   ),
   _Section(
+    title: S.of(context).syncSection,
+    icon: Icons.sync,
+    builder: _SyncSection.new,
+  ),
+  _Section(
     title: S.of(context).logging,
     icon: Icons.description,
     builder: _LoggingSection.new,
@@ -202,6 +211,11 @@ List<_Section> _buildDesktopSections(BuildContext context) => [
     title: S.of(context).data,
     icon: Icons.storage,
     builder: _DataSection.new,
+  ),
+  _Section(
+    title: S.of(context).syncSection,
+    icon: Icons.sync,
+    builder: _SyncSection.new,
   ),
   _Section(
     title: S.of(context).logging,

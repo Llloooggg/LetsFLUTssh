@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "WebDAV base URL이 필요합니다",
-  "errWebDavBaseUrlInvalid": "Base URL은 http:// 또는 https:// 여야 합니다"
+  "errWebDavBaseUrlInvalid": "Base URL은 http:// 또는 https:// 여야 합니다",
+  "syncSection": "Sync",
+  "syncEnable": "WebDAV sync 활성화",
+  "syncPassphrase": "Sync 패스프레이즈",
+  "syncPassphraseHint": "Sync 아카이브를 암호화합니다. 마스터 비밀번호와 달라야 합니다.",
+  "syncPassphraseSameAsMasterError": "Sync 패스프레이즈는 마스터 비밀번호와 같을 수 없습니다.",
+  "syncRemotePath": "Remote 경로",
+  "syncRemotePathHint": "WebDAV base URL 아래 경로 — 기본값 letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "마지막 push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "마지막 pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "없음",
+  "syncUpToDate": "Sync 최신 상태",
+  "syncPushedBytes": "{bytes} push 완료",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Remote 에서 {count}건 적용",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync 비활성화됨",
+  "errSyncEtagMismatch": "Remote 가 변경됨 — 먼저 pull 후 push",
+  "errSyncUnauthorized": "WebDAV 인증 실패",
+  "errSyncNetwork": "네트워크 오류: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote 의 sync 아카이브에 새 빌드가 필요합니다"
 }

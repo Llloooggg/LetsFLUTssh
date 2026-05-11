@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "需要 WebDAV base URL",
-  "errWebDavBaseUrlInvalid": "Base URL 必须为 http:// 或 https://"
+  "errWebDavBaseUrlInvalid": "Base URL 必须为 http:// 或 https://",
+  "syncSection": "Sync",
+  "syncEnable": "启用 WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "加密 sync 归档。必须与主密码不同。",
+  "syncPassphraseSameAsMasterError": "Sync passphrase 不能与主密码相同。",
+  "syncRemotePath": "远程路径",
+  "syncRemotePathHint": "WebDAV base URL 下的路径 — 默认 letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "上次 push:{when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "上次 pull:{when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "从未",
+  "syncUpToDate": "Sync 已是最新",
+  "syncPushedBytes": "Push 完成 {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "从 remote 应用 {count} 项变更",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync 已关闭",
+  "errSyncEtagMismatch": "Remote 已变 — 请先 pull 再 push",
+  "errSyncUnauthorized": "WebDAV 认证失败",
+  "errSyncNetwork": "网络错误:{detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote 的 sync 归档需要更新版本"
 }

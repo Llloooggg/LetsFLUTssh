@@ -2761,4 +2761,78 @@ class SEn extends S {
 
   @override
   String get errWebDavBaseUrlInvalid => 'Base URL must be http:// or https://';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Enable WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Encrypts the sync archive. Must differ from the master password.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase cannot match the master password.';
+
+  @override
+  String get syncRemotePath => 'Remote path';
+
+  @override
+  String get syncRemotePathHint =>
+      'Path under the WebDAV base URL — default letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push now';
+
+  @override
+  String get syncPullNow => 'Pull now';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Last push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Last pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Never';
+
+  @override
+  String get syncUpToDate => 'Sync is up to date';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Pushed $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Applied $count updates from remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync is disabled';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote changed — pull first, then push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV authentication failed';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Network error: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Remote sync archive needs a newer build to read';
 }

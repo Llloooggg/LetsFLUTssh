@@ -2655,4 +2655,76 @@ class SKo extends S {
 
   @override
   String get errWebDavBaseUrlInvalid => 'Base URL은 http:// 또는 https:// 여야 합니다';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'WebDAV sync 활성화';
+
+  @override
+  String get syncPassphrase => 'Sync 패스프레이즈';
+
+  @override
+  String get syncPassphraseHint => 'Sync 아카이브를 암호화합니다. 마스터 비밀번호와 달라야 합니다.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync 패스프레이즈는 마스터 비밀번호와 같을 수 없습니다.';
+
+  @override
+  String get syncRemotePath => 'Remote 경로';
+
+  @override
+  String get syncRemotePathHint =>
+      'WebDAV base URL 아래 경로 — 기본값 letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return '마지막 push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return '마지막 pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => '없음';
+
+  @override
+  String get syncUpToDate => 'Sync 최신 상태';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return '$bytes push 완료';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Remote 에서 $count건 적용';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync 비활성화됨';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote 가 변경됨 — 먼저 pull 후 push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV 인증 실패';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return '네트워크 오류: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion => 'Remote 의 sync 아카이브에 새 빌드가 필요합니다';
 }

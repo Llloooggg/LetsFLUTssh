@@ -83,6 +83,16 @@ pub struct ExportInput {
     /// rather than read from the system clock so callers can pin a
     /// deterministic timestamp during tests.
     pub created_at_ms: i64,
+    /// Caller-supplied identity stamp written into
+    /// `manifest.sync_origin`. The sync orchestrator
+    /// (`crate::sync`) stamps a unique
+    /// `<install-id>:<unix_ms>` token on every push; a peer
+    /// device's pull recognises "this is my own push echoing
+    /// back" by comparing the field against its own stamp and
+    /// skips applying the archive. `None` emits no field (legacy
+    /// shape, manual exports from the Data → Export dialog).
+    /// Available since `SchemaVersions::ARCHIVE` v2.
+    pub sync_origin: Option<String>,
 }
 
 /// Compose and (optionally) encrypt the `.lfs` archive.
@@ -234,6 +244,16 @@ fn write_manifest(
     if let Some(v) = input.app_version.as_deref() {
         if !v.is_empty() {
             obj.insert("app_version".into(), json!(v));
+        }
+    }
+    // `sync_origin` stamped only when the caller supplied a
+    // non-empty token. Manual exports leave the field absent;
+    // the sync orchestrator passes `<install-id>:<unix_ms>` so a
+    // peer device's pull can detect its own push echoing back.
+    // Available since `SchemaVersions::ARCHIVE` v2.
+    if let Some(o) = input.sync_origin.as_deref() {
+        if !o.is_empty() {
+            obj.insert("sync_origin".into(), json!(o));
         }
     }
     write_json_entry(zw, opts, "manifest.json", &Value::Object(obj))
@@ -530,6 +550,7 @@ mod tests {
             kdf_iterations: 1,
             kdf_parallelism: 1,
             created_at_ms: 1_700_000_000_000, // 2023-11-14T22:13:20Z
+            sync_origin: None,
         }
     }
 
@@ -636,6 +657,37 @@ mod tests {
         let zip = read_zip(&bytes);
         let manifest = json_entry(&zip, "manifest.json").unwrap();
         assert!(manifest.get("app_version").is_none());
+    }
+
+    #[test]
+    fn manifest_emits_sync_origin_when_caller_supplies_one() {
+        let conn = fresh_db();
+        let mut input = baseline_input();
+        input.sync_origin = Some("install-abc:1700000000000".into());
+        let bytes = export_archive(&conn, &input).unwrap();
+        let zip = read_zip(&bytes);
+        let manifest = json_entry(&zip, "manifest.json").unwrap();
+        assert_eq!(manifest["sync_origin"], "install-abc:1700000000000");
+    }
+
+    #[test]
+    fn manifest_omits_sync_origin_when_caller_supplies_none_or_empty() {
+        let conn = fresh_db();
+        let mut input = baseline_input();
+        input.sync_origin = None;
+        let bytes = export_archive(&conn, &input).unwrap();
+        let zip = read_zip(&bytes);
+        let manifest = json_entry(&zip, "manifest.json").unwrap();
+        assert!(manifest.get("sync_origin").is_none());
+        // Empty string also suppresses, matching the `app_version`
+        // grammar — the orchestrator never emits an empty token but
+        // a malformed install id should not produce a header line
+        // that pings on every peer device.
+        input.sync_origin = Some(String::new());
+        let bytes = export_archive(&conn, &input).unwrap();
+        let zip = read_zip(&bytes);
+        let manifest = json_entry(&zip, "manifest.json").unwrap();
+        assert!(manifest.get("sync_origin").is_none());
     }
 
     #[test]

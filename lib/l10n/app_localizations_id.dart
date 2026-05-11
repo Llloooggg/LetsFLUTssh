@@ -2726,4 +2726,78 @@ class SId extends S {
 
   @override
   String get errWebDavBaseUrlInvalid => 'Base URL harus http:// atau https://';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Aktifkan WebDAV sync';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Mengenkripsi arsip sync. Harus berbeda dari master password.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase tidak boleh sama dengan master password.';
+
+  @override
+  String get syncRemotePath => 'Remote path';
+
+  @override
+  String get syncRemotePathHint =>
+      'Path di bawah WebDAV base URL — default letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Push terakhir: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Pull terakhir: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Belum pernah';
+
+  @override
+  String get syncUpToDate => 'Sync up to date';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return '$count perubahan diterapkan dari remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync nonaktif';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote berubah — pull dulu, baru push';
+
+  @override
+  String get errSyncUnauthorized => 'Autentikasi WebDAV gagal';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Network error: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Arsip sync remote butuh build yang lebih baru';
 }

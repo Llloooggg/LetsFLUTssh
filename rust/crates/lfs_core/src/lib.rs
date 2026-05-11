@@ -74,6 +74,10 @@ pub mod ssh_dir_scan;
 // `pub` because the items are public API of the crate and the
 // next commit wires them into `lfs_frb::api::storage`.
 pub mod storage;
+// WebDAV sync orchestrator (push + pull + LWW merge). Consumed by
+// `lfs_frb::api::sync`; the Settings UI's "Push now" / "Pull now"
+// buttons land here through that adapter.
+pub mod sync;
 pub mod threat_eval;
 pub mod transfer;
 pub mod transfer_conflict;

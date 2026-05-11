@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "WebDAV の Base URL が必要です",
-  "errWebDavBaseUrlInvalid": "Base URL は http:// または https:// で始める必要があります"
+  "errWebDavBaseUrlInvalid": "Base URL は http:// または https:// で始める必要があります",
+  "syncSection": "Sync",
+  "syncEnable": "WebDAV sync を有効化",
+  "syncPassphrase": "Sync パスフレーズ",
+  "syncPassphraseHint": "Sync アーカイブを暗号化します。マスターパスワードと異なる必要があります。",
+  "syncPassphraseSameAsMasterError": "Sync パスフレーズはマスターパスワードと同じにできません。",
+  "syncRemotePath": "Remote パス",
+  "syncRemotePathHint": "WebDAV Base URL 配下のパス — 既定は letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "前回の push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "前回の pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "未実行",
+  "syncUpToDate": "Sync は最新です",
+  "syncPushedBytes": "{bytes} を push しました",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Remote から {count} 件の変更を適用",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync は無効です",
+  "errSyncEtagMismatch": "Remote が変わりました — まず pull、それから push",
+  "errSyncUnauthorized": "WebDAV 認証に失敗しました",
+  "errSyncNetwork": "ネットワークエラー: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote の sync アーカイブには新しいビルドが必要です"
 }

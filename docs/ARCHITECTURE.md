@@ -20,6 +20,7 @@
   - [3.12 Snippets (`core/snippets/`)](#312-snippets-coresnippets)
   - [3.13 Session Recording (`core/session/session_recorder.dart`)](#313-session-recording-coresessionsession_recorderdart)
   - [3.14 Rust Security/Transport Core (`rust/`)](#314-rust-securitytransport-core-rust)
+  - [3.15 Sync via WebDAV (`rust/crates/lfs_core/src/sync/`)](#315-sync-via-webdav-rustcrateslfs_coresrcsync)
 - [4. State Management — Riverpod](#4-state-management--riverpod)
   - [4.1 Provider Dependency Graph](#41-provider-dependency-graph)
   - [4.2 Provider Catalog](#42-provider-catalog)
@@ -1934,7 +1935,8 @@ class ConfigNotifier {
 | **v2** | `security_probe_cache` is always emitted as an explicit value — either an object or `null`. Distinguishes "never probed" from "probed-but-empty" on round-trip; the v1 writer collapsed both shapes by omitting the field. | `ConfigV1ToV2` (`lfs_core::migration::artefacts`): inserts `security_probe_cache: null` when missing, stamps `config_schema_version: 2`, writes via `path::write_bytes_atomic`. |
 | **v3** | The security-tier model is fully bank-style: `security_tier` carries one of `{plaintext, keychain, hardware, paranoid}` and the `password` / `biometric` switches live in `security_modifiers`. v2 still carried `keychain_with_password` as its own tier value alongside the modifiers — half-finished migration from the per-combination enum shape. v3 finishes the collapse. | `ConfigV2ToV3` (`lfs_core::migration::artefacts`): rewrites `security_tier == "keychain_with_password"` to `tier == "keychain"` + `modifiers.password = true`, stamps `config_schema_version: 3`, writes via `path::write_bytes_atomic`. |
 | **v4** | Drops the legacy `biometric_shortcut` / `pin_length` fields from `security_modifiers`. Both were retained as backward-compat aliases after the bank-style password modifier landed; v4 retires them entirely (no runtime caller, deprecated 1:1 alias). | `ConfigV3ToV4` (`lfs_core::migration::artefacts`): removes the two fields from `security_modifiers` if present, stamps `config_schema_version: 4`, writes via `path::write_bytes_atomic`. Idempotent on already-stripped configs. |
-| **v5** (current) | Adds `recordings_storage_cap_bytes` at the top level (default 500 MiB) so the recorder's LRU eviction sweep has a user-configurable byte ceiling persisted alongside the rest of the preferences. v4 readers had no such field — without the cutover the cap would key off the runtime default every launch and a hand-edited value could never persist. Sanitiser clamps zero / above 1 TiB to the default. | `ConfigV4ToV5` (`lfs_core::migration::artefacts`): inserts `recordings_storage_cap_bytes: 524288000` when missing, stamps `config_schema_version: 5`, writes via `path::write_bytes_atomic`. Idempotent on already-stamped configs. |
+| **v5** | Adds `recordings_storage_cap_bytes` at the top level (default 500 MiB) so the recorder's LRU eviction sweep has a user-configurable byte ceiling persisted alongside the rest of the preferences. v4 readers had no such field — without the cutover the cap would key off the runtime default every launch and a hand-edited value could never persist. Sanitiser clamps zero / above 1 TiB to the default. | `ConfigV4ToV5` (`lfs_core::migration::artefacts`): inserts `recordings_storage_cap_bytes: 524288000` when missing, stamps `config_schema_version: 5`, writes via `path::write_bytes_atomic`. Idempotent on already-stamped configs. |
+| **v6** (current) | Adds the `sync_*` family of fields (`sync_enabled`, `sync_webdav_url`, `sync_webdav_username`, `sync_webdav_password_ref`, `sync_webdav_auth_method`, `sync_passphrase_ref`, `sync_remote_path`, `sync_last_pushed_at_ms`, `sync_last_pulled_at_ms`, `sync_last_pushed_sha256`, `sync_last_pushed_etag`) so the WebDAV sync orchestrator ([§3.15](#315-sync-via-webdav-rustcrateslfs_coresrcsync)) has a place to persist endpoint config + last-push state alongside the rest of `AppConfig`. Plaintext credentials live in `lfs_core::secrets::SecretStore`; only the two ref-ids land here. `strip_for_export` drops every `sync_*` key before the JSON enters an `.lfs` archive — sync state is per-install, not portable. | `ConfigV5ToV6` (`lfs_core::migration::artefacts`): stamps the defaults from `SyncConfig::default` for every missing `sync_*` key, stamps `config_schema_version: 6`, writes via `path::write_bytes_atomic`. Idempotent on already-stamped configs. |
 
 Bumping further follows the framework's [§3.6 → Bumping an existing artefact's format](#bumping-an-existing-artefacts-format) checklist — every step lives in one place so the next bump doesn't have to re-derive the contract.
 
@@ -2548,6 +2550,151 @@ The native blob ships bundled — end-users install nothing beyond the existing 
 - Build: [CONTRIBUTING.md § Rust core](CONTRIBUTING.md#rust-core-securitytransport) — toolchain install, common targets
 
 ---
+
+### 3.15 Sync via WebDAV (`rust/crates/lfs_core/src/sync/`)
+
+WebDAV-backed push / pull orchestrator. Ships the encrypted `.lfs`
+archive between devices over the standard WebDAV transport
+(`lfs_core::webdav::WebDavClient`). Lives entirely Rust-side; the
+Flutter Settings → Sync section calls the three FRB verbs
+(`sync_status`, `sync_push`, `sync_pull`) and renders the typed
+result envelope.
+
+#### Wire shape
+
+| Layer | What lands on the wire |
+|---|---|
+| Remote object | One `.lfs` archive at the configured remote path (default `letsflutssh.lfs`) |
+| Inner format | Same LFSE envelope manual exports produce (`SchemaVersions::ARCHIVE`) — Argon2id + AES-256-GCM over a stored-mode ZIP |
+| Manifest extension | v2 adds optional `sync_origin` field stamping `<install-id>:<unix_ms>` so a peer device's pull can recognise "this is my own push echoing back" |
+
+The remote object is the full DB snapshot every push; the
+orchestrator does not ship deltas. Snapshot upload is simpler than
+delta merge — the LWW merge in `sync::merge` handles convergence
+on pull instead of putting the load on the wire shape.
+
+#### Push flow
+
+```mermaid
+flowchart TD
+    A[push request] --> B{enabled?}
+    B -- no --> Z1[Err Disabled]
+    B -- yes --> C[read SyncConfig + secrets]
+    C --> D[compose .lfs archive Rust-side]
+    D --> E[SHA-256 of archive bytes]
+    E --> F{sha matches last_pushed_sha256?}
+    F -- yes --> Z2[Ok UpToDate]
+    F -- no --> G[PUT with If-Match=last_pushed_etag]
+    G -- 412 --> Z3[Err EtagMismatch — UI surfaces &quot;pull first&quot;]
+    G -- 401 --> Z4[Err Unauthorized]
+    G -- 2xx --> H[stamp last_pushed_at_ms, last_pushed_sha256, last_pushed_etag]
+    H --> Z5[Ok Pushed]
+```
+
+#### Pull flow
+
+```mermaid
+flowchart TD
+    A[pull request] --> B[PROPFIND depth=0]
+    B -- 404 --> Z1[Ok Skipped: no remote archive]
+    B -- 401 --> Z2[Err Unauthorized]
+    B -- 2xx --> C{etag == last_pushed_etag?}
+    C -- yes --> Z3[Ok UpToDate]
+    C -- no --> D[GET full body]
+    D --> E[decrypt + parse via read_archive_to_pending]
+    E -- future version --> Z4[Err ArchiveFutureVersion]
+    E -- ok --> F[parse_sync_origin]
+    F --> G{origin starts with our install id?}
+    G -- yes --> Z3
+    G -- no --> H[merge_pending_into_local single tx]
+    H --> I[stamp last_pulled_at_ms]
+    I --> Z5[Ok PullApplied]
+```
+
+#### LWW merge rules
+
+Per-row last-write-wins on the table's effective timestamp. The
+merge runs inside a single SQLite transaction so a mid-merge crash
+leaves the local DB untouched.
+
+| Table | Field consulted | Notes |
+|---|---|---|
+| `sessions` | `updated_at` | strict-greater ⇒ peer wins |
+| `snippets` | `updated_at` | same |
+| `ssh_keys` | `created_at` | DAO has no `updated_at`; mutations re-stamp `created_at` on upsert |
+| `tags` | `created_at` | same |
+| `sftp_bookmarks` | `created_at` | same; v1 archives do not emit `sftp_bookmarks` yet |
+
+**M2M join tables** (`session_tags`, `folder_tags`,
+`session_snippets`) carry no timestamps. The merge unions local +
+pending edges via `INSERT OR IGNORE` — every edge either side
+knows about survives. **Removal of an edge is not replayed in
+v1** because the wire format does not carry a "this edge was
+deleted" marker; the user re-unlinks on the second device.
+
+**Tombstone replay caveat — v1 limitation.** The export composer
+(`archive::compose::build_sessions_value` and siblings) filters
+`deleted_at IS NULL` before serialising, so v1 archives carry
+live rows only. A peer device cannot observe a tombstone the
+source device stamped through this wire format; cross-device
+deletion replay lands when the export pipeline grows a
+`deleted_at` field per row.
+
+#### Self-push echo guard
+
+Every push stamps a token `<install-id>:<unix_ms>` into
+`manifest.sync_origin`. The `install_id` is a per-process random
+12-byte hex string (a stable per-install id would need a
+persisted file; per-process suffices because the case we're
+guarding is "this process pushes, then pulls within the same
+launch and observes its own bytes back"). The pull path strips
+the field via `archive::parse_sync_origin` and skips the merge
+when the origin matches our own id.
+
+The ETag check is the fast-path equivalent: when the remote ETag
+matches `last_pushed_etag`, no body fetch happens.
+
+#### ETag conflict resolution
+
+A 412 on PUT means the remote drifted since the last push (peer
+device pushed between our pull and our push). The orchestrator
+surfaces this as `SyncError::EtagMismatch`; the Settings UI
+renders the localised "remote changed — pull first, then push"
+toast. The user clicks Pull, the merge applies the peer's
+changes, then clicks Push and the new ETag round-trips fine.
+
+#### Secrets
+
+Two secrets live in `lfs_core::secrets::SecretStore` under
+canonical ids:
+
+- `sync.webdav.password` — WebDAV password / bearer token. Used
+  to build the `Credentials` for `WebDavClient`.
+- `sync.passphrase` — the AES-GCM key for the archive envelope.
+  **MUST differ from the master password** — the Settings UI
+  uses `MasterPasswordManager::verifyAndDerive` on the typed
+  passphrase to detect collisions without ever exposing the
+  master password's plaintext.
+
+Plaintext never lands in `config.json`; only the two SecretStore
+id pointers do.
+
+#### Schema versions
+
+- `SchemaVersions::CONFIG = 6` adds the `sync_*` family of
+  fields to `config.json`. The v5 → v6 migration
+  (`ConfigV5ToV6`) stamps the canonical defaults from
+  `SyncConfig::default` so existing installs adopt the shape on
+  first launch.
+- `SchemaVersions::ARCHIVE = 2` adds the optional `sync_origin`
+  field to the manifest. v1 archives have no field; the
+  `archive::read_archive_to_pending` parser accepts both v1 and
+  v2 via the `1..=ARCHIVE` range check.
+
+#### Cadence
+
+v1 is manual-only — the user clicks "Push now" / "Pull now". An
+auto-interval timer is deferred; no background sync task runs.
 
 ## 4. State Management — Riverpod
 

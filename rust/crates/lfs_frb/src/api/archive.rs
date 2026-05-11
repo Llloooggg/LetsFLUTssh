@@ -87,6 +87,9 @@ pub async fn db_export_archive(input: DbExportInput, output_path: String) -> Res
         kdf_iterations: input.kdf_iterations,
         kdf_parallelism: input.kdf_parallelism,
         created_at_ms: input.created_at_ms,
+        // Manual exports do not stamp `sync_origin` — the
+        // orchestrator does that on its own push path.
+        sync_origin: None,
     };
 
     tokio::task::spawn_blocking(move || -> Result<i64, String> {
@@ -154,6 +157,9 @@ pub fn db_lfs_export_size(input: DbExportInput) -> Result<u32, String> {
         kdf_iterations: input.kdf_iterations,
         kdf_parallelism: input.kdf_parallelism,
         created_at_ms: input.created_at_ms,
+        // Manual exports do not stamp `sync_origin` — see the
+        // matching note above on `db_export_archive`.
+        sync_origin: None,
     };
     let db = require_db()?;
     db.with_conn(|c| export_archive_size(c, &core_input))

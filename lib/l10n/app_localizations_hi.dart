@@ -2724,4 +2724,78 @@ class SHi extends S {
   @override
   String get errWebDavBaseUrlInvalid =>
       'Base URL http:// या https:// होना चाहिए';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'WebDAV sync चालू करें';
+
+  @override
+  String get syncPassphrase => 'Sync passphrase';
+
+  @override
+  String get syncPassphraseHint =>
+      'Sync archive एन्क्रिप्ट करता है। Master password से अलग होना चाहिए।';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'Sync passphrase master password जैसा नहीं हो सकता।';
+
+  @override
+  String get syncRemotePath => 'Remote path';
+
+  @override
+  String get syncRemotePathHint =>
+      'WebDAV base URL के नीचे path — default letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'पिछला push: $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'पिछला pull: $when';
+  }
+
+  @override
+  String get syncNeverRun => 'कभी नहीं';
+
+  @override
+  String get syncUpToDate => 'Sync up to date है';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return '$bytes push किया';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return 'Remote से $count updates apply हुए';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync disabled है';
+
+  @override
+  String get errSyncEtagMismatch => 'Remote बदल गया — पहले pull, फिर push';
+
+  @override
+  String get errSyncUnauthorized => 'WebDAV authentication fail हुआ';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Network error: $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'Remote sync archive के लिए नया build चाहिए';
 }

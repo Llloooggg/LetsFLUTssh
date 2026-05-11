@@ -1512,5 +1512,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "WebDAV base URL is required",
-  "errWebDavBaseUrlInvalid": "Base URL must be http:// or https://"
+  "errWebDavBaseUrlInvalid": "Base URL must be http:// or https://",
+  "syncSection": "Sync",
+  "syncEnable": "Enable WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Encrypts the sync archive. Must differ from the master password.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase cannot match the master password.",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "Path under the WebDAV base URL — default letsflutssh.lfs",
+  "syncPushNow": "Push now",
+  "syncPullNow": "Pull now",
+  "syncLastPushed": "Last push: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Last pull: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Never",
+  "syncUpToDate": "Sync is up to date",
+  "syncPushedBytes": "Pushed {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "Applied {count} updates from remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync is disabled",
+  "errSyncEtagMismatch": "Remote changed — pull first, then push",
+  "errSyncUnauthorized": "WebDAV authentication failed",
+  "errSyncNetwork": "Network error: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Remote sync archive needs a newer build to read"
 }

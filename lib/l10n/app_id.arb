@@ -912,5 +912,60 @@
     }
   },
   "errWebDavBaseUrlRequired": "Base URL WebDAV diperlukan",
-  "errWebDavBaseUrlInvalid": "Base URL harus http:// atau https://"
+  "errWebDavBaseUrlInvalid": "Base URL harus http:// atau https://",
+  "syncSection": "Sync",
+  "syncEnable": "Aktifkan WebDAV sync",
+  "syncPassphrase": "Sync passphrase",
+  "syncPassphraseHint": "Mengenkripsi arsip sync. Harus berbeda dari master password.",
+  "syncPassphraseSameAsMasterError": "Sync passphrase tidak boleh sama dengan master password.",
+  "syncRemotePath": "Remote path",
+  "syncRemotePathHint": "Path di bawah WebDAV base URL — default letsflutssh.lfs",
+  "syncPushNow": "Push",
+  "syncPullNow": "Pull",
+  "syncLastPushed": "Push terakhir: {when}",
+  "@syncLastPushed": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncLastPulled": "Pull terakhir: {when}",
+  "@syncLastPulled": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "syncNeverRun": "Belum pernah",
+  "syncUpToDate": "Sync up to date",
+  "syncPushedBytes": "Push {bytes}",
+  "@syncPushedBytes": {
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      }
+    }
+  },
+  "syncPullApplied": "{count} perubahan diterapkan dari remote",
+  "@syncPullApplied": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errSyncDisabled": "Sync nonaktif",
+  "errSyncEtagMismatch": "Remote berubah — pull dulu, baru push",
+  "errSyncUnauthorized": "Autentikasi WebDAV gagal",
+  "errSyncNetwork": "Network error: {detail}",
+  "@errSyncNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errSyncArchiveFutureVersion": "Arsip sync remote butuh build yang lebih baru"
 }

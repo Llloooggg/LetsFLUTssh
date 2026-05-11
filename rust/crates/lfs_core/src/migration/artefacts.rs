@@ -300,6 +300,76 @@ impl Migration for ConfigV4ToV5 {
     }
 }
 
+/// `config.json` v5 → v6: stamp the canonical `SyncConfig`
+/// default fields when absent so the WebDAV sync orchestrator
+/// (`crate::sync`) sees the same shape every read produces.
+/// v5 files have no `sync_*` keys; the migration writes the
+/// defaults from [`crate::config::SyncConfig::default`] and
+/// stamps the version to 6.
+///
+/// Idempotent on already-stamped configs: each `sync_*` key
+/// uses `entry(...).or_insert(...)` so a forward-compat
+/// write that already carries the fields keeps its values. The
+/// version stamp flips unconditionally. Atomic — writes via
+/// [`crate::path::write_bytes_atomic`] (tmp + fsync + rename)
+/// so a crash mid-migration leaves the v5 file untouched on
+/// disk.
+pub struct ConfigV5ToV6;
+
+impl Migration for ConfigV5ToV6 {
+    fn artefact_id(&self) -> &'static str {
+        ConfigArtefact::FILE_NAME
+    }
+
+    fn source_version(&self) -> i32 {
+        5
+    }
+
+    fn target_version(&self) -> i32 {
+        6
+    }
+
+    fn apply(&self, support_dir: &Path) -> Result<(), String> {
+        let path = support_dir.join(ConfigArtefact::FILE_NAME);
+        let bytes =
+            std::fs::read(&path).map_err(|e| format!("read {}: {e}", ConfigArtefact::FILE_NAME))?;
+        let mut value: Value = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("{}: parse: {e}", ConfigArtefact::FILE_NAME))?;
+        let obj = value
+            .as_object_mut()
+            .ok_or_else(|| format!("{}: not a JSON object", ConfigArtefact::FILE_NAME))?;
+        let defaults = crate::config::SyncConfig::default();
+        obj.entry("sync_enabled")
+            .or_insert_with(|| Value::Bool(defaults.enabled));
+        obj.entry("sync_webdav_url")
+            .or_insert_with(|| Value::String(defaults.webdav_url.clone()));
+        obj.entry("sync_webdav_username")
+            .or_insert_with(|| Value::String(defaults.webdav_username.clone()));
+        obj.entry("sync_webdav_password_ref")
+            .or_insert_with(|| Value::String(defaults.webdav_password_ref.clone()));
+        obj.entry("sync_webdav_auth_method")
+            .or_insert_with(|| Value::String(defaults.webdav_auth_method.clone()));
+        obj.entry("sync_passphrase_ref")
+            .or_insert_with(|| Value::String(defaults.passphrase_ref.clone()));
+        obj.entry("sync_remote_path")
+            .or_insert_with(|| Value::String(defaults.remote_path.clone()));
+        obj.entry("sync_last_pushed_at_ms")
+            .or_insert_with(|| Value::from(defaults.last_pushed_at_ms));
+        obj.entry("sync_last_pulled_at_ms")
+            .or_insert_with(|| Value::from(defaults.last_pulled_at_ms));
+        obj.entry("sync_last_pushed_sha256")
+            .or_insert_with(|| Value::String(defaults.last_pushed_sha256.clone()));
+        obj.entry("sync_last_pushed_etag")
+            .or_insert_with(|| Value::String(defaults.last_pushed_etag.clone()));
+        obj.insert("config_schema_version".into(), Value::from(6));
+        let serialised = serde_json::to_vec(&value)
+            .map_err(|e| format!("{}: serialise: {e}", ConfigArtefact::FILE_NAME))?;
+        crate::path::write_bytes_atomic(&path, &serialised)
+            .map_err(|e| format!("{}: write: {e}", ConfigArtefact::FILE_NAME))?;
+        Ok(())
+    }
+}
+
 /// `security_pass_hash.bin` — keychain password gate. Wire format
 /// is a single-line JSON envelope `{"v": N, "salt": "<b64>", "hmac":
 /// "<b64>"}`. The `v` field is the schema marker; missing field on
@@ -870,6 +940,101 @@ mod tests {
         );
         // Non-migration fields survive.
         assert_eq!(obj.get("theme"), Some(&Value::String("dark".into())));
+    }
+
+    // ── ConfigV5ToV6 ─────────────────────────────────────────────
+
+    #[test]
+    fn config_v5_to_v6_stamps_default_sync_fields_when_absent() {
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{"config_schema_version":5,"theme":"dark"}"#,
+        )
+        .unwrap();
+        ConfigV5ToV6.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(6)));
+        assert_eq!(obj.get("sync_enabled"), Some(&Value::Bool(false)));
+        assert_eq!(
+            obj.get("sync_remote_path"),
+            Some(&Value::String(
+                crate::config::SYNC_DEFAULT_REMOTE_PATH.to_string()
+            ))
+        );
+        assert_eq!(
+            obj.get("sync_webdav_password_ref"),
+            Some(&Value::String(
+                crate::config::SYNC_PASSWORD_SECRET_ID.to_string()
+            ))
+        );
+        assert_eq!(
+            obj.get("sync_passphrase_ref"),
+            Some(&Value::String(
+                crate::config::SYNC_PASSPHRASE_SECRET_ID.to_string()
+            ))
+        );
+        assert_eq!(
+            obj.get("sync_webdav_auth_method"),
+            Some(&Value::String("basic".to_string()))
+        );
+        // Non-migration fields survive.
+        assert_eq!(obj.get("theme"), Some(&Value::String("dark".into())));
+    }
+
+    #[test]
+    fn config_v5_to_v6_preserves_existing_sync_values() {
+        // A v5 file that already carries the sync fields (a
+        // forward-compat write, or a hand-edit by support) must not
+        // get its values clobbered. The migration only fills in
+        // missing keys + flips the version stamp.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{
+                "config_schema_version":5,
+                "sync_enabled":true,
+                "sync_webdav_url":"https://dav.example.com/dav/",
+                "sync_remote_path":"my.lfs"
+            }"#,
+        )
+        .unwrap();
+        ConfigV5ToV6.apply(dir.path()).expect("apply");
+        let bytes = fs::read(dir.path().join("config.json")).unwrap();
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        let obj = value.as_object().unwrap();
+        assert_eq!(obj.get("config_schema_version"), Some(&Value::from(6)));
+        assert_eq!(obj.get("sync_enabled"), Some(&Value::Bool(true)));
+        assert_eq!(
+            obj.get("sync_webdav_url"),
+            Some(&Value::String("https://dav.example.com/dav/".into()))
+        );
+        assert_eq!(
+            obj.get("sync_remote_path"),
+            Some(&Value::String("my.lfs".into()))
+        );
+    }
+
+    #[test]
+    fn config_v5_to_v6_lands_at_current_version_through_runner() {
+        // Same shape as the v1-through-runner test: an at-rest v5
+        // file walked through the framework must land at the
+        // current `SchemaVersions::CONFIG`. Counter equals the
+        // chain length so this test stays correct when a future
+        // v6→v7 lands without a manual edit.
+        let dir = TempDir::new().unwrap();
+        fs::write(
+            dir.path().join("config.json"),
+            br#"{"config_schema_version":5,"theme":"dark"}"#,
+        )
+        .unwrap();
+        let reg = super::super::registry::build_app_registry();
+        let report = super::super::run_on_startup(dir.path(), &reg);
+        assert!(!report.has_failures(), "report: {report:?}");
+        let target = super::super::SchemaVersions::CONFIG;
+        assert_eq!(ConfigArtefact.read_version(dir.path()).unwrap(), target);
     }
 
     #[test]

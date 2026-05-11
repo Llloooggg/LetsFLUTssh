@@ -2812,4 +2812,79 @@ class SFr extends S {
   @override
   String get errWebDavBaseUrlInvalid =>
       'La base URL doit être en http:// ou https://';
+
+  @override
+  String get syncSection => 'Sync';
+
+  @override
+  String get syncEnable => 'Activer le sync WebDAV';
+
+  @override
+  String get syncPassphrase => 'Passphrase de sync';
+
+  @override
+  String get syncPassphraseHint =>
+      'Chiffre l\'archive de sync. Doit différer du master password.';
+
+  @override
+  String get syncPassphraseSameAsMasterError =>
+      'La passphrase de sync ne peut pas être identique au master password.';
+
+  @override
+  String get syncRemotePath => 'Chemin distant';
+
+  @override
+  String get syncRemotePathHint =>
+      'Chemin sous la base URL WebDAV — par défaut letsflutssh.lfs';
+
+  @override
+  String get syncPushNow => 'Push';
+
+  @override
+  String get syncPullNow => 'Pull';
+
+  @override
+  String syncLastPushed(String when) {
+    return 'Dernier push : $when';
+  }
+
+  @override
+  String syncLastPulled(String when) {
+    return 'Dernier pull : $when';
+  }
+
+  @override
+  String get syncNeverRun => 'Jamais';
+
+  @override
+  String get syncUpToDate => 'Sync à jour';
+
+  @override
+  String syncPushedBytes(String bytes) {
+    return 'Push de $bytes';
+  }
+
+  @override
+  String syncPullApplied(int count) {
+    return '$count changements appliqués depuis le remote';
+  }
+
+  @override
+  String get errSyncDisabled => 'Sync désactivé';
+
+  @override
+  String get errSyncEtagMismatch =>
+      'Le remote a changé — pull d\'abord, puis push';
+
+  @override
+  String get errSyncUnauthorized => 'Échec d\'authentification WebDAV';
+
+  @override
+  String errSyncNetwork(String detail) {
+    return 'Erreur réseau : $detail';
+  }
+
+  @override
+  String get errSyncArchiveFutureVersion =>
+      'L\'archive sync du remote nécessite un build plus récent';
 }
