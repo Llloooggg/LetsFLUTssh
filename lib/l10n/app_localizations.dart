@@ -4791,6 +4791,144 @@ abstract class S {
   /// **'Base URL must be http:// or https://'**
   String get errWebDavBaseUrlInvalid;
 
+  /// No description provided for @sessionKindS3.
+  ///
+  /// In en, this message translates to:
+  /// **'S3'**
+  String get sessionKindS3;
+
+  /// No description provided for @s3AccessKeyId.
+  ///
+  /// In en, this message translates to:
+  /// **'Access key ID'**
+  String get s3AccessKeyId;
+
+  /// No description provided for @s3SecretKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret access key'**
+  String get s3SecretKey;
+
+  /// No description provided for @s3Region.
+  ///
+  /// In en, this message translates to:
+  /// **'Region'**
+  String get s3Region;
+
+  /// No description provided for @s3RegionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'us-east-1, eu-west-2, auto'**
+  String get s3RegionHint;
+
+  /// No description provided for @s3Endpoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint'**
+  String get s3Endpoint;
+
+  /// No description provided for @s3EndpointHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty for AWS, or set for MinIO / R2 / Spaces'**
+  String get s3EndpointHint;
+
+  /// No description provided for @s3PathStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Path-style addressing'**
+  String get s3PathStyle;
+
+  /// No description provided for @s3PathStyleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Required for MinIO; leave off for AWS'**
+  String get s3PathStyleHint;
+
+  /// No description provided for @s3DefaultBucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Default bucket'**
+  String get s3DefaultBucket;
+
+  /// No description provided for @s3DefaultPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Default prefix'**
+  String get s3DefaultPrefix;
+
+  /// No description provided for @s3GeneratePresignedUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate presigned URL'**
+  String get s3GeneratePresignedUrl;
+
+  /// No description provided for @s3PresignedUrlExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in'**
+  String get s3PresignedUrlExpiry;
+
+  /// No description provided for @s3CopyUri.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy s3://bucket/key URI'**
+  String get s3CopyUri;
+
+  /// No description provided for @s3PresignedUrlExpiry15min.
+  ///
+  /// In en, this message translates to:
+  /// **'15 minutes'**
+  String get s3PresignedUrlExpiry15min;
+
+  /// No description provided for @s3PresignedUrlExpiry1hour.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get s3PresignedUrlExpiry1hour;
+
+  /// No description provided for @s3PresignedUrlExpiry4hour.
+  ///
+  /// In en, this message translates to:
+  /// **'4 hours'**
+  String get s3PresignedUrlExpiry4hour;
+
+  /// No description provided for @s3PresignedUrlExpiry24hour.
+  ///
+  /// In en, this message translates to:
+  /// **'24 hours'**
+  String get s3PresignedUrlExpiry24hour;
+
+  /// No description provided for @s3PresignedUrlExpiry7day.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get s3PresignedUrlExpiry7day;
+
+  /// No description provided for @errS3AuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'S3 authentication failed (check access key + secret)'**
+  String get errS3AuthFailed;
+
+  /// No description provided for @errS3NoSuchBucket.
+  ///
+  /// In en, this message translates to:
+  /// **'Bucket does not exist or is not accessible'**
+  String get errS3NoSuchBucket;
+
+  /// No description provided for @errS3RegionMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Bucket is in a different region than configured'**
+  String get errS3RegionMismatch;
+
+  /// No description provided for @errS3Generic.
+  ///
+  /// In en, this message translates to:
+  /// **'S3 server rejected the request: {detail}'**
+  String errS3Generic(String detail);
+
   /// No description provided for @syncSection.
   ///
   /// In en, this message translates to:

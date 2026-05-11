@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "WebDAV base URL ज़रूरी है",
   "errWebDavBaseUrlInvalid": "Base URL http:// या https:// होना चाहिए",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS के लिए खाली छोड़ें, या MinIO / R2 / Spaces के लिए set करें",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "MinIO के लिए ज़रूरी; AWS के लिए off रखें",
+  "s3DefaultBucket": "Default bucket",
+  "s3DefaultPrefix": "Default prefix",
+  "s3GeneratePresignedUrl": "Presigned URL बनाएं",
+  "s3PresignedUrlExpiry": "खत्म होगा",
+  "s3CopyUri": "s3://bucket/key URI कॉपी करें",
+  "s3PresignedUrlExpiry15min": "15 मिनट",
+  "s3PresignedUrlExpiry1hour": "1 घंटा",
+  "s3PresignedUrlExpiry4hour": "4 घंटे",
+  "s3PresignedUrlExpiry24hour": "24 घंटे",
+  "s3PresignedUrlExpiry7day": "7 दिन",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret जाँचें)",
+  "errS3NoSuchBucket": "Bucket मौजूद नहीं या पहुँच नहीं है",
+  "errS3RegionMismatch": "Bucket configured region से अलग region में है",
+  "errS3Generic": "S3 server ने request reject किया: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "WebDAV sync चालू करें",
   "syncPassphrase": "Sync passphrase",

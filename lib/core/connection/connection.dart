@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../src/rust/api/app.dart' as rust_app;
 import '../../src/rust/api/bus.dart' as rust_bus;
+import '../../src/rust/api/s3.dart' as rust_s3;
 import '../../src/rust/api/webdav.dart' as rust_webdav;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
@@ -43,6 +44,13 @@ class Connection {
   /// alongside [`transport`] when dispatching by [`kind`].
   rust_webdav.WebDavConnection? webdavConnection;
 
+  /// Live S3 transport handle for S3-kind sessions. Set on
+  /// successful connect; null for non-S3 sessions or before the
+  /// connect probe completes. The file browser reads it alongside
+  /// [`transport`] / [`webdavConnection`] when dispatching by
+  /// [`kind`].
+  rust_s3.S3Connection? s3Connection;
+
   /// Transport tag for this connection. SSH connections leave it
   /// at the default; WebDAV connections set it at construction
   /// time so the workspace UI and the file browser can branch on
@@ -54,6 +62,13 @@ class Connection {
   /// for SSH connections. Set at the same point [`webdavConnection`]
   /// lands so the two move together.
   String webdavBaseUrl = '';
+
+  /// Initial path the S3 file browser opens at. Resolved at
+  /// connect time from the configured default bucket + prefix:
+  /// either `s3://<bucket>/<prefix>` when an explicit bucket is
+  /// set, or the empty string (browser starts at the bucket
+  /// root). Empty for non-S3 connections.
+  String s3InitialDir = '';
 
   SSHConnectionState state;
 

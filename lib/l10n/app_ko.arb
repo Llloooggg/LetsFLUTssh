@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "WebDAV base URL이 필요합니다",
   "errWebDavBaseUrlInvalid": "Base URL은 http:// 또는 https:// 여야 합니다",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS면 비우고, MinIO / R2 / Spaces면 endpoint 지정",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "MinIO에 필요; AWS에서는 off",
+  "s3DefaultBucket": "기본 bucket",
+  "s3DefaultPrefix": "기본 prefix",
+  "s3GeneratePresignedUrl": "Presigned URL 생성",
+  "s3PresignedUrlExpiry": "만료",
+  "s3CopyUri": "s3://bucket/key URI 복사",
+  "s3PresignedUrlExpiry15min": "15분",
+  "s3PresignedUrlExpiry1hour": "1시간",
+  "s3PresignedUrlExpiry4hour": "4시간",
+  "s3PresignedUrlExpiry24hour": "24시간",
+  "s3PresignedUrlExpiry7day": "7일",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret 확인)",
+  "errS3NoSuchBucket": "Bucket이 없거나 접근할 수 없음",
+  "errS3RegionMismatch": "Bucket이 설정된 region과 다른 region에 있음",
+  "errS3Generic": "S3 서버가 요청을 거부함: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "WebDAV sync 활성화",
   "syncPassphrase": "Sync 패스프레이즈",

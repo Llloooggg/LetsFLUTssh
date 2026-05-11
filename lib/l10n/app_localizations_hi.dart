@@ -2726,6 +2726,80 @@ class SHi extends S {
       'Base URL http:// या https:// होना चाहिए';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'AWS के लिए खाली छोड़ें, या MinIO / R2 / Spaces के लिए set करें';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'MinIO के लिए ज़रूरी; AWS के लिए off रखें';
+
+  @override
+  String get s3DefaultBucket => 'Default bucket';
+
+  @override
+  String get s3DefaultPrefix => 'Default prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Presigned URL बनाएं';
+
+  @override
+  String get s3PresignedUrlExpiry => 'खत्म होगा';
+
+  @override
+  String get s3CopyUri => 's3://bucket/key URI कॉपी करें';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 मिनट';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 घंटा';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 घंटे';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 घंटे';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 दिन';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret जाँचें)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket मौजूद नहीं या पहुँच नहीं है';
+
+  @override
+  String get errS3RegionMismatch =>
+      'Bucket configured region से अलग region में है';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 server ने request reject किया: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

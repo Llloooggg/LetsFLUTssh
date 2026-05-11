@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "Base URL لـ WebDAV مطلوب",
   "errWebDavBaseUrlInvalid": "Base URL يجب أن يبدأ بـ http:// أو https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "اتركه فارغًا لـ AWS، أو ضع endpoint لـ MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "مطلوب لـ MinIO؛ اتركه off مع AWS",
+  "s3DefaultBucket": "Bucket الافتراضي",
+  "s3DefaultPrefix": "Prefix الافتراضي",
+  "s3GeneratePresignedUrl": "إنشاء presigned URL",
+  "s3PresignedUrlExpiry": "تنتهي خلال",
+  "s3CopyUri": "نسخ URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "15 دقيقة",
+  "s3PresignedUrlExpiry1hour": "ساعة",
+  "s3PresignedUrlExpiry4hour": "4 ساعات",
+  "s3PresignedUrlExpiry24hour": "24 ساعة",
+  "s3PresignedUrlExpiry7day": "7 أيام",
+  "errS3AuthFailed": "S3 authentication failed (تحقق من access key + secret)",
+  "errS3NoSuchBucket": "Bucket غير موجود أو غير قابل للوصول",
+  "errS3RegionMismatch": "Bucket في region مختلف عن المُعدّ",
+  "errS3Generic": "خادم S3 رفض الطلب: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "تفعيل WebDAV sync",
   "syncPassphrase": "Sync passphrase",

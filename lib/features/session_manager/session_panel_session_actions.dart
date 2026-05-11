@@ -18,13 +18,45 @@ extension _SessionActions on SessionPanelState {
         :final connect,
         :final forwards,
         :final webdavData,
+        :final s3Data,
       ):
         await ref.read(sessionProvider.notifier).add(session);
         await _syncForwards(ref, session.id, forwards);
         if (webdavData != null) {
           await _syncWebDavDetails(session.id, webdavData);
         }
+        if (s3Data != null) {
+          await _syncS3Details(session.id, s3Data);
+        }
         if (connect) widget.onConnect(session);
+    }
+  }
+
+  /// Persist the S3 transport tuple alongside the parent session
+  /// row, and stage the secret access key into SecretStore when
+  /// the dialog's dirty bit fires + the field is non-empty. The
+  /// secret rooms under the canonical
+  /// `dbS3SessionDetailsSecretId` so the connect path picks it up
+  /// without the dialog ever needing to keep it in Dart memory
+  /// past the navigator pop.
+  Future<void> _syncS3Details(String sessionId, S3SaveData data) async {
+    await rust_db.dbS3SessionDetailsUpsert(
+      rec: rust_db.DbS3SessionDetails(
+        sessionId: sessionId,
+        accessKeyId: data.accessKeyId,
+        region: data.region,
+        endpoint: data.endpoint,
+        pathStyle: data.pathStyle,
+        defaultBucket: data.defaultBucket,
+        defaultPrefix: data.defaultPrefix,
+      ),
+    );
+    if (data.passwordDirty && data.secretAccessKey.isNotEmpty) {
+      final secretId = rust_db.dbS3SessionDetailsSecretId(sessionId: sessionId);
+      await rust_app.secretsPut(
+        id: secretId,
+        bytes: utf8.encode(data.secretAccessKey),
+      );
     }
   }
 
@@ -341,6 +373,9 @@ extension _SessionActions on SessionPanelState {
       if (result.webdavData != null) {
         await _syncWebDavDetails(result.session.id, result.webdavData!);
       }
+      if (result.s3Data != null) {
+        await _syncS3Details(result.session.id, result.s3Data!);
+      }
       if (result.connect) widget.onConnect(result.session);
     }
   }
@@ -362,14 +397,20 @@ extension _SessionActions on SessionPanelState {
       ),
     );
     if (confirmed) {
-      // The `webdav_session_details` join row drops via the FK
-      // `ON DELETE CASCADE` once the parent `sessions` row goes;
-      // the SecretStore entry has no FK so it gets dropped here
-      // before the row delete so a same-id WebDAV session created
-      // afterwards starts from a clean secret slot.
+      // The `webdav_session_details` / `s3_session_details` join
+      // rows drop via the FK `ON DELETE CASCADE` once the parent
+      // `sessions` row goes; the SecretStore entry has no FK so
+      // it gets dropped here before the row delete so a same-id
+      // session created afterwards starts from a clean secret
+      // slot.
       if (session.isWebDav) {
         rust_app.secretsDrop(
           id: rust_db.dbWebdavSessionDetailsSecretId(sessionId: session.id),
+        );
+      }
+      if (session.isS3) {
+        rust_app.secretsDrop(
+          id: rust_db.dbS3SessionDetailsSecretId(sessionId: session.id),
         );
       }
       await ref.read(sessionProvider.notifier).delete(session.id);

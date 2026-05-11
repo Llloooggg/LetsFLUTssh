@@ -385,6 +385,18 @@ architecture.
   preference. Self-signed fingerprint pinning is opt-in; an empty
   fingerprint uses the system trust store (bundled `webpki-roots`)
   exactly like the auto-update channel.
+- **S3 credentials** — S3 secret access keys live in the same
+  SecretStore under the `session.s3.<session_id>` id. The persisted
+  `s3_session_details` row carries only the access key id, region,
+  endpoint, addressing style, default bucket, and default prefix —
+  never the secret itself. Presigned URLs for time-limited
+  downloads are signed with AWS Signature V4 in query-parameter
+  mode; the signature lands as `X-Amz-Signature` in the URL, and
+  the URL ceases to authorise once the chosen expiry passes (the
+  UI offers presets up to AWS's 7-day maximum). Anyone with the
+  URL inside the validity window can download the object, so the
+  user is responsible for sharing it through a channel that is at
+  least as confidential as the bucket itself.
 - **Deep-link URI parsing** — `letsflutssh://` scheme with host / port
   validation and path-traversal rejection.
 - **File permission handling** — `chmod 600` on credentials,

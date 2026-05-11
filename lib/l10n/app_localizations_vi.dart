@@ -2714,6 +2714,80 @@ class SVi extends S {
       'Base URL phải là http:// hoặc https://';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Bỏ trống cho AWS, hoặc đặt cho MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'Cần cho MinIO; tắt cho AWS';
+
+  @override
+  String get s3DefaultBucket => 'Bucket mặc định';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix mặc định';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Tạo presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Hết hạn sau';
+
+  @override
+  String get s3CopyUri => 'Copy URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 phút';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 giờ';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 giờ';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 giờ';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 ngày';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (kiểm tra access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket =>
+      'Bucket không tồn tại hoặc không truy cập được';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket ở region khác với cấu hình';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 server từ chối request: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

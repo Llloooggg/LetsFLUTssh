@@ -2795,6 +2795,80 @@ class SPt extends S {
       'Base URL precisa ser http:// ou https://';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Vazio para AWS, ou preenche para MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Endereçamento path-style';
+
+  @override
+  String get s3PathStyleHint => 'Necessário para MinIO; deixa off para AWS';
+
+  @override
+  String get s3DefaultBucket => 'Bucket padrão';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix padrão';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Gerar presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Expira em';
+
+  @override
+  String get s3CopyUri => 'Copiar URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 minutos';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 hora';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 horas';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 horas';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 dias';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (confere access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket não existe ou está inacessível';
+
+  @override
+  String get errS3RegionMismatch =>
+      'Bucket está em uma region diferente da configurada';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'Servidor S3 rejeitou a requisição: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

@@ -137,6 +137,10 @@ pub mod kind {
     /// carries the short reason; UI surfaces the localized
     /// "sync server rejected the request" message.
     pub const WEBDAV: &str = "webdav";
+    /// S3 transport / signing failure. Detail carries the short
+    /// reason; UI surfaces the localized "S3 server rejected the
+    /// request" message.
+    pub const S3: &str = "s3";
 }
 
 /// Compose a JSON envelope with the given kind + detail. Use
@@ -195,6 +199,7 @@ pub(crate) fn from_core(err: &CoreError) -> String {
         CoreError::Platform(s) => wire(kind::PLATFORM, s),
         CoreError::Crypto(s) => wire(kind::CRYPTO, s),
         CoreError::WebDav(s) => wire(kind::WEBDAV, s),
+        CoreError::S3(s) => wire(kind::S3, s),
         CoreError::Timeout => wire(kind::TIMEOUT, ""),
         CoreError::Cancelled => wire(kind::CANCELLED, ""),
         CoreError::ArchiveFutureVersion { found, supported } => wire(

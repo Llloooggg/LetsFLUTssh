@@ -672,10 +672,10 @@ class Session {
   factory Session.fromJson(Map<String, dynamic> json);
 }
 
-enum SessionKind { ssh, webdav }
+enum SessionKind { ssh, webdav, s3 }
 ```
 
-##### Session kind — SSH vs WebDAV
+##### Session kind — SSH vs WebDAV vs S3
 
 `SessionKind` picks which transport the runtime opens. SSH sessions
 keep the existing `(host, port, user, auth)` tuple and route through
@@ -684,20 +684,81 @@ WebDAV sessions ignore the SSH-shaped fields at connect time and
 instead read the configured transport tuple from `WebDavSessionDetails`
 (base URL, username, auth method, optional self-signed fingerprint)
 plus the password / bearer token from the `SecretStore` under the
-`session.webdav.<id>` id. The `kind` column is `NOT NULL DEFAULT 'ssh'`
-so legacy rows backfill on the v4 → v5 hop; existing call sites that
-never set `kind` continue to see the SSH transport.
+`session.webdav.<id>` id. S3 sessions follow the same shape but with
+their own join table (`s3_session_details`): access key id, region,
+endpoint, addressing style, default bucket, default prefix; the
+secret access key lives in the `SecretStore` under `session.s3.<id>`.
+The `kind` column is `NOT NULL DEFAULT 'ssh'` so legacy rows backfill
+on the v4 → v5 hop; existing call sites that never set `kind`
+continue to see the SSH transport.
 
 The file browser dispatches on `Connection.kind` (mirrored off
 `Session.kind` on connect): the SSH path wraps the live SFTP channel
 in `RemoteFS(RustSftpFs)`; the WebDAV path wraps the
-`WebDavConnection` opaque FRB handle in `WebDavFileSystem`. Both
+`WebDavConnection` opaque FRB handle in `WebDavFileSystem`; the S3
+path wraps the `S3Connection` handle in `S3FileSystem`. All three
 implement the same `FileSystem` interface, so the pane controllers
 and file-browser widgets stay transport-agnostic. See `core/webdav/`
-for the WebDAV facade and `lfs_frb::api::webdav` for the Rust-side
-connect probe.
+for the WebDAV facade, `core/s3/` for the S3 facade, and
+`lfs_frb::api::webdav` / `lfs_frb::api::s3` for the Rust-side connect
+probes.
 
-The session edit dialog (`features/session_manager/session_edit_dialog.dart`) renders a `SessionKind` picker at the top of the Connection tab. Flipping to WebDAV swaps the host / port / proxy block for a base-URL / username / auth-method / self-signed-fingerprint block; the Auth tab continues to host the password / bearer-token field for both kinds. On save the dialog returns `SaveResult.webdavData` alongside the session row; the panel action handler upserts the `webdav_session_details` join row and stages the password into SecretStore under `dbWebdavSessionDetailsSecretId(sessionId:)` (only when the dialog's `passwordDirty` bit fires so a label edit never clobbers a stored token).
+The session edit dialog (`features/session_manager/session_edit_dialog.dart`) renders a `SessionKind` picker at the top of the Connection tab. Flipping kind swaps the rest of the Connection tab between the SSH host / port / proxy block, the WebDAV base-URL / auth-method / pin block, and the S3 access-key / region / endpoint / addressing-style block; the Auth tab continues to host the password / bearer-token / secret-access-key field for every kind. On save the dialog returns the matching transport tuple (`SaveResult.webdavData` / `SaveResult.s3Data`) alongside the session row; the panel action handler upserts the corresponding join row and stages the secret into SecretStore under the canonical id (`dbWebdavSessionDetailsSecretId(sessionId:)` / `dbS3SessionDetailsSecretId(sessionId:)`) — only when the dialog's `passwordDirty` bit fires so a label edit never clobbers a stored token.
+
+##### S3 sessions
+
+The S3 transport (`lfs_core::s3`) speaks the AWS REST surface every
+S3-compatible vendor implements: AWS S3 itself, MinIO, Wasabi,
+Backblaze B2-S3, Cloudflare R2, DigitalOcean Spaces, Scaleway
+Object Storage. The module owns three pieces: the SigV4 signer
+(`signer.rs`), the high-level verb surface (`S3Client` in
+`client.rs`), and the multipart-upload orchestrator (`multipart.rs`).
+The provider adapter (`storage::s3::S3Provider`) lifts the verb
+surface into the backend-agnostic `Provider` trait so the file
+browser stays transport-agnostic.
+
+**Why an inline SigV4 signer.** The upstream `aws-sigv4` crate
+transitively pulls the `aws-smithy-*` runtime tree (~25 crates).
+SigV4 itself is a tight four-stage algorithm; the implementation
+in `signer.rs` depends only on `hmac` + `sha2` (already in the
+tree), fits in one file, and stays under-test through unit tests
+that pin the deterministic invariants of every stage.
+
+**Path syntax.** The provider accepts two shapes: `s3://bucket/key`
+(explicit bucket) and bare `key` (resolves through the configured
+`default_bucket` + `default_prefix`). The bare form rejects when
+no default bucket is configured so a misconfigured session
+surfaces immediately rather than as a "NoSuchBucket" at the first
+list.
+
+**Addressing style.** AWS defaults to virtual-host addressing
+(`<bucket>.s3.<region>.amazonaws.com`). MinIO and some private
+deployments require path-style (`<endpoint>/<bucket>/<key>`); the
+toggle on the Connection tab selects which the signer + URL
+composer use. A future region-aware sniffer can flip the toggle
+automatically; for now it stays explicit.
+
+**Multipart upload.** Bodies under 8 MiB go through single-shot
+`PUT` (`put_object_single`); larger bodies stream through the
+multipart orchestrator (Initiate → UploadPart loop → Complete).
+Part size is 8 MiB, matching the AWS SDK default; an upload that
+errors mid-loop calls Abort to release server-side staged-part
+state before surfacing the underlying error. In-process state
+only — a crash mid-upload leaves the staged parts orphaned and
+the next push restarts from scratch; cross-process resume needs
+a typed sidecar that lies outside the v1 cut.
+
+**Presigned URLs.** `S3Connection::generate_presigned_url` builds a
+time-limited query-signed `GET` URL via the same SigV4 algorithm
+in query-parameter mode. Expiry clamps to AWS's 7-day maximum;
+the Dart UI offers 15 min / 1 h / 4 h / 24 h / 7 day presets so
+the user picks an expiry without typing seconds.
+
+**Rename is not atomic.** S3 has no native rename — `S3Provider::rename`
+emulates via `CopyObject` + `DeleteObject`. A reader between the
+two calls observes both source and target; the SFTP / WebDAV
+providers do not surface this caveat because their backends honour
+native rename.
 
 ##### Session.extras — JSON escape hatch
 
@@ -4962,6 +5023,17 @@ same column shape. Future bumps:
   the column up from `SCHEMA_SQL`. The bump is required so the file
   browser can dispatch by transport (SSH/SFTP vs WebDAV) without
   reading a side table on every row.
+- **v6** — adds the `s3_session_details` join table (PK = `session_id`,
+  FK → `sessions.id` ON DELETE CASCADE) plus
+  `idx_s3_session_details_session_id`. Columns: `access_key_id`,
+  `region`, `endpoint`, `path_style` (INTEGER boolean),
+  `default_bucket`, `default_prefix`. The secret access key never
+  lands on a column — it stages into the SecretStore under
+  `session.s3.<session_id>` like the WebDAV password does.
+  Existing v5 installs pick up the table via `CREATE TABLE IF NOT
+  EXISTS` in `SCHEMA_SQL`; no per-step `ALTER` is required.
+  `SchemaVersions::CONFIG` is unchanged — S3 transport config
+  lives in the DB, not in `config.json`.
 
 ### Soft-delete contract (v3+)
 

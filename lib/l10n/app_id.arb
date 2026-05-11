@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "Base URL WebDAV diperlukan",
   "errWebDavBaseUrlInvalid": "Base URL harus http:// atau https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "Kosongkan untuk AWS, atau isi untuk MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "Wajib untuk MinIO; off-kan untuk AWS",
+  "s3DefaultBucket": "Default bucket",
+  "s3DefaultPrefix": "Default prefix",
+  "s3GeneratePresignedUrl": "Generate presigned URL",
+  "s3PresignedUrlExpiry": "Kedaluwarsa dalam",
+  "s3CopyUri": "Copy URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "15 menit",
+  "s3PresignedUrlExpiry1hour": "1 jam",
+  "s3PresignedUrlExpiry4hour": "4 jam",
+  "s3PresignedUrlExpiry24hour": "24 jam",
+  "s3PresignedUrlExpiry7day": "7 hari",
+  "errS3AuthFailed": "S3 authentication failed (cek access key + secret)",
+  "errS3NoSuchBucket": "Bucket tidak ada atau tidak dapat diakses",
+  "errS3RegionMismatch": "Bucket berada di region berbeda dari konfigurasi",
+  "errS3Generic": "S3 server menolak request: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "Aktifkan WebDAV sync",
   "syncPassphrase": "Sync passphrase",

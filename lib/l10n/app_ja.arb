@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "WebDAV の Base URL が必要です",
   "errWebDavBaseUrlInvalid": "Base URL は http:// または https:// で始める必要があります",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS は空のまま、MinIO / R2 / Spaces は endpoint を指定",
+  "s3PathStyle": "Path-style アドレッシング",
+  "s3PathStyleHint": "MinIO では必須、AWS では off",
+  "s3DefaultBucket": "デフォルト bucket",
+  "s3DefaultPrefix": "デフォルト prefix",
+  "s3GeneratePresignedUrl": "Presigned URL を生成",
+  "s3PresignedUrlExpiry": "有効期限",
+  "s3CopyUri": "s3://bucket/key URI をコピー",
+  "s3PresignedUrlExpiry15min": "15 分",
+  "s3PresignedUrlExpiry1hour": "1 時間",
+  "s3PresignedUrlExpiry4hour": "4 時間",
+  "s3PresignedUrlExpiry24hour": "24 時間",
+  "s3PresignedUrlExpiry7day": "7 日",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret を確認)",
+  "errS3NoSuchBucket": "Bucket が存在しないかアクセスできません",
+  "errS3RegionMismatch": "Bucket が設定とは別の region にあります",
+  "errS3Generic": "S3 サーバーがリクエストを拒否しました: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "WebDAV sync を有効化",
   "syncPassphrase": "Sync パスフレーズ",

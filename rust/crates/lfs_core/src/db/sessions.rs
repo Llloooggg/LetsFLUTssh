@@ -10,13 +10,15 @@
 //! follow-up adds an `auth_secret_id` column and drops the
 //! plaintext ones.
 //!
-//! **Session kind**: `kind` is the transport tag. `SESSION_KIND_SSH`
-//! and `SESSION_KIND_WEBDAV` are the two values in play; the column
-//! is `NOT NULL DEFAULT 'ssh'` so existing rows backfill cleanly on
-//! the v4 → v5 hop. WebDAV-specific config (base URL, auth method,
-//! self-signed fingerprint) lives on the `webdav_session_details`
-//! join table keyed by session id; reads dispatch to the right join
-//! by inspecting `kind` first.
+//! **Session kind**: `kind` is the transport tag. `SESSION_KIND_SSH`,
+//! `SESSION_KIND_WEBDAV` and `SESSION_KIND_S3` are the three values
+//! in play; the column is `NOT NULL DEFAULT 'ssh'` so existing rows
+//! backfill cleanly on the v4 → v5 hop. WebDAV-specific config
+//! (base URL, auth method, self-signed fingerprint) lives on the
+//! `webdav_session_details` join table; S3-specific config (access
+//! key id, region, endpoint, path-style flag, default bucket /
+//! prefix) lives on `s3_session_details`. Reads dispatch to the
+//! right join by inspecting `kind` first.
 
 use crate::db::Connection;
 use rusqlite::params;
@@ -28,6 +30,15 @@ pub const SESSION_KIND_SSH: &str = "ssh";
 
 /// Wire value for a WebDAV session. Persisted in `sessions.kind`.
 pub const SESSION_KIND_WEBDAV: &str = "webdav";
+
+/// Wire value for an S3-compatible session (AWS, MinIO, Wasabi,
+/// R2, B2-S3, DigitalOcean Spaces, Scaleway). Persisted in
+/// `sessions.kind`. S3-specific configuration (access key id,
+/// region, endpoint, path-style flag, default bucket / prefix)
+/// lives on the `s3_session_details` join table keyed by session
+/// id; reads dispatch to the right join by inspecting `kind`
+/// first.
+pub const SESSION_KIND_S3: &str = "s3";
 
 #[derive(Debug, Clone, Default)]
 pub struct SessionRow {

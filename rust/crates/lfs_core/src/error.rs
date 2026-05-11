@@ -109,6 +109,19 @@ pub enum Error {
     #[error("webdav: {0}")]
     WebDav(String),
 
+    /// S3 transport failures surfaced from `lfs_core::s3` and the
+    /// matching `storage::Provider` adapter. The AWS REST surface
+    /// returns the same XML error-document shape across every
+    /// S3-compatible vendor (AWS, MinIO, Wasabi, R2, Backblaze
+    /// B2-S3, DigitalOcean Spaces, Scaleway); this variant carries
+    /// the canonical message extracted from the body or a verbatim
+    /// transport error when the body could not be parsed. Carved
+    /// out of `Io` so the file-browser can route a 401/403 (re-prompt
+    /// credentials) differently from a 404 (path missing) or a 5xx
+    /// (retryable) without substring matching.
+    #[error("s3: {0}")]
+    S3(String),
+
     /// Platform-tooling subprocess errors (Linux `tpm2-tools`, macOS
     /// `security` / `codesign` / `productsign`). The first-launch
     /// wizard + Settings → Security surfaces these against the

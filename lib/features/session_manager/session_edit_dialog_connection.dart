@@ -22,34 +22,140 @@ extension _ConnectionTab on _SessionEditDialogState {
         const SizedBox(height: 16),
         if (_kind == SessionKind.ssh)
           ..._buildSshFields(l10n)
+        else if (_kind == SessionKind.webdav)
+          _buildWebDavSection(l10n)
         else
-          _buildWebDavSection(l10n),
+          _buildS3Section(l10n),
       ],
     );
   }
 
   /// Transport-kind picker — flipping the active chip swaps the
   /// rest of the Connection tab between the SSH host/port/proxy
-  /// block and the WebDAV base-URL / auth-method / pin block.
+  /// block, the WebDAV base-URL / auth-method / pin block, and the
+  /// S3 access-key / region / endpoint / addressing block.
   Widget _buildKindPicker(S l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FieldLabel(l10n.sessionKindLabel),
-        Row(
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
           children: [
+            // `expand: false` — `Wrap` rejects `FlexParentData`, so
+            // the chip must hug its content rather than fill a flex
+            // slot. The pickers stay readable side-by-side without
+            // the equal-width stretch.
             AppPickerChip(
               active: _kind == SessionKind.ssh,
               label: l10n.sessionKindSsh,
               onTap: () => rebuild(() => _kind = SessionKind.ssh),
+              expand: false,
             ),
-            const SizedBox(width: 6),
             AppPickerChip(
               active: _kind == SessionKind.webdav,
               label: l10n.sessionKindWebDav,
               onTap: () => rebuild(() => _kind = SessionKind.webdav),
+              expand: false,
+            ),
+            AppPickerChip(
+              active: _kind == SessionKind.s3,
+              label: l10n.sessionKindS3,
+              onTap: () => rebuild(() => _kind = SessionKind.s3),
+              expand: false,
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  /// S3 transport-config block. Access-key id + region + endpoint +
+  /// addressing-style toggle + default bucket / prefix. The secret
+  /// access key lives on the Auth tab next to the SSH password
+  /// field — same widget, kind-aware contract on save.
+  Widget _buildS3Section(S l10n) {
+    if (_loadingS3) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.accent,
+            ),
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        StyledFormField(
+          label: l10n.s3AccessKeyId,
+          controller: _accessKeyIdCtrl,
+          hint: 'AKIA…',
+          validator: _requiredValidator,
+        ),
+        const SizedBox(height: 12),
+        StyledFormField(
+          label: l10n.s3Region,
+          controller: _regionCtrl,
+          hint: l10n.s3RegionHint,
+        ),
+        const SizedBox(height: 12),
+        StyledFormField(
+          label: l10n.s3Endpoint,
+          controller: _endpointCtrl,
+          hint: l10n.s3EndpointHint,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Switch(
+              value: _s3PathStyleEnabled,
+              onChanged: (v) => rebuild(() => _s3PathStyleEnabled = v),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.s3PathStyle,
+                    style: TextStyle(
+                      color: AppTheme.fg,
+                      fontFamily: AppFonts.interFamily,
+                      fontSize: AppFonts.sm,
+                    ),
+                  ),
+                  Text(
+                    l10n.s3PathStyleHint,
+                    style: TextStyle(
+                      color: AppTheme.fgFaint,
+                      fontFamily: AppFonts.interFamily,
+                      fontSize: AppFonts.xs,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        StyledFormField(
+          label: l10n.s3DefaultBucket,
+          controller: _defaultBucketCtrl,
+          hint: 'my-bucket',
+        ),
+        const SizedBox(height: 12),
+        StyledFormField(
+          label: l10n.s3DefaultPrefix,
+          controller: _defaultPrefixCtrl,
+          hint: 'logs/',
         ),
       ],
     );

@@ -2729,6 +2729,79 @@ class SAr extends S {
       'Base URL يجب أن يبدأ بـ http:// أو https://';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'اتركه فارغًا لـ AWS، أو ضع endpoint لـ MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'مطلوب لـ MinIO؛ اتركه off مع AWS';
+
+  @override
+  String get s3DefaultBucket => 'Bucket الافتراضي';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix الافتراضي';
+
+  @override
+  String get s3GeneratePresignedUrl => 'إنشاء presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'تنتهي خلال';
+
+  @override
+  String get s3CopyUri => 'نسخ URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 دقيقة';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => 'ساعة';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 ساعات';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 ساعة';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 أيام';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (تحقق من access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket غير موجود أو غير قابل للوصول';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket في region مختلف عن المُعدّ';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'خادم S3 رفض الطلب: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

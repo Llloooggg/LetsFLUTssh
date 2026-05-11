@@ -2637,6 +2637,78 @@ class SZh extends S {
   String get errWebDavBaseUrlInvalid => 'Base URL 必须为 http:// 或 https://';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint => 'AWS 留空，MinIO / R2 / Spaces 请填写';
+
+  @override
+  String get s3PathStyle => 'Path-style 寻址';
+
+  @override
+  String get s3PathStyleHint => 'MinIO 需要；AWS 关闭';
+
+  @override
+  String get s3DefaultBucket => '默认 bucket';
+
+  @override
+  String get s3DefaultPrefix => '默认 prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => '生成 presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => '过期时间';
+
+  @override
+  String get s3CopyUri => '复制 s3://bucket/key URI';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 分钟';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 小时';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 小时';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 小时';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 天';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (检查 access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket 不存在或无权访问';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket 在与配置不同的 region';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 服务器拒绝了请求: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

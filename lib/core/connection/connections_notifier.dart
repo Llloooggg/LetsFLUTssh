@@ -10,6 +10,7 @@ import '../../src/rust/api/auth_compose.dart' as rust_auth;
 import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/connection.dart' as rust_connection;
 import '../../src/rust/api/db.dart' as rust_db;
+import '../../src/rust/api/s3.dart' as rust_s3;
 import '../../src/rust/api/webdav.dart' as rust_webdav;
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
@@ -270,6 +271,104 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     );
     unawaited(_doWebDavConnect(conn, session));
     return conn;
+  }
+
+  /// Create an S3 connection. Mirrors [connectWebDavAsync] for
+  /// WebDAV sessions: returns the [`Connection`] in `connecting`
+  /// state, resolves the S3 detail row + staged secret access key
+  /// from the DB, builds the `S3Connection` opaque handle, and
+  /// stores it on the [`Connection`] so the file browser can
+  /// dispatch by [`kind`].
+  ///
+  /// Failures land in [`Connection.connectionError`] and flip the
+  /// state to `disconnected` — same shape as the SSH / WebDAV paths
+  /// so the UI's "connect failed" toast surfaces identically across
+  /// transports.
+  Connection connectS3Async(Session session) {
+    final id = _uuid.v4();
+    // S3 connections do not run through the russh-backed
+    // `ConnectionRegistry`; the bus subscription in `Connection`
+    // happily filters bus events for an id that never appears on
+    // the registry.
+    final conn = Connection(
+      id: id,
+      label: session.label.isEmpty ? session.host : session.label,
+      sshConfig: session.toSSHConfig(),
+      sessionId: session.id,
+      state: SSHConnectionState.connecting,
+    )..kind = SessionKind.s3;
+    _connections[id] = conn;
+    _notify();
+    AppLogger.instance.log('Connecting to S3 <host>', name: 'Connection');
+    unawaited(_doS3Connect(conn, session));
+    return conn;
+  }
+
+  Future<void> _doS3Connect(Connection conn, Session session) async {
+    try {
+      final detail = await rust_db.dbS3SessionDetailsGet(sessionId: session.id);
+      if (detail == null) {
+        throw StateError('S3 session details row missing for ${session.id}');
+      }
+      final secretId = rust_db.dbS3SessionDetailsSecretId(
+        sessionId: session.id,
+      );
+      // Stage the secret access key into SecretStore for the
+      // connect call. Same posture as the WebDAV path — the
+      // Dart-side cache holds it while editing; the SecretStore
+      // is the only handoff for the Rust connect.
+      if (session.password.isNotEmpty) {
+        await rust_app.secretsPut(
+          id: secretId,
+          bytes: utf8.encode(session.password),
+        );
+        conn.transientSecretIds.add(secretId);
+      }
+      final handle = await rust_s3.s3Connect(
+        accessKeyId: detail.accessKeyId,
+        secretKeySecretId: secretId,
+        region: detail.region,
+        endpoint: detail.endpoint,
+        pathStyle: detail.pathStyle,
+        defaultBucket: detail.defaultBucket,
+        defaultPrefix: detail.defaultPrefix,
+      );
+      conn.s3Connection = handle;
+      // Initial-dir maps to `s3://<bucket>/<prefix>` when an
+      // explicit default bucket is set; empty defaults the
+      // browser to the parser's "use default_bucket" path.
+      if (detail.defaultBucket.isNotEmpty) {
+        conn.s3InitialDir =
+            's3://${detail.defaultBucket}/${detail.defaultPrefix}';
+      }
+      conn.state = SSHConnectionState.connected;
+      conn.addProgressStep(
+        const ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.success,
+        ),
+      );
+    } catch (e, st) {
+      AppLogger.instance.log(
+        'S3 connect failed: $e',
+        name: 'Connection',
+        error: e,
+        stackTrace: st,
+        level: LogLevel.warn,
+      );
+      conn.connectionError = e;
+      conn.state = SSHConnectionState.disconnected;
+      conn.addProgressStep(
+        ConnectionStep(
+          phase: ConnectionPhase.authenticate,
+          status: StepStatus.failed,
+          detail: e.toString(),
+        ),
+      );
+    } finally {
+      conn.completeReady();
+      _notify();
+    }
   }
 
   Future<void> _doWebDavConnect(Connection conn, Session session) async {

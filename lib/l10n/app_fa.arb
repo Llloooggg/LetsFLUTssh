@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "Base URL برای WebDAV لازم است",
   "errWebDavBaseUrlInvalid": "Base URL باید با http:// یا https:// شروع شود",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "برای AWS خالی بگذار، یا برای MinIO / R2 / Spaces مقدار بده",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "برای MinIO لازم است؛ برای AWS off بگذار",
+  "s3DefaultBucket": "Bucket پیش‌فرض",
+  "s3DefaultPrefix": "Prefix پیش‌فرض",
+  "s3GeneratePresignedUrl": "ساختن presigned URL",
+  "s3PresignedUrlExpiry": "منقضی می‌شود در",
+  "s3CopyUri": "کپی URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "۱۵ دقیقه",
+  "s3PresignedUrlExpiry1hour": "۱ ساعت",
+  "s3PresignedUrlExpiry4hour": "۴ ساعت",
+  "s3PresignedUrlExpiry24hour": "۲۴ ساعت",
+  "s3PresignedUrlExpiry7day": "۷ روز",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret را بررسی کن)",
+  "errS3NoSuchBucket": "Bucket وجود ندارد یا قابل دسترسی نیست",
+  "errS3RegionMismatch": "Bucket در region متفاوتی است",
+  "errS3Generic": "سرور S3 درخواست را رد کرد: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "فعال‌سازی WebDAV sync",
   "syncPassphrase": "Sync passphrase",

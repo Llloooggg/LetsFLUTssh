@@ -2660,6 +2660,78 @@ class SJa extends S {
       'Base URL は http:// または https:// で始める必要があります';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint => 'AWS は空のまま、MinIO / R2 / Spaces は endpoint を指定';
+
+  @override
+  String get s3PathStyle => 'Path-style アドレッシング';
+
+  @override
+  String get s3PathStyleHint => 'MinIO では必須、AWS では off';
+
+  @override
+  String get s3DefaultBucket => 'デフォルト bucket';
+
+  @override
+  String get s3DefaultPrefix => 'デフォルト prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Presigned URL を生成';
+
+  @override
+  String get s3PresignedUrlExpiry => '有効期限';
+
+  @override
+  String get s3CopyUri => 's3://bucket/key URI をコピー';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 分';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 時間';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 時間';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 時間';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 日';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret を確認)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket が存在しないかアクセスできません';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket が設定とは別の region にあります';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 サーバーがリクエストを拒否しました: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

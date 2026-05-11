@@ -14,6 +14,7 @@ End-user reference for every feature shipped in the app. Walks through the typic
 - [4. Terminal](#4-terminal)
 - [5. SFTP file browser](#5-sftp-file-browser)
 - [5b. WebDAV file browser](#5b-webdav-file-browser)
+- [5c. S3 bucket browser](#5c-s3-bucket-browser)
 - [6. Port forwarding](#6-port-forwarding)
 - [7. ProxyJump bastion chains](#7-proxyjump-bastion-chains)
 - [8. Snippets with `{{tokens}}`](#8-snippets-with-tokens)
@@ -202,6 +203,47 @@ LetsFLUTssh can also browse a WebDAV server (Nextcloud, ownCloud, Apache mod_dav
 
 - Streaming uploads / downloads for very large files are buffered in memory for the WebDAV transport; SFTP keeps the chunked streaming path. Plan around this when moving multi-GB objects over WebDAV.
 - Server-side recursive delete is the server's behaviour, not the client's. Nextcloud, ownCloud, Apache mod_dav, and IIS cascade by default; if your server rejects DELETE on a non-empty collection, drain the folder manually first.
+
+---
+
+## 5c. S3 bucket browser
+
+LetsFLUTssh can also browse any S3-compatible object store (AWS S3, MinIO, Wasabi, Backblaze B2-S3, Cloudflare R2, DigitalOcean Spaces, Scaleway Object Storage) with the same two-pane file browser.
+
+### Creating an S3 session
+
+- Session manager → New session → set **Session kind** to `S3` at the top of the dialog.
+- Fill **Access key ID** with the public-side key (AWS `AKIA…`, MinIO console-generated key, R2 access key id, etc.).
+- Fill **Region** with the bucket's region wire value:
+  - AWS: `us-east-1`, `eu-west-2`, etc.
+  - Cloudflare R2: `auto`.
+  - MinIO / private deployments: any string; the value still feeds the SigV4 credential scope, so pick one and stay consistent.
+- Fill **Endpoint** only for non-AWS deployments:
+  - AWS: leave empty (defaults to `https://s3.<region>.amazonaws.com`).
+  - MinIO: `https://minio.local:9000` (or your host).
+  - Cloudflare R2: `https://<account-id>.r2.cloudflarestorage.com`.
+  - DigitalOcean Spaces: `https://<region>.digitaloceanspaces.com`.
+  - Wasabi: `https://s3.<region>.wasabisys.com`.
+  - Backblaze B2-S3: `https://s3.<region>.backblazeb2.com`.
+  - Scaleway: `https://s3.<region>.scw.cloud`.
+- Toggle **Path-style addressing** when the server requires it. MinIO needs it; AWS, R2, Spaces, Wasabi all default to virtual-host and the toggle stays off.
+- Fill **Default bucket** with the bucket the browser should open at. Leave empty to require the `s3://bucket/key` shorthand on every navigation.
+- Optional: fill **Default prefix** with the prefix the browser should open under (`logs/`, `2024/`). The browser still walks above the prefix when the user types an `s3://` path that points elsewhere.
+- Switch to the **Auth tab** and type the **Secret access key** into the Password field. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
+
+### Connecting and browsing
+
+- Save the session and click Connect (or double-click the row). The connect probe runs a one-page `ListObjectsV2` against the default bucket; a wrong credential or missing bucket fails fast with the localized error toast.
+- The remote pane opens at `s3://<default-bucket>/<default-prefix>`. Common prefixes (the `<prefix>/` markers S3 surfaces as virtual directories) render as folders so navigation matches the SFTP / WebDAV browser.
+- File-row context menu adds two S3-only actions:
+  - **Generate presigned URL** — produces a time-limited download URL for the object. Pick the expiry from the dropdown (15 minutes, 1 hour, 4 hours, 24 hours, 7 days — AWS's maximum). The URL is copied to the clipboard.
+  - **Copy s3://bucket/key URI** — copies the `s3://<bucket>/<key>` form for pasting into AWS CLI, other S3 tools, or a teammate's chat.
+
+### Limitations
+
+- Rename is not atomic on S3 — the browser emulates it via `CopyObject` + `DeleteObject`. A reader between the two calls observes both source and target objects briefly. The SFTP and WebDAV transports honour native rename and don't carry this caveat.
+- Streaming uploads route through the multipart orchestrator above 8 MiB (AWS SDK default). A crash mid-upload leaves the staged parts orphaned server-side; the next push restarts from scratch and the next session lifecycle reclaims the orphaned state through your bucket's lifecycle policy (most providers run a default cleanup on incomplete multipart uploads — check your provider's docs).
+- Downloads / uploads are buffered in memory for the v1 cut; multi-GB objects need disk-backed streaming, which is a follow-up.
 
 ---
 

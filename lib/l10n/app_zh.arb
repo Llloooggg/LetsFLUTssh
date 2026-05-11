@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "需要 WebDAV base URL",
   "errWebDavBaseUrlInvalid": "Base URL 必须为 http:// 或 https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS 留空，MinIO / R2 / Spaces 请填写",
+  "s3PathStyle": "Path-style 寻址",
+  "s3PathStyleHint": "MinIO 需要；AWS 关闭",
+  "s3DefaultBucket": "默认 bucket",
+  "s3DefaultPrefix": "默认 prefix",
+  "s3GeneratePresignedUrl": "生成 presigned URL",
+  "s3PresignedUrlExpiry": "过期时间",
+  "s3CopyUri": "复制 s3://bucket/key URI",
+  "s3PresignedUrlExpiry15min": "15 分钟",
+  "s3PresignedUrlExpiry1hour": "1 小时",
+  "s3PresignedUrlExpiry4hour": "4 小时",
+  "s3PresignedUrlExpiry24hour": "24 小时",
+  "s3PresignedUrlExpiry7day": "7 天",
+  "errS3AuthFailed": "S3 authentication failed (检查 access key + secret)",
+  "errS3NoSuchBucket": "Bucket 不存在或无权访问",
+  "errS3RegionMismatch": "Bucket 在与配置不同的 region",
+  "errS3Generic": "S3 服务器拒绝了请求: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "启用 WebDAV sync",
   "syncPassphrase": "Sync passphrase",

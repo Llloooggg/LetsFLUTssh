@@ -2657,6 +2657,78 @@ class SKo extends S {
   String get errWebDavBaseUrlInvalid => 'Base URL은 http:// 또는 https:// 여야 합니다';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint => 'AWS면 비우고, MinIO / R2 / Spaces면 endpoint 지정';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'MinIO에 필요; AWS에서는 off';
+
+  @override
+  String get s3DefaultBucket => '기본 bucket';
+
+  @override
+  String get s3DefaultPrefix => '기본 prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Presigned URL 생성';
+
+  @override
+  String get s3PresignedUrlExpiry => '만료';
+
+  @override
+  String get s3CopyUri => 's3://bucket/key URI 복사';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15분';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1시간';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4시간';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24시간';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7일';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret 확인)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket이 없거나 접근할 수 없음';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket이 설정된 region과 다른 region에 있음';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 서버가 요청을 거부함: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

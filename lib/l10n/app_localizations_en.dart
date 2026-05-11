@@ -2763,6 +2763,80 @@ class SEn extends S {
   String get errWebDavBaseUrlInvalid => 'Base URL must be http:// or https://';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Leave empty for AWS, or set for MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'Required for MinIO; leave off for AWS';
+
+  @override
+  String get s3DefaultBucket => 'Default bucket';
+
+  @override
+  String get s3DefaultPrefix => 'Default prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Generate presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Expires in';
+
+  @override
+  String get s3CopyUri => 'Copy s3://bucket/key URI';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 minutes';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 hour';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 hours';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 hours';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 days';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (check access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket does not exist or is not accessible';
+
+  @override
+  String get errS3RegionMismatch =>
+      'Bucket is in a different region than configured';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 server rejected the request: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

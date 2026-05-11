@@ -70,6 +70,14 @@ class SaveResult extends SessionDialogResult {
   /// stored token). Null for SSH sessions.
   final WebDavSaveData? webdavData;
 
+  /// S3 transport tuple — non-null when the user selected
+  /// [SessionKind.s3] in the kind picker. The caller upserts the
+  /// `s3_session_details` row and stages the secret access key
+  /// into SecretStore (only when `passwordDirty` is set + the
+  /// typed secret is non-empty so editing a label never clobbers
+  /// a stored secret). Null for SSH / WebDAV sessions.
+  final S3SaveData? s3Data;
+
   SaveResult(
     this.session, {
     this.connect = false,
@@ -78,6 +86,7 @@ class SaveResult extends SessionDialogResult {
     this.keyDataDirty = false,
     this.passphraseDirty = false,
     this.webdavData,
+    this.s3Data,
   });
 }
 
@@ -112,6 +121,39 @@ class WebDavSaveData {
     required this.authMethod,
     required this.selfSignedFingerprint,
     required this.password,
+    required this.passwordDirty,
+  });
+}
+
+/// S3 transport tuple captured by the session edit dialog. Mirrors
+/// the columns on `s3_session_details` plus the dialog-local secret
+/// slot so the caller can stage the secret into SecretStore. Secret
+/// bytes never sit on the session model — they cross the FRB
+/// boundary through `secretsPut` keyed by
+/// `dbS3SessionDetailsSecretId(sessionId:)`.
+class S3SaveData {
+  final String accessKeyId;
+  final String region;
+  final String endpoint;
+  final bool pathStyle;
+  final String defaultBucket;
+  final String defaultPrefix;
+
+  /// Secret access key typed in the Auth tab. Always carried
+  /// alongside `passwordDirty`; the caller only stages it into
+  /// SecretStore when the dirty bit is set so untouched edits keep
+  /// the previously stored secret intact.
+  final String secretAccessKey;
+  final bool passwordDirty;
+
+  S3SaveData({
+    required this.accessKeyId,
+    required this.region,
+    required this.endpoint,
+    required this.pathStyle,
+    required this.defaultBucket,
+    required this.defaultPrefix,
+    required this.secretAccessKey,
     required this.passwordDirty,
   });
 }
@@ -207,6 +249,19 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   late final TextEditingController _fingerprintCtrl;
   String _webdavAuthMethod = 'basic';
   bool _loadingWebDav = false;
+
+  /// S3 transport-config controllers. Hydrated from the
+  /// `s3_session_details` join row on edit (async — the dialog
+  /// renders the same inline loader as the WebDAV path until
+  /// [_loadingS3] flips false). Left empty for fresh sessions or
+  /// for a non-S3→S3 flip without a saved row.
+  late final TextEditingController _accessKeyIdCtrl;
+  late final TextEditingController _regionCtrl;
+  late final TextEditingController _endpointCtrl;
+  late final TextEditingController _defaultBucketCtrl;
+  late final TextEditingController _defaultPrefixCtrl;
+  bool _s3PathStyleEnabled = false;
+  bool _loadingS3 = false;
 
   /// Per-slot dirty bits. Flipped to `true` the first time the user
   /// types into / changes the corresponding secret field. The dialog
@@ -330,12 +385,48 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _kind = s?.kind ?? SessionKind.ssh;
     _baseUrlCtrl = TextEditingController();
     _fingerprintCtrl = TextEditingController();
+    _accessKeyIdCtrl = TextEditingController();
+    _regionCtrl = TextEditingController();
+    _endpointCtrl = TextEditingController();
+    _defaultBucketCtrl = TextEditingController();
+    _defaultPrefixCtrl = TextEditingController();
     if (s != null) {
       _loadForwards(s.id);
       if (s.kind == SessionKind.webdav) {
         _loadingWebDav = true;
         _loadWebDavDetails(s.id);
       }
+      if (s.kind == SessionKind.s3) {
+        _loadingS3 = true;
+        _loadS3Details(s.id);
+      }
+    }
+  }
+
+  /// Pull the S3 transport tuple from the join table and populate
+  /// the dialog controllers. Runs async because the FRB DAO call is
+  /// async-on-blocking-pool; the dialog renders the same inline
+  /// loader the WebDAV path uses while in flight. A missing row is
+  /// fine — the user can fill the fields and a fresh
+  /// `s3_session_details` row is upserted on save.
+  Future<void> _loadS3Details(String sessionId) async {
+    try {
+      final detail = await rust_db.dbS3SessionDetailsGet(sessionId: sessionId);
+      if (!mounted) return;
+      setState(() {
+        if (detail != null) {
+          _accessKeyIdCtrl.text = detail.accessKeyId;
+          _regionCtrl.text = detail.region;
+          _endpointCtrl.text = detail.endpoint;
+          _defaultBucketCtrl.text = detail.defaultBucket;
+          _defaultPrefixCtrl.text = detail.defaultPrefix;
+          _s3PathStyleEnabled = detail.pathStyle;
+        }
+        _loadingS3 = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingS3 = false);
     }
   }
 
@@ -427,15 +518,20 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _proxyUserCtrl.dispose();
     _baseUrlCtrl.dispose();
     _fingerprintCtrl.dispose();
+    _accessKeyIdCtrl.dispose();
+    _regionCtrl.dispose();
+    _endpointCtrl.dispose();
+    _defaultBucketCtrl.dispose();
+    _defaultPrefixCtrl.dispose();
     super.dispose();
   }
 
   Session _buildSession() {
     final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
     // ProxyJump only applies to SSH transports — flipping the kind
-    // to WebDAV drops any leftover proxy state so a session that
-    // started as SSH-via-bastion does not carry the override after
-    // conversion.
+    // to WebDAV / S3 drops any leftover proxy state so a session
+    // that started as SSH-via-bastion does not carry the override
+    // after conversion.
     final viaSessionId =
         (_kind == SessionKind.ssh && _proxyMode == _ProxyMode.saved)
         ? _proxyViaSessionId
@@ -454,13 +550,18 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     final recordDelta = <String, Object?>{
       'record': _recordEnabled ? true : null,
     };
-    final server = _kind == SessionKind.webdav
-        ? _serverFromBaseUrl()
-        : ServerAddress(
-            host: _hostCtrl.text.trim(),
-            port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-            user: _userCtrl.text.trim(),
-          );
+    final ServerAddress server;
+    if (_kind == SessionKind.webdav) {
+      server = _serverFromBaseUrl();
+    } else if (_kind == SessionKind.s3) {
+      server = _serverFromS3Endpoint();
+    } else {
+      server = ServerAddress(
+        host: _hostCtrl.text.trim(),
+        port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+        user: _userCtrl.text.trim(),
+      );
+    }
     Session built;
     if (_isEditing) {
       built = widget.session!.copyWith(
@@ -531,8 +632,46 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     return ServerAddress(host: host, port: port, user: _userCtrl.text.trim());
   }
 
+  /// Derive the SSH-shaped [ServerAddress] for an S3 session.
+  /// `host` carries the endpoint host (or `s3.<region>.amazonaws.com`
+  /// when no explicit endpoint is set) and `port` carries the
+  /// scheme-default port. The live transport routes off
+  /// `kind = 's3'` and reads the full tuple from
+  /// `s3_session_details`; this projection keeps legacy SQL
+  /// filters working.
+  ServerAddress _serverFromS3Endpoint() {
+    final raw = _endpointCtrl.text.trim();
+    String host = '';
+    int port = 443;
+    if (raw.isNotEmpty) {
+      Uri? parsed;
+      try {
+        parsed = Uri.parse(raw);
+      } on FormatException {
+        parsed = null;
+      }
+      host = parsed?.host ?? '';
+      if (parsed?.hasPort ?? false) {
+        port = parsed!.port;
+      } else if (parsed?.scheme.toLowerCase() == 'http') {
+        port = 80;
+      }
+    } else {
+      final region = _regionCtrl.text.trim().isEmpty
+          ? 'us-east-1'
+          : _regionCtrl.text.trim();
+      host = 's3.$region.amazonaws.com';
+    }
+    return ServerAddress(
+      host: host,
+      port: port,
+      user: _accessKeyIdCtrl.text.trim(),
+    );
+  }
+
   bool _validateAuth() {
     if (_kind == SessionKind.webdav) return _validateWebDavAuth();
+    if (_kind == SessionKind.s3) return _validateS3Auth();
     final saved = widget.session?.auth;
     final hasPassword =
         _passwordCtrl.text.isNotEmpty ||
@@ -546,6 +685,34 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         (saved?.keyData.isNotEmpty ?? false);
 
     if (!hasPassword && !hasKey) {
+      setState(() {
+        _authError = S.of(context).providePasswordOrKey;
+        _tabIndex = 1;
+      });
+      return false;
+    }
+    setState(() => _authError = null);
+    return true;
+  }
+
+  /// S3-specific auth predicate. The dialog requires an access key
+  /// id (visible on the Connection tab) plus a secret access key
+  /// (Auth tab, stored or freshly typed). The connect path
+  /// short-circuits without the secret since SigV4 cannot be
+  /// signed without it.
+  bool _validateS3Auth() {
+    final hasAccessKey = _accessKeyIdCtrl.text.trim().isNotEmpty;
+    if (!hasAccessKey) {
+      setState(() {
+        _authError = S.of(context).providePasswordOrKey;
+        _tabIndex = 0;
+      });
+      return false;
+    }
+    final hasSecret =
+        _passwordCtrl.text.isNotEmpty ||
+        (widget.session?.auth.hasStoredPassword ?? false);
+    if (!hasSecret) {
       setState(() {
         _authError = S.of(context).providePasswordOrKey;
         _tabIndex = 1;
@@ -583,6 +750,15 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       if (_webDavBaseUrlValidator(_baseUrlCtrl.text) != null) return 0;
       if (_requiredValidator(_userCtrl.text) != null) return 0;
       // Auth tab (1): credentials
+      return 1;
+    }
+    if (_kind == SessionKind.s3) {
+      // Connection tab (0): access key id is the only field that
+      // gates connect. Region + endpoint + default bucket are all
+      // optional from the validator's perspective — empty values
+      // either fall back (`us-east-1`, AWS default endpoint) or
+      // force the `s3://bucket/key` shorthand at path-parse time.
+      if (_requiredValidator(_accessKeyIdCtrl.text) != null) return 0;
       return 1;
     }
     // Connection tab (0): host, port, username
@@ -636,6 +812,18 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
             passwordDirty: _passwordDirty,
           )
         : null;
+    final s3 = _kind == SessionKind.s3
+        ? S3SaveData(
+            accessKeyId: _accessKeyIdCtrl.text.trim(),
+            region: _regionCtrl.text.trim(),
+            endpoint: _endpointCtrl.text.trim(),
+            pathStyle: _s3PathStyleEnabled,
+            defaultBucket: _defaultBucketCtrl.text.trim(),
+            defaultPrefix: _defaultPrefixCtrl.text.trim(),
+            secretAccessKey: _passwordCtrl.text,
+            passwordDirty: _passwordDirty,
+          )
+        : null;
     Navigator.of(context).pop(
       SaveResult(
         session,
@@ -645,6 +833,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         keyDataDirty: _keyDataDirty,
         passphraseDirty: _passphraseDirty,
         webdavData: webdav,
+        s3Data: s3,
       ),
     );
   }

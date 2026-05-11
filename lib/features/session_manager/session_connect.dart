@@ -86,13 +86,16 @@ class SessionConnect {
     );
     final manager = ref.read(connectionsProvider.notifier);
 
-    // WebDAV sessions skip the SSH connect orchestrator entirely —
-    // there is no ProxyJump chain, no SSH auth compose, no russh
-    // handshake. The WebDAV connect path reads the join-table
-    // detail row and the SecretStore-staged password directly
-    // inside Rust.
+    // WebDAV and S3 sessions skip the SSH connect orchestrator
+    // entirely — there is no ProxyJump chain, no SSH auth compose,
+    // no russh handshake. The respective connect paths read the
+    // join-table detail row and the SecretStore-staged secret
+    // directly inside Rust.
     if (fresh.kind == SessionKind.webdav) {
       return manager.connectWebDavAsync(fresh);
+    }
+    if (fresh.kind == SessionKind.s3) {
+      return manager.connectS3Async(fresh);
     }
 
     final config = fresh.toSSHConfig();

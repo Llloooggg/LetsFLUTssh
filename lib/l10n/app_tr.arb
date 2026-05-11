@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "WebDAV base URL gerekli",
   "errWebDavBaseUrlInvalid": "Base URL http:// veya https:// olmalı",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "AWS için boş bırak, MinIO / R2 / Spaces için endpoint gir",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "MinIO için gerekli; AWS için off bırak",
+  "s3DefaultBucket": "Default bucket",
+  "s3DefaultPrefix": "Default prefix",
+  "s3GeneratePresignedUrl": "Presigned URL üret",
+  "s3PresignedUrlExpiry": "Süre sonu",
+  "s3CopyUri": "s3://bucket/key URI kopyala",
+  "s3PresignedUrlExpiry15min": "15 dakika",
+  "s3PresignedUrlExpiry1hour": "1 saat",
+  "s3PresignedUrlExpiry4hour": "4 saat",
+  "s3PresignedUrlExpiry24hour": "24 saat",
+  "s3PresignedUrlExpiry7day": "7 gün",
+  "errS3AuthFailed": "S3 authentication failed (access key + secret kontrol et)",
+  "errS3NoSuchBucket": "Bucket yok veya erişilemiyor",
+  "errS3RegionMismatch": "Bucket başka bir region'da",
+  "errS3Generic": "S3 sunucusu request'i reddetti: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "WebDAV sync etkinleştir",
   "syncPassphrase": "Sync passphrase",

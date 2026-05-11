@@ -2731,6 +2731,79 @@ class STr extends S {
   String get errWebDavBaseUrlInvalid => 'Base URL http:// veya https:// olmalı';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'AWS için boş bırak, MinIO / R2 / Spaces için endpoint gir';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'MinIO için gerekli; AWS için off bırak';
+
+  @override
+  String get s3DefaultBucket => 'Default bucket';
+
+  @override
+  String get s3DefaultPrefix => 'Default prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Presigned URL üret';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Süre sonu';
+
+  @override
+  String get s3CopyUri => 's3://bucket/key URI kopyala';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 dakika';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 saat';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 saat';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 saat';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 gün';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret kontrol et)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket yok veya erişilemiyor';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket başka bir region\'da';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 sunucusu request\'i reddetti: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

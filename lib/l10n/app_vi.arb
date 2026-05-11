@@ -913,6 +913,36 @@
   },
   "errWebDavBaseUrlRequired": "Cần base URL của WebDAV",
   "errWebDavBaseUrlInvalid": "Base URL phải là http:// hoặc https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "Bỏ trống cho AWS, hoặc đặt cho MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "Cần cho MinIO; tắt cho AWS",
+  "s3DefaultBucket": "Bucket mặc định",
+  "s3DefaultPrefix": "Prefix mặc định",
+  "s3GeneratePresignedUrl": "Tạo presigned URL",
+  "s3PresignedUrlExpiry": "Hết hạn sau",
+  "s3CopyUri": "Copy URI s3://bucket/key",
+  "s3PresignedUrlExpiry15min": "15 phút",
+  "s3PresignedUrlExpiry1hour": "1 giờ",
+  "s3PresignedUrlExpiry4hour": "4 giờ",
+  "s3PresignedUrlExpiry24hour": "24 giờ",
+  "s3PresignedUrlExpiry7day": "7 ngày",
+  "errS3AuthFailed": "S3 authentication failed (kiểm tra access key + secret)",
+  "errS3NoSuchBucket": "Bucket không tồn tại hoặc không truy cập được",
+  "errS3RegionMismatch": "Bucket ở region khác với cấu hình",
+  "errS3Generic": "S3 server từ chối request: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "Bật WebDAV sync",
   "syncPassphrase": "Sync passphrase",

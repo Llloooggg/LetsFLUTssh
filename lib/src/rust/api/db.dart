@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`, `run_db_mut_writing_sessions_when`, `run_db_mut_writing_sessions`, `run_db_mut`, `run_db_writing_sessions_when`, `run_db_writing_sessions`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -431,6 +431,41 @@ String dbWebdavSessionDetailsSecretId({required String sessionId}) => RustLib
     .api
     .crateApiDbDbWebdavSessionDetailsSecretId(sessionId: sessionId);
 
+/// Fetch the S3 detail row paired with `session_id`. `None` when
+/// the session is not an S3 kind or has not been configured yet —
+/// not an error.
+Future<DbS3SessionDetails?> dbS3SessionDetailsGet({
+  required String sessionId,
+}) =>
+    RustLib.instance.api.crateApiDbDbS3SessionDetailsGet(sessionId: sessionId);
+
+/// Insert or replace the S3 detail row for `rec.session_id`.
+/// Caller stamps the matching `sessions` row with `kind = 's3'`.
+Future<void> dbS3SessionDetailsUpsert({required DbS3SessionDetails rec}) =>
+    RustLib.instance.api.crateApiDbDbS3SessionDetailsUpsert(rec: rec);
+
+/// Remove the S3 detail row for `session_id`. Returns the number
+/// of rows affected; `0` is the idempotent no-op for a session
+/// that was never an S3 kind. The parent session row is untouched.
+Future<int> dbS3SessionDetailsDelete({required String sessionId}) => RustLib
+    .instance
+    .api
+    .crateApiDbDbS3SessionDetailsDelete(sessionId: sessionId);
+
+/// Every S3 detail row, ordered by `session_id`. Used by archive
+/// export.
+Future<List<DbS3SessionDetails>> dbS3SessionDetailsListAll() =>
+    RustLib.instance.api.crateApiDbDbS3SessionDetailsListAll();
+
+/// Canonical SecretStore id for an S3 session's secret access
+/// key. Mirrors `lfs_core::db::s3_sessions::s3_secret_id` for the
+/// Dart caller — the connect path needs the same shape to resolve
+/// the secret on lookup.
+String dbS3SessionDetailsSecretId({required String sessionId}) => RustLib
+    .instance
+    .api
+    .crateApiDbDbS3SessionDetailsSecretId(sessionId: sessionId);
+
 Future<List<DbTag>> dbTagsListAll() =>
     RustLib.instance.api.crateApiDbDbTagsListAll();
 
@@ -791,15 +826,61 @@ class DbRestoreSessionInput {
           updatedAtMs == other.updatedAtMs;
 }
 
+/// FRB mirror of
+/// [`lfs_core::db::s3_sessions::S3SessionRow`]. Carries the S3
+/// transport-config tuple keyed by session id.
+class DbS3SessionDetails {
+  final String sessionId;
+  final String accessKeyId;
+  final String region;
+  final String endpoint;
+  final bool pathStyle;
+  final String defaultBucket;
+  final String defaultPrefix;
+
+  const DbS3SessionDetails({
+    required this.sessionId,
+    required this.accessKeyId,
+    required this.region,
+    required this.endpoint,
+    required this.pathStyle,
+    required this.defaultBucket,
+    required this.defaultPrefix,
+  });
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^
+      accessKeyId.hashCode ^
+      region.hashCode ^
+      endpoint.hashCode ^
+      pathStyle.hashCode ^
+      defaultBucket.hashCode ^
+      defaultPrefix.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbS3SessionDetails &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          accessKeyId == other.accessKeyId &&
+          region == other.region &&
+          endpoint == other.endpoint &&
+          pathStyle == other.pathStyle &&
+          defaultBucket == other.defaultBucket &&
+          defaultPrefix == other.defaultPrefix;
+}
+
 class DbSession {
   final String id;
   final String label;
   final String? folderId;
 
-  /// Transport tag — one of `"ssh"` / `"webdav"`. Empty string
-  /// upserts the SSH wire value (the DAO normalises before the
-  /// SQL hop). Read side never returns empty because the column
-  /// is `NOT NULL DEFAULT 'ssh'`.
+  /// Transport tag — one of `"ssh"` / `"webdav"` / `"s3"`.
+  /// Empty string upserts the SSH wire value (the DAO normalises
+  /// before the SQL hop). Read side never returns empty because
+  /// the column is `NOT NULL DEFAULT 'ssh'`.
   final String kind;
   final String host;
   final PlatformInt64 port;

@@ -2728,6 +2728,80 @@ class SId extends S {
   String get errWebDavBaseUrlInvalid => 'Base URL harus http:// atau https://';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Kosongkan untuk AWS, atau isi untuk MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'Wajib untuk MinIO; off-kan untuk AWS';
+
+  @override
+  String get s3DefaultBucket => 'Default bucket';
+
+  @override
+  String get s3DefaultPrefix => 'Default prefix';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Generate presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Kedaluwarsa dalam';
+
+  @override
+  String get s3CopyUri => 'Copy URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 menit';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 jam';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 jam';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 jam';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 hari';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (cek access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket tidak ada atau tidak dapat diakses';
+
+  @override
+  String get errS3RegionMismatch =>
+      'Bucket berada di region berbeda dari konfigurasi';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 server menolak request: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

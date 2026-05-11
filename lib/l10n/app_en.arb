@@ -1513,6 +1513,36 @@
   },
   "errWebDavBaseUrlRequired": "WebDAV base URL is required",
   "errWebDavBaseUrlInvalid": "Base URL must be http:// or https://",
+  "sessionKindS3": "S3",
+  "s3AccessKeyId": "Access key ID",
+  "s3SecretKey": "Secret access key",
+  "s3Region": "Region",
+  "s3RegionHint": "us-east-1, eu-west-2, auto",
+  "s3Endpoint": "Endpoint",
+  "s3EndpointHint": "Leave empty for AWS, or set for MinIO / R2 / Spaces",
+  "s3PathStyle": "Path-style addressing",
+  "s3PathStyleHint": "Required for MinIO; leave off for AWS",
+  "s3DefaultBucket": "Default bucket",
+  "s3DefaultPrefix": "Default prefix",
+  "s3GeneratePresignedUrl": "Generate presigned URL",
+  "s3PresignedUrlExpiry": "Expires in",
+  "s3CopyUri": "Copy s3://bucket/key URI",
+  "s3PresignedUrlExpiry15min": "15 minutes",
+  "s3PresignedUrlExpiry1hour": "1 hour",
+  "s3PresignedUrlExpiry4hour": "4 hours",
+  "s3PresignedUrlExpiry24hour": "24 hours",
+  "s3PresignedUrlExpiry7day": "7 days",
+  "errS3AuthFailed": "S3 authentication failed (check access key + secret)",
+  "errS3NoSuchBucket": "Bucket does not exist or is not accessible",
+  "errS3RegionMismatch": "Bucket is in a different region than configured",
+  "errS3Generic": "S3 server rejected the request: {detail}",
+  "@errS3Generic": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "syncSection": "Sync",
   "syncEnable": "Enable WebDAV sync",
   "syncPassphrase": "Sync passphrase",

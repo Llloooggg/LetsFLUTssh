@@ -2747,6 +2747,79 @@ class SRu extends S {
       'Base URL должен быть http:// или https://';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'Пусто для AWS, или укажи для MinIO / R2 / Spaces';
+
+  @override
+  String get s3PathStyle => 'Path-style адресация';
+
+  @override
+  String get s3PathStyleHint => 'Нужно для MinIO; выключи для AWS';
+
+  @override
+  String get s3DefaultBucket => 'Bucket по умолчанию';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix по умолчанию';
+
+  @override
+  String get s3GeneratePresignedUrl => 'Сгенерировать presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'Истекает через';
+
+  @override
+  String get s3CopyUri => 'Скопировать s3://bucket/key URI';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '15 минут';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '1 час';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '4 часа';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '24 часа';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '7 дней';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (проверь access key + secret)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket не существует или недоступен';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket в другом регионе, чем настроено';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'S3 сервер отклонил запрос: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override

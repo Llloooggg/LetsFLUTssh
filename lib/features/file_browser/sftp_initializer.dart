@@ -1,4 +1,5 @@
 import '../../core/connection/connection.dart';
+import '../../core/s3/s3_fs.dart';
 import '../../core/session/session.dart';
 import '../../core/sftp/file_system.dart';
 import '../../core/sftp/sftp_fs.dart';
@@ -69,6 +70,13 @@ class SFTPInitializer {
         throw StateError('WebDAV connection not available');
       }
       remoteFs = WebDavFileSystem(webdav, connection.webdavBaseUrl);
+    } else if (connection.kind == SessionKind.s3) {
+      final s3 = connection.s3Connection;
+      if (s3 == null) {
+        localCtrl.dispose();
+        throw StateError('S3 connection not available');
+      }
+      remoteFs = S3FileSystem(s3, connection.s3InitialDir);
     } else if (filesystemFactory != null) {
       sftp = await filesystemFactory(connection);
       remoteFs = RemoteFS(sftp);

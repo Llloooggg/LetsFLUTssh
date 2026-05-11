@@ -12,12 +12,15 @@ enum AuthType { password, key, keyWithPassword }
 /// Transport kind. SSH covers the classic shell + SFTP file
 /// browser; WebDAV runs the file browser against an HTTP-backed
 /// remote (Nextcloud, ownCloud, Apache mod_dav, IIS, Synology DSM
-/// etc.). The wire value persisted in the DB matches
+/// etc.); S3 runs against any S3-compatible object store (AWS S3,
+/// MinIO, Wasabi, Backblaze B2-S3, Cloudflare R2, DigitalOcean
+/// Spaces, Scaleway). The wire value persisted in the DB matches
 /// `lfs_core::db::sessions::SESSION_KIND_*` constants — keep the
 /// strings in sync with `name`.
 enum SessionKind {
   ssh,
-  webdav;
+  webdav,
+  s3;
 
   /// Wire value persisted in `sessions.kind`. The DAO normalises
   /// the empty string to `'ssh'` so the column never holds NULL.
@@ -255,6 +258,9 @@ class Session {
 
   /// True when this session uses the WebDAV transport.
   bool get isWebDav => kind == SessionKind.webdav;
+
+  /// True when this session uses the S3 transport.
+  bool get isS3 => kind == SessionKind.s3;
 
   /// True when this session bounces through a bastion before reaching
   /// [host]:[port]. UI uses this to surface a "via X" subtitle.

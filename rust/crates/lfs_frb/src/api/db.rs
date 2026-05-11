@@ -462,10 +462,10 @@ pub struct DbSession {
     pub id: String,
     pub label: String,
     pub folder_id: Option<String>,
-    /// Transport tag — one of `"ssh"` / `"webdav"`. Empty string
-    /// upserts the SSH wire value (the DAO normalises before the
-    /// SQL hop). Read side never returns empty because the column
-    /// is `NOT NULL DEFAULT 'ssh'`.
+    /// Transport tag — one of `"ssh"` / `"webdav"` / `"s3"`.
+    /// Empty string upserts the SSH wire value (the DAO normalises
+    /// before the SQL hop). Read side never returns empty because
+    /// the column is `NOT NULL DEFAULT 'ssh'`.
     pub kind: String,
     pub host: String,
     pub port: i64,
@@ -1370,6 +1370,97 @@ pub async fn db_webdav_session_details_list_all() -> Result<Vec<DbWebDavSessionD
 #[flutter_rust_bridge::frb(sync)]
 pub fn db_webdav_session_details_secret_id(session_id: String) -> String {
     lfs_core::db::webdav_sessions::webdav_secret_id(&session_id)
+}
+
+// ---- s3_session_details ------------------------------------------------
+
+/// FRB mirror of
+/// [`lfs_core::db::s3_sessions::S3SessionRow`]. Carries the S3
+/// transport-config tuple keyed by session id.
+#[derive(Debug, Clone)]
+pub struct DbS3SessionDetails {
+    pub session_id: String,
+    pub access_key_id: String,
+    pub region: String,
+    pub endpoint: String,
+    pub path_style: bool,
+    pub default_bucket: String,
+    pub default_prefix: String,
+}
+
+impl From<lfs_core::db::s3_sessions::S3SessionRow> for DbS3SessionDetails {
+    fn from(r: lfs_core::db::s3_sessions::S3SessionRow) -> Self {
+        Self {
+            session_id: r.session_id,
+            access_key_id: r.access_key_id,
+            region: r.region,
+            endpoint: r.endpoint,
+            path_style: r.path_style,
+            default_bucket: r.default_bucket,
+            default_prefix: r.default_prefix,
+        }
+    }
+}
+
+impl From<DbS3SessionDetails> for lfs_core::db::s3_sessions::S3SessionRow {
+    fn from(r: DbS3SessionDetails) -> Self {
+        Self {
+            session_id: r.session_id,
+            access_key_id: r.access_key_id,
+            region: r.region,
+            endpoint: r.endpoint,
+            path_style: r.path_style,
+            default_bucket: r.default_bucket,
+            default_prefix: r.default_prefix,
+        }
+    }
+}
+
+/// Fetch the S3 detail row paired with `session_id`. `None` when
+/// the session is not an S3 kind or has not been configured yet —
+/// not an error.
+pub async fn db_s3_session_details_get(
+    session_id: String,
+) -> Result<Option<DbS3SessionDetails>, String> {
+    run_db(move |c| lfs_core::db::s3_sessions::get(c, &session_id))
+        .await
+        .map(|opt| opt.map(DbS3SessionDetails::from))
+}
+
+/// Insert or replace the S3 detail row for `rec.session_id`.
+/// Caller stamps the matching `sessions` row with `kind = 's3'`.
+pub async fn db_s3_session_details_upsert(rec: DbS3SessionDetails) -> Result<(), String> {
+    let rec: lfs_core::db::s3_sessions::S3SessionRow = rec.into();
+    run_db_writing_sessions(move |c| lfs_core::db::s3_sessions::upsert(c, &rec)).await
+}
+
+/// Remove the S3 detail row for `session_id`. Returns the number
+/// of rows affected; `0` is the idempotent no-op for a session
+/// that was never an S3 kind. The parent session row is untouched.
+pub async fn db_s3_session_details_delete(session_id: String) -> Result<u32, String> {
+    run_db_writing_sessions_when(
+        move |c| lfs_core::db::s3_sessions::delete(c, &session_id),
+        |n| *n > 0,
+    )
+    .await
+    .map(|n| n as u32)
+}
+
+/// Every S3 detail row, ordered by `session_id`. Used by archive
+/// export.
+pub async fn db_s3_session_details_list_all() -> Result<Vec<DbS3SessionDetails>, String> {
+    run_db(lfs_core::db::s3_sessions::list_all)
+        .await
+        .map(|rows| rows.into_iter().map(DbS3SessionDetails::from).collect())
+}
+
+/// Canonical SecretStore id for an S3 session's secret access
+/// key. Mirrors `lfs_core::db::s3_sessions::s3_secret_id` for the
+/// Dart caller — the connect path needs the same shape to resolve
+/// the secret on lookup.
+#[flutter_rust_bridge::frb(sync)]
+pub fn db_s3_session_details_secret_id(session_id: String) -> String {
+    lfs_core::db::s3_sessions::s3_secret_id(&session_id)
 }
 
 // ---- tags + M2M --------------------------------------------------------

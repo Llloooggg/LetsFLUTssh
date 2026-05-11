@@ -48,6 +48,7 @@ import 'api/qr_codec_encode.dart';
 import 'api/qr_compose.dart';
 import 'api/rate_limit.dart';
 import 'api/recorder.dart';
+import 'api/s3.dart';
 import 'api/secure_key_storage.dart';
 import 'api/security_capabilities.dart';
 import 'api/security_config.dart';
@@ -92,6 +93,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_S3ConnectionPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_SshForwardChannelPtr => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel;
 
@@ -121,6 +126,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  S3Connection
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    dynamic raw,
+  );
 
   @protected
   SshForwardChannel
@@ -171,6 +182,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  S3Connection
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    dynamic raw,
+  );
+
+  @protected
   SshForwardChannel
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel(
     dynamic raw,
@@ -214,6 +231,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Map<String, String> dco_decode_Map_String_String_None(dynamic raw);
+
+  @protected
+  S3Connection
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    dynamic raw,
+  );
 
   @protected
   SshForwardChannel
@@ -359,6 +382,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbQrExportInput dco_decode_box_autoadd_db_qr_export_input(dynamic raw);
+
+  @protected
+  DbS3SessionDetails dco_decode_box_autoadd_db_s_3_session_details(dynamic raw);
 
   @protected
   DbSecurityCapabilities dco_decode_box_autoadd_db_security_capabilities(
@@ -664,6 +690,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbRestoreSessionInput dco_decode_db_restore_session_input(dynamic raw);
 
   @protected
+  DbS3SessionDetails dco_decode_db_s_3_session_details(dynamic raw);
+
+  @protected
   DbScannedKey dco_decode_db_scanned_key(dynamic raw);
 
   @protected
@@ -899,6 +928,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DbS3SessionDetails> dco_decode_list_db_s_3_session_details(dynamic raw);
+
+  @protected
   List<DbScannedKey> dco_decode_list_db_scanned_key(dynamic raw);
 
   @protected
@@ -994,6 +1026,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
 
   @protected
+  List<S3DirEntry> dco_decode_list_s_3_dir_entry(dynamic raw);
+
+  @protected
   List<SftpDirEntry> dco_decode_list_sftp_dir_entry(dynamic raw);
 
   @protected
@@ -1049,6 +1084,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbOpenSshImportPreview? dco_decode_opt_box_autoadd_db_open_ssh_import_preview(
+    dynamic raw,
+  );
+
+  @protected
+  DbS3SessionDetails? dco_decode_opt_box_autoadd_db_s_3_session_details(
     dynamic raw,
   );
 
@@ -1130,6 +1170,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (String, String) dco_decode_record_string_string(dynamic raw);
 
   @protected
+  S3DirEntry dco_decode_s_3_dir_entry(dynamic raw);
+
+  @protected
+  S3FileMetadata dco_decode_s_3_file_metadata(dynamic raw);
+
+  @protected
   SftpDirEntry dco_decode_sftp_dir_entry(dynamic raw);
 
   @protected
@@ -1167,6 +1213,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  S3Connection
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SshForwardChannel
@@ -1217,6 +1269,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  S3Connection
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SshForwardChannel
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel(
     SseDeserializer deserializer,
@@ -1260,6 +1318,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Map<String, String> sse_decode_Map_String_String_None(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  S3Connection
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
     SseDeserializer deserializer,
   );
 
@@ -1441,6 +1505,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbQrExportInput sse_decode_box_autoadd_db_qr_export_input(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbS3SessionDetails sse_decode_box_autoadd_db_s_3_session_details(
     SseDeserializer deserializer,
   );
 
@@ -1842,6 +1911,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbS3SessionDetails sse_decode_db_s_3_session_details(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbScannedKey sse_decode_db_scanned_key(SseDeserializer deserializer);
 
   @protected
@@ -2151,6 +2225,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DbS3SessionDetails> sse_decode_list_db_s_3_session_details(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DbScannedKey> sse_decode_list_db_scanned_key(
     SseDeserializer deserializer,
   );
@@ -2268,6 +2347,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<S3DirEntry> sse_decode_list_s_3_dir_entry(SseDeserializer deserializer);
+
+  @protected
   List<SftpDirEntry> sse_decode_list_sftp_dir_entry(
     SseDeserializer deserializer,
   );
@@ -2339,6 +2421,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbOpenSshImportPreview? sse_decode_opt_box_autoadd_db_open_ssh_import_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DbS3SessionDetails? sse_decode_opt_box_autoadd_db_s_3_session_details(
     SseDeserializer deserializer,
   );
 
@@ -2440,6 +2527,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  S3DirEntry sse_decode_s_3_dir_entry(SseDeserializer deserializer);
+
+  @protected
+  S3FileMetadata sse_decode_s_3_file_metadata(SseDeserializer deserializer);
+
+  @protected
   SftpDirEntry sse_decode_sftp_dir_entry(SseDeserializer deserializer);
 
   @protected
@@ -2482,6 +2575,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    S3Connection self,
     SseSerializer serializer,
   );
 
@@ -2543,6 +2643,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    S3Connection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel(
     SshForwardChannel self,
     SseSerializer serializer,
@@ -2593,6 +2700,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_Map_String_String_None(
     Map<String, String> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    S3Connection self,
     SseSerializer serializer,
   );
 
@@ -2812,6 +2926,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_qr_export_input(
     DbQrExportInput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_s_3_session_details(
+    DbS3SessionDetails self,
     SseSerializer serializer,
   );
 
@@ -3332,6 +3452,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_db_s_3_session_details(
+    DbS3SessionDetails self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_scanned_key(DbScannedKey self, SseSerializer serializer);
 
   @protected
@@ -3722,6 +3848,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_db_s_3_session_details(
+    List<DbS3SessionDetails> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_db_scanned_key(
     List<DbScannedKey> self,
     SseSerializer serializer,
@@ -3878,6 +4010,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_s_3_dir_entry(
+    List<S3DirEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_sftp_dir_entry(
     List<SftpDirEntry> self,
     SseSerializer serializer,
@@ -3963,6 +4101,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_open_ssh_import_preview(
     DbOpenSshImportPreview? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_s_3_session_details(
+    DbS3SessionDetails? self,
     SseSerializer serializer,
   );
 
@@ -4087,6 +4231,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_s_3_dir_entry(S3DirEntry self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_s_3_file_metadata(
+    S3FileMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_sftp_dir_entry(SftpDirEntry self, SseSerializer serializer);
 
   @protected
@@ -4139,6 +4292,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
 class RustLibWire implements BaseWire {
   RustLibWire.fromExternalLibrary(ExternalLibrary lib);
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+        ptr,
+      );
 
   void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel(
@@ -4259,6 +4428,16 @@ external RustLibWasmModule get wasmModule;
 @JS()
 @anonymous
 extension type RustLibWasmModule._(JSObject _) implements JSObject {
+  external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerS3Connection(
+    int ptr,
+  );
+
   external void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSshForwardChannel(
     int ptr,

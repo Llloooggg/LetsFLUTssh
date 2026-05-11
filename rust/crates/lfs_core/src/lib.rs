@@ -57,6 +57,12 @@ pub mod qr_codec_encode;
 pub mod qr_compose;
 pub mod rate_limit;
 pub mod recorder;
+// S3-compatible transport (AWS REST + SigV4 signer + multipart
+// upload orchestrator). Sibling to `webdav` / `ssh` / `sftp`;
+// both the file-browser provider (`storage::s3::S3Provider`) and
+// the FRB adapter (`lfs_frb::api::s3`) consume it. Lives at the
+// same level so neither consumer dips into the other's tree.
+pub mod s3;
 pub mod secrets;
 pub mod security;
 pub mod session_history;

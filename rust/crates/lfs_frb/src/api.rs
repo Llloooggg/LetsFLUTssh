@@ -50,6 +50,7 @@ pub mod qr_codec_encode;
 pub mod qr_compose;
 pub mod rate_limit;
 pub mod recorder;
+pub mod s3;
 pub mod secure_key_storage;
 pub mod security_capabilities;
 pub mod security_config;

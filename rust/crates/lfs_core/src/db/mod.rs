@@ -159,6 +159,7 @@ pub mod app_configs;
 pub mod folders;
 pub mod known_hosts;
 pub mod port_forwards;
+pub mod s3_sessions;
 pub mod sessions;
 pub mod sftp_bookmarks;
 pub mod snippets;
@@ -396,8 +397,12 @@ impl Db {
 /// partial-unique index gated on `deleted_at IS NULL`. v5 adds
 /// the `kind` column on `sessions` plus the `webdav_session_details`
 /// join table so WebDAV sessions can sit alongside SSH ones with
-/// per-kind configuration owned by a side table.
-pub const SCHEMA_VERSION: i32 = 5;
+/// per-kind configuration owned by a side table. v6 adds the
+/// `s3_session_details` join table so S3-compatible sessions
+/// (AWS, MinIO, Wasabi, R2, Spaces, B2-S3, Scaleway) sit
+/// alongside SSH + WebDAV with per-kind configuration owned by
+/// the same side-table pattern.
+pub const SCHEMA_VERSION: i32 = 6;
 
 /// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
 /// Single source of truth for the v2 → v3 migration step + the
@@ -686,6 +691,26 @@ CREATE TABLE IF NOT EXISTS webdav_session_details (
 CREATE INDEX IF NOT EXISTS idx_webdav_session_details_session_id
     ON webdav_session_details(session_id);
 
+-- S3-compatible session configuration. Same join-table shape as
+-- `webdav_session_details`: keyed by session id, ON DELETE CASCADE
+-- so the row physically drops when the parent session is purged.
+-- The secret access key never lands on a column here — it lives
+-- in the SecretStore under `session.s3.<session_id>` and the
+-- connect path resolves it from there. `path_style` is an INTEGER
+-- boolean (0 = virtual-host addressing, 1 = path addressing) so
+-- the column stores stay compatible with the SQLite type system.
+CREATE TABLE IF NOT EXISTS s3_session_details (
+    session_id     TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    access_key_id  TEXT NOT NULL DEFAULT '',
+    region         TEXT NOT NULL DEFAULT '',
+    endpoint       TEXT NOT NULL DEFAULT '',
+    path_style     INTEGER NOT NULL DEFAULT 0,
+    default_bucket TEXT NOT NULL DEFAULT '',
+    default_prefix TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_s3_session_details_session_id
+    ON s3_session_details(session_id);
+
 CREATE TABLE IF NOT EXISTS known_hosts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     host TEXT NOT NULL,
@@ -935,6 +960,46 @@ mod tests {
         // column name ...")` from the second ALTER hop. The
         // `current < SCHEMA_VERSION` gate is what keeps this
         // safe, and the test pins that contract.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v5 → v6 upgrade hop. A database stamped at v5 without the
+    /// `s3_session_details` table must pick it up on bootstrap.
+    /// The table lands via `CREATE TABLE IF NOT EXISTS` in
+    /// `SCHEMA_SQL`, so no per-step ALTER is required — the test
+    /// just confirms the table exists after a rewind+rerun.
+    #[test]
+    fn bootstrap_v5_to_v6_creates_s3_session_details_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        bootstrap_schema(&conn).unwrap();
+        // Drop the s3 table + index to mimic a v5 install, then
+        // rewind user_version. The `CREATE TABLE IF NOT EXISTS`
+        // block in SCHEMA_SQL recreates it on re-bootstrap.
+        conn.inner()
+            .execute_batch(
+                "DROP INDEX IF EXISTS idx_s3_session_details_session_id; \
+                 DROP TABLE IF EXISTS s3_session_details;",
+            )
+            .unwrap();
+        conn.inner().pragma_update(None, "user_version", 5).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        let count: i64 = conn
+            .inner()
+            .query_row(
+                "SELECT count(*) FROM sqlite_master \
+                 WHERE type = 'table' AND name = 's3_session_details'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1, "s3_session_details must exist after v5 → v6");
+
+        // Re-running bootstrap is a no-op — the `IF NOT EXISTS`
+        // shape keeps the second pass safe.
         bootstrap_schema(&conn).unwrap();
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }

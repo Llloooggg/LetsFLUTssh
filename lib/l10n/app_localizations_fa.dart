@@ -2716,6 +2716,79 @@ class SFa extends S {
       'Base URL باید با http:// یا https:// شروع شود';
 
   @override
+  String get sessionKindS3 => 'S3';
+
+  @override
+  String get s3AccessKeyId => 'Access key ID';
+
+  @override
+  String get s3SecretKey => 'Secret access key';
+
+  @override
+  String get s3Region => 'Region';
+
+  @override
+  String get s3RegionHint => 'us-east-1, eu-west-2, auto';
+
+  @override
+  String get s3Endpoint => 'Endpoint';
+
+  @override
+  String get s3EndpointHint =>
+      'برای AWS خالی بگذار، یا برای MinIO / R2 / Spaces مقدار بده';
+
+  @override
+  String get s3PathStyle => 'Path-style addressing';
+
+  @override
+  String get s3PathStyleHint => 'برای MinIO لازم است؛ برای AWS off بگذار';
+
+  @override
+  String get s3DefaultBucket => 'Bucket پیش‌فرض';
+
+  @override
+  String get s3DefaultPrefix => 'Prefix پیش‌فرض';
+
+  @override
+  String get s3GeneratePresignedUrl => 'ساختن presigned URL';
+
+  @override
+  String get s3PresignedUrlExpiry => 'منقضی می‌شود در';
+
+  @override
+  String get s3CopyUri => 'کپی URI s3://bucket/key';
+
+  @override
+  String get s3PresignedUrlExpiry15min => '۱۵ دقیقه';
+
+  @override
+  String get s3PresignedUrlExpiry1hour => '۱ ساعت';
+
+  @override
+  String get s3PresignedUrlExpiry4hour => '۴ ساعت';
+
+  @override
+  String get s3PresignedUrlExpiry24hour => '۲۴ ساعت';
+
+  @override
+  String get s3PresignedUrlExpiry7day => '۷ روز';
+
+  @override
+  String get errS3AuthFailed =>
+      'S3 authentication failed (access key + secret را بررسی کن)';
+
+  @override
+  String get errS3NoSuchBucket => 'Bucket وجود ندارد یا قابل دسترسی نیست';
+
+  @override
+  String get errS3RegionMismatch => 'Bucket در region متفاوتی است';
+
+  @override
+  String errS3Generic(String detail) {
+    return 'سرور S3 درخواست را رد کرد: $detail';
+  }
+
+  @override
   String get syncSection => 'Sync';
 
   @override
