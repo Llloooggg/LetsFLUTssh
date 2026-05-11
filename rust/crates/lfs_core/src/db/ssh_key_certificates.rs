@@ -264,14 +264,22 @@ mod tests {
     }
 
     #[test]
-    fn cascade_delete_drops_cert_when_key_is_deleted() {
+    fn cascade_delete_drops_cert_when_parent_key_is_purged() {
         // The FK declares ON DELETE CASCADE so the join row never
-        // outlives its parent. Without the cascade an orphaned cert
-        // row would block re-importing the key with the same id.
+        // outlives its parent's physical removal. `ssh_keys::delete`
+        // soft-deletes the parent under the v3 tombstone contract,
+        // so the cert survives until the sync-purge runs through
+        // `ssh_keys::purge_tombstones`. Once the parent leaves the
+        // table for good, the cascade physically drops the cert.
         let db = db();
         seed_key(&db, "k1");
         db.with_conn(|c| upsert(c, &cert("k1"))).unwrap();
         db.with_conn(|c| ssh_keys::delete(c, "k1")).unwrap();
+        // Cert still present while the parent key is tombstoned.
+        assert!(db.with_conn(|c| get(c, "k1")).unwrap().is_some());
+        // Physical purge of the parent fires the cascade.
+        db.with_conn(|c| ssh_keys::purge_tombstones(c, i64::MAX))
+            .unwrap();
         assert!(db.with_conn(|c| get(c, "k1")).unwrap().is_none());
     }
 

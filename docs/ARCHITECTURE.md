@@ -4613,21 +4613,21 @@ AppConfig {
 
 All application data is stored in a single SQLite database, opened Rust-side via `rusqlite` + bundled SQLCipher 4.x. Schema lives in `lfs_core::db::SCHEMA_SQL`; Dart reads / writes through the FRB DAO surface in `lib/src/rust/api/db.dart`:
 
-| Table | Purpose | Key relationships |
-|-------|---------|-------------------|
-| `Sessions` | SSH sessions (metadata + credentials + `extras` JSON bag) | FK → Folders, FK → SshKeys |
-| `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK |
-| `SshKeys` | SSH key pairs | — |
-| `SshKeyCertificates` | OpenSSH user certificates paired to stored keys | FK → SshKeys, cascade on delete; PK = `key_id` |
-| `KnownHosts` | TOFU host key database | unique(host, port) |
-| `AppConfigs` | Single-row config JSON blob | — |
-| `Tags` | User-defined color tags | unique(name) |
-| `SessionTags` | M2M: sessions ↔ tags | cascade on delete |
-| `FolderTags` | M2M: folders ↔ tags | cascade on delete |
-| `Snippets` | Reusable command snippets | — |
-| `SessionSnippets` | M2M: sessions ↔ snippets | cascade on delete |
-| `SftpBookmarks` | Saved remote paths per session | FK → Sessions, cascade |
-| `PortForwardRules` | Per-session SSH port-forward rules (local / remote / dynamic) | FK → Sessions, cascade |
+| Table | Purpose | Key relationships | Soft-delete |
+|-------|---------|-------------------|-------------|
+| `Sessions` | SSH sessions (metadata + credentials + `extras` JSON bag) | FK → Folders, FK → SshKeys | yes |
+| `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK | no |
+| `SshKeys` | SSH key pairs | — | yes |
+| `SshKeyCertificates` | OpenSSH user certificates paired to stored keys | FK → SshKeys, cascade on delete; PK = `key_id` | no (1-to-1 with `SshKeys`) |
+| `KnownHosts` | TOFU host key database | unique(host, port) | no (per-device) |
+| `AppConfigs` | Single-row config JSON blob | — | no |
+| `Tags` | User-defined color tags | unique(name) | yes |
+| `SessionTags` | M2M: sessions ↔ tags | cascade on delete | no (M2M edge) |
+| `FolderTags` | M2M: folders ↔ tags | cascade on delete | no (M2M edge) |
+| `Snippets` | Reusable command snippets | — | yes |
+| `SessionSnippets` | M2M: sessions ↔ snippets | cascade on delete | no (M2M edge) |
+| `SftpBookmarks` | Saved remote paths per session | FK → Sessions, cascade | yes |
+| `PortForwardRules` | Per-session SSH port-forward rules (local / remote / dynamic) | FK → Sessions, cascade | no |
 
 ### Files on disk
 
@@ -4666,9 +4666,11 @@ Plaintext mode (T0) opens the same file with no `PRAGMA key`.
 
 `bootstrap_schema()` writes every table idempotently
 (`CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`)
-and stamps `PRAGMA user_version = SCHEMA_VERSION` (= 1) on
-every open. Foreign keys are enabled via
-`PRAGMA foreign_keys = ON` in the same bootstrap pass.
+and stamps `PRAGMA user_version = SCHEMA_VERSION` on every open
+whenever the on-disk value lags. Foreign keys are enabled via
+`PRAGMA foreign_keys = ON` in the same bootstrap pass. The
+v2 → v3 hop also runs `ALTER TABLE … ADD COLUMN deleted_at` per
+soft-deletable table — see Version log below.
 
 **POSIX permissions.** Rust pre-creates the DB file before
 SQLite touches it so the very first encrypted page lands on a
@@ -4738,6 +4740,48 @@ same column shape. Future bumps:
   every accumulated diff between the two values is expressible
   through additive `CREATE TABLE IF NOT EXISTS` /
   `CREATE INDEX IF NOT EXISTS` (true through v2).
+- **v3** — adds `deleted_at INTEGER NULL` to five user-data tables
+  (`sessions`, `ssh_keys`, `tags`, `snippets`, `sftp_bookmarks`)
+  + a `CREATE INDEX IF NOT EXISTS idx_<table>_deleted_at` per
+  table to keep the live-row filter cheap. The fresh-install path
+  picks the column up via the same `CREATE TABLE IF NOT EXISTS`
+  block; existing v1/v2 databases run `ALTER TABLE … ADD COLUMN
+  deleted_at` inside the `current < SCHEMA_VERSION` arm so the
+  ALTER never re-fires (SQLite errors on duplicate column name).
+  `known_hosts` is **deliberately excluded** — TOFU host trust is
+  per-device and the sync layer must not leak host fingerprints
+  across devices.
+
+### Soft-delete contract (v3+)
+
+The five tombstoned tables (`sessions`, `ssh_keys`, `tags`,
+`snippets`, `sftp_bookmarks`) carry an `INTEGER NULL deleted_at`
+column. Every DAO read filters `WHERE deleted_at IS NULL` so a
+soft-deleted row is invisible to the rest of the app. The DAO
+`delete*` family flips the column to the current unix-millis
+instead of issuing a `DELETE FROM`; the row survives so a
+sync-merge teardown (`§8b`, planned) can replay the tombstone
+across devices. Physical removal goes through a single
+`purge_tombstones(before_ms)` helper per DAO — reserved for the
+sync-merge cleanup and the user-initiated "Reset All Data" path.
+Re-`upsert` of a tombstoned row clears `deleted_at` (`ON
+CONFLICT(id) DO UPDATE SET … deleted_at = NULL`), so a recreate-
+with-same-id flow revives the row instead of failing on the PK.
+
+**Why these five.** They carry user-authored configuration that
+WebDAV sync (`§8b`) replicates between devices; physical deletes
+in one device would otherwise re-appear on the next pull because
+the peer DB still has the row. `folders` and `port_forward_rules`
+are excluded today: folders cascade-clean via session FKs and
+port forwards are owned 1-to-1 by their session row. `known_hosts`
+stays per-device.
+
+**Known limit.** `tags.name` is `UNIQUE`. A tombstoned tag keeps
+its name reserved, so the user-facing "delete `prod` tag, then
+recreate `prod`" loop surfaces a `UNIQUE constraint failed: tags.name`
+error until `purge_tombstones` removes the slot. The WebDAV-sync
+merge step is the natural place to resolve this — until then the
+loop is a known sharp edge.
 
 **Performance indexes are baked into the schema.**
 `bootstrap_schema` issues `CREATE INDEX IF NOT EXISTS` for every

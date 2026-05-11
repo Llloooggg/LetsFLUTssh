@@ -386,21 +386,43 @@ impl Db {
 /// changes. v1 is "what drift used to ship before the rusqlite
 /// port", recorded explicitly so a future ALTER TABLE has a
 /// real anchor. v2 adds the `ssh_key_certificates` join table.
-pub const SCHEMA_VERSION: i32 = 2;
+/// v3 adds the `deleted_at` tombstone column + matching index to
+/// the five user-data tables (`sessions`, `ssh_keys`, `tags`,
+/// `snippets`, `sftp_bookmarks`) — see
+/// [`bootstrap_schema`] for the per-table ALTER step, and
+/// `ARCHITECTURE.md §11` for the soft-delete contract.
+pub const SCHEMA_VERSION: i32 = 3;
+
+/// Tables that carry a `deleted_at INTEGER NULL` tombstone column.
+/// Single source of truth for the v2 → v3 migration step + the
+/// per-DAO tombstone-filter contract — every SELECT against these
+/// tables filters `WHERE deleted_at IS NULL`, every `delete*`
+/// flips the column to a unix-millis timestamp instead of issuing
+/// a `DELETE FROM`. `known_hosts` is **not** in this list: TOFU
+/// state is per-device and the sync layer (WebDAV) must not leak
+/// host trust across devices — physical removal stays the model
+/// there.
+const TOMBSTONE_TABLES: &[&str] = &["sessions", "ssh_keys", "tags", "snippets", "sftp_bookmarks"];
 
 /// Create every table the DAOs expect, idempotently, and stamp
 /// `PRAGMA user_version = SCHEMA_VERSION` when the on-disk value
 /// is strictly below the current version. The `<` test prevents
-/// the audit-flagged downgrade case: a user opening a v2 DB with a
-/// v1 build leaves `user_version` at 2 and the future v2 build
-/// finds it unchanged. Forward-stamping is safe so long as every
-/// schema diff between the on-disk value and `SCHEMA_VERSION` is
-/// expressible as `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF
-/// NOT EXISTS` — that's the current floor through v2 (the
-/// v1 → v2 step adds the `ssh_key_certificates` join table). The
-/// first non-additive bump replaces this block with a
-/// `match current { 1 => ... }` arm carrying the rusqlite
-/// migration step.
+/// the audit-flagged downgrade case: a user opening a v3 DB with a
+/// v2 build leaves `user_version` at 3 and the future v3 build
+/// finds it unchanged.
+///
+/// Forward-stamping is safe for additive shapes (`CREATE TABLE IF
+/// NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`); the v1/v2 → v3 step
+/// also issues `ALTER TABLE ... ADD COLUMN deleted_at` against the
+/// five [`TOMBSTONE_TABLES`]. SQLite errors with "duplicate column
+/// name" when the column already exists, so the ALTER block is
+/// gated by `(1..3).contains(&current)` — fires only when the DB
+/// was bootstrapped under v1/v2 (`current >= 1`) but predates the
+/// column (`current < 3`). A fresh install (`current == 0`) takes
+/// the column via the `CREATE TABLE IF NOT EXISTS` block above and
+/// skips the ALTER. The tombstone indexes are created
+/// unconditionally after the upgrade arm — see
+/// [`create_tombstone_indexes`].
 pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
     conn.inner()
         .execute_batch(SCHEMA_SQL)
@@ -413,11 +435,58 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
         })
         .map_err(|e| Error::Db(format!("bootstrap schema: read user_version: {e}")))?;
     if current < SCHEMA_VERSION {
+        // v1/v2 → v3: backfill the `deleted_at` column on every
+        // pre-existing tombstoned table. A `current >= 1` floor
+        // confirms the database was already bootstrapped under
+        // an earlier schema (the tables exist but lack the
+        // column); `current == 0` means the SCHEMA_SQL block
+        // above just minted a fresh database where every CREATE
+        // TABLE already carries `deleted_at`, so the ALTER would
+        // surface SQLite's "duplicate column name" error.
+        if (1..3).contains(&current) {
+            for table in TOMBSTONE_TABLES {
+                add_deleted_at_column(conn, table)?;
+            }
+        }
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
             .map_err(|e| Error::Db(format!("bootstrap schema: stamp user_version: {e}")))?;
     }
+    // Tombstone indexes — issued after the column is guaranteed
+    // to exist (either via `CREATE TABLE IF NOT EXISTS` on a
+    // fresh install or the ALTER block above on an upgrade hop).
+    // `CREATE INDEX IF NOT EXISTS` is idempotent so a re-bootstrap
+    // is a no-op. Placement after the upgrade arm keeps the
+    // schema/index ordering invariant straightforward: column
+    // always lands first.
+    create_tombstone_indexes(conn)?;
     Ok(())
+}
+
+/// Create the partial-style `deleted_at` index on each
+/// soft-deletable table. Idempotent — runs on every bootstrap.
+fn create_tombstone_indexes(conn: &Connection) -> Result<(), Error> {
+    for table in TOMBSTONE_TABLES {
+        let sql =
+            format!("CREATE INDEX IF NOT EXISTS idx_{table}_deleted_at ON {table}(deleted_at)");
+        conn.inner()
+            .execute_batch(&sql)
+            .map_err(|e| Error::Db(format!("bootstrap schema: index {table}.deleted_at: {e}")))?;
+    }
+    Ok(())
+}
+
+/// Issue `ALTER TABLE <table> ADD COLUMN deleted_at INTEGER NULL`.
+/// Called only on the v1/v2 → v3 upgrade hop (`bootstrap_schema`
+/// gates it behind `(1..3).contains(&current)`); SQLite errors on
+/// duplicate column names, so the structural shape — gate plus
+/// one-shot — is the contract that keeps this safe to call without
+/// a pre-existence probe.
+fn add_deleted_at_column(conn: &Connection, table: &str) -> Result<(), Error> {
+    let sql = format!("ALTER TABLE {table} ADD COLUMN deleted_at INTEGER NULL");
+    conn.inner()
+        .execute_batch(&sql)
+        .map_err(|e| Error::Db(format!("bootstrap schema: add {table}.deleted_at: {e}")))
 }
 
 /// Read the on-disk schema revision. Returns `0` for a freshly
@@ -457,7 +526,8 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     public_key TEXT NOT NULL,
     key_type TEXT NOT NULL,
     is_generated INTEGER NOT NULL DEFAULT 1,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL
 );
 
 -- One certificate per stored SSH key. `key_id` is a TEXT foreign
@@ -501,6 +571,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     via_user TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL,
     FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL,
     FOREIGN KEY (key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL,
     FOREIGN KEY (via_session_id) REFERENCES sessions(id) ON DELETE SET NULL
@@ -527,7 +598,8 @@ CREATE TABLE IF NOT EXISTS tags (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     color TEXT,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL
 );
 
 CREATE TABLE IF NOT EXISTS session_tags (
@@ -552,7 +624,8 @@ CREATE TABLE IF NOT EXISTS snippets (
     command TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
+    updated_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL
 );
 
 CREATE TABLE IF NOT EXISTS session_snippets (
@@ -584,6 +657,7 @@ CREATE TABLE IF NOT EXISTS sftp_bookmarks (
     remote_path TEXT NOT NULL,
     label TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL,
+    deleted_at INTEGER NULL,
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
 
@@ -674,6 +748,69 @@ mod tests {
         bootstrap_schema(&conn).unwrap();
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
         // Re-running bootstrap leaves the stamp at the same value.
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+    }
+
+    /// v2 → v3 upgrade hop. A database stamped at v2 with the
+    /// pre-v3 SCHEMA_SQL shape (no `deleted_at` column anywhere)
+    /// must pick up the tombstone column on every soft-deletable
+    /// table when `bootstrap_schema` runs. The fresh-install path
+    /// already carries the column via `CREATE TABLE IF NOT
+    /// EXISTS`, so the ALTER arm runs only when `current` lands
+    /// in `[1, 3)` — verified here by simulating a v2 install
+    /// (run the bootstrap on a fresh DB → rewind `user_version`
+    /// to 2 → drop the `deleted_at` column from every tombstoned
+    /// table) and re-running the bootstrap. Re-running is
+    /// idempotent because the gate re-evaluates to false once
+    /// the stamp lands at v3.
+    #[test]
+    fn bootstrap_v2_to_v3_adds_deleted_at_to_each_tombstone_table() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Stand up the v3 schema, then strip the new column to
+        // mimic a v2 install. `ALTER TABLE … DROP COLUMN` is
+        // available on the SQLCipher 4.x build the repo ships
+        // (sqlite3 >= 3.35.0). The rewind stamp drops the
+        // version back to v2 so the upgrade arm runs again.
+        bootstrap_schema(&conn).unwrap();
+        for table in TOMBSTONE_TABLES {
+            conn.inner()
+                .execute_batch(&format!("DROP INDEX IF EXISTS idx_{table}_deleted_at"))
+                .unwrap();
+            conn.inner()
+                .execute_batch(&format!("ALTER TABLE {table} DROP COLUMN deleted_at"))
+                .unwrap();
+        }
+        conn.inner().pragma_update(None, "user_version", 2).unwrap();
+
+        bootstrap_schema(&conn).unwrap();
+        assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
+
+        // Every table now carries the column. The column probe
+        // goes through `pragma_table_info` so a missing column
+        // shows up as "column did not appear in pragma output".
+        for table in TOMBSTONE_TABLES {
+            let mut has_col = false;
+            conn.inner()
+                .pragma(None, "table_info", table, |row| {
+                    let name: String = row.get("name")?;
+                    if name == "deleted_at" {
+                        has_col = true;
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            assert!(
+                has_col,
+                "{table} must carry deleted_at after v2 → v3 upgrade"
+            );
+        }
+
+        // Re-running bootstrap is a no-op — the duplicate-column
+        // failure would surface as `Error::Db("... duplicate
+        // column name ...")` from the second ALTER hop. The
+        // `current < SCHEMA_VERSION` gate is what keeps this
+        // safe, and the test pins that contract.
         bootstrap_schema(&conn).unwrap();
         assert_eq!(read_schema_version(&conn).unwrap(), SCHEMA_VERSION);
     }

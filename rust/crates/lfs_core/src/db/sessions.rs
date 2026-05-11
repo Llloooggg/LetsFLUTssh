@@ -78,7 +78,9 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SessionRow>, Erro
     let mut stmt = conn
         .raw()
         .prepare_cached(&format!(
-            "SELECT {SELECT_COLS} FROM sessions ORDER BY sort_order ASC, label ASC"
+            "SELECT {SELECT_COLS} FROM sessions \
+             WHERE deleted_at IS NULL \
+             ORDER BY sort_order ASC, label ASC"
         ))
         .map_err(|e| Error::Db(format!("sessions prepare: {e}")))?;
     let rows = stmt
@@ -94,7 +96,9 @@ pub fn list_all(conn: &impl crate::db::DbAccess) -> Result<Vec<SessionRow>, Erro
 pub fn get(conn: &impl crate::db::DbAccess, id: &str) -> Result<Option<SessionRow>, Error> {
     let mut stmt = conn
         .raw()
-        .prepare_cached(&format!("SELECT {SELECT_COLS} FROM sessions WHERE id = ?1"))
+        .prepare_cached(&format!(
+            "SELECT {SELECT_COLS} FROM sessions WHERE id = ?1 AND deleted_at IS NULL"
+        ))
         .map_err(|e| Error::Db(format!("sessions get prepare: {e}")))?;
     let mut rows = stmt
         .query_map(params![id], row_from)
@@ -134,7 +138,8 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), E
            via_host = excluded.via_host, \
            via_port = excluded.via_port, \
            via_user = excluded.via_user, \
-           updated_at = excluded.updated_at",
+           updated_at = excluded.updated_at, \
+           deleted_at = NULL",
             params![
                 row.id,
                 row.label,
@@ -164,30 +169,82 @@ pub fn upsert(conn: &impl crate::db::DbAccess, row: &SessionRow) -> Result<(), E
     Ok(())
 }
 
+/// Soft-delete a single session by id. Flips `deleted_at` to
+/// `now_unix_ms()` instead of issuing a `DELETE FROM`; the row
+/// survives the call so a sync-merge (`§8b`) can replay the
+/// tombstone across devices. Already-tombstoned rows are not
+/// retouched — `AND deleted_at IS NULL` keeps the stamp stable.
 pub fn delete(conn: &impl crate::db::DbAccess, id: &str) -> Result<usize, Error> {
+    let now_ms = now_unix_ms();
     conn.raw()
-        .execute("DELETE FROM sessions WHERE id = ?1", params![id])
+        .execute(
+            "UPDATE sessions SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+            params![now_ms, id],
+        )
         .map_err(|e| Error::Db(format!("sessions delete: {e}")))
 }
 
-/// Bulk delete by id list. Empty input is a cheap no-op (no SQL).
+/// Bulk soft-delete by id list. Empty input is a cheap no-op (no
+/// SQL). Each row's `deleted_at` is stamped to the same
+/// `now_unix_ms()` so the tombstones share a coherent timestamp,
+/// regardless of how fast the rusqlite worker drains.
 pub fn delete_multiple(conn: &impl crate::db::DbAccess, ids: &[String]) -> Result<usize, Error> {
     if ids.is_empty() {
         return Ok(0);
     }
+    let now_ms = now_unix_ms();
     let placeholders = vec!["?"; ids.len()].join(",");
-    let sql = format!("DELETE FROM sessions WHERE id IN ({placeholders})");
-    let params_vec: Vec<&dyn rusqlite::ToSql> =
-        ids.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
+    let sql = format!(
+        "UPDATE sessions SET deleted_at = ?1 \
+         WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+    );
+    let mut params_vec: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + ids.len());
+    params_vec.push(&now_ms as &dyn rusqlite::ToSql);
+    for id in ids {
+        params_vec.push(id as &dyn rusqlite::ToSql);
+    }
     conn.raw()
         .execute(&sql, params_vec.as_slice())
         .map_err(|e| Error::Db(format!("sessions delete_multiple: {e}")))
 }
 
+/// Soft-delete every live session. Tombstones share one
+/// timestamp so the bulk-clear is a single point on the sync
+/// timeline. Already-tombstoned rows are left untouched.
 pub fn delete_all(conn: &impl crate::db::DbAccess) -> Result<usize, Error> {
+    let now_ms = now_unix_ms();
     conn.raw()
-        .execute("DELETE FROM sessions", [])
+        .execute(
+            "UPDATE sessions SET deleted_at = ?1 WHERE deleted_at IS NULL",
+            params![now_ms],
+        )
         .map_err(|e| Error::Db(format!("sessions delete_all: {e}")))
+}
+
+/// Physically remove session rows whose `deleted_at` is strictly
+/// older than `before_ms`. Reserved for the sync-merge teardown
+/// (`§8b`) — production paths use the tombstone-flipping
+/// `delete*` family above so a peer device can observe the
+/// deletion before the row leaves the table.
+pub fn purge_tombstones(conn: &impl crate::db::DbAccess, before_ms: i64) -> Result<u32, Error> {
+    conn.raw()
+        .execute(
+            "DELETE FROM sessions WHERE deleted_at IS NOT NULL AND deleted_at < ?1",
+            params![before_ms],
+        )
+        .map(|n| n as u32)
+        .map_err(|e| Error::Db(format!("sessions purge_tombstones: {e}")))
+}
+
+/// Current unix-millis. Captured here so every soft-delete path
+/// inside the DAO shares the same shape — the sync layer expects
+/// `deleted_at` to be a unix-millis stamp, matching `created_at`
+/// / `updated_at` on the same row.
+fn now_unix_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 /// Set `folder_id` for a single session, refreshing `updated_at`.
@@ -199,7 +256,8 @@ pub fn move_to_folder(
 ) -> Result<usize, Error> {
     conn.raw()
         .execute(
-            "UPDATE sessions SET folder_id = ?1, updated_at = ?2 WHERE id = ?3",
+            "UPDATE sessions SET folder_id = ?1, updated_at = ?2 \
+             WHERE id = ?3 AND deleted_at IS NULL",
             params![folder_id, updated_at_ms, session_id],
         )
         .map_err(|e| Error::Db(format!("sessions move_to_folder: {e}")))
@@ -233,7 +291,7 @@ pub fn stage_secrets_into_store(
         .raw()
         .prepare_cached(
             "SELECT auth_type, password, key_data, passphrase \
-             FROM sessions WHERE id = ?1",
+             FROM sessions WHERE id = ?1 AND deleted_at IS NULL",
         )
         .map_err(|e| Error::Db(format!("sessions stage_secrets prepare: {e}")))?;
     let row: Option<(String, String, String, String)> = stmt
@@ -313,7 +371,7 @@ pub fn update_metadata(
            auth_type = ?6, key_path = ?7, key_id = ?8, sort_order = ?9, \
            notes = ?10, extras = ?11, via_session_id = ?12, via_host = ?13, \
            via_port = ?14, via_user = ?15, updated_at = ?16 \
-         WHERE id = ?17",
+         WHERE id = ?17 AND deleted_at IS NULL",
             params![
                 m.label,
                 m.folder_id,
@@ -358,7 +416,10 @@ pub fn set_secret_column(
         "passphrase" => "passphrase",
         other => return Err(Error::Db(format!("unknown secret slot: {other}"))),
     };
-    let sql = format!("UPDATE sessions SET {column} = ?1, updated_at = ?2 WHERE id = ?3");
+    let sql = format!(
+        "UPDATE sessions SET {column} = ?1, updated_at = ?2 \
+         WHERE id = ?3 AND deleted_at IS NULL"
+    );
     conn.raw()
         .execute(&sql, params![value, updated_at_ms, id])
         .map_err(|e| Error::Db(format!("sessions set_secret_column: {e}")))
@@ -393,7 +454,7 @@ pub fn duplicate_session(
                password, key_path, key_data, key_id, passphrase, sort_order, notes, \
                NULL AS last_connected_at, extras, via_session_id, via_host, \
                via_port, via_user, ?4 AS created_at, ?4 AS updated_at \
-             FROM sessions WHERE id = ?5",
+             FROM sessions WHERE id = ?5 AND deleted_at IS NULL",
             params![new_id, new_label, target_folder_id, now_ms, src_id],
         )
         .map_err(|e| Error::Db(format!("sessions duplicate: {e}")))?;
@@ -428,7 +489,7 @@ pub fn duplicate_with_path(
 
     // Source row — needed for the base label.
     let mut stmt = tx
-        .prepare_cached("SELECT label FROM sessions WHERE id = ?1")
+        .prepare_cached("SELECT label FROM sessions WHERE id = ?1 AND deleted_at IS NULL")
         .map_err(|e| Error::Db(format!("sessions duplicate_with_path lookup: {e}")))?;
     let base_label: String = stmt
         .query_row([src_id], |row| row.get::<_, String>(0))
@@ -439,7 +500,7 @@ pub fn duplicate_with_path(
     // doesn't collide with anything already in the list.
     let mut taken: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut labels_stmt = tx
-        .prepare_cached("SELECT label FROM sessions")
+        .prepare_cached("SELECT label FROM sessions WHERE deleted_at IS NULL")
         .map_err(|e| Error::Db(format!("sessions duplicate_with_path labels: {e}")))?;
     let label_rows = labels_stmt
         .query_map([], |row| row.get::<_, String>(0))
@@ -487,8 +548,10 @@ pub fn move_multiple(
         return Ok(0);
     }
     let placeholders = vec!["?"; ids.len()].join(",");
-    let sql =
-        format!("UPDATE sessions SET folder_id = ?1, updated_at = ?2 WHERE id IN ({placeholders})");
+    let sql = format!(
+        "UPDATE sessions SET folder_id = ?1, updated_at = ?2 \
+         WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+    );
     let mut params_vec: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(2 + ids.len());
     params_vec.push(&folder_id as &dyn rusqlite::ToSql);
     params_vec.push(&updated_at_ms as &dyn rusqlite::ToSql);
@@ -845,5 +908,141 @@ mod restore_tests {
             .unwrap();
         assert!(db.with_conn(list_all).unwrap().is_empty());
         assert!(db.with_conn(folders::list_all).unwrap().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod tombstone_tests {
+    use super::*;
+    use crate::db::{bootstrap_schema, Db};
+
+    fn db() -> Db {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.raw()
+            .execute_batch("PRAGMA foreign_keys = ON")
+            .unwrap();
+        bootstrap_schema(&conn).unwrap();
+        Db::from_raw_for_tests(conn)
+    }
+
+    fn seed(db: &Db, id: &str) {
+        db.with_conn(|c| {
+            upsert(
+                c,
+                &SessionRow {
+                    id: id.into(),
+                    label: id.into(),
+                    host: "h".into(),
+                    port: 22,
+                    user: "u".into(),
+                    auth_type: "password".into(),
+                    ..Default::default()
+                },
+            )
+        })
+        .unwrap();
+    }
+
+    fn raw_deleted_at(db: &Db, id: &str) -> Option<i64> {
+        db.with_conn(|c| {
+            let row: Option<i64> = c
+                .raw()
+                .query_row(
+                    "SELECT deleted_at FROM sessions WHERE id = ?1",
+                    params![id],
+                    |r| r.get(0),
+                )
+                .ok()
+                .flatten();
+            Ok(row)
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn delete_writes_tombstone_instead_of_removing_row() {
+        // delete() flips deleted_at; the row survives so a
+        // sync-merge can replay the tombstone.
+        let db = db();
+        seed(&db, "s1");
+        let n = db.with_conn(|c| delete(c, "s1")).unwrap();
+        assert_eq!(n, 1);
+        assert!(
+            raw_deleted_at(&db, "s1").is_some(),
+            "tombstoned row must carry deleted_at"
+        );
+    }
+
+    #[test]
+    fn list_all_and_get_skip_tombstoned_rows() {
+        // Reads filter `WHERE deleted_at IS NULL` — a soft-deleted
+        // row must be invisible to the rest of the app.
+        let db = db();
+        seed(&db, "alive");
+        seed(&db, "dead");
+        db.with_conn(|c| delete(c, "dead")).unwrap();
+        let rows = db.with_conn(list_all).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, "alive");
+        assert!(db.with_conn(|c| get(c, "dead")).unwrap().is_none());
+        assert!(db.with_conn(|c| get(c, "alive")).unwrap().is_some());
+    }
+
+    #[test]
+    fn purge_tombstones_physically_removes_old_rows() {
+        // purge_tombstones is the sync-merge teardown — once the
+        // peer device has observed the tombstone, the row leaves
+        // the table for good.
+        let db = db();
+        seed(&db, "s1");
+        db.with_conn(|c| delete(c, "s1")).unwrap();
+        let n = db.with_conn(|c| purge_tombstones(c, i64::MAX)).unwrap();
+        assert_eq!(n, 1);
+        assert!(raw_deleted_at(&db, "s1").is_none());
+    }
+
+    #[test]
+    fn delete_multiple_tombstones_each_id() {
+        // Bulk delete tombstones every id in the list; live rows
+        // outside the list stay visible.
+        let db = db();
+        seed(&db, "a");
+        seed(&db, "b");
+        seed(&db, "c");
+        let n = db
+            .with_conn(|c| delete_multiple(c, &["a".into(), "b".into()]))
+            .unwrap();
+        assert_eq!(n, 2);
+        let rows = db.with_conn(list_all).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, "c");
+    }
+
+    #[test]
+    fn delete_all_tombstones_every_live_row() {
+        // delete_all flips every live row's deleted_at; tombstones
+        // outlive the call so a peer can observe the bulk clear.
+        let db = db();
+        seed(&db, "a");
+        seed(&db, "b");
+        let n = db.with_conn(delete_all).unwrap();
+        assert_eq!(n, 2);
+        assert!(db.with_conn(list_all).unwrap().is_empty());
+        assert!(raw_deleted_at(&db, "a").is_some());
+        assert!(raw_deleted_at(&db, "b").is_some());
+    }
+
+    #[test]
+    fn upsert_revives_tombstoned_row() {
+        // ON CONFLICT(id) DO UPDATE SET deleted_at = NULL — a
+        // re-upsert of a tombstoned id makes the row visible
+        // again so a recreate-with-same-id path works after a
+        // soft-delete.
+        let db = db();
+        seed(&db, "s1");
+        db.with_conn(|c| delete(c, "s1")).unwrap();
+        seed(&db, "s1");
+        assert!(db.with_conn(|c| get(c, "s1")).unwrap().is_some());
+        assert!(raw_deleted_at(&db, "s1").is_none());
     }
 }
