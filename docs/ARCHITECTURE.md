@@ -2126,14 +2126,25 @@ class UpdateService {
   // manifest verify, atomic download + extract. Dart side is the
   // UI controller; the Rust orchestrator owns the pipeline.
   //
-  // DI: HttpFetcher (rusty wrapper), ReleaseArtifactVerifier
-  // (delegates to lfs_core::update_signing).
-  // Download: follows redirects (max 10), validates trusted hosts,
-  //   verifies every downloaded artefact twice before extract —
-  //   (a) SHA-256 from the Releases JSON and
+  // DI: HttpFetcher (test-time replacement for the Releases JSON
+  // body fetch — production routes through
+  // lfs_core::update_http::fetch_text). Download + verify is a
+  // single Rust call (lfs_core::update_http::download_with_verification)
+  // with a static @visibleForTesting `debugDownloadOverride` seam
+  // that scripts a DbDownloadResult for the failure-shape tests.
+  // Download: streams every chunk straight to disk while hashing —
+  //   bytes never sit in a Dart heap buffer. Follows redirects
+  //   (max 10) bounded by the trusted-host allowlist, verifies
+  //   every artefact twice before install —
+  //   (a) SHA-256 from the Releases JSON, and
   //   (b) Ed25519 signature via lfs_core::update_signing::verify_release_signature.
+  //   The Dart wrapper maps DbDownloadErrorKind {untrusted, network,
+  //   manifestUnavailable, invalidSignature} into the matching
+  //   exception class so the UI can pick the right toast.
   // openFile(): platform launcher, validates Windows paths against shell metacharacters.
-  // Progress: throttled to 1% increments in UpdateNotifier to reduce state churn.
+  // Progress: bus events (BusEvent::UpdateDownloadProgress +
+  //   BusEvent::UpdateVerifyingStarted) drive onProgress / onPhase;
+  //   throttled to 1% increments in UpdateNotifier to reduce state churn.
   //
   // Changelog: fetched once during check(), stored in UpdateInfo.changelog,
   // preserved across state transitions (downloading → downloaded) via copyWith.
@@ -5047,25 +5058,48 @@ auto-updater fetch N signatures per release; collapsing to one
 signature over the manifest gives the same authentication with one
 file to verify.
 
-On the client, `UpdateService.downloadAsset`:
+On the client, `UpdateService.downloadAsset` hands the full
+pipeline to `lfs_core::update_http::download_with_verification`
+through a single FRB call. The Rust orchestrator:
 
-1. Downloads the manifest pair (`letsflutssh-<version>.sha256sums`
-   + `.sha256sums.sig`) from the GitHub release into `<targetDir>/`.
-2. Verifies the manifest signature via
-   `lfs_core::update_signing::verify_release_signature` (FRB) —
-   Ed25519 verify against the single embedded `PRIMARY_PUBLIC_KEY`.
-   On failure both files are deleted and
-   `InvalidReleaseSignatureException` propagates; the install step
-   never runs on an unverified manifest.
-3. Downloads the binary under the same directory.
-4. Computes its sha256, looks the artefact name up in the verified
-   manifest, compares — mismatch deletes the binary and throws.
-5. Hands the verified path to the platform installer
-   (Windows Inno Setup `.exe` / Linux `.deb` / macOS silent
-   `macosInstallerInstall` / Android via launcher). Other formats
-   (AppImage, tar.gz, .dmg) fall through to `openFile()` which
-   surfaces them in the OS file manager — auto-install is opt-in
-   per format, the verify gate is universal.
+1. Streams the binary from the GitHub release URL into `<targetDir>/`,
+   hashing each chunk into a SHA-256 accumulator as it goes — bytes
+   never sit in a Dart heap buffer. Per-chunk progress is published
+   on `BusTopic::Update` (`BusEvent::UpdateDownloadProgress`) so the
+   Dart side can drive a determinate progress bar; the verifying
+   phase emits `BusEvent::UpdateVerifyingStarted`.
+2. Compares the per-asset SHA-256 from the Releases JSON against
+   the streaming accumulator when the caller passed `expectedDigest`
+   (belt-and-suspenders against an attacker who swapped only the
+   binary; the empty-string default skips this step).
+3. Downloads the manifest pair (`letsflutssh-<version>.sha256sums`
+   + `.sha256sums.sig`) alongside the binary.
+4. Verifies the manifest signature via
+   `lfs_core::update_signing::verify_release_signature` — Ed25519
+   verify against the single embedded `PRIMARY_PUBLIC_KEY`. On
+   failure all three files are deleted and a
+   `DbDownloadResult` with `errorKind = invalidSignature` returns;
+   the Dart wrapper maps that into
+   `InvalidReleaseSignatureException` so the UI surfaces a
+   security-coloured toast.
+5. Looks the artefact name up in the verified manifest and compares
+   the streamed hash to the manifest line — mismatch deletes the
+   binary and surfaces as `invalidSignature` too.
+6. Hands the verified path back to the Dart caller, which forwards
+   it to the platform installer (Windows Inno Setup `.exe` / Linux
+   `.deb` / macOS silent `macosInstallerInstall` / Android via
+   launcher). Other formats (AppImage, tar.gz, .dmg) fall through
+   to `openFile()` which surfaces them in the OS file manager —
+   auto-install is opt-in per format, the verify gate is universal.
+
+Failure shapes the Dart wrapper distinguishes:
+
+| `DbDownloadErrorKind`  | Dart exception                          | UI treatment            |
+|---|---|---|
+| `untrusted`            | `StateError("Untrusted update download URL: …")` | refuse, no retry |
+| `network`              | `StateError("Update download failed: …")` | offer retry |
+| `manifestUnavailable`  | `ReleaseManifestUnavailableException`    | offer retry (transient) |
+| `invalidSignature`     | `InvalidReleaseSignatureException`       | security-coloured toast |
 
 **Why this is independent of SHA-256 / TLS:** SHA-256 and the asset
 URL come from the same `api.github.com` response, so a MITM who can

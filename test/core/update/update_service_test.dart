@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
 import 'package:letsflutssh/core/update/update_service.dart';
+import 'package:letsflutssh/src/rust/api/update_http.dart' as rust_update_http;
 
 import '../../helpers/frb_bootstrap.dart';
 
@@ -54,12 +54,40 @@ Map<String, dynamic> _releaseJson({
 String _releasesArray(List<Map<String, dynamic>> releases) =>
     jsonEncode(releases);
 
+/// Build a success-shaped [rust_update_http.DbDownloadResult] pointing
+/// at a freshly-written stub file. Tests that assert on the returned
+/// asset path can read [DbDownloadedAsset.assetPath] back; the
+/// manifest pair paths are filled with parallel `.sha256sums` /
+/// `.sha256sums.sig` neighbours to match what the Rust orchestrator
+/// hands back on the live path.
+rust_update_http.DbDownloadResult _downloadSuccess(String assetPath) =>
+    rust_update_http.DbDownloadResult(
+      asset: rust_update_http.DbDownloadedAsset(
+        assetPath: assetPath,
+        manifestPath: '$assetPath.sha256sums',
+        manifestSigPath: '$assetPath.sha256sums.sig',
+      ),
+    );
+
+/// Build a failure-shaped [rust_update_http.DbDownloadResult] for
+/// the requested [kind] + [detail] pair. The Dart-side mapping in
+/// `UpdateService.downloadAsset` reshapes each kind into the
+/// matching exception class.
+rust_update_http.DbDownloadResult _downloadFailure(
+  rust_update_http.DbDownloadErrorKind kind,
+  String detail,
+) => rust_update_http.DbDownloadResult(errorKind: kind, errorDetail: detail);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // UpdateInfo.compareVersions routes through
   // `lfs_core::update_metadata::compare_versions` — bootstrap FRB
   // so the canonical Rust semver compare runs.
   setUpAll(requireFrbLoaded);
+
+  // Clear the FRB-download seam between every test so a stray
+  // override from an earlier case cannot leak into the next.
+  tearDown(() => UpdateService.debugDownloadOverride = null);
 
   // ===========================================================================
   // UpdateInfo.compareVersions
@@ -230,7 +258,6 @@ void main() {
   group('UpdateService.checkForUpdate', () {
     test('returns UpdateInfo with hasUpdate true when newer version', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v2.0.0')]),
       );
 
@@ -244,7 +271,6 @@ void main() {
 
     test('returns hasUpdate false when same version', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v1.0.0')]),
       );
 
@@ -254,7 +280,6 @@ void main() {
 
     test('returns hasUpdate false when older remote version', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(tagName: 'v0.9.0')]),
       );
 
@@ -264,7 +289,6 @@ void main() {
 
     test('handles single object (legacy /latest format)', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => jsonEncode(_releaseJson(tagName: 'v2.0.0')),
       );
 
@@ -274,10 +298,7 @@ void main() {
     });
 
     test('handles empty releases array', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        fetch: (_) async => '[]',
-      );
+      final service = UpdateService(fetch: (_) async => '[]');
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -286,7 +307,6 @@ void main() {
 
     test('handles missing tag_name gracefully', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {'html_url': 'https://github.com/releases', 'assets': <dynamic>[]},
         ]),
@@ -299,7 +319,6 @@ void main() {
 
     test('handles missing html_url with fallback', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {'tag_name': 'v2.0.0', 'assets': <dynamic>[]},
         ]),
@@ -312,7 +331,6 @@ void main() {
 
     test('handles null changelog', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson(body: null)]),
       );
 
@@ -322,7 +340,6 @@ void main() {
 
     test('extracts asset digest', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson()]),
       );
 
@@ -334,7 +351,6 @@ void main() {
 
     test('builds cumulative changelog across multiple releases', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           _releaseJson(tagName: 'v3.0.0', body: 'Version three notes'),
           _releaseJson(tagName: 'v2.0.0', body: 'Version two notes'),
@@ -352,7 +368,6 @@ void main() {
 
     test('propagates fetch errors', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => throw const HttpException('Network error'),
       );
 
@@ -363,10 +378,7 @@ void main() {
     });
 
     test('propagates JSON parse errors', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        fetch: (_) async => 'not json',
-      );
+      final service = UpdateService(fetch: (_) async => 'not json');
 
       expect(
         () => service.checkForUpdate('1.0.0'),
@@ -376,7 +388,6 @@ void main() {
 
     test('selects asset for current platform', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([_releaseJson()]),
       );
 
@@ -435,239 +446,226 @@ void main() {
   });
 
   // ===========================================================================
-  // UpdateService.downloadAsset (with injected downloader)
+  // UpdateService.downloadAsset
+  //
+  // Production routes through `rust_update_http.updateDownloadWithVerification`
+  // — the entire stream-to-disk + SHA256 + manifest-signature pipeline
+  // lives Rust-side. Tests script the FRB return shape via
+  // `UpdateService.debugDownloadOverride` to exercise the Dart-side
+  // result→exception mapping. The Rust pipeline itself is covered by
+  // `lfs_core::update_http` unit tests and end-to-end integration tests.
   // ===========================================================================
   group('UpdateService.downloadAsset', () {
-    test('downloads file to target directory', () async {
+    test('returns the asset path on success', () async {
       final tempDir = await Directory.systemTemp.createTemp('update_test_');
       try {
-        final progressValues = <double>[];
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (uri, savePath, onProgress) async {
-            await File(savePath).writeAsString('fake binary');
-            onProgress?.call(50, 100);
-            onProgress?.call(100, 100);
-          },
-        );
+        final savedAt = '${tempDir.path}/letsflutssh-2.0.0-linux-x64.AppImage';
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async {
+              await File(savedAt).writeAsString('fake binary');
+              return _downloadSuccess(savedAt);
+            };
+        final service = UpdateService();
 
         final path = await service.downloadAsset(
           'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v2.0.0/letsflutssh-2.0.0-linux-x64.AppImage',
           tempDir.path,
-          onProgress: (received, total) {
-            progressValues.add(received / total);
-          },
         );
 
-        expect(path, contains('letsflutssh-2.0.0-linux-x64.AppImage'));
-        expect(await File(path).exists(), isTrue);
-        expect(progressValues, [0.5, 1.0]);
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
-
-    test('verifies SHA256 digest on success', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        const content = 'test file content';
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (_, savePath, _) async {
-            await File(savePath).writeAsString(content);
-          },
-        );
-
-        // Compute expected hash
-        final expectedHash = await (() async {
-          final tmpFile = File(p.join(tempDir.path, 'tmp'));
-          await tmpFile.writeAsString(content);
-          return UpdateService.computeFileSha256(tmpFile.path);
-        })();
-
-        final path = await service.downloadAsset(
-          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-          tempDir.path,
-          expectedDigest: expectedHash,
-        );
-
+        expect(path, savedAt);
         expect(await File(path).exists(), isTrue);
       } finally {
         await tempDir.delete(recursive: true);
       }
     });
 
-    test('throws and deletes file on SHA256 mismatch', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (_, savePath, _) async {
-            final f = File(savePath);
-            await f.parent.create(recursive: true);
-            await f.writeAsString('tampered content');
-          },
-        );
+    test('passes expectedDigest through to the FRB downloader', () async {
+      String? capturedDigest;
+      UpdateService.debugDownloadOverride =
+          ({required url, required targetDir, required expectedDigest}) async {
+            capturedDigest = expectedDigest;
+            return _downloadSuccess('/tmp/x');
+          };
+      final service = UpdateService();
 
-        await expectLater(
-          service.downloadAsset(
-            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-            tempDir.path,
-            expectedDigest: 'wrong_hash_value',
-          ),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              contains('SHA256 mismatch'),
-            ),
-          ),
-        );
+      await service.downloadAsset(
+        'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+        '/tmp',
+        expectedDigest: 'deadbeef',
+      );
 
-        // File should be deleted after mismatch
-        expect(
-          await File(p.join(tempDir.path, 'file.AppImage')).exists(),
-          isFalse,
-        );
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
+      expect(capturedDigest, 'deadbeef');
     });
 
-    test('skips verification when no digest provided', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (_, savePath, _) async {
-            await File(savePath).writeAsString('content');
-          },
-        );
+    test(
+      'empty-string digest forwarded when caller omits expectedDigest',
+      // Spec: the FRB surface takes a `String expectedDigest` (no
+      // null) and treats empty as "skip the per-asset SHA gate".
+      // The Dart wrapper normalises a null caller-side digest into
+      // `''` so the Rust side never has to inspect for null.
+      () async {
+        String? capturedDigest;
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async {
+              capturedDigest = expectedDigest;
+              return _downloadSuccess('/tmp/x');
+            };
+        final service = UpdateService();
 
-        final path = await service.downloadAsset(
+        await service.downloadAsset(
           'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-          tempDir.path,
-          // no expectedDigest
+          '/tmp',
         );
 
-        expect(await File(path).exists(), isTrue);
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
+        expect(capturedDigest, '');
+      },
+    );
 
-    test('propagates download errors', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        download: (_, _, _) async =>
-            throw const HttpException('Download failed'),
-      );
+    test('maps DbDownloadErrorKind.invalidSignature to '
+        'InvalidReleaseSignatureException', () async {
+      UpdateService.debugDownloadOverride =
+          ({required url, required targetDir, required expectedDigest}) async =>
+              _downloadFailure(
+                rust_update_http.DbDownloadErrorKind.invalidSignature,
+                'manifest signature did not verify',
+              );
+      final service = UpdateService();
 
-      expect(
-        () => service.downloadAsset(
+      await expectLater(
+        service.downloadAsset(
           'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-          '/tmp/test',
-        ),
-        throwsA(isA<HttpException>()),
-      );
-    });
-
-    test('rejects untrusted download URL before downloader runs', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        download: (_, _, _) async {},
-      );
-      expect(
-        () => service.downloadAsset(
-          'https://evil.example/asset.AppImage',
           '/tmp',
         ),
         throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('Untrusted'),
+          isA<InvalidReleaseSignatureException>().having(
+            (e) => e.reason,
+            'reason',
+            contains('manifest signature'),
+          ),
+        ),
+      );
+    });
+
+    test('maps DbDownloadErrorKind.manifestUnavailable to '
+        'ReleaseManifestUnavailableException', () async {
+      UpdateService.debugDownloadOverride =
+          ({required url, required targetDir, required expectedDigest}) async =>
+              _downloadFailure(
+                rust_update_http.DbDownloadErrorKind.manifestUnavailable,
+                '404 on manifest',
+              );
+      final service = UpdateService();
+
+      await expectLater(
+        service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+        ),
+        throwsA(
+          isA<ReleaseManifestUnavailableException>().having(
+            (e) => e.reason,
+            'reason',
+            contains('404'),
           ),
         ),
       );
     });
 
     test(
-      'rejects + deletes binary when the injected verifier throws InvalidReleaseSignatureException',
+      'maps DbDownloadErrorKind.untrusted to StateError with Untrusted prefix',
       () async {
-        final tempDir = await Directory.systemTemp.createTemp('rel_sig_test_');
-        try {
-          final service = UpdateService(
-            download: (_, savePath, _) async {
-              await File(savePath).writeAsString('fake binary');
-            },
-            verifyArtifact:
-                ({
-                  required assetUri,
-                  required assetPath,
-                  required targetDir,
-                  required download,
-                }) async {
-                  throw const InvalidReleaseSignatureException(
-                    'forced for test',
-                  );
-                },
-          );
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => _downloadFailure(
+              rust_update_http.DbDownloadErrorKind.untrusted,
+              'redirect to evil.example',
+            );
+        final service = UpdateService();
 
-          await expectLater(
-            service.downloadAsset(
-              'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-              tempDir.path,
+        await expectLater(
+          service.downloadAsset(
+            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+            '/tmp',
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Untrusted'),
             ),
-            throwsA(isA<InvalidReleaseSignatureException>()),
-          );
-          // Binary must be deleted on signature failure.
-          expect(
-            await File(p.join(tempDir.path, 'file.AppImage')).exists(),
-            isFalse,
-          );
-        } finally {
-          await tempDir.delete(recursive: true);
-        }
+          ),
+        );
       },
     );
-  });
 
-  // ===========================================================================
-  // UpdateService.computeFileSha256
-  // ===========================================================================
-  group('UpdateService.computeFileSha256', () {
-    test('computes correct SHA256 for known content', () async {
-      final tempDir = await Directory.systemTemp.createTemp('sha256_test_');
-      try {
-        final file = File(p.join(tempDir.path, 'test.bin'));
-        await file.writeAsString('hello');
-        final hash = await UpdateService.computeFileSha256(file.path);
-        // SHA256 of "hello" = 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
-        expect(
-          hash,
-          '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
-        );
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
+    test('maps DbDownloadErrorKind.network to generic StateError', () async {
+      UpdateService.debugDownloadOverride =
+          ({required url, required targetDir, required expectedDigest}) async =>
+              _downloadFailure(
+                rust_update_http.DbDownloadErrorKind.network,
+                'connection reset',
+              );
+      final service = UpdateService();
+
+      await expectLater(
+        service.downloadAsset(
+          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+          '/tmp',
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Update download failed'),
+          ),
+        ),
+      );
     });
 
-    test('computes correct SHA256 for empty file', () async {
-      final tempDir = await Directory.systemTemp.createTemp('sha256_test_');
-      try {
-        final file = File(p.join(tempDir.path, 'empty.bin'));
-        await file.writeAsBytes([]);
-        final hash = await UpdateService.computeFileSha256(file.path);
-        // SHA256 of empty content = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-        expect(
-          hash,
-          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    test(
+      'rejects untrusted download URL before invoking the downloader',
+      () async {
+        // Spec: the trust check in [UpdateService.downloadAsset] runs
+        // synchronously at the top of the call and must reject before
+        // the FRB downloader is ever invoked. The wrapper repeats the
+        // gate the Rust side already enforces because a fail-fast on
+        // Dart side avoids spinning up the bus subscription + FRB
+        // round-trip for a URL we know is doomed.
+        var downloaderCalled = false;
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async {
+              downloaderCalled = true;
+              return _downloadSuccess('/tmp/x');
+            };
+        final service = UpdateService();
+        await expectLater(
+          service.downloadAsset('https://evil.example/asset.AppImage', '/tmp'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Untrusted'),
+            ),
+          ),
         );
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
+        expect(downloaderCalled, isFalse);
+      },
+    );
   });
 
   // ===========================================================================
@@ -807,10 +805,7 @@ void main() {
   // ===========================================================================
   group('UpdateService.checkForUpdate (edge cases)', () {
     test('handles unexpected JSON type (number)', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        fetch: (_) async => '42',
-      );
+      final service = UpdateService(fetch: (_) async => '42');
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -818,10 +813,7 @@ void main() {
     });
 
     test('handles unexpected JSON type (string)', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        fetch: (_) async => '"hello"',
-      );
+      final service = UpdateService(fetch: (_) async => '"hello"');
 
       final info = await service.checkForUpdate('1.0.0');
       expect(info.hasUpdate, isFalse);
@@ -830,7 +822,6 @@ void main() {
 
     test('handles release with null assets list', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {
             'tag_name': 'v2.0.0',
@@ -847,7 +838,6 @@ void main() {
 
     test('handles tag_name without v prefix', () async {
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         fetch: (_) async => _releasesArray([
           {
             'tag_name': '3.0.0',
@@ -868,10 +858,7 @@ void main() {
   // ===========================================================================
   group('UpdateService.downloadAsset (edge cases)', () {
     test('rejects http (non-https) download URL', () async {
-      final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
-        download: (_, _, _) async {},
-      );
+      final service = UpdateService();
       expect(
         () => service.downloadAsset(
           'http://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
@@ -887,76 +874,35 @@ void main() {
       );
     });
 
-    test('handles download without progress callback', () async {
-      final tempDir = await Directory.systemTemp.createTemp('update_test_');
-      try {
-        final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
-          download: (uri, savePath, onProgress) async {
-            await File(savePath).writeAsString('content');
-            // onProgress is null, should not be called
-          },
-        );
-
-        final path = await service.downloadAsset(
-          'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-          tempDir.path,
-        );
-
-        expect(await File(path).exists(), isTrue);
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
-
     test(
-      'SHA256 mismatch still surfaces when cleanup delete also fails',
-      // Spec (update_service.downloadAsset L237-252): on digest mismatch we
-      // attempt to delete the downloaded file so a partial/tampered artifact
-      // cannot be mistaken for a good install. If delete itself fails (file
-      // already gone, read-only dir, etc.) we must still throw the SHA256
-      // mismatch StateError — cleanup is best-effort and must not mask the
-      // primary security failure. The delete failure is logged, not
-      // re-thrown.
+      'downloadAsset surfaces "without detail" when FRB result is null',
+      // Spec: a downloader implementation that returns a result with
+      // both `asset` and `errorKind` null is malformed. The wrapper
+      // must fail loudly rather than silently swallow — the
+      // `case null:` arm exists so a future Rust change that
+      // forgets to populate a new kind is caught immediately.
       () async {
-        // Trick to make File.delete throw: downloader writes the file, then
-        // strips write permission from the parent dir so the delete call
-        // raises EACCES. POSIX-only; Windows ACLs work differently, skip it
-        // there since this project's CI is Linux.
-        if (!Platform.isLinux && !Platform.isMacOS) {
-          markTestSkipped('requires POSIX chmod to block directory writes');
-          return;
-        }
+        UpdateService.debugDownloadOverride =
+            ({
+              required url,
+              required targetDir,
+              required expectedDigest,
+            }) async => const rust_update_http.DbDownloadResult();
+        final service = UpdateService();
 
-        final tempDir = await Directory.systemTemp.createTemp('update_test_');
-        try {
-          final service = UpdateService(
-            verifyArtifact: UpdateService.skipSignatureVerification,
-            download: (_, savePath, _) async {
-              await File(savePath).writeAsString('content');
-              await Process.run('chmod', ['a-w', tempDir.path]);
-            },
-          );
-
-          await expectLater(
-            service.downloadAsset(
-              'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
-              tempDir.path,
-              expectedDigest: 'unreachable_digest',
+        await expectLater(
+          service.downloadAsset(
+            'https://github.com/Llloooggg/LetsFLUTssh/releases/download/v1/file.AppImage',
+            '/tmp',
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('without detail'),
             ),
-            throwsA(
-              isA<StateError>().having(
-                (e) => e.message,
-                'message',
-                contains('SHA256 mismatch'),
-              ),
-            ),
-          );
-        } finally {
-          // Restore perms so the tempDir can be deleted on teardown.
-          await Process.run('chmod', ['u+w', tempDir.path]);
-          await tempDir.delete(recursive: true);
-        }
+          ),
+        );
       },
     );
   });
@@ -976,7 +922,6 @@ void main() {
       String? capturedExe;
       List<String>? capturedArgs;
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         platform: 'linux',
         runProcess: (exe, args) async {
           capturedExe = exe;
@@ -996,7 +941,6 @@ void main() {
       String? capturedExe;
       List<String>? capturedArgs;
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         platform: 'macos',
         runProcess: (exe, args) async {
           capturedExe = exe;
@@ -1019,7 +963,6 @@ void main() {
       String? capturedExe;
       List<String>? capturedArgs;
       final service = UpdateService(
-        verifyArtifact: UpdateService.skipSignatureVerification,
         platform: 'windows',
         runProcess: (exe, args) async {
           capturedExe = exe;
@@ -1038,7 +981,6 @@ void main() {
     test('non-zero exit propagates as false on each host platform', () async {
       for (final platform in ['linux', 'macos', 'windows']) {
         final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: platform,
           runProcess: (_, _) async => ProcessResult(0, 1, '', 'err'),
         );
@@ -1059,7 +1001,6 @@ void main() {
       () async {
         var processCalled = false;
         final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: 'ios',
           runProcess: (_, _) async {
             processCalled = true;
@@ -1083,7 +1024,6 @@ void main() {
       () async {
         var processCalled = false;
         final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: 'windows',
           runProcess: (_, _) async {
             processCalled = true;
@@ -1111,7 +1051,6 @@ void main() {
         // real Windows paths routinely carry these.
         var processCalled = false;
         final service = UpdateService(
-          verifyArtifact: UpdateService.skipSignatureVerification,
           platform: 'windows',
           runProcess: (_, _) async {
             processCalled = true;
@@ -1129,188 +1068,6 @@ void main() {
         expect(processCalled, isTrue);
       },
     );
-  });
-
-  // ===========================================================================
-  // UpdateService.defaultFetch / UpdateService.defaultDownload —
-  // production now routes through `lfs_core::update_http` (rustls +
-  // system CAs + trusted-host gate); the HTTP-level semantics (200 /
-  // non-200 / redirect handling / per-chunk progress / 10-redirect
-  // cap) are covered Rust-side in `lfs_core::update_http::tests` and
-  // end-to-end in integration_test against a real server. The only
-  // assertion left here is the URL-trust fail-fast — a pure Dart
-  // guard that fires before either the Dart wrapper body or the FRB
-  // call to `update_http::download_to_file` runs.
-  // ===========================================================================
-  group('UpdateService default HTTP implementations', () {
-    test(
-      'defaultDownload refuses untrusted URL before any HTTP attempt',
-      // Spec: the trust check runs synchronously at the top of
-      // [UpdateService.defaultDownload] before either the Dart guard
-      // body or the FRB call to `lfs_core::update_http::download_to_file`
-      // runs. Guards against ever shipping an update from a non-GitHub
-      // host. Throw is the contract — the throw itself proves no
-      // network attempt was made because the rest of the function never
-      // executes after StateError raises.
-      () async {
-        await expectLater(
-          UpdateService.defaultDownload(
-            Uri.parse('https://evil.example/asset.AppImage'),
-            '/tmp/nowhere',
-            null,
-          ),
-          throwsA(
-            isA<StateError>().having(
-              (e) => e.message,
-              'message',
-              contains('Untrusted'),
-            ),
-          ),
-        );
-      },
-    );
-  });
-
-  // ===========================================================================
-  // Manifest-signature flow (the production [_defaultVerifyArtifact]
-  // decomposes into two pure pieces: version parsing + manifest parsing).
-  // We unit-test each directly; the full end-to-end path is exercised
-  // through the wider update flow + Rust unit tests under
-  // `lfs_core::update_signing::tests` (pinned-key verify, fail-closed
-  // wrong-length, all-zero signature) and the public verifier contract.
-  // ===========================================================================
-  group('UpdateService.parseAssetVersion', () {
-    test('captures the semver from a canonical release asset filename', () {
-      expect(
-        UpdateService.parseAssetVersion('letsflutssh-5.9.0-linux-x64.tar.gz'),
-        '5.9.0',
-      );
-      expect(
-        UpdateService.parseAssetVersion(
-          'letsflutssh-10.12.3-windows-x64-setup.exe',
-        ),
-        '10.12.3',
-      );
-    });
-
-    test(
-      'returns null for names that do not start with the product prefix',
-      () {
-        // Spec: we only accept names produced by our own release workflow.
-        // An upstream-typoed `letsflutssh_5.9.0-*` (underscore), a bare
-        // version, or a different product name must not silently pass —
-        // the whole manifest flow keys off this capture.
-        expect(
-          UpdateService.parseAssetVersion('letsflutssh_5.9.0.tar.gz'),
-          isNull,
-        );
-        expect(
-          UpdateService.parseAssetVersion('5.9.0-linux-x64.tar.gz'),
-          isNull,
-        );
-        expect(
-          UpdateService.parseAssetVersion('other-5.9.0-linux.tar.gz'),
-          isNull,
-        );
-      },
-    );
-
-    test('returns null for a pre-release or non-dotted version string', () {
-      // Our bump script only produces three-part semver — any other
-      // shape is a sign something went wrong upstream, better to
-      // fail-closed than match a surprise.
-      expect(
-        UpdateService.parseAssetVersion('letsflutssh-5.9-linux-x64.tar.gz'),
-        isNull,
-      );
-      expect(
-        UpdateService.parseAssetVersion(
-          'letsflutssh-5.9.0-rc1-linux-x64.tar.gz',
-        ),
-        '5.9.0',
-        reason:
-            'the leading three-digit dotted version still captures — '
-            'anything after the third segment is part of the platform '
-            'suffix and not our concern here',
-      );
-    });
-  });
-
-  group('UpdateService.parseSha256Manifest', () {
-    test('parses the text-mode (double-space) sha256sum format', () {
-      // Spec: workflow pipes `sha256sum <file>` output into the
-      // manifest; GNU coreutils uses `<hash>  <name>` (two spaces)
-      // by default. Verify we accept exactly that.
-      const content =
-          'a3f5e8d2c91b1234567890abcdef1234567890abcdef1234567890abcdef1234  '
-          'letsflutssh-5.9.0-linux-x64.tar.gz\n'
-          'b7d1f2e9a45cabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd  '
-          'letsflutssh-5.9.0-linux-x64.deb\n';
-      final m = UpdateService.parseSha256Manifest(content);
-      expect(m.length, 2);
-      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], startsWith('a3f5'));
-      expect(m['letsflutssh-5.9.0-linux-x64.deb'], startsWith('b7d1'));
-    });
-
-    test('accepts binary-mode (asterisk-prefixed) filename field', () {
-      // `sha256sum -b` emits `<hash> *<name>`. Be lenient so a
-      // workflow tweak that switches modes doesn't silently break
-      // the verifier.
-      final hash = 'a' * 64;
-      final m = UpdateService.parseSha256Manifest(
-        '$hash *letsflutssh-5.9.0-linux-x64.tar.gz\n',
-      );
-      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hash);
-    });
-
-    test('ignores blank lines and comments', () {
-      // Spec: the manifest format stays forward-compatible with
-      // human-readable annotations — a future workflow tweak that
-      // adds a header comment should not break the parser.
-      final hash = 'b' * 64;
-      final m = UpdateService.parseSha256Manifest('''
-# Release manifest — letsflutssh 5.9.0
-
-$hash  letsflutssh-5.9.0-linux-x64.tar.gz
-
-''');
-      expect(m.length, 1);
-      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hash);
-    });
-
-    test(
-      'rejects malformed lines (short hash, missing whitespace, empty name)',
-      () {
-        // Silent skip over malformed lines — defensive parse so a
-        // single stray byte doesn't poison the whole manifest.
-        final m = UpdateService.parseSha256Manifest('''
-short-hash  letsflutssh-5.9.0-linux-x64.tar.gz
-${'c' * 64}
-${'d' * 64}  ''');
-        expect(
-          m,
-          isEmpty,
-          reason:
-              'no valid entry — short hash is length-checked out, two '
-              'malformed lines carry no whitespace-bound name',
-        );
-      },
-    );
-
-    test('later duplicate entry overrides earlier — last write wins', () {
-      // Spec: a duplicate in a signed manifest means the release
-      // manifest is malformed, but the verifier still has to pick
-      // one value. Last-write-wins matches how `sha256sum -c` walks
-      // the file top-to-bottom — whichever entry is checked last is
-      // the effective one.
-      final hashA = 'a' * 64;
-      final hashB = 'b' * 64;
-      final m = UpdateService.parseSha256Manifest(
-        '$hashA  letsflutssh-5.9.0-linux-x64.tar.gz\n'
-        '$hashB  letsflutssh-5.9.0-linux-x64.tar.gz\n',
-      );
-      expect(m['letsflutssh-5.9.0-linux-x64.tar.gz'], hashB);
-    });
   });
 
   group('InvalidReleaseSignatureException.toString', () {
