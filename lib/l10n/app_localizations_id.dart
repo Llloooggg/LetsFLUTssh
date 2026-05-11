@@ -2149,6 +2149,15 @@ class SId extends S {
   String get recordingSpeedInstant => 'Langsung';
 
   @override
+  String get recordingScrubTooltipUnavailable =>
+      'Scrub bar butuh sidecar index — rekaman lama (sebelum build ini) tidak punya. Rekaman baru akan bisa di-scrub.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Tag';
 
   @override

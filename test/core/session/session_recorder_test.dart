@@ -44,7 +44,15 @@ void main() {
   });
 
   Future<File> onlyFile(Directory dir) async {
-    final files = dir.listSync(recursive: true).whereType<File>().toList();
+    // Filter out the `.idx` sidecar — every recording lands as a
+    // main file plus its index sibling. The tests pin the main
+    // file's contents; the sidecar has its own coverage in the
+    // Rust-side `index_sidecar` unit tests.
+    final files = dir
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => !f.path.endsWith('.idx'))
+        .toList();
     expect(files, hasLength(1), reason: 'expected exactly one recording');
     return files.single;
   }

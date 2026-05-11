@@ -2296,6 +2296,44 @@ loop:
 
 Each plaintext chunk is one asciinema JSON-Lines record (header on first chunk, then `[t_seconds, "o"|"i", "data"]` events). Per-event GCM frames mean a truncated tail (crashed app, full disk) loses only the trailing event, not the whole timeline. Random nonces per frame plus the same authenticated key give standard GCM guarantees per event.
 
+#### Sidecar index (`<recording>.idx`)
+
+Every event the writer appends to the main file also appends one entry to a fixed-width sidecar `<recording>.idx` so playback can binary-search a target timestamp into a byte offset without scanning the full file. The scrub-bar UI in `RecordingPlaybackDialog` translates a slider release into the matched frame boundary; the main-file decoder restarts pre-positioned at that offset rather than re-decoding from start.
+
+File layout, plaintext `.cast` pairs:
+
+```
+[LFI1 magic (4)] [version (1)]
+loop:
+  [offset (8 LE)] [timestamp_ms (4 LE)]
+```
+
+File layout, encrypted `.lfsr` pairs:
+
+```
+[LFI1 magic (4)] [version (1)]
+loop:
+  [plaintext-len (4 LE) = 12] [nonce (12)] [ciphertext (12) + GCM tag (16)]
+```
+
+Each encrypted block authenticates one 12-byte plaintext entry under AAD = `entry_seq_u64_le` (0 for the first entry, 1 for the second, …). The reader recomputes the sequence number from block position so a disk-side swap of two blocks invalidates the GCM tag at both swapped positions — same posture as the main-file per-frame AAD chain.
+
+The sidecar key is HKDF-SHA-256 derived off the recorder key with a distinct info tag: `letsflutssh-recording-idx-v1`. Chaining off the recorder key (not the DB key) keeps register-time self-sufficient — the actor opens its sidecar at construction without a second secrets-store lookup — and the distinct info tag keeps the index key cryptographically separate from both the recorder key and the DB key. A leak of one key does not compromise the other.
+
+`u32` milliseconds tops out at ~49 days per recording — far past any plausible single file. Keeping the timestamp narrow (`u32` vs `u64`) halves the per-entry size on the plaintext path, which directly cuts the binary-search range a typical seek walks.
+
+#### Sidecar crash-safety contract
+
+The main-file frame write happens BEFORE the sidecar entry append. A crash between the two leaves the trailing entry missing — the reader treats that as "no scrub-target past this offset" and falls back to sequential decode for any seek into the dangling range. The pairing is deliberately non-atomic: fsync × 2 per event would dominate the writer hot path, and the worst case (lose one scrub-target on the last 10 ms of a recording before crash) is a minor degradation rather than a correctness break.
+
+Both writes go through `BufWriter` with `flush()` after each event so the durability story for the sidecar matches the main file (the OS still flushes on drop after a clean close; an OS crash loses the most recent unflushed window for both files equally).
+
+#### Sidecar migration: legacy recordings stay playable
+
+Recordings written before this build do NOT have a `<file>.idx` sibling. The reader's seek path returns `None` for any missing / empty sidecar; the playback dialog catches the null and disables the scrub bar with a tooltip explaining why (capability-ladder rung 4: render disabled with a reason rather than ship a weaker path that pretends to scrub). Speed dropdown (`1×` / `2×` / `4×` / instant) keeps working unchanged — the existing sequential playback path is independent of the sidecar.
+
+The FRB seek entry point is `recorder_seek(recording_path, target_ms, encrypted)`; the playback-start variant `recorder_open_for_playback_at(path, start_offset, start_frame_index, sink)` resumes the iter from a sidecar-supplied frame boundary. Both live under `lfs_core::recorder::index_sidecar` (writer + reader + binary search) and `lfs_frb::api::recorder` (FRB adapter + HKDF chain).
+
 #### Plaintext mode
 
 When the security tier is `plaintext`, the recorder writes raw asciinema JSON-Lines (no envelope, no encryption) to a `.cast` file with `chmod 600`. The user already opted out of crypto at the tier level — adding a different surface for one feature would be misleading. The file extension differs (`.cast` vs `.lfsr`) so a future loader can dispatch by suffix without reading magic bytes first.

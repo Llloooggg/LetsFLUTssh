@@ -2212,6 +2212,15 @@ class SPt extends S {
   String get recordingSpeedInstant => 'Instantâneo';
 
   @override
+  String get recordingScrubTooltipUnavailable =>
+      'A scrub bar precisa de um sidecar index — gravações antigas (anteriores a este build) não têm. Novas gravações poderão ser scrubbed.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Tags';
 
   @override

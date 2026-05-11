@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "پخش مجدد ضبط",
   "recordingSpeed": "سرعت",
   "recordingSpeedInstant": "فوری",
+  "recordingScrubTooltipUnavailable": "Scrub bar به sidecar index نیاز دارد — ضبط‌های قدیمی (قبل از این build) آن را ندارند. ضبط‌های جدید قابل scrub خواهند بود.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "برچسب‌ها",
   "tagsSubtitle": "نشست‌ها و پوشه‌ها را با برچسب‌های رنگی سازماندهی کنید",
   "noTags": "هنوز برچسبی وجود ندارد",

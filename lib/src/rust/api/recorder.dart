@@ -6,8 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `read_cap_from_store`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `read_cap_from_store`, `recorder_open_for_playback_inner`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 
 /// Open a fresh recording. `key` is either a 32-byte AES-256
 /// key (encrypted mode) or empty bytes (plaintext mode — writes
@@ -44,6 +44,54 @@ Future<DbRecorderSnapshot> recorderRegister({
 /// spawn_blocking task drops out of the iteration loop.
 Stream<DbPlaybackEvent> recorderOpenForPlayback({required String path}) =>
     RustLib.instance.api.crateApiRecorderRecorderOpenForPlayback(path: path);
+
+/// Variant of [`recorder_open_for_playback`] that pre-positions the
+/// underlying byte cursor to `start_offset` before yielding records.
+/// `start_frame_index` is the encrypted-frame AAD counter for the
+/// first frame past the offset — the sidecar entry index matches it
+/// 1:1 because every sidecar entry maps to one main-file frame.
+///
+/// Plaintext recordings ignore `start_frame_index` (no AAD chain) and
+/// route `start_offset` straight into the `BufReader`. Pass
+/// `start_offset = None` to behave identically to
+/// `recorder_open_for_playback`.
+Stream<DbPlaybackEvent> recorderOpenForPlaybackAt({
+  required String path,
+  required BigInt startOffset,
+  required BigInt startFrameIndex,
+}) => RustLib.instance.api.crateApiRecorderRecorderOpenForPlaybackAt(
+  path: path,
+  startOffset: startOffset,
+  startFrameIndex: startFrameIndex,
+);
+
+/// Resolve `<recording>.idx` next to `recording_path`, binary-search
+/// for the first entry whose timestamp is at or before `target_ms`,
+/// and return the matched entry's byte offset + entry index. Returns
+/// `None` when no sidecar exists, the sidecar is empty, or
+/// `target_ms` lands before the first event — caller falls back to
+/// sequential decode in any of those branches.
+///
+/// `encrypted` mirrors the main file: encrypted recordings carry an
+/// encrypted sidecar keyed off `HKDF-SHA256(recorder_key,
+/// info = "letsflutssh-recording-idx-v1")`. The chain re-derives the
+/// recorder key first (info = `letsflutssh-recording-v1`), then the
+/// index key off the recorder key — same two-step HKDF the writer
+/// runs, so a leak of one key does not compromise the other.
+///
+/// Plaintext recordings (`.cast`) pass `encrypted = false` and the
+/// sidecar is read without a key. The active-DB-key probe is skipped
+/// entirely so plaintext-tier sessions can seek without depending on
+/// the secrets-store actor.
+Future<DbSeekHit?> recorderSeek({
+  required String recordingPath,
+  required BigInt targetMs,
+  required bool encrypted,
+}) => RustLib.instance.api.crateApiRecorderRecorderSeek(
+  recordingPath: recordingPath,
+  targetMs: targetMs,
+  encrypted: encrypted,
+);
 
 /// Derive the per-recording AES-256 key from the active DB key
 /// in [`lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID`] using the same
@@ -402,4 +450,35 @@ class DbRecordingEntry {
           sizeBytes == other.sizeBytes &&
           mtimeUnixSecs == other.mtimeUnixSecs &&
           encrypted == other.encrypted;
+}
+
+/// FRB mirror of [`lfs_core::recorder::index_sidecar::SeekHit`].
+/// Carries everything the playback adapter needs to resume from a
+/// scrub target: the byte offset in the main file, the sidecar entry
+/// index (= AAD counter for the next encrypted frame), and the
+/// matched event's timestamp (so the UI can snap the scrub thumb to
+/// the actual frame boundary instead of the requested target).
+class DbSeekHit {
+  final BigInt offset;
+  final BigInt entryIndex;
+  final int timestampMs;
+
+  const DbSeekHit({
+    required this.offset,
+    required this.entryIndex,
+    required this.timestampMs,
+  });
+
+  @override
+  int get hashCode =>
+      offset.hashCode ^ entryIndex.hashCode ^ timestampMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSeekHit &&
+          runtimeType == other.runtimeType &&
+          offset == other.offset &&
+          entryIndex == other.entryIndex &&
+          timestampMs == other.timestampMs;
 }

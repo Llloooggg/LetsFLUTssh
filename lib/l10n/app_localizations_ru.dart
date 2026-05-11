@@ -2166,6 +2166,15 @@ class SRu extends S {
   String get recordingSpeedInstant => 'Мгновенно';
 
   @override
+  String get recordingScrubTooltipUnavailable =>
+      'Scrub bar требует sidecar index — у старых записей (сделанных до этой сборки) его нет. Новые записи будут поддерживать перемотку.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Теги';
 
   @override

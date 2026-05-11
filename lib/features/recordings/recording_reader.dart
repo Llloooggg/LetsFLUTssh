@@ -67,6 +67,14 @@ class RecordingHeader {
 /// in once without branching. Reads stay sequential (no random
 /// access into the timeline); a multi-MB recording plays back
 /// without staging the whole timeline on the Dart heap.
+///
+/// Scrub-bar seek routes through [`recorderSeek`] + the
+/// `recorderOpenForPlaybackAt` variant: the FRB layer binary-searches
+/// `<recording>.idx` for the largest entry at or before `targetMs`,
+/// returns the matched offset, and the playback adapter restarts the
+/// iterator pre-positioned at that frame boundary. Legacy recordings
+/// without a sidecar return `null` from `recorderSeek` and the dialog
+/// disables the scrub bar with a tooltip.
 class RecordingReader {
   RecordingReader._();
 
@@ -97,6 +105,59 @@ class RecordingReader {
         yield RecordingDecodedLine(line);
       }
     }
+  }
+
+  /// Variant of [`open`] that pre-positions the decoder at
+  /// `byteOffset` + `startFrameIndex` returned by [`seek`]. The
+  /// FRB sink yields events starting from the next frame past the
+  /// offset — the asciinema header is NOT re-emitted, so the caller
+  /// must already have the geometry from a prior `readMeta` /
+  /// initial-open call.
+  static Stream<RecordingDecodedLine> openAt(
+    String filePath, {
+    required int byteOffset,
+    required int startFrameIndex,
+  }) async* {
+    await for (final event in rust_recorder.recorderOpenForPlaybackAt(
+      path: filePath,
+      startOffset: BigInt.from(byteOffset),
+      startFrameIndex: BigInt.from(startFrameIndex),
+    )) {
+      final err = event.error;
+      if (err != null) {
+        throw RecordingFormatException(err);
+      }
+      final line = event.line;
+      if (line != null) {
+        yield RecordingDecodedLine(line);
+      }
+    }
+  }
+
+  /// Resolve `<filePath>.idx` and binary-search for the largest entry
+  /// at or before `targetMs`. Returns the matched entry's byte offset
+  /// into the main file plus the sidecar's entry index (the AAD
+  /// counter the next encrypted frame is signed under). Returns null
+  /// when no sidecar exists, the sidecar is empty, or the target
+  /// lands before the first event — caller falls back to either a
+  /// full re-decode (target after first event) or a no-op (target
+  /// before first event).
+  static Future<RecordingSeekHit?> seek(
+    String filePath, {
+    required int targetMs,
+    required bool encrypted,
+  }) async {
+    final hit = await rust_recorder.recorderSeek(
+      recordingPath: filePath,
+      targetMs: BigInt.from(targetMs),
+      encrypted: encrypted,
+    );
+    if (hit == null) return null;
+    return RecordingSeekHit(
+      byteOffset: hit.offset.toInt(),
+      startFrameIndex: hit.entryIndex.toInt(),
+      timestampMs: hit.timestampMs,
+    );
   }
 
   /// Read just the header line of a recording — used to populate
@@ -172,6 +233,24 @@ RecordingFrame? decodeEventLine(String line) {
 class RecordingDecodedLine {
   final String value;
   RecordingDecodedLine(this.value);
+}
+
+/// Hit returned from [`RecordingReader.seek`]. Carries everything the
+/// playback dialog needs to resume from a scrub target: the byte
+/// offset to restart the decoder at, the sidecar entry index (= AAD
+/// counter for the next encrypted frame), and the timestamp of the
+/// matched entry (so the UI can snap the scrub thumb to the actual
+/// frame boundary instead of the requested target).
+class RecordingSeekHit {
+  final int byteOffset;
+  final int startFrameIndex;
+  final int timestampMs;
+
+  const RecordingSeekHit({
+    required this.byteOffset,
+    required this.startFrameIndex,
+    required this.timestampMs,
+  });
 }
 
 /// Aggregated metadata for the browser list view.

@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "Kaydı oynat",
   "recordingSpeed": "Hız",
   "recordingSpeedInstant": "Anında",
+  "recordingScrubTooltipUnavailable": "Scrub bar için sidecar index gerekli — eski kayıtlarda (bu build'den önceki) yok. Yeni kayıtlar scrub edilebilir olacak.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "Etiketler",
   "tagsSubtitle": "Oturumları ve klasörleri renkli etiketlerle düzenleyin",
   "noTags": "Henüz etiket yok",

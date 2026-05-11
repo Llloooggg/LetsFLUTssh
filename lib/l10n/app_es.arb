@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "Reproducir grabación",
   "recordingSpeed": "Velocidad",
   "recordingSpeedInstant": "Instantáneo",
+  "recordingScrubTooltipUnavailable": "La scrub bar requiere un sidecar index — las grabaciones antiguas (anteriores a este build) no lo tienen. Las nuevas grabaciones permitirán scrubbing.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "Etiquetas",
   "tagsSubtitle": "Organiza sesiones y carpetas con etiquetas de color",
   "noTags": "Aún no hay etiquetas",

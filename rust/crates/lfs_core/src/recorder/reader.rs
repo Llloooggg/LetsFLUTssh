@@ -22,7 +22,7 @@
 //! `letsflutssh-recording-v1` info string) so the bytes never
 //! cross the FRB boundary back to Dart.
 
-use std::io::{BufRead, ErrorKind, Read};
+use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom};
 use std::path::Path;
 
 use super::{LFR_MAGIC, MAX_FRAME_PLAINTEXT_BYTES, NONCE_LEN};
@@ -91,6 +91,27 @@ impl From<std::io::Error> for ReaderError {
 /// (truncated frame, GCM tag mismatch, non-utf8 plaintext) yield
 /// `Some(Err(...))` and the iterator terminates on the next call.
 pub fn open_lfsr_iter(path: &Path, key: [u8; 32]) -> Result<LfsrFrameIter, ReaderError> {
+    open_lfsr_iter_at(path, key, None)
+}
+
+/// `open_lfsr_iter` with an optional pre-positioned byte offset for
+/// scrub-bar seek. The offset MUST land on a frame boundary the
+/// sidecar `.idx` produced (otherwise the next `[len][nonce][ct]`
+/// read decodes garbage and surfaces as a `TruncatedFrame` /
+/// `Crypto` error). The magic + version sniff still runs against
+/// the first five bytes of the file — the seek happens after.
+///
+/// `frame_index` is recomputed to match the sidecar's entry-position
+/// → frame-index correspondence: each `.idx` entry maps to one frame,
+/// so the post-seek frame_index equals the sidecar entry index that
+/// matched the seek. The caller hands that value in via
+/// `start_frame_index`; the reader uses it as the AAD counter for the
+/// first frame past the offset.
+pub fn open_lfsr_iter_at(
+    path: &Path,
+    key: [u8; 32],
+    start: Option<(u64, u64)>,
+) -> Result<LfsrFrameIter, ReaderError> {
     let file = std::fs::File::open(path)?;
     let mut reader = std::io::BufReader::new(file);
     let mut head = [0u8; 5];
@@ -104,11 +125,17 @@ pub fn open_lfsr_iter(path: &Path, key: [u8; 32]) -> Result<LfsrFrameIter, Reade
     if version != 0x01 && version != 0x02 {
         return Err(ReaderError::UnsupportedVersion(version));
     }
+    let frame_index = if let Some((offset, fi)) = start {
+        reader.seek(SeekFrom::Start(offset))?;
+        fi
+    } else {
+        0
+    };
     Ok(LfsrFrameIter {
         reader,
         key,
         version,
-        frame_index: 0,
+        frame_index,
         finished: false,
     })
 }
@@ -208,7 +235,20 @@ impl Iterator for LfsrFrameIter {
 /// [`ReaderError::FrameTooLarge`] instead of pulling the whole
 /// file into memory.
 pub fn open_cast_iter(path: &Path) -> Result<CastFrameIter, ReaderError> {
-    let file = std::fs::File::open(path)?;
+    open_cast_iter_at(path, None)
+}
+
+/// `open_cast_iter` with an optional pre-positioned byte offset for
+/// scrub-bar seek. The offset MUST land on a newline boundary the
+/// sidecar `.idx` produced — otherwise the next `read_until('\n')`
+/// returns a partial line. The caller pairs this with a known-good
+/// offset from `index_sidecar::seek` so the next record decodes
+/// cleanly.
+pub fn open_cast_iter_at(path: &Path, start: Option<u64>) -> Result<CastFrameIter, ReaderError> {
+    let mut file = std::fs::File::open(path)?;
+    if let Some(offset) = start {
+        file.seek(SeekFrom::Start(offset))?;
+    }
     let reader = std::io::BufReader::new(file);
     Ok(CastFrameIter {
         reader,
@@ -313,15 +353,31 @@ impl PlaybackIter {
 /// the derived key here so the bytes never cross the FRB
 /// boundary back to Dart.
 pub fn open_for_playback(path: &Path, lfsr_key: [u8; 32]) -> Result<PlaybackIter, ReaderError> {
+    open_for_playback_at(path, lfsr_key, None, 0)
+}
+
+/// `open_for_playback` with an optional pre-positioned byte offset.
+/// `start_offset = None` decodes the file from the start (post-magic
+/// for `.lfsr`); `Some(off)` jumps to a sidecar-supplied frame
+/// boundary. `start_frame_index` is the AAD counter the next
+/// encrypted frame is signed under — for the plaintext `.cast` path
+/// the value is ignored.
+pub fn open_for_playback_at(
+    path: &Path,
+    lfsr_key: [u8; 32],
+    start_offset: Option<u64>,
+    start_frame_index: u64,
+) -> Result<PlaybackIter, ReaderError> {
     let is_lfsr = path
         .extension()
         .and_then(|e| e.to_str())
         .map(|s| s.eq_ignore_ascii_case("lfsr"))
         .unwrap_or(false);
     if is_lfsr {
-        open_lfsr_iter(path, lfsr_key).map(PlaybackIter::Lfsr)
+        let start = start_offset.map(|o| (o, start_frame_index));
+        open_lfsr_iter_at(path, lfsr_key, start).map(PlaybackIter::Lfsr)
     } else {
-        open_cast_iter(path).map(PlaybackIter::Cast)
+        open_cast_iter_at(path, start_offset).map(PlaybackIter::Cast)
     }
 }
 

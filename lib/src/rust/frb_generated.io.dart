@@ -348,6 +348,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSeekHit dco_decode_box_autoadd_db_seek_hit(dynamic raw);
+
+  @protected
   DbSession dco_decode_box_autoadd_db_session(dynamic raw);
 
   @protected
@@ -643,6 +646,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSecurityTierModifiers dco_decode_db_security_tier_modifiers(dynamic raw);
+
+  @protected
+  DbSeekHit dco_decode_db_seek_hit(dynamic raw);
 
   @protected
   DbSession dco_decode_db_session(dynamic raw);
@@ -989,6 +995,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   DbSecurityTierModifiers?
   dco_decode_opt_box_autoadd_db_security_tier_modifiers(dynamic raw);
+
+  @protected
+  DbSeekHit? dco_decode_opt_box_autoadd_db_seek_hit(dynamic raw);
 
   @protected
   DbSession? dco_decode_opt_box_autoadd_db_session(dynamic raw);
@@ -1347,6 +1356,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSecurityTierModifiers sse_decode_box_autoadd_db_security_tier_modifiers(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbSeekHit sse_decode_box_autoadd_db_seek_hit(SseDeserializer deserializer);
 
   @protected
   DbSession sse_decode_box_autoadd_db_session(SseDeserializer deserializer);
@@ -1742,6 +1754,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSecurityTierModifiers sse_decode_db_security_tier_modifiers(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbSeekHit sse_decode_db_seek_hit(SseDeserializer deserializer);
 
   @protected
   DbSession sse_decode_db_session(SseDeserializer deserializer);
@@ -2190,6 +2205,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DbSeekHit? sse_decode_opt_box_autoadd_db_seek_hit(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSession? sse_decode_opt_box_autoadd_db_session(
     SseDeserializer deserializer,
   );
@@ -2617,6 +2637,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_db_security_tier_modifiers(
     DbSecurityTierModifiers self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_db_seek_hit(
+    DbSeekHit self,
     SseSerializer serializer,
   );
 
@@ -3135,6 +3161,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DbSecurityTierModifiers self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_db_seek_hit(DbSeekHit self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_session(DbSession self, SseSerializer serializer);
@@ -3699,6 +3728,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_security_tier_modifiers(
     DbSecurityTierModifiers? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_seek_hit(
+    DbSeekHit? self,
     SseSerializer serializer,
   );
 

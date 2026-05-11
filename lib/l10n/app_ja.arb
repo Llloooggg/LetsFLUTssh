@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "録画を再生",
   "recordingSpeed": "速度",
   "recordingSpeedInstant": "即時",
+  "recordingScrubTooltipUnavailable": "スクラブバーには sidecar index が必要です。このビルド以前の録画にはありません。新しい録画はシークできます。",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "タグ",
   "tagsSubtitle": "セッションとフォルダをカラータグで整理",
   "noTags": "タグはまだありません",

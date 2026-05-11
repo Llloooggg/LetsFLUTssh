@@ -2137,6 +2137,15 @@ class SFa extends S {
   String get recordingSpeedInstant => 'فوری';
 
   @override
+  String get recordingScrubTooltipUnavailable =>
+      'Scrub bar به sidecar index نیاز دارد — ضبط‌های قدیمی (قبل از این build) آن را ندارند. ضبط‌های جدید قابل scrub خواهند بود.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'برچسب‌ها';
 
   @override

@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "Phát lại bản ghi",
   "recordingSpeed": "Tốc độ",
   "recordingSpeedInstant": "Tức thì",
+  "recordingScrubTooltipUnavailable": "Scrub bar cần sidecar index — bản ghi cũ (trước build này) không có. Bản ghi mới sẽ scrub được.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "Thẻ",
   "tagsSubtitle": "Tổ chức phiên và thư mục bằng thẻ màu",
   "noTags": "Chưa có thẻ",

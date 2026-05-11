@@ -106,6 +106,34 @@ pub async fn recorder_open_for_playback(
     path: String,
     sink: crate::frb_generated::StreamSink<DbPlaybackEvent>,
 ) {
+    recorder_open_for_playback_inner(path, None, 0, sink).await;
+}
+
+/// Variant of [`recorder_open_for_playback`] that pre-positions the
+/// underlying byte cursor to `start_offset` before yielding records.
+/// `start_frame_index` is the encrypted-frame AAD counter for the
+/// first frame past the offset — the sidecar entry index matches it
+/// 1:1 because every sidecar entry maps to one main-file frame.
+///
+/// Plaintext recordings ignore `start_frame_index` (no AAD chain) and
+/// route `start_offset` straight into the `BufReader`. Pass
+/// `start_offset = None` to behave identically to
+/// `recorder_open_for_playback`.
+pub async fn recorder_open_for_playback_at(
+    path: String,
+    start_offset: u64,
+    start_frame_index: u64,
+    sink: crate::frb_generated::StreamSink<DbPlaybackEvent>,
+) {
+    recorder_open_for_playback_inner(path, Some(start_offset), start_frame_index, sink).await;
+}
+
+async fn recorder_open_for_playback_inner(
+    path: String,
+    start_offset: Option<u64>,
+    start_frame_index: u64,
+    sink: crate::frb_generated::StreamSink<DbPlaybackEvent>,
+) {
     let _ = tokio::task::spawn_blocking(move || {
         let path_buf = std::path::PathBuf::from(&path);
         let is_lfsr = path_buf
@@ -165,7 +193,12 @@ pub async fn recorder_open_for_playback(
             // the open_for_playback signature uniform.
             [0u8; 32]
         };
-        let mut iter = match lfs_core::recorder::reader::open_for_playback(&path_buf, key_arr) {
+        let mut iter = match lfs_core::recorder::reader::open_for_playback_at(
+            &path_buf,
+            key_arr,
+            start_offset,
+            start_frame_index,
+        ) {
             Ok(it) => it,
             Err(e) => {
                 let _ = sink.add(DbPlaybackEvent {
@@ -200,6 +233,93 @@ pub async fn recorder_open_for_playback(
         }
     })
     .await;
+}
+
+/// FRB mirror of [`lfs_core::recorder::index_sidecar::SeekHit`].
+/// Carries everything the playback adapter needs to resume from a
+/// scrub target: the byte offset in the main file, the sidecar entry
+/// index (= AAD counter for the next encrypted frame), and the
+/// matched event's timestamp (so the UI can snap the scrub thumb to
+/// the actual frame boundary instead of the requested target).
+#[derive(Debug, Clone)]
+pub struct DbSeekHit {
+    pub offset: u64,
+    pub entry_index: u64,
+    pub timestamp_ms: u32,
+}
+
+impl From<lfs_core::recorder::index_sidecar::SeekHit> for DbSeekHit {
+    fn from(h: lfs_core::recorder::index_sidecar::SeekHit) -> Self {
+        Self {
+            offset: h.offset,
+            entry_index: h.entry_index,
+            timestamp_ms: h.timestamp_ms,
+        }
+    }
+}
+
+/// Resolve `<recording>.idx` next to `recording_path`, binary-search
+/// for the first entry whose timestamp is at or before `target_ms`,
+/// and return the matched entry's byte offset + entry index. Returns
+/// `None` when no sidecar exists, the sidecar is empty, or
+/// `target_ms` lands before the first event — caller falls back to
+/// sequential decode in any of those branches.
+///
+/// `encrypted` mirrors the main file: encrypted recordings carry an
+/// encrypted sidecar keyed off `HKDF-SHA256(recorder_key,
+/// info = "letsflutssh-recording-idx-v1")`. The chain re-derives the
+/// recorder key first (info = `letsflutssh-recording-v1`), then the
+/// index key off the recorder key — same two-step HKDF the writer
+/// runs, so a leak of one key does not compromise the other.
+///
+/// Plaintext recordings (`.cast`) pass `encrypted = false` and the
+/// sidecar is read without a key. The active-DB-key probe is skipped
+/// entirely so plaintext-tier sessions can seek without depending on
+/// the secrets-store actor.
+pub async fn recorder_seek(
+    recording_path: String,
+    target_ms: u64,
+    encrypted: bool,
+) -> Result<Option<DbSeekHit>, String> {
+    tokio::task::spawn_blocking(move || {
+        let path = std::path::PathBuf::from(&recording_path);
+        if !encrypted {
+            return lfs_core::recorder::index_sidecar::seek(&path, target_ms, false, None)
+                .map(|opt| opt.map(DbSeekHit::from))
+                .map_err(|e| crate::api::frb_err::from_core(&e));
+        }
+        let app = lfs_core::app::instance();
+        let Some(db_key) = app.secrets.get(lfs_core::secrets::ACTIVE_DBKEY_SECRET_ID) else {
+            // No active DB key — sidecar is unreadable, fall back to
+            // sequential decode.
+            return Ok(None);
+        };
+        if db_key.is_empty() {
+            return Ok(None);
+        }
+        let recorder_key = lfs_core::crypto::hkdf_sha256(&db_key, &[], RECORDER_HKDF_INFO, 32)
+            .map_err(|e| format!("recorder hkdf: {e}"))?;
+        let recorder_arr: [u8; 32] = recorder_key
+            .as_slice()
+            .try_into()
+            .map_err(|_| "recorder key wrong size".to_string())?;
+        let index_key = lfs_core::crypto::hkdf_sha256(
+            &recorder_arr,
+            &[],
+            lfs_core::recorder::index_sidecar::INDEX_HKDF_INFO,
+            32,
+        )
+        .map_err(|e| format!("recorder idx hkdf: {e}"))?;
+        let index_arr: [u8; 32] = index_key
+            .as_slice()
+            .try_into()
+            .map_err(|_| "recorder index key wrong size".to_string())?;
+        lfs_core::recorder::index_sidecar::seek(&path, target_ms, true, Some(&index_arr))
+            .map(|opt| opt.map(DbSeekHit::from))
+            .map_err(|e| crate::api::frb_err::from_core(&e))
+    })
+    .await
+    .map_err(|e| format!("recorder seek task: {e}"))?
 }
 
 /// Derive the per-recording AES-256 key from the active DB key
@@ -741,6 +861,19 @@ mod tests {
         assert_eq!(db.size_bytes, 1024);
         assert_eq!(db.mtime_unix_secs, 1_700_000_000);
         assert!(!db.encrypted);
+    }
+
+    #[test]
+    fn seek_hit_carries_every_field() {
+        let core = lfs_core::recorder::index_sidecar::SeekHit {
+            offset: 4096,
+            entry_index: 7,
+            timestamp_ms: 12_345,
+        };
+        let db: DbSeekHit = core.into();
+        assert_eq!(db.offset, 4096);
+        assert_eq!(db.entry_index, 7);
+        assert_eq!(db.timestamp_ms, 12_345);
     }
 
     #[test]

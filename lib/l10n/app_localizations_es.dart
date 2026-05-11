@@ -2215,6 +2215,15 @@ class SEs extends S {
   String get recordingSpeedInstant => 'Instantáneo';
 
   @override
+  String get recordingScrubTooltipUnavailable =>
+      'La scrub bar requiere un sidecar index — las grabaciones antiguas (anteriores a este build) no lo tienen. Las nuevas grabaciones permitirán scrubbing.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Etiquetas';
 
   @override

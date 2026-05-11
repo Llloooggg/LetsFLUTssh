@@ -1256,6 +1256,18 @@
   "recordingPlaybackTitle": "Replay recording",
   "recordingSpeed": "Speed",
   "recordingSpeedInstant": "Instant",
+  "recordingScrubTooltipUnavailable": "Scrub bar requires a sidecar index, which legacy recordings (made before this build) do not have. Future recordings will scrub.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "tags": "Tags",
   "tagsSubtitle": "Organize sessions and folders with color tags",
   "noTags": "No tags yet",

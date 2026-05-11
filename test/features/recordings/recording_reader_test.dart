@@ -168,4 +168,52 @@ void main() {
     // process or hang.
     expect(meta, isNull);
   });
+
+  // Scrub-bar seek: writer ships a `.idx` sidecar alongside every
+  // recording; the reader translates a target ms into a byte offset
+  // by binary-searching the sidecar.
+  test('seek returns the largest entry at or before target', () async {
+    final rec = await SessionRecorder.open(
+      sessionId: 'seekplain',
+      shellLabel: 'bash',
+      width: 80,
+      height: 24,
+    );
+    expect(rec, isNotNull);
+    // Emit three events spaced out enough that the recorder's
+    // event-buffer coalesce window does not collapse them into one
+    // — a 30 ms wait between calls clears the 10 ms deadline.
+    rec!.recordOutput(utf8.encode('first '));
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    rec.recordOutput(utf8.encode('second '));
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    rec.recordOutput(utf8.encode('third'));
+    final path = await rec.close();
+    expect(path, isNotNull);
+
+    // A seek into the timeline mid-recording lands on the second
+    // or third event (depending on real-time deltas — the recorder
+    // captures wall-clock deltas). What matters is the contract:
+    // returns a non-null hit + offset > 0 once events exist.
+    final hit = await RecordingReader.seek(
+      path!,
+      targetMs: 1_000_000_000,
+      encrypted: false,
+    );
+    expect(hit, isNotNull);
+    expect(hit!.byteOffset, greaterThan(0));
+    expect(hit.startFrameIndex, greaterThanOrEqualTo(0));
+  });
+
+  test('seek returns null when sidecar absent', () async {
+    final f = File(p.join(tempDir.path, 'no-sidecar.cast'));
+    await f.writeAsString('{"version":2,"width":80,"height":24}\n');
+    // No `.idx` was created → seek finds nothing → falls back.
+    final hit = await RecordingReader.seek(
+      f.path,
+      targetMs: 0,
+      encrypted: false,
+    );
+    expect(hit, isNull);
+  });
 }

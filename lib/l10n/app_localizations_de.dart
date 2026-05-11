@@ -2216,6 +2216,15 @@ class SDe extends S {
   String get recordingSpeedInstant => 'Sofort';
 
   @override
+  String get recordingScrubTooltipUnavailable =>
+      'Scrub-Leiste benötigt einen Sidecar-Index — alte Aufzeichnungen (vor diesem Build) haben keinen. Neue Aufzeichnungen sind scrubbar.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Tags';
 
   @override

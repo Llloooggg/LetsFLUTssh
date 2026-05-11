@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "Воспроизвести запись",
   "recordingSpeed": "Скорость",
   "recordingSpeedInstant": "Мгновенно",
+  "recordingScrubTooltipUnavailable": "Scrub bar требует sidecar index — у старых записей (сделанных до этой сборки) его нет. Новые записи будут поддерживать перемотку.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "Теги",
   "tagsSubtitle": "Организуйте сессии и папки цветными тегами",
   "noTags": "Тегов пока нет",

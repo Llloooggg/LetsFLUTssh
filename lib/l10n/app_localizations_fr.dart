@@ -2225,6 +2225,15 @@ class SFr extends S {
   String get recordingSpeedInstant => 'Instantané';
 
   @override
+  String get recordingScrubTooltipUnavailable =>
+      'La scrub bar nécessite un sidecar index — les anciens enregistrements (antérieurs à ce build) n\'en ont pas. Les futurs enregistrements seront scrubbables.';
+
+  @override
+  String recordingScrubPositionLabel(String current, String total) {
+    return '$current / $total';
+  }
+
+  @override
   String get tags => 'Étiquettes';
 
   @override

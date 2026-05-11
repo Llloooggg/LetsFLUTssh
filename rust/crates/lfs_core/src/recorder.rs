@@ -32,6 +32,7 @@
 //! `LFR1` + version byte `0x01`.
 
 pub mod browser;
+pub mod index_sidecar;
 pub mod queue;
 pub mod reader;
 pub mod storage_cap;
@@ -136,6 +137,14 @@ pub struct RecorderActor {
     /// on disk: the reader recomputes it from frame position so a
     /// disk-side swap of two frames invalidates the GCM tag.
     frame_index: u64,
+    /// Sidecar index writer. Appends one 12-byte plaintext entry (or
+    /// one 44-byte encrypted block) per asciinema event so playback
+    /// can binary-search a target timestamp into a byte offset
+    /// without scanning the whole main file. Resets on rotate
+    /// alongside `frame_index` / `file`. Wrapped in `Arc<Mutex>` so
+    /// the registry lock can drop before the (potentially blocking)
+    /// sidecar append runs. See [`crate::recorder::index_sidecar`].
+    index: Option<Arc<Mutex<index_sidecar::IndexWriter>>>,
 }
 
 impl RecorderActor {
@@ -150,6 +159,7 @@ impl RecorderActor {
             file: None,
             key: None,
             frame_index: 0,
+            index: None,
         }
     }
 
@@ -335,6 +345,8 @@ impl RecorderRegistry {
                 .map_err(|e| Error::Recorder(format!("magic write: {e}")))?;
             bytes_written = (LFR_MAGIC.len() + 1) as u64;
         }
+        let index_key = derive_index_key(key.as_deref())?;
+        let index = open_index_writer(&path, index_key)?;
         let actor = RecorderActor {
             id: id.clone(),
             session_id,
@@ -345,6 +357,7 @@ impl RecorderRegistry {
             file: Some(Arc::new(Mutex::new(file))),
             key,
             frame_index: 0,
+            index,
         };
         let snap = actor.snapshot();
         {
@@ -445,15 +458,16 @@ impl RecorderRegistry {
             let g = self.lock();
             return Ok(g.by_id.get(id).map(|a| a.bytes_written).unwrap_or(0));
         }
-        let started_at = {
+        let (started_at, index) = {
             let g = self.lock();
             let actor = g
                 .by_id
                 .get(id)
                 .ok_or_else(|| Error::Recorder(format!("{id} not registered")))?;
-            actor
+            let started_at = actor
                 .started_at
-                .ok_or_else(|| Error::Recorder(format!("{id} has no started_at anchor")))?
+                .ok_or_else(|| Error::Recorder(format!("{id} has no started_at anchor")))?;
+            (started_at, actor.index.clone())
         };
         let delta = std::time::SystemTime::now()
             .duration_since(started_at)
@@ -471,7 +485,27 @@ impl RecorderRegistry {
         // shape (no fixed-width, no trailing zeros) so the output is
         // byte-identical for the same delta.
         let line = format!("[{},\"{kind_char}\",\"{escaped}\"]\n", format_delta(delta));
-        self.record_frame(id, line.as_bytes(), bus)
+        let (write_offset, new_total) = self.record_frame_at(id, line.as_bytes(), bus)?;
+        // Append the sidecar entry AFTER the main frame lands. A crash
+        // between the two writes leaves the trailing entry missing —
+        // the reader treats that as "no scrub-target past this offset"
+        // and falls back to sequential decode for any seek into the
+        // dangling range. Sidecar errors are logged but not surfaced
+        // so a transient idx-write failure cannot kill the main
+        // recording.
+        if let Some(idx) = index {
+            let ts_ms = (delta * 1000.0).clamp(0.0, u32::MAX as f64) as u32;
+            let entry = index_sidecar::IndexEntry {
+                offset: write_offset,
+                timestamp_ms: ts_ms,
+            };
+            if let Ok(mut w) = idx.lock() {
+                if let Err(e) = w.append(entry) {
+                    crate::app_log_warn!("Recorder", "sidecar append failed (best-effort): {e}");
+                }
+            }
+        }
+        Ok(new_total)
     }
 
     /// Encrypt (when keyed) and append a frame to the recording's
@@ -479,55 +513,94 @@ impl RecorderRegistry {
     /// the running byte total. Errors when the actor was not
     /// registered through [`RecorderRegistry::register_with_io`].
     pub fn record_frame(&self, id: &str, plaintext: &[u8], bus: &EventBus) -> Result<u64, Error> {
-        // Snapshot the IO handle + key + claim the next frame index
-        // under the registry lock, then drop the lock before doing
-        // the (potentially blocking) write. Other registry operations
-        // stay non-blocked while a frame writes out. Claiming the
-        // index here (post-increment) keeps frame_index ordering
-        // consistent with the file mutex order: the first thread
-        // through this section gets index N, the next gets N+1, and
-        // the file mutex serialises the writes so on-disk order
-        // matches.
-        let (file_handle, key, frame_index) = {
-            let mut g = self.lock();
+        self.record_frame_at(id, plaintext, bus).map(|(_, n)| n)
+    }
+
+    /// Same as [`record_frame`] but also returns the byte offset the
+    /// frame landed at in the main file (the value of
+    /// `actor.bytes_written` BEFORE this frame was appended). The
+    /// sidecar-aware [`record_event`] uses this so the offset matches
+    /// the on-disk position even under concurrent callers — the
+    /// offset claim and the `bytes_written` bump happen under the
+    /// same critical section, with the file write sandwiched in
+    /// between under the file mutex.
+    ///
+    /// Lock ordering invariant: registry → file. `rotate_to` /
+    /// `close_with_io` already follow this order; this method matches
+    /// it by claiming offset + frame_index under the registry lock,
+    /// taking the file mutex while still holding the registry lock,
+    /// writing, then dropping both. Concurrent callers serialise on
+    /// the registry mutex — acceptable for the recorder's frame
+    /// cadence (one frame per ~10 ms via the queue worker) and the
+    /// only way to guarantee offset/write/bump atomicity without
+    /// inverting the lock order against the rotate / close paths.
+    fn record_frame_at(
+        &self,
+        id: &str,
+        plaintext: &[u8],
+        bus: &EventBus,
+    ) -> Result<(u64, u64), Error> {
+        // Snapshot the IO handle + key + claim frame_index + the
+        // pre-write offset under the registry lock. The file mutex
+        // is taken under the registry mutex so two concurrent callers
+        // serialise their writes in the same order they claimed
+        // offsets — `O_APPEND` keeps the writes atomic + contiguous,
+        // and the file mutex pins claim-order = disk-order. Holding
+        // the registry mutex across the write keeps the
+        // `lock-ordering: registry → file` invariant intact with
+        // `rotate_to` / `close_with_io`.
+        //
+        // The recorder's frame cadence is one frame per ~10 ms
+        // through the queue worker, so registry-wide serialisation
+        // on the write path is acceptable. The previous
+        // "release registry, then file" pattern was a perf
+        // micro-optimisation that broke the sidecar's offset
+        // contract.
+        let mut g = self.lock();
+        // Snapshot writer state and bump frame_index in one borrow,
+        // then drop the borrow so the post-write `bytes_written`
+        // bump can re-borrow the same actor.
+        let (file_arc, key, frame_index, pre_write_offset) = {
             let Some(actor) = g.by_id.get_mut(id) else {
                 return Err(Error::Recorder(format!("{id} not registered")));
             };
-            let Some(file) = actor.file.as_ref() else {
+            let Some(file_arc) = actor.file.as_ref().cloned() else {
                 return Err(Error::Recorder(format!(
                     "recorder {id} has no file handle (counter-only registration)"
                 )));
             };
             let idx = actor.frame_index;
             actor.frame_index = actor.frame_index.saturating_add(1);
-            (file.clone(), actor.key.clone(), idx)
+            let key = actor.key.clone();
+            let pre = actor.bytes_written;
+            (file_arc, key, idx, pre)
         };
-
         let frame = build_frame(plaintext, key.as_deref(), frame_index)?;
         {
-            let mut handle = file_handle
+            let mut handle = file_arc
                 .lock()
                 .map_err(|_| Error::Io("recorder file mutex poisoned".to_string()))?;
             handle
                 .write_all(&frame)
                 .map_err(|e| Error::Recorder(format!("frame write: {e}")))?;
         }
-
+        // Re-borrow under the same registry critical section. The
+        // outer `g` lock is held end-to-end so two concurrent
+        // callers serialise on offset / write / bump.
         let new_total = {
-            let mut g = self.lock();
             let Some(actor) = g.by_id.get_mut(id) else {
-                // Actor removed mid-write — not fatal; the frame
-                // is on disk, return its size as the delta.
-                return Ok(frame.len() as u64);
+                drop(g);
+                return Ok((pre_write_offset, frame.len() as u64));
             };
             actor.bytes_written = actor.bytes_written.saturating_add(frame.len() as u64);
             actor.bytes_written
         };
+        drop(g);
         bus.publish(Event::RecorderBytesWritten {
             id: id.to_string(),
             total_bytes: new_total,
         });
-        Ok(new_total)
+        Ok((pre_write_offset, new_total))
     }
 
     /// Atomically close the current file for [`id`], open a fresh
@@ -558,6 +631,9 @@ impl RecorderRegistry {
                     "recorder {id} has no file handle (counter-only registration)"
                 )));
             };
+            // Drop the old sidecar writer alongside the main file so
+            // the new file pair starts a fresh entry-sequence chain.
+            actor.index.take();
             // Best-effort flush before we drop the old file. The
             // append-mode write already calls write_all under the
             // mutex, so a missed flush is a logging concern — the
@@ -606,6 +682,11 @@ impl RecorderRegistry {
             // file cannot be replayed at the same position in the
             // new file.
             actor.frame_index = 0;
+            // Open a fresh sidecar next to the new file. The same
+            // recorder-key chain feeds the index key, so encrypted
+            // recordings keep their idx encrypted across rotation.
+            let index_key = derive_index_key(actor.key.as_deref())?;
+            actor.index = open_index_writer(&new_path, index_key)?;
             actor.snapshot()
         };
         bus.publish(Event::RecorderStarted {
@@ -634,6 +715,11 @@ impl RecorderRegistry {
                     .map_err(|e| Error::Recorder(format!("close flush: {e}")))?;
                 // File drops with the guard; OS handle closes.
             }
+            // Sidecar writer drops here with its BufWriter — the
+            // wrapped File closes after flushing pending bytes. No
+            // explicit flush needed: every `append` already flushed,
+            // and a pending block can only exist mid-write.
+            drop(actor.index);
             // Re-run the eviction sweep now that the just-closed
             // file is no longer in the active-paths set. A long
             // recording that pushed the tree past the cap during
@@ -685,6 +771,40 @@ impl RecorderRegistry {
 /// `<appSupport>/recordings/<sessionId>/<file>` where the root
 /// always has a parent (the app-support dir), so the canonical
 /// path resolves cleanly.
+/// Derive the index-sidecar AES-256 key from the recorder key. Returns
+/// `None` when the recorder is in plaintext mode (no recorder key →
+/// no index key; the sidecar is also plaintext). The HKDF info tag
+/// (`letsflutssh-recording-idx-v1`) is distinct from the recorder
+/// file's tag (`letsflutssh-recording-v1`) so a leak of one key does
+/// not compromise the other. Chains off the recorder key (not the DB
+/// key) so the actor stays self-sufficient — `register_with_io` does
+/// not need a second secrets-store lookup at construction time.
+fn derive_index_key(
+    recorder_key: Option<&[u8; 32]>,
+) -> Result<Option<zeroize::Zeroizing<[u8; 32]>>, Error> {
+    let Some(rk) = recorder_key else {
+        return Ok(None);
+    };
+    let derived = crate::crypto::hkdf_sha256(rk, &[], index_sidecar::INDEX_HKDF_INFO, 32)?;
+    let arr: [u8; 32] = derived
+        .as_slice()
+        .try_into()
+        .map_err(|_| Error::Recorder("index key derivation length".to_string()))?;
+    Ok(Some(zeroize::Zeroizing::new(arr)))
+}
+
+/// Open a fresh sidecar writer next to `recording_path`. Wraps the
+/// `index_sidecar::IndexWriter::create` shape so call sites pass a
+/// `String` path without converting first.
+fn open_index_writer(
+    recording_path: &str,
+    index_key: Option<zeroize::Zeroizing<[u8; 32]>>,
+) -> Result<Option<Arc<Mutex<index_sidecar::IndexWriter>>>, Error> {
+    let idx_path = index_sidecar::sidecar_path(std::path::Path::new(recording_path));
+    let writer = index_sidecar::IndexWriter::create(&idx_path, index_key)?;
+    Ok(Some(Arc::new(Mutex::new(writer))))
+}
+
 fn recordings_root_from_path(path: &std::path::Path) -> Option<std::path::PathBuf> {
     let session_dir = path.parent()?;
     let root = session_dir.parent()?;
@@ -1229,6 +1349,101 @@ mod tests {
         let body = std::fs::read_to_string(&path).unwrap();
         assert!(body.is_empty());
         std::fs::remove_file(path).ok();
+    }
+
+    /// Plaintext recordings get a plaintext sidecar; each event
+    /// appends one 12-byte entry whose offset matches the pre-write
+    /// main-file size.
+    #[test]
+    fn index_sidecar_writer_appends_entry_per_event_plaintext() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path = tempfile_path("idxplain");
+        reg.register_with_io("r1".into(), "s1".into(), path.clone(), None, &bus)
+            .unwrap();
+        let off_before_first = std::fs::metadata(&path).unwrap().len();
+        reg.record_event("r1", RecordDirection::Output, b"hello", &bus)
+            .unwrap();
+        let off_before_second = std::fs::metadata(&path).unwrap().len();
+        reg.record_event("r1", RecordDirection::Output, b"world", &bus)
+            .unwrap();
+        reg.close_with_io("r1", &bus).unwrap();
+
+        let idx_path = index_sidecar::sidecar_path(std::path::Path::new(&path));
+        let entries = index_sidecar::read_all(&idx_path, None).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].offset, off_before_first);
+        assert_eq!(entries[1].offset, off_before_second);
+        std::fs::remove_file(&path).ok();
+        std::fs::remove_file(&idx_path).ok();
+    }
+
+    /// Encrypted recordings get an encrypted sidecar. Smoke test the
+    /// round-trip without asserting the byte layout — the wire shape
+    /// is covered by the `index_sidecar` module tests.
+    #[test]
+    fn index_sidecar_writer_appends_entry_per_event_encrypted() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path = tempfile_path("idxenc");
+        let recorder_key = [0x11u8; 32];
+        reg.register_with_io(
+            "r1".into(),
+            "s1".into(),
+            path.clone(),
+            Some(zeroize::Zeroizing::new(recorder_key)),
+            &bus,
+        )
+        .unwrap();
+        reg.record_event("r1", RecordDirection::Output, b"hello", &bus)
+            .unwrap();
+        reg.record_event("r1", RecordDirection::Output, b"world", &bus)
+            .unwrap();
+        reg.close_with_io("r1", &bus).unwrap();
+
+        let idx_path = index_sidecar::sidecar_path(std::path::Path::new(&path));
+        // Derive the same index key the recorder used.
+        let derived =
+            crate::crypto::hkdf_sha256(&recorder_key, &[], index_sidecar::INDEX_HKDF_INFO, 32)
+                .unwrap();
+        let index_key: [u8; 32] = derived.as_slice().try_into().unwrap();
+        let entries = index_sidecar::read_all(&idx_path, Some(&index_key)).unwrap();
+        assert_eq!(entries.len(), 2);
+        // On-disk byte budget: 5-byte header + 2 × 44-byte blocks.
+        let on_disk = std::fs::read(&idx_path).unwrap();
+        assert_eq!(on_disk.len(), 5 + 2 * 44);
+        std::fs::remove_file(&path).ok();
+        std::fs::remove_file(&idx_path).ok();
+    }
+
+    /// Rotation drops the current sidecar and opens a fresh one next
+    /// to the new file. Entries written after rotate must land in the
+    /// new sidecar; the old sidecar still carries pre-rotate entries.
+    #[test]
+    fn rotation_closes_idx_alongside_main_file() {
+        let bus = EventBus::new();
+        let reg = RecorderRegistry::new();
+        let path_a = tempfile_path("rotidx-a");
+        let path_b = tempfile_path("rotidx-b");
+        reg.register_with_io("r1".into(), "s1".into(), path_a.clone(), None, &bus)
+            .unwrap();
+        reg.record_event("r1", RecordDirection::Output, b"pre-rotate", &bus)
+            .unwrap();
+        reg.rotate_to("r1", path_b.clone(), &bus).unwrap();
+        reg.record_event("r1", RecordDirection::Output, b"post-rotate", &bus)
+            .unwrap();
+        reg.close_with_io("r1", &bus).unwrap();
+
+        let idx_a = index_sidecar::sidecar_path(std::path::Path::new(&path_a));
+        let idx_b = index_sidecar::sidecar_path(std::path::Path::new(&path_b));
+        let entries_a = index_sidecar::read_all(&idx_a, None).unwrap();
+        let entries_b = index_sidecar::read_all(&idx_b, None).unwrap();
+        assert_eq!(entries_a.len(), 1, "old sidecar holds pre-rotate entry");
+        assert_eq!(entries_b.len(), 1, "new sidecar holds post-rotate entry");
+        std::fs::remove_file(&path_a).ok();
+        std::fs::remove_file(&path_b).ok();
+        std::fs::remove_file(&idx_a).ok();
+        std::fs::remove_file(&idx_b).ok();
     }
 
     #[test]

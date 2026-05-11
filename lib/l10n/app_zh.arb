@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "回放录制",
   "recordingSpeed": "速度",
   "recordingSpeedInstant": "立即",
+  "recordingScrubTooltipUnavailable": "Scrub bar 需要 sidecar index——旧录制（此 build 之前的）没有。新录制可以拖动跳转。",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "标签",
   "tagsSubtitle": "使用彩色标签整理会话和文件夹",
   "noTags": "暂无标签",

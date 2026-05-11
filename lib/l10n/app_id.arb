@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "Putar ulang rekaman",
   "recordingSpeed": "Kecepatan",
   "recordingSpeedInstant": "Langsung",
+  "recordingScrubTooltipUnavailable": "Scrub bar butuh sidecar index — rekaman lama (sebelum build ini) tidak punya. Rekaman baru akan bisa di-scrub.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "Tag",
   "tagsSubtitle": "Atur sesi dan folder dengan tag berwarna",
   "noTags": "Belum ada tag",

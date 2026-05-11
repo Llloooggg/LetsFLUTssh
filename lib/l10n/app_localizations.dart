@@ -3801,6 +3801,18 @@ abstract class S {
   /// **'Instant'**
   String get recordingSpeedInstant;
 
+  /// No description provided for @recordingScrubTooltipUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Scrub bar requires a sidecar index, which legacy recordings (made before this build) do not have. Future recordings will scrub.'**
+  String get recordingScrubTooltipUnavailable;
+
+  /// No description provided for @recordingScrubPositionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} / {total}'**
+  String recordingScrubPositionLabel(String current, String total);
+
   /// No description provided for @tags.
   ///
   /// In en, this message translates to:

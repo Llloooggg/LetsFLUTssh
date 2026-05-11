@@ -378,7 +378,8 @@ Per-session terminal output + input capture, encrypted at rest, playable in-app 
 2. List sorted by date (newest first). Each row shows session label, timestamp, duration, file size, encrypted/plain badge.
 3. Tap **Play** → modal opens with embedded xterm replay.
 4. **Speed dropdown:** `1×` / `2×` / `4×` / **Instant** (jump to final frame).
-5. **Trash** on a row → delete the file.
+5. **Scrub bar:** drag to jump to any point in the recording. Recordings made before this build are sequential-only — the scrub bar is disabled for them with a tooltip explaining why; they still play back at `1×` / `2×` / `4×` / Instant.
+6. **Trash** on a row → delete the file.
 
 ### Storage management
 

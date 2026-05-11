@@ -652,6 +652,14 @@
   "recordingPlaybackTitle": "Rejouer l'enregistrement",
   "recordingSpeed": "Vitesse",
   "recordingSpeedInstant": "Instantané",
+  "recordingScrubTooltipUnavailable": "La scrub bar nécessite un sidecar index — les anciens enregistrements (antérieurs à ce build) n'en ont pas. Les futurs enregistrements seront scrubbables.",
+  "recordingScrubPositionLabel": "{current} / {total}",
+  "@recordingScrubPositionLabel": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
   "tags": "Étiquettes",
   "tagsSubtitle": "Organisez sessions et dossiers avec des étiquettes de couleur",
   "noTags": "Aucune étiquette pour l'instant",
