@@ -188,6 +188,7 @@ LetsFLUTssh can also browse a WebDAV server (Nextcloud, ownCloud, Apache mod_dav
   - `Basic` — username + password, always sent (only safe over TLS).
   - `Digest` — challenge / response, MD5. Use when the server insists; password never crosses the wire in clear.
   - `Bearer token` — OAuth-style. Paste the access token into the password field; the username is ignored.
+- Switch to the **Auth tab** and type the password or bearer token into the Password field. Leave it blank on a follow-up edit to keep the previously saved secret (the `[Saved]` badge shows up when the entry is already in SecretStore).
 - Optional: paste a **Self-signed cert fingerprint** (SHA-256, `aa:bb:cc:…` or `SHA256:…`) when the server uses a self-signed certificate that the system trust store rejects. Leave empty for the default system trust.
 
 ### Connecting and browsing

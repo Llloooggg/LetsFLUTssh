@@ -2705,4 +2705,11 @@ class SVi extends S {
   String errWebDavGeneric(String detail) {
     return 'Server WebDAV từ chối request: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Cần base URL của WebDAV';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL phải là http:// hoặc https://';
 }

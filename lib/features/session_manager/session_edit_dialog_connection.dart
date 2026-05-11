@@ -8,54 +8,167 @@ part of 'session_edit_dialog.dart';
 /// stay reachable.
 extension _ConnectionTab on _SessionEditDialogState {
   Widget _buildConnectionTab() {
+    final l10n = S.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         StyledFormField(
-          label: S.of(context).sessionName,
+          label: l10n.sessionName,
           controller: _labelCtrl,
-          hint: S.of(context).hintMyServer,
+          hint: l10n.hintMyServer,
         ),
         const SizedBox(height: 12),
+        _buildKindPicker(l10n),
+        const SizedBox(height: 16),
+        if (_kind == SessionKind.ssh)
+          ..._buildSshFields(l10n)
+        else
+          _buildWebDavSection(l10n),
+      ],
+    );
+  }
+
+  /// Transport-kind picker — flipping the active chip swaps the
+  /// rest of the Connection tab between the SSH host/port/proxy
+  /// block and the WebDAV base-URL / auth-method / pin block.
+  Widget _buildKindPicker(S l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FieldLabel(l10n.sessionKindLabel),
         Row(
           children: [
-            Expanded(
-              child: StyledFormField(
-                label: S.of(context).hostRequired,
-                controller: _hostCtrl,
-                hint: S.of(context).hintHost,
-                validator: _requiredValidator,
-              ),
+            AppPickerChip(
+              active: _kind == SessionKind.ssh,
+              label: l10n.sessionKindSsh,
+              onTap: () => rebuild(() => _kind = SessionKind.ssh),
             ),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 80,
-              child: StyledFormField(
-                label: S.of(context).port,
-                controller: _portCtrl,
-                hint: S.of(context).hintPort,
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  final port = int.tryParse(v ?? '');
-                  if (port == null || port < 1 || port > 65535) {
-                    return S.of(context).portRange;
-                  }
-                  return null;
-                },
-              ),
+            const SizedBox(width: 6),
+            AppPickerChip(
+              active: _kind == SessionKind.webdav,
+              label: l10n.sessionKindWebDav,
+              onTap: () => rebuild(() => _kind = SessionKind.webdav),
             ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildSshFields(S l10n) {
+    return [
+      Row(
+        children: [
+          Expanded(
+            child: StyledFormField(
+              label: l10n.hostRequired,
+              controller: _hostCtrl,
+              hint: l10n.hintHost,
+              validator: _requiredValidator,
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 80,
+            child: StyledFormField(
+              label: l10n.port,
+              controller: _portCtrl,
+              hint: l10n.hintPort,
+              keyboardType: TextInputType.number,
+              validator: (v) {
+                final port = int.tryParse(v ?? '');
+                if (port == null || port < 1 || port > 65535) {
+                  return l10n.portRange;
+                }
+                return null;
+              },
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      StyledFormField(
+        label: l10n.usernameRequired,
+        controller: _userCtrl,
+        hint: l10n.hintUsername,
+        validator: _requiredValidator,
+      ),
+      const SizedBox(height: 16),
+      _buildProxyJumpSection(),
+    ];
+  }
+
+  /// WebDAV transport-config block. Base URL + username + auth
+  /// method + optional self-signed fingerprint pin. The password
+  /// lives on the Auth tab next to the SSH password field — same
+  /// widget, kind-aware contract on save.
+  Widget _buildWebDavSection(S l10n) {
+    if (_loadingWebDav) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.accent,
+            ),
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        StyledFormField(
+          label: l10n.webDavBaseUrl,
+          controller: _baseUrlCtrl,
+          hint: l10n.webDavBaseUrlHint,
+          validator: _webDavBaseUrlValidator,
+        ),
+        const SizedBox(height: 12),
+        StyledFormField(
+          label: l10n.webDavUsername,
+          controller: _userCtrl,
+          hint: l10n.hintUsername,
+          validator: _requiredValidator,
+        ),
+        const SizedBox(height: 12),
+        FieldLabel(l10n.webDavAuthMethod),
+        Row(
+          children: [
+            _webDavAuthChip('basic', l10n.webDavAuthBasic),
+            const SizedBox(width: 6),
+            _webDavAuthChip('digest', l10n.webDavAuthDigest),
+            const SizedBox(width: 6),
+            _webDavAuthChip('bearer', l10n.webDavAuthBearer),
           ],
         ),
         const SizedBox(height: 12),
         StyledFormField(
-          label: S.of(context).usernameRequired,
-          controller: _userCtrl,
-          hint: S.of(context).hintUsername,
-          validator: _requiredValidator,
+          label: l10n.webDavSelfSignedFingerprint,
+          controller: _fingerprintCtrl,
+          hint: 'SHA256:…',
         ),
-        const SizedBox(height: 16),
-        _buildProxyJumpSection(),
+        const SizedBox(height: 6),
+        Text(
+          l10n.webDavSelfSignedFingerprintHint,
+          style: TextStyle(
+            color: AppTheme.fgFaint,
+            fontFamily: AppFonts.interFamily,
+            fontSize: AppFonts.xs,
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _webDavAuthChip(String wire, String label) {
+    return AppPickerChip(
+      active: _webdavAuthMethod == wire,
+      label: label,
+      onTap: () => rebuild(() => _webdavAuthMethod = wire),
     );
   }
 

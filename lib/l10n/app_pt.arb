@@ -910,5 +910,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "errWebDavBaseUrlRequired": "Base URL do WebDAV é obrigatória",
+  "errWebDavBaseUrlInvalid": "Base URL precisa ser http:// ou https://"
 }

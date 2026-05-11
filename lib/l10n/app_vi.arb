@@ -910,5 +910,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "errWebDavBaseUrlRequired": "Cần base URL của WebDAV",
+  "errWebDavBaseUrlInvalid": "Base URL phải là http:// hoặc https://"
 }

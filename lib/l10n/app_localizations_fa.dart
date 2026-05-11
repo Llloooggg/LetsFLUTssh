@@ -2707,4 +2707,11 @@ class SFa extends S {
   String errWebDavGeneric(String detail) {
     return 'سرور WebDAV درخواست را رد کرد: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Base URL برای WebDAV لازم است';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL باید با http:// یا https:// شروع شود';
 }

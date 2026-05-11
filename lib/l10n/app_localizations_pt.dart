@@ -2786,4 +2786,11 @@ class SPt extends S {
   String errWebDavGeneric(String detail) {
     return 'Servidor WebDAV rejeitou a requisição: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Base URL do WebDAV é obrigatória';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL precisa ser http:// ou https://';
 }

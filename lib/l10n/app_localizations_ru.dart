@@ -2738,4 +2738,11 @@ class SRu extends S {
   String errWebDavGeneric(String detail) {
     return 'WebDAV сервер отклонил запрос: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Нужен base URL WebDAV';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL должен быть http:// или https://';
 }

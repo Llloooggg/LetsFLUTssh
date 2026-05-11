@@ -910,5 +910,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "errWebDavBaseUrlRequired": "WebDAV base URL ज़रूरी है",
+  "errWebDavBaseUrlInvalid": "Base URL http:// या https:// होना चाहिए"
 }

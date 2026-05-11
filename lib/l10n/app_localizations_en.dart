@@ -2755,4 +2755,10 @@ class SEn extends S {
   String errWebDavGeneric(String detail) {
     return 'WebDAV server rejected the request: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV base URL is required';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL must be http:// or https://';
 }

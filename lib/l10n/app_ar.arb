@@ -910,5 +910,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "errWebDavBaseUrlRequired": "Base URL لـ WebDAV مطلوب",
+  "errWebDavBaseUrlInvalid": "Base URL يجب أن يبدأ بـ http:// أو https://"
 }

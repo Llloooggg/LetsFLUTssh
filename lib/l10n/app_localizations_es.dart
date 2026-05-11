@@ -2793,4 +2793,11 @@ class SEs extends S {
   String errWebDavGeneric(String detail) {
     return 'El servidor WebDAV rechazó la solicitud: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'La base URL de WebDAV es obligatoria';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'La base URL debe ser http:// o https://';
 }

@@ -910,5 +910,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "errWebDavBaseUrlRequired": "需要 WebDAV base URL",
+  "errWebDavBaseUrlInvalid": "Base URL 必须为 http:// 或 https://"
 }

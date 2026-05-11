@@ -910,5 +910,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "errWebDavBaseUrlRequired": "WebDAV の Base URL が必要です",
+  "errWebDavBaseUrlInvalid": "Base URL は http:// または https:// で始める必要があります"
 }

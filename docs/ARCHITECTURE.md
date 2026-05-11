@@ -696,6 +696,8 @@ and file-browser widgets stay transport-agnostic. See `core/webdav/`
 for the WebDAV facade and `lfs_frb::api::webdav` for the Rust-side
 connect probe.
 
+The session edit dialog (`features/session_manager/session_edit_dialog.dart`) renders a `SessionKind` picker at the top of the Connection tab. Flipping to WebDAV swaps the host / port / proxy block for a base-URL / username / auth-method / self-signed-fingerprint block; the Auth tab continues to host the password / bearer-token field for both kinds. On save the dialog returns `SaveResult.webdavData` alongside the session row; the panel action handler upserts the `webdav_session_details` join row and stages the password into SecretStore under `dbWebdavSessionDetailsSecretId(sessionId:)` (only when the dialog's `passwordDirty` bit fires so a label edit never clobbers a stored token).
+
 ##### Session.extras — JSON escape hatch
 
 Persisted into the `Sessions.extras TEXT NOT NULL DEFAULT '{}'` column (added in DB schema v2). Holds feature flags that don't justify their own column — recording opt-in, layout hints, agent-forwarding state, future per-session preferences. The map is unmodifiable; mutate through [`Session.withExtras(delta)`] which returns a copy with the delta merged (a `null` value in `delta` removes the key).

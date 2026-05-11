@@ -2805,4 +2805,11 @@ class SFr extends S {
   String errWebDavGeneric(String detail) {
     return 'Le serveur WebDAV a rejeté la requête : $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'La base URL WebDAV est requise';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'La base URL doit être en http:// ou https://';
 }

@@ -2649,4 +2649,10 @@ class SKo extends S {
   String errWebDavGeneric(String detail) {
     return 'WebDAV 서버가 요청을 거부함: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV base URL이 필요합니다';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL은 http:// 또는 https:// 여야 합니다';
 }

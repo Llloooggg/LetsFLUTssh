@@ -4778,6 +4778,18 @@ abstract class S {
   /// In en, this message translates to:
   /// **'WebDAV server rejected the request: {detail}'**
   String errWebDavGeneric(String detail);
+
+  /// No description provided for @errWebDavBaseUrlRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV base URL is required'**
+  String get errWebDavBaseUrlRequired;
+
+  /// No description provided for @errWebDavBaseUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL must be http:// or https://'**
+  String get errWebDavBaseUrlInvalid;
 }
 
 class _SDelegate extends LocalizationsDelegate<S> {

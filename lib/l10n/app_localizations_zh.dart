@@ -2629,4 +2629,10 @@ class SZh extends S {
   String errWebDavGeneric(String detail) {
     return 'WebDAV 服务器拒绝请求:$detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => '需要 WebDAV base URL';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL 必须为 http:// 或 https://';
 }

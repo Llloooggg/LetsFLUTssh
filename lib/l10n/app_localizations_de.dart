@@ -2789,4 +2789,11 @@ class SDe extends S {
   String errWebDavGeneric(String detail) {
     return 'WebDAV-Server hat Anfrage abgelehnt: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV-Base-URL ist erforderlich';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL muss http:// oder https:// sein';
 }

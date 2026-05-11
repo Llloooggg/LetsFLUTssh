@@ -15,6 +15,7 @@ import '../../core/tags/tag.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../providers/tag_provider.dart';
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_icon_button.dart';
@@ -61,6 +62,14 @@ class SaveResult extends SessionDialogResult {
   final bool keyDataDirty;
   final bool passphraseDirty;
 
+  /// WebDAV transport tuple — non-null when the user selected
+  /// [SessionKind.webdav] in the kind picker. The caller upserts the
+  /// `webdav_session_details` row and stages the password into
+  /// SecretStore (only when `passwordDirty` is set + the typed
+  /// password is non-empty so editing a label never clobbers a
+  /// stored token). Null for SSH sessions.
+  final WebDavSaveData? webdavData;
+
   SaveResult(
     this.session, {
     this.connect = false,
@@ -68,6 +77,42 @@ class SaveResult extends SessionDialogResult {
     this.passwordDirty = false,
     this.keyDataDirty = false,
     this.passphraseDirty = false,
+    this.webdavData,
+  });
+}
+
+/// WebDAV transport tuple captured by the session edit dialog. Mirrors
+/// the columns on `webdav_session_details` plus the dialog-local
+/// password slot so the caller can stage the secret into SecretStore.
+/// Password bytes never sit on the session model itself — they cross
+/// the FRB boundary through `secretsPut` keyed by
+/// `dbWebdavSessionDetailsSecretId(sessionId:)`.
+class WebDavSaveData {
+  final String baseUrl;
+  final String username;
+
+  /// One of `'basic'`, `'digest'`, `'bearer'`. The connect path parses
+  /// this into the typed `lfs_core::webdav::AuthMethod`.
+  final String authMethod;
+
+  /// Optional SHA-256 self-signed certificate pin. Empty / null means
+  /// the connect path falls back to the system trust store.
+  final String? selfSignedFingerprint;
+
+  /// Password / bearer token typed in the Auth tab. Always carried
+  /// alongside `passwordDirty`; the caller only stages it into
+  /// SecretStore when the dirty bit is set so untouched edits keep
+  /// the previously stored secret intact.
+  final String password;
+  final bool passwordDirty;
+
+  WebDavSaveData({
+    required this.baseUrl,
+    required this.username,
+    required this.authMethod,
+    required this.selfSignedFingerprint,
+    required this.password,
+    required this.passwordDirty,
   });
 }
 
@@ -147,12 +192,21 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
   bool _recordEnabled = false;
 
   /// Selected transport. Set from `widget.session.kind` on edit;
-  /// new sessions default to SSH. The dropdown lives in the
-  /// Connection tab; toggling to WebDAV swaps the host/port/auth
-  /// fields visibility (the WebDAV-specific fields then live in a
-  /// dedicated `WebDavDetailsDialog` follow-up surface so the
-  /// already-large session edit dialog stays readable).
+  /// new sessions default to SSH. The kind picker lives at the top
+  /// of the Connection tab; toggling to WebDAV swaps the host /
+  /// port / proxy fields for the WebDAV-specific base URL / auth
+  /// method / username / self-signed pin block.
   SessionKind _kind = SessionKind.ssh;
+
+  /// WebDAV transport-config controllers. Hydrated from the
+  /// `webdav_session_details` join row on edit (async — the dialog
+  /// renders an inline loader until [_loadingWebDav] flips false) and
+  /// left empty for fresh sessions or for an SSH→WebDAV flip without
+  /// a saved row.
+  late final TextEditingController _baseUrlCtrl;
+  late final TextEditingController _fingerprintCtrl;
+  String _webdavAuthMethod = 'basic';
+  bool _loadingWebDav = false;
 
   /// Per-slot dirty bits. Flipped to `true` the first time the user
   /// types into / changes the corresponding secret field. The dialog
@@ -274,8 +328,41 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     }
     _recordEnabled = s?.extrasBool('record') ?? false;
     _kind = s?.kind ?? SessionKind.ssh;
+    _baseUrlCtrl = TextEditingController();
+    _fingerprintCtrl = TextEditingController();
     if (s != null) {
       _loadForwards(s.id);
+      if (s.kind == SessionKind.webdav) {
+        _loadingWebDav = true;
+        _loadWebDavDetails(s.id);
+      }
+    }
+  }
+
+  /// Pull the WebDAV transport tuple from the join table and populate
+  /// the dialog controllers. Runs async because the FRB DAO call is
+  /// async-on-blocking-pool; the dialog renders a small loader while
+  /// in flight so the user sees something. A missing row is fine —
+  /// the user can fill the fields and a fresh `webdav_session_details`
+  /// row is upserted on save.
+  Future<void> _loadWebDavDetails(String sessionId) async {
+    try {
+      final detail = await rust_db.dbWebdavSessionDetailsGet(
+        sessionId: sessionId,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (detail != null) {
+          _baseUrlCtrl.text = detail.baseUrl;
+          _userCtrl.text = detail.username;
+          _webdavAuthMethod = detail.authMethod;
+          _fingerprintCtrl.text = detail.selfSignedFingerprint ?? '';
+        }
+        _loadingWebDav = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingWebDav = false);
     }
   }
 
@@ -338,15 +425,23 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     _proxyHostCtrl.dispose();
     _proxyPortCtrl.dispose();
     _proxyUserCtrl.dispose();
+    _baseUrlCtrl.dispose();
+    _fingerprintCtrl.dispose();
     super.dispose();
   }
 
   Session _buildSession() {
     final keyPath = _keyPathCtrl.text.trim().replaceFirst('~', homeDirectory);
-    final viaSessionId = _proxyMode == _ProxyMode.saved
+    // ProxyJump only applies to SSH transports — flipping the kind
+    // to WebDAV drops any leftover proxy state so a session that
+    // started as SSH-via-bastion does not carry the override after
+    // conversion.
+    final viaSessionId =
+        (_kind == SessionKind.ssh && _proxyMode == _ProxyMode.saved)
         ? _proxyViaSessionId
         : null;
-    final viaOverride = _proxyMode == _ProxyMode.custom
+    final viaOverride =
+        (_kind == SessionKind.ssh && _proxyMode == _ProxyMode.custom)
         ? ProxyJumpOverride(
             host: _proxyHostCtrl.text.trim(),
             port: int.tryParse(_proxyPortCtrl.text.trim()) ?? 22,
@@ -359,17 +454,20 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     final recordDelta = <String, Object?>{
       'record': _recordEnabled ? true : null,
     };
+    final server = _kind == SessionKind.webdav
+        ? _serverFromBaseUrl()
+        : ServerAddress(
+            host: _hostCtrl.text.trim(),
+            port: int.tryParse(_portCtrl.text.trim()) ?? 22,
+            user: _userCtrl.text.trim(),
+          );
     Session built;
     if (_isEditing) {
       built = widget.session!.copyWith(
         label: _labelCtrl.text.trim(),
         folder: _folderCtrl.text.trim(),
         kind: _kind,
-        server: widget.session!.server.copyWith(
-          host: _hostCtrl.text.trim(),
-          port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-          user: _userCtrl.text.trim(),
-        ),
+        server: server,
         auth: widget.session!.auth.copyWith(
           authType: _derivedAuthType,
           keyId: _selectedKeyId,
@@ -386,11 +484,7 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
         label: _labelCtrl.text.trim(),
         folder: _folderCtrl.text.trim(),
         kind: _kind,
-        server: ServerAddress(
-          host: _hostCtrl.text.trim(),
-          port: int.tryParse(_portCtrl.text.trim()) ?? 22,
-          user: _userCtrl.text.trim(),
-        ),
+        server: server,
         auth: SessionAuth(
           authType: _derivedAuthType,
           keyId: _selectedKeyId,
@@ -406,7 +500,39 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     return built.withExtras(recordDelta);
   }
 
+  /// Derive the SSH-shaped [ServerAddress] for a WebDAV session.
+  /// The host/port columns on `sessions` stay populated so legacy
+  /// SQL filters keep working; the live transport routes off
+  /// `kind = 'webdav'` and reads the full URL from
+  /// `webdav_session_details`. `Uri.parse` accepts malformed input —
+  /// the validator catches that ahead of save, this helper just
+  /// degrades gracefully when called from a benign code path.
+  ServerAddress _serverFromBaseUrl() {
+    final raw = _baseUrlCtrl.text.trim();
+    Uri? parsed;
+    try {
+      parsed = Uri.parse(raw);
+    } on FormatException {
+      parsed = null;
+    }
+    final host = parsed?.host ?? '';
+    final hasPort = (parsed?.hasPort ?? false);
+    final scheme = parsed?.scheme.toLowerCase() ?? '';
+    final int port;
+    if (hasPort) {
+      port = parsed!.port;
+    } else if (scheme == 'https') {
+      port = 443;
+    } else if (scheme == 'http') {
+      port = 80;
+    } else {
+      port = 0;
+    }
+    return ServerAddress(host: host, port: port, user: _userCtrl.text.trim());
+  }
+
   bool _validateAuth() {
+    if (_kind == SessionKind.webdav) return _validateWebDavAuth();
     final saved = widget.session?.auth;
     final hasPassword =
         _passwordCtrl.text.isNotEmpty ||
@@ -430,8 +556,35 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     return true;
   }
 
+  /// WebDAV-specific auth predicate. Basic / digest need a username +
+  /// a password (or one already in SecretStore); bearer treats the
+  /// password slot as the token. The base-URL check sits in
+  /// [_tabWithFirstError] so a malformed URL routes the user to the
+  /// Connection tab; this method only handles the credential side.
+  bool _validateWebDavAuth() {
+    final hasPassword =
+        _passwordCtrl.text.isNotEmpty ||
+        (widget.session?.auth.hasStoredPassword ?? false);
+    if (!hasPassword) {
+      setState(() {
+        _authError = S.of(context).providePasswordOrKey;
+        _tabIndex = 1;
+      });
+      return false;
+    }
+    setState(() => _authError = null);
+    return true;
+  }
+
   /// Determine which tab contains the first validation error and switch to it.
   int _tabWithFirstError() {
+    if (_kind == SessionKind.webdav) {
+      // Connection tab (0): base URL, username
+      if (_webDavBaseUrlValidator(_baseUrlCtrl.text) != null) return 0;
+      if (_requiredValidator(_userCtrl.text) != null) return 0;
+      // Auth tab (1): credentials
+      return 1;
+    }
     // Connection tab (0): host, port, username
     if (_requiredValidator(_hostCtrl.text) != null) return 0;
     final port = int.tryParse(_portCtrl.text);
@@ -441,6 +594,28 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
     return 1;
   }
 
+  /// Validator for the WebDAV base-URL field. Required + must parse
+  /// as an `http://` / `https://` absolute URL. Returned message is
+  /// rendered inline under the field by the form framework.
+  String? _webDavBaseUrlValidator(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return S.of(context).errWebDavBaseUrlRequired;
+    Uri? parsed;
+    try {
+      parsed = Uri.parse(value);
+    } on FormatException {
+      parsed = null;
+    }
+    if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
+      return S.of(context).errWebDavBaseUrlInvalid;
+    }
+    final scheme = parsed.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') {
+      return S.of(context).errWebDavBaseUrlInvalid;
+    }
+    return null;
+  }
+
   void _save({bool connect = false}) {
     final formOk = _formKey.currentState!.validate();
     if (!formOk) {
@@ -448,14 +623,28 @@ class _SessionEditDialogState extends ConsumerState<SessionEditDialog> {
       return;
     }
     if (!_validateAuth()) return;
+    final session = _buildSession();
+    final webdav = _kind == SessionKind.webdav
+        ? WebDavSaveData(
+            baseUrl: _baseUrlCtrl.text.trim(),
+            username: _userCtrl.text.trim(),
+            authMethod: _webdavAuthMethod,
+            selfSignedFingerprint: _fingerprintCtrl.text.trim().isEmpty
+                ? null
+                : _fingerprintCtrl.text.trim(),
+            password: _passwordCtrl.text,
+            passwordDirty: _passwordDirty,
+          )
+        : null;
     Navigator.of(context).pop(
       SaveResult(
-        _buildSession(),
+        session,
         connect: connect,
         forwards: _forwards,
         passwordDirty: _passwordDirty,
         keyDataDirty: _keyDataDirty,
         passphraseDirty: _passphraseDirty,
+        webdavData: webdav,
       ),
     );
   }

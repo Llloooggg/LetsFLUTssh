@@ -2717,4 +2717,11 @@ class SHi extends S {
   String errWebDavGeneric(String detail) {
     return 'WebDAV server ने request अस्वीकार किया: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV base URL ज़रूरी है';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL http:// या https:// होना चाहिए';
 }

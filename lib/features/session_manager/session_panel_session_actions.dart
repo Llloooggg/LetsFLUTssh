@@ -13,10 +13,46 @@ extension _SessionActions on SessionPanelState {
     SessionDialogResult result,
   ) async {
     switch (result) {
-      case SaveResult(:final session, :final connect, :final forwards):
+      case SaveResult(
+        :final session,
+        :final connect,
+        :final forwards,
+        :final webdavData,
+      ):
         await ref.read(sessionProvider.notifier).add(session);
         await _syncForwards(ref, session.id, forwards);
+        if (webdavData != null) {
+          await _syncWebDavDetails(session.id, webdavData);
+        }
         if (connect) widget.onConnect(session);
+    }
+  }
+
+  /// Persist the WebDAV transport tuple alongside the parent session
+  /// row, and stage the password into SecretStore when the dialog's
+  /// dirty bit fires + the field is non-empty. The `_secrets` API
+  /// rooms the bytes under the canonical
+  /// `dbWebdavSessionDetailsSecretId` so the connect path picks them
+  /// up without the dialog ever needing to keep them in Dart memory
+  /// past the navigator pop.
+  Future<void> _syncWebDavDetails(String sessionId, WebDavSaveData data) async {
+    await rust_db.dbWebdavSessionDetailsUpsert(
+      rec: rust_db.DbWebDavSessionDetails(
+        sessionId: sessionId,
+        baseUrl: data.baseUrl,
+        username: data.username,
+        authMethod: data.authMethod,
+        selfSignedFingerprint: data.selfSignedFingerprint,
+      ),
+    );
+    if (data.passwordDirty && data.password.isNotEmpty) {
+      final secretId = rust_db.dbWebdavSessionDetailsSecretId(
+        sessionId: sessionId,
+      );
+      await rust_app.secretsPut(
+        id: secretId,
+        bytes: utf8.encode(data.password),
+      );
     }
   }
 
@@ -302,6 +338,9 @@ extension _SessionActions on SessionPanelState {
             passphraseDirty: result.passphraseDirty,
           );
       await _syncForwards(ref, result.session.id, result.forwards);
+      if (result.webdavData != null) {
+        await _syncWebDavDetails(result.session.id, result.webdavData!);
+      }
       if (result.connect) widget.onConnect(result.session);
     }
   }
@@ -323,6 +362,16 @@ extension _SessionActions on SessionPanelState {
       ),
     );
     if (confirmed) {
+      // The `webdav_session_details` join row drops via the FK
+      // `ON DELETE CASCADE` once the parent `sessions` row goes;
+      // the SecretStore entry has no FK so it gets dropped here
+      // before the row delete so a same-id WebDAV session created
+      // afterwards starts from a clean secret slot.
+      if (session.isWebDav) {
+        rust_app.secretsDrop(
+          id: rust_db.dbWebdavSessionDetailsSecretId(sessionId: session.id),
+        );
+      }
       await ref.read(sessionProvider.notifier).delete(session.id);
     }
   }

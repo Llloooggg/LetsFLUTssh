@@ -2720,4 +2720,11 @@ class SAr extends S {
   String errWebDavGeneric(String detail) {
     return 'خادم WebDAV رفض الطلب: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Base URL لـ WebDAV مطلوب';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL يجب أن يبدأ بـ http:// أو https://';
 }

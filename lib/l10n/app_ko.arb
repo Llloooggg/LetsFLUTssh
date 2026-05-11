@@ -910,5 +910,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "errWebDavBaseUrlRequired": "WebDAV base URL이 필요합니다",
+  "errWebDavBaseUrlInvalid": "Base URL은 http:// 또는 https:// 여야 합니다"
 }

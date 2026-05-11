@@ -2720,4 +2720,10 @@ class SId extends S {
   String errWebDavGeneric(String detail) {
     return 'Server WebDAV menolak request: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'Base URL WebDAV diperlukan';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL harus http:// atau https://';
 }

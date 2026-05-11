@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,8 @@ import '../../widgets/shortcut_registry.dart';
 import '../../core/ssh/port_forward_rule.dart';
 import '../../providers/connection_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../src/rust/api/app.dart' as rust_app;
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../theme/app_theme.dart';
 import '../../widgets/app_bordered_box.dart';
 import '../../widgets/app_dialog.dart';
@@ -140,6 +144,20 @@ class SessionPanelState extends ConsumerState<SessionPanel> {
     if (confirmed) {
       final notifier = ref.read(sessionProvider.notifier);
       if (_ctrl.selectedIds.isNotEmpty) {
+        // Drop WebDAV SecretStore entries first so a same-id session
+        // recreated afterwards starts from a clean slot. The DB row
+        // delete that follows cascades the `webdav_session_details`
+        // join row via the FK; secrets have no FK so the cleanup is
+        // explicit.
+        final byId = {for (final s in ref.read(sessionProvider)) s.id: s};
+        for (final id in _ctrl.selectedIds) {
+          final match = byId[id];
+          if (match != null && match.isWebDav) {
+            rust_app.secretsDrop(
+              id: rust_db.dbWebdavSessionDetailsSecretId(sessionId: id),
+            );
+          }
+        }
         await notifier.deleteMultiple(Set.of(_ctrl.selectedIds));
       }
       for (final folderPath in _ctrl.selectedFolderPaths) {

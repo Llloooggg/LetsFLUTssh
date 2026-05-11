@@ -2651,4 +2651,11 @@ class SJa extends S {
   String errWebDavGeneric(String detail) {
     return 'WebDAV サーバーがリクエストを拒否しました: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV の Base URL が必要です';
+
+  @override
+  String get errWebDavBaseUrlInvalid =>
+      'Base URL は http:// または https:// で始める必要があります';
 }

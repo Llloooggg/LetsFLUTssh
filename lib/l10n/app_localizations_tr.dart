@@ -2723,4 +2723,10 @@ class STr extends S {
   String errWebDavGeneric(String detail) {
     return 'WebDAV server isteği reddetti: $detail';
   }
+
+  @override
+  String get errWebDavBaseUrlRequired => 'WebDAV base URL gerekli';
+
+  @override
+  String get errWebDavBaseUrlInvalid => 'Base URL http:// veya https:// olmalı';
 }
