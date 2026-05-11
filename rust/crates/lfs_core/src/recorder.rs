@@ -288,6 +288,16 @@ impl RecorderRegistry {
         key: Option<zeroize::Zeroizing<[u8; 32]>>,
         bus: &EventBus,
     ) -> Result<RecorderSnapshot, Error> {
+        // mkdir -p the parent so callers hand in `<app_support>/recordings/<session>/<ts>.<ext>`
+        // without preparing the chain themselves; SQLite-style "open
+        // creates the file but not the parent" was the historical trap
+        // and is what this branch sidesteps.
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| Error::Recorder(format!("mkdir {}: {e}", parent.display())))?;
+            }
+        }
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -512,6 +522,17 @@ impl RecorderRegistry {
             }
             drop(old_file);
 
+            // mkdir -p covers rotation targets handed in fresh from
+            // Dart — sibling files normally share the parent with the
+            // initial-register path, but a future caller that rotates
+            // across sessions should still get the directory chain.
+            if let Some(parent) = std::path::Path::new(&new_path).parent() {
+                if !parent.as_os_str().is_empty() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        Error::Recorder(format!("rotate mkdir {}: {e}", parent.display()))
+                    })?;
+                }
+            }
             let mut file = OpenOptions::new()
                 .create(true)
                 .append(true)

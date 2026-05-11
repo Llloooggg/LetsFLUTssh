@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -10,7 +9,6 @@ import '../../src/rust/api/bus.dart' as rust_bus;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/recorder.dart' as rust_recorder;
 import '../security/active_dbkey.dart' as rust_secrets_consts;
-import '../../utils/file_utils.dart';
 import '../../utils/logger.dart';
 import '../bus/app_bus.dart';
 
@@ -135,7 +133,7 @@ class SessionRecorder {
     required int height,
   }) async {
     try {
-      final dir = await _ensureDirectory(sessionId);
+      final dirPath = await _sessionDirPath(sessionId);
       // Active-slot presence determines wire format. `secretsHas` is
       // a sync FRB lookup — single hashmap probe Rust-side.
       final encrypted = rust_secrets.secretsHas(
@@ -143,13 +141,10 @@ class SessionRecorder {
       );
       final ext = encrypted ? 'lfsr' : 'cast';
       final isoTs = _isoTimestamp();
-      final path = p.join(dir.path, '$isoTs.$ext');
-      // Empty file with hardened perms before Rust opens its
-      // append-mode handle — keeps the existing 0600 / no-group
-      // discipline regardless of which side owns the writer.
-      final file = File(path);
-      await file.create();
-      await hardenFilePerms(path);
+      final path = p.join(dirPath, '$isoTs.$ext');
+      // `recorderRegisterFromActive` mkdir's the parent + opens the
+      // file at 0600 inside `lfs_core::recorder::register_with_io`,
+      // so no Dart-side `File.create` / `hardenFilePerms` is needed.
       final handleId = const Uuid().v4();
       // Rust pulls the DB key from `SecretStore.app.dbkey.active`,
       // runs the `letsflutssh-recording-v1` HKDF-SHA256 derive
@@ -263,11 +258,13 @@ class SessionRecorder {
   // Implementation
   // -----------------------------------------------------------------
 
-  static Future<Directory> _ensureDirectory(String sessionId) async {
+  /// Compose `<app_support>/recordings/<sessionId>/` as a path
+  /// string. No filesystem ops — the Rust recorder mkdir's the
+  /// directory chain inside `register_with_io` / `enqueue_rotate`
+  /// before opening the file.
+  static Future<String> _sessionDirPath(String sessionId) async {
     final base = await getApplicationSupportDirectory();
-    final dir = Directory(p.join(base.path, 'recordings', sessionId));
-    if (!await dir.exists()) await dir.create(recursive: true);
-    return dir;
+    return p.join(base.path, 'recordings', sessionId);
   }
 
   /// Tail of the serialised dispatch chain. Each `_enqueueEvent`
@@ -351,13 +348,12 @@ class SessionRecorder {
   Future<void> _rotate() async {
     if (_closed) return;
     try {
-      final dir = await _ensureDirectory(sessionId);
+      final dirPath = await _sessionDirPath(sessionId);
       final ext = _encrypted ? 'lfsr' : 'cast';
       final isoTs = _isoTimestamp();
-      final path = p.join(dir.path, '$isoTs.$ext');
-      final file = File(path);
-      await file.create();
-      await hardenFilePerms(path);
+      final path = p.join(dirPath, '$isoTs.$ext');
+      // Same as the initial-register path: Rust-side rotate worker
+      // mkdir's the parent + opens 0600 inside the recorder actor.
       await rust_recorder.recorderQueueEnqueueRotate(
         id: _handleId,
         newPath: path,
