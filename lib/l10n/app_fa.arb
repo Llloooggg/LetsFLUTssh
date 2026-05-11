@@ -518,6 +518,27 @@
   "keyDeleted": "کلید حذف شد: {label}",
   "publicKey": "کلید عمومی",
   "publicKeyCopied": "کلید عمومی در کلیپ‌بورد کپی شد",
+  "sshCertificate": "Certificate",
+  "certImport": "ایمپورت certificate",
+  "certImportPickerTitle": "فایل certificate از نوع OpenSSH را انتخاب کن",
+  "certValidFrom": "معتبر از",
+  "certValidTo": "معتبر تا",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "این certificate به‌زودی منقضی می‌شود.",
+  "certExpired": "منقضی",
+  "certRemove": "حذف certificate",
+  "certRemoveConfirmTitle": "certificate حذف شود؟",
+  "certRemoveConfirmBody": "بعد از حذف، در اتصال بعدی به مسیر public key معمولی برمی‌گردد.",
+  "errCertParse": "Certificate پارس نشد: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "این certificate با کلید انتخاب‌شده جفت نیست.",
   "pastePrivateKey": "چسباندن کلید خصوصی (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "داده کلید PEM نامعتبر",

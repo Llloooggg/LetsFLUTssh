@@ -518,6 +518,27 @@
   "keyDeleted": "कुंजी हटाई गई: {label}",
   "publicKey": "सार्वजनिक कुंजी",
   "publicKeyCopied": "सार्वजनिक कुंजी क्लिपबोर्ड पर कॉपी की गई",
+  "sshCertificate": "Certificate",
+  "certImport": "Certificate इम्पोर्ट करें",
+  "certImportPickerTitle": "OpenSSH certificate फ़ाइल चुनें",
+  "certValidFrom": "वैध from",
+  "certValidTo": "वैध until",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "यह certificate जल्द ही expire हो जाएगा।",
+  "certExpired": "Expired",
+  "certRemove": "Certificate हटाएं",
+  "certRemoveConfirmTitle": "Certificate हटाएं?",
+  "certRemoveConfirmBody": "हटाने के बाद session फिर से सामान्य public-key auth path से connect होगा।",
+  "errCertParse": "Certificate parse नहीं हुआ: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "यह certificate चुनी हुई key के साथ pair नहीं है।",
   "pastePrivateKey": "निजी कुंजी चिपकाएं (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "अमान्य PEM कुंजी डेटा",

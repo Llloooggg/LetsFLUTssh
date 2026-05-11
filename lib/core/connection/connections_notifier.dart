@@ -536,6 +536,20 @@ class ConnectionsNotifier extends Notifier<List<Connection>> {
     return switch (prepared.auth) {
       rust_auth.DbPreparedAuthRef_Password(:final secretId) =>
         SshAuthPasswordRef(secretId),
+      // Cert-paired branch runs ahead of the plain-pubkey branch
+      // for symmetry with the Rust composer's `match` arm ordering
+      // — both selectors privilege the stronger cert-auth path
+      // whenever a cert is paired to the resolved manager key.
+      rust_auth.DbPreparedAuthRef_PubkeyCert(
+        :final keySecretId,
+        :final certSecretId,
+        :final passphraseSecretId,
+      ) =>
+        SshAuthPubkeyCertRef(
+          keySecretId,
+          certSecretId,
+          passphraseSecretId: passphraseSecretId,
+        ),
       rust_auth.DbPreparedAuthRef_Pubkey(
         :final keySecretId,
         :final passphraseSecretId,

@@ -162,6 +162,7 @@ pub mod port_forwards;
 pub mod sessions;
 pub mod sftp_bookmarks;
 pub mod snippets;
+pub mod ssh_key_certificates;
 pub mod ssh_keys;
 pub mod tags;
 
@@ -384,18 +385,22 @@ impl Db {
 /// [`bootstrap_schema`] with a `match` arm whenever the schema
 /// changes. v1 is "what drift used to ship before the rusqlite
 /// port", recorded explicitly so a future ALTER TABLE has a
-/// real anchor.
-pub const SCHEMA_VERSION: i32 = 1;
+/// real anchor. v2 adds the `ssh_key_certificates` join table.
+pub const SCHEMA_VERSION: i32 = 2;
 
 /// Create every table the DAOs expect, idempotently, and stamp
-/// `PRAGMA user_version = SCHEMA_VERSION` if and only if the DB
-/// is fresh (current value `0`). The unconditional stamp the
-/// audit flagged would silently downgrade a future schema bump:
-/// if a user opened a v2 DB with a v1 build, the stamp would
-/// rewrite `user_version` to 1 and the next v2 build would mistake
-/// the file for a v1 install needing a forward migration that
-/// already ran. Tables are `CREATE IF NOT EXISTS` so the call is
-/// safe to re-run on every open.
+/// `PRAGMA user_version = SCHEMA_VERSION` when the on-disk value
+/// is strictly below the current version. The `<` test prevents
+/// the audit-flagged downgrade case: a user opening a v2 DB with a
+/// v1 build leaves `user_version` at 2 and the future v2 build
+/// finds it unchanged. Forward-stamping is safe so long as every
+/// schema diff between the on-disk value and `SCHEMA_VERSION` is
+/// expressible as `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF
+/// NOT EXISTS` — that's the current floor through v2 (the
+/// v1 → v2 step adds the `ssh_key_certificates` join table). The
+/// first non-additive bump replaces this block with a
+/// `match current { 1 => ... }` arm carrying the rusqlite
+/// migration step.
 pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
     conn.inner()
         .execute_batch(SCHEMA_SQL)
@@ -407,7 +412,7 @@ pub(crate) fn bootstrap_schema(conn: &Connection) -> Result<(), Error> {
             Ok(())
         })
         .map_err(|e| Error::Db(format!("bootstrap schema: read user_version: {e}")))?;
-    if current == 0 {
+    if current < SCHEMA_VERSION {
         conn.inner()
             .pragma_update(None, "user_version", SCHEMA_VERSION)
             .map_err(|e| Error::Db(format!("bootstrap schema: stamp user_version: {e}")))?;
@@ -453,6 +458,24 @@ CREATE TABLE IF NOT EXISTS ssh_keys (
     key_type TEXT NOT NULL,
     is_generated INTEGER NOT NULL DEFAULT 1,
     created_at INTEGER NOT NULL
+);
+
+-- One certificate per stored SSH key. `key_id` is a TEXT foreign
+-- key (ssh_keys.id is TEXT, not INTEGER) and doubles as the PK so
+-- the upsert can be a plain INSERT OR REPLACE. Validity windows
+-- are unix-seconds (matching OpenSSH's wire format); principals
+-- and critical_options are stored as serialized JSON so the BTree
+-- preserves order and the DAO does not need a junction table for
+-- what's a tiny opaque list / map per row.
+CREATE TABLE IF NOT EXISTS ssh_key_certificates (
+    key_id           TEXT    PRIMARY KEY,
+    certificate      BLOB    NOT NULL,
+    valid_after      INTEGER NOT NULL,
+    valid_before     INTEGER NOT NULL,
+    principals       TEXT    NOT NULL DEFAULT '[]',
+    critical_options TEXT    NOT NULL DEFAULT '{}',
+    fingerprint      TEXT    NOT NULL DEFAULT '',
+    FOREIGN KEY (key_id) REFERENCES ssh_keys(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS sessions (

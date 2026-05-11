@@ -518,6 +518,27 @@
   "keyDeleted": "تم حذف المفتاح: {label}",
   "publicKey": "المفتاح العام",
   "publicKeyCopied": "تم نسخ المفتاح العام إلى الحافظة",
+  "sshCertificate": "Certificate",
+  "certImport": "استيراد certificate",
+  "certImportPickerTitle": "اختر ملف certificate من نوع OpenSSH",
+  "certValidFrom": "ساري من",
+  "certValidTo": "ساري حتى",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "صلاحية هذا الـ certificate ستنتهي قريبًا.",
+  "certExpired": "منتهي الصلاحية",
+  "certRemove": "إزالة الـ certificate",
+  "certRemoveConfirmTitle": "إزالة الـ certificate؟",
+  "certRemoveConfirmBody": "بعد الإزالة ستعود الجلسة إلى مصادقة public key العادية عند الاتصال.",
+  "errCertParse": "تعذر تحليل الـ certificate: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "هذا الـ certificate غير مرتبط بالمفتاح المختار.",
   "pastePrivateKey": "لصق المفتاح الخاص (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "بيانات مفتاح PEM غير صالحة",

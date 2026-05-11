@@ -518,6 +518,27 @@
   "keyDeleted": "Anahtar silindi: {label}",
   "publicKey": "Public key",
   "publicKeyCopied": "Public key panoya kopyalandı",
+  "sshCertificate": "Sertifika",
+  "certImport": "Sertifika içe aktar",
+  "certImportPickerTitle": "OpenSSH sertifika dosyasını seç",
+  "certValidFrom": "Geçerlilik başlangıcı",
+  "certValidTo": "Geçerlilik bitişi",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Bu sertifikanın süresi yakında dolacak.",
+  "certExpired": "Süresi doldu",
+  "certRemove": "Sertifikayı kaldır",
+  "certRemoveConfirmTitle": "Sertifika kaldırılsın mı?",
+  "certRemoveConfirmBody": "Sertifika kaldırıldığında oturum düz public key kimlik doğrulamasına geri döner.",
+  "errCertParse": "Sertifika parse edilemedi: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Bu sertifika seçili anahtarla eşleşmiyor.",
   "pastePrivateKey": "Özel anahtarı yapıştır (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Geçersiz PEM anahtar verisi",

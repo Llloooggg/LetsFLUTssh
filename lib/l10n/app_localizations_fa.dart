@@ -1639,6 +1639,53 @@ class SFa extends S {
   String get publicKeyCopied => 'کلید عمومی در کلیپ‌بورد کپی شد';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'ایمپورت certificate';
+
+  @override
+  String get certImportPickerTitle =>
+      'فایل certificate از نوع OpenSSH را انتخاب کن';
+
+  @override
+  String get certValidFrom => 'معتبر از';
+
+  @override
+  String get certValidTo => 'معتبر تا';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'این certificate به‌زودی منقضی می‌شود.';
+
+  @override
+  String get certExpired => 'منقضی';
+
+  @override
+  String get certRemove => 'حذف certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'certificate حذف شود؟';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'بعد از حذف، در اتصال بعدی به مسیر public key معمولی برمی‌گردد.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Certificate پارس نشد: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'این certificate با کلید انتخاب‌شده جفت نیست.';
+
+  @override
   String get pastePrivateKey => 'چسباندن کلید خصوصی (PEM)';
 
   @override

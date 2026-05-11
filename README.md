@@ -33,7 +33,7 @@ Lightweight cross-platform SSH/SFTP client with GUI — **Flutter UI on a Rust c
 - **Security** — encrypted SQLite storage via SQLCipher 4.x (AES-256-CBC for confidentiality + HMAC-SHA512 per-page MAC + 256 000 PBKDF2-SHA512 iterations on the page-cipher key; bundled in-tree via `rusqlite`'s `bundled-sqlcipher-vendored-openssl` Cargo feature — both SQLCipher and the OpenSSL it depends on are statically linked, no separate native blob, no submodule, no system-library prereqs on any cross-compile target). Three security tiers with a separate Paranoid alternative (T0 plaintext / T1 OS keychain / T2 hardware-bound key in Secure Enclave, StrongBox, or TPM 2.0 / Paranoid: master-password-derived, no OS storage). Two orthogonal modifiers on T1 / T2: password (pre-vault HMAC gate) and biometric (OS-biometric shortcut releasing the stored password — never a replacement for it). Atomic re-encryption on every tier or modifier change. Page-locked in-memory secrets (`mlock` / `VirtualLock`), startup process hardening (`prctl PR_SET_DUMPABLE`, `ptrace PT_DENY_ATTACH`). Argon2id-only `.lfs` export / import. TOFU host-key verification. Full threat model in [SECURITY.md](docs/SECURITY.md)
 - **Import/export** — encrypted `.lfs` archives, QR sharing for small exports, paste-deep-link import (no camera), in-app QR scanner (AndroidX CameraX + ZXing on Android, AVFoundation on iOS — no Google Play Services / MLKit)
 - **Mobile** — virtual keyboard (Esc/Tab/Ctrl/Alt/F1-F12), terminal font slider in Settings, deep links
-- **Auth** — password, key file, PEM text
+- **Auth** — password, key file, PEM text, OpenSSH user certificates paired to stored keys
 - **Themes** — OneDark / One Light, system auto-detection
 
 ### Platforms

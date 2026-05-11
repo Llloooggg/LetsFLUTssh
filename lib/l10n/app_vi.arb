@@ -518,6 +518,27 @@
   "keyDeleted": "Đã xóa khóa: {label}",
   "publicKey": "Khóa công khai",
   "publicKeyCopied": "Đã sao chép khóa công khai vào clipboard",
+  "sshCertificate": "Certificate",
+  "certImport": "Import certificate",
+  "certImportPickerTitle": "Chọn file certificate OpenSSH",
+  "certValidFrom": "Hiệu lực từ",
+  "certValidTo": "Hết hạn",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Certificate này sắp hết hạn.",
+  "certExpired": "Hết hạn",
+  "certRemove": "Xoá certificate",
+  "certRemoveConfirmTitle": "Xoá certificate?",
+  "certRemoveConfirmBody": "Sau khi xoá, lần connect tiếp theo sẽ fallback về public key thường.",
+  "errCertParse": "Không parse được certificate: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Certificate này không được pair với key đang chọn.",
   "pastePrivateKey": "Dán khóa riêng tư (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Dữ liệu khóa PEM không hợp lệ",

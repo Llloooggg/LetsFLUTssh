@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:uuid/uuid.dart';
 
 import '../../src/rust/api/keys.dart' as rust_keys;
@@ -12,7 +14,34 @@ enum SshKeyType {
   final String label;
 }
 
+/// Validity window of a paired OpenSSH certificate. `from` / `to`
+/// match the cert's wire-format `valid_after` / `valid_before` —
+/// unix seconds projected to `DateTime`. A row whose cert is
+/// expired renders the red "Expired" badge in the key manager.
+class CertValidity {
+  final DateTime from;
+  final DateTime to;
+  const CertValidity({required this.from, required this.to});
+
+  bool get isExpired => to.isBefore(DateTime.now());
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CertValidity && from == other.from && to == other.to;
+
+  @override
+  int get hashCode => Object.hash(from, to);
+}
+
 /// An SSH key entry stored in the key manager.
+///
+/// `certificate` carries the optional OpenSSH cert blob paired to
+/// this key — `null` for keys without a cert attached, which is the
+/// common case. `validity`, `principals`, and `criticalOptions`
+/// summarise the cert's wire-format fields and are kept on the
+/// entry so the key manager row can render without an extra FRB
+/// hop per row.
 class SshKeyEntry {
   final String id;
   final String label;
@@ -21,6 +50,10 @@ class SshKeyEntry {
   final String keyType;
   final DateTime createdAt;
   final bool isGenerated;
+  final Uint8List? certificate;
+  final CertValidity? validity;
+  final List<String> principals;
+  final Map<String, String> criticalOptions;
 
   const SshKeyEntry({
     required this.id,
@@ -30,9 +63,19 @@ class SshKeyEntry {
     required this.keyType,
     required this.createdAt,
     this.isGenerated = false,
+    this.certificate,
+    this.validity,
+    this.principals = const [],
+    this.criticalOptions = const {},
   });
 
-  SshKeyEntry copyWith({String? label}) => SshKeyEntry(
+  SshKeyEntry copyWith({
+    String? label,
+    Uint8List? certificate,
+    CertValidity? validity,
+    List<String>? principals,
+    Map<String, String>? criticalOptions,
+  }) => SshKeyEntry(
     id: id,
     label: label ?? this.label,
     privateKey: privateKey,
@@ -40,6 +83,10 @@ class SshKeyEntry {
     keyType: keyType,
     createdAt: createdAt,
     isGenerated: isGenerated,
+    certificate: certificate ?? this.certificate,
+    validity: validity ?? this.validity,
+    principals: principals ?? this.principals,
+    criticalOptions: criticalOptions ?? this.criticalOptions,
   );
 
   Map<String, dynamic> toJson() => {
@@ -50,19 +97,49 @@ class SshKeyEntry {
     'key_type': keyType,
     'created_at': createdAt.toIso8601String(),
     'is_generated': isGenerated,
+    if (certificate != null) 'certificate': certificate!.toList(),
+    if (validity != null) ...{
+      'valid_from': validity!.from.toIso8601String(),
+      'valid_to': validity!.to.toIso8601String(),
+    },
+    if (principals.isNotEmpty) 'principals': principals,
+    if (criticalOptions.isNotEmpty) 'critical_options': criticalOptions,
   };
 
-  factory SshKeyEntry.fromJson(Map<String, dynamic> json) => SshKeyEntry(
-    id: json['id'] as String,
-    label: json['label'] as String? ?? '',
-    privateKey: json['private_key'] as String? ?? '',
-    publicKey: json['public_key'] as String? ?? '',
-    keyType: json['key_type'] as String? ?? '',
-    createdAt:
-        DateTime.tryParse(json['created_at'] as String? ?? '') ??
-        DateTime.now(),
-    isGenerated: json['is_generated'] as bool? ?? false,
-  );
+  factory SshKeyEntry.fromJson(Map<String, dynamic> json) {
+    final certList = json['certificate'];
+    final Uint8List? cert = certList is List
+        ? Uint8List.fromList(certList.cast<int>())
+        : null;
+    final from = DateTime.tryParse(json['valid_from'] as String? ?? '');
+    final to = DateTime.tryParse(json['valid_to'] as String? ?? '');
+    final CertValidity? validity = (from != null && to != null)
+        ? CertValidity(from: from, to: to)
+        : null;
+    final principalsRaw = json['principals'];
+    final List<String> principals = principalsRaw is List
+        ? principalsRaw.cast<String>()
+        : const [];
+    final critRaw = json['critical_options'];
+    final Map<String, String> critical = critRaw is Map
+        ? critRaw.map((k, v) => MapEntry(k.toString(), v.toString()))
+        : const {};
+    return SshKeyEntry(
+      id: json['id'] as String,
+      label: json['label'] as String? ?? '',
+      privateKey: json['private_key'] as String? ?? '',
+      publicKey: json['public_key'] as String? ?? '',
+      keyType: json['key_type'] as String? ?? '',
+      createdAt:
+          DateTime.tryParse(json['created_at'] as String? ?? '') ??
+          DateTime.now(),
+      isGenerated: json['is_generated'] as bool? ?? false,
+      certificate: cert,
+      validity: validity,
+      principals: principals,
+      criticalOptions: critical,
+    );
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -82,6 +159,13 @@ class SshKeyEntry {
 /// Rust (see `db_ssh_keys_list_metadata`) so dedup paths can
 /// compare against scanned key material without ever pulling the
 /// PEM through the FRB boundary.
+///
+/// `validity` / `principals` / `criticalOptions` / `certFingerprint`
+/// are non-null when a certificate is paired to this key. The key-
+/// manager UI joins them onto the row via a separate
+/// `db_ssh_key_certificate_get` call rather than redesigning the
+/// metadata listing — most keys have no cert and the cert lookup
+/// is keyed by `id` so the merge is O(1) per row.
 class SshKeyMetadata {
   final String id;
   final String label;
@@ -91,6 +175,10 @@ class SshKeyMetadata {
   final bool isGenerated;
   final String privateFingerprint;
   final String publicFingerprint;
+  final CertValidity? validity;
+  final List<String> principals;
+  final Map<String, String> criticalOptions;
+  final String certFingerprint;
 
   const SshKeyMetadata({
     required this.id,
@@ -101,7 +189,13 @@ class SshKeyMetadata {
     required this.isGenerated,
     required this.privateFingerprint,
     required this.publicFingerprint,
+    this.validity,
+    this.principals = const [],
+    this.criticalOptions = const {},
+    this.certFingerprint = '',
   });
+
+  bool get hasCertificate => certFingerprint.isNotEmpty;
 }
 
 /// Thrown when key store operations fail.

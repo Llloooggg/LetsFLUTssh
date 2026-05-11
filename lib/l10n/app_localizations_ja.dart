@@ -1615,6 +1615,50 @@ class SJa extends S {
   String get publicKeyCopied => '公開鍵をクリップボードにコピーしました';
 
   @override
+  String get sshCertificate => '証明書';
+
+  @override
+  String get certImport => '証明書をインポート';
+
+  @override
+  String get certImportPickerTitle => 'OpenSSH 証明書ファイルを選択';
+
+  @override
+  String get certValidFrom => '有効開始';
+
+  @override
+  String get certValidTo => '有効期限';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'この証明書は間もなく期限切れになります。';
+
+  @override
+  String get certExpired => '期限切れ';
+
+  @override
+  String get certRemove => '証明書を削除';
+
+  @override
+  String get certRemoveConfirmTitle => '証明書を削除しますか？';
+
+  @override
+  String get certRemoveConfirmBody => '削除すると、次回接続時は通常の公開鍵認証にフォールバックします。';
+
+  @override
+  String errCertParse(String detail) {
+    return '証明書をパースできませんでした：$detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch => 'この証明書は選択中の鍵とペアになっていません。';
+
+  @override
   String get pastePrivateKey => '秘密鍵を貼り付け (PEM)';
 
   @override

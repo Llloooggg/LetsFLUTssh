@@ -360,6 +360,20 @@ architecture.
 - **Known hosts / TOFU verification** — DB-backed; the host-key
   callback refuses silent changes and surfaces an unambiguous dialog
   with both fingerprints.
+- **OpenSSH user certificates** — stored keys may be paired with a
+  CA-signed certificate (`ssh-keygen -s ca_key id_*.pub`). The app
+  matches the OpenSSH semantics: it holds the cert blob alongside
+  the private key, presents `(key, cert)` at userauth time, and
+  lets the server enforce the validity window, principals list, and
+  critical-options (`force-command`, `source-address`, etc.). The
+  client does not validate the CA signature against a trusted-CA
+  set itself — that's the server's job (`TrustedUserCAKeys` in
+  `sshd_config`); a tampered cert simply fails the connect with an
+  auth error. The cert blob is public material (the signed half),
+  but the storage and connect path route it through the same
+  SecretStore staging path as the private PEM so the connect
+  cascade audit lists a single uniform namespace
+  (`key.priv.<id>` + `key.cert.<id>`).
 - **Deep-link URI parsing** — `letsflutssh://` scheme with host / port
   validation and path-traversal rejection.
 - **File permission handling** — `chmod 600` on credentials,

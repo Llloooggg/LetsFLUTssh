@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -12,6 +13,7 @@ import 'key_manager_logic.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_provider.dart';
 import '../../providers/session_provider.dart';
+import '../../src/rust/api/db.dart' as rust_db;
 import '../../src/rust/api/format.dart' as rust_format;
 import '../../src/rust/api/keys.dart' as rust_keys;
 import '../../theme/app_theme.dart';
@@ -154,6 +156,8 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
   }
 
   Widget _buildKeyEntry(S s, SshKeyMetadata entry) {
+    final hasCert = entry.hasCertificate;
+    final expired = entry.validity?.isExpired ?? false;
     return AppDataRow(
       icon: Icons.vpn_key,
       iconColor: entry.isGenerated ? AppTheme.accent : AppTheme.fgDim,
@@ -162,13 +166,34 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
           '${entry.keyType}  •  ${_formatDate(entry.createdAt)}'
           '${entry.isGenerated ? '  •  ${s.generated}' : ''}',
       secondaryMono: true,
+      tertiary: hasCert ? _certTertiary(s, entry) : null,
       trailing: [
+        if (expired)
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: _ExpiredBadge(label: s.certExpired),
+          ),
         AppIconButton(
           icon: Icons.content_copy,
           tooltip: s.publicKey,
           dense: true,
           onTap: () => _copyPublicKey(entry),
         ),
+        if (hasCert)
+          AppIconButton(
+            icon: Icons.workspace_premium_outlined,
+            tooltip: s.certRemove,
+            dense: true,
+            color: AppTheme.orange,
+            onTap: () => _removeCertificate(entry),
+          )
+        else
+          AppIconButton(
+            icon: Icons.workspace_premium_outlined,
+            tooltip: s.certImport,
+            dense: true,
+            onTap: () => _importCertificate(entry),
+          ),
         AppIconButton(
           icon: Icons.delete_outline,
           tooltip: s.deleteKey,
@@ -177,6 +202,23 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
           onTap: () => _deleteKey(entry),
         ),
       ],
+    );
+  }
+
+  /// Compose the cert tertiary line via the pure helper in
+  /// `key_manager_logic.dart`. The localization labels + the
+  /// localized `validity.to` date are resolved here so the helper
+  /// stays Flutter-free for unit testing.
+  String? _certTertiary(S s, SshKeyMetadata entry) {
+    final to = entry.validity?.to;
+    return buildCertTertiary(
+      entry,
+      CertRowLabels(
+        principals: s.certPrincipals,
+        validTo: s.certValidTo,
+        criticalOptions: s.certCriticalOptions,
+        localizedDate: to != null ? _formatDate(to.toLocal()) : '',
+      ),
     );
   }
 
@@ -218,6 +260,150 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
     if (mounted) {
       Toast.show(context, message: s.keyDeleted(entry.label));
     }
+  }
+
+  /// Pair an OpenSSH certificate to [entry]. Opens the file picker,
+  /// parses the cert Rust-side via `keys_parse_openssh_cert`, then
+  /// upserts the join row through `db_ssh_key_certificate_upsert`.
+  /// The fingerprint pairing check (cert's `signature_key`
+  /// fingerprint vs the stored key's public-key fingerprint) is
+  /// **not** enforced here — russh validates the pairing server-
+  /// side at userauth time. A mismatched cert would simply fail the
+  /// next connect attempt with an auth error.
+  Future<void> _importCertificate(SshKeyMetadata entry) async {
+    final s = S.of(context);
+    final FilePickerResult? picked;
+    try {
+      picked = await FilePicker.pickFiles(
+        dialogTitle: s.certImportPickerTitle,
+        allowMultiple: false,
+        type: FileType.any,
+      );
+    } on MissingPluginException catch (e) {
+      AppLogger.instance.log(
+        'File picker missing on ${Platform.operatingSystem}: $e',
+        name: 'KeyManager',
+      );
+      if (mounted) {
+        Toast.show(
+          context,
+          message: s.filePickerUnavailable,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    } catch (e) {
+      AppLogger.instance.log('File picker failed: $e', name: 'KeyManager');
+      if (mounted) {
+        Toast.show(
+          context,
+          message: s.filePickerUnavailable,
+          level: ToastLevel.error,
+        );
+      }
+      return;
+    }
+    if (!mounted || picked == null) return;
+    final path = picked.files.single.path;
+    if (path == null) return;
+
+    Uint8List bytes;
+    try {
+      bytes = await File(path).readAsBytes();
+    } catch (e) {
+      AppLogger.instance.log(
+        'Cert read failed for <label>',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: s.errCertParse(e.toString()),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+
+    rust_keys.DbCertSummary summary;
+    try {
+      summary = rust_keys.keysParseOpensshCert(bytes: bytes);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Cert parse failed for <label>',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: s.errCertParse(e.toString()),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+
+    final principalsJson = jsonEncode(summary.principals);
+    final criticalJson = jsonEncode(summary.criticalOptions);
+    try {
+      await rust_db.dbSshKeyCertificateUpsert(
+        rec: rust_db.DbSshKeyCertificate(
+          keyId: entry.id,
+          certificate: bytes,
+          validAfter: summary.validAfterUnix,
+          validBefore: summary.validBeforeUnix,
+          principals: principalsJson,
+          criticalOptions: criticalJson,
+          fingerprint: summary.fingerprint,
+        ),
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Cert upsert failed for <label>',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: s.errCertParse(e.toString()),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+
+    ref.invalidate(sshKeysProvider);
+    await _loadKeys();
+  }
+
+  Future<void> _removeCertificate(SshKeyMetadata entry) async {
+    final s = S.of(context);
+    final confirmed = await AppDialog.show<bool>(
+      context,
+      builder: (ctx) => AppDialog(
+        title: s.certRemoveConfirmTitle,
+        content: Text(s.certRemoveConfirmBody),
+        actions: [
+          AppButton.cancel(onTap: () => Navigator.pop(ctx, false)),
+          AppButton.destructive(
+            label: s.certRemove,
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await rust_db.dbSshKeyCertificateDelete(keyId: entry.id);
+    } catch (e) {
+      AppLogger.instance.log(
+        'Cert delete failed for <label>',
+        name: 'KeyManager',
+        error: e,
+      );
+    }
+    ref.invalidate(sshKeysProvider);
+    await _loadKeys();
   }
 
   Future<void> _generateKey() async {
@@ -602,6 +788,55 @@ class _ToolbarButton extends StatelessWidget {
       icon: icon,
       onTap: onTap,
       dense: true,
+    );
+  }
+}
+
+// ── Expired badge ───────────────────────────────────────────────────
+
+/// Red dot + "Expired" pill rendered in the row's trailing slot
+/// when a paired certificate's `valid_before` has passed. Kept as
+/// a tiny private widget rather than a one-off `Container` chain so
+/// the shape stays consistent if another expired surface (host
+/// key, session credential) needs the same affordance.
+class _ExpiredBadge extends StatelessWidget {
+  final String label;
+  const _ExpiredBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.red.withValues(alpha: 0.16),
+        borderRadius: AppTheme.radiusSm,
+        border: Border.all(color: AppTheme.red.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: AppTheme.red,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: AppFonts.inter(
+              fontSize: AppFonts.xxs,
+              color: AppTheme.red,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1650,6 +1650,52 @@ class SAr extends S {
   String get publicKeyCopied => 'تم نسخ المفتاح العام إلى الحافظة';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'استيراد certificate';
+
+  @override
+  String get certImportPickerTitle => 'اختر ملف certificate من نوع OpenSSH';
+
+  @override
+  String get certValidFrom => 'ساري من';
+
+  @override
+  String get certValidTo => 'ساري حتى';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'صلاحية هذا الـ certificate ستنتهي قريبًا.';
+
+  @override
+  String get certExpired => 'منتهي الصلاحية';
+
+  @override
+  String get certRemove => 'إزالة الـ certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'إزالة الـ certificate؟';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'بعد الإزالة ستعود الجلسة إلى مصادقة public key العادية عند الاتصال.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'تعذر تحليل الـ certificate: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'هذا الـ certificate غير مرتبط بالمفتاح المختار.';
+
+  @override
   String get pastePrivateKey => 'لصق المفتاح الخاص (PEM)';
 
   @override

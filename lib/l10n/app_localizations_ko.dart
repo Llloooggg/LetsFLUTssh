@@ -1611,6 +1611,50 @@ class SKo extends S {
   String get publicKeyCopied => '공개 키가 클립보드에 복사되었습니다';
 
   @override
+  String get sshCertificate => '인증서';
+
+  @override
+  String get certImport => '인증서 가져오기';
+
+  @override
+  String get certImportPickerTitle => 'OpenSSH 인증서 파일 선택';
+
+  @override
+  String get certValidFrom => '유효 시작';
+
+  @override
+  String get certValidTo => '유효 만료';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => '이 인증서는 곧 만료됩니다.';
+
+  @override
+  String get certExpired => '만료됨';
+
+  @override
+  String get certRemove => '인증서 제거';
+
+  @override
+  String get certRemoveConfirmTitle => '인증서를 제거하시겠습니까?';
+
+  @override
+  String get certRemoveConfirmBody => '제거 후 재접속 시 일반 공개 키 인증으로 폴백됩니다.';
+
+  @override
+  String errCertParse(String detail) {
+    return '인증서 파싱 실패: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch => '이 인증서는 선택한 키와 페어가 아닙니다.';
+
+  @override
   String get pastePrivateKey => '개인 키 붙여넣기 (PEM)';
 
   @override

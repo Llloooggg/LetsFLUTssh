@@ -25,3 +25,44 @@ List<SshKeyMetadata> filterSshKeys(List<SshKeyMetadata> keys, String filter) {
       )
       .toList();
 }
+
+/// Labels carried into the cert tertiary text. Living one place so
+/// the test can pass the equivalent of `S.of(context).certPrincipals`
+/// without booting Flutter localizations. The keys mirror the ARB
+/// names the row renders against.
+class CertRowLabels {
+  final String principals;
+  final String validTo;
+  final String criticalOptions;
+  final String localizedDate; // formatted YYYY-MM-DD of validity.to
+
+  const CertRowLabels({
+    required this.principals,
+    required this.validTo,
+    required this.criticalOptions,
+    required this.localizedDate,
+  });
+}
+
+/// Build the cert tertiary line for [entry] using [labels]. Returns
+/// `null` when no cert is attached (the row renders without a
+/// tertiary slot). Order of segments matches the visual reading
+/// order: principals (most distinguishing), validity, options.
+String? buildCertTertiary(SshKeyMetadata entry, CertRowLabels labels) {
+  if (!entry.hasCertificate) return null;
+  final parts = <String>[];
+  if (entry.principals.isNotEmpty) {
+    final visible = entry.principals.take(3).join(', ');
+    final extra = entry.principals.length > 3
+        ? ' +${entry.principals.length - 3}'
+        : '';
+    parts.add('${labels.principals}: $visible$extra');
+  }
+  if (entry.validity != null) {
+    parts.add('${labels.validTo} ${labels.localizedDate}');
+  }
+  if (entry.criticalOptions.isNotEmpty) {
+    parts.add('${labels.criticalOptions}: ${entry.criticalOptions.length}');
+  }
+  return parts.join('  •  ');
+}

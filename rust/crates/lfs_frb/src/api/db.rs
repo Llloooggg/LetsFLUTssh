@@ -246,6 +246,100 @@ pub async fn db_ssh_keys_list_metadata() -> Result<Vec<DbSshKeyMetadata>, String
         .map(|rows| rows.into_iter().map(DbSshKeyMetadata::from).collect())
 }
 
+// ---- ssh_key_certificates ---------------------------------------------
+
+/// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].
+/// One certificate per stored SSH key — the Dart key-manager UI
+/// surfaces the principals / validity / critical-options summary on
+/// the matching row.
+#[derive(Debug, Clone)]
+pub struct DbSshKeyCertificate {
+    pub key_id: String,
+    pub certificate: Vec<u8>,
+    pub valid_after: i64,
+    pub valid_before: i64,
+    pub principals: String,
+    pub critical_options: String,
+    pub fingerprint: String,
+}
+
+impl From<lfs_core::db::ssh_key_certificates::CertRecord> for DbSshKeyCertificate {
+    fn from(r: lfs_core::db::ssh_key_certificates::CertRecord) -> Self {
+        Self {
+            key_id: r.key_id,
+            certificate: r.certificate,
+            valid_after: r.valid_after,
+            valid_before: r.valid_before,
+            principals: r.principals,
+            critical_options: r.critical_options,
+            fingerprint: r.fingerprint,
+        }
+    }
+}
+
+impl From<DbSshKeyCertificate> for lfs_core::db::ssh_key_certificates::CertRecord {
+    fn from(r: DbSshKeyCertificate) -> Self {
+        Self {
+            key_id: r.key_id,
+            certificate: r.certificate,
+            valid_after: r.valid_after,
+            valid_before: r.valid_before,
+            principals: r.principals,
+            critical_options: r.critical_options,
+            fingerprint: r.fingerprint,
+        }
+    }
+}
+
+/// Fetch the certificate paired with `key_id`, or `None` when the
+/// key has no cert attached. Plain read — no SecretStore staging
+/// hop; that lives on the connect path
+/// ([`db_ssh_key_certificate_stage_secret`]).
+pub async fn db_ssh_key_certificate_get(
+    key_id: String,
+) -> Result<Option<DbSshKeyCertificate>, String> {
+    run_db(move |c| lfs_core::db::ssh_key_certificates::get(c, &key_id))
+        .await
+        .map(|opt| opt.map(DbSshKeyCertificate::from))
+}
+
+/// Insert or replace the certificate paired with `rec.key_id`. The
+/// caller must have validated the fingerprint pairing
+/// (`keys_parse_openssh_cert` + match against the key's public-half
+/// fingerprint) before calling — the DAO does not re-check.
+pub async fn db_ssh_key_certificate_upsert(rec: DbSshKeyCertificate) -> Result<(), String> {
+    let rec: lfs_core::db::ssh_key_certificates::CertRecord = rec.into();
+    run_db(move |c| lfs_core::db::ssh_key_certificates::upsert(c, &rec)).await
+}
+
+/// Remove the certificate paired with `key_id`. Returns the number
+/// of rows affected — `0` is a successful no-op when no cert was
+/// attached.
+pub async fn db_ssh_key_certificate_delete(key_id: String) -> Result<u32, String> {
+    run_db(move |c| lfs_core::db::ssh_key_certificates::delete(c, &key_id))
+        .await
+        .map(|n| n as u32)
+}
+
+/// Every certificate row, ordered by `key_id`. Used by archive
+/// export and a future "all certs" diagnostic. Most callers want
+/// [`db_ssh_key_certificate_get`] instead.
+pub async fn db_ssh_key_certificates_list_all() -> Result<Vec<DbSshKeyCertificate>, String> {
+    run_db(lfs_core::db::ssh_key_certificates::list_all)
+        .await
+        .map(|rows| rows.into_iter().map(DbSshKeyCertificate::from).collect())
+}
+
+/// Stage the stored cert blob into the SecretStore under
+/// `key.cert.<id>`. Returns `true` when bytes landed, `false` when
+/// the key has no cert attached. The cert is public material, but
+/// routing it through SecretStore keeps the connect cascade
+/// symmetric with `db_ssh_keys_stage_secret` and avoids round-
+/// tripping the bytes through the Dart heap.
+pub async fn db_ssh_key_certificate_stage_secret(key_id: String) -> Result<bool, String> {
+    run_db(move |c| lfs_core::db::ssh_key_certificates::stage_secret_into_store(c, &key_id)).await
+}
+
 // ---- folders -----------------------------------------------------------
 
 #[derive(Debug, Clone)]
@@ -1321,6 +1415,28 @@ mod tests {
         assert_eq!(back.key_type, db.key_type);
         assert_eq!(back.is_generated, db.is_generated);
         assert_eq!(back.created_at_ms, db.created_at_ms);
+    }
+
+    #[test]
+    fn db_ssh_key_certificate_round_trips_through_core() {
+        let db = DbSshKeyCertificate {
+            key_id: "key-1".into(),
+            certificate: vec![0xDE, 0xAD, 0xBE, 0xEF],
+            valid_after: 1_700_000_000,
+            valid_before: 1_700_086_400,
+            principals: r#"["alice","root"]"#.into(),
+            critical_options: r#"{"force-command":"echo hi"}"#.into(),
+            fingerprint: "SHA256:abc".into(),
+        };
+        let core: lfs_core::db::ssh_key_certificates::CertRecord = db.clone().into();
+        let back: DbSshKeyCertificate = core.into();
+        assert_eq!(back.key_id, db.key_id);
+        assert_eq!(back.certificate, db.certificate);
+        assert_eq!(back.valid_after, db.valid_after);
+        assert_eq!(back.valid_before, db.valid_before);
+        assert_eq!(back.principals, db.principals);
+        assert_eq!(back.critical_options, db.critical_options);
+        assert_eq!(back.fingerprint, db.fingerprint);
     }
 
     #[test]

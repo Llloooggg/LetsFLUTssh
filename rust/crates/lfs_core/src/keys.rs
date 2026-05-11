@@ -2,8 +2,11 @@
 //! (`internal-russh-forked-ssh-key`). Mints Ed25519 / RSA keypairs
 //! and ingests user-supplied PEM blobs.
 
+use std::collections::BTreeMap;
+
 use russh::keys::ssh_key::private::{KeypairData, RsaKeypair};
 use russh::keys::ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey};
+use russh::keys::Certificate;
 
 use crate::error::Error;
 
@@ -252,6 +255,92 @@ pub fn try_read_pem_from_path(path: &std::path::Path) -> Option<String> {
         return Some(content);
     }
     None
+}
+
+/// Typed view of an OpenSSH certificate produced by
+/// [`parse_openssh_cert`]. Fields mirror the ssh-key crate's
+/// [`Certificate`] surface but use owned `String` / `Vec` so the
+/// summary can cross task boundaries without referencing the
+/// short-lived `Certificate` instance.
+///
+/// `valid_after_unix` / `valid_before_unix` are seconds since
+/// epoch — the certificate's wire-format validity window. The Dart
+/// caller converts to `DateTime` for display. `critical_options` is
+/// a `BTreeMap` so iteration order is stable for hashing /
+/// fingerprint composition.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CertSummary {
+    /// Hosts / users the cert is valid for. Empty list means
+    /// "valid for any principal" per OpenSSH's wire-format
+    /// convention.
+    pub principals: Vec<String>,
+    pub valid_after_unix: i64,
+    pub valid_before_unix: i64,
+    /// `force-command`, `source-address`, etc. — opaque key/value
+    /// pairs the server enforces.
+    pub critical_options: BTreeMap<String, String>,
+    /// SHA-256 of the binary cert blob in OpenSSH
+    /// `SHA256:<base64-no-pad>` shape. Matches `ssh-keygen -lf
+    /// <cert.pub>` output byte-for-byte.
+    pub fingerprint: String,
+}
+
+/// Parse an OpenSSH-format certificate (`id_*-cert.pub` /
+/// armored `-----BEGIN OPENSSH CERTIFICATE-----`) and project the
+/// fields the Dart key-manager UI surfaces — principals, validity
+/// window, critical options, and a stable display fingerprint.
+///
+/// **Fingerprint shape.** SHA-256 of the binary cert blob in
+/// `SHA256:<base64-no-pad>` form — the same shape
+/// [`crate::ssh::format_fingerprint`] produces for host keys and
+/// what `ssh-keygen -l -f <cert.pub>` prints. Recomputed inside
+/// Rust rather than passed through from the caller so a tampered
+/// cert blob cannot inject a fake display fingerprint.
+///
+/// **Why not return the raw `Certificate`.** Crossing the FRB
+/// boundary needs an owned, `Send + 'static` shape; the russh-fork
+/// `Certificate` does not need to leak out and a typed summary
+/// keeps the DB column shape uncoupled from the russh ABI. If a
+/// future use case needs the full cert (e.g. verifying server-side
+/// CA fingerprints) it can call into russh-keys directly from
+/// `lfs_core::ssh`.
+pub fn parse_openssh_cert(bytes: &[u8]) -> Result<CertSummary, Error> {
+    let trimmed: Vec<u8> = bytes
+        .iter()
+        .copied()
+        .skip_while(|b| b.is_ascii_whitespace())
+        .collect();
+    let cert_str =
+        std::str::from_utf8(&trimmed).map_err(|e| Error::KeyParse(format!("cert utf8: {e}")))?;
+    let cert =
+        Certificate::from_openssh(cert_str).map_err(|e| Error::KeyParse(format!("cert: {e}")))?;
+
+    let mut critical_options: BTreeMap<String, String> = BTreeMap::new();
+    for (name, value) in cert.critical_options().iter() {
+        critical_options.insert(name.clone(), value.clone());
+    }
+
+    // The cert blob has no built-in SHA-256 helper on the
+    // forked-ssh-key surface; re-encode via `to_bytes` then hash.
+    // The blob output is the SSH-wire-format binary equivalent of
+    // the base64 body — matches the bytes `ssh-keygen -l` digests.
+    let blob = cert
+        .to_bytes()
+        .map_err(|e| Error::KeyParse(format!("cert encode: {e}")))?;
+    let fingerprint = crate::ssh::format_fingerprint(&blob);
+
+    Ok(CertSummary {
+        principals: cert.valid_principals().to_vec(),
+        // `valid_after` / `valid_before` are unix seconds in OpenSSH;
+        // the russh-keys getter returns `u64`. Cast to `i64` for the
+        // Dart `DateTime.fromMillisecondsSinceEpoch` shape — i64 can
+        // hold every wire value (the max is 0xFFFFFFFFFFFFFFFF only
+        // in theory; real certs cap well inside the i64 range).
+        valid_after_unix: cert.valid_after() as i64,
+        valid_before_unix: cert.valid_before() as i64,
+        critical_options,
+        fingerprint,
+    })
 }
 
 /// Read `path` as UTF-8 text, capped at 32 KiB. Used by the
@@ -582,5 +671,92 @@ mod tests {
         // can hand us a directory under a sandbox alias.
         let dir = tempfile::TempDir::new().unwrap();
         assert!(try_read_pem_from_path(dir.path()).is_none());
+    }
+
+    // ── parse_openssh_cert ───────────────────────────────────────
+    //
+    // Real OpenSSH ed25519 cert blob — taken from the
+    // `internal-russh-forked-ssh-key` test corpus
+    // (`tests/examples/id_ed25519-cert.pub`). The corresponding
+    // upstream test asserts `valid_principals[0] == "host.example.com"`
+    // and one principal entry; we re-assert those invariants here so
+    // a russh-fork bump that silently changes the parser surface is
+    // caught at our DAO boundary, not at runtime.
+    const ED25519_CERT_FIXTURE: &str = "ssh-ed25519-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tAAAAIAYkJPGaYen7NK8MwZwWmNAyRaFNsc86AU9NObU2cM2uAAAAILM+rvN+ot98qgEN796jTiQfZfG1KaT0PtFDJ/XFSqtiAAAAAAAAAAAAAAACAAAAB2VkMjU1MTkAAAAUAAAAEGhvc3QuZXhhbXBsZS5jb20AAAAAYkx3NwAAAAB8DuY3AAAAAAAAAAAAAAAAAAAAMwAAAAtzc2gtZWQyNTUxOQAAACCzPq7zfqLffKoBDe/eo04kH2XxtSmk9D7RQyf1xUqrYgAAAFMAAAALc3NoLWVkMjU1MTkAAABApVXBNiYPlPoa1BYH5G4NP9XtjTMZlm7HO5GdbLSvvAw5Vdob7Ka+23hB7isJKHYtzFGGSKXAqxp/Zi8REbCaAw== user@example.com";
+
+    // Cert with a `force-command` critical option. Confirms we
+    // surface the option name + value verbatim; pulled from the
+    // forked-ssh-key crit-options round-trip test.
+    const ED25519_CERT_WITH_CRIT_OPTIONS: &str = "ssh-ed25519-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tAAAAIBW/4zLqXWROWmN1sPgdySnH1GUsEFBjFrRwKKw71BoBAAAAIH1MFwI1oRdEifXgBQvWQfCBBtA/Pi8YCUE/I3wXFJo2AAAAAAAAAAAAAAABAAAAA2ZvbwAAAAAAAAAAAAAAAH//////////AAAAIwAAABFoZWxsb0BleGFtcGxlLmNvbQAAAAoAAAAGZm9vYmFyAAAAAAAAAAAAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIH1MFwI1oRdEifXgBQvWQfCBBtA/Pi8YCUE/I3wXFJo2AAAAUwAAAAtzc2gtZWQyNTUxOQAAAEDRoPdI48KyoaLgaDZsSGs80qBeYQOXBd84CX8GYzFt/L21rxF1EeuPOkgsx7Q39WllXp+FgMMojsHftK/DJHEN";
+
+    #[test]
+    fn parse_openssh_cert_extracts_principals() {
+        let parsed = parse_openssh_cert(ED25519_CERT_FIXTURE.as_bytes()).unwrap();
+        assert_eq!(parsed.principals, vec!["host.example.com".to_string()]);
+    }
+
+    #[test]
+    fn parse_openssh_cert_extracts_validity_window() {
+        let parsed = parse_openssh_cert(ED25519_CERT_FIXTURE.as_bytes()).unwrap();
+        // Validity is encoded in the fixture as unix seconds; we
+        // assert window monotonicity (after < before) rather than
+        // exact values so a russh-fork bump that switches encoding
+        // surfaces here before downstream UI assertions.
+        assert!(parsed.valid_after_unix > 0);
+        assert!(parsed.valid_before_unix > parsed.valid_after_unix);
+    }
+
+    #[test]
+    fn parse_openssh_cert_extracts_critical_options() {
+        let parsed = parse_openssh_cert(ED25519_CERT_WITH_CRIT_OPTIONS.as_bytes()).unwrap();
+        assert_eq!(parsed.critical_options.len(), 1);
+        assert_eq!(
+            parsed
+                .critical_options
+                .get("hello@example.com")
+                .map(String::as_str),
+            Some("foobar"),
+        );
+    }
+
+    #[test]
+    fn parse_openssh_cert_no_crit_options_returns_empty_map() {
+        let parsed = parse_openssh_cert(ED25519_CERT_FIXTURE.as_bytes()).unwrap();
+        assert!(parsed.critical_options.is_empty());
+    }
+
+    #[test]
+    fn parse_openssh_cert_fingerprint_is_stable_sha256_base64_shape() {
+        // SHA-256 in `SHA256:<base64-no-pad>` form — 43 chars of
+        // base64-no-pad after the prefix (32 bytes → 43 base64).
+        let parsed = parse_openssh_cert(ED25519_CERT_FIXTURE.as_bytes()).unwrap();
+        assert!(parsed.fingerprint.starts_with("SHA256:"));
+        let body = &parsed.fingerprint["SHA256:".len()..];
+        assert_eq!(body.len(), 43);
+        // Re-parse must produce the same fingerprint; deterministic
+        // hash of canonical-encoded blob bytes.
+        let parsed2 = parse_openssh_cert(ED25519_CERT_FIXTURE.as_bytes()).unwrap();
+        assert_eq!(parsed.fingerprint, parsed2.fingerprint);
+    }
+
+    #[test]
+    fn parse_openssh_cert_rejects_random_bytes() {
+        let result = parse_openssh_cert(b"not-a-certificate");
+        assert!(matches!(result, Err(Error::KeyParse(_))));
+    }
+
+    #[test]
+    fn parse_openssh_cert_rejects_non_utf8() {
+        let result = parse_openssh_cert(&[0xFF, 0xFE, 0x00, 0xC0]);
+        assert!(matches!(result, Err(Error::KeyParse(_))));
+    }
+
+    #[test]
+    fn parse_openssh_cert_strips_leading_whitespace() {
+        // Real-world paste often arrives with a stray leading
+        // newline; the parser must still resolve the cert content.
+        let padded = format!("\n  {ED25519_CERT_FIXTURE}");
+        let parsed = parse_openssh_cert(padded.as_bytes()).unwrap();
+        assert_eq!(parsed.principals, vec!["host.example.com".to_string()]);
     }
 }

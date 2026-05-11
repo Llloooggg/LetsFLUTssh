@@ -437,6 +437,13 @@ Centralised key store so a single key can be referenced from many sessions.
 - v3 files use Argon2id KDF — derivation is CPU-bound (deliberately). The first import of a v3 file is usually under a second; the worker runs natively in the Rust core (`russh-keys::PrivateKey::from_ppk` over RustCrypto Argon2id), not via a Dart-side KDF library.
 - Memory-cost cap: 1 GiB. Files asking for more (crafted DoS payloads) are rejected with a targeted error before any derivation runs.
 
+### Pairing a certificate to a key
+
+- Open **Tools → SSH Keys**, find the row for the key the certificate was issued for, tap the certificate icon → **Import certificate**, then select the `*-cert.pub` file the CA produced via `ssh-keygen -s ca_key id_ed25519.pub`.
+- The row picks up a tertiary line showing the principals (clipped at three visible, `+N` tail), the validity end date, and a `Critical options: N` summary when the cert carries any. An expired certificate (`valid_before < now`) renders a red dot + **Expired** pill in the row's trailing slot.
+- To detach the cert later, tap the same icon again → confirm. After removal the next connect attempt falls back to plain public-key auth.
+- The cert pairing is opportunistic — the connect path prefers cert auth whenever a paired certificate exists for the key the session references, otherwise it uses the plain key.
+
 ---
 
 ## 11. Tags

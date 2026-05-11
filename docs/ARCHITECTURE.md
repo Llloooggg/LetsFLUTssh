@@ -1448,6 +1448,19 @@ enum SshKeyType { ed25519, rsa2048, rsa4096 }
 
 **Session integration:** `SessionAuth.keyId` references a key by ID. Resolved in `SessionConnect._resolveConfig()` via the staging path (`db_ssh_keys_stage_secret`) so the PEM bytes are pulled out of `SecretStore` Rust-side and never round-trip through the Dart heap on the connect path. The SSH layer reads them off the SecretStore id russh receives.
 
+#### OpenSSH certificates
+
+A stored SSH key may carry an OpenSSH user certificate — a public key signed by a trusted CA the server lists under `TrustedUserCAKeys`. Certificates rotate often (typical lifetimes are hours to days) so the storage shape keeps them on a side table that the row listing joins onto when surfaced:
+
+- **Schema.** `ssh_key_certificates` (PK = `key_id` TEXT, FK → `ssh_keys.id` ON DELETE CASCADE). Columns: `certificate BLOB`, `valid_after INTEGER`, `valid_before INTEGER` (both unix seconds matching the OpenSSH wire format), `principals TEXT` (serialised JSON array — opaque, order preserved by the BTree), `critical_options TEXT` (serialised JSON object — `force-command`, `source-address`, etc.), `fingerprint TEXT` (`SHA256:<base64-no-pad>` over the cert blob). One row per stored key — pairing a new cert to the same key replaces the old row via `ON CONFLICT(key_id) DO UPDATE`.
+- **Parser.** `lfs_core::keys::parse_openssh_cert(bytes) -> CertSummary` decodes the armored / raw cert through the russh-fork `Certificate::from_openssh` API and projects the principals / validity window / critical options + a stable fingerprint. The russh `Certificate` itself does not cross the FRB boundary — only the typed summary does. Exposed via `keys_parse_openssh_cert` (sync FRB call; the parse is base64 + ssh-key crate walk, well under a millisecond).
+- **DAO.** `lfs_core::db::ssh_key_certificates::{get, upsert, delete, list_all, stage_secret_into_store, certificate_secret_id}`. The DAO does not enforce the cert/key fingerprint pairing — the UI presents the cert to the user and the server validates the pairing at userauth time (a mismatched cert simply fails the connect with an auth error). `certificate_secret_id` returns `"key.cert.<id>"` so the SecretStore audit sees a uniform namespace.
+- **Connect path.** `lfs_core::connection::auth_compose::prepare_auth` extends the manager-key branch: when `ssh_keys::stage_secret_into_store` succeeds and `ssh_key_certificates::stage_secret_into_store` also returns `true`, the composer emits `PreparedAuthRef::PubkeyCert { key_secret_id, cert_secret_id, passphrase_secret_id }`. The cert-paired branch runs ahead of the plain pubkey branch because cert auth is strictly stronger (CA-signed). The Dart `_authFromConfig` switch maps the variant to `SshAuthPubkeyCertRef`, which the connection actor routes to `Session::connect_pubkey_cert*` (see `rust/crates/lfs_core/src/ssh/mod.rs`).
+- **Key-manager UI.** The key manager row carries an "Import certificate" / "Remove certificate" action paired with each stored key. Expired certs (`validity.to < now`) render a red dot + "Expired" pill in the row's trailing slot. The principals chip-style summary clips at three visible entries with a `+N` tail; critical-options surface as `Critical options: N` so a user with `force-command` set sees the constraint without opening a detail dialog.
+- **Why a side table rather than inline columns.** Most keys do not have a cert attached; inlining a nullable BLOB + four nullable metadata columns on `ssh_keys` would force every key read to pay the BLOB column cost. The join also keeps the cert lifecycle independent — re-importing a rotated cert is a one-row write and never touches the key.
+
+The current shape ships pairing + display + connect-side routing. Auto-renewal (refresh-before-expiry against a CA / signer endpoint) is out of scope for this iteration; the schema reserves no fields for it.
+
 #### Migration framework
 
 Versioned-artefact migration framework running on startup before
@@ -4605,6 +4618,7 @@ All application data is stored in a single SQLite database, opened Rust-side via
 | `Sessions` | SSH sessions (metadata + credentials + `extras` JSON bag) | FK → Folders, FK → SshKeys |
 | `Folders` | Folder tree (self-referencing `parentId`) | self-ref FK |
 | `SshKeys` | SSH key pairs | — |
+| `SshKeyCertificates` | OpenSSH user certificates paired to stored keys | FK → SshKeys, cascade on delete; PK = `key_id` |
 | `KnownHosts` | TOFU host key database | unique(host, port) |
 | `AppConfigs` | Single-row config JSON blob | — |
 | `Tags` | User-defined color tags | unique(name) |
@@ -4713,6 +4727,17 @@ same column shape. Future bumps:
   they are not consumed by any runtime path and exist only as
   documentation when proving a column existed in a given
   pre-floor era for archive-import back-compat.
+- **v2** — adds the `ssh_key_certificates` join table (PK = `key_id`
+  TEXT, FK → `ssh_keys.id` ON DELETE CASCADE) so a stored SSH key
+  can be paired with an OpenSSH user certificate. The bump is
+  purely additive — bootstrap runs the same `CREATE TABLE IF NOT
+  EXISTS` over both v1 and v2 databases — so existing installs
+  pick up the table on the next open without a migration step.
+  `bootstrap_schema` forward-stamps `user_version` whenever the
+  on-disk value is below `SCHEMA_VERSION`; that's safe so long as
+  every accumulated diff between the two values is expressible
+  through additive `CREATE TABLE IF NOT EXISTS` /
+  `CREATE INDEX IF NOT EXISTS` (true through v2).
 
 **Performance indexes are baked into the schema.**
 `bootstrap_schema` issues `CREATE INDEX IF NOT EXISTS` for every

@@ -1648,6 +1648,52 @@ class STr extends S {
   String get publicKeyCopied => 'Public key panoya kopyalandı';
 
   @override
+  String get sshCertificate => 'Sertifika';
+
+  @override
+  String get certImport => 'Sertifika içe aktar';
+
+  @override
+  String get certImportPickerTitle => 'OpenSSH sertifika dosyasını seç';
+
+  @override
+  String get certValidFrom => 'Geçerlilik başlangıcı';
+
+  @override
+  String get certValidTo => 'Geçerlilik bitişi';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Bu sertifikanın süresi yakında dolacak.';
+
+  @override
+  String get certExpired => 'Süresi doldu';
+
+  @override
+  String get certRemove => 'Sertifikayı kaldır';
+
+  @override
+  String get certRemoveConfirmTitle => 'Sertifika kaldırılsın mı?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Sertifika kaldırıldığında oturum düz public key kimlik doğrulamasına geri döner.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Sertifika parse edilemedi: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Bu sertifika seçili anahtarla eşleşmiyor.';
+
+  @override
   String get pastePrivateKey => 'Özel anahtarı yapıştır (PEM)';
 
   @override

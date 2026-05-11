@@ -1648,6 +1648,52 @@ class SId extends S {
   String get publicKeyCopied => 'Kunci publik disalin ke clipboard';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'Import certificate';
+
+  @override
+  String get certImportPickerTitle => 'Pilih file certificate OpenSSH';
+
+  @override
+  String get certValidFrom => 'Berlaku sejak';
+
+  @override
+  String get certValidTo => 'Berlaku sampai';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Certificate ini akan segera expired.';
+
+  @override
+  String get certExpired => 'Expired';
+
+  @override
+  String get certRemove => 'Hapus certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'Hapus certificate?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Setelah dihapus, sesi akan kembali memakai jalur public key biasa saat connect.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Tidak bisa parse certificate: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Certificate ini tidak dipasangkan dengan key yang dipilih.';
+
+  @override
   String get pastePrivateKey => 'Tempel kunci privat (PEM)';
 
   @override

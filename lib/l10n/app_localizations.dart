@@ -2949,6 +2949,90 @@ abstract class S {
   /// **'Public key copied to clipboard'**
   String get publicKeyCopied;
 
+  /// No description provided for @sshCertificate.
+  ///
+  /// In en, this message translates to:
+  /// **'Certificate'**
+  String get sshCertificate;
+
+  /// No description provided for @certImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import certificate'**
+  String get certImport;
+
+  /// No description provided for @certImportPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select OpenSSH certificate file'**
+  String get certImportPickerTitle;
+
+  /// No description provided for @certValidFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid from'**
+  String get certValidFrom;
+
+  /// No description provided for @certValidTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid until'**
+  String get certValidTo;
+
+  /// No description provided for @certPrincipals.
+  ///
+  /// In en, this message translates to:
+  /// **'Principals'**
+  String get certPrincipals;
+
+  /// No description provided for @certCriticalOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Critical options'**
+  String get certCriticalOptions;
+
+  /// No description provided for @certExpiringBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'This certificate expires soon.'**
+  String get certExpiringBanner;
+
+  /// No description provided for @certExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get certExpired;
+
+  /// No description provided for @certRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove certificate'**
+  String get certRemove;
+
+  /// No description provided for @certRemoveConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove certificate?'**
+  String get certRemoveConfirmTitle;
+
+  /// No description provided for @certRemoveConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The session will fall back to the plain public-key auth path if it tries to connect after the certificate is removed.'**
+  String get certRemoveConfirmBody;
+
+  /// No description provided for @errCertParse.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not parse certificate: {detail}'**
+  String errCertParse(String detail);
+
+  /// No description provided for @errCertPairFingerprintMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'This certificate is not paired to the selected key.'**
+  String get errCertPairFingerprintMismatch;
+
   /// No description provided for @pastePrivateKey.
   ///
   /// In en, this message translates to:

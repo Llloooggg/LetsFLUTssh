@@ -518,6 +518,27 @@
   "keyDeleted": "Schlüssel gelöscht: {label}",
   "publicKey": "Öffentlicher Schlüssel",
   "publicKeyCopied": "Öffentlicher Schlüssel in Zwischenablage kopiert",
+  "sshCertificate": "Zertifikat",
+  "certImport": "Zertifikat importieren",
+  "certImportPickerTitle": "OpenSSH-Zertifikatsdatei auswählen",
+  "certValidFrom": "Gültig ab",
+  "certValidTo": "Gültig bis",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Dieses Zertifikat läuft bald ab.",
+  "certExpired": "Abgelaufen",
+  "certRemove": "Zertifikat entfernen",
+  "certRemoveConfirmTitle": "Zertifikat entfernen?",
+  "certRemoveConfirmBody": "Nach dem Entfernen verbindet sich die Sitzung wieder über den reinen Public-Key-Pfad.",
+  "errCertParse": "Zertifikat konnte nicht geparst werden: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Dieses Zertifikat gehört nicht zum ausgewählten Schlüssel.",
   "pastePrivateKey": "Privaten Schlüssel einfügen (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Ungültige PEM-Schlüsseldaten",

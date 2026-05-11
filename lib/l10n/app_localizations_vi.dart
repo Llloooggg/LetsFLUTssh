@@ -1641,6 +1641,52 @@ class SVi extends S {
   String get publicKeyCopied => 'Đã sao chép khóa công khai vào clipboard';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'Import certificate';
+
+  @override
+  String get certImportPickerTitle => 'Chọn file certificate OpenSSH';
+
+  @override
+  String get certValidFrom => 'Hiệu lực từ';
+
+  @override
+  String get certValidTo => 'Hết hạn';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Certificate này sắp hết hạn.';
+
+  @override
+  String get certExpired => 'Hết hạn';
+
+  @override
+  String get certRemove => 'Xoá certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'Xoá certificate?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Sau khi xoá, lần connect tiếp theo sẽ fallback về public key thường.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Không parse được certificate: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Certificate này không được pair với key đang chọn.';
+
+  @override
   String get pastePrivateKey => 'Dán khóa riêng tư (PEM)';
 
   @override

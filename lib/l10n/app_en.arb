@@ -1069,6 +1069,27 @@
   },
   "publicKey": "Public Key",
   "publicKeyCopied": "Public key copied to clipboard",
+  "sshCertificate": "Certificate",
+  "certImport": "Import certificate",
+  "certImportPickerTitle": "Select OpenSSH certificate file",
+  "certValidFrom": "Valid from",
+  "certValidTo": "Valid until",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "This certificate expires soon.",
+  "certExpired": "Expired",
+  "certRemove": "Remove certificate",
+  "certRemoveConfirmTitle": "Remove certificate?",
+  "certRemoveConfirmBody": "The session will fall back to the plain public-key auth path if it tries to connect after the certificate is removed.",
+  "errCertParse": "Could not parse certificate: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "This certificate is not paired to the selected key.",
   "pastePrivateKey": "Paste Private Key (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Invalid PEM key data",

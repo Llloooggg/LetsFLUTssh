@@ -518,6 +518,27 @@
   "keyDeleted": "Clave eliminada: {label}",
   "publicKey": "Clave pública",
   "publicKeyCopied": "Clave pública copiada al portapapeles",
+  "sshCertificate": "Certificado",
+  "certImport": "Importar certificado",
+  "certImportPickerTitle": "Selecciona el archivo de certificado OpenSSH",
+  "certValidFrom": "Válido desde",
+  "certValidTo": "Válido hasta",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Este certificado expira pronto.",
+  "certExpired": "Expirado",
+  "certRemove": "Quitar certificado",
+  "certRemoveConfirmTitle": "¿Quitar certificado?",
+  "certRemoveConfirmBody": "Tras quitarlo, la sesión se reconectará por clave pública sin certificado.",
+  "errCertParse": "No se pudo parsear el certificado: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Este certificado no está emparejado con la clave seleccionada.",
   "pastePrivateKey": "Pegar clave privada (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Datos de clave PEM inválidos",

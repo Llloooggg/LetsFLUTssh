@@ -38,10 +38,8 @@ impl From<DbPrepareAuthInput> for auth_compose::PrepareAuthInput {
 
 /// FRB-tagged enum mirroring `lfs_core::connection::auth_compose::PreparedAuthRef`.
 /// FRB codegen emits a sealed Dart class with `_Password` /
-/// `_Pubkey` subclasses; the caller pattern-matches instead of
-/// branching on a string discriminant. Replaces an earlier
-/// `DbPreparedAuth { kind: String, … }` shape that was the only
-/// remaining stringly-typed FRB enum in the auth surface.
+/// `_Pubkey` / `_PubkeyCert` subclasses; the caller pattern-matches
+/// instead of branching on a string discriminant.
 #[derive(Debug, Clone)]
 pub enum DbPreparedAuthRef {
     /// Password auth — `secret_id` points at the staged password.
@@ -51,6 +49,15 @@ pub enum DbPreparedAuthRef {
     /// passphrase was staged alongside; `None` for unencrypted keys.
     Pubkey {
         key_secret_id: String,
+        passphrase_secret_id: Option<String>,
+    },
+    /// Pubkey + OpenSSH-certificate auth — `cert_secret_id` points
+    /// at the staged cert blob paired with `key_secret_id`. Picked
+    /// ahead of `Pubkey` whenever the manager key has a cert
+    /// attached.
+    PubkeyCert {
+        key_secret_id: String,
+        cert_secret_id: String,
         passphrase_secret_id: Option<String>,
     },
 }
@@ -77,6 +84,15 @@ impl From<auth_compose::PreparedAuth> for DbPreparedAuth {
                 passphrase_secret_id,
             } => DbPreparedAuthRef::Pubkey {
                 key_secret_id,
+                passphrase_secret_id,
+            },
+            auth_compose::PreparedAuthRef::PubkeyCert {
+                key_secret_id,
+                cert_secret_id,
+                passphrase_secret_id,
+            } => DbPreparedAuthRef::PubkeyCert {
+                key_secret_id,
+                cert_secret_id,
                 passphrase_secret_id,
             },
         };

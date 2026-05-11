@@ -6,6 +6,10 @@ SshKeyMetadata _meta({
   required String id,
   required String label,
   required String keyType,
+  CertValidity? validity,
+  List<String> principals = const [],
+  Map<String, String> criticalOptions = const {},
+  String certFingerprint = '',
 }) => SshKeyMetadata(
   id: id,
   label: label,
@@ -15,6 +19,17 @@ SshKeyMetadata _meta({
   isGenerated: false,
   privateFingerprint: 'priv-$id',
   publicFingerprint: 'pub-$id',
+  validity: validity,
+  principals: principals,
+  criticalOptions: criticalOptions,
+  certFingerprint: certFingerprint,
+);
+
+const _labels = CertRowLabels(
+  principals: 'Principals',
+  validTo: 'Valid until',
+  criticalOptions: 'Critical options',
+  localizedDate: '2026-01-01',
 );
 
 void main() {
@@ -71,6 +86,72 @@ void main() {
     test('empty input list is a no-op for any filter', () {
       expect(filterSshKeys(const [], ''), isEmpty);
       expect(filterSshKeys(const [], 'anything'), isEmpty);
+    });
+  });
+
+  group('buildCertTertiary', () {
+    test('returns null for a metadata row without a cert attached', () {
+      // The row renders without a tertiary slot when no cert is
+      // paired; `null` is the contract `AppDataRow` expects.
+      final entry = _meta(id: '1', label: 'no-cert', keyType: 'ssh-ed25519');
+      expect(buildCertTertiary(entry, _labels), isNull);
+    });
+
+    test(
+      'renders principals + validity + critical-options separated by bullets',
+      () {
+        final entry = _meta(
+          id: '1',
+          label: 'with-cert',
+          keyType: 'ssh-ed25519',
+          certFingerprint: 'SHA256:abc',
+          validity: CertValidity(
+            from: DateTime.utc(2025, 1, 1),
+            to: DateTime.utc(2026, 1, 1),
+          ),
+          principals: const ['alice', 'root'],
+          criticalOptions: const {'force-command': 'echo hi'},
+        );
+        final out = buildCertTertiary(entry, _labels);
+        expect(out, isNotNull);
+        expect(out, contains('Principals: alice, root'));
+        expect(out, contains('Valid until 2026-01-01'));
+        expect(out, contains('Critical options: 1'));
+      },
+    );
+
+    test('clips principals at three visible entries with a +N tail', () {
+      // The principals list can be arbitrarily long; the row is one
+      // line so the helper must clip to keep the chip layout
+      // readable. Cliff at three visible entries + numeric overflow
+      // is the documented contract.
+      final entry = _meta(
+        id: '1',
+        label: 'long',
+        keyType: 'ssh-ed25519',
+        certFingerprint: 'SHA256:abc',
+        principals: const ['a', 'b', 'c', 'd', 'e'],
+      );
+      final out = buildCertTertiary(entry, _labels)!;
+      expect(out, contains('Principals: a, b, c +2'));
+    });
+
+    test('omits the critical-options segment when none are attached', () {
+      // Critical options are uncommon; the tertiary line should not
+      // carry a `: 0` tail when none are set.
+      final entry = _meta(
+        id: '1',
+        label: 'simple',
+        keyType: 'ssh-ed25519',
+        certFingerprint: 'SHA256:abc',
+        principals: const ['alice'],
+        validity: CertValidity(
+          from: DateTime.utc(2025, 1, 1),
+          to: DateTime.utc(2026, 1, 1),
+        ),
+      );
+      final out = buildCertTertiary(entry, _labels)!;
+      expect(out.contains('Critical options'), isFalse);
     });
   });
 }

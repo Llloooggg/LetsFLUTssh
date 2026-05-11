@@ -518,6 +518,27 @@
   "keyDeleted": "Ключ удалён: {label}",
   "publicKey": "Публичный ключ",
   "publicKeyCopied": "Публичный ключ скопирован в буфер обмена",
+  "sshCertificate": "Сертификат",
+  "certImport": "Импортировать сертификат",
+  "certImportPickerTitle": "Выберите файл сертификата OpenSSH",
+  "certValidFrom": "Действителен с",
+  "certValidTo": "Действителен до",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Срок действия сертификата скоро истекает.",
+  "certExpired": "Истёк",
+  "certRemove": "Удалить сертификат",
+  "certRemoveConfirmTitle": "Удалить сертификат?",
+  "certRemoveConfirmBody": "После удаления сертификата сессия будет подключаться по обычному публичному ключу.",
+  "errCertParse": "Не удалось разобрать сертификат: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Этот сертификат не привязан к выбранному ключу.",
   "pastePrivateKey": "Вставить приватный ключ (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Некорректный PEM-ключ",

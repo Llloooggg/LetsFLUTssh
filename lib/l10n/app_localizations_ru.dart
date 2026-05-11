@@ -1659,6 +1659,52 @@ class SRu extends S {
   String get publicKeyCopied => 'Публичный ключ скопирован в буфер обмена';
 
   @override
+  String get sshCertificate => 'Сертификат';
+
+  @override
+  String get certImport => 'Импортировать сертификат';
+
+  @override
+  String get certImportPickerTitle => 'Выберите файл сертификата OpenSSH';
+
+  @override
+  String get certValidFrom => 'Действителен с';
+
+  @override
+  String get certValidTo => 'Действителен до';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Срок действия сертификата скоро истекает.';
+
+  @override
+  String get certExpired => 'Истёк';
+
+  @override
+  String get certRemove => 'Удалить сертификат';
+
+  @override
+  String get certRemoveConfirmTitle => 'Удалить сертификат?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'После удаления сертификата сессия будет подключаться по обычному публичному ключу.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Не удалось разобрать сертификат: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Этот сертификат не привязан к выбранному ключу.';
+
+  @override
   String get pastePrivateKey => 'Вставить приватный ключ (PEM)';
 
   @override

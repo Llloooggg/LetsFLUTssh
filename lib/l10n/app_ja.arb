@@ -518,6 +518,27 @@
   "keyDeleted": "キーを削除しました：{label}",
   "publicKey": "公開鍵",
   "publicKeyCopied": "公開鍵をクリップボードにコピーしました",
+  "sshCertificate": "証明書",
+  "certImport": "証明書をインポート",
+  "certImportPickerTitle": "OpenSSH 証明書ファイルを選択",
+  "certValidFrom": "有効開始",
+  "certValidTo": "有効期限",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "この証明書は間もなく期限切れになります。",
+  "certExpired": "期限切れ",
+  "certRemove": "証明書を削除",
+  "certRemoveConfirmTitle": "証明書を削除しますか？",
+  "certRemoveConfirmBody": "削除すると、次回接続時は通常の公開鍵認証にフォールバックします。",
+  "errCertParse": "証明書をパースできませんでした：{detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "この証明書は選択中の鍵とペアになっていません。",
   "pastePrivateKey": "秘密鍵を貼り付け (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "無効な PEM キーデータ",

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:letsflutssh/core/security/ssh_key.dart';
 
@@ -148,6 +150,58 @@ void main() {
         );
       },
     );
+  });
+
+  group('SshKeyEntry certificate fields', () {
+    test('fromJson defaults to no certificate when fields are absent', () {
+      final restored = SshKeyEntry.fromJson({'id': 'a'});
+      expect(restored.certificate, isNull);
+      expect(restored.validity, isNull);
+      expect(restored.principals, isEmpty);
+      expect(restored.criticalOptions, isEmpty);
+    });
+
+    test('toJson omits certificate fields when no cert is attached', () {
+      // Keys without a cert (the common case) must round-trip
+      // without flooding the wire format with empty defaults — the
+      // archive consumer expects optional keys to be absent.
+      final json = _entry().toJson();
+      expect(json.containsKey('certificate'), isFalse);
+      expect(json.containsKey('valid_from'), isFalse);
+      expect(json.containsKey('valid_to'), isFalse);
+      expect(json.containsKey('principals'), isFalse);
+      expect(json.containsKey('critical_options'), isFalse);
+    });
+
+    test('JSON round-trip with cert fields preserves every value', () {
+      final original = _entry().copyWith(
+        certificate: Uint8List.fromList(const [0xDE, 0xAD, 0xBE, 0xEF]),
+        validity: CertValidity(
+          from: DateTime.utc(2025, 1, 1),
+          to: DateTime.utc(2026, 1, 1),
+        ),
+        principals: const ['alice', 'root'],
+        criticalOptions: const {'force-command': 'echo hi'},
+      );
+      final restored = SshKeyEntry.fromJson(original.toJson());
+      expect(restored.certificate, original.certificate);
+      expect(restored.validity, original.validity);
+      expect(restored.principals, original.principals);
+      expect(restored.criticalOptions, original.criticalOptions);
+    });
+
+    test('CertValidity.isExpired reflects current clock vs to', () {
+      final past = CertValidity(
+        from: DateTime.utc(2020, 1, 1),
+        to: DateTime.utc(2020, 1, 2),
+      );
+      final future = CertValidity(
+        from: DateTime.now().add(const Duration(days: 1)),
+        to: DateTime.now().add(const Duration(days: 30)),
+      );
+      expect(past.isExpired, isTrue);
+      expect(future.isExpired, isFalse);
+    });
   });
 
   group('KeyStoreException', () {

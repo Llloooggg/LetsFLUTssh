@@ -1605,6 +1605,50 @@ class SZh extends S {
   String get publicKeyCopied => '公钥已复制到剪贴板';
 
   @override
+  String get sshCertificate => '证书';
+
+  @override
+  String get certImport => '导入证书';
+
+  @override
+  String get certImportPickerTitle => '选择 OpenSSH 证书文件';
+
+  @override
+  String get certValidFrom => '生效时间';
+
+  @override
+  String get certValidTo => '过期时间';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => '证书即将过期。';
+
+  @override
+  String get certExpired => '已过期';
+
+  @override
+  String get certRemove => '移除证书';
+
+  @override
+  String get certRemoveConfirmTitle => '移除证书？';
+
+  @override
+  String get certRemoveConfirmBody => '移除后，会话将回退到纯公钥认证。';
+
+  @override
+  String errCertParse(String detail) {
+    return '无法解析证书：$detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch => '此证书未与所选密钥配对。';
+
+  @override
   String get pastePrivateKey => '粘贴私钥 (PEM)';
 
   @override

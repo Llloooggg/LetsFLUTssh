@@ -1712,6 +1712,52 @@ class SDe extends S {
       'Öffentlicher Schlüssel in Zwischenablage kopiert';
 
   @override
+  String get sshCertificate => 'Zertifikat';
+
+  @override
+  String get certImport => 'Zertifikat importieren';
+
+  @override
+  String get certImportPickerTitle => 'OpenSSH-Zertifikatsdatei auswählen';
+
+  @override
+  String get certValidFrom => 'Gültig ab';
+
+  @override
+  String get certValidTo => 'Gültig bis';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Dieses Zertifikat läuft bald ab.';
+
+  @override
+  String get certExpired => 'Abgelaufen';
+
+  @override
+  String get certRemove => 'Zertifikat entfernen';
+
+  @override
+  String get certRemoveConfirmTitle => 'Zertifikat entfernen?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Nach dem Entfernen verbindet sich die Sitzung wieder über den reinen Public-Key-Pfad.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Zertifikat konnte nicht geparst werden: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Dieses Zertifikat gehört nicht zum ausgewählten Schlüssel.';
+
+  @override
   String get pastePrivateKey => 'Privaten Schlüssel einfügen (PEM)';
 
   @override

@@ -31,7 +31,7 @@
 //! sqlite into the SecretStore and never round-trip back through
 //! Dart.
 
-use crate::db::{sessions, ssh_keys};
+use crate::db::{sessions, ssh_key_certificates, ssh_keys};
 use crate::error::Error;
 
 /// Inputs to [`prepare_auth`]. All fields are optional / can be
@@ -59,7 +59,13 @@ pub struct PrepareAuthInput {
 }
 
 /// Typed ref returned by [`prepare_auth`]. Mirrors the Dart-era
-/// `SshAuthPasswordRef` / `SshAuthPubkeyRef` family case-for-case.
+/// `SshAuthPasswordRef` / `SshAuthPubkeyRef` / `SshAuthPubkeyCertRef`
+/// family case-for-case. `PubkeyCert` is selected ahead of `Pubkey`
+/// whenever the manager-key path resolves a cert pairing for the
+/// referenced `key_id` — the cert is the strictly stronger
+/// credential (CA-signed) so picking the bare pubkey when a cert is
+/// available would force the user to re-authenticate every time the
+/// short-lived cert rotates server-side.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PreparedAuthRef {
     Password {
@@ -67,6 +73,11 @@ pub enum PreparedAuthRef {
     },
     Pubkey {
         key_secret_id: String,
+        passphrase_secret_id: Option<String>,
+    },
+    PubkeyCert {
+        key_secret_id: String,
+        cert_secret_id: String,
         passphrase_secret_id: Option<String>,
     },
 }
@@ -122,7 +133,11 @@ pub fn prepare_auth(
         }
     }
 
-    // 2. Manager-key path.
+    // 2. Manager-key path. The cert lookup runs ahead of the
+    //    plain-pubkey return so a stored cert is always preferred —
+    //    OpenSSH cert auth is strictly stronger than bare pubkey
+    //    (CA-signed) and bypassing it would force a re-cert dance
+    //    every time the cert's validity window rotates.
     if !input.key_id.is_empty() && ssh_keys::stage_secret_into_store(conn, &input.key_id)? {
         let mut passphrase_secret_id = session_passphrase_id.clone();
         if !input.passphrase.is_empty() && passphrase_secret_id.is_none() {
@@ -133,9 +148,20 @@ pub fn prepare_auth(
             transients.push(id.clone());
             passphrase_secret_id = Some(id);
         }
+        let key_secret_id = format!("key.priv.{}", input.key_id);
+        if ssh_key_certificates::stage_secret_into_store(conn, &input.key_id)? {
+            return Ok(PreparedAuth {
+                auth: PreparedAuthRef::PubkeyCert {
+                    key_secret_id,
+                    cert_secret_id: ssh_key_certificates::certificate_secret_id(&input.key_id),
+                    passphrase_secret_id,
+                },
+                transient_secret_ids: transients,
+            });
+        }
         return Ok(PreparedAuth {
             auth: PreparedAuthRef::Pubkey {
-                key_secret_id: format!("key.priv.{}", input.key_id),
+                key_secret_id,
                 passphrase_secret_id,
             },
             transient_secret_ids: transients,
@@ -430,6 +456,76 @@ mod tests {
             };
             assert!(passphrase_secret_id.is_none());
             assert!(r.transient_secret_ids.is_empty());
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    fn insert_cert(conn: &impl crate::db::DbAccess, key_id: &str, blob: &[u8]) {
+        conn.raw()
+            .execute(
+                "INSERT INTO ssh_key_certificates (\
+                key_id, certificate, valid_after, valid_before, \
+                principals, critical_options, fingerprint\
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![key_id, blob, 0_i64, 0_i64, "[]", "{}", "SHA256:fp",],
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn manager_key_with_paired_cert_returns_pubkey_cert_variant() {
+        // The cert is the strictly stronger credential — when one
+        // is paired to the key the composer must select it over the
+        // plain pubkey path. Otherwise the user re-certifies on
+        // every connect.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            insert_key(c, "k1", "PEM");
+            insert_cert(c, "k1", &[0xDE, 0xAD]);
+            let r = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "k1".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let PreparedAuthRef::PubkeyCert {
+                key_secret_id,
+                cert_secret_id,
+                passphrase_secret_id,
+            } = r.auth
+            else {
+                panic!("expected PubkeyCert");
+            };
+            assert_eq!(key_secret_id, "key.priv.k1");
+            assert_eq!(cert_secret_id, "key.cert.k1");
+            assert!(passphrase_secret_id.is_none());
+            assert!(r.transient_secret_ids.is_empty());
+            Ok::<(), Error>(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn manager_key_without_paired_cert_keeps_returning_plain_pubkey() {
+        // Sanity check that the cert lookup does not regress the
+        // no-cert path. Same shape as
+        // `manager_key_without_typed_passphrase_no_transients` but
+        // covers the explicit ordering the new branch must preserve.
+        let db = fresh_db();
+        db.with_conn(|c| {
+            insert_key(c, "k1", "PEM");
+            let r = prepare_auth(
+                c,
+                &PrepareAuthInput {
+                    key_id: "k1".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            assert!(matches!(r.auth, PreparedAuthRef::Pubkey { .. }));
             Ok::<(), Error>(())
         })
         .unwrap();

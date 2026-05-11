@@ -1688,6 +1688,52 @@ class SEn extends S {
   String get publicKeyCopied => 'Public key copied to clipboard';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'Import certificate';
+
+  @override
+  String get certImportPickerTitle => 'Select OpenSSH certificate file';
+
+  @override
+  String get certValidFrom => 'Valid from';
+
+  @override
+  String get certValidTo => 'Valid until';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'This certificate expires soon.';
+
+  @override
+  String get certExpired => 'Expired';
+
+  @override
+  String get certRemove => 'Remove certificate';
+
+  @override
+  String get certRemoveConfirmTitle => 'Remove certificate?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'The session will fall back to the plain public-key auth path if it tries to connect after the certificate is removed.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Could not parse certificate: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'This certificate is not paired to the selected key.';
+
+  @override
   String get pastePrivateKey => 'Paste Private Key (PEM)';
 
   @override

@@ -94,4 +94,14 @@ sealed class DbPreparedAuthRef with _$DbPreparedAuthRef {
     required String keySecretId,
     String? passphraseSecretId,
   }) = DbPreparedAuthRef_Pubkey;
+
+  /// Pubkey + OpenSSH-certificate auth — `cert_secret_id` points
+  /// at the staged cert blob paired with `key_secret_id`. Picked
+  /// ahead of `Pubkey` whenever the manager key has a cert
+  /// attached.
+  const factory DbPreparedAuthRef.pubkeyCert({
+    required String keySecretId,
+    required String certSecretId,
+    String? passphraseSecretId,
+  }) = DbPreparedAuthRef_PubkeyCert;
 }

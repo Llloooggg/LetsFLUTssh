@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `from`, `from`
 
 /// Generate a fresh Ed25519 keypair tagged with [comment]
 /// (the trailing comment in `authorized_keys` format).
@@ -114,6 +114,62 @@ Future<String?> keysTryReadPemFromPath({required String path}) =>
 /// "couldn't read file" toast.
 Future<String> keysReadTextForManualImport({required String path}) =>
     RustLib.instance.api.crateApiKeysKeysReadTextForManualImport(path: path);
+
+/// Parse an OpenSSH-format certificate (`*-cert.pub` /
+/// armored `-----BEGIN OPENSSH CERTIFICATE-----`) and return a
+/// typed summary the Dart key-manager UI can render. Sync — the
+/// parse is a single base64 decode + ssh-key crate walk; the FRB
+/// hop overhead would dwarf the actual work and the importer fans
+/// this out across every selected cert file during a bulk import.
+///
+/// Returns a localizable error string on parse failure — the Dart
+/// side surfaces it as the `errCertParse` toast.
+DbCertSummary keysParseOpensshCert({required List<int> bytes}) =>
+    RustLib.instance.api.crateApiKeysKeysParseOpensshCert(bytes: bytes);
+
+/// FRB mirror of [`lfs_core::keys::CertSummary`]. The Dart key-
+/// manager UI consumes this to render the principals chip list,
+/// validity row, expired badge, and critical-options summary on
+/// the row paired with a stored SSH key.
+class DbCertSummary {
+  final List<String> principals;
+  final PlatformInt64 validAfterUnix;
+  final PlatformInt64 validBeforeUnix;
+
+  /// `force-command`, `source-address`, etc. — opaque key/value
+  /// pairs the server enforces. `HashMap` rather than a
+  /// preserved-order list because FRB has no `BTreeMap` codec;
+  /// Dart iterates by key for display so order does not matter.
+  final Map<String, String> criticalOptions;
+  final String fingerprint;
+
+  const DbCertSummary({
+    required this.principals,
+    required this.validAfterUnix,
+    required this.validBeforeUnix,
+    required this.criticalOptions,
+    required this.fingerprint,
+  });
+
+  @override
+  int get hashCode =>
+      principals.hashCode ^
+      validAfterUnix.hashCode ^
+      validBeforeUnix.hashCode ^
+      criticalOptions.hashCode ^
+      fingerprint.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbCertSummary &&
+          runtimeType == other.runtimeType &&
+          principals == other.principals &&
+          validAfterUnix == other.validAfterUnix &&
+          validBeforeUnix == other.validBeforeUnix &&
+          criticalOptions == other.criticalOptions &&
+          fingerprint == other.fingerprint;
+}
 
 class KeyMaterial {
   final String privatePem;

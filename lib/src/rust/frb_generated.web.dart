@@ -381,6 +381,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey dco_decode_box_autoadd_db_ssh_key(dynamic raw);
 
   @protected
+  DbSshKeyCertificate dco_decode_box_autoadd_db_ssh_key_certificate(
+    dynamic raw,
+  );
+
+  @protected
   DbStagedImport dco_decode_box_autoadd_db_staged_import(dynamic raw);
 
   @protected
@@ -470,6 +475,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbBiometricAvailability dco_decode_db_biometric_availability(dynamic raw);
+
+  @protected
+  DbCertSummary dco_decode_db_cert_summary(dynamic raw);
 
   @protected
   DbChangelogRelease dco_decode_db_changelog_release(dynamic raw);
@@ -689,6 +697,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey dco_decode_db_ssh_key(dynamic raw);
 
   @protected
+  DbSshKeyCertificate dco_decode_db_ssh_key_certificate(dynamic raw);
+
+  @protected
   DbSshKeyMetadata dco_decode_db_ssh_key_metadata(dynamic raw);
 
   @protected
@@ -873,6 +884,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbSshKey> dco_decode_list_db_ssh_key(dynamic raw);
 
   @protected
+  List<DbSshKeyCertificate> dco_decode_list_db_ssh_key_certificate(dynamic raw);
+
+  @protected
   List<DbSshKeyMetadata> dco_decode_list_db_ssh_key_metadata(dynamic raw);
 
   @protected
@@ -1015,6 +1029,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKey? dco_decode_opt_box_autoadd_db_ssh_key(dynamic raw);
+
+  @protected
+  DbSshKeyCertificate? dco_decode_opt_box_autoadd_db_ssh_key_certificate(
+    dynamic raw,
+  );
 
   @protected
   DbStagedSecrets? dco_decode_opt_box_autoadd_db_staged_secrets(dynamic raw);
@@ -1397,6 +1416,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey sse_decode_box_autoadd_db_ssh_key(SseDeserializer deserializer);
 
   @protected
+  DbSshKeyCertificate sse_decode_box_autoadd_db_ssh_key_certificate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbStagedImport sse_decode_box_autoadd_db_staged_import(
     SseDeserializer deserializer,
   );
@@ -1510,6 +1534,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbBiometricAvailability sse_decode_db_biometric_availability(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DbCertSummary sse_decode_db_cert_summary(SseDeserializer deserializer);
 
   @protected
   DbChangelogRelease sse_decode_db_changelog_release(
@@ -1813,6 +1840,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DbSshKey sse_decode_db_ssh_key(SseDeserializer deserializer);
 
   @protected
+  DbSshKeyCertificate sse_decode_db_ssh_key_certificate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DbSshKeyMetadata sse_decode_db_ssh_key_metadata(SseDeserializer deserializer);
 
   @protected
@@ -2053,6 +2085,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DbSshKey> sse_decode_list_db_ssh_key(SseDeserializer deserializer);
 
   @protected
+  List<DbSshKeyCertificate> sse_decode_list_db_ssh_key_certificate(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<DbSshKeyMetadata> sse_decode_list_db_ssh_key_metadata(
     SseDeserializer deserializer,
   );
@@ -2229,6 +2266,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DbSshKey? sse_decode_opt_box_autoadd_db_ssh_key(SseDeserializer deserializer);
+
+  @protected
+  DbSshKeyCertificate? sse_decode_opt_box_autoadd_db_ssh_key_certificate(
+    SseDeserializer deserializer,
+  );
 
   @protected
   DbStagedSecrets? sse_decode_opt_box_autoadd_db_staged_secrets(
@@ -2697,6 +2739,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_db_ssh_key_certificate(
+    DbSshKeyCertificate self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_db_staged_import(
     DbStagedImport self,
     SseSerializer serializer,
@@ -2836,6 +2884,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     DbBiometricAvailability self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_db_cert_summary(DbCertSummary self, SseSerializer serializer);
 
   @protected
   void sse_encode_db_changelog_release(
@@ -3231,6 +3282,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_db_ssh_key(DbSshKey self, SseSerializer serializer);
 
   @protected
+  void sse_encode_db_ssh_key_certificate(
+    DbSshKeyCertificate self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_db_ssh_key_metadata(
     DbSshKeyMetadata self,
     SseSerializer serializer,
@@ -3543,6 +3600,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_db_ssh_key_certificate(
+    List<DbSshKeyCertificate> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_db_ssh_key_metadata(
     List<DbSshKeyMetadata> self,
     SseSerializer serializer,
@@ -3760,6 +3823,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_db_ssh_key(
     DbSshKey? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_db_ssh_key_certificate(
+    DbSshKeyCertificate? self,
     SseSerializer serializer,
   );
 

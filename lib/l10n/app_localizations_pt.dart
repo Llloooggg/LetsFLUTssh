@@ -1711,6 +1711,53 @@ class SPt extends S {
       'Chave pública copiada para a área de transferência';
 
   @override
+  String get sshCertificate => 'Certificado';
+
+  @override
+  String get certImport => 'Importar certificado';
+
+  @override
+  String get certImportPickerTitle =>
+      'Selecione o arquivo de certificado OpenSSH';
+
+  @override
+  String get certValidFrom => 'Válido a partir de';
+
+  @override
+  String get certValidTo => 'Válido até';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Este certificado expira em breve.';
+
+  @override
+  String get certExpired => 'Expirado';
+
+  @override
+  String get certRemove => 'Remover certificado';
+
+  @override
+  String get certRemoveConfirmTitle => 'Remover certificado?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Após remover, a sessão volta a usar apenas a chave pública na conexão.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Não foi possível parsear o certificado: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Este certificado não está pareado com a chave selecionada.';
+
+  @override
   String get pastePrivateKey => 'Colar chave privada (PEM)';
 
   @override

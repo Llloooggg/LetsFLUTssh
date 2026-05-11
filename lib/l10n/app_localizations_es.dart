@@ -1711,6 +1711,53 @@ class SEs extends S {
   String get publicKeyCopied => 'Clave pública copiada al portapapeles';
 
   @override
+  String get sshCertificate => 'Certificado';
+
+  @override
+  String get certImport => 'Importar certificado';
+
+  @override
+  String get certImportPickerTitle =>
+      'Selecciona el archivo de certificado OpenSSH';
+
+  @override
+  String get certValidFrom => 'Válido desde';
+
+  @override
+  String get certValidTo => 'Válido hasta';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Este certificado expira pronto.';
+
+  @override
+  String get certExpired => 'Expirado';
+
+  @override
+  String get certRemove => 'Quitar certificado';
+
+  @override
+  String get certRemoveConfirmTitle => '¿Quitar certificado?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Tras quitarlo, la sesión se reconectará por clave pública sin certificado.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'No se pudo parsear el certificado: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Este certificado no está emparejado con la clave seleccionada.';
+
+  @override
   String get pastePrivateKey => 'Pegar clave privada (PEM)';
 
   @override

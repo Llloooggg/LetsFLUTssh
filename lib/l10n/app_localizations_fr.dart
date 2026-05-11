@@ -1718,6 +1718,53 @@ class SFr extends S {
   String get publicKeyCopied => 'Clé publique copiée dans le presse-papiers';
 
   @override
+  String get sshCertificate => 'Certificat';
+
+  @override
+  String get certImport => 'Importer un certificat';
+
+  @override
+  String get certImportPickerTitle =>
+      'Sélectionner un fichier de certificat OpenSSH';
+
+  @override
+  String get certValidFrom => 'Valide à partir du';
+
+  @override
+  String get certValidTo => 'Valide jusqu\'au';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'Ce certificat expire bientôt.';
+
+  @override
+  String get certExpired => 'Expiré';
+
+  @override
+  String get certRemove => 'Supprimer le certificat';
+
+  @override
+  String get certRemoveConfirmTitle => 'Supprimer le certificat ?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'Après suppression, la session se reconnectera via la simple clé publique.';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Impossible de parser le certificat : $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'Ce certificat n\'est pas associé à la clé sélectionnée.';
+
+  @override
   String get pastePrivateKey => 'Coller la clé privée (PEM)';
 
   @override

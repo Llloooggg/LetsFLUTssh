@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/security/ssh_key.dart';
@@ -80,18 +82,22 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
   Future<Map<String, SshKeyMetadata>> loadAllMetadata() async {
     try {
       final rows = await rust_db.dbSshKeysListMetadata();
+      // Cert blobs live in a separate join table — one FRB call to
+      // pull every attached cert lets the merge stay O(N) without
+      // an N-FRB-hop fan-out per row.
+      Map<String, rust_db.DbSshKeyCertificate> certs = const {};
+      try {
+        final certRows = await rust_db.dbSshKeyCertificatesListAll();
+        certs = {for (final c in certRows) c.keyId: c};
+      } catch (e) {
+        AppLogger.instance.log(
+          'Failed to load certificate join rows',
+          name: 'SshKeysNotifier',
+          error: e,
+        );
+      }
       return {
-        for (final r in rows)
-          r.id: SshKeyMetadata(
-            id: r.id,
-            label: r.label,
-            publicKey: r.publicKey,
-            keyType: r.keyType,
-            createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
-            isGenerated: r.isGenerated,
-            privateFingerprint: r.privateFingerprint,
-            publicFingerprint: r.publicFingerprint,
-          ),
+        for (final r in rows) r.id: _mergeCertOntoMetadata(r, certs[r.id]),
       };
     } catch (e) {
       // Cold-start race: the provider's `build()` fires before the
@@ -193,4 +199,89 @@ class SshKeysNotifier extends AsyncNotifier<List<SshKeyEntry>> {
     isGenerated: e.isGenerated,
     createdAtMs: e.createdAt.millisecondsSinceEpoch,
   );
+
+  /// Project the `ssh_keys` row + optional `ssh_key_certificates`
+  /// row into a single [SshKeyMetadata]. The cert blob itself is
+  /// dropped here — the listing view only needs the typed summary
+  /// (principals / validity / fingerprint). The bytes are fetched
+  /// on demand by the connect path's SecretStore staging.
+  ///
+  /// `principals` / `criticalOptions` arrive as serialized JSON in
+  /// the DAO row (one TEXT column each); a malformed JSON value is
+  /// logged-and-skipped so a tampered DB row never sinks the whole
+  /// listing.
+  static SshKeyMetadata _mergeCertOntoMetadata(
+    rust_db.DbSshKeyMetadata r,
+    rust_db.DbSshKeyCertificate? cert,
+  ) {
+    CertValidity? validity;
+    List<String> principals = const [];
+    Map<String, String> critical = const {};
+    String certFp = '';
+    if (cert != null) {
+      validity = CertValidity(
+        from: DateTime.fromMillisecondsSinceEpoch(
+          cert.validAfter * 1000,
+          isUtc: true,
+        ),
+        to: DateTime.fromMillisecondsSinceEpoch(
+          cert.validBefore * 1000,
+          isUtc: true,
+        ),
+      );
+      principals = _decodeJsonStringList(cert.principals);
+      critical = _decodeJsonStringMap(cert.criticalOptions);
+      certFp = cert.fingerprint;
+    }
+    return SshKeyMetadata(
+      id: r.id,
+      label: r.label,
+      publicKey: r.publicKey,
+      keyType: r.keyType,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(r.createdAtMs),
+      isGenerated: r.isGenerated,
+      privateFingerprint: r.privateFingerprint,
+      publicFingerprint: r.publicFingerprint,
+      validity: validity,
+      principals: principals,
+      criticalOptions: critical,
+      certFingerprint: certFp,
+    );
+  }
+
+  static List<String> _decodeJsonStringList(String raw) {
+    if (raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.map((e) => e.toString()).toList(growable: false);
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to decode cert principals JSON',
+        name: 'SshKeysNotifier',
+        error: e,
+        level: LogLevel.warn,
+      );
+    }
+    return const [];
+  }
+
+  static Map<String, String> _decodeJsonStringMap(String raw) {
+    if (raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return decoded.map((k, v) => MapEntry(k.toString(), v.toString()));
+      }
+    } catch (e) {
+      AppLogger.instance.log(
+        'Failed to decode cert critical_options JSON',
+        name: 'SshKeysNotifier',
+        error: e,
+        level: LogLevel.warn,
+      );
+    }
+    return const {};
+  }
 }

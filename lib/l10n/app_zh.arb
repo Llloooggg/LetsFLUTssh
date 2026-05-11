@@ -518,6 +518,27 @@
   "keyDeleted": "密钥已删除：{label}",
   "publicKey": "公钥",
   "publicKeyCopied": "公钥已复制到剪贴板",
+  "sshCertificate": "证书",
+  "certImport": "导入证书",
+  "certImportPickerTitle": "选择 OpenSSH 证书文件",
+  "certValidFrom": "生效时间",
+  "certValidTo": "过期时间",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "证书即将过期。",
+  "certExpired": "已过期",
+  "certRemove": "移除证书",
+  "certRemoveConfirmTitle": "移除证书？",
+  "certRemoveConfirmBody": "移除后，会话将回退到纯公钥认证。",
+  "errCertParse": "无法解析证书：{detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "此证书未与所选密钥配对。",
   "pastePrivateKey": "粘贴私钥 (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "无效的 PEM 密钥数据",

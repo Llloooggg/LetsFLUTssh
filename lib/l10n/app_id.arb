@@ -518,6 +518,27 @@
   "keyDeleted": "Kunci dihapus: {label}",
   "publicKey": "Kunci publik",
   "publicKeyCopied": "Kunci publik disalin ke clipboard",
+  "sshCertificate": "Certificate",
+  "certImport": "Import certificate",
+  "certImportPickerTitle": "Pilih file certificate OpenSSH",
+  "certValidFrom": "Berlaku sejak",
+  "certValidTo": "Berlaku sampai",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "Certificate ini akan segera expired.",
+  "certExpired": "Expired",
+  "certRemove": "Hapus certificate",
+  "certRemoveConfirmTitle": "Hapus certificate?",
+  "certRemoveConfirmBody": "Setelah dihapus, sesi akan kembali memakai jalur public key biasa saat connect.",
+  "errCertParse": "Tidak bisa parse certificate: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "Certificate ini tidak dipasangkan dengan key yang dipilih.",
   "pastePrivateKey": "Tempel kunci privat (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "Data kunci PEM tidak valid",

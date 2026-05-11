@@ -1649,6 +1649,52 @@ class SHi extends S {
   String get publicKeyCopied => 'सार्वजनिक कुंजी क्लिपबोर्ड पर कॉपी की गई';
 
   @override
+  String get sshCertificate => 'Certificate';
+
+  @override
+  String get certImport => 'Certificate इम्पोर्ट करें';
+
+  @override
+  String get certImportPickerTitle => 'OpenSSH certificate फ़ाइल चुनें';
+
+  @override
+  String get certValidFrom => 'वैध from';
+
+  @override
+  String get certValidTo => 'वैध until';
+
+  @override
+  String get certPrincipals => 'Principals';
+
+  @override
+  String get certCriticalOptions => 'Critical options';
+
+  @override
+  String get certExpiringBanner => 'यह certificate जल्द ही expire हो जाएगा।';
+
+  @override
+  String get certExpired => 'Expired';
+
+  @override
+  String get certRemove => 'Certificate हटाएं';
+
+  @override
+  String get certRemoveConfirmTitle => 'Certificate हटाएं?';
+
+  @override
+  String get certRemoveConfirmBody =>
+      'हटाने के बाद session फिर से सामान्य public-key auth path से connect होगा।';
+
+  @override
+  String errCertParse(String detail) {
+    return 'Certificate parse नहीं हुआ: $detail';
+  }
+
+  @override
+  String get errCertPairFingerprintMismatch =>
+      'यह certificate चुनी हुई key के साथ pair नहीं है।';
+
+  @override
   String get pastePrivateKey => 'निजी कुंजी चिपकाएं (PEM)';
 
   @override

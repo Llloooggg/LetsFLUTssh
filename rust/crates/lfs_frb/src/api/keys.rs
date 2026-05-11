@@ -5,6 +5,8 @@
 //! private key + OpenSSH public-key string + algorithm tag).
 //! Consumed by `lib/core/security/key_store.dart`.
 
+use std::collections::HashMap;
+
 #[derive(Debug, Clone)]
 pub struct KeyMaterial {
     pub private_pem: String,
@@ -165,6 +167,55 @@ pub async fn keys_read_text_for_manual_import(path: String) -> Result<String, St
     .map_err(|e| format!("read text task: {e}"))?
 }
 
+/// FRB mirror of [`lfs_core::keys::CertSummary`]. The Dart key-
+/// manager UI consumes this to render the principals chip list,
+/// validity row, expired badge, and critical-options summary on
+/// the row paired with a stored SSH key.
+#[derive(Debug, Clone)]
+pub struct DbCertSummary {
+    pub principals: Vec<String>,
+    pub valid_after_unix: i64,
+    pub valid_before_unix: i64,
+    /// `force-command`, `source-address`, etc. — opaque key/value
+    /// pairs the server enforces. `HashMap` rather than a
+    /// preserved-order list because FRB has no `BTreeMap` codec;
+    /// Dart iterates by key for display so order does not matter.
+    pub critical_options: HashMap<String, String>,
+    pub fingerprint: String,
+}
+
+impl From<lfs_core::keys::CertSummary> for DbCertSummary {
+    fn from(s: lfs_core::keys::CertSummary) -> Self {
+        let mut critical_options = HashMap::with_capacity(s.critical_options.len());
+        for (k, v) in s.critical_options {
+            critical_options.insert(k, v);
+        }
+        Self {
+            principals: s.principals,
+            valid_after_unix: s.valid_after_unix,
+            valid_before_unix: s.valid_before_unix,
+            critical_options,
+            fingerprint: s.fingerprint,
+        }
+    }
+}
+
+/// Parse an OpenSSH-format certificate (`*-cert.pub` /
+/// armored `-----BEGIN OPENSSH CERTIFICATE-----`) and return a
+/// typed summary the Dart key-manager UI can render. Sync — the
+/// parse is a single base64 decode + ssh-key crate walk; the FRB
+/// hop overhead would dwarf the actual work and the importer fans
+/// this out across every selected cert file during a bulk import.
+///
+/// Returns a localizable error string on parse failure — the Dart
+/// side surfaces it as the `errCertParse` toast.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keys_parse_openssh_cert(bytes: Vec<u8>) -> Result<DbCertSummary, String> {
+    lfs_core::keys::parse_openssh_cert(&bytes)
+        .map(DbCertSummary::from)
+        .map_err(|e| crate::api::frb_err::from_core(&e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,5 +290,21 @@ b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB\n\
         ));
         assert!(!keys_looks_like_ppk("plain text".into()));
         assert!(!keys_looks_like_ppk("".into()));
+    }
+
+    const ED25519_CERT_FIXTURE: &str = "ssh-ed25519-cert-v01@openssh.com AAAAIHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tAAAAIAYkJPGaYen7NK8MwZwWmNAyRaFNsc86AU9NObU2cM2uAAAAILM+rvN+ot98qgEN796jTiQfZfG1KaT0PtFDJ/XFSqtiAAAAAAAAAAAAAAACAAAAB2VkMjU1MTkAAAAUAAAAEGhvc3QuZXhhbXBsZS5jb20AAAAAYkx3NwAAAAB8DuY3AAAAAAAAAAAAAAAAAAAAMwAAAAtzc2gtZWQyNTUxOQAAACCzPq7zfqLffKoBDe/eo04kH2XxtSmk9D7RQyf1xUqrYgAAAFMAAAALc3NoLWVkMjU1MTkAAABApVXBNiYPlPoa1BYH5G4NP9XtjTMZlm7HO5GdbLSvvAw5Vdob7Ka+23hB7isJKHYtzFGGSKXAqxp/Zi8REbCaAw== user@example.com";
+
+    #[test]
+    fn parse_openssh_cert_round_trips_to_summary() {
+        let summary = keys_parse_openssh_cert(ED25519_CERT_FIXTURE.as_bytes().to_vec()).unwrap();
+        assert_eq!(summary.principals, vec!["host.example.com".to_string()]);
+        assert!(summary.fingerprint.starts_with("SHA256:"));
+        assert!(summary.valid_before_unix > summary.valid_after_unix);
+    }
+
+    #[test]
+    fn parse_openssh_cert_surfaces_localizable_error_on_garbage() {
+        let result = keys_parse_openssh_cert(b"not-a-cert".to_vec());
+        assert!(result.is_err());
     }
 }

@@ -55,12 +55,13 @@ extension DbPreparedAuthRefPatterns on DbPreparedAuthRef {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( DbPreparedAuthRef_Password value)?  password,TResult Function( DbPreparedAuthRef_Pubkey value)?  pubkey,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( DbPreparedAuthRef_Password value)?  password,TResult Function( DbPreparedAuthRef_Pubkey value)?  pubkey,TResult Function( DbPreparedAuthRef_PubkeyCert value)?  pubkeyCert,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password() when password != null:
 return password(_that);case DbPreparedAuthRef_Pubkey() when pubkey != null:
-return pubkey(_that);case _:
+return pubkey(_that);case DbPreparedAuthRef_PubkeyCert() when pubkeyCert != null:
+return pubkeyCert(_that);case _:
   return orElse();
 
 }
@@ -78,12 +79,13 @@ return pubkey(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( DbPreparedAuthRef_Password value)  password,required TResult Function( DbPreparedAuthRef_Pubkey value)  pubkey,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( DbPreparedAuthRef_Password value)  password,required TResult Function( DbPreparedAuthRef_Pubkey value)  pubkey,required TResult Function( DbPreparedAuthRef_PubkeyCert value)  pubkeyCert,}){
 final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password():
 return password(_that);case DbPreparedAuthRef_Pubkey():
-return pubkey(_that);}
+return pubkey(_that);case DbPreparedAuthRef_PubkeyCert():
+return pubkeyCert(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -97,12 +99,13 @@ return pubkey(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( DbPreparedAuthRef_Password value)?  password,TResult? Function( DbPreparedAuthRef_Pubkey value)?  pubkey,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( DbPreparedAuthRef_Password value)?  password,TResult? Function( DbPreparedAuthRef_Pubkey value)?  pubkey,TResult? Function( DbPreparedAuthRef_PubkeyCert value)?  pubkeyCert,}){
 final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password() when password != null:
 return password(_that);case DbPreparedAuthRef_Pubkey() when pubkey != null:
-return pubkey(_that);case _:
+return pubkey(_that);case DbPreparedAuthRef_PubkeyCert() when pubkeyCert != null:
+return pubkeyCert(_that);case _:
   return null;
 
 }
@@ -119,11 +122,12 @@ return pubkey(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String secretId)?  password,TResult Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password() when password != null:
 return password(_that.secretId);case DbPreparedAuthRef_Pubkey() when pubkey != null:
-return pubkey(_that.keySecretId,_that.passphraseSecretId);case _:
+return pubkey(_that.keySecretId,_that.passphraseSecretId);case DbPreparedAuthRef_PubkeyCert() when pubkeyCert != null:
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case _:
   return orElse();
 
 }
@@ -141,11 +145,12 @@ return pubkey(_that.keySecretId,_that.passphraseSecretId);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String secretId)  password,required TResult Function( String keySecretId,  String? passphraseSecretId)  pubkey,required TResult Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)  pubkeyCert,}) {final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password():
 return password(_that.secretId);case DbPreparedAuthRef_Pubkey():
-return pubkey(_that.keySecretId,_that.passphraseSecretId);}
+return pubkey(_that.keySecretId,_that.passphraseSecretId);case DbPreparedAuthRef_PubkeyCert():
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -159,11 +164,12 @@ return pubkey(_that.keySecretId,_that.passphraseSecretId);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String secretId)?  password,TResult? Function( String keySecretId,  String? passphraseSecretId)?  pubkey,TResult? Function( String keySecretId,  String certSecretId,  String? passphraseSecretId)?  pubkeyCert,}) {final _that = this;
 switch (_that) {
 case DbPreparedAuthRef_Password() when password != null:
 return password(_that.secretId);case DbPreparedAuthRef_Pubkey() when pubkey != null:
-return pubkey(_that.keySecretId,_that.passphraseSecretId);case _:
+return pubkey(_that.keySecretId,_that.passphraseSecretId);case DbPreparedAuthRef_PubkeyCert() when pubkeyCert != null:
+return pubkeyCert(_that.keySecretId,_that.certSecretId,_that.passphraseSecretId);case _:
   return null;
 
 }
@@ -297,6 +303,76 @@ class _$DbPreparedAuthRef_PubkeyCopyWithImpl<$Res>
 @pragma('vm:prefer-inline') $Res call({Object? keySecretId = null,Object? passphraseSecretId = freezed,}) {
   return _then(DbPreparedAuthRef_Pubkey(
 keySecretId: null == keySecretId ? _self.keySecretId : keySecretId // ignore: cast_nullable_to_non_nullable
+as String,passphraseSecretId: freezed == passphraseSecretId ? _self.passphraseSecretId : passphraseSecretId // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class DbPreparedAuthRef_PubkeyCert extends DbPreparedAuthRef {
+  const DbPreparedAuthRef_PubkeyCert({required this.keySecretId, required this.certSecretId, this.passphraseSecretId}): super._();
+  
+
+ final  String keySecretId;
+ final  String certSecretId;
+ final  String? passphraseSecretId;
+
+/// Create a copy of DbPreparedAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$DbPreparedAuthRef_PubkeyCertCopyWith<DbPreparedAuthRef_PubkeyCert> get copyWith => _$DbPreparedAuthRef_PubkeyCertCopyWithImpl<DbPreparedAuthRef_PubkeyCert>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DbPreparedAuthRef_PubkeyCert&&(identical(other.keySecretId, keySecretId) || other.keySecretId == keySecretId)&&(identical(other.certSecretId, certSecretId) || other.certSecretId == certSecretId)&&(identical(other.passphraseSecretId, passphraseSecretId) || other.passphraseSecretId == passphraseSecretId));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,keySecretId,certSecretId,passphraseSecretId);
+
+@override
+String toString() {
+  return 'DbPreparedAuthRef.pubkeyCert(keySecretId: $keySecretId, certSecretId: $certSecretId, passphraseSecretId: $passphraseSecretId)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $DbPreparedAuthRef_PubkeyCertCopyWith<$Res> implements $DbPreparedAuthRefCopyWith<$Res> {
+  factory $DbPreparedAuthRef_PubkeyCertCopyWith(DbPreparedAuthRef_PubkeyCert value, $Res Function(DbPreparedAuthRef_PubkeyCert) _then) = _$DbPreparedAuthRef_PubkeyCertCopyWithImpl;
+@useResult
+$Res call({
+ String keySecretId, String certSecretId, String? passphraseSecretId
+});
+
+
+
+
+}
+/// @nodoc
+class _$DbPreparedAuthRef_PubkeyCertCopyWithImpl<$Res>
+    implements $DbPreparedAuthRef_PubkeyCertCopyWith<$Res> {
+  _$DbPreparedAuthRef_PubkeyCertCopyWithImpl(this._self, this._then);
+
+  final DbPreparedAuthRef_PubkeyCert _self;
+  final $Res Function(DbPreparedAuthRef_PubkeyCert) _then;
+
+/// Create a copy of DbPreparedAuthRef
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? keySecretId = null,Object? certSecretId = null,Object? passphraseSecretId = freezed,}) {
+  return _then(DbPreparedAuthRef_PubkeyCert(
+keySecretId: null == keySecretId ? _self.keySecretId : keySecretId // ignore: cast_nullable_to_non_nullable
+as String,certSecretId: null == certSecretId ? _self.certSecretId : certSecretId // ignore: cast_nullable_to_non_nullable
 as String,passphraseSecretId: freezed == passphraseSecretId ? _self.passphraseSecretId : passphraseSecretId // ignore: cast_nullable_to_non_nullable
 as String?,
   ));

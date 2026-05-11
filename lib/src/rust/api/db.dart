@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `require_db`, `run_db_mut_writing_sessions_when`, `run_db_mut_writing_sessions`, `run_db_mut`, `run_db_writing_sessions_when`, `run_db_writing_sessions`, `run_db`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 
 Future<List<DbSshKey>> dbSshKeysListAll() =>
     RustLib.instance.api.crateApiDbDbSshKeysListAll();
@@ -48,6 +48,41 @@ Future<bool> dbSshKeysStageSecret({required String keyId}) =>
 
 Future<List<DbSshKeyMetadata>> dbSshKeysListMetadata() =>
     RustLib.instance.api.crateApiDbDbSshKeysListMetadata();
+
+/// Fetch the certificate paired with `key_id`, or `None` when the
+/// key has no cert attached. Plain read — no SecretStore staging
+/// hop; that lives on the connect path
+/// ([`db_ssh_key_certificate_stage_secret`]).
+Future<DbSshKeyCertificate?> dbSshKeyCertificateGet({required String keyId}) =>
+    RustLib.instance.api.crateApiDbDbSshKeyCertificateGet(keyId: keyId);
+
+/// Insert or replace the certificate paired with `rec.key_id`. The
+/// caller must have validated the fingerprint pairing
+/// (`keys_parse_openssh_cert` + match against the key's public-half
+/// fingerprint) before calling — the DAO does not re-check.
+Future<void> dbSshKeyCertificateUpsert({required DbSshKeyCertificate rec}) =>
+    RustLib.instance.api.crateApiDbDbSshKeyCertificateUpsert(rec: rec);
+
+/// Remove the certificate paired with `key_id`. Returns the number
+/// of rows affected — `0` is a successful no-op when no cert was
+/// attached.
+Future<int> dbSshKeyCertificateDelete({required String keyId}) =>
+    RustLib.instance.api.crateApiDbDbSshKeyCertificateDelete(keyId: keyId);
+
+/// Every certificate row, ordered by `key_id`. Used by archive
+/// export and a future "all certs" diagnostic. Most callers want
+/// [`db_ssh_key_certificate_get`] instead.
+Future<List<DbSshKeyCertificate>> dbSshKeyCertificatesListAll() =>
+    RustLib.instance.api.crateApiDbDbSshKeyCertificatesListAll();
+
+/// Stage the stored cert blob into the SecretStore under
+/// `key.cert.<id>`. Returns `true` when bytes landed, `false` when
+/// the key has no cert attached. The cert is public material, but
+/// routing it through SecretStore keeps the connect cascade
+/// symmetric with `db_ssh_keys_stage_secret` and avoids round-
+/// tripping the bytes through the Dart heap.
+Future<bool> dbSshKeyCertificateStageSecret({required String keyId}) =>
+    RustLib.instance.api.crateApiDbDbSshKeyCertificateStageSecret(keyId: keyId);
 
 Future<List<DbFolder>> dbFoldersListAll() =>
     RustLib.instance.api.crateApiDbDbFoldersListAll();
@@ -1013,6 +1048,53 @@ class DbSshKey {
           keyType == other.keyType &&
           isGenerated == other.isGenerated &&
           createdAtMs == other.createdAtMs;
+}
+
+/// FRB mirror of [`lfs_core::db::ssh_key_certificates::CertRecord`].
+/// One certificate per stored SSH key — the Dart key-manager UI
+/// surfaces the principals / validity / critical-options summary on
+/// the matching row.
+class DbSshKeyCertificate {
+  final String keyId;
+  final Uint8List certificate;
+  final PlatformInt64 validAfter;
+  final PlatformInt64 validBefore;
+  final String principals;
+  final String criticalOptions;
+  final String fingerprint;
+
+  const DbSshKeyCertificate({
+    required this.keyId,
+    required this.certificate,
+    required this.validAfter,
+    required this.validBefore,
+    required this.principals,
+    required this.criticalOptions,
+    required this.fingerprint,
+  });
+
+  @override
+  int get hashCode =>
+      keyId.hashCode ^
+      certificate.hashCode ^
+      validAfter.hashCode ^
+      validBefore.hashCode ^
+      principals.hashCode ^
+      criticalOptions.hashCode ^
+      fingerprint.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DbSshKeyCertificate &&
+          runtimeType == other.runtimeType &&
+          keyId == other.keyId &&
+          certificate == other.certificate &&
+          validAfter == other.validAfter &&
+          validBefore == other.validBefore &&
+          principals == other.principals &&
+          criticalOptions == other.criticalOptions &&
+          fingerprint == other.fingerprint;
 }
 
 /// Listing-only view of `ssh_keys` for UIs that don't need the PEM

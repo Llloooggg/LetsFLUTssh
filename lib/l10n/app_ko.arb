@@ -518,6 +518,27 @@
   "keyDeleted": "키 삭제됨: {label}",
   "publicKey": "공개 키",
   "publicKeyCopied": "공개 키가 클립보드에 복사되었습니다",
+  "sshCertificate": "인증서",
+  "certImport": "인증서 가져오기",
+  "certImportPickerTitle": "OpenSSH 인증서 파일 선택",
+  "certValidFrom": "유효 시작",
+  "certValidTo": "유효 만료",
+  "certPrincipals": "Principals",
+  "certCriticalOptions": "Critical options",
+  "certExpiringBanner": "이 인증서는 곧 만료됩니다.",
+  "certExpired": "만료됨",
+  "certRemove": "인증서 제거",
+  "certRemoveConfirmTitle": "인증서를 제거하시겠습니까?",
+  "certRemoveConfirmBody": "제거 후 재접속 시 일반 공개 키 인증으로 폴백됩니다.",
+  "errCertParse": "인증서 파싱 실패: {detail}",
+  "@errCertParse": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errCertPairFingerprintMismatch": "이 인증서는 선택한 키와 페어가 아닙니다.",
   "pastePrivateKey": "개인 키 붙여넣기 (PEM)",
   "pemHint": "-----BEGIN OPENSSH PRIVATE KEY-----",
   "invalidPem": "잘못된 PEM 키 데이터",
