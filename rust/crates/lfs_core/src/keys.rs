@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 
 use russh::keys::ssh_key::private::{KeypairData, RsaKeypair};
-use russh::keys::ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey};
+use russh::keys::ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey, PublicKey};
 use russh::keys::Certificate;
 
 use crate::error::Error;
@@ -341,6 +341,42 @@ pub fn parse_openssh_cert(bytes: &[u8]) -> Result<CertSummary, Error> {
         critical_options,
         fingerprint,
     })
+}
+
+/// Verify that `cert_bytes` (OpenSSH `*-cert.pub` text) is signed
+/// for the same public key as `pubkey_openssh` (OpenSSH `*.pub`
+/// text — the user-stored key the cert is supposed to pair to).
+///
+/// Compares SHA-256 fingerprints of the SSH wire-format public-key
+/// blob: the cert's bound key (extracted via `Certificate::public_key`)
+/// against the user-supplied key (parsed via `PublicKey::from_openssh`).
+/// Returns `Ok(true)` only when both fingerprints match byte-for-byte.
+///
+/// Why fingerprint-based, not key-bytes-based: the user-supplied
+/// OpenSSH text may carry a trailing comment, CRLF/LF differences,
+/// or trailing whitespace that the wire-format key does not. Routing
+/// both through `fingerprint(HashAlg::Sha256)` strips that noise
+/// without loosening the cryptographic check.
+///
+/// Returns `Err` only on parse failure (malformed cert, malformed
+/// public key). A successful parse with a mismatch returns
+/// `Ok(false)` so callers can surface a tailored "wrong key" toast
+/// rather than a generic parse error.
+pub fn cert_matches_key(cert_bytes: &[u8], pubkey_openssh: &str) -> Result<bool, Error> {
+    let trimmed: Vec<u8> = cert_bytes
+        .iter()
+        .copied()
+        .skip_while(|b| b.is_ascii_whitespace())
+        .collect();
+    let cert_str =
+        std::str::from_utf8(&trimmed).map_err(|e| Error::KeyParse(format!("cert utf8: {e}")))?;
+    let cert =
+        Certificate::from_openssh(cert_str).map_err(|e| Error::KeyParse(format!("cert: {e}")))?;
+    let key = PublicKey::from_openssh(pubkey_openssh.trim())
+        .map_err(|e| Error::KeyParse(format!("pubkey: {e}")))?;
+    let cert_fp = cert.public_key().fingerprint(HashAlg::Sha256).to_string();
+    let key_fp = key.fingerprint(HashAlg::Sha256).to_string();
+    Ok(cert_fp == key_fp)
 }
 
 /// Read `path` as UTF-8 text, capped at 32 KiB. Used by the

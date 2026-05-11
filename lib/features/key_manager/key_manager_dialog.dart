@@ -343,6 +343,41 @@ class _KeyManagerPanelState extends ConsumerState<KeyManagerPanel> {
       return;
     }
 
+    // Cert/key pair gate — server would surface a mismatch as a
+    // generic auth failure at connect-time. Catching it on import
+    // produces a tailored "wrong key" toast and avoids persisting
+    // a cert that can never authenticate. Parse failure on either
+    // side falls through to the generic `errCertParse` branch.
+    bool matches;
+    try {
+      matches = rust_keys.keysCertMatchesKey(
+        certBytes: bytes,
+        pubkeyOpenssh: entry.publicKey,
+      );
+    } catch (e) {
+      AppLogger.instance.log(
+        'Cert pair check failed for <label>',
+        name: 'KeyManager',
+        error: e,
+      );
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: s.errCertParse(e.toString()),
+        level: ToastLevel.error,
+      );
+      return;
+    }
+    if (!matches) {
+      if (!mounted) return;
+      Toast.show(
+        context,
+        message: s.errCertPairFingerprintMismatch,
+        level: ToastLevel.error,
+      );
+      return;
+    }
+
     final principalsJson = jsonEncode(summary.principals);
     final criticalJson = jsonEncode(summary.criticalOptions);
     try {

@@ -216,6 +216,23 @@ pub fn keys_parse_openssh_cert(bytes: Vec<u8>) -> Result<DbCertSummary, String> 
         .map_err(|e| crate::api::frb_err::from_core(&e))
 }
 
+/// Check that the OpenSSH certificate in `cert_bytes` is signed for
+/// the public key in `pubkey_openssh`. Routes through
+/// [`lfs_core::keys::cert_matches_key`] — SHA-256 fingerprint compare
+/// over the SSH wire-format public-key blob, so trailing comments /
+/// CRLF / extra whitespace in the user-supplied pubkey text are
+/// stripped before the check.
+///
+/// `Ok(false)` is the user-visible "wrong key" branch; the Dart
+/// import flow surfaces it as the `errCertPairFingerprintMismatch`
+/// toast and refuses to persist. `Err(String)` only on parse failure
+/// (cert / pubkey malformed) — Dart routes to `errCertParse`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn keys_cert_matches_key(cert_bytes: Vec<u8>, pubkey_openssh: String) -> Result<bool, String> {
+    lfs_core::keys::cert_matches_key(&cert_bytes, &pubkey_openssh)
+        .map_err(|e| crate::api::frb_err::from_core(&e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

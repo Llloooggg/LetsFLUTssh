@@ -127,6 +127,25 @@ Future<String> keysReadTextForManualImport({required String path}) =>
 DbCertSummary keysParseOpensshCert({required List<int> bytes}) =>
     RustLib.instance.api.crateApiKeysKeysParseOpensshCert(bytes: bytes);
 
+/// Check that the OpenSSH certificate in `cert_bytes` is signed for
+/// the public key in `pubkey_openssh`. Routes through
+/// [`lfs_core::keys::cert_matches_key`] — SHA-256 fingerprint compare
+/// over the SSH wire-format public-key blob, so trailing comments /
+/// CRLF / extra whitespace in the user-supplied pubkey text are
+/// stripped before the check.
+///
+/// `Ok(false)` is the user-visible "wrong key" branch; the Dart
+/// import flow surfaces it as the `errCertPairFingerprintMismatch`
+/// toast and refuses to persist. `Err(String)` only on parse failure
+/// (cert / pubkey malformed) — Dart routes to `errCertParse`.
+bool keysCertMatchesKey({
+  required List<int> certBytes,
+  required String pubkeyOpenssh,
+}) => RustLib.instance.api.crateApiKeysKeysCertMatchesKey(
+  certBytes: certBytes,
+  pubkeyOpenssh: pubkeyOpenssh,
+);
+
 /// FRB mirror of [`lfs_core::keys::CertSummary`]. The Dart key-
 /// manager UI consumes this to render the principals chip list,
 /// validity row, expired badge, and critical-options summary on
